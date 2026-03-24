@@ -7,7 +7,12 @@ function readSource() {
 }
 
 function readTableSource() {
-  return readFileSync(resolve(import.meta.dirname, './containers-table.tsx'), 'utf8');
+  return [
+    './containers-table.tsx',
+    './containers-page.support.ts',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 function readSupportSource() {
@@ -34,6 +39,7 @@ describe('containers page source', () => {
     expect(pageSource).not.toContain('Recently inactive');
     expect(pageSource).toContain('hasBaselineSnapshot: hasObservedSnapshot');
     expect(tableSource).toContain('<TableHead>Role</TableHead>');
+    expect(tableSource).toContain('<TableHead>Backend</TableHead>');
     expect(tableSource).toContain('<TableHead>Stage</TableHead>');
     expect(tableSource).not.toContain('<TableHead>Container</TableHead>');
     expect(tableSource).not.toContain('<p className="text-xs text-muted-foreground">{row.name}</p>');
@@ -47,8 +53,10 @@ describe('containers page source', () => {
     expect(tableSource).toContain('hasRecentlyChangedField');
     expect(tableSource).not.toContain('No longer reported by the platform API');
     expect(tableSource).not.toContain('formatOperatorStatusLabel(row.activity_state ?? row.state)');
-    expect(tableSource).not.toContain('row.status');
     expect(tableSource).toContain('renderContainerPresenceBadge');
+    expect(tableSource).toContain('row.execution_backend');
+    expect(tableSource).toContain("return 'Runtime only'");
+    expect(tableSource).toContain("return 'Runtime + task sandbox'");
     expect(tableSource).toContain("row.presence === 'inactive' ? 'Inactive' : 'Active'");
     expect(tableSource).toContain('sanitizeContainerContextLabel');
     expect(tableSource).toContain("value?.trim().toLowerCase() === 'specialist runtimes'");

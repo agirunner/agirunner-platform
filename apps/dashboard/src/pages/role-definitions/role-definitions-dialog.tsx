@@ -27,6 +27,7 @@ import {
   type LlmProviderRecord,
   type RoleDefinition,
   type RoleFormState,
+  type RoleToolCatalogEntry,
 } from './role-definitions-page.support.js';
 import type {
   RoleAssignmentRecord,
@@ -40,6 +41,7 @@ export function RoleDialog(props: {
   roles: RoleDefinition[];
   providers: LlmProviderRecord[];
   models: LlmModelRecord[];
+  tools: RoleToolCatalogEntry[];
   systemDefault?: SystemDefaultRecord;
   assignments: RoleAssignmentRecord[];
   isModelCatalogLoading: boolean;
@@ -61,17 +63,18 @@ export function RoleDialog(props: {
   );
 
   const [form, setForm] = useState<RoleFormState>(() => {
-    if (props.role) return createRoleForm(props.role);
+    const defaultToolIds = props.tools.map((tool) => tool.id);
+    if (props.role) return createRoleForm(props.role, defaultToolIds);
     if (props.duplicateFrom) {
       const duplicated = syncNativeSearchGrant(
-        createRoleForm(props.duplicateFrom),
+        createRoleForm(props.duplicateFrom, defaultToolIds),
         initialEffectiveModel,
         { enableByDefault: true },
       );
       duplicated.name = '';
       return duplicated;
     }
-    return syncNativeSearchGrant(createRoleForm(null), initialEffectiveModel, {
+    return syncNativeSearchGrant(createRoleForm(null, defaultToolIds), initialEffectiveModel, {
       enableByDefault: true,
     });
   });
@@ -111,7 +114,7 @@ export function RoleDialog(props: {
     selectedModelId,
     props.systemDefault?.modelId,
   );
-  const tools = listAvailableTools(sourceRole, effectiveModel);
+  const tools = listAvailableTools(props.tools, sourceRole, effectiveModel);
   const validation = validateRoleDialog(form, props.roles, props.role);
   const summary = summarizeRoleSetup(form);
 

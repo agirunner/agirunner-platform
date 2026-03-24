@@ -190,6 +190,22 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
             <span className="font-medium">Orchestrator</span>
           </DetailRow>
         )}
+        {entry.execution_backend ? (
+          <DetailRow label="Execution backend">
+            <span className="font-medium">
+              {entry.execution_backend === 'runtime_only'
+                ? 'Runtime-only'
+                : 'Runtime + task sandbox'}
+            </span>
+          </DetailRow>
+        ) : null}
+        {entry.tool_owner ? (
+          <DetailRow label="Tool owner">
+            <span className="font-medium">
+              {entry.tool_owner === 'runtime' ? 'Runtime' : 'Task sandbox'}
+            </span>
+          </DetailRow>
+        ) : null}
         {role && (
           <DetailRow label="Role">
             <span className="font-medium">{role as string}</span>

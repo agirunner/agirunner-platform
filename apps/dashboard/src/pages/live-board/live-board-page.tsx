@@ -65,6 +65,7 @@ import {
   describeWorkerCapacity,
   formatRelativeTimestamp,
   isLiveWorkflow,
+  summarizeExecutionBackendCapacity,
   resolveBoardPosture,
   summarizeActivationHealth,
   summarizeWorkerFleet,
@@ -272,6 +273,11 @@ export function LiveBoardPage(): JSX.Element {
     queryFn: () => dashboardApi.listWorkers(),
     refetchInterval: REFETCH_INTERVAL,
   });
+  const liveContainersQuery = useQuery({
+    queryKey: ['live-containers', 'live-board'],
+    queryFn: () => dashboardApi.fetchLiveContainers(),
+    refetchInterval: REFETCH_INTERVAL,
+  });
 
   const eventsQuery = useQuery({
     queryKey: ['events-recent'],
@@ -300,6 +306,7 @@ export function LiveBoardPage(): JSX.Element {
 
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['workers'] });
+      queryClient.invalidateQueries({ queryKey: ['live-containers'] });
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
       queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
       queryClient.invalidateQueries({ queryKey: ['workflow-board'] });
@@ -314,6 +321,7 @@ export function LiveBoardPage(): JSX.Element {
   const tasks = useMemo(() => normalizeArray<TaskRecord>(tasksQuery.data), [tasksQuery.data]);
   const workers = useMemo(() => normalizeArray<WorkerRecord>(workersQuery.data), [workersQuery.data]);
   const stageGates = approvalsQuery.data?.stage_gates ?? [];
+  const liveContainers = liveContainersQuery.data ?? [];
   const taskSearchIndex = useMemo(() => {
     const index = new Map<string, string>();
     for (const task of tasks) {
@@ -562,6 +570,10 @@ export function LiveBoardPage(): JSX.Element {
     [pagedPlaybookWorkflows],
   );
   const fleetSummary = useMemo(() => summarizeWorkerFleet(workers), [workers]);
+  const executionBackendCapacity = useMemo(
+    () => summarizeExecutionBackendCapacity(liveContainers),
+    [liveContainers],
+  );
   const fleetAttentionCount = countFleetAttentionSignals(fleetSummary);
   const visibleNeedsAttention =
     visibleBlockedWorkItems +
@@ -648,7 +660,11 @@ export function LiveBoardPage(): JSX.Element {
     ? describeTimelineEvent(latestActivity, liveTimelineContext)
     : null;
 
-  const isLoading = workflowsQuery.isLoading || tasksQuery.isLoading || workersQuery.isLoading;
+  const isLoading =
+    workflowsQuery.isLoading ||
+    tasksQuery.isLoading ||
+    workersQuery.isLoading ||
+    liveContainersQuery.isLoading;
 
   if (isLoading) {
     return (
@@ -671,7 +687,11 @@ export function LiveBoardPage(): JSX.Element {
     );
   }
 
-  const hasError = workflowsQuery.error || tasksQuery.error || workersQuery.error;
+  const hasError =
+    workflowsQuery.error ||
+    tasksQuery.error ||
+    workersQuery.error ||
+    liveContainersQuery.error;
   if (hasError) {
     return (
       <div className="p-6 text-red-600">
@@ -784,6 +804,7 @@ export function LiveBoardPage(): JSX.Element {
         spentBoards={visibleSpentBoards}
         tokenPosture={visibleTokenPosture}
         fleetSummary={fleetSummary}
+        executionBackendCapacity={executionBackendCapacity}
         fleetAttentionCount={fleetAttentionCount}
         latestActivityLabel={latestActivityDescriptor?.emphasisLabel ?? 'No recent activity'}
         latestActivityDetail={
@@ -887,6 +908,7 @@ interface KpiCardsProps {
   spentBoards: number;
   tokenPosture: string;
   fleetSummary: ReturnType<typeof summarizeWorkerFleet>;
+  executionBackendCapacity: ReturnType<typeof summarizeExecutionBackendCapacity>;
   fleetAttentionCount: number;
   latestActivityLabel: string;
   latestActivityDetail: string;
@@ -942,6 +964,23 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
       detail: `${props.fleetSummary.busy} busy • ${props.fleetSummary.available} available • ${props.fleetSummary.assignedSteps} assigned`,
       icon: Server,
       color: 'text-indigo-600',
+    },
+    {
+      label: 'Runtime capacity',
+      value: `${props.executionBackendCapacity.runtimeOnlyRuntimes + props.executionBackendCapacity.runtimePlusTaskRuntimes} runtimes`,
+      detail: `${props.executionBackendCapacity.runtimeOnlyRuntimes} runtime-only • ${props.executionBackendCapacity.runtimePlusTaskRuntimes} runtime + task`,
+      icon: Cpu,
+      color: 'text-violet-600',
+    },
+    {
+      label: 'Task sandbox activity',
+      value:
+        props.executionBackendCapacity.taskSandboxes > 0
+          ? `${props.executionBackendCapacity.taskSandboxes} active`
+          : 'No active sandboxes',
+      detail: 'Specialist repo, shell, git, file, artifact upload, and web activity.',
+      icon: Server,
+      color: 'text-amber-600',
     },
     {
       label: 'Latest operator activity',

@@ -252,6 +252,7 @@ export interface DashboardToolTagRecord {
   name: string;
   description?: string | null;
   category?: string | null;
+  owner?: 'runtime' | 'task';
   created_at?: string;
   is_built_in?: boolean;
 }
@@ -847,6 +848,8 @@ export interface DashboardTaskRecord extends Task {
   work_item_title?: string | null;
   stage_name?: string | null;
   activation_id?: string | null;
+  execution_backend: 'runtime_only' | 'runtime_plus_task';
+  used_task_sandbox: boolean;
 }
 
 export interface DashboardPlatformInstructionRecord {
@@ -1354,6 +1357,8 @@ export interface LogEntry {
   is_orchestrator_task?: boolean | null;
   task_title?: string | null;
   role?: string | null;
+  execution_backend?: 'runtime_only' | 'runtime_plus_task' | null;
+  tool_owner?: 'runtime' | 'task' | null;
   actor_type: string;
   actor_id: string;
   actor_name?: string | null;
@@ -1448,6 +1453,7 @@ export interface FleetWorkerRecord {
 export interface DashboardLiveContainerRecord {
   id: string;
   kind: 'orchestrator' | 'runtime' | 'task';
+  execution_backend?: 'runtime_only' | 'runtime_plus_task' | null;
   container_id: string;
   name: string;
   state: string;

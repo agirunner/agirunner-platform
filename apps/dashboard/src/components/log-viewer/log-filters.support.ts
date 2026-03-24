@@ -19,8 +19,11 @@ export function useDebounced(
 
 export function useArrayToggle(
   current: string[],
-  setFilter: (key: 'operations' | 'roles' | 'actors', value: string[]) => void,
-  filterKey: 'operations' | 'roles' | 'actors',
+  setFilter: (
+    key: 'operations' | 'roles' | 'actors' | 'executionBackend' | 'toolOwner',
+    value: string[],
+  ) => void,
+  filterKey: 'operations' | 'roles' | 'actors' | 'executionBackend' | 'toolOwner',
 ) {
   return useCallback(
     (id: string | null) => {
@@ -104,4 +107,30 @@ export const STATUS_ITEMS: ComboboxItem[] = [
   { id: 'completed', label: 'Completed', subtitle: 'Work finished successfully' },
   { id: 'failed', label: 'Failed', subtitle: 'Execution or delivery failure' },
   { id: 'skipped', label: 'Skipped', subtitle: 'Execution intentionally skipped' },
+];
+
+export const EXECUTION_BACKEND_ITEMS: ComboboxItem[] = [
+  {
+    id: 'runtime_only',
+    label: 'Runtime-only',
+    subtitle: 'The loop stayed inside the runtime process.',
+  },
+  {
+    id: 'runtime_plus_task',
+    label: 'Runtime + task sandbox',
+    subtitle: 'The loop ran in runtime and used task sandbox capability.',
+  },
+];
+
+export const TOOL_OWNER_ITEMS: ComboboxItem[] = [
+  {
+    id: 'runtime',
+    label: 'Runtime',
+    subtitle: 'Tool call executed in the runtime process.',
+  },
+  {
+    id: 'task',
+    label: 'Task sandbox',
+    subtitle: 'Tool call executed inside the task sandbox.',
+  },
 ];

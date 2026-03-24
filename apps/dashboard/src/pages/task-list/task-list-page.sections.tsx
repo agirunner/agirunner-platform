@@ -221,7 +221,9 @@ export function TaskListContent(props: {
         <CardTitle>Visible execution steps</CardTitle>
         <p className="text-sm text-muted">
           This page keeps posture, recovery cues, board context, and the correct operator flow in
-          view instead of falling back to a raw step dump.
+          view instead of falling back to a raw step dump. Execution backend and task sandbox usage
+          stay visible so operators can tell whether a step stayed runtime-only or touched a task
+          sandbox.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">

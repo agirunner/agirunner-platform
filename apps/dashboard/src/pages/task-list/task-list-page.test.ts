@@ -32,6 +32,11 @@ describe('task list page source', () => {
     const source = readSource();
     expect(source).toContain('output_pending_assessment');
     expect(source).toContain('escalated');
+    expect(source).toContain('execution_backend');
+    expect(source).toContain('used_task_sandbox');
+    expect(source).toContain('Runtime-only');
+    expect(source).toContain('Runtime + task sandbox');
+    expect(source).toContain('Used sandbox');
     expect(source).toContain('describeTaskNextAction');
     expect(source).toContain('describeTaskScope');
     expect(source).toContain('buildTaskSearchText');
@@ -45,6 +50,7 @@ describe('task list page source', () => {
     expect(source).toContain('lg:hidden');
     expect(source).toContain('TaskMobileCard');
     expect(source).toContain('Board context');
+    expect(source).toContain('Execution backend');
     expect(source).toContain('Next action');
     expect(source).toContain('Open board');
     expect(source).toContain('Open work-item flow');

@@ -11,6 +11,8 @@ import {
   TableRow,
 } from '../../components/ui/table.js';
 import {
+  describeExecutionBackend,
+  describeSandboxUsage,
   describeTaskKind,
   describeTaskNextAction,
   describeTaskScope,
@@ -44,6 +46,10 @@ export function TaskMobileCard(props: { task: TaskListRecord }): JSX.Element {
       </div>
       <div className="flex flex-wrap gap-2">
         <Badge variant="outline">{describeTaskKind(props.task)}</Badge>
+        <Badge variant="outline">{describeExecutionBackend(props.task)}</Badge>
+        {!props.task.is_orchestrator_task ? (
+          <Badge variant="secondary">{describeSandboxUsage(props.task)}</Badge>
+        ) : null}
         {props.task.role ? <Badge variant="outline">{props.task.role}</Badge> : null}
       </div>
       <div className="grid gap-2 text-sm">
@@ -53,6 +59,8 @@ export function TaskMobileCard(props: { task: TaskListRecord }): JSX.Element {
           link={props.task.workflow_id ? `/work/boards/${props.task.workflow_id}` : undefined}
         />
         <TaskMetaRow label="Scope" value={describeTaskScope(props.task)} />
+        <TaskMetaRow label="Execution backend" value={describeExecutionBackend(props.task)} />
+        <TaskMetaRow label="Task sandbox" value={describeSandboxUsage(props.task)} />
         <TaskMetaRow
           label="Owner"
           value={props.task.agent_name ?? props.task.agent_id ?? props.task.assigned_worker ?? 'Unassigned'}
@@ -123,6 +131,10 @@ function TaskTableRow(props: { task: TaskListRecord }): JSX.Element {
               {status.replace(/_/g, ' ')}
             </Badge>
             <Badge variant="outline">{describeTaskKind(props.task)}</Badge>
+            <Badge variant="outline">{describeExecutionBackend(props.task)}</Badge>
+            {!props.task.is_orchestrator_task ? (
+              <Badge variant="secondary">{describeSandboxUsage(props.task)}</Badge>
+            ) : null}
             {props.task.role ? <Badge variant="outline">{props.task.role}</Badge> : null}
           </div>
         </div>
@@ -137,6 +149,7 @@ function TaskTableRow(props: { task: TaskListRecord }): JSX.Element {
             <p>No workflow linked</p>
           )}
           <p className="text-muted">{describeTaskScope(props.task)}</p>
+          <p className="text-muted">{describeExecutionBackend(props.task)}</p>
         </div>
       </TableCell>
       <TableCell className="align-top text-sm">

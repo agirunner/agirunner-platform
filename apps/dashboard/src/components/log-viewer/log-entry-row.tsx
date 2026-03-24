@@ -238,6 +238,26 @@ function getRole(entry: LogEntry): string | null {
   return role && role !== '' ? role : null;
 }
 
+function describeExecutionBackend(value: LogEntry['execution_backend']): string | null {
+  if (value === 'runtime_only') {
+    return 'Runtime-only';
+  }
+  if (value === 'runtime_plus_task') {
+    return 'Runtime + task sandbox';
+  }
+  return null;
+}
+
+function describeToolOwner(value: LogEntry['tool_owner']): string | null {
+  if (value === 'runtime') {
+    return 'Runtime tool';
+  }
+  if (value === 'task') {
+    return 'Task sandbox tool';
+  }
+  return null;
+}
+
 export function LogTableHeader(): JSX.Element {
   return (
     <thead>
@@ -409,6 +429,26 @@ function buildScopeItems(
       title: role,
       tone: 'bg-rose-50 text-rose-600',
     });
+  }
+  if (entry.execution_backend) {
+    const executionBackend = describeExecutionBackend(entry.execution_backend);
+    if (executionBackend) {
+      scopeItems.push({
+        value: executionBackend,
+        title: executionBackend,
+        tone: 'bg-slate-100 text-slate-700',
+      });
+    }
+  }
+  if (entry.tool_owner) {
+    const toolOwner = describeToolOwner(entry.tool_owner);
+    if (toolOwner) {
+      scopeItems.push({
+        value: toolOwner,
+        title: toolOwner,
+        tone: 'bg-emerald-50 text-emerald-700',
+      });
+    }
   }
 
   return scopeItems;

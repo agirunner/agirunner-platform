@@ -54,6 +54,8 @@ interface Task {
   stage_name?: string | null;
   work_item_id?: string | null;
   activation_id?: string | null;
+  execution_backend?: 'runtime_only' | 'runtime_plus_task' | null;
+  used_task_sandbox?: boolean;
   is_orchestrator_task?: boolean;
   agent_id?: string;
   agent_name?: string;
@@ -118,6 +120,20 @@ function describeTaskKind(task: Task): string {
     return 'Escalated specialist step';
   }
   return 'Specialist step';
+}
+
+function describeExecutionBackend(task: Task): string {
+  if (task.execution_backend === 'runtime_only') {
+    return 'Runtime-only';
+  }
+  return 'Runtime + task sandbox';
+}
+
+function describeTaskSandboxUsage(task: Task): string {
+  if (task.execution_backend === 'runtime_only') {
+    return 'No task sandbox';
+  }
+  return task.used_task_sandbox ? 'Used task sandbox' : 'No task sandbox used';
 }
 
 function formatTimestamp(value?: string): string {
@@ -803,6 +819,16 @@ export function TaskDetailPage(): JSX.Element {
               {summarizeId(task.activation_id)}
             </span>
           }
+        />
+        <InfoCard
+          icon={Cpu}
+          label="Execution backend"
+          value={describeExecutionBackend(task)}
+        />
+        <InfoCard
+          icon={Cpu}
+          label="Used task sandbox"
+          value={describeTaskSandboxUsage(task)}
         />
         <InfoCard icon={User} label="Role" value={task.role ?? '-'} />
         <InfoCard icon={Clock} label="Created" value={renderTimestamp(task.created_at)} />

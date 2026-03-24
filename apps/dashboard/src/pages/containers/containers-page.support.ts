@@ -83,6 +83,15 @@ export function formatContainerKindLabel(kind: DashboardLiveContainerRecord['kin
   }
 }
 
+export function formatExecutionBackendLabel(
+  executionBackend: DashboardLiveContainerRecord['execution_backend'],
+): string {
+  if (executionBackend === 'runtime_only') {
+    return 'Runtime only';
+  }
+  return 'Runtime + task sandbox';
+}
+
 export function mergeLiveContainerSessionRows(
   previous: SessionContainerRow[],
   liveRows: DashboardLiveContainerRecord[],
@@ -209,6 +218,7 @@ function buildSearchableFields(row: SessionContainerRow): string[] {
     row.name,
     row.image,
     row.kind,
+    row.execution_backend ?? '',
     row.role_name ?? '',
     row.playbook_name ?? '',
     row.workflow_name ?? '',

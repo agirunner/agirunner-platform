@@ -4,7 +4,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './tools-page.tsx'), 'utf8');
+  return [
+    './tools-page.tsx',
+    './tools-page.support.ts',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 describe('tools page source', () => {
@@ -27,6 +32,10 @@ describe('tools page source', () => {
     const source = readSource();
     expect(source).toContain('TableHeader');
     expect(source).toContain('Category');
+    expect(source).toContain('Owner');
+    expect(source).toContain('describeToolOwner');
+    expect(source).toContain("label: 'Runtime'");
+    expect(source).toContain("label: 'Task sandbox'");
     expect(source).toContain('Badge');
   });
 });

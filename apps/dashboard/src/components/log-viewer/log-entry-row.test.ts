@@ -15,6 +15,8 @@ describe('log entry row source', () => {
     expect(source).toContain('{formatLogRelativeTime(entry.created_at)}');
     expect(source).toContain('>Scope</th>');
     expect(source).toContain('>Activity</th>');
+    expect(source).toContain('entry.execution_backend');
+    expect(source).toContain('entry.tool_owner');
     expect(source).toContain('formatActorLabel(entry)');
     expect(source).toContain('buildScopeItems(entry, role)');
     expect(source).not.toContain("bg-red-500/5");

@@ -16,6 +16,8 @@ export interface TaskListRecord {
   agent_id?: string | null;
   agent_name?: string | null;
   assigned_worker?: string | null;
+  execution_backend?: 'runtime_only' | 'runtime_plus_task' | null;
+  used_task_sandbox?: boolean;
   created_at: string;
   duration_seconds?: number | null;
   started_at?: string | null;
@@ -112,6 +114,20 @@ export function describeTaskScope(task: TaskListRecord): string {
     task.activation_id ? `Activation ${compactIdentifier(task.activation_id)}` : null,
   ].filter((segment): segment is string => Boolean(segment));
   return parts.length > 0 ? parts.join(' • ') : 'No workflow scope';
+}
+
+export function describeExecutionBackend(task: TaskListRecord): string {
+  if (task.execution_backend === 'runtime_only') {
+    return 'Runtime-only';
+  }
+  return 'Runtime + task sandbox';
+}
+
+export function describeSandboxUsage(task: TaskListRecord): string {
+  if (task.execution_backend === 'runtime_only') {
+    return 'No task sandbox';
+  }
+  return task.used_task_sandbox ? 'Used sandbox' : 'No sandbox used';
 }
 
 export function describeTaskNextAction(task: TaskListRecord): string {
@@ -256,6 +272,8 @@ export function buildTaskSearchText(task: TaskListRecord): string {
     task.work_item_id ?? '',
     task.activation_id ?? '',
     task.role ?? '',
+    task.execution_backend ?? '',
+    task.used_task_sandbox ? 'used sandbox' : 'no sandbox',
     task.assigned_worker ?? '',
     task.agent_name ?? task.agent_id ?? '',
   ]

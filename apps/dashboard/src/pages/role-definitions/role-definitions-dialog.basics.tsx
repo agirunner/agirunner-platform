@@ -185,9 +185,9 @@ export function RoleExecutionContainerSection(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Execution container override</CardTitle>
+        <CardTitle>Task sandbox override</CardTitle>
         <CardDescription>
-          Override the default specialist execution container for this role. Leave fields blank to inherit the system defaults from Runtimes.
+          Override the default specialist task sandbox for this role. Leave fields blank to inherit the system defaults from Runtimes.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2">

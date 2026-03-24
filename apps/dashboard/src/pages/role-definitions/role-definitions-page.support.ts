@@ -1,3 +1,5 @@
+import type { DashboardToolTagRecord } from '../../lib/api.js';
+
 export interface RoleDefinition {
   id: string;
   name: string;
@@ -70,17 +72,22 @@ export interface RoleModelOption {
   source: 'catalog' | 'existing';
 }
 
+export interface RoleToolCatalogEntry extends DashboardToolTagRecord {
+  owner?: 'runtime' | 'task';
+}
+
 export const NATIVE_SEARCH_TOOL = 'native_search';
 export const DEFAULT_PULL_POLICY = 'if-not-present';
 
-export const KNOWN_TOOLS = ['file_read', 'file_write', 'file_edit', 'file_list', 'grep', 'glob', 'tool_search', 'shell_exec', 'git_status', 'git_diff', 'git_log', 'git_commit', 'git_push', 'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_search', 'memory_write', 'web_fetch', 'escalate'];
-
-export function createRoleForm(role?: RoleDefinition | null): RoleFormState {
+export function createRoleForm(
+  role?: RoleDefinition | null,
+  defaultToolIds: string[] = [],
+): RoleFormState {
   return {
     name: role?.name ?? '',
     description: role?.description ?? '',
     systemPrompt: role?.system_prompt ?? '',
-    allowedTools: role?.allowed_tools ?? [...KNOWN_TOOLS],
+    allowedTools: role?.allowed_tools ?? [...defaultToolIds],
     isActive: role?.is_active ?? true,
     executionContainer: {
       image: role?.execution_container_config?.image ?? '',
@@ -91,8 +98,11 @@ export function createRoleForm(role?: RoleDefinition | null): RoleFormState {
   };
 }
 
-export function createDuplicateRoleForm(source: RoleDefinition): RoleFormState {
-  const form = createRoleForm(source);
+export function createDuplicateRoleForm(
+  source: RoleDefinition,
+  defaultToolIds: string[] = [],
+): RoleFormState {
+  const form = createRoleForm(source, defaultToolIds);
   form.name = '';
   return form;
 }
@@ -128,16 +138,42 @@ function buildExecutionContainerPayload(form: RoleExecutionContainerFormState) {
 }
 
 export function listAvailableTools(
+  toolCatalog: RoleToolCatalogEntry[],
   role?: RoleDefinition | null,
   model?: LlmModelRecord | null,
-): string[] {
+) {
+  const catalogEntries = toolCatalog.filter(
+    (tool) => tool.id !== NATIVE_SEARCH_TOOL || supportsNativeSearch(model),
+  );
   const storedTools = (role?.allowed_tools ?? []).filter(
     (tool) => tool !== NATIVE_SEARCH_TOOL || supportsNativeSearch(model),
   );
-  const nativeSearchTools = supportsNativeSearch(model) ? [NATIVE_SEARCH_TOOL] : [];
-  return normalizeStringList([...storedTools, ...KNOWN_TOOLS, ...nativeSearchTools]).sort((left, right) =>
-    left.localeCompare(right),
-  );
+  const toolsById = new Map<string, RoleToolCatalogEntry>();
+
+  for (const tool of catalogEntries) {
+    toolsById.set(tool.id, tool);
+  }
+
+  for (const toolId of storedTools) {
+    if (!toolsById.has(toolId)) {
+      toolsById.set(toolId, {
+        id: toolId,
+        name: toolId,
+      });
+    }
+  }
+
+  if (supportsNativeSearch(model) && !toolsById.has(NATIVE_SEARCH_TOOL)) {
+    toolsById.set(NATIVE_SEARCH_TOOL, {
+      id: NATIVE_SEARCH_TOOL,
+      name: NATIVE_SEARCH_TOOL,
+      owner: 'runtime',
+      category: 'search',
+      is_built_in: true,
+    });
+  }
+
+  return [...toolsById.values()].sort((left, right) => left.id.localeCompare(right.id));
 }
 
 export function resolveEffectiveRoleModel(

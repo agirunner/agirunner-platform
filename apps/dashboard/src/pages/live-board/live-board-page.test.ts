@@ -71,6 +71,8 @@ describe('live board page source', () => {
     expect(source).toContain('Delivery progress');
     expect(source).toContain('Attention posture');
     expect(source).toContain('Spend & token coverage');
+    expect(source).toContain('Runtime capacity');
+    expect(source).toContain('Task sandbox activity');
     expect(source).toContain('Latest operator activity');
     expect(source).toContain('board runs reporting spend');
     expect(source).not.toContain('Containers Running');
@@ -80,6 +82,8 @@ describe('live board page source', () => {
   it('turns fleet telemetry into operator-capacity packets instead of raw worker rows', () => {
     const source = readSource();
     expect(source).toContain('summarizeWorkerFleet');
+    expect(source).toContain('dashboardApi.fetchLiveContainers()');
+    expect(source).toContain('summarizeExecutionBackendCapacity');
     expect(source).toContain('describeFleetHeadline');
     expect(source).toContain('describeFleetAttention');
     expect(source).toContain('countFleetAttentionSignals');

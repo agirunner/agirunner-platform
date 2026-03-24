@@ -24,6 +24,7 @@ import {
   fetchRoles,
   deleteRole,
   saveRole,
+  fetchToolCatalog,
 } from './role-definitions-page.api.js';
 import { useRolePageOrchestratorState } from './role-definitions-page.orchestrator.js';
 import {
@@ -42,6 +43,7 @@ export function RoleDefinitionsPage(): JSX.Element {
   const [deletingRole, setDeletingRole] = useState<RoleDefinition | null>(null);
   const [showActiveOnly, setShowActiveOnly] = useState(false);
   const rolesQuery = useQuery({ queryKey: ['roles'], queryFn: fetchRoles });
+  const toolsQuery = useQuery({ queryKey: ['role-tools'], queryFn: fetchToolCatalog });
   const orchestratorState = useRolePageOrchestratorState();
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -81,11 +83,11 @@ export function RoleDefinitionsPage(): JSX.Element {
     },
   });
 
-  if (rolesQuery.isLoading) {
+  if (rolesQuery.isLoading || toolsQuery.isLoading) {
     return <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>;
   }
-  if (rolesQuery.error) {
-    return <div className="p-6"><div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">Failed to load roles: {String(rolesQuery.error)}</div></div>;
+  if (rolesQuery.error || toolsQuery.error) {
+    return <div className="p-6"><div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">Failed to load roles: {String(rolesQuery.error ?? toolsQuery.error)}</div></div>;
   }
 
   const allRoles = [...(rolesQuery.data ?? [])].sort((a, b) => a.name.localeCompare(b.name));
@@ -101,6 +103,7 @@ export function RoleDefinitionsPage(): JSX.Element {
   }
   const dialogProps = {
     roles: allRoles,
+    tools: toolsQuery.data ?? [],
     ...orchestratorState.roleDialogCatalog,
     onSave: saveRole,
   };

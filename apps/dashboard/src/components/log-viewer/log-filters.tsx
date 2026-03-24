@@ -12,8 +12,10 @@ import { useLogRoles } from './hooks/use-log-roles.js';
 import { useLogActors } from './hooks/use-log-actors.js';
 import {
   DEBOUNCE_MS,
+  EXECUTION_BACKEND_ITEMS,
   SOURCE_ITEMS,
   STATUS_ITEMS,
+  TOOL_OWNER_ITEMS,
   mapSavedViewToUrlParams,
   toActorItems,
   toOperationItems,
@@ -89,6 +91,22 @@ export function LogFilters({
   const toggleActor = useArrayToggle(filters.actors, setFilter, 'actors');
   const clearActors = useCallback(() => setFilter('actors', []), [setFilter]);
   const selectedActorIds = useMemo(() => new Set(filters.actors), [filters.actors]);
+  const toggleExecutionBackend = useArrayToggle(
+    filters.executionBackend,
+    setFilter,
+    'executionBackend',
+  );
+  const clearExecutionBackends = useCallback(
+    () => setFilter('executionBackend', []),
+    [setFilter],
+  );
+  const selectedExecutionBackendIds = useMemo(
+    () => new Set(filters.executionBackend),
+    [filters.executionBackend],
+  );
+  const toggleToolOwner = useArrayToggle(filters.toolOwner, setFilter, 'toolOwner');
+  const clearToolOwners = useCallback(() => setFilter('toolOwner', []), [setFilter]);
+  const selectedToolOwnerIds = useMemo(() => new Set(filters.toolOwner), [filters.toolOwner]);
 
   const toggleSource = useCallback(
     (id: string | null) => {
@@ -240,6 +258,38 @@ export function LogFilters({
           multiSelect
           selectedIds={selectedSourceIds}
           onClearAll={clearSources}
+        />
+        <SearchableCombobox
+          items={EXECUTION_BACKEND_ITEMS}
+          value={null}
+          onChange={toggleExecutionBackend}
+          placeholder={
+            filters.executionBackend.length > 0
+              ? `${filters.executionBackend.length} backend${filters.executionBackend.length > 1 ? 's' : ''}`
+              : 'Execution backend'
+          }
+          searchPlaceholder="Search backends..."
+          allGroupLabel="Execution backend"
+          className="w-44"
+          multiSelect
+          selectedIds={selectedExecutionBackendIds}
+          onClearAll={clearExecutionBackends}
+        />
+        <SearchableCombobox
+          items={TOOL_OWNER_ITEMS}
+          value={null}
+          onChange={toggleToolOwner}
+          placeholder={
+            filters.toolOwner.length > 0
+              ? `${filters.toolOwner.length} owner${filters.toolOwner.length > 1 ? 's' : ''}`
+              : 'Tool owner'
+          }
+          searchPlaceholder="Search tool owners..."
+          allGroupLabel="Tool owner"
+          className="w-36"
+          multiSelect
+          selectedIds={selectedToolOwnerIds}
+          onClearAll={clearToolOwners}
         />
         <SearchableCombobox
           items={STATUS_ITEMS}

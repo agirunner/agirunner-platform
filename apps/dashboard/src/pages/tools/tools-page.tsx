@@ -22,6 +22,7 @@ import {
 import { dashboardApi } from '../../lib/api.js';
 import {
   describeToolCategory,
+  describeToolOwner,
   summarizeTools,
   type ToolTag,
 } from './tools-page.support.js';
@@ -154,6 +155,7 @@ export function ToolsPage(): JSX.Element {
                   <TableHead>ID</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Category</TableHead>
+                  <TableHead>Owner</TableHead>
                   <TableHead>Description</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -161,12 +163,19 @@ export function ToolsPage(): JSX.Element {
               <TableBody>
                 {data.map((tool) => {
                   const category = describeToolCategory(tool.category);
+                  const owner = describeToolOwner(tool.owner);
                   return (
                     <TableRow key={tool.id}>
                       <TableCell className="font-mono text-sm">{tool.id}</TableCell>
                       <TableCell className="font-medium">{tool.name}</TableCell>
                       <TableCell>
                         <Badge variant={category.badgeVariant}>{category.label}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1">
+                          <Badge variant={owner.badgeVariant}>{owner.label}</Badge>
+                          <p className="text-xs text-muted">{owner.detail}</p>
+                        </div>
                       </TableCell>
                       <TableCell className="text-sm text-muted">
                         {tool.description?.trim() || '—'}

@@ -23,6 +23,8 @@ export const fetchSystemDefault = (): Promise<SystemDefaultRecord> =>
 export const fetchAssignments = (): Promise<RoleAssignmentRecord[]> =>
   dashboardApi.listLlmAssignments();
 
+export const fetchToolCatalog = () => dashboardApi.listToolTags();
+
 export function saveRole(roleId: string | null, form: RoleFormState) {
   return dashboardApi.saveRoleDefinition(
     roleId,

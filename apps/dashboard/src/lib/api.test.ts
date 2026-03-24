@@ -164,6 +164,26 @@ describe('dashboard api auth/session behavior', () => {
     expect(patchWorkspaceBlock).toContain('settings?: DashboardWorkspaceSettingsInput;');
   });
 
+  it('exposes execution backend and tool ownership in dashboard api contracts', () => {
+    const source = readApiSource();
+    const toolTagBlock = readInterfaceBlock(source, 'DashboardToolTagRecord');
+    const taskBlock = source.slice(
+      source.indexOf('export interface DashboardTaskRecord extends Task {'),
+      source.indexOf('\n}\n', source.indexOf('export interface DashboardTaskRecord extends Task {')),
+    );
+    const logEntryBlock = readInterfaceBlock(source, 'LogEntry');
+    const liveContainerBlock = readInterfaceBlock(source, 'DashboardLiveContainerRecord');
+
+    expect(toolTagBlock).toContain("owner?: 'runtime' | 'task';");
+    expect(taskBlock).toContain("execution_backend: 'runtime_only' | 'runtime_plus_task';");
+    expect(taskBlock).toContain('used_task_sandbox: boolean;');
+    expect(logEntryBlock).toContain("execution_backend?: 'runtime_only' | 'runtime_plus_task' | null;");
+    expect(logEntryBlock).toContain("tool_owner?: 'runtime' | 'task' | null;");
+    expect(liveContainerBlock).toContain(
+      "execution_backend?: 'runtime_only' | 'runtime_plus_task' | null;",
+    );
+  });
+
   it('refreshes token and retries request when access token is expired', async () => {
     writeSession({ accessToken: 'expired-token', tenantId: 'tenant-1' });
 

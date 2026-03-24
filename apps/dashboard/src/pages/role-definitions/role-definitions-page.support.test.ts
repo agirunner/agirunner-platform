@@ -8,6 +8,11 @@ import {
   listAvailableTools,
 } from './role-definitions-page.support.js';
 
+const toolCatalog = [
+  { id: 'file_read', name: 'file_read', owner: 'task' as const },
+  { id: 'git_diff', name: 'git_diff', owner: 'task' as const },
+];
+
 describe('role definitions support helpers', () => {
   it('includes allowed tools and active state in the save payload', () => {
     expect(
@@ -136,6 +141,7 @@ describe('role definitions support helpers', () => {
   it('shows native_search only when the effective model supports provider-native search', () => {
     expect(
       listAvailableTools(
+        toolCatalog,
         { id: 'role-1', name: 'researcher', allowed_tools: ['file_read'] },
         {
           id: 'model-1',
@@ -143,10 +149,11 @@ describe('role definitions support helpers', () => {
           native_search: { mode: 'openai_web_search', defaultEnabled: true },
         },
       ),
-    ).toContain('native_search');
+    ).toContainEqual(expect.objectContaining({ id: 'native_search' }));
 
     expect(
       listAvailableTools(
+        toolCatalog,
         { id: 'role-1', name: 'researcher', allowed_tools: ['file_read', 'native_search'] },
         {
           id: 'model-2',
@@ -154,6 +161,6 @@ describe('role definitions support helpers', () => {
           native_search: null,
         },
       ),
-    ).not.toContain('native_search');
+    ).not.toContainEqual(expect.objectContaining({ id: 'native_search' }));
   });
 });

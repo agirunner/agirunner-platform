@@ -9,6 +9,7 @@ import { Badge } from '../../components/ui/badge.js';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
 import {
   formatContainerKindLabel,
+  formatExecutionBackendLabel,
   hasPendingField,
   hasRecentlyChangedField,
   type ContainerDiffField,
@@ -17,6 +18,7 @@ import {
 
 const TABLE_COLUMN_CLASS_NAMES = [
   'w-[7rem]',
+  'w-[12rem]',
   'w-[12rem]',
   'w-[8rem]',
   'w-[11rem]',
@@ -54,6 +56,7 @@ export function ContainersTable(props: {
           <TableRow className="hover:bg-transparent">
             <TableHead>Status</TableHead>
             <TableHead>Kind</TableHead>
+            <TableHead>Backend</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Playbook</TableHead>
             <TableHead>Workflow</TableHead>
@@ -74,6 +77,11 @@ export function ContainersTable(props: {
               </DiffCell>
               <DiffCell row={row} field="kind" className="py-3">
                 <p className="font-medium text-foreground">{formatContainerKindLabel(row.kind)}</p>
+              </DiffCell>
+              <DiffCell row={row} field="kind" className="py-3">
+                <Badge variant="outline">
+                  {formatExecutionBackendLabel(row.execution_backend)}
+                </Badge>
               </DiffCell>
               <DiffCell row={row} field="role" className="py-3">
                 <CellText>{sanitizeContainerContextLabel(row.role_name)}</CellText>
@@ -128,7 +136,7 @@ function CellText(props: { children: ReactNode }): JSX.Element {
   return <span className="block text-sm text-foreground">{props.children}</span>;
 }
 
-function sanitizeContainerContextLabel(value: string | null): string {
+function sanitizeContainerContextLabel(value: string | null | undefined): string {
   return isSyntheticContainerContextLabel(value) ? '-' : (value?.trim() || '-');
 }
 
@@ -152,7 +160,11 @@ function DiffCell(props: {
   );
 }
 
-function renderEntityLink(id: string | null, label: string | null, hrefBase: string): ReactNode {
+function renderEntityLink(
+  id: string | null | undefined,
+  label: string | null | undefined,
+  hrefBase: string,
+): ReactNode {
   if (isSyntheticContainerContextLabel(label)) {
     return <span className="text-sm text-muted-foreground">-</span>;
   }
@@ -166,11 +178,11 @@ function renderEntityLink(id: string | null, label: string | null, hrefBase: str
   );
 }
 
-function formatLimit(value: string | null): string {
+function formatLimit(value: string | null | undefined): string {
   return value?.trim() ? value : 'Docker default';
 }
 
-function isSyntheticContainerContextLabel(value: string | null): boolean {
+function isSyntheticContainerContextLabel(value: string | null | undefined): boolean {
   return value?.trim().toLowerCase() === 'specialist runtimes';
 }
 

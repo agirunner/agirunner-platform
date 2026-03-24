@@ -21,6 +21,8 @@ export interface LogFilters {
   operations: string[];
   roles: string[];
   actors: string[];
+  executionBackend: string[];
+  toolOwner: string[];
 }
 
 const DEFAULT_LEVEL: LogLevel = 'info';
@@ -53,6 +55,8 @@ const PLURAL_TO_PARAM: Partial<Record<keyof LogFilters, string>> = {
   operations: 'operation',
   roles: 'role',
   actors: 'actor',
+  executionBackend: 'execution_backend',
+  toolOwner: 'tool_owner',
 };
 
 export function useLogFilters() {
@@ -76,6 +80,8 @@ export function useLogFilters() {
       operations: parseList(searchParams.get('operation')),
       roles: parseList(searchParams.get('role')),
       actors: parseList(searchParams.get('actor')),
+      executionBackend: parseList(searchParams.get('execution_backend')),
+      toolOwner: parseList(searchParams.get('tool_owner')),
     }),
     [searchParams],
   );
@@ -201,6 +207,12 @@ export function useLogFilters() {
     if (filters.operations.length > 0) params.operation = filters.operations.join(',');
     if (filters.roles.length > 0) params.role = filters.roles.join(',');
     if (filters.actors.length > 0) params.actor = filters.actors.join(',');
+    if (filters.executionBackend.length > 0) {
+      params.execution_backend = filters.executionBackend.join(',');
+    }
+    if (filters.toolOwner.length > 0) {
+      params.tool_owner = filters.toolOwner.join(',');
+    }
 
     const resolved = resolveTimeRange(filters.time);
     if (resolved) {

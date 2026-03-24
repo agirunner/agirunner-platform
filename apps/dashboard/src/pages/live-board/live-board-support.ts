@@ -1,4 +1,4 @@
-import type { DashboardWorkflowBoardResponse } from '../../lib/api.js';
+import type { DashboardLiveContainerRecord, DashboardWorkflowBoardResponse } from '../../lib/api.js';
 
 export interface LiveBoardWorkflowRecord {
   name?: string;
@@ -52,6 +52,12 @@ export interface LiveBoardFleetSummary {
   assignedSteps: number;
   draining: number;
   heartbeatFailures: number;
+}
+
+export interface ExecutionBackendCapacitySummary {
+  runtimeOnlyRuntimes: number;
+  runtimePlusTaskRuntimes: number;
+  taskSandboxes: number;
 }
 
 type BoardStageSummary = DashboardWorkflowBoardResponse['stage_summary'][number];
@@ -347,6 +353,26 @@ export function describeFleetHeadline(summary: LiveBoardFleetSummary): string {
     return `${summary.busy} worker${summary.busy === 1 ? '' : 's'} actively executing`;
   }
   return `${summary.available} worker${summary.available === 1 ? '' : 's'} ready for new steps`;
+}
+
+export function summarizeExecutionBackendCapacity(
+  containers: DashboardLiveContainerRecord[],
+): ExecutionBackendCapacitySummary {
+  return containers.reduce<ExecutionBackendCapacitySummary>(
+    (summary, container) => {
+      if (container.kind === 'task') {
+        summary.taskSandboxes += 1;
+        return summary;
+      }
+      if (container.execution_backend === 'runtime_only') {
+        summary.runtimeOnlyRuntimes += 1;
+        return summary;
+      }
+      summary.runtimePlusTaskRuntimes += 1;
+      return summary;
+    },
+    { runtimeOnlyRuntimes: 0, runtimePlusTaskRuntimes: 0, taskSandboxes: 0 },
+  );
 }
 
 export function countFleetAttentionSignals(summary: Pick<LiveBoardFleetSummary, 'draining' | 'heartbeatFailures'>): number {

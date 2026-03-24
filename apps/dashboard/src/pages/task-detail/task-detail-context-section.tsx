@@ -28,6 +28,8 @@ interface TaskDetailContextTask {
   stage_name?: string | null;
   work_item_id?: string | null;
   activation_id?: string | null;
+  execution_backend?: 'runtime_only' | 'runtime_plus_task' | null;
+  used_task_sandbox?: boolean;
   type?: string;
 }
 
@@ -82,6 +84,22 @@ export function TaskDetailContextSection({
               { label: 'Stage', value: task.stage_name ?? 'No stage recorded' },
               { label: 'Work item', value: summarizeId(task.work_item_id) },
               { label: 'Activation', value: summarizeId(task.activation_id) },
+              {
+                label: 'Execution backend',
+                value:
+                  task.execution_backend === 'runtime_only'
+                    ? 'Runtime-only'
+                    : 'Runtime + task sandbox',
+              },
+              {
+                label: 'Task sandbox',
+                value:
+                  task.execution_backend === 'runtime_only'
+                    ? 'No task sandbox'
+                    : task.used_task_sandbox
+                      ? 'Used task sandbox'
+                      : 'No task sandbox used',
+              },
             ]}
           />
           <TaskPacketCard

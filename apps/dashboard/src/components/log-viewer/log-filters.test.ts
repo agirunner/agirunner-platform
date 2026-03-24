@@ -12,6 +12,8 @@ describe('log filters source', () => {
     expect(source).toContain('useLogActors(scopedFilters)');
     expect(source).toContain("placeholder={\n            filters.actors.length > 0");
     expect(source).toContain('allGroupLabel="Actors"');
+    expect(source).toContain('allGroupLabel="Execution backend"');
+    expect(source).toContain('allGroupLabel="Tool owner"');
     expect(source).toContain('allGroupLabel="Sources"');
     expect(source).toContain('allGroupLabel="Statuses"');
   });
@@ -42,5 +44,9 @@ describe('log filters source', () => {
     expect(source).toContain("statuses: parseList(searchParams.get('status'))");
     expect(source).toContain("if (filters.statuses.length > 0) params.status = filters.statuses.join(',');");
     expect(source).toContain("sources: parseList(searchParams.get('source'))");
+    expect(source).toContain("executionBackend: parseList(searchParams.get('execution_backend'))");
+    expect(source).toContain("toolOwner: parseList(searchParams.get('tool_owner'))");
+    expect(source).toContain('params.execution_backend = filters.executionBackend.join');
+    expect(source).toContain('params.tool_owner = filters.toolOwner.join');
   });
 });
