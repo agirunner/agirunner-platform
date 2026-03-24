@@ -1160,7 +1160,7 @@ describe('LogService', () => {
       const service = new LogService(pool as never);
 
       const since = new Date('2026-03-08T00:00:00Z');
-      const result = await service.operations('tenant-1', since);
+      const result = await service.operations('tenant-1', { since: since.toISOString() });
 
       expect(result).toEqual([
         { operation: 'llm.chat_stream', count: 1240 },
