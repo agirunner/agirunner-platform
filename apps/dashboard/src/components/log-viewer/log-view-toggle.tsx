@@ -26,7 +26,7 @@ export function LogViewToggle({ mode, onChange }: LogViewToggleProps): JSX.Eleme
           className={cn(
             'h-7 rounded-md border px-2 text-foreground/80 hover:border-border/80 hover:bg-accent/70 hover:text-foreground dark:text-foreground/75 dark:hover:bg-accent/60',
             mode === optionMode &&
-              'border-stone-300 bg-white/92 text-slate-950 shadow-sm hover:border-stone-300 hover:bg-white hover:text-slate-950 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:border-slate-700 dark:hover:bg-slate-900 dark:hover:text-slate-100',
+              'border-sky-600 bg-sky-600 text-white shadow-sm hover:border-sky-600 hover:bg-sky-600 hover:text-white dark:border-sky-400 dark:bg-sky-400 dark:text-sky-950 dark:hover:border-sky-400 dark:hover:bg-sky-400 dark:hover:text-sky-950',
           )}
           onClick={() => onChange(optionMode)}
           title={label}
