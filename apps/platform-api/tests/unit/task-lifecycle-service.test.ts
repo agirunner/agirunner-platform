@@ -3445,6 +3445,210 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
   });
 
+  it('opens a work-item escalation when a workflow task is escalated manually', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-manual-escalate-work-item',
+                state: 'escalated',
+                workflow_id: 'wf-manual',
+                work_item_id: 'wi-manual',
+                stage_name: 'draft',
+                assigned_agent_id: null,
+                assigned_worker_id: null,
+                role: 'developer',
+                title: 'Draft the proposal',
+                metadata: {
+                  escalation_reason: 'Need operator guidance',
+                  escalation_target: 'human',
+                  escalation_awaiting_human: true,
+                },
+              },
+            ],
+          };
+        }
+        if (sql.includes('FROM workflow_subject_escalations') && sql.includes("status = 'open'")) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.startsWith('INSERT INTO workflow_subject_escalations')) {
+          return { rows: [], rowCount: 1 };
+        }
+        if (sql.includes('UPDATE workflow_work_items') && sql.includes("escalation_status = 'open'")) {
+          return { rows: [], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-manual-escalate-work-item',
+        state: 'in_progress',
+        workflow_id: 'wf-manual',
+        work_item_id: 'wi-manual',
+        stage_name: 'draft',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        role: 'developer',
+        title: 'Draft the proposal',
+        metadata: {},
+      }),
+      toTaskResponse: (task) => task,
+    });
+
+    await service.escalateTask(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-manual-escalate-work-item',
+      {
+        reason: 'Need operator guidance',
+      },
+    );
+
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO workflow_subject_escalations'),
+      expect.arrayContaining([
+        'tenant-1',
+        'wf-manual',
+        'wi-manual',
+        expect.objectContaining({
+          kind: 'task',
+          task_id: 'task-manual-escalate-work-item',
+          work_item_id: 'wi-manual',
+        }),
+        'Need operator guidance',
+        'task-manual-escalate-work-item',
+      ]),
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      ['tenant-1', 'wf-manual', 'wi-manual'],
+    );
+  });
+
+  it('opens a work-item escalation when an agent escalates a workflow task to a human', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-agent-escalate-human',
+                state: 'escalated',
+                workflow_id: 'wf-human',
+                work_item_id: 'wi-human',
+                stage_name: 'review',
+                assigned_agent_id: null,
+                assigned_worker_id: null,
+                role: 'developer',
+                title: 'Prepare recommendation',
+                metadata: {
+                  escalation_reason: 'Need operator guidance',
+                  escalation_target: 'human',
+                  escalation_awaiting_human: true,
+                  escalation_depth: 1,
+                },
+              },
+            ],
+          };
+        }
+        if (sql.includes('FROM workflow_subject_escalations') && sql.includes("status = 'open'")) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.startsWith('INSERT INTO workflow_subject_escalations')) {
+          return { rows: [], rowCount: 1 };
+        }
+        if (sql.includes('UPDATE workflow_work_items') && sql.includes("escalation_status = 'open'")) {
+          return { rows: [], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-agent-escalate-human',
+        state: 'in_progress',
+        workflow_id: 'wf-human',
+        work_item_id: 'wi-human',
+        stage_name: 'review',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        role: 'developer',
+        title: 'Prepare recommendation',
+        metadata: {},
+      }),
+      toTaskResponse: (task) => task,
+      getRoleByName: vi.fn(async () => ({
+        escalation_target: 'human',
+        max_escalation_depth: 2,
+      })),
+    });
+
+    await service.agentEscalate(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-agent-escalate-human',
+      {
+        reason: 'Need operator guidance',
+        context_summary: 'Waiting on a policy decision',
+      },
+    );
+
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO workflow_subject_escalations'),
+      expect.arrayContaining([
+        'tenant-1',
+        'wf-human',
+        'wi-human',
+        expect.objectContaining({
+          kind: 'task',
+          task_id: 'task-agent-escalate-human',
+          work_item_id: 'wi-human',
+        }),
+        'Need operator guidance',
+        'task-agent-escalate-human',
+      ]),
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      ['tenant-1', 'wf-human', 'wi-human'],
+    );
+  });
+
   it('treats a repeated manual escalation as idempotent once the task already reflects it', async () => {
     const client = {
       query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
@@ -3799,6 +4003,123 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(client.query).not.toHaveBeenCalled();
   });
 
+  it('clears the work-item escalation when a human resolves an escalated workflow task', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'escalated-task',
+                state: 'ready',
+                workflow_id: 'wf-human',
+                work_item_id: 'wi-human',
+                stage_name: 'review',
+                assigned_agent_id: null,
+                assigned_worker_id: null,
+                input: {
+                  escalation_resolution: {
+                    instructions: 'Proceed with the product decision',
+                    context: { source: 'ops' },
+                  },
+                },
+                metadata: {
+                  escalation_awaiting_human: null,
+                },
+              },
+            ],
+          };
+        }
+        if (sql.includes('FROM workflow_subject_escalations') && sql.includes("status = 'open'")) {
+          return {
+            rowCount: 1,
+            rows: [{ id: 'escalation-open', status: 'open' }],
+          };
+        }
+        if (sql.startsWith('UPDATE workflow_subject_escalations')) {
+          expect(values).toEqual([
+            'tenant-1',
+            'wf-human',
+            'wi-human',
+            'escalation-open',
+            'resolved',
+            'unblock_subject',
+            'Proceed with the product decision',
+            'user',
+            'admin',
+          ]);
+          return { rows: [], rowCount: 1 };
+        }
+        if (sql.includes('SELECT COUNT(*)::int AS count')) {
+          return { rowCount: 1, rows: [{ count: 0 }] };
+        }
+        if (sql.includes('UPDATE workflow_work_items') && sql.includes('escalation_status = NULL')) {
+          return { rows: [], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'escalated-task',
+        state: 'escalated',
+        workflow_id: 'wf-human',
+        work_item_id: 'wi-human',
+        stage_name: 'review',
+        input: {},
+        metadata: {
+          escalation_awaiting_human: true,
+        },
+      }),
+      toTaskResponse: (task) => task,
+    });
+
+    await service.resolveEscalation(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'escalated-task',
+      {
+        instructions: 'Proceed with the product decision',
+        context: { source: 'ops' },
+      },
+    );
+
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE workflow_subject_escalations'),
+      [
+        'tenant-1',
+        'wf-human',
+        'wi-human',
+        'escalation-open',
+        'resolved',
+        'unblock_subject',
+        'Proceed with the product decision',
+        'user',
+        'admin',
+      ],
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      ['tenant-1', 'wf-human', 'wi-human', true, false],
+    );
+  });
+
   it('reopens an escalated source task in pending when escalation resolution would exceed playbook capacity', async () => {
     const eventService = { emit: vi.fn() };
     const parallelismService = {
@@ -3849,6 +4170,32 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               },
             ],
           };
+        }
+        if (sql.includes('FROM workflow_subject_escalations') && sql.includes("status = 'open'")) {
+          if (sql.includes('SELECT COUNT(*)::int AS count')) {
+            return { rowCount: 1, rows: [{ count: 0 }] };
+          }
+          return {
+            rowCount: 1,
+            rows: [{ id: 'escalation-open', status: 'open' }],
+          };
+        }
+        if (sql.startsWith('UPDATE workflow_subject_escalations')) {
+          expect(values).toEqual([
+            'tenant-1',
+            'wf-1',
+            'wi-1',
+            'escalation-open',
+            'resolved',
+            'unblock_subject',
+            null,
+            'task',
+            'escalation-task',
+          ]);
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('UPDATE workflow_work_items') && sql.includes('escalation_status = NULL')) {
+          return { rowCount: 1, rows: [] };
         }
         if (sql.includes('state = $4::task_state')) {
           expect(values).toEqual([
@@ -3926,6 +4273,20 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         }),
       }),
       client,
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE workflow_subject_escalations'),
+      [
+        'tenant-1',
+        'wf-1',
+        'wi-1',
+        'escalation-open',
+        'resolved',
+        'unblock_subject',
+        null,
+        'task',
+        'escalation-task',
+      ],
     );
   });
 

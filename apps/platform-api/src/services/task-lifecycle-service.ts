@@ -42,6 +42,11 @@ import {
   sanitizeSecretLikeRecord,
 } from './secret-redaction.js';
 import {
+  loadOpenWorkItemEscalation,
+  openWorkItemEscalation,
+  resolveWorkItemEscalation,
+} from './work-item-escalations.js';
+import {
   enqueueAndDispatchImmediatePlaybookActivation,
   type ImmediateWorkflowActivationDispatcher,
 } from './workflow-immediate-activation.js';
@@ -2027,6 +2032,7 @@ export class TaskLifecycleService {
         assessment_updated_at: new Date().toISOString(),
       },
       afterUpdate: async (_updatedTask, client) => {
+        await this.maybeOpenTaskWorkItemEscalation(identity.tenantId, task, payload.reason, client);
         await this.enqueuePlaybookActivationIfNeeded(identity, task, 'task.escalated', {
           task_id: taskId,
           task_role: task.role ?? null,
@@ -2279,10 +2285,11 @@ export class TaskLifecycleService {
           escalation_target: 'human',
           escalation_depth: currentDepth + 1,
           escalation_awaiting_human: true,
-        },
-        afterUpdate: async (_updatedTask, client) => {
-          await this.enqueuePlaybookActivationIfNeeded(identity, task, 'task.agent_escalated', {
-            task_id: taskId,
+      },
+      afterUpdate: async (_updatedTask, client) => {
+        await this.maybeOpenTaskWorkItemEscalation(identity.tenantId, task, payload.reason, client);
+        await this.enqueuePlaybookActivationIfNeeded(identity, task, 'task.agent_escalated', {
+          task_id: taskId,
             task_role: task.role ?? null,
             task_title: task.title ?? null,
             work_item_id: task.work_item_id ?? null,
@@ -2340,6 +2347,7 @@ export class TaskLifecycleService {
         escalation_depth: currentDepth + 1,
       },
       afterUpdate: async (updatedTask, client) => {
+        await this.maybeOpenTaskWorkItemEscalation(identity.tenantId, task, payload.reason, client);
         await this.enqueuePlaybookActivationIfNeeded(identity, task, 'task.agent_escalated', {
           task_id: taskId,
           task_role: task.role ?? null,
@@ -2479,6 +2487,15 @@ export class TaskLifecycleService {
         escalation_awaiting_human: null,
       },
       afterUpdate: async (_updatedTask, client) => {
+        await this.maybeResolveTaskWorkItemEscalation(
+          identity.tenantId,
+          task,
+          'unblock_subject',
+          payload.instructions,
+          identity.ownerType,
+          identity.keyPrefix,
+          client,
+        );
         await this.enqueuePlaybookActivationIfNeeded(identity, task, 'task.escalation_resolved', {
           task_id: taskId,
           task_role: task.role ?? null,
@@ -2581,6 +2598,15 @@ export class TaskLifecycleService {
        WHERE tenant_id = $1 AND id = $2`,
       [identity.tenantId, sourceTaskId, nextInput, toStoredTaskState(reopenedState)],
     );
+    await this.maybeResolveTaskWorkItemEscalation(
+      identity.tenantId,
+      sourceTask,
+      'unblock_subject',
+      null,
+      'task',
+      String(completedTask.id),
+      client,
+    );
 
     await this.deps.eventService.emit(
       {
@@ -2617,6 +2643,67 @@ export class TaskLifecycleService {
       },
       client,
     );
+  }
+
+  private async maybeOpenTaskWorkItemEscalation(
+    tenantId: string,
+    task: Record<string, unknown>,
+    reason: string,
+    client: DatabaseClient,
+  ): Promise<void> {
+    const workflowId = readOptionalText(task.workflow_id);
+    const workItemId = readOptionalText(task.work_item_id);
+    const taskId = readOptionalText(task.id);
+    if (!workflowId || !workItemId || !taskId) {
+      return;
+    }
+
+    const linkage = readAssessmentSubjectLinkage(task.input, task.metadata);
+    await openWorkItemEscalation(client, {
+      tenantId,
+      workflowId,
+      workItemId,
+      subjectRef: {
+        kind: 'task',
+        task_id: taskId,
+        work_item_id: workItemId,
+      },
+      subjectRevision: linkage.subjectRevision,
+      reason,
+      createdByTaskId: taskId,
+    });
+  }
+
+  private async maybeResolveTaskWorkItemEscalation(
+    tenantId: string,
+    task: Record<string, unknown>,
+    resolutionAction: 'dismiss' | 'unblock_subject' | 'reopen_subject',
+    feedback: string | null,
+    resolvedByType: string,
+    resolvedById: string,
+    client: DatabaseClient,
+  ): Promise<void> {
+    const workflowId = readOptionalText(task.workflow_id);
+    const workItemId = readOptionalText(task.work_item_id);
+    if (!workflowId || !workItemId) {
+      return;
+    }
+
+    const openEscalation = await loadOpenWorkItemEscalation(client, tenantId, workflowId, workItemId);
+    if (!openEscalation) {
+      return;
+    }
+
+    await resolveWorkItemEscalation(client, {
+      tenantId,
+      workflowId,
+      workItemId,
+      escalationId: openEscalation.id,
+      resolutionAction,
+      feedback,
+      resolvedByType,
+      resolvedById,
+    });
   }
 
   private async createEscalationTaskForRole(
