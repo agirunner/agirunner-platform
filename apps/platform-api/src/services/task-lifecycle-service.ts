@@ -3013,16 +3013,14 @@ function releasesParallelismSlot(previousState: TaskState, nextState: TaskState)
 }
 
 function activeColumnIdFor(definition: ReturnType<typeof parsePlaybookDefinition>): string | null {
-  const explicitActive = definition.board.columns.find(
-    (column) => column.id === 'active' && !column.is_blocked && !column.is_terminal,
-  );
-  if (explicitActive) {
-    return explicitActive.id;
-  }
   const entryColumnId = defaultColumnId(definition);
-  return definition.board.columns.find(
-    (column) => !column.is_blocked && !column.is_terminal && column.id !== entryColumnId,
-  )?.id ?? null;
+  const entryIndex = definition.board.columns.findIndex((column) => column.id === entryColumnId);
+  if (entryIndex < 0) {
+    return null;
+  }
+  return definition.board.columns
+    .slice(entryIndex + 1)
+    .find((column) => !column.is_blocked && !column.is_terminal)?.id ?? null;
 }
 
 interface WorkflowActivationTransition {
