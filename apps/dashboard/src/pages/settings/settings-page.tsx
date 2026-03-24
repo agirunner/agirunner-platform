@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Settings2, Save } from 'lucide-react';
+import { Loader2, Save, Settings2 } from 'lucide-react';
 import { dashboardApi, type DashboardGovernanceRetentionPolicy } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '../../components/ui/card.js';
+import { Card, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Button } from '../../components/ui/button.js';
-import { Badge } from '../../components/ui/badge.js';
 import { Input } from '../../components/ui/input.js';
 import {
   Select,
@@ -24,6 +23,11 @@ const LOG_LEVEL_DESCRIPTIONS: Record<LogLevel, string> = {
   warn: 'Warnings and errors only (unhealthy containers, unexpected exits, OOM)',
   error: 'Errors only (OOM kills, critical failures)',
 };
+
+function isPositiveInteger(value: string): boolean {
+  const parsed = parseInt(value, 10);
+  return !isNaN(parsed) && parsed > 0;
+}
 
 export function SettingsPage(): JSX.Element {
   const queryClient = useQueryClient();
@@ -56,58 +60,58 @@ export function SettingsPage(): JSX.Element {
     setExecLogDays(String(retentionQuery.data.execution_log_retention_days));
   }, [retentionQuery.data]);
 
-  const loggingMutation = useMutation({
-    mutationFn: (newLevel: LogLevel) => dashboardApi.updateLoggingConfig({ level: newLevel }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['governance-logging-config'] });
-      toast.success('Settings saved');
-    },
-    onError: () => {
-      toast.error('Failed to save settings');
-    },
-  });
-  const retentionMutation = useMutation({
-    mutationFn: (payload: Partial<DashboardGovernanceRetentionPolicy>) =>
-      dashboardApi.updateRetentionPolicy(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['retention-policy'] });
-      toast.success('Retention settings saved');
-    },
-    onError: () => {
-      toast.error('Failed to save retention settings');
-    },
-  });
-
-  function handleLoggingSubmit(e: React.FormEvent): void {
-    e.preventDefault();
-    loggingMutation.mutate(level);
-  }
-  function handleRetentionSubmit(e: React.FormEvent): void {
-    e.preventDefault();
-    const archive = parseInt(taskArchiveDays, 10);
-    const del = parseInt(taskDeleteDays, 10);
-    const exec = parseInt(execLogDays, 10);
-
-    if (isNaN(archive) || isNaN(del) || isNaN(exec)) {
-      return;
-    }
-    if (archive < 1 || del < 1 || exec < 1) {
-      return;
-    }
-
-    retentionMutation.mutate({
-      task_archive_after_days: archive,
-      task_delete_after_days: del,
-      execution_log_retention_days: exec,
-    });
-  }
-
   const hasLoggingChanges = loggingQuery.data && level !== loggingQuery.data.level;
   const hasRetentionChanges =
     retentionQuery.data &&
     (taskArchiveDays !== String(retentionQuery.data.task_archive_after_days) ||
       taskDeleteDays !== String(retentionQuery.data.task_delete_after_days) ||
       execLogDays !== String(retentionQuery.data.execution_log_retention_days));
+  const isDirty = Boolean(hasLoggingChanges || hasRetentionChanges);
+  const hasRetentionValidationErrors =
+    !isPositiveInteger(taskArchiveDays) ||
+    !isPositiveInteger(taskDeleteDays) ||
+    !isPositiveInteger(execLogDays);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const operations: Promise<unknown>[] = [];
+
+      if (hasLoggingChanges) {
+        operations.push(dashboardApi.updateLoggingConfig({ level }));
+      }
+
+      if (hasRetentionChanges) {
+        operations.push(
+          dashboardApi.updateRetentionPolicy({
+            task_archive_after_days: parseInt(taskArchiveDays, 10),
+            task_delete_after_days: parseInt(taskDeleteDays, 10),
+            execution_log_retention_days: parseInt(execLogDays, 10),
+          } satisfies Partial<DashboardGovernanceRetentionPolicy>),
+        );
+      }
+
+      await Promise.all(operations);
+    },
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['governance-logging-config'] }),
+        queryClient.invalidateQueries({ queryKey: ['retention-policy'] }),
+      ]);
+      toast.success('Settings saved.');
+    },
+    onError: () => {
+      toast.error('Failed to save settings.');
+    },
+  });
+
+  function handleSubmit(e: React.FormEvent): void {
+    e.preventDefault();
+    if (!isDirty || hasRetentionValidationErrors) {
+      return;
+    }
+    saveMutation.mutate();
+  }
+  const isSaving = saveMutation.isPending;
 
   if (loggingQuery.isLoading || retentionQuery.isLoading) {
     return <div className="p-6 text-muted-foreground">Loading settings...</div>;
@@ -118,121 +122,122 @@ export function SettingsPage(): JSX.Element {
   }
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center gap-2">
-        <Settings2 className="h-6 w-6 text-muted-foreground" />
-        <h1 className="text-2xl font-semibold">Settings</h1>
-      </div>
-
-      <Card className="max-w-lg">
-        <form onSubmit={handleLoggingSubmit}>
-          <CardHeader>
-            <CardTitle>Logging</CardTitle>
-            <CardDescription>
-              Control the minimum log level stored for your tenant. Entries below this level are
-              discarded at ingest time.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
+    <form className="space-y-6 p-6" onSubmit={handleSubmit}>
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div className="space-y-2">
-              <label htmlFor="log-level" className="text-sm font-medium">
-                Minimum Log Level
-              </label>
-              <Select value={level} onValueChange={(v) => setLevel(v as LogLevel)}>
-                <SelectTrigger id="log-level">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LOG_LEVELS.map((l) => (
-                    <SelectItem key={l} value={l}>
-                      {l.charAt(0).toUpperCase() + l.slice(1)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">{LOG_LEVEL_DESCRIPTIONS[level]}</p>
+              <div className="flex items-center gap-2">
+                <Settings2 className="h-5 w-5 text-muted" />
+                <CardTitle className="text-2xl">Settings</CardTitle>
+              </div>
+              <CardDescription className="text-sm leading-6">
+                Configure tenant-wide operational settings for logging and retention in one place.
+              </CardDescription>
             </div>
-
-            {loggingMutation.isError && <p className="text-sm text-red-600">Failed to save settings.</p>}
-            {loggingMutation.isSuccess && <Badge variant="success">Saved successfully</Badge>}
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={loggingMutation.isPending || !hasLoggingChanges}>
-              <Save className="h-4 w-4" />
-              {loggingMutation.isPending ? 'Saving...' : 'Save'}
-            </Button>
-          </CardFooter>
-        </form>
+            <div className="flex flex-wrap gap-2">
+              <Button type="submit" disabled={!isDirty || isSaving || hasRetentionValidationErrors}>
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                Save
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
       </Card>
 
-      <Card className="max-w-lg">
-        <form onSubmit={handleRetentionSubmit}>
-          <CardHeader>
-            <CardTitle>Retention</CardTitle>
-            <CardDescription>
-              Control how long completed tasks and execution logs are kept before archival or deletion.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-5">
-            <div className="space-y-2">
-              <label htmlFor="task-archive" className="text-sm font-medium">
-                Task Archive After (days)
-              </label>
-              <Input
-                id="task-archive"
-                type="number"
-                min={1}
-                value={taskArchiveDays}
-                onChange={(e) => setTaskArchiveDays(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Completed tasks older than this move into archive storage.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="task-delete" className="text-sm font-medium">
-                Task Delete After (days)
-              </label>
-              <Input
-                id="task-delete"
-                type="number"
-                min={1}
-                value={taskDeleteDays}
-                onChange={(e) => setTaskDeleteDays(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Archived tasks older than this are permanently deleted.
-              </p>
-            </div>
-            <div className="space-y-2">
-              <label htmlFor="exec-log" className="text-sm font-medium">
-                Execution Log Retention (days)
-              </label>
-              <Input
-                id="exec-log"
-                type="number"
-                min={1}
-                value={execLogDays}
-                onChange={(e) => setExecLogDays(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Execution log partitions older than this window are dropped.
-              </p>
-            </div>
+      <section className="space-y-4">
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold text-foreground">Logging</h2>
+          <p className="text-sm leading-6 text-muted">
+            Control the minimum log level stored for your tenant. Entries below this level are
+            discarded at ingest time.
+          </p>
+        </div>
+        <div className="grid gap-4">
+          <div className="space-y-2">
+            <label htmlFor="log-level" className="text-sm font-medium">
+              Minimum Log Level
+            </label>
+            <Select value={level} onValueChange={(v) => setLevel(v as LogLevel)}>
+              <SelectTrigger id="log-level">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {LOG_LEVELS.map((l) => (
+                  <SelectItem key={l} value={l}>
+                    {l.charAt(0).toUpperCase() + l.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">{LOG_LEVEL_DESCRIPTIONS[level]}</p>
+          </div>
+        </div>
+      </section>
 
-            {retentionMutation.isError && (
-              <p className="text-sm text-red-600">Failed to save retention settings.</p>
-            )}
-            {retentionMutation.isSuccess && <Badge variant="success">Saved successfully</Badge>}
-          </CardContent>
-          <CardFooter>
-            <Button type="submit" disabled={retentionMutation.isPending || !hasRetentionChanges}>
-              <Save className="h-4 w-4" />
-              {retentionMutation.isPending ? 'Saving...' : 'Save'}
-            </Button>
-          </CardFooter>
-        </form>
-      </Card>
-    </div>
+      <section className="space-y-4 border-t border-border/70 pt-6">
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold text-foreground">Retention</h2>
+          <p className="text-sm leading-6 text-muted">
+            Control how long completed tasks and execution logs are kept before archival or deletion.
+          </p>
+        </div>
+        <div className="grid gap-4">
+          <div className="space-y-2">
+            <label htmlFor="task-archive" className="text-sm font-medium">
+              Task Archive After (days)
+            </label>
+            <Input
+              id="task-archive"
+              type="number"
+              min={1}
+              value={taskArchiveDays}
+              onChange={(e) => setTaskArchiveDays(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Completed tasks older than this move into archive storage.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="task-delete" className="text-sm font-medium">
+              Task Delete After (days)
+            </label>
+            <Input
+              id="task-delete"
+              type="number"
+              min={1}
+              value={taskDeleteDays}
+              onChange={(e) => setTaskDeleteDays(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Archived tasks older than this are permanently deleted.
+            </p>
+          </div>
+          <div className="space-y-2">
+            <label htmlFor="exec-log" className="text-sm font-medium">
+              Execution Log Retention (days)
+            </label>
+            <Input
+              id="exec-log"
+              type="number"
+              min={1}
+              value={execLogDays}
+              onChange={(e) => setExecLogDays(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Execution log partitions older than this window are dropped.
+            </p>
+          </div>
+          {hasRetentionValidationErrors ? (
+            <p className="text-sm text-red-600">Enter positive whole-number retention values before saving.</p>
+          ) : null}
+          {saveMutation.isError ? <p className="text-sm text-red-600">Failed to save settings.</p> : null}
+        </div>
+      </section>
+    </form>
   );
 }
