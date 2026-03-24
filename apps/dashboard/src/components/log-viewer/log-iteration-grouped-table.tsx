@@ -6,7 +6,7 @@ import { LogIterationGroup } from './log-iteration-group.js';
 import { Skeleton } from '../ui/skeleton.js';
 
 const SKELETON_COUNT = 6;
-const COL_COUNT = 9;
+const COL_COUNT = 8;
 
 export interface IterationBucket {
   iteration: number;

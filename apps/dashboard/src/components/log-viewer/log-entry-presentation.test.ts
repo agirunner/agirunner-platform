@@ -70,6 +70,7 @@ describe('log entry presentation', () => {
 
     expect(describeLogActivityTitle(entry)).toBe('Agent observe');
     expect(describeLogToolDisplay(entry)).toBe('Read latest handoff');
+    expect(describeLogActivityDetail(entry)).toBe('Iteration 2 · Read latest handoff');
   });
 
   it('formats tool display with a compact argument summary when present', () => {
@@ -83,6 +84,7 @@ describe('log entry presentation', () => {
     });
 
     expect(describeLogToolDisplay(entry)).toBe('Shell exec(npm test -- --runInBand src/compone…)');
+    expect(describeLogActivityDetail(entry)).toBe('Shell exec(npm test -- --runInBand src/compone…)');
   });
 
   it('does not treat lifecycle phases like populate as tool usage', () => {

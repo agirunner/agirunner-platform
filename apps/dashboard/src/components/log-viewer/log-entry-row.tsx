@@ -9,7 +9,6 @@ import {
   describeLogActorDetail,
   describeLogActorLabel,
   describeLogCategoryLabel,
-  describeLogToolDisplay,
   describeWorkflowStageSummary,
 } from './log-entry-presentation.js';
 
@@ -65,7 +64,6 @@ export function LogTableHeader(): JSX.Element {
         <th className="px-3 py-2 text-left font-medium">Workflow / Stage</th>
         <th className="px-3 py-2 text-left font-medium">Actor</th>
         <th className="px-3 py-2 text-left font-medium">Activity</th>
-        <th className="px-3 py-2 text-left font-medium">Tool</th>
         <th className="px-3 py-2 text-right font-medium w-20">Duration</th>
       </tr>
     </thead>
@@ -80,7 +78,6 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
   const actorDetail = describeLogActorDetail(entry);
   const activityTitle = describeLogActivityTitle(entry);
   const activityDetail = describeLogActivityDetail(entry);
-  const toolDisplay = describeLogToolDisplay(entry);
 
   return (
     <tr
@@ -160,13 +157,6 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
               {truncate(entry.error.message, 160)}
             </div>
           ) : null}
-        </div>
-      </td>
-
-      {/* Tool */}
-      <td className="px-3 py-2.5 align-top">
-        <div className="min-w-[12rem] break-words text-sm text-foreground">
-          {toolDisplay ? truncate(toolDisplay, 60) : '-'}
         </div>
       </td>
 

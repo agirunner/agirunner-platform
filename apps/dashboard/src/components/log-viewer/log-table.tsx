@@ -18,7 +18,7 @@ export interface LogTableProps {
 }
 
 const SKELETON_COUNT = 12;
-const COL_COUNT = 9;
+const COL_COUNT = 8;
 
 function SkeletonRows(): JSX.Element {
   return (
@@ -32,7 +32,6 @@ function SkeletonRows(): JSX.Element {
           <td className="px-3 py-2.5"><Skeleton className="h-4 w-36 rounded" /></td>
           <td className="px-3 py-2.5"><Skeleton className="h-4 w-28 rounded" /></td>
           <td className="px-3 py-2.5"><Skeleton className="h-4 w-56 rounded" /></td>
-          <td className="px-3 py-2.5"><Skeleton className="h-4 w-32 rounded" /></td>
           <td className="px-3 py-2.5"><Skeleton className="h-4 w-14 rounded" /></td>
         </tr>
       ))}

@@ -7,7 +7,7 @@ import { LogEntryDetail } from './log-entry-detail.js';
 import { Button } from '../ui/button.js';
 import { getCanonicalStageNames } from './log-entry-context.js';
 
-const COL_COUNT = 9;
+const COL_COUNT = 8;
 export const MAX_VISIBLE_ENTRIES_PER_ITERATION = 20;
 
 export interface LogIterationGroupProps {

@@ -15,7 +15,6 @@ import {
   describeLogActorDetail,
   describeLogActorLabel,
   describeLogCategoryLabel,
-  describeLogToolDisplay,
   describeWorkflowStageSummary,
 } from './log-entry-presentation.js';
 
@@ -41,7 +40,6 @@ function formatStatusLabel(status: string): string {
 export function LogEntryMobileCard(props: LogEntryMobileCardProps): JSX.Element {
   const { entry, isExpanded, onToggle, onFilterTrace } = props;
   const workflowStage = describeWorkflowStageSummary(entry);
-  const toolDisplay = describeLogToolDisplay(entry);
 
   return (
     <article
@@ -93,12 +91,6 @@ export function LogEntryMobileCard(props: LogEntryMobileCardProps): JSX.Element 
             </span>
             <span className="text-sm text-foreground">{describeLogActorLabel(entry)}</span>
             <span>{describeLogActorDetail(entry)}</span>
-          </div>
-          <div className="grid gap-1">
-            <span className="font-medium uppercase tracking-wide text-muted-foreground">
-              Tool
-            </span>
-            <span className="text-sm text-foreground">{toolDisplay ?? '-'}</span>
           </div>
           <div className="grid gap-1">
             <span className="font-medium uppercase tracking-wide text-muted-foreground">
