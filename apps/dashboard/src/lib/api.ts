@@ -905,8 +905,8 @@ export interface DashboardCostSummaryRecord {
 }
 
 export interface DashboardGovernanceRetentionPolicy {
-  task_archive_after_days: number;
-  task_delete_after_days: number;
+  task_prune_after_days: number;
+  workflow_delete_after_days: number;
   execution_log_retention_days: number;
 }
 

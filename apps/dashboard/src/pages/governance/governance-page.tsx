@@ -2,10 +2,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { StructuredRecordView } from '../../components/structured-data/structured-data.js';
-import {
-  dashboardApi,
-  type DashboardGovernanceRetentionPolicy,
-} from '../../lib/api.js';
+import { dashboardApi, type DashboardGovernanceRetentionPolicy } from '../../lib/api.js';
 
 export function GovernancePage(): JSX.Element {
   const queryClient = useQueryClient();
@@ -15,8 +12,9 @@ export function GovernancePage(): JSX.Element {
   });
 
   const [policyForm, setPolicyForm] = useState({
-    task_archive_after_days: '90',
-    task_delete_after_days: '365',
+    task_prune_after_days: '30',
+    workflow_delete_after_days: '30',
+    execution_log_retention_days: '30',
   });
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,8 +24,9 @@ export function GovernancePage(): JSX.Element {
     setError(null);
     try {
       await dashboardApi.updateRetentionPolicy({
-        task_archive_after_days: Number(policyForm.task_archive_after_days),
-        task_delete_after_days: Number(policyForm.task_delete_after_days),
+        task_prune_after_days: Number(policyForm.task_prune_after_days),
+        workflow_delete_after_days: Number(policyForm.workflow_delete_after_days),
+        execution_log_retention_days: Number(policyForm.execution_log_retention_days),
       });
       setMessage('Retention policy updated.');
       await queryClient.invalidateQueries({ queryKey: ['governance-retention-policy'] });
@@ -43,21 +42,62 @@ export function GovernancePage(): JSX.Element {
           <h2>Governance</h2>
           <p className="muted">Retention policy settings.</p>
           {retentionQuery.isLoading ? <p>Loading retention policy...</p> : null}
-          {retentionQuery.error ? <p style={{ color: '#dc2626' }}>Failed to load retention policy.</p> : null}
+          {retentionQuery.error ? (
+            <p style={{ color: '#dc2626' }}>Failed to load retention policy.</p>
+          ) : null}
           {retentionQuery.data ? (
-            <StructuredRecordView data={retentionQuery.data} emptyMessage="No retention policy found." />
+            <StructuredRecordView
+              data={retentionQuery.data}
+              emptyMessage="No retention policy found."
+            />
           ) : null}
         </div>
 
         <div className="card">
           <h3>Retention Policy</h3>
           <div className="grid">
-            <label htmlFor="archive-days">Task archive after days</label>
-            <input id="archive-days" className="input" value={policyForm.task_archive_after_days} onChange={(event) => setPolicyForm((current) => ({ ...current, task_archive_after_days: event.target.value }))} />
-            <label htmlFor="delete-days">Task delete after days</label>
-            <input id="delete-days" className="input" value={policyForm.task_delete_after_days} onChange={(event) => setPolicyForm((current) => ({ ...current, task_delete_after_days: event.target.value }))} />
+            <label htmlFor="prune-days">Task pruning retention days</label>
+            <input
+              id="prune-days"
+              className="input"
+              value={policyForm.task_prune_after_days}
+              onChange={(event) =>
+                setPolicyForm((current) => ({
+                  ...current,
+                  task_prune_after_days: event.target.value,
+                }))
+              }
+            />
+            <label htmlFor="workflow-delete-days">Workflow retention days</label>
+            <input
+              id="workflow-delete-days"
+              className="input"
+              value={policyForm.workflow_delete_after_days}
+              onChange={(event) =>
+                setPolicyForm((current) => ({
+                  ...current,
+                  workflow_delete_after_days: event.target.value,
+                }))
+              }
+            />
+            <label htmlFor="log-retention-days">Log retention days</label>
+            <input
+              id="log-retention-days"
+              className="input"
+              value={policyForm.execution_log_retention_days}
+              onChange={(event) =>
+                setPolicyForm((current) => ({
+                  ...current,
+                  execution_log_retention_days: event.target.value,
+                }))
+              }
+            />
             <div className="row" style={{ justifyContent: 'flex-end' }}>
-              <button type="button" className="button primary" onClick={() => void handleRetentionSave()}>
+              <button
+                type="button"
+                className="button primary"
+                onClick={() => void handleRetentionSave()}
+              >
                 Save Policy
               </button>
             </div>

@@ -22,8 +22,8 @@ describe('settings page source', () => {
     const source = readSettingsPageSource();
 
     expect(source).toContain('dashboardApi.updateRetentionPolicy');
-    expect(source).toContain('task_archive_after_days');
-    expect(source).toContain('task_delete_after_days');
+    expect(source).toContain('task_prune_after_days');
+    expect(source).toContain('workflow_delete_after_days');
     expect(source).toContain('execution_log_retention_days');
   });
 
@@ -41,5 +41,19 @@ describe('settings page source', () => {
     expect(source).not.toContain('CardFooter');
     expect(source).not.toContain('handleLoggingSubmit');
     expect(source).not.toContain('handleRetentionSubmit');
+  });
+
+  it('describes task pruning, workflow retention, and log retention with the new copy', () => {
+    const source = readSettingsPageSource();
+
+    expect(source).toContain('Configure general operational settings in one place.');
+    expect(source).toContain('Task Pruning</h3>');
+    expect(source).toContain('Workflow Retention</h3>');
+    expect(source).toContain('Log Retention (days)');
+    expect(source).toContain('Ongoing workflows are not automatically deleted.');
+    expect(source).toContain('Delete terminal workflows after');
+    expect(source).not.toContain('Task Archive After');
+    expect(source).not.toContain('Execution Log Retention');
+    expect(source).not.toContain('archive storage');
   });
 });

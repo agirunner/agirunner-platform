@@ -42,9 +42,9 @@ export function SettingsPage(): JSX.Element {
   });
 
   const [level, setLevel] = useState<LogLevel>('debug');
-  const [taskArchiveDays, setTaskArchiveDays] = useState('');
-  const [taskDeleteDays, setTaskDeleteDays] = useState('');
-  const [execLogDays, setExecLogDays] = useState('');
+  const [taskPruneDays, setTaskPruneDays] = useState('');
+  const [workflowDeleteDays, setWorkflowDeleteDays] = useState('');
+  const [logRetentionDays, setLogRetentionDays] = useState('');
 
   useEffect(() => {
     if (loggingQuery.data?.level) {
@@ -55,22 +55,22 @@ export function SettingsPage(): JSX.Element {
     if (!retentionQuery.data) {
       return;
     }
-    setTaskArchiveDays(String(retentionQuery.data.task_archive_after_days));
-    setTaskDeleteDays(String(retentionQuery.data.task_delete_after_days));
-    setExecLogDays(String(retentionQuery.data.execution_log_retention_days));
+    setTaskPruneDays(String(retentionQuery.data.task_prune_after_days));
+    setWorkflowDeleteDays(String(retentionQuery.data.workflow_delete_after_days));
+    setLogRetentionDays(String(retentionQuery.data.execution_log_retention_days));
   }, [retentionQuery.data]);
 
   const hasLoggingChanges = loggingQuery.data && level !== loggingQuery.data.level;
   const hasRetentionChanges =
     retentionQuery.data &&
-    (taskArchiveDays !== String(retentionQuery.data.task_archive_after_days) ||
-      taskDeleteDays !== String(retentionQuery.data.task_delete_after_days) ||
-      execLogDays !== String(retentionQuery.data.execution_log_retention_days));
+    (taskPruneDays !== String(retentionQuery.data.task_prune_after_days) ||
+      workflowDeleteDays !== String(retentionQuery.data.workflow_delete_after_days) ||
+      logRetentionDays !== String(retentionQuery.data.execution_log_retention_days));
   const isDirty = Boolean(hasLoggingChanges || hasRetentionChanges);
   const hasRetentionValidationErrors =
-    !isPositiveInteger(taskArchiveDays) ||
-    !isPositiveInteger(taskDeleteDays) ||
-    !isPositiveInteger(execLogDays);
+    !isPositiveInteger(taskPruneDays) ||
+    !isPositiveInteger(workflowDeleteDays) ||
+    !isPositiveInteger(logRetentionDays);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -83,9 +83,9 @@ export function SettingsPage(): JSX.Element {
       if (hasRetentionChanges) {
         operations.push(
           dashboardApi.updateRetentionPolicy({
-            task_archive_after_days: parseInt(taskArchiveDays, 10),
-            task_delete_after_days: parseInt(taskDeleteDays, 10),
-            execution_log_retention_days: parseInt(execLogDays, 10),
+            task_prune_after_days: parseInt(taskPruneDays, 10),
+            workflow_delete_after_days: parseInt(workflowDeleteDays, 10),
+            execution_log_retention_days: parseInt(logRetentionDays, 10),
           } satisfies Partial<DashboardGovernanceRetentionPolicy>),
         );
       }
@@ -132,7 +132,7 @@ export function SettingsPage(): JSX.Element {
                 <CardTitle className="text-2xl">Settings</CardTitle>
               </div>
               <CardDescription className="text-sm leading-6">
-                Configure tenant-wide operational settings for logging and retention in one place.
+                Configure general operational settings in one place.
               </CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -183,59 +183,88 @@ export function SettingsPage(): JSX.Element {
         <div className="space-y-1">
           <h2 className="text-base font-semibold text-foreground">Retention</h2>
           <p className="text-sm leading-6 text-muted">
-            Control how long completed tasks and execution logs are kept before archival or deletion.
+            Set clear retention rules for ongoing workflow task pruning, terminal workflow cleanup,
+            and logs.
           </p>
         </div>
         <div className="grid gap-4">
-          <div className="space-y-2">
-            <label htmlFor="task-archive" className="text-sm font-medium">
-              Task Archive After (days)
-            </label>
-            <Input
-              id="task-archive"
-              type="number"
-              min={1}
-              value={taskArchiveDays}
-              onChange={(e) => setTaskArchiveDays(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Completed tasks older than this move into archive storage.
-            </p>
+          <div className="space-y-3 rounded-lg border border-border/70 bg-card/60 p-4">
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-foreground">Task Pruning</h3>
+              <p className="text-sm leading-6 text-muted">
+                Prune terminal tasks from ongoing workflows after the configured window.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="task-prune" className="text-sm font-medium">
+                Task Pruning Retention (days)
+              </label>
+              <Input
+                id="task-prune"
+                type="number"
+                min={1}
+                value={taskPruneDays}
+                onChange={(e) => setTaskPruneDays(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Ongoing workflows are not automatically deleted.
+              </p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <label htmlFor="task-delete" className="text-sm font-medium">
-              Task Delete After (days)
-            </label>
-            <Input
-              id="task-delete"
-              type="number"
-              min={1}
-              value={taskDeleteDays}
-              onChange={(e) => setTaskDeleteDays(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Archived tasks older than this are permanently deleted.
-            </p>
+          <div className="space-y-3 rounded-lg border border-border/70 bg-card/60 p-4">
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-foreground">Workflow Retention</h3>
+              <p className="text-sm leading-6 text-muted">
+                Delete terminal workflows after the configured window.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="workflow-delete" className="text-sm font-medium">
+                Delete terminal workflows after (days)
+              </label>
+              <Input
+                id="workflow-delete"
+                type="number"
+                min={1}
+                value={workflowDeleteDays}
+                onChange={(e) => setWorkflowDeleteDays(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Deleting a workflow also removes its workflow-owned records.
+              </p>
+            </div>
           </div>
-          <div className="space-y-2">
-            <label htmlFor="exec-log" className="text-sm font-medium">
-              Execution Log Retention (days)
-            </label>
-            <Input
-              id="exec-log"
-              type="number"
-              min={1}
-              value={execLogDays}
-              onChange={(e) => setExecLogDays(e.target.value)}
-            />
-            <p className="text-xs text-muted-foreground">
-              Execution log partitions older than this window are dropped.
-            </p>
+          <div className="space-y-3 rounded-lg border border-border/70 bg-card/60 p-4">
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-foreground">Log Retention</h3>
+              <p className="text-sm leading-6 text-muted">
+                Keep logs on their own retention window, separate from workflow data.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <label htmlFor="log-retention" className="text-sm font-medium">
+                Log Retention (days)
+              </label>
+              <Input
+                id="log-retention"
+                type="number"
+                min={1}
+                value={logRetentionDays}
+                onChange={(e) => setLogRetentionDays(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                Log partitions older than this window are dropped.
+              </p>
+            </div>
           </div>
           {hasRetentionValidationErrors ? (
-            <p className="text-sm text-red-600">Enter positive whole-number retention values before saving.</p>
+            <p className="text-sm text-red-600">
+              Enter positive whole-number retention values before saving.
+            </p>
           ) : null}
-          {saveMutation.isError ? <p className="text-sm text-red-600">Failed to save settings.</p> : null}
+          {saveMutation.isError ? (
+            <p className="text-sm text-red-600">Failed to save settings.</p>
+          ) : null}
         </div>
       </section>
     </form>

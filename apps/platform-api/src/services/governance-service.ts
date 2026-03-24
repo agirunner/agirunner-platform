@@ -3,14 +3,14 @@ import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 
 export interface RetentionPolicy {
-  task_archive_after_days: number;
-  task_delete_after_days: number;
+  task_prune_after_days: number;
+  workflow_delete_after_days: number;
   execution_log_retention_days: number;
 }
 
 interface GovernanceServiceConfig {
-  GOVERNANCE_TASK_ARCHIVE_AFTER_DAYS: number;
-  GOVERNANCE_TASK_DELETE_AFTER_DAYS: number;
+  GOVERNANCE_TASK_PRUNE_AFTER_DAYS: number;
+  GOVERNANCE_WORKFLOW_DELETE_AFTER_DAYS: number;
   GOVERNANCE_EXECUTION_LOG_RETENTION_DAYS: number;
 }
 
@@ -18,6 +18,9 @@ interface TenantRow {
   id: string;
   settings: Record<string, unknown> | null;
 }
+
+const TERMINAL_TASK_STATES = ['completed', 'failed', 'cancelled'] as const;
+const TERMINAL_WORKFLOW_STATES = ['completed', 'failed', 'cancelled'] as const;
 
 export class GovernanceService {
   constructor(
@@ -30,7 +33,10 @@ export class GovernanceService {
     return readRetentionPolicy(tenant.settings, this.config);
   }
 
-  async updateRetentionPolicy(identity: ApiKeyIdentity, policy: Partial<RetentionPolicy>): Promise<RetentionPolicy> {
+  async updateRetentionPolicy(
+    identity: ApiKeyIdentity,
+    policy: Partial<RetentionPolicy>,
+  ): Promise<RetentionPolicy> {
     const current = await this.getRetentionPolicy(identity.tenantId);
     const next = {
       ...current,
@@ -39,7 +45,12 @@ export class GovernanceService {
 
     await this.pool.query(
       `UPDATE tenants
-       SET settings = jsonb_set(settings, '{governance,retention}', $2::jsonb, true),
+       SET settings = jsonb_set(
+             COALESCE(settings, '{}'::jsonb),
+             '{governance,retention}',
+             $2::jsonb,
+             true
+           ),
            updated_at = now()
        WHERE id = $1`,
       [identity.tenantId, JSON.stringify(next)],
@@ -48,16 +59,22 @@ export class GovernanceService {
     return next;
   }
 
-  async enforceRetentionPolicies(): Promise<{ archivedTasks: number; deletedTasks: number; droppedLogPartitions: number }> {
-    const tenants = await this.pool.query<TenantRow>('SELECT id, settings FROM tenants WHERE is_active = true');
-    let archivedTasks = 0;
-    let deletedTasks = 0;
+  async enforceRetentionPolicies(): Promise<{
+    prunedTasks: number;
+    deletedWorkflows: number;
+    droppedLogPartitions: number;
+  }> {
+    const tenants = await this.pool.query<TenantRow>(
+      'SELECT id, settings FROM tenants WHERE is_active = true',
+    );
+    let prunedTasks = 0;
+    let deletedWorkflows = 0;
     let droppedLogPartitions = 0;
 
     for (const tenant of tenants.rows) {
       const policy = readRetentionPolicy(tenant.settings, this.config);
-      archivedTasks += await this.archiveTasks(tenant.id, policy);
-      deletedTasks += await this.deleteTasks(tenant.id, policy);
+      prunedTasks += await this.pruneTerminalTasksFromOngoingWorkflows(tenant.id, policy);
+      deletedWorkflows += await this.deleteExpiredTerminalWorkflowTrees(tenant.id, policy);
     }
 
     // Execution log partition drop is global (partitions are not per-tenant).
@@ -71,7 +88,7 @@ export class GovernanceService {
     // Ensure future log partitions exist (current + next 2 months).
     await this.ensureLogPartitions();
 
-    return { archivedTasks, deletedTasks, droppedLogPartitions };
+    return { prunedTasks, deletedWorkflows, droppedLogPartitions };
   }
 
   async getLoggingLevel(tenantId: string): Promise<string> {
@@ -102,51 +119,131 @@ export class GovernanceService {
   }
 
   private async loadTenant(tenantId: string): Promise<TenantRow> {
-    const result = await this.pool.query<TenantRow>('SELECT id, settings FROM tenants WHERE id = $1', [tenantId]);
+    const result = await this.pool.query<TenantRow>(
+      'SELECT id, settings FROM tenants WHERE id = $1',
+      [tenantId],
+    );
     if (!result.rowCount) {
       throw new NotFoundError('Tenant not found');
     }
     return result.rows[0];
   }
 
-  private async archiveTasks(tenantId: string, policy: RetentionPolicy): Promise<number> {
+  private async pruneTerminalTasksFromOngoingWorkflows(
+    tenantId: string,
+    policy: RetentionPolicy,
+  ): Promise<number> {
     const result = await this.pool.query<{ id: string }>(
-      `UPDATE tasks
-       SET archived_at = now(),
-           updated_at = now()
-       WHERE tenant_id = $1
-         AND archived_at IS NULL
-         AND completed_at IS NOT NULL
-         AND completed_at <= now() - make_interval(days => $2::int)
-       RETURNING id`,
-      [tenantId, policy.task_archive_after_days],
+      `DELETE FROM tasks t
+       USING workflows w
+       WHERE t.tenant_id = $1
+         AND t.workflow_id = w.id
+         AND w.tenant_id = $1
+         AND COALESCE(t.legal_hold, false) = false
+         AND COALESCE(w.legal_hold, false) = false
+         AND t.state::text = ANY($2::text[])
+         AND w.state::text <> ALL($3::text[])
+         AND t.completed_at IS NOT NULL
+         AND t.completed_at <= now() - make_interval(days => $4::int)
+       RETURNING t.id`,
+      [
+        tenantId,
+        [...TERMINAL_TASK_STATES],
+        [...TERMINAL_WORKFLOW_STATES],
+        policy.task_prune_after_days,
+      ],
     );
 
     return result.rowCount ?? 0;
   }
 
-  private async deleteTasks(tenantId: string, policy: RetentionPolicy): Promise<number> {
-    const deletable = await this.pool.query<{ id: string }>(
-      `SELECT t.id
-       FROM tasks t
-       WHERE t.tenant_id = $1
-         AND t.completed_at IS NOT NULL
-         AND t.completed_at <= now() - make_interval(days => $2::int)`,
-      [tenantId, policy.task_delete_after_days],
+  private async deleteExpiredTerminalWorkflowTrees(
+    tenantId: string,
+    policy: RetentionPolicy,
+  ): Promise<number> {
+    const deleted = await this.pool.query<{ id: string }>(
+      `WITH deletable_workflows AS (
+         SELECT id
+         FROM workflows
+         WHERE tenant_id = $1
+           AND COALESCE(legal_hold, false) = false
+           AND state::text = ANY($2::text[])
+           AND completed_at IS NOT NULL
+           AND completed_at <= now() - make_interval(days => $3::int)
+       ),
+       deleted_documents AS (
+         DELETE FROM workflow_documents
+         WHERE tenant_id = $1
+           AND workflow_id IN (SELECT id FROM deletable_workflows)
+       ),
+       deleted_task_handoffs AS (
+         DELETE FROM task_handoffs
+         WHERE tenant_id = $1
+           AND workflow_id IN (SELECT id FROM deletable_workflows)
+       ),
+       deleted_task_messages AS (
+         DELETE FROM orchestrator_task_messages
+         WHERE tenant_id = $1
+           AND workflow_id IN (SELECT id FROM deletable_workflows)
+       ),
+       deleted_subject_escalations AS (
+         DELETE FROM workflow_subject_escalations
+         WHERE tenant_id = $1
+           AND workflow_id IN (SELECT id FROM deletable_workflows)
+       ),
+       deleted_tool_results AS (
+         DELETE FROM workflow_tool_results
+         WHERE tenant_id = $1
+           AND workflow_id IN (SELECT id FROM deletable_workflows)
+       ),
+       deleted_artifacts AS (
+         DELETE FROM workflow_artifacts
+         WHERE tenant_id = $1
+           AND workflow_id IN (SELECT id FROM deletable_workflows)
+       ),
+       deleted_grants AS (
+         DELETE FROM orchestrator_grants
+         WHERE tenant_id = $1
+           AND workflow_id IN (SELECT id FROM deletable_workflows)
+       ),
+       deleted_stage_gates AS (
+         DELETE FROM workflow_stage_gates
+         WHERE tenant_id = $1
+           AND workflow_id IN (SELECT id FROM deletable_workflows)
+       ),
+       deleted_stages AS (
+         DELETE FROM workflow_stages
+         WHERE tenant_id = $1
+           AND workflow_id IN (SELECT id FROM deletable_workflows)
+       ),
+       deleted_tasks AS (
+         DELETE FROM tasks
+         WHERE tenant_id = $1
+           AND workflow_id IN (SELECT id FROM deletable_workflows)
+       ),
+       deleted_work_items AS (
+         DELETE FROM workflow_work_items
+         WHERE tenant_id = $1
+           AND workflow_id IN (SELECT id FROM deletable_workflows)
+       ),
+       deleted_activations AS (
+         DELETE FROM workflow_activations
+         WHERE tenant_id = $1
+           AND workflow_id IN (SELECT id FROM deletable_workflows)
+       ),
+       deleted_branches AS (
+         DELETE FROM workflow_branches
+         WHERE tenant_id = $1
+           AND workflow_id IN (SELECT id FROM deletable_workflows)
+       )
+       DELETE FROM workflows w
+       WHERE w.tenant_id = $1
+         AND w.id IN (SELECT id FROM deletable_workflows)
+       RETURNING w.id`,
+      [tenantId, [...TERMINAL_WORKFLOW_STATES], policy.workflow_delete_after_days],
     );
 
-    if (!deletable.rowCount) {
-      return 0;
-    }
-
-    await this.pool.query(
-      `DELETE FROM tasks
-       WHERE tenant_id = $1
-         AND id = ANY($2::uuid[])`,
-      [tenantId, deletable.rows.map((row) => row.id)],
-    );
-
-    return deletable.rowCount ?? 0;
+    return deleted.rowCount ?? 0;
   }
 
   private async ensureLogPartitions(): Promise<void> {
@@ -185,13 +282,13 @@ function readRetentionPolicy(
   const retention = asRecord(governance.retention);
 
   return {
-    task_archive_after_days: readPositiveInt(
-      retention.task_archive_after_days,
-      config.GOVERNANCE_TASK_ARCHIVE_AFTER_DAYS,
+    task_prune_after_days: readPositiveInt(
+      retention.task_prune_after_days,
+      config.GOVERNANCE_TASK_PRUNE_AFTER_DAYS,
     ),
-    task_delete_after_days: readPositiveInt(
-      retention.task_delete_after_days,
-      config.GOVERNANCE_TASK_DELETE_AFTER_DAYS,
+    workflow_delete_after_days: readPositiveInt(
+      retention.workflow_delete_after_days,
+      config.GOVERNANCE_WORKFLOW_DELETE_AFTER_DAYS,
     ),
     execution_log_retention_days: readPositiveInt(
       retention.execution_log_retention_days,
