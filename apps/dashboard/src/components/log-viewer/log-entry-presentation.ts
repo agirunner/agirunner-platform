@@ -54,6 +54,16 @@ export function describeLogActorDetail(entry: LogEntry): string {
   return humanize(entry.source) || '-';
 }
 
+export function describeLogToolDisplay(entry: LogEntry): string | null {
+  const label = readToolLabel(entry.payload);
+  if (!label) {
+    return null;
+  }
+
+  const summary = readToolArgumentSummary(entry.payload);
+  return summary ? `${label}(${summary})` : label;
+}
+
 export function describeLogActivityTitle(entry: LogEntry): string {
   if (entry.category === 'tool') {
     return readToolLabel(entry.payload) ?? 'Tool call';
@@ -158,6 +168,38 @@ function readToolLabel(payload: Record<string, unknown> | null | undefined): str
   return raw ? humanizeSentence(raw) : null;
 }
 
+function readToolArgumentSummary(payload: Record<string, unknown> | null | undefined): string | null {
+  if (!payload) {
+    return null;
+  }
+
+  const input = isRecord(payload.input) ? payload.input : null;
+  const directSummary = firstDefinedString([
+    readString(input?.command),
+    readString(input?.path),
+    readString(input?.query),
+    readString(input?.url),
+    readString(input?.handoff_id),
+    readString(input?.task_id),
+    readString(input?.workflow_id),
+    readString(payload.path),
+    readString(payload.command_or_path),
+    readString(payload.command),
+  ]);
+
+  if (directSummary) {
+    return truncateSummary(directSummary);
+  }
+
+  const src = readString(input?.src);
+  const dst = readString(input?.dst);
+  if (src && dst) {
+    return truncateSummary(`${src} -> ${dst}`);
+  }
+
+  return null;
+}
+
 function describeLlmDetail(payload: Record<string, unknown>): string {
   const parts = [
     readString(payload.model),
@@ -230,6 +272,23 @@ function formatTokenWindow(input: unknown, output: unknown): string | null {
 
 function readString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() !== '' ? value : null;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function firstDefinedString(values: Array<string | null>): string | null {
+  for (const value of values) {
+    if (value) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function truncateSummary(value: string, max = 35): string {
+  return value.length <= max ? value : `${value.slice(0, max)}…`;
 }
 
 function humanize(value: string): string {

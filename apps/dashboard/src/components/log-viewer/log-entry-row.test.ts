@@ -20,6 +20,7 @@ describe('log entry row source', () => {
     expect(source).toContain('>Workflow / Stage</th>');
     expect(source).toContain('>Actor</th>');
     expect(source).toContain('>Activity</th>');
+    expect(source).toContain('>Tool</th>');
     expect(source).toContain('>Duration</th>');
     expect(source).toContain("text-[11px] uppercase tracking-wider text-foreground/70");
     expect(source).toContain('describeLogActorLabel');
@@ -44,6 +45,7 @@ describe('log entry row source', () => {
     const headerStart = source.indexOf('<thead>');
     const headerEnd = source.indexOf('</thead>');
     const headerSource = source.slice(headerStart, headerEnd);
+    expect(headerSource.indexOf('>Tool</th>')).toBeGreaterThan(headerSource.indexOf('>Activity</th>'));
     expect(headerSource.indexOf('>Duration</th>')).toBeGreaterThan(headerSource.indexOf('>Activity</th>'));
   });
 });

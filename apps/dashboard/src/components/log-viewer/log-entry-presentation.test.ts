@@ -6,6 +6,7 @@ import {
   describeLogActivityTitle,
   describeLogActorDetail,
   describeLogActorLabel,
+  describeLogToolDisplay,
   describeWorkflowStageSummary,
 } from './log-entry-presentation.js';
 
@@ -52,8 +53,36 @@ describe('log entry presentation', () => {
 
     expect(describeLogActivityTitle(entry)).toBe('Submit handoff');
     expect(describeLogActivityDetail(entry)).toBe('Tool call');
+    expect(describeLogToolDisplay(entry)).toBe('Submit handoff');
     expect(describeLogActivityDetail(entry)).not.toContain('Reviewed the latest handoff');
     expect(describeLogActivityDetail(entry)).not.toContain('Orchestrate Content Assessment Blocked');
+  });
+
+  it('surfaces tool names even when the row category is not tool', () => {
+    const entry = makeEntry({
+      category: 'agent_loop',
+      operation: 'agent.observe',
+      payload: {
+        tool_name: 'read_latest_handoff',
+        iteration: 2,
+      },
+    });
+
+    expect(describeLogActivityTitle(entry)).toBe('Agent observe');
+    expect(describeLogToolDisplay(entry)).toBe('Read latest handoff');
+  });
+
+  it('formats tool display with a compact argument summary when present', () => {
+    const entry = makeEntry({
+      payload: {
+        tool_name: 'shell_exec',
+        input: {
+          command: 'npm test -- --runInBand src/components/log-viewer',
+        },
+      },
+    });
+
+    expect(describeLogToolDisplay(entry)).toBe('Shell exec(npm test -- --runInBand src/compone…)');
   });
 
   it('falls back to dashes in compact views when workflow and stage are absent', () => {

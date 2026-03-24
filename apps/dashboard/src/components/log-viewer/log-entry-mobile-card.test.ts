@@ -19,6 +19,7 @@ describe('log entry mobile card source', () => {
     expect(source).toContain('Category');
     expect(source).toContain('Workflow');
     expect(source).toContain('Actor');
+    expect(source).toContain('Tool');
     expect(source).toContain('Status');
     expect(source).toContain('Duration');
     expect(source).not.toContain("'No workflow'");

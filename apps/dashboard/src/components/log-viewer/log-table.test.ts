@@ -14,7 +14,7 @@ describe('log table source', () => {
     expect(source).toContain("className=\"grid gap-3 md:hidden\"");
     expect(source).toContain("className=\"hidden overflow-x-auto rounded-2xl border border-border/70 bg-card/90 shadow-sm md:block\"");
     expect(source).toContain('MobileSkeletonCards');
-    expect(source).toContain('COL_COUNT = 8');
+    expect(source).toContain('COL_COUNT = 9');
     expect(source).not.toContain('exportSlot');
   });
 });

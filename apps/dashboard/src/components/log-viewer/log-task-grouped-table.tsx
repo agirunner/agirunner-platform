@@ -8,7 +8,7 @@ import { Button } from '../ui/button.js';
 import { Skeleton } from '../ui/skeleton.js';
 
 const SKELETON_COUNT = 6;
-const COL_COUNT = 11;
+const COL_COUNT = 9;
 export const MAX_VISIBLE_ENTRIES_PER_TASK_GROUP = 20;
 
 export interface TaskBucket {
