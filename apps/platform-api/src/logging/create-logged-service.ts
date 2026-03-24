@@ -241,9 +241,12 @@ function shouldLogMethod(method: string, explicitMethods: string[]): boolean {
 }
 
 function successLogLevel(
-  config: { debugMethods?: string[] },
+  config: { category: string; debugMethods?: string[] },
   method: string,
 ): 'debug' | 'info' {
+  if (config.category === 'api') {
+    return 'debug';
+  }
   return config.debugMethods?.includes(method) ? 'debug' : 'info';
 }
 

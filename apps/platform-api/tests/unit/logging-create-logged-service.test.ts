@@ -131,6 +131,27 @@ describe('createLoggedService', () => {
     );
   });
 
+  it('logs successful api-category service mutations at debug', async () => {
+    const service = {
+      registerAgent: vi.fn().mockResolvedValue({ id: 'agent-1', name: 'Draft reviewer' }),
+    };
+    const logInsert = vi.fn().mockResolvedValue(undefined);
+    const logService = { insert: logInsert };
+
+    const wrapped = createLoggedService(service, 'AgentService', logService as never);
+
+    await wrapped.registerAgent({ name: 'Draft reviewer' });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(logInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: 'api',
+        level: 'debug',
+        operation: 'api.agent.registered',
+      }),
+    );
+  });
+
   it('skipsLoggingForIgnoredMethods', async () => {
     const service = {
       getWorkspace: vi.fn().mockResolvedValue({ id: 'proj-1' }),
