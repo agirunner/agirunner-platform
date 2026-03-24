@@ -329,6 +329,7 @@ describe('orchestratorControlRoutes', () => {
         stage_name: 'maintenance-window',
         activation_id: 'activation-1',
         assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
         is_orchestrator_task: true,
         state: 'in_progress',
       });
