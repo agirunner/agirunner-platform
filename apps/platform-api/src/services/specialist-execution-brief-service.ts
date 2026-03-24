@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
+import { roleConfigOwnsRepositorySurface } from './tool-tag-service.js';
 
 interface ExecutionBriefRef {
   reason: string;
@@ -63,6 +64,7 @@ interface SpecialistExecutionBriefInput {
   workItem?: Record<string, unknown> | null;
   predecessorHandoff?: Record<string, unknown> | null;
   taskInput?: Record<string, unknown> | null;
+  roleConfig?: Record<string, unknown> | null;
 }
 
 export function buildSpecialistExecutionBrief(
@@ -87,14 +89,16 @@ export function buildSpecialistExecutionBrief(
   const predecessorHandoff = asRecord(input.predecessorHandoff);
   const workspace = asRecord(input.workspace);
   const taskInput = asRecord(input.taskInput);
+  const roleConfig = asRecord(input.roleConfig);
   const stageName = readString(workItem.stage_name) ?? readString(workflow.current_stage);
   const stage = definition.stages.find((entry) => entry.name === stageName) ?? null;
   const boardColumn = definition.board.columns.find((entry) => entry.id === readString(workItem.column_id)) ?? null;
   const workflowBrief = compactWorkflowBriefVariables(asRecord(workflow.variables));
+  const repoBacked = isRepositoryBacked(workspace, workflow, taskInput, roleConfig);
   const assessmentOutputExpectations = buildAssessmentOutputExpectations(
     workItem,
     input.role ?? null,
-    isRepositoryBacked(workspace, workflow, taskInput),
+    repoBacked,
   );
   const likelyRelevantFiles = selectLikelyRelevantFiles(predecessorHandoff);
   const relevantMemoryRefs = selectRelevantMemoryRefs(workspace, [
@@ -140,7 +144,7 @@ export function buildSpecialistExecutionBrief(
     },
     work_item_continuity_summary: continuitySummaryFrom(workItem),
     assessment_output_expectations: assessmentOutputExpectations,
-    repo_status_summary: isRepositoryBacked(workspace, workflow, taskInput)
+    repo_status_summary: repoBacked
       ? 'Repository-backed task. Use task sandbox tools for repository, filesystem, shell, web fetch, and artifact upload work.'
       : 'Non-repository task. Base completion on artifacts, outputs, and recorded evidence.',
     likely_relevant_files: likelyRelevantFiles,
@@ -388,7 +392,15 @@ function shouldExposeWorkflowVariable(key: string, value: unknown) {
   return typeof value === 'number' || typeof value === 'boolean';
 }
 
-function isRepositoryBacked(workspace: Record<string, unknown>, workflow: Record<string, unknown>, taskInput: Record<string, unknown>) {
+function isRepositoryBacked(
+  workspace: Record<string, unknown>,
+  workflow: Record<string, unknown>,
+  taskInput: Record<string, unknown>,
+  roleConfig: Record<string, unknown>,
+) {
+  if (!roleConfigOwnsRepositorySurface(roleConfig)) {
+    return false;
+  }
   const repository = asRecord(taskInput.repository);
   return Boolean(
     readString(workspace.repository_url)

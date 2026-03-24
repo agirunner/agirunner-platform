@@ -92,6 +92,9 @@ describe('buildSpecialistExecutionBrief', () => {
       taskInput: {
         description: 'Review the implementation and confirm the release-note update.',
       },
+      roleConfig: {
+        tools: ['file_read', 'git_diff', 'submit_handoff'],
+      },
     };
   }
 
@@ -185,5 +188,23 @@ describe('buildSpecialistExecutionBrief', () => {
     });
 
     expect(initial?.refresh_key).toBe(updated?.refresh_key);
+  });
+
+  it('treats repo-connected tasks with runtime-only tools as non-repository work', () => {
+    const brief = buildSpecialistExecutionBrief({
+      ...buildInput(),
+      roleConfig: {
+        tools: ['memory_read', 'memory_write', 'submit_handoff', 'read_predecessor_handoff'],
+      },
+    } as any);
+
+    expect(brief).not.toBeNull();
+    expect(brief?.repo_status_summary).toBe(
+      'Non-repository task. Base completion on artifacts, outputs, and recorded evidence.',
+    );
+    expect(brief?.assessment_output_expectations).toContain(
+      'Required artifacts must be uploaded before completion or escalation.',
+    );
+    expect(brief?.rendered_markdown).not.toContain('Use task sandbox tools');
   });
 });

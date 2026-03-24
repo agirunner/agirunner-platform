@@ -163,6 +163,7 @@ export async function buildTaskContext(
     ? null
     : buildSpecialistExecutionBrief({
         role: asOptionalString(task.role) ?? null,
+        roleConfig: asRecord(task.role_config),
         workflow: workflowContext ?? null,
         workspace: workspaceContext ?? null,
         workItem,
@@ -719,6 +720,7 @@ function buildInstructionLayers(params: {
   const workflowDocument = buildWorkflowInstructionLayer({
     isOrchestratorTask: params.isOrchestratorTask,
     role: params.role,
+    roleConfig: params.roleConfig,
     workflow: params.workflowContext ?? null,
     workspace: params.workspace ?? null,
     taskInput: params.taskInput,

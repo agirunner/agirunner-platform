@@ -418,7 +418,7 @@ describe('buildTaskContext active stage semantics', () => {
       role: 'reviewer',
       is_orchestrator_task: false,
       depends_on: [],
-      role_config: { system_prompt: 'Role prompt' },
+      role_config: { system_prompt: 'Role prompt', tools: ['file_read', 'git_diff', 'submit_handoff'] },
       input: { instructions: 'Review the implementation.' },
     });
 

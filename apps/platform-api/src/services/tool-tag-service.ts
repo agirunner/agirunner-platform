@@ -16,6 +16,21 @@ export const toolCategoryValues = [
 
 type ToolCategory = (typeof toolCategoryValues)[number];
 export type ToolOwner = 'runtime' | 'task';
+const taskOwnedRepositoryToolIds = new Set([
+  'file_read',
+  'file_write',
+  'file_edit',
+  'file_list',
+  'grep',
+  'glob',
+  'shell_exec',
+  'git_status',
+  'git_diff',
+  'git_log',
+  'git_commit',
+  'git_push',
+  'web_fetch',
+]);
 
 interface ToolTagRow {
   id: string;
@@ -210,6 +225,18 @@ export class ToolTagService {
 
 export function resolveBuiltInToolOwner(toolId: string): ToolOwner | null {
   return builtInToolOwners.get(toolId) ?? null;
+}
+
+export function readRoleConfigToolIds(roleConfig: Record<string, unknown>): string[] {
+  return normalizeToolIds(asRecord(roleConfig).tools);
+}
+
+export function roleConfigOwnsAnyTaskTools(roleConfig: Record<string, unknown>): boolean {
+  return readRoleConfigToolIds(roleConfig).some((toolId) => resolveBuiltInToolOwner(toolId) === 'task');
+}
+
+export function roleConfigOwnsRepositorySurface(roleConfig: Record<string, unknown>): boolean {
+  return readRoleConfigToolIds(roleConfig).some((toolId) => taskOwnedRepositoryToolIds.has(toolId));
 }
 
 export function validateWorkspaceToolTags(spec: Record<string, unknown>): void {

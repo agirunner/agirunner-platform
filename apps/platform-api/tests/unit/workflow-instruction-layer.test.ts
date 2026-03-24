@@ -221,4 +221,44 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('This stage was entered from "draft-package"');
     expect(layer!.content).toContain('Starter roles for "publication-release": publisher, release-coordinator.');
   });
+
+  it('keeps specialist output protocol non-repository when only runtime-owned tools are allowed', () => {
+    const layer = buildWorkflowInstructionLayer({
+      isOrchestratorTask: false,
+      role: 'planning-analyst',
+      roleConfig: {
+        tools: ['memory_read', 'memory_search', 'memory_write', 'submit_handoff', 'read_predecessor_handoff'],
+      },
+      workflow: {
+        lifecycle: 'planned',
+        variables: {
+          repository_url: 'https://github.com/example/repo',
+        },
+        playbook: {
+          definition: {
+            lifecycle: 'planned',
+            process_instructions: 'Analyze the task and leave a structured handoff.',
+            board: {
+              columns: [
+                { id: 'planned', label: 'Planned' },
+                { id: 'done', label: 'Done', is_terminal: true },
+              ],
+            },
+            stages: [{ name: 'planning', goal: 'Plan the requested work.' }],
+          },
+        },
+      },
+      workspace: {
+        repository_url: 'https://github.com/example/repo',
+      },
+      workItem: {
+        stage_name: 'planning',
+        column_id: 'planned',
+      },
+    } as any);
+
+    expect(layer).not.toBeNull();
+    expect(layer!.content).toContain('## Output Protocol\nNon-repository task.');
+    expect(layer!.content).not.toContain('Repository-backed task.');
+  });
 });

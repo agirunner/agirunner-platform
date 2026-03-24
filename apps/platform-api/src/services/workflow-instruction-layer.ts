@@ -1,4 +1,5 @@
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
+import { roleConfigOwnsRepositorySurface } from './tool-tag-service.js';
 
 interface InstructionLayerDocument {
   content: string;
@@ -17,6 +18,7 @@ interface WorkflowContextLike {
 interface WorkflowInstructionLayerInput {
   isOrchestratorTask: boolean;
   role?: string;
+  roleConfig?: Record<string, unknown> | null;
   workflow?: WorkflowContextLike | null;
   workspace?: Record<string, unknown> | null;
   taskInput?: Record<string, unknown> | null;
@@ -63,7 +65,9 @@ export function buildWorkflowInstructionLayer(
     ?? null;
   const stage = definition.stages.find((entry) => entry.name === stageName) ?? null;
   const boardColumn = definition.board.columns.find((entry) => entry.id === readString(focusedWorkItem.column_id));
-  const repoBacked = isRepositoryBacked(input.workspace, workflow, input.taskInput);
+  const repoBacked = input.isOrchestratorTask
+    ? hasRepositoryBinding(input.workspace, workflow, input.taskInput)
+    : isRepositoryBacked(input.workspace, workflow, input.taskInput, input.roleConfig);
   const currentStageHasWorkItems = input.isOrchestratorTask
     ? hasStageWorkItems(input.orchestratorContext, stageName)
     : false;
@@ -607,6 +611,18 @@ function hasStageWorkItems(
 }
 
 function isRepositoryBacked(
+  workspace: Record<string, unknown> | null | undefined,
+  workflow: Record<string, unknown>,
+  taskInput?: Record<string, unknown> | null,
+  roleConfig?: Record<string, unknown> | null,
+) {
+  if (!roleConfigOwnsRepositorySurface(asRecord(roleConfig))) {
+    return false;
+  }
+  return hasRepositoryBinding(workspace, workflow, taskInput);
+}
+
+function hasRepositoryBinding(
   workspace: Record<string, unknown> | null | undefined,
   workflow: Record<string, unknown>,
   taskInput?: Record<string, unknown> | null,
