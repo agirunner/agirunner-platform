@@ -9,7 +9,6 @@ import {
   Clipboard,
   Cog,
   Container,
-  DollarSign,
   FileText,
   FolderOpen,
   Gauge,
@@ -83,61 +82,59 @@ const NAV_SECTIONS: NavSection[] = [
     icon: Gauge,
     items: [
       { label: 'Live Board', href: '/mission-control', icon: LayoutDashboard },
-      { label: 'Action Queue', href: '/mission-control/alerts', icon: Bell },
-      { label: 'Cost Dashboard', href: '/mission-control/costs', icon: DollarSign },
-      { label: 'Logs', href: '/logs', icon: ScrollText },
-    ],
-  },
-  {
-    label: 'Work',
-    icon: Workflow,
-    items: [
       {
-        label: 'Workflow Boards',
-        href: '/work/boards',
+        label: 'Workflows',
+        href: '/mission-control/workflows',
         icon: Workflow,
         keywords: ['workflow', 'workflows', 'board', 'boards', 'delivery board', 'board run'],
       },
-      { label: 'Tasks', href: '/work/tasks', icon: Clipboard },
-      { label: 'Approval Queue', href: '/work/approvals', icon: Bell },
+      { label: 'Tasks', href: '/mission-control/tasks', icon: Clipboard },
+      { label: 'Action Queue', href: '/mission-control/action-queue', icon: Bell },
     ],
   },
   {
-    label: 'Configuration',
+    label: 'Work Design',
+    icon: FolderOpen,
+    items: [
+      { label: 'Workspaces', href: '/design/workspaces', icon: FolderOpen },
+      { label: 'Playbooks', href: '/design/playbooks', icon: Workflow },
+      { label: 'Roles', href: '/design/roles', icon: Users, keywords: ['specialist', 'agent roles', 'role definitions'] },
+    ],
+  },
+  {
+    label: 'Platform',
     icon: Cog,
     items: [
-      { label: 'Workspaces', href: '/workspaces', icon: FolderOpen },
-      { label: 'Playbooks', href: '/config/playbooks', icon: Workflow },
-      { label: 'Orchestrator', href: '/config/orchestrator', icon: Bot, keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture'] },
-      { label: 'Roles', href: '/config/roles', icon: Users, keywords: ['specialist', 'agent roles', 'role definitions'] },
-      { label: 'Platform Instructions', href: '/config/instructions', icon: ScrollText },
-      { label: 'Model Routing', href: '/config/llm', icon: Cog },
-      { label: 'Tools', href: '/config/tools', icon: Wrench },
+      { label: 'Models', href: '/platform/routing', icon: Cog, keywords: ['models', 'routing', 'model routing', 'llm'] },
+      { label: 'Instructions', href: '/platform/instructions', icon: ScrollText },
+      { label: 'Orchestrator', href: '/platform/orchestrator', icon: Bot, keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture'] },
+      { label: 'Runtimes', href: '/platform/runtimes', icon: Server },
+      { label: 'Tools', href: '/platform/tools', icon: Wrench },
     ],
   },
   {
     label: 'Integrations',
     icon: Link2,
     items: [
-      { label: 'Webhooks', href: '/config/webhooks', icon: Webhook },
-      { label: 'Triggers', href: '/config/triggers', icon: Zap },
-      { label: 'Agent Protocols', href: '/config/agent-protocols', icon: Bot },
+      { label: 'Webhooks', href: '/integrations/webhooks', icon: Webhook },
+      { label: 'Triggers', href: '/integrations/triggers', icon: Zap },
+      { label: 'Agent Protocols', href: '/integrations/agent-protocols', icon: Bot },
     ],
   },
   {
-    label: 'Fleet',
-    icon: Server,
+    label: 'Diagnostics',
+    icon: FileText,
     items: [
-      { label: 'Runtimes', href: '/config/runtimes', icon: Server },
-      { label: 'Containers', href: '/fleet/containers', icon: Container },
+      { label: 'Logs', href: '/diagnostics/logs', icon: ScrollText },
+      { label: 'Containers', href: '/diagnostics/containers', icon: Container },
     ],
   },
   {
-    label: 'General',
+    label: 'Admin',
     icon: Shield,
     items: [
-      { label: 'Settings', href: '/governance/settings', icon: Settings2 },
-      { label: 'API Keys', href: '/governance/api-keys', icon: Key },
+      { label: 'Settings', href: '/admin/settings', icon: Settings2 },
+      { label: 'API Keys', href: '/admin/api-keys', icon: Key },
     ],
   },
 ];
@@ -160,6 +157,27 @@ const ICON_BUTTON_CLASSES = cn(
   'rounded-md p-1.5 text-muted transition-colors hover:bg-border/50 hover:text-foreground',
   FOCUS_RING_CLASSES,
 );
+
+const SIDEBAR_SHELL_CLASSES =
+  'border-r border-stone-300/70 bg-stone-100/95 shadow-[inset_-1px_0_0_rgba(255,255,255,0.55)] dark:border-slate-800 dark:bg-slate-950 dark:shadow-none';
+
+const SIDEBAR_SECTION_BUTTON_CLASSES =
+  'flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-[background-color,color,box-shadow]';
+
+const SIDEBAR_SECTION_ACTIVE_CLASSES =
+  'bg-background/80 text-foreground shadow-sm ring-1 ring-border/70 dark:bg-slate-900/80 dark:text-slate-100 dark:ring-slate-700';
+
+const SIDEBAR_SECTION_INACTIVE_CLASSES =
+  'text-slate-700 hover:bg-white/70 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/70 dark:hover:text-slate-100';
+
+const SIDEBAR_SECTION_GROUP_CLASSES =
+  'mt-1 rounded-xl bg-background/55 p-1.5 ring-1 ring-border/60 dark:bg-slate-900/55 dark:ring-slate-800';
+
+const SIDEBAR_ACTIVE_ITEM_CLASSES =
+  'bg-slate-900 text-white shadow-sm dark:bg-slate-100 dark:text-slate-950';
+
+const SIDEBAR_INACTIVE_ITEM_CLASSES =
+  'text-slate-700 hover:bg-stone-200/85 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800/90 dark:hover:text-slate-100';
 
 function readActiveElement(): HTMLElement | null {
   return document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -517,13 +535,13 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
           </div>
         </div>
 
-        <div className="px-3 py-2">
+        <div className="px-3 py-3">
           <button
             ref={isMobile ? undefined : desktopSearchButtonRef}
             type="button"
             onClick={openSearchPalette}
             className={cn(
-              'flex w-full items-center gap-2 rounded-md border border-border px-3 py-1.5 text-sm text-muted transition-colors hover:bg-border/30 hover:text-foreground',
+              'flex w-full items-center gap-2 rounded-xl border border-stone-300/80 bg-background/80 px-3 py-2 text-sm text-slate-700 shadow-sm transition-[background-color,color,box-shadow] hover:bg-white hover:text-slate-950 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-100',
               FOCUS_RING_CLASSES,
             )}
             aria-haspopup="dialog"
@@ -537,7 +555,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-2 py-1">
+        <nav className="flex-1 overflow-y-auto px-3 py-2">
           {NAV_SECTIONS.map((section) => (
             <NavSectionGroup
               key={section.label}
@@ -547,11 +565,11 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
           ))}
         </nav>
 
-        <div className="border-t border-border p-3">
+        <div className="border-t border-stone-300/70 p-3 dark:border-slate-800">
           <button
             type="button"
             className={cn(
-              'flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm text-muted transition-colors hover:bg-border/30 hover:text-foreground',
+              'flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-700 transition-[background-color,color] hover:bg-white/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/80 dark:hover:text-slate-100',
               FOCUS_RING_CLASSES,
             )}
             onClick={logout}
@@ -566,7 +584,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
 
   return (
     <div className="flex min-h-screen">
-      <div className="fixed left-0 right-0 top-0 z-30 flex items-center justify-between border-b border-border bg-surface px-4 py-2 lg:hidden">
+      <div className="fixed left-0 right-0 top-0 z-30 flex items-center justify-between border-b border-stone-300/70 bg-stone-100/95 px-4 py-2 dark:border-slate-800 dark:bg-slate-950 lg:hidden">
         <button
           ref={mobileMenuTriggerRef}
           type="button"
@@ -598,7 +616,10 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
       <Dialog open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
         <DialogContent
           showCloseButton={false}
-          className="left-0 top-0 h-dvh w-60 max-w-none translate-x-0 translate-y-0 gap-0 rounded-none border-r border-border bg-surface p-0 shadow-xl lg:hidden"
+          className={cn(
+            'left-0 top-0 h-dvh w-64 max-w-none translate-x-0 translate-y-0 gap-0 rounded-none p-0 shadow-2xl lg:hidden',
+            SIDEBAR_SHELL_CLASSES,
+          )}
           onOpenAutoFocus={(event) => {
             event.preventDefault();
             mobileMenuCloseButtonRef.current?.focus();
@@ -621,7 +642,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
         </DialogContent>
       </Dialog>
 
-      <aside className="hidden w-60 flex-col border-r border-border bg-surface lg:flex">
+      <aside className={cn('hidden w-64 flex-col lg:flex', SIDEBAR_SHELL_CLASSES)}>
         {renderSidebarContent(false)}
       </aside>
 
@@ -818,9 +839,9 @@ function NavSectionGroup({
         type="button"
         onClick={() => setExpanded(!expanded)}
         className={cn(
-          'flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium',
+          SIDEBAR_SECTION_BUTTON_CLASSES,
           FOCUS_RING_CLASSES,
-          isActive ? 'text-accent' : 'text-foreground hover:bg-border/30',
+          isActive ? SIDEBAR_SECTION_ACTIVE_CLASSES : SIDEBAR_SECTION_INACTIVE_CLASSES,
         )}
       >
         <Icon size={15} />
@@ -831,7 +852,7 @@ function NavSectionGroup({
         />
       </button>
       {expanded && (
-        <div className="ml-4 mt-0.5 space-y-0.5 border-l border-border pl-2">
+        <div className={SIDEBAR_SECTION_GROUP_CLASSES}>
           {section.items.map((item) => (
             <NavLink
               key={item.href}
@@ -839,11 +860,11 @@ function NavSectionGroup({
               end
               className={({ isActive: active }) =>
                 cn(
-                  'flex items-center gap-2 rounded-md px-3 py-1 text-sm',
+                  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color,box-shadow]',
                   FOCUS_RING_CLASSES,
                   active
-                    ? 'bg-accent/10 font-medium text-accent'
-                    : 'text-muted-foreground hover:bg-border/30 hover:text-foreground',
+                    ? SIDEBAR_ACTIVE_ITEM_CLASSES
+                    : SIDEBAR_INACTIVE_ITEM_CLASSES,
                 )
               }
             >
