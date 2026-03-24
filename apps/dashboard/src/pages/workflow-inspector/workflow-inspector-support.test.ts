@@ -363,7 +363,7 @@ describe('workflow inspector support', () => {
       }),
     ).toEqual({
       title: 'Gate decision needs attention first',
-      detail: '1 gate checkpoint is waiting across review.',
+      detail: '1 stage gate is waiting across review.',
       nextAction:
         'Start with the board stage that is waiting for operator decision, then use the trace packets below to confirm spend, artifacts, and memory context before deciding.',
       actionLabel: 'Open board stage',

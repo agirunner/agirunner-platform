@@ -135,7 +135,7 @@ export function buildWorkflowInspectorFocusSummary(input: {
   if (awaitingGateCount > 0) {
     return {
       title: 'Gate decision needs attention first',
-      detail: `${awaitingGateCount} gate checkpoint${awaitingGateCount === 1 ? ' is' : 's are'} waiting across ${input.liveStageLabel}.`,
+      detail: `${awaitingGateCount} stage gate${awaitingGateCount === 1 ? ' is' : 's are'} waiting across ${input.liveStageLabel}.`,
       nextAction:
         'Start with the board stage that is waiting for operator decision, then use the trace packets below to confirm spend, artifacts, and memory context before deciding.',
       actionLabel: 'Open board stage',

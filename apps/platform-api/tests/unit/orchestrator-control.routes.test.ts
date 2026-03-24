@@ -421,7 +421,7 @@ describe('orchestratorControlRoutes', () => {
     const workflowService = {
       createWorkflowWorkItem: vi.fn(async () => {
         throw new ValidationError(
-          "Cannot create successor work item in stage 'technical-review' while predecessor 'Draft PRD for workflow budget alerts' (requirements) still has non-terminal tasks. Wait for the current checkpoint task to finish before routing to the next stage.",
+          "Cannot create successor work item in stage 'technical-review' while predecessor 'Draft PRD for workflow budget alerts' (requirements) still has non-terminal tasks. Wait for the current stage work item to finish before routing to the next stage.",
         );
       }),
     };

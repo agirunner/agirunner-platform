@@ -14,11 +14,13 @@ describe('alerts approvals page source', () => {
     const source = readSource();
     expect(source).toContain('getApprovalQueue');
     expect(source).toContain('Stage Gates');
+    expect(source).toContain('Highest-priority board stage gates');
     expect(source).toContain('Review stage gates first');
     expect(source).toContain('GateDetailCard');
     expect(source).toContain('Operator Queue');
     expect(source).toContain('buildApprovalQueueSummary');
     expect(source).toContain('Operator priority order');
+    expect(source).toContain('Board stage gates that block downstream execution until an operator decision is recorded.');
   });
 
   it('keeps escalations and failures as separate operator intervention lanes', () => {

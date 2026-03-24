@@ -580,7 +580,7 @@ export function AlertsApprovalsPage(): JSX.Element {
         <QueueSummaryCard
           label="Stage Gates"
           value={queueSummary.stageGates}
-          detail="Highest-priority board checkpoints"
+          detail="Highest-priority board stage gates"
         />
         <QueueSummaryCard
           label="Step Decisions"
@@ -636,7 +636,7 @@ export function AlertsApprovalsPage(): JSX.Element {
             {allItems.length === 0 && <EmptyState />}
             <LaneSection
               title="Stage gates"
-              detail="Board-stage checkpoints that block downstream execution until an operator decision is recorded."
+              detail="Board stage gates that block downstream execution until an operator decision is recorded."
               count={stageGates.length}
             >
               {renderGateCards()}

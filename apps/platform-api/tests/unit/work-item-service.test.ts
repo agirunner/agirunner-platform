@@ -1368,7 +1368,7 @@ describe('WorkItemService', () => {
         },
       ),
     ).rejects.toThrow(
-      "Cannot create successor work item in stage 'review' while predecessor 'Implementation checkpoint' (implementation) still has non-terminal tasks. Wait for the current checkpoint task to finish before routing to the next stage.",
+      "Cannot create successor work item in stage 'review' while predecessor 'Implementation checkpoint' (implementation) still has non-terminal tasks. Wait for the current stage work item to finish before routing to the next stage.",
     );
   });
 
