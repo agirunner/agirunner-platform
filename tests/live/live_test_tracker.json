@@ -11,7 +11,7 @@
   },
   "supported": {
     "name": "all_supported_live_scenarios",
-    "total": 50,
+    "total": 54,
     "scenarios": [
       "artifact-memory-publishing-approval",
       "artifact-only-human-review",
@@ -39,6 +39,10 @@
       "one-orchestrator-many-workflows-assessment",
       "ongoing-intake-assessment-rework",
       "publishing-approval-before-assessment",
+      "prose-only-approval-advisory",
+      "prose-only-assessment-advisory",
+      "prose-only-escalation-advisory",
+      "prose-only-handoff-advisory",
       "requirements-human-review-approve",
       "requirements-human-review-blocked",
       "requirements-human-review-reject",

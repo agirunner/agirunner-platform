@@ -1,0 +1,39 @@
+{
+  "name": "prose-only-escalation-advisory",
+  "profile": "prose-only-escalation-advisory",
+  "workflow": {
+    "name": "Prose Only Escalation Advisory",
+    "goal": "Produce an operator note where informal escalation may be mentioned in prose but no configured escalation policy exists.",
+    "parameters": {
+      "audience": "incident responders",
+      "format": "operator note"
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "audience": "incident responders"
+    },
+    "spec": {
+      "instructions": {
+        "content": "Deliver an operator note. The workflow may mention that a human escalation could be helpful if concerns remain, but there is no configured escalation policy and the workflow must still complete when the note is sufficient."
+      }
+    }
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "work_items": {
+      "all_terminal": true
+    }
+  },
+  "coverage": {
+    "delivery_paths": ["direct_successor"],
+    "assessor_cardinality": ["zero"],
+    "successor_gating": ["direct_after_handoff"],
+    "playbook_shapes": ["custom_role_names", "one_checkpoint"],
+    "storage_execution": ["artifact_heavy", "default_image", "cold_specialists", "warm_orchestrators"],
+    "configuration_optional_controls": ["escalation_prose_only"]
+  }
+}

@@ -1,0 +1,30 @@
+[
+  {
+    "name": "approval-advisory-release-writer",
+    "description": "Produces a compact release note packet.",
+    "systemPrompt": "You are the Approval Advisory Release Writer. Create the release note packet clearly and completely. If you think a human approval would be helpful, mention it as optional advice in your handoff summary, but do not assume a formal gate exists. Persist the finished packet to artifacts before calling submit_handoff exactly once.",
+    "allowedTools": [
+      "file_read",
+      "file_list",
+      "file_write",
+      "file_edit",
+      "grep",
+      "glob",
+      "tool_search",
+      "shell_exec",
+      "artifact_upload",
+      "artifact_list",
+      "artifact_read",
+      "memory_read",
+      "memory_search",
+      "memory_write",
+      "web_fetch",
+      "escalate",
+      "submit_handoff"
+    ],
+    "verificationStrategy": "self_check",
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isActive": true
+  }
+]

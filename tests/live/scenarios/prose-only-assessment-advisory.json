@@ -1,0 +1,39 @@
+{
+  "name": "prose-only-assessment-advisory",
+  "profile": "prose-only-assessment-advisory",
+  "workflow": {
+    "name": "Prose Only Assessment Advisory",
+    "goal": "Produce a policy memo where informal assessment may be mentioned in prose but no configured assessment rule exists.",
+    "parameters": {
+      "audience": "operations policy owners",
+      "format": "policy memo"
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "audience": "policy owners"
+    },
+    "spec": {
+      "instructions": {
+        "content": "Deliver a short policy memo. The workflow may mention that a peer assessment would be helpful, but there is no configured assessment rule and the workflow must still complete."
+      }
+    }
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "work_items": {
+      "all_terminal": true
+    }
+  },
+  "coverage": {
+    "delivery_paths": ["direct_successor"],
+    "assessor_cardinality": ["zero"],
+    "successor_gating": ["direct_after_handoff"],
+    "playbook_shapes": ["custom_role_names", "one_checkpoint"],
+    "storage_execution": ["artifact_heavy", "default_image", "cold_specialists", "warm_orchestrators"],
+    "configuration_optional_controls": ["assessment_prose_only"]
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "name": "Prose Only Handoff Advisory",
+  "slug": "live-test-prose-only-handoff-advisory-v1",
+  "description": "An informal successor handoff may be suggested in prose, but no configured handoff rule exists.",
+  "outcome": "A briefing note is delivered without turning prose-only successor suggestions into a required handoff path.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "Create the briefing note. Team members may suggest in prose that an editor should polish it next, but this playbook has no configured handoff rule and no required successor task. Prose-only handoff suggestions are advisory and must not block completion.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What the briefing note should accomplish"
+      }
+    ],
+    "roles": [
+      "handoff-advisory-brief-writer",
+      "handoff-advisory-brief-editor"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        { "id": "planned", "label": "Planned", "description": "Work is defined but not yet assigned." },
+        { "id": "active", "label": "In Progress", "description": "A specialist is actively working." },
+        { "id": "blocked", "label": "Blocked", "description": "Work is blocked and needs intervention.", "is_blocked": true },
+        { "id": "done", "label": "Done", "description": "The work item meets its acceptance criteria.", "is_terminal": true }
+      ]
+    },
+    "stages": [
+      {
+        "name": "briefing-note",
+        "goal": "The briefing note is ready to share.",
+        "involves": [
+          "handoff-advisory-brief-writer",
+          "handoff-advisory-brief-editor"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "briefing-note",
+        "goal": "The briefing note is ready to share.",
+        "human_gate": false,
+        "entry_criteria": "The briefing request exists."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [],
+    "assessment_rules": [],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 3,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    }
+  }
+}

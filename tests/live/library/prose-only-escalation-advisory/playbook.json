@@ -1,0 +1,56 @@
+{
+  "name": "Prose Only Escalation Advisory",
+  "slug": "live-test-prose-only-escalation-advisory-v1",
+  "description": "Informal escalation may be mentioned in prose, but no configured escalation policy exists.",
+  "outcome": "An operator note is delivered without turning prose-only escalation guidance into a blocking workflow control.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "Create the operator note. Team members may mention that a human escalation could be useful if severe concerns appear, but this playbook has no configured escalation policy. Prose-only escalation requests are advisory and must not block completion when the deliverable is otherwise sound.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What the operator note should accomplish"
+      }
+    ],
+    "roles": [
+      "escalation-advisory-ops-writer"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        { "id": "planned", "label": "Planned", "description": "Work is defined but not yet assigned." },
+        { "id": "active", "label": "In Progress", "description": "A specialist is actively working." },
+        { "id": "blocked", "label": "Blocked", "description": "Work is blocked and needs intervention.", "is_blocked": true },
+        { "id": "done", "label": "Done", "description": "The work item meets its acceptance criteria.", "is_terminal": true }
+      ]
+    },
+    "stages": [
+      {
+        "name": "operator-note",
+        "goal": "The operator note is ready to share.",
+        "involves": ["escalation-advisory-ops-writer"]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "operator-note",
+        "goal": "The operator note is ready to share.",
+        "human_gate": false,
+        "entry_criteria": "The operator note request exists."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [],
+    "assessment_rules": [],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 3,
+      "max_active_tasks": 1,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    }
+  }
+}

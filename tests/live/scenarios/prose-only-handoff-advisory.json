@@ -1,0 +1,39 @@
+{
+  "name": "prose-only-handoff-advisory",
+  "profile": "prose-only-handoff-advisory",
+  "workflow": {
+    "name": "Prose Only Handoff Advisory",
+    "goal": "Produce a briefing note where an informal successor handoff may be mentioned in prose but no configured handoff rule exists.",
+    "parameters": {
+      "audience": "operations leads",
+      "format": "briefing note"
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "audience": "operations leads"
+    },
+    "spec": {
+      "instructions": {
+        "content": "Deliver a briefing note. The workflow may mention that an editor should polish it next, but there is no configured handoff rule and the workflow must still complete without formal successor routing."
+      }
+    }
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "work_items": {
+      "all_terminal": true
+    }
+  },
+  "coverage": {
+    "delivery_paths": ["direct_successor"],
+    "assessor_cardinality": ["zero"],
+    "successor_gating": ["direct_after_handoff"],
+    "playbook_shapes": ["custom_role_names", "one_checkpoint"],
+    "storage_execution": ["artifact_heavy", "default_image", "cold_specialists", "warm_orchestrators"],
+    "configuration_optional_controls": ["handoff_prose_only"]
+  }
+}

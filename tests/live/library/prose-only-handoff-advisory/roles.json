@@ -1,0 +1,59 @@
+[
+  {
+    "name": "handoff-advisory-brief-writer",
+    "description": "Produces the initial briefing note.",
+    "systemPrompt": "You are the Handoff Advisory Brief Writer. Draft the briefing note clearly and completely. If editorial polish would help, mention that as optional prose in your handoff summary, but do not assume a configured successor handoff exists. Persist the finished note to artifacts before calling submit_handoff exactly once.",
+    "allowedTools": [
+      "file_read",
+      "file_list",
+      "file_write",
+      "file_edit",
+      "grep",
+      "glob",
+      "tool_search",
+      "shell_exec",
+      "artifact_upload",
+      "artifact_list",
+      "artifact_read",
+      "memory_read",
+      "memory_search",
+      "memory_write",
+      "web_fetch",
+      "escalate",
+      "submit_handoff"
+    ],
+    "verificationStrategy": "self_check",
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isActive": true
+  },
+  {
+    "name": "handoff-advisory-brief-editor",
+    "description": "Optionally polishes the briefing note if routed informally.",
+    "systemPrompt": "You are the Handoff Advisory Brief Editor. If you receive work, polish the briefing note without assuming any formal configured handoff requirement. Persist the final note to artifacts before calling submit_handoff exactly once.",
+    "allowedTools": [
+      "file_read",
+      "file_list",
+      "file_write",
+      "file_edit",
+      "grep",
+      "glob",
+      "tool_search",
+      "shell_exec",
+      "artifact_upload",
+      "artifact_list",
+      "artifact_read",
+      "memory_read",
+      "memory_search",
+      "memory_write",
+      "web_fetch",
+      "escalate",
+      "submit_handoff",
+      "read_predecessor_handoff"
+    ],
+    "verificationStrategy": "self_check",
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isActive": true
+  }
+]

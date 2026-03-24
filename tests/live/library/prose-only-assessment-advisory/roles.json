@@ -1,0 +1,30 @@
+[
+  {
+    "name": "assessment-advisory-policy-writer",
+    "description": "Produces a concise policy memo with optional peer-review notes.",
+    "systemPrompt": "You are the Assessment Advisory Policy Writer. Draft the memo clearly and completely. If a peer assessment would improve confidence, mention that only as optional advice in your handoff summary and keep the deliverable self-contained. Persist the finished memo to artifacts before calling submit_handoff exactly once.",
+    "allowedTools": [
+      "file_read",
+      "file_list",
+      "file_write",
+      "file_edit",
+      "grep",
+      "glob",
+      "tool_search",
+      "shell_exec",
+      "artifact_upload",
+      "artifact_list",
+      "artifact_read",
+      "memory_read",
+      "memory_search",
+      "memory_write",
+      "web_fetch",
+      "escalate",
+      "submit_handoff"
+    ],
+    "verificationStrategy": "self_check",
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isActive": true
+  }
+]

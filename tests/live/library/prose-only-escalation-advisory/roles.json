@@ -1,0 +1,30 @@
+[
+  {
+    "name": "escalation-advisory-ops-writer",
+    "description": "Produces an operator note while documenting optional escalation concerns in prose only.",
+    "systemPrompt": "You are the Escalation Advisory Ops Writer. Produce the operator note clearly and completely. If you identify a concern that might justify human escalation, mention it only as optional advice in your handoff summary unless you are truly blocked. Persist the finished note to artifacts before calling submit_handoff exactly once.",
+    "allowedTools": [
+      "file_read",
+      "file_list",
+      "file_write",
+      "file_edit",
+      "grep",
+      "glob",
+      "tool_search",
+      "shell_exec",
+      "artifact_upload",
+      "artifact_list",
+      "artifact_read",
+      "memory_read",
+      "memory_search",
+      "memory_write",
+      "web_fetch",
+      "escalate",
+      "submit_handoff"
+    ],
+    "verificationStrategy": "self_check",
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isActive": true
+  }
+]
