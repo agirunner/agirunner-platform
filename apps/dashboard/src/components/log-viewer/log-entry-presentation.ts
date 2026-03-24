@@ -535,30 +535,84 @@ function readToolInvocation(
     };
   }
 
-  const responseToolCalls = Array.isArray(payload.response_tool_calls) ? payload.response_tool_calls : [];
-  for (const item of responseToolCalls) {
-    if (!isRecord(item)) {
-      continue;
-    }
-    const name = readString(item.name);
-    if (!name) {
-      continue;
-    }
+  const phaseToolName = readString(payload.tool);
+  if (phaseToolName) {
     return {
-      name,
-      input: isRecord(item.input) ? item.input : null,
+      name: phaseToolName,
+      input: isRecord(payload.input) ? payload.input : null,
     };
   }
 
-  const toolCalls = readStringArray(payload.tool_calls);
-  if (toolCalls.length > 0) {
-    return {
-      name: toolCalls[0] ?? '',
-      input: null,
-    };
+  const responseToolCalls = Array.isArray(payload.response_tool_calls) ? payload.response_tool_calls : [];
+  for (const item of responseToolCalls) {
+    const invocation = readToolCallRecord(item);
+    if (!invocation) {
+      continue;
+    }
+    return invocation;
+  }
+
+  const toolCalls = Array.isArray(payload.tool_calls) ? payload.tool_calls : [];
+  for (const item of toolCalls) {
+    if (typeof item === 'string' && item.trim().length > 0) {
+      return {
+        name: item,
+        input: null,
+      };
+    }
+
+    const invocation = readToolCallRecord(item);
+    if (!invocation) {
+      continue;
+    }
+    return invocation;
   }
 
   return null;
+}
+
+function readToolCallRecord(
+  value: unknown,
+): { name: string; input: Record<string, unknown> | null } | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const name =
+    readString(value.name) ??
+    (isRecord(value.function) ? readString(value.function.name) : null);
+  if (!name) {
+    return null;
+  }
+
+  const directInput = isRecord(value.input) ? value.input : null;
+  if (directInput) {
+    return { name, input: directInput };
+  }
+
+  const functionArguments = isRecord(value.function)
+    ? parseToolArguments(value.function.arguments)
+    : null;
+  if (functionArguments) {
+    return { name, input: functionArguments };
+  }
+
+  return { name, input: null };
+}
+
+function parseToolArguments(value: unknown): Record<string, unknown> | null {
+  if (isRecord(value)) {
+    return value;
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return null;
+  }
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return isRecord(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
 }
 
 function humanize(value: string): string {

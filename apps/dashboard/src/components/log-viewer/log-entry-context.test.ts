@@ -68,7 +68,7 @@ describe('log entry context', () => {
     expect(source).toContain('!entry.work_item_id && !entry.activation_id');
   });
 
-  it('uses board and execution-step labels in active telemetry detail surfaces', () => {
+  it('uses workflow and execution-step labels in active telemetry detail surfaces', () => {
     const detailSource = readFileSync(
       resolve(import.meta.dirname, './log-entry-detail.tsx'),
       'utf8',
@@ -83,13 +83,17 @@ describe('log entry context', () => {
     );
 
     expect(detailSource).toContain("task_lifecycle: 'Execution Step Lifecycle'");
-    expect(detailSource).toContain('<DetailRow label="Board">');
+    expect(detailSource).toContain('<DetailRow label="Workflow">');
     expect(detailSource).toContain('<DetailRow label="Step">');
     expect(detailSource).toContain('Diagnostic handles');
     expect(detailSource).toContain('Recorded payload');
+    expect(detailSource).toContain('DETAIL_SECTION_CLASS_NAME');
+    expect(detailSource).toContain('bg-surface/90');
+    expect(detailSource).toContain('bg-rose-100');
+    expect(detailSource).toContain('dark:bg-rose-500/22');
     expect(taskDetailSource).toContain('Execution Step Lifecycle');
     expect(taskDetailSource).toContain('Specialist-step state changes, routing, and runtime handles');
-    expect(taskDetailSource).toContain("label: 'Board'");
+    expect(taskDetailSource).toContain("label: 'Workflow'");
     expect(taskDetailSource).toContain("label: 'Step Title'");
     expect(taskDetailSource).toContain("label: 'Work item'");
     expect(taskDetailSource).toContain("label: 'Runtime handle'");

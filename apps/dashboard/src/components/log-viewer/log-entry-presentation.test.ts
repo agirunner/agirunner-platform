@@ -107,6 +107,44 @@ describe('log entry presentation', () => {
     expect(describeLogActivityDetail(entry)).toContain('Read latest handoff(a3d68f2e-1111-2222-3333-');
   });
 
+  it('surfaces tool intent from agent-loop phase payloads', () => {
+    const entry = makeEntry({
+      category: 'agent_loop',
+      operation: 'agent.act',
+      payload: {
+        tool: 'read_latest_handoff',
+        input: {
+          work_item_id: 'a3d68f2e-1111-2222-3333-444444444444',
+        },
+      },
+    });
+
+    expect(describeLogToolDisplay(entry)).toContain('Read latest handoff(a3d68f2e-1111-2222-3333-');
+    expect(describeLogActivityDetail(entry)).toContain('Read latest handoff(a3d68f2e-1111-2222-3333-');
+  });
+
+  it('parses object-shaped tool_calls payloads when present', () => {
+    const entry = makeEntry({
+      category: 'llm',
+      operation: 'llm.chat_stream',
+      payload: {
+        tool_calls: [
+          {
+            function: {
+              name: 'file_read',
+              arguments: JSON.stringify({
+                path: 'apps/dashboard/src/components/log-viewer/log-entry-row.tsx',
+              }),
+            },
+          },
+        ],
+      },
+    });
+
+    expect(describeLogToolDisplay(entry)).toBe('File read(apps/dashboard/src/components/log-v…)');
+    expect(describeLogActivityDetail(entry)).toBe('File read(apps/dashboard/src/components/log-v…)');
+  });
+
   it('does not treat lifecycle phases like populate as tool usage', () => {
     const entry = makeEntry({
       category: 'runtime_lifecycle',

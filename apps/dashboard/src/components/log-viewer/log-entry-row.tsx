@@ -153,7 +153,7 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
             {truncate(activityDetail, 140)}
           </div>
           {entry.error?.message ? (
-            <div className="rounded-md border border-rose-300 bg-rose-100 px-2 py-1 text-xs leading-5 text-rose-900 dark:border-rose-500/70 dark:bg-rose-500/12 dark:text-rose-100">
+            <div className="rounded-md border border-rose-300 bg-rose-100 px-2 py-1 text-xs leading-5 text-rose-900 dark:border-rose-400/80 dark:bg-rose-500/22 dark:text-rose-50">
               {truncate(entry.error.message, 160)}
             </div>
           ) : null}

@@ -35,7 +35,7 @@ describe('log entry row source', () => {
     expect(source).toContain("error: 'destructive'");
     expect(source).toContain("warn: 'warning'");
     expect(source).toContain('bg-rose-100');
-    expect(source).toContain('dark:bg-rose-500/12');
+    expect(source).toContain('dark:bg-rose-500/22');
     expect(source).not.toContain('CATEGORY_STYLES');
     expect(source).not.toContain('>Status</th>');
     expect(source).not.toContain('>Scope</th>');

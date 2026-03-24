@@ -115,7 +115,7 @@ export function LogEntryMobileCard(props: LogEntryMobileCardProps): JSX.Element 
         </div>
 
         {entry.error?.message ? (
-          <div className="rounded-xl border border-rose-300 bg-rose-100 px-3 py-2 text-sm text-rose-900 dark:border-rose-500/70 dark:bg-rose-500/12 dark:text-rose-100">
+          <div className="rounded-xl border border-rose-300 bg-rose-100 px-3 py-2 text-sm text-rose-900 dark:border-rose-400/80 dark:bg-rose-500/22 dark:text-rose-50">
             {entry.error.message}
           </div>
         ) : null}

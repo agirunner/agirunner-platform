@@ -14,6 +14,8 @@ import { LogEntryDetailContainer } from './log-entry-detail-container.js';
 import { LogEntryDetailTask } from './log-entry-detail-task.js';
 import { LogEntryDetailAgent } from './log-entry-detail-agent.js';
 
+const DETAIL_SECTION_CLASS_NAME = 'rounded-lg border border-border/80 bg-surface/90 p-4 shadow-sm';
+
 export interface LogEntryDetailProps {
   entry: LogEntry;
   onFilterTrace?: (traceId: string) => void;
@@ -120,10 +122,10 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
   const stageName = entry.stage_name && entry.stage_name !== '' ? entry.stage_name : null;
 
   return (
-    <div className="rounded-md border border-border p-4">
+    <div className={DETAIL_SECTION_CLASS_NAME}>
       <h4 className="mb-1 text-sm font-semibold">Execution packet</h4>
       <p className="mb-3 text-xs text-muted-foreground">
-        Board, stage, and specialist-step context for this activity.
+        Workflow, stage, and specialist-step context for this activity.
       </p>
       <div className="grid max-w-lg grid-cols-[auto_1fr] gap-x-6 gap-y-0 text-sm">
         <DetailRow label="Timestamp">
@@ -152,7 +154,7 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
           </DetailRow>
         )}
         {(entry.workflow_name || entry.workflow_id) && (
-          <DetailRow label="Board">
+          <DetailRow label="Workflow">
             {entry.workflow_name ?? (
               <span className="font-mono text-xs text-muted-foreground/60">
                 {entry.workflow_id}
@@ -235,7 +237,7 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
 
 function DiagnosticHandlesSection({ entry }: { entry: LogEntry }): JSX.Element {
   return (
-    <div className="rounded-md border border-border p-4">
+    <div className={DETAIL_SECTION_CLASS_NAME}>
       <h4 className="mb-1 text-sm font-semibold">Diagnostic handles</h4>
       <p className="mb-3 text-xs text-muted-foreground">
         Use these only when correlating entries across traces, exports, or support investigations.
@@ -259,10 +261,12 @@ function DiagnosticHandlesSection({ entry }: { entry: LogEntry }): JSX.Element {
 
 function ErrorSection({ error }: { error: NonNullable<LogEntry['error']> }): JSX.Element {
   return (
-    <div className="rounded-md border border-red-600/40 bg-red-950/20 p-4">
-      <h4 className="mb-2 text-sm font-semibold text-red-400">Error</h4>
-      {error.code && <div className="mb-1 font-mono text-xs text-red-300">{error.code}</div>}
-      <div className="text-sm text-red-200">{error.message}</div>
+    <div className="rounded-lg border border-rose-300 bg-rose-100 p-4 shadow-sm dark:border-rose-400/80 dark:bg-rose-500/22">
+      <h4 className="mb-2 text-sm font-semibold text-rose-800 dark:text-rose-50">Error</h4>
+      {error.code && (
+        <div className="mb-1 font-mono text-xs text-rose-700 dark:text-rose-100">{error.code}</div>
+      )}
+      <div className="text-sm text-rose-900 dark:text-rose-50">{error.message}</div>
     </div>
   );
 }
@@ -271,7 +275,7 @@ function PayloadSection({ payload }: { payload: Record<string, unknown> }): JSX.
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <div className="rounded-md border border-border p-4">
+    <div className={DETAIL_SECTION_CLASS_NAME}>
       <button
         type="button"
         className="flex w-full items-center gap-1 text-sm font-semibold"
@@ -281,7 +285,7 @@ function PayloadSection({ payload }: { payload: Record<string, unknown> }): JSX.
         Recorded payload
       </button>
       {isExpanded && (
-        <pre className="mt-2 max-h-80 overflow-auto rounded bg-card p-3 text-xs">
+        <pre className="mt-2 max-h-80 overflow-auto rounded-lg border border-border/80 bg-background/85 p-3 text-xs shadow-sm">
           {JSON.stringify(payload, null, 2)}
         </pre>
       )}
@@ -308,7 +312,7 @@ export function LogEntryDetail({ entry, onFilterTrace }: LogEntryDetailProps): J
     : null;
 
   return (
-    <div className={cn('space-y-4 px-4 pb-4')}>
+    <div className={cn('space-y-4 bg-background/40 px-4 pb-4 pt-1 dark:bg-background/10')}>
       <TraceContextSection entry={entry} />
       <DiagnosticHandlesSection entry={entry} />
 
@@ -331,7 +335,7 @@ export function LogEntryDetail({ entry, onFilterTrace }: LogEntryDetailProps): J
         )}
         {workflowPermalink ? (
           <Button variant="outline" size="sm" asChild>
-            <Link to={workflowPermalink}>Open board context</Link>
+            <Link to={workflowPermalink}>Open workflow context</Link>
           </Button>
         ) : null}
       </div>
