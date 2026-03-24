@@ -18,7 +18,7 @@
   },
   "coverage": {
     "playbook_shapes": [
-      "assessor_reused_across_checkpoints"
+      "role_reused_across_stages"
     ]
   }
 }

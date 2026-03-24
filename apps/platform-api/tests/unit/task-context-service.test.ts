@@ -180,7 +180,7 @@ describe('buildTaskContext active stage semantics', () => {
                     { id: 'done', label: 'Done', is_terminal: true },
                   ],
                 },
-                checkpoints: [
+                stages: [
                   { name: 'implementation', goal: 'Build the change' },
                 ],
               },
@@ -231,7 +231,7 @@ describe('buildTaskContext active stage semantics', () => {
               playbook_outcome: 'Deliver the change',
               playbook_definition: {
                 lifecycle: 'planned',
-                checkpoints: [
+                stages: [
                   { name: 'design', goal: 'Design the work' },
                   { name: 'implementation', goal: 'Build the work' },
                 ],
@@ -963,7 +963,7 @@ describe('buildTaskContext active stage semantics', () => {
               playbook_outcome: 'Finalize the PRD',
               playbook_definition: {
                 lifecycle: 'planned',
-                checkpoints: [
+                stages: [
                   { name: 'requirements', goal: 'Draft the PRD' },
                   { name: 'technical-review', goal: 'Review the PRD' },
                   { name: 'approval', goal: 'Finalize the PRD' },
@@ -1149,14 +1149,11 @@ describe('buildTaskContext active stage semantics', () => {
               playbook_definition: {
                 lifecycle: 'planned',
                 process_instructions: 'Developer implements, reviewer reviews',
-                checkpoints: [{ name: 'implementation', goal: 'Implement the work' }],
+                stages: [{ name: 'implementation', goal: 'Implement the work' }],
                 board: {
                   columns: [{ id: 'in_review', label: 'In Review', is_terminal: false }],
                   entry_column_id: 'in_review',
                 },
-                assessment_rules: [{ subject_role: 'developer', assessed_by: 'reviewer', required: true }],
-                handoff_rules: [{ from_role: 'developer', to_role: 'reviewer', required: true }],
-                approval_rules: [],
               },
               workspace_spec_version: null,
             }],
@@ -1440,7 +1437,7 @@ describe('buildTaskContext active stage semantics', () => {
                     { id: 'review', label: 'In Review' },
                   ],
                 },
-                checkpoints: [{ name: 'implementation', goal: 'Implement the change' }],
+                stages: [{ name: 'implementation', goal: 'Implement the change' }],
               },
               workspace_spec_version: null,
             }],
@@ -1620,7 +1617,7 @@ describe('buildTaskContext active stage semantics', () => {
               playbook_outcome: 'Ship a reviewed change',
               playbook_definition: {
                 lifecycle: 'planned',
-                checkpoints: [
+                stages: [
                   { name: 'design', goal: 'Produce a technical design' },
                   { name: 'implementation', goal: 'Build the approved design' },
                 ],
@@ -1781,7 +1778,7 @@ describe('buildTaskContext active stage semantics', () => {
               playbook_outcome: 'Approve the PRD',
               playbook_definition: {
                 lifecycle: 'planned',
-                checkpoints: [
+                stages: [
                   { name: 'requirements', goal: 'Draft the PRD' },
                   { name: 'technical-review', goal: 'Review the PRD' },
                   { name: 'approval', goal: 'Approve the PRD' },

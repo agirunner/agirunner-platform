@@ -18,8 +18,8 @@
   },
   "coverage": {
     "playbook_shapes": [
-      "custom_checkpoint_names",
-      "multiple_checkpoints"
+      "custom_stage_names",
+      "multi_stage"
     ]
   }
 }

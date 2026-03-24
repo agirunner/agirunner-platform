@@ -114,11 +114,11 @@ REQUIRED_COVERAGE = {
     },
     "playbook_shapes": {
         "custom_role_names",
-        "custom_checkpoint_names",
-        "no_checkpoints",
-        "one_checkpoint",
-        "multiple_checkpoints",
-        "assessor_reused_across_checkpoints",
+        "custom_stage_names",
+        "direct_stage_flow",
+        "single_stage",
+        "multi_stage",
+        "role_reused_across_stages",
         "subject_role_different_assessors",
     },
     "concurrency": {

@@ -48,7 +48,7 @@
     "delivery_paths": ["direct_successor"],
     "assessor_cardinality": ["zero"],
     "successor_gating": ["direct_after_handoff"],
-    "playbook_shapes": ["custom_role_names", "multiple_checkpoints"],
+    "playbook_shapes": ["custom_role_names", "multi_stage"],
     "storage_execution": ["git_workspace", "cold_specialists", "warm_orchestrators"]
   }
 }

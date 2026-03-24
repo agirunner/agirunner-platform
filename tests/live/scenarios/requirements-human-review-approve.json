@@ -61,7 +61,7 @@
       "blocked_human_review"
     ],
     "playbook_shapes": [
-      "custom_checkpoint_names"
+      "custom_stage_names"
     ]
   }
 }

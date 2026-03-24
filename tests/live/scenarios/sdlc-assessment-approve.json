@@ -59,7 +59,7 @@
       "blocked_required_assessment"
     ],
     "playbook_shapes": [
-      "multiple_checkpoints"
+      "multi_stage"
     ],
     "storage_execution": [
       "git_workspace"

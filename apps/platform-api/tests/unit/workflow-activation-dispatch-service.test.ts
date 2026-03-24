@@ -710,10 +710,7 @@ describe('WorkflowActivationDispatchService', () => {
               playbook_definition: {
                 process_instructions: 'Design, implement, review, release.',
                 roles: ['architect', 'developer', 'reviewer'],
-                review_rules: [],
-                approval_rules: [],
-                handoff_rules: [],
-                checkpoints: [],
+                stages: [],
                 lifecycle: 'planned',
                 orchestrator: {
                   max_iterations: 120,

@@ -62,7 +62,7 @@
   },
   "coverage": {
     "playbook_shapes": [
-      "one_checkpoint"
+      "single_stage"
     ],
     "concurrency": [
       "multiple_active_subjects_same_workflow"

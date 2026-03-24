@@ -73,7 +73,7 @@
       "stale_late_assessment"
     ],
     "playbook_shapes": [
-      "assessor_reused_across_checkpoints"
+      "role_reused_across_stages"
     ],
     "assessor_cardinality": [
       "sequential_same_revision"

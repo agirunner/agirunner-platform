@@ -53,7 +53,7 @@
     ],
     "playbook_shapes": [
       "custom_role_names",
-      "one_checkpoint"
+      "single_stage"
     ],
     "storage_execution": [
       "artifact_heavy",

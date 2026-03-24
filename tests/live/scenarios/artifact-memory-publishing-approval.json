@@ -57,7 +57,7 @@
       "assessment_then_human_review_then_successor"
     ],
     "playbook_shapes": [
-      "multiple_checkpoints"
+      "multi_stage"
     ],
     "storage_execution": [
       "memory_heavy",

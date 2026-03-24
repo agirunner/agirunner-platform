@@ -23,7 +23,7 @@
   },
   "coverage": {
     "playbook_shapes": [
-      "no_checkpoints"
+      "direct_stage_flow"
     ],
     "storage_execution": [
       "memory_heavy"
