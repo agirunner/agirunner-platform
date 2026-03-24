@@ -2,7 +2,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient } from '../db/database.js';
 import type { LogService } from '../logging/log-service.js';
 import { logTaskGovernanceTransition } from '../logging/task-governance-log.js';
-import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
+import { blockedColumnId, parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import type { TaskState } from '../orchestration/task-state-machine.js';
 import { registerTaskOutputDocuments } from './document-reference-service.js';
 import { EventService } from './event-service.js';
@@ -458,6 +458,7 @@ async function maybeApplyExplicitAssessmentOutcomeAction(
       ? 'Assessment blocked the subject output.'
       : 'Assessment rejected the subject output.',
   );
+  const authoredBlockedColumnId = blockedColumnId(definition);
   if (outcomeAction.action === 'block_subject') {
     await applyAssessmentBlockSubjectAction(client, {
       tenantId: identity.tenantId,
@@ -468,6 +469,7 @@ async function maybeApplyExplicitAssessmentOutcomeAction(
       subjectWorkItemId,
       decisionState,
       feedback,
+      blockedColumnId: authoredBlockedColumnId,
       resolutionSource: candidates.resolutionSource,
       resolutionGate: resolutionGate.reason,
       explicitSubjectTaskId: candidates.explicitSubjectTaskId,
@@ -534,6 +536,7 @@ interface AssessmentExplicitOutcomeContext {
   subjectWorkItemId: string;
   decisionState: 'blocked' | 'rejected';
   feedback: string;
+  blockedColumnId?: string | null;
   resolutionSource: string;
   resolutionGate: string;
   explicitSubjectTaskId: string | null;
@@ -559,6 +562,7 @@ async function applyAssessmentBlockSubjectAction(
     workflowId: context.workflowId,
     workItemId: context.subjectWorkItemId,
     reason: context.feedback,
+    blockedColumnId: context.blockedColumnId,
   });
 
   const payload = {

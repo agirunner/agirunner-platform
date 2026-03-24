@@ -12,6 +12,63 @@ import { ConflictError, ValidationError } from '../../src/errors/domain-errors.j
 import { WorkItemService } from '../../src/services/work-item-service.js';
 
 describe('WorkItemService', () => {
+  it('treats blocked assessment decisions as blocking in assessment rollups', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        expect(sql).toContain("IN ('request_changes', 'rejected', 'blocked')");
+        expect(sql).toContain("IN ('approved', 'request_changes', 'rejected', 'blocked')");
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'work-item-1',
+            workflow_id: 'workflow-1',
+            parent_work_item_id: null,
+            stage_name: 'draft-revision',
+            column_id: 'blocked',
+            owner_role: 'blocked-content-author',
+            next_expected_actor: null,
+            next_expected_action: null,
+            blocked_state: 'blocked',
+            blocked_reason: 'The draft is blocked pending source verification.',
+            escalation_status: null,
+            rework_count: 0,
+            task_count: 1,
+            children_count: 0,
+            children_completed: 0,
+            latest_handoff_completion: 'full',
+            latest_handoff_resolution: 'blocked',
+            unresolved_findings: [],
+            focus_areas: [],
+            known_risks: [],
+            current_subject_revision: 1,
+            approved_assessment_count: 0,
+            blocking_assessment_count: 1,
+            pending_assessment_count: 0,
+            assessment_status: 'blocked',
+            stage_gate_status: 'not_requested',
+            gate_status: 'not_requested',
+            gate_decision_feedback: null,
+            gate_decided_at: null,
+            branch_status: null,
+            metadata: {},
+            completed_at: null,
+            created_at: '2026-03-24T00:00:00.000Z',
+            updated_at: '2026-03-24T00:00:00.000Z',
+          }],
+        };
+      }),
+    };
+
+    const service = new WorkItemService(pool as never, {} as never, {} as never, {} as never);
+    const workItem = await service.getWorkflowWorkItem('tenant-1', 'workflow-1', 'work-item-1');
+
+    expect(workItem).toMatchObject({
+      id: 'work-item-1',
+      assessment_status: 'blocked',
+      blocking_assessment_count: 1,
+    });
+  });
+
   it('seeds approval continuity when the persisted stage gate is awaiting approval', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

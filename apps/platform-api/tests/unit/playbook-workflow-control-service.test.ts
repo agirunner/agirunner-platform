@@ -1547,7 +1547,7 @@ describe('PlaybookWorkflowControlService', () => {
         }
         if (sql.includes('UPDATE workflow_work_items') && sql.includes("blocked_state = 'blocked'")) {
           blockedStageItems = true;
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements', 'Missing approval memo.']);
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements', 'Missing approval memo.', null]);
           return { rowCount: 2, rows: [] };
         }
         if (sql.includes('UPDATE workflow_work_items')) {

@@ -1137,12 +1137,16 @@ function isBlockedBoardItem(item: Record<string, unknown>) {
   if (item.completed_at != null) {
     return false;
   }
+  const blockedState = asOptionalString(item.blocked_state);
+  if (blockedState === 'blocked') {
+    return true;
+  }
   const assessmentStatus = asOptionalString(item.assessment_status);
   if (assessmentStatus === 'blocked') {
     return true;
   }
   const gateStatus = asOptionalString(item.gate_status);
-  return gateStatus === 'changes_requested' || gateStatus === 'rejected';
+  return gateStatus === 'blocked' || gateStatus === 'changes_requested' || gateStatus === 'rejected';
 }
 
 function readTerminalColumns(definition: unknown): Set<string> {

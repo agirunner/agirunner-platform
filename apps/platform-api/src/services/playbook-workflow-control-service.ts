@@ -2,6 +2,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import {
+  blockedColumnId,
   hasBoardColumn,
   hasStage,
   parsePlaybookDefinition,
@@ -1972,6 +1973,7 @@ export class PlaybookWorkflowControlService {
           workflowId,
           stageName: stage.name,
           reason: feedback,
+          blockedColumnId: blockedColumnId(definition),
         });
       }
     }

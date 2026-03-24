@@ -1198,14 +1198,14 @@ export class WorkItemService {
          ) latest_delivery ON true
          LEFT JOIN LATERAL (
            SELECT COUNT(*) FILTER (WHERE latest_assessment.decision_state = 'approved')::int AS approved_assessment_count,
-                  COUNT(*) FILTER (WHERE latest_assessment.decision_state IN ('request_changes', 'rejected'))::int AS blocking_assessment_count,
+                  COUNT(*) FILTER (WHERE latest_assessment.decision_state IN ('request_changes', 'rejected', 'blocked'))::int AS blocking_assessment_count,
                   COUNT(*) FILTER (WHERE latest_assessment.decision_state IS NULL)::int AS pending_assessment_count,
                   COUNT(*)::int AS actual_assessment_count
              FROM (
                SELECT DISTINCT ON (assessment_task.role)
                       assessment_task.role,
                       CASE
-                        WHEN COALESCE(latest_assessment_handoff.decision_state, latest_assessment_handoff.resolution) IN ('approved', 'request_changes', 'rejected')
+                        WHEN COALESCE(latest_assessment_handoff.decision_state, latest_assessment_handoff.resolution) IN ('approved', 'request_changes', 'rejected', 'blocked')
                           THEN COALESCE(latest_assessment_handoff.decision_state, latest_assessment_handoff.resolution)
                         ELSE NULL
                       END AS decision_state

@@ -93,6 +93,10 @@ export function defaultStageName(definition: PlaybookDefinition): string | null 
   return definition.stages[0]?.name ?? null;
 }
 
+export function blockedColumnId(definition: PlaybookDefinition): string | null {
+  return definition.board.columns.find((column) => column.is_blocked)?.id ?? null;
+}
+
 export function hasBoardColumn(definition: PlaybookDefinition, columnId: string): boolean {
   return definition.board.columns.some((column) => column.id === columnId);
 }

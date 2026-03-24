@@ -14,6 +14,8 @@ export function resolveAssessmentOutcomeAction(input: {
   checkpointName?: string | null;
   decisionState: DecisionState;
 }) {
-  void input;
+  if (input.decisionState === 'blocked') {
+    return { action: 'block_subject' } satisfies AssessmentOutcomeAction;
+  }
   return null as AssessmentOutcomeAction | null;
 }

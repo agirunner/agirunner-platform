@@ -5,6 +5,7 @@ export interface BlockWorkflowWorkItemInput {
   workflowId: string;
   workItemId: string;
   reason: string | null;
+  blockedColumnId?: string | null;
 }
 
 export interface BlockWorkflowStageItemsInput {
@@ -12,6 +13,7 @@ export interface BlockWorkflowStageItemsInput {
   workflowId: string;
   stageName: string;
   reason: string | null;
+  blockedColumnId?: string | null;
 }
 
 export interface ClearWorkflowWorkItemBlockInput {
@@ -28,13 +30,14 @@ export async function blockWorkflowWorkItem(
     `UPDATE workflow_work_items
         SET blocked_state = 'blocked',
             blocked_reason = $4,
+            column_id = COALESCE($5, column_id),
             next_expected_actor = NULL,
             next_expected_action = NULL,
             updated_at = now()
       WHERE tenant_id = $1
         AND workflow_id = $2
         AND id = $3`,
-    [input.tenantId, input.workflowId, input.workItemId, input.reason],
+    [input.tenantId, input.workflowId, input.workItemId, input.reason, input.blockedColumnId ?? null],
   );
 }
 
@@ -46,6 +49,7 @@ export async function blockWorkflowStageItems(
     `UPDATE workflow_work_items
         SET blocked_state = 'blocked',
             blocked_reason = $4,
+            column_id = COALESCE($5, column_id),
             next_expected_actor = NULL,
             next_expected_action = NULL,
             updated_at = now()
@@ -53,7 +57,7 @@ export async function blockWorkflowStageItems(
         AND workflow_id = $2
         AND stage_name = $3
         AND completed_at IS NULL`,
-    [input.tenantId, input.workflowId, input.stageName, input.reason],
+    [input.tenantId, input.workflowId, input.stageName, input.reason, input.blockedColumnId ?? null],
   );
 }
 
