@@ -120,6 +120,53 @@ describe('AgentService secret redaction', () => {
     );
   });
 
+  it('skips api key issuance for worker-bound orchestrator agents when requested', async () => {
+    const pool = createAgentPool(
+      DEFAULT_AGENT_RUNTIME_DEFAULTS,
+      async (sql: string) => {
+        if (sql.includes('INSERT INTO agents')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'agent-1',
+                name: 'orchestrator-01',
+                routing_tags: ['llm-api', 'orchestrator'],
+                status: 'active',
+                metadata: {},
+              },
+            ],
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      },
+    );
+    const service = new AgentService(
+      pool as never,
+      { emit: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    const result = await service.registerAgent(
+      {
+        id: 'admin-key',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      } as never,
+      {
+        name: 'orchestrator-01',
+        worker_id: 'worker-1',
+        execution_mode: 'orchestrator',
+        issue_api_key: false,
+      } as never,
+    );
+
+    expect(result.api_key).toBeUndefined();
+    expect(mockedCreateApiKey).not.toHaveBeenCalled();
+  });
+
   it('catches embedded bearer tokens in agent metadata prose on list reads', async () => {
     const pool = {
       query: vi.fn().mockResolvedValue({

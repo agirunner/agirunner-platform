@@ -84,7 +84,7 @@ The current corpus is intentionally realistic rather than toy-like. It spans:
 - host-directory maintenance flows
 - concurrency and race-condition stress scenarios
 - custom role-image coverage
-- five prose-only advisory scenarios, including a realistic SDLC cycle, proving that unconfigured approval, assessment, escalation, and successor suggestions remain advisory and non-blocking
+- prose-driven governance scenarios across SDLC, requirements, publishing, host-directory, and concurrency flows
 
 Long-term corpus planning lives in:
 
@@ -113,3 +113,16 @@ Per scenario run:
 - `<scenario>/evidence/docker-log-rotation.json`
 
 These artifacts are designed for trace-first troubleshooting and later automated validation.
+
+## Pass Criteria
+
+No scenario counts as passing until all of these checks agree:
+
+- final artifact shows the expected workflow result
+- DB evidence shows clean workflow, task, and work-item settlement for the scenario semantics
+- board and stage progression evidence shows the scenario reached the expected work-item columns, completion markers, and stage/workflow terminal posture for that playbook
+- log anomaly review shows no unexplained terminal defect
+- container hygiene evidence shows no dangling task containers and no undrained cold runtimes left behind after the scenario has settled
+
+Container hygiene is mandatory because a workflow can appear complete while runtime ownership or cleanup is still broken. Review `live-containers.json`, `container-observations.json`, and `runtime-cleanup.json` before recording a pass.
+Board and stage progression is mandatory because a workflow can appear busy or complete while work items remain in the wrong board column, stages never reconcile, or the workflow stays active after all work is terminal. Review `db-state.json` and the workflow snapshot for work-item `completed_at`, board column, stage status, and workflow state before recording a pass.

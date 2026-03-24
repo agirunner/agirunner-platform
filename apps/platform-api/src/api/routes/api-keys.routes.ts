@@ -6,11 +6,11 @@ import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
 // ApiKeyService provided via app.apiKeyService
 
 const createApiKeySchema = z.object({
-  scope: z.enum(['agent', 'worker', 'admin']),
-  owner_type: z.string().min(1).max(120),
+  scope: z.enum(['admin', 'service']),
+  owner_type: z.string().min(1).max(120).optional(),
   owner_id: z.string().uuid().optional(),
   label: z.string().max(255).optional(),
-  expires_at: z.string().datetime(),
+  expires_at: z.string().datetime().nullable().optional(),
 });
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {

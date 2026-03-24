@@ -224,7 +224,46 @@ describe('ContainerInventoryService', () => {
     const listQuery = pool.query.mock.calls[0]?.[0] as string;
     expect(listQuery).toContain('rh.runtime_id::text = live.runtime_id');
     expect(listQuery).not.toContain('rh.runtime_id = live.runtime_id');
-    expect(listQuery).toContain("COALESCE(p.id::text, NULLIF(BTRIM(live.live_playbook_id), ''))");
+    expect(listQuery).toContain('p.id::text AS playbook_id');
+    expect(listQuery).not.toContain("COALESCE(p.id::text, NULLIF(BTRIM(live.live_playbook_id), ''))");
+  });
+
+  it('does not expose unmatched live playbook ids as linkable playbook ids', async () => {
+    pool.query.mockResolvedValueOnce({
+      rows: [
+        {
+          id: 'runtime:runtime-1',
+          kind: 'runtime',
+          name: 'runtime-specialist-1',
+          state: 'running',
+          status: 'Up 30 seconds',
+          image: 'agirunner-runtime:local',
+          cpu_limit: '1',
+          memory_limit: '768m',
+          started_at: new Date('2026-03-21T18:24:00.000Z'),
+          last_seen_at: new Date('2026-03-21T18:30:00.000Z'),
+          execution_backend: 'runtime_only',
+          role_name: 'developer',
+          playbook_id: null,
+          playbook_name: 'Specialist',
+          workflow_id: null,
+          workflow_name: null,
+          task_id: null,
+          task_title: null,
+          stage_name: null,
+          activity_state: 'idle',
+        },
+      ],
+      rowCount: 1,
+    });
+
+    const rows = await service.listCurrentContainers(TENANT_ID);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      playbook_id: null,
+      playbook_name: 'Specialist',
+    });
   });
 
   it('maps active desired-state work by container instance instead of shared desired state', async () => {

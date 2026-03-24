@@ -629,12 +629,11 @@ export class TaskClaimService {
       llm_extra_headers_claim_handle?: string;
     },
   ): Promise<Record<string, unknown>> {
-    const agentId = identity.ownerId?.trim();
-    if (!agentId) {
-      throw new ForbiddenError('Agent identity is not bound to an agent owner.');
+    if (!identity.ownerId?.trim()) {
+      throw new ForbiddenError('Calling identity is not bound to a worker or agent owner.');
     }
 
-    await this.assertAgentOwnsTask(identity.tenantId, taskId, agentId);
+    await this.assertIdentityOwnsTask(identity, taskId);
 
     const credentials: Record<string, unknown> = {};
     if (payload.llm_api_key_claim_handle) {
@@ -1010,19 +1009,28 @@ export class TaskClaimService {
     return readRequiredPositiveIntegerRuntimeDefault(db, tenantId, runtimeDefaultKey);
   }
 
-  private async assertAgentOwnsTask(tenantId: string, taskId: string, agentId: string): Promise<void> {
-    const result = await this.deps.pool.query<{ assigned_agent_id: string | null }>(
-      `SELECT assigned_agent_id
+  private async assertIdentityOwnsTask(identity: ApiKeyIdentity, taskId: string): Promise<void> {
+    const result = await this.deps.pool.query<{ assigned_agent_id: string | null; assigned_worker_id: string | null }>(
+      `SELECT assigned_agent_id, assigned_worker_id
          FROM tasks
         WHERE tenant_id = $1
           AND id = $2
         LIMIT 1`,
-      [tenantId, taskId],
+      [identity.tenantId, taskId],
     );
     if (!result.rowCount) {
       throw new NotFoundError('Task not found');
     }
-    if ((result.rows[0]?.assigned_agent_id ?? '') !== agentId) {
+
+    const task = result.rows[0];
+    if (identity.scope === 'worker') {
+      if ((task?.assigned_worker_id ?? '') !== identity.ownerId) {
+        throw new ForbiddenError('Worker cannot resolve claim credentials for a different task.');
+      }
+      return;
+    }
+
+    if ((task?.assigned_agent_id ?? '') !== identity.ownerId) {
       throw new ForbiddenError('Agent cannot resolve claim credentials for a different task.');
     }
   }

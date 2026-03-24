@@ -24,7 +24,7 @@ async function authenticateToken(app: FastifyInstance, token: string): Promise<A
     const claims = await verifyJwt<{
       keyId: string;
       tenantId: string;
-      scope: 'agent' | 'worker' | 'admin';
+      scope: 'agent' | 'worker' | 'admin' | 'service';
       ownerType: string;
       ownerId: string | null;
       keyPrefix: string;
@@ -57,7 +57,7 @@ async function authenticateUpgrade(app: FastifyInstance, authorization?: string)
 }
 
 function isDashboardEventScopeAllowed(identity: ApiKeyIdentity | null): boolean {
-  return identity?.scope === 'agent' || identity?.scope === 'admin';
+  return identity?.scope === 'agent' || identity?.scope === 'admin' || identity?.scope === 'service';
 }
 
 /**

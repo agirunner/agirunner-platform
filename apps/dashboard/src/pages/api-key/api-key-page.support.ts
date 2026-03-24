@@ -2,37 +2,57 @@ import type { DashboardApiKeyRecord } from '../../lib/api.js';
 
 import { isWithinDays } from '../governance-shared/governance-lifecycle.support.js';
 
-export type ApiKeyScopeVariant = 'default' | 'success' | 'destructive' | 'warning' | 'secondary';
-
-const SCOPE_VARIANT: Record<string, ApiKeyScopeVariant> = {
-  admin: 'destructive',
-  worker: 'warning',
-  agent: 'success',
-};
+const OPERATOR_SCOPES = new Set(['admin', 'service']);
 
 const SCOPE_DESCRIPTION: Record<string, string> = {
-  admin: 'Full platform administration. Use only for short-lived operator tasks.',
-  worker: 'Automation and runtime control without tenant-wide admin access.',
-  agent: 'Narrow orchestration use with the smallest default blast radius.',
+  admin: 'Operator access for full dashboard and API control.',
+  service: 'External service and integration access. Currently full control.',
 };
 
-export function scopeVariant(scope: string): ApiKeyScopeVariant {
-  return SCOPE_VARIANT[scope.toLowerCase()] ?? 'secondary';
+const SCOPE_LABEL: Record<string, string> = {
+  admin: 'Admin',
+  service: 'Service',
+  worker: 'Agent',
+  agent: 'Task',
+};
+
+const SCOPE_NAME: Record<string, string> = {
+  admin: 'Admin',
+  service: 'Service',
+  worker: 'Agentic Runtime',
+  agent: 'Task Execution',
+};
+
+export function isOperatorKey(record: DashboardApiKeyRecord): boolean {
+  return OPERATOR_SCOPES.has(record.scope.toLowerCase());
+}
+
+export function splitApiKeys(apiKeys: DashboardApiKeyRecord[]) {
+  return {
+    operatorKeys: apiKeys.filter(isOperatorKey),
+    systemKeys: apiKeys.filter((record) => !isOperatorKey(record)),
+  };
 }
 
 export function scopeDescription(scope: string): string {
-  return SCOPE_DESCRIPTION[scope.toLowerCase()] ?? 'Use the narrowest scope that still completes the task.';
+  return SCOPE_DESCRIPTION[scope.toLowerCase()] ?? 'Platform-managed credentials.';
 }
 
-export function describeOwner(key: DashboardApiKeyRecord): string {
-  return key.owner_id ?? key.owner_type;
+export function scopeLabel(scope: string): string {
+  return SCOPE_LABEL[scope.toLowerCase()] ?? scope;
+}
+
+export function scopeName(scope: string): string {
+  return SCOPE_NAME[scope.toLowerCase()] ?? scope;
 }
 
 export function summarizeApiKeys(apiKeys: DashboardApiKeyRecord[]) {
+  const operatorKeys = apiKeys.filter(isOperatorKey);
+
   return {
     active: apiKeys.filter((key) => !key.is_revoked).length,
-    admin: apiKeys.filter((key) => !key.is_revoked && key.scope === 'admin').length,
-    expiringSoon: apiKeys.filter((key) => !key.is_revoked && isWithinDays(key.expires_at, 7)).length,
+    operator: operatorKeys.filter((key) => !key.is_revoked).length,
+    expiringSoon: operatorKeys.filter((key) => !key.is_revoked && isWithinDays(key.expires_at, 7)).length,
     neverUsed: apiKeys.filter((key) => !key.last_used_at).length,
   };
 }

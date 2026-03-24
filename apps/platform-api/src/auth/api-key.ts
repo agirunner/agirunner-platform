@@ -51,7 +51,7 @@ interface ApiKeyRow {
   key_prefix: string;
   key_lookup_hash: string | null;
   key_hash: string;
-  expires_at: Date;
+  expires_at: Date | null;
   is_revoked: boolean;
   tenant_is_active: boolean;
 }
@@ -75,7 +75,10 @@ function toIdentity(row: ApiKeyRow): ApiKeyIdentity {
   };
 }
 
-function isExpired(expiresAt: Date): boolean {
+function isExpired(expiresAt: Date | null): boolean {
+  if (!expiresAt) {
+    return false;
+  }
   return new Date(expiresAt) <= new Date();
 }
 
@@ -273,7 +276,7 @@ export async function createApiKey(
     ownerType: string;
     ownerId?: string;
     label?: string;
-    expiresAt: Date;
+    expiresAt?: Date;
   },
 ): Promise<{ apiKey: string; keyPrefix: string }> {
   for (let attempt = 1; attempt <= API_KEY_INSERT_RETRY_LIMIT; attempt += 1) {
@@ -295,7 +298,7 @@ export async function createApiKey(
           input.ownerType,
           input.ownerId ?? null,
           input.label ?? null,
-          input.expiresAt,
+          input.expiresAt ?? null,
         ],
       );
 

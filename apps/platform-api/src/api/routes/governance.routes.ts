@@ -6,8 +6,8 @@ import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
 import { applyTenantLoggingLevel } from '../../logging/platform-log-level.js';
 const retentionPolicySchema = z
   .object({
-    task_archive_after_days: z.number().int().min(1).optional(),
-    task_delete_after_days: z.number().int().min(1).optional(),
+    task_prune_after_days: z.number().int().min(1).optional(),
+    workflow_delete_after_days: z.number().int().min(1).optional(),
     execution_log_retention_days: z.number().int().min(1).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, { message: 'At least one field is required' });
@@ -30,7 +30,9 @@ export const governanceRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     '/api/v1/governance/retention-policy',
     { preHandler: [authenticateApiKey, withScope('admin')] },
-    async (request) => ({ data: await governanceService.getRetentionPolicy(request.auth!.tenantId) }),
+    async (request) => ({
+      data: await governanceService.getRetentionPolicy(request.auth!.tenantId),
+    }),
   );
 
   app.put(

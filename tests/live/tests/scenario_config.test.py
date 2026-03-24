@@ -15,36 +15,6 @@ import scenario_config  # noqa: E402
 
 
 class ScenarioConfigTests(unittest.TestCase):
-    def test_prose_only_sdlc_scenario_requires_a_real_multi_role_repo_flow(self) -> None:
-        scenario_path = Path(__file__).resolve().parents[1] / "scenarios" / "prose-only-sdlc-cycle-advisory.json"
-
-        scenario = scenario_config.load_scenario(scenario_path)
-
-        self.assertTrue(scenario["workspace"]["repo"])
-        self.assertEqual(4, scenario["expect"]["workflow_tasks"]["min_non_orchestrator_count"])
-        self.assertEqual(
-            ["assessment", "approval"],
-            scenario["expect"]["workflow_tasks"]["forbid_task_kinds"],
-        )
-        self.assertEqual(
-            [
-                {
-                    "source_role": "prose-sdlc-solution-architect",
-                    "successor_role": "prose-sdlc-implementation-engineer",
-                },
-                {
-                    "source_role": "prose-sdlc-implementation-engineer",
-                    "successor_role": "prose-sdlc-release-reviewer",
-                },
-                {
-                    "source_role": "prose-sdlc-release-reviewer",
-                    "successor_role": "prose-sdlc-release-coordinator",
-                },
-            ],
-            scenario["expect"]["direct_handoff_expectations"],
-        )
-        self.assertNotIn("configuration_optional_controls", scenario["coverage"])
-
     def test_ongoing_intake_scenario_requires_real_work_before_pending_counts_as_success(self) -> None:
         scenario_path = Path(__file__).resolve().parents[1] / "scenarios" / "ongoing-intake-assessment-rework.json"
 
@@ -71,38 +41,6 @@ class ScenarioConfigTests(unittest.TestCase):
                 }
             ],
             scenario["expect"]["continuity_rework_sequences"],
-        )
-
-    def test_runtime_task_sandbox_split_scenario_requires_backend_and_cleanup_evidence(self) -> None:
-        scenario_path = Path(__file__).resolve().parents[1] / "scenarios" / "runtime-task-sandbox-split.json"
-
-        scenario = scenario_config.load_scenario(scenario_path)
-
-        self.assertTrue(scenario["workspace"]["repo"])
-        self.assertEqual("completed", scenario["expect"]["state"])
-        self.assertEqual(3, scenario["expect"]["workflow_tasks"]["min_non_orchestrator_count"])
-        self.assertEqual(
-            [
-                {
-                    "source_role": "runtime-split-planning-analyst",
-                    "successor_role": "runtime-split-implementation-engineer",
-                },
-                {
-                    "source_role": "runtime-split-implementation-engineer",
-                    "successor_role": "runtime-split-release-coordinator",
-                },
-            ],
-            scenario["expect"]["direct_handoff_expectations"],
-        )
-        self.assertEqual(4, len(scenario["expect"]["task_backend_expectations"]))
-        self.assertEqual(
-            {
-                "db_state_present": True,
-                "runtime_cleanup_passed": True,
-                "docker_log_rotation_passed": True,
-                "log_anomalies_empty": True,
-            },
-            scenario["expect"]["evidence_expectations"],
         )
 
     def write_scenario(self, payload: dict[str, object]) -> Path:

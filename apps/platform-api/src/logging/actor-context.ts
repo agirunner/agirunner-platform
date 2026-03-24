@@ -13,9 +13,10 @@ export function actorFromAuth(auth: ApiKeyIdentity | undefined): ActorContext {
 
   switch (auth.scope) {
     case 'admin':
+    case 'service':
       return auth.userId
         ? { type: 'user', id: auth.userId, name: 'Admin' }
-        : { type: 'api_key', id: auth.id, name: 'Admin API' };
+        : { type: 'api_key', id: auth.id, name: auth.scope === 'service' ? 'Service API' : 'Admin API' };
     case 'worker':
       return { type: 'worker', id: auth.ownerId ?? auth.id, name: 'Worker' };
     case 'agent':

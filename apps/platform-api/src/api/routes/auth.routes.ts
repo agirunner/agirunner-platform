@@ -20,7 +20,7 @@ const CSRF_HEADER_NAME = 'x-csrf-token';
 interface RefreshTokenClaims {
   keyId: string;
   tenantId: string;
-  scope: 'agent' | 'worker' | 'admin';
+  scope: 'agent' | 'worker' | 'admin' | 'service';
   ownerType: string;
   ownerId: string | null;
   keyPrefix: string;

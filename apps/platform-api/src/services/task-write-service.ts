@@ -1,4 +1,5 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
+import { isOperatorScope } from '../auth/scope.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
@@ -799,7 +800,7 @@ export class TaskWriteService {
   }
 
   private async assertParentPermission(identity: ApiKeyIdentity, parentTask: ParentTaskRow) {
-    if (identity.scope === 'admin') {
+    if (isOperatorScope(identity.scope)) {
       return;
     }
 

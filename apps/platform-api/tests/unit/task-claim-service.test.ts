@@ -3475,6 +3475,58 @@ describe('TaskClaimService', () => {
     });
   });
 
+  it('allows worker identities to resolve claim credentials for their assigned tasks', async () => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
+    const encryptedApiKey = storeProviderSecret('provider-api-key');
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('SELECT assigned_agent_id, assigned_worker_id')) {
+          return {
+            rowCount: 1,
+            rows: [{ assigned_agent_id: 'agent-1', assigned_worker_id: 'worker-1' }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql} :: ${JSON.stringify(params ?? [])}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskClaimService({
+      pool: { connect: vi.fn(async () => client), query: client.query } as never,
+      eventService: { emit: vi.fn() } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({})),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const credentials = await service.resolveClaimCredentials(
+      {
+        id: 'worker-key',
+        tenantId: 'tenant-1',
+        scope: 'worker',
+        ownerType: 'worker',
+        ownerId: 'worker-1',
+        keyPrefix: 'worker-key',
+      },
+      'task-1',
+      {
+        llm_api_key_claim_handle: 'claim:v1:' + Buffer.from(JSON.stringify({
+          task_id: 'task-1',
+          kind: 'llm_api_key',
+          stored_secret: encryptedApiKey,
+        }), 'utf8').toString('base64url') + '.' + createSignature('test-claim-handle-secret', {
+          task_id: 'task-1',
+          kind: 'llm_api_key',
+          stored_secret: encryptedApiKey,
+        }),
+      },
+    );
+
+    expect(credentials).toEqual({
+      llm_api_key: 'provider-api-key',
+    });
+  });
+
   it('logs the execution contract after a successful claim', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const logService = {

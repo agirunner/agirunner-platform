@@ -5,7 +5,7 @@ export function GovernanceReviewField(props: {
   value: string;
   title?: string;
   mono?: boolean;
-  badgeVariant?: 'default' | 'success' | 'destructive' | 'warning' | 'secondary';
+  badgeVariant?: 'default' | 'success' | 'destructive' | 'warning' | 'secondary' | 'outline';
 }): JSX.Element {
   return (
     <div className="space-y-1">

@@ -94,10 +94,7 @@ export async function runDispatchTick(
   workflowActivationDispatchService?: WorkflowActivationDispatchService,
 ): Promise<void> {
   await runWorkerDispatchTick(workerService);
-  await runWorkflowActivationDispatchTick(
-    logger,
-    workflowActivationDispatchService,
-  );
+  await runWorkflowActivationDispatchTick(logger, workflowActivationDispatchService);
 }
 
 export async function runHeartbeatPruneTick(
@@ -122,7 +119,7 @@ export async function runGovernanceRetentionTick(
     return;
   }
   const result = await governanceService.enforceRetentionPolicies();
-  if (result.archivedTasks > 0 || result.deletedTasks > 0 || result.droppedLogPartitions > 0) {
+  if (result.prunedTasks > 0 || result.deletedWorkflows > 0 || result.droppedLogPartitions > 0) {
     logger.info(result, 'governance_retention_enforced');
   }
 }
@@ -173,11 +170,7 @@ export function startLifecycleMonitor(
     { resolve: async () => (await readTimingDefaults()).dispatchLoopIntervalMs },
     async () => {
       try {
-        await runDispatchTick(
-          logger,
-          workerService,
-          workflowActivationDispatchService,
-        );
+        await runDispatchTick(logger, workerService, workflowActivationDispatchService);
       } catch (error) {
         logger.error({ err: error }, 'worker_dispatch_monitor_failed');
       }

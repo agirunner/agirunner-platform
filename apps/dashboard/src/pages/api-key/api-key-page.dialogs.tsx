@@ -26,24 +26,26 @@ import {
   formatExpiryLabel,
   formatRelativeTimestamp,
 } from '../governance-shared/governance-lifecycle.support.js';
-import { describeOwner, scopeDescription, scopeVariant } from './api-key-page.support.js';
+import { scopeDescription, scopeLabel } from './api-key-page.support.js';
+
+type OperatorScope = 'admin' | 'service';
 
 export function CreateApiKeyDialog(props: {
   isOpen: boolean;
   onClose(): void;
 }): JSX.Element {
   const queryClient = useQueryClient();
-  const [scope, setScope] = useState<'agent' | 'worker' | 'admin'>('agent');
+  const [scope, setScope] = useState<OperatorScope>('admin');
   const [label, setLabel] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
+  const [hasNoExpiry, setHasNoExpiry] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
 
   const mutation = useMutation({
-    mutationFn: (payload: { scope: 'agent' | 'worker' | 'admin'; label: string; expires_at: string }) =>
+    mutationFn: (payload: { scope: OperatorScope; label: string; expires_at?: string }) =>
       dashboardApi.createApiKey({
         scope: payload.scope,
-        owner_type: 'user',
         label: payload.label || undefined,
         expires_at: payload.expires_at,
       }),
@@ -58,9 +60,10 @@ export function CreateApiKeyDialog(props: {
   });
 
   function resetAndClose(): void {
-    setScope('agent');
+    setScope('admin');
     setLabel('');
     setExpiryDate('');
+    setHasNoExpiry(false);
     setCreatedKey(null);
     setHasCopied(false);
     props.onClose();
@@ -68,14 +71,14 @@ export function CreateApiKeyDialog(props: {
 
   function handleSubmit(event: React.FormEvent): void {
     event.preventDefault();
-    if (!expiryDate) {
+    if (!hasNoExpiry && !expiryDate) {
       return;
     }
 
     mutation.mutate({
       scope,
       label: label.trim(),
-      expires_at: new Date(expiryDate).toISOString(),
+      expires_at: hasNoExpiry ? undefined : new Date(expiryDate).toISOString(),
     });
   }
 
@@ -102,7 +105,7 @@ export function CreateApiKeyDialog(props: {
           <DialogDescription>
             {createdKey
               ? 'This secret is shown once. Copy it into the destination system before closing the dialog.'
-              : 'Choose the narrowest scope, add an audit-friendly label, and set an expiry before issuing the key.'}
+              : 'Issue only Admin or Service keys here. System keys remain platform-managed and are never created manually.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -135,14 +138,13 @@ export function CreateApiKeyDialog(props: {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
                 <label className="text-sm font-medium">Scope</label>
-                <Select value={scope} onValueChange={(value) => setScope(value as 'agent' | 'worker' | 'admin')}>
+                <Select value={scope} onValueChange={(value) => setScope(value as OperatorScope)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="agent">Agent</SelectItem>
-                    <SelectItem value="worker">Worker</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="service">Service</SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs leading-5 text-muted">{scopeDescription(scope)}</p>
@@ -156,11 +158,17 @@ export function CreateApiKeyDialog(props: {
                   type="date"
                   value={expiryDate}
                   min={new Date().toISOString().slice(0, 10)}
+                  disabled={hasNoExpiry}
                   onChange={(event) => setExpiryDate(event.target.value)}
                 />
-                <p className="text-xs leading-5 text-muted">
-                  Short-lived keys reduce cleanup and blast radius when credentials leak.
-                </p>
+                <label className="flex items-center gap-2 text-sm text-muted">
+                  <input
+                    type="checkbox"
+                    checked={hasNoExpiry}
+                    onChange={(event) => setHasNoExpiry(event.target.checked)}
+                  />
+                  <span>No expiry</span>
+                </label>
               </div>
             </div>
             <div className="space-y-2">
@@ -187,7 +195,7 @@ export function CreateApiKeyDialog(props: {
               <Button type="button" variant="outline" onClick={resetAndClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={mutation.isPending || !expiryDate}>
+              <Button type="submit" disabled={mutation.isPending || (!hasNoExpiry && !expiryDate)}>
                 {mutation.isPending ? 'Creating...' : 'Create API key'}
               </Button>
             </div>
@@ -240,8 +248,10 @@ export function RevokeConfirmDialog(props: {
         </DialogHeader>
         <div className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4 sm:grid-cols-2">
           <GovernanceReviewField label="Key prefix" value={`${props.record.key_prefix}...`} mono />
-          <GovernanceReviewField label="Scope" value={props.record.scope} badgeVariant={scopeVariant(props.record.scope)} />
-          <GovernanceReviewField label="Owner" value={describeOwner(props.record)} />
+          <GovernanceReviewField
+            label="Scope"
+            value={scopeLabel(props.record.scope)}
+          />
           <GovernanceReviewField
             label="Expiry"
             value={formatExpiryLabel(props.record.expires_at)}

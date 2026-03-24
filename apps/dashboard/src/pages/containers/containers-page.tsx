@@ -126,9 +126,9 @@ export function ContainersPage(): JSX.Element {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All kinds</SelectItem>
-            <SelectItem value="orchestrator">Orchestrator worker</SelectItem>
-            <SelectItem value="runtime">Runtime</SelectItem>
-            <SelectItem value="task">Task execution</SelectItem>
+            <SelectItem value="orchestrator">Orchestrator agent</SelectItem>
+            <SelectItem value="runtime">Specialist agent</SelectItem>
+            <SelectItem value="task">Specialist task execution</SelectItem>
           </SelectContent>
         </Select>
         <Select value={status} onValueChange={(value) => setStatus(value as ContainerStatusFilter)}>
@@ -145,9 +145,9 @@ export function ContainersPage(): JSX.Element {
 
       <section className="space-y-3">
         <div className="space-y-1">
-          <h2 className="text-base font-semibold text-foreground">Orchestrator</h2>
+          <h2 className="text-base font-semibold text-foreground">Orchestrator agent</h2>
           <p className="text-sm text-muted-foreground">
-            Orchestrator workers and orchestrator execution containers.
+            Orchestrator containers and orchestrator execution containers.
           </p>
         </div>
         <ContainersTable

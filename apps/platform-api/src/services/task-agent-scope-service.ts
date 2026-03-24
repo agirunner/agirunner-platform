@@ -13,6 +13,7 @@ export interface ActiveTaskScope {
   stage_name: string | null;
   activation_id: string | null;
   assigned_agent_id: string | null;
+  assigned_worker_id: string | null;
   is_orchestrator_task: boolean;
   state: string;
 }
@@ -26,11 +27,12 @@ export class TaskAgentScopeService {
 
   async loadAgentOwnedActiveTask(identity: ApiKeyIdentity, taskId: string): Promise<ActiveTaskScope> {
     if (!identity.ownerId) {
-      throw new ForbiddenError('Agent identity is not bound to an agent record');
+      throw new ForbiddenError('Calling identity is not bound to a worker or agent record');
     }
 
     const result = await this.pool.query<ActiveTaskScope>(
-      `SELECT id, workflow_id, workspace_id, work_item_id, stage_name, activation_id, assigned_agent_id, is_orchestrator_task, state
+      `SELECT id, workflow_id, workspace_id, work_item_id, stage_name, activation_id,
+              assigned_agent_id, assigned_worker_id, is_orchestrator_task, state
          FROM tasks
         WHERE tenant_id = $1
           AND id = $2`,
@@ -38,11 +40,9 @@ export class TaskAgentScopeService {
     );
     const task = result.rows[0];
     if (!task) {
-      throw new ForbiddenError('Task is not available to the calling agent');
+      throw new ForbiddenError('Task is not available to the calling identity');
     }
-    if (task.assigned_agent_id !== identity.ownerId) {
-      throw new ForbiddenError('Task is not owned by the calling agent');
-    }
+    this.assertTaskOwnership(identity, task);
     const normalizedState = normalizeTaskState(task.state) ?? task.state;
     if (!['claimed', 'in_progress', 'output_pending_assessment', 'awaiting_approval'].includes(normalizedState)) {
       throw new ForbiddenError('Task-scoped tools require an active task');
@@ -57,5 +57,18 @@ export class TaskAgentScopeService {
       throw new ForbiddenError('Task is not available for orchestrator control');
     }
     return task as ActiveOrchestratorTaskScope;
+  }
+
+  private assertTaskOwnership(identity: ApiKeyIdentity, task: ActiveTaskScope): void {
+    if (identity.scope === 'worker') {
+      if (task.assigned_worker_id !== identity.ownerId) {
+        throw new ForbiddenError('Task is not owned by the calling worker');
+      }
+      return;
+    }
+
+    if (task.assigned_agent_id !== identity.ownerId) {
+      throw new ForbiddenError('Task is not owned by the calling agent');
+    }
   }
 }

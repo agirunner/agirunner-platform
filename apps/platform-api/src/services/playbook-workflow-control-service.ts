@@ -122,6 +122,14 @@ interface BlockingStageWorkItemRow {
 }
 
 const COMPLETION_BLOCKING_NEXT_ACTIONS = new Set(['assess', 'approve', 'rework', 'handoff']);
+const TERMINAL_TASK_STATES = ['completed', 'failed', 'cancelled'] as const;
+
+interface BlockingTaskRow {
+  id: string;
+  role: string;
+  state: string;
+  stage_name: string | null;
+}
 
 export interface UpdateWorkflowWorkItemInput {
   parent_work_item_id?: string | null;
@@ -889,6 +897,33 @@ export class PlaybookWorkflowControlService {
     );
   }
 
+  private async assertWorkItemHasNoActiveTasks(
+    tenantId: string,
+    workflowId: string,
+    workItemId: string,
+    workItemTitle: string,
+    db: DatabaseClient,
+  ) {
+    const result = await db.query<BlockingTaskRow>(
+      `SELECT id, role, state, stage_name
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND work_item_id = $3
+          AND state::text <> ALL($4::text[])
+        ORDER BY created_at ASC
+        LIMIT 1`,
+      [tenantId, workflowId, workItemId, TERMINAL_TASK_STATES],
+    );
+    const row = result.rows[0];
+    if (!row) {
+      return;
+    }
+    throw new ValidationError(
+      `Cannot complete work item '${workItemTitle}' while task '${row.role}' is still ${row.state}.`,
+    );
+  }
+
   private async assertStageHasNoPendingBlockingContinuation(
     tenantId: string,
     workflowId: string,
@@ -940,6 +975,32 @@ export class PlaybookWorkflowControlService {
     );
   }
 
+  private async assertWorkflowHasNoActiveNonOrchestratorTasks(
+    tenantId: string,
+    workflowId: string,
+    db: DatabaseClient,
+  ) {
+    const result = await db.query<BlockingTaskRow>(
+      `SELECT id, role, state, stage_name
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND is_orchestrator_task = false
+          AND state::text <> ALL($3::text[])
+        ORDER BY created_at ASC
+        LIMIT 1`,
+      [tenantId, workflowId, TERMINAL_TASK_STATES],
+    );
+    const row = result.rows[0];
+    if (!row) {
+      return;
+    }
+    const stageSuffix = row.stage_name ? ` in stage '${row.stage_name}'` : '';
+    throw new ValidationError(
+      `Cannot complete workflow while task '${row.role}'${stageSuffix} is still ${row.state}.`,
+    );
+  }
+
   private async completeWorkflowInTransaction(
     identity: ApiKeyIdentity,
     workflowId: string,
@@ -959,6 +1020,8 @@ export class PlaybookWorkflowControlService {
         final_artifacts: readCompletionArtifacts(workflow),
       };
     }
+
+    await this.assertWorkflowHasNoActiveNonOrchestratorTasks(identity.tenantId, workflowId, db);
 
     const finalArtifacts = normalizeStringArray(input.final_artifacts);
     const completedStageNames = new Set<string>();
@@ -1224,6 +1287,13 @@ export class PlaybookWorkflowControlService {
       normalizedUpdate.completed_at !== null
       && workItem.completed_at === null
     ) {
+      await this.assertWorkItemHasNoActiveTasks(
+        identity.tenantId,
+        workflowId,
+        workItemId,
+        workItem.title,
+        db,
+      );
       await this.assertNoPendingBlockingContinuation(
         identity.tenantId,
         workflowId,

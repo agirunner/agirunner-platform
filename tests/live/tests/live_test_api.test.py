@@ -85,6 +85,34 @@ class ApiClientTests(unittest.TestCase):
             self.assertEqual("workflows.get", retry_events[0]["label"])
 
     @mock.patch("urllib.request.urlopen")
+    def test_request_retries_safe_get_on_connection_reset(self, urlopen: mock.Mock) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            trace = TraceRecorder(tmpdir)
+            client = ApiClient(
+                "http://127.0.0.1:8080",
+                trace=trace,
+                safe_read_max_attempts=2,
+                safe_read_retry_delay_seconds=0.01,
+            )
+            urlopen.side_effect = [
+                ConnectionResetError(104, "Connection reset by peer"),
+                FakeResponse(200, '{"data":{"id":"wf-1","state":"active"}}'),
+            ]
+
+            response = client.request("GET", "/api/v1/workflows/wf-1", label="workflows.get")
+
+            self.assertEqual({"data": {"id": "wf-1", "state": "active"}}, response)
+            self.assertEqual(2, urlopen.call_count)
+            trace_lines = [
+                json.loads(line)
+                for line in (Path(tmpdir) / "api.ndjson").read_text(encoding="utf-8").splitlines()
+            ]
+            retry_events = [entry for entry in trace_lines if entry["event"] == "http.retry"]
+            self.assertEqual(1, len(retry_events))
+            self.assertEqual("workflows.get", retry_events[0]["label"])
+            self.assertEqual("http.transport_error", trace_lines[1]["event"])
+
+    @mock.patch("urllib.request.urlopen")
     def test_request_retries_safe_get_on_transient_http_error(self, urlopen: mock.Mock) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             trace = TraceRecorder(tmpdir)

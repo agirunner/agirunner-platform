@@ -1,4 +1,5 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
+import { isOperatorScope } from '../auth/scope.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import {
@@ -1347,7 +1348,7 @@ function createdByForIdentity(identity: ApiKeyIdentity): 'api' | 'manual' | 'orc
   if (identity.ownerType === 'agent') {
     return 'orchestrator';
   }
-  return identity.scope === 'admin' ? 'manual' : 'api';
+  return isOperatorScope(identity.scope) ? 'manual' : 'api';
 }
 
 function actorTypeForIdentity(identity: ApiKeyIdentity): string {
