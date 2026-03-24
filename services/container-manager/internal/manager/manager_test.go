@@ -375,6 +375,20 @@ func makeContainerInfo(id, name, image string, dsID string, version int) Contain
 	}
 }
 
+func TestBuildContainerSpec_SetsDockerLogRotation(t *testing.T) {
+	mgr := newTestManager(newMockDockerClient(), &mockPlatformClient{})
+	ds := makeDesiredState("worker-1", "orchestrator-primary", "agirunner-runtime:local", 1, 1)
+
+	spec := mgr.buildContainerSpec(ds, 0)
+
+	if spec.LogMaxSize != "10m" {
+		t.Fatalf("expected desired-state log max size 10m, got %q", spec.LogMaxSize)
+	}
+	if spec.LogMaxFiles != "3" {
+		t.Fatalf("expected desired-state log max files 3, got %q", spec.LogMaxFiles)
+	}
+}
+
 func TestReconcileOnceNoDesiredNoContainers(t *testing.T) {
 	docker := newMockDockerClient()
 	platform := &mockPlatformClient{}

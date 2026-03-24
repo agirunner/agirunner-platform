@@ -660,6 +660,8 @@ func (m *Manager) buildContainerSpec(ds DesiredState, replicaIndex int) Containe
 		Image:       ds.RuntimeImage,
 		CPULimit:    ds.CPULimit,
 		MemoryLimit: ds.MemoryLimit,
+		LogMaxSize:  fmt.Sprintf("%dm", m.config.RuntimeLogMaxSizeMB),
+		LogMaxFiles: fmt.Sprintf("%d", m.config.RuntimeLogMaxFiles),
 		Environment: env,
 		NetworkName: m.config.RuntimeNetwork,
 		Labels: map[string]string{
