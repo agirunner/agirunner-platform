@@ -145,6 +145,24 @@ describe('auth routes persistent sessions', () => {
     expect(setCookie.find((value) => value.startsWith('agirunner_csrf_token='))).toContain('Expires=');
   });
 
+  it('accepts camelCase login payloads for interactive clients', async () => {
+    await buildApp();
+
+    const response = await app!.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        apiKey: 'ar_admin_test_key',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(authMocks.verifyApiKey).toHaveBeenCalledWith(
+      expect.anything(),
+      'ar_admin_test_key',
+    );
+  });
+
   it('keeps login cookies session-scoped when persistent_session is false', async () => {
     await buildApp();
 

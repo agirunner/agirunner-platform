@@ -8,10 +8,16 @@ import { issueAccessToken, issueRefreshToken, verifyJwt } from '../../auth/jwt.j
 import { UnauthorizedError } from '../../errors/domain-errors.js';
 import { logAuthEvent } from '../../logging/auth-log.js';
 
-const tokenExchangeSchema = z.object({
-  api_key: z.string().min(1),
-  persistent_session: z.boolean().optional().default(true),
-});
+const tokenExchangeSchema = z
+  .object({
+    api_key: z.string().min(1).optional(),
+    apiKey: z.string().min(1).optional(),
+    persistent_session: z.boolean().optional().default(true),
+  })
+  .transform((value) => ({
+    api_key: value.api_key ?? value.apiKey ?? '',
+    persistent_session: value.persistent_session,
+  }));
 const ACCESS_COOKIE_NAME = 'agirunner_access_token';
 const REFRESH_COOKIE_NAME = 'agirunner_refresh_token';
 const CSRF_COOKIE_NAME = 'agirunner_csrf_token';
