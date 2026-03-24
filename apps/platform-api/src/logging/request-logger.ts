@@ -53,8 +53,7 @@ export function registerRequestLogger(app: FastifyInstance, logService: LogServi
     const duration = Math.round(reply.elapsedTime);
     const level = reply.statusCode >= 500 ? 'error'
       : reply.statusCode >= 400 ? 'warn'
-        : method === 'GET' ? 'debug'
-          : 'info';
+        : 'debug';
     const status = reply.statusCode >= 400 ? 'failed' : 'completed';
 
     const ctx = getRequestContext();

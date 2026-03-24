@@ -86,4 +86,45 @@ describe('request logger', () => {
       }),
     );
   });
+
+  it('logs successful mutating requests at debug instead of info', async () => {
+    let onResponseHandler:
+      | ((request: Record<string, unknown>, reply: Record<string, unknown>) => Promise<void>)
+      | undefined;
+
+    const app = {
+      addHook: vi.fn((name: string, handler: typeof onResponseHandler) => {
+        if (name === 'onResponse') {
+          onResponseHandler = handler;
+        }
+      }),
+    };
+    const logService = {
+      insert: vi.fn().mockResolvedValue(undefined),
+    };
+
+    registerRequestLogger(app as never, logService as never);
+
+    await onResponseHandler?.(
+      {
+        method: 'POST',
+        url: '/api/v1/tasks/task-1/fail',
+        id: 'req-3',
+        headers: { 'user-agent': 'vitest' },
+        routeOptions: { url: '/api/v1/tasks/:id/fail' },
+      },
+      {
+        elapsedTime: 14,
+        statusCode: 200,
+      },
+    );
+
+    expect(logService.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'debug',
+        operation: 'api.post.tasks.:param.fail',
+        status: 'completed',
+      }),
+    );
+  });
 });
