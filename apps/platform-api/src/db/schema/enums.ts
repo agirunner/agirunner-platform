@@ -15,6 +15,13 @@ export const taskStateEnum = pgEnum('task_state', [
 
 export const taskPriorityEnum = pgEnum('task_priority', ['critical', 'high', 'normal', 'low']);
 
+export const executionBackendEnum = pgEnum('execution_backend', [
+  'runtime_only',
+  'runtime_plus_task',
+]);
+
+export const toolOwnerEnum = pgEnum('tool_owner', ['runtime', 'task']);
+
 export const agentStatusEnum = pgEnum('agent_status', [
   'active',
   'idle',

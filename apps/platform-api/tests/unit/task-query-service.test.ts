@@ -29,6 +29,10 @@ describe('task query service git activity (FR-055)', () => {
           }],
         })
         .mockResolvedValueOnce({
+          rowCount: 0,
+          rows: [],
+        })
+        .mockResolvedValueOnce({
           rowCount: 1,
           rows: [{
             id: 'handoff-1',
@@ -77,8 +81,12 @@ describe('task query service git activity (FR-055)', () => {
           rows: [{
             id: taskId,
             tenant_id: tenantId,
+            execution_backend: 'runtime_plus_task',
             metadata: {},
           }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ task_id: taskId }],
         }),
     };
     const service = new TaskQueryService(pool as never);
@@ -96,6 +104,7 @@ describe('task query service git activity (FR-055)', () => {
 
     const countCall = pool.query.mock.calls[0] as [string, unknown[]];
     const listCall = pool.query.mock.calls[1] as [string, unknown[]];
+    const leaseCall = pool.query.mock.calls[2] as [string, unknown[]];
 
     expect(countCall[0]).toContain('work_item_id = $3');
     expect(countCall[0]).toContain("metadata->>'escalation_task_id' = $4");
@@ -123,6 +132,41 @@ describe('task query service git activity (FR-055)', () => {
       25,
       0,
     ]);
+    expect(leaseCall[0]).toContain('FROM execution_container_leases');
+    expect(leaseCall[1]).toEqual([tenantId, [taskId]]);
+  });
+
+  it('marks task detail responses with task sandbox usage when a lease exists', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{
+            id: taskId,
+            tenant_id: tenantId,
+            metadata: {},
+          }],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ task_id: taskId }],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 0,
+          rows: [],
+        }),
+    };
+    const service = new TaskQueryService(pool as never);
+
+    const task = await service.getTask(tenantId, taskId);
+
+    expect(task.used_task_sandbox).toBe(true);
+    expect(pool.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('FROM execution_container_leases'),
+      [tenantId, [taskId]],
+    );
   });
 
   it('exposes verification payload from task metadata in normalized task response', () => {
@@ -134,6 +178,8 @@ describe('task query service git activity (FR-055)', () => {
       activation_id: 'activation-1',
       request_id: 'request-1',
       is_orchestrator_task: true,
+      execution_backend: 'runtime_only',
+      used_task_sandbox: false,
       metadata: {
         description: 'test task',
         verification: { passed: true, strategies_run: ['test_execution'] },
@@ -148,6 +194,8 @@ describe('task query service git activity (FR-055)', () => {
       activation_id: 'activation-1',
       request_id: 'request-1',
       is_orchestrator_task: true,
+      execution_backend: 'runtime_only',
+      used_task_sandbox: false,
       metadata: {
         description: 'test task',
         verification: { passed: true, strategies_run: ['test_execution'] },
@@ -161,6 +209,8 @@ describe('task query service git activity (FR-055)', () => {
     expect(response.activation_id).toBe('activation-1');
     expect(response.request_id).toBe('request-1');
     expect(response.is_orchestrator_task).toBe(true);
+    expect(response.execution_backend).toBe('runtime_only');
+    expect(response.used_task_sandbox).toBe(false);
   });
 
   it('keeps canonical persisted task states unchanged in the public response', () => {

@@ -11,6 +11,8 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 
+import { executionBackendEnum, toolOwnerEnum } from './enums.js';
+
 export const executionLogSourceEnum = pgEnum('execution_log_source', [
   'runtime',
   'container_manager',
@@ -67,6 +69,8 @@ export const executionLogs = pgTable(
     stageName: text('stage_name'),
     activationId: uuid('activation_id'),
     isOrchestratorTask: boolean('is_orchestrator_task').notNull().default(false),
+    executionBackend: executionBackendEnum('execution_backend'),
+    toolOwner: toolOwnerEnum('tool_owner'),
     actorType: text('actor_type'),
     actorId: text('actor_id'),
     actorName: text('actor_name'),
@@ -92,6 +96,8 @@ export const executionLogs = pgTable(
     ),
     index('idx_exlogs_workspace').on(table.workspaceId, table.createdAt),
     index('idx_exlogs_trace').on(table.traceId, table.createdAt),
+    index('idx_exlogs_execution_backend').on(table.tenantId, table.executionBackend, table.createdAt),
+    index('idx_exlogs_tool_owner').on(table.tenantId, table.toolOwner, table.createdAt),
     index('idx_exlogs_category').on(table.tenantId, table.category, table.createdAt),
     index('idx_exlogs_source').on(table.tenantId, table.source, table.createdAt),
     index('idx_exlogs_category_op').on(

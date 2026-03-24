@@ -1,6 +1,14 @@
-import { index, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  index,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uuid,
+} from 'drizzle-orm/pg-core';
 
 import { tenants } from './tenants.js';
+import { executionBackendEnum } from './enums.js';
 
 export const liveContainerInventory = pgTable(
   'live_container_inventory',
@@ -21,6 +29,7 @@ export const liveContainerInventory = pgTable(
     runtimeId: text('runtime_id'),
     taskId: uuid('task_id'),
     workflowId: uuid('workflow_id'),
+    executionBackend: executionBackendEnum('execution_backend'),
     roleName: text('role_name'),
     playbookId: text('playbook_id'),
     playbookName: text('playbook_name'),
@@ -32,5 +41,10 @@ export const liveContainerInventory = pgTable(
     index('idx_live_container_inventory_kind').on(table.tenantId, table.kind, table.lastSeenAt),
     index('idx_live_container_inventory_runtime').on(table.tenantId, table.runtimeId),
     index('idx_live_container_inventory_task').on(table.tenantId, table.taskId),
+    index('idx_live_container_inventory_execution_backend').on(
+      table.tenantId,
+      table.executionBackend,
+      table.lastSeenAt,
+    ),
   ],
 );

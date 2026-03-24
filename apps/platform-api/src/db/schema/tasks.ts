@@ -14,7 +14,7 @@ import {
 } from 'drizzle-orm/pg-core';
 
 import { agents } from './agents.js';
-import { taskPriorityEnum, taskStateEnum } from './enums.js';
+import { executionBackendEnum, taskPriorityEnum, taskStateEnum } from './enums.js';
 import { workflows } from './workflows.js';
 import { workspaces } from './workspaces.js';
 import { tenants } from './tenants.js';
@@ -55,6 +55,9 @@ export const tasks = pgTable(
     activationId: uuid('activation_id').references(() => workflowActivations.id),
     requestId: text('request_id'),
     isOrchestratorTask: boolean('is_orchestrator_task').notNull().default(false),
+    executionBackend: executionBackendEnum('execution_backend')
+      .notNull()
+      .default('runtime_plus_task'),
     timeoutMinutes: integer('timeout_minutes').notNull().default(30),
     tokenBudget: integer('token_budget'),
     costCapUsd: numeric('cost_cap_usd', { precision: 10, scale: 4 }),
@@ -87,6 +90,7 @@ export const tasks = pgTable(
       .on(table.tenantId, table.priority, table.createdAt)
       .where(sql`${table.state} = 'ready'`),
     index('idx_tasks_state').on(table.tenantId, table.state),
+    index('idx_tasks_execution_backend').on(table.tenantId, table.executionBackend),
     index('idx_tasks_agent')
       .on(table.assignedAgentId)
       .where(sql`${table.assignedAgentId} IS NOT NULL`),

@@ -228,6 +228,61 @@ describe('tasks routes', () => {
     expect(createTask).not.toHaveBeenCalled();
   });
 
+  it('rejects runtime_only execution backend on specialist task creation', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const createTask = vi.fn();
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('taskService', {
+      listTasks: vi.fn(),
+      createTask,
+      getTask: vi.fn(),
+      updateTask: vi.fn(),
+      getTaskContext: vi.fn(),
+      getTaskGitActivity: vi.fn(),
+      claimTask: vi.fn(),
+      startTask: vi.fn(),
+      completeTask: vi.fn(),
+      failTask: vi.fn(),
+      approveTask: vi.fn(),
+      approveTaskOutput: vi.fn(),
+      retryTask: vi.fn(),
+      cancelTask: vi.fn(),
+      rejectTask: vi.fn(),
+      requestTaskChanges: vi.fn(),
+      skipTask: vi.fn(),
+      reassignTask: vi.fn(),
+      escalateTask: vi.fn(),
+      respondToEscalation: vi.fn(),
+      overrideTaskOutput: vi.fn(),
+      agentEscalate: vi.fn(),
+      resolveEscalation: vi.fn(),
+    });
+
+    await app.register(taskRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        title: 'Implement change',
+        type: 'code',
+        is_orchestrator_task: false,
+        execution_backend: 'runtime_only',
+      },
+    });
+
+    const body = response.json();
+    expect(response.statusCode).toBe(422);
+    expect(body.error.message).toBe('Invalid request body');
+    expect(JSON.stringify(body.error.details)).toContain(
+      'specialist tasks must use execution_backend runtime_plus_task',
+    );
+    expect(createTask).not.toHaveBeenCalled();
+  });
+
   it('rejects legacy review task types on task creation', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const createTask = vi.fn();
@@ -269,6 +324,56 @@ describe('tasks routes', () => {
       payload: {
         title: 'Legacy review task',
         type: 'review',
+      },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(createTask).not.toHaveBeenCalled();
+  });
+
+  it('rejects runtime_only execution backend on non-orchestrator task creation', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const createTask = vi.fn();
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('taskService', {
+      listTasks: vi.fn(),
+      createTask,
+      getTask: vi.fn(),
+      updateTask: vi.fn(),
+      getTaskContext: vi.fn(),
+      getTaskGitActivity: vi.fn(),
+      claimTask: vi.fn(),
+      startTask: vi.fn(),
+      completeTask: vi.fn(),
+      failTask: vi.fn(),
+      approveTask: vi.fn(),
+      approveTaskOutput: vi.fn(),
+      retryTask: vi.fn(),
+      cancelTask: vi.fn(),
+      rejectTask: vi.fn(),
+      requestTaskChanges: vi.fn(),
+      skipTask: vi.fn(),
+      reassignTask: vi.fn(),
+      escalateTask: vi.fn(),
+      respondToEscalation: vi.fn(),
+      overrideTaskOutput: vi.fn(),
+      agentEscalate: vi.fn(),
+      resolveEscalation: vi.fn(),
+    });
+
+    await app.register(taskRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        title: 'Illegal task',
+        type: 'custom',
+        is_orchestrator_task: false,
+        execution_backend: 'runtime_only',
       },
     });
 

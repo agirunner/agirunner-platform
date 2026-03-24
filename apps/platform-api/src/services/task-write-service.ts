@@ -117,6 +117,7 @@ export class TaskWriteService {
     normalizedInput = await this.materializeTaskLoopExecutionDefaults(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyPlaybookRuleDerivedTaskReviewPolicy(identity.tenantId, normalizedInput, db);
     normalizedInput = normalizeTaskContractInput(normalizedInput);
+    const executionBackend = resolveTaskExecutionBackend(normalizedInput);
     const dependencies = normalizedInput.depends_on ?? [];
     const metadata = {
       ...(normalizedInput.metadata ?? {}),
@@ -190,8 +191,8 @@ export class TaskWriteService {
       `INSERT INTO tasks (
         tenant_id, workflow_id, work_item_id, workspace_id, title, role, stage_name, priority, state, depends_on,
         input, context, role_config, environment,
-        resource_bindings, activation_id, request_id, is_orchestrator_task, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, max_iterations, llm_max_retries, branch_id, metadata
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
+        resource_bindings, activation_id, request_id, is_orchestrator_task, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, max_iterations, llm_max_retries, branch_id, execution_backend, metadata
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)
       ON CONFLICT DO NOTHING
       RETURNING *`,
       [
@@ -221,6 +222,7 @@ export class TaskWriteService {
         normalizedInput.max_iterations ?? null,
         normalizedInput.llm_max_retries ?? null,
         normalizedInput.branch_id ?? null,
+        executionBackend,
         metadata,
       ],
     );
@@ -926,6 +928,20 @@ export class TaskWriteService {
     }, 'release' in db ? db : undefined);
     return this.deps.toTaskResponse(updatedTask);
   }
+}
+
+function resolveTaskExecutionBackend(input: CreateTaskInput): 'runtime_only' | 'runtime_plus_task' {
+  if (input.is_orchestrator_task) {
+    if (input.execution_backend && input.execution_backend !== 'runtime_only') {
+      throw new ValidationError('orchestrator tasks must use execution_backend runtime_only');
+    }
+    return 'runtime_only';
+  }
+
+  if (input.execution_backend && input.execution_backend !== 'runtime_plus_task') {
+    throw new ValidationError('specialist tasks must use execution_backend runtime_plus_task');
+  }
+  return 'runtime_plus_task';
 }
 
 function mergeWorkspaceStorageBindings(

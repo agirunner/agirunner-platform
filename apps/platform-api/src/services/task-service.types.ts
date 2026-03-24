@@ -1,6 +1,8 @@
 import type { AppEnv } from '../config/schema.js';
 import type { ArtifactStorageEnv } from '../content/storage-config.js';
 
+export type TaskExecutionBackend = 'runtime_only' | 'runtime_plus_task';
+
 export interface CreateTaskInput {
   title: string;
   description?: string;
@@ -15,6 +17,7 @@ export interface CreateTaskInput {
   activation_id?: string;
   request_id?: string;
   is_orchestrator_task?: boolean;
+  execution_backend?: TaskExecutionBackend;
   parent_id?: string;
   role?: string;
   subject_task_id?: string;
@@ -51,6 +54,7 @@ export interface ListTaskQuery {
   stage_name?: string;
   activation_id?: string;
   is_orchestrator_task?: boolean;
+  execution_backend?: TaskExecutionBackend;
   page: number;
   per_page: number;
 }

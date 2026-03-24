@@ -26,6 +26,8 @@ export type TaskResponseRecord = Record<string, unknown> & {
   parent_id: unknown;
   verification: unknown;
   latest_handoff?: unknown;
+  execution_backend?: 'runtime_only' | 'runtime_plus_task';
+  used_task_sandbox?: boolean;
 };
 
 export class TaskQueryService {
@@ -51,6 +53,7 @@ export class TaskQueryService {
       description: metadata.description ?? null,
       parent_id: metadata.parent_id ?? null,
       verification: metadata.verification ?? null,
+      used_task_sandbox: sanitizedTask.used_task_sandbox ?? false,
     } as TaskResponseRecord;
   }
 
@@ -106,18 +109,20 @@ export class TaskQueryService {
         offset,
       ),
     ]);
+    const enrichedRows = await this.attachSandboxUsage(tenantId, rows);
 
     return {
-      data: rows.map((row) => this.toTaskResponse(row as Record<string, unknown>)),
+      data: enrichedRows.map((row) => this.toTaskResponse(row as Record<string, unknown>)),
       meta: { total, page: query.page, per_page: query.per_page, pages: Math.ceil(total / query.per_page) || 1 },
     };
   }
 
   async getTask(tenantId: string, taskId: string) {
     const task = await this.loadTaskOrThrow(tenantId, taskId);
+    const [enrichedTask] = await this.attachSandboxUsage(tenantId, [task]);
     const latestHandoff = await this.loadLatestTaskHandoff(tenantId, taskId);
     return this.toTaskResponse({
-      ...task,
+      ...(enrichedTask ?? task),
       ...(latestHandoff ? { latest_handoff: latestHandoff } : {}),
     });
   }
@@ -194,6 +199,28 @@ export class TaskQueryService {
       return null;
     }
     return normalizeTaskHandoff(row);
+  }
+
+  private async attachSandboxUsage<T extends Record<string, unknown>>(tenantId: string, tasks: T[]) {
+    const taskIds = tasks
+      .map((task) => (typeof task.id === 'string' ? task.id : null))
+      .filter((taskId): taskId is string => taskId !== null);
+    if (taskIds.length === 0) {
+      return tasks.map((task) => ({ ...task, used_task_sandbox: false }));
+    }
+
+    const result = await this.pool.query<{ task_id: string }>(
+      `SELECT task_id
+         FROM execution_container_leases
+        WHERE tenant_id = $1
+          AND task_id = ANY($2::uuid[])`,
+      [tenantId, taskIds],
+    );
+    const leasedTaskIds = new Set(result.rows.map((row) => row.task_id));
+    return tasks.map((task) => ({
+      ...task,
+      used_task_sandbox: typeof task.id === 'string' && leasedTaskIds.has(task.id),
+    }));
   }
 }
 

@@ -199,6 +199,100 @@ describe('TaskWriteService', () => {
     ).rejects.toThrow('Missing runtime default "agent.max_iterations"');
   });
 
+  it('assigns runtime_only execution backend to orchestrator tasks', async () => {
+    let insertedExecutionBackend: string | null = null;
+    const pool = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql.startsWith('INSERT INTO tasks')) {
+          insertedExecutionBackend = (values?.[26] as string) ?? null;
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-1',
+              tenant_id: 'tenant-1',
+              execution_backend: insertedExecutionBackend,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {} as never,
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    const task = await service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'Coordinate workflow',
+        is_orchestrator_task: true,
+      },
+    );
+
+    expect(insertedExecutionBackend).toBe('runtime_only');
+    expect(task).toEqual(expect.objectContaining({ execution_backend: 'runtime_only' }));
+  });
+
+  it('assigns runtime_plus_task execution backend to specialist tasks', async () => {
+    let insertedExecutionBackend: string | null = null;
+    const pool = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql.startsWith('INSERT INTO tasks')) {
+          insertedExecutionBackend = (values?.[26] as string) ?? null;
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-1',
+              tenant_id: 'tenant-1',
+              execution_backend: insertedExecutionBackend,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {} as never,
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    const task = await service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'Implement change',
+        is_orchestrator_task: false,
+      },
+    );
+
+    expect(insertedExecutionBackend).toBe('runtime_plus_task');
+    expect(task).toEqual(expect.objectContaining({ execution_backend: 'runtime_plus_task' }));
+  });
+
   it('does not derive output assessment from deleted playbook review config', async () => {
     let insertSql = '';
     const pool = {
@@ -1038,7 +1132,7 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedMetadata = (values?.[26] as Record<string, unknown>) ?? null;
+          insertedMetadata = (values?.[27] as Record<string, unknown>) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -1128,7 +1222,7 @@ describe('TaskWriteService', () => {
         }
         if (sql.startsWith('INSERT INTO tasks')) {
           insertedInput = (values?.[10] as Record<string, unknown>) ?? null;
-          insertedMetadata = (values?.[26] as Record<string, unknown>) ?? null;
+          insertedMetadata = (values?.[27] as Record<string, unknown>) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -1242,7 +1336,7 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedMetadata = (values?.[26] as Record<string, unknown>) ?? null;
+          insertedMetadata = (values?.[27] as Record<string, unknown>) ?? null;
           return {
             rowCount: 1,
             rows: [{

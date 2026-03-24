@@ -452,6 +452,8 @@ export interface Task {
   description: string | null;
   state: TaskState;
   priority: TaskPriority;
+  execution_backend: 'runtime_only' | 'runtime_plus_task';
+  used_task_sandbox: boolean;
   capabilities_required: string[];
   role: string | null;
   role_config: Record<string, unknown>;
@@ -492,6 +494,7 @@ export interface CreateTaskInput {
   priority?: TaskPriority;
   workflow_id?: string;
   workspace_id?: string;
+  execution_backend?: 'runtime_only' | 'runtime_plus_task';
   parent_id?: string;
   role?: string;
   input?: Record<string, unknown>;

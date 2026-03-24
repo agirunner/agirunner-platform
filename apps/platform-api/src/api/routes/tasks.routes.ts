@@ -4,7 +4,10 @@ import { z } from 'zod';
 import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
-import type { PublicTaskState } from '../../services/task-service.types.js';
+import type {
+  PublicTaskState,
+  TaskExecutionBackend,
+} from '../../services/task-service.types.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 import {
   runIdempotentPublicTaskOperatorAction,
@@ -25,6 +28,7 @@ const taskCreateSchema = z.object({
   activation_id: z.string().uuid().optional(),
   request_id: z.string().max(255).optional(),
   is_orchestrator_task: z.boolean().optional(),
+  execution_backend: z.enum(['runtime_only', 'runtime_plus_task']).optional(),
   parent_id: z.string().uuid().optional(),
   role: z.string().max(120).optional(),
   subject_task_id: z.string().uuid().optional(),
@@ -47,7 +51,22 @@ const taskCreateSchema = z.object({
   llm_max_retries: z.number().int().min(1).optional(),
   metadata: z.record(z.unknown()).optional(),
   retry_policy: z.record(z.unknown()).optional(),
-}).strict();
+}).strict().superRefine((value, ctx) => {
+  if (value.is_orchestrator_task && value.execution_backend === 'runtime_plus_task') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['execution_backend'],
+      message: 'orchestrator tasks must use execution_backend runtime_only',
+    });
+  }
+  if (value.is_orchestrator_task === false && value.execution_backend === 'runtime_only') {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['execution_backend'],
+      message: 'specialist tasks must use execution_backend runtime_plus_task',
+    });
+  }
+});
 
 const taskPatchSchema = z.object({
   request_id: z.string().min(1).max(255).optional(),
@@ -185,6 +204,16 @@ function parseTaskStateFilter(value: string | undefined) {
   return value;
 }
 
+function parseExecutionBackendFilter(value: string | undefined): TaskExecutionBackend | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (value === 'runtime_only' || value === 'runtime_plus_task') {
+    return value;
+  }
+  throw new ValidationError(`Invalid execution backend '${value}'`);
+}
+
 function parseTaskId(id: string) {
   const result = z.string().uuid().safeParse(id);
   if (result.success) {
@@ -291,6 +320,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
         escalation_task_id: query.escalation_task_id,
         stage_name: query.stage_name,
         activation_id: query.activation_id,
+        execution_backend: parseExecutionBackendFilter(query.execution_backend),
         is_orchestrator_task:
           query.is_orchestrator_task === undefined
             ? undefined
