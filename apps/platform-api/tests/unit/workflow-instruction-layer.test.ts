@@ -93,6 +93,9 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('Dispatch qa for verify on work item wi-2 (verification) titled "Verify the change".');
     expect(layer!.content).toContain('## Handoff Semantics');
     expect(layer!.content).toContain('Only actual invoked approvals, assessments, and escalations create blocking workflow state.');
+    expect(layer!.content).toContain('## Closure Discipline');
+    expect(layer!.content).toContain('call complete_work_item in the same activation');
+    expect(layer!.content).toContain('call complete_workflow in the same activation');
     expect(layer!.content).toContain('## Available Roles');
     expect(layer!.content).toContain('- reviewer: Reviews implementation quality and correctness.');
     expect(layer!.content).toContain('## Parallelism');
@@ -140,6 +143,8 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer).not.toBeNull();
     expect(layer!.content).toContain('## Workflow Mode: ongoing');
     expect(layer!.content).toContain('## Progress Model\nStage-and-board driven');
+    expect(layer!.content).toContain('## Completion Boundaries');
+    expect(layer!.content).toContain('Submitting a handoff does not itself close the work item or workflow.');
     expect(layer!.content).toContain('## Output Protocol\nNon-repository task.');
     expect(layer!.content).not.toContain('## Workflow Brief');
     expect(layer!.content).not.toContain('## Predecessor Context');

@@ -1332,8 +1332,12 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             work_items_snapshot={
                 "ok": True,
                 "data": [
-                    {"id": "wi-1", "column_id": "done"},
+                    {"id": "wi-1", "column_id": "released"},
                 ],
+            },
+            board_snapshot={
+                "ok": True,
+                "data": {"columns": [{"id": "released", "is_terminal": True}], "work_items": []},
             },
         )
         blocked = run_workflow_scenario.workflow_action_wait_conditions_met(
@@ -1347,8 +1351,12 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             work_items_snapshot={
                 "ok": True,
                 "data": [
-                    {"id": "wi-1", "column_id": "done"},
+                    {"id": "wi-1", "column_id": "released"},
                 ],
+            },
+            board_snapshot={
+                "ok": True,
+                "data": {"columns": [{"id": "released", "is_terminal": True}], "work_items": []},
             },
         )
 
@@ -1438,6 +1446,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             next_action_index=0,
             workflow={"state": "pending"},
             work_items_snapshot={"ok": True, "data": []},
+            board_snapshot={"ok": True, "data": {"columns": [{"id": "released", "is_terminal": True}], "work_items": []}},
         )
         paused_index, paused_wave = run_workflow_scenario.dispatch_ready_workflow_actions(
             client,
@@ -1447,6 +1456,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             next_action_index=next_index,
             workflow={"state": "active"},
             work_items_snapshot={"ok": True, "data": [{"id": "wi-1", "column_id": "planned"}]},
+            board_snapshot={"ok": True, "data": {"columns": [{"id": "released", "is_terminal": True}], "work_items": []}},
         )
         final_index, second_wave = run_workflow_scenario.dispatch_ready_workflow_actions(
             client,
@@ -1455,7 +1465,8 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             actions=actions,
             next_action_index=paused_index,
             workflow={"state": "pending"},
-            work_items_snapshot={"ok": True, "data": [{"id": "wi-1", "column_id": "done"}]},
+            work_items_snapshot={"ok": True, "data": [{"id": "wi-1", "column_id": "released"}]},
+            board_snapshot={"ok": True, "data": {"columns": [{"id": "released", "is_terminal": True}], "work_items": []}},
         )
 
         self.assertEqual(1, next_index)
@@ -1717,12 +1728,12 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                     {"id": "task-2", "is_orchestrator_task": False},
                 ],
             },
-            board={"data": {"data": {"columns": [{"id": "blocked"}], "work_items": []}}},
+            board={"data": {"data": {"columns": [{"id": "blocked"}, {"id": "released", "is_terminal": True}], "work_items": []}}},
             work_items={
                 "data": {
                     "data": [
-                        {"column_id": "done"},
-                        {"column_id": "done"},
+                        {"column_id": "released"},
+                        {"column_id": "released"},
                     ]
                 }
             },
@@ -1747,7 +1758,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                 "workflow_tasks": {"min_non_orchestrator_count": 2},
             },
             workflow={"state": "failed", "tasks": [{"id": "task-1", "is_orchestrator_task": False}]},
-            board={"data": {"data": {"columns": [{"id": "blocked"}], "work_items": [{"id": "wi-1", "column_id": "blocked"}]}}},
+            board={"data": {"data": {"columns": [{"id": "blocked"}, {"id": "released", "is_terminal": True}], "work_items": [{"id": "wi-1", "column_id": "blocked"}]}}},
             work_items={"data": {"data": [{"column_id": "active"}]}},
             workspace={"memory": {}},
             artifacts={"data": {"items": []}},
@@ -1757,6 +1768,23 @@ class RunWorkflowScenarioTests(unittest.TestCase):
 
         self.assertFalse(verification["passed"])
         self.assertGreaterEqual(len(verification["failures"]), 4)
+
+    def test_evaluate_expectations_uses_authored_terminal_board_columns(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "state": "completed",
+                "work_items": {"all_terminal": True},
+            },
+            workflow={"state": "completed", "tasks": []},
+            board={"data": {"data": {"columns": [{"id": "released", "is_terminal": True}], "work_items": []}}},
+            work_items={"data": {"data": [{"id": "wi-1", "column_id": "released"}]}},
+            workspace={},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+        )
+
+        self.assertTrue(verification["passed"])
 
     def test_evaluate_expectations_rejects_globally_forbidden_task_kinds(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(

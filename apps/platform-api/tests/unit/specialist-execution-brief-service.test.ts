@@ -133,6 +133,14 @@ describe('buildSpecialistExecutionBrief', () => {
       }),
     ]);
     expect(brief?.rendered_markdown).toContain('## Workflow Brief');
+    expect(brief?.rendered_markdown).toContain('## Completion Expectations');
+    expect(brief?.rendered_markdown).toContain(
+      'Submitting your handoff does not itself close the work item or workflow.',
+    );
+    expect(brief?.rendered_markdown).toContain('## Path Discipline');
+    expect(brief?.rendered_markdown).toContain(
+      'use repo-relative paths like src/auth/refresh.ts or docs/release-notes.md',
+    );
     expect(brief?.rendered_markdown).toContain(
       'Repository-backed task. Use task sandbox tools for repository, filesystem, shell, web fetch, and artifact upload work.',
     );

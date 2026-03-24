@@ -41,6 +41,15 @@ class FakeProgressClient:
             return {"data": {"data": []}}
         if label == "logs.list":
             return {"data": [], "pagination": {"has_more": False, "next_cursor": None}}
+        if label == "tasks.list:1":
+            return {
+                "data": [
+                    {"id": "task-1", "role": "intake-analyst", "stage_name": "intake-triage", "rework_count": 1},
+                    {"id": "task-2", "role": "policy-assessor", "stage_name": "intake-triage"},
+                    {"id": "task-3", "role": "policy-assessor", "stage_name": "intake-triage"},
+                ],
+                "meta": {"page": 1, "pages": 1, "per_page": 100, "total": 3},
+            }
         raise AssertionError(f"unexpected request: {method} {path} ({label})")
 
 
@@ -73,8 +82,8 @@ class RunWorkflowProgressTests(unittest.TestCase):
         work_items = {
             "data": {
                 "data": [
-                    {"id": "wi-1", "column_id": "done", "rework_count": 1, "stage_name": "intake-triage"},
-                    {"id": "wi-2", "column_id": "done", "rework_count": 0, "stage_name": "intake-triage"},
+                    {"id": "wi-1", "column_id": "released", "rework_count": 1, "stage_name": "intake-triage"},
+                    {"id": "wi-2", "column_id": "released", "rework_count": 0, "stage_name": "intake-triage"},
                 ]
             }
         }
@@ -95,8 +104,9 @@ class RunWorkflowProgressTests(unittest.TestCase):
                 workflow_id="wf-1",
                 expectations=expectations,
                 workflow=workflow,
-                board={"ok": True},
+                board={"ok": True, "data": {"columns": [{"id": "released", "is_terminal": True}], "work_items": []}},
                 work_items=work_items,
+                stage_gates={"ok": True, "data": []},
                 workspace={"id": "workspace-1"},
                 artifacts={"ok": True},
                 approval_actions=[],
@@ -111,6 +121,7 @@ class RunWorkflowProgressTests(unittest.TestCase):
         self.assertTrue(verification["passed"])
         self.assertEqual(
             [
+                ("GET", "/api/v1/tasks?workflow_id=wf-1&page=1&per_page=100", (200,), "tasks.list:1"),
                 ("GET", "/api/v1/workflows/wf-1/events?limit=100", (200,), "workflows.events"),
                 ("GET", "/api/v1/logs?workflow_id=wf-1&per_page=250&detail=full&order=asc", (200,), "logs.list"),
             ],

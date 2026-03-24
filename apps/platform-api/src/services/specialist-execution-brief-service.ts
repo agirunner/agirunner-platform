@@ -178,6 +178,9 @@ function buildAssessmentOutputExpectations(
   }
   void role;
   lines.push(
+    'Submitting your handoff does not itself close the work item or workflow. The orchestrator closes workflow state only after current-subject evidence is complete and reviewed.',
+  );
+  lines.push(
     repoBacked
       ? 'Repository-backed output must be committed and pushed before completion or escalation.'
       : 'Required artifacts must be uploaded before completion or escalation.',
@@ -215,11 +218,24 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
     lines.push('', '## Likely Relevant Files');
     lines.push(...brief.likely_relevant_files.map((path) => `- ${path}`));
   }
+  if (brief.assessment_output_expectations.length > 0) {
+    lines.push('', '## Completion Expectations');
+    lines.push(...brief.assessment_output_expectations.map((line) => `- ${line}`));
+  }
+  lines.push('', '## Path Discipline');
+  lines.push(pathDisciplineGuidance(brief.repo_status_summary.startsWith('Repository-backed task.')));
   if (brief.repo_status_summary) {
     lines.push('', '## Execution Surface');
     lines.push(brief.repo_status_summary);
   }
   return lines.join('\n');
+}
+
+function pathDisciplineGuidance(repoBacked: boolean) {
+  if (repoBacked) {
+    return 'For repository-backed tasks, the repo root is already the base path. When reading or citing repository files, use repo-relative paths like src/auth/refresh.ts or docs/release-notes.md; never prefix them with repo/ and never use /tmp/workspace paths.';
+  }
+  return 'For non-repository tasks, use workspace-relative paths and artifact ids only; never use host-local or /tmp/workspace paths.';
 }
 
 function continuitySummaryFrom(workItem: Record<string, unknown>) {

@@ -370,6 +370,21 @@ def _count_blocked_board_items(snapshot: Any) -> int:
     return blocked_items
 
 
+def _terminal_board_column_ids(snapshot: Any) -> set[str]:
+    return {
+        str(column.get("id"))
+        for column in _board_columns(snapshot)
+        if isinstance(column, dict) and column.get("is_terminal") is True and column.get("id")
+    }
+
+
+def _work_item_is_terminal(item: dict[str, Any], board_snapshot: Any) -> bool:
+    terminal_column_ids = _terminal_board_column_ids(board_snapshot)
+    if not terminal_column_ids:
+        return False
+    return str(item.get("column_id") or "") in terminal_column_ids
+
+
 def _work_items(snapshot: Any) -> list[dict[str, Any]]:
     data = _nested_data(snapshot)
     return data if isinstance(data, list) else []
@@ -636,12 +651,12 @@ def _execution_log_rows(snapshot: Any) -> list[dict[str, Any]]:
     return data if isinstance(data, list) else []
 
 
-def _completed_work_item_count(work_items_snapshot: Any) -> int:
-    return sum(1 for item in _work_items(work_items_snapshot) if item.get("column_id") == "done")
+def _completed_work_item_count(work_items_snapshot: Any, board_snapshot: Any) -> int:
+    return sum(1 for item in _work_items(work_items_snapshot) if _work_item_is_terminal(item, board_snapshot))
 
 
-def _open_work_item_count(work_items_snapshot: Any) -> int:
-    return sum(1 for item in _work_items(work_items_snapshot) if item.get("column_id") != "done")
+def _open_work_item_count(work_items_snapshot: Any, board_snapshot: Any) -> int:
+    return sum(1 for item in _work_items(work_items_snapshot) if not _work_item_is_terminal(item, board_snapshot))
 
 
 def _workspace_host_directory_root(workspace: dict[str, Any]) -> Path | None:
@@ -1550,7 +1565,7 @@ def evaluate_expectations(
     work_item_expectations = expectations.get("work_items", {})
     if isinstance(work_item_expectations, dict) and work_item_expectations.get("all_terminal"):
         items = _work_items(work_items)
-        non_terminal = [item.get("id") for item in items if item.get("column_id") != "done"]
+        non_terminal = [item.get("id") for item in items if not _work_item_is_terminal(item, board)]
         passed = len(non_terminal) == 0
         checks.append({"name": "work_items.all_terminal", "passed": passed, "non_terminal_ids": non_terminal})
         if not passed:
@@ -2261,6 +2276,7 @@ def progress_verification_candidate_ready(
     *,
     workflow: dict[str, Any],
     work_items: Any,
+    board: Any,
 ) -> bool:
     expected_state = expectations.get("state")
     if expected_state is not None and workflow.get("state") != expected_state:
@@ -2274,7 +2290,7 @@ def progress_verification_candidate_ready(
     if "min_count" in work_item_expectations and len(items) < int(work_item_expectations["min_count"]):
         return False
     if work_item_expectations.get("all_terminal"):
-        return all(item.get("column_id") == "done" for item in items)
+        return all(_work_item_is_terminal(item, board) for item in items)
     return True
 
 
@@ -2315,7 +2331,7 @@ def evaluate_progress_expectations(
         return verification
     if not progress_verification_requires_full_evidence(expectations):
         return verification
-    if not progress_verification_candidate_ready(expectations, workflow=workflow, work_items=work_items):
+    if not progress_verification_candidate_ready(expectations, workflow=workflow, work_items=work_items, board=board):
         return verification
 
     events_snapshot = collect_workflow_events(client, workflow_id=workflow_id)
@@ -2464,6 +2480,7 @@ def workflow_action_wait_conditions_met(
     *,
     workflow: dict[str, Any],
     work_items_snapshot: Any,
+    board_snapshot: Any,
 ) -> bool:
     wait_for = action.get("wait_for", {})
     if not isinstance(wait_for, dict) or not wait_for:
@@ -2474,7 +2491,7 @@ def workflow_action_wait_conditions_met(
         return False
 
     if "completed_work_items_min" in wait_for:
-        if _completed_work_item_count(work_items_snapshot) < int(wait_for["completed_work_items_min"]):
+        if _completed_work_item_count(work_items_snapshot, board_snapshot) < int(wait_for["completed_work_items_min"]):
             return False
 
     if "total_work_items_min" in wait_for:
@@ -2482,12 +2499,12 @@ def workflow_action_wait_conditions_met(
             return False
 
     if "open_work_items_max" in wait_for:
-        if _open_work_item_count(work_items_snapshot) > int(wait_for["open_work_items_max"]):
+        if _open_work_item_count(work_items_snapshot, board_snapshot) > int(wait_for["open_work_items_max"]):
             return False
 
     if "all_work_items_terminal" in wait_for:
         expected = bool(wait_for["all_work_items_terminal"])
-        actual = _open_work_item_count(work_items_snapshot) == 0
+        actual = _open_work_item_count(work_items_snapshot, board_snapshot) == 0
         if actual != expected:
             return False
 
@@ -2556,6 +2573,7 @@ def dispatch_ready_workflow_actions(
     next_action_index: int,
     workflow: dict[str, Any],
     work_items_snapshot: Any,
+    board_snapshot: Any,
 ) -> tuple[int, list[dict[str, Any]]]:
     executed: list[dict[str, Any]] = []
     current_index = next_action_index
@@ -2565,6 +2583,7 @@ def dispatch_ready_workflow_actions(
             action,
             workflow=workflow,
             work_items_snapshot=work_items_snapshot,
+            board_snapshot=board_snapshot,
         ):
             break
         executed.extend(
@@ -2897,6 +2916,7 @@ def main() -> None:
         next_action_index=0,
         workflow=created,
         work_items_snapshot={"ok": True, "data": []},
+        board_snapshot={"ok": True, "data": {"columns": [], "work_items": []}},
     )
     deadline = time.time() + timeout_seconds
     latest_workflow = created
@@ -2927,7 +2947,14 @@ def main() -> None:
         )
 
         work_items_for_actions = None
+        board_for_actions = None
         if next_action_index < len(action_plan):
+            board_for_actions = client.best_effort_request(
+                "GET",
+                f"/api/v1/workflows/{workflow_id}/board",
+                expected=(200,),
+                label="workflows.board.actions",
+            )
             work_items_for_actions = client.best_effort_request(
                 "GET",
                 f"/api/v1/workflows/{workflow_id}/work-items",
@@ -2942,6 +2969,7 @@ def main() -> None:
                 next_action_index=next_action_index,
                 workflow=latest_workflow,
                 work_items_snapshot=work_items_for_actions,
+                board_snapshot=board_for_actions,
             )
             if ready_actions:
                 workflow_actions.extend(ready_actions)

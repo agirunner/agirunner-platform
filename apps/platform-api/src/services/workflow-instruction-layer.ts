@@ -163,6 +163,7 @@ function buildOrchestratorSections(params: {
   }
   if (params.lifecycle === 'planned') {
     sections.push(`## Handoff Semantics\n${formatPlannedHandoffSemantics()}`);
+    sections.push(`## Closure Discipline\n${plannedClosureDiscipline()}`);
   }
   sections.push(
     '## Activation Discipline\nAfter you dispatch required specialist work, request a gate, or detect active subordinate work with no new routing decision to make, finish this activation and wait for the next workflow event. Do not poll running tasks in a loop. If no subordinate work is active and the workflow should progress, perform the workflow mutation now. A recommendation without the required workflow mutation does not complete the activation.',
@@ -189,6 +190,7 @@ function buildSpecialistSections(params: {
     `## Workflow Mode: ${params.lifecycle}\n${workflowModeGuidance(params.lifecycle)}`,
     `## Process Instructions\n${params.definition.process_instructions}`,
     `## Progress Model\n${progressModelGuidance(params.definition)}`,
+    `## Completion Boundaries\n${specialistCompletionBoundaries()}`,
     `## Output Protocol\n${outputProtocol(params.repoBacked, false)}`,
   ];
 
@@ -385,6 +387,22 @@ function outputProtocol(repoBacked: boolean, orchestrator: boolean) {
   return orchestrator
     ? 'Non-repository workflow. Evaluate artifacts and task outputs directly, and require clear uploaded evidence before accepting completion. Once required work is dispatched or active subordinate work is already in flight, finish the activation and wait for the next event instead of polling.'
     : 'Non-repository task. Base your completion on artifacts, outputs, and recorded evidence. Upload required artifacts before completion or escalation and leave a clear structured handoff for the next step.';
+}
+
+function plannedClosureDiscipline() {
+  return [
+    'When the current planned-workflow work item satisfies its authored stage goal, board posture, continuity, and process instructions, call complete_work_item in the same activation instead of leaving accepted work open.',
+    'When every planned work item is terminal and no blocking tasks, approvals, assessments, escalations, or required follow-up remain, call complete_workflow in the same activation.',
+    'Do not rely on board lane guesses or specialist prose to imply closure. Perform the explicit workflow mutation yourself.',
+  ].join('\n');
+}
+
+function specialistCompletionBoundaries() {
+  return [
+    'Your responsibility is to finish the current task with concrete evidence and then leave a structured handoff or escalation when required.',
+    'Submitting a handoff does not itself close the work item or workflow. The orchestrator decides whether to route more work, request approval or assessment, complete the work item, or complete the workflow.',
+    'Do not claim broader workflow closure from specialist task success alone.',
+  ].join('\n');
 }
 
 function formatRuleResults(
