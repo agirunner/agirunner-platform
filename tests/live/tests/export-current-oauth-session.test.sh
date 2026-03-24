@@ -27,58 +27,49 @@ make_stub() {
 }
 
 test_exports_session_json_to_stdout() {
-  local tmpdir stubdir logfile envfile fake_platform_root stdout_log
+  local tmpdir envfile fake_platform_root stdout_log
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "${tmpdir}"' RETURN
-  stubdir="${tmpdir}/bin"
-  logfile="${tmpdir}/calls.log"
   envfile="${tmpdir}/env/local.env"
   fake_platform_root="${tmpdir}/platform"
   stdout_log="${tmpdir}/stdout.log"
-  mkdir -p "${stubdir}" "${fake_platform_root}" "$(dirname "${envfile}")"
+  mkdir -p "${fake_platform_root}" "$(dirname "${envfile}")"
   touch "${fake_platform_root}/docker-compose.yml"
 
   cat >"${envfile}" <<'EOF'
 POSTGRES_DB=agirunner
 POSTGRES_USER=agirunner
 POSTGRES_PASSWORD=agirunner
+LIVE_TEST_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"plain-access","refreshToken":"plain-refresh","authorizedAt":"2026-03-19T00:00:00.000Z"}}'
 EOF
 
-  make_stub "${stubdir}/docker" 'printf "docker %s\n" "$*" >>"'"${logfile}"'"; printf "%s\n" "{\"credentials\":{\"accessToken\":\"enc:v1:access\",\"refreshToken\":\"enc:v1:refresh\",\"authorizedAt\":\"2026-03-19T00:00:00.000Z\"}}"'
-
-  PATH="${stubdir}:${PATH}" \
-    LIVE_TEST_ENV_FILE="${envfile}" \
+  LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_PLATFORM_ROOT="${fake_platform_root}" \
     LIVE_TEST_OAUTH_PROFILE_ID="openai-codex" \
     "${SCRIPT_PATH}" >"${stdout_log}"
 
-  assert_contains "{\"credentials\":{\"accessToken\":\"enc:v1:access\",\"refreshToken\":\"enc:v1:refresh\",\"authorizedAt\":\"2026-03-19T00:00:00.000Z\"}}" "${stdout_log}"
-  assert_contains "docker compose -p agirunner-platform -f ${fake_platform_root}/docker-compose.yml exec -T postgres psql -U agirunner -d agirunner -At -c" "${logfile}"
+  assert_contains '{"credentials":{"accessToken":"plain-access","refreshToken":"plain-refresh","authorizedAt":"2026-03-19T00:00:00.000Z"}}' "${stdout_log}"
 }
 
 test_writes_session_json_to_requested_file() {
-  local tmpdir stubdir logfile envfile fake_platform_root stdout_log output_file
+  local tmpdir envfile fake_platform_root stdout_log output_file
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "${tmpdir}"' RETURN
-  stubdir="${tmpdir}/bin"
-  logfile="${tmpdir}/calls.log"
   envfile="${tmpdir}/env/local.env"
   fake_platform_root="${tmpdir}/platform"
   stdout_log="${tmpdir}/stdout.log"
   output_file="${tmpdir}/snapshots/openai-session.json"
-  mkdir -p "${stubdir}" "${fake_platform_root}" "$(dirname "${envfile}")"
+  mkdir -p "${fake_platform_root}" "$(dirname "${envfile}")"
   touch "${fake_platform_root}/docker-compose.yml"
 
   cat >"${envfile}" <<'EOF'
 POSTGRES_DB=agirunner
 POSTGRES_USER=agirunner
 POSTGRES_PASSWORD=agirunner
+LIVE_TEST_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"plain-access","authorizedAt":"2026-03-19T00:00:00.000Z"}}'
 EOF
 
-  make_stub "${stubdir}/docker" 'printf "docker %s\n" "$*" >>"'"${logfile}"'"; printf "%s\n" "{\"credentials\":{\"accessToken\":\"enc:v1:access\",\"authorizedAt\":\"2026-03-19T00:00:00.000Z\"}}"'
-
-  PATH="${stubdir}:${PATH}" \
-    LIVE_TEST_ENV_FILE="${envfile}" \
+  LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_PLATFORM_ROOT="${fake_platform_root}" \
     LIVE_TEST_OAUTH_PROFILE_ID="openai-codex" \
     LIVE_TEST_OAUTH_SESSION_OUTPUT_FILE="${output_file}" \
@@ -87,7 +78,7 @@ EOF
   if [[ ! -f "${output_file}" ]]; then
     fail "expected output file to be created"
   fi
-  assert_contains "{\"credentials\":{\"accessToken\":\"enc:v1:access\",\"authorizedAt\":\"2026-03-19T00:00:00.000Z\"}}" "${output_file}"
+  assert_contains '{"credentials":{"accessToken":"plain-access","authorizedAt":"2026-03-19T00:00:00.000Z"}}' "${output_file}"
   assert_contains "[tests/live] wrote oauth session snapshot to ${output_file}" "${stdout_log}"
 }
 
