@@ -60,7 +60,7 @@ POSTGRES_PORT=5433
 PLATFORM_API_PORT=8080
 EOF
 
-  make_stub "${stubdir}/docker" 'printf "docker %s\n" "$*" >>"'"${logfile}"'"'
+  make_stub "${stubdir}/docker" 'printf "docker %s JWT_SECRET=%s WEBHOOK_ENCRYPTION_KEY=%s DEFAULT_ADMIN_API_KEY=%s\n" "$*" "${JWT_SECRET:-}" "${WEBHOOK_ENCRYPTION_KEY:-}" "${DEFAULT_ADMIN_API_KEY:-}" >>"'"${logfile}"'"; if [[ "$1" == "compose" && "$6" == "exec" ]]; then printf "JWT_SECRET=%s\nWEBHOOK_ENCRYPTION_KEY=%s\nDEFAULT_ADMIN_API_KEY=%s\n" "${JWT_SECRET:-}" "${WEBHOOK_ENCRYPTION_KEY:-}" "${DEFAULT_ADMIN_API_KEY:-}"; fi'
   make_stub "${stubdir}/git" 'printf "git %s\n" "$*" >>"'"${logfile}"'"'
   make_stub "${stubdir}/curl" 'printf "curl %s\n" "$*" >>"'"${logfile}"'"'
   make_stub "${stubdir}/python3" 'printf "python3 %s LIVE_TEST_MODEL_ID=%s LIVE_TEST_SYSTEM_REASONING_EFFORT=%s LIVE_TEST_ORCHESTRATOR_MODEL_ID=%s LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT=%s LIVE_TEST_SPECIALIST_MODEL_ID=%s LIVE_TEST_SPECIALIST_REASONING_EFFORT=%s LIVE_TEST_TRACE_DIR=%s\n" "$*" "${LIVE_TEST_MODEL_ID:-}" "${LIVE_TEST_SYSTEM_REASONING_EFFORT:-}" "${LIVE_TEST_ORCHESTRATOR_MODEL_ID:-}" "${LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT:-}" "${LIVE_TEST_SPECIALIST_MODEL_ID:-}" "${LIVE_TEST_SPECIALIST_REASONING_EFFORT:-}" "${LIVE_TEST_TRACE_DIR:-}" >>"'"${logfile}"'"; printf "%s\n" "{\"provider_auth_mode\":\"oauth\",\"profiles\":{\"content-direct-successor\":{\"playbook_id\":\"playbook-1\"}}}"'
@@ -75,6 +75,9 @@ EOF
 
   assert_contains "docker build -t agirunner-runtime:local ${runtime_root}" "${logfile}"
   assert_contains "docker build -f ${runtime_root}/Dockerfile.execution -t agirunner-runtime-execution:local ${runtime_root}" "${logfile}"
+  assert_contains "docker compose -p agirunner-platform -f ${fake_platform_root}/docker-compose.yml down -v --remove-orphans JWT_SECRET=12345678901234567890123456789012 WEBHOOK_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456 DEFAULT_ADMIN_API_KEY=test-admin-key" "${logfile}"
+  assert_contains "docker compose -p agirunner-platform -f ${fake_platform_root}/docker-compose.yml up -d --build JWT_SECRET=12345678901234567890123456789012 WEBHOOK_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456 DEFAULT_ADMIN_API_KEY=test-admin-key" "${logfile}"
+  assert_contains "docker compose -p agirunner-platform -f ${fake_platform_root}/docker-compose.yml exec -T platform-api env JWT_SECRET=12345678901234567890123456789012 WEBHOOK_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456 DEFAULT_ADMIN_API_KEY=test-admin-key" "${logfile}"
   assert_contains "git -C ${fixtures_root} update-ref -d refs/remotes/origin/main" "${logfile}"
   assert_contains "git -C ${fixtures_root} fetch --prune origin +refs/heads/main:refs/remotes/origin/main" "${logfile}"
   assert_contains "git -C ${fixtures_root} checkout main" "${logfile}"
@@ -118,5 +121,59 @@ EOF
   assert_contains "[tests/live] JWT_SECRET is required" "${tmpdir}/stderr.log"
 }
 
+test_live_env_overrides_stale_shell_values() {
+  local tmpdir stubdir logfile envfile runtime_root fixtures_root output_root bootstrap_context_file trace_dir fake_platform_root stdout_log
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' RETURN
+  stubdir="${tmpdir}/bin"
+  logfile="${tmpdir}/calls.log"
+  stdout_log="${tmpdir}/stdout.log"
+  envfile="${tmpdir}/env/local.env"
+  runtime_root="${tmpdir}/runtime"
+  fixtures_root="${tmpdir}/fixtures"
+  fake_platform_root="${tmpdir}/platform"
+  output_root="${tmpdir}/out"
+  bootstrap_context_file="${output_root}/bootstrap/context.json"
+  trace_dir="${output_root}/bootstrap/api-trace"
+  mkdir -p "${stubdir}" "${runtime_root}" "${fixtures_root}" "${fake_platform_root}/apps/platform-api" "${fake_platform_root}/tests/live/lib" "$(dirname "${envfile}")"
+  touch "${runtime_root}/Dockerfile.execution"
+  touch "${fake_platform_root}/docker-compose.yml"
+  touch "${fake_platform_root}/tests/live/lib/seed_live_test_shared_environment.py"
+
+  cat >"${envfile}" <<'EOF'
+DEFAULT_ADMIN_API_KEY=test-admin-key
+JWT_SECRET=env-file-jwt-secret-abcdefghijklmnopqrstuvwxyz
+WEBHOOK_ENCRYPTION_KEY=env-file-webhook-key-abcdefghijklmnopqrstuvwxyz
+LIVE_TEST_PROVIDER_AUTH_MODE=oauth
+LIVE_TEST_OAUTH_PROFILE_ID=openai-codex
+LIVE_TEST_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"plain-access","refreshToken":"plain-refresh"}}'
+LIVE_TEST_GITHUB_TOKEN=test-github-token
+POSTGRES_DB=agirunner
+POSTGRES_USER=agirunner
+POSTGRES_PASSWORD=agirunner
+POSTGRES_PORT=5433
+PLATFORM_API_PORT=8080
+EOF
+
+  make_stub "${stubdir}/docker" 'printf "docker %s JWT_SECRET=%s WEBHOOK_ENCRYPTION_KEY=%s DEFAULT_ADMIN_API_KEY=%s\n" "$*" "${JWT_SECRET:-}" "${WEBHOOK_ENCRYPTION_KEY:-}" "${DEFAULT_ADMIN_API_KEY:-}" >>"'"${logfile}"'"; if [[ "$1" == "compose" && "$6" == "exec" ]]; then printf "JWT_SECRET=%s\nWEBHOOK_ENCRYPTION_KEY=%s\nDEFAULT_ADMIN_API_KEY=%s\n" "${JWT_SECRET:-}" "${WEBHOOK_ENCRYPTION_KEY:-}" "${DEFAULT_ADMIN_API_KEY:-}"; fi'
+  make_stub "${stubdir}/git" 'printf "git %s\n" "$*" >>"'"${logfile}"'"'
+  make_stub "${stubdir}/curl" 'printf "curl %s\n" "$*" >>"'"${logfile}"'"'
+  make_stub "${stubdir}/python3" 'printf "%s\n" "{\"provider_auth_mode\":\"oauth\",\"profiles\":{}}"'
+
+  PATH="${stubdir}:${PATH}" \
+    JWT_SECRET=stale-shell-jwt \
+    WEBHOOK_ENCRYPTION_KEY=stale-shell-webhook \
+    DEFAULT_ADMIN_API_KEY=stale-shell-admin \
+    LIVE_TEST_ENV_FILE="${envfile}" \
+    LIVE_TEST_PLATFORM_ROOT="${fake_platform_root}" \
+    RUNTIME_REPO_PATH="${runtime_root}" \
+    FIXTURES_REPO_PATH="${fixtures_root}" \
+    LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
+    "${SCRIPT_PATH}" >"${stdout_log}"
+
+  assert_contains "docker compose -p agirunner-platform -f ${fake_platform_root}/docker-compose.yml up -d --build JWT_SECRET=env-file-jwt-secret-abcdefghijklmnopqrstuvwxyz WEBHOOK_ENCRYPTION_KEY=env-file-webhook-key-abcdefghijklmnopqrstuvwxyz DEFAULT_ADMIN_API_KEY=test-admin-key" "${logfile}"
+}
+
 test_shared_bootstrap_builds_stack_syncs_fixture_repo_and_writes_profile_registry
 test_shared_bootstrap_requires_platform_startup_secrets
+test_live_env_overrides_stale_shell_values

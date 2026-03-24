@@ -51,6 +51,28 @@ require_live_test_value "JWT_SECRET" "${JWT_SECRET:-}"
 require_live_test_value "WEBHOOK_ENCRYPTION_KEY" "${WEBHOOK_ENCRYPTION_KEY:-}"
 require_live_test_dir "${FIXTURES_REPO_PATH}" "fixtures repo"
 
+verify_live_test_stack_secrets() {
+  local platform_env
+  platform_env="$(
+    cd "${LIVE_TEST_PLATFORM_ROOT}"
+    export COMPOSE_PROJECT_NAME="${LIVE_TEST_COMPOSE_PROJECT_NAME}"
+    docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" -f "${LIVE_TEST_COMPOSE_FILE}" exec -T platform-api env
+  )"
+
+  if ! grep -Fqx "JWT_SECRET=${JWT_SECRET}" <<<"${platform_env}"; then
+    echo "[tests/live] platform-api JWT_SECRET does not match ${LIVE_TEST_ENV_FILE}" >&2
+    exit 1
+  fi
+  if ! grep -Fqx "WEBHOOK_ENCRYPTION_KEY=${WEBHOOK_ENCRYPTION_KEY}" <<<"${platform_env}"; then
+    echo "[tests/live] platform-api WEBHOOK_ENCRYPTION_KEY does not match ${LIVE_TEST_ENV_FILE}" >&2
+    exit 1
+  fi
+  if ! grep -Fqx "DEFAULT_ADMIN_API_KEY=${DEFAULT_ADMIN_API_KEY}" <<<"${platform_env}"; then
+    echo "[tests/live] platform-api DEFAULT_ADMIN_API_KEY does not match ${LIVE_TEST_ENV_FILE}" >&2
+    exit 1
+  fi
+}
+
 mkdir -p "${LIVE_TEST_BOOTSTRAP_DIR}" "${LIVE_TEST_TRACE_DIR}"
 
 log_live_test "building runtime image ${RUNTIME_IMAGE}"
@@ -68,6 +90,7 @@ log_live_test "rebuilding standard docker compose stack"
 (
   cd "${LIVE_TEST_PLATFORM_ROOT}"
   export COMPOSE_PROJECT_NAME="${LIVE_TEST_COMPOSE_PROJECT_NAME}"
+  export DEFAULT_ADMIN_API_KEY JWT_SECRET WEBHOOK_ENCRYPTION_KEY
   docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" -f "${LIVE_TEST_COMPOSE_FILE}" down -v --remove-orphans
   wait_for_live_test_compose_project_down "${LIVE_TEST_COMPOSE_PROJECT_NAME}"
   docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" -f "${LIVE_TEST_COMPOSE_FILE}" up -d --build
@@ -75,6 +98,7 @@ log_live_test "rebuilding standard docker compose stack"
 
 export PLATFORM_API_BASE_URL="${PLATFORM_API_BASE_URL:-http://127.0.0.1:${PLATFORM_API_PORT:-8080}}"
 wait_for_live_test_http "${PLATFORM_API_BASE_URL}/health" "platform api health"
+verify_live_test_stack_secrets
 
 log_live_test "seeding shared platform state through API"
 export LIVE_TEST_TRACE_DIR

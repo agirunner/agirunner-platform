@@ -161,10 +161,6 @@ load_live_test_env() {
       exit 1
     fi
 
-    if [[ -v "${name}" ]]; then
-      continue
-    fi
-
     eval "export ${line}"
   done <"${env_file}"
 }
