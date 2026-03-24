@@ -38,7 +38,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 
 ## Memory
 - Workspace memory stores durable knowledge only.
-- Use memory_write for durable decisions, constraints, key paths, and resolved issues as {"updates":{"key":"value"}} with at least one entry; never send empty updates or request_id alone.
+- Use memory_write for durable decisions, constraints, key paths, and resolved issues with a non-empty updates map; never send empty updates or request_id alone.
 - Do NOT record routine progress, task status, or facts already in the codebase.
 - Do not record operational state such as rework counters, review routing, approval posture, and next expected actor.
 - Read workspace memory at start.
