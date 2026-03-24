@@ -194,7 +194,7 @@ SELECT
     NULLIF(BTRIM(wd.role), ''),
     CASE WHEN live.kind = 'orchestrator' THEN 'orchestrator' ELSE NULL END
   ) AS role_name,
-  COALESCE(p.id::text, NULLIF(BTRIM(live.live_playbook_id), '')) AS playbook_id,
+  p.id::text AS playbook_id,
   COALESCE(p.name, NULLIF(BTRIM(live.live_playbook_name), '')) AS playbook_name,
   COALESCE(w.id, live.live_workflow_id) AS workflow_id,
   w.name AS workflow_name,

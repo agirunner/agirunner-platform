@@ -9,7 +9,6 @@ import { Badge } from '../../components/ui/badge.js';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
 import {
   formatContainerKindLabel,
-  formatExecutionBackendLabel,
   hasPendingField,
   hasRecentlyChangedField,
   type ContainerDiffField,
@@ -18,7 +17,6 @@ import {
 
 const TABLE_COLUMN_CLASS_NAMES = [
   'w-[7rem]',
-  'w-[12rem]',
   'w-[12rem]',
   'w-[8rem]',
   'w-[11rem]',
@@ -56,7 +54,6 @@ export function ContainersTable(props: {
           <TableRow className="hover:bg-transparent">
             <TableHead>Status</TableHead>
             <TableHead>Kind</TableHead>
-            <TableHead>Backend</TableHead>
             <TableHead>Role</TableHead>
             <TableHead>Playbook</TableHead>
             <TableHead>Workflow</TableHead>
@@ -78,16 +75,11 @@ export function ContainersTable(props: {
               <DiffCell row={row} field="kind" className="py-3">
                 <p className="font-medium text-foreground">{formatContainerKindLabel(row.kind)}</p>
               </DiffCell>
-              <DiffCell row={row} field="kind" className="py-3">
-                <Badge variant="outline">
-                  {formatExecutionBackendLabel(row.execution_backend)}
-                </Badge>
-              </DiffCell>
               <DiffCell row={row} field="role" className="py-3">
                 <CellText>{sanitizeContainerContextLabel(row.role_name)}</CellText>
               </DiffCell>
               <DiffCell row={row} field="playbook" className="py-3">
-                <CellText>{sanitizeContainerContextLabel(row.playbook_name)}</CellText>
+                {renderEntityLink(row.playbook_id, row.playbook_name, '/config/playbooks')}
               </DiffCell>
               <DiffCell row={row} field="workflow" className="py-3">
                 {renderEntityLink(row.workflow_id, row.workflow_name, '/work/boards')}
@@ -167,6 +159,9 @@ function renderEntityLink(
 ): ReactNode {
   if (isSyntheticContainerContextLabel(label)) {
     return <span className="text-sm text-muted-foreground">-</span>;
+  }
+  if (label?.trim() && !id) {
+    return <span className="text-sm text-foreground">{label}</span>;
   }
   if (!id) {
     return <span className="text-sm text-muted-foreground">-</span>;

@@ -73,23 +73,14 @@ export interface SessionContainerRow extends DashboardLiveContainerRecord {
 export function formatContainerKindLabel(kind: DashboardLiveContainerRecord['kind']): string {
   switch (kind) {
     case 'orchestrator':
-      return 'Orchestrator worker';
+      return 'Orchestrator agent';
     case 'runtime':
-      return 'Runtime';
+      return 'Specialist agent';
     case 'task':
-      return 'Task execution';
+      return 'Specialist task execution';
     default:
       return kind;
   }
-}
-
-export function formatExecutionBackendLabel(
-  executionBackend: DashboardLiveContainerRecord['execution_backend'],
-): string {
-  if (executionBackend === 'runtime_only') {
-    return 'Runtime only';
-  }
-  return 'Runtime + task sandbox';
 }
 
 export function mergeLiveContainerSessionRows(
@@ -218,7 +209,6 @@ function buildSearchableFields(row: SessionContainerRow): string[] {
     row.name,
     row.image,
     row.kind,
-    row.execution_backend ?? '',
     row.role_name ?? '',
     row.playbook_name ?? '',
     row.workflow_name ?? '',
