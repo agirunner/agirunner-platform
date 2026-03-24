@@ -166,6 +166,20 @@ class ApiClient:
                     time.sleep(self.safe_read_retry_delay_seconds)
                     continue
                 raise ApiError(f"{method} {path} transport failed: {error}") from error
+            except OSError as error:
+                self._record_transport_error(label or path, method, path, error)
+                if self._should_retry_url_error(method, attempt, attempts):
+                    self._record_retry(
+                        label or path,
+                        method,
+                        path,
+                        attempt,
+                        attempts,
+                        f"os:{type(error).__name__}:{error}",
+                    )
+                    time.sleep(self.safe_read_retry_delay_seconds)
+                    continue
+                raise ApiError(f"{method} {path} transport failed: {error}") from error
         raise ApiError(f"{method} {path} exhausted retry budget")
 
     def best_effort_request(
@@ -187,7 +201,7 @@ class ApiClient:
             return
         self.trace.record(_build_trace_response_event(label, method, path, status, redact_json(body)))
 
-    def _record_transport_error(self, label: str, method: str, path: str, error: urllib.error.URLError) -> None:
+    def _record_transport_error(self, label: str, method: str, path: str, error: Exception) -> None:
         if self.trace is None:
             return
         self.trace.record(
