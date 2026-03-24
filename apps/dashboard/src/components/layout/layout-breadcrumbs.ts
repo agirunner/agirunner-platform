@@ -12,6 +12,7 @@ export const WORKSPACE_BREADCRUMB_STORAGE_PREFIX = 'agirunner.workspaceLabel.';
 const SEGMENT_LABELS: Record<string, string> = {
   boards: 'Workflow Boards',
   workflows: 'Workflow Boards',
+  governance: 'General',
   users: 'Legacy User Access',
   memory: 'Memory',
   content: 'Documents',

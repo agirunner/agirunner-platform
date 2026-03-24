@@ -26,7 +26,6 @@ import {
   Shield,
   Sparkles,
   Sun,
-  Timer,
   Users,
   Webhook,
   Workflow,
@@ -136,11 +135,10 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: 'Governance',
+    label: 'General',
     icon: Shield,
     items: [
       { label: 'Settings', href: '/governance/settings', icon: Settings2 },
-      { label: 'Retention Policy', href: '/governance/retention', icon: Timer },
       { label: 'API Keys', href: '/governance/api-keys', icon: Key },
     ],
   },

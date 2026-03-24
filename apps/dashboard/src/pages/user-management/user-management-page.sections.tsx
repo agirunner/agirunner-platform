@@ -49,7 +49,7 @@ export function LegacyUserManagementNotice(): JSX.Element {
       <CardHeader>
         <CardTitle>Legacy admin surface</CardTitle>
         <CardDescription className="text-amber-900 dark:text-amber-200">
-          API keys are the supported primary access model today. Keep this page only for existing SSO-backed administrative users, and use Governance → API Keys for normal operator access.
+          API keys are the supported primary access model today. Keep this page only for existing SSO-backed administrative users, and use General → API Keys for normal operator access.
         </CardDescription>
       </CardHeader>
     </Card>

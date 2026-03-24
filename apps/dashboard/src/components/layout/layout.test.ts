@@ -68,9 +68,11 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("href: '/config/roles'");
   });
 
-  it('keeps user management out of the primary governance navigation', () => {
+  it('keeps user management out of the primary general navigation', () => {
     const source = readLayoutSource();
+    expect(source).toContain("label: 'General'");
     expect(source).toContain("label: 'API Keys'");
+    expect(source).not.toContain("label: 'Retention Policy'");
     expect(source).not.toContain("label: 'User Management'");
   });
 
@@ -79,14 +81,14 @@ describe('layout breadcrumbs', () => {
     expect(source).not.toContain("label: 'Orchestrator Grants'");
     expect(source).not.toContain("href: '/governance/grants'");
     expect(buildBreadcrumbs('/governance/grants')).toEqual([
-      { label: 'Governance' },
+      { label: 'General' },
       { label: 'Grants' },
     ]);
   });
 
   it('labels the deprecated users route truthfully in breadcrumbs', () => {
     expect(buildBreadcrumbs('/governance/users')).toEqual([
-      { label: 'Governance' },
+      { label: 'General' },
       { label: 'Legacy User Access' },
     ]);
   });
