@@ -27,6 +27,15 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.',
     );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'For non-repository workspaces, treat the workspace root as the only valid file root and use workspace-relative paths only.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Never use host absolute paths from instructions, logs, or prior output in tool calls or handoffs.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Do not call git tools or assume a repository exists unless the execution contract explicitly provides a repository-backed workspace.',
+    );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Never invent ids or leave placeholders in tool calls.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Omit the resolution key itself; do not send resolution: approved or placeholders.',
@@ -165,7 +174,7 @@ describe('prompt catalogs', () => {
   });
 
   it('keeps the shared prompts bounded for routine execution', () => {
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(3000);
-    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(5850);
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(4000);
+    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(6500);
   });
 });

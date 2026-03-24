@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { registerErrorHandler } from '../../src/errors/error-handler.js';
 import { ValidationError } from '../../src/errors/domain-errors.js';
+import { ArtifactService } from '../../src/services/artifact-service.js';
 import { PlaybookWorkflowControlService } from '../../src/services/playbook-workflow-control-service.js';
 import { TaskAgentScopeService } from '../../src/services/task-agent-scope-service.js';
 import {
@@ -263,6 +264,101 @@ describe('orchestratorControlRoutes', () => {
 
     expect(response.statusCode).toBe(422);
     expect(createTask).not.toHaveBeenCalled();
+    loadTaskScopeSpy.mockRestore();
+  });
+
+  it('returns managed specialist task details through the orchestrator-scoped read route', async () => {
+    const getTask = vi.fn(async () => ({
+      id: 'task-specialist',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      title: 'Assess host content',
+      role: 'host-acceptance-assessor',
+      state: 'completed',
+      stage_name: 'maintenance-window',
+      output: { summary: 'Looks good.' },
+      metrics: { tokens_total: 42 },
+      latest_handoff: { id: 'handoff-1', summary: 'Approved.' },
+      metadata: { current_subject_revision: 1 },
+      rework_count: 0,
+      is_orchestrator_task: false,
+    }));
+    const listTaskArtifactsSpy = vi
+      .spyOn(ArtifactService.prototype, 'listTaskArtifacts')
+      .mockResolvedValue([
+        {
+          id: 'artifact-1',
+          task_id: 'task-specialist',
+          logical_path: 'artifact:wf-1/report.md',
+          content_type: 'text/markdown',
+          size_bytes: 42,
+          created_at: '2026-03-24T18:00:00Z',
+        } as never,
+      ]);
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', {
+      connect: vi.fn(),
+      query: vi.fn(),
+    });
+    app.decorate('config', {
+      TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+      ARTIFACT_STORAGE_BACKEND: 'local',
+      ARTIFACT_LOCAL_ROOT: '/tmp/agirunner-platform-artifacts-test',
+      ARTIFACT_ACCESS_URL_TTL_SECONDS: 300,
+      ARTIFACT_PREVIEW_MAX_BYTES: 1048576,
+    });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', { getTask });
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    const loadTaskScopeSpy = vi
+      .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
+      .mockResolvedValue({
+        id: 'task-orchestrator',
+        workflow_id: 'workflow-1',
+        workspace_id: 'workspace-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'maintenance-window',
+        activation_id: 'activation-1',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        is_orchestrator_task: true,
+        state: 'in_progress',
+      });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/task-specialist',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(getTask).toHaveBeenCalledWith('tenant-1', 'task-specialist');
+    expect(listTaskArtifactsSpy).toHaveBeenCalledWith('tenant-1', 'task-specialist');
+    expect(response.json().data).toEqual(
+      expect.objectContaining({
+        id: 'task-specialist',
+        workflow_id: 'workflow-1',
+        state: 'completed',
+        title: 'Assess host content',
+        artifacts: [
+          expect.objectContaining({
+            id: 'artifact-1',
+            logical_path: 'artifact:wf-1/report.md',
+          }),
+        ],
+      }),
+    );
+
+    listTaskArtifactsSpy.mockRestore();
     loadTaskScopeSpy.mockRestore();
   });
 

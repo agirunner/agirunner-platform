@@ -24,6 +24,7 @@ import {
 } from '../../errors/domain-errors.js';
 import { readWorkerDispatchAckTimeoutMs } from '../../services/platform-timing-defaults.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
+import { ArtifactService } from '../../services/artifact-service.js';
 import {
   buildAssessmentSubjectInput,
   buildAssessmentSubjectMetadata,
@@ -37,6 +38,8 @@ import {
   mustGetSafetynetEntry,
 } from '../../services/safetynet/registry.js';
 import { logSafetynetTriggered } from '../../services/safetynet/logging.js';
+import { buildArtifactStorageConfig } from '../../content/storage-config.js';
+import { createArtifactStorage } from '../../content/storage-factory.js';
 
 const orchestratorTaskTypeSchema = z.enum(['analysis', 'code', 'assessment', 'test', 'docs', 'custom']);
 const credentialRefsSchema = z.record(z.string().min(1).max(255)).refine(
@@ -325,6 +328,12 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
   const taskScopeService = new TaskAgentScopeService(app.pgPool);
   const activationCheckpointService = new OrchestratorActivationCheckpointService(app.pgPool);
   const workItemContinuityService = new WorkItemContinuityService(app.pgPool, app.logService);
+  const artifactService = new ArtifactService(
+    app.pgPool,
+    createArtifactStorage(buildArtifactStorageConfig(app.config)),
+    app.config.ARTIFACT_ACCESS_URL_TTL_SECONDS,
+    app.config.ARTIFACT_PREVIEW_MAX_BYTES,
+  );
   const taskMessageService = new OrchestratorTaskMessageService(
     app.pgPool,
     app.eventService,
@@ -539,6 +548,59 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         workItemId,
       );
       return { data };
+    },
+  );
+
+  app.get(
+    '/api/v1/orchestrator/tasks/:taskId/tasks/:managedTaskId',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; managedTaskId: string };
+      const taskScope = await withManagedSpecialistTask(
+        request.auth!,
+        params.taskId,
+        params.managedTaskId,
+      );
+      const task = await loadManagedSpecialistTask(
+        app,
+        request.auth!,
+        taskScope.workflow_id,
+        params.managedTaskId,
+      );
+      const artifacts = await artifactService.listTaskArtifacts(
+        request.auth!.tenantId,
+        params.managedTaskId,
+      );
+      return {
+        data: {
+          ...task,
+          artifacts,
+        },
+      };
+    },
+  );
+
+  app.get(
+    '/api/v1/orchestrator/tasks/:taskId/tasks/:managedTaskId/artifacts',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; managedTaskId: string };
+      const taskScope = await withManagedSpecialistTask(
+        request.auth!,
+        params.taskId,
+        params.managedTaskId,
+      );
+      await loadManagedSpecialistTask(
+        app,
+        request.auth!,
+        taskScope.workflow_id,
+        params.managedTaskId,
+      );
+      const artifacts = await artifactService.listTaskArtifacts(
+        request.auth!.tenantId,
+        params.managedTaskId,
+      );
+      return { data: artifacts };
     },
   );
 

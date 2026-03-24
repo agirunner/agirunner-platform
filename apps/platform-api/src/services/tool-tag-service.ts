@@ -16,6 +16,9 @@ export const toolCategoryValues = [
 
 type ToolCategory = (typeof toolCategoryValues)[number];
 export type ToolOwner = 'runtime' | 'task';
+export type ToolAccessScope = 'specialist_and_orchestrator' | 'orchestrator_only';
+export type ToolUsageSurface = 'runtime' | 'task_sandbox' | 'provider_capability';
+
 const taskOwnedRepositoryToolIds = new Set([
   'file_read',
   'file_write',
@@ -30,6 +33,14 @@ const taskOwnedRepositoryToolIds = new Set([
   'git_commit',
   'git_push',
   'web_fetch',
+]);
+
+const gitBuiltInToolIds = new Set([
+  'git_status',
+  'git_diff',
+  'git_log',
+  'git_commit',
+  'git_push',
 ]);
 
 interface ToolTagRow {
@@ -49,7 +60,43 @@ interface AgentToolRequirements {
   optional: string[];
 }
 
-const builtInToolTags: Array<{
+const orchestratorOnlyBuiltInToolIds = new Set([
+  'list_work_items',
+  'list_workflow_tasks',
+  'read_task_output',
+  'read_task_status',
+  'read_task_events',
+  'read_escalation',
+  'read_stage_status',
+  'read_workflow_budget',
+  'read_work_item_continuity',
+  'read_latest_handoff',
+  'read_handoff_chain',
+  'update_task_input',
+  'create_work_item',
+  'update_work_item',
+  'complete_work_item',
+  'create_task',
+  'create_workflow',
+  'request_gate_approval',
+  'approve_task',
+  'approve_task_output',
+  'request_rework',
+  'advance_stage',
+  'complete_workflow',
+  'cancel_task',
+  'retry_task',
+  'reassign_task',
+  'send_task_message',
+  'escalate_to_human',
+  'memory_delete',
+  'work_item_memory_read',
+  'work_item_memory_history',
+]);
+
+const providerCapabilityBuiltInToolIds = new Set(['native_search']);
+
+const builtInToolDefinitions: Array<{
   id: string;
   name: string;
   description: string;
@@ -114,6 +161,15 @@ const builtInToolTags: Array<{
   { id: 'reassign_task', name: 'Reassign Task', description: 'Reassign a task to another worker or agent', category: 'workflow', owner: 'runtime' },
   { id: 'send_task_message', name: 'Send Task Message', description: 'Send a message to an active task', category: 'workflow', owner: 'runtime' },
 ];
+
+const builtInToolDefinitionIds = new Set(builtInToolDefinitions.map((tag) => tag.id));
+
+const builtInToolTags = builtInToolDefinitions.map((tag) => ({
+  ...tag,
+  access_scope: resolveBuiltInToolAccessScopeOrThrow(tag.id),
+  usage_surface: resolveBuiltInToolUsageSurface(tag.id, tag.owner),
+  is_callable: !providerCapabilityBuiltInToolIds.has(tag.id),
+}));
 
 const allowedCategories = new Set<ToolCategory>(toolCategoryValues);
 
@@ -227,6 +283,24 @@ export function resolveBuiltInToolOwner(toolId: string): ToolOwner | null {
   return builtInToolOwners.get(toolId) ?? null;
 }
 
+export function resolveBuiltInToolAccessScope(toolId: string): ToolAccessScope | null {
+  if (!builtInToolDefinitionIds.has(toolId)) {
+    return null;
+  }
+  return orchestratorOnlyBuiltInToolIds.has(toolId)
+    ? 'orchestrator_only'
+    : 'specialist_and_orchestrator';
+}
+
+export function isSpecialistSelectableToolId(toolId: string): boolean {
+  const accessScope = resolveBuiltInToolAccessScope(toolId);
+  return accessScope !== 'orchestrator_only';
+}
+
+export function isGitBuiltInToolId(toolId: string): boolean {
+  return gitBuiltInToolIds.has(toolId);
+}
+
 export function readRoleConfigToolIds(roleConfig: Record<string, unknown>): string[] {
   return normalizeToolIds(asRecord(roleConfig).tools);
 }
@@ -325,6 +399,21 @@ function guardNotBuiltIn(toolId: string): void {
   if (builtInToolIds.has(toolId)) {
     throw new ValidationError('Built-in tools cannot be modified');
   }
+}
+
+function resolveBuiltInToolAccessScopeOrThrow(toolId: string): ToolAccessScope {
+  const accessScope = resolveBuiltInToolAccessScope(toolId);
+  if (accessScope === null) {
+    throw new ValidationError(`Unknown built-in tool "${toolId}"`);
+  }
+  return accessScope;
+}
+
+function resolveBuiltInToolUsageSurface(toolId: string, owner: ToolOwner): ToolUsageSurface {
+  if (providerCapabilityBuiltInToolIds.has(toolId)) {
+    return 'provider_capability';
+  }
+  return owner === 'task' ? 'task_sandbox' : 'runtime';
 }
 
 function normalizeToolTag(input: { id: string; name: string; description?: string; category?: string }) {

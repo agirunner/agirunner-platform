@@ -1231,6 +1231,241 @@ describe('TaskClaimService', () => {
     );
   });
 
+  it('strips orchestrator-only tools from specialist role grants before returning role_config', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-specialist-tools',
+              workflow_id: null,
+              work_item_id: null,
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-specialist-tools',
+              workflow_id: null,
+              work_item_id: null,
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              escalation_target: null,
+              allowed_tools: ['file_read', 'create_task', 'memory_delete', 'native_search'],
+            }],
+          };
+        }
+        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => ({
+        ...defaultResolvedRoleConfig,
+        nativeSearch: {
+          mode: 'openai_web_search' as NativeSearchMode,
+          defaultEnabled: true,
+        },
+      })),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      routing_tags: ['coding', 'role:developer'],
+    });
+
+    expect(task?.role_config).toEqual(
+      expect.objectContaining({
+        tools: ['file_read', 'native_search'],
+      }),
+    );
+  });
+
+  it('strips git tools from specialist role grants for non-repository workspaces', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-host-tools',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              state: 'ready',
+              role: 'maintenance-engineer',
+              workspace_id: 'workspace-host-1',
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('SELECT current_spec_version FROM workspaces')) {
+          return {
+            rowCount: 1,
+            rows: [{ current_spec_version: 0 }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-host-tools',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              state: 'claimed',
+              role: 'maintenance-engineer',
+              workspace_id: 'workspace-host-1',
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              escalation_target: null,
+              allowed_tools: ['file_read', 'file_write', 'git_status', 'git_commit', 'submit_handoff'],
+            }],
+          };
+        }
+        if (sql.includes('w.name AS workflow_name') && sql.includes('workspace_settings')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              workflow_name: 'Host Directory Workflow',
+              workspace_name: 'Host Workspace',
+              workspace_repository_url: null,
+              workspace_settings: {
+                workspace_storage_type: 'host_directory',
+                workspace_storage: {
+                  host_path: '/var/host/workspace',
+                  read_only: false,
+                },
+              },
+            }],
+          };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      routing_tags: ['role:maintenance-engineer'],
+    });
+
+    expect(task?.workspace_binding).toEqual(
+      expect.objectContaining({
+        type: 'host_directory',
+      }),
+    );
+    expect(task?.role_config).toEqual(
+      expect.objectContaining({
+        tools: ['file_read', 'file_write', 'submit_handoff'],
+      }),
+    );
+  });
+
   it('fails task claim when the effective loop contract is missing', async () => {
     const client = {
       query: vi.fn(async (sql: string, _params?: unknown[]) => {
