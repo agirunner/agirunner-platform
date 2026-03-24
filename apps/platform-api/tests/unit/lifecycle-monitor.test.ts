@@ -33,6 +33,7 @@ describe('startLifecycleMonitor', () => {
     vi.useFakeTimers();
 
     const logger = {
+      debug: vi.fn(),
       info: vi.fn(),
       error: vi.fn(),
     };
@@ -108,7 +109,7 @@ describe('startLifecycleMonitor', () => {
       'workflow_activation_recovery_enforced',
     );
     expect(workflowActivationDispatchService.enqueueHeartbeatActivations).toHaveBeenCalledTimes(1);
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       { enqueued: 2 },
       'workflow_activation_heartbeats_enqueued',
     );
@@ -183,6 +184,7 @@ describe('startLifecycleMonitor', () => {
 
   it('supports a single-shot workflow activation dispatch tick without timers', async () => {
     const logger = {
+      debug: vi.fn(),
       info: vi.fn(),
       error: vi.fn(),
     };
@@ -200,7 +202,7 @@ describe('startLifecycleMonitor', () => {
     expect(workflowActivationDispatchService.recoverStaleActivations).toHaveBeenCalledTimes(1);
     expect(workflowActivationDispatchService.enqueueHeartbeatActivations).toHaveBeenCalledTimes(1);
     expect(workflowActivationDispatchService.dispatchQueuedActivations).toHaveBeenCalledTimes(1);
-    expect(logger.info).toHaveBeenCalledWith(
+    expect(logger.debug).toHaveBeenCalledWith(
       { enqueued: 1 },
       'workflow_activation_heartbeats_enqueued',
     );
@@ -208,6 +210,7 @@ describe('startLifecycleMonitor', () => {
 
   it('prunes stale heartbeats using fleet-configured thresholds', async () => {
     const logger = {
+      debug: vi.fn(),
       info: vi.fn(),
       error: vi.fn(),
     };
@@ -220,6 +223,6 @@ describe('startLifecycleMonitor', () => {
     expect(result).toBe(2);
     expect(fleetService.pruneStaleHeartbeats).toHaveBeenCalledTimes(1);
     expect(fleetService.pruneStaleHeartbeats).toHaveBeenCalledWith();
-    expect(logger.info).toHaveBeenCalledWith({ pruned: 2 }, 'stale_heartbeats_pruned');
+    expect(logger.debug).toHaveBeenCalledWith({ pruned: 2 }, 'stale_heartbeats_pruned');
   });
 });

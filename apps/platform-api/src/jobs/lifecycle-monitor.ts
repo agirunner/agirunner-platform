@@ -83,7 +83,7 @@ export async function runWorkflowActivationDispatchTick(
   }
   const heartbeats = await workflowActivationDispatchService.enqueueHeartbeatActivations();
   if (heartbeats > 0) {
-    logger.info({ enqueued: heartbeats }, 'workflow_activation_heartbeats_enqueued');
+    logger.debug({ enqueued: heartbeats }, 'workflow_activation_heartbeats_enqueued');
   }
   await workflowActivationDispatchService.dispatchQueuedActivations();
 }
@@ -106,7 +106,7 @@ export async function runHeartbeatPruneTick(
   }
   const pruned = await fleetService.pruneStaleHeartbeats();
   if (pruned > 0) {
-    logger.info({ pruned }, 'stale_heartbeats_pruned');
+    logger.debug({ pruned }, 'stale_heartbeats_pruned');
   }
   return pruned;
 }
