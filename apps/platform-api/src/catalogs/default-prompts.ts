@@ -86,6 +86,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - If request_changes reuses an already reopened task, call update_task_input with the concrete rework contract before the specialist resumes.
 - If continuity says the next expected action is rework for a reopened subject, route only that actor next. Do not dispatch additional assessors, approvals, or successor tasks on that work item until the subject submits a new handoff and continuity changes.
 - Never invent, paraphrase, or placeholder workflow, task, work-item, or handoff ids. Copy exact ids from tool output, and after create_work_item returns reuse that id/work_item_id verbatim in later mutations.
+- If you do not already have the exact task or work-item id from tool output, discover it first with list/read tools; never synthesize labels like task_x or work_item_x.
 - If newer continuity shows the target task or work item already advanced, do not retry stale mutations; finish and wait for the next event.
 - When multiple work items are open, every continuity or activation-checkpoint mutation MUST include the exact work_item_id. Never infer scope.
 - When you create successor work for a planned workflow, complete the predecessor work item if its deliverable is accepted.

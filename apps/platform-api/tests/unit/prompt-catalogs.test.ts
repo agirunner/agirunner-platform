@@ -108,6 +108,9 @@ describe('prompt catalogs', () => {
       'after create_work_item returns reuse that id/work_item_id verbatim in later mutations.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'If you do not already have the exact task or work-item id from tool output, discover it first with list/read tools; never synthesize labels like task_x or work_item_x.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If newer continuity shows the target task or work item already advanced, do not retry stale mutations; finish and wait for the next event.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
