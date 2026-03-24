@@ -105,12 +105,7 @@ export function mergeAssessmentSubjectLinkage(
     subjectHandoffId: explicit.subjectHandoffId ?? fallback.subjectHandoffId,
     subjectRevision: explicit.subjectRevision ?? fallback.subjectRevision,
   };
-  if (
-    (!explicit.subjectTaskId && Boolean(fallback.subjectTaskId))
-    || (!explicit.subjectWorkItemId && Boolean(fallback.subjectWorkItemId))
-    || (!explicit.subjectHandoffId && Boolean(fallback.subjectHandoffId))
-    || (explicit.subjectRevision === null && fallback.subjectRevision !== null)
-  ) {
+  if (didInferSubjectIdentity(explicit, fallback)) {
     logSafetynetTriggered(
       SUBJECT_LINKAGE_INFERENCE_SAFETYNET,
       'assessment subject linkage inferred from fallback context',
@@ -131,4 +126,13 @@ function readString(value: unknown): string | null {
 
 function readInteger(value: unknown): number | null {
   return typeof value === 'number' && Number.isInteger(value) ? value : null;
+}
+
+function didInferSubjectIdentity(
+  explicit: AssessmentSubjectLinkage,
+  fallback: AssessmentSubjectLinkage,
+): boolean {
+  return (!explicit.subjectTaskId && Boolean(fallback.subjectTaskId))
+    || (!explicit.subjectWorkItemId && Boolean(fallback.subjectWorkItemId))
+    || (!explicit.subjectHandoffId && Boolean(fallback.subjectHandoffId));
 }
