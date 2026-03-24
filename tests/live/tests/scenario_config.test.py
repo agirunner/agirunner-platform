@@ -73,6 +73,38 @@ class ScenarioConfigTests(unittest.TestCase):
             scenario["expect"]["continuity_rework_sequences"],
         )
 
+    def test_runtime_task_sandbox_split_scenario_requires_backend_and_cleanup_evidence(self) -> None:
+        scenario_path = Path(__file__).resolve().parents[1] / "scenarios" / "runtime-task-sandbox-split.json"
+
+        scenario = scenario_config.load_scenario(scenario_path)
+
+        self.assertTrue(scenario["workspace"]["repo"])
+        self.assertEqual("completed", scenario["expect"]["state"])
+        self.assertEqual(3, scenario["expect"]["workflow_tasks"]["min_non_orchestrator_count"])
+        self.assertEqual(
+            [
+                {
+                    "source_role": "runtime-split-planning-analyst",
+                    "successor_role": "runtime-split-implementation-engineer",
+                },
+                {
+                    "source_role": "runtime-split-implementation-engineer",
+                    "successor_role": "runtime-split-release-coordinator",
+                },
+            ],
+            scenario["expect"]["direct_handoff_expectations"],
+        )
+        self.assertEqual(4, len(scenario["expect"]["task_backend_expectations"]))
+        self.assertEqual(
+            {
+                "db_state_present": True,
+                "runtime_cleanup_passed": True,
+                "docker_log_rotation_passed": True,
+                "log_anomalies_empty": True,
+            },
+            scenario["expect"]["evidence_expectations"],
+        )
+
     def write_scenario(self, payload: dict[str, object]) -> Path:
         handle = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
         with handle:

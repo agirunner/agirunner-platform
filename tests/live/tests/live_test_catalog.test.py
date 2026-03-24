@@ -101,6 +101,23 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertTrue((seed_root / "scripts" / "verify.sh").is_file())
         self.assertTrue((seed_root / "tests" / "test_cli.py").is_file())
 
+    def test_runtime_task_sandbox_split_profile_uses_prose_only_playbook_shape_and_real_repo_seed(self) -> None:
+        playbook = live_test_catalog.read_fixture(
+            LIBRARY_DIR / "runtime-task-sandbox-split" / "playbook.json"
+        )
+        definition = playbook["definition"]
+        self.assertTrue(definition.get("process_instructions"))
+        self.assertNotIn("checkpoints", definition)
+        self.assertNotIn("assessment_rules", definition)
+        self.assertNotIn("approval_rules", definition)
+        self.assertNotIn("human_gate", definition)
+
+        seed_root = LIBRARY_DIR / "runtime-task-sandbox-split" / "repo-seed"
+        self.assertTrue((seed_root / "README.md").is_file())
+        self.assertTrue((seed_root / "workflow_cli" / "__main__.py").is_file())
+        self.assertTrue((seed_root / "scripts" / "verify.sh").is_file())
+        self.assertTrue((seed_root / "tests" / "test_cli.py").is_file())
+
     def test_repo_backed_profiles_provide_seed_content_for_their_storage_mode(self) -> None:
         for scenario_file in sorted(SCENARIOS_DIR.glob("*.json")):
             with self.subTest(scenario=scenario_file.stem):

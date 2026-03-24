@@ -1,0 +1,88 @@
+{
+  "name": "Runtime Task Sandbox Split",
+  "slug": "live-test-runtime-task-sandbox-split-v1",
+  "description": "A delivery workflow that proves runtime-owned planning and release-summary work while repository mutation and artifact upload stay in task sandboxes.",
+  "outcome": "The seeded repository gains a deterministic status-report command, the implementation summary is uploaded as an artifact, and the release summary is completed without turning planning or release-summary work into task-sandbox execution.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "Run this workflow as a three-step delivery sequence over the seeded Python CLI repository. First, the runtime-split planning analyst MUST work only through runtime-owned tools, MUST write a short memory note that names the exact repository change, verification command, and artifact path, and MUST submit a structured handoff to the implementation engineer. Second, the runtime-split implementation engineer MUST perform the repository mutation in the seeded repository, MUST add the deterministic `status-report` command, MUST update tests so `./scripts/verify.sh` proves the new command, MUST create `reports/runtime-task-sandbox-summary.md`, MUST upload that file as a task artifact, and MUST submit one structured handoff to the release coordinator. Third, the runtime-split release coordinator MUST work only through runtime-owned tools, MUST read the uploaded artifact through artifact read tools instead of repository tools, MUST persist a final release-summary memory note, and MUST submit the final structured handoff. This playbook has no configured approvals, assessments, or human gates. The orchestrator MUST keep the specialist sequence direct and MUST use formal governance controls only if explicitly invoked through the platform during execution.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What the seeded repository change must accomplish"
+      },
+      {
+        "name": "scenario_name",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "Stable identifier that the new status-report output and uploaded summary must mention"
+      }
+    ],
+    "roles": [
+      "runtime-split-planning-analyst",
+      "runtime-split-implementation-engineer",
+      "runtime-split-release-coordinator"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "planning",
+        "goal": "Implementation-ready guidance exists in memory and handoff form.",
+        "involves": [
+          "runtime-split-planning-analyst"
+        ]
+      },
+      {
+        "name": "implementation",
+        "goal": "The repository change, verification proof, and uploaded artifact exist.",
+        "involves": [
+          "runtime-split-implementation-engineer"
+        ]
+      },
+      {
+        "name": "release-summary",
+        "goal": "The uploaded implementation summary is reviewed and the final release summary is recorded.",
+        "involves": [
+          "runtime-split-release-coordinator"
+        ]
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 3,
+      "max_active_tasks": 3,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    }
+  }
+}

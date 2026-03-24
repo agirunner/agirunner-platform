@@ -1813,6 +1813,233 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             verification["failures"],
         )
 
+    def test_evaluate_expectations_accepts_backend_container_log_and_evidence_contracts(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "task_backend_expectations": [
+                    {
+                        "match": {"is_orchestrator_task": True},
+                        "execution_backend": "runtime_only",
+                        "used_task_sandbox": False,
+                        "min_count": 2,
+                    },
+                    {
+                        "match": {"role": "runtime-split-planning-analyst"},
+                        "execution_backend": "runtime_plus_task",
+                        "used_task_sandbox": False,
+                    },
+                    {
+                        "match": {"role": "runtime-split-implementation-engineer"},
+                        "execution_backend": "runtime_plus_task",
+                        "used_task_sandbox": True,
+                    },
+                    {
+                        "match": {"role": "runtime-split-release-coordinator"},
+                        "execution_backend": "runtime_plus_task",
+                        "used_task_sandbox": False,
+                    },
+                ],
+                "log_row_expectations": [
+                    {
+                        "match": {
+                            "operation": "tool.execute",
+                            "status": "completed",
+                            "execution_backend": "runtime_plus_task",
+                            "tool_owner": "runtime",
+                            "payload": {"tool_name": "memory_write"},
+                        },
+                        "min_count": 2,
+                    },
+                    {
+                        "match": {
+                            "operation": "tool.execute",
+                            "status": "completed",
+                            "execution_backend": "runtime_plus_task",
+                            "tool_owner": "task",
+                            "payload": {"tool_name": "artifact_upload"},
+                        },
+                        "min_count": 1,
+                    },
+                ],
+                "container_observation_expectations": [
+                    {"match": {"kind": "orchestrator", "execution_backend": "runtime_only"}, "min_count": 1},
+                    {"match": {"kind": "runtime", "execution_backend": "runtime_plus_task"}, "min_count": 1},
+                    {"match": {"kind": "task", "execution_backend": "runtime_plus_task"}, "min_count": 1},
+                ],
+                "evidence_expectations": {
+                    "db_state_present": True,
+                    "runtime_cleanup_passed": True,
+                    "docker_log_rotation_passed": True,
+                    "log_anomalies_empty": True,
+                },
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-orch-1",
+                        "role": "orchestrator",
+                        "is_orchestrator_task": True,
+                        "execution_backend": "runtime_only",
+                        "used_task_sandbox": False,
+                    },
+                    {
+                        "id": "task-orch-2",
+                        "role": "orchestrator",
+                        "is_orchestrator_task": True,
+                        "execution_backend": "runtime_only",
+                        "used_task_sandbox": False,
+                    },
+                    {
+                        "id": "task-plan-1",
+                        "role": "runtime-split-planning-analyst",
+                        "is_orchestrator_task": False,
+                        "execution_backend": "runtime_plus_task",
+                        "used_task_sandbox": False,
+                    },
+                    {
+                        "id": "task-impl-1",
+                        "role": "runtime-split-implementation-engineer",
+                        "is_orchestrator_task": False,
+                        "execution_backend": "runtime_plus_task",
+                        "used_task_sandbox": True,
+                    },
+                    {
+                        "id": "task-release-1",
+                        "role": "runtime-split-release-coordinator",
+                        "is_orchestrator_task": False,
+                        "execution_backend": "runtime_plus_task",
+                        "used_task_sandbox": False,
+                    },
+                ],
+            },
+            board={"data": {"data": {"columns": []}}},
+            work_items={"data": {"data": []}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+            execution_logs={
+                "data": [
+                    {
+                        "operation": "tool.execute",
+                        "status": "completed",
+                        "execution_backend": "runtime_plus_task",
+                        "tool_owner": "runtime",
+                        "payload": {"tool_name": "memory_write"},
+                    },
+                    {
+                        "operation": "tool.execute",
+                        "status": "completed",
+                        "execution_backend": "runtime_plus_task",
+                        "tool_owner": "runtime",
+                        "payload": {"tool_name": "memory_write"},
+                    },
+                    {
+                        "operation": "tool.execute",
+                        "status": "completed",
+                        "execution_backend": "runtime_plus_task",
+                        "tool_owner": "task",
+                        "payload": {"tool_name": "artifact_upload"},
+                    },
+                ]
+            },
+            evidence={
+                "db_state": {"ok": True},
+                "runtime_cleanup": {"all_clean": True},
+                "docker_log_rotation": {"all_runtime_containers_bounded": True},
+                "log_anomalies": {"rows": []},
+                "container_observations": {
+                    "rows": [
+                        {"kind": "orchestrator", "execution_backend": "runtime_only"},
+                        {"kind": "runtime", "execution_backend": "runtime_plus_task"},
+                        {"kind": "task", "execution_backend": "runtime_plus_task"},
+                    ]
+                },
+            },
+        )
+
+        self.assertTrue(verification["passed"])
+        self.assertEqual([], verification["failures"])
+
+    def test_evaluate_expectations_reports_backend_and_evidence_contract_failures(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "task_backend_expectations": [
+                    {
+                        "match": {"role": "runtime-split-implementation-engineer"},
+                        "execution_backend": "runtime_plus_task",
+                        "used_task_sandbox": True,
+                    }
+                ],
+                "log_row_expectations": [
+                    {
+                        "match": {
+                            "operation": "tool.execute",
+                            "status": "completed",
+                            "execution_backend": "runtime_plus_task",
+                            "tool_owner": "task",
+                            "payload": {"tool_name": "artifact_upload"},
+                        },
+                        "min_count": 1,
+                    }
+                ],
+                "container_observation_expectations": [
+                    {"match": {"kind": "task", "execution_backend": "runtime_plus_task"}, "min_count": 1}
+                ],
+                "evidence_expectations": {
+                    "db_state_present": True,
+                    "runtime_cleanup_passed": True,
+                    "docker_log_rotation_passed": True,
+                    "log_anomalies_empty": True,
+                },
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-impl-1",
+                        "role": "runtime-split-implementation-engineer",
+                        "is_orchestrator_task": False,
+                        "execution_backend": "runtime_plus_task",
+                        "used_task_sandbox": False,
+                    }
+                ],
+            },
+            board={"data": {"data": {"columns": []}}},
+            work_items={"data": {"data": []}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+            execution_logs={"data": []},
+            evidence={
+                "db_state": {"ok": False},
+                "runtime_cleanup": {"all_clean": False},
+                "docker_log_rotation": {"all_runtime_containers_bounded": False},
+                "log_anomalies": {"rows": [{"level": "error"}]},
+                "container_observations": {"rows": []},
+            },
+        )
+
+        self.assertFalse(verification["passed"])
+        self.assertIn(
+            "expected at least 1 task(s) matching {'role': 'runtime-split-implementation-engineer'} with execution_backend='runtime_plus_task' and used_task_sandbox=True, found 0",
+            verification["failures"],
+        )
+        self.assertIn(
+            "expected at least 1 execution log row(s) matching {'operation': 'tool.execute', 'status': 'completed', 'execution_backend': 'runtime_plus_task', 'tool_owner': 'task', 'payload': {'tool_name': 'artifact_upload'}}, found 0",
+            verification["failures"],
+        )
+        self.assertIn(
+            "expected at least 1 observed live container row(s) matching {'kind': 'task', 'execution_backend': 'runtime_plus_task'}, found 0",
+            verification["failures"],
+        )
+        self.assertIn("expected DB evidence to be present", verification["failures"])
+        self.assertIn("expected runtime cleanup evidence to pass", verification["failures"])
+        self.assertIn("expected Docker log rotation evidence to pass", verification["failures"])
+        self.assertIn("expected execution-log anomaly review to be empty", verification["failures"])
+
     def test_evaluate_expectations_accepts_generic_assessment_contracts(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(
             {

@@ -105,5 +105,11 @@ Per environment-prep run:
 Per scenario run:
 - `<scenario>/workflow-run.json`
 - `<scenario>/trace/api.ndjson`
+- `<scenario>/evidence/db-state.json`
+- `<scenario>/evidence/log-anomalies.json`
+- `<scenario>/evidence/live-containers.json`
+- `<scenario>/evidence/container-observations.json`
+- `<scenario>/evidence/runtime-cleanup.json`
+- `<scenario>/evidence/docker-log-rotation.json`
 
 These artifacts are designed for trace-first troubleshooting and later automated validation.

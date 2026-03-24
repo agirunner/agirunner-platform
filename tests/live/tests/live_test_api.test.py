@@ -15,7 +15,15 @@ import sys
 LIVE_LIB = Path(__file__).resolve().parents[1] / "lib"
 sys.path.insert(0, str(LIVE_LIB))
 
-from live_test_api import ApiClient, ApiError, TraceRecorder  # noqa: E402
+from live_test_api import (  # noqa: E402
+    ApiClient,
+    ApiError,
+    CommandError,
+    TraceRecorder,
+    docker_compose_psql_json,
+    docker_exec_text,
+    docker_inspect_json,
+)
 
 
 class FakeResponse:
@@ -195,6 +203,86 @@ class ApiClientTests(unittest.TestCase):
             self.assertEqual("workflow_snapshot", response_event["body_summary"]["kind"])
             self.assertEqual("wf-1", response_event["body_summary"]["id"])
             self.assertEqual(2, response_event["body_summary"]["task_count"])
+
+
+class ShellEvidenceHelperTests(unittest.TestCase):
+    @mock.patch("subprocess.run")
+    def test_docker_compose_psql_json_returns_parsed_payload(self, run: mock.Mock) -> None:
+        run.return_value = mock.Mock(returncode=0, stdout='{"workflow":{"id":"wf-1"}}\n', stderr="")
+
+        payload = docker_compose_psql_json(
+            compose_file="/tmp/docker-compose.yml",
+            compose_project_name="agirunner-platform",
+            postgres_user="agirunner",
+            postgres_db="agirunner",
+            sql="select 1",
+        )
+
+        self.assertEqual({"workflow": {"id": "wf-1"}}, payload)
+        command = run.call_args.args[0]
+        self.assertEqual(
+            [
+                "docker",
+                "compose",
+                "-p",
+                "agirunner-platform",
+                "-f",
+                "/tmp/docker-compose.yml",
+                "exec",
+                "-T",
+                "postgres",
+                "psql",
+                "-U",
+                "agirunner",
+                "-d",
+                "agirunner",
+                "-At",
+                "-c",
+                "select 1",
+            ],
+            command,
+        )
+
+    @mock.patch("subprocess.run")
+    def test_docker_inspect_json_returns_first_inspected_object(self, run: mock.Mock) -> None:
+        run.return_value = mock.Mock(
+            returncode=0,
+            stdout='[{"Id":"container-1","HostConfig":{"LogConfig":{"Type":"json-file"}}}]',
+            stderr="",
+        )
+
+        payload = docker_inspect_json("container-1")
+
+        self.assertEqual("container-1", payload["Id"])
+        self.assertEqual(
+            ["docker", "inspect", "container-1"],
+            run.call_args.args[0],
+        )
+
+    @mock.patch("subprocess.run")
+    def test_docker_exec_text_returns_stdout(self, run: mock.Mock) -> None:
+        run.return_value = mock.Mock(returncode=0, stdout="task-1\n", stderr="")
+
+        output = docker_exec_text("runtime-1", "ls -A /tmp/workspace")
+
+        self.assertEqual("task-1", output)
+        self.assertEqual(
+            ["docker", "exec", "runtime-1", "sh", "-lc", "ls -A /tmp/workspace"],
+            run.call_args.args[0],
+        )
+
+    @mock.patch("subprocess.run")
+    def test_docker_compose_psql_json_raises_command_error_on_failure(self, run: mock.Mock) -> None:
+        run.return_value = mock.Mock(returncode=1, stdout="", stderr="permission denied")
+
+        with self.assertRaises(CommandError):
+            docker_compose_psql_json(
+                compose_file="/tmp/docker-compose.yml",
+                compose_project_name="agirunner-platform",
+                postgres_user="agirunner",
+                postgres_db="agirunner",
+                sql="select 1",
+            )
 
 
 if __name__ == "__main__":

@@ -10,7 +10,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from live_test_api import ApiClient, TraceRecorder, read_json
+from live_test_api import (
+    ApiClient,
+    TraceRecorder,
+    docker_compose_psql_json,
+    docker_exec_text,
+    docker_inspect_json,
+    read_json,
+    write_json,
+)
 from scenario_config import load_scenario
 from workflow_efficiency import (
     collect_execution_logs,
@@ -40,6 +48,91 @@ def extract_data(response: Any) -> Any:
     if not isinstance(response, dict) or "data" not in response:
         raise RuntimeError(f"unexpected response payload: {response!r}")
     return response["data"]
+
+
+def sql_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def default_compose_file() -> str:
+    return str(Path(__file__).resolve().parents[2] / "docker-compose.yml")
+
+
+def build_db_state_query(workflow_id: str) -> str:
+    workflow = sql_literal(workflow_id)
+    return f"""
+SELECT jsonb_build_object(
+  'workflow',
+  (
+    SELECT to_jsonb(workflow_row)
+    FROM (
+      SELECT id, state, playbook_id, workspace_id, created_at, updated_at, completed_at
+      FROM workflows
+      WHERE id = {workflow}
+    ) workflow_row
+  ),
+  'tasks',
+  COALESCE(
+    (
+      SELECT jsonb_agg(to_jsonb(task_row) ORDER BY task_row.created_at)
+      FROM (
+        SELECT
+          id,
+          role,
+          state,
+          stage_name,
+          is_orchestrator_task,
+          execution_backend,
+          assigned_worker_id,
+          created_at,
+          updated_at,
+          completed_at
+        FROM tasks
+        WHERE workflow_id = {workflow}
+      ) task_row
+    ),
+    '[]'::jsonb
+  ),
+  'work_items',
+  COALESCE(
+    (
+      SELECT jsonb_agg(to_jsonb(work_item_row) ORDER BY work_item_row.created_at)
+      FROM (
+        SELECT
+          id,
+          title,
+          state,
+          stage_name,
+          column_id,
+          rework_count,
+          created_at,
+          updated_at,
+          completed_at
+        FROM work_items
+        WHERE workflow_id = {workflow}
+      ) work_item_row
+    ),
+    '[]'::jsonb
+  )
+)::text;
+""".strip()
+
+
+def collect_db_state_snapshot(trace: TraceRecorder | None, *, workflow_id: str) -> dict[str, Any]:
+    try:
+        payload = docker_compose_psql_json(
+            compose_file=env("LIVE_TEST_COMPOSE_FILE", default_compose_file(), required=True),
+            compose_project_name=env("LIVE_TEST_COMPOSE_PROJECT_NAME", "agirunner-platform", required=True),
+            postgres_user=env("POSTGRES_USER", "agirunner", required=True),
+            postgres_db=env("POSTGRES_DB", "agirunner", required=True),
+            sql=build_db_state_query(workflow_id),
+            trace=trace,
+        )
+        if not isinstance(payload, dict):
+            raise RuntimeError(f"unexpected DB payload: {payload!r}")
+        return {"ok": True, **payload}
+    except Exception as error:
+        return {"ok": False, "error": str(error)}
 
 
 def pending_workflow_approvals(approvals: dict[str, Any], workflow_id: str) -> list[dict[str, Any]]:
@@ -355,6 +448,188 @@ def attach_workflow_tasks(workflow: dict[str, Any], tasks: list[dict[str, Any]])
         **workflow,
         "tasks": tasks,
     }
+
+
+def _live_container_rows(snapshot: Any) -> list[dict[str, Any]]:
+    data = _nested_data(snapshot)
+    return data if isinstance(data, list) else []
+
+
+def new_container_observations() -> dict[str, Any]:
+    return {"rows": [], "_keys": set()}
+
+
+def observe_live_containers(observations: dict[str, Any], snapshot: Any) -> None:
+    rows = observations.get("rows")
+    keys = observations.get("_keys")
+    if not isinstance(rows, list) or not isinstance(keys, set):
+        return
+    for row in _live_container_rows(snapshot):
+        if not isinstance(row, dict):
+            continue
+        normalized = dict(row)
+        key = json.dumps(normalized, sort_keys=True, default=str)
+        if key in keys:
+            continue
+        keys.add(key)
+        normalized["observed_at"] = now_timestamp()
+        rows.append(normalized)
+
+
+def finalize_container_observations(observations: dict[str, Any]) -> dict[str, Any]:
+    rows = observations.get("rows")
+    if not isinstance(rows, list):
+        return {"rows": [], "row_count": 0}
+    return {"rows": [row for row in rows if isinstance(row, dict)], "row_count": len(rows)}
+
+
+def container_observation_rows(observations: Any) -> list[dict[str, Any]]:
+    if not isinstance(observations, dict):
+        return []
+    rows = observations.get("rows", [])
+    return rows if isinstance(rows, list) else []
+
+
+def _runtime_container_rows(snapshot: Any) -> list[dict[str, Any]]:
+    return [
+        row
+        for row in _live_container_rows(snapshot)
+        if isinstance(row, dict) and row.get("kind") in {"orchestrator", "runtime"}
+    ]
+
+
+def collect_live_container_snapshot(client: ApiClient, *, label: str) -> dict[str, Any]:
+    return client.best_effort_request(
+        "GET",
+        "/api/v1/fleet/live-containers",
+        expected=(200,),
+        label=label,
+    )
+
+
+def inspect_runtime_cleanup(snapshot: Any, *, trace: TraceRecorder | None = None) -> dict[str, Any]:
+    runtime_rows = _runtime_container_rows(snapshot)
+    inspections: list[dict[str, Any]] = []
+    all_clean = len(runtime_rows) > 0
+    for row in runtime_rows:
+        container_id = row.get("container_id")
+        if not isinstance(container_id, str) or container_id.strip() == "":
+            all_clean = False
+            continue
+        try:
+            output = docker_exec_text(
+                container_id.strip(),
+                "if [ -d /tmp/workspace ]; then ls -A /tmp/workspace; fi",
+                trace=trace,
+            )
+            entries = [line.strip() for line in output.splitlines() if line.strip()]
+            clean = len(entries) == 0
+        except Exception as error:
+            entries = []
+            clean = False
+            inspections.append(
+                {
+                    "container_id": container_id.strip(),
+                    "kind": row.get("kind"),
+                    "execution_backend": row.get("execution_backend"),
+                    "clean": False,
+                    "error": str(error),
+                    "workspace_entries": entries,
+                }
+            )
+            all_clean = False
+            continue
+        inspections.append(
+            {
+                "container_id": container_id.strip(),
+                "kind": row.get("kind"),
+                "execution_backend": row.get("execution_backend"),
+                "clean": clean,
+                "workspace_entries": entries,
+            }
+        )
+        all_clean = all_clean and clean
+    return {"all_clean": all_clean, "runtime_containers": inspections}
+
+
+def inspect_docker_log_rotation(snapshot: Any, *, trace: TraceRecorder | None = None) -> dict[str, Any]:
+    runtime_rows = _runtime_container_rows(snapshot)
+    inspections: list[dict[str, Any]] = []
+    all_bounded = len(runtime_rows) > 0
+    for row in runtime_rows:
+        container_id = row.get("container_id")
+        if not isinstance(container_id, str) or container_id.strip() == "":
+            all_bounded = False
+            continue
+        try:
+            inspect_payload = docker_inspect_json(container_id.strip(), trace=trace)
+            host_config = inspect_payload.get("HostConfig", {})
+            log_config = host_config.get("LogConfig", {}) if isinstance(host_config, dict) else {}
+            config = log_config.get("Config", {}) if isinstance(log_config, dict) else {}
+            driver = str(log_config.get("Type") or "").strip() if isinstance(log_config, dict) else ""
+            bounded = (
+                driver != ""
+                and isinstance(config, dict)
+                and str(config.get("max-size") or "").strip() != ""
+                and str(config.get("max-file") or "").strip() != ""
+            )
+            inspections.append(
+                {
+                    "container_id": container_id.strip(),
+                    "kind": row.get("kind"),
+                    "execution_backend": row.get("execution_backend"),
+                    "driver": driver,
+                    "config": config if isinstance(config, dict) else {},
+                    "bounded": bounded,
+                }
+            )
+            all_bounded = all_bounded and bounded
+        except Exception as error:
+            inspections.append(
+                {
+                    "container_id": container_id.strip(),
+                    "kind": row.get("kind"),
+                    "execution_backend": row.get("execution_backend"),
+                    "bounded": False,
+                    "error": str(error),
+                }
+            )
+            all_bounded = False
+    return {"all_runtime_containers_bounded": all_bounded, "runtime_containers": inspections}
+
+
+def summarize_log_anomalies(logs: Any) -> dict[str, Any]:
+    rows = [
+        row
+        for row in execution_log_rows(logs)
+        if isinstance(row, dict)
+        and (
+            str(row.get("level") or "").lower() in {"warn", "warning", "error"}
+            or str(row.get("status") or "").lower() == "failed"
+        )
+    ]
+    return {"count": len(rows), "rows": rows}
+
+
+def write_evidence_artifacts(trace_dir: str, evidence: dict[str, Any]) -> dict[str, str]:
+    evidence_root = Path(trace_dir).resolve().parent / "evidence"
+    evidence_root.mkdir(parents=True, exist_ok=True)
+    file_names = {
+        "db_state": "db-state.json",
+        "log_anomalies": "log-anomalies.json",
+        "live_containers": "live-containers.json",
+        "container_observations": "container-observations.json",
+        "runtime_cleanup": "runtime-cleanup.json",
+        "docker_log_rotation": "docker-log-rotation.json",
+    }
+    written: dict[str, str] = {}
+    for key, file_name in file_names.items():
+        if key not in evidence:
+            continue
+        target = evidence_root / file_name
+        write_json(target, evidence[key])
+        written[key] = str(target)
+    return written
 
 
 def _execution_log_rows(snapshot: Any) -> list[dict[str, Any]]:
@@ -838,6 +1113,100 @@ def _find_matching_entries(
     ]
 
 
+def _matches_nested_expectations(entry: dict[str, Any], expectations: dict[str, Any]) -> bool:
+    for field_name, expected_value in expectations.items():
+        if field_name == "payload" and isinstance(expected_value, dict):
+            payload = entry.get("payload")
+            if not isinstance(payload, dict) or not _matches_nested_expectations(payload, expected_value):
+                return False
+            continue
+        if entry.get(field_name) != expected_value:
+            return False
+    return True
+
+
+def _evaluate_task_backend_expectation(
+    entry: dict[str, Any],
+    *,
+    workflow_tasks: list[dict[str, Any]],
+) -> tuple[dict[str, Any], str | None]:
+    match = entry.get("match", {})
+    if not isinstance(match, dict):
+        match = {}
+    minimum_count = int(entry.get("min_count", 1))
+    expected_backend = entry.get("execution_backend")
+    expected_sandbox = entry.get("used_task_sandbox")
+    matches = [
+        task
+        for task in workflow_tasks
+        if isinstance(task, dict)
+        and _matches_field_expectations(task, match)
+        and task.get("execution_backend") == expected_backend
+        and task.get("used_task_sandbox") == expected_sandbox
+    ]
+    passed = len(matches) >= minimum_count
+    check = {
+        "name": f"task_backend_expectations:{match}",
+        "passed": passed,
+        "expected_min_count": minimum_count,
+        "actual_count": len(matches),
+    }
+    if passed:
+        return check, None
+    return (
+        check,
+        f"expected at least {minimum_count} task(s) matching {match} with "
+        f"execution_backend={expected_backend!r} and used_task_sandbox={expected_sandbox!r}, found {len(matches)}",
+    )
+
+
+def _evaluate_log_row_expectation(
+    entry: dict[str, Any],
+    *,
+    log_rows: list[dict[str, Any]],
+) -> tuple[dict[str, Any], str | None]:
+    match = entry.get("match", {})
+    if not isinstance(match, dict):
+        match = {}
+    minimum_count = int(entry.get("min_count", 1))
+    matches = [row for row in log_rows if isinstance(row, dict) and _matches_nested_expectations(row, match)]
+    passed = len(matches) >= minimum_count
+    check = {
+        "name": f"log_row_expectations:{match}",
+        "passed": passed,
+        "expected_min_count": minimum_count,
+        "actual_count": len(matches),
+    }
+    if passed:
+        return check, None
+    return check, f"expected at least {minimum_count} execution log row(s) matching {match}, found {len(matches)}"
+
+
+def _evaluate_container_observation_expectation(
+    entry: dict[str, Any],
+    *,
+    observed_rows: list[dict[str, Any]],
+) -> tuple[dict[str, Any], str | None]:
+    match = entry.get("match", {})
+    if not isinstance(match, dict):
+        match = {}
+    minimum_count = int(entry.get("min_count", 1))
+    matches = [row for row in observed_rows if isinstance(row, dict) and _matches_nested_expectations(row, match)]
+    passed = len(matches) >= minimum_count
+    check = {
+        "name": f"container_observation_expectations:{match}",
+        "passed": passed,
+        "expected_min_count": minimum_count,
+        "actual_count": len(matches),
+    }
+    if passed:
+        return check, None
+    return (
+        check,
+        f"expected at least {minimum_count} observed live container row(s) matching {match}, found {len(matches)}",
+    )
+
+
 def _evaluate_direct_handoff_expectation(
     entry: dict[str, Any],
     *,
@@ -1147,9 +1516,11 @@ def evaluate_expectations(
     fleet_peaks: dict[str, int] | None = None,
     efficiency: dict[str, Any] | None = None,
     execution_logs: Any | None = None,
+    evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     failures: list[str] = []
     checks: list[dict[str, Any]] = []
+    evidence_payload = {} if evidence is None else evidence
 
     expected_state = expectations.get("state")
     if expected_state is not None:
@@ -1393,6 +1764,74 @@ def evaluate_expectations(
                 failures.append(
                     f"expected workflow to avoid task kinds {forbidden_task_kinds}, found {actual_forbidden}"
                 )
+
+    workflow_tasks = [task for task in _workflow_tasks(workflow) if isinstance(task, dict)]
+
+    task_backend_expectations = expectations.get("task_backend_expectations", [])
+    if isinstance(task_backend_expectations, list):
+        for entry in task_backend_expectations:
+            if not isinstance(entry, dict):
+                continue
+            check, failure = _evaluate_task_backend_expectation(entry, workflow_tasks=workflow_tasks)
+            checks.append(check)
+            if failure is not None:
+                failures.append(failure)
+
+    log_row_expectations = expectations.get("log_row_expectations", [])
+    if isinstance(log_row_expectations, list):
+        log_rows = execution_log_rows(execution_logs)
+        for entry in log_row_expectations:
+            if not isinstance(entry, dict):
+                continue
+            check, failure = _evaluate_log_row_expectation(entry, log_rows=log_rows)
+            checks.append(check)
+            if failure is not None:
+                failures.append(failure)
+
+    container_observation_expectations = expectations.get("container_observation_expectations", [])
+    if isinstance(container_observation_expectations, list):
+        observed_rows = container_observation_rows(evidence_payload.get("container_observations"))
+        for entry in container_observation_expectations:
+            if not isinstance(entry, dict):
+                continue
+            check, failure = _evaluate_container_observation_expectation(
+                entry,
+                observed_rows=observed_rows,
+            )
+            checks.append(check)
+            if failure is not None:
+                failures.append(failure)
+
+    evidence_expectations = expectations.get("evidence_expectations", {})
+    if isinstance(evidence_expectations, dict):
+        if "db_state_present" in evidence_expectations:
+            passed = bool((evidence_payload.get("db_state") or {}).get("ok")) is bool(
+                evidence_expectations["db_state_present"]
+            )
+            checks.append({"name": "evidence_expectations.db_state_present", "passed": passed})
+            if not passed:
+                failures.append("expected DB evidence to be present")
+        if "runtime_cleanup_passed" in evidence_expectations:
+            passed = bool((evidence_payload.get("runtime_cleanup") or {}).get("all_clean")) is bool(
+                evidence_expectations["runtime_cleanup_passed"]
+            )
+            checks.append({"name": "evidence_expectations.runtime_cleanup_passed", "passed": passed})
+            if not passed:
+                failures.append("expected runtime cleanup evidence to pass")
+        if "docker_log_rotation_passed" in evidence_expectations:
+            passed = bool(
+                (evidence_payload.get("docker_log_rotation") or {}).get("all_runtime_containers_bounded")
+            ) is bool(evidence_expectations["docker_log_rotation_passed"])
+            checks.append({"name": "evidence_expectations.docker_log_rotation_passed", "passed": passed})
+            if not passed:
+                failures.append("expected Docker log rotation evidence to pass")
+        if "log_anomalies_empty" in evidence_expectations:
+            anomalies = evidence_payload.get("log_anomalies", {})
+            passed = len(anomalies.get("rows", [])) == 0 if isinstance(anomalies, dict) else False
+            passed = passed is bool(evidence_expectations["log_anomalies_empty"])
+            checks.append({"name": "evidence_expectations.log_anomalies_empty", "passed": passed})
+            if not passed:
+                failures.append("expected execution-log anomaly review to be empty")
 
     fleet_expectations = expectations.get("fleet", {})
     if isinstance(fleet_expectations, dict):
@@ -2214,9 +2653,11 @@ def build_run_result_payload(
     verification: dict[str, Any] | None = None,
     execution_logs: Any | None = None,
     efficiency: dict[str, Any] | None = None,
+    evidence: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     verification_payload = {} if verification is None else verification
     efficiency_payload = {} if efficiency is None else efficiency
+    evidence_payload = {} if evidence is None else evidence
     specialist_teardown = efficiency_payload.get("specialist_teardown")
     if not isinstance(specialist_teardown, dict):
         specialist_teardown = {}
@@ -2245,6 +2686,7 @@ def build_run_result_payload(
         "fleet": fleet,
         "fleet_peaks": fleet_peaks,
         "execution_logs": execution_logs,
+        "evidence": evidence_payload,
         "efficiency": efficiency_payload,
         "verification": verification_payload,
         "verification_passed": bool(verification_payload.get("passed")),
@@ -2471,6 +2913,8 @@ def main() -> None:
         "peak_active_workflows": 0,
     }
     latest_fleet: Any = {}
+    live_container_observations = new_container_observations()
+    latest_live_containers: Any = {"ok": False, "error": "not_collected"}
 
     while time.time() < deadline:
         poll_iterations += 1
@@ -2515,6 +2959,9 @@ def main() -> None:
         )
         if latest_fleet.get("ok"):
             update_fleet_peaks(fleet_peaks, latest_fleet.get("data"), playbook_id=playbook_id)
+        latest_live_containers = collect_live_container_snapshot(client, label="containers.list.progress")
+        if latest_live_containers.get("ok"):
+            observe_live_containers(live_container_observations, latest_live_containers.get("data"))
         latest_approvals = extract_data(
             client.request(
                 "GET",
@@ -2647,6 +3094,9 @@ def main() -> None:
     )
     if latest_fleet.get("ok"):
         update_fleet_peaks(fleet_peaks, latest_fleet.get("data"), playbook_id=playbook_id)
+    latest_live_containers = collect_live_container_snapshot(client, label="containers.list.final")
+    if latest_live_containers.get("ok"):
+        observe_live_containers(live_container_observations, latest_live_containers.get("data"))
     execution_logs_snapshot = collect_execution_logs(client, workflow_id=workflow_id)
     efficiency_summary = summarize_efficiency(
         workflow=latest_workflow,
@@ -2654,6 +3104,19 @@ def main() -> None:
         events=events_snapshot,
         approval_actions=approval_actions,
     )
+    evidence_payload = {
+        "db_state": collect_db_state_snapshot(trace, workflow_id=workflow_id),
+        "log_anomalies": summarize_log_anomalies(execution_logs_snapshot),
+        "live_containers": latest_live_containers,
+        "container_observations": finalize_container_observations(live_container_observations),
+        "runtime_cleanup": inspect_runtime_cleanup(latest_live_containers.get("data"), trace=trace)
+        if latest_live_containers.get("ok")
+        else {"all_clean": False, "error": latest_live_containers.get("error")},
+        "docker_log_rotation": inspect_docker_log_rotation(latest_live_containers.get("data"), trace=trace)
+        if latest_live_containers.get("ok")
+        else {"all_runtime_containers_bounded": False, "error": latest_live_containers.get("error")},
+    }
+    evidence_payload["artifacts"] = write_evidence_artifacts(trace_dir, evidence_payload)
 
     final_state = latest_workflow.get("state")
     verification = evaluate_expectations(
@@ -2671,6 +3134,7 @@ def main() -> None:
         fleet_peaks=fleet_peaks,
         efficiency=efficiency_summary,
         execution_logs=execution_logs_snapshot,
+        evidence=evidence_payload,
     )
     emit_run_result(
         build_run_result_payload(
@@ -2696,6 +3160,7 @@ def main() -> None:
             execution_logs=execution_logs_snapshot,
             efficiency=efficiency_summary,
             verification=verification,
+            evidence=evidence_payload,
         )
     )
     if not verification["passed"]:

@@ -11,9 +11,10 @@
   },
   "supported": {
     "name": "all_supported_live_scenarios",
-    "total": 51,
+    "total": 52,
     "scenarios": [
       "prose-only-sdlc-cycle-advisory",
+      "runtime-task-sandbox-split",
       "artifact-memory-publishing-approval",
       "artifact-only-human-review",
       "concurrency-assessment-race-matrix",
