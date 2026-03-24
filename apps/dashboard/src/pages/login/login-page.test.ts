@@ -7,9 +7,11 @@ function readSource() {
 }
 
 describe('login page source', () => {
-  it('adds a default-on keep me signed in control and passes it through the login call', () => {
+  it('adds a local env api key prefill and passes the keep-signed-in flag through the login call', () => {
     const source = readSource();
 
+    expect(source).toContain("const defaultApiKey = import.meta.env.VITE_DASHBOARD_LOGIN_PREFILL_KEY ?? '';");
+    expect(source).toContain('const [apiKey, setApiKey] = useState(defaultApiKey);');
     expect(source).toContain("const [keepSignedIn, setKeepSignedIn] = useState(true);");
     expect(source).toContain('Keep me signed in');
     expect(source).toContain("type=\"checkbox\"");

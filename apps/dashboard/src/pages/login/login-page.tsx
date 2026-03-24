@@ -5,7 +5,8 @@ import { dashboardApi } from '../../lib/api.js';
 
 export function LoginPage(): JSX.Element {
   const navigate = useNavigate();
-  const [apiKey, setApiKey] = useState('');
+  const defaultApiKey = import.meta.env.VITE_DASHBOARD_LOGIN_PREFILL_KEY ?? '';
+  const [apiKey, setApiKey] = useState(defaultApiKey);
   const [keepSignedIn, setKeepSignedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);

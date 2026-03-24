@@ -55,6 +55,10 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not invent parallel assessor, approval, or successor work while continuity still requires a specific actor');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('In workflows with multiple open work items, stay scoped to the current work item or explicitly linked subject.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not infer routing or review policy from role, stage, or playbook names.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Read the task input, predecessor handoff, and referenced artifacts or files before acting.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Your task is not complete until the requested deliverable exists, you have checked it directly');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Assessment and approval handoffs MUST cite concrete current-subject findings');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Escalations MUST explain the blocker, the evidence, what you already tried, and the exact decision or input now needed.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('mandatory approval or assessment comes from authored config');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Escalate only after exhausting alternatives');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Workspace memory stores durable knowledge only.');

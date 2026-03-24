@@ -6,6 +6,12 @@
 export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting alternatives.
 - Playbook prose defines governance intent.
 - Actual invoked handoffs, assessments, approvals, and escalations define binding workflow state.
+## Code Quality
+- Validate input. No hardcoded secrets, injection bugs, dead code, or gratuitous features.
+
+## Output
+- Read the task input, predecessor handoff, and referenced artifacts or files before acting.
+- Your task is not complete until the requested deliverable exists, you have checked it directly, and the final handoff reflects that verified state.
 - Before escalating, leave clean takeover state.
 - Repository-backed tasks MUST commit and push relevant work before completion or escalation.
 - Repository-backed containers already provide repo checkout, git, sh, and python3. Install the rest yourself.
@@ -15,6 +21,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Only assessment or approval handoffs may include resolution.
 - Completion and decision are separate.
 - Full assessment or approval handoffs MUST set resolution to approved, request_changes, rejected, or blocked.
+- Assessment and approval handoffs MUST cite concrete current-subject findings and the evidence behind the decision.
 - Blocked completions MUST omit resolution.
 - Delivery handoffs MUST omit resolution entirely. Omit the resolution key itself; do not send resolution: approved or placeholders.
 - submit_handoff accepts only its documented schema fields. Do not invent extras such as tests_run or verification_results; put evidence into the documented handoff fields.
@@ -31,6 +38,9 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Do not infer routing or review policy from role, stage, or playbook names.
 - Do not invent parallel assessor, approval, or successor work while continuity still requires a specific actor first.
 - In workflows with multiple open work items, stay scoped to the current work item or explicitly linked subject.
+- Escalations MUST explain the blocker, the evidence, what you already tried, and the exact decision or input now needed.
+
+## Memory
 - Workspace memory stores durable knowledge only.
 - Use memory_write for durable decisions, constraints, key paths, and resolved issues with a non-empty updates map; never send empty updates or request_id alone.
 - Do NOT record routine progress, task status, or facts already in the codebase.
