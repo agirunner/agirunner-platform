@@ -87,6 +87,36 @@ class LiveTestCatalogTests(unittest.TestCase):
                 self.assertNotIn("handoff_rules", definition)
                 self.assertNotIn("branch_policies", definition)
 
+    def test_playbook_process_instructions_are_stage_and_role_specific_with_unhappy_paths(self) -> None:
+        for playbook_file in sorted(LIBRARY_DIR.glob("*/playbook.json")):
+            with self.subTest(playbook=playbook_file.parent.name):
+                payload = live_test_catalog.read_fixture(playbook_file)
+                definition = payload.get("definition", {})
+                process_instructions = str(definition.get("process_instructions") or "").strip()
+                self.assertGreaterEqual(len(process_instructions), 450)
+                self.assertGreaterEqual(len([line for line in process_instructions.splitlines() if line.strip()]), 4)
+                self.assertIn("If ", process_instructions)
+                self.assertIn("Do not", process_instructions)
+                self.assertTrue(
+                    any(token in process_instructions for token in ("rework", "request changes", "reject", "block", "escalat")),
+                    "process instructions must describe at least one unhappy path",
+                )
+
+                role_names = [
+                    str(role.get("name") or "").strip()
+                    for role in live_test_catalog.read_fixture(playbook_file.parent / "roles.json")
+                    if str(role.get("name") or "").strip()
+                ]
+                stage_names = [
+                    str(stage.get("name") or "").strip()
+                    for stage in definition.get("stages", [])
+                    if str(stage.get("name") or "").strip()
+                ]
+                for role_name in role_names:
+                    self.assertIn(role_name, process_instructions)
+                for stage_name in stage_names:
+                    self.assertIn(stage_name, process_instructions)
+
     def test_sdlc_single_assessment_profile_seeds_a_real_repo_and_verification_path(self) -> None:
         seed_root = LIBRARY_DIR / "sdlc-assessment-approve" / "repo-seed"
         self.assertTrue((seed_root / "README.md").is_file())
