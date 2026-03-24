@@ -113,3 +113,14 @@ Per scenario run:
 - `<scenario>/evidence/docker-log-rotation.json`
 
 These artifacts are designed for trace-first troubleshooting and later automated validation.
+
+## Pass Criteria
+
+No scenario counts as passing until all of these checks agree:
+
+- final artifact shows the expected workflow result
+- DB evidence shows clean workflow, task, and work-item settlement for the scenario semantics
+- log anomaly review shows no unexplained terminal defect
+- container hygiene evidence shows no dangling task containers and no undrained cold runtimes left behind after the scenario has settled
+
+Container hygiene is mandatory because a workflow can appear complete while runtime ownership or cleanup is still broken. Review `live-containers.json`, `container-observations.json`, and `runtime-cleanup.json` before recording a pass.
