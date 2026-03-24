@@ -613,6 +613,7 @@ export class WorkflowActivationDispatchService {
            activation_id,
            request_id,
            is_orchestrator_task,
+           execution_backend,
            timeout_minutes,
            token_budget,
            cost_cap_usd,
@@ -623,7 +624,7 @@ export class WorkflowActivationDispatchService {
            metadata
          ) VALUES (
            $1, $2, $3, $4, $5, $6, 'high', 'ready', '{}'::uuid[],
-           $7, '{}'::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12, true, $13, NULL, NULL, false, 0, $14, $15, $16::jsonb
+           $7, '{}'::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12, true, 'runtime_only', $13, NULL, NULL, false, 0, $14, $15, $16::jsonb
          )
          ON CONFLICT (tenant_id, workflow_id, request_id)
          WHERE request_id IS NOT NULL

@@ -654,6 +654,134 @@ describe('WorkflowActivationDispatchService', () => {
     expect(taskId).toBe('task-runtime-default');
   });
 
+  it('creates orchestrator activation tasks with the runtime_only execution backend', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-runtime-backend',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'req-runtime-backend',
+              reason: 'workflow.created',
+              event_type: 'workflow.created',
+              payload: {},
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-03-13T12:00:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('SET activation_id = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-runtime-backend',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: 'activation-runtime-backend',
+              request_id: 'req-runtime-backend',
+              reason: 'workflow.created',
+              event_type: 'workflow.created',
+              payload: {},
+              state: 'processing',
+              dispatch_attempt: 1,
+              dispatch_token: 'dispatch-token-runtime-backend',
+              queued_at: new Date('2026-03-13T12:00:00Z'),
+              started_at: new Date('2026-03-13T12:00:01Z'),
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflows w')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow 1',
+              workspace_id: 'workspace-1',
+              current_stage: 'triage',
+              playbook_id: 'playbook-1',
+              playbook_name: 'Playbook 1',
+              playbook_outcome: null,
+              playbook_definition: { stages: [{ name: 'triage' }] },
+              workspace_repository_url: null,
+              workspace_settings: null,
+              workflow_git_branch: null,
+              workflow_parameters: null,
+            }],
+          };
+        }
+        if (sql.includes('SELECT id, request_id, reason, event_type, payload')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-runtime-backend',
+              request_id: 'req-runtime-backend',
+              reason: 'workflow.created',
+              event_type: 'workflow.created',
+              payload: {},
+              queued_at: new Date('2026-03-13T12:00:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('SELECT 1') && sql.includes('is_orchestrator_task = true')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO tasks')) {
+          expect(sql).toContain('execution_backend');
+          expect(sql).toContain("'runtime_only'");
+          const inserted = readInsertedActivationTask(params);
+          expect(inserted.input).toEqual(
+            expect.objectContaining({
+              activation_id: 'activation-runtime-backend',
+              activation_reason: 'queued_events',
+            }),
+          );
+          return { rowCount: 1, rows: [{ id: 'task-runtime-backend' }] };
+        }
+        if (sql.includes('UPDATE workflow_activations')) {
+          return { rowCount: 1, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkflowActivationDispatchService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+    expectWorkflowStageProjection({ activeStages: ['triage'] });
+
+    const taskId = await service.dispatchActivation('tenant-1', 'activation-runtime-backend');
+
+    expect(taskId).toBe('task-runtime-backend');
+  });
+
   it('uses playbook orchestrator loop defaults when dispatching orchestrator work', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const client = {
