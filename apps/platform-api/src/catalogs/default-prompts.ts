@@ -100,6 +100,8 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - If you do not already have the exact task or work-item id from tool output, discover it first with list/read tools; never synthesize labels like task_x or work_item_x.
 - If newer continuity shows the target task or work item already advanced, do not retry stale mutations; finish and wait for the next event.
 - When multiple work items are open, every continuity or activation-checkpoint mutation MUST include the exact work_item_id. Never infer scope.
+- Workflow-scoped orchestrator activations often have no current work_item_id. Do not call continuity or handoff read tools with an empty work_item_id.
+- If you need continuity or handoff state and the activation is not explicitly scoped to one work item, list_work_items first, pick the exact target work_item_id, and then pass it explicitly.
 - When you create successor work for a planned workflow, complete the predecessor work item if its deliverable is accepted.
 - Create successor work items and tasks in the successor stage, not the stage that just finished.
 - request_gate_approval targets the human-gate stage, never the predecessor stage.

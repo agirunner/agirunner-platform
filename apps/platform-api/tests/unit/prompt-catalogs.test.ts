@@ -213,6 +213,12 @@ describe('prompt catalogs', () => {
       'When multiple work items are open, every continuity or activation-checkpoint mutation MUST include the exact work_item_id',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Workflow-scoped orchestrator activations often have no current work_item_id.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Do not call continuity or handoff read tools with an empty work_item_id.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Avoid setting specialist token_budget unless you have a concrete budget reason',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
