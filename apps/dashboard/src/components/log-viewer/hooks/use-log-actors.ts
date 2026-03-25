@@ -5,10 +5,7 @@ export function useLogActors(baseFilters: Record<string, string> = {}, enabled =
   return useQuery<{ data: LogActorRecord[] }>({
     queryKey: ['log-actors', baseFilters],
     queryFn: () => dashboardApi.getLogActors(baseFilters),
-    staleTime: 60_000,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
+    staleTime: 300_000,
     enabled,
   });
 }

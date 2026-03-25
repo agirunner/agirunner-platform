@@ -10,7 +10,6 @@ import { useLogFilters, type LogFilters as LogFilterState } from './hooks/use-lo
 import { useLogOperations } from './hooks/use-log-operations.js';
 import { useLogRoles } from './hooks/use-log-roles.js';
 import { useLogActors } from './hooks/use-log-actors.js';
-import type { LogActorRecord, LogOperationRecord, LogRoleRecord } from '../../lib/api.js';
 import type { ComboboxItem } from './ui/searchable-combobox.js';
 import {
   DEBOUNCE_MS,
@@ -33,9 +32,9 @@ interface LogFiltersComponentProps {
   disableOptionQueries?: boolean;
   viewMode?: string; onViewModeChange?: (mode: string) => void;
   scope?: LogScope;
-  operationItemsOverride?: LogOperationRecord[];
-  roleItemsOverride?: LogRoleRecord[];
-  actorItemsOverride?: LogActorRecord[];
+  operationItemsOverride?: ComboboxItem[];
+  roleItemsOverride?: ComboboxItem[];
+  actorItemsOverride?: ComboboxItem[];
   workspaceItemsOverride?: ComboboxItem[];
   workflowItemsOverride?: ComboboxItem[];
   taskItemsOverride?: ComboboxItem[];

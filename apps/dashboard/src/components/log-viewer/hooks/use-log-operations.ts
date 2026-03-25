@@ -12,10 +12,7 @@ export function useLogOperations(
   return useQuery<{ data: LogOperationRecord[] }>({
     queryKey: ['log-operations', filters],
     queryFn: () => dashboardApi.getLogOperations(filters),
-    staleTime: 60_000,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
+    staleTime: 300_000,
     enabled,
   });
 }

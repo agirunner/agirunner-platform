@@ -61,6 +61,9 @@ describe('log filters source', () => {
   it('can reuse already-fetched option lists instead of always re-querying them', () => {
     const source = readSource('./log-filters.tsx');
 
+    expect(source).toContain('operationItemsOverride?: ComboboxItem[];');
+    expect(source).toContain('roleItemsOverride?: ComboboxItem[];');
+    expect(source).toContain('actorItemsOverride?: ComboboxItem[];');
     expect(source).toContain('const operationItems = operationItemsOverride ?? toOperationItems(operationsData);');
     expect(source).toContain('const roleItems = roleItemsOverride ?? toRoleItems(rolesData);');
     expect(source).toContain('const actorItems = actorItemsOverride ?? toActorItems(actorsData);');
@@ -87,5 +90,12 @@ describe('log filters source', () => {
     expect(source).not.toContain('params.work_item_id = filters.workItem');
     expect(source).not.toContain('params.stage_name = filters.stage');
     expect(source).not.toContain('params.activation_id = filters.activation');
+  });
+
+  it('renders combobox option labels with explicit foreground text so multi-select rows stay visible in dark theme', () => {
+    const source = readSource('./ui/searchable-combobox.tsx');
+
+    expect(source).toContain('className="truncate text-foreground"');
+    expect(source).toContain("'truncate text-xs text-muted'");
   });
 });

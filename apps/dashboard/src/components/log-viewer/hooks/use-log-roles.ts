@@ -5,10 +5,7 @@ export function useLogRoles(baseFilters: Record<string, string> = {}, enabled = 
   return useQuery<{ data: LogRoleRecord[] }>({
     queryKey: ['log-roles', baseFilters],
     queryFn: () => dashboardApi.getLogRoles(baseFilters),
-    staleTime: 60_000,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
+    staleTime: 300_000,
     enabled,
   });
 }

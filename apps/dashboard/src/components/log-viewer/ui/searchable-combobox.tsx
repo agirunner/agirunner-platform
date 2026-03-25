@@ -387,7 +387,7 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
                             )}
                           />
                         )}
-                        <span className="truncate">{item.label}</span>
+                        <span className="truncate text-foreground">{item.label}</span>
                       </div>
                       {item.subtitle && (
                         <span className={cn('truncate text-xs text-muted', multiSelect ? 'pl-6' : 'pl-4')}>{item.subtitle}</span>

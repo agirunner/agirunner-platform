@@ -13,6 +13,11 @@ import { WorkflowBudgetCard } from '../../components/workflow-budget-card/workfl
 import { type InspectorView } from '../../components/execution-inspector/execution-inspector-support.js';
 import { LogFilters } from '../../components/log-viewer/log-filters.js';
 import { LogViewer } from '../../components/log-viewer/log-viewer.js';
+import {
+  toActorItems,
+  toOperationItems,
+  toRoleItems,
+} from '../../components/log-viewer/log-filters.support.js';
 import { useLogFilters } from '../../components/log-viewer/hooks/use-log-filters.js';
 import { applyLogScope, type LogScope } from '../../components/log-viewer/log-scope.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
@@ -77,25 +82,19 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
     queryKey: ['operator-log', 'operations', filters, logScope],
     queryFn: () => dashboardApi.getLogOperations(operationOptionFilters),
     enabled: true,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
+    staleTime: 300_000,
   });
   const rolesQuery = useQuery({
     queryKey: ['operator-log', 'roles', filters, logScope],
     queryFn: () => dashboardApi.getLogRoles(roleOptionFilters),
     enabled: true,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
+    staleTime: 300_000,
   });
   const actorsQuery = useQuery({
     queryKey: ['operator-log', 'actors', filters, logScope],
     queryFn: () => dashboardApi.getLogActors(actorOptionFilters),
     enabled: true,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
+    staleTime: 300_000,
   });
   const workspacesQuery = useQuery({
     queryKey: ['operator-log', 'filter-workspaces'],
@@ -104,10 +103,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
       return response.data;
     },
     enabled: true,
-    staleTime: 60_000,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
+    staleTime: 300_000,
   });
   const workflowsQuery = useQuery({
     queryKey: ['operator-log', 'filter-workflows', filters.workspace, logScope],
@@ -122,10 +118,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
       return extractList<DashboardWorkflowRecord>(response);
     },
     enabled: true,
-    staleTime: 30_000,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
+    staleTime: 300_000,
   });
   const tasksQuery = useQuery({
     queryKey: ['operator-log', 'filter-tasks', filters.workflow, logScope],
@@ -139,11 +132,20 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
       return extractList<DashboardTaskRecord>(response);
     },
     enabled: true,
-    staleTime: 30_000,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
+    staleTime: 300_000,
   });
+  const operationItemsOverride = useMemo(
+    () => toOperationItems(operationsQuery.data),
+    [operationsQuery.data],
+  );
+  const roleItemsOverride = useMemo(
+    () => toRoleItems(rolesQuery.data),
+    [rolesQuery.data],
+  );
+  const actorItemsOverride = useMemo(
+    () => toActorItems(actorsQuery.data),
+    [actorsQuery.data],
+  );
   const workspaceItemsOverride = useMemo(
     () => toWorkspaceItems(workspacesQuery.data ?? []),
     [workspacesQuery.data],
@@ -228,9 +230,9 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
             <LogViewer
               compact
               scope={scopedWorkflowId ? { workflowId: scopedWorkflowId } : undefined}
-              operationItemsOverride={operationsQuery.data?.data}
-              roleItemsOverride={rolesQuery.data?.data}
-              actorItemsOverride={actorsQuery.data?.data}
+              operationItemsOverride={operationItemsOverride}
+              roleItemsOverride={roleItemsOverride}
+              actorItemsOverride={actorItemsOverride}
               workspaceItemsOverride={workspaceItemsOverride}
               workflowItemsOverride={workflowItemsOverride}
               taskItemsOverride={taskItemsOverride}
@@ -247,14 +249,14 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
               A curated summary of the current log results. Top activity paths, role lanes, and
               worker or operator activity reflect the current filters.
             </p>
-            <LogFilters
+             <LogFilters
               hideEntityScope={Boolean(logScope)}
               compact
                disableOptionQueries
                scope={logScope}
-               operationItemsOverride={operationsQuery.data?.data}
-               roleItemsOverride={rolesQuery.data?.data}
-               actorItemsOverride={actorsQuery.data?.data}
+               operationItemsOverride={operationItemsOverride}
+               roleItemsOverride={roleItemsOverride}
+               actorItemsOverride={actorItemsOverride}
                workspaceItemsOverride={workspaceItemsOverride}
                workflowItemsOverride={workflowItemsOverride}
                taskItemsOverride={taskItemsOverride}

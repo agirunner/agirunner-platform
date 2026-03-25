@@ -11,7 +11,6 @@ import { useLogStream } from './hooks/use-log-stream.js';
 import { applyLogScope, type LogScope } from './log-scope.js';
 import { LogStreamIndicator } from './log-stream-indicator.js';
 import type { ComboboxItem } from './ui/searchable-combobox.js';
-import type { LogActorRecord, LogOperationRecord, LogRoleRecord } from '../../lib/api.js';
 
 const QUERY_REFETCH_INTERVAL_MS = 5_000;
 const FLAT_PAGE_SIZE = 100;
@@ -21,9 +20,9 @@ const LIVE_ENTRY_LIMIT = 100;
 export interface LogViewerProps {
   scope?: LogScope;
   compact?: boolean;
-  operationItemsOverride?: LogOperationRecord[];
-  roleItemsOverride?: LogRoleRecord[];
-  actorItemsOverride?: LogActorRecord[];
+  operationItemsOverride?: ComboboxItem[];
+  roleItemsOverride?: ComboboxItem[];
+  actorItemsOverride?: ComboboxItem[];
   workspaceItemsOverride?: ComboboxItem[];
   workflowItemsOverride?: ComboboxItem[];
   taskItemsOverride?: ComboboxItem[];
