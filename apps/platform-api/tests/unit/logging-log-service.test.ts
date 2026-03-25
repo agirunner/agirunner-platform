@@ -861,6 +861,7 @@ describe('LogService', () => {
       expect(sql).toContain("websearch_to_tsquery('simple'");
       expect(sql).not.toContain('CONCAT_WS(');
       expect(sql).toContain("COALESCE(operation, '')");
+      expect(sql).toContain("COALESCE(trace_id::text, '')");
       expect(sql).not.toContain('ILIKE');
       expect(params).toContain('shell_exec error');
     });

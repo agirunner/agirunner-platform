@@ -9,8 +9,8 @@ CREATE INDEX IF NOT EXISTS idx_exlogs_search_document
       COALESCE(workflow_id::text, '') || ' ' ||
       COALESCE(workspace_id::text, '') || ' ' ||
       COALESCE(stage_name, '') || ' ' ||
-      COALESCE(trace_id, '') || ' ' ||
-      COALESCE(span_id, '') || ' ' ||
+      COALESCE(trace_id::text, '') || ' ' ||
+      COALESCE(span_id::text, '') || ' ' ||
       COALESCE(workflow_name, '') || ' ' ||
       COALESCE(workspace_name, '') || ' ' ||
       COALESCE(task_title, '') || ' ' ||

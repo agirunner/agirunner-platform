@@ -78,5 +78,6 @@ describe('execution_logs covering indexes', () => {
 
     expect(sql).not.toContain('CONCAT_WS(');
     expect(sql).toContain("COALESCE(operation, '')");
+    expect(sql).toContain("COALESCE(trace_id::text, '')");
   });
 });
