@@ -156,7 +156,6 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
         .filter(isDefined),
     };
   }, [props.inlineSectionColumns, renderableSectionsByKey]);
-  );
 
   useUnsavedChanges(isDirty);
 
