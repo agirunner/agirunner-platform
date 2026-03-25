@@ -1,0 +1,84 @@
+{
+  "name": "single-specialist-spawn-agent",
+  "profile": "single-specialist-spawn-agent",
+  "workflow": {
+    "name": "Single Specialist Spawn Agent",
+    "goal": "Exercise a single-specialist workflow where the specialist delegates bounded analysis through spawn_agent and still closes the work with a verified output.",
+    "parameters": {
+      "delivery_contract": "Use spawn_agent for bounded analysis of the two authored source briefs before producing the final delegated summary."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "artifacts": [
+      {
+        "logical_path_pattern": "delegated-summary\\.md",
+        "min_count": 1
+      }
+    ],
+    "workflow_tasks": {
+      "min_non_orchestrator_count": 1
+    },
+    "log_row_expectations": [
+      {
+        "match": {
+          "operation": "tool.execute",
+          "status": "completed",
+          "payload": {
+            "tool_name": "spawn_agent"
+          }
+        },
+        "min_count": 1
+      },
+      {
+        "match": {
+          "operation": "tool.execute",
+          "status": "completed",
+          "payload": {
+            "tool_name": "artifact_upload"
+          }
+        },
+        "min_count": 1
+      }
+    ],
+    "evidence_expectations": {
+      "db_state_present": true,
+      "runtime_cleanup_passed": true,
+      "docker_log_rotation_passed": true
+    },
+    "outcome_envelope": {
+      "allowed_states": [
+        "completed"
+      ],
+      "require_output_artifacts": true,
+      "require_completed_non_orchestrator_tasks": true,
+      "require_terminal_work_items": true,
+      "require_db_state": true,
+      "require_runtime_cleanup": true,
+      "require_fatal_log_free": true
+    }
+  },
+  "coverage": {
+    "assessor_cardinality": [
+      "zero"
+    ],
+    "playbook_shapes": [
+      "single_stage",
+      "direct_stage_flow"
+    ],
+    "storage_execution": [
+      "git_workspace",
+      "cold_specialists"
+    ],
+    "delegation": [
+      "single_specialist_spawn_agent"
+    ]
+  }
+}

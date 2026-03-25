@@ -94,7 +94,6 @@ Long-term corpus planning lives in:
     - every scenario that is currently valid to seed and run
   - `unsupported_future_design`
     - reserved for any future scenarios that are intentionally documented but not yet runnable
-    - currently includes `single-specialist-spawn-agent`, which is intentionally scoped as a one-specialist scenario: the role definition or playbook prose must explicitly instruct that specialist to use `spawn_agent` for a bounded subproblem, without turning the workflow into a multi-step orchestration test
 
 ## Artifacts
 

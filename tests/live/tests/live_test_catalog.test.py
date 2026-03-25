@@ -32,6 +32,12 @@ class LiveTestCatalogTests(unittest.TestCase):
         supported = tracker["supported"]["scenarios"]
         self.assertEqual("artifact-memory-publishing-approval", supported[0])
 
+    def test_tracker_places_spawn_agent_scenario_after_content_assessment_blocked(self) -> None:
+        tracker = json.loads(TRACKER_FILE.read_text())
+        supported = tracker["supported"]["scenarios"]
+        blocked_index = supported.index("content-assessment-blocked")
+        self.assertEqual("single-specialist-spawn-agent", supported[blocked_index + 1])
+
     def test_tracker_policy_describes_guided_closure_outcome_driven_contract(self) -> None:
         tracker = json.loads(TRACKER_FILE.read_text())
         policy = tracker["policy"]
@@ -56,19 +62,6 @@ class LiveTestCatalogTests(unittest.TestCase):
                 self.assertTrue(entry["reason"].strip())
                 self.assertIsInstance(entry.get("needed_support"), str)
                 self.assertTrue(entry["needed_support"].strip())
-
-    def test_tracker_backlogs_single_specialist_spawn_agent_scenario(self) -> None:
-        tracker = json.loads(TRACKER_FILE.read_text())
-        deferred = tracker["unsupported_future_design"]["scenarios"]
-        names = {entry["name"]: entry for entry in deferred}
-        self.assertIn("single-specialist-spawn-agent", names)
-
-        entry = names["single-specialist-spawn-agent"]
-        self.assertEqual("backlog", entry["status"])
-        self.assertIn("single specialist", entry["reason"].lower())
-        self.assertIn("spawn_agent", entry["needed_support"])
-        self.assertIn("role definition", entry["needed_support"].lower())
-        self.assertIn("playbook prose", entry["needed_support"].lower())
 
     def test_expected_matrix_scenarios_exist_and_legacy_corpus_is_gone(self) -> None:
         actual = {path.stem for path in SCENARIOS_DIR.glob("*.json")}

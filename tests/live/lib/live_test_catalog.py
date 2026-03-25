@@ -13,6 +13,7 @@ EXPECTED_SCENARIOS = {
     "artifact-only-human-review",
     "concurrency-assessment-race-matrix",
     "content-assessment-blocked",
+    "single-specialist-spawn-agent",
     "content-block-subject-policy",
     "content-direct-successor-no-assessment",
     "content-escalate-policy",
@@ -151,6 +152,9 @@ REQUIRED_COVERAGE = {
         "approval_before_assessment_ordering",
         "human_review_blocked_decision",
         "stale_human_review_after_rework",
+    },
+    "delegation": {
+        "single_specialist_spawn_agent",
     },
 }
 

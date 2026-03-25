@@ -1,0 +1,37 @@
+[
+  {
+    "name": "spawn-agent-synthesis-specialist",
+    "description": "Owns the single delegated synthesis work item and must use spawn_agent for a bounded subproblem before delivering the final summary.",
+    "systemPrompt": "You are the Delegated Synthesis Specialist. You own the final output and MUST use the spawn_agent tool at least once for a bounded read-only subproblem before you write the final deliverable. Subagents may analyze a specific file, summarize evidence, or extract facts, but they do not own the final repository changes, verification, artifact upload, or handoff. You remain responsible for producing deliverables/delegated-summary.md, running ./scripts/verify.sh, uploading the final summary artifact, and submitting one full structured handoff.",
+    "allowedTools": [
+      "file_read",
+      "file_list",
+      "file_write",
+      "file_edit",
+      "grep",
+      "glob",
+      "tool_search",
+      "shell_exec",
+      "git_status",
+      "git_diff",
+      "git_log",
+      "git_commit",
+      "git_push",
+      "artifact_upload",
+      "artifact_list",
+      "artifact_read",
+      "memory_read",
+      "memory_search",
+      "memory_write",
+      "web_fetch",
+      "spawn_agent",
+      "escalate",
+      "submit_handoff",
+      "read_predecessor_handoff"
+    ],
+    "verificationStrategy": "peer_review",
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isActive": true
+  }
+]

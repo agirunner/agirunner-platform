@@ -1,0 +1,65 @@
+{
+  "name": "Single Specialist Spawn Agent",
+  "slug": "live-test-single-specialist-spawn-agent-v1",
+  "description": "Single-stage workflow that proves one specialist can delegate a bounded subproblem with spawn_agent and still produce the final output.",
+  "outcome": "A verified delegated summary is produced from two source briefs after the specialist uses spawn_agent for bounded analysis.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "Run the workflow through the authored stage `delegated-synthesis`. Treat that stage as the only workflow checkpoint: `delegated-synthesis` exists to produce one verified summary that combines both authored source briefs into a single operator-ready artifact.\nUse this role deliberately: `spawn-agent-synthesis-specialist` owns the entire work item. The orchestrator only needs to route this one specialist, then close the work when the specialist has finished legally and the output is verified. The specialist MUST use `spawn_agent` at least once for a bounded read-only subproblem before writing the final deliverable. The subagent work is for focused analysis or extraction, not for owning the final deliverable.\nHappy path: dispatch `spawn-agent-synthesis-specialist`, require the specialist to inspect the repository inputs, use `spawn_agent` to analyze one or both source briefs in bounded scope, synthesize the returned findings into `deliverables/delegated-summary.md`, run `./scripts/verify.sh`, upload the final summary as an artifact, and submit one full handoff that explains what was delivered and what the subagent contributed.\nUnhappy path: If a subagent fails, returns weak analysis, or leaves a blocking gap, the specialist must retry `spawn_agent` with a tighter prompt or complete the missing analysis directly. Do not escalate unless the repository inputs are missing or verification cannot run. Do not open another stage, do not invent approval or assessment flows, and do not leave the work item hanging just because the delegated path was imperfect.\nCompletion rules: finish only after `spawn-agent-synthesis-specialist` has produced a current summary that reflects both source briefs, uploaded that summary as an artifact, run verification successfully, and submitted a full handoff. Guided closure rule: treat the authored flow as best-intent process guidance. Preferred delegation through `spawn_agent` should be followed when it is useful, but the orchestrator or specialist may waive a preferred delegation detail with a recorded reason when closure is still legally possible. Only explicit blockers grounded in missing repository inputs or failed verification should keep work open; non-blocking deviations and imperfect delegated analysis should be recorded as callouts instead of preventing closure when the final summary is still verified, complete, and usable.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "spawn-agent-synthesis-specialist"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "delegated-synthesis",
+        "goal": "A verified delegated summary is produced.",
+        "involves": [
+          "spawn-agent-synthesis-specialist"
+        ]
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 3,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    }
+  }
+}

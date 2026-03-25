@@ -15,12 +15,13 @@
   },
   "supported": {
     "name": "all_supported_live_scenarios",
-    "total": 50,
+    "total": 51,
     "scenarios": [
       "artifact-memory-publishing-approval",
       "artifact-only-human-review",
       "concurrency-assessment-race-matrix",
       "content-assessment-blocked",
+      "single-specialist-spawn-agent",
       "content-block-subject-policy",
       "content-direct-successor-no-assessment",
       "content-escalate-policy",
@@ -71,14 +72,7 @@
   },
   "unsupported_future_design": {
     "name": "documented_but_not_live_tested_yet",
-    "total": 1,
-    "scenarios": [
-      {
-        "name": "single-specialist-spawn-agent",
-        "status": "backlog",
-        "reason": "Need a single specialist scenario that proves one specialist can invoke subagents and still complete a usable output without any extra workflow steps.",
-        "needed_support": "Add one realistic single-specialist live scenario whose role definition or playbook prose explicitly instructs the specialist to use spawn_agent to split a bounded subproblem, then verify completion/output and subagent participation through the normal live runner."
-      }
-    ]
+    "total": 0,
+    "scenarios": []
   }
 }
