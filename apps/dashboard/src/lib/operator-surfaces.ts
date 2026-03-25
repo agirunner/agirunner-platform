@@ -38,9 +38,9 @@ export function describeExecutionUsageSurface(
 
 export function describeGenericExecutionBackendSurface(backend: ExecutionBackend): string {
   if (backend === 'runtime_only') {
-    return 'Specialist Agent only';
+    return 'Specialist agent only';
   }
-  return 'Specialist Agent + Specialist Execution';
+  return 'Specialist agent + Specialist execution';
 }
 
 export function describeGenericToolOwnerSurface(owner: ToolOwner): string | null {

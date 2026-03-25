@@ -61,14 +61,14 @@ const OPERATIONS_CONNECTED_PLATFORM_FIELD_KEYS = new Set<string>([
 const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
   {
     key: 'runtime_containers',
-    title: 'Specialist Agent defaults',
+    title: 'Specialist agent defaults',
     description:
       'Default image and resource limits for short-lived specialist agents that host the agent loop.',
     defaultExpanded: true,
   },
   {
     key: 'execution_containers',
-    title: 'Specialist Execution defaults',
+    title: 'Specialist execution defaults',
     description:
       'Default image and resource limits for always-cold specialist executions.',
     defaultExpanded: true,
@@ -597,7 +597,7 @@ export const OPERATIONS_SECTION_DEFINITIONS: SectionDefinition[] = [
   operationSectionByKey('task_timeouts'),
   {
     key: 'runtime_fleet',
-    title: 'Specialist Agent fleet',
+    title: 'Specialist agent fleet',
     description:
       'Control platform-managed specialist agent teardown and replacement timing.',
     defaultExpanded: true,

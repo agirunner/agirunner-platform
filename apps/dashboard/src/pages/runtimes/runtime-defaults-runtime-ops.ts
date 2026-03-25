@@ -64,7 +64,7 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   },
   {
     key: 'worker_supervision',
-    title: 'Specialist Agent supervision',
+    title: 'Specialist agent supervision',
     description:
       'Tune specialist agent heartbeat defaults, dispatch acknowledgements, and offline/disconnected thresholds.',
   },
@@ -364,7 +364,7 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
     },
     {
       key: 'specialist_runtime_drain_grace_seconds',
-      label: 'Specialist Agent drain grace (seconds)',
+      label: 'Specialist agent drain grace (seconds)',
       description:
         'Grace period used when a specialist agent is explicitly drained or replaced.',
       configType: 'number',
@@ -623,7 +623,7 @@ function buildContainerManagerFields(): FieldDefinition[] {
     },
     {
       key: 'container_manager.stop_timeout_seconds',
-      label: 'Specialist Agent stop timeout (seconds)',
+      label: 'Specialist agent stop timeout (seconds)',
       description:
         'Grace period used when the manager stops specialist agents during normal cleanup.',
       configType: 'number',
@@ -706,7 +706,7 @@ function buildContainerManagerFields(): FieldDefinition[] {
     },
     {
       key: 'container_manager.runtime_orphan_grace_cycles',
-      label: 'Specialist Agent orphan grace cycles',
+      label: 'Specialist agent orphan grace cycles',
       description:
         'How many reconcile cycles a managed specialist agent may stay orphaned before the container manager force-removes it.',
       configType: 'number',
@@ -718,7 +718,7 @@ function buildContainerManagerFields(): FieldDefinition[] {
     },
     {
       key: 'container_manager.hung_runtime_stale_after_seconds',
-      label: 'Hung Specialist Agent stale threshold (seconds)',
+      label: 'Hung specialist agent stale threshold (seconds)',
       description:
         'Maximum heartbeat age before the container manager classifies a specialist agent as hung.',
       configType: 'number',
@@ -730,7 +730,7 @@ function buildContainerManagerFields(): FieldDefinition[] {
     },
     {
       key: 'container_manager.hung_runtime_stop_grace_period_seconds',
-      label: 'Hung Specialist Agent stop grace period (seconds)',
+      label: 'Hung specialist agent stop grace period (seconds)',
       description:
         'How long the container manager waits when stopping a specialist agent that has been classified as hung.',
       configType: 'number',
@@ -742,7 +742,7 @@ function buildContainerManagerFields(): FieldDefinition[] {
     },
     {
       key: 'container_manager.runtime_log_max_size_mb',
-      label: 'Specialist Agent log max size (MB)',
+      label: 'Specialist agent log max size (MB)',
       description:
         'Maximum size of a specialist agent Docker log file before the Docker engine rotates it.',
       configType: 'number',
@@ -754,7 +754,7 @@ function buildContainerManagerFields(): FieldDefinition[] {
     },
     {
       key: 'container_manager.runtime_log_max_files',
-      label: 'Specialist Agent log file count',
+      label: 'Specialist agent log file count',
       description:
         'Maximum number of rotated Docker log files retained for each specialist agent.',
       configType: 'number',
@@ -836,7 +836,7 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
     },
     {
       key: 'platform.worker_key_expiry_ms',
-      label: 'Specialist Agent API key lifetime (ms)',
+      label: 'Specialist agent API key lifetime (ms)',
       description: 'Default lifetime applied to API keys issued for newly registered specialist agents.',
       configType: 'number',
       placeholder: '31536000000',
@@ -847,7 +847,7 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
     },
     {
       key: 'platform.worker_default_heartbeat_interval_seconds',
-      label: 'Default Specialist Agent heartbeat interval (seconds)',
+      label: 'Default specialist agent heartbeat interval (seconds)',
       description:
         'Default heartbeat cadence assigned to new specialist agents when the registration payload omits it.',
       configType: 'number',
@@ -963,7 +963,7 @@ function buildPlatformLoopFields(): FieldDefinition[] {
     },
     {
       key: 'platform.lifecycle_worker_heartbeat_check_interval_ms',
-      label: 'Specialist Agent heartbeat sweep interval (ms)',
+      label: 'Specialist agent heartbeat sweep interval (ms)',
       description: 'How often the platform checks for stale specialist agent heartbeats.',
       configType: 'number',
       placeholder: '30000',

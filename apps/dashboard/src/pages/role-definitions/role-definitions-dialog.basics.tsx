@@ -185,7 +185,7 @@ export function RoleExecutionContainerSection(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Specialist Execution override</CardTitle>
+        <CardTitle>Specialist execution override</CardTitle>
         <CardDescription>
           Override the default specialist execution environment for this role. Leave fields blank to inherit the system defaults from Specialist Agents.
         </CardDescription>

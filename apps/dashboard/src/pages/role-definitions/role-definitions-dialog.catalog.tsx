@@ -36,14 +36,14 @@ export function RoleToolGrantsSection(props: {
             : 'No tools enabled. Toggle tools on to grant the role access.'}
         </div>
         <ToolGrantGroup
-          title="Specialist Agent tools"
+          title="Specialist agent tools"
           description="Run directly in the specialist agent loop and are safe to grant to specialist roles."
           tools={runtimeTools}
           allowedTools={props.form.allowedTools}
           toggleTool={props.toggleTool}
         />
         <ToolGrantGroup
-          title="Specialist Execution tools"
+          title="Specialist execution tools"
           description="Run inside specialist execution and can materialize repo or filesystem state."
           tools={taskTools}
           allowedTools={props.form.allowedTools}

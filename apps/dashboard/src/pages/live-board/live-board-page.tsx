@@ -960,21 +960,21 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
       color: 'text-emerald-600',
     },
     {
-      label: 'Specialist Agent capacity',
+      label: 'Specialist agent capacity',
       value: `${props.fleetSummary.online} online`,
       detail: `${props.fleetSummary.busy} busy • ${props.fleetSummary.available} available • ${props.fleetSummary.assignedSteps} assigned`,
       icon: Server,
       color: 'text-indigo-600',
     },
     {
-      label: 'Specialist Agent modes',
+      label: 'Specialist agent modes',
       value: `${props.executionBackendCapacity.runtimeOnlyRuntimes + props.executionBackendCapacity.runtimePlusTaskRuntimes} Specialist Agents`,
       detail: `${props.executionBackendCapacity.runtimeOnlyRuntimes} Specialist agent only • ${props.executionBackendCapacity.runtimePlusTaskRuntimes} Specialist agent + Specialist execution`,
       icon: Cpu,
       color: 'text-violet-600',
     },
     {
-      label: 'Specialist Execution activity',
+      label: 'Specialist execution activity',
       value:
         props.executionBackendCapacity.taskSandboxes > 0
           ? `${props.executionBackendCapacity.taskSandboxes} active`
@@ -1441,7 +1441,7 @@ function ActivePlaybookBoards(props: {
                     value={isLoading ? 'Loading…' : hasError ? 'Unavailable' : describeOrchestratorPool(activationSummary)}
                   />
                   <SnapshotMetric
-                    label="Specialist Agent pool"
+                    label="Specialist agent pool"
                     value={describeSpecialistPool(specialistSummary)}
                   />
                   <SnapshotMetric

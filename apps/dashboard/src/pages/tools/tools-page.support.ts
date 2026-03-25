@@ -79,7 +79,7 @@ const CATEGORY_DESCRIPTORS: Record<ToolCategory, ToolCategoryDescriptor> = {
     badgeClassName: neutralBadgeClassName,
   },
   execution: {
-    label: 'Specialist Execution',
+    label: 'Specialist execution',
     detail: 'Shell command execution with output truncation.',
     badgeVariant: 'outline',
     badgeClassName: neutralBadgeClassName,
@@ -167,12 +167,12 @@ export function summarizeTools(tools: ToolTag[]): ToolSummaryCard[] {
   return [
     { label: 'Total', value: `${tools.length}`, detail: `${byCategory.size} categories` },
     {
-      label: 'Specialist Agent owned',
+      label: 'Specialist agent owned',
       value: `${runtimeCount}`,
       detail: 'Run directly in the specialist agent loop',
     },
     {
-      label: 'Specialist Execution owned',
+      label: 'Specialist execution owned',
       value: `${taskCount}`,
       detail: 'Require specialist execution',
     },

@@ -16,7 +16,7 @@ const FIELDS: readonly FieldDef[] = [
   { label: 'Image', key: 'image' },
   { label: 'Playbook', key: 'playbook_name' },
   { label: 'Playbook ID', key: 'playbook_id', format: shortId },
-  { label: 'Specialist Agent ID', key: 'runtime_id', format: shortId },
+  { label: 'Specialist agent ID', key: 'runtime_id', format: shortId },
   { label: 'Container ID', key: 'container_id', format: shortId },
   { label: 'CPU', key: 'cpu' },
   { label: 'Memory', key: 'memory' },

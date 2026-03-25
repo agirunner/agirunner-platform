@@ -66,12 +66,12 @@ export function ActiveRuntimeImageCard(): JSX.Element {
   }
 
   if (isLoading) {
-    return <RuntimeLoadingCard title="Active Specialist Agent Image" />;
+    return <RuntimeLoadingCard title="Active specialist agent image" />;
   }
   if (error || !status) {
     return (
       <RuntimeUnavailableCard
-        title="Active Specialist Agent Image"
+        title="Active specialist agent image"
         body="Specialist agent image status unavailable. The customization service may not be configured or reachable."
       />
     );
@@ -85,7 +85,7 @@ export function ActiveRuntimeImageCard(): JSX.Element {
       <CardHeader className="space-y-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
-            <CardTitle className="text-base">Active Specialist Agent Image</CardTitle>
+            <CardTitle className="text-base">Active specialist agent image</CardTitle>
             <p className="text-sm text-muted">{describeRuntimePosture(status)}</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -392,7 +392,7 @@ export function RuntimeManagementCard(): JSX.Element {
   return (
     <Card className="border-border/70 shadow-sm">
       <CardHeader className="space-y-2">
-        <CardTitle className="text-base">Specialist Agent Image Management</CardTitle>
+        <CardTitle className="text-base">Specialist agent image management</CardTitle>
         <p className="text-sm text-muted">
           Validate, build, link, and export specialist agent image artifacts from the reconstructed manifest.
         </p>
@@ -413,7 +413,7 @@ export function RuntimeManagementCard(): JSX.Element {
             ) : (
               <Hammer className="h-3 w-3" />
             )}
-            Build Specialist Agent image
+            Build specialist agent image
           </Button>
           {lastBuildId ? (
             <Button variant="outline" size="sm" onClick={handleLink} disabled={anyPending}>

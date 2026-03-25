@@ -136,12 +136,12 @@ export const STATUS_ITEMS: ComboboxItem[] = [
 export const EXECUTION_BACKEND_ITEMS: ComboboxItem[] = [
   {
     id: 'runtime_only',
-    label: 'Specialist Agent only',
+    label: 'Specialist agent only',
     subtitle: 'The loop stayed inside the specialist agent process.',
   },
   {
     id: 'runtime_plus_task',
-    label: 'Specialist Agent + Specialist Execution',
+    label: 'Specialist agent + Specialist execution',
     subtitle: 'The loop ran in the specialist agent and used Specialist execution capability.',
   },
 ];
