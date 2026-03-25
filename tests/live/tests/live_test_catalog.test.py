@@ -57,6 +57,19 @@ class LiveTestCatalogTests(unittest.TestCase):
                 self.assertIsInstance(entry.get("needed_support"), str)
                 self.assertTrue(entry["needed_support"].strip())
 
+    def test_tracker_backlogs_single_specialist_spawn_agent_scenario(self) -> None:
+        tracker = json.loads(TRACKER_FILE.read_text())
+        deferred = tracker["unsupported_future_design"]["scenarios"]
+        names = {entry["name"]: entry for entry in deferred}
+        self.assertIn("single-specialist-spawn-agent", names)
+
+        entry = names["single-specialist-spawn-agent"]
+        self.assertEqual("backlog", entry["status"])
+        self.assertIn("single specialist", entry["reason"].lower())
+        self.assertIn("spawn_agent", entry["needed_support"])
+        self.assertIn("role definition", entry["needed_support"].lower())
+        self.assertIn("playbook prose", entry["needed_support"].lower())
+
     def test_expected_matrix_scenarios_exist_and_legacy_corpus_is_gone(self) -> None:
         actual = {path.stem for path in SCENARIOS_DIR.glob("*.json")}
         self.assertEqual(live_test_catalog.EXPECTED_SCENARIOS, actual)
