@@ -47,6 +47,7 @@ import {
   guidedClosureWaivedStepSchema,
   type GuidedClosureStateSnapshot,
 } from '../../services/guided-closure/types.js';
+import { GuidedClosureRecoveryHelpersService } from '../../services/guided-closure/recovery-helpers.js';
 
 const orchestratorTaskTypeSchema = z.enum(['analysis', 'code', 'assessment', 'test', 'docs', 'custom']);
 const credentialRefsSchema = z.record(z.string().min(1).max(255)).refine(
@@ -135,6 +136,11 @@ const orchestratorTaskRetrySchema = orchestratorTaskMutationSchema.extend({
   force: z.boolean().optional(),
 });
 
+const rerunTaskWithCorrectedBriefSchema = z.object({
+  request_id: z.string().min(1).max(255),
+  corrected_input: z.record(z.unknown()),
+}).strict();
+
 const orchestratorTaskReworkSchema = orchestratorTaskMutationSchema.extend({
   feedback: z.string().min(1).max(4000),
   override_input: z.record(z.unknown()).optional(),
@@ -147,6 +153,13 @@ const orchestratorTaskReassignSchema = orchestratorTaskMutationSchema.extend({
   preferred_worker_id: z.string().uuid().optional(),
   reason: z.string().min(1).max(4000),
 });
+
+const reattachOrReplaceStaleOwnerSchema = z.object({
+  request_id: z.string().min(1).max(255),
+  reason: z.string().min(1).max(4000),
+  preferred_agent_id: z.string().uuid().optional(),
+  preferred_worker_id: z.string().uuid().optional(),
+}).strict();
 
 const orchestratorTaskEscalateSchema = orchestratorTaskMutationSchema.extend({
   reason: z.string().min(1).max(4000),
@@ -183,6 +196,19 @@ const workflowCompleteSchema = z.object({
   waived_steps: z.array(guidedClosureWaivedStepSchema).max(100).optional(),
   unresolved_advisory_items: z.array(guidedClosureUnresolvedAdvisoryItemSchema).max(100).optional(),
   completion_notes: z.string().min(1).max(4000).nullable().optional(),
+}).strict();
+
+const reopenWorkItemForMissingHandoffSchema = z.object({
+  request_id: z.string().min(1).max(255),
+  reason: z.string().min(1).max(4000),
+}).strict();
+
+const waivePreferredStepSchema = z.object({
+  request_id: z.string().min(1).max(255),
+  code: z.string().min(1).max(255),
+  reason: z.string().min(1).max(4000),
+  summary: z.string().min(1).max(4000).optional(),
+  role: z.string().min(1).max(120).optional(),
 }).strict();
 
 const workspaceMemoryUpdatesSchema = z
@@ -441,6 +467,12 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
     }),
     subjectTaskChangeService: app.taskService,
   });
+  const recoveryHelpers = new GuidedClosureRecoveryHelpersService({
+    pool: app.pgPool,
+    eventService: app.eventService,
+    taskService: app.taskService,
+    workflowControlService: playbookControlService,
+  });
 
   const withManagedSpecialistTask = async (
     identity: ApiKeyIdentity,
@@ -545,6 +577,101 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
             taskScope.workflow_id,
             params.workItemId,
             body,
+            client,
+          ),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/work-items/:workItemId/close-with-callouts',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; workItemId: string };
+      const body = parseOrThrow(workItemCompleteSchema.safeParse(request.body));
+      const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
+        request.auth!,
+        params.taskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'close_work_item_with_callouts',
+        body.request_id,
+        (client) =>
+          recoveryHelpers.closeWorkItemWithCallouts(
+            request.auth!,
+            taskScope.workflow_id,
+            params.workItemId,
+            body,
+            client,
+          ),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/work-items/:workItemId/reopen-for-missing-handoff',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; workItemId: string };
+      const body = parseOrThrow(reopenWorkItemForMissingHandoffSchema.safeParse(request.body));
+      const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
+        request.auth!,
+        params.taskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'reopen_work_item_for_missing_handoff',
+        body.request_id,
+        (client) =>
+          recoveryHelpers.reopenWorkItemForMissingHandoff(
+            request.auth!,
+            taskScope.workflow_id,
+            params.workItemId,
+            { reason: body.reason },
+            client,
+          ),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/work-items/:workItemId/waive-preferred-step',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; workItemId: string };
+      const body = parseOrThrow(waivePreferredStepSchema.safeParse(request.body));
+      const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
+        request.auth!,
+        params.taskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'waive_preferred_step',
+        body.request_id,
+        (client) =>
+          recoveryHelpers.waivePreferredStep(
+            request.auth!,
+            taskScope.workflow_id,
+            params.workItemId,
+            {
+              code: body.code,
+              reason: body.reason,
+              summary: body.summary,
+              role: body.role,
+            },
             client,
           ),
       );
@@ -770,6 +897,69 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         'request_rework',
         body.request_id,
         (client) => app.taskService.requestTaskChanges(request.auth!, params.managedTaskId, body, client),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/tasks/:managedTaskId/rerun-with-corrected-brief',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; managedTaskId: string };
+      const body = parseOrThrow(rerunTaskWithCorrectedBriefSchema.safeParse(request.body));
+      const taskScope = await withManagedSpecialistTask(
+        request.auth!,
+        params.taskId,
+        params.managedTaskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'rerun_task_with_corrected_brief',
+        body.request_id,
+        (client) =>
+          recoveryHelpers.rerunTaskWithCorrectedBrief(
+            request.auth!,
+            params.managedTaskId,
+            {
+              request_id: body.request_id,
+              corrected_input: body.corrected_input,
+            },
+            client,
+          ),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/tasks/:managedTaskId/reattach-or-replace-stale-owner',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; managedTaskId: string };
+      const body = parseOrThrow(reattachOrReplaceStaleOwnerSchema.safeParse(request.body));
+      const taskScope = await withManagedSpecialistTask(
+        request.auth!,
+        params.taskId,
+        params.managedTaskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'reattach_or_replace_stale_owner',
+        body.request_id,
+        (client) =>
+          recoveryHelpers.reattachOrReplaceStaleOwner(
+            request.auth!,
+            params.managedTaskId,
+            body,
+            client,
+          ),
       );
       return { data: stored };
     },
@@ -1165,6 +1355,35 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         body.request_id,
         (client) =>
           playbookControlService.completeWorkflow(
+            request.auth!,
+            taskScope.workflow_id,
+            body,
+            client,
+          ),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/workflow/close-with-callouts',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string };
+      const body = parseOrThrow(workflowCompleteSchema.safeParse(request.body));
+      const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
+        request.auth!,
+        params.taskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'close_workflow_with_callouts',
+        body.request_id,
+        (client) =>
+          recoveryHelpers.closeWorkflowWithCallouts(
             request.auth!,
             taskScope.workflow_id,
             body,

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerErrorHandler } from '../../src/errors/error-handler.js';
 import { ValidationError } from '../../src/errors/domain-errors.js';
 import { ArtifactService } from '../../src/services/artifact-service.js';
+import { GuidedClosureRecoveryHelpersService } from '../../src/services/guided-closure/recovery-helpers.js';
 import { PlaybookWorkflowControlService } from '../../src/services/playbook-workflow-control-service.js';
 import { TaskAgentScopeService } from '../../src/services/task-agent-scope-service.js';
 import {
@@ -452,6 +453,503 @@ describe('orchestratorControlRoutes', () => {
     );
 
     completeWorkflowSpy.mockRestore();
+    loadTaskScopeSpy.mockRestore();
+  });
+
+  it('reruns specialist work with a corrected brief through the recovery helper route', async () => {
+    const rerunSpy = vi
+      .spyOn(GuidedClosureRecoveryHelpersService.prototype, 'rerunTaskWithCorrectedBrief')
+      .mockResolvedValue({ id: 'task-specialist', state: 'ready' } as never);
+    const loadTaskScopeSpy = vi
+      .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
+      .mockResolvedValue({
+        id: 'task-orchestrator',
+        workflow_id: 'workflow-1',
+        workspace_id: 'workspace-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'review',
+        activation_id: 'activation-1',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        is_orchestrator_task: true,
+        state: 'in_progress',
+      });
+
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'rerun_task_with_corrected_brief', 'rerun-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return { rowCount: 1, rows: [{ response: params?.[4] }] };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', { connect: vi.fn(async () => client) });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', {
+      getTask: vi.fn(async () => ({ id: 'task-specialist', workflow_id: 'workflow-1', is_orchestrator_task: false })),
+    });
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/task-specialist/rerun-with-corrected-brief',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'rerun-1',
+        corrected_input: { reviewer_contract: 'Use concrete findings and cite the exact artifact.' },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(rerunSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      'task-specialist',
+      {
+        request_id: 'rerun-1',
+        corrected_input: { reviewer_contract: 'Use concrete findings and cite the exact artifact.' },
+      },
+      expect.anything(),
+    );
+
+    rerunSpy.mockRestore();
+    loadTaskScopeSpy.mockRestore();
+  });
+
+  it('reattaches or replaces stale ownership through the recovery helper route', async () => {
+    const reassignSpy = vi
+      .spyOn(GuidedClosureRecoveryHelpersService.prototype, 'reattachOrReplaceStaleOwner')
+      .mockResolvedValue({ id: 'task-specialist', state: 'ready' } as never);
+    const loadTaskScopeSpy = vi
+      .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
+      .mockResolvedValue({
+        id: 'task-orchestrator',
+        workflow_id: 'workflow-1',
+        workspace_id: 'workspace-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'review',
+        activation_id: 'activation-1',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        is_orchestrator_task: true,
+        state: 'in_progress',
+      });
+
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'reattach_or_replace_stale_owner', 'reassign-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return { rowCount: 1, rows: [{ response: params?.[4] }] };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', { connect: vi.fn(async () => client) });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', {
+      getTask: vi.fn(async () => ({ id: 'task-specialist', workflow_id: 'workflow-1', is_orchestrator_task: false })),
+    });
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/task-specialist/reattach-or-replace-stale-owner',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'reassign-1',
+        reason: 'The prior owner lost its lease and the task still needs progress.',
+        preferred_worker_id: '00000000-0000-4000-8000-000000000001',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(reassignSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      'task-specialist',
+      {
+        request_id: 'reassign-1',
+        reason: 'The prior owner lost its lease and the task still needs progress.',
+        preferred_worker_id: '00000000-0000-4000-8000-000000000001',
+      },
+      expect.anything(),
+    );
+
+    reassignSpy.mockRestore();
+    loadTaskScopeSpy.mockRestore();
+  });
+
+  it('reopens a work item for missing handoff recovery through the helper route', async () => {
+    const reopenSpy = vi
+      .spyOn(GuidedClosureRecoveryHelpersService.prototype, 'reopenWorkItemForMissingHandoff')
+      .mockResolvedValue({
+        id: 'work-item-1',
+        workflow_id: 'workflow-1',
+        column_id: 'planned',
+        completed_at: null,
+      } as never);
+    const loadTaskScopeSpy = vi
+      .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
+      .mockResolvedValue({
+        id: 'task-orchestrator',
+        workflow_id: 'workflow-1',
+        workspace_id: 'workspace-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'review',
+        activation_id: 'activation-1',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        is_orchestrator_task: true,
+        state: 'in_progress',
+      });
+
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'reopen_work_item_for_missing_handoff', 'reopen-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return { rowCount: 1, rows: [{ response: params?.[4] }] };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', { connect: vi.fn(async () => client) });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', {});
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/work-items/work-item-1/reopen-for-missing-handoff',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'reopen-1',
+        reason: 'The predecessor exited without a full handoff.',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(reopenSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      'workflow-1',
+      'work-item-1',
+      { reason: 'The predecessor exited without a full handoff.' },
+      expect.anything(),
+    );
+
+    reopenSpy.mockRestore();
+    loadTaskScopeSpy.mockRestore();
+  });
+
+  it('waives a preferred step through the recovery helper route', async () => {
+    const waiveSpy = vi
+      .spyOn(GuidedClosureRecoveryHelpersService.prototype, 'waivePreferredStep')
+      .mockResolvedValue({
+        id: 'work-item-1',
+        workflow_id: 'workflow-1',
+        completion_callouts: {
+          waived_steps: [{ code: 'secondary_review', reason: 'Primary review was decisive.' }],
+        },
+      } as never);
+    const loadTaskScopeSpy = vi
+      .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
+      .mockResolvedValue({
+        id: 'task-orchestrator',
+        workflow_id: 'workflow-1',
+        workspace_id: 'workspace-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'review',
+        activation_id: 'activation-1',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        is_orchestrator_task: true,
+        state: 'in_progress',
+      });
+
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'waive_preferred_step', 'waive-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return { rowCount: 1, rows: [{ response: params?.[4] }] };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', { connect: vi.fn(async () => client) });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', {});
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/work-items/work-item-1/waive-preferred-step',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'waive-1',
+        code: 'secondary_review',
+        reason: 'Primary review was decisive.',
+        role: 'secondary-reviewer',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(waiveSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      'workflow-1',
+      'work-item-1',
+      {
+        code: 'secondary_review',
+        reason: 'Primary review was decisive.',
+        role: 'secondary-reviewer',
+        summary: undefined,
+      },
+      expect.anything(),
+    );
+
+    waiveSpy.mockRestore();
+    loadTaskScopeSpy.mockRestore();
+  });
+
+  it('closes a work item with callouts through the helper alias route', async () => {
+    const closeSpy = vi
+      .spyOn(GuidedClosureRecoveryHelpersService.prototype, 'closeWorkItemWithCallouts')
+      .mockResolvedValue({
+        id: 'work-item-1',
+        workflow_id: 'workflow-1',
+        completion_callouts: {
+          completion_notes: 'Closed with advisory callouts.',
+        },
+      } as never);
+    const loadTaskScopeSpy = vi
+      .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
+      .mockResolvedValue({
+        id: 'task-orchestrator',
+        workflow_id: 'workflow-1',
+        workspace_id: 'workspace-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'review',
+        activation_id: 'activation-1',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        is_orchestrator_task: true,
+        state: 'in_progress',
+      });
+
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'close_work_item_with_callouts', 'close-helper-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return { rowCount: 1, rows: [{ response: params?.[4] }] };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', { connect: vi.fn(async () => client) });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', {});
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/work-items/work-item-1/close-with-callouts',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'close-helper-1',
+        completion_notes: 'Closed with advisory callouts.',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(closeSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      'workflow-1',
+      'work-item-1',
+      { request_id: 'close-helper-1', completion_notes: 'Closed with advisory callouts.' },
+      expect.anything(),
+    );
+
+    closeSpy.mockRestore();
+    loadTaskScopeSpy.mockRestore();
+  });
+
+  it('closes a workflow with callouts through the helper alias route', async () => {
+    const closeSpy = vi
+      .spyOn(GuidedClosureRecoveryHelpersService.prototype, 'closeWorkflowWithCallouts')
+      .mockResolvedValue({
+        workflow_id: 'workflow-1',
+        state: 'completed',
+      } as never);
+    const loadTaskScopeSpy = vi
+      .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
+      .mockResolvedValue({
+        id: 'task-orchestrator',
+        workflow_id: 'workflow-1',
+        workspace_id: 'workspace-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'release',
+        activation_id: 'activation-1',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        is_orchestrator_task: true,
+        state: 'in_progress',
+      });
+
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'close_workflow_with_callouts', 'close-workflow-helper-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return { rowCount: 1, rows: [{ response: params?.[4] }] };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', { connect: vi.fn(async () => client) });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', {});
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/workflow/close-with-callouts',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'close-workflow-helper-1',
+        summary: 'Ship the release with recorded advisory callouts.',
+        completion_notes: 'Closed with advisory callouts.',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(closeSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      'workflow-1',
+      {
+        request_id: 'close-workflow-helper-1',
+        summary: 'Ship the release with recorded advisory callouts.',
+        completion_notes: 'Closed with advisory callouts.',
+      },
+      expect.anything(),
+    );
+
+    closeSpy.mockRestore();
     loadTaskScopeSpy.mockRestore();
   });
 
