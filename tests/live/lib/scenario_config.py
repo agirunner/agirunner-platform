@@ -17,6 +17,14 @@ GENERIC_EXPECTATION_LIST_FIELDS = (
     "subject_revision_expectations",
     "required_assessment_sets",
 )
+OUTCOME_ENVELOPE_BOOLEAN_FIELDS = (
+    "require_output_artifacts",
+    "require_completed_non_orchestrator_tasks",
+    "require_terminal_work_items",
+    "require_db_state",
+    "require_runtime_cleanup",
+    "require_fatal_log_free",
+)
 
 
 def _read_mapping(value: Any, field_name: str) -> dict[str, Any]:
@@ -79,6 +87,25 @@ def _read_expectations(value: Any) -> dict[str, Any]:
     normalized = dict(expectations)
     for field_name in GENERIC_EXPECTATION_LIST_FIELDS:
         normalized[field_name] = _read_list(expectations.get(field_name), f"expect.{field_name}")
+    normalized["outcome_envelope"] = _read_outcome_envelope(expectations)
+    return normalized
+
+
+def _read_outcome_envelope(expectations: dict[str, Any]) -> dict[str, Any]:
+    envelope = _read_mapping(expectations.get("outcome_envelope"), "expect.outcome_envelope")
+    allowed_states = _read_string_list(envelope.get("allowed_states"), "expect.outcome_envelope.allowed_states")
+    if not allowed_states:
+        authored_state = expectations.get("state")
+        if isinstance(authored_state, str) and authored_state.strip() != "":
+            allowed_states = [authored_state.strip()]
+        else:
+            allowed_states = ["completed"]
+
+    normalized: dict[str, Any] = {
+        "allowed_states": allowed_states,
+    }
+    for field_name in OUTCOME_ENVELOPE_BOOLEAN_FIELDS:
+        normalized[field_name] = bool(envelope.get(field_name, True))
     return normalized
 
 

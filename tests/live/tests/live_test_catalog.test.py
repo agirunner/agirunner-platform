@@ -32,6 +32,16 @@ class LiveTestCatalogTests(unittest.TestCase):
         supported = tracker["supported"]["scenarios"]
         self.assertEqual("artifact-memory-publishing-approval", supported[0])
 
+    def test_tracker_policy_describes_guided_closure_outcome_driven_contract(self) -> None:
+        tracker = json.loads(TRACKER_FILE.read_text())
+        policy = tracker["policy"]
+        notes_blob = "\n".join(policy.get("notes", []))
+
+        self.assertEqual("outcome_driven", policy.get("verification_mode"))
+        self.assertIn("guided closure", notes_blob.lower())
+        self.assertIn("allowed outcome envelope", notes_blob.lower())
+        self.assertIn("callout", notes_blob.lower())
+
     def test_tracker_unsupported_future_design_entries_are_descriptive(self) -> None:
         tracker = json.loads(TRACKER_FILE.read_text())
         deferred = tracker["unsupported_future_design"]
@@ -116,6 +126,35 @@ class LiveTestCatalogTests(unittest.TestCase):
                     self.assertIn(role_name, process_instructions)
                 for stage_name in stage_names:
                     self.assertIn(stage_name, process_instructions)
+
+    def test_playbook_process_instructions_author_guided_closure_rules(self) -> None:
+        for playbook_file in sorted(LIBRARY_DIR.glob("*/playbook.json")):
+            with self.subTest(playbook=playbook_file.parent.name):
+                payload = live_test_catalog.read_fixture(playbook_file)
+                process_instructions = str(payload.get("definition", {}).get("process_instructions") or "")
+                normalized = process_instructions.lower()
+
+                self.assertTrue("best-intent" in normalized or "best intent" in normalized)
+                self.assertIn("preferred", normalized)
+                self.assertTrue("waive" in normalized or "waived" in normalized)
+                self.assertIn("block", normalized)
+                self.assertIn("callout", normalized)
+
+    def test_scenarios_author_outcome_envelopes_instead_of_relying_on_exact_path_only(self) -> None:
+        for scenario_file in sorted(SCENARIOS_DIR.glob("*.json")):
+            with self.subTest(scenario=scenario_file.stem):
+                payload = live_test_catalog.read_fixture(scenario_file)
+                expect = payload.get("expect", {})
+                self.assertIsInstance(expect.get("outcome_envelope"), dict)
+                envelope = expect["outcome_envelope"]
+                self.assertIsInstance(envelope.get("allowed_states"), list)
+                self.assertTrue(envelope["allowed_states"])
+                self.assertIn("require_output_artifacts", envelope)
+                self.assertIn("require_completed_non_orchestrator_tasks", envelope)
+                self.assertIn("require_terminal_work_items", envelope)
+                self.assertIn("require_db_state", envelope)
+                self.assertIn("require_runtime_cleanup", envelope)
+                self.assertIn("require_fatal_log_free", envelope)
 
     def test_sdlc_single_assessment_profile_seeds_a_real_repo_and_verification_path(self) -> None:
         seed_root = LIBRARY_DIR / "sdlc-assessment-approve" / "repo-seed"

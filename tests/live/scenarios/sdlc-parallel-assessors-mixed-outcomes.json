@@ -51,7 +51,18 @@
         "stage_name": "implementation",
         "minimum_revision": 3
       }
-    ]
+    ],
+    "outcome_envelope": {
+      "allowed_states": [
+        "completed"
+      ],
+      "require_output_artifacts": true,
+      "require_completed_non_orchestrator_tasks": true,
+      "require_terminal_work_items": true,
+      "require_db_state": true,
+      "require_runtime_cleanup": true,
+      "require_fatal_log_free": true
+    }
   },
   "coverage": {
     "multi_assessor_outcomes": [

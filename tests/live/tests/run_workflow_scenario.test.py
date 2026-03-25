@@ -1802,6 +1802,39 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertEqual([], verification["failures"])
         self.assertGreaterEqual(len(verification.get("advisories", [])), 1)
 
+    def test_evaluate_expectations_outcome_driven_mode_accepts_allowed_state_envelope(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "state": "completed",
+                "outcome_envelope": {
+                    "allowed_states": ["active", "completed"],
+                },
+            },
+            workflow={
+                "state": "active",
+                "tasks": [
+                    {"id": "task-1", "is_orchestrator_task": False, "state": "completed"},
+                ],
+            },
+            board={"data": {"data": {"columns": [{"id": "done", "is_terminal": True}], "work_items": [{"id": "wi-1", "column_id": "done"}]}}},
+            work_items={"data": {"data": [{"id": "wi-1", "column_id": "done"}]}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": [{"logical_path": "reports/summary.md"}]}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+            evidence={
+                "db_state": {"ok": True},
+                "runtime_cleanup": {"all_clean": True},
+                "log_anomalies": {"rows": []},
+            },
+            verification_mode="outcome_driven",
+        )
+
+        self.assertTrue(verification["passed"])
+        state_check = next(check for check in verification["checks"] if check["name"] == "outcome.workflow_state")
+        self.assertEqual(["active", "completed"], state_check["expected"])
+        self.assertEqual("active", state_check["actual"])
+
     def test_evaluate_expectations_outcome_driven_mode_requires_basic_sanity(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(
             {
@@ -1828,7 +1861,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         )
 
         self.assertFalse(verification["passed"])
-        self.assertIn("expected workflow state 'completed', got 'active'", verification["failures"])
+        self.assertIn("expected workflow state in ['completed'], got 'active'", verification["failures"])
         self.assertIn("expected at least one output artifact for outcome-driven verification", verification["failures"])
 
     def test_evaluate_expectations_uses_authored_terminal_board_columns(self) -> None:

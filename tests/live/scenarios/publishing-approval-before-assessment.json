@@ -45,7 +45,18 @@
         "assessed_by": "preapproval-policy-assessor",
         "assessment_stage_name": "policy-assessment"
       }
-    ]
+    ],
+    "outcome_envelope": {
+      "allowed_states": [
+        "completed"
+      ],
+      "require_output_artifacts": true,
+      "require_completed_non_orchestrator_tasks": true,
+      "require_terminal_work_items": true,
+      "require_db_state": true,
+      "require_runtime_cleanup": true,
+      "require_fatal_log_free": true
+    }
   },
   "coverage": {
     "delivery_paths": [

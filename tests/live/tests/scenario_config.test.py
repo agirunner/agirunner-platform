@@ -89,6 +89,15 @@ class ScenarioConfigTests(unittest.TestCase):
                 "approval_sequences": [],
                 "subject_revision_expectations": [],
                 "required_assessment_sets": [],
+                "outcome_envelope": {
+                    "allowed_states": ["completed"],
+                    "require_output_artifacts": True,
+                    "require_completed_non_orchestrator_tasks": True,
+                    "require_terminal_work_items": True,
+                    "require_db_state": True,
+                    "require_runtime_cleanup": True,
+                    "require_fatal_log_free": True,
+                },
             },
             scenario["expect"],
         )
@@ -270,6 +279,65 @@ class ScenarioConfigTests(unittest.TestCase):
                 "provider_auth": ["openai_oauth"],
             },
             scenario["coverage"],
+        )
+
+    def test_load_scenario_normalizes_outcome_envelope_defaults_and_explicit_allowed_states(self) -> None:
+        scenario_path = self.write_scenario(
+            {
+                "name": "guided-closure-envelope",
+                "workflow": {
+                    "goal": "Exercise outcome-envelope parsing.",
+                },
+                "expect": {
+                    "state": "active",
+                    "outcome_envelope": {
+                        "allowed_states": ["active", "completed"],
+                        "require_output_artifacts": False,
+                    },
+                },
+            }
+        )
+
+        scenario = scenario_config.load_scenario(scenario_path)
+
+        self.assertEqual(
+            {
+                "allowed_states": ["active", "completed"],
+                "require_output_artifacts": False,
+                "require_completed_non_orchestrator_tasks": True,
+                "require_terminal_work_items": True,
+                "require_db_state": True,
+                "require_runtime_cleanup": True,
+                "require_fatal_log_free": True,
+            },
+            scenario["expect"]["outcome_envelope"],
+        )
+
+    def test_load_scenario_defaults_outcome_envelope_to_authored_state(self) -> None:
+        scenario_path = self.write_scenario(
+            {
+                "workflow": {
+                    "goal": "Exercise default outcome-envelope parsing.",
+                },
+                "expect": {
+                    "state": "pending",
+                },
+            }
+        )
+
+        scenario = scenario_config.load_scenario(scenario_path)
+
+        self.assertEqual(
+            {
+                "allowed_states": ["pending"],
+                "require_output_artifacts": True,
+                "require_completed_non_orchestrator_tasks": True,
+                "require_terminal_work_items": True,
+                "require_db_state": True,
+                "require_runtime_cleanup": True,
+                "require_fatal_log_free": True,
+            },
+            scenario["expect"]["outcome_envelope"],
         )
 
 

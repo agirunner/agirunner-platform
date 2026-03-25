@@ -446,73 +446,92 @@ def evaluate_outcome_driven_basics(
     checks: list[dict[str, Any]] = []
     failures: list[str] = []
 
-    expected_state = expectations.get('state')
-    required_state = expected_state if isinstance(expected_state, str) and expected_state.strip() != '' else 'completed'
+    outcome_envelope = expectations.get('outcome_envelope', {})
+    if not isinstance(outcome_envelope, dict):
+        outcome_envelope = {}
+    allowed_states = outcome_envelope.get('allowed_states')
+    if not isinstance(allowed_states, list) or not allowed_states:
+        expected_state = expectations.get('state')
+        if isinstance(expected_state, str) and expected_state.strip() != '':
+            allowed_states = [expected_state]
+        else:
+            allowed_states = ['completed']
     actual_state = workflow.get('state')
-    state_passed = actual_state == required_state
+    state_passed = actual_state in allowed_states
     checks.append(
         {
             'name': 'outcome.workflow_state',
             'passed': state_passed,
-            'expected': required_state,
+            'expected': allowed_states,
             'actual': actual_state,
         }
     )
     if not state_passed:
-        failures.append(f"expected workflow state {required_state!r}, got {actual_state!r}")
+        failures.append(f"expected workflow state in {allowed_states!r}, got {actual_state!r}")
 
     output_count = artifact_output_count(artifacts)
-    output_passed = output_count > 0
+    output_required = bool(outcome_envelope.get('require_output_artifacts', True))
+    output_passed = (output_count > 0) if output_required else True
     checks.append(
         {
             'name': 'outcome.output_artifacts',
             'passed': output_passed,
+            'required': output_required,
             'actual_count': output_count,
         }
     )
-    if not output_passed:
+    if output_required and not output_passed:
         failures.append('expected at least one output artifact for outcome-driven verification')
 
     completed_specialist_tasks = completed_non_orchestrator_task_count(workflow)
-    task_output_passed = completed_specialist_tasks > 0
+    tasks_required = bool(outcome_envelope.get('require_completed_non_orchestrator_tasks', True))
+    task_output_passed = (completed_specialist_tasks > 0) if tasks_required else True
     checks.append(
         {
             'name': 'outcome.completed_non_orchestrator_tasks',
             'passed': task_output_passed,
+            'required': tasks_required,
             'actual_count': completed_specialist_tasks,
         }
     )
-    if not task_output_passed:
+    if tasks_required and not task_output_passed:
         failures.append('expected at least one completed non-orchestrator task for outcome-driven verification')
 
     items = _work_items(work_items)
     terminal_items = [item for item in items if _work_item_is_terminal(item, board)]
-    work_item_passed = len(terminal_items) > 0
+    work_items_required = bool(outcome_envelope.get('require_terminal_work_items', True))
+    work_item_passed = (len(terminal_items) > 0) if work_items_required else True
     checks.append(
         {
             'name': 'outcome.terminal_work_items_present',
             'passed': work_item_passed,
+            'required': work_items_required,
             'actual_count': len(terminal_items),
         }
     )
-    if not work_item_passed:
+    if work_items_required and not work_item_passed:
         failures.append('expected at least one terminal work item for outcome-driven verification')
 
     db_state = evidence.get('db_state', {})
-    db_passed = isinstance(db_state, dict) and bool(db_state.get('ok'))
-    checks.append({'name': 'outcome.db_state_present', 'passed': db_passed})
-    if not db_passed:
+    db_required = bool(outcome_envelope.get('require_db_state', True))
+    db_passed = (isinstance(db_state, dict) and bool(db_state.get('ok'))) if db_required else True
+    checks.append({'name': 'outcome.db_state_present', 'passed': db_passed, 'required': db_required})
+    if db_required and not db_passed:
         failures.append('expected DB evidence to be present')
 
     runtime_cleanup = evidence.get('runtime_cleanup', {})
-    runtime_passed = isinstance(runtime_cleanup, dict) and bool(runtime_cleanup.get('all_clean'))
-    checks.append({'name': 'outcome.runtime_cleanup', 'passed': runtime_passed})
-    if not runtime_passed:
+    runtime_required = bool(outcome_envelope.get('require_runtime_cleanup', True))
+    runtime_passed = (
+        isinstance(runtime_cleanup, dict) and bool(runtime_cleanup.get('all_clean'))
+    ) if runtime_required else True
+    checks.append({'name': 'outcome.runtime_cleanup', 'passed': runtime_passed, 'required': runtime_required})
+    if runtime_required and not runtime_passed:
         failures.append('expected runtime cleanup evidence to show no dangling runtimes')
 
-    log_passed = not has_fatal_log_anomalies(evidence)
-    checks.append({'name': 'outcome.fatal_log_anomalies_absent', 'passed': log_passed})
-    if not log_passed:
+    log_required = bool(outcome_envelope.get('require_fatal_log_free', True))
+    log_passed = (not has_fatal_log_anomalies(evidence)) if log_required else True
+    checks.append({'name': 'outcome.fatal_log_anomalies_absent', 'passed': log_passed, 'required': log_required})
+    if log_required and not log_passed:
         failures.append('expected logs to be free of fatal anomalies')
 
     return checks, failures

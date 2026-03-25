@@ -6,8 +6,12 @@
     "notes": [
       "Do not build or run unsupported semantics as fake live scenarios.",
       "Conditional scenarios require product support review before harness creation.",
-      "Every live verdict requires artifact validation, DB inspection, and log anomaly inspection."
-    ]
+      "Every live verdict requires artifact validation, DB inspection, and log anomaly inspection.",
+      "Guided closure is the live-corpus contract: playbook prose defines best-intent process guidance, not a brittle exact path.",
+      "Every supported scenario MUST author an allowed outcome envelope for outcome-driven verification instead of relying on exact-path assertions alone.",
+      "Residual risks, waived preferred steps, and non-blocking deviations MUST be recorded as callouts instead of failing an otherwise valid closure."
+    ],
+    "verification_mode": "outcome_driven"
   },
   "supported": {
     "name": "all_supported_live_scenarios",
