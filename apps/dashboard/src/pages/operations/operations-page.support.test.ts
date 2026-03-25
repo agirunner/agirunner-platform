@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   OPERATIONS_FIELD_DEFINITIONS,
+  OPERATIONS_INLINE_SECTION_COLUMNS,
   OPERATIONS_SECTION_DEFINITIONS,
   fieldsForSection,
 } from '../runtimes/runtime-defaults.schema.js';
@@ -54,6 +55,24 @@ describe('operations page support', () => {
         'container_manager.stop_timeout_seconds',
       ]),
     );
+  });
+
+  it('balances inline operations groups into explicit left and right columns', () => {
+    expect(OPERATIONS_INLINE_SECTION_COLUMNS).toEqual({
+      left: [
+        'task_timeouts',
+        'runtime_fleet',
+        'connected_platform',
+        'container_manager',
+      ],
+      right: [
+        'workflow_activation',
+        'worker_supervision',
+        'agent_supervision',
+        'realtime_transport',
+        'platform_loops',
+      ],
+    });
   });
 
   it('surfaces the scale-oriented default placeholders for operations tuning', () => {

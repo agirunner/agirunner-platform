@@ -1,4 +1,8 @@
-import type { FieldDefinition, SectionDefinition } from './runtime-defaults.types.js';
+import type {
+  FieldDefinition,
+  SectionColumnLayout,
+  SectionDefinition,
+} from './runtime-defaults.types.js';
 import {
   RUNTIME_OPERATION_FIELD_DEFINITIONS,
   RUNTIME_OPERATION_SECTION_DEFINITIONS,
@@ -538,6 +542,30 @@ export const PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS = [
   'execution_containers',
 ] as const;
 
+export const RUNTIME_INLINE_SECTION_COLUMNS: SectionColumnLayout = {
+  left: [
+    'runtime_throughput',
+    'server_timeouts',
+    'runtime_api',
+    'llm_transport',
+    'tool_timeouts',
+    'lifecycle_timeouts',
+    'connected_platform',
+    'capture_timeouts',
+    'secrets_timeouts',
+    'subagent_timeouts',
+  ],
+  right: [
+    'task_limits',
+    'capacity_limits',
+    'workspace_timeouts',
+    'workspace_operations',
+    'agent_context',
+    'orchestrator_context',
+    'agent_safeguards',
+  ],
+};
+
 export const FIELD_DEFINITIONS: FieldDefinition[] = [
   ...BASE_FIELD_DEFINITIONS.slice(0, 8),
   ...RUNTIME_OPERATION_FIELD_DEFINITIONS.filter(
@@ -583,12 +611,23 @@ export const OPERATIONS_SECTION_DEFINITIONS: SectionDefinition[] = [
   operationSectionByKey('platform_loops'),
 ];
 
-export const PRIMARY_OPERATIONS_SECTION_KEYS = [
-  'task_timeouts',
-  'runtime_fleet',
-  'workflow_activation',
-  'worker_supervision',
-] as const;
+export const PRIMARY_OPERATIONS_SECTION_KEYS = [] as const;
+
+export const OPERATIONS_INLINE_SECTION_COLUMNS: SectionColumnLayout = {
+  left: [
+    'task_timeouts',
+    'runtime_fleet',
+    'connected_platform',
+    'container_manager',
+  ],
+  right: [
+    'workflow_activation',
+    'worker_supervision',
+    'agent_supervision',
+    'realtime_transport',
+    'platform_loops',
+  ],
+};
 
 export const OPERATIONS_FIELD_DEFINITIONS: FieldDefinition[] = [
   fieldByKey('tasks.default_timeout_minutes'),

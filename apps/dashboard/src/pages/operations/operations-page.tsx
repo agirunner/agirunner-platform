@@ -2,6 +2,7 @@ import { Cog } from 'lucide-react';
 
 import {
   OPERATIONS_FIELD_DEFINITIONS,
+  OPERATIONS_INLINE_SECTION_COLUMNS,
   OPERATIONS_SECTION_DEFINITIONS,
   PRIMARY_OPERATIONS_SECTION_KEYS,
 } from '../runtimes/runtime-defaults.schema.js';
@@ -16,7 +17,7 @@ export function OperationsPage(): JSX.Element {
       fieldDefinitions={OPERATIONS_FIELD_DEFINITIONS}
       sectionDefinitions={OPERATIONS_SECTION_DEFINITIONS}
       primarySectionKeys={PRIMARY_OPERATIONS_SECTION_KEYS}
-      renderAllSectionsInline
+      inlineSectionColumns={OPERATIONS_INLINE_SECTION_COLUMNS}
       sectionIdPrefix="platform-operations"
       successMessage="Operations configuration saved."
       errorLabel="operations configuration"

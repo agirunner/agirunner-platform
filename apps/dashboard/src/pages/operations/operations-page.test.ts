@@ -11,7 +11,8 @@ describe('operations page source', () => {
     const source = readSource('./operations-page.tsx');
     expect(source).toContain('RuntimeDefaultsEditorPage');
     expect(source).toContain("title=\"Operations\"");
-    expect(source).toContain('renderAllSectionsInline');
+    expect(source).toContain('OPERATIONS_INLINE_SECTION_COLUMNS');
+    expect(source).toContain('inlineSectionColumns={OPERATIONS_INLINE_SECTION_COLUMNS}');
     expect(source).not.toContain('/api/v1/config/runtime-defaults');
   });
 });

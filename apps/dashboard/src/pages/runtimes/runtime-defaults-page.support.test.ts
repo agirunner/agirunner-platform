@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { FIELD_DEFINITIONS, fieldsForSection, SECTION_DEFINITIONS } from './runtime-defaults.schema.js';
+import {
+  FIELD_DEFINITIONS,
+  fieldsForSection,
+  PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS,
+  RUNTIME_INLINE_SECTION_COLUMNS,
+  SECTION_DEFINITIONS,
+} from './runtime-defaults.schema.js';
 import { buildValidationErrors } from './runtime-defaults.validation.js';
 import { summarizeRuntimeDefaultSections } from './runtime-defaults-page.support.js';
 
@@ -112,6 +118,36 @@ describe('runtime defaults page support', () => {
         'container_manager.reconcile_interval_seconds',
       ]),
     );
+  });
+
+  it('keeps the current top sections in place and explicitly balances the remaining columns', () => {
+    expect(PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS).toEqual([
+      'runtime_containers',
+      'execution_containers',
+    ]);
+    expect(RUNTIME_INLINE_SECTION_COLUMNS).toEqual({
+      left: [
+        'runtime_throughput',
+        'server_timeouts',
+        'runtime_api',
+        'llm_transport',
+        'tool_timeouts',
+        'lifecycle_timeouts',
+        'connected_platform',
+        'capture_timeouts',
+        'secrets_timeouts',
+        'subagent_timeouts',
+      ],
+      right: [
+        'task_limits',
+        'capacity_limits',
+        'workspace_timeouts',
+        'workspace_operations',
+        'agent_context',
+        'orchestrator_context',
+        'agent_safeguards',
+      ],
+    });
   });
 
   it('validates numeric runtime ranges, capacity limits, and history relationships before save', () => {

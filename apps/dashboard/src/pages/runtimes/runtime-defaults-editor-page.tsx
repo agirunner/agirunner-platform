@@ -17,7 +17,6 @@ import {
   upsertRuntimeDefault,
 } from './runtime-defaults.api.js';
 import {
-  RuntimeAdvancedSettingsSection,
   RuntimeDefaultsSection,
 } from './runtime-defaults-fields.js';
 import {
@@ -29,6 +28,7 @@ import { fieldsForSection } from './runtime-defaults.schema.js';
 import type {
   FieldDefinition,
   FormValues,
+  SectionColumnLayout,
   SectionDefinition,
 } from './runtime-defaults.types.js';
 import { buildValidationErrors } from './runtime-defaults.validation.js';
@@ -41,10 +41,14 @@ interface RuntimeDefaultsEditorPageProps {
   fieldDefinitions: FieldDefinition[];
   sectionDefinitions: SectionDefinition[];
   primarySectionKeys: readonly string[];
+  inlineSectionColumns?: SectionColumnLayout;
   sectionIdPrefix: string;
   successMessage: string;
   errorLabel: string;
-  renderAllSectionsInline?: boolean;
+}
+
+function isDefined<T>(value: T | null): value is T {
+  return value !== null;
 }
 
 function buildSaveOperations(
@@ -82,7 +86,6 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
   });
   const [formValues, setFormValues] = useState<FormValues>({});
   const [isDirty, setIsDirty] = useState(false);
-  const [isAdvancedExpanded, setAdvancedExpanded] = useState(false);
 
   const defaultsByKey = useMemo(() => buildDefaultsByKey(data), [data]);
   const validationErrors = useMemo(
@@ -105,31 +108,54 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
   );
   const hasValidationErrors = Object.keys(validationErrors).length > 0;
   const primarySectionKeys = useMemo(
+    () => new Set<string>(props.primarySectionKeys),
+    [props.primarySectionKeys],
+  );
+  const renderableSectionsByKey = useMemo(
     () =>
-      new Set<string>(
-        props.renderAllSectionsInline
-          ? props.sectionDefinitions.map((section) => section.key)
-          : props.primarySectionKeys,
+      new Map(
+        props.sectionDefinitions.map((section) => [
+          section.key,
+          {
+            ...section,
+            fields: fieldsForSection(section.key, props.fieldDefinitions),
+            configuredCount: sectionSummaryByKey.get(section.key)?.configuredCount ?? 0,
+            fieldCount: sectionSummaryByKey.get(section.key)?.fieldCount ?? 0,
+            errorCount: sectionSummaryByKey.get(section.key)?.errorCount ?? 0,
+          },
+        ]),
       ),
-    [props.primarySectionKeys, props.renderAllSectionsInline, props.sectionDefinitions],
+    [props.fieldDefinitions, props.sectionDefinitions, sectionSummaryByKey],
   );
   const primarySections = useMemo(
     () =>
-      props.sectionDefinitions.filter((section) => primarySectionKeys.has(section.key)),
-    [primarySectionKeys, props.sectionDefinitions],
+      props.sectionDefinitions
+        .filter((section) => primarySectionKeys.has(section.key))
+        .map((section) => renderableSectionsByKey.get(section.key) ?? null)
+        .filter(isDefined),
+    [primarySectionKeys, props.sectionDefinitions, renderableSectionsByKey],
   );
-  const advancedSections = useMemo(
+  const remainingSections = useMemo(
     () =>
-      props.sectionDefinitions.filter((section) => !primarySectionKeys.has(section.key)).map(
-        (section) => ({
-          ...section,
-          fields: fieldsForSection(section.key, props.fieldDefinitions),
-          configuredCount: sectionSummaryByKey.get(section.key)?.configuredCount ?? 0,
-          fieldCount: sectionSummaryByKey.get(section.key)?.fieldCount ?? 0,
-          errorCount: sectionSummaryByKey.get(section.key)?.errorCount ?? 0,
-        }),
-      ),
-    [primarySectionKeys, props.fieldDefinitions, props.sectionDefinitions, sectionSummaryByKey],
+      props.sectionDefinitions
+        .filter((section) => !primarySectionKeys.has(section.key))
+        .map((section) => renderableSectionsByKey.get(section.key) ?? null)
+        .filter(isDefined),
+    [primarySectionKeys, props.sectionDefinitions, renderableSectionsByKey],
+  );
+  const inlineSectionColumns = useMemo(() => {
+    if (!props.inlineSectionColumns) {
+      return null;
+    }
+    return {
+      left: props.inlineSectionColumns.left
+        .map((key) => renderableSectionsByKey.get(key) ?? null)
+        .filter(isDefined),
+      right: props.inlineSectionColumns.right
+        .map((key) => renderableSectionsByKey.get(key) ?? null)
+        .filter(isDefined),
+    };
+  }, [props.inlineSectionColumns, renderableSectionsByKey]);
   );
 
   useUnsavedChanges(isDirty);
@@ -198,6 +224,32 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
 
   const Icon = props.icon;
 
+  function renderSectionCard(section: {
+    key: string;
+    title: string;
+    description: string;
+    fields: FieldDefinition[];
+    configuredCount: number;
+    fieldCount: number;
+    errorCount: number;
+  }): JSX.Element {
+    return (
+      <section key={section.key} id={`${props.sectionIdPrefix}-${section.key}`}>
+        <RuntimeDefaultsSection
+          title={section.title}
+          description={section.description}
+          fields={section.fields}
+          values={formValues}
+          errors={validationErrors}
+          configuredCount={section.configuredCount}
+          fieldCount={section.fieldCount}
+          errorCount={section.errorCount}
+          onChange={updateField}
+        />
+      </section>
+    );
+  }
+
   return (
     <div className="space-y-6 p-6">
       <Card>
@@ -237,36 +289,25 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
         </CardHeader>
       </Card>
 
-      <div className="grid gap-6 xl:grid-cols-2">
-        {primarySections.map((section) => {
-          const summary = sectionSummaryByKey.get(section.key);
-          return (
-            <section key={section.key} id={`${props.sectionIdPrefix}-${section.key}`}>
-              <RuntimeDefaultsSection
-                title={section.title}
-                description={section.description}
-                fields={fieldsForSection(section.key, props.fieldDefinitions)}
-                values={formValues}
-                errors={validationErrors}
-                configuredCount={summary?.configuredCount ?? 0}
-                fieldCount={summary?.fieldCount ?? 0}
-                errorCount={summary?.errorCount ?? 0}
-                onChange={updateField}
-              />
-            </section>
-          );
-        })}
-      </div>
+      {primarySections.length > 0 ? (
+        <div className="grid gap-6 xl:grid-cols-2">
+          {primarySections.map((section) => renderSectionCard(section))}
+        </div>
+      ) : null}
 
-      {advancedSections.length > 0 ? (
-        <RuntimeAdvancedSettingsSection
-          sections={advancedSections}
-          values={formValues}
-          errors={validationErrors}
-          isExpanded={isAdvancedExpanded}
-          onToggle={() => setAdvancedExpanded((current) => !current)}
-          onChange={updateField}
-        />
+      {inlineSectionColumns ? (
+        <div className="grid gap-6 xl:grid-cols-2">
+          <div className="space-y-6">
+            {inlineSectionColumns.left.map((section) => renderSectionCard(section))}
+          </div>
+          <div className="space-y-6">
+            {inlineSectionColumns.right.map((section) => renderSectionCard(section))}
+          </div>
+        </div>
+      ) : remainingSections.length > 0 ? (
+        <div className="grid gap-6 xl:grid-cols-2">
+          {remainingSections.map((section) => renderSectionCard(section))}
+        </div>
       ) : null}
     </div>
   );

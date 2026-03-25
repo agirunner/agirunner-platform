@@ -55,4 +55,9 @@ export interface SectionDefinition {
   defaultExpanded?: boolean;
 }
 
+export interface SectionColumnLayout {
+  left: readonly FieldDefinition['section'][];
+  right: readonly FieldDefinition['section'][];
+}
+
 export type FormValues = Record<string, string>;

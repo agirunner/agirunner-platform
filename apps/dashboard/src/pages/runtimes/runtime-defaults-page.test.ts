@@ -93,8 +93,10 @@ describe('runtime defaults page source', () => {
     expect(pageSource).toContain('RuntimeDefaultsEditorPage');
     expect(pageSource).toContain('title="Runtimes"');
     expect(pageSource).toContain('PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS');
+    expect(pageSource).toContain('RUNTIME_INLINE_SECTION_COLUMNS');
     expect(editorSource).toContain('RuntimeDefaultsSection');
-    expect(editorSource).toContain('RuntimeAdvancedSettingsSection');
+    expect(editorSource).toContain('inlineSectionColumns');
+    expect(editorSource).not.toContain('RuntimeAdvancedSettingsSection');
     expect(editorSource).toContain('Reset changes');
     expect(editorSource).toContain('Save');
     expect(editorSource).toContain('buildValidationErrors');
@@ -109,8 +111,7 @@ describe('runtime defaults page source', () => {
     expect(pageSource).not.toContain('Configured overrides');
     expect(pageSource).not.toContain('Save blockers');
     expect(pageSource).not.toContain('Warm pools');
-    expect(fieldsSource).toContain('Advanced Settings');
-    expect(fieldsSource).toContain('text-base font-semibold text-foreground');
+    expect(fieldsSource).not.toContain('Advanced Settings');
     expect(fieldsSource).not.toContain('Runtime log level');
     expect(fieldsSource).not.toContain('Show');
     expect(fieldsSource).not.toContain('Hide');
