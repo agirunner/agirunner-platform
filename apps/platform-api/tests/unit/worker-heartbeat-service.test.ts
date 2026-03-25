@@ -1,8 +1,91 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { enforceHeartbeatTimeouts } from '../../src/services/worker-heartbeat-service.js';
+import { enforceHeartbeatTimeouts, heartbeat } from '../../src/services/worker-heartbeat-service.js';
 
 describe('worker heartbeat timeout enforcement', () => {
+  it('releases stale claimed task leases when the worker reports no current task', async () => {
+    const identity = {
+      tenantId: 'tenant-1',
+      scope: 'worker' as const,
+      ownerId: 'worker-1',
+    };
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.startsWith('SELECT * FROM workers')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'worker-1',
+                tenant_id: 'tenant-1',
+                status: 'busy',
+              },
+            ],
+          };
+        }
+        if (sql.startsWith('UPDATE workers')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('FROM tasks') && sql.includes("state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{ id: 'task-stale' }],
+          };
+        }
+        if (sql.includes("SET state = 'ready'")) {
+          return {
+            rowCount: 1,
+            rows: [{ id: 'task-stale' }],
+          };
+        }
+        if (sql.includes('UPDATE agents')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('FROM worker_signals')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const eventService = { emit: vi.fn().mockResolvedValue(undefined) };
+    const context = {
+      pool,
+      eventService,
+      config: {
+        WORKER_OFFLINE_THRESHOLD_MULTIPLIER: 3,
+        WORKER_DEGRADED_THRESHOLD_MULTIPLIER: 2,
+        WORKER_OFFLINE_GRACE_PERIOD_MS: 5_000,
+      },
+    };
+
+    const result = await heartbeat(context as never, identity as never, 'worker-1', {
+      status: 'online',
+      current_task_id: null,
+    });
+
+    expect(result).toEqual({ ack: true, pending_signals: [] });
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining("SET state = 'ready'"),
+      ['tenant-1', ['task-stale']],
+    );
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE agents'),
+      ['tenant-1', 'worker-1', ['task-stale']],
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.state_changed',
+        entityId: 'task-stale',
+        data: expect.objectContaining({
+          from_state: 'claimed',
+          to_state: 'ready',
+          reason: 'worker_reported_no_current_task',
+          worker_id: 'worker-1',
+        }),
+      }),
+    );
+  });
+
   it('fails in-progress/claimed tasks after offline grace window elapses', async () => {
     const now = new Date('2026-03-05T00:00:00.000Z');
     const lastHeartbeat = new Date(now.getTime() - 50_000).toISOString();

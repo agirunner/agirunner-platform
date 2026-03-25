@@ -59,6 +59,8 @@ export async function heartbeat(
     [identity.tenantId, workerId, status, currentTaskId, payload.metrics ?? {}],
   );
 
+  await reconcileStaleClaimedTasks(context, identity.tenantId, workerId, currentTaskId);
+
   const pendingSignals = await context.pool.query(
     `SELECT id, signal_type, task_id, data, created_at
      FROM worker_signals
@@ -77,6 +79,70 @@ export async function heartbeat(
       issued_at: row.created_at,
     })),
   };
+}
+
+async function reconcileStaleClaimedTasks(
+  context: WorkerServiceContext,
+  tenantId: string,
+  workerId: string,
+  currentTaskId: string | null,
+) {
+  if (currentTaskId) {
+    return;
+  }
+
+  const staleClaims = await context.pool.query<{ id: string }>(
+    `SELECT id
+       FROM tasks
+      WHERE tenant_id = $1
+        AND assigned_worker_id = $2
+        AND state = 'claimed'
+        AND started_at IS NULL`,
+    [tenantId, workerId],
+  );
+  if (!staleClaims.rowCount) {
+    return;
+  }
+
+  const taskIds = staleClaims.rows.map((row) => row.id);
+  await context.pool.query(
+    `UPDATE tasks
+        SET state = 'ready',
+            state_changed_at = now(),
+            assigned_agent_id = NULL,
+            assigned_worker_id = NULL,
+            claimed_at = NULL
+      WHERE tenant_id = $1
+        AND id = ANY($2::uuid[])`,
+    [tenantId, taskIds],
+  );
+  await context.pool.query(
+    `UPDATE agents
+        SET current_task_id = NULL,
+            status = 'active',
+            last_heartbeat_at = now()
+      WHERE tenant_id = $1
+        AND worker_id = $2
+        AND current_task_id = ANY($3::uuid[])`,
+    [tenantId, workerId, taskIds],
+  );
+
+  for (const taskId of taskIds) {
+    await context.eventService.emit({
+      tenantId,
+      type: 'task.state_changed',
+      entityType: 'task',
+      entityId: taskId,
+      actorType: 'system',
+      actorId: 'worker_heartbeat',
+      data: {
+        from_state: 'claimed',
+        to_state: 'ready',
+        reason: 'worker_reported_no_current_task',
+        worker_id: workerId,
+      },
+    });
+  }
 }
 
 export async function enforceHeartbeatTimeouts(context: WorkerServiceContext, now = new Date()): Promise<number> {
