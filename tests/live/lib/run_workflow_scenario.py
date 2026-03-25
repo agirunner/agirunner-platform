@@ -2705,7 +2705,12 @@ def evaluate_expectations(
     }
 
 
-def progress_verification_requires_full_evidence(expectations: dict[str, Any]) -> bool:
+def progress_verification_requires_full_evidence(
+    expectations: dict[str, Any],
+    verification_mode: str,
+) -> bool:
+    if verification_mode == OUTCOME_DRIVEN_VERIFICATION_MODE:
+        return True
     return any(
         isinstance(expectations.get(key), list) and len(expectations.get(key, [])) > 0
         for key in ("task_rework_sequences", "continuity_rework_sequences")
@@ -2750,6 +2755,8 @@ def evaluate_progress_expectations(
     fleet: Any,
     playbook_id: str,
     fleet_peaks: dict[str, int] | None,
+    verification_mode: str,
+    trace: TraceRecorder | None,
 ) -> dict[str, Any]:
     workflow_with_tasks = attach_workflow_tasks(workflow, fetch_workflow_tasks(client, workflow_id=workflow_id))
     verification = evaluate_expectations(
@@ -2767,16 +2774,27 @@ def evaluate_progress_expectations(
         fleet_peaks=fleet_peaks,
         efficiency=None,
         execution_logs=None,
+        verification_mode=verification_mode,
+        evidence={},
     )
     if verification["passed"]:
         return verification
-    if not progress_verification_requires_full_evidence(expectations):
+    if not progress_verification_requires_full_evidence(expectations, verification_mode):
         return verification
     if not progress_verification_candidate_ready(expectations, workflow=workflow, work_items=work_items, board=board):
         return verification
 
     events_snapshot = collect_workflow_events(client, workflow_id=workflow_id)
     execution_logs_snapshot = collect_execution_logs(client, workflow_id=workflow_id)
+    live_containers_snapshot = collect_live_container_snapshot(client, label="containers.list.progress")
+    evidence_payload: dict[str, Any] = {
+        "db_state": collect_db_state_snapshot(trace, workflow_id=workflow_id),
+        "log_anomalies": summarize_log_anomalies(execution_logs_snapshot),
+        "live_containers": live_containers_snapshot,
+        "runtime_cleanup": inspect_runtime_cleanup(live_containers_snapshot.get("data"), trace=trace)
+        if live_containers_snapshot.get("ok")
+        else {"all_clean": False, "error": live_containers_snapshot.get("error")},
+    }
     efficiency_summary = summarize_efficiency(
         workflow=workflow_with_tasks,
         logs=execution_logs_snapshot,
@@ -2798,6 +2816,8 @@ def evaluate_progress_expectations(
         fleet_peaks=fleet_peaks,
         efficiency=efficiency_summary,
         execution_logs=execution_logs_snapshot,
+        evidence=evidence_payload,
+        verification_mode=verification_mode,
     )
 
 
@@ -3522,6 +3542,8 @@ def main() -> None:
                 fleet=latest_fleet,
                 playbook_id=playbook_id,
                 fleet_peaks=fleet_peaks,
+                verification_mode=verification_mode,
+                trace=trace,
             )
             if progress_verification["passed"]:
                 timed_out = False

@@ -7,6 +7,7 @@ import unittest
 import os
 import json
 from pathlib import Path
+from unittest import mock
 
 
 LIVE_LIB = Path(__file__).resolve().parents[1] / "lib"
@@ -75,6 +76,170 @@ class FakeWorkflowClient:
 
 
 class RunWorkflowScenarioTests(unittest.TestCase):
+    def test_evaluate_progress_expectations_outcome_driven_waits_for_clean_runtime_cleanup(self) -> None:
+        workflow = {"id": "wf-1", "state": "active", "tasks": []}
+        expectations = {
+            "state": "active",
+            "outcome_envelope": {
+                "allowed_states": ["active"],
+                "require_output_artifacts": True,
+                "require_completed_non_orchestrator_tasks": True,
+                "require_terminal_work_items": True,
+                "require_db_state": True,
+                "require_runtime_cleanup": True,
+                "require_fatal_log_free": True,
+            },
+        }
+        board = {
+            "data": {
+                "data": {
+                    "columns": [{"id": "done", "is_terminal": True}, {"id": "blocked", "is_blocked": True}],
+                    "work_items": [
+                        {"id": "wi-done", "column_id": "done"},
+                        {"id": "wi-blocked", "column_id": "blocked"},
+                    ],
+                }
+            }
+        }
+        work_items = {
+            "data": {
+                "data": [
+                    {"id": "wi-done", "column_id": "done"},
+                    {"id": "wi-blocked", "column_id": "blocked"},
+                ]
+            }
+        }
+        artifacts = {"data": {"items": [{"logical_path": "deliverables/out.md"}]}}
+        fake_client = object()
+
+        with (
+            mock.patch.object(
+                run_workflow_scenario,
+                "fetch_workflow_tasks",
+                return_value=[
+                    {"id": "task-specialist", "is_orchestrator_task": False, "state": "completed"},
+                ],
+            ),
+            mock.patch.object(run_workflow_scenario, "collect_workflow_events", return_value={"ok": True, "data": []}),
+            mock.patch.object(run_workflow_scenario, "collect_execution_logs", return_value={"data": []}),
+            mock.patch.object(run_workflow_scenario, "summarize_efficiency", return_value={}),
+            mock.patch.object(
+                run_workflow_scenario,
+                "collect_live_container_snapshot",
+                return_value={"ok": True, "data": {"data": [{"kind": "orchestrator", "container_id": "c-1"}]}},
+            ),
+            mock.patch.object(run_workflow_scenario, "collect_db_state_snapshot", return_value={"ok": True}),
+            mock.patch.object(run_workflow_scenario, "summarize_log_anomalies", return_value={"count": 0, "rows": []}),
+            mock.patch.object(
+                run_workflow_scenario,
+                "inspect_runtime_cleanup",
+                return_value={"all_clean": False, "runtime_containers": [{"container_id": "c-1", "clean": False}]},
+            ),
+        ):
+            verification = run_workflow_scenario.evaluate_progress_expectations(
+                fake_client,  # type: ignore[arg-type]
+                workflow_id="wf-1",
+                expectations=expectations,
+                workflow=workflow,
+                board=board,
+                work_items=work_items,
+                stage_gates={"data": []},
+                workspace={},
+                artifacts=artifacts,
+                approval_actions=[],
+                fleet={},
+                playbook_id="pb-1",
+                fleet_peaks={},
+                verification_mode=run_workflow_scenario.OUTCOME_DRIVEN_VERIFICATION_MODE,
+                trace=None,
+            )
+
+        self.assertFalse(verification["passed"])
+        self.assertIn(
+            "expected runtime cleanup evidence to show no dangling runtimes",
+            verification["failures"],
+        )
+
+    def test_evaluate_progress_expectations_outcome_driven_passes_after_clean_runtime_cleanup(self) -> None:
+        workflow = {"id": "wf-1", "state": "active", "tasks": []}
+        expectations = {
+            "state": "active",
+            "outcome_envelope": {
+                "allowed_states": ["active"],
+                "require_output_artifacts": True,
+                "require_completed_non_orchestrator_tasks": True,
+                "require_terminal_work_items": True,
+                "require_db_state": True,
+                "require_runtime_cleanup": True,
+                "require_fatal_log_free": True,
+            },
+        }
+        board = {
+            "data": {
+                "data": {
+                    "columns": [{"id": "done", "is_terminal": True}, {"id": "blocked", "is_blocked": True}],
+                    "work_items": [
+                        {"id": "wi-done", "column_id": "done"},
+                        {"id": "wi-blocked", "column_id": "blocked"},
+                    ],
+                }
+            }
+        }
+        work_items = {
+            "data": {
+                "data": [
+                    {"id": "wi-done", "column_id": "done"},
+                    {"id": "wi-blocked", "column_id": "blocked"},
+                ]
+            }
+        }
+        artifacts = {"data": {"items": [{"logical_path": "deliverables/out.md"}]}}
+        fake_client = object()
+
+        with (
+            mock.patch.object(
+                run_workflow_scenario,
+                "fetch_workflow_tasks",
+                return_value=[
+                    {"id": "task-specialist", "is_orchestrator_task": False, "state": "completed"},
+                ],
+            ),
+            mock.patch.object(run_workflow_scenario, "collect_workflow_events", return_value={"ok": True, "data": []}),
+            mock.patch.object(run_workflow_scenario, "collect_execution_logs", return_value={"data": []}),
+            mock.patch.object(run_workflow_scenario, "summarize_efficiency", return_value={}),
+            mock.patch.object(
+                run_workflow_scenario,
+                "collect_live_container_snapshot",
+                return_value={"ok": True, "data": {"data": [{"kind": "orchestrator", "container_id": "c-1"}]}},
+            ),
+            mock.patch.object(run_workflow_scenario, "collect_db_state_snapshot", return_value={"ok": True}),
+            mock.patch.object(run_workflow_scenario, "summarize_log_anomalies", return_value={"count": 0, "rows": []}),
+            mock.patch.object(
+                run_workflow_scenario,
+                "inspect_runtime_cleanup",
+                return_value={"all_clean": True, "runtime_containers": [{"container_id": "c-1", "clean": True}]},
+            ),
+        ):
+            verification = run_workflow_scenario.evaluate_progress_expectations(
+                fake_client,  # type: ignore[arg-type]
+                workflow_id="wf-1",
+                expectations=expectations,
+                workflow=workflow,
+                board=board,
+                work_items=work_items,
+                stage_gates={"data": []},
+                workspace={},
+                artifacts=artifacts,
+                approval_actions=[],
+                fleet={},
+                playbook_id="pb-1",
+                fleet_peaks={},
+                verification_mode=run_workflow_scenario.OUTCOME_DRIVEN_VERIFICATION_MODE,
+                trace=None,
+            )
+
+        self.assertTrue(verification["passed"])
+
     def test_fetch_workflow_tasks_collects_paginated_task_pages(self) -> None:
         client = FakeWorkflowClient(
             [
