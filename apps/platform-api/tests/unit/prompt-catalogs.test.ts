@@ -58,6 +58,7 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Blocked completions MUST omit resolution.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('submit_handoff accepts only its documented schema fields.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not invent extras such as tests_run or verification_results');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('target_id is never a top-level handoff field');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Optional context files may not exist.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('shell_exec timeout is in seconds and MUST stay within tool limits');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('confirm the runtime exists or install it');

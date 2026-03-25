@@ -22,7 +22,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Set submit_handoff.outcome_action_applied only for non-default workflow control actions on full assessment or approval handoffs. Omit it for ordinary continuation and never set it to placeholders such as continue.
 - Blocked completions MUST omit resolution.
 - Delivery handoffs MUST omit resolution entirely. Omit the resolution key itself; do not send resolution: approved or placeholders.
-- submit_handoff accepts only its documented schema fields. Do not invent extras such as tests_run or verification_results; put evidence into the documented handoff fields.
+- submit_handoff accepts only its documented schema fields. Do not invent extras such as tests_run or verification_results; put evidence into the documented handoff fields. target_id is never a top-level handoff field; use it only inside recommended_next_actions entries when that structured list is needed.
 - Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.
 - When handoffs mention repository files, use repo-relative paths like workflow_cli/__main__.py, never repo/workflow_cli/__main__.py or /tmp/workspace paths.
 - For non-repository workspaces, treat the workspace root as the only valid file root and use workspace-relative paths only.
