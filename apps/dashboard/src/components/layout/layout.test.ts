@@ -35,6 +35,13 @@ describe('layout breadcrumbs', () => {
     ]);
   });
 
+  it('labels the platform operations page in breadcrumbs', () => {
+    expect(buildBreadcrumbs('/platform/operations')).toEqual([
+      { label: 'Platform' },
+      { label: 'Operations' },
+    ]);
+  });
+
   it('handles nested paths with id segments', () => {
     const crumbs = buildBreadcrumbs('/mission-control/workflows/12345678-aaaa');
     expect(crumbs).toHaveLength(3);
@@ -59,6 +66,8 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("label: 'Platform'");
     expect(source).toContain("label: 'Runtimes'");
     expect(source).toContain("href: '/platform/runtimes'");
+    expect(source).toContain("label: 'Operations'");
+    expect(source).toContain("href: '/platform/operations'");
     expect(source).toContain("label: 'Diagnostics'");
     expect(source).toContain("label: 'Containers'");
     expect(source).toContain("href: '/diagnostics/containers'");

@@ -16,17 +16,8 @@ describe('runtime defaults page support', () => {
       'runtime_api',
       'llm_transport',
       'tool_timeouts',
-      'container_timeouts',
       'lifecycle_timeouts',
-      'task_timeouts',
       'connected_platform',
-      'realtime_transport',
-      'workflow_activation',
-      'container_manager',
-      'worker_supervision',
-      'agent_supervision',
-      'webhook_delivery',
-      'platform_loops',
       'workspace_timeouts',
       'workspace_operations',
       'capture_timeouts',
@@ -105,9 +96,23 @@ describe('runtime defaults page support', () => {
     expect(fieldsForSection('connected_platform').map((field) => field.key)).toEqual(
       expect.arrayContaining([
         'specialist_runtime_bootstrap_claim_timeout_seconds',
-        'specialist_runtime_drain_grace_seconds',
         'platform.claim_poll_seconds',
         'platform.drain_timeout_seconds',
+      ]),
+    );
+    expect(FIELD_DEFINITIONS.map((field) => field.key)).not.toEqual(
+      expect.arrayContaining([
+        'docker.checker_timeout_ms',
+        'docker.stop_timeout_seconds',
+        'container.copy_timeout_seconds',
+        'containerd.connect_timeout_seconds',
+        'workspace.inject_context_rename_timeout_seconds',
+        'tasks.default_timeout_minutes',
+        'platform.workflow_activation_delay_ms',
+        'platform.worker_dispatch_ack_timeout_ms',
+        'platform.agent_heartbeat_grace_period_ms',
+        'platform.webhook_max_attempts',
+        'container_manager.reconcile_interval_seconds',
       ]),
     );
   });
@@ -222,15 +227,6 @@ describe('runtime defaults page support', () => {
 
     expect(errors['specialist_runtime_default_cpu']).toContain('whole number');
     expect(errors['specialist_execution_default_cpu']).toContain('whole number');
-  });
-
-  it('rejects worker reconnect ranges where the minimum exceeds the maximum', () => {
-    const errors = buildValidationErrors({
-      'platform.worker_reconnect_min_ms': '60000',
-      'platform.worker_reconnect_max_ms': '1000',
-    });
-
-    expect(errors['platform.worker_reconnect_max_ms']).toContain('at least the minimum');
   });
 
   it('builds section summaries with configured and error counts', () => {

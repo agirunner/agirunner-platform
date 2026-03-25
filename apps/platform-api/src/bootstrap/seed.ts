@@ -206,20 +206,6 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
-    configKey: 'platform.webhook_max_attempts',
-    configValue: '4',
-    configType: 'number',
-    description: 'Maximum number of attempts before a webhook delivery is marked failed',
-  });
-
-  await service.upsertDefault(DEFAULT_TENANT_ID, {
-    configKey: 'platform.webhook_retry_base_delay_ms',
-    configValue: '200',
-    configType: 'number',
-    description: 'Base delay in milliseconds used for webhook retry backoff',
-  });
-
-  await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'workspace.clone_max_retries',
     configValue: '3',
     configType: 'number',
@@ -720,30 +706,6 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
       description: 'Maximum duration in seconds for MCP tool calls',
     },
     {
-      configKey: 'docker.checker_timeout_ms',
-      configValue: '500',
-      configType: 'number',
-      description: 'Timeout in milliseconds for runtime Docker availability checks',
-    },
-    {
-      configKey: 'docker.stop_timeout_seconds',
-      configValue: '10',
-      configType: 'number',
-      description: 'Grace period in seconds before the runtime force-stops managed containers',
-    },
-    {
-      configKey: 'container.copy_timeout_seconds',
-      configValue: '30',
-      configType: 'number',
-      description: 'Timeout in seconds for container copy operations during task setup and capture',
-    },
-    {
-      configKey: 'containerd.connect_timeout_seconds',
-      configValue: '5',
-      configType: 'number',
-      description: 'Timeout in seconds for containerd client connection attempts',
-    },
-    {
       configKey: 'lifecycle.healthcheck_timeout_seconds',
       configValue: '5',
       configType: 'number',
@@ -826,12 +788,6 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
       configValue: '20',
       configType: 'number',
       description: 'Maximum duration in seconds for creating the initial task workspace layout',
-    },
-    {
-      configKey: 'workspace.inject_context_rename_timeout_seconds',
-      configValue: '10',
-      configType: 'number',
-      description: 'Maximum duration in seconds for renaming and injecting generated context files',
     },
     {
       configKey: 'workspace.configure_git_timeout_seconds',

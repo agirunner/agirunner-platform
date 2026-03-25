@@ -1,15 +1,18 @@
 import { FIELD_DEFINITIONS } from './runtime-defaults.schema.js';
-import type { FormValues } from './runtime-defaults.types.js';
+import type { FieldDefinition, FormValues } from './runtime-defaults.types.js';
 import {
   validateContainerCpu,
   validateContainerImage,
   validateContainerMemory,
 } from '../../lib/container-resources.validation.js';
 
-export function buildValidationErrors(values: FormValues): Record<string, string> {
+export function buildValidationErrors(
+  values: FormValues,
+  fieldDefinitions: FieldDefinition[] = FIELD_DEFINITIONS,
+): Record<string, string> {
   const errors: Record<string, string> = {};
 
-  for (const field of FIELD_DEFINITIONS) {
+  for (const field of fieldDefinitions) {
     const value = values[field.key]?.trim();
     if (!value) {
       continue;

@@ -9,7 +9,7 @@ function readSource(fileName: string) {
 }
 
 describe('runtime defaults page source', () => {
-  it('exposes the three-container runtime schema through structured exports', () => {
+  it('exposes the specialist runtime schema through structured exports', () => {
     expect(SECTION_DEFINITIONS.map((section) => section.key)).toEqual([
       'runtime_containers',
       'execution_containers',
@@ -20,17 +20,8 @@ describe('runtime defaults page source', () => {
       'runtime_api',
       'llm_transport',
       'tool_timeouts',
-      'container_timeouts',
       'lifecycle_timeouts',
-      'task_timeouts',
       'connected_platform',
-      'realtime_transport',
-      'workflow_activation',
-      'container_manager',
-      'worker_supervision',
-      'agent_supervision',
-      'webhook_delivery',
-      'platform_loops',
       'workspace_timeouts',
       'workspace_operations',
       'capture_timeouts',
@@ -53,7 +44,6 @@ describe('runtime defaults page source', () => {
         'specialist_execution_default_pull_policy',
         'global_max_specialists',
         'specialist_runtime_bootstrap_claim_timeout_seconds',
-        'specialist_runtime_drain_grace_seconds',
         'queue.max_depth',
         'platform.claim_poll_seconds',
         'platform.drain_timeout_seconds',
@@ -87,21 +77,30 @@ describe('runtime defaults page source', () => {
         'tools.web_search_provider',
         'tools.web_search_base_url',
         'tools.web_search_api_key_secret_ref',
+        'tasks.default_timeout_minutes',
+        'specialist_runtime_drain_grace_seconds',
+        'platform.workflow_activation_delay_ms',
+        'container_manager.reconcile_interval_seconds',
+        'docker.checker_timeout_ms',
+        'platform.webhook_max_attempts',
       ]),
     );
   });
 
-  it('centers the page on top-level defaults and a single advanced settings container', () => {
+  it('reuses the shared defaults editor and keeps the same advanced settings container', () => {
     const pageSource = readSource('./runtime-defaults-page.tsx');
+    const editorSource = readSource('./runtime-defaults-editor-page.tsx');
     const fieldsSource = readSource('./runtime-defaults-fields.tsx');
-    expect(pageSource).toContain('RuntimeDefaultsSection');
-    expect(pageSource).toContain('RuntimeAdvancedSettingsSection');
-    expect(pageSource).toContain('Reset changes');
-    expect(pageSource).toContain('Save');
-    expect(pageSource).toContain('buildValidationErrors');
-    expect(pageSource).toContain('summarizeRuntimeDefaultSections');
+    expect(pageSource).toContain('RuntimeDefaultsEditorPage');
+    expect(pageSource).toContain('title="Runtimes"');
     expect(pageSource).toContain('PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS');
-    expect(pageSource).toContain('className="space-y-6 p-6"');
+    expect(editorSource).toContain('RuntimeDefaultsSection');
+    expect(editorSource).toContain('RuntimeAdvancedSettingsSection');
+    expect(editorSource).toContain('Reset changes');
+    expect(editorSource).toContain('Save');
+    expect(editorSource).toContain('buildValidationErrors');
+    expect(editorSource).toContain('summarizeRuntimeDefaultSections');
+    expect(editorSource).toContain('className="space-y-6 p-6"');
     expect(pageSource).not.toContain('sticky bottom-4');
     expect(pageSource).not.toContain('Save runtime defaults');
     expect(pageSource).not.toContain('ActiveRuntimeImageCard');
@@ -119,7 +118,7 @@ describe('runtime defaults page source', () => {
   });
 
   it('guards against unsaved changes via beforeunload', () => {
-    const source = readSource('./runtime-defaults-page.tsx');
+    const source = readSource('./runtime-defaults-editor-page.tsx');
     expect(source).toContain('useUnsavedChanges');
     expect(source).toContain('useUnsavedChanges(isDirty)');
   });

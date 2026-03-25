@@ -295,6 +295,24 @@ describe('RuntimeDefaultsService', () => {
       ).rejects.toThrow('tools.web_search_timeout_seconds has been removed');
     });
 
+    it('rejects removed dead runtime defaults', async () => {
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'docker.checker_timeout_ms',
+          configValue: '500',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('docker.checker_timeout_ms has been removed');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'containerd.connect_timeout_seconds',
+          configValue: '5',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('containerd.connect_timeout_seconds has been removed');
+    });
+
     it('rejects out-of-range runtime compaction defaults', async () => {
       await expect(
         service.createDefault(TENANT_ID, {
@@ -443,7 +461,7 @@ describe('RuntimeDefaultsService', () => {
       ).rejects.toThrow('platform.agent_key_expiry_ms must be at least 1');
     });
 
-    it('rejects non-positive platform transport and webhook timing defaults', async () => {
+    it('rejects non-positive platform transport timing defaults', async () => {
       pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
 
       await expect(
@@ -453,14 +471,6 @@ describe('RuntimeDefaultsService', () => {
           configType: 'number',
         }),
       ).rejects.toThrow('platform.event_stream_keepalive_interval_ms must be at least 1');
-
-      await expect(
-        service.createDefault(TENANT_ID, {
-          configKey: 'platform.webhook_max_attempts',
-          configValue: '0',
-          configType: 'number',
-        }),
-      ).rejects.toThrow('platform.webhook_max_attempts must be at least 1');
     });
 
     it('rejects invalid agent supervision threshold defaults', async () => {

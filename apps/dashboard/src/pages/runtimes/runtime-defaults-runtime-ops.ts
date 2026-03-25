@@ -28,11 +28,6 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     description: 'Set execution ceilings for the built-in file, git, shell, web, and MCP tools.',
   },
   {
-    key: 'container_timeouts',
-    title: 'Container operations',
-    description: 'Bound runtime checks and container-copy/connect operations.',
-  },
-  {
     key: 'lifecycle_timeouts',
     title: 'Lifecycle timeouts',
     description: 'Control health checks and task-container stop/destroy deadlines.',
@@ -78,12 +73,6 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     title: 'Agent supervision',
     description:
       'Tune standalone agent heartbeat defaults, stale-task grace periods, and issued agent key lifetimes.',
-  },
-  {
-    key: 'webhook_delivery',
-    title: 'Webhook delivery',
-    description:
-      'Tune webhook delivery retry budgets and backoff cadence for platform-controlled outbound events.',
   },
   {
     key: 'platform_loops',
@@ -168,7 +157,6 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
     step: 1,
   },
   ...buildToolTimeoutFields(),
-  ...buildContainerTimeoutFields(),
   ...buildLifecycleTimeoutFields(),
   {
     key: 'tasks.default_timeout_minutes',
@@ -188,7 +176,6 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   ...buildContainerManagerFields(),
   ...buildWorkerSupervisionFields(),
   ...buildAgentSupervisionFields(),
-  ...buildWebhookDeliveryFields(),
   ...buildPlatformLoopFields(),
   ...buildWorkspaceTimeoutFields(),
   ...buildWorkspaceOperationFields(),
@@ -305,56 +292,6 @@ function buildToolTimeoutFields(): FieldDefinition[] {
     toolTimeoutField('tools.helpers_exec_timeout_seconds', 'Helper exec timeout', '10'),
     toolTimeoutField('tools.web_fetch_timeout_seconds', 'Web fetch timeout', '30'),
     toolTimeoutField('tools.mcp_timeout_seconds', 'MCP timeout', '30'),
-  ];
-}
-
-function buildContainerTimeoutFields(): FieldDefinition[] {
-  return [
-    {
-      key: 'docker.checker_timeout_ms',
-      label: 'Container checker timeout (ms)',
-      description: 'Deadline for runtime container-health checks against the container backend.',
-      configType: 'number',
-      placeholder: '500',
-      section: 'container_timeouts',
-      inputMode: 'numeric',
-      min: 1,
-      step: 1,
-    },
-    {
-      key: 'docker.stop_timeout_seconds',
-      label: 'Container stop timeout (seconds)',
-      description: 'How long runtime stop operations wait before forcing container shutdown.',
-      configType: 'number',
-      placeholder: '10',
-      section: 'container_timeouts',
-      inputMode: 'numeric',
-      min: 1,
-      step: 1,
-    },
-    {
-      key: 'container.copy_timeout_seconds',
-      label: 'Container copy timeout (seconds)',
-      description: 'Maximum duration for copy-to/copy-from operations against task containers.',
-      configType: 'number',
-      placeholder: '30',
-      section: 'container_timeouts',
-      inputMode: 'numeric',
-      min: 1,
-      step: 1,
-    },
-    {
-      key: 'containerd.connect_timeout_seconds',
-      label: 'Containerd connect timeout (seconds)',
-      description:
-        'Upper bound for establishing containerd connections when that provider is in use.',
-      configType: 'number',
-      placeholder: '5',
-      section: 'container_timeouts',
-      inputMode: 'numeric',
-      min: 1,
-      step: 1,
-    },
   ];
 }
 
@@ -608,11 +545,6 @@ function buildRealtimeTransportFields(): FieldDefinition[] {
 function buildWorkspaceTimeoutFields(): FieldDefinition[] {
   return [
     workspaceTimeoutField('workspace.create_layout_timeout_seconds', 'Create layout timeout', '20'),
-    workspaceTimeoutField(
-      'workspace.inject_context_rename_timeout_seconds',
-      'Context rename timeout',
-      '10',
-    ),
     workspaceTimeoutField('workspace.configure_git_timeout_seconds', 'Configure git timeout', '15'),
     workspaceTimeoutField('workspace.cleanup_git_timeout_seconds', 'Cleanup git timeout', '10'),
     workspaceTimeoutField(
@@ -1012,35 +944,6 @@ function buildAgentSupervisionFields(): FieldDefinition[] {
       inputMode: 'numeric',
       min: 1,
       step: 1000,
-    },
-  ];
-}
-
-function buildWebhookDeliveryFields(): FieldDefinition[] {
-  return [
-    {
-      key: 'platform.webhook_max_attempts',
-      label: 'Webhook max attempts',
-      description:
-        'Maximum number of attempts the platform makes before a webhook delivery is marked failed.',
-      configType: 'number',
-      placeholder: '4',
-      section: 'webhook_delivery',
-      inputMode: 'numeric',
-      min: 1,
-      step: 1,
-    },
-    {
-      key: 'platform.webhook_retry_base_delay_ms',
-      label: 'Webhook retry base delay (ms)',
-      description:
-        'Base delay used for exponential backoff between webhook delivery retry attempts.',
-      configType: 'number',
-      placeholder: '200',
-      section: 'webhook_delivery',
-      inputMode: 'numeric',
-      min: 1,
-      step: 100,
     },
   ];
 }

@@ -9,7 +9,7 @@ import {
 const RUNTIME_CONFIG_SECRET_REDACTION = 'redacted://runtime-config-secret';
 const runtimeConfigSecretKeyPattern =
   /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|webhook_url|known_hosts)/i;
-const REMOVED_RUNTIME_DEFAULT_KEYS = new Set([
+const LEGACY_REMOVED_RUNTIME_DEFAULT_KEYS = new Set([
   'global_max_runtimes',
   'global_max_execution_containers',
   'queue.max_concurrency',
@@ -17,6 +17,61 @@ const REMOVED_RUNTIME_DEFAULT_KEYS = new Set([
   'tools.web_search_base_url',
   'tools.web_search_api_key_secret_ref',
   'tools.web_search_timeout_seconds',
+]);
+const DEAD_RUNTIME_DEFAULT_KEYS = new Set([
+  'docker.checker_timeout_ms',
+  'docker.stop_timeout_seconds',
+  'container.copy_timeout_seconds',
+  'containerd.connect_timeout_seconds',
+  'workspace.inject_context_rename_timeout_seconds',
+  'platform.webhook_max_attempts',
+  'platform.webhook_retry_base_delay_ms',
+]);
+const PLATFORM_ONLY_RUNTIME_DEFAULT_KEYS = new Set([
+  'tasks.default_timeout_minutes',
+  'specialist_runtime_drain_grace_seconds',
+  'platform.event_stream_keepalive_interval_ms',
+  'platform.worker_reconnect_min_ms',
+  'platform.worker_reconnect_max_ms',
+  'platform.worker_websocket_ping_interval_ms',
+  'platform.workflow_activation_delay_ms',
+  'platform.workflow_activation_heartbeat_interval_ms',
+  'platform.workflow_activation_stale_after_ms',
+  'platform.task_cancel_signal_grace_period_ms',
+  'platform.worker_dispatch_ack_timeout_ms',
+  'platform.worker_key_expiry_ms',
+  'platform.agent_default_heartbeat_interval_seconds',
+  'platform.agent_heartbeat_grace_period_ms',
+  'platform.agent_heartbeat_threshold_multiplier',
+  'platform.agent_key_expiry_ms',
+  'platform.worker_default_heartbeat_interval_seconds',
+  'platform.worker_offline_grace_period_ms',
+  'platform.worker_offline_threshold_multiplier',
+  'platform.worker_degraded_threshold_multiplier',
+  'platform.lifecycle_agent_heartbeat_check_interval_ms',
+  'platform.lifecycle_worker_heartbeat_check_interval_ms',
+  'platform.lifecycle_task_timeout_check_interval_ms',
+  'platform.lifecycle_dispatch_loop_interval_ms',
+  'platform.heartbeat_prune_interval_ms',
+  'platform.governance_retention_job_interval_ms',
+  'container_manager.reconcile_interval_seconds',
+  'container_manager.stop_timeout_seconds',
+  'container_manager.shutdown_task_stop_timeout_seconds',
+  'container_manager.docker_action_buffer_seconds',
+  'container_manager.log_flush_interval_ms',
+  'container_manager.docker_event_reconnect_backoff_ms',
+  'container_manager.crash_log_capture_timeout_seconds',
+  'container_manager.starvation_threshold_seconds',
+  'container_manager.runtime_orphan_grace_cycles',
+  'container_manager.hung_runtime_stale_after_seconds',
+  'container_manager.hung_runtime_stop_grace_period_seconds',
+  'container_manager.runtime_log_max_size_mb',
+  'container_manager.runtime_log_max_files',
+]);
+const EXCLUDED_RUNTIME_CONFIG_DEFAULT_KEYS = new Set([
+  ...LEGACY_REMOVED_RUNTIME_DEFAULT_KEYS,
+  ...DEAD_RUNTIME_DEFAULT_KEYS,
+  ...PLATFORM_ONLY_RUNTIME_DEFAULT_KEYS,
 ]);
 const GENERIC_SPECIALIST_TARGET_ID = 'specialist';
 
@@ -300,7 +355,7 @@ export class RuntimeConfigService {
       [tenantId],
     );
     return result.rows
-      .filter((row) => !REMOVED_RUNTIME_DEFAULT_KEYS.has(row.config_key))
+      .filter((row) => !EXCLUDED_RUNTIME_CONFIG_DEFAULT_KEYS.has(row.config_key))
       .map((row) => ({
         key: row.config_key,
         value: shouldRedactRuntimeConfigDefault(row.config_key, row.config_value)

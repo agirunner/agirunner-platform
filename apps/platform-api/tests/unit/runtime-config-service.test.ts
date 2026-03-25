@@ -259,4 +259,53 @@ describe('RuntimeConfigService', () => {
       { key: 'max_rework_attempts', value: '3', type: 'number' },
     ]);
   });
+
+  it('filters platform-only and dead defaults out of worker config responses', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [sampleWorker], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 })
+      .mockResolvedValueOnce({
+        rows: [
+          sampleDefault,
+          {
+            config_key: 'tasks.default_timeout_minutes',
+            config_value: '30',
+            config_type: 'number',
+            updated_at: new Date(),
+          },
+          {
+            config_key: 'platform.workflow_activation_delay_ms',
+            config_value: '10000',
+            config_type: 'number',
+            updated_at: new Date(),
+          },
+          {
+            config_key: 'container_manager.reconcile_interval_seconds',
+            config_value: '5',
+            config_type: 'number',
+            updated_at: new Date(),
+          },
+          {
+            config_key: 'platform.worker_dispatch_ack_timeout_ms',
+            config_value: '15000',
+            config_type: 'number',
+            updated_at: new Date(),
+          },
+          {
+            config_key: 'docker.checker_timeout_ms',
+            config_value: '500',
+            config_type: 'number',
+            updated_at: new Date(),
+          },
+        ],
+        rowCount: 5,
+      });
+
+    const result = await service.getConfigForWorker(TENANT_ID, 'built-in-worker');
+
+    expect(result.defaults).toEqual([
+      { key: 'max_rework_attempts', value: '3', type: 'number' },
+    ]);
+  });
 });

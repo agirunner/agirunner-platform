@@ -20,6 +20,31 @@ export const ORCHESTRATOR_CONTEXT_STRATEGY_OPTIONS = [
 ] as const;
 export const BOOLEAN_OPTIONS = ['true', 'false'] as const;
 
+const RUNTIME_OPERATION_RUNTIME_SECTION_KEYS = new Set<FieldDefinition['section']>([
+  'runtime_throughput',
+  'server_timeouts',
+  'runtime_api',
+  'llm_transport',
+  'tool_timeouts',
+  'lifecycle_timeouts',
+  'connected_platform',
+  'workspace_timeouts',
+  'workspace_operations',
+  'capture_timeouts',
+  'secrets_timeouts',
+  'subagent_timeouts',
+]);
+
+const PLATFORM_OPERATION_SECTION_KEYS = new Set<FieldDefinition['section']>([
+  'task_timeouts',
+  'realtime_transport',
+  'workflow_activation',
+  'container_manager',
+  'worker_supervision',
+  'agent_supervision',
+  'platform_loops',
+]);
+
 const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
   {
     key: 'runtime_containers',
@@ -493,7 +518,9 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
 
 export const SECTION_DEFINITIONS: SectionDefinition[] = [
   ...BASE_SECTION_DEFINITIONS.slice(0, 4),
-  ...RUNTIME_OPERATION_SECTION_DEFINITIONS,
+  ...RUNTIME_OPERATION_SECTION_DEFINITIONS.filter((section) =>
+    RUNTIME_OPERATION_RUNTIME_SECTION_KEYS.has(section.key),
+  ),
   ...BASE_SECTION_DEFINITIONS.slice(4),
 ];
 
@@ -504,10 +531,70 @@ export const PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS = [
 
 export const FIELD_DEFINITIONS: FieldDefinition[] = [
   ...BASE_FIELD_DEFINITIONS.slice(0, 8),
-  ...RUNTIME_OPERATION_FIELD_DEFINITIONS,
+  ...RUNTIME_OPERATION_FIELD_DEFINITIONS.filter(
+    (field) =>
+      RUNTIME_OPERATION_RUNTIME_SECTION_KEYS.has(field.section)
+      && field.key !== 'specialist_runtime_drain_grace_seconds',
+  ),
   ...BASE_FIELD_DEFINITIONS.slice(8),
 ];
 
-export function fieldsForSection(sectionKey: FieldDefinition['section']): FieldDefinition[] {
-  return FIELD_DEFINITIONS.filter((field) => field.section === sectionKey);
+function fieldByKey(key: string): FieldDefinition {
+  const field = RUNTIME_OPERATION_FIELD_DEFINITIONS.find((candidate) => candidate.key === key);
+  if (!field) {
+    throw new Error(`Missing runtime default field definition for ${key}`);
+  }
+  return field;
+}
+
+function operationSectionByKey(key: FieldDefinition['section']): SectionDefinition {
+  const section = RUNTIME_OPERATION_SECTION_DEFINITIONS.find((candidate) => candidate.key === key);
+  if (!section) {
+    throw new Error(`Missing runtime default section definition for ${key}`);
+  }
+  return section;
+}
+
+export const OPERATIONS_SECTION_DEFINITIONS: SectionDefinition[] = [
+  operationSectionByKey('task_timeouts'),
+  {
+    key: 'runtime_fleet',
+    title: 'Runtime fleet',
+    description:
+      'Control platform-managed specialist runtime teardown and replacement timing.',
+    defaultExpanded: true,
+  },
+  operationSectionByKey('workflow_activation'),
+  operationSectionByKey('worker_supervision'),
+  operationSectionByKey('agent_supervision'),
+  operationSectionByKey('container_manager'),
+  operationSectionByKey('realtime_transport'),
+  operationSectionByKey('platform_loops'),
+];
+
+export const PRIMARY_OPERATIONS_SECTION_KEYS = [
+  'task_timeouts',
+  'runtime_fleet',
+  'workflow_activation',
+  'worker_supervision',
+] as const;
+
+export const OPERATIONS_FIELD_DEFINITIONS: FieldDefinition[] = [
+  fieldByKey('tasks.default_timeout_minutes'),
+  {
+    ...fieldByKey('specialist_runtime_drain_grace_seconds'),
+    section: 'runtime_fleet',
+  },
+  ...RUNTIME_OPERATION_FIELD_DEFINITIONS.filter(
+    (field) =>
+      PLATFORM_OPERATION_SECTION_KEYS.has(field.section)
+      && field.key !== 'tasks.default_timeout_minutes',
+  ),
+];
+
+export function fieldsForSection(
+  sectionKey: FieldDefinition['section'],
+  fieldDefinitions: FieldDefinition[] = FIELD_DEFINITIONS,
+): FieldDefinition[] {
+  return fieldDefinitions.filter((field) => field.section === sectionKey);
 }

@@ -32,8 +32,6 @@ export const WORKER_RECONNECT_MIN_MS_RUNTIME_KEY = 'platform.worker_reconnect_mi
 export const WORKER_RECONNECT_MAX_MS_RUNTIME_KEY = 'platform.worker_reconnect_max_ms';
 export const WORKER_WEBSOCKET_PING_INTERVAL_MS_RUNTIME_KEY =
   'platform.worker_websocket_ping_interval_ms';
-export const WEBHOOK_MAX_ATTEMPTS_RUNTIME_KEY = 'platform.webhook_max_attempts';
-export const WEBHOOK_RETRY_BASE_DELAY_MS_RUNTIME_KEY = 'platform.webhook_retry_base_delay_ms';
 export const LIFECYCLE_AGENT_HEARTBEAT_CHECK_INTERVAL_MS_RUNTIME_KEY =
   'platform.lifecycle_agent_heartbeat_check_interval_ms';
 export const LIFECYCLE_WORKER_HEARTBEAT_CHECK_INTERVAL_MS_RUNTIME_KEY =
@@ -82,8 +80,6 @@ export interface PlatformTransportTimingDefaults {
   WORKER_RECONNECT_MIN_MS: number;
   WORKER_RECONNECT_MAX_MS: number;
   WORKER_WEBSOCKET_PING_INTERVAL_MS: number;
-  WEBHOOK_MAX_ATTEMPTS: number;
-  WEBHOOK_RETRY_BASE_DELAY_MS: number;
 }
 
 export async function readWorkflowActivationTimingDefaults(
@@ -195,15 +191,11 @@ export async function readPlatformTransportTimingDefaults(
     workerReconnectMinMs,
     workerReconnectMaxMs,
     workerWebsocketPingIntervalMs,
-    webhookMaxAttempts,
-    webhookRetryBaseDelayMs,
   ] = await Promise.all([
     readPositiveNumberDefault(db, tenantId, EVENT_STREAM_KEEPALIVE_INTERVAL_MS_RUNTIME_KEY, 1),
     readPositiveNumberDefault(db, tenantId, WORKER_RECONNECT_MIN_MS_RUNTIME_KEY, 1),
     readPositiveNumberDefault(db, tenantId, WORKER_RECONNECT_MAX_MS_RUNTIME_KEY, 1),
     readPositiveNumberDefault(db, tenantId, WORKER_WEBSOCKET_PING_INTERVAL_MS_RUNTIME_KEY, 1),
-    readPositiveNumberDefault(db, tenantId, WEBHOOK_MAX_ATTEMPTS_RUNTIME_KEY, 1),
-    readPositiveNumberDefault(db, tenantId, WEBHOOK_RETRY_BASE_DELAY_MS_RUNTIME_KEY, 1),
   ]);
 
   if (workerReconnectMinMs > workerReconnectMaxMs) {
@@ -217,8 +209,6 @@ export async function readPlatformTransportTimingDefaults(
     WORKER_RECONNECT_MIN_MS: workerReconnectMinMs,
     WORKER_RECONNECT_MAX_MS: workerReconnectMaxMs,
     WORKER_WEBSOCKET_PING_INTERVAL_MS: workerWebsocketPingIntervalMs,
-    WEBHOOK_MAX_ATTEMPTS: webhookMaxAttempts,
-    WEBHOOK_RETRY_BASE_DELAY_MS: webhookRetryBaseDelayMs,
   };
 }
 

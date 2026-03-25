@@ -2,7 +2,7 @@ import {
   FIELD_DEFINITIONS,
   SECTION_DEFINITIONS,
 } from './runtime-defaults.schema.js';
-import type { FormValues } from './runtime-defaults.types.js';
+import type { FieldDefinition, FormValues, SectionDefinition } from './runtime-defaults.types.js';
 
 export interface RuntimeDefaultsSectionSummary {
   key: string;
@@ -15,9 +15,11 @@ export interface RuntimeDefaultsSectionSummary {
 export function summarizeRuntimeDefaultSections(
   values: FormValues,
   errors: Record<string, string>,
+  sectionDefinitions: SectionDefinition[] = SECTION_DEFINITIONS,
+  fieldDefinitions: FieldDefinition[] = FIELD_DEFINITIONS,
 ): RuntimeDefaultsSectionSummary[] {
-  return SECTION_DEFINITIONS.map((section) => {
-    const fields = FIELD_DEFINITIONS.filter((field) => field.section === section.key);
+  return sectionDefinitions.map((section) => {
+    const fields = fieldDefinitions.filter((field) => field.section === section.key);
     return {
       key: section.key,
       title: section.title,

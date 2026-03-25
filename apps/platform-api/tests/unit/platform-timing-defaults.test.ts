@@ -178,12 +178,6 @@ describe('platform timing defaults', () => {
         if (key === 'platform.worker_websocket_ping_interval_ms') {
           return { rowCount: 1, rows: [{ config_value: '20000' }] };
         }
-        if (key === 'platform.webhook_max_attempts') {
-          return { rowCount: 1, rows: [{ config_value: '4' }] };
-        }
-        if (key === 'platform.webhook_retry_base_delay_ms') {
-          return { rowCount: 1, rows: [{ config_value: '200' }] };
-        }
         throw new Error(`Unexpected runtime-default key: ${String(key)}`);
       }),
     };
@@ -195,8 +189,6 @@ describe('platform timing defaults', () => {
       WORKER_RECONNECT_MIN_MS: 1_000,
       WORKER_RECONNECT_MAX_MS: 60_000,
       WORKER_WEBSOCKET_PING_INTERVAL_MS: 20_000,
-      WEBHOOK_MAX_ATTEMPTS: 4,
-      WEBHOOK_RETRY_BASE_DELAY_MS: 200,
     });
   });
 
@@ -215,12 +207,6 @@ describe('platform timing defaults', () => {
         }
         if (key === 'platform.worker_websocket_ping_interval_ms') {
           return { rowCount: 1, rows: [{ config_value: '20000' }] };
-        }
-        if (key === 'platform.webhook_max_attempts') {
-          return { rowCount: 1, rows: [{ config_value: '4' }] };
-        }
-        if (key === 'platform.webhook_retry_base_delay_ms') {
-          return { rowCount: 1, rows: [{ config_value: '200' }] };
         }
         throw new Error(`Unexpected runtime-default key: ${String(key)}`);
       }),
