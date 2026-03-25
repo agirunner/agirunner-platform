@@ -120,7 +120,7 @@ describe('tasks routes', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/tasks?workflow_id=wf-1&escalation_task_id=task-esc-1',
+      url: '/api/v1/tasks?workflow_id=11111111-1111-4111-8111-111111111111&escalation_task_id=task-esc-1',
       headers: { authorization: 'Bearer test' },
     });
 
@@ -128,7 +128,7 @@ describe('tasks routes', () => {
     expect(listTasks).toHaveBeenCalledWith(
       'tenant-1',
       expect.objectContaining({
-        workflow_id: 'wf-1',
+        workflow_id: '11111111-1111-4111-8111-111111111111',
         escalation_task_id: 'task-esc-1',
       }),
     );
@@ -177,6 +177,51 @@ describe('tasks routes', () => {
     expect(response.statusCode).toBe(400);
     expect(response.json().error.message).toContain('task id must be a valid uuid');
     expect(getTask).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid work item filters on task listing before calling the service', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const listTasks = vi.fn();
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('taskService', {
+      listTasks,
+      createTask: vi.fn(),
+      getTask: vi.fn(),
+      updateTask: vi.fn(),
+      getTaskContext: vi.fn(),
+      getTaskGitActivity: vi.fn(),
+      claimTask: vi.fn(),
+      startTask: vi.fn(),
+      completeTask: vi.fn(),
+      failTask: vi.fn(),
+      approveTask: vi.fn(),
+      approveTaskOutput: vi.fn(),
+      retryTask: vi.fn(),
+      cancelTask: vi.fn(),
+      rejectTask: vi.fn(),
+      requestTaskChanges: vi.fn(),
+      skipTask: vi.fn(),
+      reassignTask: vi.fn(),
+      escalateTask: vi.fn(),
+      respondToEscalation: vi.fn(),
+      overrideTaskOutput: vi.fn(),
+      agentEscalate: vi.fn(),
+      resolveEscalation: vi.fn(),
+    });
+
+    await app.register(taskRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/tasks?work_item_id=wi_4d7c5ff0',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.message).toContain('work_item_id must be a valid uuid');
+    expect(listTasks).not.toHaveBeenCalled();
   });
 
   it('rejects legacy capabilities_required on task creation', async () => {
@@ -636,17 +681,17 @@ describe('tasks routes', () => {
   it('deduplicates repeated patch requests by request_id for workflow-backed tasks', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const updateTask = vi.fn(async () => ({
-      id: 'task-patch-1',
-      workflow_id: 'workflow-patch-1',
+      id: '11111111-1111-4111-8111-111111111111',
+      workflow_id: '22222222-2222-4222-8222-222222222222',
       metadata: { note: 'patched once' },
     }));
 
     app = buildTaskRouteApp(
       {
-        getTask: vi.fn(async () => ({ id: 'task-patch-1', workflow_id: 'workflow-patch-1' })),
+        getTask: vi.fn(async () => ({ id: '11111111-1111-4111-8111-111111111111', workflow_id: '22222222-2222-4222-8222-222222222222' })),
         updateTask,
       },
-      createWorkflowReplayPool('workflow-patch-1', 'task_update'),
+      createWorkflowReplayPool('22222222-2222-4222-8222-222222222222', 'task_update'),
     );
     await app.register(taskRoutes);
 
@@ -657,13 +702,13 @@ describe('tasks routes', () => {
 
     const first = await app.inject({
       method: 'PATCH',
-      url: '/api/v1/tasks/task-patch-1',
+      url: '/api/v1/tasks/11111111-1111-4111-8111-111111111111',
       headers: { authorization: 'Bearer test' },
       payload,
     });
     const second = await app.inject({
       method: 'PATCH',
-      url: '/api/v1/tasks/task-patch-1',
+      url: '/api/v1/tasks/11111111-1111-4111-8111-111111111111',
       headers: { authorization: 'Bearer test' },
       payload,
     });
@@ -671,7 +716,7 @@ describe('tasks routes', () => {
     expect(first.statusCode).toBe(200);
     expect(second.statusCode).toBe(200);
     expect(updateTask).toHaveBeenCalledTimes(1);
-    expect(updateTask).toHaveBeenCalledWith('tenant-1', 'task-patch-1', {
+    expect(updateTask).toHaveBeenCalledWith('tenant-1', '11111111-1111-4111-8111-111111111111', {
       metadata: { note: 'patched once' },
     });
     expect(second.json()).toEqual(first.json());
@@ -975,18 +1020,18 @@ describe('tasks routes', () => {
   it('deduplicates repeated complete requests by request_id for workflow-backed tasks', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const completeTask = vi.fn(async () => ({
-      id: 'task-4',
-      workflow_id: 'workflow-4',
+      id: '44444444-4444-4444-8444-444444444444',
+      workflow_id: '55555555-5555-4555-8555-555555555555',
       state: 'completed',
       output: { summary: 'Completed once' },
     }));
 
     app = buildTaskRouteApp(
       {
-        getTask: vi.fn(async () => ({ id: 'task-4', workflow_id: 'workflow-4' })),
+        getTask: vi.fn(async () => ({ id: '44444444-4444-4444-8444-444444444444', workflow_id: '55555555-5555-4555-8555-555555555555' })),
         completeTask,
       },
-      createWorkflowReplayPool('workflow-4', 'task_complete'),
+      createWorkflowReplayPool('55555555-5555-4555-8555-555555555555', 'task_complete'),
     );
     await app.register(taskRoutes);
 
@@ -1000,13 +1045,13 @@ describe('tasks routes', () => {
 
     const first = await app.inject({
       method: 'POST',
-      url: '/api/v1/tasks/task-4/complete',
+      url: '/api/v1/tasks/44444444-4444-4444-8444-444444444444/complete',
       headers: { authorization: 'Bearer test' },
       payload,
     });
     const second = await app.inject({
       method: 'POST',
-      url: '/api/v1/tasks/task-4/complete',
+      url: '/api/v1/tasks/44444444-4444-4444-8444-444444444444/complete',
       headers: { authorization: 'Bearer test' },
       payload,
     });
@@ -1020,18 +1065,18 @@ describe('tasks routes', () => {
   it('deduplicates repeated fail requests by request_id for workflow-backed tasks', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const failTask = vi.fn(async () => ({
-      id: 'task-5',
-      workflow_id: 'workflow-5',
+      id: '66666666-6666-4666-8666-666666666666',
+      workflow_id: '77777777-7777-4777-8777-777777777777',
       state: 'failed',
       error: { message: 'Execution failed once' },
     }));
 
     app = buildTaskRouteApp(
       {
-        getTask: vi.fn(async () => ({ id: 'task-5', workflow_id: 'workflow-5' })),
+        getTask: vi.fn(async () => ({ id: '66666666-6666-4666-8666-666666666666', workflow_id: '77777777-7777-4777-8777-777777777777' })),
         failTask,
       },
-      createWorkflowReplayPool('workflow-5', 'task_fail'),
+      createWorkflowReplayPool('77777777-7777-4777-8777-777777777777', 'task_fail'),
     );
     await app.register(taskRoutes);
 
@@ -1044,13 +1089,13 @@ describe('tasks routes', () => {
 
     const first = await app.inject({
       method: 'POST',
-      url: '/api/v1/tasks/task-5/fail',
+      url: '/api/v1/tasks/66666666-6666-4666-8666-666666666666/fail',
       headers: { authorization: 'Bearer test' },
       payload,
     });
     const second = await app.inject({
       method: 'POST',
-      url: '/api/v1/tasks/task-5/fail',
+      url: '/api/v1/tasks/66666666-6666-4666-8666-666666666666/fail',
       headers: { authorization: 'Bearer test' },
       payload,
     });
@@ -1189,7 +1234,13 @@ function createWorkflowReplayPool(
           : { rowCount: 0, rows: [] };
       }
       if (sql.includes('INSERT INTO workflow_tool_results')) {
-        expect(params).toEqual(['tenant-1', workflowId, toolName, expect.any(String), expect.any(Object)]);
+        expect(params?.slice(0, 5)).toEqual([
+          'tenant-1',
+          workflowId,
+          toolName,
+          expect.any(String),
+          expect.any(Object),
+        ]);
         const key = `${params?.[0]}:${params?.[1]}:${params?.[2]}:${params?.[3]}`;
         const response = params?.[4] as Record<string, unknown>;
         const existing = storedResults.get(key);

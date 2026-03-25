@@ -222,6 +222,17 @@ function parseTaskId(id: string) {
   throw new ValidationError('task id must be a valid uuid');
 }
 
+function parseOptionalUuidFilter(value: string | undefined, label: string) {
+  if (value === undefined) {
+    return undefined;
+  }
+  const result = z.string().uuid().safeParse(value);
+  if (result.success) {
+    return result.data;
+  }
+  throw new ValidationError(`${label} must be a valid uuid`);
+}
+
 async function assertRawTaskOperatorActionAllowed(
   loadTask: (tenantId: string, taskId: string) => Promise<unknown>,
   tenantId: string,
@@ -312,14 +323,14 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
       const result = await taskService.listTasks(request.auth!.tenantId, {
         state: parseTaskStateFilter(query.state),
-        workspace_id: query.workspace_id,
-        assigned_agent_id: query.assigned_agent_id,
-        parent_id: query.parent_id,
-        workflow_id: query.workflow_id,
-        work_item_id: query.work_item_id,
+        workspace_id: parseOptionalUuidFilter(query.workspace_id, 'workspace_id'),
+        assigned_agent_id: parseOptionalUuidFilter(query.assigned_agent_id, 'assigned_agent_id'),
+        parent_id: parseOptionalUuidFilter(query.parent_id, 'parent_id'),
+        workflow_id: parseOptionalUuidFilter(query.workflow_id, 'workflow_id'),
+        work_item_id: parseOptionalUuidFilter(query.work_item_id, 'work_item_id'),
         escalation_task_id: query.escalation_task_id,
         stage_name: query.stage_name,
-        activation_id: query.activation_id,
+        activation_id: parseOptionalUuidFilter(query.activation_id, 'activation_id'),
         execution_backend: parseExecutionBackendFilter(query.execution_backend),
         is_orchestrator_task:
           query.is_orchestrator_task === undefined

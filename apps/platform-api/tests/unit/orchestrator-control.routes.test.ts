@@ -250,6 +250,56 @@ describe('orchestratorControlRoutes', () => {
     loadTaskScopeSpy.mockRestore();
   });
 
+  it('rejects invalid managed task ids before loading specialist task state', async () => {
+    const loadTaskScopeSpy = vi
+      .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
+      .mockResolvedValue({
+        id: 'task-orchestrator',
+        workflow_id: 'workflow-1',
+        workspace_id: 'workspace-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'draft-package',
+        activation_id: 'activation-1',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        is_orchestrator_task: true,
+        state: 'in_progress',
+      });
+    const getTask = vi.fn();
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', { connect: vi.fn(), query: vi.fn() });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', {
+      getTask,
+      approveTask: vi.fn(),
+    });
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/task_95bde3c4/approve',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'approve-1',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.message).toContain('managed task id must be a valid uuid');
+    expect(loadTaskScopeSpy).toHaveBeenCalledOnce();
+    expect(getTask).not.toHaveBeenCalled();
+    loadTaskScopeSpy.mockRestore();
+  });
+
   it('accepts structured closure callouts when completing a work item', async () => {
     const completeWorkItemSpy = vi
       .spyOn(PlaybookWorkflowControlService.prototype, 'completeWorkItem')
@@ -460,7 +510,7 @@ describe('orchestratorControlRoutes', () => {
   it('reruns specialist work with a corrected brief through the recovery helper route', async () => {
     const rerunSpy = vi
       .spyOn(GuidedClosureRecoveryHelpersService.prototype, 'rerunTaskWithCorrectedBrief')
-      .mockResolvedValue({ id: 'task-specialist', state: 'ready' } as never);
+      .mockResolvedValue({ id: '22222222-2222-4222-8222-222222222222', state: 'ready' } as never);
     const loadTaskScopeSpy = vi
       .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
       .mockResolvedValue({
@@ -503,7 +553,7 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
     app.decorate('taskService', {
-      getTask: vi.fn(async () => ({ id: 'task-specialist', workflow_id: 'workflow-1', is_orchestrator_task: false })),
+      getTask: vi.fn(async () => ({ id: '22222222-2222-4222-8222-222222222222', workflow_id: 'workflow-1', is_orchestrator_task: false })),
     });
     app.decorate('workspaceService', {
       patchWorkspaceMemory: vi.fn(),
@@ -514,7 +564,7 @@ describe('orchestratorControlRoutes', () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/task-specialist/rerun-with-corrected-brief',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/22222222-2222-4222-8222-222222222222/rerun-with-corrected-brief',
       headers: { authorization: 'Bearer test' },
       payload: {
         request_id: 'rerun-1',
@@ -525,7 +575,7 @@ describe('orchestratorControlRoutes', () => {
     expect(response.statusCode).toBe(200);
     expect(rerunSpy).toHaveBeenCalledWith(
       expect.anything(),
-      'task-specialist',
+      '22222222-2222-4222-8222-222222222222',
       {
         request_id: 'rerun-1',
         corrected_input: { reviewer_contract: 'Use concrete findings and cite the exact artifact.' },
@@ -540,7 +590,7 @@ describe('orchestratorControlRoutes', () => {
   it('reattaches or replaces stale ownership through the recovery helper route', async () => {
     const reassignSpy = vi
       .spyOn(GuidedClosureRecoveryHelpersService.prototype, 'reattachOrReplaceStaleOwner')
-      .mockResolvedValue({ id: 'task-specialist', state: 'ready' } as never);
+      .mockResolvedValue({ id: '22222222-2222-4222-8222-222222222222', state: 'ready' } as never);
     const loadTaskScopeSpy = vi
       .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
       .mockResolvedValue({
@@ -583,7 +633,7 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
     app.decorate('taskService', {
-      getTask: vi.fn(async () => ({ id: 'task-specialist', workflow_id: 'workflow-1', is_orchestrator_task: false })),
+      getTask: vi.fn(async () => ({ id: '22222222-2222-4222-8222-222222222222', workflow_id: 'workflow-1', is_orchestrator_task: false })),
     });
     app.decorate('workspaceService', {
       patchWorkspaceMemory: vi.fn(),
@@ -594,7 +644,7 @@ describe('orchestratorControlRoutes', () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/task-specialist/reattach-or-replace-stale-owner',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/22222222-2222-4222-8222-222222222222/reattach-or-replace-stale-owner',
       headers: { authorization: 'Bearer test' },
       payload: {
         request_id: 'reassign-1',
@@ -606,7 +656,7 @@ describe('orchestratorControlRoutes', () => {
     expect(response.statusCode).toBe(200);
     expect(reassignSpy).toHaveBeenCalledWith(
       expect.anything(),
-      'task-specialist',
+      '22222222-2222-4222-8222-222222222222',
       {
         request_id: 'reassign-1',
         reason: 'The prior owner lost its lease and the task still needs progress.',
@@ -1018,7 +1068,7 @@ describe('orchestratorControlRoutes', () => {
 
   it('returns managed specialist task details through the orchestrator-scoped read route', async () => {
     const getTask = vi.fn(async () => ({
-      id: 'task-specialist',
+      id: '22222222-2222-4222-8222-222222222222',
       workflow_id: 'workflow-1',
       work_item_id: 'work-item-1',
       title: 'Assess host content',
@@ -1037,7 +1087,7 @@ describe('orchestratorControlRoutes', () => {
       .mockResolvedValue([
         {
           id: 'artifact-1',
-          task_id: 'task-specialist',
+          task_id: '22222222-2222-4222-8222-222222222222',
           logical_path: 'artifact:wf-1/report.md',
           content_type: 'text/markdown',
           size_bytes: 42,
@@ -1085,16 +1135,16 @@ describe('orchestratorControlRoutes', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/task-specialist',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/22222222-2222-4222-8222-222222222222',
       headers: { authorization: 'Bearer test' },
     });
 
     expect(response.statusCode).toBe(200);
-    expect(getTask).toHaveBeenCalledWith('tenant-1', 'task-specialist');
-    expect(listTaskArtifactsSpy).toHaveBeenCalledWith('tenant-1', 'task-specialist');
+    expect(getTask).toHaveBeenCalledWith('tenant-1', '22222222-2222-4222-8222-222222222222');
+    expect(listTaskArtifactsSpy).toHaveBeenCalledWith('tenant-1', '22222222-2222-4222-8222-222222222222');
     expect(response.json().data).toEqual(
       expect.objectContaining({
-        id: 'task-specialist',
+        id: '22222222-2222-4222-8222-222222222222',
         workflow_id: 'workflow-1',
         state: 'completed',
         title: 'Assess host content',
@@ -2585,7 +2635,7 @@ describe('orchestratorControlRoutes', () => {
 
   it('updates specialist task input through the idempotent orchestrator bridge', async () => {
     const updatedTask = {
-      id: 'task-specialist',
+      id: '22222222-2222-4222-8222-222222222222',
       workflow_id: 'workflow-1',
       is_orchestrator_task: false,
       input: { scope: 'narrowed' },
@@ -2654,7 +2704,7 @@ describe('orchestratorControlRoutes', () => {
 
     const response = await app.inject({
       method: 'PATCH',
-      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/task-specialist/input',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/22222222-2222-4222-8222-222222222222/input',
       headers: { authorization: 'Bearer test' },
       payload: {
         request_id: 'task-input-1',
@@ -2663,10 +2713,10 @@ describe('orchestratorControlRoutes', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(taskService.getTask).toHaveBeenCalledWith('tenant-1', 'task-specialist');
+    expect(taskService.getTask).toHaveBeenCalledWith('tenant-1', '22222222-2222-4222-8222-222222222222');
     expect(taskService.updateTaskInput).toHaveBeenCalledWith(
       'tenant-1',
-      'task-specialist',
+      '22222222-2222-4222-8222-222222222222',
       { scope: 'narrowed' },
       client,
     );
@@ -2676,7 +2726,7 @@ describe('orchestratorControlRoutes', () => {
   it('creates a specialist task with the canonical orchestrator contract fields', async () => {
     const workItemId = '11111111-1111-4111-8111-111111111111';
     const createdTask = {
-      id: 'task-specialist',
+      id: '22222222-2222-4222-8222-222222222222',
       workflow_id: 'workflow-1',
       work_item_id: workItemId,
       stage_name: 'implementation',
@@ -5171,7 +5221,7 @@ describe('orchestratorControlRoutes', () => {
 
   it('approves a specialist task through the replay-safe orchestrator bridge', async () => {
     const approvedTask = {
-      id: 'task-specialist',
+      id: '22222222-2222-4222-8222-222222222222',
       workflow_id: 'workflow-1',
       is_orchestrator_task: false,
       state: 'awaiting_approval',
@@ -5240,7 +5290,7 @@ describe('orchestratorControlRoutes', () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/task-specialist/approve',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/22222222-2222-4222-8222-222222222222/approve',
       headers: { authorization: 'Bearer test' },
       payload: {
         request_id: 'approve-1',
@@ -5250,7 +5300,7 @@ describe('orchestratorControlRoutes', () => {
     expect(response.statusCode).toBe(200);
     expect(taskService.approveTask).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
-      'task-specialist',
+      '22222222-2222-4222-8222-222222222222',
       client,
     );
     expect(response.json().data).toEqual(approvedTask);
@@ -5258,7 +5308,7 @@ describe('orchestratorControlRoutes', () => {
 
   it('returns a recoverable noop when approving a specialist task that is no longer awaiting approval', async () => {
     const managedTask = {
-      id: 'task-specialist',
+      id: '22222222-2222-4222-8222-222222222222',
       workflow_id: 'workflow-1',
       work_item_id: 'work-item-1',
       stage_name: 'implementation',
@@ -5341,7 +5391,7 @@ describe('orchestratorControlRoutes', () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/task-specialist/approve',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/22222222-2222-4222-8222-222222222222/approve',
       headers: { authorization: 'Bearer test' },
       payload: {
         request_id: 'approve-stale-1',
@@ -5356,14 +5406,14 @@ describe('orchestratorControlRoutes', () => {
       noop: true,
       ready: false,
       reason_code: 'task_not_awaiting_approval',
-      task_id: 'task-specialist',
+      task_id: '22222222-2222-4222-8222-222222222222',
       task_state: 'output_pending_assessment',
     });
   });
 
   it('escalates a specialist task to human review through the replay-safe orchestrator bridge', async () => {
     const escalatedTask = {
-      id: 'task-specialist',
+      id: '22222222-2222-4222-8222-222222222222',
       workflow_id: 'workflow-1',
       is_orchestrator_task: false,
       state: 'escalated',
@@ -5432,7 +5482,7 @@ describe('orchestratorControlRoutes', () => {
 
     const response = await app.inject({
       method: 'POST',
-      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/task-specialist/escalate-to-human',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/22222222-2222-4222-8222-222222222222/escalate-to-human',
       headers: { authorization: 'Bearer test' },
       payload: {
         request_id: 'escalate-1',
@@ -5450,7 +5500,7 @@ describe('orchestratorControlRoutes', () => {
     expect(response.statusCode).toBe(200);
     expect(taskService.escalateTask).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
-      'task-specialist',
+      '22222222-2222-4222-8222-222222222222',
       {
         reason: 'Needs product approval',
         context: {

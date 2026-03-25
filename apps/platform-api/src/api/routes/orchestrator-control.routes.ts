@@ -289,6 +289,14 @@ function parseWorkItemIdOrThrow(value: string): string {
   return parsed.data;
 }
 
+function parseUuidParamOrThrow(value: string, label: string): string {
+  const parsed = uuidParamSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new ValidationError(`${label} must be a valid uuid`);
+  }
+  return parsed.data;
+}
+
 function normalizeUUIDList(values: string[] | undefined): string[] {
   if (!Array.isArray(values)) {
     return [];
@@ -2043,7 +2051,8 @@ async function loadManagedSpecialistTask(
   workflowId: string,
   taskId: string,
 ) {
-  const task = await app.taskService.getTask(identity.tenantId, taskId) as Record<string, unknown>;
+  const managedTaskId = parseUuidParamOrThrow(taskId, 'managed task id');
+  const task = await app.taskService.getTask(identity.tenantId, managedTaskId) as Record<string, unknown>;
   if (task.workflow_id !== workflowId) {
     throw new ValidationError('Managed task must belong to the orchestrator workflow');
   }
