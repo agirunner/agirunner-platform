@@ -62,7 +62,6 @@ export function WorkspaceKnowledgeTab(props: {
   return (
     <div className="space-y-3">
       <WorkspaceKnowledgeShell
-        workspaceId={props.workspaceId}
         overview={props.overview}
         headerNotice={saveMessage ? <p className="text-sm text-muted">{saveMessage}</p> : null}
         memorySummary={buildMemoryDraftSummary(memoryDrafts.length)}

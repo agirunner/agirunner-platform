@@ -45,8 +45,6 @@ const STORAGE_OPTIONS = [
   { value: 'workspace_artifacts', label: 'Workspace Artifacts' },
 ] as const;
 
-type SettingsSectionKey = 'basics' | 'storage' | 'danger';
-
 export function WorkspaceSettingsTab(props: {
   workspace: DashboardWorkspaceRecord;
   overview: WorkspaceOverview;
@@ -55,7 +53,7 @@ export function WorkspaceSettingsTab(props: {
   const [draft, setDraft] = useState(() => createWorkspaceSettingsDraft(props.workspace));
   const [showDelete, setShowDelete] = useState(false);
   const [isGitTokenExpanded, setGitTokenExpanded] = useState(false);
-  const [expandedSection, setExpandedSection] = useState<SettingsSectionKey | null>(null);
+  const [isDangerExpanded, setDangerExpanded] = useState(false);
   const validation = validateWorkspaceSettingsDraft(draft);
   const surfaceSummary = buildWorkspaceSettingsSurfaceSummary(props.workspace, draft, validation);
   const mutation = useMutation({
@@ -74,11 +72,6 @@ export function WorkspaceSettingsTab(props: {
 
   const basicsSummary = buildBasicsSummary(draft);
   const storageSummary = buildStorageSummary(draft, surfaceSummary.storageLabel);
-
-  function toggleSection(section: SettingsSectionKey) {
-    setExpandedSection((current) => (current === section ? null : section));
-  }
-
   return (
     <>
       <WorkspaceSettingsShell
@@ -109,8 +102,9 @@ export function WorkspaceSettingsTab(props: {
               ) : null}
             </div>
             <p className="text-sm leading-6 text-muted">
-              Open only the section you need. Storage is explicit at the workspace level and lower-level
-              repo or path overrides are not used.
+              Basics and storage stay open here so the primary workspace configuration is always
+              visible. Storage is explicit at the workspace level and lower-level repo or path
+              overrides are not used.
             </p>
           </div>
 
@@ -133,14 +127,11 @@ export function WorkspaceSettingsTab(props: {
         </CardContent>
       </Card>
 
-      <SettingsDisclosureSection
+      <StaticSettingsSection
         id="workspace-settings-basics"
         title="Workspace Basics"
         description="Name and slug."
         summary={basicsSummary}
-        actionLabel={expandedSection === 'basics' ? 'Hide basics' : 'Open basics'}
-        isExpanded={expandedSection === 'basics'}
-        onToggle={() => toggleSection('basics')}
       >
         <div className="space-y-3">
           <div className="grid gap-3 md:grid-cols-2">
@@ -158,16 +149,13 @@ export function WorkspaceSettingsTab(props: {
             />
           </div>
         </div>
-      </SettingsDisclosureSection>
+      </StaticSettingsSection>
 
-      <SettingsDisclosureSection
+      <StaticSettingsSection
         id="workspace-settings-storage"
         title="Workspace Storage"
         description="Storage type and settings."
         summary={storageSummary}
-        actionLabel={expandedSection === 'storage' ? 'Hide storage' : 'Open storage'}
-        isExpanded={expandedSection === 'storage'}
-        onToggle={() => toggleSection('storage')}
       >
         <div className="space-y-3">
           <label className="grid gap-1.5 text-sm sm:max-w-[240px]">
@@ -273,15 +261,15 @@ export function WorkspaceSettingsTab(props: {
             </div>
           ) : null}
         </div>
-      </SettingsDisclosureSection>
+      </StaticSettingsSection>
       <SettingsDisclosureSection
         id="workspace-settings-danger"
         title="Danger"
         description="Permanent delete."
         summary="Workspace deletion is destructive. Leave this closed unless you intentionally need to remove the workspace."
-        actionLabel={expandedSection === 'danger' ? 'Hide danger' : 'Open danger'}
-        isExpanded={expandedSection === 'danger'}
-        onToggle={() => toggleSection('danger')}
+        actionLabel={isDangerExpanded ? 'Hide danger' : 'Open danger'}
+        isExpanded={isDangerExpanded}
+        onToggle={() => setDangerExpanded((current) => !current)}
       >
         <div className="space-y-3">
           <p className="text-sm leading-6 text-muted">
@@ -297,6 +285,28 @@ export function WorkspaceSettingsTab(props: {
         <DeleteWorkspaceDialog workspace={props.workspace} onClose={() => setShowDelete(false)} />
       ) : null}
     </>
+  );
+}
+
+function StaticSettingsSection(props: {
+  id: string;
+  title: string;
+  description: string;
+  summary: string;
+  children: ReactNode;
+}): JSX.Element {
+  return (
+    <Card id={props.id} className="border-border/70 shadow-none">
+      <div className="px-4 py-4">
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="text-base font-semibold text-foreground">{props.title}</div>
+          <p className="text-sm leading-6 text-muted">
+            {props.description} {props.summary}
+          </p>
+        </div>
+      </div>
+      <CardContent className="border-t border-border/70 p-4 pt-4">{props.children}</CardContent>
+    </Card>
   );
 }
 

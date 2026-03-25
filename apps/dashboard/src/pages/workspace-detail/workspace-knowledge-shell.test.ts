@@ -10,8 +10,7 @@ describe('workspace knowledge surface source', () => {
   it('keeps workspace artifacts and workspace memory in one stacked knowledge workspace', () => {
     const source = readSource('./workspace-knowledge-shell.tsx');
 
-    expect(source).toContain("type KnowledgePanelValue = 'artifacts' | 'memory'");
-    expect(source).toContain('<KnowledgeSection');
+    expect(source).toContain('<StaticKnowledgeSection');
     expect(source).toContain("label: 'Workspace Artifacts'");
     expect(source).toContain("label: 'Workspace Memory'");
     expect(source).toContain('artifactContent: ReactNode;');
@@ -19,14 +18,17 @@ describe('workspace knowledge surface source', () => {
     expect(source).not.toContain('<TabsContent');
   });
 
-  it('starts collapsed by default and trims the top wrapper copy to a single calm intro', () => {
+  it('keeps artifacts and memory open by default without per-panel collapse controls', () => {
     const source = readSource('./workspace-knowledge-shell.tsx');
 
     expect(source).toContain('Knowledge');
     expect(source).toContain('Use Knowledge for workspace artifacts and shared memory.');
     expect(source).toContain('className="sr-only">{props.overview.summary}</p>');
-    expect(source).toContain('useState<KnowledgePanelValue | null>(null)');
-    expect(source).toContain('current === value ? null : value');
+    expect(source).toContain('StaticKnowledgeSection');
+    expect(source).not.toContain('useState<KnowledgePanelValue | null>(null)');
+    expect(source).not.toContain('current === value ? null : value');
+    expect(source).not.toContain('ChevronDown');
+    expect(source).not.toContain('aria-expanded={props.isExpanded}');
     expect(source).not.toContain('Start here');
     expect(source).not.toContain('Open documents');
     expect(source).not.toContain('<Link');
@@ -49,6 +51,7 @@ describe('workspace knowledge surface source', () => {
     expect(source).toContain('memorySummary?: string;');
     expect(source).toContain('props.memorySummary');
     expect(source).toContain("getPacketSummary(props.overview, 'Shared memory')");
+    expect(source).not.toContain('workspaceId: string;');
   });
 
   it('keeps memory and run content tools available without bringing back duplicate wrapper headers', () => {

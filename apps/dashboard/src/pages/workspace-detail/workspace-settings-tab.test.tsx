@@ -7,13 +7,13 @@ function readSource(filename: string) {
 }
 
 describe('workspace settings tab source', () => {
-  it('turns settings into a calmer control plane with compact save status and stronger disclosures', () => {
+  it('keeps basics and storage always open while leaving danger as the only collapsible section', () => {
     const tabSource = readSource('./workspace-settings-tab.tsx');
     const shellSource = readSource('./workspace-settings-shell.tsx');
 
     expect(shellSource).toContain('className="sr-only"');
     expect(shellSource).toContain('props.overview.summary');
-    expect(tabSource).toContain('Open only the section you need.');
+    expect(tabSource).toContain('Basics and storage stay open here');
     expect(tabSource).toContain('Resolve Before Saving');
     expect(tabSource).toContain('Workspace Lifecycle');
     expect(tabSource).toContain('Workspace Basics');
@@ -25,9 +25,18 @@ describe('workspace settings tab source', () => {
     expect(tabSource).toContain('Active workspaces can receive new work.');
     expect(tabSource).toContain('Danger');
     expect(tabSource).toContain('Delete workspace');
+    expect(tabSource).toContain('StaticSettingsSection');
+    expect(tabSource).toContain('id="workspace-settings-basics"');
+    expect(tabSource).toContain('id="workspace-settings-storage"');
+    expect(tabSource).toContain("actionLabel={isDangerExpanded ? 'Hide danger' : 'Open danger'}");
     expect(tabSource).toContain('Open danger');
+    expect(tabSource).not.toContain('actionLabel={expandedSection === \'basics\' ? \'Hide basics\' : \'Open basics\'}');
+    expect(tabSource).not.toContain('actionLabel={expandedSection === \'storage\' ? \'Hide storage\' : \'Open storage\'}');
+    expect(tabSource).not.toContain("isExpanded={expandedSection === 'basics'}");
+    expect(tabSource).not.toContain("isExpanded={expandedSection === 'storage'}");
     expect(tabSource).toContain('buildWorkspaceSettingsSurfaceSummary');
     expect(tabSource).toContain('SettingsDisclosureSection');
+    expect(tabSource).toContain('StaticSettingsSection');
     expect(tabSource).toContain('SelectTrigger');
     expect(tabSource).toContain('aria-invalid');
     expect(tabSource).toContain('text-sm leading-6 text-muted');

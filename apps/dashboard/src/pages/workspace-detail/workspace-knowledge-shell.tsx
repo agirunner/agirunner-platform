@@ -1,15 +1,10 @@
-import { useEffect, useState, type ReactNode } from 'react';
-import { BrainCircuit, ChevronDown, PackageSearch } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import type { ReactNode } from 'react';
+import { BrainCircuit, PackageSearch } from 'lucide-react';
 
 import { Card, CardContent } from '../../components/ui/card.js';
-import { cn } from '../../lib/utils.js';
 import type { WorkspaceOverview } from './workspace-detail-support.js';
 
-type KnowledgePanelValue = 'artifacts' | 'memory';
-
 interface WorkspaceKnowledgeShellProps {
-  workspaceId: string;
   overview: WorkspaceOverview;
   headerAction?: ReactNode;
   headerNotice?: ReactNode;
@@ -20,7 +15,7 @@ interface WorkspaceKnowledgeShellProps {
 }
 
 const KNOWLEDGE_PANELS: Array<{
-  value: KnowledgePanelValue;
+  value: 'artifacts' | 'memory';
   label: string;
   description: string;
   icon: typeof BrainCircuit;
@@ -40,9 +35,7 @@ const KNOWLEDGE_PANELS: Array<{
 ];
 
 export function WorkspaceKnowledgeShell(props: WorkspaceKnowledgeShellProps): JSX.Element {
-  const location = useLocation();
-  const [expandedPanel, setExpandedPanel] = useState<KnowledgePanelValue | null>(null);
-  const sectionSummaries: Record<KnowledgePanelValue, string> = {
+  const sectionSummaries: Record<'artifacts' | 'memory', string> = {
     artifacts: props.artifactSummary ?? buildArtifactSummary(props.overview),
     memory:
       props.memorySummary
@@ -51,18 +44,6 @@ export function WorkspaceKnowledgeShell(props: WorkspaceKnowledgeShellProps): JS
         || 'Workspace memory captures evolving notes and learned state.'
       ),
   };
-
-  useEffect(() => {
-    const panel = readKnowledgePanel(location.search);
-    if (!panel) {
-      return;
-    }
-    setExpandedPanel(panel);
-  }, [location.search]);
-
-  function togglePanel(value: KnowledgePanelValue): void {
-    setExpandedPanel((current) => (current === value ? null : value));
-  }
 
   return (
     <div className="space-y-4">
@@ -81,21 +62,19 @@ export function WorkspaceKnowledgeShell(props: WorkspaceKnowledgeShellProps): JS
 
         <div className="grid gap-3">
           {KNOWLEDGE_PANELS.map((panel) => (
-            <KnowledgeSection
+            <StaticKnowledgeSection
               key={panel.value}
               title={panel.label}
               summary={sectionSummaries[panel.value]}
               description={panel.description}
               icon={panel.icon}
-              isExpanded={expandedPanel === panel.value}
-              onToggle={() => togglePanel(panel.value)}
             >
               {panel.value === 'artifacts'
                   ? props.artifactContent
                 : panel.value === 'memory'
                   ? props.memoryContent
                   : null}
-            </KnowledgeSection>
+            </StaticKnowledgeSection>
           ))}
         </div>
       </section>
@@ -103,25 +82,18 @@ export function WorkspaceKnowledgeShell(props: WorkspaceKnowledgeShellProps): JS
   );
 }
 
-function KnowledgeSection(props: {
+function StaticKnowledgeSection(props: {
   title: string;
   summary: string;
   description: string;
   icon: typeof BrainCircuit;
-  isExpanded: boolean;
-  onToggle(): void;
   children: ReactNode;
 }): JSX.Element {
   const Icon = props.icon;
 
   return (
     <Card className="border-border/70 shadow-none">
-      <button
-        type="button"
-        className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left"
-        aria-expanded={props.isExpanded}
-        onClick={props.onToggle}
-      >
+      <div className="px-4 py-4">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <Icon className="h-4 w-4 text-muted" />
@@ -129,19 +101,11 @@ function KnowledgeSection(props: {
           </div>
           <p className="max-w-3xl text-sm leading-5 text-muted">{props.summary}</p>
         </div>
-        <ChevronDown
-          className={cn(
-            'mt-1 h-4 w-4 shrink-0 text-muted transition-transform',
-            props.isExpanded && 'rotate-180',
-          )}
-        />
-      </button>
-      {props.isExpanded ? (
-        <CardContent className="space-y-3 border-t border-border/70 px-4 py-4">
-          <p className="text-sm leading-6 text-muted">{props.description}</p>
-          {props.children}
-        </CardContent>
-      ) : null}
+      </div>
+      <CardContent className="space-y-3 border-t border-border/70 px-4 py-4">
+        <p className="text-sm leading-6 text-muted">{props.description}</p>
+        {props.children}
+      </CardContent>
     </Card>
   );
 }
@@ -154,9 +118,4 @@ function buildArtifactSummary(overview: WorkspaceOverview): string {
 function getPacketSummary(overview: WorkspaceOverview, label: string): string {
   const packet = overview.packets.find((entry) => entry.label === label);
   return packet ? `${packet.label}: ${packet.value}` : '';
-}
-
-function readKnowledgePanel(search: string): KnowledgePanelValue | null {
-  const panel = new URLSearchParams(search).get('panel');
-  return panel === 'artifacts' || panel === 'memory' ? panel : null;
 }
