@@ -785,16 +785,17 @@ describe('orchestratorControlRoutes', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('INSERT INTO workflow_tool_results')) {
+          expect(params?.[5]).toBe('recoverable_not_applied');
+          expect(params?.[6]).toBe('predecessor_not_ready');
+          expect(params?.[4]).toMatchObject({
+            mutation_outcome: 'recoverable_not_applied',
+            recovery_class: 'predecessor_not_ready',
+            closure_still_possible: true,
+          });
           return {
             rowCount: 1,
             rows: [{
-              response: {
-                noop: true,
-                ready: false,
-                reason_code: 'predecessor_not_ready',
-                stage_name: 'technical-review',
-                work_item_id: null,
-              },
+              response: params?.[4],
             }],
           };
         }
@@ -857,6 +858,8 @@ describe('orchestratorControlRoutes', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().data).toEqual(
       expect.objectContaining({
+        mutation_outcome: 'recoverable_not_applied',
+        recovery_class: 'predecessor_not_ready',
         noop: true,
         ready: false,
         reason_code: 'predecessor_not_ready',
@@ -3085,19 +3088,17 @@ describe('orchestratorControlRoutes', () => {
           };
         }
         if (sql.includes('INSERT INTO workflow_tool_results')) {
+          expect(params?.[5]).toBe('recoverable_not_applied');
+          expect(params?.[6]).toBe('subject_task_not_ready');
+          expect(params?.[4]).toMatchObject({
+            mutation_outcome: 'recoverable_not_applied',
+            recovery_class: 'subject_task_not_ready',
+            closure_still_possible: true,
+          });
           return {
             rowCount: 1,
             rows: [{
-              response: {
-                noop: true,
-                ready: false,
-                reason_code: 'subject_task_not_ready',
-                work_item_id: verificationWorkItemId,
-                stage_name: 'verification',
-                subject_task_id: 'task-developer',
-                subject_task_revision: 1,
-                subject_task_state: 'output_pending_assessment',
-              },
+              response: params?.[4],
             }],
           };
         }
@@ -3195,6 +3196,8 @@ describe('orchestratorControlRoutes', () => {
     expect(taskService.createTask).not.toHaveBeenCalled();
     expect(response.json().data).toEqual(
       expect.objectContaining({
+        mutation_outcome: 'recoverable_not_applied',
+        recovery_class: 'subject_task_not_ready',
         noop: true,
         ready: false,
         reason_code: 'subject_task_not_ready',
@@ -3259,21 +3262,17 @@ describe('orchestratorControlRoutes', () => {
           };
         }
         if (sql.includes('INSERT INTO workflow_tool_results')) {
+          expect(params?.[5]).toBe('recoverable_not_applied');
+          expect(params?.[6]).toBe('assessment_request_already_applied');
+          expect(params?.[4]).toMatchObject({
+            mutation_outcome: 'recoverable_not_applied',
+            recovery_class: 'assessment_request_already_applied',
+            closure_still_possible: true,
+          });
           return {
             rowCount: 1,
             rows: [{
-              response: {
-                noop: true,
-                ready: false,
-                reason_code: 'assessment_request_already_applied',
-                work_item_id: verificationWorkItemId,
-                stage_name: 'verification',
-                subject_task_id: 'task-developer',
-                subject_task_stage_name: 'implementation',
-                assessment_request_task_id: 'task-qa',
-                assessment_request_work_item_id: verificationWorkItemId,
-                assessment_request_stage_name: 'verification',
-              },
+              response: params?.[4],
             }],
           };
         }
@@ -3385,6 +3384,8 @@ describe('orchestratorControlRoutes', () => {
     expect(taskService.createTask).not.toHaveBeenCalled();
     expect(response.json().data).toEqual(
       expect.objectContaining({
+        mutation_outcome: 'recoverable_not_applied',
+        recovery_class: 'assessment_request_already_applied',
         noop: true,
         ready: false,
         reason_code: 'assessment_request_already_applied',
@@ -4779,16 +4780,17 @@ describe('orchestratorControlRoutes', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('INSERT INTO workflow_tool_results')) {
+          expect(params?.[5]).toBe('recoverable_not_applied');
+          expect(params?.[6]).toBe('task_not_awaiting_approval');
+          expect(params?.[4]).toMatchObject({
+            mutation_outcome: 'recoverable_not_applied',
+            recovery_class: 'task_not_awaiting_approval',
+            closure_still_possible: true,
+          });
           return {
             rowCount: 1,
             rows: [{
-              response: {
-                noop: true,
-                ready: false,
-                reason_code: 'task_not_awaiting_approval',
-                task_id: 'task-specialist',
-                task_state: 'output_pending_assessment',
-              },
+              response: params?.[4],
             }],
           };
         }
@@ -4846,6 +4848,8 @@ describe('orchestratorControlRoutes', () => {
     expect(response.statusCode).toBe(200);
     expect(taskService.approveTask).not.toHaveBeenCalled();
     expect(response.json().data).toMatchObject({
+      mutation_outcome: 'recoverable_not_applied',
+      recovery_class: 'task_not_awaiting_approval',
       noop: true,
       ready: false,
       reason_code: 'task_not_awaiting_approval',

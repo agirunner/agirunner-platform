@@ -252,14 +252,17 @@ export function readGuidedClosureMutationMetadata(response: Record<string, unkno
   mutationOutcome: 'applied' | 'recoverable_not_applied' | 'integrity_block' | null;
   recoveryClass: string | null;
 } {
-  const parsed = guidedClosureMutationResponseSchema.safeParse(response);
-  if (!parsed.success) {
+  const mutationOutcome = response.mutation_outcome;
+  if (
+    mutationOutcome !== 'applied'
+    && mutationOutcome !== 'recoverable_not_applied'
+    && mutationOutcome !== 'integrity_block'
+  ) {
     return { mutationOutcome: null, recoveryClass: null };
   }
 
   return {
-    mutationOutcome: parsed.data.mutation_outcome,
-    recoveryClass:
-      'recovery_class' in parsed.data ? parsed.data.recovery_class : null,
+    mutationOutcome,
+    recoveryClass: typeof response.recovery_class === 'string' ? response.recovery_class : null,
   };
 }

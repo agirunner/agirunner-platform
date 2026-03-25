@@ -273,22 +273,93 @@ function normalizeUUIDList(values: string[] | undefined): string[] {
     .map((parsed) => parsed.data))];
 }
 
-function buildRecoverableApproveTaskNoop(managedTask: Record<string, unknown>) {
+function buildRecoverableApproveTaskNoop(
+  taskScope: ActiveOrchestratorTaskScope,
+  managedTask: Record<string, unknown>,
+) {
   const taskState = readString(managedTask.state);
   if (!taskState || taskState === 'awaiting_approval') {
     return null;
   }
 
+  return buildLegacyCompatibleRecoverableNoop({
+    taskScope,
+    reasonCode: 'task_not_awaiting_approval',
+    message: `Cannot approve task '${readString(managedTask.id) ?? 'unknown'}' because it is currently '${taskState}', not 'awaiting_approval'. Re-read the task state before mutating further.`,
+    legacyFields: {
+      blocked_on: [`task_state:${taskState}`],
+      task_id: readString(managedTask.id),
+      task_state: taskState,
+      work_item_id: readString(managedTask.work_item_id),
+      stage_name: readString(managedTask.stage_name),
+    },
+    stateSnapshot: {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: readString(managedTask.work_item_id) ?? taskScope.work_item_id ?? null,
+      task_id: readString(managedTask.id) ?? null,
+      current_stage: readString(managedTask.stage_name) ?? taskScope.stage_name ?? null,
+      active_blocking_controls: [],
+      active_advisory_controls: [],
+    },
+    suggestedNextActions: [
+      {
+        action_code: 'inspect_task_state',
+        target_type: 'task',
+        target_id: readString(managedTask.id) ?? taskScope.id,
+        why: 'The task is no longer waiting for approval.',
+        requires_orchestrator_judgment: false,
+      },
+      {
+        action_code: 'continue_current_cycle',
+        target_type: readString(managedTask.work_item_id) ? 'work_item' : 'workflow',
+        target_id: readString(managedTask.work_item_id) ?? taskScope.workflow_id,
+        why: 'Route from the canonical task state instead of replaying a stale approval.',
+        requires_orchestrator_judgment: true,
+      },
+    ],
+    suggestedTargetIds: {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: readString(managedTask.work_item_id) ?? taskScope.work_item_id ?? null,
+      task_id: readString(managedTask.id) ?? null,
+    },
+  });
+}
+
+function buildLegacyCompatibleRecoverableNoop(input: {
+  taskScope: ActiveOrchestratorTaskScope;
+  reasonCode: string;
+  message: string;
+  legacyFields: Record<string, unknown>;
+  stateSnapshot: GuidedClosureStateSnapshot;
+  suggestedNextActions: Array<{
+    action_code: string;
+    target_type: string;
+    target_id: string;
+    why: string;
+    requires_orchestrator_judgment: boolean;
+  }>;
+  suggestedTargetIds: {
+    workflow_id: string;
+    work_item_id?: string | null;
+    task_id?: string | null;
+  };
+}) {
   return {
+    ...buildRecoverableMutationResult({
+      recovery_class: input.reasonCode,
+      blocking: false,
+      reason_code: input.reasonCode,
+      state_snapshot: input.stateSnapshot,
+      suggested_next_actions: input.suggestedNextActions,
+      suggested_target_ids: input.suggestedTargetIds,
+      callout_recommendations: [],
+      closure_still_possible: true,
+    }),
     noop: true,
     ready: false,
-    reason_code: 'task_not_awaiting_approval',
-    message: `Cannot approve task '${readString(managedTask.id) ?? 'unknown'}' because it is currently '${taskState}', not 'awaiting_approval'. Re-read the task state before mutating further.`,
-    blocked_on: [`task_state:${taskState}`],
-    task_id: readString(managedTask.id),
-    task_state: taskState,
-    work_item_id: readString(managedTask.work_item_id),
-    stage_name: readString(managedTask.stage_name),
+    reason_code: input.reasonCode,
+    message: input.message,
+    ...input.legacyFields,
   };
 }
 
@@ -411,6 +482,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
           createWorkflowWorkItemOrNoop(
             app,
             request.auth!,
+            taskScope,
             taskScope.workflow_id,
             normalizedBody,
             client,
@@ -644,7 +716,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         'approve_task',
         body.request_id,
         async (client) => {
-          const noop = buildRecoverableApproveTaskNoop(managedTask);
+          const noop = buildRecoverableApproveTaskNoop(taskScope, managedTask);
           if (noop) {
             return noop;
           }
@@ -880,6 +952,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
             client,
             request.auth!.tenantId,
             taskScope.workflow_id,
+            taskScope,
             createTaskContext,
             createInput,
           );
@@ -891,6 +964,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
             client,
             request.auth!.tenantId,
             taskScope.workflow_id,
+            taskScope,
             createInput,
           );
           if (verificationNotReadyNoop) {
@@ -1461,6 +1535,7 @@ async function runIdempotentMutation<T extends Record<string, unknown>>(
 async function createWorkflowWorkItemOrNoop(
   app: FastifyInstance,
   identity: ApiKeyIdentity,
+  taskScope: ActiveOrchestratorTaskScope,
   workflowId: string,
   input: z.infer<typeof workItemCreateSchema>,
   client: import('../../db/database.js').DatabaseClient,
@@ -1473,7 +1548,7 @@ async function createWorkflowWorkItemOrNoop(
       client,
     );
   } catch (error) {
-    const noop = buildRecoverableCreateWorkItemNoop(input, error);
+    const noop = buildRecoverableCreateWorkItemNoop(taskScope, input, error);
     if (noop) {
       return noop;
     }
@@ -1584,6 +1659,7 @@ function classifyUnconfiguredGateApprovalReason(error: unknown): string | null {
 }
 
 function buildRecoverableCreateWorkItemNoop(
+  taskScope: ActiveOrchestratorTaskScope,
   input: z.infer<typeof workItemCreateSchema>,
   error: unknown,
 ): Record<string, unknown> | null {
@@ -1602,17 +1678,32 @@ function buildRecoverableCreateWorkItemNoop(
     { stage_name: input.stage_name, reason_code: reasonCode },
   );
 
-  return {
-    noop: true,
-    safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
-    ready: false,
-    reason_code: reasonCode,
+  return buildLegacyCompatibleRecoverableNoop({
+    taskScope,
+    reasonCode,
     message,
-    blocked_on: [message],
-    stage_name: input.stage_name,
-    parent_work_item_id: input.parent_work_item_id ?? null,
-    work_item_id: null,
-  };
+    legacyFields: {
+      safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
+      blocked_on: [message],
+      stage_name: input.stage_name,
+      parent_work_item_id: input.parent_work_item_id ?? null,
+      work_item_id: null,
+    },
+    stateSnapshot: {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: taskScope.work_item_id ?? input.parent_work_item_id ?? null,
+      task_id: taskScope.id,
+      current_stage: taskScope.stage_name ?? input.stage_name,
+      active_blocking_controls: [],
+      active_advisory_controls: [],
+    },
+    suggestedNextActions: recoverableCreateWorkItemActions(reasonCode, taskScope, input),
+    suggestedTargetIds: {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: taskScope.work_item_id ?? input.parent_work_item_id ?? null,
+      task_id: taskScope.id,
+    },
+  });
 }
 
 function classifyRecoverableCreateWorkItemReason(message: string): string | null {
@@ -1626,6 +1717,69 @@ function classifyRecoverableCreateWorkItemReason(message: string): string | null
     return 'predecessor_waiting_for_handoff';
   }
   return null;
+}
+
+function recoverableCreateWorkItemActions(
+  reasonCode: string,
+  taskScope: ActiveOrchestratorTaskScope,
+  input: z.infer<typeof workItemCreateSchema>,
+) {
+  const baseTargetId = input.parent_work_item_id ?? taskScope.work_item_id ?? taskScope.workflow_id;
+  const baseTargetType = input.parent_work_item_id ? 'work_item' : 'workflow';
+  switch (reasonCode) {
+    case 'predecessor_waiting_for_gate':
+      return [
+        {
+          action_code: 'inspect_predecessor',
+          target_type: baseTargetType,
+          target_id: baseTargetId,
+          why: 'The predecessor stage still has an unresolved gate decision.',
+          requires_orchestrator_judgment: false,
+        },
+        {
+          action_code: 'wait_for_gate_resolution',
+          target_type: baseTargetType,
+          target_id: baseTargetId,
+          why: 'Resolve or wait for the gate before creating successor work.',
+          requires_orchestrator_judgment: false,
+        },
+      ];
+    case 'predecessor_waiting_for_handoff':
+      return [
+        {
+          action_code: 'inspect_predecessor',
+          target_type: baseTargetType,
+          target_id: baseTargetId,
+          why: 'The predecessor still lacks a full handoff.',
+          requires_orchestrator_judgment: false,
+        },
+        {
+          action_code: 'rerun_predecessor_for_handoff',
+          target_type: baseTargetType,
+          target_id: baseTargetId,
+          why: 'Create or reroute the missing predecessor delivery so successor work can start legally.',
+          requires_orchestrator_judgment: true,
+        },
+      ];
+    case 'predecessor_not_ready':
+    default:
+      return [
+        {
+          action_code: 'inspect_predecessor',
+          target_type: baseTargetType,
+          target_id: baseTargetId,
+          why: 'The predecessor state determines the next legal move.',
+          requires_orchestrator_judgment: false,
+        },
+        {
+          action_code: 'wait_for_predecessor_completion',
+          target_type: baseTargetType,
+          target_id: baseTargetId,
+          why: 'Finish or clear predecessor work before routing successor work.',
+          requires_orchestrator_judgment: false,
+        },
+      ];
+  }
 }
 
 async function loadExistingChildWorkflow(
@@ -2096,6 +2250,7 @@ async function buildRecoverableCreateTaskNoopIfNotReady(
   db: DatabaseQueryable,
   tenantId: string,
   workflowId: string,
+  taskScope: ActiveOrchestratorTaskScope,
   body: z.infer<typeof orchestratorTaskCreateSchema>,
 ): Promise<Record<string, unknown> | null> {
   if (!isVerificationTaskCreate(body)) {
@@ -2126,27 +2281,58 @@ async function buildRecoverableCreateTaskNoopIfNotReady(
     { workflow_id: workflowId, subject_task_id: subjectTask.id ?? subjectTaskId },
   );
 
-  return {
-    noop: true,
-    safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
-    ready: false,
-    reason_code: 'subject_task_not_ready',
+  return buildLegacyCompatibleRecoverableNoop({
+    taskScope,
+    reasonCode: 'subject_task_not_ready',
     message: `Cannot create a follow-up task that depends on subject output while subject task '${subjectTaskId}' is still '${subjectTask.state ?? 'unknown'}'. Wait for the current assessment/rework cycle to resolve before dispatching the follow-up task.`,
-    blocked_on: [
-      `subject_task_state:${subjectTask.state ?? 'unknown'}`,
+    legacyFields: {
+      safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
+      blocked_on: [
+        `subject_task_state:${subjectTask.state ?? 'unknown'}`,
+      ],
+      work_item_id: body.work_item_id,
+      stage_name: body.stage_name,
+      subject_task_id: subjectTask.id ?? subjectTaskId,
+      subject_task_revision: subjectTask.rework_count ?? 0,
+      subject_task_state: subjectTask.state ?? null,
+    },
+    stateSnapshot: {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: body.work_item_id,
+      task_id: taskScope.id,
+      current_stage: body.stage_name,
+      active_blocking_controls: [],
+      active_advisory_controls: [],
+    },
+    suggestedNextActions: [
+      {
+        action_code: 'inspect_subject_task',
+        target_type: 'task',
+        target_id: subjectTask.id ?? subjectTaskId,
+        why: 'The subject task has not produced a ready output yet.',
+        requires_orchestrator_judgment: false,
+      },
+      {
+        action_code: 'wait_for_subject_output',
+        target_type: 'task',
+        target_id: subjectTask.id ?? subjectTaskId,
+        why: 'Dispatch the follow-up only after the current assessment or rework cycle resolves.',
+        requires_orchestrator_judgment: false,
+      },
     ],
-    work_item_id: body.work_item_id,
-    stage_name: body.stage_name,
-    subject_task_id: subjectTask.id ?? subjectTaskId,
-    subject_task_revision: subjectTask.rework_count ?? 0,
-    subject_task_state: subjectTask.state ?? null,
-  };
+    suggestedTargetIds: {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: body.work_item_id,
+      task_id: subjectTask.id ?? subjectTaskId,
+    },
+  });
 }
 
 async function buildRecoverableCreateTaskNoopIfAssessmentRequestAlreadyApplied(
   db: DatabaseQueryable,
   tenantId: string,
   workflowId: string,
+  taskScope: ActiveOrchestratorTaskScope,
   context: OrchestratorCreateWorkItemContext,
   body: z.infer<typeof orchestratorTaskCreateSchema>,
 ): Promise<Record<string, unknown> | null> {
@@ -2208,23 +2394,53 @@ async function buildRecoverableCreateTaskNoopIfAssessmentRequestAlreadyApplied(
     { workflow_id: workflowId, work_item_id: body.work_item_id },
   );
 
-  return {
-    noop: true,
-    safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
-    ready: false,
-    reason_code: 'assessment_request_already_applied',
+  return buildLegacyCompatibleRecoverableNoop({
+    taskScope,
+    reasonCode: 'assessment_request_already_applied',
     message: `Cannot create '${body.role}' task on work item '${body.work_item_id}' because assessment request '${assessmentRequestTask.id}' was already applied to reopened task '${activationTask.id}'. Continue routing from the reopened task instead of spawning a sibling rework task.`,
-    blocked_on: [
-      `assessment_request_already_applied:${assessmentRequestTask.id}`,
+    legacyFields: {
+      safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
+      blocked_on: [
+        `assessment_request_already_applied:${assessmentRequestTask.id}`,
+      ],
+      work_item_id: body.work_item_id,
+      stage_name: body.stage_name,
+      subject_task_id: activationTask.id,
+      subject_task_stage_name: activationTask.stage_name,
+      assessment_request_task_id: assessmentRequestTask.id,
+      assessment_request_work_item_id: assessmentRequestTask.work_item_id,
+      assessment_request_stage_name: assessmentRequestTask.stage_name,
+    },
+    stateSnapshot: {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: body.work_item_id,
+      task_id: taskScope.id,
+      current_stage: body.stage_name,
+      active_blocking_controls: [],
+      active_advisory_controls: [],
+    },
+    suggestedNextActions: [
+      {
+        action_code: 'continue_routing_from_reopened_task',
+        target_type: 'task',
+        target_id: activationTask.id,
+        why: 'The reopened task already owns the requested rework path.',
+        requires_orchestrator_judgment: false,
+      },
+      {
+        action_code: 'inspect_assessment_request',
+        target_type: 'task',
+        target_id: assessmentRequestTask.id,
+        why: 'The prior assessment request already established the follow-up contract.',
+        requires_orchestrator_judgment: false,
+      },
     ],
-    work_item_id: body.work_item_id,
-    stage_name: body.stage_name,
-    subject_task_id: activationTask.id,
-    subject_task_stage_name: activationTask.stage_name,
-    assessment_request_task_id: assessmentRequestTask.id,
-    assessment_request_work_item_id: assessmentRequestTask.work_item_id,
-    assessment_request_stage_name: assessmentRequestTask.stage_name,
-  };
+    suggestedTargetIds: {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: body.work_item_id,
+      task_id: activationTask.id,
+    },
+  });
 }
 
 async function loadExistingReworkTaskForAssessmentRequest(
