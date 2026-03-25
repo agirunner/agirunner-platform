@@ -54,8 +54,7 @@ describe('runtime defaults page support', () => {
     ]);
     expect(fieldsForSection('task_limits').map((field) => field.key)).toEqual(['agent.max_iterations']);
     expect(fieldsForSection('capacity_limits').map((field) => field.key)).toEqual([
-      'global_max_runtimes',
-      'global_max_execution_containers',
+      'global_max_specialists',
     ]);
     expect(fieldsForSection('runtime_containers')).toEqual(
       expect.arrayContaining([
@@ -101,7 +100,6 @@ describe('runtime defaults page support', () => {
       'agent.llm_max_retries',
     ]);
     expect(fieldsForSection('runtime_throughput').map((field) => field.key)).toEqual([
-      'queue.max_concurrency',
       'queue.max_depth',
     ]);
     expect(fieldsForSection('connected_platform').map((field) => field.key)).toEqual(
@@ -123,10 +121,9 @@ describe('runtime defaults page support', () => {
       'agent.specialist_context_strategy': 'invalid',
       'agent.orchestrator_history_preserve_recent': '21',
       'agent.loop_detection_repeat': '0',
-      'queue.max_concurrency': '0',
       'capture.push_retries': '-1',
       'subagent.max_depth': '-1',
-      global_max_execution_containers: '0',
+      global_max_specialists: '0',
     });
 
     expect(errors['agent.history_preserve_recent']).toContain('overall history budget');
@@ -135,10 +132,9 @@ describe('runtime defaults page support', () => {
     expect(errors['agent.specialist_context_strategy']).toContain('must be one of');
     expect(errors['agent.orchestrator_history_preserve_recent']).toContain('overall history budget');
     expect(errors['agent.loop_detection_repeat']).toContain('at least 1');
-    expect(errors['queue.max_concurrency']).toContain('at least 1');
     expect(errors['capture.push_retries']).toContain('at least 0');
     expect(errors['subagent.max_depth']).toContain('at least 0');
-    expect(errors['global_max_execution_containers']).toContain('at least 1');
+    expect(errors['global_max_specialists']).toContain('at least 1');
   });
 
   it('describes loop safeguard defaults with platform-authoritative thresholds', () => {
@@ -269,7 +265,7 @@ describe('runtime defaults page support', () => {
         }),
         expect.objectContaining({
           key: 'capacity_limits',
-          title: 'Capacity limits',
+          title: 'Specialist capacity',
           configuredCount: 0,
           errorCount: 0,
         }),

@@ -223,7 +223,7 @@ describe('RuntimeDefaultsService', () => {
       ).rejects.toThrow('agent.history_max_messages must be at least 1');
     });
 
-    it('rejects invalid specialist runtime and execution capacity defaults', async () => {
+    it('rejects invalid specialist capacity defaults', async () => {
       await expect(
         service.createDefault(TENANT_ID, {
           configKey: 'specialist_runtime_bootstrap_claim_timeout_seconds',
@@ -246,14 +246,38 @@ describe('RuntimeDefaultsService', () => {
 
       await expect(
         service.createDefault(TENANT_ID, {
-          configKey: 'global_max_execution_containers',
+          configKey: 'global_max_specialists',
           configValue: '0',
           configType: 'number',
         }),
-      ).rejects.toThrow('global_max_execution_containers must be at least 1');
+      ).rejects.toThrow('global_max_specialists must be at least 1');
     });
 
     it('rejects removed legacy web search runtime defaults', async () => {
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'global_max_runtimes',
+          configValue: '10',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('global_max_runtimes has been removed');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'global_max_execution_containers',
+          configValue: '10',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('global_max_execution_containers has been removed');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'queue.max_concurrency',
+          configValue: '2',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('queue.max_concurrency has been removed');
+
       await expect(
         service.createDefault(TENANT_ID, {
           configKey: 'tools.web_search_provider',
@@ -470,14 +494,6 @@ describe('RuntimeDefaultsService', () => {
     });
 
     it('rejects invalid queue, pool, snapshot, capture, and subagent defaults', async () => {
-      await expect(
-        service.createDefault(TENANT_ID, {
-          configKey: 'queue.max_concurrency',
-          configValue: '0',
-          configType: 'number',
-        }),
-      ).rejects.toThrow('queue.max_concurrency must be at least 1');
-
       await expect(
         service.createDefault(TENANT_ID, {
           configKey: 'queue.max_depth',

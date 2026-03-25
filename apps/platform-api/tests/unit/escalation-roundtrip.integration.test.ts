@@ -37,7 +37,7 @@ describe('V2 escalation round-trip integration', () => {
       ['tasks.default_timeout_minutes', '30'],
       ['agent.max_iterations', '10'],
       ['agent.llm_max_retries', '5'],
-      ['global_max_execution_containers', '20'],
+      ['global_max_specialists', '20'],
       ['specialist_runtime_bootstrap_claim_timeout_seconds', '60'],
       ['specialist_runtime_drain_grace_seconds', '15'],
       ['platform.workflow_activation_delay_ms', '10000'],

@@ -10,7 +10,7 @@ import {
   assertValidContainerMemory,
 } from './container-resource-validation.js';
 import {
-  GLOBAL_MAX_EXECUTION_CONTAINERS_RUNTIME_KEY,
+  GLOBAL_MAX_SPECIALISTS_RUNTIME_KEY,
   SPECIALIST_RUNTIME_DEFAULT_KEYS,
 } from './runtime-default-values.js';
 
@@ -745,16 +745,12 @@ export class FleetService {
 
     const runtimeDefaults = readSpecialistRuntimeTargetDefaults(defaults);
     const routingTags = await this.loadSpecialistRoutingTags(tenantId);
-    const globalMaxRuntimes = readRequiredIntegerDefault(
+    const globalMaxSpecialists = readRequiredIntegerDefault(
       defaults,
-      CONTAINER_MANAGER_RUNTIME_DEFAULTS.globalMaxRuntimes,
-    );
-    const globalMaxExecutionContainers = readRequiredIntegerDefault(
-      defaults,
-      GLOBAL_MAX_EXECUTION_CONTAINERS_RUNTIME_KEY,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.globalMaxSpecialists,
     );
     const availableExecutionSlots = Math.max(
-      globalMaxExecutionContainers - stats.active_execution_containers,
+      globalMaxSpecialists - stats.active_execution_containers,
       0,
     );
     return [
@@ -764,7 +760,7 @@ export class FleetService {
         pool_kind: 'specialist',
         routing_tags: routingTags,
         pool_mode: 'cold',
-        max_runtimes: globalMaxRuntimes,
+        max_runtimes: globalMaxSpecialists,
         priority: 0,
         idle_timeout_seconds: 0,
         grace_period_seconds: runtimeDefaults.drainGraceSeconds,
@@ -969,7 +965,7 @@ export class FleetService {
     const runtimeDefaults = await this.loadRuntimeDefaults(tenantId);
     const globalMaxRuntimes = readRequiredIntegerDefault(
       runtimeDefaults,
-      CONTAINER_MANAGER_RUNTIME_DEFAULTS.globalMaxRuntimes,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.globalMaxSpecialists,
     );
     const heartbeatFreshnessSeconds = readRuntimeHeartbeatFreshnessSeconds(runtimeDefaults);
 
@@ -1316,7 +1312,7 @@ const CONTAINER_MANAGER_RUNTIME_DEFAULTS = {
   runtimeOrphanGraceCycles: 'container_manager.runtime_orphan_grace_cycles',
   hungRuntimeStaleAfterSeconds: 'container_manager.hung_runtime_stale_after_seconds',
   hungRuntimeStopGracePeriodSeconds: 'container_manager.hung_runtime_stop_grace_period_seconds',
-  globalMaxRuntimes: 'global_max_runtimes',
+  globalMaxSpecialists: GLOBAL_MAX_SPECIALISTS_RUNTIME_KEY,
   runtimeLogMaxSizeMB: 'container_manager.runtime_log_max_size_mb',
   runtimeLogMaxFiles: 'container_manager.runtime_log_max_files',
 } as const;
@@ -1377,7 +1373,7 @@ function buildContainerManagerConfig(defaults: Map<string, string>): ContainerMa
     ),
     global_max_runtimes: readRequiredIntegerDefault(
       defaults,
-      CONTAINER_MANAGER_RUNTIME_DEFAULTS.globalMaxRuntimes,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.globalMaxSpecialists,
     ),
     runtime_log_max_size_mb: readRequiredIntegerDefault(
       defaults,

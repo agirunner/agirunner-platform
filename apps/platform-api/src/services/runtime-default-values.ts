@@ -4,7 +4,7 @@ import { ValidationError } from '../errors/domain-errors.js';
 export const TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY = 'tasks.default_timeout_minutes';
 export const TASK_MAX_ITERATIONS_RUNTIME_KEY = 'agent.max_iterations';
 export const TASK_LLM_MAX_RETRIES_RUNTIME_KEY = 'agent.llm_max_retries';
-export const GLOBAL_MAX_EXECUTION_CONTAINERS_RUNTIME_KEY = 'global_max_execution_containers';
+export const GLOBAL_MAX_SPECIALISTS_RUNTIME_KEY = 'global_max_specialists';
 
 export const SPECIALIST_RUNTIME_DEFAULT_KEYS = {
   image: 'specialist_runtime_default_image',

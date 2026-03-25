@@ -12,8 +12,7 @@ const RUNTIME_ID = '00000000-0000-0000-0000-000000000020';
 
 function createRuntimeTargetDefaultRows(overrides: Record<string, string> = {}) {
   const defaults = {
-    global_max_runtimes: '12',
-    global_max_execution_containers: '20',
+    global_max_specialists: '12',
     specialist_runtime_default_image: 'agirunner-runtime:local',
     specialist_runtime_default_cpu: '2',
     specialist_runtime_default_memory: '256m',
@@ -135,7 +134,7 @@ describe('FleetService DCM', () => {
         pending_tasks: 3,
         active_workflows: 0,
         active_execution_containers: 4,
-        available_execution_slots: 16,
+        available_execution_slots: 8,
       });
       expect(result[0].routing_tags).toEqual(['role:developer']);
     });
@@ -166,7 +165,7 @@ describe('FleetService DCM', () => {
           specialist_runtime_default_pull_policy: 'always',
           specialist_runtime_default_image: 'agirunner-runtime:v2',
           specialist_runtime_drain_grace_seconds: '45',
-          global_max_execution_containers: '9',
+          global_max_specialists: '9',
         }),
         rowCount: 8,
       });
@@ -433,8 +432,7 @@ describe('FleetService DCM', () => {
               { config_key: 'container_manager.hung_runtime_stop_grace_period_seconds', config_value: '30' },
               { config_key: 'container_manager.runtime_log_max_size_mb', config_value: '10' },
               { config_key: 'container_manager.runtime_log_max_files', config_value: '3' },
-              { config_key: 'global_max_runtimes', config_value: '12' },
-              { config_key: 'global_max_execution_containers', config_value: '20' },
+              { config_key: 'global_max_specialists', config_value: '12' },
               { config_key: 'specialist_runtime_default_image', config_value: 'agirunner-runtime:local' },
               { config_key: 'specialist_runtime_default_cpu', config_value: '2' },
               { config_key: 'specialist_runtime_default_memory', config_value: '256m' },
@@ -543,8 +541,7 @@ describe('FleetService DCM', () => {
     it('aggregates runtime states across playbooks', async () => {
       pool.query.mockResolvedValueOnce({
         rows: createRuntimeTargetDefaultRows({
-          global_max_runtimes: '10',
-          global_max_execution_containers: '6',
+          global_max_specialists: '6',
         }),
         rowCount: 8,
       });
@@ -558,8 +555,7 @@ describe('FleetService DCM', () => {
       });
       pool.query.mockResolvedValueOnce({
         rows: createRuntimeTargetDefaultRows({
-          global_max_runtimes: '10',
-          global_max_execution_containers: '6',
+          global_max_specialists: '6',
         }),
         rowCount: 8,
       });
@@ -606,7 +602,7 @@ describe('FleetService DCM', () => {
 
       const result = await service.getFleetStatus(TENANT_ID);
 
-      expect(result.global_max_runtimes).toBe(10);
+      expect(result.global_max_runtimes).toBe(6);
       expect(result.total_running).toBe(3);
       expect(result.total_idle).toBe(1);
       expect(result.total_executing).toBe(2);
@@ -617,7 +613,7 @@ describe('FleetService DCM', () => {
             playbook_id: 'specialist',
             playbook_name: 'Specialist runtimes',
             running: 2,
-            max_runtimes: 10,
+            max_runtimes: 6,
             pending_tasks: 2,
           }),
           expect.objectContaining({
@@ -637,7 +633,7 @@ describe('FleetService DCM', () => {
             playbook_id: 'specialist',
             pool_kind: 'specialist',
             pending_tasks: 2,
-            max_runtimes: 10,
+            max_runtimes: 6,
           }),
         ]),
       );
@@ -646,22 +642,22 @@ describe('FleetService DCM', () => {
       expect(result.recent_events[0].event_type).toBe('runtime.started');
     });
 
-    it('fails closed when global_max_runtimes is not configured', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // global_max_runtimes
+    it('fails closed when global_max_specialists is not configured', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // global_max_specialists
 
       await expect(service.getFleetStatus(TENANT_ID)).rejects.toThrow(
-        /Missing runtime default "global_max_runtimes"/,
+        /Missing runtime default "global_max_specialists"/,
       );
     });
 
     it('filters stale runtime heartbeats out of live fleet status reads', async () => {
       pool.query.mockResolvedValueOnce({
-        rows: createRuntimeTargetDefaultRows({ global_max_runtimes: '10' }),
+        rows: createRuntimeTargetDefaultRows({ global_max_specialists: '10' }),
         rowCount: 9,
       });
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       pool.query.mockResolvedValueOnce({
-        rows: createRuntimeTargetDefaultRows({ global_max_runtimes: '10' }),
+        rows: createRuntimeTargetDefaultRows({ global_max_specialists: '10' }),
         rowCount: 9,
       });
       pool.query.mockResolvedValueOnce({
@@ -895,12 +891,12 @@ describe('FleetService DCM', () => {
   describe('getFleetStatus recent_events', () => {
     it('includes recent fleet events in status response', async () => {
       pool.query.mockResolvedValueOnce({
-        rows: createRuntimeTargetDefaultRows({ global_max_runtimes: '5' }),
+        rows: createRuntimeTargetDefaultRows({ global_max_specialists: '5' }),
         rowCount: 8,
       });
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       pool.query.mockResolvedValueOnce({
-        rows: createRuntimeTargetDefaultRows({ global_max_runtimes: '5' }),
+        rows: createRuntimeTargetDefaultRows({ global_max_specialists: '5' }),
         rowCount: 8,
       });
       pool.query.mockResolvedValueOnce({
@@ -930,7 +926,7 @@ describe('FleetService DCM', () => {
 
     it('redacts secret-bearing payload values in recent fleet events', async () => {
       pool.query.mockResolvedValueOnce({
-        rows: createRuntimeTargetDefaultRows({ global_max_runtimes: '5' }),
+        rows: createRuntimeTargetDefaultRows({ global_max_specialists: '5' }),
         rowCount: 8,
       });
       pool.query.mockResolvedValueOnce({
@@ -938,7 +934,7 @@ describe('FleetService DCM', () => {
         rowCount: 0,
       });
       pool.query.mockResolvedValueOnce({
-        rows: createRuntimeTargetDefaultRows({ global_max_runtimes: '5' }),
+        rows: createRuntimeTargetDefaultRows({ global_max_specialists: '5' }),
         rowCount: 8,
       });
       pool.query.mockResolvedValueOnce({
@@ -985,12 +981,12 @@ describe('FleetService DCM', () => {
 
     it('queries fleet_events with correct tenant and limit', async () => {
       pool.query.mockResolvedValueOnce({
-        rows: createRuntimeTargetDefaultRows({ global_max_runtimes: '5' }),
+        rows: createRuntimeTargetDefaultRows({ global_max_specialists: '5' }),
         rowCount: 8,
       });
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       pool.query.mockResolvedValueOnce({
-        rows: createRuntimeTargetDefaultRows({ global_max_runtimes: '5' }),
+        rows: createRuntimeTargetDefaultRows({ global_max_specialists: '5' }),
         rowCount: 8,
       });
       pool.query.mockResolvedValueOnce({

@@ -5,7 +5,7 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     key: 'runtime_throughput',
     title: 'Runtime throughput',
     description:
-      'Set local queue and parallelism limits for a specialist runtime process.',
+      'Set local queue buffering limits for a specialist runtime process.',
   },
   {
     key: 'server_timeouts',
@@ -537,17 +537,6 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
 
 function buildRuntimeThroughputFields(): FieldDefinition[] {
   return [
-    {
-      key: 'queue.max_concurrency',
-      label: 'Parallel task execution limit',
-      description: 'Maximum number of tasks this runtime may execute at the same time.',
-      configType: 'number',
-      placeholder: '2',
-      section: 'runtime_throughput',
-      inputMode: 'numeric',
-      min: 1,
-      step: 1,
-    },
     {
       key: 'queue.max_depth',
       label: 'Queued task backlog limit',

@@ -44,9 +44,9 @@ const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
   },
   {
     key: 'capacity_limits',
-    title: 'Capacity limits',
+    title: 'Specialist capacity',
     description:
-      'Global ceilings for specialist runtimes and specialist execution containers. When a cap is reached, new work waits for a free slot.',
+      'Shared ceiling for active specialists. Each active specialist consumes one short-lived runtime and one execution container. When the cap is reached, new specialist work waits for a free slot.',
     defaultExpanded: true,
   },
   {
@@ -478,21 +478,10 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     step: 1,
   },
   {
-    key: 'global_max_runtimes',
-    label: 'Max specialist runtimes',
-    description: 'Maximum concurrent short-lived specialist runtime containers.',
-    configType: 'number',
-    placeholder: '10',
-    section: 'capacity_limits',
-    inputMode: 'numeric',
-    min: 1,
-    step: 1,
-  },
-  {
-    key: 'global_max_execution_containers',
-    label: 'Max execution containers',
+    key: 'global_max_specialists',
+    label: 'Max active specialists',
     description:
-      'Maximum concurrent leased specialist execution containers. New specialist work waits when this cap is full.',
+      'Maximum concurrent specialist tasks. Each active specialist consumes one short-lived runtime and one execution container.',
     configType: 'number',
     placeholder: '20',
     section: 'capacity_limits',

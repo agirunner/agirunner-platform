@@ -222,4 +222,41 @@ describe('RuntimeConfigService', () => {
       { key: 'agent.max_parallel_tool_calls_per_burst', value: '4', type: 'number' },
     ]);
   });
+
+  it('filters removed runtime defaults out of worker config responses', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [sampleWorker], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 })
+      .mockResolvedValueOnce({
+        rows: [
+          sampleDefault,
+          {
+            config_key: 'global_max_runtimes',
+            config_value: '10',
+            config_type: 'number',
+            updated_at: new Date(),
+          },
+          {
+            config_key: 'global_max_execution_containers',
+            config_value: '10',
+            config_type: 'number',
+            updated_at: new Date(),
+          },
+          {
+            config_key: 'queue.max_concurrency',
+            config_value: '2',
+            config_type: 'number',
+            updated_at: new Date(),
+          },
+        ],
+        rowCount: 4,
+      });
+
+    const result = await service.getConfigForWorker(TENANT_ID, 'built-in-worker');
+
+    expect(result.defaults).toEqual([
+      { key: 'max_rework_attempts', value: '3', type: 'number' },
+    ]);
+  });
 });

@@ -86,17 +86,11 @@ async function seedRuntimeDefaultsAndPrompts(db: DatabaseQueryable): Promise<voi
 
 async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<void> {
   await service.upsertDefault(DEFAULT_TENANT_ID, {
-    configKey: 'global_max_runtimes',
-    configValue: '10',
-    configType: 'number',
-    description: 'Hard ceiling on total dynamically managed runtime containers',
-  });
-
-  await service.upsertDefault(DEFAULT_TENANT_ID, {
-    configKey: 'global_max_execution_containers',
+    configKey: 'global_max_specialists',
     configValue: '20',
     configType: 'number',
-    description: 'Hard ceiling on concurrently leased specialist execution containers',
+    description:
+      'Hard ceiling on concurrently active specialists. Each active specialist consumes one runtime and one execution container',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -766,12 +760,6 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
       configValue: '2',
       configType: 'number',
       description: 'Grace period in seconds when stopping containers that failed during startup',
-    },
-    {
-      configKey: 'queue.max_concurrency',
-      configValue: '2',
-      configType: 'number',
-      description: 'Maximum number of task executions a single specialist runtime may process concurrently',
     },
     {
       configKey: 'queue.max_depth',

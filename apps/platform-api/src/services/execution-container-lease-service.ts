@@ -1,5 +1,5 @@
 import type { DatabasePool, DatabaseQueryable } from '../db/database.js';
-import { readRequiredPositiveIntegerRuntimeDefault, GLOBAL_MAX_EXECUTION_CONTAINERS_RUNTIME_KEY } from './runtime-default-values.js';
+import { readRequiredPositiveIntegerRuntimeDefault, GLOBAL_MAX_SPECIALISTS_RUNTIME_KEY } from './runtime-default-values.js';
 
 const ACTIVE_TASK_STATES_FOR_EXECUTION_LEASES = [
   'claimed',
@@ -42,7 +42,7 @@ export class ExecutionContainerLeaseService {
     const limit = await readRequiredPositiveIntegerRuntimeDefault(
       db,
       tenantId,
-      GLOBAL_MAX_EXECUTION_CONTAINERS_RUNTIME_KEY,
+      GLOBAL_MAX_SPECIALISTS_RUNTIME_KEY,
     );
     const activeBefore = await this.countActiveLeases(tenantId, db);
     if (activeBefore >= limit) {

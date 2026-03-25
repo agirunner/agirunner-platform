@@ -23,8 +23,7 @@ const SECRET_RUNTIME_DEFAULT_SEGMENTS = new Set([
 const INTEGER_DEFAULT_RULES = new Map([
   ['default_idle_timeout_seconds', { min: 0 }],
   ['default_grace_period', { min: 1 }],
-  ['global_max_runtimes', { min: 1 }],
-  ['global_max_execution_containers', { min: 1 }],
+  ['global_max_specialists', { min: 1 }],
   ['specialist_runtime_bootstrap_claim_timeout_seconds', { min: 1 }],
   ['specialist_runtime_drain_grace_seconds', { min: 1 }],
   ['server.shutdown_timeout_seconds', { min: 1 }],
@@ -129,7 +128,6 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['container.max_reuse_age_seconds', { min: 0 }],
   ['container.max_reuse_tasks', { min: 0 }],
   ['containerd.connect_timeout_seconds', { min: 1 }],
-  ['queue.max_concurrency', { min: 1 }],
   ['queue.max_depth', { min: 1 }],
   ['capture.push_timeout_seconds', { min: 1 }],
   ['capture.push_retries', { min: 0 }],
@@ -168,6 +166,9 @@ const BOOLEAN_DEFAULT_KEYS = new Set([
   'agent.orchestrator_finish_refresh_context_bundle',
 ]);
 const REMOVED_RUNTIME_DEFAULT_KEYS = new Set([
+  'global_max_runtimes',
+  'global_max_execution_containers',
+  'queue.max_concurrency',
   'tools.web_search_provider',
   'tools.web_search_base_url',
   'tools.web_search_api_key_secret_ref',

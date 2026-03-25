@@ -10,6 +10,9 @@ const RUNTIME_CONFIG_SECRET_REDACTION = 'redacted://runtime-config-secret';
 const runtimeConfigSecretKeyPattern =
   /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|webhook_url|known_hosts)/i;
 const REMOVED_RUNTIME_DEFAULT_KEYS = new Set([
+  'global_max_runtimes',
+  'global_max_execution_containers',
+  'queue.max_concurrency',
   'tools.web_search_provider',
   'tools.web_search_base_url',
   'tools.web_search_api_key_secret_ref',

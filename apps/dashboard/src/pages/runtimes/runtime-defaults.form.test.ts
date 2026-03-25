@@ -77,27 +77,27 @@ describe('runtime defaults form', () => {
   });
 
   it('treats blank inherited advanced defaults as a save no-op', () => {
-    const field = FIELD_DEFINITIONS.find((candidate) => candidate.key === 'queue.max_concurrency');
+    const field = FIELD_DEFINITIONS.find((candidate) => candidate.key === 'global_max_specialists');
 
     expect(field).toBeDefined();
     expect(
       planRuntimeDefaultSaveAction({
         field: field!,
         currentValue: '',
-        existingValue: '2',
+        existingValue: '20',
       }),
     ).toBe('noop');
   });
 
   it('treats explicit advanced built-in defaults as a save no-op when the seeded row already exists', () => {
-    const field = FIELD_DEFINITIONS.find((candidate) => candidate.key === 'queue.max_concurrency');
+    const field = FIELD_DEFINITIONS.find((candidate) => candidate.key === 'global_max_specialists');
 
     expect(field).toBeDefined();
     expect(
       planRuntimeDefaultSaveAction({
         field: field!,
-        currentValue: '2',
-        existingValue: '2',
+        currentValue: '20',
+        existingValue: '20',
       }),
     ).toBe('noop');
   });
