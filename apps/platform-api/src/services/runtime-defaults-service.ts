@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import type { DatabaseQueryable } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
-import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type { EventService } from './event-service.js';
 import type { FleetService } from './fleet-service.js';
 
@@ -174,6 +174,37 @@ const REMOVED_RUNTIME_DEFAULT_KEYS = new Set([
   'platform.webhook_max_attempts',
   'platform.webhook_retry_base_delay_ms',
 ]);
+const NON_DELETABLE_RUNTIME_DEFAULT_KEYS = new Set([
+  'global_max_specialists',
+  'tasks.default_timeout_minutes',
+  'agent.max_iterations',
+  'agent.llm_max_retries',
+  'specialist_runtime_default_image',
+  'specialist_runtime_default_cpu',
+  'specialist_runtime_default_memory',
+  'specialist_runtime_default_pull_policy',
+  'specialist_runtime_bootstrap_claim_timeout_seconds',
+  'specialist_runtime_drain_grace_seconds',
+  'specialist_execution_default_image',
+  'specialist_execution_default_cpu',
+  'specialist_execution_default_memory',
+  'specialist_execution_default_pull_policy',
+  'platform.api_request_timeout_seconds',
+  'platform.log_ingest_timeout_seconds',
+  'container_manager.reconcile_interval_seconds',
+  'container_manager.stop_timeout_seconds',
+  'container_manager.shutdown_task_stop_timeout_seconds',
+  'container_manager.docker_action_buffer_seconds',
+  'container_manager.log_flush_interval_ms',
+  'container_manager.docker_event_reconnect_backoff_ms',
+  'container_manager.crash_log_capture_timeout_seconds',
+  'container_manager.starvation_threshold_seconds',
+  'container_manager.runtime_orphan_grace_cycles',
+  'container_manager.hung_runtime_stale_after_seconds',
+  'container_manager.hung_runtime_stop_grace_period_seconds',
+  'container_manager.runtime_log_max_size_mb',
+  'container_manager.runtime_log_max_files',
+]);
 
 const createDefaultSchema = z.object({
   configKey: z.string().min(1).max(200),
@@ -330,6 +361,7 @@ export class RuntimeDefaultsService {
   }
 
   async deleteDefault(tenantId: string, id: string, configKey?: string): Promise<void> {
+    assertRuntimeDefaultCanBeDeleted(configKey);
     const result = await this.pool.query(
       'DELETE FROM runtime_defaults WHERE tenant_id = $1 AND id = $2',
       [tenantId, id],
@@ -359,6 +391,14 @@ function hasSecretLikeRuntimeDefaultKey(configKey: string): boolean {
     .split('.')
     .map((segment) => segment.trim().toLowerCase().replaceAll('-', '_'))
     .some((segment) => SECRET_RUNTIME_DEFAULT_SEGMENTS.has(segment));
+}
+
+function assertRuntimeDefaultCanBeDeleted(configKey?: string): void {
+  if (!configKey || !NON_DELETABLE_RUNTIME_DEFAULT_KEYS.has(configKey)) {
+    return;
+  }
+
+  throw new ValidationError(`Runtime default "${configKey}" is required and cannot be deleted`);
 }
 
 function validateKnownRuntimeDefault(input: CreateRuntimeDefaultInput): void {

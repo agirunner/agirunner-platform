@@ -833,7 +833,9 @@ describe('RuntimeDefaultsService', () => {
   describe('deleteDefault', () => {
     it('deletes a runtime default', async () => {
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
-      await expect(service.deleteDefault(TENANT_ID, DEFAULT_ID)).resolves.toBeUndefined();
+      await expect(
+        service.deleteDefault(TENANT_ID, DEFAULT_ID, 'max_rework_attempts'),
+      ).resolves.toBeUndefined();
     });
 
     it('does not request runtime drain or rollout events after delete', async () => {
@@ -847,9 +849,20 @@ describe('RuntimeDefaultsService', () => {
 
     it('throws NotFoundError when default not found', async () => {
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-      await expect(service.deleteDefault(TENANT_ID, DEFAULT_ID)).rejects.toThrow(
+      await expect(
+        service.deleteDefault(TENANT_ID, DEFAULT_ID, 'max_rework_attempts'),
+      ).rejects.toThrow(
         'Runtime default not found',
       );
+    });
+
+    it('rejects deleting required specialist runtime defaults', async () => {
+      await expect(
+        service.deleteDefault(TENANT_ID, DEFAULT_ID, 'specialist_runtime_default_memory'),
+      ).rejects.toThrow(
+        'Runtime default "specialist_runtime_default_memory" is required and cannot be deleted',
+      );
+      expect(pool.query).not.toHaveBeenCalled();
     });
   });
 });
