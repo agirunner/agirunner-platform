@@ -3,7 +3,7 @@
   "profile": "multi-orchestrator-concurrent-assessment-workflows",
   "workflow": {
     "name": "Multi Orchestrator Concurrent Assessment Workflows",
-    "goal": "Prove that multiple orchestrators can finish one simple workflow with many tiny independent work items.",
+    "goal": "Prove that multiple orchestrators can finish several tiny independent workflows in parallel.",
     "parameters": {}
   },
   "workspace": {
@@ -61,6 +61,7 @@
       "direct_stage_flow"
     ],
     "concurrency": [
+      "multiple_workflows_concurrent",
       "multiple_orchestrators_concurrent"
     ],
     "storage_execution": [
