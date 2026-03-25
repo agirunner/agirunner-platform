@@ -1,33 +1,33 @@
 CREATE INDEX IF NOT EXISTS idx_exlogs_search_document
   ON ONLY public.execution_logs
   USING gin (
-    to_tsvector('simple', CONCAT_WS(' ',
-      operation,
-      task_id::text,
-      work_item_id::text,
-      activation_id::text,
-      workflow_id::text,
-      workspace_id::text,
-      stage_name,
-      trace_id,
-      span_id,
-      workflow_name,
-      workspace_name,
-      task_title,
-      role,
-      actor_type,
-      actor_id,
-      actor_name,
-      resource_type,
-      resource_name,
-      error->>'message',
-      payload->>'system_prompt',
-      payload->>'prompt_summary',
-      payload->>'response_summary',
-      payload->>'response_text',
-      payload->>'tool_name',
-      payload::text
-    ))
+    to_tsvector('simple',
+      COALESCE(operation, '') || ' ' ||
+      COALESCE(task_id::text, '') || ' ' ||
+      COALESCE(work_item_id::text, '') || ' ' ||
+      COALESCE(activation_id::text, '') || ' ' ||
+      COALESCE(workflow_id::text, '') || ' ' ||
+      COALESCE(workspace_id::text, '') || ' ' ||
+      COALESCE(stage_name, '') || ' ' ||
+      COALESCE(trace_id, '') || ' ' ||
+      COALESCE(span_id, '') || ' ' ||
+      COALESCE(workflow_name, '') || ' ' ||
+      COALESCE(workspace_name, '') || ' ' ||
+      COALESCE(task_title, '') || ' ' ||
+      COALESCE(role, '') || ' ' ||
+      COALESCE(actor_type, '') || ' ' ||
+      COALESCE(actor_id, '') || ' ' ||
+      COALESCE(actor_name, '') || ' ' ||
+      COALESCE(resource_type, '') || ' ' ||
+      COALESCE(resource_name, '') || ' ' ||
+      COALESCE(error->>'message', '') || ' ' ||
+      COALESCE(payload->>'system_prompt', '') || ' ' ||
+      COALESCE(payload->>'prompt_summary', '') || ' ' ||
+      COALESCE(payload->>'response_summary', '') || ' ' ||
+      COALESCE(payload->>'response_text', '') || ' ' ||
+      COALESCE(payload->>'tool_name', '') || ' ' ||
+      COALESCE(payload::text, '')
+    )
   );
 
 CREATE INDEX IF NOT EXISTS idx_exlogs_tenant_workspace_time

@@ -859,6 +859,8 @@ describe('LogService', () => {
       const [sql, params] = pool.query.mock.calls[0];
       expect(sql).toContain("to_tsvector('simple'");
       expect(sql).toContain("websearch_to_tsquery('simple'");
+      expect(sql).not.toContain('CONCAT_WS(');
+      expect(sql).toContain("COALESCE(operation, '')");
       expect(sql).not.toContain('ILIKE');
       expect(params).toContain('shell_exec error');
     });

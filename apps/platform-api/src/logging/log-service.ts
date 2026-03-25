@@ -218,33 +218,37 @@ const ACTOR_KIND_SQL = `CASE
   ELSE COALESCE(actor_type, 'platform_system')
 END`;
 
-const SEARCH_DOCUMENT_SQL = `to_tsvector('simple', CONCAT_WS(' ',
-  operation,
-  task_id::text,
-  work_item_id::text,
-  activation_id::text,
-  workflow_id::text,
-  workspace_id::text,
-  stage_name,
-  trace_id,
-  span_id,
-  workflow_name,
-  workspace_name,
-  task_title,
-  role,
-  actor_type,
-  actor_id,
-  actor_name,
-  resource_type,
-  resource_name,
-  error->>'message',
-  payload->>'system_prompt',
-  payload->>'prompt_summary',
-  payload->>'response_summary',
-  payload->>'response_text',
-  payload->>'tool_name',
-  payload::text
-))`;
+const SEARCH_DOCUMENT_PARTS = [
+  'operation',
+  'task_id::text',
+  'work_item_id::text',
+  'activation_id::text',
+  'workflow_id::text',
+  'workspace_id::text',
+  'stage_name',
+  'trace_id',
+  'span_id',
+  'workflow_name',
+  'workspace_name',
+  'task_title',
+  'role',
+  'actor_type',
+  'actor_id',
+  'actor_name',
+  'resource_type',
+  'resource_name',
+  "error->>'message'",
+  "payload->>'system_prompt'",
+  "payload->>'prompt_summary'",
+  "payload->>'response_summary'",
+  "payload->>'response_text'",
+  "payload->>'tool_name'",
+  'payload::text',
+];
+
+const SEARCH_DOCUMENT_SQL = `to_tsvector('simple', ${SEARCH_DOCUMENT_PARTS.map((part) => `COALESCE(${part}, '')`).join(
+  " || ' ' ||\n  ",
+)})`;
 
 export function encodeCursor(id: string, createdAt: string): string {
   return Buffer.from(JSON.stringify({ id, created_at: createdAt })).toString('base64url');

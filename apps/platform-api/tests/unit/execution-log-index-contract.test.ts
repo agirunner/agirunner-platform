@@ -72,4 +72,11 @@ describe('execution_logs covering indexes', () => {
     expect(sql).toContain('idx_exlogs_tenant_workflow_role_time');
     expect(sql).toContain('idx_exlogs_tenant_workflow_actor_time');
   });
+
+  it('uses an immutable search-document expression in migrations', () => {
+    const sql = MIGRATION_FILES.map((file) => readFileSync(file, 'utf8')).join('\n');
+
+    expect(sql).not.toContain('CONCAT_WS(');
+    expect(sql).toContain("COALESCE(operation, '')");
+  });
 });
