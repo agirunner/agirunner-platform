@@ -392,9 +392,9 @@ export function RuntimeManagementCard(): JSX.Element {
   return (
     <Card className="border-border/70 shadow-sm">
       <CardHeader className="space-y-2">
-        <CardTitle className="text-base">Runtime Management</CardTitle>
+        <CardTitle className="text-base">Specialist Agent Image Management</CardTitle>
         <p className="text-sm text-muted">
-          Validate, build, link, and export runtime customization artifacts from the reconstructed manifest.
+          Validate, build, link, and export Specialist Agent image artifacts from the reconstructed manifest.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">

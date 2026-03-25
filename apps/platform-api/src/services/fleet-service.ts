@@ -295,7 +295,7 @@ function validateDesiredStateResources(input: {
   memoryLimit?: string;
 }): void {
   if (typeof input.runtimeImage === 'string') {
-    assertValidContainerImage(input.runtimeImage, 'Runtime image');
+    assertValidContainerImage(input.runtimeImage, 'Specialist Agent image');
   }
   if (typeof input.cpuLimit === 'string') {
     assertValidContainerCpu(input.cpuLimit, 'CPU limit');
