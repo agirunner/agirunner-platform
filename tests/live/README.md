@@ -122,6 +122,12 @@ These artifacts are designed for trace-first troubleshooting and later automated
 
 Live runs use `LIVE_TEST_VERIFICATION_MODE=outcome_driven` by default.
 
+Campaign rules:
+
+- once a campaign starts on a chosen baseline, do not restart it or clear prior results unless the user explicitly orders a brand-new campaign
+- update the pass/fail matrix immediately after each scenario verdict before starting the next scenario
+- continue from the current unresolved scenario; do not go back to already-passed scenarios during the same campaign
+
 No scenario counts as passing until all of these checks agree:
 
 - the scenario runner exits with code `0`
