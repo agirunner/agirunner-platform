@@ -1,6 +1,7 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError } from '../errors/domain-errors.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
+import { readGuidedClosureMutationMetadata } from './guided-closure/types.js';
 import {
   PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
   mustGetSafetynetEntry,
@@ -62,14 +63,23 @@ export class WorkflowToolResultService {
     client?: DatabaseClient,
   ): Promise<Record<string, unknown>> {
     const db = client ?? this.pool;
+    const metadata = readGuidedClosureMutationMetadata(response);
     const inserted = await db.query<StoredWorkflowToolResultRow>(
       `INSERT INTO workflow_tool_results (
-         tenant_id, workflow_id, tool_name, request_id, response
-       ) VALUES ($1, $2, $3, $4, $5::jsonb)
+         tenant_id, workflow_id, tool_name, request_id, response, mutation_outcome, recovery_class
+       ) VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7)
        ON CONFLICT (tenant_id, workflow_id, tool_name, request_id)
        DO NOTHING
        RETURNING response`,
-      [tenantId, workflowId, toolName, requestId, response],
+      [
+        tenantId,
+        workflowId,
+        toolName,
+        requestId,
+        response,
+        metadata.mutationOutcome,
+        metadata.recoveryClass,
+      ],
     );
     if (inserted.rowCount) {
       return inserted.rows[0].response;
@@ -99,15 +109,26 @@ export class WorkflowToolResultService {
     client?: DatabaseClient,
   ): Promise<Record<string, unknown>> {
     const db = client ?? this.pool;
+    const metadata = readGuidedClosureMutationMetadata(response);
     const result = await db.query<StoredWorkflowToolResultRow>(
       `UPDATE workflow_tool_results
-          SET response = $5::jsonb
+          SET response = $5::jsonb,
+              mutation_outcome = $6,
+              recovery_class = $7
         WHERE tenant_id = $1
           AND workflow_id = $2
           AND tool_name = $3
           AND request_id = $4
       RETURNING response`,
-      [tenantId, workflowId, toolName, requestId, response],
+      [
+        tenantId,
+        workflowId,
+        toolName,
+        requestId,
+        response,
+        metadata.mutationOutcome,
+        metadata.recoveryClass,
+      ],
     );
     if (!result.rowCount) {
       throw new Error('Failed to update workflow tool result');

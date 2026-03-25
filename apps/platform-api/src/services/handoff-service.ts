@@ -8,6 +8,12 @@ import {
   readAssessmentSubjectLinkage,
   readWorkflowTaskKind,
 } from './assessment-subject-service.js';
+import {
+  completionCalloutsSchema,
+  emptyCompletionCallouts,
+  guidedClosureSuggestedActionSchema,
+  guidedClosureWaivedStepSchema,
+} from './guided-closure/types.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
@@ -40,12 +46,16 @@ export interface SubmitTaskHandoffInput {
   completion_state?: 'full' | 'blocked';
   resolution?: 'approved' | 'request_changes' | 'rejected' | 'blocked';
   decision_state?: 'approved' | 'request_changes' | 'rejected' | 'blocked';
+  closure_effect?: 'blocking' | 'advisory';
   changes?: unknown[];
   decisions?: unknown[];
   remaining_items?: unknown[];
   blockers?: unknown[];
   focus_areas?: string[];
   known_risks?: string[];
+  recommended_next_actions?: unknown[];
+  waived_steps?: unknown[];
+  completion_callouts?: Record<string, unknown>;
   successor_context?: string;
   role_data?: Record<string, unknown>;
   subject_ref?: Record<string, unknown>;
@@ -93,12 +103,16 @@ interface TaskHandoffRow extends Record<string, unknown> {
   completion_state?: string | null;
   resolution: string | null;
   decision_state?: string | null;
+  closure_effect?: string | null;
   changes: unknown[];
   decisions: unknown[];
   remaining_items: unknown[];
   blockers: unknown[];
   focus_areas: string[];
   known_risks: string[];
+  recommended_next_actions?: unknown[];
+  waived_steps?: unknown[];
+  completion_callouts?: Record<string, unknown>;
   successor_context: string | null;
   role_data: Record<string, unknown>;
   subject_ref?: Record<string, unknown> | null;
@@ -179,11 +193,13 @@ export class HandoffService {
       `INSERT INTO task_handoffs (
          tenant_id, workflow_id, work_item_id, task_id, task_rework_count, request_id, role, team_name, stage_name, sequence,
          summary, completion, completion_state, resolution, decision_state, changes, decisions, remaining_items, blockers, focus_areas,
-         known_risks, successor_context, role_data, subject_ref, subject_revision, outcome_action_applied, branch_id, artifact_ids
+         known_risks, successor_context, role_data, subject_ref, subject_revision, outcome_action_applied, branch_id, artifact_ids,
+         recommended_next_actions, waived_steps, completion_callouts
        ) VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
          $11, $12, $13, $14, $15, $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20::text[],
-         $21::text[], $22, $23::jsonb, $24::jsonb, $25, $26, $27::uuid, $28::uuid[]
+         $21::text[], $22, $23::jsonb, $24::jsonb, $25, $26, $27::uuid, $28::uuid[],
+         $29::jsonb, $30::jsonb, $31::jsonb
        )
        ON CONFLICT DO NOTHING
        RETURNING *`,
@@ -216,6 +232,9 @@ export class HandoffService {
         payload.outcome_action_applied,
         payload.branch_id,
         payload.artifact_ids,
+        serializeJsonb(payload.recommended_next_actions),
+        serializeJsonb(payload.waived_steps),
+        serializeJsonb(payload.completion_callouts),
       ],
     );
     if (result.rowCount) {
@@ -337,6 +356,8 @@ export class HandoffService {
         decision_state: payload.decision_state,
         sequence: readInteger(handoff.sequence),
         artifact_ids: Array.isArray(handoff.artifact_ids) ? handoff.artifact_ids : [],
+        recommended_next_actions: Array.isArray(handoff.recommended_next_actions) ? handoff.recommended_next_actions : [],
+        waived_steps: Array.isArray(handoff.waived_steps) ? handoff.waived_steps : [],
       },
     });
   }
@@ -493,7 +514,10 @@ export class HandoffService {
               subject_revision = $20,
               outcome_action_applied = $21,
               branch_id = $22::uuid,
-              artifact_ids = $23::uuid[]
+              artifact_ids = $23::uuid[],
+              recommended_next_actions = $24::jsonb,
+              waived_steps = $25::jsonb,
+              completion_callouts = $26::jsonb
         WHERE id = $1
         RETURNING *`,
       [
@@ -520,6 +544,9 @@ export class HandoffService {
         payload.outcome_action_applied,
         payload.branch_id,
         payload.artifact_ids,
+        serializeJsonb(payload.recommended_next_actions),
+        serializeJsonb(payload.waived_steps),
+        serializeJsonb(payload.completion_callouts),
       ],
     );
     if (!result.rowCount) {
@@ -534,10 +561,10 @@ function assertHandoffStateAllowed(
   payload: ReturnType<typeof buildNormalizedHandoffPayload>,
 ) {
   if (!allowsHandoffResolution(task)) {
-    if (!payload.decision_state && !payload.outcome_action_applied) {
+    if (!payload.decision_state && !payload.outcome_action_applied && !payload.closure_effect) {
       return;
     }
-    throw new ValidationError('resolution and outcome_action_applied are only allowed on assessment or approval handoffs');
+    throw new ValidationError('resolution, outcome_action_applied, and closure_effect are only allowed on assessment or approval handoffs');
   }
   if (payload.completion_state === 'full' && !payload.decision_state) {
     throw new ValidationError('resolution is required on full assessment or approval handoffs');
@@ -545,8 +572,8 @@ function assertHandoffStateAllowed(
   if (payload.completion_state === 'blocked' && payload.decision_state) {
     throw new ValidationError('decision_state is only allowed when completion_state is full');
   }
-  if (payload.completion_state !== 'full' && payload.outcome_action_applied) {
-    throw new ValidationError('outcome_action_applied is only allowed when completion_state is full');
+  if (payload.completion_state !== 'full' && (payload.outcome_action_applied || payload.closure_effect)) {
+    throw new ValidationError('outcome_action_applied and closure_effect are only allowed when completion_state is full');
   }
 }
 
@@ -569,12 +596,16 @@ function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHa
     completion_state: state.completion_state,
     resolution: state.decision_state,
     decision_state: state.decision_state,
+    closure_effect: normalizeClosureEffect(input.closure_effect ?? input.role_data?.closure_effect),
     changes: normalizeArray(sanitizeHandoffValue(input.changes)),
     decisions: normalizeArray(sanitizeHandoffValue(input.decisions)),
     remaining_items: normalizeArray(sanitizeHandoffValue(input.remaining_items)),
     blockers: normalizeArray(sanitizeHandoffValue(input.blockers)),
     focus_areas: normalizeStringArray(sanitizeHandoffValue(input.focus_areas)),
     known_risks: normalizeStringArray(sanitizeHandoffValue(input.known_risks)),
+    recommended_next_actions: normalizeRecommendedNextActions(input.recommended_next_actions),
+    waived_steps: normalizeWaivedSteps(input.waived_steps, input.completion_callouts),
+    completion_callouts: normalizeCompletionCallouts(input.completion_callouts, input.waived_steps),
     successor_context: readOptionalString(sanitizeHandoffValue(input.successor_context)),
     role_data: roleData,
     subject_ref: subjectRef,
@@ -641,6 +672,7 @@ function buildSystemOwnedRoleData(
 ) {
   const taskKind = readWorkflowTaskKind(task.metadata, task.is_orchestrator_task);
   const roleData = sanitizeHandoffRecord(input.role_data);
+  const closureEffect = normalizeClosureEffect(input.closure_effect ?? roleData.closure_effect);
 
   if (taskKind === 'delivery') {
     const persistedRevision = readInteger(normalizeRecord(task.metadata).output_revision) ?? 0;
@@ -652,6 +684,7 @@ function buildSystemOwnedRoleData(
     const normalized = sanitizeHandoffRecord({
       ...roleData,
       task_kind: taskKind,
+      ...(closureEffect ? { closure_effect: closureEffect } : {}),
       subject_task_id: task.id,
       ...(task.work_item_id ? { subject_work_item_id: task.work_item_id } : {}),
       ...(subjectRevision > 0 ? { subject_revision: subjectRevision } : {}),
@@ -671,6 +704,7 @@ function buildSystemOwnedRoleData(
   const normalized = sanitizeHandoffRecord({
     ...roleData,
     task_kind: taskKind,
+    ...(closureEffect ? { closure_effect: closureEffect } : {}),
     ...(linkage.subjectTaskId ? { subject_task_id: linkage.subjectTaskId } : {}),
     ...(linkage.subjectWorkItemId ? { subject_work_item_id: linkage.subjectWorkItemId } : {}),
     ...(linkage.subjectHandoffId ? { subject_handoff_id: linkage.subjectHandoffId } : {}),
@@ -724,6 +758,9 @@ function matchesHandoffReplay(
     !areJsonValuesEquivalent(existing.blockers, expected.blockers) ||
     !areJsonValuesEquivalent(existing.focus_areas, expected.focus_areas) ||
     !areJsonValuesEquivalent(existing.known_risks, expected.known_risks) ||
+    !areJsonValuesEquivalent(existing.recommended_next_actions ?? [], expected.recommended_next_actions) ||
+    !areJsonValuesEquivalent(existing.waived_steps ?? [], expected.waived_steps) ||
+    !areJsonValuesEquivalent(existing.completion_callouts ?? emptyCompletionCallouts(), expected.completion_callouts) ||
     (existing.successor_context ?? null) !== expected.successor_context ||
     !areJsonValuesEquivalent(existing.role_data, expected.role_data) ||
     !areJsonValuesEquivalent(existingSubjectRef, expected.subject_ref ?? null) ||
@@ -807,6 +844,14 @@ function normalizeOutcomeActionApplied(value: unknown): HandoffOutcomeAction | n
   throw new ValidationError(
     'outcome_action_applied must be omitted for ordinary continuation; use it only for reopen_subject, route_to_role, block_subject, escalate, or terminate_branch',
   );
+}
+
+function normalizeClosureEffect(value: unknown): 'blocking' | 'advisory' | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'blocking' || normalized === 'advisory' ? normalized : null;
 }
 
 function resolveSubjectRef(
@@ -897,7 +942,11 @@ function toTaskHandoffResponse(row: TaskHandoffRow) {
       readOptionalPositiveInteger(sanitized.subject_revision)
       ?? readOptionalPositiveInteger(roleData.subject_revision),
     outcome_action_applied: readOptionalString(sanitized.outcome_action_applied),
+    closure_effect: normalizeClosureEffect(roleData.closure_effect),
     branch_id: branchId,
+    recommended_next_actions: normalizeArray(sanitized.recommended_next_actions),
+    waived_steps: normalizeArray(sanitized.waived_steps),
+    completion_callouts: completionCalloutsSchema.parse(sanitized.completion_callouts ?? {}),
     created_at: row.created_at.toISOString(),
   };
 }
@@ -922,6 +971,32 @@ function normalizeStringArray(value: unknown) {
   return Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
     : [];
+}
+
+function normalizeRecommendedNextActions(value: unknown) {
+  return guidedClosureSuggestedActionSchema.array().max(100).parse(normalizeArray(sanitizeHandoffValue(value)));
+}
+
+function normalizeWaivedSteps(value: unknown, completionCallouts: unknown) {
+  const explicit = guidedClosureWaivedStepSchema.array().max(100).parse(normalizeArray(sanitizeHandoffValue(value)));
+  if (explicit.length > 0) {
+    return explicit;
+  }
+  return completionCalloutsSchema.parse(sanitizeHandoffValue(completionCallouts ?? {})).waived_steps;
+}
+
+function normalizeCompletionCallouts(value: unknown, waivedSteps: unknown) {
+  const parsed = completionCalloutsSchema.parse(sanitizeHandoffValue(value ?? {}));
+  const explicitWaivedSteps = guidedClosureWaivedStepSchema.array().max(100).safeParse(
+    normalizeArray(sanitizeHandoffValue(waivedSteps)),
+  );
+  if (!explicitWaivedSteps.success || explicitWaivedSteps.data.length === 0) {
+    return parsed;
+  }
+  return completionCalloutsSchema.parse({
+    ...parsed,
+    waived_steps: explicitWaivedSteps.data,
+  });
 }
 
 function normalizeRecord(value: unknown) {

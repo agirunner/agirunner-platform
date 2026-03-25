@@ -74,6 +74,14 @@ describe('workflow activation routes', () => {
     });
 
     expect(response.statusCode).toBe(201);
+    expect(response.json().data).toEqual({
+      mutation_outcome: 'applied',
+      result: {
+        id: 'activation-1',
+        workflow_id: 'workflow-1',
+        request_id: 'activation-request-1',
+      },
+    });
     expect(enqueue).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
       'workflow-1',

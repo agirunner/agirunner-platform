@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
+import { tasks } from './tasks.js';
 import { tenants } from './tenants.js';
 import { workflows } from './workflows.js';
 import { workflowStages } from './workflow-stages.js';
@@ -24,15 +25,20 @@ export const workflowStageGates = pgTable(
     concerns: jsonb('concerns').notNull().default([]),
     keyArtifacts: jsonb('key_artifacts').notNull().default([]),
     status: text('status').notNull().default('awaiting_approval'),
+    closureEffect: text('closure_effect').notNull().default('blocking'),
     requestedByType: text('requested_by_type').notNull(),
     requestedById: text('requested_by_id'),
+    requestedByTaskId: uuid('requested_by_task_id').references(() => tasks.id),
     requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
     requestedByWorkItemId: uuid('requested_by_work_item_id'),
+    requestedReason: text('requested_reason'),
     subjectRevision: integer('subject_revision'),
+    resolutionStatus: text('resolution_status'),
     decisionFeedback: text('decision_feedback'),
     decidedByType: text('decided_by_type'),
     decidedById: text('decided_by_id'),
     decidedAt: timestamp('decided_at', { withTimezone: true }),
+    resolvedByTaskId: uuid('resolved_by_task_id').references(() => tasks.id),
     supersededAt: timestamp('superseded_at', { withTimezone: true }),
     supersededByRevision: integer('superseded_by_revision'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

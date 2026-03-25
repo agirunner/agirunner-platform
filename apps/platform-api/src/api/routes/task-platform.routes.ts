@@ -12,6 +12,11 @@ import {
   parseArtifactCatalogArtifactId,
 } from '../../services/artifact-catalog-service.js';
 import { HandoffService } from '../../services/handoff-service.js';
+import {
+  completionCalloutsSchema,
+  guidedClosureSuggestedActionSchema,
+  guidedClosureWaivedStepSchema,
+} from '../../services/guided-closure/types.js';
 import { assertWorkspaceMemoryWritesAreDurableKnowledge } from '../../services/workspace-memory-write-guard.js';
 import { WorkspaceMemoryScopeService } from '../../services/workspace-memory-scope-service.js';
 import { TaskAgentScopeService } from '../../services/task-agent-scope-service.js';
@@ -47,12 +52,16 @@ const taskHandoffSchema = z
     completion_state: z.enum(['full', 'blocked']).optional(),
     resolution: z.enum(['approved', 'request_changes', 'rejected', 'blocked']).optional(),
     decision_state: z.enum(['approved', 'request_changes', 'rejected', 'blocked']).optional(),
+    closure_effect: z.enum(['blocking', 'advisory']).optional(),
     changes: z.array(z.unknown()).max(200).optional(),
     decisions: z.array(z.unknown()).max(200).optional(),
     remaining_items: z.array(z.unknown()).max(200).optional(),
     blockers: z.array(z.unknown()).max(200).optional(),
     focus_areas: z.array(z.string().min(1).max(4000)).max(100).optional(),
     known_risks: z.array(z.string().min(1).max(4000)).max(100).optional(),
+    recommended_next_actions: z.array(guidedClosureSuggestedActionSchema).max(100).optional(),
+    waived_steps: z.array(guidedClosureWaivedStepSchema).max(100).optional(),
+    completion_callouts: completionCalloutsSchema.optional(),
     successor_context: z.string().max(8000).optional(),
     role_data: z.record(z.unknown()).optional(),
     subject_ref: z.record(z.unknown()).optional(),

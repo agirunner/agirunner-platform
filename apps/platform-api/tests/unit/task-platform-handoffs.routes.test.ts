@@ -345,6 +345,167 @@ describe('task platform handoff routes', () => {
     );
   });
 
+  it('accepts guided closure fields on task handoff submission', async () => {
+    vi
+      .spyOn(WorkflowActivationDispatchService.prototype, 'dispatchActivation')
+      .mockResolvedValue('orchestrator-task-1');
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM tasks') && sql.includes('assigned_agent_id')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-1',
+              workflow_id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'review',
+              activation_id: null,
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: false,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('LIMIT 1')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-1',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              role: 'policy-reviewer',
+              stage_name: 'review',
+              state: 'in_progress',
+              rework_count: 0,
+              metadata: { task_kind: 'approval', team_name: 'review' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT COALESCE(MAX(sequence)')) {
+          return { rowCount: 1, rows: [{ next_sequence: 0 }] };
+        }
+        if (sql.includes('FROM task_handoffs') && sql.includes('request_id')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM task_handoffs') && sql.includes('task_rework_count')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO task_handoffs')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'handoff-guided-1',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              task_id: 'task-1',
+              request_id: 'req-guided-1',
+              role: 'policy-reviewer',
+              team_name: 'review',
+              stage_name: 'review',
+              sequence: 0,
+              summary: 'Advisory approval note recorded.',
+              completion: 'full',
+              completion_state: 'full',
+              resolution: 'approved',
+              decision_state: 'approved',
+              changes: [],
+              decisions: [],
+              remaining_items: [],
+              blockers: [],
+              focus_areas: [],
+              known_risks: [],
+              recommended_next_actions: [{ action_code: 'continue_work' }],
+              waived_steps: [{ code: 'secondary_review', reason: 'Primary review was sufficient.' }],
+              completion_callouts: { completion_notes: 'Approval remained advisory.' },
+              successor_context: null,
+              role_data: { task_kind: 'approval', closure_effect: 'advisory' },
+              artifact_ids: [],
+              created_at: new Date('2026-03-25T01:00:00Z'),
+            }],
+          };
+        }
+        if (sql.startsWith('SELECT playbook_id FROM workflows')) {
+          return { rowCount: 1, rows: [{ playbook_id: 'playbook-1' }] };
+        }
+        if (sql.includes('INSERT INTO workflow_activations')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-guided-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'task-handoff-submitted:task-1:0:req-guided-1',
+              reason: 'task.handoff_submitted',
+              event_type: 'task.handoff_submitted',
+              payload: { task_id: 'task-1' },
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-03-25T01:00:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    } as never);
+    app.decorate('workspaceService', {} as never);
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
+    app.decorate('config', {
+      ARTIFACT_STORAGE_BACKEND: 'local',
+      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
+      ARTIFACT_PREVIEW_MAX_BYTES: 1024,
+    } as never);
+
+    await app.register(taskPlatformRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-1/handoff',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'req-guided-1',
+        summary: 'Advisory approval note recorded.',
+        completion: 'full',
+        resolution: 'approved',
+        closure_effect: 'advisory',
+        recommended_next_actions: [{
+          action_code: 'continue_work',
+          target_type: 'work_item',
+          target_id: 'work-item-1',
+          why: 'No blocking approval is required.',
+          requires_orchestrator_judgment: false,
+        }],
+        waived_steps: [{
+          code: 'secondary_review',
+          reason: 'Primary review was sufficient.',
+        }],
+        completion_callouts: {
+          completion_notes: 'Approval remained advisory.',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toEqual(expect.objectContaining({
+      id: 'handoff-guided-1',
+      closure_effect: 'advisory',
+      completion_callouts: expect.objectContaining({
+        completion_notes: 'Approval remained advisory.',
+      }),
+    }));
+  });
+
   it('rejects handoff submissions that still use legacy review_focus', async () => {
     app = fastify();
     registerErrorHandler(app);

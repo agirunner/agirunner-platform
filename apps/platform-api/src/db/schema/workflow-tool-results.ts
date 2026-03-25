@@ -16,6 +16,8 @@ export const workflowToolResults = pgTable(
     toolName: text('tool_name').notNull(),
     requestId: text('request_id').notNull(),
     response: jsonb('response').notNull().default({}),
+    mutationOutcome: text('mutation_outcome'),
+    recoveryClass: text('recovery_class'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

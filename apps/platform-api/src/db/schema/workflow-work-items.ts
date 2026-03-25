@@ -46,6 +46,7 @@ export const workflowWorkItems = pgTable(
     createdBy: text('created_by').notNull().default('manual'),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     metadata: jsonb('metadata').notNull().default({}),
+    completionCallouts: jsonb('completion_callouts').notNull().default({}),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

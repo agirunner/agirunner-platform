@@ -36,6 +36,7 @@ export const workflows = pgTable(
     legalHold: boolean('legal_hold').notNull().default(false),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     metadata: jsonb('metadata').notNull().default({}),
+    completionCallouts: jsonb('completion_callouts').notNull().default({}),
     startedAt: timestamp('started_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

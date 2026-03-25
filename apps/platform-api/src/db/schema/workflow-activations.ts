@@ -19,6 +19,7 @@ export const workflowActivations = pgTable(
     reason: text('reason').notNull(),
     eventType: text('event_type').notNull(),
     payload: jsonb('payload').notNull().default({}),
+    closureContext: jsonb('closure_context').notNull().default({}),
     state: text('state').notNull().default('queued'),
     dispatchAttempt: integer('dispatch_attempt').notNull().default(0),
     dispatchToken: uuid('dispatch_token'),

@@ -122,6 +122,119 @@ describe('HandoffService', () => {
     );
   });
 
+  it('persists guided closure handoff fields without disturbing delivery linkage', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            role: 'reviewer',
+            stage_name: 'review',
+            state: 'in_progress',
+            rework_count: 0,
+            metadata: { team_name: 'review', task_kind: 'approval' },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ next_sequence: 1 }], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'handoff-closure-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: 'task-1',
+            request_id: 'req-guided-1',
+            role: 'reviewer',
+            team_name: 'review',
+            stage_name: 'review',
+            sequence: 1,
+            summary: 'Request changes with explicit closure guidance.',
+            completion: 'full',
+            completion_state: 'full',
+            resolution: 'request_changes',
+            decision_state: 'request_changes',
+            changes: [],
+            decisions: [],
+            remaining_items: [],
+            blockers: [],
+            focus_areas: [],
+            known_risks: [],
+            recommended_next_actions: [{ action_code: 'continue_work' }],
+            waived_steps: [{ code: 'secondary_review', reason: 'Primary review was decisive.' }],
+            completion_callouts: { completion_notes: 'Closure still possible.' },
+            successor_context: null,
+            role_data: { task_kind: 'approval', closure_effect: 'advisory' },
+            artifact_ids: [],
+            created_at: new Date('2026-03-25T01:00:00Z'),
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+    const result = await service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-guided-1',
+      summary: 'Request changes with explicit closure guidance.',
+      completion: 'full',
+      resolution: 'request_changes',
+      closure_effect: 'advisory',
+      recommended_next_actions: [{
+        action_code: 'continue_work',
+        target_type: 'work_item',
+        target_id: 'work-item-1',
+        why: 'Rework can proceed immediately.',
+        requires_orchestrator_judgment: false,
+      }],
+      waived_steps: [{
+        code: 'secondary_review',
+        reason: 'Primary review already found the decisive issue.',
+      }],
+      completion_callouts: {
+        completion_notes: 'Closure still possible.',
+      },
+    });
+
+    expect(result).toEqual(expect.objectContaining({
+      id: 'handoff-closure-1',
+      closure_effect: 'advisory',
+      recommended_next_actions: [{ action_code: 'continue_work' }],
+      completion_callouts: expect.objectContaining({
+        completion_notes: 'Closure still possible.',
+      }),
+    }));
+    const insertCall = pool.query.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO task_handoffs'),
+    ) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(insertCall?.[1]?.[28] ?? '[]'))).toEqual([
+      expect.objectContaining({
+        action_code: 'continue_work',
+        target_id: 'work-item-1',
+      }),
+    ]);
+    expect(JSON.parse(String(insertCall?.[1]?.[29] ?? '[]'))).toEqual([
+      expect.objectContaining({
+        code: 'secondary_review',
+      }),
+    ]);
+    expect(JSON.parse(String(insertCall?.[1]?.[30] ?? '{}'))).toEqual(
+      expect.objectContaining({
+        completion_notes: 'Closure still possible.',
+        waived_steps: [
+          expect.objectContaining({
+            code: 'secondary_review',
+          }),
+        ],
+      }),
+    );
+  });
+
   it('derives delivery subject revision from rework count when metadata output revision is stale', async () => {
     const pool = {
       query: vi
@@ -780,7 +893,7 @@ describe('HandoffService', () => {
       summary: 'Implemented auth flow.',
       completion: 'full',
       resolution: 'approved',
-    })).rejects.toThrowError(new ValidationError('resolution and outcome_action_applied are only allowed on assessment or approval handoffs'));
+    })).rejects.toThrowError(new ValidationError('resolution, outcome_action_applied, and closure_effect are only allowed on assessment or approval handoffs'));
 
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
@@ -814,7 +927,7 @@ describe('HandoffService', () => {
       summary: 'Blocked on missing credentials.',
       completion: 'full',
       resolution: 'blocked' as never,
-    })).rejects.toThrowError(new ValidationError('resolution and outcome_action_applied are only allowed on assessment or approval handoffs'));
+    })).rejects.toThrowError(new ValidationError('resolution, outcome_action_applied, and closure_effect are only allowed on assessment or approval handoffs'));
 
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
@@ -848,7 +961,7 @@ describe('HandoffService', () => {
       summary: 'Implemented the requested change.',
       completion: 'full',
       resolution: 'approved',
-    })).rejects.toThrowError(new ValidationError('resolution and outcome_action_applied are only allowed on assessment or approval handoffs'));
+    })).rejects.toThrowError(new ValidationError('resolution, outcome_action_applied, and closure_effect are only allowed on assessment or approval handoffs'));
 
     expect(pool.query).toHaveBeenCalledTimes(1);
   });

@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
+import { buildAppliedMutationResult } from '../../services/guided-closure/types.js';
 
 const requestIdSchema = z.string().min(1).max(255);
 
@@ -26,7 +27,8 @@ export const workflowActivationRoutes: FastifyPluginAsync = async (app) => {
   app.post('/api/v1/workflows/:id/activations', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
     const params = request.params as { id: string };
     const body = parseOrThrow(enqueueSchema.safeParse(request.body));
-    return reply.status(201).send({ data: await service.enqueue(request.auth!, params.id, body) });
+    const activation = await service.enqueue(request.auth!, params.id, body);
+    return reply.status(201).send({ data: buildAppliedMutationResult(activation) });
   });
 
   app.get('/api/v1/workflows/:id/activations', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {

@@ -40,6 +40,10 @@ import {
 import { logSafetynetTriggered } from '../../services/safetynet/logging.js';
 import { buildArtifactStorageConfig } from '../../content/storage-config.js';
 import { createArtifactStorage } from '../../content/storage-factory.js';
+import {
+  buildRecoverableMutationResult,
+  type GuidedClosureStateSnapshot,
+} from '../../services/guided-closure/types.js';
 
 const orchestratorTaskTypeSchema = z.enum(['analysis', 'code', 'assessment', 'test', 'docs', 'custom']);
 const credentialRefsSchema = z.record(z.string().min(1).max(255)).refine(
@@ -1481,7 +1485,50 @@ async function buildUnconfiguredGateApprovalAdvisory(
   }
 
   const message = error instanceof Error ? error.message : 'Approval stage is not configured';
+  const stateSnapshot: GuidedClosureStateSnapshot = {
+    workflow_id: taskScope.workflow_id,
+    work_item_id: taskScope.work_item_id ?? null,
+    task_id: taskScope.id,
+    current_stage: taskScope.stage_name ?? null,
+    active_blocking_controls: [],
+    active_advisory_controls: [],
+  };
+  const recovery = buildRecoverableMutationResult({
+    recovery_class: reasonCode,
+    blocking: false,
+    reason_code: reasonCode,
+    state_snapshot: stateSnapshot,
+    suggested_next_actions: [
+      {
+        action_code: 'continue_work',
+        target_type: 'work_item',
+        target_id: taskScope.work_item_id ?? taskScope.workflow_id,
+        why: 'The stage has no configured blocking approval gate.',
+        requires_orchestrator_judgment: false,
+      },
+      {
+        action_code: 'record_callout',
+        target_type: 'workflow',
+        target_id: taskScope.workflow_id,
+        why: 'Persist the advisory concern if the workflow closes without a separate approval.',
+        requires_orchestrator_judgment: true,
+      },
+    ],
+    suggested_target_ids: {
+      workflow_id: taskScope.workflow_id,
+      work_item_id: taskScope.work_item_id ?? null,
+      task_id: taskScope.id,
+    },
+    callout_recommendations: [
+      {
+        code: reasonCode,
+        summary: message,
+      },
+    ],
+    closure_still_possible: true,
+  });
   const advisory = {
+    ...recovery,
     advisory: true,
     advisory_event_type: 'workflow.advisory_recorded',
     advisory_kind: 'approval_not_configured',
