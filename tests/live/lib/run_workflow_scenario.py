@@ -588,6 +588,34 @@ def evaluate_outcome_driven_basics(
     if log_required and not log_passed:
         failures.append('expected logs to be free of fatal anomalies')
 
+    http_status_summary = evidence.get('http_status_summary', {})
+    server_error_count = 0
+    status_counts: dict[str, int] = {}
+    if isinstance(http_status_summary, dict):
+        maybe_server_error_count = http_status_summary.get('server_error_count')
+        if isinstance(maybe_server_error_count, int):
+            server_error_count = maybe_server_error_count
+        maybe_status_counts = http_status_summary.get('status_counts')
+        if isinstance(maybe_status_counts, dict):
+            status_counts = {
+                str(key): int(value)
+                for key, value in maybe_status_counts.items()
+                if isinstance(key, str) and isinstance(value, int)
+            }
+    http_required = bool(outcome_envelope.get('require_no_http_5xx', True))
+    http_passed = server_error_count == 0 if http_required else True
+    checks.append(
+        {
+            'name': 'outcome.http_5xx_absent',
+            'passed': http_passed,
+            'required': http_required,
+            'actual_count': server_error_count,
+            'status_counts': status_counts,
+        }
+    )
+    if http_required and not http_passed:
+        failures.append('expected persisted execution logs to be free of HTTP 5xx responses')
+
     return checks, failures
 
 
@@ -815,6 +843,77 @@ def summarize_log_anomalies(logs: Any) -> dict[str, Any]:
     return {"count": len(rows), "rows": rows}
 
 
+HTTP_STATUS_PATTERN = re.compile(r"\bstatus (?P<status>\d{3})\b")
+
+
+def _http_status_messages_from_row(row: dict[str, Any]) -> list[str]:
+    messages: list[str] = []
+
+    def append_message(value: Any) -> None:
+        if isinstance(value, str) and value.strip() != "":
+            messages.append(value)
+
+    append_message(row.get("message"))
+    error = row.get("error")
+    if isinstance(error, dict):
+        append_message(error.get("message"))
+    else:
+        append_message(error)
+    payload = row.get("payload")
+    if isinstance(payload, dict):
+        append_message(payload.get("message"))
+        append_message(payload.get("error"))
+        output = payload.get("output")
+        if isinstance(output, dict):
+            append_message(output.get("message"))
+            append_message(output.get("error"))
+        else:
+            append_message(output)
+    return messages
+
+
+def summarize_http_status_anomalies(logs: Any) -> dict[str, Any]:
+    status_counts: dict[str, int] = {}
+    rows: list[dict[str, Any]] = []
+    client_error_count = 0
+    server_error_count = 0
+    for row in execution_log_rows(logs):
+        if not isinstance(row, dict):
+            continue
+        matched_statuses = {
+            match.group("status")
+            for message in _http_status_messages_from_row(row)
+            for match in [HTTP_STATUS_PATTERN.search(message)]
+            if match is not None
+        }
+        if not matched_statuses:
+            continue
+        for status in matched_statuses:
+            status_counts[status] = status_counts.get(status, 0) + 1
+            status_code = int(status)
+            if 400 <= status_code <= 499:
+                client_error_count += 1
+            elif 500 <= status_code <= 599:
+                server_error_count += 1
+        rows.append(
+            {
+                "id": row.get("id"),
+                "task_id": row.get("task_id"),
+                "operation": row.get("operation"),
+                "level": row.get("level"),
+                "status": row.get("status"),
+                "http_statuses": sorted(matched_statuses),
+            }
+        )
+    return {
+        "count": len(rows),
+        "status_counts": status_counts,
+        "client_error_count": client_error_count,
+        "server_error_count": server_error_count,
+        "rows": rows,
+    }
+
+
 def _completion_callouts(source: Any) -> dict[str, Any]:
     if not isinstance(source, dict):
         return {}
@@ -965,6 +1064,24 @@ def build_scenario_outcome_metrics(
     warning_count, error_count = _count_anomaly_levels(
         [row for row in anomaly_rows if isinstance(row, dict)]
     )
+    http_status_summary = evidence.get("http_status_summary", {})
+    http_status_counts: dict[str, int] = {}
+    http_client_error_count = 0
+    http_server_error_count = 0
+    if isinstance(http_status_summary, dict):
+        maybe_status_counts = http_status_summary.get("status_counts")
+        if isinstance(maybe_status_counts, dict):
+            http_status_counts = {
+                str(key): int(value)
+                for key, value in maybe_status_counts.items()
+                if isinstance(key, str) and isinstance(value, int)
+            }
+        maybe_client_error_count = http_status_summary.get("client_error_count")
+        if isinstance(maybe_client_error_count, int):
+            http_client_error_count = maybe_client_error_count
+        maybe_server_error_count = http_status_summary.get("server_error_count")
+        if isinstance(maybe_server_error_count, int):
+            http_server_error_count = maybe_server_error_count
 
     runtime_cleanup = evidence.get("runtime_cleanup", {})
     runtime_cleanup_passed = isinstance(runtime_cleanup, dict) and bool(runtime_cleanup.get("all_clean"))
@@ -1032,6 +1149,9 @@ def build_scenario_outcome_metrics(
         "anomalies": {
             "warning_count": warning_count,
             "error_count": error_count,
+            "http_status_counts": http_status_counts,
+            "http_client_error_count": http_client_error_count,
+            "http_server_error_count": http_server_error_count,
         },
         "hygiene": {
             "runtime_cleanup_passed": runtime_cleanup_passed,
@@ -1052,6 +1172,7 @@ def write_evidence_artifacts(trace_dir: str, evidence: dict[str, Any]) -> dict[s
     file_names = {
         "db_state": "db-state.json",
         "log_anomalies": "log-anomalies.json",
+        "http_status_summary": "http-status-summary.json",
         "live_containers": "live-containers.json",
         "container_observations": "container-observations.json",
         "runtime_cleanup": "runtime-cleanup.json",
@@ -3617,6 +3738,7 @@ def main() -> None:
     evidence_payload = {
         "db_state": collect_db_state_snapshot(trace, workflow_id=workflow_id),
         "log_anomalies": summarize_log_anomalies(execution_logs_snapshot),
+        "http_status_summary": summarize_http_status_anomalies(execution_logs_snapshot),
         "live_containers": latest_live_containers,
         "container_observations": finalize_container_observations(live_container_observations),
         "runtime_cleanup": inspect_runtime_cleanup(latest_live_containers.get("data"), trace=trace)

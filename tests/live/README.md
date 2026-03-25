@@ -108,6 +108,7 @@ Per scenario run:
 - `<scenario>/trace/api.ndjson`
 - `<scenario>/evidence/db-state.json`
 - `<scenario>/evidence/log-anomalies.json`
+- `<scenario>/evidence/http-status-summary.json`
 - `<scenario>/evidence/live-containers.json`
 - `<scenario>/evidence/container-observations.json`
 - `<scenario>/evidence/runtime-cleanup.json`
@@ -127,6 +128,7 @@ No scenario counts as passing until all of these checks agree:
 - final artifact shows a completed workflow
 - final artifact and workspace evidence show output was produced
 - DB evidence shows basic clean workflow, task, and work-item settlement
+- persisted execution-log review records `4xx` and `5xx` counts, and no `5xx` responses remain in the settled scenario evidence
 - log anomaly review shows no fatal unhandled defect
 - container hygiene evidence shows no dangling task containers and no undrained runtimes left behind after the scenario has settled
 

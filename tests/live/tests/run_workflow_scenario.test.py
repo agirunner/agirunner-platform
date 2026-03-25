@@ -641,6 +641,11 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                         {"level": "error"},
                     ]
                 },
+                "http_status_summary": {
+                    "status_counts": {"400": 2, "500": 1},
+                    "client_error_count": 2,
+                    "server_error_count": 1,
+                },
                 "runtime_cleanup": {
                     "all_clean": True,
                     "runtime_containers": [{"kind": "orchestrator"}, {"kind": "orchestrator"}],
@@ -671,6 +676,9 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertEqual(1, metrics["verification"]["advisory_count"])
         self.assertEqual(1, metrics["anomalies"]["warning_count"])
         self.assertEqual(1, metrics["anomalies"]["error_count"])
+        self.assertEqual({"400": 2, "500": 1}, metrics["anomalies"]["http_status_counts"])
+        self.assertEqual(2, metrics["anomalies"]["http_client_error_count"])
+        self.assertEqual(1, metrics["anomalies"]["http_server_error_count"])
         self.assertTrue(metrics["hygiene"]["runtime_cleanup_passed"])
         self.assertEqual(7, metrics["agentic_effort"]["total_loop_count"])
         self.assertEqual(3, metrics["agentic_effort"]["orchestrator_loop_count"])
@@ -2268,6 +2276,77 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                 }
             )
         )
+
+    def test_summarize_http_status_anomalies_counts_client_and_server_errors(self) -> None:
+        summary = run_workflow_scenario.summarize_http_status_anomalies(
+            {
+                "data": [
+                    {
+                        "level": "error",
+                        "error": {
+                            "message": "platform api GET /api/v1/tasks failed with status 500 (INTERNAL_ERROR): Internal server error"
+                        },
+                    },
+                    {
+                        "level": "warn",
+                        "payload": {
+                            "error": "platform api POST /api/v1/tasks/123/handoff failed with status 400 (VALIDATION_ERROR): bad request"
+                        },
+                    },
+                    {
+                        "level": "warn",
+                        "message": "platform api GET /api/v1/tasks/123 failed with status 403 (FORBIDDEN): nope",
+                    },
+                ]
+            }
+        )
+
+        self.assertEqual({"400": 1, "403": 1, "500": 1}, summary["status_counts"])
+        self.assertEqual(2, summary["client_error_count"])
+        self.assertEqual(1, summary["server_error_count"])
+        self.assertEqual(3, summary["count"])
+
+    def test_evaluate_expectations_outcome_driven_mode_fails_on_persisted_http_5xx(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "state": "completed",
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {"id": "task-1", "is_orchestrator_task": False, "state": "completed"},
+                ],
+            },
+            board={"data": {"data": {"columns": [{"id": "done", "is_terminal": True}], "work_items": [{"id": "wi-1", "column_id": "done"}]}}},
+            work_items={"data": {"data": [{"id": "wi-1", "column_id": "done"}]}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": [{"logical_path": "reports/summary.md"}]}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+            evidence={
+                "db_state": {"ok": True},
+                "runtime_cleanup": {"all_clean": True},
+                "log_anomalies": {
+                    "rows": [
+                        {
+                            "task_id": "task-1",
+                            "level": "error",
+                            "operation": "tool.execute",
+                            "status": "failed",
+                        }
+                    ]
+                },
+                "http_status_summary": {
+                    "status_counts": {"500": 1},
+                    "client_error_count": 0,
+                    "server_error_count": 1,
+                },
+            },
+            verification_mode="outcome_driven",
+        )
+
+        self.assertFalse(verification["passed"])
+        self.assertIn("expected persisted execution logs to be free of HTTP 5xx responses", verification["failures"])
 
     def test_evaluate_expectations_outcome_driven_mode_allows_task_scoped_recoverable_errors(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(
