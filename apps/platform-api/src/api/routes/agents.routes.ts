@@ -9,6 +9,7 @@ const registerSchema = z.object({
   protocol: z.enum(['rest', 'acp']).optional(),
   routing_tags: z.array(z.string().min(1)).default([]),
   execution_mode: z.enum(['specialist', 'orchestrator', 'hybrid']).optional(),
+  playbook_id: z.string().uuid().optional(),
   issue_api_key: z.boolean().optional(),
   tools: z
     .object({

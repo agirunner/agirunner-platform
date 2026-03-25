@@ -496,6 +496,7 @@ def evaluate_outcome_driven_basics(
     board: Any,
     artifacts: Any,
     evidence: dict[str, Any],
+    execution_logs: Any | None,
 ) -> tuple[list[dict[str, Any]], list[str]]:
     checks: list[dict[str, Any]] = []
     failures: list[str] = []
@@ -615,6 +616,22 @@ def evaluate_outcome_driven_basics(
     )
     if http_required and not http_passed:
         failures.append('expected persisted execution logs to be free of HTTP 5xx responses')
+
+    evidence_expectations = expectations.get('evidence_expectations', {})
+    if isinstance(evidence_expectations, dict) and 'distinct_orchestrator_runtime_count_min' in evidence_expectations:
+        minimum = evidence_expectations['distinct_orchestrator_runtime_count_min']
+        actual = len(_distinct_orchestrator_runtime_actors(execution_logs))
+        passed = isinstance(minimum, int) and actual >= minimum
+        checks.append(
+            {
+                'name': 'outcome.distinct_orchestrator_runtime_count_min',
+                'passed': passed,
+                'expected_min': minimum,
+                'actual': actual,
+            }
+        )
+        if not passed:
+            failures.append(f'expected at least {minimum} distinct orchestrator runtime actor(s), found {actual}')
 
     return checks, failures
 
@@ -2854,6 +2871,7 @@ def evaluate_expectations(
             board=board,
             artifacts=artifacts,
             evidence=evidence_payload,
+            execution_logs=execution_logs,
         )
         return {
             "passed": len(outcome_failures) == 0,

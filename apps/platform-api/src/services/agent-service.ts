@@ -17,6 +17,7 @@ interface RegisterAgentInput {
   protocol?: 'rest' | 'acp';
   routing_tags?: string[];
   execution_mode?: 'specialist' | 'orchestrator' | 'hybrid';
+  playbook_id?: string;
   issue_api_key?: boolean;
   tools?: { required?: string[]; optional?: string[] };
   worker_id?: string;
@@ -44,6 +45,7 @@ export class AgentService {
       ...(input.metadata ?? {}),
       protocol: input.protocol ?? 'rest',
       execution_mode: executionMode,
+      ...(input.playbook_id ? { playbook_id: input.playbook_id } : {}),
       ...(input.acp ? { acp: input.acp } : {}),
       ...(input.profile ? { profile: input.profile } : {}),
       ...(input.tools ? { tools: input.tools } : {}),

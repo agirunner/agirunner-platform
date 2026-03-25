@@ -24,6 +24,7 @@ import { readNativeSearchCapability } from './llm-discovery-service.js';
 import type { ResolvedRoleConfig } from './model-catalog-service.js';
 import { OAuthService } from './oauth-service.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
+import { readAgentSupervisionTimingDefaults } from './platform-timing-defaults.js';
 import type { ExecutionContainerLeaseService } from './execution-container-lease-service.js';
 import {
   type ExecutionContainerContract,
@@ -131,6 +132,15 @@ interface TaskLoopContract {
   loopMode: 'reactive' | 'tpaov';
   maxIterations: number;
   llmMaxRetries: number;
+}
+
+interface ClaimPeerAgentRow {
+  id: string;
+  routing_tags: string[] | null;
+  last_claim_at: string | Date | null;
+  last_heartbeat_at: string | Date | null;
+  heartbeat_interval_seconds: number | null;
+  metadata: Record<string, unknown> | null;
 }
 
 interface TaskModelOverrideSelection {
@@ -379,6 +389,23 @@ export class TaskClaimService {
         await client.query('COMMIT');
         return null;
       }
+      if (
+        task.is_orchestrator_task === true
+        && await this.shouldYieldOrchestratorClaim({
+          tenantId: identity.tenantId,
+          task,
+          agent,
+          agentId: payload.agent_id,
+          playbookId:
+            typeof payload.playbook_id === 'string' && payload.playbook_id.trim().length > 0
+              ? payload.playbook_id.trim()
+              : null,
+          client,
+        })
+      ) {
+        await client.query('COMMIT');
+        return null;
+      }
       const llmResolution = await this.resolveTaskLLMConfig(identity.tenantId, task);
       const loopContract = await this.resolveTaskLoopContract(
         identity.tenantId,
@@ -430,6 +457,7 @@ export class TaskClaimService {
 
       await client.query(
         `UPDATE agents SET current_task_id = $2, status = 'busy', last_heartbeat_at = now()
+            , last_claim_at = now()
          WHERE tenant_id = $1 AND id = $3`,
         [identity.tenantId, task.id, payload.agent_id],
       );
@@ -619,6 +647,62 @@ export class TaskClaimService {
         client,
       );
     }
+  }
+
+  private async shouldYieldOrchestratorClaim(input: {
+    tenantId: string;
+    task: Record<string, unknown>;
+    agent: Record<string, unknown>;
+    agentId: string;
+    playbookId: string | null;
+    client: DatabaseClient;
+  }): Promise<boolean> {
+    const scopePlaybookId = normalizeAgentPlaybookScope(input.playbookId, input.agent.metadata);
+    const timingDefaults = await readAgentSupervisionTimingDefaults(input.client, input.tenantId);
+    const peerAgents = await input.client.query<ClaimPeerAgentRow>(
+      `SELECT id, routing_tags, last_claim_at, last_heartbeat_at, heartbeat_interval_seconds, metadata
+         FROM agents
+        WHERE tenant_id = $1
+          AND id <> $2
+          AND current_task_id IS NULL
+          AND status IN ('active', 'idle')`,
+      [input.tenantId, input.agentId],
+    );
+    const eligiblePeers = peerAgents.rows.filter((peer) => {
+      if (!agentCanClaimOrchestratorTasks(peer.metadata)) {
+        return false;
+      }
+      if (normalizeAgentPlaybookScope(null, peer.metadata) !== scopePlaybookId) {
+        return false;
+      }
+      if (!isFreshClaimPeer(peer, timingDefaults.heartbeatThresholdMultiplier)) {
+        return false;
+      }
+      return matchesWorkerToTaskRouting(
+        input.task,
+        Array.isArray(peer.routing_tags) ? peer.routing_tags : [],
+      );
+    });
+    if (eligiblePeers.length === 0) {
+      return false;
+    }
+
+    const currentLastClaimAt = toNullableDate(input.agent.last_claim_at);
+    if (currentLastClaimAt == null) {
+      return false;
+    }
+    if (eligiblePeers.some((peer) => toNullableDate(peer.last_claim_at) == null)) {
+      return true;
+    }
+
+    const oldestPeerClaimAt = eligiblePeers
+      .map((peer) => toNullableDate(peer.last_claim_at))
+      .filter((value): value is Date => value instanceof Date)
+      .sort((left, right) => left.getTime() - right.getTime())[0];
+    if (!oldestPeerClaimAt) {
+      return false;
+    }
+    return currentLastClaimAt.getTime() > oldestPeerClaimAt.getTime();
   }
 
   async resolveClaimCredentials(
@@ -1034,6 +1118,45 @@ export class TaskClaimService {
       throw new ForbiddenError('Agent cannot resolve claim credentials for a different task.');
     }
   }
+}
+
+function normalizeAgentPlaybookScope(explicitPlaybookId: string | null, metadata: unknown): string | null {
+  if (explicitPlaybookId && explicitPlaybookId.trim().length > 0) {
+    return explicitPlaybookId.trim();
+  }
+  if (!isRecord(metadata)) {
+    return null;
+  }
+  const playbookId = metadata.playbook_id;
+  return typeof playbookId === 'string' && playbookId.trim().length > 0 ? playbookId.trim() : null;
+}
+
+function agentCanClaimOrchestratorTasks(metadata: unknown): boolean {
+  return readAgentExecutionMode(metadata) !== 'specialist';
+}
+
+function isFreshClaimPeer(peer: ClaimPeerAgentRow, freshnessMultiplier: number): boolean {
+  const lastHeartbeatAt = toNullableDate(peer.last_heartbeat_at);
+  if (!lastHeartbeatAt) {
+    return false;
+  }
+  const heartbeatIntervalSeconds =
+    typeof peer.heartbeat_interval_seconds === 'number' && peer.heartbeat_interval_seconds > 0
+      ? peer.heartbeat_interval_seconds
+      : 30;
+  const freshnessWindowMs = heartbeatIntervalSeconds * Math.max(freshnessMultiplier, 1) * 1000;
+  return Date.now() - lastHeartbeatAt.getTime() <= freshnessWindowMs;
+}
+
+function toNullableDate(value: unknown): Date | null {
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return null;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function readExplicitTaskReasoningConfig(

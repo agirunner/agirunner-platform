@@ -91,4 +91,37 @@ describe('agents routes', () => {
       expect.objectContaining({ issue_api_key: false }),
     );
   });
+
+  it('accepts playbook scope on agent registration', async () => {
+    const { agentRoutes } = await import('../../src/api/routes/agents.routes.js');
+    const registerAgent = vi.fn().mockResolvedValue({ id: 'agent-1' });
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('agentService', {
+      registerAgent,
+      heartbeat: vi.fn(),
+      listAgents: vi.fn(),
+    });
+
+    await app.register(agentRoutes);
+
+    const playbookId = '9a3e8d3b-11e5-44fd-9d7a-5da6bf0f1c1d';
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/agents/register',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        name: 'agent-1',
+        execution_mode: 'orchestrator',
+        playbook_id: playbookId,
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(registerAgent).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ playbook_id: playbookId }),
+    );
+  });
 });

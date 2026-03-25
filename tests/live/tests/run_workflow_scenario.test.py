@@ -2759,14 +2759,18 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             execution_logs={
                 "data": [
                     {"operation": "task.execute", "role": "orchestrator", "actor_name": "orch-a"},
-                    {"operation": "task.execute", "role": "orchestrator", "actor_name": "orch-b"},
+                    {"operation": "task.execute", "role": "orchestrator", "actor_name": "orch-a"},
                 ]
             },
             evidence={},
+            verification_mode=run_workflow_scenario.OUTCOME_DRIVEN_VERIFICATION_MODE,
         )
 
-        self.assertTrue(verification["passed"])
-        self.assertEqual([], verification["failures"])
+        self.assertFalse(verification["passed"])
+        self.assertIn(
+            "expected at least 2 distinct orchestrator runtime actor(s), found 1",
+            verification["failures"],
+        )
 
     def test_evaluate_expectations_accepts_generic_assessment_contracts(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(

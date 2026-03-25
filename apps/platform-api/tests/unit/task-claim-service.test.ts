@@ -95,6 +95,18 @@ function runtimeDefaultQueryResult(sql: string, params?: unknown[]) {
     return null;
   }
   const key = params?.[1];
+  if (key === 'platform.agent_default_heartbeat_interval_seconds') {
+    return { rowCount: 1, rows: [{ config_value: '30' }] };
+  }
+  if (key === 'platform.agent_heartbeat_grace_period_ms') {
+    return { rowCount: 1, rows: [{ config_value: '60000' }] };
+  }
+  if (key === 'platform.agent_heartbeat_threshold_multiplier') {
+    return { rowCount: 1, rows: [{ config_value: '2' }] };
+  }
+  if (key === 'platform.agent_key_expiry_ms') {
+    return { rowCount: 1, rows: [{ config_value: '60000' }] };
+  }
   if (key === 'agent.max_iterations') {
     return { rowCount: 1, rows: [{ config_value: '100' }] };
   }
@@ -186,6 +198,9 @@ describe('TaskClaimService', () => {
               llm_max_retries: null,
             }],
           };
+        }
+        if (sql.includes('FROM agents') && sql.includes('current_task_id IS NULL')) {
+          return { rowCount: 0, rows: [] };
         }
         if (sql.includes('UPDATE agents SET current_task_id')) {
           return { rowCount: 1, rows: [] };
@@ -369,6 +384,9 @@ describe('TaskClaimService', () => {
             }],
           };
         }
+        if (sql.includes('FROM agents') && sql.includes('current_task_id IS NULL')) {
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.includes('UPDATE agents SET current_task_id')) {
           return { rowCount: 1, rows: [] };
         }
@@ -473,6 +491,9 @@ describe('TaskClaimService', () => {
             }],
           };
         }
+        if (sql.includes('FROM agents') && sql.includes('current_task_id IS NULL') && sql.includes('last_claim_at')) {
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.includes('UPDATE agents SET current_task_id')) {
           return { rowCount: 1, rows: [] };
         }
@@ -569,6 +590,9 @@ describe('TaskClaimService', () => {
               llm_max_retries: null,
             }],
           };
+        }
+        if (sql.includes('FROM agents') && sql.includes('current_task_id IS NULL') && sql.includes('last_claim_at')) {
+          return { rowCount: 0, rows: [] };
         }
         if (sql.includes('UPDATE agents SET current_task_id')) {
           return { rowCount: 1, rows: [] };
@@ -770,6 +794,9 @@ describe('TaskClaimService', () => {
             }],
           };
         }
+        if (sql.includes('FROM agents') && sql.includes('current_task_id IS NULL') && sql.includes('last_claim_at')) {
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.includes('UPDATE agents SET current_task_id')) {
           return { rowCount: 1, rows: [] };
         }
@@ -866,6 +893,9 @@ describe('TaskClaimService', () => {
               llm_max_retries: null,
             }],
           };
+        }
+        if (sql.includes('FROM agents') && sql.includes('current_task_id IS NULL') && sql.includes('last_claim_at')) {
+          return { rowCount: 0, rows: [] };
         }
         if (sql.includes('UPDATE agents SET current_task_id')) {
           return { rowCount: 1, rows: [] };
@@ -984,6 +1014,9 @@ describe('TaskClaimService', () => {
               llm_max_retries: null,
             }],
           };
+        }
+        if (sql.includes('FROM agents') && sql.includes('current_task_id IS NULL') && sql.includes('last_claim_at')) {
+          return { rowCount: 0, rows: [] };
         }
         if (sql.includes('UPDATE agents SET current_task_id')) {
           return { rowCount: 1, rows: [] };
@@ -4051,6 +4084,363 @@ describe('TaskClaimService', () => {
       llm_endpoint_type: 'responses',
     });
     expect(task?.credentials).not.toHaveProperty('llm_api_key_secret_ref');
+  });
+
+  it('yields an orchestrator claim to an older idle peer in the same playbook scope', async () => {
+    let taskUpdated = false;
+    const freshHeartbeat = new Date().toISOString();
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              last_claim_at: '2026-03-25T10:00:00.000Z',
+              last_heartbeat_at: freshHeartbeat,
+              routing_tags: ['llm-api', 'orchestrator'],
+              metadata: { execution_mode: 'orchestrator', playbook_id: 'pb-1' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orch-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'ready',
+              role: 'orchestrator',
+              title: 'Continue workflow',
+              role_config: {},
+              input: {},
+              metadata: {},
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: true,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: null,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM agents') && sql.includes('last_claim_at') && sql.includes('current_task_id IS NULL')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-2',
+              routing_tags: ['llm-api', 'orchestrator'],
+              last_claim_at: null,
+              last_heartbeat_at: freshHeartbeat,
+              metadata: { execution_mode: 'orchestrator', playbook_id: 'pb-1' },
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          taskUpdated = true;
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orch-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'claimed',
+              role: 'orchestrator',
+              title: 'Continue workflow',
+              role_config: {},
+              input: {},
+              metadata: {},
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: true,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: null,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const service = createService(client, {
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+    });
+
+    const claimed = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      routing_tags: ['orchestrator'],
+      playbook_id: 'pb-1',
+    });
+
+    expect(claimed).toBeNull();
+    expect(taskUpdated).toBe(false);
+  });
+
+  it('does not yield orchestrator claims across different playbook scopes', async () => {
+    let agentUpdateSql = '';
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              last_claim_at: '2026-03-25T10:00:00.000Z',
+              last_heartbeat_at: '2026-03-25T10:00:05.000Z',
+              routing_tags: ['llm-api', 'orchestrator'],
+              metadata: { execution_mode: 'orchestrator', playbook_id: 'pb-1' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orch-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'ready',
+              role: 'orchestrator',
+              title: 'Continue workflow',
+              role_config: {},
+              input: {},
+              metadata: {},
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: true,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: null,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM agents') && sql.includes('last_claim_at') && sql.includes('current_task_id IS NULL')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-2',
+              routing_tags: ['llm-api', 'orchestrator'],
+              last_claim_at: null,
+              last_heartbeat_at: '2026-03-25T10:00:04.000Z',
+              metadata: { execution_mode: 'orchestrator', playbook_id: 'pb-2' },
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orch-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'claimed',
+              role: 'orchestrator',
+              title: 'Continue workflow',
+              role_config: {},
+              input: {},
+              metadata: {},
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: true,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: null,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          agentUpdateSql = sql;
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const service = createService(client, {
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+    });
+
+    const claimed = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      routing_tags: ['orchestrator'],
+      playbook_id: 'pb-1',
+    });
+
+    expect(claimed).toMatchObject({ id: 'task-orch-1' });
+    expect(agentUpdateSql).toContain('last_claim_at = now()');
+  });
+
+  it('does not apply orchestrator fairness to specialist tasks', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              last_claim_at: '2026-03-25T10:00:00.000Z',
+              last_heartbeat_at: '2026-03-25T10:00:05.000Z',
+              routing_tags: ['llm-api', 'shell'],
+              metadata: { execution_mode: 'specialist', playbook_id: 'pb-1' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-specialist-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'ready',
+              role: 'release-assessor',
+              title: 'Assess release package',
+              role_config: {},
+              input: { description: 'Assess the release package' },
+              metadata: { task_kind: 'assessment' },
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: false,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: null,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM agents') && sql.includes('last_claim_at') && sql.includes('current_task_id IS NULL')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-2',
+              routing_tags: ['llm-api', 'shell'],
+              last_claim_at: null,
+              last_heartbeat_at: '2026-03-25T10:00:04.000Z',
+              metadata: { execution_mode: 'specialist', playbook_id: 'pb-1' },
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-specialist-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'claimed',
+              role: 'release-assessor',
+              title: 'Assess release package',
+              role_config: {},
+              input: { description: 'Assess the release package' },
+              metadata: { task_kind: 'assessment' },
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: false,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: null,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const service = createService(client, {
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+    });
+
+    const claimed = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      routing_tags: ['assessment', 'role:release-assessor'],
+      playbook_id: 'pb-1',
+    });
+
+    expect(claimed).toMatchObject({ id: 'task-specialist-1' });
   });
 });
 

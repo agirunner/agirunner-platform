@@ -167,6 +167,63 @@ describe('AgentService secret redaction', () => {
     expect(mockedCreateApiKey).not.toHaveBeenCalled();
   });
 
+  it('persists playbook scope in agent metadata when provided', async () => {
+    const playbookId = '9a3e8d3b-11e5-44fd-9d7a-5da6bf0f1c1d';
+    const pool = createAgentPool(
+      DEFAULT_AGENT_RUNTIME_DEFAULTS,
+      async (sql: string, params?: unknown[]) => {
+        if (sql.includes('INSERT INTO agents')) {
+          expect(params?.[5]).toMatchObject({
+            execution_mode: 'orchestrator',
+            playbook_id: playbookId,
+          });
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'agent-1',
+                name: 'orchestrator-01',
+                routing_tags: ['llm-api', 'orchestrator'],
+                status: 'active',
+                metadata: {
+                  execution_mode: 'orchestrator',
+                  playbook_id: playbookId,
+                },
+              },
+            ],
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      },
+    );
+    const service = new AgentService(
+      pool as never,
+      { emit: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    const result = await service.registerAgent(
+      {
+        id: 'admin-key',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      } as never,
+      {
+        name: 'orchestrator-01',
+        execution_mode: 'orchestrator',
+        playbook_id: playbookId,
+        issue_api_key: false,
+      } as never,
+    );
+
+    expect(result.metadata).toMatchObject({
+      execution_mode: 'orchestrator',
+      playbook_id: playbookId,
+    });
+  });
+
   it('catches embedded bearer tokens in agent metadata prose on list reads', async () => {
     const pool = {
       query: vi.fn().mockResolvedValue({

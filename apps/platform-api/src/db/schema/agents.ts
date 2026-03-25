@@ -19,6 +19,7 @@ export const agents = pgTable(
     status: agentStatusEnum('status').notNull().default('idle'),
     currentTaskId: uuid('current_task_id').references((): AnyPgColumn => tasks.id),
     heartbeatIntervalSeconds: integer('heartbeat_interval_seconds').notNull().default(30),
+    lastClaimAt: timestamp('last_claim_at', { withTimezone: true }),
     lastHeartbeatAt: timestamp('last_heartbeat_at', { withTimezone: true }),
     metadata: jsonb('metadata').notNull().default({}),
     registeredAt: timestamp('registered_at', { withTimezone: true }).notNull().defaultNow(),
