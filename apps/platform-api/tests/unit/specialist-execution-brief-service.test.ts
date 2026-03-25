@@ -142,6 +142,12 @@ describe('buildSpecialistExecutionBrief', () => {
       'use repo-relative paths like src/auth/refresh.ts or docs/release-notes.md',
     );
     expect(brief?.rendered_markdown).toContain(
+      'Read task context files from `/workspace/context/...`, never `context/...` or `repo/context/...`.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'If you write task-local working files such as `output/...`, upload or persist the real deliverable and cite artifact ids, logical paths, repo-relative deliverables, memory keys, or workflow/task ids in the final handoff instead of that task-local path.',
+    );
+    expect(brief?.rendered_markdown).toContain(
       'Repository-backed task. Use task sandbox tools for repository, filesystem, shell, web fetch, and artifact upload work.',
     );
     expect(brief?.rendered_markdown).not.toContain('git_token_secret_ref');
