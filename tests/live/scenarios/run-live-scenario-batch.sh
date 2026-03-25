@@ -90,7 +90,11 @@ next_index=0
 
 launch_scenario() {
   local scenario="$1"
-  local log_file="${batch_artifacts_dir}/${scenario}.log"
+  local scenario_label="${scenario}"
+  if [[ -f "${scenario_label}" ]]; then
+    scenario_label="$(basename "${scenario_label}" .json)"
+  fi
+  local log_file="${batch_artifacts_dir}/${scenario_label}.log"
   local scenario_arg="${scenario}"
   if [[ ! -f "${scenario_arg}" && -f "${scenario_root}/${scenario}.json" ]]; then
     scenario_arg="${scenario_root}/${scenario}.json"
@@ -105,7 +109,7 @@ launch_scenario() {
       "${scenario_runner}" "${scenario_arg}"
   ) >"${log_file}" 2>&1 &
   local pid=$!
-  pid_to_scenario["${pid}"]="${scenario}"
+  pid_to_scenario["${pid}"]="${scenario_label}"
   pid_to_log["${pid}"]="${log_file}"
   active_pids+=("${pid}")
 }

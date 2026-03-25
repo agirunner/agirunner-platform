@@ -303,8 +303,60 @@ EOF
   fi
 }
 
+test_batch_runner_accepts_explicit_scenario_file_paths() {
+  local tmpdir bootstrap_stub runner_stub output_log envfile scenario_dir artifacts_dir runner_log
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' RETURN
+  output_log="${tmpdir}/output.log"
+  envfile="${tmpdir}/env/local.env"
+  bootstrap_stub="${tmpdir}/bootstrap.sh"
+  runner_stub="${tmpdir}/runner.sh"
+  runner_log="${tmpdir}/runner.log"
+  scenario_dir="${tmpdir}/custom-scenarios"
+  artifacts_dir="${tmpdir}/artifacts"
+  mkdir -p "${scenario_dir}" "$(dirname "${envfile}")" "${artifacts_dir}"
+
+  cat >"${envfile}" <<'EOF'
+DEFAULT_ADMIN_API_KEY=test-admin-key
+POSTGRES_DB=agirunner
+POSTGRES_USER=agirunner
+POSTGRES_PASSWORD=agirunner
+POSTGRES_PORT=5432
+PLATFORM_API_PORT=8080
+EOF
+
+  printf '%s\n' '{}' >"${scenario_dir}/alpha.json"
+
+  make_stub "${bootstrap_stub}" ':'
+  cat >"${runner_stub}" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+scenario="\$1"
+printf "%s\n" "\${scenario}" >>"${runner_log}"
+artifacts_dir="\${LIVE_TEST_ARTIFACTS_DIR:?}"
+mkdir -p "\${artifacts_dir}/alpha"
+cat >"\${artifacts_dir}/alpha/workflow-run.json" <<'JSON'
+{"verification_passed":true}
+JSON
+EOF
+  chmod +x "${runner_stub}"
+
+  LIVE_TEST_ENV_FILE="${envfile}" \
+    LIVE_TEST_SCENARIO_ROOT="${scenario_dir}" \
+    LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
+    LIVE_TEST_SCENARIO_RUNNER="${runner_stub}" \
+    LIVE_TEST_ARTIFACTS_DIR="${artifacts_dir}" \
+    "${SCRIPT_PATH}" 1 "${scenario_dir}/alpha.json" >"${output_log}" 2>&1
+
+  if [[ "$(cat "${runner_log}")" != "${scenario_dir}/alpha.json" ]]; then
+    fail "expected explicit scenario file path to pass through unchanged"
+  fi
+  assert_contains "PASS alpha" "${output_log}"
+}
+
 test_batch_runner_uses_default_concurrency_and_reports_results_as_completed
 test_batch_runner_uses_explicit_concurrency_argument
 test_batch_runner_failed_only_mode_skips_passing_scenarios
 test_batch_runner_prefers_tracker_order_for_default_scenario_sequence
 test_batch_runner_resolves_named_scenarios_against_custom_scenario_root
+test_batch_runner_accepts_explicit_scenario_file_paths
