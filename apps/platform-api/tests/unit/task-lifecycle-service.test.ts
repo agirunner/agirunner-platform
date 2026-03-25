@@ -3188,10 +3188,12 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
   it('moves a manually escalated task into escalated state and records operator guidance metadata', async () => {
     const eventService = { emit: vi.fn() };
     const logService = { insert: vi.fn(async () => undefined) };
+    let updateSql = '';
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
         if (sql.startsWith('UPDATE tasks SET')) {
+          updateSql = sql;
           return {
             rowCount: 1,
             rows: [
@@ -3306,6 +3308,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         }),
       }),
     );
+    expect(updateSql).toContain('error = NULL');
   });
 
   it('queues role-based escalation tasks in pending and preserves work-item scope when caps are full', async () => {

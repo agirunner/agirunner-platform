@@ -851,6 +851,8 @@ export class TaskLifecycleService {
 
       if (resolvedNextState === 'completed') {
         updateFragments.push('completed_at = now()', 'error = NULL');
+      } else if (resolvedNextState === 'escalated') {
+        updateFragments.push('completed_at = NULL', 'error = NULL');
       } else {
         updateFragments.push('completed_at = NULL');
       }

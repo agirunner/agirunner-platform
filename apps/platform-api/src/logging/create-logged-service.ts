@@ -243,11 +243,18 @@ function shouldLogMethod(method: string, explicitMethods: string[]): boolean {
 function successLogLevel(
   config: { category: string; debugMethods?: string[] },
   method: string,
-): 'debug' | 'info' {
+): 'debug' | 'info' | 'warn' {
   if (config.category === 'api') {
     return 'debug';
   }
+  if (isEscalationMethod(config.category, method)) {
+    return 'warn';
+  }
   return config.debugMethods?.includes(method) ? 'debug' : 'info';
+}
+
+function isEscalationMethod(category: string, method: string): boolean {
+  return category === 'task_lifecycle' && method.toLowerCase().includes('escalat');
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

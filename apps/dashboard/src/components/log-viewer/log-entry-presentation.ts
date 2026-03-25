@@ -87,6 +87,18 @@ export function describeLogActivityDetail(entry: LogEntry): string {
   return mergeToolActivityDetail(entry, detail);
 }
 
+export function isEscalationEntry(entry: LogEntry): boolean {
+  const operation = entry.operation.toLowerCase();
+  const eventType = readString(entry.payload?.event_type)?.toLowerCase() ?? '';
+  const toState = readString(entry.payload?.to_state)?.toLowerCase() ?? '';
+
+  if (operation.includes('escalation_depth_exceeded') || eventType.includes('escalation_depth_exceeded')) {
+    return false;
+  }
+
+  return operation.includes('escalat') || eventType.includes('escalat') || toState === 'escalated';
+}
+
 function describeBaseActivityDetail(entry: LogEntry, payload: Record<string, unknown>): string {
   switch (entry.category) {
     case 'tool':

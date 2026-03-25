@@ -152,6 +152,28 @@ describe('createLoggedService', () => {
     );
   });
 
+  it('logs successful task escalations at warn', async () => {
+    const service = {
+      escalateTask: vi.fn().mockResolvedValue({ id: 'task-1', title: 'Needs help' }),
+    };
+    const logInsert = vi.fn().mockResolvedValue(undefined);
+    const logService = { insert: logInsert };
+
+    const wrapped = createLoggedService(service, 'TaskService', logService as never);
+
+    await wrapped.escalateTask('task-1', { reason: 'Need operator guidance' });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(logInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: 'task_lifecycle',
+        level: 'warn',
+        status: 'completed',
+        operation: 'task_lifecycle.task.escalated',
+      }),
+    );
+  });
+
   it('skipsLoggingForIgnoredMethods', async () => {
     const service = {
       getWorkspace: vi.fn().mockResolvedValue({ id: 'proj-1' }),

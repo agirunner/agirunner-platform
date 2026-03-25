@@ -25,6 +25,7 @@ describe('log entry row source', () => {
     expect(source).toContain('describeLogActorLabel');
     expect(source).toContain('describeWorkflowStageSummary');
     expect(source).toContain('describeLogActorDetail');
+    expect(source).toContain('isEscalationEntry');
     expect(source).not.toContain('formatStatusLabel');
     expect(source).not.toContain('describeExecutionHeadline(entry)');
     expect(source).toContain('describeLogActivityDetail');
@@ -34,8 +35,10 @@ describe('log entry row source', () => {
     expect(source).toContain("variant={LEVEL_BADGE_VARIANT[entry.level] ?? 'info'}");
     expect(source).toContain("error: 'destructive'");
     expect(source).toContain("warn: 'warning'");
-    expect(source).toContain('bg-rose-100');
-    expect(source).toContain('dark:bg-rose-500/22');
+    expect(source).toContain('const isEscalation = isEscalationEntry(entry);');
+    expect(source).toContain('!isEscalation && entry.error?.message');
+    expect(source).toContain('isEscalation && entry.error?.message');
+    expect(source).toContain('text-muted-foreground');
     expect(source).not.toContain('CATEGORY_STYLES');
     expect(source).not.toContain('>Status</th>');
     expect(source).not.toContain('>Scope</th>');

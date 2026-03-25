@@ -10,6 +10,7 @@ import {
   describeLogActorLabel,
   describeLogCategoryLabel,
   describeWorkflowStageSummary,
+  isEscalationEntry,
 } from './log-entry-presentation.js';
 
 export interface LogEntryRowProps {
@@ -78,6 +79,7 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
   const actorDetail = describeLogActorDetail(entry);
   const activityTitle = describeLogActivityTitle(entry);
   const activityDetail = describeLogActivityDetail(entry);
+  const isEscalation = isEscalationEntry(entry);
 
   return (
     <tr
@@ -152,8 +154,13 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
           <div className="break-words text-xs text-muted-foreground">
             {truncate(activityDetail, 140)}
           </div>
-          {entry.error?.message ? (
+          {!isEscalation && entry.error?.message ? (
             <div className="rounded-md border border-rose-300 bg-rose-100 px-2 py-1 text-xs leading-5 text-rose-900 dark:border-rose-400/80 dark:bg-rose-500/22 dark:text-rose-50">
+              {truncate(entry.error.message, 160)}
+            </div>
+          ) : null}
+          {isEscalation && entry.error?.message ? (
+            <div className="break-words text-xs text-muted-foreground">
               {truncate(entry.error.message, 160)}
             </div>
           ) : null}

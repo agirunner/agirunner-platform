@@ -8,6 +8,7 @@ import {
   describeLogActorLabel,
   describeLogToolDisplay,
   describeWorkflowStageSummary,
+  isEscalationEntry,
 } from './log-entry-presentation.js';
 
 function makeEntry(overrides: Partial<LogEntry> = {}): LogEntry {
@@ -193,5 +194,33 @@ describe('log entry presentation', () => {
 
     expect(describeLogActivityTitle(entry)).toBe('Assignments');
     expect(describeLogActivityTitle(entry)).not.toContain(':param');
+  });
+
+  it('treats successful escalation entries as escalation rows for warning presentation', () => {
+    const entry = makeEntry({
+      category: 'task_lifecycle',
+      level: 'warn',
+      operation: 'task_lifecycle.task.escalated',
+      payload: {
+        event_type: 'task.escalated',
+        to_state: 'escalated',
+      },
+    });
+
+    expect(isEscalationEntry(entry)).toBe(true);
+  });
+
+  it('does not treat escalation depth failures as warning-only escalation rows', () => {
+    const entry = makeEntry({
+      category: 'task_lifecycle',
+      level: 'error',
+      operation: 'task_lifecycle.task.agentEscalated',
+      payload: {
+        event_type: 'task.escalation_depth_exceeded',
+        to_state: 'failed',
+      },
+    });
+
+    expect(isEscalationEntry(entry)).toBe(false);
   });
 });

@@ -89,8 +89,10 @@ describe('log entry context', () => {
     expect(detailSource).toContain('Recorded payload');
     expect(detailSource).toContain('DETAIL_SECTION_CLASS_NAME');
     expect(detailSource).toContain('bg-surface/90');
-    expect(detailSource).toContain('bg-rose-100');
-    expect(detailSource).toContain('dark:bg-rose-500/22');
+    expect(detailSource).toContain('isEscalationEntry');
+    expect(detailSource).toContain('Escalation note');
+    expect(detailSource).toContain('entry.error && !isEscalation');
+    expect(detailSource).toContain('entry.error && isEscalation');
     expect(taskDetailSource).toContain('Execution Step Lifecycle');
     expect(taskDetailSource).toContain('Specialist-step state changes, routing, and runtime handles');
     expect(taskDetailSource).toContain("label: 'Workflow'");

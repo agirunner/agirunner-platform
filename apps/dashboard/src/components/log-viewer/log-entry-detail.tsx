@@ -13,6 +13,7 @@ import { LogEntryDetailApi } from './log-entry-detail-api.js';
 import { LogEntryDetailContainer } from './log-entry-detail-container.js';
 import { LogEntryDetailTask } from './log-entry-detail-task.js';
 import { LogEntryDetailAgent } from './log-entry-detail-agent.js';
+import { isEscalationEntry } from './log-entry-presentation.js';
 
 const DETAIL_SECTION_CLASS_NAME = 'rounded-lg border border-border/80 bg-surface/90 p-4 shadow-sm';
 
@@ -271,6 +272,18 @@ function ErrorSection({ error }: { error: NonNullable<LogEntry['error']> }): JSX
   );
 }
 
+function EscalationNoteSection({ error }: { error: NonNullable<LogEntry['error']> }): JSX.Element {
+  return (
+    <div className={DETAIL_SECTION_CLASS_NAME}>
+      <h4 className="mb-2 text-sm font-semibold">Escalation note</h4>
+      {error.code ? (
+        <div className="mb-1 font-mono text-xs text-muted-foreground">{error.code}</div>
+      ) : null}
+      <div className="text-sm text-foreground">{error.message}</div>
+    </div>
+  );
+}
+
 function PayloadSection({ payload }: { payload: Record<string, unknown> }): JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -295,6 +308,7 @@ function PayloadSection({ payload }: { payload: Record<string, unknown> }): JSX.
 
 export function LogEntryDetail({ entry, onFilterTrace }: LogEntryDetailProps): JSX.Element {
   const [isCopied, setIsCopied] = useState(false);
+  const isEscalation = isEscalationEntry(entry);
 
   function handleCopyJson(): void {
     void navigator.clipboard.writeText(JSON.stringify(entry, null, 2)).then(() => {
@@ -318,7 +332,8 @@ export function LogEntryDetail({ entry, onFilterTrace }: LogEntryDetailProps): J
 
       <CategoryDetail entry={entry} />
 
-      {entry.error && <ErrorSection error={entry.error} />}
+      {entry.error && !isEscalation ? <ErrorSection error={entry.error} /> : null}
+      {entry.error && isEscalation ? <EscalationNoteSection error={entry.error} /> : null}
 
       {entry.payload && <PayloadSection payload={entry.payload} />}
 

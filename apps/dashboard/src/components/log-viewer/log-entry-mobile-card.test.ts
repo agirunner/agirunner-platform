@@ -11,6 +11,7 @@ describe('log entry mobile card source', () => {
     const source = readSource();
 
     expect(source).toContain('Badge variant={levelVariant(entry.level)}');
+    expect(source).toContain('isEscalationEntry');
     expect(source).not.toContain('CATEGORY_LABELS[entry.category] ?? entry.category}</Badge>');
     expect(source).not.toContain('{entry.operation}');
     expect(source).not.toContain('statusVariant(entry.status)');
@@ -23,5 +24,8 @@ describe('log entry mobile card source', () => {
     expect(source).toContain('Duration');
     expect(source).not.toContain('\n              Tool\n');
     expect(source).not.toContain("'No workflow'");
+    expect(source).toContain('const isEscalation = isEscalationEntry(entry);');
+    expect(source).toContain('!isEscalation && entry.error?.message');
+    expect(source).toContain('isEscalation && entry.error?.message');
   });
 });
