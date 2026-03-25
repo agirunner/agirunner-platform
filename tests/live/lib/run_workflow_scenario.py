@@ -437,7 +437,14 @@ def has_fatal_log_anomalies(evidence: dict[str, Any]) -> bool:
             continue
         level = str(row.get('level') or '').lower()
         status = str(row.get('status') or '').lower()
-        if level in {'error', 'fatal'} or status == 'failed':
+        if level == 'fatal':
+            return True
+        if level != 'error' and status != 'failed':
+            continue
+        task_id = row.get('task_id')
+        if isinstance(task_id, str) and task_id.strip() != '':
+            continue
+        if level == 'error' or status == 'failed':
             return True
     return False
 

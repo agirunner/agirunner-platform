@@ -1971,6 +1971,77 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertIn("expected workflow state in ['completed'], got 'active'", verification["failures"])
         self.assertIn("expected at least one output artifact for outcome-driven verification", verification["failures"])
 
+    def test_has_fatal_log_anomalies_ignores_task_scoped_recoverable_errors(self) -> None:
+        self.assertFalse(
+            run_workflow_scenario.has_fatal_log_anomalies(
+                {
+                    "log_anomalies": {
+                        "rows": [
+                            {
+                                "task_id": "task-1",
+                                "level": "error",
+                                "operation": "tool.execute",
+                                "status": "failed",
+                            }
+                        ]
+                    }
+                }
+            )
+        )
+
+    def test_has_fatal_log_anomalies_keeps_system_level_errors_fatal(self) -> None:
+        self.assertTrue(
+            run_workflow_scenario.has_fatal_log_anomalies(
+                {
+                    "log_anomalies": {
+                        "rows": [
+                            {
+                                "level": "error",
+                                "operation": "workflow.dispatch",
+                                "status": "failed",
+                            }
+                        ]
+                    }
+                }
+            )
+        )
+
+    def test_evaluate_expectations_outcome_driven_mode_allows_task_scoped_recoverable_errors(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "state": "completed",
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {"id": "task-1", "is_orchestrator_task": False, "state": "completed"},
+                ],
+            },
+            board={"data": {"data": {"columns": [{"id": "done", "is_terminal": True}], "work_items": [{"id": "wi-1", "column_id": "done"}]}}},
+            work_items={"data": {"data": [{"id": "wi-1", "column_id": "done"}]}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": [{"logical_path": "reports/summary.md"}]}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+            evidence={
+                "db_state": {"ok": True},
+                "runtime_cleanup": {"all_clean": True},
+                "log_anomalies": {
+                    "rows": [
+                        {
+                            "task_id": "task-1",
+                            "level": "error",
+                            "operation": "tool.execute",
+                            "status": "failed",
+                        }
+                    ]
+                },
+            },
+            verification_mode="outcome_driven",
+        )
+
+        self.assertTrue(verification["passed"])
+
     def test_evaluate_expectations_uses_authored_terminal_board_columns(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(
             {
