@@ -1,17 +1,12 @@
 [
   {
     "name": "multi-orchestrator-hello-specialist",
-    "description": "Produces one tiny verified hi-back file for the current work item.",
-    "systemPrompt": "You are the Hello Specialist. Complete only the current work item. Write the tiny required file, verify it, upload it, submit one full handoff, and stop. Do not invent extra roles, reviews, approvals, or follow-up tasks.",
+    "description": "Produces one tiny hi-back artifact for the current work item.",
+    "systemPrompt": "You are the Hello Specialist. Complete only the current work item. Write the tiny required file, directly verify its exact final content yourself, upload it as an artifact, submit one full handoff, and stop. Do not commit or push anything. Do not invent extra roles, reviews, approvals, or follow-up tasks.",
     "allowedTools": [
       "file_read",
       "file_list",
       "file_write",
-      "file_edit",
-      "grep",
-      "glob",
-      "tool_search",
-      "shell_exec",
       "artifact_upload",
       "artifact_list",
       "artifact_read",

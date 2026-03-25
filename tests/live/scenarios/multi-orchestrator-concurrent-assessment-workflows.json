@@ -7,8 +7,13 @@
     "parameters": {}
   },
   "workspace": {
-    "repo": true,
-    "memory": {},
+    "repo": false,
+    "storage": {
+      "type": "workspace_artifacts"
+    },
+    "memory": {
+      "workspace_kind": "artifact-only"
+    },
     "spec": {}
   },
   "approvals": [],
@@ -59,7 +64,7 @@
       "multiple_orchestrators_concurrent"
     ],
     "storage_execution": [
-      "git_workspace",
+      "artifact_heavy",
       "cold_specialists",
       "warm_orchestrators"
     ]
