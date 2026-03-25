@@ -13,7 +13,6 @@ import {
 import { toast } from '../../lib/toast.js';
 import { useUnsavedChanges } from '../../lib/use-unsaved-changes.js';
 import {
-  deleteRuntimeDefault,
   fetchRuntimeDefaults,
   upsertRuntimeDefault,
 } from './runtime-defaults.api.js';
@@ -45,13 +44,13 @@ interface RuntimeDefaultsEditorPageProps {
   sectionIdPrefix: string;
   successMessage: string;
   errorLabel: string;
+  renderAllSectionsInline?: boolean;
 }
 
 function buildSaveOperations(
   values: FormValues,
   defaultsByKey: Map<string, { id: string; config_value?: string }>,
   fieldDefinitions: FieldDefinition[],
-  primarySectionKeys: readonly string[],
 ): Promise<void>[] {
   return fieldDefinitions.flatMap((field) => {
     const value = (values[field.key] ?? '').trim();
@@ -60,11 +59,7 @@ function buildSaveOperations(
       field,
       currentValue: value,
       existingValue: existing?.config_value,
-      primarySectionKeys,
     });
-    if (saveAction === 'delete') {
-      return existing ? [deleteRuntimeDefault(existing.id)] : [];
-    }
     if (saveAction === 'noop') {
       return [];
     }
@@ -110,8 +105,13 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
   );
   const hasValidationErrors = Object.keys(validationErrors).length > 0;
   const primarySectionKeys = useMemo(
-    () => new Set<string>(props.primarySectionKeys),
-    [props.primarySectionKeys],
+    () =>
+      new Set<string>(
+        props.renderAllSectionsInline
+          ? props.sectionDefinitions.map((section) => section.key)
+          : props.primarySectionKeys,
+      ),
+    [props.primarySectionKeys, props.renderAllSectionsInline, props.sectionDefinitions],
   );
   const primarySections = useMemo(
     () =>
@@ -135,9 +135,9 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
   useUnsavedChanges(isDirty);
 
   useEffect(() => {
-    setFormValues(buildFormValues(data, props.fieldDefinitions, props.primarySectionKeys));
+    setFormValues(buildFormValues(data, props.fieldDefinitions));
     setIsDirty(false);
-  }, [data, props.fieldDefinitions, props.primarySectionKeys]);
+  }, [data, props.fieldDefinitions]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -146,7 +146,6 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
           formValues,
           defaultsByKey,
           props.fieldDefinitions,
-          props.primarySectionKeys,
         ),
       );
     },
@@ -167,7 +166,7 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
   }
 
   function resetForm(): void {
-    setFormValues(buildFormValues(data, props.fieldDefinitions, props.primarySectionKeys));
+    setFormValues(buildFormValues(data, props.fieldDefinitions));
     setIsDirty(false);
   }
 
@@ -259,14 +258,16 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
         })}
       </div>
 
-      <RuntimeAdvancedSettingsSection
-        sections={advancedSections}
-        values={formValues}
-        errors={validationErrors}
-        isExpanded={isAdvancedExpanded}
-        onToggle={() => setAdvancedExpanded((current) => !current)}
-        onChange={updateField}
-      />
+      {advancedSections.length > 0 ? (
+        <RuntimeAdvancedSettingsSection
+          sections={advancedSections}
+          values={formValues}
+          errors={validationErrors}
+          isExpanded={isAdvancedExpanded}
+          onToggle={() => setAdvancedExpanded((current) => !current)}
+          onChange={updateField}
+        />
+      ) : null}
     </div>
   );
 }

@@ -46,7 +46,6 @@ describe('runtime defaults page source', () => {
         'specialist_runtime_bootstrap_claim_timeout_seconds',
         'queue.max_depth',
         'platform.claim_poll_seconds',
-        'platform.drain_timeout_seconds',
         'agent.max_iterations',
         'agent.llm_max_retries',
         'agent.max_tool_steps_per_burst',
@@ -133,7 +132,7 @@ describe('runtime defaults page source', () => {
     const source = readSource('./runtime-defaults.api.ts');
     expect(source).toContain('dashboardApi.listRuntimeDefaults');
     expect(source).toContain('dashboardApi.upsertRuntimeDefault');
-    expect(source).toContain('dashboardApi.deleteRuntimeDefault');
+    expect(source).not.toContain('dashboardApi.deleteRuntimeDefault');
     expect(source).not.toContain('getAuthHeaders');
   });
 });

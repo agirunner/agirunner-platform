@@ -5,7 +5,6 @@ import {
 } from './runtime-defaults-runtime-ops.js';
 
 export const PULL_POLICY_OPTIONS = ['always', 'if-not-present', 'never'] as const;
-export const PLATFORM_DEFAULT_SELECT_VALUE = '__default__';
 export const SPECIALIST_CONTEXT_STRATEGY_OPTIONS = [
   'auto',
   'semantic_local',
@@ -43,6 +42,16 @@ const PLATFORM_OPERATION_SECTION_KEYS = new Set<FieldDefinition['section']>([
   'worker_supervision',
   'agent_supervision',
   'platform_loops',
+]);
+
+const OPERATIONS_CONNECTED_PLATFORM_FIELD_KEYS = new Set<string>([
+  'platform.api_request_timeout_seconds',
+  'platform.log_ingest_timeout_seconds',
+  'platform.log_flush_interval_ms',
+  'platform.heartbeat_max_failures',
+  'platform.cancellation_report_timeout_seconds',
+  'platform.drain_timeout_seconds',
+  'platform.self_terminate_cleanup_timeout_seconds',
 ]);
 
 const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
@@ -167,7 +176,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     label: 'History budget (messages)',
     description: 'Maximum message history kept before specialist task context is compacted.',
     configType: 'number',
-    placeholder: '100',
+    placeholder: '150',
     section: 'agent_context',
     inputMode: 'numeric',
     min: 1,
@@ -179,7 +188,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     description:
       'Shared fallback tail preserved during compaction when a specialist or orchestrator-specific override is not set.',
     configType: 'number',
-    placeholder: '20',
+    placeholder: '30',
     section: 'agent_context',
     inputMode: 'numeric',
     min: 1,
@@ -237,7 +246,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'agent.specialist_context_compaction_threshold',
     label: 'Specialist compaction threshold override',
     description:
-      'Role-specific compaction threshold for specialists. Clear it to fall back to the base compaction threshold.',
+      'Role-specific compaction threshold used for specialist continuity handling.',
     configType: 'number',
     placeholder: '0.8',
     section: 'agent_context',
@@ -250,9 +259,9 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'agent.specialist_context_tail_messages',
     label: 'Specialist preserved tail',
     description:
-      'Role-specific preserved recent message count for specialists. Clear it to use the base preserved tail.',
+      'Role-specific preserved recent message count used for specialist continuity handling.',
     configType: 'number',
-    placeholder: '20',
+    placeholder: '30',
     section: 'agent_context',
     inputMode: 'numeric',
     min: 1,
@@ -426,7 +435,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     description:
       'How many tool steps a reactive loop may execute before it must stop and re-evaluate progress.',
     configType: 'number',
-    placeholder: '8',
+    placeholder: '12',
     section: 'agent_safeguards',
     inputMode: 'numeric',
     min: 1,
@@ -438,7 +447,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     description:
       'How many mutating tool steps a reactive loop may execute before it must stop and re-evaluate progress.',
     configType: 'number',
-    placeholder: '3',
+    placeholder: '5',
     section: 'agent_safeguards',
     inputMode: 'numeric',
     min: 1,
@@ -450,7 +459,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     description:
       'How long a reactive burst may run before the runtime forces a new planning boundary.',
     configType: 'number',
-    placeholder: '45000',
+    placeholder: '120000',
     section: 'agent_safeguards',
     inputMode: 'numeric',
     min: 1,
@@ -462,7 +471,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     description:
       'How many read-only tool calls a reactive burst may execute in parallel before the runtime throttles concurrency.',
     configType: 'number',
-    placeholder: '4',
+    placeholder: '8',
     section: 'agent_safeguards',
     inputMode: 'numeric',
     min: 1,
@@ -485,7 +494,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     label: 'Maximum task iterations',
     description: 'Hard stop on agent loop iterations for a single task.',
     configType: 'number',
-    placeholder: '500',
+    placeholder: '800',
     section: 'task_limits',
     inputMode: 'numeric',
     min: 1,
@@ -534,6 +543,7 @@ export const FIELD_DEFINITIONS: FieldDefinition[] = [
   ...RUNTIME_OPERATION_FIELD_DEFINITIONS.filter(
     (field) =>
       RUNTIME_OPERATION_RUNTIME_SECTION_KEYS.has(field.section)
+      && !OPERATIONS_CONNECTED_PLATFORM_FIELD_KEYS.has(field.key)
       && field.key !== 'specialist_runtime_drain_grace_seconds',
   ),
   ...BASE_FIELD_DEFINITIONS.slice(8),
@@ -564,6 +574,7 @@ export const OPERATIONS_SECTION_DEFINITIONS: SectionDefinition[] = [
       'Control platform-managed specialist runtime teardown and replacement timing.',
     defaultExpanded: true,
   },
+  operationSectionByKey('connected_platform'),
   operationSectionByKey('workflow_activation'),
   operationSectionByKey('worker_supervision'),
   operationSectionByKey('agent_supervision'),
@@ -587,7 +598,8 @@ export const OPERATIONS_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   ...RUNTIME_OPERATION_FIELD_DEFINITIONS.filter(
     (field) =>
-      PLATFORM_OPERATION_SECTION_KEYS.has(field.section)
+      (PLATFORM_OPERATION_SECTION_KEYS.has(field.section)
+        || OPERATIONS_CONNECTED_PLATFORM_FIELD_KEYS.has(field.key))
       && field.key !== 'tasks.default_timeout_minutes',
   ),
 ];

@@ -123,14 +123,14 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_runtime_bootstrap_claim_timeout_seconds',
-    configValue: '30',
+    configValue: '60',
     configType: 'number',
     description: 'How long a new specialist runtime waits for work before self-terminating',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_runtime_drain_grace_seconds',
-    configValue: '30',
+    configValue: '120',
     configType: 'number',
     description: 'Grace period before a draining specialist runtime is forced down',
   });
@@ -207,14 +207,14 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'workspace.clone_max_retries',
-    configValue: '3',
+    configValue: '5',
     configType: 'number',
     description: 'How many times the runtime retries a workspace clone before failing the task',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'workspace.clone_backoff_base_seconds',
-    configValue: '1',
+    configValue: '2',
     configType: 'number',
     description: 'Base backoff in seconds used between workspace clone retry attempts',
   });
@@ -249,7 +249,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'agent.max_iterations',
-    configValue: '500',
+    configValue: '800',
     configType: 'number',
     description: 'Default maximum agent loop iterations for a single task',
   });
@@ -270,7 +270,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'tasks.default_timeout_minutes',
-    configValue: '30',
+    configValue: '180',
     configType: 'number',
     description: 'Default timeout in minutes applied to new tasks when the task payload omits one',
   });
@@ -284,7 +284,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.api_request_timeout_seconds',
-    configValue: '30',
+    configValue: '60',
     configType: 'number',
     description:
       'How long connected runtimes wait for platform API requests before treating them as failed',
@@ -292,7 +292,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.log_ingest_timeout_seconds',
-    configValue: '10',
+    configValue: '30',
     configType: 'number',
     description:
       'How long connected runtimes wait when flushing execution logs back to the platform ingest endpoint',
@@ -300,7 +300,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.log_flush_interval_ms',
-    configValue: '500',
+    configValue: '2000',
     configType: 'number',
     description:
       'How long connected runtimes buffer partial execution-log batches before flushing them to the platform ingest endpoint',
@@ -316,7 +316,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.drain_timeout_seconds',
-    configValue: '600',
+    configValue: '1800',
     configType: 'number',
     description:
       'How long connected runtimes wait for in-flight work while draining before forced shutdown',
@@ -332,7 +332,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.self_terminate_cleanup_timeout_seconds',
-    configValue: '15',
+    configValue: '60',
     configType: 'number',
     description:
       'How long connected runtimes wait while cleaning up managed task containers before self-termination',
@@ -356,7 +356,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.workflow_activation_stale_after_ms',
-    configValue: '300000',
+    configValue: '900000',
     configType: 'number',
     description:
       'Threshold in milliseconds after which a processing workflow activation is considered stale',
@@ -364,7 +364,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.task_cancel_signal_grace_period_ms',
-    configValue: '60000',
+    configValue: '180000',
     configType: 'number',
     description:
       'Grace period in milliseconds between sending a cancel signal and force-failing or force-cancelling work',
@@ -372,7 +372,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.worker_dispatch_ack_timeout_ms',
-    configValue: '15000',
+    configValue: '45000',
     configType: 'number',
     description:
       'Maximum time in milliseconds a worker has to acknowledge a dispatch before it is released',
@@ -449,14 +449,14 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.lifecycle_agent_heartbeat_check_interval_ms',
-    configValue: '15000',
+    configValue: '30000',
     configType: 'number',
     description: 'Interval in milliseconds between platform agent heartbeat enforcement sweeps',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.lifecycle_worker_heartbeat_check_interval_ms',
-    configValue: '15000',
+    configValue: '30000',
     configType: 'number',
     description: 'Interval in milliseconds between platform worker heartbeat enforcement sweeps',
   });
@@ -478,21 +478,21 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.heartbeat_prune_interval_ms',
-    configValue: '60000',
+    configValue: '300000',
     configType: 'number',
     description: 'Interval in milliseconds between stale-heartbeat prune sweeps',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.governance_retention_job_interval_ms',
-    configValue: '3600000',
+    configValue: '21600000',
     configType: 'number',
     description: 'Interval in milliseconds between governance retention and log partition sweeps',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.reconcile_interval_seconds',
-    configValue: '5',
+    configValue: '10',
     configType: 'number',
     description:
       'How often the container manager polls the fleet snapshot and reconciles runtime state',
@@ -500,7 +500,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.stop_timeout_seconds',
-    configValue: '30',
+    configValue: '60',
     configType: 'number',
     description:
       'Grace period in seconds used by the container manager when stopping runtime containers',
@@ -508,21 +508,21 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.shutdown_task_stop_timeout_seconds',
-    configValue: '2',
+    configValue: '10',
     configType: 'number',
     description: 'Grace period in seconds used for task containers during manager shutdown cleanup',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.docker_action_buffer_seconds',
-    configValue: '15',
+    configValue: '30',
     configType: 'number',
     description: 'Extra seconds the container manager adds around Docker stop/remove actions',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.log_flush_interval_ms',
-    configValue: '500',
+    configValue: '2000',
     configType: 'number',
     description:
       'How long the container manager buffers execution logs before flushing them to the platform ingest API',
@@ -546,7 +546,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.starvation_threshold_seconds',
-    configValue: '60',
+    configValue: '180',
     configType: 'number',
     description:
       'How long a playbook may remain pending without a runtime before the container manager boosts it for starvation recovery',
@@ -554,7 +554,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.runtime_orphan_grace_cycles',
-    configValue: '3',
+    configValue: '6',
     configType: 'number',
     description:
       'How many reconcile cycles a managed runtime may remain orphaned before the container manager force-removes it',
@@ -562,7 +562,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.hung_runtime_stale_after_seconds',
-    configValue: '90',
+    configValue: '180',
     configType: 'number',
     description:
       'Maximum age in seconds before the container manager treats a runtime heartbeat as stale',
@@ -570,7 +570,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.hung_runtime_stop_grace_period_seconds',
-    configValue: '30',
+    configValue: '60',
     configType: 'number',
     description:
       'Grace period in seconds used when stopping runtime containers that are classified as hung',
@@ -611,7 +611,7 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
     },
     {
       configKey: 'llm.http_timeout_seconds',
-      configValue: '60',
+      configValue: '120',
       configType: 'number',
       description: 'Upper bound for outbound LLM HTTP requests from runtime provider adapters',
     },
@@ -671,7 +671,7 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
     },
     {
       configKey: 'tools.shell_exec_timeout_seconds',
-      configValue: '120',
+      configValue: '300',
       configType: 'number',
       description: 'Maximum duration in seconds for shell exec tool calls before clamping',
     },
@@ -683,7 +683,7 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
     },
     {
       configKey: 'tools.shell_exec_timeout_max_seconds',
-      configValue: '300',
+      configValue: '900',
       configType: 'number',
       description: 'Maximum allowed timeout in seconds for shell exec tool calls',
     },
@@ -731,13 +731,13 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
     },
     {
       configKey: 'capture.push_retries',
-      configValue: '3',
+      configValue: '5',
       configType: 'number',
       description: 'How many times capture retries result publication before failing the task',
     },
     {
       configKey: 'capture.push_timeout_seconds',
-      configValue: '60',
+      configValue: '180',
       configType: 'number',
       description: 'Deadline in seconds for capture-side artifact upload and result publication',
     },
@@ -809,19 +809,19 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
     },
     {
       configKey: 'workspace.clone_timeout_seconds',
-      configValue: '120',
+      configValue: '600',
       configType: 'number',
       description: 'Maximum duration in seconds for cloning the workspace repository or host mapping bootstrap',
     },
     {
       configKey: 'agent.history_max_messages',
-      configValue: '100',
+      configValue: '150',
       configType: 'number',
       description: 'Maximum message history kept before specialist task context is compacted',
     },
     {
       configKey: 'agent.history_preserve_recent',
-      configValue: '20',
+      configValue: '30',
       configType: 'number',
       description: 'Fallback recent-message tail preserved during compaction when no role-specific override is set',
     },
@@ -857,7 +857,7 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
     },
     {
       configKey: 'agent.specialist_context_tail_messages',
-      configValue: '20',
+      configValue: '30',
       configType: 'number',
       description: 'Role-specific preserved recent message count for specialists',
     },
@@ -947,25 +947,25 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
     },
     {
       configKey: 'agent.max_tool_steps_per_burst',
-      configValue: '8',
+      configValue: '12',
       configType: 'number',
       description: 'Maximum tool steps the runtime executes inside one reactive burst before re-evaluating',
     },
     {
       configKey: 'agent.max_mutating_steps_per_burst',
-      configValue: '3',
+      configValue: '5',
       configType: 'number',
       description: 'Maximum mutating tool steps the runtime executes inside one reactive burst before re-evaluating',
     },
     {
       configKey: 'agent.max_burst_elapsed_ms',
-      configValue: '45000',
+      configValue: '120000',
       configType: 'number',
       description: 'Maximum elapsed time in milliseconds allowed for one reactive burst before re-evaluating',
     },
     {
       configKey: 'agent.max_parallel_tool_calls_per_burst',
-      configValue: '4',
+      configValue: '8',
       configType: 'number',
       description: 'Maximum read-only tool calls the runtime executes in parallel inside one reactive burst',
     },

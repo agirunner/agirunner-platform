@@ -45,6 +45,14 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
           AND config_key IN (
             'api.events_heartbeat_seconds',
             'log.level',
+            'tasks.default_timeout_minutes',
+            'platform.api_request_timeout_seconds',
+            'platform.log_ingest_timeout_seconds',
+            'platform.log_flush_interval_ms',
+            'platform.drain_timeout_seconds',
+            'platform.self_terminate_cleanup_timeout_seconds',
+            'specialist_runtime_bootstrap_claim_timeout_seconds',
+            'specialist_runtime_drain_grace_seconds',
             'workspace.clone_max_retries',
             'workspace.clone_backoff_base_seconds',
             'workspace.snapshot_interval',
@@ -60,9 +68,17 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
       { config_key: 'container.max_reuse_age_seconds', config_value: '1800' },
       { config_key: 'container.max_reuse_tasks', config_value: '10' },
       { config_key: 'log.level', config_value: 'debug' },
+      { config_key: 'platform.api_request_timeout_seconds', config_value: '60' },
+      { config_key: 'platform.drain_timeout_seconds', config_value: '1800' },
+      { config_key: 'platform.log_flush_interval_ms', config_value: '2000' },
+      { config_key: 'platform.log_ingest_timeout_seconds', config_value: '30' },
+      { config_key: 'platform.self_terminate_cleanup_timeout_seconds', config_value: '60' },
       { config_key: 'pool.refresh_interval_seconds', config_value: '300' },
-      { config_key: 'workspace.clone_backoff_base_seconds', config_value: '1' },
-      { config_key: 'workspace.clone_max_retries', config_value: '3' },
+      { config_key: 'specialist_runtime_bootstrap_claim_timeout_seconds', config_value: '60' },
+      { config_key: 'specialist_runtime_drain_grace_seconds', config_value: '120' },
+      { config_key: 'tasks.default_timeout_minutes', config_value: '180' },
+      { config_key: 'workspace.clone_backoff_base_seconds', config_value: '2' },
+      { config_key: 'workspace.clone_max_retries', config_value: '5' },
       { config_key: 'workspace.snapshot_interval', config_value: '1' },
     ]);
 
@@ -119,13 +135,17 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
          FROM runtime_defaults
         WHERE tenant_id = $1
           AND config_key IN (
+            'agent.history_max_messages',
+            'agent.history_preserve_recent',
             'agent.loop_detection_repeat',
             'agent.response_repeat_threshold',
             'agent.no_file_change_threshold',
             'agent.max_tool_steps_per_burst',
             'agent.max_mutating_steps_per_burst',
             'agent.max_burst_elapsed_ms',
-            'agent.max_parallel_tool_calls_per_burst'
+            'agent.max_parallel_tool_calls_per_burst',
+            'agent.max_iterations',
+            'agent.specialist_context_tail_messages'
           )
         ORDER BY config_key ASC`,
       ['00000000-0000-0000-0000-000000000001'],
@@ -133,31 +153,47 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
 
     expect(seededRows.rows).toEqual([
       {
+        config_key: 'agent.history_max_messages',
+        config_value: '150',
+        description: 'Maximum message history kept before specialist task context is compacted',
+      },
+      {
+        config_key: 'agent.history_preserve_recent',
+        config_value: '30',
+        description:
+          'Fallback recent-message tail preserved during compaction when no role-specific override is set',
+      },
+      {
         config_key: 'agent.loop_detection_repeat',
         config_value: '3',
         description: 'Flag repeated loop patterns after this many repeated turns',
       },
       {
         config_key: 'agent.max_burst_elapsed_ms',
-        config_value: '45000',
+        config_value: '120000',
         description:
           'Maximum elapsed time in milliseconds allowed for one reactive burst before re-evaluating',
       },
       {
+        config_key: 'agent.max_iterations',
+        config_value: '800',
+        description: 'Default maximum agent loop iterations for a single task',
+      },
+      {
         config_key: 'agent.max_mutating_steps_per_burst',
-        config_value: '3',
+        config_value: '5',
         description:
           'Maximum mutating tool steps the runtime executes inside one reactive burst before re-evaluating',
       },
       {
         config_key: 'agent.max_parallel_tool_calls_per_burst',
-        config_value: '4',
+        config_value: '8',
         description:
           'Maximum read-only tool calls the runtime executes in parallel inside one reactive burst',
       },
       {
         config_key: 'agent.max_tool_steps_per_burst',
-        config_value: '8',
+        config_value: '12',
         description:
           'Maximum tool steps the runtime executes inside one reactive burst before re-evaluating',
       },
@@ -171,6 +207,11 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
         config_key: 'agent.response_repeat_threshold',
         config_value: '2',
         description: 'Mark the agent as stuck after this many repeated near-identical replies',
+      },
+      {
+        config_key: 'agent.specialist_context_tail_messages',
+        config_value: '30',
+        description: 'Role-specific preserved recent message count for specialists',
       },
     ]);
   });
@@ -251,7 +292,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
     expect(Number(modelCount.rows[0]?.count ?? '0')).toBe(1);
     expect(Number(assignmentCount.rows[0]?.count ?? '0')).toBe(1);
     expect(defaultRows.rows).toEqual([
-      { config_key: 'agent.max_iterations', config_value: '500' },
+      { config_key: 'agent.max_iterations', config_value: '800' },
       { config_key: 'default_model_id', config_value: '20000000-0000-0000-0000-000000000001' },
       {
         config_key: 'default_reasoning_config',
@@ -381,7 +422,7 @@ async function captureLegacySchemaState(pool: TestDatabase['pool']) {
 function readRuntimeDefaultsDashboardFieldKeys(): string[] {
   const dashboardDir = path.resolve(
     __dirname,
-    '../../../dashboard/src/pages/config',
+    '../../../dashboard/src/pages/runtimes',
   );
   const sources = [
     path.join(dashboardDir, 'runtime-defaults.schema.ts'),
@@ -407,6 +448,7 @@ function readRuntimeDefaultsDashboardFieldKeys(): string[] {
     'container_timeouts',
     'lifecycle_timeouts',
     'task_timeouts',
+    'runtime_fleet',
     'connected_platform',
     'realtime_transport',
     'workflow_activation',

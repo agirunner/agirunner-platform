@@ -17,7 +17,6 @@ import {
 } from '../../components/ui/select.js';
 import { cn } from '../../lib/utils.js';
 import { ConfigField } from './config-form-controls.js';
-import { PLATFORM_DEFAULT_SELECT_VALUE } from './runtime-defaults.schema.js';
 import type {
   FieldDefinition,
   FormValues,
@@ -105,7 +104,8 @@ export function RuntimeAdvancedSettingsSection({
         <div className="min-w-0 flex-1 space-y-1">
           <div className="text-base font-semibold text-foreground">Advanced Settings</div>
           <p className="text-sm leading-6 text-muted">
-            Clear any field to inherit the built-in default. Only explicit values stay overridden.{' '}
+            These values are persisted explicitly like the primary groups. Review them carefully
+            before saving.{' '}
             {buildSectionStatus(configuredCount, fieldCount, errorCount)}
           </p>
         </div>
@@ -216,10 +216,8 @@ function renderSelectField(
 ) {
   return (
     <Select
-      value={value || PLATFORM_DEFAULT_SELECT_VALUE}
-      onValueChange={(nextValue) =>
-        onChange(nextValue === PLATFORM_DEFAULT_SELECT_VALUE ? '' : nextValue)
-      }
+      value={value}
+      onValueChange={onChange}
     >
       <SelectTrigger
         id={field.key}
@@ -231,7 +229,6 @@ function renderSelectField(
         <SelectValue placeholder={field.placeholder} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={PLATFORM_DEFAULT_SELECT_VALUE}>Use platform default</SelectItem>
         {options.map((option) => (
           <SelectItem key={option} value={option}>
             {option}
@@ -248,8 +245,10 @@ function buildSectionStatus(
   errorCount: number,
 ): string {
   if (errorCount > 0) {
-    return `${configuredCount}/${fieldCount} configured · ${errorCount} blocker${errorCount === 1 ? '' : 's'}.`;
+    return `${errorCount} blocker${errorCount === 1 ? '' : 's'}.`;
   }
 
-  return `${configuredCount}/${fieldCount} configured.`;
+  void configuredCount;
+  void fieldCount;
+  return '';
 }

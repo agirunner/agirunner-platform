@@ -93,13 +93,10 @@ describe('runtime defaults page support', () => {
     expect(fieldsForSection('runtime_throughput').map((field) => field.key)).toEqual([
       'queue.max_depth',
     ]);
-    expect(fieldsForSection('connected_platform').map((field) => field.key)).toEqual(
-      expect.arrayContaining([
-        'specialist_runtime_bootstrap_claim_timeout_seconds',
-        'platform.claim_poll_seconds',
-        'platform.drain_timeout_seconds',
-      ]),
-    );
+    expect(fieldsForSection('connected_platform').map((field) => field.key)).toEqual([
+      'specialist_runtime_bootstrap_claim_timeout_seconds',
+      'platform.claim_poll_seconds',
+    ]);
     expect(FIELD_DEFINITIONS.map((field) => field.key)).not.toEqual(
       expect.arrayContaining([
         'docker.checker_timeout_ms',
@@ -142,7 +139,39 @@ describe('runtime defaults page support', () => {
     expect(errors['global_max_specialists']).toContain('at least 1');
   });
 
+  it('requires explicit values instead of treating blanks as inherited defaults', () => {
+    const errors = buildValidationErrors({
+      specialist_runtime_default_image: '',
+      specialist_runtime_default_cpu: '',
+      specialist_runtime_default_memory: '',
+      global_max_specialists: '',
+      'agent.max_iterations': '',
+      'platform.claim_poll_seconds': '',
+      'workspace.clone_timeout_seconds': '',
+    });
+
+    expect(errors['specialist_runtime_default_image']).toContain('is required');
+    expect(errors['specialist_runtime_default_cpu']).toContain('is required');
+    expect(errors['specialist_runtime_default_memory']).toContain('is required');
+    expect(errors['global_max_specialists']).toContain('is required');
+    expect(errors['agent.max_iterations']).toContain('is required');
+    expect(errors['platform.claim_poll_seconds']).toContain('is required');
+    expect(errors['workspace.clone_timeout_seconds']).toContain('is required');
+  });
+
   it('describes loop safeguard defaults with platform-authoritative thresholds', () => {
+    const historyBudgetField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'agent.history_max_messages',
+    );
+    const preservedRecentField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'agent.history_preserve_recent',
+    );
+    const specialistTailField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'agent.specialist_context_tail_messages',
+    );
+    const maxIterationsField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'agent.max_iterations',
+    );
     const loopRepeatField = FIELD_DEFINITIONS.find(
       (field) => field.key === 'agent.loop_detection_repeat',
     );
@@ -164,6 +193,38 @@ describe('runtime defaults page support', () => {
     const maxParallelField = FIELD_DEFINITIONS.find(
       (field) => field.key === 'agent.max_parallel_tool_calls_per_burst',
     );
+    const llmTimeoutField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'llm.http_timeout_seconds',
+    );
+    const shellExecTimeoutField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'tools.shell_exec_timeout_seconds',
+    );
+    const shellExecMaxField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'tools.shell_exec_timeout_max_seconds',
+    );
+    const cloneTimeoutField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'workspace.clone_timeout_seconds',
+    );
+    const cloneRetryField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'workspace.clone_max_retries',
+    );
+    const cloneBackoffField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'workspace.clone_backoff_base_seconds',
+    );
+    const captureRetryField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'capture.push_retries',
+    );
+    const captureTimeoutField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'capture.push_timeout_seconds',
+    );
+    const bootstrapClaimField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'specialist_runtime_bootstrap_claim_timeout_seconds',
+    );
+
+    expect(historyBudgetField).toMatchObject({ placeholder: '150' });
+    expect(preservedRecentField).toMatchObject({ placeholder: '30' });
+    expect(specialistTailField).toMatchObject({ placeholder: '30' });
+    expect(maxIterationsField).toMatchObject({ placeholder: '800' });
 
     expect(loopRepeatField).toMatchObject({
       placeholder: '3',
@@ -180,25 +241,34 @@ describe('runtime defaults page support', () => {
         'Intervene only after this many turns with no meaningful progress toward task completion.',
     });
     expect(maxToolStepsField).toMatchObject({
-      placeholder: '8',
+      placeholder: '12',
       description:
         'How many tool steps a reactive loop may execute before it must stop and re-evaluate progress.',
     });
     expect(maxMutatingStepsField).toMatchObject({
-      placeholder: '3',
+      placeholder: '5',
       description:
         'How many mutating tool steps a reactive loop may execute before it must stop and re-evaluate progress.',
     });
     expect(maxBurstElapsedField).toMatchObject({
-      placeholder: '45000',
+      placeholder: '120000',
       description:
         'How long a reactive burst may run before the runtime forces a new planning boundary.',
     });
     expect(maxParallelField).toMatchObject({
-      placeholder: '4',
+      placeholder: '8',
       description:
         'How many read-only tool calls a reactive burst may execute in parallel before the runtime throttles concurrency.',
     });
+    expect(llmTimeoutField).toMatchObject({ placeholder: '120' });
+    expect(shellExecTimeoutField).toMatchObject({ placeholder: '300' });
+    expect(shellExecMaxField).toMatchObject({ placeholder: '900' });
+    expect(cloneTimeoutField).toMatchObject({ placeholder: '600' });
+    expect(cloneRetryField).toMatchObject({ placeholder: '5' });
+    expect(cloneBackoffField).toMatchObject({ placeholder: '2' });
+    expect(captureRetryField).toMatchObject({ placeholder: '5' });
+    expect(captureTimeoutField).toMatchObject({ placeholder: '180' });
+    expect(bootstrapClaimField).toMatchObject({ placeholder: '60' });
   });
 
   it('rejects invalid runtime and execution container defaults with recovery guidance', () => {

@@ -13,7 +13,3 @@ export async function upsertRuntimeDefault(input: {
 }): Promise<void> {
   return dashboardApi.upsertRuntimeDefault(input);
 }
-
-export async function deleteRuntimeDefault(id: string): Promise<void> {
-  return dashboardApi.deleteRuntimeDefault(id);
-}

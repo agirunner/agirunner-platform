@@ -15,6 +15,7 @@ export function buildValidationErrors(
   for (const field of fieldDefinitions) {
     const value = values[field.key]?.trim();
     if (!value) {
+      errors[field.key] = `${field.label} is required.`;
       continue;
     }
     if (field.options && field.options.length > 0 && !field.options.includes(value)) {
@@ -117,27 +118,27 @@ function validateContainerAllocation(
   },
 ): void {
   const imageValue = values[config.imageKey]?.trim();
-  const imageError = validateContainerImage(imageValue ?? '', `${config.labelPrefix} image`, {
-    emptyValueHint: 'Clear the field to use the platform default image.',
-  });
-  if (imageError) {
-    errors[config.imageKey] = imageError;
+  if (imageValue) {
+    const imageError = validateContainerImage(imageValue, `${config.labelPrefix} image`);
+    if (imageError) {
+      errors[config.imageKey] = imageError;
+    }
   }
 
   const cpuValue = values[config.cpuKey]?.trim();
-  const cpuError = validateContainerCpu(cpuValue ?? '', `${config.labelPrefix} CPU`, {
-    emptyValueHint: 'Clear the field to use the platform default.',
-  });
-  if (cpuError) {
-    errors[config.cpuKey] = cpuError;
+  if (cpuValue) {
+    const cpuError = validateContainerCpu(cpuValue, `${config.labelPrefix} CPU`);
+    if (cpuError) {
+      errors[config.cpuKey] = cpuError;
+    }
   }
 
   const memoryValue = values[config.memoryKey]?.trim();
-  const memoryError = validateContainerMemory(memoryValue ?? '', `${config.labelPrefix} memory`, {
-    emptyValueHint: 'Clear the field to use the platform default memory limit.',
-  });
-  if (memoryError) {
-    errors[config.memoryKey] = memoryError;
+  if (memoryValue) {
+    const memoryError = validateContainerMemory(memoryValue, `${config.labelPrefix} memory`);
+    if (memoryError) {
+      errors[config.memoryKey] = memoryError;
+    }
   }
 }
 

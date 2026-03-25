@@ -7,10 +7,11 @@ function readSource(fileName: string) {
 }
 
 describe('operations page source', () => {
-  it('reuses the shared runtime defaults editor instead of introducing a second implementation', () => {
+  it('reuses the shared runtime defaults editor and renders every operations group inline', () => {
     const source = readSource('./operations-page.tsx');
     expect(source).toContain('RuntimeDefaultsEditorPage');
     expect(source).toContain("title=\"Operations\"");
+    expect(source).toContain('renderAllSectionsInline');
     expect(source).not.toContain('/api/v1/config/runtime-defaults');
   });
 });

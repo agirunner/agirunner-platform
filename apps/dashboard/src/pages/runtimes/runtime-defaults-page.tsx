@@ -11,7 +11,7 @@ export function RuntimeDefaultsPage(): JSX.Element {
   return (
     <RuntimeDefaultsEditorPage
       title="Runtimes"
-      description="Configure platform-wide defaults for specialist runtime containers and execution containers. Everything else is optional and only overrides the built-in defaults when you set a value."
+      description="Configure platform-wide defaults for specialist runtime containers, execution containers, and runtime execution behavior. Every value shown here is explicit, required, and persisted."
       icon={Server}
       fieldDefinitions={FIELD_DEFINITIONS}
       sectionDefinitions={SECTION_DEFINITIONS}
