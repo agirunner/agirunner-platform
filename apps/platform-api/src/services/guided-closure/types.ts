@@ -74,6 +74,45 @@ export const guidedClosureCalloutRecommendationSchema = z.object({
   summary: calloutSummarySchema,
 }).strict();
 
+export const guidedClosurePreferredObligationSchema = z.object({
+  code: calloutCodeSchema,
+  status: z.enum(['unmet', 'in_progress', 'satisfied']),
+  subject: z.string().min(1).max(255),
+}).strict();
+
+export const guidedClosureRecoveryOutcomeSummarySchema = z.object({
+  recovery_class: z.string().min(1).max(255),
+  suggested_next_actions: z.array(guidedClosureSuggestedActionSchema).default([]),
+}).strict();
+
+export const guidedClosureRecentFailureSchema = z.object({
+  task_id: z.string().min(1).max(255),
+  role: z.string().min(1).max(255).nullable().default(null),
+  state: z.string().min(1).max(120),
+  why: z.string().min(1).max(4000),
+}).strict();
+
+export const guidedClosureRetryWindowSchema = z.object({
+  retry_available_at: z.string().min(1).max(255),
+  backoff_seconds: z.number().int().nonnegative(),
+}).strict();
+
+export const guidedClosureContextSchema = z.object({
+  workflow_can_close_now: z.boolean(),
+  work_item_can_close_now: z.boolean(),
+  active_blocking_controls: z.array(guidedClosureControlSummarySchema).default([]),
+  active_advisory_controls: z.array(guidedClosureControlSummarySchema).default([]),
+  preferred_obligations: z.array(guidedClosurePreferredObligationSchema).default([]),
+  closure_readiness: z.enum(['blocked', 'not_ready', 'can_close_with_callouts', 'ready_to_close']),
+  recent_recovery_outcomes: z.array(guidedClosureRecoveryOutcomeSummarySchema).default([]),
+  attempt_count_by_work_item: z.record(z.number().int().nonnegative()).default({}),
+  attempt_count_by_role: z.record(z.number().int().nonnegative()).default({}),
+  recent_failures: z.array(guidedClosureRecentFailureSchema).default([]),
+  last_retry_reason: z.string().min(1).max(4000).nullable().default(null),
+  retry_window: guidedClosureRetryWindowSchema.nullable().default(null),
+  reroute_candidates: z.array(z.string().min(1).max(255)).default([]),
+}).strict();
+
 export const guidedClosureAppliedMutationSchema = z.object({
   mutation_outcome: z.literal('applied'),
   result: z.record(z.unknown()),
@@ -106,6 +145,7 @@ export type GuidedClosureMutationResponse = z.infer<typeof guidedClosureMutation
 export type GuidedClosureStateSnapshot = z.infer<typeof guidedClosureStateSnapshotSchema>;
 export type GuidedClosureSuggestedAction = z.infer<typeof guidedClosureSuggestedActionSchema>;
 export type GuidedClosureCalloutRecommendation = z.infer<typeof guidedClosureCalloutRecommendationSchema>;
+export type GuidedClosureContext = z.infer<typeof guidedClosureContextSchema>;
 
 export function emptyCompletionCallouts(): CompletionCallouts {
   return completionCalloutsSchema.parse({});

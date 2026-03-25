@@ -101,6 +101,15 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Once every planned work item is complete and no blocking tasks, approvals, assessments, escalations, or required follow-up remain, call complete_workflow in the same activation rather than leaving the workflow active with no successor stage.',
     );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Follow a fallback ladder: retry transient failures, inspect canonical state, reroute or reassign, rerun missing predecessor work with a corrected brief, waive preferred steps explicitly, close with callouts if legal, and escalate only when closure is impossible without external input.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'When closure is legal but preferred work or advisory items remain, use complete_work_item or complete_workflow with structured completion_callouts instead of leaving the workflow open.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Use platform-produced closure_context, recent recovery outcomes, and attempt history as the recovery contract; do not guess from prose or stale memory.',
+    );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use structured handoffs and continuity state to preserve context between activations and role changes.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use process instructions as the workflow contract.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Treat actual invoked governance state and continuity state as authoritative.');

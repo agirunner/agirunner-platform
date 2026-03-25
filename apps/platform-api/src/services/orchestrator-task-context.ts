@@ -5,6 +5,12 @@ import {
   readWorkflowTaskKind,
 } from './assessment-subject-service.js';
 import {
+  guidedClosureContextSchema,
+  type GuidedClosureContext,
+  type GuidedClosureSuggestedAction,
+} from './guided-closure/types.js';
+import { buildStageRoleCoverage } from './stage-role-coverage.js';
+import {
   deriveWorkflowStageProjection,
 } from './workflow-stage-projection.js';
 import {
@@ -52,6 +58,29 @@ interface PendingDispatch {
   title: string | null;
 }
 
+interface StageGateRow {
+  id: string;
+  stage_name: string;
+  status: string;
+  closure_effect: string | null;
+  requested_by_work_item_id: string | null;
+  request_summary: string | null;
+}
+
+interface EscalationRow {
+  id: string;
+  work_item_id: string | null;
+  reason: string;
+  closure_effect: string | null;
+  status: string;
+}
+
+interface ToolResultRow {
+  mutation_outcome: string | null;
+  recovery_class: string | null;
+  response: Record<string, unknown> | null;
+}
+
 export async function buildOrchestratorTaskContext(
   db: DatabaseQueryable,
   tenantId: string,
@@ -68,7 +97,7 @@ export async function buildOrchestratorTaskContext(
       ? task.activation_id
       : null;
 
-  const [workflowRes, activationRes, workItemsRes, stagesRes, tasksRes, queuedActivationsRes] =
+  const [workflowRes, activationRes, workItemsRes, stagesRes, tasksRes, queuedActivationsRes, stageGatesRes, escalationsRes, toolResultsRes] =
     await Promise.all([
       db.query<WorkflowRow>(
         `SELECT w.id,
@@ -145,6 +174,9 @@ export async function buildOrchestratorTaskContext(
                 claimed_at,
                 started_at,
                 completed_at,
+                retry_count,
+                rework_count,
+                error,
                 is_orchestrator_task,
                 input,
                 metadata
@@ -165,6 +197,45 @@ export async function buildOrchestratorTaskContext(
             AND activation_id IS NULL
             AND state = 'queued'
           ORDER BY queued_at ASC
+          LIMIT 20`,
+        [tenantId, workflowId],
+      ),
+      db.query<StageGateRow>(
+        `SELECT id,
+                stage_name,
+                status,
+                closure_effect,
+                requested_by_work_item_id,
+                request_summary
+           FROM workflow_stage_gates
+          WHERE tenant_id = $1
+            AND workflow_id = $2
+          ORDER BY requested_at DESC
+          LIMIT 20`,
+        [tenantId, workflowId],
+      ),
+      db.query<EscalationRow>(
+        `SELECT id,
+                work_item_id,
+                reason,
+                closure_effect,
+                status
+           FROM workflow_subject_escalations
+          WHERE tenant_id = $1
+            AND workflow_id = $2
+          ORDER BY created_at DESC
+          LIMIT 20`,
+        [tenantId, workflowId],
+      ),
+      db.query<ToolResultRow>(
+        `SELECT mutation_outcome,
+                recovery_class,
+                response
+           FROM workflow_tool_results
+          WHERE tenant_id = $1
+            AND workflow_id = $2
+            AND mutation_outcome IS NOT NULL
+          ORDER BY created_at DESC
           LIMIT 20`,
         [tenantId, workflowId],
       ),
@@ -190,7 +261,19 @@ export async function buildOrchestratorTaskContext(
   });
   const serializedWorkItems = workItemsRes.rows.map(serializeWorkItem);
   const serializedTasks = tasksRes.rows.map(serializeDates);
+  const focus = selectClosureContextFocus(task, activationRes.rows, serializedWorkItems);
   const pendingDispatches = derivePendingDispatches(serializedWorkItems, serializedTasks, definition);
+  const closureContext = buildClosureContext({
+    definition,
+    lifecycle,
+    workItems: serializedWorkItems,
+    tasks: serializedTasks,
+    stageGates: stageGatesRes.rows,
+    escalations: escalationsRes.rows,
+    toolResults: toolResultsRes.rows,
+    focusWorkItemId: focus.workItemId,
+    focusStageName: focus.stageName,
+  });
   const workflowContext = {
     id: workflow.id,
     name: workflow.name,
@@ -214,6 +297,7 @@ export async function buildOrchestratorTaskContext(
       Object.keys(asRecord(taskMetadata.last_activation_checkpoint)).length > 0
         ? asRecord(taskMetadata.last_activation_checkpoint)
         : null,
+    closure_context: closureContext,
     workflow: workflowContext,
     board: {
       work_items: serializedWorkItems,
@@ -223,6 +307,128 @@ export async function buildOrchestratorTaskContext(
       queued_activations: queuedActivationsRes.rows.map(serializeDates),
     },
   };
+}
+
+function buildClosureContext(params: {
+  definition: ReturnType<typeof parsePlaybookDefinition>;
+  lifecycle: 'planned' | 'ongoing';
+  workItems: Record<string, unknown>[];
+  tasks: Record<string, unknown>[];
+  stageGates: StageGateRow[];
+  escalations: EscalationRow[];
+  toolResults: ToolResultRow[];
+  focusWorkItemId: string | null;
+  focusStageName: string | null;
+}): GuidedClosureContext {
+  const focusedWorkItem = selectFocusedWorkItemForClosure(params.workItems, params.focusWorkItemId, params.focusStageName);
+  const focusedStageName = readOptionalString(focusedWorkItem.stage_name) ?? params.focusStageName;
+  const focusedWorkItemId = readOptionalString(focusedWorkItem.id) ?? params.focusWorkItemId;
+  const currentSubjectRevision = readOptionalPositiveInteger(focusedWorkItem.current_subject_revision);
+  const stage = focusedStageName
+    ? params.definition.stages.find((entry) => entry.name === focusedStageName) ?? null
+    : null;
+  const stageRoles = (stage?.involves ?? [])
+    .map((role) => role.trim())
+    .filter((role) => role.length > 0);
+  const roleCoverage = buildStageRoleCoverage({
+    stageName: focusedStageName,
+    stageRoles,
+    workItemId: focusedWorkItemId,
+    currentSubjectRevision,
+    tasks: params.tasks,
+  });
+
+  const activeBlockingControls = [
+    ...summarizeStageGates(params.stageGates, focusedStageName, focusedWorkItemId, 'blocking'),
+    ...summarizeEscalations(params.escalations, focusedWorkItemId, 'blocking'),
+  ];
+  const activeAdvisoryControls = [
+    ...summarizeStageGates(params.stageGates, focusedStageName, focusedWorkItemId, 'advisory'),
+    ...summarizeEscalations(params.escalations, focusedWorkItemId, 'advisory'),
+  ];
+  const preferredObligations = roleCoverage
+    .filter((entry) => entry.status === 'missing' || entry.status === 'older_assessment')
+    .map((entry) => ({
+      code: 'stage_role_contribution' as const,
+      status: 'unmet' as const,
+      subject: entry.role,
+    }));
+  const recentRecoveryOutcomes = params.toolResults
+    .filter((row) => row.mutation_outcome && row.mutation_outcome !== 'applied' && row.recovery_class)
+    .slice(0, 5)
+    .map((row) => ({
+      recovery_class: row.recovery_class as string,
+      suggested_next_actions: normalizeSuggestedNextActions(asRecord(row.response).suggested_next_actions),
+    }));
+  const specialistTasks = params.tasks.filter((row) => row.is_orchestrator_task !== true);
+  const attemptCountByWorkItem = countAttemptsByKey(
+    specialistTasks.map((row) => readOptionalString(row.work_item_id)).filter((value): value is string => Boolean(value)),
+  );
+  const attemptCountByRole = countAttemptsByKey(
+    specialistTasks.map((row) => readOptionalString(row.role)).filter((value): value is string => Boolean(value)),
+  );
+  const recentFailures = specialistTasks
+    .filter((row) => isFailureState(readOptionalString(row.state)))
+    .map((row) => ({
+      task_id: readOptionalString(row.id) ?? 'unknown-task',
+      role: readOptionalString(row.role),
+      state: readOptionalString(row.state) ?? 'failed',
+      why: readFailureReason(row),
+    }))
+    .filter((row) => row.why.length > 0)
+    .slice(0, 10);
+  const retryTask = specialistTasks.find((row) => {
+    const retryAvailableAt = readOptionalString(asRecord(row.metadata).retry_available_at);
+    return Boolean(retryAvailableAt) && isFailureState(readOptionalString(row.state));
+  });
+  const retryMetadata = retryTask ? asRecord(retryTask.metadata) : {};
+  const retryWindow = readOptionalString(retryMetadata.retry_available_at)
+    ? {
+        retry_available_at: readOptionalString(retryMetadata.retry_available_at) as string,
+        backoff_seconds: readOptionalNumber(retryMetadata.retry_backoff_seconds) ?? 0,
+      }
+    : null;
+  const lastRetryReason = retryTask ? readFailureReason(retryTask) : recentFailures[0]?.why ?? null;
+  const rerouteCandidates = Array.from(
+    new Set(
+      [
+        ...preferredObligations.map((entry) => entry.subject),
+        ...recentFailures.map((entry) => entry.role).filter((value): value is string => Boolean(value)),
+      ].filter((value) => value.length > 0),
+    ),
+  );
+  const focusedOpenSpecialistTasks = specialistTasks.filter(
+    (row) =>
+      readOptionalString(row.work_item_id) === focusedWorkItemId
+      && isOpenSpecialistTask(row),
+  );
+  const workItemCanCloseNow = activeBlockingControls.length === 0 && focusedOpenSpecialistTasks.length === 0;
+  const workflowCanCloseNow = params.workItems.every((row) => row.completed_at !== null && row.completed_at !== undefined)
+    && specialistTasks.every((row) => !isOpenSpecialistTask(row))
+    && activeBlockingControls.length === 0;
+  const closureReadiness = activeBlockingControls.length > 0
+    ? 'blocked'
+    : activeAdvisoryControls.length > 0 || preferredObligations.length > 0
+      ? 'can_close_with_callouts'
+      : workItemCanCloseNow
+        ? 'ready_to_close'
+        : 'not_ready';
+
+  return guidedClosureContextSchema.parse({
+    workflow_can_close_now: workflowCanCloseNow,
+    work_item_can_close_now: workItemCanCloseNow,
+    active_blocking_controls: activeBlockingControls,
+    active_advisory_controls: activeAdvisoryControls,
+    preferred_obligations: preferredObligations,
+    closure_readiness: closureReadiness,
+    recent_recovery_outcomes: recentRecoveryOutcomes,
+    attempt_count_by_work_item: attemptCountByWorkItem,
+    attempt_count_by_role: attemptCountByRole,
+    recent_failures: recentFailures,
+    last_retry_reason: lastRetryReason,
+    retry_window: retryWindow,
+    reroute_candidates: rerouteCandidates,
+  });
 }
 
 function serializeActivation(row: ActivationRow) {
@@ -268,6 +474,44 @@ function serializeWorkItem(row: Record<string, unknown>) {
   };
 }
 
+function selectClosureContextFocus(
+  task: Record<string, unknown>,
+  activationRows: ActivationRow[],
+  workItems: Record<string, unknown>[],
+) {
+  const activationPayload = asRecord(activationRows[0]?.payload);
+  const workItemId = readOptionalString(task.work_item_id)
+    ?? readOptionalString(activationPayload.work_item_id)
+    ?? readOptionalString(workItems[0]?.id);
+  const stageName = readOptionalString(task.stage_name)
+    ?? readOptionalString(activationPayload.stage_name)
+    ?? readOptionalString(
+      workItems.find((row) => readOptionalString(row.id) === workItemId)?.stage_name,
+    )
+    ?? readOptionalString(workItems[0]?.stage_name);
+  return { workItemId, stageName };
+}
+
+function selectFocusedWorkItemForClosure(
+  workItems: Record<string, unknown>[],
+  workItemId: string | null,
+  stageName: string | null,
+) {
+  if (workItemId) {
+    const exact = workItems.find((row) => readOptionalString(row.id) === workItemId);
+    if (exact) {
+      return exact;
+    }
+  }
+  if (stageName) {
+    const stageMatch = workItems.find((row) => readOptionalString(row.stage_name) === stageName);
+    if (stageMatch) {
+      return stageMatch;
+    }
+  }
+  return workItems[0] ?? {};
+}
+
 function activeStageNames(rows: Record<string, unknown>[]): string[] {
   return Array.from(
     new Set(
@@ -276,6 +520,86 @@ function activeStageNames(rows: Record<string, unknown>[]): string[] {
         .map((row) => String(row.stage_name)),
     ),
   );
+}
+
+function summarizeStageGates(
+  rows: StageGateRow[],
+  stageName: string | null,
+  workItemId: string | null,
+  closureEffect: 'blocking' | 'advisory',
+) {
+  return rows
+    .filter((row) => (row.status ?? 'awaiting_approval') === 'awaiting_approval')
+    .filter((row) => normalizeClosureEffect(row.closure_effect) === closureEffect)
+    .filter((row) => !stageName || row.stage_name === stageName)
+    .filter((row) => !workItemId || !row.requested_by_work_item_id || row.requested_by_work_item_id === workItemId)
+    .map((row) => ({
+      kind: 'approval',
+      id: row.id,
+      closure_effect: closureEffect,
+      summary: row.request_summary ?? `Approval remains ${closureEffect}.`,
+    }));
+}
+
+function summarizeEscalations(
+  rows: EscalationRow[],
+  workItemId: string | null,
+  closureEffect: 'blocking' | 'advisory',
+) {
+  return rows
+    .filter((row) => (row.status ?? 'open') === 'open')
+    .filter((row) => normalizeClosureEffect(row.closure_effect) === closureEffect)
+    .filter((row) => !workItemId || !row.work_item_id || row.work_item_id === workItemId)
+    .map((row) => ({
+      kind: 'escalation',
+      id: row.id,
+      closure_effect: closureEffect,
+      summary: row.reason,
+    }));
+}
+
+function normalizeSuggestedNextActions(value: unknown): GuidedClosureSuggestedAction[] {
+  const entries = Array.isArray(value) ? value : [];
+  return entries
+    .map((entry) => asRecord(entry))
+    .filter((entry) =>
+      typeof entry.action_code === 'string'
+      && typeof entry.target_type === 'string'
+      && typeof entry.target_id === 'string'
+      && typeof entry.why === 'string'
+      && typeof entry.requires_orchestrator_judgment === 'boolean',
+    )
+    .map((entry) => ({
+      action_code: entry.action_code as string,
+      target_type: entry.target_type as string,
+      target_id: entry.target_id as string,
+      why: entry.why as string,
+      requires_orchestrator_judgment: entry.requires_orchestrator_judgment as boolean,
+    }));
+}
+
+function countAttemptsByKey(values: string[]) {
+  const counts: Record<string, number> = {};
+  for (const value of values) {
+    counts[value] = (counts[value] ?? 0) + 1;
+  }
+  return counts;
+}
+
+function isFailureState(state: string | null) {
+  return state === 'failed' || state === 'escalated' || state === 'cancelled';
+}
+
+function readFailureReason(task: Record<string, unknown>) {
+  const metadata = asRecord(task.metadata);
+  return readOptionalString(metadata.retry_last_error)
+    ?? readOptionalString(asRecord(task.error).message)
+    ?? readOptionalString(asRecord(task.error).error)
+    ?? 'task failed without a structured reason';
+}
+
+function normalizeClosureEffect(value: string | null) {
+  return value === 'advisory' ? 'advisory' : 'blocking';
 }
 
 function derivePendingDispatches(
@@ -372,6 +696,10 @@ function readOptionalPositiveInteger(value: unknown): number | null {
   return typeof value === 'number' && Number.isInteger(value) && value > 0
     ? value
     : null;
+}
+
+function readOptionalNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 

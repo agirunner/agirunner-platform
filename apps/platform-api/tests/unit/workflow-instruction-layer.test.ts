@@ -96,6 +96,9 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Closure Discipline');
     expect(layer!.content).toContain('call complete_work_item in the same activation');
     expect(layer!.content).toContain('call complete_workflow in the same activation');
+    expect(layer!.content).toContain('## Guided Recovery');
+    expect(layer!.content).toContain('retry transient failures');
+    expect(layer!.content).toContain('close with callouts if closure is legal');
     expect(layer!.content).toContain('## Available Roles');
     expect(layer!.content).toContain('- reviewer: Reviews implementation quality and correctness.');
     expect(layer!.content).toContain('## Parallelism');
@@ -103,6 +106,124 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('Repository-backed workflow. Use runtime-visible continuity, task outputs, and artifacts to decide what specialist work to dispatch next.');
     expect(layer!.content).not.toContain('Inspect files, diffs, and git state before deciding.');
     expect(layer!.content).not.toContain('Human gate: yes');
+  });
+
+  it('renders closure context and recovery history for orchestrator tasks', () => {
+    const layer = buildWorkflowInstructionLayer({
+      isOrchestratorTask: true,
+      workflow: {
+        lifecycle: 'planned',
+        active_stages: ['review'],
+        playbook: {
+          definition: {
+            lifecycle: 'planned',
+            process_instructions:
+              'Drive the workflow to a reasonable conclusion even if preferred review steps become advisory.',
+            board: {
+              columns: [
+                { id: 'planned', label: 'Planned' },
+                { id: 'done', label: 'Done', is_terminal: true },
+              ],
+            },
+            stages: [
+              { name: 'review', goal: 'Review the accepted change', involves: ['reviewer', 'brand-reviewer'] },
+            ],
+          },
+        },
+      },
+      orchestratorContext: {
+        activation: { payload: { work_item_id: 'wi-1' } },
+        board: {
+          work_items: [
+            {
+              id: 'wi-1',
+              stage_name: 'review',
+              column_id: 'planned',
+              next_expected_actor: 'reviewer',
+              next_expected_action: 'approve',
+              rework_count: 1,
+            },
+          ],
+          tasks: [
+            {
+              id: 'task-review-1',
+              role: 'reviewer',
+              work_item_id: 'wi-1',
+              stage_name: 'review',
+              state: 'completed',
+              is_orchestrator_task: false,
+              metadata: { task_kind: 'assessment' },
+              input: { subject_revision: 2 },
+            },
+          ],
+        },
+        closure_context: {
+          workflow_can_close_now: false,
+          work_item_can_close_now: true,
+          active_blocking_controls: [],
+          active_advisory_controls: [
+            {
+              kind: 'escalation',
+              id: 'esc-1',
+              closure_effect: 'advisory',
+              summary: 'Editorial escalation remains advisory.',
+            },
+          ],
+          preferred_obligations: [
+            {
+              code: 'stage_role_contribution',
+              status: 'unmet',
+              subject: 'brand-reviewer',
+            },
+          ],
+          closure_readiness: 'can_close_with_callouts',
+          recent_recovery_outcomes: [
+            {
+              recovery_class: 'predecessor_missing_handoff',
+              suggested_next_actions: [
+                {
+                  action_code: 'rerun_predecessor_for_handoff',
+                  target_type: 'task',
+                  target_id: 'task-123',
+                  why: 'the predecessor task exited without a full handoff',
+                  requires_orchestrator_judgment: true,
+                },
+              ],
+            },
+          ],
+          attempt_count_by_work_item: { 'wi-1': 2 },
+          attempt_count_by_role: { reviewer: 1, 'brand-reviewer': 0 },
+          recent_failures: [
+            {
+              task_id: 'task-brand-1',
+              role: 'brand-reviewer',
+              state: 'failed',
+              why: 'workspace dependency missing',
+            },
+          ],
+          last_retry_reason: 'workspace dependency missing',
+          retry_window: {
+            retry_available_at: '2026-03-24T10:15:00.000Z',
+            backoff_seconds: 60,
+          },
+          reroute_candidates: ['brand-reviewer', 'editor'],
+        },
+      },
+    });
+
+    expect(layer).not.toBeNull();
+    expect(layer!.content).toContain('## Closure Context');
+    expect(layer!.content).toContain('Closure readiness: can_close_with_callouts');
+    expect(layer!.content).toContain('Work item can close now: yes');
+    expect(layer!.content).toContain('Workflow can close now: no');
+    expect(layer!.content).toContain('Advisory control escalation esc-1: Editorial escalation remains advisory.');
+    expect(layer!.content).toContain('Preferred obligation brand-reviewer (stage_role_contribution): unmet');
+    expect(layer!.content).toContain('Recent recovery predecessor_missing_handoff');
+    expect(layer!.content).toContain('Attempt counts by work item: wi-1=2');
+    expect(layer!.content).toContain('Attempt counts by role: reviewer=1, brand-reviewer=0');
+    expect(layer!.content).toContain('Recent failure brand-reviewer on task-brand-1: workspace dependency missing');
+    expect(layer!.content).toContain('Retry window: available at 2026-03-24T10:15:00.000Z after 60 seconds');
+    expect(layer!.content).toContain('Reroute candidates: brand-reviewer, editor');
   });
 
   it('tells the orchestrator that restrictive findings do not satisfy missing same-stage roles', () => {

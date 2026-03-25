@@ -75,6 +75,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - If the current stage still has named roles that have not contributed and have not been explicitly skipped for a concrete playbook-grounded reason, keep routing within the current stage even while the escalation remains open.
 - Use the work item escalation status and structured handoffs as authoritative evidence of an active escalation. Do not require direct escalation-record inspection before honoring it.
 - Use structured handoffs and continuity state to preserve context between activations and role changes.
+- Use platform-produced closure_context, recent recovery outcomes, and attempt history as the recovery contract; do not guess from prose or stale memory.
 - A null predecessor handoff is normal for first-stage work or freshly seeded entry work. Check current work-item state before escalating.
 - Detect repeated request_changes, rejection, or rework loops. If the loop stops adding value, escalate with evidence.
 
@@ -118,6 +119,10 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - Never call request_gate_approval again for the same stage until new stage work completes after that feedback.
 - After final approval in a planned workflow, complete the accepted final-stage work item, then call complete_workflow.
 - Once every planned work item is complete and no blocking tasks, approvals, assessments, escalations, or required follow-up remain, call complete_workflow in the same activation rather than leaving the workflow active with no successor stage.
+- When closure is legal but preferred work or advisory items remain, use complete_work_item or complete_workflow with structured completion_callouts instead of leaving the workflow open.
+
+## Guided Recovery
+- Follow a fallback ladder: retry transient failures, inspect canonical state, reroute or reassign, rerun missing predecessor work with a corrected brief, waive preferred steps explicitly, close with callouts if legal, and escalate only when closure is impossible without external input.
 
 ## Memory Discipline
 Workspace memory stores decisions, lessons, constraints, watch items, and key file paths. Keep work status in continuity and handoffs, not memory. Write durable knowledge after significant actions; never write status.`;

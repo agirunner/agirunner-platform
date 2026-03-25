@@ -1,8 +1,6 @@
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
-import {
-  readAssessmentSubjectLinkage,
-  readWorkflowTaskKind,
-} from './assessment-subject-service.js';
+import { guidedClosureContextSchema } from './guided-closure/types.js';
+import { buildStageRoleCoverage } from './stage-role-coverage.js';
 import { roleConfigOwnsRepositorySurface } from './tool-tag-service.js';
 
 interface InstructionLayerDocument {
@@ -180,6 +178,11 @@ function buildOrchestratorSections(params: {
     sections.push(`## Handoff Semantics\n${formatPlannedHandoffSemantics()}`);
     sections.push(`## Closure Discipline\n${plannedClosureDiscipline()}`);
   }
+  const closureContextSection = formatClosureContext(params.workflow);
+  if (closureContextSection) {
+    sections.push(`## Closure Context\n${closureContextSection}`);
+  }
+  sections.push(`## Guided Recovery\n${guidedRecoveryGuidance()}`);
   sections.push(
     '## Activation Discipline\nAfter you dispatch required specialist work, request a gate, or detect active subordinate work with no new routing decision to make, finish this activation and wait for the next workflow event. Do not poll running tasks in a loop. If no subordinate work is active and the workflow should progress, perform the workflow mutation now. A recommendation without the required workflow mutation does not complete the activation.',
   );
@@ -295,12 +298,19 @@ function mergeOrchestratorWorkflowContext(
   orchestratorContext: Record<string, unknown> | null | undefined,
 ): Record<string, unknown> {
   const orchestratorWorkflow = asRecord(asRecord(orchestratorContext).workflow);
+  const closureContext = asRecord(asRecord(orchestratorContext).closure_context);
   if (Object.keys(orchestratorWorkflow).length === 0) {
-    return workflow;
+    return Object.keys(closureContext).length > 0
+      ? { ...workflow, closure_context: closureContext }
+      : workflow;
   }
   return {
     ...workflow,
     role_definitions: orchestratorWorkflow.role_definitions ?? workflow.role_definitions ?? null,
+    closure_context:
+      Object.keys(closureContext).length > 0
+        ? closureContext
+        : workflow.closure_context ?? null,
   };
 }
 
@@ -408,6 +418,7 @@ function plannedClosureDiscipline() {
   return [
     'When the current planned-workflow work item satisfies its authored stage goal, board posture, continuity, and process instructions, call complete_work_item in the same activation instead of leaving accepted work open.',
     'When every planned work item is terminal and no blocking tasks, approvals, assessments, escalations, or required follow-up remain, call complete_workflow in the same activation.',
+    'When closure is legal but preferred work or advisory items remain, use complete_work_item or complete_workflow with structured completion_callouts instead of leaving the workflow open.',
     'Do not rely on board lane guesses or specialist prose to imply closure. Perform the explicit workflow mutation yourself.',
   ].join('\n');
 }
@@ -577,12 +588,14 @@ function formatStageRoleCoverage(
   }
 
   const currentSubjectRevision = readOptionalPositiveInteger(focusedWorkItem.current_subject_revision);
-  const tasks = boardTasks
-    .filter((task) => readString(task.work_item_id) === workItemId)
-    .filter((task) => readString(task.stage_name) === stage?.name)
-    .filter((task) => readString(task.role));
-
-  const lines = stageRoles.map((role) => `- ${role}: ${describeStageRoleStatus(role, tasks, currentSubjectRevision)}`);
+  const coverage = buildStageRoleCoverage({
+    stageName: stage?.name ?? null,
+    stageRoles,
+    workItemId,
+    currentSubjectRevision,
+    tasks: boardTasks,
+  });
+  const lines = coverage.map((entry) => `- ${entry.role}: ${entry.description}`);
   lines.push(
     'An open escalation or other restrictive same-stage finding does not by itself satisfy the remaining current-stage roles.',
   );
@@ -600,65 +613,12 @@ function formatStageRoleCoverage(
   return lines.join('\n');
 }
 
-function describeStageRoleStatus(
-  role: string,
-  tasks: Record<string, unknown>[],
-  currentSubjectRevision: number | null,
-) {
-  const roleTasks = tasks.filter((task) => readString(task.role) === role);
-  if (roleTasks.some(isOpenTask)) {
-    return 'active task already in flight on the current work item.';
-  }
-  if (roleTasks.some((task) => isCurrentSubjectAssessmentTask(task, currentSubjectRevision) && isTerminalTask(task))) {
-    return 'completed current-subject assessment recorded on the current work item.';
-  }
-  if (roleTasks.some((task) => isTerminalTask(task) && !isAssessmentTask(task))) {
-    return 'completed task recorded on the current work item.';
-  }
-  if (roleTasks.some((task) => isAssessmentTask(task) && isTerminalTask(task))) {
-    return 'older assessment task recorded on the current work item; confirm whether it still applies to the current subject revision.';
-  }
-  return 'no current task or recorded contribution yet on the current work item.';
-}
-
 function readBoardTasks(
   orchestratorContext: Record<string, unknown> | null | undefined,
 ) {
   const board = asRecord(asRecord(orchestratorContext).board);
   const tasks = Array.isArray(board.tasks) ? board.tasks : [];
   return tasks.filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object' && !Array.isArray(entry));
-}
-
-function isOpenTask(task: Record<string, unknown>) {
-  const state = readString(task.state);
-  return state === 'ready'
-    || state === 'claimed'
-    || state === 'in_progress'
-    || state === 'awaiting_approval'
-    || state === 'output_pending_assessment';
-}
-
-function isTerminalTask(task: Record<string, unknown>) {
-  const state = readString(task.state);
-  return state === 'completed' || state === 'failed' || state === 'cancelled' || state === 'escalated';
-}
-
-function isAssessmentTask(task: Record<string, unknown>) {
-  return readWorkflowTaskKind(asRecord(task.metadata), Boolean(task.is_orchestrator_task)) === 'assessment';
-}
-
-function isCurrentSubjectAssessmentTask(
-  task: Record<string, unknown>,
-  currentSubjectRevision: number | null,
-) {
-  if (!isAssessmentTask(task)) {
-    return false;
-  }
-  if (currentSubjectRevision === null) {
-    return true;
-  }
-  const linkage = readAssessmentSubjectLinkage(asRecord(task.input), asRecord(task.metadata));
-  return linkage.subjectRevision === currentSubjectRevision;
 }
 
 function selectFocusedWorkItem(
@@ -689,6 +649,59 @@ function selectFocusedWorkItem(
   return workItems.find((entry) => readString(entry.next_expected_actor) || readString(entry.next_expected_action))
     ?? workItems[0]
     ?? {};
+}
+
+function formatClosureContext(workflow: Record<string, unknown>) {
+  const parsed = guidedClosureContextSchema.safeParse(asRecord(workflow.closure_context));
+  if (!parsed.success) {
+    return '';
+  }
+
+  const lines = [
+    `Closure readiness: ${parsed.data.closure_readiness}`,
+    `Work item can close now: ${parsed.data.work_item_can_close_now ? 'yes' : 'no'}`,
+    `Workflow can close now: ${parsed.data.workflow_can_close_now ? 'yes' : 'no'}`,
+  ];
+  for (const control of parsed.data.active_blocking_controls) {
+    lines.push(`Blocking control ${control.kind} ${control.id}: ${control.summary ?? 'Blocking control remains open.'}`);
+  }
+  for (const control of parsed.data.active_advisory_controls) {
+    lines.push(`Advisory control ${control.kind} ${control.id}: ${control.summary ?? 'Advisory control remains open.'}`);
+  }
+  for (const obligation of parsed.data.preferred_obligations) {
+    lines.push(`Preferred obligation ${obligation.subject} (${obligation.code}): ${obligation.status}`);
+  }
+  for (const outcome of parsed.data.recent_recovery_outcomes) {
+    lines.push(`Recent recovery ${outcome.recovery_class}`);
+  }
+  const workItemAttempts = Object.entries(parsed.data.attempt_count_by_work_item);
+  if (workItemAttempts.length > 0) {
+    lines.push(`Attempt counts by work item: ${workItemAttempts.map(([key, value]) => `${key}=${value}`).join(', ')}`);
+  }
+  const roleAttempts = Object.entries(parsed.data.attempt_count_by_role);
+  if (roleAttempts.length > 0) {
+    lines.push(`Attempt counts by role: ${roleAttempts.map(([key, value]) => `${key}=${value}`).join(', ')}`);
+  }
+  for (const failure of parsed.data.recent_failures) {
+    lines.push(`Recent failure ${failure.role ?? 'unknown-role'} on ${failure.task_id}: ${failure.why}`);
+  }
+  if (parsed.data.retry_window) {
+    lines.push(
+      `Retry window: available at ${parsed.data.retry_window.retry_available_at} after ${parsed.data.retry_window.backoff_seconds} seconds`,
+    );
+  }
+  if (parsed.data.reroute_candidates.length > 0) {
+    lines.push(`Reroute candidates: ${parsed.data.reroute_candidates.join(', ')}`);
+  }
+  return lines.join('\n');
+}
+
+function guidedRecoveryGuidance() {
+  return [
+    'Use platform-produced closure_context, recent recovery outcomes, and attempt history as the recovery contract; do not guess from prose or stale memory.',
+    'Follow a fallback ladder: retry transient failures, inspect canonical state, reroute or reassign, rerun missing predecessor work with a corrected brief, waive preferred steps explicitly, close with callouts if legal, and escalate only when closure is impossible without external input.',
+    'If recovery options are exhausted and closure remains legal, close with callouts if closure is legal instead of leaving the workflow open.',
+  ].join('\n');
 }
 
 function readOrchestratorActivationAnchor(
