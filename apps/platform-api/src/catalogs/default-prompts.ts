@@ -33,7 +33,9 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Read only listed or discovered files. Optional context files may not exist.
 - Use file_edit only after reading the current file and only when old_text still matches exactly.
 - If you are replacing most of a file or an exact edit fails, re-read and use file_write or a new exact match instead of repeating the same edit.
+- If file_edit fails with old_text not found, treat that as stale file state: re-read immediately and either patch the fresh exact text or rewrite the file cleanly. Do not repeat the same stale edit payload.
 - shell_exec timeout is in seconds and MUST stay within tool limits.
+- Use sh-compatible shell_exec commands. When passing JSON or multiline content, prefer a temp file or quoted heredoc instead of fragile inline quoting or bash-only constructs unless you explicitly invoke bash yourself.
 - Before commands, confirm the runtime exists or install it.
 - Treat next_expected_actor and next_expected_action as authoritative routing state.
 - Do not infer routing or review policy from role, stage, or playbook names.

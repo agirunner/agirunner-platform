@@ -86,6 +86,15 @@ describe('prompt catalogs', () => {
       'If you are replacing most of a file or an exact edit fails, re-read and use file_write or a new exact match instead of repeating the same edit.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'If file_edit fails with old_text not found, treat that as stale file state: re-read immediately and either patch the fresh exact text or rewrite the file cleanly.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Use sh-compatible shell_exec commands.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'prefer a temp file or quoted heredoc instead of fragile inline quoting or bash-only constructs',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Use git_diff HEAD for working-tree changes unless you have confirmed a deeper ref like HEAD~1 exists on the current branch.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('Project memory stores durable knowledge only.');
@@ -234,7 +243,7 @@ describe('prompt catalogs', () => {
   });
 
   it('keeps the shared prompts bounded for routine execution', () => {
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(4500);
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(5000);
     expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(9000);
   });
 });
