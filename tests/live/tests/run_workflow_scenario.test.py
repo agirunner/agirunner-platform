@@ -498,6 +498,40 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             client.calls,
         )
 
+    def test_inspect_runtime_cleanup_ignores_other_workflows_when_task_scope_is_provided(self) -> None:
+        snapshot = {
+            "data": [
+                {"container_id": "orch-1", "kind": "orchestrator", "execution_backend": "runtime_only"},
+                {"container_id": "rt-1", "kind": "runtime", "execution_backend": "runtime_plus_task"},
+            ]
+        }
+
+        with mock.patch.object(
+            run_workflow_scenario,
+            "docker_exec_text",
+            side_effect=[
+                "task-current\ntask-other",
+                "task-other",
+            ],
+        ):
+            result = run_workflow_scenario.inspect_runtime_cleanup(
+                snapshot,
+                trace=None,
+                relevant_task_ids={"current"},
+            )
+
+        self.assertFalse(result["all_clean"])
+        self.assertEqual(
+            ["task-current"],
+            result["runtime_containers"][0]["relevant_workspace_entries"],
+        )
+        self.assertEqual(
+            [],
+            result["runtime_containers"][1]["relevant_workspace_entries"],
+        )
+        self.assertFalse(result["runtime_containers"][0]["clean"])
+        self.assertTrue(result["runtime_containers"][1]["clean"])
+
     def test_build_run_result_payload_includes_explicit_scenario_and_provider_mode(self) -> None:
         payload = run_workflow_scenario.build_run_result_payload(
             workflow_id="wf-1",

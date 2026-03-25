@@ -747,6 +747,13 @@ def _runtime_container_rows(snapshot: Any) -> list[dict[str, Any]]:
     ]
 
 
+def _relevant_workspace_entries(entries: list[str], *, relevant_task_ids: set[str] | None) -> list[str]:
+    if not relevant_task_ids:
+        return entries
+    relevant_entry_names = {f"task-{task_id}" for task_id in relevant_task_ids}
+    return [entry for entry in entries if entry in relevant_entry_names]
+
+
 def collect_live_container_snapshot(client: ApiClient, *, label: str) -> dict[str, Any]:
     return client.best_effort_request(
         "GET",
@@ -756,7 +763,12 @@ def collect_live_container_snapshot(client: ApiClient, *, label: str) -> dict[st
     )
 
 
-def inspect_runtime_cleanup(snapshot: Any, *, trace: TraceRecorder | None = None) -> dict[str, Any]:
+def inspect_runtime_cleanup(
+    snapshot: Any,
+    *,
+    trace: TraceRecorder | None = None,
+    relevant_task_ids: set[str] | None = None,
+) -> dict[str, Any]:
     runtime_rows = _runtime_container_rows(snapshot)
     inspections: list[dict[str, Any]] = []
     all_clean = len(runtime_rows) > 0
@@ -772,9 +784,11 @@ def inspect_runtime_cleanup(snapshot: Any, *, trace: TraceRecorder | None = None
                 trace=trace,
             )
             entries = [line.strip() for line in output.splitlines() if line.strip()]
-            clean = len(entries) == 0
+            relevant_entries = _relevant_workspace_entries(entries, relevant_task_ids=relevant_task_ids)
+            clean = len(relevant_entries) == 0
         except Exception as error:
             entries = []
+            relevant_entries = []
             clean = False
             inspections.append(
                 {
@@ -784,6 +798,7 @@ def inspect_runtime_cleanup(snapshot: Any, *, trace: TraceRecorder | None = None
                     "clean": False,
                     "error": str(error),
                     "workspace_entries": entries,
+                    "relevant_workspace_entries": relevant_entries,
                 }
             )
             all_clean = False
@@ -795,6 +810,7 @@ def inspect_runtime_cleanup(snapshot: Any, *, trace: TraceRecorder | None = None
                 "execution_backend": row.get("execution_backend"),
                 "clean": clean,
                 "workspace_entries": entries,
+                "relevant_workspace_entries": relevant_entries,
             }
         )
         all_clean = all_clean and clean
@@ -854,6 +870,7 @@ def settle_final_live_container_evidence(
     delay_seconds: int,
     trace: TraceRecorder | None,
     live_container_observations: dict[str, Any] | None = None,
+    relevant_task_ids: set[str] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     latest_live_containers: dict[str, Any] = {"ok": False, "error": "live container snapshot not collected"}
     runtime_cleanup: dict[str, Any] = {"all_clean": False, "error": "runtime cleanup not inspected"}
@@ -868,7 +885,11 @@ def settle_final_live_container_evidence(
         if latest_live_containers.get("ok"):
             if live_container_observations is not None:
                 observe_live_containers(live_container_observations, latest_live_containers.get("data"))
-            runtime_cleanup = inspect_runtime_cleanup(latest_live_containers.get("data"), trace=trace)
+            runtime_cleanup = inspect_runtime_cleanup(
+                latest_live_containers.get("data"),
+                trace=trace,
+                relevant_task_ids=relevant_task_ids,
+            )
             docker_log_rotation = inspect_docker_log_rotation(latest_live_containers.get("data"), trace=trace)
             if bool(runtime_cleanup.get("all_clean")):
                 return latest_live_containers, runtime_cleanup, docker_log_rotation
@@ -1335,6 +1356,14 @@ def refresh_terminal_workflow_snapshot(
             )
         )
     return latest
+
+
+def _workflow_task_ids(workflow: dict[str, Any]) -> set[str]:
+    return {
+        str(task.get("id")).strip()
+        for task in _workflow_tasks(workflow)
+        if isinstance(task, dict) and isinstance(task.get("id"), str) and str(task.get("id")).strip() != ""
+    }
 
 
 def _playbook_pool_status(fleet: Any, *, playbook_id: str) -> dict[str, Any] | None:
@@ -3040,7 +3069,11 @@ def evaluate_progress_expectations(
         "db_state": collect_db_state_snapshot(trace, workflow_id=workflow_id),
         "log_anomalies": summarize_log_anomalies(execution_logs_snapshot),
         "live_containers": live_containers_snapshot,
-        "runtime_cleanup": inspect_runtime_cleanup(live_containers_snapshot.get("data"), trace=trace)
+        "runtime_cleanup": inspect_runtime_cleanup(
+            live_containers_snapshot.get("data"),
+            trace=trace,
+            relevant_task_ids=_workflow_task_ids(workflow_with_tasks),
+        )
         if live_containers_snapshot.get("ok")
         else {"all_clean": False, "error": live_containers_snapshot.get("error")},
     }
@@ -3865,6 +3898,7 @@ def main() -> None:
         delay_seconds=final_settle_delay_seconds,
         trace=trace,
         live_container_observations=live_container_observations,
+        relevant_task_ids=_workflow_task_ids(latest_workflow),
     )
     execution_logs_snapshot = collect_execution_logs(client, workflow_id=workflow_id)
     efficiency_summary = summarize_efficiency(
