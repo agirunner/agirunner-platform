@@ -406,7 +406,28 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                 "id": "wf-1",
                 "state": "completed",
                 "tasks": [
-                    {"id": "task-1", "is_orchestrator_task": False, "state": "completed"},
+                    {
+                        "id": "task-1",
+                        "is_orchestrator_task": False,
+                        "state": "completed",
+                        "metrics": {
+                            "iterations": 4,
+                            "input_tokens": 1200,
+                            "output_tokens": 300,
+                            "total_tokens": 1500,
+                        },
+                    },
+                    {
+                        "id": "task-2",
+                        "is_orchestrator_task": True,
+                        "state": "completed",
+                        "metrics": {
+                            "iterations": 3,
+                            "input_tokens": 800,
+                            "output_tokens": 200,
+                            "total_tokens": 1000,
+                        },
+                    },
                 ],
                 "completion_callouts": {
                     "completion_notes": "Closed with explicit operator caveats.",
@@ -484,6 +505,12 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertEqual(1, metrics["anomalies"]["warning_count"])
         self.assertEqual(1, metrics["anomalies"]["error_count"])
         self.assertTrue(metrics["hygiene"]["runtime_cleanup_passed"])
+        self.assertEqual(7, metrics["agentic_effort"]["total_loop_count"])
+        self.assertEqual(3, metrics["agentic_effort"]["orchestrator_loop_count"])
+        self.assertEqual(4, metrics["agentic_effort"]["specialist_loop_count"])
+        self.assertEqual(2000, metrics["agentic_effort"]["input_token_count"])
+        self.assertEqual(500, metrics["agentic_effort"]["output_token_count"])
+        self.assertEqual(2500, metrics["agentic_effort"]["total_token_count"])
 
     def test_write_evidence_artifacts_writes_outcome_metrics_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:

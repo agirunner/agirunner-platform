@@ -852,6 +852,20 @@ def _count_container_kinds(rows: list[dict[str, Any]]) -> dict[str, int]:
     return counts
 
 
+def _task_metric_int(task: dict[str, Any], key: str) -> int:
+    metrics = task.get("metrics")
+    if not isinstance(metrics, dict):
+        return 0
+    value = metrics.get(key)
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    return 0
+
+
 def build_scenario_outcome_metrics(
     *,
     final_state: str,
@@ -922,6 +936,17 @@ def build_scenario_outcome_metrics(
     live_container_rows = _live_container_rows(live_containers)
     container_observations = evidence.get("container_observations", {})
     observed_container_rows = container_observation_rows(container_observations)
+    workflow_tasks = _workflow_tasks(workflow)
+    orchestrator_tasks = [
+        task
+        for task in workflow_tasks
+        if isinstance(task, dict) and bool(task.get("is_orchestrator_task"))
+    ]
+    specialist_tasks = [
+        task
+        for task in workflow_tasks
+        if isinstance(task, dict) and not bool(task.get("is_orchestrator_task"))
+    ]
 
     return {
         "status": "passed" if bool(verification_payload.get("passed")) else "failed",
@@ -956,6 +981,14 @@ def build_scenario_outcome_metrics(
             "failure_count": len(verification_payload.get("failures", []))
             if isinstance(verification_payload.get("failures"), list)
             else 0,
+        },
+        "agentic_effort": {
+            "total_loop_count": sum(_task_metric_int(task, "iterations") for task in workflow_tasks if isinstance(task, dict)),
+            "orchestrator_loop_count": sum(_task_metric_int(task, "iterations") for task in orchestrator_tasks),
+            "specialist_loop_count": sum(_task_metric_int(task, "iterations") for task in specialist_tasks),
+            "input_token_count": sum(_task_metric_int(task, "input_tokens") for task in workflow_tasks if isinstance(task, dict)),
+            "output_token_count": sum(_task_metric_int(task, "output_tokens") for task in workflow_tasks if isinstance(task, dict)),
+            "total_token_count": sum(_task_metric_int(task, "total_tokens") for task in workflow_tasks if isinstance(task, dict)),
         },
         "anomalies": {
             "warning_count": warning_count,
