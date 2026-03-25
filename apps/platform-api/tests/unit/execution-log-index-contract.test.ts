@@ -19,6 +19,7 @@ const RISKY_INCLUDE_COLUMNS = new Set([
 const MIGRATION_FILES = [
   resolve(process.cwd(), 'src/db/migrations/0001_init.sql'),
   resolve(process.cwd(), 'src/db/migrations/0007_execution_log_workflow_context.sql'),
+  resolve(process.cwd(), 'src/db/migrations/0050_execution_log_filter_indexes.sql'),
 ];
 
 function collectExecutionLogIncludeViolations(sql: string) {
@@ -57,5 +58,18 @@ describe('execution_logs covering indexes', () => {
     );
 
     expect(violations).toEqual([]);
+  });
+
+  it('includes the required search and hot-filter indexes', () => {
+    const sql = MIGRATION_FILES.map((file) => readFileSync(file, 'utf8')).join('\n');
+
+    expect(sql).toContain('idx_exlogs_search_document');
+    expect(sql).toContain('idx_exlogs_tenant_workspace_time');
+    expect(sql).toContain('idx_exlogs_tenant_workflow_time');
+    expect(sql).toContain('idx_exlogs_tenant_task_time');
+    expect(sql).toContain('idx_exlogs_tenant_trace_time');
+    expect(sql).toContain('idx_exlogs_tenant_workflow_operation_time');
+    expect(sql).toContain('idx_exlogs_tenant_workflow_role_time');
+    expect(sql).toContain('idx_exlogs_tenant_workflow_actor_time');
   });
 });

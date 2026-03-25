@@ -857,11 +857,24 @@ describe('LogService', () => {
       await service.query('tenant-1', { search: 'shell_exec error' });
 
       const [sql, params] = pool.query.mock.calls[0];
-      expect(sql).toContain('CONCAT_WS');
-      expect(sql).toContain('ILIKE');
-      expect(sql).toContain('stage_name, trace_id');
-      expect(sql).not.toContain('stage_name, workflow_phase');
-      expect(params).toContain('%shell_exec error%');
+      expect(sql).toContain("to_tsvector('simple'");
+      expect(sql).toContain("websearch_to_tsquery('simple'");
+      expect(sql).not.toContain('ILIKE');
+      expect(params).toContain('shell_exec error');
+    });
+
+    it('indexes prompt-related payload fields in the search document', async () => {
+      const pool = createMockPool();
+      pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+      const service = new LogService(pool as never);
+
+      await service.query('tenant-1', { search: 'prompt' });
+
+      const [sql] = pool.query.mock.calls[0];
+      expect(sql).toContain('system_prompt');
+      expect(sql).toContain('prompt_summary');
+      expect(sql).toContain('response_summary');
+      expect(sql).toContain('response_text');
     });
 
     it('appliesTimeRangeFilters', async () => {
