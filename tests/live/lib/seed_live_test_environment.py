@@ -755,7 +755,7 @@ def main() -> None:
     trace = TraceRecorder(trace_dir)
     public_client = ApiClient(base_url, trace)
     auth_token = login(public_client, admin_api_key)
-    client = public_client.with_bearer_token(auth_token)
+    client = public_client.with_bearer_token(auth_token, lambda: login(public_client, admin_api_key))
 
     delete_models_and_providers(client)
     clear_assignments(client)

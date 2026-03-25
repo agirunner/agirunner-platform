@@ -7,7 +7,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 import urllib.error
 import urllib.request
 
@@ -95,14 +95,20 @@ class ApiClient:
         *,
         safe_read_max_attempts: int = DEFAULT_SAFE_READ_MAX_ATTEMPTS,
         safe_read_retry_delay_seconds: float = DEFAULT_SAFE_READ_RETRY_DELAY_SECONDS,
+        refresh_bearer_token: Callable[[], str] | None = None,
     ):
         self.base_url = base_url.rstrip("/")
         self.trace = trace
         self.default_headers = default_headers or {}
         self.safe_read_max_attempts = max(1, safe_read_max_attempts)
         self.safe_read_retry_delay_seconds = max(0.0, safe_read_retry_delay_seconds)
+        self.refresh_bearer_token = refresh_bearer_token
 
-    def with_bearer_token(self, token: str) -> "ApiClient":
+    def with_bearer_token(
+        self,
+        token: str,
+        refresh_bearer_token: Callable[[], str] | None = None,
+    ) -> "ApiClient":
         headers = {**self.default_headers, "authorization": f"Bearer {token}"}
         return ApiClient(
             self.base_url,
@@ -110,6 +116,7 @@ class ApiClient:
             headers,
             safe_read_max_attempts=self.safe_read_max_attempts,
             safe_read_retry_delay_seconds=self.safe_read_retry_delay_seconds,
+            refresh_bearer_token=refresh_bearer_token,
         )
 
     def request(
@@ -125,9 +132,7 @@ class ApiClient:
         headers = dict(self.default_headers)
         body_bytes: bytes | None = None
         if payload is not None:
-            headers["content-type"] = "application/json"
             body_bytes = json.dumps(payload).encode("utf-8")
-        request = urllib.request.Request(url, data=body_bytes, headers=headers, method=method)
 
         if self.trace is not None:
             self.trace.record(
@@ -141,7 +146,12 @@ class ApiClient:
             )
 
         attempts = self._attempt_budget(method)
+        refreshed_auth = False
         for attempt in range(1, attempts + 1):
+            headers = dict(self.default_headers)
+            if payload is not None:
+                headers["content-type"] = "application/json"
+            request = urllib.request.Request(url, data=body_bytes, headers=headers, method=method)
             try:
                 with urllib.request.urlopen(request, timeout=60) as response:
                     response_body = response.read().decode("utf-8")
@@ -154,6 +164,11 @@ class ApiClient:
                 response_body = error.read().decode("utf-8")
                 parsed_body = _parse_body(response_body)
                 self._record_response(label or path, method, path, error.code, parsed_body)
+                if self._should_refresh_auth(error.code, parsed_body, refreshed_auth):
+                    self._record_retry(label or path, method, path, attempt, attempts, "reauth:401")
+                    self._refresh_bearer_header()
+                    refreshed_auth = True
+                    continue
                 if self._should_retry_http_error(method, error.code, attempt, attempts):
                     self._record_retry(label or path, method, path, attempt, attempts, f"http:{error.code}")
                     time.sleep(self.safe_read_retry_delay_seconds)
@@ -252,6 +267,25 @@ class ApiClient:
 
     def _should_retry_url_error(self, method: str, attempt: int, attempts: int) -> bool:
         return method.upper() in SAFE_READ_METHODS and attempt < attempts
+
+    def _should_refresh_auth(self, status_code: int, parsed_body: Any, refreshed_auth: bool) -> bool:
+        if refreshed_auth or status_code != 401 or self.refresh_bearer_token is None:
+            return False
+        if not isinstance(parsed_body, dict):
+            return False
+        error = parsed_body.get("error")
+        if not isinstance(error, dict):
+            return False
+        code = str(error.get("code") or "").strip().upper()
+        message = str(error.get("message") or "").strip().lower()
+        return code == "UNAUTHORIZED" and "expired access token" in message
+
+    def _refresh_bearer_header(self) -> None:
+        if self.refresh_bearer_token is None:
+            return
+        token = self.refresh_bearer_token().strip()
+        if token:
+            self.default_headers["authorization"] = f"Bearer {token}"
 
 
 def _parse_body(body: str) -> Any:

@@ -40,6 +40,9 @@ class FakeResponse:
     def read(self) -> bytes:
         return self._body.encode("utf-8")
 
+    def close(self) -> None:
+        return None
+
 
 class TraceRecorderTests(unittest.TestCase):
     def test_record_recreates_deleted_trace_directory(self) -> None:
@@ -57,6 +60,36 @@ class TraceRecorderTests(unittest.TestCase):
 
 
 class ApiClientTests(unittest.TestCase):
+    @mock.patch("urllib.request.urlopen")
+    def test_request_reauthenticates_once_on_expired_bearer_token(self, urlopen: mock.Mock) -> None:
+        refreshed_tokens: list[str] = []
+
+        def refresh_token() -> str:
+            refreshed_tokens.append("token-2")
+            return "token-2"
+
+        client = ApiClient("http://127.0.0.1:8080").with_bearer_token("token-1", refresh_token)
+        urlopen.side_effect = [
+            urllib.error.HTTPError(
+                url="http://127.0.0.1:8080/api/v1/workflows/wf-1",
+                code=401,
+                msg="Unauthorized",
+                hdrs=None,
+                fp=FakeResponse(401, '{"error":{"code":"UNAUTHORIZED","message":"Invalid or expired access token"}}'),
+            ),
+            FakeResponse(200, '{"data":{"id":"wf-1","state":"active"}}'),
+        ]
+
+        response = client.request("GET", "/api/v1/workflows/wf-1", label="workflows.get")
+
+        self.assertEqual({"data": {"id": "wf-1", "state": "active"}}, response)
+        self.assertEqual(["token-2"], refreshed_tokens)
+        self.assertEqual(2, urlopen.call_count)
+        first_request = urlopen.call_args_list[0].args[0]
+        second_request = urlopen.call_args_list[1].args[0]
+        self.assertEqual("Bearer token-1", first_request.get_header("Authorization"))
+        self.assertEqual("Bearer token-2", second_request.get_header("Authorization"))
+
     @mock.patch("urllib.request.urlopen")
     def test_request_retries_safe_get_on_transient_url_error(self, urlopen: mock.Mock) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
