@@ -847,6 +847,43 @@ def inspect_docker_log_rotation(snapshot: Any, *, trace: TraceRecorder | None = 
     return {"all_runtime_containers_bounded": all_bounded, "runtime_containers": inspections}
 
 
+def settle_final_live_container_evidence(
+    client: ApiClient,
+    *,
+    max_attempts: int,
+    delay_seconds: int,
+    trace: TraceRecorder | None,
+    live_container_observations: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    latest_live_containers: dict[str, Any] = {"ok": False, "error": "live container snapshot not collected"}
+    runtime_cleanup: dict[str, Any] = {"all_clean": False, "error": "runtime cleanup not inspected"}
+    docker_log_rotation: dict[str, Any] = {
+        "all_runtime_containers_bounded": False,
+        "error": "docker log rotation not inspected",
+    }
+
+    attempts = max(1, max_attempts)
+    for attempt in range(attempts):
+        latest_live_containers = collect_live_container_snapshot(client, label="containers.list.final")
+        if latest_live_containers.get("ok"):
+            if live_container_observations is not None:
+                observe_live_containers(live_container_observations, latest_live_containers.get("data"))
+            runtime_cleanup = inspect_runtime_cleanup(latest_live_containers.get("data"), trace=trace)
+            docker_log_rotation = inspect_docker_log_rotation(latest_live_containers.get("data"), trace=trace)
+            if bool(runtime_cleanup.get("all_clean")):
+                return latest_live_containers, runtime_cleanup, docker_log_rotation
+        else:
+            runtime_cleanup = {"all_clean": False, "error": latest_live_containers.get("error")}
+            docker_log_rotation = {
+                "all_runtime_containers_bounded": False,
+                "error": latest_live_containers.get("error"),
+            }
+        if attempt + 1 < attempts:
+            time.sleep(delay_seconds)
+
+    return latest_live_containers, runtime_cleanup, docker_log_rotation
+
+
 def summarize_log_anomalies(logs: Any) -> dict[str, Any]:
     rows = [
         row
@@ -3822,9 +3859,13 @@ def main() -> None:
     )
     if latest_fleet.get("ok"):
         update_fleet_peaks(fleet_peaks, latest_fleet.get("data"), playbook_id=playbook_id)
-    latest_live_containers = collect_live_container_snapshot(client, label="containers.list.final")
-    if latest_live_containers.get("ok"):
-        observe_live_containers(live_container_observations, latest_live_containers.get("data"))
+    latest_live_containers, runtime_cleanup_evidence, docker_log_rotation_evidence = settle_final_live_container_evidence(
+        client,
+        max_attempts=final_settle_attempts,
+        delay_seconds=final_settle_delay_seconds,
+        trace=trace,
+        live_container_observations=live_container_observations,
+    )
     execution_logs_snapshot = collect_execution_logs(client, workflow_id=workflow_id)
     efficiency_summary = summarize_efficiency(
         workflow=latest_workflow,
@@ -3838,12 +3879,8 @@ def main() -> None:
         "http_status_summary": summarize_http_status_anomalies(execution_logs_snapshot),
         "live_containers": latest_live_containers,
         "container_observations": finalize_container_observations(live_container_observations),
-        "runtime_cleanup": inspect_runtime_cleanup(latest_live_containers.get("data"), trace=trace)
-        if latest_live_containers.get("ok")
-        else {"all_clean": False, "error": latest_live_containers.get("error")},
-        "docker_log_rotation": inspect_docker_log_rotation(latest_live_containers.get("data"), trace=trace)
-        if latest_live_containers.get("ok")
-        else {"all_runtime_containers_bounded": False, "error": latest_live_containers.get("error")},
+        "runtime_cleanup": runtime_cleanup_evidence,
+        "docker_log_rotation": docker_log_rotation_evidence,
     }
     final_state = latest_workflow.get("state")
     verification = evaluate_expectations(

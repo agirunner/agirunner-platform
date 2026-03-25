@@ -450,6 +450,54 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertEqual("completed", refreshed["tasks"][1]["state"])
         self.assertEqual(2, len(client.calls))
 
+    def test_settle_final_live_container_evidence_waits_for_clean_runtime_cleanup(self) -> None:
+        client = FakePagedClient(
+            [
+                {"ok": True, "data": [{"container_id": "c-1", "kind": "orchestrator"}]},
+                {"ok": True, "data": [{"container_id": "c-1", "kind": "orchestrator"}]},
+            ]
+        )
+        observations = run_workflow_scenario.new_container_observations()
+
+        with (
+            mock.patch.object(
+                run_workflow_scenario,
+                "inspect_runtime_cleanup",
+                side_effect=[
+                    {"all_clean": False, "runtime_containers": [{"container_id": "c-1", "clean": False}]},
+                    {"all_clean": True, "runtime_containers": [{"container_id": "c-1", "clean": True}]},
+                ],
+            ) as cleanup_mock,
+            mock.patch.object(
+                run_workflow_scenario,
+                "inspect_docker_log_rotation",
+                return_value={"all_runtime_containers_bounded": True, "runtime_containers": []},
+            ) as rotation_mock,
+            mock.patch.object(run_workflow_scenario.time, "sleep") as sleep_mock,
+        ):
+            live_snapshot, runtime_cleanup, docker_log_rotation = run_workflow_scenario.settle_final_live_container_evidence(
+                client,
+                max_attempts=2,
+                delay_seconds=0,
+                trace=None,
+                live_container_observations=observations,
+            )
+
+        self.assertTrue(live_snapshot["ok"])
+        self.assertTrue(runtime_cleanup["all_clean"])
+        self.assertTrue(docker_log_rotation["all_runtime_containers_bounded"])
+        self.assertEqual(2, cleanup_mock.call_count)
+        self.assertEqual(2, rotation_mock.call_count)
+        self.assertEqual(1, len(run_workflow_scenario.container_observation_rows(observations)))
+        sleep_mock.assert_called_once_with(0)
+        self.assertEqual(
+            [
+                ("GET", "/api/v1/fleet/live-containers", None, (200,), "containers.list.final"),
+                ("GET", "/api/v1/fleet/live-containers", None, (200,), "containers.list.final"),
+            ],
+            client.calls,
+        )
+
     def test_build_run_result_payload_includes_explicit_scenario_and_provider_mode(self) -> None:
         payload = run_workflow_scenario.build_run_result_payload(
             workflow_id="wf-1",
