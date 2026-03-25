@@ -1,12 +1,19 @@
 import { useCallback } from 'react';
 import { SearchableCombobox } from './ui/searchable-combobox.js';
 import { useCascadingEntities, type CascadingEntityState } from './hooks/use-cascading-entities.js';
+import type { ComboboxItem } from './ui/searchable-combobox.js';
 
 interface LogEntityScopeProps {
   workspaceId: string | null;
   workflowId: string | null;
   taskId: string | null;
   onChangeEntity: (scope: { workspace: string | null; workflow: string | null; task: string | null }) => void;
+  workspacesOverride?: ComboboxItem[];
+  workflowsOverride?: ComboboxItem[];
+  tasksOverride?: ComboboxItem[];
+  isLoadingWorkspacesOverride?: boolean;
+  isLoadingWorkflowsOverride?: boolean;
+  isLoadingTasksOverride?: boolean;
 }
 
 export function LogEntityScope({
@@ -14,6 +21,12 @@ export function LogEntityScope({
   workflowId,
   taskId,
   onChangeEntity,
+  workspacesOverride,
+  workflowsOverride,
+  tasksOverride,
+  isLoadingWorkspacesOverride,
+  isLoadingWorkflowsOverride,
+  isLoadingTasksOverride,
 }: LogEntityScopeProps): JSX.Element {
   const state: CascadingEntityState = { workspaceId, workflowId, taskId };
 
@@ -28,7 +41,14 @@ export function LogEntityScope({
     [onChangeEntity],
   );
 
-  const entities = useCascadingEntities(state, handleChange);
+  const entities = useCascadingEntities(state, handleChange, {
+    workspaces: workspacesOverride,
+    workflows: workflowsOverride,
+    tasks: tasksOverride,
+    isLoadingWorkspaces: isLoadingWorkspacesOverride,
+    isLoadingWorkflows: isLoadingWorkflowsOverride,
+    isLoadingTasks: isLoadingTasksOverride,
+  });
 
   return (
     <div className="flex flex-wrap items-center gap-2">

@@ -11,6 +11,7 @@ import { useLogOperations } from './hooks/use-log-operations.js';
 import { useLogRoles } from './hooks/use-log-roles.js';
 import { useLogActors } from './hooks/use-log-actors.js';
 import type { LogActorRecord, LogOperationRecord, LogRoleRecord } from '../../lib/api.js';
+import type { ComboboxItem } from './ui/searchable-combobox.js';
 import {
   DEBOUNCE_MS,
   STATUS_ITEMS,
@@ -35,6 +36,12 @@ interface LogFiltersComponentProps {
   operationItemsOverride?: LogOperationRecord[];
   roleItemsOverride?: LogRoleRecord[];
   actorItemsOverride?: LogActorRecord[];
+  workspaceItemsOverride?: ComboboxItem[];
+  workflowItemsOverride?: ComboboxItem[];
+  taskItemsOverride?: ComboboxItem[];
+  isLoadingWorkspacesOverride?: boolean;
+  isLoadingWorkflowsOverride?: boolean;
+  isLoadingTasksOverride?: boolean;
 }
 
 export function LogFilters({
@@ -47,6 +54,12 @@ export function LogFilters({
   operationItemsOverride,
   roleItemsOverride,
   actorItemsOverride,
+  workspaceItemsOverride,
+  workflowItemsOverride,
+  taskItemsOverride,
+  isLoadingWorkspacesOverride,
+  isLoadingWorkflowsOverride,
+  isLoadingTasksOverride,
 }: LogFiltersComponentProps = {}): JSX.Element {
   const { filters, setFilter, setEntityScope, resetFilters, replaceAllParams, toQueryParams } =
     useLogFilters();
@@ -181,6 +194,12 @@ export function LogFilters({
             workflowId={filters.workflow}
             taskId={filters.task}
             onChangeEntity={setEntityScope}
+            workspacesOverride={workspaceItemsOverride}
+            workflowsOverride={workflowItemsOverride}
+            tasksOverride={taskItemsOverride}
+            isLoadingWorkspacesOverride={isLoadingWorkspacesOverride}
+            isLoadingWorkflowsOverride={isLoadingWorkflowsOverride}
+            isLoadingTasksOverride={isLoadingTasksOverride}
           />
         )}
         <SearchableCombobox

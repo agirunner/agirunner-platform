@@ -3,6 +3,11 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { dashboardApi } from '../../lib/api.js';
+import type {
+  DashboardTaskRecord,
+  DashboardWorkflowRecord,
+  DashboardWorkspaceRecord,
+} from '../../lib/api.js';
 import { ExecutionInspectorSummaryView } from '../../components/execution-inspector/execution-inspector-summary-view.js';
 import { WorkflowBudgetCard } from '../../components/workflow-budget-card/workflow-budget-card.js';
 import { type InspectorView } from '../../components/execution-inspector/execution-inspector-support.js';
@@ -12,6 +17,7 @@ import { useLogFilters } from '../../components/log-viewer/hooks/use-log-filters
 import { applyLogScope, type LogScope } from '../../components/log-viewer/log-scope.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import { readLogsSurfaceView } from './logs-page-view.js';
+import type { ComboboxItem } from '../../components/log-viewer/ui/searchable-combobox.js';
 
 interface LogsPageProps {
   scopedWorkflowId?: string;
@@ -34,6 +40,25 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
     () => (scopedWorkflowId ? { workflowId: scopedWorkflowId } : undefined),
     [scopedWorkflowId],
   );
+  const optionBaseFilters = useMemo(
+    () => applyLogScope(toQueryParams(), logScope),
+    [logScope, toQueryParams],
+  );
+  const operationOptionFilters = useMemo(() => {
+    const next = { ...optionBaseFilters };
+    delete next.operation;
+    return next;
+  }, [optionBaseFilters]);
+  const roleOptionFilters = useMemo(() => {
+    const next = { ...optionBaseFilters };
+    delete next.role;
+    return next;
+  }, [optionBaseFilters]);
+  const actorOptionFilters = useMemo(() => {
+    const next = { ...optionBaseFilters };
+    delete next.actor_kind;
+    return next;
+  }, [optionBaseFilters]);
   const statsQuery = useQuery({
     queryKey: ['operator-log', 'stats', filters, logScope],
     queryFn: () => dashboardApi.getLogStats({ ...applyLogScope(toQueryParams(), logScope), group_by: 'category' }),
@@ -50,28 +75,87 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
   });
   const operationsQuery = useQuery({
     queryKey: ['operator-log', 'operations', filters, logScope],
-    queryFn: () => dashboardApi.getLogOperations(applyLogScope(toQueryParams(), logScope)),
-    enabled: selectedView === 'summary',
+    queryFn: () => dashboardApi.getLogOperations(operationOptionFilters),
+    enabled: true,
     refetchInterval: 10_000,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
   });
   const rolesQuery = useQuery({
     queryKey: ['operator-log', 'roles', filters, logScope],
-    queryFn: () => dashboardApi.getLogRoles(applyLogScope(toQueryParams(), logScope)),
-    enabled: selectedView === 'summary',
+    queryFn: () => dashboardApi.getLogRoles(roleOptionFilters),
+    enabled: true,
     refetchInterval: 10_000,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
   });
   const actorsQuery = useQuery({
     queryKey: ['operator-log', 'actors', filters, logScope],
-    queryFn: () => dashboardApi.getLogActors(applyLogScope(toQueryParams(), logScope)),
-    enabled: selectedView === 'summary',
+    queryFn: () => dashboardApi.getLogActors(actorOptionFilters),
+    enabled: true,
     refetchInterval: 10_000,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
   });
+  const workspacesQuery = useQuery({
+    queryKey: ['operator-log', 'filter-workspaces'],
+    queryFn: async () => {
+      const response = await dashboardApi.listWorkspaces();
+      return response.data;
+    },
+    enabled: true,
+    staleTime: 60_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+  });
+  const workflowsQuery = useQuery({
+    queryKey: ['operator-log', 'filter-workflows', filters.workspace, logScope],
+    queryFn: async () => {
+      const requestFilters: Record<string, string> = { per_page: '100' };
+      if (logScope?.workflowId) {
+        requestFilters.workflow_id = logScope.workflowId;
+      } else if (filters.workspace) {
+        requestFilters.workspace_id = filters.workspace;
+      }
+      const response = await dashboardApi.listWorkflows(requestFilters);
+      return extractList<DashboardWorkflowRecord>(response);
+    },
+    enabled: true,
+    staleTime: 30_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+  });
+  const tasksQuery = useQuery({
+    queryKey: ['operator-log', 'filter-tasks', filters.workflow, logScope],
+    queryFn: async () => {
+      const requestFilters: Record<string, string> = { per_page: '100' };
+      const effectiveWorkflowId = logScope?.workflowId ?? filters.workflow;
+      if (effectiveWorkflowId) {
+        requestFilters.workflow_id = effectiveWorkflowId;
+      }
+      const response = await dashboardApi.listTasks(requestFilters);
+      return extractList<DashboardTaskRecord>(response);
+    },
+    enabled: true,
+    staleTime: 30_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
+  });
+  const workspaceItemsOverride = useMemo(
+    () => toWorkspaceItems(workspacesQuery.data ?? []),
+    [workspacesQuery.data],
+  );
+  const workflowItemsOverride = useMemo(
+    () => toWorkflowItems(workflowsQuery.data ?? []),
+    [workflowsQuery.data],
+  );
+  const taskItemsOverride = useMemo(
+    () => toTaskItems(tasksQuery.data ?? []),
+    [tasksQuery.data],
+  );
 
   function updateView(view: InspectorView): void {
     setSearchParams(
@@ -144,6 +228,15 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
             <LogViewer
               compact
               scope={scopedWorkflowId ? { workflowId: scopedWorkflowId } : undefined}
+              operationItemsOverride={operationsQuery.data?.data}
+              roleItemsOverride={rolesQuery.data?.data}
+              actorItemsOverride={actorsQuery.data?.data}
+              workspaceItemsOverride={workspaceItemsOverride}
+              workflowItemsOverride={workflowItemsOverride}
+              taskItemsOverride={taskItemsOverride}
+              isLoadingWorkspacesOverride={workspacesQuery.isLoading}
+              isLoadingWorkflowsOverride={workflowsQuery.isLoading}
+              isLoadingTasksOverride={tasksQuery.isLoading}
             />
           </TabsContent>
         ) : null}
@@ -157,12 +250,18 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
             <LogFilters
               hideEntityScope={Boolean(logScope)}
               compact
-              disableOptionQueries
-              scope={logScope}
-              operationItemsOverride={operationsQuery.data?.data}
-              roleItemsOverride={rolesQuery.data?.data}
-              actorItemsOverride={actorsQuery.data?.data}
-            />
+               disableOptionQueries
+               scope={logScope}
+               operationItemsOverride={operationsQuery.data?.data}
+               roleItemsOverride={rolesQuery.data?.data}
+               actorItemsOverride={actorsQuery.data?.data}
+               workspaceItemsOverride={workspaceItemsOverride}
+               workflowItemsOverride={workflowItemsOverride}
+               taskItemsOverride={taskItemsOverride}
+               isLoadingWorkspacesOverride={workspacesQuery.isLoading}
+               isLoadingWorkflowsOverride={workflowsQuery.isLoading}
+               isLoadingTasksOverride={tasksQuery.isLoading}
+             />
             <ExecutionInspectorSummaryView
               stats={statsQuery.data}
               operations={operationsQuery.data?.data ?? []}
@@ -182,4 +281,57 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
       </Tabs>
     </div>
   );
+}
+
+function toWorkspaceItems(workspaces: DashboardWorkspaceRecord[]): ComboboxItem[] {
+  return workspaces.map((workspace) => ({
+    id: workspace.id,
+    label: workspace.name,
+  }));
+}
+
+function toWorkflowItems(workflows: DashboardWorkflowRecord[]): ComboboxItem[] {
+  return workflows.map((workflow) => ({
+    id: workflow.id,
+    label: workflow.name ?? workflow.id,
+    subtitle: workflow.workspace?.name ?? undefined,
+    status: normalizeEntityStatus(workflow.state ?? workflow.status),
+  }));
+}
+
+function toTaskItems(tasks: DashboardTaskRecord[]): ComboboxItem[] {
+  return tasks.map((task) => ({
+    id: task.id,
+    label: task.title ?? task.description ?? task.id,
+    subtitle: task.role ?? undefined,
+    status: normalizeEntityStatus(task.state ?? task.status),
+  }));
+}
+
+function normalizeEntityStatus(status?: string | null): ComboboxItem['status'] {
+  if (!status) {
+    return undefined;
+  }
+  const normalized = status.toLowerCase();
+  if (normalized === 'active' || normalized === 'in_progress') {
+    return 'active';
+  }
+  if (normalized === 'completed' || normalized === 'succeeded') {
+    return 'completed';
+  }
+  if (normalized === 'failed' || normalized === 'error') {
+    return 'failed';
+  }
+  return 'pending';
+}
+
+function extractList<T>(response: unknown): T[] {
+  if (!response || typeof response !== 'object') {
+    return [];
+  }
+  if (Array.isArray(response)) {
+    return response as T[];
+  }
+  const record = response as Record<string, unknown>;
+  return Array.isArray(record.data) ? (record.data as T[]) : [];
 }

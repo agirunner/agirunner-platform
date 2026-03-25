@@ -10,6 +10,8 @@ import { useLogFilters } from './hooks/use-log-filters.js';
 import { useLogStream } from './hooks/use-log-stream.js';
 import { applyLogScope, type LogScope } from './log-scope.js';
 import { LogStreamIndicator } from './log-stream-indicator.js';
+import type { ComboboxItem } from './ui/searchable-combobox.js';
+import type { LogActorRecord, LogOperationRecord, LogRoleRecord } from '../../lib/api.js';
 
 const QUERY_REFETCH_INTERVAL_MS = 5_000;
 const FLAT_PAGE_SIZE = 100;
@@ -19,9 +21,30 @@ const LIVE_ENTRY_LIMIT = 100;
 export interface LogViewerProps {
   scope?: LogScope;
   compact?: boolean;
+  operationItemsOverride?: LogOperationRecord[];
+  roleItemsOverride?: LogRoleRecord[];
+  actorItemsOverride?: LogActorRecord[];
+  workspaceItemsOverride?: ComboboxItem[];
+  workflowItemsOverride?: ComboboxItem[];
+  taskItemsOverride?: ComboboxItem[];
+  isLoadingWorkspacesOverride?: boolean;
+  isLoadingWorkflowsOverride?: boolean;
+  isLoadingTasksOverride?: boolean;
 }
 
-export function LogViewer({ scope, compact = false }: LogViewerProps): JSX.Element {
+export function LogViewer({
+  scope,
+  compact = false,
+  operationItemsOverride,
+  roleItemsOverride,
+  actorItemsOverride,
+  workspaceItemsOverride,
+  workflowItemsOverride,
+  taskItemsOverride,
+  isLoadingWorkspacesOverride,
+  isLoadingWorkflowsOverride,
+  isLoadingTasksOverride,
+}: LogViewerProps): JSX.Element {
   const [cursor, setCursor] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<LogViewMode>('flat');
   const [isLive, setIsLive] = useState(false);
@@ -90,6 +113,20 @@ export function LogViewer({ scope, compact = false }: LogViewerProps): JSX.Eleme
         viewMode={viewMode}
         onViewModeChange={(mode) => handleViewModeChange(mode as LogViewMode)}
         scope={scope}
+        disableOptionQueries={
+          operationItemsOverride !== undefined &&
+          roleItemsOverride !== undefined &&
+          actorItemsOverride !== undefined
+        }
+        operationItemsOverride={operationItemsOverride}
+        roleItemsOverride={roleItemsOverride}
+        actorItemsOverride={actorItemsOverride}
+        workspaceItemsOverride={workspaceItemsOverride}
+        workflowItemsOverride={workflowItemsOverride}
+        taskItemsOverride={taskItemsOverride}
+        isLoadingWorkspacesOverride={isLoadingWorkspacesOverride}
+        isLoadingWorkflowsOverride={isLoadingWorkflowsOverride}
+        isLoadingTasksOverride={isLoadingTasksOverride}
       />
 
       {/* Toolbar: view toggle */}

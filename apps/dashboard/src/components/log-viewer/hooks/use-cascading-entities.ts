@@ -62,11 +62,24 @@ export interface CascadingEntitiesResult {
   searchTasks: (query: string) => void;
 }
 
+interface CascadingEntityOverrides {
+  workspaces?: ComboboxItem[];
+  workflows?: ComboboxItem[];
+  tasks?: ComboboxItem[];
+  isLoadingWorkspaces?: boolean;
+  isLoadingWorkflows?: boolean;
+  isLoadingTasks?: boolean;
+}
+
 export function useCascadingEntities(
   state: CascadingEntityState,
   onChange: (next: CascadingEntityState) => void,
+  overrides: CascadingEntityOverrides = {},
 ): CascadingEntitiesResult {
   const { workspaceId, workflowId, taskId } = state;
+  const useWorkspaceOverride = Array.isArray(overrides.workspaces);
+  const useWorkflowOverride = Array.isArray(overrides.workflows);
+  const useTaskOverride = Array.isArray(overrides.tasks);
 
   const workspacesQuery = useQuery({
     queryKey: ['log-filter-workspaces'],
@@ -78,6 +91,7 @@ export function useCascadingEntities(
     refetchInterval: 10_000,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
+    enabled: !useWorkspaceOverride,
   });
 
   const workflowsQuery = useQuery({
@@ -92,6 +106,7 @@ export function useCascadingEntities(
     refetchInterval: 10_000,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
+    enabled: !useWorkflowOverride,
   });
 
   const tasksQuery = useQuery({
@@ -106,37 +121,44 @@ export function useCascadingEntities(
     refetchInterval: 10_000,
     refetchIntervalInBackground: true,
     refetchOnWindowFocus: true,
+    enabled: !useTaskOverride,
   });
 
   const workspaces: ComboboxItem[] = useMemo(
     () =>
-      (workspacesQuery.data ?? []).map((p) => ({
+      useWorkspaceOverride
+        ? overrides.workspaces ?? []
+        : (workspacesQuery.data ?? []).map((p) => ({
         id: p.id,
         label: p.name,
       })),
-    [workspacesQuery.data],
+    [overrides.workspaces, useWorkspaceOverride, workspacesQuery.data],
   );
 
   const workflows: ComboboxItem[] = useMemo(
     () =>
-      (workflowsQuery.data ?? []).map((w) => ({
+      useWorkflowOverride
+        ? overrides.workflows ?? []
+        : (workflowsQuery.data ?? []).map((w) => ({
         id: w.id,
         label: w.name ?? w.id,
         subtitle: w.workspace?.name ?? undefined,
         status: readWorkflowEntityStatus(w),
       })),
-    [workflowsQuery.data],
+    [overrides.workflows, useWorkflowOverride, workflowsQuery.data],
   );
 
   const tasks: ComboboxItem[] = useMemo(
     () =>
-      (tasksQuery.data ?? []).map((t) => ({
+      useTaskOverride
+        ? overrides.tasks ?? []
+        : (tasksQuery.data ?? []).map((t) => ({
         id: t.id,
         label: t.title ?? t.description ?? t.id,
         subtitle: t.role ?? undefined,
         status: readTaskEntityStatus(t),
       })),
-    [tasksQuery.data],
+    [overrides.tasks, useTaskOverride, tasksQuery.data],
   );
 
   const setWorkspace = useCallback(
@@ -192,9 +214,9 @@ export function useCascadingEntities(
     workspaces,
     workflows,
     tasks,
-    isLoadingWorkspaces: workspacesQuery.isLoading,
-    isLoadingWorkflows: workflowsQuery.isLoading,
-    isLoadingTasks: tasksQuery.isLoading,
+    isLoadingWorkspaces: overrides.isLoadingWorkspaces ?? workspacesQuery.isLoading,
+    isLoadingWorkflows: overrides.isLoadingWorkflows ?? workflowsQuery.isLoading,
+    isLoadingTasks: overrides.isLoadingTasks ?? tasksQuery.isLoading,
     setWorkspace,
     setWorkflow,
     setTask,

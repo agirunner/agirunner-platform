@@ -64,6 +64,12 @@ describe('log filters source', () => {
     expect(source).toContain('const operationItems = operationItemsOverride ?? toOperationItems(operationsData);');
     expect(source).toContain('const roleItems = roleItemsOverride ?? toRoleItems(rolesData);');
     expect(source).toContain('const actorItems = actorItemsOverride ?? toActorItems(actorsData);');
+    expect(source).toContain('workspaceItemsOverride');
+    expect(source).toContain('workflowItemsOverride');
+    expect(source).toContain('taskItemsOverride');
+    expect(source).toContain('workspacesOverride={');
+    expect(source).toContain('workflowsOverride={');
+    expect(source).toContain('tasksOverride={');
     expect(source).toContain('disableOptionQueries = false');
   });
 
