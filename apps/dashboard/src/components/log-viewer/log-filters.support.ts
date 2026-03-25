@@ -120,8 +120,8 @@ export function toActorItems(
 }
 
 export const SOURCE_ITEMS: ComboboxItem[] = [
-  { id: 'runtime', label: 'Specialist Agent', subtitle: 'Specialist Agent loop and lifecycle logs' },
-  { id: 'task_container', label: 'Specialist Execution', subtitle: 'Specialist Execution environment and task process logs' },
+  { id: 'runtime', label: 'Specialist Agent', subtitle: 'Specialist agent loop and lifecycle logs' },
+  { id: 'task_container', label: 'Specialist Execution', subtitle: 'Specialist execution environment and task process logs' },
   { id: 'container_manager', label: 'Container manager', subtitle: 'Container orchestration' },
   { id: 'platform', label: 'Platform', subtitle: 'Platform and API service logs' },
 ];
@@ -137,12 +137,12 @@ export const EXECUTION_BACKEND_ITEMS: ComboboxItem[] = [
   {
     id: 'runtime_only',
     label: 'Specialist Agent only',
-    subtitle: 'The loop stayed inside the Specialist Agent process.',
+    subtitle: 'The loop stayed inside the specialist agent process.',
   },
   {
     id: 'runtime_plus_task',
     label: 'Specialist Agent + Specialist Execution',
-    subtitle: 'The loop ran in the Specialist Agent and used Specialist Execution capability.',
+    subtitle: 'The loop ran in the specialist agent and used Specialist execution capability.',
   },
 ];
 
@@ -150,11 +150,11 @@ export const TOOL_OWNER_ITEMS: ComboboxItem[] = [
   {
     id: 'runtime',
     label: 'Specialist Agent',
-    subtitle: 'Tool call executed in the Specialist Agent process.',
+    subtitle: 'Tool call executed in the specialist agent process.',
   },
   {
     id: 'task',
     label: 'Specialist Execution',
-    subtitle: 'Tool call executed inside the Specialist Execution environment.',
+    subtitle: 'Tool call executed inside the specialist execution environment.',
   },
 ];

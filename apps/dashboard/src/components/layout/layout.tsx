@@ -692,7 +692,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
                     Search the workspace
                   </DialogTitle>
                   <DialogDescription className="text-xs text-muted">
-                    Workflow boards, tasks, workspaces, playbooks, Specialist Agents, and Specialist Executions.
+                    Workflow boards, tasks, workspaces, playbooks, specialist agents, and specialist executions.
                   </DialogDescription>
                 </div>
                 <div className="flex items-center gap-2">

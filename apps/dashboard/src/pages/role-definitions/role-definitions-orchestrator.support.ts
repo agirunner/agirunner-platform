@@ -247,7 +247,7 @@ export function summarizeOrchestratorControlSurfaces(
       id: 'pool',
       title: 'Pool and agent',
       summary: `${pool.enabledWorkers} enabled / ${pool.desiredReplicas} desired replicas`,
-      detail: `Orchestrator posture owns the primary orchestrator agent image and capacity. The Specialist Agents page controls the shared Specialist Agent and Specialist Execution envelope and safeguards.`,
+      detail: `Orchestrator posture owns the primary orchestrator agent image and capacity. The Specialist Agents page controls the shared specialist agent and specialist execution envelope and safeguards.`,
       href: '/config/orchestrator',
       label: 'Open orchestrator',
       secondaryHref: '/platform/runtimes',

@@ -337,8 +337,8 @@ function describeWorkspaceStorage(workspace: DashboardWorkspaceRecord): string {
   if (storageLabel === 'Host Directory') {
     const hostPath = readString(storage.host_path);
     return hostPath
-      ? `Specialist Executions mount ${hostPath} directly from the host machine.`
-      : 'Specialist Executions mount a host directory configured on the workspace.';
+      ? `Specialist executions mount ${hostPath} directly from the host machine.`
+      : 'Specialist executions mount a host directory configured on the workspace.';
   }
   return 'Persistence happens through uploaded workspace artifacts instead of a shared repository checkout.';
 }

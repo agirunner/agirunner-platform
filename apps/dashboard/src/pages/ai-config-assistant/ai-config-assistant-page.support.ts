@@ -49,7 +49,7 @@ export const ASSISTANT_STARTER_PROMPTS: AssistantStarterPrompt[] = [
   {
     label: 'Audit Specialist Agents',
     prompt:
-      'Review Specialist Agent settings and call out the highest-risk configuration gaps for orchestrators and specialists.',
+      'Review specialist agent settings and call out the highest-risk configuration gaps for orchestrators and specialists.',
   },
   {
     label: 'Provider posture',
@@ -122,7 +122,7 @@ export function buildAssistantSessionStage(
       badge: 'Empty session',
       title: 'Start with a bounded operator audit',
       detail:
-        'Ask one concrete question about Specialist Agents, providers, playbooks, integrations, or work items so the assistant can return a reviewable packet instead of vague advice.',
+        'Ask one concrete question about specialist agents, providers, playbooks, integrations, or work items so the assistant can return a reviewable packet instead of vague advice.',
       nextAction: 'Run a quick audit or choose one of the preset asks to start the handoff.',
     };
   }

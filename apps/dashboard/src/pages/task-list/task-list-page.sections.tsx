@@ -117,7 +117,7 @@ export function TaskPostureSection(props: {
     {
       title: 'Execution pressure',
       value: `${props.posture.active} active`,
-      detail: `${props.posture.ready} ready and waiting for Specialist Agent capacity`,
+      detail: `${props.posture.ready} ready and waiting for specialist agent capacity`,
       icon: Loader2,
     },
     {
@@ -222,8 +222,8 @@ export function TaskListContent(props: {
         <p className="text-sm text-muted">
           This page keeps posture, recovery cues, board context, and the correct operator flow in
           view instead of falling back to a raw step dump. Execution backend and Specialist
-          Execution usage stay visible so operators can tell whether a step stayed Specialist Agent only or
-          touched Specialist Execution.
+          Execution usage stay visible so operators can tell whether a step stayed specialist agent only or
+          touched specialist execution.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">

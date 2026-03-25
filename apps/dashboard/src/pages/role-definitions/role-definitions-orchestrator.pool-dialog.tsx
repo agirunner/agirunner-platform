@@ -145,7 +145,7 @@ export function OrchestratorPoolDialog(props: {
                 suggestions={runtimeImages}
                 listId="orchestrator-runtime-image-suggestions"
                 error={validationErrors.runtimeImage}
-                helperText="Use the same standard image ref format as Roles and Specialist Agent defaults."
+                helperText="Use the same standard image ref format as Roles and Specialist agent defaults."
               />
             </div>
             <div className="space-y-2">

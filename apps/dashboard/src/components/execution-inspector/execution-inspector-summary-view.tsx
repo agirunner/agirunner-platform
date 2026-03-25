@@ -132,10 +132,10 @@ function describeActivityPathDetail(operation: string): string {
     return 'Task lifecycle activity in the current results';
   }
   if (operation.startsWith('runtime.')) {
-    return 'Specialist Agent activity captured from execution infrastructure';
+    return 'Specialist agent activity captured from execution infrastructure';
   }
   if (operation.startsWith('container.')) {
-    return 'Specialist Execution activity captured from execution infrastructure';
+    return 'Specialist execution activity captured from execution infrastructure';
   }
   return 'Execution activity captured in the current results';
 }

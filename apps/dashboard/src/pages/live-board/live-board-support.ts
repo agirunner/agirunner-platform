@@ -341,18 +341,18 @@ export function describeWorkerCapacity(worker: LiveBoardWorkerRecord): string {
 
 export function describeFleetHeadline(summary: LiveBoardFleetSummary): string {
   if (summary.heartbeatFailures > 0) {
-    return `${summary.heartbeatFailures} Specialist Agent heartbeat issue${summary.heartbeatFailures === 1 ? '' : 's'}`;
+    return `${summary.heartbeatFailures} specialist agent heartbeat issue${summary.heartbeatFailures === 1 ? '' : 's'}`;
   }
   if (summary.draining > 0) {
-    return `${summary.draining} Specialist Agent${summary.draining === 1 ? '' : 's'} draining`;
+    return `${summary.draining} specialist agent${summary.draining === 1 ? '' : 's'} draining`;
   }
   if (summary.online === 0) {
-    return 'No connected Specialist Agents';
+    return 'No connected specialist agents';
   }
   if (summary.busy > 0) {
-    return `${summary.busy} Specialist Agent${summary.busy === 1 ? '' : 's'} actively executing`;
+    return `${summary.busy} specialist agent${summary.busy === 1 ? '' : 's'} actively executing`;
   }
-  return `${summary.available} Specialist Agent${summary.available === 1 ? '' : 's'} ready for new steps`;
+  return `${summary.available} specialist agent${summary.available === 1 ? '' : 's'} ready for new steps`;
 }
 
 export function summarizeExecutionBackendCapacity(

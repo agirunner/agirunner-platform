@@ -72,7 +72,7 @@ export function ActiveRuntimeImageCard(): JSX.Element {
     return (
       <RuntimeUnavailableCard
         title="Active Specialist Agent Image"
-        body="Specialist Agent image status unavailable. The customization service may not be configured or reachable."
+        body="Specialist agent image status unavailable. The customization service may not be configured or reachable."
       />
     );
   }
@@ -114,7 +114,7 @@ export function ActiveRuntimeImageCard(): JSX.Element {
           <Badge variant={statusBadgeVariant(derivedStatus)}>{derivedStatus}</Badge>
           <Badge variant="outline">{status.state}</Badge>
           <span className="text-xs text-muted">
-            Recovery is rebuild-or-relink only on this surface. Direct rollback is not exposed until versioned Specialist Agent image history exists.
+            Recovery is rebuild-or-relink only on this surface. Direct rollback is not exposed until versioned specialist agent image history exists.
           </span>
         </div>
         {manifestVisible ? (
@@ -146,7 +146,7 @@ export function BuildHistoryCard(): JSX.Element {
     return (
       <RuntimeUnavailableCard
         title="Build History"
-        body="Unable to load build history. Inspect the Specialist Agent image service connection before trusting rollout state."
+        body="Unable to load build history. Inspect the specialist agent image service connection before trusting rollout state."
       />
     );
   }
@@ -156,8 +156,8 @@ export function BuildHistoryCard(): JSX.Element {
       <CardHeader className="space-y-2">
         <CardTitle className="text-base">Build History</CardTitle>
         <p className="text-sm text-muted">
-          Recent Specialist Agent image linkage and recovery posture. Review the active digest and
-          recovery path before changing Specialist Agent defaults.
+          Recent specialist agent image linkage and recovery posture. Review the active digest and
+          recovery path before changing specialist agent defaults.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -175,7 +175,7 @@ export function BuildHistoryCard(): JSX.Element {
         </div>
         {entries.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted">
-            No Specialist Agent image builds recorded yet. Build or link a Specialist Agent image before rollout work begins.
+            No specialist agent image builds recorded yet. Build or link a specialist agent image before rollout work begins.
           </p>
         ) : (
           <>
@@ -394,7 +394,7 @@ export function RuntimeManagementCard(): JSX.Element {
       <CardHeader className="space-y-2">
         <CardTitle className="text-base">Specialist Agent Image Management</CardTitle>
         <p className="text-sm text-muted">
-          Validate, build, link, and export Specialist Agent image artifacts from the reconstructed manifest.
+          Validate, build, link, and export specialist agent image artifacts from the reconstructed manifest.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">

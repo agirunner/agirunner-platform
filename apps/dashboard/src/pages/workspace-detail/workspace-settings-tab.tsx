@@ -240,8 +240,8 @@ export function WorkspaceSettingsTab(props: {
                 onChange={(value) => setDraft((current) => ({ ...current, hostPath: value }))}
               />
               <p className="text-sm leading-6 text-muted">
-                The path must already exist. All Specialist Agents are expected to mount the same
-                path. Writes happen as the Specialist Execution user, which is currently `root`.
+                The path must already exist. All specialist agents are expected to mount the same
+                path. Writes happen as the specialist execution user, which is currently `root`.
               </p>
               <ToggleCard
                 label="Read-only mount"

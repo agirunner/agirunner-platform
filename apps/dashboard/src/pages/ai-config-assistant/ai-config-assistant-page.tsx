@@ -142,7 +142,7 @@ export function AiConfigAssistantPage(): JSX.Element {
                     How can I help with your configuration?
                   </p>
                   <p className="mt-1 max-w-xl text-sm leading-6">
-                    Start with a quick audit or ask about Specialist Agents, providers, playbooks,
+                    Start with a quick audit or ask about specialist agents, providers, playbooks,
                     integrations, work items, and operator controls.
                   </p>
                   <Button
@@ -205,7 +205,7 @@ export function AiConfigAssistantPage(): JSX.Element {
               <Input
                 value={inputValue}
                 onChange={(event) => setInputValue(event.target.value)}
-                placeholder="Ask about Specialist Agents, model posture, playbooks, or integrations..."
+                placeholder="Ask about specialist agents, model posture, playbooks, or integrations..."
                 disabled={mutation.isPending}
                 aria-label="Configuration question"
                 className="flex-1"

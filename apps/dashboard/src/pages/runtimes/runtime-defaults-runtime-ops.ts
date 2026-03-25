@@ -5,12 +5,12 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     key: 'runtime_throughput',
     title: 'Agent throughput',
     description:
-      'Set local queue buffering limits for a Specialist Agent process.',
+      'Set local queue buffering limits for a specialist agent process.',
   },
   {
     key: 'server_timeouts',
     title: 'Server timeouts',
-    description: 'Bound Specialist Agent HTTP server shutdown and request-header handling.',
+    description: 'Bound specialist agent HTTP server shutdown and request-header handling.',
   },
   {
     key: 'runtime_api',
@@ -20,7 +20,7 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   {
     key: 'llm_transport',
     title: 'LLM transport',
-    description: 'Control upstream model transport deadlines used by Specialist Agent provider adapters.',
+    description: 'Control upstream model transport deadlines used by specialist agent provider adapters.',
   },
   {
     key: 'tool_timeouts',
@@ -30,7 +30,7 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   {
     key: 'lifecycle_timeouts',
     title: 'Lifecycle timeouts',
-    description: 'Control health checks and Specialist Execution stop and destroy deadlines.',
+    description: 'Control health checks and specialist execution stop and destroy deadlines.',
   },
   {
     key: 'task_timeouts',
@@ -42,7 +42,7 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     key: 'connected_platform',
     title: 'Connected agents',
     description:
-      'Tune claim polling, bootstrap behavior, and manual drain handling when Specialist Agents are attached to the platform fleet.',
+      'Tune claim polling, bootstrap behavior, and manual drain handling when specialist agents are attached to the platform fleet.',
   },
   {
     key: 'realtime_transport',
@@ -66,7 +66,7 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     key: 'worker_supervision',
     title: 'Specialist Agent supervision',
     description:
-      'Tune Specialist Agent heartbeat defaults, dispatch acknowledgements, and offline/disconnected thresholds.',
+      'Tune specialist agent heartbeat defaults, dispatch acknowledgements, and offline/disconnected thresholds.',
   },
   {
     key: 'agent_supervision',
@@ -95,12 +95,12 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     key: 'capture_timeouts',
     title: 'Capture resilience',
     description:
-      'Control how aggressively the Specialist Agent retries result publication and how long capture-side steps may run.',
+      'Control how aggressively the specialist agent retries result publication and how long capture-side steps may run.',
   },
   {
     key: 'secrets_timeouts',
     title: 'Secrets backends',
-    description: 'Limit secret-provider calls made by the Specialist Agent during task execution.',
+    description: 'Limit secret-provider calls made by the specialist agent during task execution.',
   },
   {
     key: 'subagent_timeouts',
@@ -115,7 +115,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'server.shutdown_timeout_seconds',
     label: 'Shutdown timeout (seconds)',
-    description: 'How long the Specialist Agent waits for graceful shutdown before forcing termination.',
+    description: 'How long the specialist agent waits for graceful shutdown before forcing termination.',
     configType: 'number',
     placeholder: '5',
     section: 'server_timeouts',
@@ -137,7 +137,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'api.events_heartbeat_seconds',
     label: 'Event heartbeat interval (seconds)',
-    description: 'How often the Specialist Agent emits task-event heartbeats while a stream is open.',
+    description: 'How often the specialist agent emits task-event heartbeats while a stream is open.',
     configType: 'number',
     placeholder: '10',
     section: 'runtime_api',
@@ -148,7 +148,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'llm.http_timeout_seconds',
     label: 'Provider HTTP timeout (seconds)',
-    description: 'Upper bound for outbound LLM HTTP requests from the Specialist Agent.',
+    description: 'Upper bound for outbound LLM HTTP requests from the specialist agent.',
     configType: 'number',
     placeholder: '120',
     section: 'llm_transport',
@@ -183,7 +183,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'capture.push_retries',
     label: 'Capture push retry budget',
     description:
-      'How many times the Specialist Agent retries git push or result publication before giving up.',
+      'How many times the specialist agent retries git push or result publication before giving up.',
     configType: 'number',
     placeholder: '5',
     section: 'capture_timeouts',
@@ -301,7 +301,7 @@ function buildLifecycleTimeoutFields(): FieldDefinition[] {
       key: 'lifecycle.healthcheck_timeout_seconds',
       label: 'Healthcheck timeout (seconds)',
       description:
-        'Deadline for lifecycle health probes before the Specialist Agent marks the check as failed.',
+        'Deadline for lifecycle health probes before the specialist agent marks the check as failed.',
       configType: 'number',
       placeholder: '5',
       section: 'lifecycle_timeouts',
@@ -313,7 +313,7 @@ function buildLifecycleTimeoutFields(): FieldDefinition[] {
       key: 'lifecycle.healthcheck_retry_delay_seconds',
       label: 'Healthcheck retry delay (seconds)',
       description:
-        'How long the Specialist Agent waits before retrying a failed Specialist Execution health probe.',
+        'How long the specialist agent waits before retrying a failed specialist execution health probe.',
       configType: 'number',
       placeholder: '2',
       section: 'lifecycle_timeouts',
@@ -325,7 +325,7 @@ function buildLifecycleTimeoutFields(): FieldDefinition[] {
       key: 'lifecycle.failed_start_stop_timeout_seconds',
       label: 'Failed-start stop timeout (seconds)',
       description:
-        'How long the Specialist Agent waits when stopping a Specialist Execution that never became healthy.',
+        'How long the specialist agent waits when stopping a specialist execution that never became healthy.',
       configType: 'number',
       placeholder: '2',
       section: 'lifecycle_timeouts',
@@ -336,7 +336,7 @@ function buildLifecycleTimeoutFields(): FieldDefinition[] {
     {
       key: 'lifecycle.destroy_stop_timeout_seconds',
       label: 'Destroy stop timeout (seconds)',
-      description: 'How long the Specialist Agent waits when destroying an existing Specialist Execution.',
+      description: 'How long the specialist agent waits when destroying an existing specialist execution.',
       configType: 'number',
       placeholder: '10',
       defaultValue: '1',
@@ -354,7 +354,7 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
       key: 'specialist_runtime_bootstrap_claim_timeout_seconds',
       label: 'Bootstrap claim timeout (seconds)',
       description:
-        'How long a new Specialist Agent waits for claimable work before it exits.',
+        'How long a new specialist agent waits for claimable work before it exits.',
       configType: 'number',
       placeholder: '60',
       section: 'connected_platform',
@@ -366,7 +366,7 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
       key: 'specialist_runtime_drain_grace_seconds',
       label: 'Specialist Agent drain grace (seconds)',
       description:
-        'Grace period used when a Specialist Agent is explicitly drained or replaced.',
+        'Grace period used when a specialist agent is explicitly drained or replaced.',
       configType: 'number',
       placeholder: '120',
       section: 'connected_platform',
@@ -377,7 +377,7 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
     {
       key: 'platform.claim_poll_seconds',
       label: 'Claim poll interval (seconds)',
-      description: 'How often a connected Specialist Agent polls the platform for newly claimable work.',
+      description: 'How often a connected specialist agent polls the platform for newly claimable work.',
       configType: 'number',
       placeholder: '5',
       section: 'connected_platform',
@@ -389,7 +389,7 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
       key: 'platform.api_request_timeout_seconds',
       label: 'Platform API timeout (seconds)',
       description:
-        'How long a connected Specialist Agent waits for platform API requests before treating them as failed.',
+        'How long a connected specialist agent waits for platform API requests before treating them as failed.',
       configType: 'number',
       placeholder: '60',
       section: 'connected_platform',
@@ -401,7 +401,7 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
       key: 'platform.log_ingest_timeout_seconds',
       label: 'Log ingest timeout (seconds)',
       description:
-        'How long a connected Specialist Agent waits while flushing execution logs back to the platform ingest endpoint.',
+        'How long a connected specialist agent waits while flushing execution logs back to the platform ingest endpoint.',
       configType: 'number',
       placeholder: '30',
       section: 'connected_platform',
@@ -413,7 +413,7 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
       key: 'platform.log_flush_interval_ms',
       label: 'Log flush interval (ms)',
       description:
-        'How long a connected Specialist Agent buffers partial execution-log batches before flushing them to the platform ingest endpoint.',
+        'How long a connected specialist agent buffers partial execution-log batches before flushing them to the platform ingest endpoint.',
       configType: 'number',
       placeholder: '2000',
       section: 'connected_platform',
@@ -425,7 +425,7 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
       key: 'platform.heartbeat_max_failures',
       label: 'Heartbeat failure budget',
       description:
-        'How many consecutive heartbeat failures a connected Specialist Agent tolerates before self-termination.',
+        'How many consecutive heartbeat failures a connected specialist agent tolerates before self-termination.',
       configType: 'number',
       placeholder: '24',
       section: 'connected_platform',
@@ -437,7 +437,7 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
       key: 'platform.cancellation_report_timeout_seconds',
       label: 'Cancellation report timeout (seconds)',
       description:
-        'How long a connected Specialist Agent waits when reporting cancellation or shutdown outcomes back to the platform.',
+        'How long a connected specialist agent waits when reporting cancellation or shutdown outcomes back to the platform.',
       configType: 'number',
       placeholder: '10',
       section: 'connected_platform',
@@ -449,7 +449,7 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
       key: 'platform.drain_timeout_seconds',
       label: 'Drain timeout (seconds)',
       description:
-        'How long a draining Specialist Agent waits for in-flight work before forcing shutdown.',
+        'How long a draining specialist agent waits for in-flight work before forcing shutdown.',
       configType: 'number',
       placeholder: '1800',
       section: 'connected_platform',
@@ -461,7 +461,7 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
       key: 'platform.self_terminate_cleanup_timeout_seconds',
       label: 'Self-terminate cleanup timeout (seconds)',
       description:
-        'How long a connected Specialist Agent waits while cleaning up managed Specialist Executions before self-termination.',
+        'How long a connected specialist agent waits while cleaning up managed specialist executions before self-termination.',
       configType: 'number',
       placeholder: '60',
       section: 'connected_platform',
@@ -478,7 +478,7 @@ function buildRuntimeThroughputFields(): FieldDefinition[] {
       key: 'queue.max_depth',
       label: 'Queued task backlog limit',
       description:
-        'Maximum number of accepted queued tasks before the Specialist Agent starts rejecting additional submissions.',
+        'Maximum number of accepted queued tasks before the specialist agent starts rejecting additional submissions.',
       configType: 'number',
       placeholder: '100',
       section: 'runtime_throughput',
@@ -561,7 +561,7 @@ function buildWorkspaceOperationFields(): FieldDefinition[] {
     {
       key: 'workspace.clone_max_retries',
       label: 'Clone retry budget',
-      description: 'How many times the Specialist Agent retries a workspace clone before failing the task.',
+      description: 'How many times the specialist agent retries a workspace clone before failing the task.',
       configType: 'number',
       placeholder: '5',
       section: 'workspace_operations',
@@ -625,7 +625,7 @@ function buildContainerManagerFields(): FieldDefinition[] {
       key: 'container_manager.stop_timeout_seconds',
       label: 'Specialist Agent stop timeout (seconds)',
       description:
-        'Grace period used when the manager stops Specialist Agents during normal cleanup.',
+        'Grace period used when the manager stops specialist agents during normal cleanup.',
       configType: 'number',
       placeholder: '60',
       section: 'container_manager',
@@ -636,7 +636,7 @@ function buildContainerManagerFields(): FieldDefinition[] {
     {
       key: 'container_manager.shutdown_task_stop_timeout_seconds',
       label: 'Shutdown execution stop timeout (seconds)',
-      description: 'Grace period used for Specialist Executions during manager shutdown cleanup.',
+      description: 'Grace period used for specialist executions during manager shutdown cleanup.',
       configType: 'number',
       placeholder: '10',
       section: 'container_manager',
@@ -696,7 +696,7 @@ function buildContainerManagerFields(): FieldDefinition[] {
       key: 'container_manager.starvation_threshold_seconds',
       label: 'Starvation threshold (seconds)',
       description:
-        'How long pending work may wait without a Specialist Agent before the container manager boosts the target for starvation recovery.',
+        'How long pending work may wait without a specialist agent before the container manager boosts the target for starvation recovery.',
       configType: 'number',
       placeholder: '180',
       section: 'container_manager',
@@ -708,7 +708,7 @@ function buildContainerManagerFields(): FieldDefinition[] {
       key: 'container_manager.runtime_orphan_grace_cycles',
       label: 'Specialist Agent orphan grace cycles',
       description:
-        'How many reconcile cycles a managed Specialist Agent may stay orphaned before the container manager force-removes it.',
+        'How many reconcile cycles a managed specialist agent may stay orphaned before the container manager force-removes it.',
       configType: 'number',
       placeholder: '6',
       section: 'container_manager',
@@ -720,7 +720,7 @@ function buildContainerManagerFields(): FieldDefinition[] {
       key: 'container_manager.hung_runtime_stale_after_seconds',
       label: 'Hung Specialist Agent stale threshold (seconds)',
       description:
-        'Maximum heartbeat age before the container manager classifies a Specialist Agent as hung.',
+        'Maximum heartbeat age before the container manager classifies a specialist agent as hung.',
       configType: 'number',
       placeholder: '180',
       section: 'container_manager',
@@ -732,7 +732,7 @@ function buildContainerManagerFields(): FieldDefinition[] {
       key: 'container_manager.hung_runtime_stop_grace_period_seconds',
       label: 'Hung Specialist Agent stop grace period (seconds)',
       description:
-        'How long the container manager waits when stopping a Specialist Agent that has been classified as hung.',
+        'How long the container manager waits when stopping a specialist agent that has been classified as hung.',
       configType: 'number',
       placeholder: '60',
       section: 'container_manager',
@@ -744,7 +744,7 @@ function buildContainerManagerFields(): FieldDefinition[] {
       key: 'container_manager.runtime_log_max_size_mb',
       label: 'Specialist Agent log max size (MB)',
       description:
-        'Maximum size of a Specialist Agent Docker log file before the Docker engine rotates it.',
+        'Maximum size of a specialist agent Docker log file before the Docker engine rotates it.',
       configType: 'number',
       placeholder: '10',
       section: 'container_manager',
@@ -756,7 +756,7 @@ function buildContainerManagerFields(): FieldDefinition[] {
       key: 'container_manager.runtime_log_max_files',
       label: 'Specialist Agent log file count',
       description:
-        'Maximum number of rotated Docker log files retained for each Specialist Agent.',
+        'Maximum number of rotated Docker log files retained for each specialist agent.',
       configType: 'number',
       placeholder: '3',
       section: 'container_manager',
@@ -826,7 +826,7 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
       key: 'platform.worker_dispatch_ack_timeout_ms',
       label: 'Dispatch acknowledgement timeout (ms)',
       description:
-        'Maximum time a Specialist Agent has to acknowledge an assigned task before dispatch is released.',
+        'Maximum time a specialist agent has to acknowledge an assigned task before dispatch is released.',
       configType: 'number',
       placeholder: '45000',
       section: 'worker_supervision',
@@ -837,7 +837,7 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
     {
       key: 'platform.worker_key_expiry_ms',
       label: 'Specialist Agent API key lifetime (ms)',
-      description: 'Default lifetime applied to API keys issued for newly registered Specialist Agents.',
+      description: 'Default lifetime applied to API keys issued for newly registered specialist agents.',
       configType: 'number',
       placeholder: '31536000000',
       section: 'worker_supervision',
@@ -849,7 +849,7 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
       key: 'platform.worker_default_heartbeat_interval_seconds',
       label: 'Default Specialist Agent heartbeat interval (seconds)',
       description:
-        'Default heartbeat cadence assigned to new Specialist Agents when the registration payload omits it.',
+        'Default heartbeat cadence assigned to new specialist agents when the registration payload omits it.',
       configType: 'number',
       placeholder: '30',
       section: 'worker_supervision',
@@ -861,7 +861,7 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
       key: 'platform.worker_offline_grace_period_ms',
       label: 'Offline grace period (ms)',
       description:
-        'Additional grace after the offline threshold before the platform declares a Specialist Agent fully offline.',
+        'Additional grace after the offline threshold before the platform declares a specialist agent fully offline.',
       configType: 'number',
       placeholder: '300000',
       section: 'worker_supervision',
@@ -873,7 +873,7 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
       key: 'platform.worker_offline_threshold_multiplier',
       label: 'Offline threshold multiplier',
       description:
-        'Multiplier applied to Specialist Agent heartbeat intervals when deciding the offline cutoff.',
+        'Multiplier applied to specialist agent heartbeat intervals when deciding the offline cutoff.',
       configType: 'number',
       placeholder: '2',
       section: 'worker_supervision',
@@ -885,7 +885,7 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
       key: 'platform.worker_degraded_threshold_multiplier',
       label: 'Degraded threshold multiplier',
       description:
-        'Multiplier applied to Specialist Agent heartbeat intervals when deciding the degraded or disconnected cutoff.',
+        'Multiplier applied to specialist agent heartbeat intervals when deciding the degraded or disconnected cutoff.',
       configType: 'number',
       placeholder: '1',
       section: 'worker_supervision',
@@ -964,7 +964,7 @@ function buildPlatformLoopFields(): FieldDefinition[] {
     {
       key: 'platform.lifecycle_worker_heartbeat_check_interval_ms',
       label: 'Specialist Agent heartbeat sweep interval (ms)',
-      description: 'How often the platform checks for stale Specialist Agent heartbeats.',
+      description: 'How often the platform checks for stale specialist agent heartbeats.',
       configType: 'number',
       placeholder: '30000',
       section: 'platform_loops',
@@ -1026,7 +1026,7 @@ function toolTimeoutField(key: string, label: string, placeholder: string): Fiel
   return {
     key,
     label: `${label} (seconds)`,
-    description: `Maximum Specialist Agent duration for ${label.toLowerCase()} operations.`,
+    description: `Maximum specialist agent duration for ${label.toLowerCase()} operations.`,
     configType: 'number',
     placeholder,
     section: 'tool_timeouts',

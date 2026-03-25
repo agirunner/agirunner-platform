@@ -187,7 +187,7 @@ export function RoleExecutionContainerSection(props: {
       <CardHeader>
         <CardTitle>Specialist Execution override</CardTitle>
         <CardDescription>
-          Override the default Specialist Execution environment for this role. Leave fields blank to inherit the system defaults from Specialist Agents.
+          Override the default specialist execution environment for this role. Leave fields blank to inherit the system defaults from Specialist Agents.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2">
@@ -205,7 +205,7 @@ export function RoleExecutionContainerSection(props: {
               }))
             }
             placeholder="agirunner-runtime-execution:local"
-            helperText="Blank means this role uses the default Specialist Execution image."
+            helperText="Blank means this role uses the default specialist execution image."
             error={props.validation.fieldErrors.executionContainerImage}
             listId="role-execution-image-suggestions"
           />

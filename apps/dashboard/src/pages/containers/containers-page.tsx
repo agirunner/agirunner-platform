@@ -109,12 +109,12 @@ export function ContainersPage(): JSX.Element {
         <div className="space-y-1">
           <h2 className="text-base font-semibold text-foreground">Specialists</h2>
           <p className="text-sm text-muted-foreground">
-            Specialist Agents and non-orchestrator Specialist Executions.
+            Specialist agents and non-orchestrator specialist executions.
           </p>
         </div>
         <ContainersTable
           rows={groupedRows.specialists}
-          emptyMessage="No Specialist Agents or Specialist Executions were reported in this session."
+          emptyMessage="No specialist agents or specialist executions were reported in this session."
         />
       </section>
     </div>

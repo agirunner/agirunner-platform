@@ -63,14 +63,14 @@ const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
     key: 'runtime_containers',
     title: 'Specialist Agent defaults',
     description:
-      'Default image and resource limits for short-lived Specialist Agents that host the agent loop.',
+      'Default image and resource limits for short-lived specialist agents that host the agent loop.',
     defaultExpanded: true,
   },
   {
     key: 'execution_containers',
     title: 'Specialist Execution defaults',
     description:
-      'Default image and resource limits for always-cold Specialist Executions.',
+      'Default image and resource limits for always-cold specialist executions.',
     defaultExpanded: true,
   },
   {
@@ -84,7 +84,7 @@ const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
     key: 'capacity_limits',
     title: 'Specialist capacity',
     description:
-      'Shared ceiling for active specialists. Each active specialist consumes one Specialist Agent and one Specialist Execution. When the cap is reached, new specialist work waits for a free slot.',
+      'Shared ceiling for active specialists. Each active specialist consumes one specialist agent and one specialist execution. When the cap is reached, new specialist work waits for a free slot.',
     defaultExpanded: true,
   },
   {
@@ -111,7 +111,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_runtime_default_image',
     label: 'Image',
-    description: 'Image used for short-lived Specialist Agents.',
+    description: 'Image used for short-lived specialist agents.',
     configType: 'string',
     placeholder: 'agirunner-runtime:local',
     section: 'runtime_containers',
@@ -119,7 +119,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_runtime_default_cpu',
     label: 'CPU',
-    description: 'CPU allocation per Specialist Agent.',
+    description: 'CPU allocation per specialist agent.',
     configType: 'string',
     placeholder: '2',
     section: 'runtime_containers',
@@ -127,7 +127,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_runtime_default_memory',
     label: 'Memory',
-    description: 'Memory allocation per Specialist Agent, for example 256m or 1Gi.',
+    description: 'Memory allocation per specialist agent, for example 256m or 1Gi.',
     configType: 'string',
     placeholder: '256m',
     section: 'runtime_containers',
@@ -135,7 +135,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_runtime_default_pull_policy',
     label: 'Pull policy',
-    description: 'When Specialist Agent images should be pulled from the registry.',
+    description: 'When specialist agent images should be pulled from the registry.',
     configType: 'string',
     placeholder: 'if-not-present',
     section: 'runtime_containers',
@@ -144,7 +144,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_execution_default_image',
     label: 'Image',
-    description: 'Image used for always-cold Specialist Executions.',
+    description: 'Image used for always-cold specialist executions.',
     configType: 'string',
     placeholder: 'agirunner-runtime-execution:local',
     section: 'execution_containers',
@@ -152,7 +152,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_execution_default_cpu',
     label: 'CPU',
-    description: 'CPU allocation per Specialist Execution.',
+    description: 'CPU allocation per specialist execution.',
     configType: 'string',
     placeholder: '2',
     section: 'execution_containers',
@@ -161,7 +161,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'specialist_execution_default_memory',
     label: 'Memory',
     description:
-      'Memory allocation per Specialist Execution, for example 512m or 2Gi.',
+      'Memory allocation per specialist execution, for example 512m or 2Gi.',
     configType: 'string',
     placeholder: '512m',
     section: 'execution_containers',
@@ -169,7 +169,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_execution_default_pull_policy',
     label: 'Pull policy',
-    description: 'When Specialist Execution images should be pulled from the registry.',
+    description: 'When specialist execution images should be pulled from the registry.',
     configType: 'string',
     placeholder: 'if-not-present',
     section: 'execution_containers',
@@ -227,7 +227,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'agent.specialist_context_strategy',
     label: 'Specialist context strategy',
     description:
-      'Default specialist continuity strategy. Auto prefers semantic handling and can adopt provider-native compaction when the active Specialist Agent path explicitly supports it.',
+      'Default specialist continuity strategy. Auto prefers semantic handling and can adopt provider-native compaction when the active specialist agent path explicitly supports it.',
     configType: 'string',
     placeholder: 'auto',
     section: 'agent_context',
@@ -461,7 +461,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'agent.max_burst_elapsed_ms',
     label: 'Maximum burst elapsed time (ms)',
     description:
-      'How long a reactive burst may run before the Specialist Agent forces a new planning boundary.',
+      'How long a reactive burst may run before the specialist agent forces a new planning boundary.',
     configType: 'number',
     placeholder: '120000',
     section: 'agent_safeguards',
@@ -473,7 +473,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'agent.max_parallel_tool_calls_per_burst',
     label: 'Maximum parallel tool calls per burst',
     description:
-      'How many read-only tool calls a reactive burst may execute in parallel before the Specialist Agent throttles concurrency.',
+      'How many read-only tool calls a reactive burst may execute in parallel before the specialist agent throttles concurrency.',
     configType: 'number',
     placeholder: '8',
     section: 'agent_safeguards',
@@ -485,7 +485,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'agent.max_stuck_interventions',
     label: 'Maximum stuck interventions',
     description:
-      'How many automatic recovery interventions the Specialist Agent attempts before failing the task.',
+      'How many automatic recovery interventions the specialist agent attempts before failing the task.',
     configType: 'number',
     placeholder: '2',
     section: 'agent_safeguards',
@@ -519,7 +519,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'global_max_specialists',
     label: 'Max active specialists',
     description:
-      'Maximum concurrent specialist tasks. Each active specialist consumes one Specialist Agent and one Specialist Execution.',
+      'Maximum concurrent specialist tasks. Each active specialist consumes one specialist agent and one specialist execution.',
     configType: 'number',
     placeholder: '20',
     section: 'capacity_limits',
@@ -599,7 +599,7 @@ export const OPERATIONS_SECTION_DEFINITIONS: SectionDefinition[] = [
     key: 'runtime_fleet',
     title: 'Specialist Agent fleet',
     description:
-      'Control platform-managed Specialist Agent teardown and replacement timing.',
+      'Control platform-managed specialist agent teardown and replacement timing.',
     defaultExpanded: true,
   },
   operationSectionByKey('connected_platform'),

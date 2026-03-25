@@ -118,7 +118,7 @@ export function PlaybookControlCenterCard(
           <LinkedConfigCard
             icon={<Cpu className="h-4 w-4" />}
             title="Specialist defaults"
-            description="Global Specialist Agent and Specialist Execution defaults live outside the playbook."
+            description="Global specialist agent and specialist execution defaults live outside the playbook."
             value="Inspect specialist defaults"
             href="/platform/runtimes"
           />

@@ -169,12 +169,12 @@ export function summarizeTools(tools: ToolTag[]): ToolSummaryCard[] {
     {
       label: 'Specialist Agent owned',
       value: `${runtimeCount}`,
-      detail: 'Run directly in the Specialist Agent loop',
+      detail: 'Run directly in the specialist agent loop',
     },
     {
       label: 'Specialist Execution owned',
       value: `${taskCount}`,
-      detail: 'Require Specialist Execution',
+      detail: 'Require specialist execution',
     },
   ];
 }

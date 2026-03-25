@@ -33,7 +33,7 @@ export function WorkflowBudgetCard(props: WorkflowBudgetCardProps): JSX.Element 
           <div className="space-y-1">
             <CardTitle>Workflow Budget</CardTitle>
             <CardDescription>
-              Operator-facing guardrails for spend, Specialist Agent capacity, and orchestration volume.
+              Operator-facing guardrails for spend, specialist agent capacity, and orchestration volume.
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">

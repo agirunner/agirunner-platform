@@ -157,7 +157,7 @@ export function describeTaskNextAction(task: TaskListRecord): string {
       : 'Inspect the failure and choose retry, rework, or escalation.';
   }
   if (status === 'ready') {
-    return 'Waiting for Specialist Agent capacity to claim the step.';
+    return 'Waiting for specialist agent capacity to claim the step.';
   }
   if (status === 'pending') {
     return 'Queued behind upstream work or orchestration.';
@@ -188,7 +188,7 @@ export function readTaskRecoveryCue(task: TaskListRecord): string {
     return 'Output is ready for assessment. Validate the packet, then approve or request targeted changes.';
   }
   if (status === 'ready') {
-    return 'This step is ready but unclaimed. Watch for Specialist Agent capacity buildup if more steps stack here.';
+    return 'This step is ready but unclaimed. Watch for specialist agent capacity buildup if more steps stack here.';
   }
   if (task.is_orchestrator_task) {
     return 'Watch this orchestrator turn for new work items, gates, or retries before leaving the queue.';

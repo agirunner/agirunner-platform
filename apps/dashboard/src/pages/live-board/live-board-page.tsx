@@ -969,7 +969,7 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
     {
       label: 'Specialist Agent modes',
       value: `${props.executionBackendCapacity.runtimeOnlyRuntimes + props.executionBackendCapacity.runtimePlusTaskRuntimes} Specialist Agents`,
-      detail: `${props.executionBackendCapacity.runtimeOnlyRuntimes} Specialist Agent only • ${props.executionBackendCapacity.runtimePlusTaskRuntimes} Specialist Agent + Specialist Execution`,
+      detail: `${props.executionBackendCapacity.runtimeOnlyRuntimes} Specialist agent only • ${props.executionBackendCapacity.runtimePlusTaskRuntimes} Specialist agent + Specialist execution`,
       icon: Cpu,
       color: 'text-violet-600',
     },
@@ -978,7 +978,7 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
       value:
         props.executionBackendCapacity.taskSandboxes > 0
           ? `${props.executionBackendCapacity.taskSandboxes} active`
-          : 'No active Specialist Executions',
+          : 'No active specialist executions',
       detail: 'Specialist repo, shell, git, file, artifact upload, and web activity.',
       icon: Server,
       color: 'text-amber-600',
@@ -1089,7 +1089,7 @@ function NeedsAttentionSection({
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-muted">
-            The operator queue is clear, but Specialist Agent recovery still needs attention.
+            The operator queue is clear, but specialist agent recovery still needs attention.
           </p>
           <Badge variant="warning">{fleetAttentionLabel}</Badge>
         </CardContent>
@@ -1660,7 +1660,7 @@ function FleetStatusPanel({ workers }: FleetStatusPanelProps): JSX.Element {
           <SnapshotMetric label="Assigned steps" value={String(fleetSummary.assignedSteps)} />
         </div>
         {workers.length === 0 ? (
-          <p className="text-sm text-muted">No Specialist Agents registered.</p>
+          <p className="text-sm text-muted">No specialist agents registered.</p>
         ) : (
           <div className="space-y-2">
             {workers.map((w) => (
