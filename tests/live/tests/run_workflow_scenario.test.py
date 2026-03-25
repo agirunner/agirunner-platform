@@ -1969,6 +1969,36 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertEqual(["active", "completed"], state_check["expected"])
         self.assertEqual("active", state_check["actual"])
 
+    def test_evaluate_expectations_outcome_driven_mode_accepts_repo_final_artifacts(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "state": "completed",
+            },
+            workflow={
+                "state": "completed",
+                "orchestration_state": {
+                    "final_artifacts": ["briefs/publication-packet.md"],
+                },
+                "tasks": [
+                    {"id": "task-1", "is_orchestrator_task": False, "state": "completed"},
+                ],
+            },
+            board={"data": {"data": {"columns": [{"id": "done", "is_terminal": True}], "work_items": [{"id": "wi-1", "column_id": "done"}]}}},
+            work_items={"data": {"data": [{"id": "wi-1", "column_id": "done"}]}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+            evidence={
+                "db_state": {"ok": True},
+                "runtime_cleanup": {"all_clean": True},
+                "log_anomalies": {"rows": []},
+            },
+            verification_mode="outcome_driven",
+        )
+
+        self.assertTrue(verification["passed"])
+
     def test_evaluate_expectations_outcome_driven_mode_requires_basic_sanity(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(
             {

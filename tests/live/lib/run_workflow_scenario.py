@@ -411,8 +411,25 @@ def _artifacts(snapshot: Any) -> list[dict[str, Any]]:
     return []
 
 
-def artifact_output_count(snapshot: Any) -> int:
-    return len(_artifacts(snapshot))
+def _workflow_final_artifacts(workflow: dict[str, Any]) -> list[str]:
+    orchestration_state = workflow.get("orchestration_state")
+    if not isinstance(orchestration_state, dict):
+        return []
+    final_artifacts = orchestration_state.get("final_artifacts")
+    if not isinstance(final_artifacts, list):
+        return []
+    return [
+        artifact.strip()
+        for artifact in final_artifacts
+        if isinstance(artifact, str) and artifact.strip() != ""
+    ]
+
+
+def output_artifact_count(*, workflow: dict[str, Any], snapshot: Any) -> int:
+    artifact_count = len(_artifacts(snapshot))
+    if artifact_count > 0:
+        return artifact_count
+    return len(_workflow_final_artifacts(workflow))
 
 
 def completed_non_orchestrator_task_count(workflow: dict[str, Any]) -> int:
@@ -484,7 +501,7 @@ def evaluate_outcome_driven_basics(
     if not state_passed:
         failures.append(f"expected workflow state in {allowed_states!r}, got {actual_state!r}")
 
-    output_count = artifact_output_count(artifacts)
+    output_count = output_artifact_count(workflow=workflow, snapshot=artifacts)
     output_required = bool(outcome_envelope.get('require_output_artifacts', True))
     output_passed = (output_count > 0) if output_required else True
     checks.append(
@@ -952,7 +969,7 @@ def build_scenario_outcome_metrics(
         "status": "passed" if bool(verification_payload.get("passed")) else "failed",
         "workflow_state": final_state,
         "success": {
-            "output_artifact_count": artifact_output_count(artifacts),
+            "output_artifact_count": output_artifact_count(workflow=workflow, snapshot=artifacts),
             "completed_non_orchestrator_task_count": completed_non_orchestrator_task_count(workflow),
             "terminal_work_item_count": _completed_work_item_count(work_items, board),
             "approval_action_count": len(approval_actions),
