@@ -1,0 +1,86 @@
+{
+  "name": "Same Assessor Role Across Stages Pipeline",
+  "slug": "live-test-same-assessor-role-across-stages-v1",
+  "description": "Workflow where the same assessor role is required in multiple stages.",
+  "outcome": "The same assessor role can legally assess different subjects at more than one stage.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "Run the workflow through the authored stages `architecture-pass`, `implementation-pass`, and `release-pass`. Treat each stage as a distinct evidence and handoff boundary: `architecture-pass` exists to Design direction exists; `implementation-pass` exists to Implementation revisions are assessed; `release-pass` exists to Release packaging is validated.\nUse these roles deliberately: `stage-reuse-framer` produces the initial design and later remediation guidance when routed; `stage-reuse-implementer` implements and reimplements the delivery subject over multiple revisions; `stage-reuse-assessor` assesses implementation revisions and release-readiness revisions; `stage-reuse-integration-assessor` assesses downstream integration risk after implementation revisions; `stage-reuse-release-coordinator` packages the release candidate after assessments clear.\nHappy path: start with the earliest unfinished stage, dispatch the best matching producing role for that stage, require a full handoff with concrete artifacts or evidence, then move to the next stage only when the current output is usable. When a later stage is primarily evaluative, dispatch the reviewer or assessor roles after the producing role has handed off; when a later stage is packaging or release-oriented, dispatch the coordinating role only after upstream evidence is complete.\nUnhappy path: if any role reports missing evidence, partial delivery, request changes, rejection, blocking risk, or an escalation, keep the current subject open, route work back to the most relevant producing role, and require a fresh handoff before trying again. If two decisions conflict, preserve both in history, but route using the newest subject state and the most restrictive still-active finding. Do not skip a stage just because a later role believes it can improvise around incomplete upstream work. The same assessor role is reused across multiple stages. The orchestrator MUST preserve that role's prior findings for context but MUST require a fresh decision at each new stage rather than assuming a previous pass still applies.\nCompletion rules: finish only after the last required stage has a final, internally consistent handoff, the final package matches the current subject state, and every role named above has either contributed or been intentionally skipped for a clear reason grounded in the playbook. Stage-specific closure for this playbook: each `architecture-pass` work item stays open until `stage-reuse-framer` has either submitted current-subject handoffs that satisfy the `architecture-pass` goal or been intentionally skipped with a concrete reason grounded in the playbook; each `implementation-pass` work item stays open until `stage-reuse-implementer`, `stage-reuse-assessor`, and `stage-reuse-integration-assessor` have either submitted current-subject handoffs that satisfy the `implementation-pass` goal or been intentionally skipped with a concrete reason grounded in the playbook; each `release-pass` work item stays open until `stage-reuse-release-coordinator` and `stage-reuse-assessor` have either submitted current-subject handoffs that satisfy the `release-pass` goal or been intentionally skipped with a concrete reason grounded in the playbook. Do not fabricate approvals, assessments, escalations, or branch changes that the playbook does not actually justify, and do not treat stale findings as permission to advance new work. Guided closure rule: treat the authored flow as best-intent process guidance. Preferred review paths and stage order MUST be followed when they remain useful, but the orchestrator MAY waive a preferred step with a recorded reason when closure is still legally possible. Only explicit blockers grounded in the current subject state should keep work open; non-blocking deviations, redundant reviews, and stale advisory findings should be recorded as callouts instead of preventing closure.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "stage-reuse-framer",
+      "stage-reuse-implementer",
+      "stage-reuse-assessor",
+      "stage-reuse-integration-assessor",
+      "stage-reuse-release-coordinator"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "architecture-pass",
+        "goal": "Design direction exists.",
+        "involves": [
+          "stage-reuse-framer"
+        ]
+      },
+      {
+        "name": "implementation-pass",
+        "goal": "Implementation revisions are assessed.",
+        "involves": [
+          "stage-reuse-implementer",
+          "stage-reuse-assessor",
+          "stage-reuse-integration-assessor"
+        ]
+      },
+      {
+        "name": "release-pass",
+        "goal": "Release packaging is validated.",
+        "involves": [
+          "stage-reuse-release-coordinator",
+          "stage-reuse-assessor"
+        ]
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 4,
+      "max_active_tasks_per_work_item": 2,
+      "allow_parallel_work_items": false
+    }
+  }
+}

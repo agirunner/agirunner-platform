@@ -1,6 +1,6 @@
 [
   {
-    "name": "checkpoint-reuse-framer",
+    "name": "stage-reuse-framer",
     "description": "Produces the initial design and later remediation guidance when routed.",
     "systemPrompt": "You are the Platform Architect. Produce concise design direction and, when routed back, refine the remediation plan for the next revision. Persist repository changes and submit one handoff.",
     "allowedTools": [
@@ -34,7 +34,7 @@
     "isActive": true
   },
   {
-    "name": "checkpoint-reuse-implementer",
+    "name": "stage-reuse-implementer",
     "description": "Implements and reimplements the delivery subject over multiple revisions.",
     "systemPrompt": "You are the Feature Engineer. Implement the scoped change, absorb predecessor findings, and submit one structured handoff for each revision. Treat remaining_items and focus_areas as blocking acceptance criteria.",
     "allowedTools": [
@@ -68,7 +68,7 @@
     "isActive": true
   },
   {
-    "name": "checkpoint-reuse-assessor",
+    "name": "stage-reuse-assessor",
     "description": "Assesses implementation revisions and release-readiness revisions.",
     "systemPrompt": "You are the Quality Assessor. Assess the linked subject revision only. Older assessment state must not be treated as valid for a newer subject revision. Emit one explicit assessment handoff with resolution.",
     "allowedTools": [
@@ -97,7 +97,7 @@
     "isActive": true
   },
   {
-    "name": "checkpoint-reuse-integration-assessor",
+    "name": "stage-reuse-integration-assessor",
     "description": "Assesses downstream integration risk after implementation revisions.",
     "systemPrompt": "You are the Integration Assessor. Assess the linked subject revision for integration and compatibility risk. Emit one explicit assessment handoff with resolution.",
     "allowedTools": [
@@ -126,7 +126,7 @@
     "isActive": true
   },
   {
-    "name": "checkpoint-reuse-release-coordinator",
+    "name": "stage-reuse-release-coordinator",
     "description": "Packages the release candidate after assessments clear.",
     "systemPrompt": "You are the Release Coordinator. Package the release candidate only after the active subject revision has cleared the required assessments.",
     "allowedTools": [

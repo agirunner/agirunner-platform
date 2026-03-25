@@ -41,7 +41,7 @@ EXPECTED_SCENARIOS = {
     "requirements-human-review-reject",
     "requirements-human-review-request-changes",
     "requirements-stale-human-review-arrives-after-rework",
-    "same-assessor-role-across-checkpoints",
+    "same-assessor-role-across-stages",
     "same-subject-role-different-assessors",
     "sdlc-all-assessors-request-changes",
     "sdlc-assessment-approve",

@@ -1,9 +1,9 @@
 {
-  "name": "same-assessor-role-across-checkpoints",
-  "profile": "same-assessor-role-across-checkpoints",
+  "name": "same-assessor-role-across-stages",
+  "profile": "same-assessor-role-across-stages",
   "workflow": {
-    "name": "Same Assessor Role Across Checkpoints",
-    "goal": "Exercise a workflow where the same assessor role is reused across multiple checkpoints.",
+    "name": "Same Assessor Role Across Stages",
+    "goal": "Exercise a workflow where the same assessor role is reused across multiple stages.",
     "parameters": {}
   },
   "workspace": {
