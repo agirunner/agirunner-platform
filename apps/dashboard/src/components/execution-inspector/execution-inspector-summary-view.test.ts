@@ -17,7 +17,7 @@ describe('execution inspector summary view source', () => {
     expect(source).toContain("className=\"grid gap-4 md:grid-cols-2\"");
     expect(source).toContain('Top activity paths');
     expect(source).toContain('Role lanes');
-    expect(source).toContain('Active runtimes and operators');
+    expect(source).toContain('Active agents and operators');
     expect(source).toContain('title="Activity coverage"');
     expect(source).toContain('title="Captured runtime"');
     expect(source).not.toContain('Activity families');

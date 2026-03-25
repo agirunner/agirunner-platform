@@ -73,9 +73,9 @@ export function formatContainerKindLabel(kind: DashboardLiveContainerRecord['kin
     case 'orchestrator':
       return 'Orchestrator agent';
     case 'runtime':
-      return 'Specialist agent';
+      return 'Specialist Agent';
     case 'task':
-      return 'Specialist task execution';
+      return 'Specialist Execution';
     default:
       return kind;
   }
@@ -464,7 +464,7 @@ function hasMeaningfulPlaybookContext(id: string | null | undefined, name: strin
 }
 
 function isSyntheticContainerContextLabel(value: string | null | undefined): boolean {
-  return normalizeText(value).toLowerCase() === 'specialist runtimes';
+  return normalizeText(value).toLowerCase() === 'specialist agents';
 }
 
 function rememberContainerContext(

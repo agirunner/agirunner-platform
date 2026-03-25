@@ -145,7 +145,7 @@ export function buildSpecialistExecutionBrief(
     work_item_continuity_summary: continuitySummaryFrom(workItem),
     assessment_output_expectations: assessmentOutputExpectations,
     repo_status_summary: repoBacked
-      ? 'Repository-backed task. Use task sandbox tools for repository, filesystem, shell, web fetch, and artifact upload work.'
+      ? 'Repository-backed task. Use Specialist Execution tools for repository, filesystem, shell, web fetch, and artifact upload work.'
       : 'Non-repository task. Base completion on artifacts, outputs, and recorded evidence.',
     likely_relevant_files: likelyRelevantFiles,
     verification_commands: normalizeStrings(taskInput.verification_commands),

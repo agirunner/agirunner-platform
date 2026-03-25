@@ -1,4 +1,9 @@
 import { readTaskOperatorFlowDescription } from './task-list-page.actions.js';
+import {
+  describeExecutionBackendSurface,
+  describeExecutionSurface,
+  describeExecutionUsageSurface,
+} from '../../lib/operator-surfaces.js';
 
 export interface TaskListRecord {
   id: string;
@@ -117,17 +122,15 @@ export function describeTaskScope(task: TaskListRecord): string {
 }
 
 export function describeExecutionBackend(task: TaskListRecord): string {
-  if (task.execution_backend === 'runtime_only') {
-    return 'Runtime-only';
-  }
-  return 'Runtime + task sandbox';
+  return describeExecutionBackendSurface(task.execution_backend, task);
 }
 
 export function describeSandboxUsage(task: TaskListRecord): string {
-  if (task.execution_backend === 'runtime_only') {
-    return 'No task sandbox';
-  }
-  return task.used_task_sandbox ? 'Used sandbox' : 'No sandbox used';
+  return describeExecutionUsageSurface(task.execution_backend, task.used_task_sandbox, task);
+}
+
+export function describeExecutionSurfaceLabel(task: TaskListRecord): string {
+  return describeExecutionSurface(task);
 }
 
 export function describeTaskNextAction(task: TaskListRecord): string {
@@ -154,7 +157,7 @@ export function describeTaskNextAction(task: TaskListRecord): string {
       : 'Inspect the failure and choose retry, rework, or escalation.';
   }
   if (status === 'ready') {
-    return 'Waiting for worker capacity to claim the step.';
+    return 'Waiting for Specialist Agent capacity to claim the step.';
   }
   if (status === 'pending') {
     return 'Queued behind upstream work or orchestration.';
@@ -185,7 +188,7 @@ export function readTaskRecoveryCue(task: TaskListRecord): string {
     return 'Output is ready for assessment. Validate the packet, then approve or request targeted changes.';
   }
   if (status === 'ready') {
-    return 'This step is ready but unclaimed. Watch for worker-capacity buildup if more steps stack here.';
+    return 'This step is ready but unclaimed. Watch for Specialist Agent capacity buildup if more steps stack here.';
   }
   if (task.is_orchestrator_task) {
     return 'Watch this orchestrator turn for new work items, gates, or retries before leaving the queue.';

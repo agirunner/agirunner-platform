@@ -32,8 +32,8 @@ describe('log actor presentation', () => {
     ]);
     expect(items.map((item) => item.label)).toEqual([
       'Orchestrator agent',
-      'Specialist agent',
-      'Specialist task execution',
+      'Specialist Agent',
+      'Specialist Execution',
       'Operator',
       'System',
     ]);

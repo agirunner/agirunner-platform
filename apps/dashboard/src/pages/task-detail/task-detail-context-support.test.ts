@@ -67,7 +67,7 @@ describe('task detail context support', () => {
       facts: [
         { label: 'Verification fields', value: '2' },
         { label: 'Execution metrics', value: '1' },
-        { label: 'Runtime context fields', value: '2' },
+        { label: 'Agent context fields', value: '2' },
         { label: 'Most detailed source', value: 'Verification' },
       ],
     });

@@ -150,7 +150,7 @@ export function buildTaskContextPacket(task: QueueTaskContextLike): TaskContextP
 
   const assignedWorker = task.assigned_worker_id ?? task.assigned_worker;
   if (assignedWorker) {
-    facts.push({ label: 'Assigned worker', value: assignedWorker.slice(0, 8) });
+    facts.push({ label: 'Assigned agent', value: assignedWorker.slice(0, 8) });
   }
 
   if (task.workflow_id && task.work_item_id) {

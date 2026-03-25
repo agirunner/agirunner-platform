@@ -114,7 +114,7 @@ export function buildExecutionPacket({
     facts: [
       { label: 'Verification fields', value: String(verificationCount) },
       { label: 'Execution metrics', value: String(metricCount) },
-      { label: 'Runtime context fields', value: String(runtimeContextCount) },
+      { label: 'Agent context fields', value: String(runtimeContextCount) },
       {
         label: 'Most detailed source',
         value: selectMostDetailedSource(verificationCount, metricCount, runtimeContextCount),
@@ -230,7 +230,7 @@ function selectMostDetailedSource(
   if (metricCount >= runtimeContextCount) {
     return 'Execution metrics';
   }
-  return 'Runtime context';
+  return 'Agent context';
 }
 
 function humanizeKey(value: string) {

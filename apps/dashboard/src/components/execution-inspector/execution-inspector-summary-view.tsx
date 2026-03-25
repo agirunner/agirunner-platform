@@ -92,7 +92,7 @@ export function ExecutionInspectorSummaryView(
           isLoading={props.isLoading}
         />
         <TopListCard
-          title="Active runtimes and operators"
+          title="Active agents and operators"
           description="Who is emitting matching activity and where that activity is landing"
           items={sortActorKindRecords(props.actors).slice(0, 8).map((item) => ({
             label: describeActorPrimaryLabel(item),
@@ -132,7 +132,7 @@ function describeActivityPathDetail(operation: string): string {
     return 'Task lifecycle activity in the current results';
   }
   if (operation.startsWith('runtime.')) {
-    return 'Runtime activity captured from execution infrastructure';
+    return 'Agent activity captured from execution infrastructure';
   }
   if (operation.startsWith('container.')) {
     return 'Container activity captured from execution infrastructure';

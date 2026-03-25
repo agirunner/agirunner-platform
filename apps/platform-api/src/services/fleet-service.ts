@@ -25,7 +25,7 @@ const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|auth
 const secretLikeValuePattern =
   /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/i;
 const GENERIC_SPECIALIST_TARGET_ID = 'specialist';
-const GENERIC_SPECIALIST_TARGET_NAME = 'Specialist runtimes';
+const GENERIC_SPECIALIST_TARGET_NAME = 'Specialist Agents';
 
 interface FleetLogger {
   warn(obj: Record<string, unknown>, msg: string): void;

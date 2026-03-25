@@ -185,9 +185,9 @@ export function RoleExecutionContainerSection(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Task execution container override</CardTitle>
+        <CardTitle>Specialist Execution container override</CardTitle>
         <CardDescription>
-          Override the default specialist task sandbox for this role. Leave fields blank to inherit the system defaults from Runtimes.
+          Override the default Specialist Execution environment for this role. Leave fields blank to inherit the system defaults from Runtimes.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2">
@@ -205,7 +205,7 @@ export function RoleExecutionContainerSection(props: {
               }))
             }
             placeholder="agirunner-runtime-execution:local"
-            helperText="Blank means this role uses the default specialist execution image."
+            helperText="Blank means this role uses the default Specialist Execution image."
             error={props.validation.fieldErrors.executionContainerImage}
             listId="role-execution-image-suggestions"
           />

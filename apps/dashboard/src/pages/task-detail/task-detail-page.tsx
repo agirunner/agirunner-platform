@@ -19,6 +19,12 @@ import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import {
+  describeAgentSurface,
+  describeExecutionBackendSurface,
+  describeExecutionSurface,
+  describeExecutionUsageSurface,
+} from '../../lib/operator-surfaces.js';
+import {
   Tabs,
   TabsList,
   TabsTrigger,
@@ -123,17 +129,11 @@ function describeTaskKind(task: Task): string {
 }
 
 function describeExecutionBackend(task: Task): string {
-  if (task.execution_backend === 'runtime_only') {
-    return 'Runtime-only';
-  }
-  return 'Runtime + task sandbox';
+  return describeExecutionBackendSurface(task.execution_backend, task);
 }
 
 function describeTaskSandboxUsage(task: Task): string {
-  if (task.execution_backend === 'runtime_only') {
-    return 'No task sandbox';
-  }
-  return task.used_task_sandbox ? 'Used task sandbox' : 'No task sandbox used';
+  return describeExecutionUsageSurface(task.execution_backend, task.used_task_sandbox, task);
 }
 
 function formatTimestamp(value?: string): string {
@@ -793,7 +793,7 @@ export function TaskDetailPage(): JSX.Element {
         />
         <InfoCard
           icon={Cpu}
-          label="Worker"
+          label={describeAgentSurface(task)}
           value={task.assigned_worker ?? task.worker_id ?? 'Unassigned'}
         />
         <InfoCard
@@ -827,7 +827,7 @@ export function TaskDetailPage(): JSX.Element {
         />
         <InfoCard
           icon={Cpu}
-          label="Used task sandbox"
+          label={describeExecutionSurface(task)}
           value={describeTaskSandboxUsage(task)}
         />
         <InfoCard icon={User} label="Role" value={task.role ?? '-'} />

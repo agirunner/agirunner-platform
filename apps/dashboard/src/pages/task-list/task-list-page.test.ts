@@ -34,9 +34,9 @@ describe('task list page source', () => {
     expect(source).toContain('escalated');
     expect(source).toContain('execution_backend');
     expect(source).toContain('used_task_sandbox');
-    expect(source).toContain('Runtime-only');
-    expect(source).toContain('Runtime + task sandbox');
-    expect(source).toContain('Used sandbox');
+    expect(source).toContain('describeExecutionBackendSurface');
+    expect(source).toContain('describeExecutionUsageSurface');
+    expect(source).toContain('describeExecutionSurfaceLabel');
     expect(source).toContain('describeTaskNextAction');
     expect(source).toContain('describeTaskScope');
     expect(source).toContain('buildTaskSearchText');

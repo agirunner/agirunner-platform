@@ -178,7 +178,7 @@ function formatLimit(value: string | null | undefined): string {
 }
 
 function isSyntheticContainerContextLabel(value: string | null | undefined): boolean {
-  return value?.trim().toLowerCase() === 'specialist runtimes';
+  return value?.trim().toLowerCase() === 'specialist agents';
 }
 
 function resolveRowClassName(row: SessionContainerRow): string {

@@ -109,7 +109,7 @@ export function ContainersPage(): JSX.Element {
         <div className="space-y-1">
           <h2 className="text-base font-semibold text-foreground">Specialists</h2>
           <p className="text-sm text-muted-foreground">
-            Specialist runtimes and non-orchestrator execution containers.
+            Specialist Agents and non-orchestrator Specialist Executions.
           </p>
         </div>
         <ContainersTable

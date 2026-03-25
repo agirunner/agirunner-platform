@@ -59,8 +59,8 @@ describe('role definitions page source', () => {
     const source = readCombinedSource();
     expect(source).toContain('listAvailableTools');
     expect(source).toContain('dashboardApi.listToolTags()');
-    expect(source).toContain('Agentic runtime tools');
-    expect(source).toContain('Task execution tools');
+    expect(source).toContain('Specialist Agent tools');
+    expect(source).toContain('Specialist Execution tools');
     expect(source).toContain('Orchestrator-only tools are managed on the orchestrator surface');
     expect(source).toContain('ToggleCard');
     expect(source).not.toContain('KNOWN_TOOLS =');
@@ -79,7 +79,7 @@ describe('role definitions page source', () => {
   it('reuses the shared image reference field across roles and orchestrator posture editing', () => {
     const source = readCombinedSource();
     expect(source).toContain('ImageReferenceField');
-    expect(source).toContain('Task execution container override');
+    expect(source).toContain('Specialist Execution container override');
     expect(source).toContain('placeholder="2"');
     expect(source).toContain('placeholder="256m"');
     expect(source).toContain('placeholder="512m"');

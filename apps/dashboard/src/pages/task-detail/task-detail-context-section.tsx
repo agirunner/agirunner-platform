@@ -1,6 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { StructuredRecordView } from '../../components/structured-data/structured-data.js';
 import {
+  describeExecutionBackendSurface,
+  describeExecutionSurface,
+  describeExecutionUsageSurface,
+} from '../../lib/operator-surfaces.js';
+import {
   readClarificationAnswers,
   readClarificationHistory,
   readExecutionSummary,
@@ -86,19 +91,15 @@ export function TaskDetailContextSection({
               { label: 'Activation', value: summarizeId(task.activation_id) },
               {
                 label: 'Execution backend',
-                value:
-                  task.execution_backend === 'runtime_only'
-                    ? 'Runtime-only'
-                    : 'Runtime + task sandbox',
+                value: describeExecutionBackendSurface(task.execution_backend, task),
               },
               {
-                label: 'Task sandbox',
-                value:
-                  task.execution_backend === 'runtime_only'
-                    ? 'No task sandbox'
-                    : task.used_task_sandbox
-                      ? 'Used task sandbox'
-                      : 'No task sandbox used',
+                label: describeExecutionSurface(task),
+                value: describeExecutionUsageSurface(
+                  task.execution_backend,
+                  task.used_task_sandbox,
+                  task,
+                ),
               },
             ]}
           />
@@ -174,10 +175,10 @@ export function TaskDetailContextSection({
               emptyMessage="No execution metrics."
             />
             <ProgressiveDataBlock
-              title="Runtime context"
-              disclosureTitle="View runtime context"
+              title="Agent context"
+              disclosureTitle="View agent context"
               data={runtimeContext}
-              emptyMessage="No runtime context."
+              emptyMessage="No agent context."
             />
           </div>
         </TaskPacketCard>

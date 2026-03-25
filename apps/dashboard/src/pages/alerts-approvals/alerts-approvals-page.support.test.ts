@@ -51,7 +51,7 @@ describe('alerts approvals support', () => {
         { label: 'Stage', value: 'qa' },
         { label: 'Work item', value: 'workitem' },
         { label: 'Upstream steps', value: '2' },
-        { label: 'Assigned worker', value: 'worker-7' },
+        { label: 'Assigned agent', value: 'worker-7' },
       ],
       links: [
         {

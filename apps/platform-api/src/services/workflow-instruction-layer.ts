@@ -407,7 +407,7 @@ function outputProtocol(repoBacked: boolean, orchestrator: boolean) {
   if (repoBacked) {
     return orchestrator
       ? 'Repository-backed workflow. Use runtime-visible continuity, task outputs, and artifacts to decide what specialist work to dispatch next. When repository inspection is required, route that work through a specialist task instead of inspecting the repository from the orchestrator activation. Once required work is dispatched or active subordinate work is already in flight, finish the activation and wait for the next event instead of polling.'
-      : 'Repository-backed workflow. Read predecessor context first, use task sandbox tools for repository, filesystem, shell, web fetch, and artifact upload work, and commit and push required changes before completion or escalation.';
+      : 'Repository-backed workflow. Read predecessor context first, use Specialist Execution tools for repository, filesystem, shell, web fetch, and artifact upload work, and commit and push required changes before completion or escalation.';
   }
   return orchestrator
     ? 'Non-repository workflow. Evaluate artifacts and task outputs directly, and require clear uploaded evidence before accepting completion. Once required work is dispatched or active subordinate work is already in flight, finish the activation and wait for the next event instead of polling.'

@@ -18,8 +18,8 @@ describe('tools page source', () => {
     const source = readSource();
     expect(source).toContain('dashboardApi.listToolTags()');
     expect(source).toContain('describeToolCategory');
-    expect(source).toContain('Agentic runtime owned');
-    expect(source).toContain('Task execution owned');
+    expect(source).toContain('Agent owned');
+    expect(source).toContain('Execution owned');
     expect(source).not.toContain('dashboardApi.createToolTag');
     expect(source).not.toContain('dashboardApi.updateToolTag');
     expect(source).not.toContain('dashboardApi.deleteToolTag');

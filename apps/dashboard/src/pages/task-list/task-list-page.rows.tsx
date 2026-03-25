@@ -12,6 +12,7 @@ import {
 } from '../../components/ui/table.js';
 import {
   describeExecutionBackend,
+  describeExecutionSurfaceLabel,
   describeSandboxUsage,
   describeTaskKind,
   describeTaskNextAction,
@@ -60,7 +61,7 @@ export function TaskMobileCard(props: { task: TaskListRecord }): JSX.Element {
         />
         <TaskMetaRow label="Scope" value={describeTaskScope(props.task)} />
         <TaskMetaRow label="Execution backend" value={describeExecutionBackend(props.task)} />
-        <TaskMetaRow label="Task sandbox" value={describeSandboxUsage(props.task)} />
+        <TaskMetaRow label={describeExecutionSurfaceLabel(props.task)} value={describeSandboxUsage(props.task)} />
         <TaskMetaRow
           label="Owner"
           value={props.task.agent_name ?? props.task.agent_id ?? props.task.assigned_worker ?? 'Unassigned'}

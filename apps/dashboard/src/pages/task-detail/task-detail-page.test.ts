@@ -13,9 +13,9 @@ describe('task detail page source', () => {
     expect(source).toContain('Orchestrator activation');
     expect(source).toContain('execution_backend');
     expect(source).toContain('used_task_sandbox');
-    expect(source).toContain('Runtime-only');
-    expect(source).toContain('Runtime + task sandbox');
-    expect(source).toContain('Used task sandbox');
+    expect(source).toContain('describeExecutionBackendSurface');
+    expect(source).toContain('describeExecutionUsageSurface');
+    expect(source).toContain('describeExecutionSurface(task)');
     expect(source).toContain('work_item_id');
     expect(source).toContain('activation_id');
     expect(source).toContain('Stage');

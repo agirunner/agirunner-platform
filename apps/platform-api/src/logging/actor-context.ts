@@ -18,9 +18,9 @@ export function actorFromAuth(auth: ApiKeyIdentity | undefined): ActorContext {
         ? { type: 'user', id: auth.userId, name: 'Admin' }
         : { type: 'api_key', id: auth.id, name: auth.scope === 'service' ? 'Service API' : 'Admin API' };
     case 'worker':
-      return { type: 'worker', id: auth.ownerId ?? auth.id, name: 'Worker' };
+      return { type: 'worker', id: auth.ownerId ?? auth.id, name: 'Agent' };
     case 'agent':
-      return { type: 'agent', id: auth.ownerId ?? auth.id, name: 'Agent' };
+      return { type: 'agent', id: auth.ownerId ?? auth.id, name: 'Execution' };
     default:
       return SYSTEM_ACTOR;
   }

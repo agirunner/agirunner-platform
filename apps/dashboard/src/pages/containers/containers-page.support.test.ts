@@ -278,7 +278,7 @@ describe('mergeLiveContainerSessionRows', () => {
           name: 'runtime-specialist-1',
           role_name: null,
           playbook_id: null,
-          playbook_name: 'Specialist runtimes',
+          playbook_name: 'Specialist Agents',
           workflow_id: null,
           workflow_name: null,
           task_id: null,
@@ -294,7 +294,7 @@ describe('mergeLiveContainerSessionRows', () => {
     expect(idleRuntime[0]).toMatchObject({
       presence: 'running',
       role_name: null,
-      playbook_name: 'Specialist runtimes',
+      playbook_name: 'Specialist Agents',
       workflow_name: null,
       task_title: null,
       stage_name: null,

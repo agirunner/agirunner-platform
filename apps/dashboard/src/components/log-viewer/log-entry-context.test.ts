@@ -94,11 +94,11 @@ describe('log entry context', () => {
     expect(detailSource).toContain('entry.error && !isEscalation');
     expect(detailSource).toContain('entry.error && isEscalation');
     expect(taskDetailSource).toContain('Execution Step Lifecycle');
-    expect(taskDetailSource).toContain('Specialist-step state changes, routing, and runtime handles');
+    expect(taskDetailSource).toContain('Specialist-step state changes, routing, and agent handles');
     expect(taskDetailSource).toContain("label: 'Workflow'");
     expect(taskDetailSource).toContain("label: 'Step Title'");
     expect(taskDetailSource).toContain("label: 'Work item'");
-    expect(taskDetailSource).toContain("label: 'Runtime handle'");
+    expect(taskDetailSource).toContain("label: 'Agent handle'");
     expect(groupedTableSource).toContain('non-step');
   });
 });

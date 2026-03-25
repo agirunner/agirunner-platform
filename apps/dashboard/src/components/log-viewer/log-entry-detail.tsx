@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Copy, Filter } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { describeGenericExecutionBackendSurface, describeGenericToolOwnerSurface } from '../../lib/operator-surfaces.js';
 import { cn } from '../../lib/utils.js';
 import type { LogEntry } from '../../lib/api.js';
 import { buildWorkflowDetailPermalink } from '../../pages/workflow-detail/workflow-detail-permalinks.js';
@@ -64,11 +65,25 @@ function resolveActorLabel(entry: LogEntry): string {
       return entry.actor_name.split(' ')[0];
     }
     if (entry.actor_name.startsWith(RUNTIME_PREFIX)) {
-      return entry.actor_type ? formatActorType(entry.actor_type) : 'Runtime Worker';
+      return describeActorSurface(entry);
     }
     if (!UUID_RE.test(entry.actor_name)) {
       return entry.actor_name;
     }
+  }
+  return describeActorSurface(entry);
+}
+
+function describeActorSurface(entry: LogEntry): string {
+  if (entry.actor_type === 'worker') {
+    return entry.role?.trim()?.toLowerCase() === 'orchestrator'
+      ? 'Orchestrator agent'
+      : 'Specialist Agent';
+  }
+  if (entry.actor_type === 'agent') {
+    return entry.role?.trim()?.toLowerCase() === 'orchestrator'
+      ? 'Orchestrator execution'
+      : 'Specialist Execution';
   }
   return entry.actor_type ? formatActorType(entry.actor_type) : 'Unknown';
 }
@@ -196,17 +211,13 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
         {entry.execution_backend ? (
           <DetailRow label="Execution backend">
             <span className="font-medium">
-              {entry.execution_backend === 'runtime_only'
-                ? 'Runtime-only'
-                : 'Runtime + task sandbox'}
+              {describeGenericExecutionBackendSurface(entry.execution_backend)}
             </span>
           </DetailRow>
         ) : null}
         {entry.tool_owner ? (
           <DetailRow label="Tool owner">
-            <span className="font-medium">
-              {entry.tool_owner === 'runtime' ? 'Runtime' : 'Task sandbox'}
-            </span>
+            <span className="font-medium">{describeGenericToolOwnerSurface(entry.tool_owner)}</span>
           </DetailRow>
         ) : null}
         {role && (
@@ -215,7 +226,7 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
           </DetailRow>
         )}
         <DetailRow label="Actor">
-          <span className="text-muted-foreground">{formatActorType(entry.actor_type)}</span>
+          <span className="text-muted-foreground">{describeActorSurface(entry)}</span>
           {' · '}
           {resolveActorLabel(entry)}
         </DetailRow>

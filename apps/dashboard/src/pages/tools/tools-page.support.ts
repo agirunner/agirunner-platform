@@ -167,14 +167,14 @@ export function summarizeTools(tools: ToolTag[]): ToolSummaryCard[] {
   return [
     { label: 'Total', value: `${tools.length}`, detail: `${byCategory.size} categories` },
     {
-      label: 'Agentic runtime owned',
+      label: 'Agent owned',
       value: `${runtimeCount}`,
-      detail: 'Run directly in the runtime loop',
+      detail: 'Run directly in the agent loop',
     },
     {
-      label: 'Task execution owned',
+      label: 'Execution owned',
       value: `${taskCount}`,
-      detail: 'Require a specialist task sandbox',
+      detail: 'Require an execution environment',
     },
   ];
 }

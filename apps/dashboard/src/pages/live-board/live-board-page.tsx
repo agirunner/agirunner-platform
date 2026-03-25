@@ -42,6 +42,7 @@ import { buildTimelineEntryActions } from '../workflow-detail/workflow-history-c
 import { WorkflowControlActions } from '../workflow-detail/workflow-control-actions.js';
 import type { DashboardWorkflowTaskRow } from '../workflow-detail/workflow-detail-support.js';
 import { formatCountLabel, formatUsdDisplay } from '../workflow-detail/workflow-ux-formatting.js';
+import { describeAgentSurface } from '../../lib/operator-surfaces.js';
 import { buildAttentionTaskActions } from './live-board-attention-actions.js';
 import {
   countActiveSpecialistSteps,
@@ -959,21 +960,21 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
       color: 'text-emerald-600',
     },
     {
-      label: 'Worker capacity',
+      label: 'Specialist Agent capacity',
       value: `${props.fleetSummary.online} online`,
       detail: `${props.fleetSummary.busy} busy • ${props.fleetSummary.available} available • ${props.fleetSummary.assignedSteps} assigned`,
       icon: Server,
       color: 'text-indigo-600',
     },
     {
-      label: 'Runtime capacity',
+      label: 'Specialist Agent modes',
       value: `${props.executionBackendCapacity.runtimeOnlyRuntimes + props.executionBackendCapacity.runtimePlusTaskRuntimes} runtimes`,
-      detail: `${props.executionBackendCapacity.runtimeOnlyRuntimes} runtime-only • ${props.executionBackendCapacity.runtimePlusTaskRuntimes} runtime + task`,
+      detail: `${props.executionBackendCapacity.runtimeOnlyRuntimes} Specialist Agent only • ${props.executionBackendCapacity.runtimePlusTaskRuntimes} Specialist Agent + Specialist Execution`,
       icon: Cpu,
       color: 'text-violet-600',
     },
     {
-      label: 'Task sandbox activity',
+      label: 'Specialist Execution activity',
       value:
         props.executionBackendCapacity.taskSandboxes > 0
           ? `${props.executionBackendCapacity.taskSandboxes} active`
@@ -1315,7 +1316,9 @@ function SpecialistQueueCard(props: { task: TaskRecord }): JSX.Element {
           {task.work_item_id ? <Badge variant="outline">Board work linked</Badge> : null}
           {task.role ? <Badge variant="outline">Role: {task.role}</Badge> : null}
           {task.assigned_worker ? (
-            <Badge variant="outline">Worker: {task.assigned_worker}</Badge>
+            <Badge variant="outline">
+              {describeAgentSurface({ isOrchestratorTask: task.is_orchestrator_task })}: {task.assigned_worker}
+            </Badge>
           ) : null}
         </div>
       </div>

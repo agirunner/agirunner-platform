@@ -1,4 +1,5 @@
 import type { LogEntry } from '../../lib/api.js';
+import { describeGenericExecutionBackendSurface, describeGenericToolOwnerSurface } from '../../lib/operator-surfaces.js';
 import { describeExecutionOperationLabel } from '../execution-inspector/execution-inspector-support.js';
 import { getCanonicalStageName } from './log-entry-context.js';
 import { describeActorKindLabel } from './log-actor-presentation.js';
@@ -8,7 +9,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   tool: 'Tool',
   agent_loop: 'Agent loop',
   task_lifecycle: 'Task lifecycle',
-  runtime_lifecycle: 'Runtime',
+  runtime_lifecycle: 'Agent',
   container: 'Container',
   api: 'API',
   config: 'Config',
@@ -164,23 +165,15 @@ function readRole(entry: LogEntry): string | null {
 }
 
 function describeExecutionBackend(entry: LogEntry): string | null {
-  if (entry.execution_backend === 'runtime_only') {
-    return 'Runtime-only';
+  if (!entry.execution_backend) {
+    return null;
   }
-  if (entry.execution_backend === 'runtime_plus_task') {
-    return 'Runtime + task sandbox';
-  }
-  return null;
+  return describeGenericExecutionBackendSurface(entry.execution_backend);
 }
 
 function describeToolOwner(entry: LogEntry): string | null {
-  if (entry.tool_owner === 'runtime') {
-    return 'Runtime tool';
-  }
-  if (entry.tool_owner === 'task') {
-    return 'Task sandbox tool';
-  }
-  return null;
+  const owner = describeGenericToolOwnerSurface(entry.tool_owner);
+  return owner ? `${owner} tool` : null;
 }
 
 function readToolLabel(payload: Record<string, unknown> | null | undefined): string | null {

@@ -16,9 +16,9 @@ export function describeActorKindLabel(actorKind: string): string {
     case 'orchestrator_agent':
       return 'Orchestrator agent';
     case 'specialist_agent':
-      return 'Specialist agent';
+      return 'Specialist Agent';
     case 'specialist_task_execution':
-      return 'Specialist task execution';
+      return 'Specialist Execution';
     case 'operator':
       return 'Operator';
     case 'platform_system':

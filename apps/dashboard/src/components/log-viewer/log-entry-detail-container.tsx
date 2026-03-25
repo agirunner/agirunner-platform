@@ -16,7 +16,7 @@ const FIELDS: readonly FieldDef[] = [
   { label: 'Image', key: 'image' },
   { label: 'Playbook', key: 'playbook_name' },
   { label: 'Playbook ID', key: 'playbook_id', format: shortId },
-  { label: 'Runtime ID', key: 'runtime_id', format: shortId },
+  { label: 'Agent ID', key: 'runtime_id', format: shortId },
   { label: 'Container ID', key: 'container_id', format: shortId },
   { label: 'CPU', key: 'cpu' },
   { label: 'Memory', key: 'memory' },
@@ -36,7 +36,7 @@ export function LogEntryDetailContainer({
 
   return (
     <div className="rounded-md border border-border p-4">
-      <h4 className="mb-3 text-sm font-semibold">Container / Runtime</h4>
+      <h4 className="mb-3 text-sm font-semibold">Container / Agent</h4>
       <div className="grid max-w-lg grid-cols-[auto_1fr] gap-x-6 gap-y-0 text-sm">
         {visible.map(({ label, key, format }) => (
           <Fragment key={key}>

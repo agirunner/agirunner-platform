@@ -37,8 +37,8 @@ describe('containers page source', () => {
     expect(pageSource).not.toContain('All statuses');
     expect(pageSource).toContain('Orchestrator agent');
     expect(pageSource).toContain('Specialists');
-    expect(tableSource).toContain('Specialist agent');
-    expect(tableSource).toContain('Specialist task execution');
+    expect(tableSource).toContain('Specialist Agent');
+    expect(tableSource).toContain('Specialist Execution');
     expect(pageSource).not.toContain('Orchestrator worker');
     expect(pageSource).not.toContain('Running now');
     expect(pageSource).not.toContain('Recently inactive');
@@ -62,7 +62,7 @@ describe('containers page source', () => {
     expect(tableSource).not.toContain('row.execution_backend');
     expect(tableSource).toContain("row.presence === 'inactive' ? 'Inactive' : 'Active'");
     expect(tableSource).toContain('sanitizeContainerContextLabel');
-    expect(tableSource).toContain("value?.trim().toLowerCase() === 'specialist runtimes'");
+    expect(tableSource).toContain("value?.trim().toLowerCase() === 'specialist agents'");
     expect(tableSource).toContain("renderEntityLink(row.playbook_id, row.playbook_name, '/design/playbooks')");
     expect(tableSource).toContain("renderEntityLink(row.workflow_id, row.workflow_name, '/mission-control/workflows')");
     expect(tableSource).toContain("if (label?.trim() && !id) {");
@@ -72,8 +72,8 @@ describe('containers page source', () => {
     expect(tableSource).not.toContain('bg-accent/14');
     expect(supportSource).toContain('Orchestrator agent');
     expect(supportSource).not.toContain('Orchestrator worker');
-    expect(supportSource).toContain('Specialist agent');
-    expect(supportSource).toContain('Specialist task execution');
+    expect(supportSource).toContain('Specialist Agent');
+    expect(supportSource).toContain('Specialist Execution');
     expect(supportSource).toContain('visibleFieldsForNewRow');
     expect(supportSource).toContain('diffVisibleFields');
     expect(supportSource).toContain('rememberContainerContext');

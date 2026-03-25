@@ -120,7 +120,7 @@ describe('FleetService DCM', () => {
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
         playbook_id: 'specialist',
-        playbook_name: 'Specialist runtimes',
+        playbook_name: 'Specialist Agents',
         pool_kind: 'specialist',
         pool_mode: 'cold',
         max_runtimes: 12,
@@ -547,8 +547,8 @@ describe('FleetService DCM', () => {
       });
       pool.query.mockResolvedValueOnce({
         rows: [
-          { runtime_id: '00000000-0000-0000-0000-000000000020', tenant_id: TENANT_ID, playbook_id: null, playbook_name: 'Specialist runtimes', pool_kind: 'specialist', state: 'executing', task_id: null },
-          { runtime_id: '00000000-0000-0000-0000-000000000021', tenant_id: TENANT_ID, playbook_id: null, playbook_name: 'Specialist runtimes', pool_kind: 'specialist', state: 'idle', task_id: null },
+          { runtime_id: '00000000-0000-0000-0000-000000000020', tenant_id: TENANT_ID, playbook_id: null, playbook_name: 'Specialist Agents', pool_kind: 'specialist', state: 'executing', task_id: null },
+          { runtime_id: '00000000-0000-0000-0000-000000000021', tenant_id: TENANT_ID, playbook_id: null, playbook_name: 'Specialist Agents', pool_kind: 'specialist', state: 'idle', task_id: null },
           { runtime_id: '00000000-0000-0000-0000-000000000022', tenant_id: TENANT_ID, playbook_id: PLAYBOOK_ID, playbook_name: 'SDLC', pool_kind: 'orchestrator', state: 'executing', task_id: 'task-1' },
         ],
         rowCount: 3,
@@ -611,7 +611,7 @@ describe('FleetService DCM', () => {
         expect.arrayContaining([
           expect.objectContaining({
             playbook_id: 'specialist',
-            playbook_name: 'Specialist runtimes',
+            playbook_name: 'Specialist Agents',
             running: 2,
             max_runtimes: 6,
             pending_tasks: 2,
@@ -679,7 +679,7 @@ describe('FleetService DCM', () => {
       const heartbeatQuery = pool.query.mock.calls[1]?.[0] as string;
       const heartbeatParams = pool.query.mock.calls[1]?.[1] as unknown[];
       expect(heartbeatQuery).toContain("rh.last_heartbeat_at >= now() - make_interval(secs => $3)");
-      expect(heartbeatParams).toEqual([TENANT_ID, 'Specialist runtimes', 90]);
+      expect(heartbeatParams).toEqual([TENANT_ID, 'Specialist Agents', 90]);
     });
   });
 

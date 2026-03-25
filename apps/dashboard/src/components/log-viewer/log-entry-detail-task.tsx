@@ -38,7 +38,7 @@ const FIELDS: readonly FieldDef[] = [
   },
   { label: 'Method', key: 'method' },
   { label: 'Workflow handle', key: 'workflow_id', format: shortId },
-  { label: 'Runtime handle', key: 'runtime_id', format: shortId },
+  { label: 'Agent handle', key: 'runtime_id', format: shortId },
   { label: 'Container handle', key: 'container_id', format: shortId },
 ];
 
@@ -49,7 +49,7 @@ export function LogEntryDetailTask({ payload }: { payload: Record<string, unknow
     <div className="rounded-md border border-border p-4">
       <h4 className="mb-1 text-sm font-semibold">Execution Step Lifecycle</h4>
       <p className="mb-3 text-xs text-muted-foreground">
-        Specialist-step state changes, routing, and runtime handles captured for this activity.
+        Specialist-step state changes, routing, and agent handles captured for this activity.
       </p>
       <div className="grid max-w-lg grid-cols-[auto_1fr] gap-x-6 gap-y-0 text-sm">
         {visible.map(({ label, key, format }) => (

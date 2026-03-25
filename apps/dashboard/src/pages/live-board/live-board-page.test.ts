@@ -71,8 +71,8 @@ describe('live board page source', () => {
     expect(source).toContain('Delivery progress');
     expect(source).toContain('Attention posture');
     expect(source).toContain('Spend & token coverage');
-    expect(source).toContain('Runtime capacity');
-    expect(source).toContain('Task sandbox activity');
+    expect(source).toContain('Specialist Agent modes');
+    expect(source).toContain('Specialist Execution activity');
     expect(source).toContain('Latest operator activity');
     expect(source).toContain('board runs reporting spend');
     expect(source).not.toContain('Containers Running');

@@ -165,8 +165,8 @@ function CreateApiKeyDialog(props: {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="agent">Agent</SelectItem>
-                    <SelectItem value="worker">Worker</SelectItem>
+                    <SelectItem value="agent">Execution</SelectItem>
+                    <SelectItem value="worker">Agent</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>

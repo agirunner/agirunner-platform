@@ -13,14 +13,14 @@ const SCOPE_LABEL: Record<string, string> = {
   admin: 'Admin',
   service: 'Service',
   worker: 'Agent',
-  agent: 'Task',
+  agent: 'Execution',
 };
 
 const SCOPE_NAME: Record<string, string> = {
   admin: 'Admin',
   service: 'Service',
-  worker: 'Agentic Runtime',
-  agent: 'Task Execution',
+  worker: 'Agent',
+  agent: 'Execution',
 };
 
 export function isOperatorKey(record: DashboardApiKeyRecord): boolean {

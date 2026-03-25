@@ -37,8 +37,8 @@ describe('governance api key page source', () => {
     const source = readSource();
     expect(source).toContain('Admin / Service Keys');
     expect(source).toContain('System Keys');
-    expect(source).toContain('Agentic Runtime');
-    expect(source).toContain('Task Execution');
+    expect(source).toContain('Execution');
+    expect(source).toContain("worker: 'Agent'");
     expect(source).toContain('created and deleted automatically with runtime lifecycle');
     expect(source).not.toContain('<th className="h-10 px-4 text-left font-medium text-muted">Owner</th>');
     expect(source).toContain('<colgroup>');
@@ -55,5 +55,7 @@ describe('governance api key page source', () => {
     expect(source).not.toContain('<SelectItem value="agent">Agent</SelectItem>');
     expect(source).not.toContain('<SelectItem value="worker">Worker</SelectItem>');
     expect(source).toContain('Admin / Service scope');
+    expect(source).toContain("worker: 'Agent'");
+    expect(source).toContain("agent: 'Execution'");
   });
 });

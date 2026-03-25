@@ -1055,7 +1055,7 @@ function FailedCard({ task, onRetry, onRetryDifferentWorker, onSkip, onCancel, i
         <div className="mb-3 flex items-center gap-4 text-xs text-muted">
           {task.retry_count != null && <span>Re-run count: {task.retry_count}</span>}
           {(task.assigned_worker_id ?? task.assigned_worker) && (
-            <span>Assigned worker: {(task.assigned_worker_id ?? task.assigned_worker)!.slice(0, 8)}</span>
+            <span>Assigned agent: {(task.assigned_worker_id ?? task.assigned_worker)!.slice(0, 8)}</span>
           )}
           <span className="font-mono">Step {task.id.slice(0, 8)}</span>
         </div>
