@@ -79,10 +79,9 @@ export function OrchestratorPoolDialog(props: {
         </DialogHeader>
         <Card className="border-border/70 shadow-none">
           <CardHeader>
-            <CardTitle className="text-base">Worker desired state</CardTitle>
+            <CardTitle className="text-base">Agent runtime configuration</CardTitle>
             <CardDescription>
-              Configure the main orchestrator worker entry, desired replicas, runtime image, and
-              CPU/memory limits without leaving the orchestrator page.
+              Configure the orchestrator agentic runtime.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
@@ -125,12 +124,6 @@ export function OrchestratorPoolDialog(props: {
                 placeholder="orchestrator-primary"
                 disabled={Boolean(draft.workerId)}
               />
-              {draft.workerId ? (
-                <p className="text-xs text-muted">
-                  Existing worker names stay fixed. Create a new orchestrator entry here if you
-                  need a different name.
-                </p>
-              ) : null}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Desired replicas</label>

@@ -95,6 +95,7 @@ export function OrchestratorControlPlane(props: {
               status={props.promptSummary.statusLabel}
               value={props.promptSummary.versionLabel}
               detail={props.promptSummary.excerpt}
+              detailClassName="line-clamp-3"
               primaryLabel="Edit prompt"
               isLoading={props.isLoading}
               onEdit={() => setIsPromptOpen(true)}

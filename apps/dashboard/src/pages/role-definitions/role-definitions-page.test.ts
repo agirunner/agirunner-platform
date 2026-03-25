@@ -118,20 +118,27 @@ describe('role definitions page source', () => {
 
   it('adds a first-class orchestrator control plane with direct prompt, model, and pool editing', () => {
     const source = readCombinedSource();
+    const dialogsSource = readFileSync(resolve(import.meta.dirname, './role-definitions-orchestrator.dialogs.tsx'), 'utf8');
     expect(source).toContain('OrchestratorControlPlane');
     expect(source).toContain('Edit prompt');
     expect(source).toContain('Edit orchestrator prompt');
     expect(source).toContain('Save orchestrator prompt');
-    expect(source).toContain('max-w-4xl');
-    expect(source).toContain('min-h-[420px]');
+    expect(source).toContain('max-h-[92vh] max-w-[84rem] overflow-y-auto');
+    expect(source).toContain('min-h-[640px] sm:min-h-[720px]');
     expect(source).toContain('Save model routing');
     expect(source).toContain('Save pool posture');
     expect(source).toContain('primaryLabel="Edit model"');
     expect(source).toContain('primaryLabel="Edit pool"');
+    expect(source).toContain('detailClassName="line-clamp-3"');
+    expect(source).toContain('Agent runtime configuration');
+    expect(source).toContain('Configure the orchestrator agentic runtime');
     expect(source).not.toContain('Edit model here');
     expect(source).not.toContain('Edit pool here');
     expect(source).toContain('Runtime image');
     expect(source).toContain('CPU / memory');
+    expect(source).not.toContain('Worker desired state');
+    expect(source).not.toContain('Configure the main orchestrator worker entry');
+    expect(source).not.toContain('Existing worker names stay fixed. Create a new orchestrator entry here if you need a different name.');
     expect(source).not.toContain("label: 'Model pin'");
     expect(source).not.toContain('Worker model pin');
     expect(source).not.toContain('Keep the orchestrator worker defined but temporarily inactive when needed.');
@@ -146,6 +153,12 @@ describe('role definitions page source', () => {
     expect(source).toContain('dashboardApi.getOrchestratorConfig()');
     expect(source).toContain('dashboardApi.updateOrchestratorConfig');
     expect(source).toContain("updateAssignment('orchestrator'");
+    expect(dialogsSource).toContain('Orchestrator prompt is critical to the correct operation of the system. Only change');
+    expect(dialogsSource).toContain('this if you know what you are doing.');
+    expect(dialogsSource).toContain('<Textarea');
+    expect(dialogsSource).not.toContain('<CardTitle className="text-base">Orchestrator prompt</CardTitle>');
+    expect(dialogsSource).not.toContain('<CardContent className="space-y-3">');
+    expect(dialogsSource).not.toContain('Org-wide platform instructions are applied separately.');
   });
 
   it('pins orchestrator control actions to a consistent card footer', () => {

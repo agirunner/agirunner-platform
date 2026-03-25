@@ -26,6 +26,26 @@ describe('role definitions orchestrator support', () => {
     });
   });
 
+  it('keeps a longer orchestrator prompt excerpt so the card can use its three-line preview', () => {
+    const prompt =
+      'You are the Orchestrator. Coordinate specialists to move workflows to their defined outcome. '
+      + 'Activation Model: Each activation is stateless. Keep durable context in the workflow memory. '
+      + 'Verification: Read artifacts, compare outputs, and request rework when results do not meet the playbook quality bar. '
+      + 'Recovery: Escalate when the workflow is blocked or specialist output is ambiguous. '
+      + 'Stage Gates: Never advance a stage until the stage objective is satisfied and the required review outcomes are recorded. '
+      + 'Attention Management: Distinguish blocked work from deferred work and surface unclear outcomes for human review.';
+
+    const summary = summarizeOrchestratorPrompt({
+      prompt,
+      updatedAt: '2026-03-12T00:00:00.000Z',
+    });
+
+    expect(summary.statusLabel).toBe('Prompt configured');
+    expect(summary.versionLabel).toBe(`${prompt.length} chars`);
+    expect(summary.excerpt).toContain('Verification: Read artifacts, compare outputs, and request rework');
+    expect(summary.excerpt.endsWith('...')).toBe(true);
+  });
+
   it('derives orchestrator model posture from override then fallback', () => {
     const assignments: RoleAssignmentRecord[] = [
       {

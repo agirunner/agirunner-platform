@@ -70,6 +70,7 @@ const EMPTY_MODEL_SUMMARY: OrchestratorModelSummary = {
   reasoningLabel: 'No explicit reasoning profile',
   sourceLabel: 'System default',
 };
+const ORCHESTRATOR_PROMPT_EXCERPT_MAX_LENGTH = 420;
 
 export function summarizeOrchestratorPrompt(
   config: { prompt: string; updatedAt: string } | undefined,
@@ -87,8 +88,8 @@ export function summarizeOrchestratorPrompt(
     statusLabel: 'Prompt configured',
     versionLabel: `${content.length} chars`,
     excerpt:
-      content.length > 160
-        ? `${content.slice(0, 157).trimEnd()}...`
+      content.length > ORCHESTRATOR_PROMPT_EXCERPT_MAX_LENGTH
+        ? `${content.slice(0, ORCHESTRATOR_PROMPT_EXCERPT_MAX_LENGTH - 3).trimEnd()}...`
         : content,
   };
 }

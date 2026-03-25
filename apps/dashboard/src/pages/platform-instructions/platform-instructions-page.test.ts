@@ -19,6 +19,12 @@ describe('platform instructions page source', () => {
     expect(source).toContain('dashboardApi.updatePlatformInstructions');
   });
 
+  it('describes the editor as role-wide system-prompt prepended instructions', () => {
+    const source = readSource();
+    expect(source).toContain("These instructions are prepended to every agent&apos;s system prompt across all roles.");
+    expect(source).not.toContain("These instructions are prepended to every agent&apos;s system prompt across all workflows and workspaces.");
+  });
+
   it('guards against unsaved changes', () => {
     const source = readSource();
     expect(source).toContain('useUnsavedChanges');

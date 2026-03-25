@@ -48,32 +48,26 @@ export function OrchestratorPromptDialog(props: {
 
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
-      <DialogContent className="max-h-[88vh] max-w-4xl overflow-y-auto">
+      <DialogContent className="max-h-[92vh] max-w-[84rem] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit orchestrator prompt</DialogTitle>
           <DialogDescription>
             This prompt is specific to the orchestrator agent. It shapes how the orchestrator
             manages workflows — delegation, verification, recovery, and stage-gate decisions.
+            {' '}
+            Orchestrator prompt is critical to the correct operation of the system. Only change
+            this if you know what you are doing.
           </DialogDescription>
         </DialogHeader>
-        <Card className="border-border/70 shadow-none">
-          <CardHeader>
-            <CardTitle className="text-base">Orchestrator prompt</CardTitle>
-            <CardDescription>
-              Org-wide platform instructions are applied separately. This prompt is layered on top
-              and applies only to the orchestrator.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Textarea
-              value={content}
-              onChange={(event) => setContent(event.target.value)}
-              className="min-h-[420px] sm:min-h-[480px]"
-              placeholder="Define how the orchestrator should manage workflows, delegate tasks, evaluate quality, and handle escalation."
-            />
-            <p className="text-right text-xs text-muted">{content.trim().length} characters</p>
-          </CardContent>
-        </Card>
+        <div className="space-y-3">
+          <Textarea
+            value={content}
+            onChange={(event) => setContent(event.target.value)}
+            className="min-h-[640px] sm:min-h-[720px]"
+            placeholder="Define how the orchestrator should manage workflows, delegate tasks, evaluate quality, and handle escalation."
+          />
+          <p className="text-right text-xs text-muted">{content.trim().length} characters</p>
+        </div>
         <DialogActions
           isSaving={props.isSaving}
           saveLabel="Save orchestrator prompt"
