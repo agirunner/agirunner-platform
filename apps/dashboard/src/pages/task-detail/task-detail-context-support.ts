@@ -109,8 +109,8 @@ export function buildExecutionPacket({
   return {
     summary:
       verificationCount > 0 || metricCount > 0 || runtimeContextCount > 0
-        ? `${formatCount(verificationCount, 'verification field')}, ${formatCount(metricCount, 'execution metric')}, and ${formatCount(runtimeContextCount, 'runtime context field')} are available for deeper review.`
-        : 'No verification fields, execution metrics, or runtime context are recorded for this step yet.',
+        ? `${formatCount(verificationCount, 'verification field')}, ${formatCount(metricCount, 'execution metric')}, and ${formatCount(runtimeContextCount, 'agent context field')} are available for deeper review.`
+        : 'No verification fields, execution metrics, or agent context are recorded for this step yet.',
     facts: [
       { label: 'Verification fields', value: String(verificationCount) },
       { label: 'Execution metrics', value: String(metricCount) },

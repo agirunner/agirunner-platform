@@ -49,7 +49,7 @@ export const ASSISTANT_STARTER_PROMPTS: AssistantStarterPrompt[] = [
   {
     label: 'Audit runtimes',
     prompt:
-      'Review runtime defaults and call out the highest-risk configuration gaps for orchestrators and specialists.',
+      'Review runtime settings and call out the highest-risk configuration gaps for orchestrators and specialists.',
   },
   {
     label: 'Provider posture',
@@ -221,7 +221,7 @@ export function resolveSuggestionDestination(path: string): SuggestionDestinatio
     normalized.startsWith('agent.') ||
     normalized.startsWith('global_')
   ) {
-    return { href: '/platform/runtimes', label: 'Open runtime defaults' };
+    return { href: '/platform/runtimes', label: 'Open runtimes' };
   }
   if (
     normalized.startsWith('llm.') ||

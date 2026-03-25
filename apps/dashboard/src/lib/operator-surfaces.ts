@@ -38,17 +38,17 @@ export function describeExecutionUsageSurface(
 
 export function describeGenericExecutionBackendSurface(backend: ExecutionBackend): string {
   if (backend === 'runtime_only') {
-    return 'Agent only';
+    return 'Specialist Agent only';
   }
-  return 'Agent + Execution';
+  return 'Specialist Agent + Specialist Execution';
 }
 
 export function describeGenericToolOwnerSurface(owner: ToolOwner): string | null {
   if (owner === 'runtime') {
-    return 'Agent';
+    return 'Specialist Agent';
   }
   if (owner === 'task') {
-    return 'Execution';
+    return 'Specialist Execution';
   }
   return null;
 }

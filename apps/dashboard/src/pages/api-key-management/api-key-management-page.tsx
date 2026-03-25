@@ -45,6 +45,16 @@ const SCOPE_VARIANT: Record<ApiKeyScope, 'success' | 'warning' | 'destructive'> 
   worker: 'warning',
   admin: 'destructive',
 };
+const SCOPE_LABELS: Record<ApiKeyScope, string> = {
+  agent: 'Specialist Execution',
+  worker: 'Specialist Agent',
+  admin: 'Admin',
+};
+const OWNER_LABELS: Record<ApiKeyOwnerType, string> = {
+  user: 'User',
+  agent: 'Specialist Execution',
+  worker: 'Specialist Agent',
+};
 
 function formatDate(value: string | null | undefined): string {
   if (!value) {
@@ -165,8 +175,8 @@ function CreateApiKeyDialog(props: {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="agent">Execution</SelectItem>
-                    <SelectItem value="worker">Agent</SelectItem>
+                    <SelectItem value="agent">Specialist Execution</SelectItem>
+                    <SelectItem value="worker">Specialist Agent</SelectItem>
                     <SelectItem value="admin">Admin</SelectItem>
                   </SelectContent>
                 </Select>
@@ -183,7 +193,7 @@ function CreateApiKeyDialog(props: {
                   <SelectContent>
                     {OWNER_OPTIONS.map((option) => (
                       <SelectItem key={option} value={option}>
-                        {option}
+                        {OWNER_LABELS[option]}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -370,10 +380,12 @@ export function ApiKeyManagementPage(): JSX.Element {
                       <TableCell className="font-mono text-xs">{apiKey.key_prefix}...</TableCell>
                       <TableCell>
                         <Badge variant={SCOPE_VARIANT[apiKey.scope as ApiKeyScope] ?? 'secondary'}>
-                          {apiKey.scope}
+                          {SCOPE_LABELS[apiKey.scope as ApiKeyScope] ?? apiKey.scope}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-muted">{apiKey.owner_type}</TableCell>
+                      <TableCell className="text-muted">
+                        {OWNER_LABELS[apiKey.owner_type as ApiKeyOwnerType] ?? apiKey.owner_type}
+                      </TableCell>
                       <TableCell className="max-w-[220px] truncate text-muted">
                         {apiKey.label ?? '-'}
                       </TableCell>

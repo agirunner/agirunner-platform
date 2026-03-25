@@ -58,11 +58,24 @@ function formatActorType(type: string): string {
 
 const RUNTIME_PREFIX = 'agirunner-runtime-';
 const KEY_PREFIX_RE = /^(?:Key|Worker|Agent|User)\s+ar_/;
+const GENERIC_ACTOR_NAMES = new Set([
+  'runtime',
+  'worker',
+  'agent',
+  'specialist agent',
+  'specialist execution',
+  'orchestrator agent',
+  'orchestrator execution',
+]);
 
 function resolveActorLabel(entry: LogEntry): string {
   if (entry.actor_name) {
+    const normalized = entry.actor_name.trim().toLowerCase();
     if (KEY_PREFIX_RE.test(entry.actor_name)) {
       return entry.actor_name.split(' ')[0];
+    }
+    if (GENERIC_ACTOR_NAMES.has(normalized)) {
+      return describeActorSurface(entry);
     }
     if (entry.actor_name.startsWith(RUNTIME_PREFIX)) {
       return describeActorSurface(entry);

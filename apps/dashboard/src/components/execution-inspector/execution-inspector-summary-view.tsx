@@ -63,7 +63,7 @@ export function ExecutionInspectorSummaryView(
           isLoading={props.isLoading}
         />
         <MetricCard
-          title="Captured runtime"
+          title="Captured execution time"
           value={formatDuration(totals?.total_duration_ms ?? 0)}
           detail="reported time across the visible results"
           icon={<Clock3 className="h-4 w-4" />}
@@ -132,10 +132,10 @@ function describeActivityPathDetail(operation: string): string {
     return 'Task lifecycle activity in the current results';
   }
   if (operation.startsWith('runtime.')) {
-    return 'Agent activity captured from execution infrastructure';
+    return 'Specialist Agent activity captured from execution infrastructure';
   }
   if (operation.startsWith('container.')) {
-    return 'Container activity captured from execution infrastructure';
+    return 'Specialist Execution activity captured from execution infrastructure';
   }
   return 'Execution activity captured in the current results';
 }

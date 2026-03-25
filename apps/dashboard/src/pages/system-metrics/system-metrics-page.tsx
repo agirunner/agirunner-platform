@@ -119,7 +119,7 @@ export function SystemMetricsPage(): JSX.Element {
                 className="pl-9"
                 value={filter}
                 onChange={(event) => setFilter(event.target.value)}
-                placeholder="http_requests_total, worker, activation_id..."
+                placeholder="http_requests_total, agent, activation_id..."
               />
             </div>
           </label>

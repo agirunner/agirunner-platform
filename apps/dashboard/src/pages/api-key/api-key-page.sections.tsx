@@ -141,7 +141,7 @@ export function ApiKeyLifecycleSection(props: {
       />
       <ApiKeyTableSection
         title="System Keys"
-        description="System keys are created and deleted automatically with runtime lifecycle."
+        description="System keys are created and deleted automatically with agent lifecycle."
         apiKeys={systemKeys}
         onRevoke={props.onRevoke}
         emptyMessage="No system keys are currently active."

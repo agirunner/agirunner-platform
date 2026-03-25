@@ -75,7 +75,7 @@ export function OrchestratorControlPlane(props: {
             <div className="space-y-2">
               <CardTitle>Orchestrator</CardTitle>
               <CardDescription>
-                Configure the orchestrator prompt, model, and worker pool.
+                Configure the orchestrator prompt, model, and agent pool.
               </CardDescription>
             </div>
           </div>
@@ -113,9 +113,9 @@ export function OrchestratorControlPlane(props: {
             <EditableControlPacket
               icon={Cpu}
               title="Pool posture"
-              status={`${props.poolSummary.enabledWorkers} enabled workers`}
+              status={`${props.poolSummary.enabledWorkers} enabled agents`}
               value={`${props.poolSummary.runningContainers} running / ${props.poolSummary.desiredReplicas} desired replicas`}
-              detail="Manage the primary orchestrator worker runtime and capacity here."
+              detail="Manage the primary orchestrator agent image and capacity here."
               facts={[
                 {
                   label: 'Agent image',

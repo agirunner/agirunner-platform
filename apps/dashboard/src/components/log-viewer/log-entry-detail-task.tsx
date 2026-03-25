@@ -38,8 +38,8 @@ const FIELDS: readonly FieldDef[] = [
   },
   { label: 'Method', key: 'method' },
   { label: 'Workflow handle', key: 'workflow_id', format: shortId },
-  { label: 'Agent handle', key: 'runtime_id', format: shortId },
-  { label: 'Container handle', key: 'container_id', format: shortId },
+  { label: 'Specialist Agent handle', key: 'runtime_id', format: shortId },
+  { label: 'Specialist Execution handle', key: 'container_id', format: shortId },
 ];
 
 export function LogEntryDetailTask({ payload }: { payload: Record<string, unknown> }): JSX.Element {

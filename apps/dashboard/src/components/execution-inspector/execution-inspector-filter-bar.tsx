@@ -69,7 +69,7 @@ export function ExecutionInspectorFilterBar(
               </p>
             ) : (
               <p className="text-sm text-muted">
-                Narrow the inspector by workflow, specialist step, role, or runtime emitter.
+                Narrow the inspector by workflow, specialist step, role, or agent emitter.
               </p>
             )}
           </div>

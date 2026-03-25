@@ -97,13 +97,13 @@ function validateContainerDefaults(
     imageKey: 'specialist_runtime_default_image',
     cpuKey: 'specialist_runtime_default_cpu',
     memoryKey: 'specialist_runtime_default_memory',
-    labelPrefix: 'Specialist runtime',
+    labelPrefix: 'Specialist Agent',
   });
   validateContainerAllocation(values, errors, {
     imageKey: 'specialist_execution_default_image',
     cpuKey: 'specialist_execution_default_cpu',
     memoryKey: 'specialist_execution_default_memory',
-    labelPrefix: 'Execution container',
+    labelPrefix: 'Specialist Execution',
   });
 }
 
@@ -151,6 +151,6 @@ function validateRealtimeTransportRanges(
 
   if (minReconnect !== null && maxReconnect !== null && minReconnect > maxReconnect) {
     errors['platform.worker_reconnect_max_ms'] =
-      'Worker reconnect maximum must be at least the minimum reconnect value.';
+      'Agent reconnect maximum must be at least the minimum reconnect value.';
   }
 }

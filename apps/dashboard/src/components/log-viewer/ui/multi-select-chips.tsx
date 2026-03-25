@@ -21,10 +21,10 @@ export interface MultiSelectChipsProps {
 }
 
 export const SOURCE_OPTIONS: MultiSelectOption[] = [
-  { value: 'runtime', label: 'Agent' },
+  { value: 'runtime', label: 'Specialist Agent' },
   { value: 'platform', label: 'Platform' },
   { value: 'container_manager', label: 'Container Manager' },
-  { value: 'task_container', label: 'Execution' },
+  { value: 'task_container', label: 'Specialist Execution' },
 ];
 
 export const CATEGORY_OPTIONS: MultiSelectOption[] = [

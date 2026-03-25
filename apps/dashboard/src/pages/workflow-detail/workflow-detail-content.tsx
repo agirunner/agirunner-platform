@@ -499,7 +499,7 @@ export function WorkflowDocumentsCard(props: {
       <CardHeader>
         <CardTitle>Workflow Documents</CardTitle>
         <CardDescription>
-          Reference material available to workers in this workflow.
+          Reference material available to Specialist Agents in this workflow.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -878,7 +878,7 @@ export function WorkspaceMemoryCard(props: {
       <CardHeader>
         <CardTitle>Workspace Memory</CardTitle>
         <CardDescription>
-          Operator-visible shared memory for future runs and workers.
+          Operator-visible shared memory for future runs and Specialist Agents.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">

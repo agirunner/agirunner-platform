@@ -96,7 +96,7 @@ export function workflowDisplayName(workflow: DashboardWorkflowRecord): string {
 export function describeAgentOption(agent: DashboardAgentRecord): string {
   const parts = [normalizeAgentStatus(agent.status)];
   if (agent.worker_id) {
-    parts.push(`worker ${agent.worker_id}`);
+    parts.push(`agent ${agent.worker_id}`);
   }
   if (agent.current_task_id) {
     parts.push(`task ${agent.current_task_id}`);
@@ -122,7 +122,7 @@ export function describeSelectedAgent(agent: DashboardAgentRecord | null): Array
 
   const details = [{ label: 'Status', value: normalizeAgentStatus(agent.status) }];
   if (agent.worker_id) {
-    details.push({ label: 'Agent', value: agent.worker_id });
+    details.push({ label: 'Agent ID', value: agent.worker_id });
   }
   if (agent.current_task_id) {
     details.push({ label: 'Current task', value: agent.current_task_id });

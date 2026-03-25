@@ -241,7 +241,7 @@ export function WorkspaceSettingsTab(props: {
               />
               <p className="text-sm leading-6 text-muted">
                 The path must already exist. All runtimes are expected to mount the same path. Writes
-                happen as the task container user, which is currently `root`.
+                happen as the Specialist Execution user, which is currently `root`.
               </p>
               <ToggleCard
                 label="Read-only mount"

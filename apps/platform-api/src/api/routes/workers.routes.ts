@@ -102,11 +102,11 @@ export const workerRoutes: FastifyPluginAsync = async (app) => {
       );
 
       if (!suppliedAgent.rowCount) {
-        throw new SchemaValidationFailedError('agent_id is invalid for the authenticated worker tenant.');
+        throw new SchemaValidationFailedError('agent_id is invalid for the authenticated Specialist Agent tenant.');
       }
 
       if (suppliedAgent.rows[0].worker_id !== params.id) {
-        throw new ForbiddenError('Worker cannot claim tasks with an agent owned by a different worker.');
+        throw new ForbiddenError('Specialist Agent cannot claim tasks with a Specialist Execution owned by a different Specialist Agent.');
       }
     } else {
       const workerAgent = await app.pgPool.query<{ id: string }>(
@@ -119,7 +119,7 @@ export const workerRoutes: FastifyPluginAsync = async (app) => {
       );
 
       if (!workerAgent.rowCount) {
-        throw new SchemaValidationFailedError('Worker has no registered agent; provide agent_id explicitly.');
+        throw new SchemaValidationFailedError('Specialist Agent has no registered Specialist Execution; provide agent_id explicitly.');
       }
 
       agentId = workerAgent.rows[0].id;

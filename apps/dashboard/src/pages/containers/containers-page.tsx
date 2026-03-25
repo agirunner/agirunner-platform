@@ -96,12 +96,12 @@ export function ContainersPage(): JSX.Element {
         <div className="space-y-1">
           <h2 className="text-base font-semibold text-foreground">Orchestrator agent</h2>
           <p className="text-sm text-muted-foreground">
-            Orchestrator containers and orchestrator execution containers.
+            Orchestrator agents and orchestrator-side executions.
           </p>
         </div>
         <ContainersTable
           rows={groupedRows.orchestrator}
-          emptyMessage="No orchestrator containers were reported in this session."
+          emptyMessage="No orchestrator agents were reported in this session."
         />
       </section>
 
@@ -114,7 +114,7 @@ export function ContainersPage(): JSX.Element {
         </div>
         <ContainersTable
           rows={groupedRows.specialists}
-          emptyMessage="No specialist containers were reported in this session."
+          emptyMessage="No Specialist Agents or Specialist Executions were reported in this session."
         />
       </section>
     </div>

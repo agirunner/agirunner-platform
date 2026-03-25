@@ -90,84 +90,84 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '20',
     configType: 'number',
     description:
-      'Hard ceiling on concurrently active specialists. Each active specialist consumes one runtime and one execution container',
+      'Hard ceiling on concurrently active specialists. Each active specialist consumes one Specialist Agent and one Specialist Execution',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_runtime_default_image',
     configValue: 'agirunner-runtime:local',
     configType: 'string',
-    description: 'Default Docker image for generic specialist runtime containers',
+    description: 'Default image for Specialist Agents',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_runtime_default_cpu',
     configValue: '2',
     configType: 'string',
-    description: 'CPU allocation per specialist runtime container',
+    description: 'CPU allocation per Specialist Agent',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_runtime_default_memory',
     configValue: '256m',
     configType: 'string',
-    description: 'Memory allocation per specialist runtime container',
+    description: 'Memory allocation per Specialist Agent',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_runtime_default_pull_policy',
     configValue: 'if-not-present',
     configType: 'string',
-    description: 'Default image pull policy for specialist runtime containers',
+    description: 'Default image pull policy for Specialist Agents',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_runtime_bootstrap_claim_timeout_seconds',
     configValue: '60',
     configType: 'number',
-    description: 'How long a new specialist runtime waits for work before self-terminating',
+    description: 'How long a new Specialist Agent waits for work before self-terminating',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_runtime_drain_grace_seconds',
     configValue: '120',
     configType: 'number',
-    description: 'Grace period before a draining specialist runtime is forced down',
+    description: 'Grace period before a draining Specialist Agent is forced down',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'lifecycle.destroy_stop_timeout_seconds',
     configValue: '1',
     configType: 'number',
-    description: 'Grace period before a completed task or runtime container is force-removed',
+    description: 'Grace period before a completed task or Specialist Agent is force-removed',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_execution_default_image',
     configValue: 'agirunner-runtime-execution:local',
     configType: 'string',
-    description: 'Default Docker image for specialist execution containers',
+    description: 'Default image for Specialist Executions',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_execution_default_cpu',
     configValue: '2',
     configType: 'string',
-    description: 'Default CPU allocation for specialist execution containers',
+    description: 'Default CPU allocation for Specialist Execution',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_execution_default_memory',
     configValue: '512m',
     configType: 'string',
-    description: 'Default memory allocation for specialist execution containers',
+    description: 'Default memory allocation for Specialist Execution',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_execution_default_pull_policy',
     configValue: 'if-not-present',
     configType: 'string',
-    description: 'Default image pull policy for specialist execution containers',
+    description: 'Default image pull policy for Specialist Executions',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -188,21 +188,21 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configKey: 'platform.worker_reconnect_min_ms',
     configValue: '1000',
     configType: 'number',
-    description: 'Minimum reconnect backoff in milliseconds offered to workers',
+    description: 'Minimum reconnect backoff in milliseconds offered to Specialist Agents',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.worker_reconnect_max_ms',
     configValue: '60000',
     configType: 'number',
-    description: 'Maximum reconnect backoff in milliseconds offered to workers',
+    description: 'Maximum reconnect backoff in milliseconds offered to Specialist Agents',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.worker_websocket_ping_interval_ms',
     configValue: '20000',
     configType: 'number',
-    description: 'How often the platform pings worker websockets when connections are idle',
+    description: 'How often the platform pings agent websockets when connections are idle',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -265,7 +265,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configKey: 'log.level',
     configValue: 'debug',
     configType: 'string',
-    description: 'Runtime process log level applied to connected worker processes',
+    description: 'Runtime process log level applied to connected Specialist Agent processes',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -279,7 +279,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configKey: 'platform.claim_poll_seconds',
     configValue: '5',
     configType: 'number',
-    description: 'How often connected runtimes poll the platform for claimable work',
+    description: 'How often connected Specialist Agents poll the platform for claimable work',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -287,7 +287,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '60',
     configType: 'number',
     description:
-      'How long connected runtimes wait for platform API requests before treating them as failed',
+      'How long connected Specialist Agents wait for platform API requests before treating them as failed',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -295,7 +295,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '30',
     configType: 'number',
     description:
-      'How long connected runtimes wait when flushing execution logs back to the platform ingest endpoint',
+      'How long connected Specialist Agents wait when flushing execution logs back to the platform ingest endpoint',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -303,7 +303,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '2000',
     configType: 'number',
     description:
-      'How long connected runtimes buffer partial execution-log batches before flushing them to the platform ingest endpoint',
+      'How long connected Specialist Agents buffer partial execution-log batches before flushing them to the platform ingest endpoint',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -311,7 +311,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '24',
     configType: 'number',
     description:
-      'How many consecutive heartbeat failures connected runtimes tolerate before self-termination',
+      'How many consecutive heartbeat failures connected Specialist Agents tolerate before self-termination',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -319,7 +319,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '1800',
     configType: 'number',
     description:
-      'How long connected runtimes wait for in-flight work while draining before forced shutdown',
+      'How long connected Specialist Agents wait for in-flight work while draining before forced shutdown',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -327,7 +327,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '10',
     configType: 'number',
     description:
-      'How long connected runtimes wait when reporting cancellation or shutdown outcomes back to the platform',
+      'How long connected Specialist Agents wait when reporting cancellation or shutdown outcomes back to the platform',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -335,7 +335,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '60',
     configType: 'number',
     description:
-      'How long connected runtimes wait while cleaning up managed task containers before self-termination',
+      'How long connected Specialist Agents wait while cleaning up managed Specialist Executions before self-termination',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -375,14 +375,14 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '45000',
     configType: 'number',
     description:
-      'Maximum time in milliseconds a worker has to acknowledge a dispatch before it is released',
+      'Maximum time in milliseconds a Specialist Agent has to acknowledge a dispatch before it is released',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.worker_key_expiry_ms',
     configValue: '31536000000',
     configType: 'number',
-    description: 'Default API key lifetime in milliseconds for newly registered workers',
+    description: 'Default API key lifetime in milliseconds for newly registered Specialist Agents',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -420,7 +420,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configKey: 'platform.worker_default_heartbeat_interval_seconds',
     configValue: '30',
     configType: 'number',
-    description: 'Default heartbeat interval in seconds assigned to newly registered workers',
+    description: 'Default heartbeat interval in seconds assigned to newly registered Specialist Agents',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -428,7 +428,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '300000',
     configType: 'number',
     description:
-      'Additional grace period in milliseconds before disconnected workers are marked fully offline',
+      'Additional grace period in milliseconds before disconnected Specialist Agents are marked fully offline',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -436,7 +436,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '2',
     configType: 'number',
     description:
-      'Heartbeat interval multiplier used when determining the offline cutoff for workers',
+      'Heartbeat interval multiplier used when determining the offline cutoff for Specialist Agents',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -444,7 +444,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '1',
     configType: 'number',
     description:
-      'Heartbeat interval multiplier used when determining the degraded or disconnected cutoff for workers',
+      'Heartbeat interval multiplier used when determining the degraded or disconnected cutoff for Specialist Agents',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -458,7 +458,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configKey: 'platform.lifecycle_worker_heartbeat_check_interval_ms',
     configValue: '30000',
     configType: 'number',
-    description: 'Interval in milliseconds between platform worker heartbeat enforcement sweeps',
+    description: 'Interval in milliseconds between platform Specialist Agent heartbeat enforcement sweeps',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -495,7 +495,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '10',
     configType: 'number',
     description:
-      'How often the container manager polls the fleet snapshot and reconciles runtime state',
+      'How often the container manager polls the fleet snapshot and reconciles Specialist Agent state',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -503,14 +503,14 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '60',
     configType: 'number',
     description:
-      'Grace period in seconds used by the container manager when stopping runtime containers',
+      'Grace period in seconds used by the container manager when stopping Specialist Agents',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.shutdown_task_stop_timeout_seconds',
     configValue: '10',
     configType: 'number',
-    description: 'Grace period in seconds used for task containers during manager shutdown cleanup',
+    description: 'Grace period in seconds used for Specialist Executions during manager shutdown cleanup',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -549,7 +549,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '180',
     configType: 'number',
     description:
-      'How long a playbook may remain pending without a runtime before the container manager boosts it for starvation recovery',
+      'How long a playbook may remain pending without a Specialist Agent before the container manager boosts it for starvation recovery',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -557,7 +557,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '6',
     configType: 'number',
     description:
-      'How many reconcile cycles a managed runtime may remain orphaned before the container manager force-removes it',
+      'How many reconcile cycles a managed Specialist Agent may remain orphaned before the container manager force-removes it',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -565,7 +565,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '180',
     configType: 'number',
     description:
-      'Maximum age in seconds before the container manager treats a runtime heartbeat as stale',
+      'Maximum age in seconds before the container manager treats a Specialist Agent heartbeat as stale',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -573,7 +573,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '60',
     configType: 'number',
     description:
-      'Grace period in seconds used when stopping runtime containers that are classified as hung',
+      'Grace period in seconds used when stopping Specialist Agents that are classified as hung',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -581,7 +581,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '10',
     configType: 'number',
     description:
-      'Maximum size in megabytes for each runtime container Docker log file before the engine rotates it',
+      'Maximum size in megabytes for each Specialist Agent Docker log file before the engine rotates it',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -589,7 +589,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configValue: '3',
     configType: 'number',
     description:
-      'Maximum number of rotated Docker log files retained for each runtime container',
+      'Maximum number of rotated Docker log files retained for each Specialist Agent',
   });
 
   await seedDashboardBackedRuntimeDefaults(service);
@@ -727,7 +727,7 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
       configKey: 'queue.max_depth',
       configValue: '100',
       configType: 'number',
-      description: 'Maximum queued tasks buffered inside one specialist runtime process',
+      description: 'Maximum queued tasks buffered inside one Specialist Agent process',
     },
     {
       configKey: 'capture.push_retries',

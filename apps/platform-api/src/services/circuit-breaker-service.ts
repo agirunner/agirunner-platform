@@ -55,7 +55,7 @@ export class CircuitBreakerService {
     );
 
     if (workerResult.rows.length === 0) {
-      throw new Error(`Worker ${validated.workerId} not found`);
+      throw new Error(`Specialist Agent ${validated.workerId} not found`);
     }
 
     const worker = workerResult.rows[0];
@@ -123,7 +123,7 @@ export class CircuitBreakerService {
       [tenantId, workerId],
     );
     if (workerResult.rows.length === 0) {
-      throw new Error(`Worker ${workerId} not found`);
+      throw new Error(`Specialist Agent ${workerId} not found`);
     }
 
     const previousState = workerResult.rows[0].circuit_breaker_state;

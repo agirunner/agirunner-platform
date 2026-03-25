@@ -12,15 +12,15 @@ const SCOPE_DESCRIPTION: Record<string, string> = {
 const SCOPE_LABEL: Record<string, string> = {
   admin: 'Admin',
   service: 'Service',
-  worker: 'Agent',
-  agent: 'Execution',
+  worker: 'Specialist Agent',
+  agent: 'Specialist Execution',
 };
 
 const SCOPE_NAME: Record<string, string> = {
   admin: 'Admin',
   service: 'Service',
-  worker: 'Agent',
-  agent: 'Execution',
+  worker: 'Specialist Agent',
+  agent: 'Specialist Execution',
 };
 
 export function isOperatorKey(record: DashboardApiKeyRecord): boolean {

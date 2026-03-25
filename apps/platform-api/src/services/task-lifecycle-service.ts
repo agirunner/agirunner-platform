@@ -735,10 +735,10 @@ export class TaskLifecycleService {
 
     if (identity.scope === 'worker') {
       if (!identity.ownerId) {
-        throw new ForbiddenError('Worker identity is required for task lifecycle operations');
+        throw new ForbiddenError('Specialist Agent identity is required for task lifecycle operations');
       }
       if (payload.worker_id && payload.worker_id !== identity.ownerId) {
-        throw new ForbiddenError('Task lifecycle operation can only target the calling worker');
+        throw new ForbiddenError('Task lifecycle operation can only target the calling Specialist Agent');
       }
       return {
         agentId: payload.agent_id,
@@ -746,7 +746,7 @@ export class TaskLifecycleService {
       };
     }
 
-    throw new ForbiddenError('Agent or worker identity is required for task lifecycle operations');
+    throw new ForbiddenError('Specialist Execution or Specialist Agent identity is required for task lifecycle operations');
   }
 
   private extractOutputSchema(task: Record<string, unknown>): Record<string, unknown> | undefined {
@@ -831,7 +831,7 @@ export class TaskLifecycleService {
         options.requireAssignment?.workerId &&
         task.assigned_worker_id !== options.requireAssignment.workerId
       ) {
-        throw new ConflictError('Task is assigned to a different worker');
+        throw new ConflictError('Task is assigned to a different Specialist Agent');
       }
 
       await this.lockWorkflowRowForTask(identity.tenantId, task, client);

@@ -192,7 +192,7 @@ export class RuntimeConfigService {
       return genericSpecialistRuntimeTarget;
     }
 
-    throw new NotFoundError(`Worker "${workerName}" not found`);
+    throw new NotFoundError(`Specialist Agent "${workerName}" not found`);
   }
 
   private async findDesiredStateWorker(

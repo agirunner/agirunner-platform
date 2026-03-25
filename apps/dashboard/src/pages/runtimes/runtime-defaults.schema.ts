@@ -61,16 +61,16 @@ const OPERATIONS_CONNECTED_PLATFORM_FIELD_KEYS = new Set<string>([
 const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
   {
     key: 'runtime_containers',
-    title: 'Runtime container defaults',
+    title: 'Specialist Agent defaults',
     description:
-      'Default image and resource limits for short-lived specialist runtimes that host the agent loop.',
+      'Default image and resource limits for short-lived Specialist Agents that host the agent loop.',
     defaultExpanded: true,
   },
   {
     key: 'execution_containers',
-    title: 'Execution container defaults',
+    title: 'Specialist Execution defaults',
     description:
-      'Default image and resource limits for always-cold specialist execution containers.',
+      'Default image and resource limits for always-cold Specialist Executions.',
     defaultExpanded: true,
   },
   {
@@ -84,7 +84,7 @@ const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
     key: 'capacity_limits',
     title: 'Specialist capacity',
     description:
-      'Shared ceiling for active specialists. Each active specialist consumes one short-lived runtime and one execution container. When the cap is reached, new specialist work waits for a free slot.',
+      'Shared ceiling for active specialists. Each active specialist consumes one Specialist Agent and one Specialist Execution. When the cap is reached, new specialist work waits for a free slot.',
     defaultExpanded: true,
   },
   {
@@ -111,7 +111,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_runtime_default_image',
     label: 'Image',
-    description: 'Docker image used for short-lived specialist runtimes.',
+    description: 'Image used for short-lived Specialist Agents.',
     configType: 'string',
     placeholder: 'agirunner-runtime:local',
     section: 'runtime_containers',
@@ -119,7 +119,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_runtime_default_cpu',
     label: 'CPU',
-    description: 'CPU allocation per specialist runtime container.',
+    description: 'CPU allocation per Specialist Agent.',
     configType: 'string',
     placeholder: '2',
     section: 'runtime_containers',
@@ -127,7 +127,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_runtime_default_memory',
     label: 'Memory',
-    description: 'Memory allocation per specialist runtime container, for example 256m or 1Gi.',
+    description: 'Memory allocation per Specialist Agent, for example 256m or 1Gi.',
     configType: 'string',
     placeholder: '256m',
     section: 'runtime_containers',
@@ -135,7 +135,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_runtime_default_pull_policy',
     label: 'Pull policy',
-    description: 'When specialist runtime images should be pulled from the registry.',
+    description: 'When Specialist Agent images should be pulled from the registry.',
     configType: 'string',
     placeholder: 'if-not-present',
     section: 'runtime_containers',
@@ -144,7 +144,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_execution_default_image',
     label: 'Image',
-    description: 'Docker image used for always-cold specialist execution containers.',
+    description: 'Image used for always-cold Specialist Executions.',
     configType: 'string',
     placeholder: 'agirunner-runtime-execution:local',
     section: 'execution_containers',
@@ -152,7 +152,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_execution_default_cpu',
     label: 'CPU',
-    description: 'CPU allocation per specialist execution container.',
+    description: 'CPU allocation per Specialist Execution.',
     configType: 'string',
     placeholder: '2',
     section: 'execution_containers',
@@ -161,7 +161,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'specialist_execution_default_memory',
     label: 'Memory',
     description:
-      'Memory allocation per specialist execution container, for example 512m or 2Gi.',
+      'Memory allocation per Specialist Execution, for example 512m or 2Gi.',
     configType: 'string',
     placeholder: '512m',
     section: 'execution_containers',
@@ -169,7 +169,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_execution_default_pull_policy',
     label: 'Pull policy',
-    description: 'When specialist execution images should be pulled from the registry.',
+    description: 'When Specialist Execution images should be pulled from the registry.',
     configType: 'string',
     placeholder: 'if-not-present',
     section: 'execution_containers',
@@ -519,7 +519,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'global_max_specialists',
     label: 'Max active specialists',
     description:
-      'Maximum concurrent specialist tasks. Each active specialist consumes one short-lived runtime and one execution container.',
+      'Maximum concurrent specialist tasks. Each active specialist consumes one Specialist Agent and one Specialist Execution.',
     configType: 'number',
     placeholder: '20',
     section: 'capacity_limits',
@@ -597,9 +597,9 @@ export const OPERATIONS_SECTION_DEFINITIONS: SectionDefinition[] = [
   operationSectionByKey('task_timeouts'),
   {
     key: 'runtime_fleet',
-    title: 'Runtime fleet',
+    title: 'Specialist Agent fleet',
     description:
-      'Control platform-managed specialist runtime teardown and replacement timing.',
+      'Control platform-managed Specialist Agent teardown and replacement timing.',
     defaultExpanded: true,
   },
   operationSectionByKey('connected_platform'),

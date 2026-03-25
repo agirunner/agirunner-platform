@@ -401,7 +401,7 @@ export function describeTaskOperatorPosture(
       return {
         title: 'Execution state recorded',
         detail:
-          'Stay in the work-item flow for board context, then open step diagnostics if you need runtime detail.',
+          'Stay in the work-item flow for board context, then open step diagnostics if you need execution detail.',
         tone: 'outline',
       };
   }

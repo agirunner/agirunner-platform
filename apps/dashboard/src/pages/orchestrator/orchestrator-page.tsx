@@ -20,7 +20,7 @@ export function OrchestratorPage(): JSX.Element {
           <h1 className="text-2xl font-semibold">Orchestrator</h1>
         </div>
         <p className="max-w-3xl text-sm text-muted">
-          Configure the workflow orchestrator — prompt baseline, model routing, and worker pool posture.
+          Configure the workflow orchestrator — prompt baseline, model routing, and agent pool posture.
         </p>
       </div>
 

@@ -287,20 +287,20 @@ export class TaskClaimService {
       const executionMode = readAgentExecutionMode(agent.metadata);
       if (identity.scope === 'worker') {
         if (!identity.ownerId) {
-          throw new ForbiddenError('Worker identity is not bound to a worker owner.');
+          throw new ForbiddenError('Agent identity is not bound to a Specialist Agent owner.');
         }
 
         if (agent.worker_id !== identity.ownerId) {
-          throw new ForbiddenError('Worker cannot claim tasks with an agent owned by a different worker.');
+          throw new ForbiddenError('Specialist Agent cannot claim tasks with a Specialist Execution owned by a different Specialist Agent.');
         }
 
         if (payload.worker_id && payload.worker_id !== identity.ownerId) {
-          throw new ForbiddenError('Worker cannot claim tasks on behalf of a different worker.');
+          throw new ForbiddenError('Specialist Agent cannot claim tasks on behalf of a different Specialist Agent.');
         }
       }
 
       if (payload.worker_id && agent.worker_id !== payload.worker_id) {
-        throw new ForbiddenError('Worker cannot claim tasks with an agent owned by a different worker.');
+        throw new ForbiddenError('Specialist Agent cannot claim tasks with a Specialist Execution owned by a different Specialist Agent.');
       }
 
       if (agent.current_task_id) {
@@ -714,7 +714,7 @@ export class TaskClaimService {
     },
   ): Promise<Record<string, unknown>> {
     if (!identity.ownerId?.trim()) {
-      throw new ForbiddenError('Calling identity is not bound to a worker or agent owner.');
+      throw new ForbiddenError('Calling identity is not bound to a Specialist Agent or Specialist Execution owner.');
     }
 
     await this.assertIdentityOwnsTask(identity, taskId);
@@ -1109,7 +1109,7 @@ export class TaskClaimService {
     const task = result.rows[0];
     if (identity.scope === 'worker') {
       if ((task?.assigned_worker_id ?? '') !== identity.ownerId) {
-        throw new ForbiddenError('Worker cannot resolve claim credentials for a different task.');
+        throw new ForbiddenError('Specialist Agent cannot resolve claim credentials for a different task.');
       }
       return;
     }

@@ -8,7 +8,7 @@ export function buildRoleDetailSummary(role: RoleDefinition, modelLabel: string)
       label: `${role.allowed_tools?.length ?? 0} tool${role.allowed_tools?.length === 1 ? '' : 's'} enabled`,
     },
     executionContainer: {
-      title: 'Execution container',
+      title: 'Specialist Execution',
       label: summarizeExecutionContainer(role),
     },
     promptPreview: summarizePromptPreview(role.system_prompt ?? ''),
@@ -18,7 +18,7 @@ export function buildRoleDetailSummary(role: RoleDefinition, modelLabel: string)
 function summarizeExecutionContainer(role: RoleDefinition): string {
   const config = role.execution_container_config;
   if (!config) {
-    return 'Inherit runtime defaults';
+    return 'Inherit platform defaults';
   }
 
   const parts = [
@@ -28,7 +28,7 @@ function summarizeExecutionContainer(role: RoleDefinition): string {
     config.pull_policy?.trim() ? `Pull ${config.pull_policy.trim()}` : null,
   ].filter(Boolean);
 
-  return parts.length > 0 ? parts.join(' | ') : 'Inherit runtime defaults';
+  return parts.length > 0 ? parts.join(' | ') : 'Inherit platform defaults';
 }
 function summarizePromptPreview(value: string): string {
   const trimmed = value.trim();

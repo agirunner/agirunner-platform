@@ -27,7 +27,7 @@ export class TaskAgentScopeService {
 
   async loadAgentOwnedActiveTask(identity: ApiKeyIdentity, taskId: string): Promise<ActiveTaskScope> {
     if (!identity.ownerId) {
-      throw new ForbiddenError('Calling identity is not bound to a worker or agent record');
+      throw new ForbiddenError('Calling identity is not bound to a Specialist Agent or Specialist Execution record');
     }
 
     const result = await this.pool.query<ActiveTaskScope>(
@@ -62,7 +62,7 @@ export class TaskAgentScopeService {
   private assertTaskOwnership(identity: ApiKeyIdentity, task: ActiveTaskScope): void {
     if (identity.scope === 'worker') {
       if (task.assigned_worker_id !== identity.ownerId) {
-        throw new ForbiddenError('Task is not owned by the calling worker');
+        throw new ForbiddenError('Task is not owned by the calling Specialist Agent');
       }
       return;
     }

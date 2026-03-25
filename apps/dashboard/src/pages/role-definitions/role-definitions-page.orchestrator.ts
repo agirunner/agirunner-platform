@@ -95,7 +95,7 @@ export function useRolePageOrchestratorState() {
       const cpuLimit = input.cpuLimit.trim() || ORCHESTRATOR_DEFAULT_CPU_LIMIT;
       const memoryLimit = input.memoryLimit.trim() || ORCHESTRATOR_DEFAULT_MEMORY_LIMIT;
       if (!workerName) {
-        throw new Error('Enter a worker name for the orchestrator pool entry.');
+        throw new Error('Enter an agent name for the orchestrator pool entry.');
       }
       const payload = {
         role: 'orchestrator',

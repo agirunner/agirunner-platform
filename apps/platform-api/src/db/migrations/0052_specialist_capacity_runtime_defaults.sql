@@ -32,7 +32,7 @@ SELECT
   'global_max_specialists',
   config_value,
   'number',
-  'Hard ceiling on concurrently active specialists. Each active specialist consumes one runtime and one execution container'
+  'Hard ceiling on concurrently active specialists. Each active specialist consumes one Specialist Agent and one Specialist Execution'
 FROM tenant_specialist_capacity
 ON CONFLICT (tenant_id, config_key) DO UPDATE
 SET

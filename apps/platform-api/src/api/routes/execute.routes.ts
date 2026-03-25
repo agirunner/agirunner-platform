@@ -379,7 +379,7 @@ async function buildExecutionBackedOutput(
         {
           role: 'system',
           content:
-            'You are an autonomous software engineer returning structured JSON task outputs for a workflow worker.',
+            'You are an autonomous software engineer returning structured JSON task outputs for a Specialist Agent workflow.',
         },
         {
           role: 'user',

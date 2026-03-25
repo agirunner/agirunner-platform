@@ -12,7 +12,7 @@ export async function registerWorker(
   input: RegisterWorkerInput,
 ) {
   if (!input.name?.trim()) {
-    throw new ValidationError('worker name is required');
+    throw new ValidationError('agent name is required');
   }
 
   const workerKeyExpiryMs = requireRuntimeDefaultNumber(
@@ -48,7 +48,7 @@ export async function registerWorker(
     scope: 'worker',
     ownerType: 'worker',
     ownerId: worker.id,
-    label: `worker:${worker.name}`,
+    label: `agent:${worker.name}`,
     expiresAt: new Date(Date.now() + workerKeyExpiryMs),
   });
 
@@ -156,7 +156,7 @@ export async function getWorker(context: WorkerServiceContext, tenantId: string,
     [tenantId, workerId],
   );
   if (!res.rowCount) {
-    throw new NotFoundError('Worker not found');
+    throw new NotFoundError('Specialist Agent not found');
   }
   return sanitizeWorkerRow(res.rows[0] as Record<string, unknown>);
 }

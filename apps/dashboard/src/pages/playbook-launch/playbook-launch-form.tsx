@@ -269,7 +269,7 @@ export function PlaybookLaunchForm(props: {
                 <StructuredSection
                   id="workflow-budget-policy"
                   title="Workflow Budget Policy"
-                  description="Set optional workflow-level guardrails for token spend, cost, and elapsed runtime."
+                  description="Set optional workflow-level guardrails for token spend, cost, and elapsed execution time."
                 >
                   <WorkflowBudgetEditor
                     draft={props.workflowBudgetDraft}

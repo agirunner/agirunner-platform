@@ -73,15 +73,15 @@ export function OrchestratorPoolDialog(props: {
         <DialogHeader>
           <DialogTitle>Edit orchestrator pool posture</DialogTitle>
           <DialogDescription>
-            Keep the primary orchestrator worker entry editable here, including runtime image and
-            resource limits.
+            Keep the primary orchestrator agent entry editable here, including image and resource
+            limits.
           </DialogDescription>
         </DialogHeader>
         <Card className="border-border/70 shadow-none">
           <CardHeader>
-            <CardTitle className="text-base">Agent runtime configuration</CardTitle>
+            <CardTitle className="text-base">Agent configuration</CardTitle>
             <CardDescription>
-              Configure the orchestrator agentic runtime.
+              Configure the orchestrator agent image and capacity.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
@@ -145,7 +145,7 @@ export function OrchestratorPoolDialog(props: {
                 suggestions={runtimeImages}
                 listId="orchestrator-runtime-image-suggestions"
                 error={validationErrors.runtimeImage}
-                helperText="Use the same standard image ref format as Roles and runtime defaults."
+                helperText="Use the same standard image ref format as Roles and Specialist Agent defaults."
               />
             </div>
             <div className="space-y-2">
@@ -180,7 +180,7 @@ export function OrchestratorPoolDialog(props: {
         </Card>
       <DialogActions
         isSaving={props.isSaving}
-        saveLabel={draft.workerId ? 'Save pool posture' : 'Create worker posture'}
+        saveLabel={draft.workerId ? 'Save pool posture' : 'Create pool posture'}
         onCancel={() => props.onOpenChange(false)}
         onSave={async () => {
           if (hasValidationErrors) {

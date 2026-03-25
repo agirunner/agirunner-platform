@@ -158,7 +158,7 @@ const builtInToolDefinitions: Array<{
   { id: 'read_handoff_chain', name: 'Read Handoff Chain', description: 'Read the structured handoff chain for a workflow work item', category: 'workflow', owner: 'runtime' },
   { id: 'work_item_memory_read', name: 'Work Item Memory Read', description: 'Read work-item scoped memory', category: 'workflow', owner: 'runtime' },
   { id: 'work_item_memory_history', name: 'Work Item Memory History', description: 'Read work-item memory history', category: 'workflow', owner: 'runtime' },
-  { id: 'reassign_task', name: 'Reassign Task', description: 'Reassign a task to another worker or agent', category: 'workflow', owner: 'runtime' },
+  { id: 'reassign_task', name: 'Reassign Task', description: 'Reassign a task to another Specialist Agent or Specialist Execution owner', category: 'workflow', owner: 'runtime' },
   { id: 'send_task_message', name: 'Send Task Message', description: 'Send a message to an active task', category: 'workflow', owner: 'runtime' },
 ];
 

@@ -22,7 +22,7 @@ function agentDisplayName(agent: DashboardAgentRecord): string {
 function describeAgent(agent: DashboardAgentRecord): string {
   const parts = [agent.status?.trim() || 'unknown'];
   if (agent.worker_id) {
-    parts.push(`worker ${agent.worker_id}`);
+    parts.push(`agent ${agent.worker_id}`);
   }
   return parts.join(' • ');
 }
@@ -326,7 +326,7 @@ export function WorkItemReassignDialog(props: {
               onChange={props.onAgentChange}
               items={agentItems}
               placeholder="Choose an agent"
-              searchPlaceholder="Search agents by name, worker, or status"
+              searchPlaceholder="Search agents by name, agent ID, or status"
               allGroupLabel="All agents"
               isLoading={props.isLoadingAgents}
             />
@@ -343,7 +343,7 @@ export function WorkItemReassignDialog(props: {
           {selectedAgent ? (
             <p className="text-xs leading-5 text-muted">
               Selected agent: {agentDisplayName(selectedAgent)}
-              {selectedAgent.worker_id ? ` • worker ${selectedAgent.worker_id}` : ''}
+              {selectedAgent.worker_id ? ` • agent ${selectedAgent.worker_id}` : ''}
             </p>
           ) : null}
           <div className="flex flex-wrap justify-end gap-2">

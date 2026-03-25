@@ -69,7 +69,7 @@ export function WorkflowLaunchPolicySections(props: {
       <StructuredSection
         id="workflow-config-overrides"
         title="Workflow Config Overrides"
-        description="Apply workflow-scoped runtime config overrides without dropping into an API-only JSON payload."
+        description="Apply workflow-scoped agent setting overrides without dropping into an API-only JSON payload."
       >
         <WorkflowConfigOverrideEditor
           definition={props.workflowPolicyDefinition}

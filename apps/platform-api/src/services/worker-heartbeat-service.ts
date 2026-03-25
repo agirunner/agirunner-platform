@@ -15,7 +15,7 @@ export function ensureWorkerAccess(identity: ApiKeyIdentity, workerId: string): 
   if (identity.scope === 'worker' && identity.ownerId === workerId) {
     return;
   }
-  throw new ForbiddenError('Worker identity mismatch');
+  throw new ForbiddenError('Specialist Agent identity mismatch');
 }
 
 function assertValidHeartbeatTransition(workerId: string, from: WorkerState, to: WorkerState): void {
@@ -42,7 +42,7 @@ export async function heartbeat(
     workerId,
   ]);
   if (!workerRes.rowCount) {
-    throw new NotFoundError('Worker not found');
+    throw new NotFoundError('Specialist Agent not found');
   }
 
   const previousStatus = workerRes.rows[0].status as WorkerState;
@@ -248,7 +248,7 @@ export async function enforceHeartbeatTimeouts(context: WorkerServiceContext, no
                state_changed_at = now(),
                error = jsonb_build_object(
                  'category', 'infrastructure',
-                 'message', 'Worker heartbeat timeout',
+                 'message', 'Specialist Agent heartbeat timeout',
                  'recoverable', true
                ),
                assigned_worker_id = NULL,

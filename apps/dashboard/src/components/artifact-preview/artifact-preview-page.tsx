@@ -165,7 +165,7 @@ export function ArtifactPreviewPage(): JSX.Element {
             <div data-testid="artifact-preview-metadata-grid" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <ArtifactMetadataCard label="Artifact ID" value={artifact.id} helper="Stable operator reference for audit and handoff." />
               <ArtifactMetadataCard label="Operator flow" value={operatorNavigation.primaryLabel} helper={operatorNavigation.primaryHelper} />
-              <ArtifactMetadataCard label="Step diagnostics" value={`Task ${artifact.task_id}`} helper={operatorNavigation.diagnosticHref ? 'Use only when you need lower-level runtime and execution detail.' : 'This artifact only has direct step context.'} />
+              <ArtifactMetadataCard label="Step diagnostics" value={`Task ${artifact.task_id}`} helper={operatorNavigation.diagnosticHref ? 'Use only when you need lower-level agent and execution detail.' : 'This artifact only has direct step context.'} />
               <ArtifactMetadataCard label="Preview policy" value={previewModeLabel} helper={`Inline previews are capped at ${previewLimitLabel}.`} />
               <ArtifactMetadataCard label="Inspection path" value={previewDescriptor.kind === 'binary' ? 'Download original' : 'Rendered and raw'} helper="Operators can inspect the rendered view, raw content, or download the source." />
             </div>

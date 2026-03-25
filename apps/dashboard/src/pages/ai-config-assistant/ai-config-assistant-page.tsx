@@ -100,8 +100,9 @@ export function AiConfigAssistantPage(): JSX.Element {
               <CardTitle className="text-2xl">AI Config Assistant</CardTitle>
             </div>
             <CardDescription className="max-w-3xl text-sm leading-6">
-              Ask configuration questions, get advisory suggestions grounded in the current runtime
-              and playbook model, and open the matching settings surfaces to review them.
+              Ask configuration questions, get advisory suggestions grounded in current agent
+              settings and the playbook model, and open the matching settings surfaces to review
+              them.
             </CardDescription>
           </div>
           <Button
@@ -204,7 +205,7 @@ export function AiConfigAssistantPage(): JSX.Element {
               <Input
                 value={inputValue}
                 onChange={(event) => setInputValue(event.target.value)}
-                placeholder="Ask about runtime defaults, model posture, playbooks, or integrations..."
+                placeholder="Ask about runtimes, model posture, playbooks, or integrations..."
                 disabled={mutation.isPending}
                 aria-label="Configuration question"
                 className="flex-1"

@@ -80,7 +80,7 @@ export function buildArtifactPreviewOperatorNavigation(input: {
       diagnosticHref: `/mission-control/tasks/${encodeURIComponent(input.taskId)}`,
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
-        'This preview stays tied to the grouped work-item flow that produced it, so operators can return there first and only open step diagnostics when they need lower-level runtime detail.',
+        'This preview stays tied to the grouped work-item flow that produced it, so operators can return there first and only open step diagnostics when they need lower-level execution detail.',
     };
   }
 
@@ -93,7 +93,7 @@ export function buildArtifactPreviewOperatorNavigation(input: {
       diagnosticHref: `/mission-control/tasks/${encodeURIComponent(input.taskId)}`,
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
-        'This preview stays tied to the current board stage flow, so operators can return there first and only open step diagnostics when they need lower-level runtime detail.',
+        'This preview stays tied to the current board stage flow, so operators can return there first and only open step diagnostics when they need lower-level execution detail.',
     };
   }
 
@@ -102,11 +102,11 @@ export function buildArtifactPreviewOperatorNavigation(input: {
       primaryHref: `/mission-control/workflows/${encodeURIComponent(workflowScope.workflow_id)}`,
       primaryLabel: 'Back to board context',
       primaryHelper:
-        'Return to the board context first, then open step diagnostics only if you need lower-level runtime detail.',
+        'Return to the board context first, then open step diagnostics only if you need lower-level execution detail.',
       diagnosticHref: `/mission-control/tasks/${encodeURIComponent(input.taskId)}`,
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
-        'This preview stays tied to the surrounding board context, so operators can return there first and only open step diagnostics when they need lower-level runtime detail.',
+        'This preview stays tied to the surrounding board context, so operators can return there first and only open step diagnostics when they need lower-level execution detail.',
     };
   }
 

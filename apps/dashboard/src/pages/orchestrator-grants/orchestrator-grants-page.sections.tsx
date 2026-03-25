@@ -205,7 +205,7 @@ export function GrantsFilterBar(props: {
         </FilterField>
         <FilterField
           label="Agent"
-          description="Search by agent name, status, or worker."
+          description="Search by agent name, status, or agent ID."
           isLoading={props.agentsLoading}
           hasError={props.agentsError}
           isEmpty={props.agentItems.length === 0}
@@ -216,7 +216,7 @@ export function GrantsFilterBar(props: {
             value={props.filters.agentId}
             onChange={props.onAgentChange}
             placeholder="All agents"
-            searchPlaceholder="Search agents by name, status, or worker"
+            searchPlaceholder="Search agents by name, status, or agent ID"
             allGroupLabel="Agents"
             isLoading={props.agentsLoading}
             disabled={props.agentsLoading || props.agentsError || props.agentItems.length === 0}

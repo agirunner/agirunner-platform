@@ -788,7 +788,7 @@ export function TaskDetailPage(): JSX.Element {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <InfoCard
           icon={User}
-          label="Assigned Agent"
+          label={describeExecutionSurface(task)}
           value={task.agent_name ?? task.agent_id ?? 'Unassigned'}
         />
         <InfoCard

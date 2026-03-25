@@ -33,7 +33,7 @@ const ROLE_VARIANT: Record<string, RoleBadgeVariant> = {
 
 const ROLE_DESCRIPTION: Record<string, string> = {
   viewer: 'Read-only access for people who monitor posture without changing platform state.',
-  operator: 'Operational access for routine workflow and runtime actions without org-wide governance control.',
+  operator: 'Operational access for routine workflow and agent actions without org-wide governance control.',
   agent_admin: 'Agent inventory and assignment control for teams managing automation capacity.',
   workflow_admin: 'Workflow orchestration and lifecycle control across workspaces and playbooks.',
   org_admin: 'Tenant-wide administration. Reserve for trusted administrators only.',

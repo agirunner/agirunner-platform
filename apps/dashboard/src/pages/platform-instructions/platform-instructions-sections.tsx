@@ -89,7 +89,7 @@ export function PlatformInstructionOverviewCards(props: {
             {renderPlatformInstructionSnapshot(currentInstruction)}
           </pre>
           <p className="text-sm text-muted">
-            Keep task-defining behavior here, not in ad hoc runtime or role-level hidden fields.
+            Keep task-defining behavior here, not in ad hoc agent or role-level hidden fields.
           </p>
         </CardContent>
       </Card>

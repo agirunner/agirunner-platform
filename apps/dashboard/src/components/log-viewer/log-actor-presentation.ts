@@ -123,6 +123,9 @@ function looksLikeOpaqueActorName(value: string): boolean {
     normalized === 'runtime' ||
     normalized === 'worker' ||
     normalized === 'agent' ||
+    normalized === 'specialist agent' ||
+    normalized === 'specialist execution' ||
+    normalized === 'orchestrator agent' ||
     normalized === 'operator'
   );
 }

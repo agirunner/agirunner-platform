@@ -130,7 +130,7 @@ export async function acknowledgeTask(
   agentId?: string,
 ): Promise<void> {
   if (workerIdentity.scope !== 'worker' || !workerIdentity.ownerId) {
-    throw new ForbiddenError('Worker identity required');
+    throw new ForbiddenError('Specialist Agent identity required');
   }
 
   const acknowledged = await acknowledgeTaskAssignment(
@@ -141,7 +141,7 @@ export async function acknowledgeTask(
     agentId,
   );
   if (!acknowledged) {
-    throw new ConflictError('Task is not currently assigned to this worker');
+    throw new ConflictError('Task is not currently assigned to this Specialist Agent');
   }
 
   context.connectionHub.acknowledgeDispatch(taskId);

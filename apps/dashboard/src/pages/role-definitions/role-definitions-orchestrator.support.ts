@@ -190,14 +190,14 @@ export function summarizeOrchestratorReadiness(
   if (pool.enabledWorkers === 0 || pool.desiredWorkers === 0 || pool.desiredReplicas === 0) {
     issues.push({
       id: 'pool',
-      title: 'Enable the orchestrator worker pool.',
-      detail: 'Set at least one enabled worker with desired replicas so orchestrator tasks have capacity to run.',
+      title: 'Enable the orchestrator agent pool.',
+      detail: 'Set at least one enabled agent with desired replicas so orchestrator tasks have capacity to run.',
     });
   } else if (pool.runningContainers === 0) {
     issues.push({
       id: 'pool',
       title: 'Review orchestrator pool capacity.',
-      detail: 'Workers are configured but no orchestrator containers are running yet. Confirm the pool can actually start work.',
+      detail: 'Agents are configured but no orchestrator agents are running yet. Confirm the pool can actually start work.',
     });
   }
 
@@ -245,13 +245,13 @@ export function summarizeOrchestratorControlSurfaces(
     },
     {
       id: 'pool',
-      title: 'Pool and runtime',
+      title: 'Pool and agent',
       summary: `${pool.enabledWorkers} enabled / ${pool.desiredReplicas} desired replicas`,
-      detail: `Orchestrator posture owns the primary orchestrator agent image and capacity. Runtime defaults control the shared specialist agent and execution envelope and safeguards.`,
+      detail: `Orchestrator posture owns the primary orchestrator agent image and capacity. The Runtimes page controls the shared Specialist Agent and Specialist Execution envelope and safeguards.`,
       href: '/config/orchestrator',
       label: 'Open orchestrator',
       secondaryHref: '/platform/runtimes',
-      secondaryLabel: 'Open runtime defaults',
+      secondaryLabel: 'Open runtimes',
     },
     {
       id: 'specialists',

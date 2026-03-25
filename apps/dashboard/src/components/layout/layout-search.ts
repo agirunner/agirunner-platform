@@ -94,7 +94,7 @@ const SEARCH_RESULT_SECTION_LABELS: Record<DashboardSearchResult['type'], string
   task: 'Tasks',
   workspace: 'Workspaces',
   playbook: 'Playbooks',
-  worker: 'Workers',
+  worker: 'Specialist Agents',
   agent: 'Agents',
 };
 

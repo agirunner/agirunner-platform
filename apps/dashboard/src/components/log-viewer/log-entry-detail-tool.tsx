@@ -16,7 +16,7 @@ const META_FIELDS: readonly { label: string; key: string }[] = [
   { label: 'Step', key: 'step_index' },
   { label: 'Exit Code', key: 'exit_code' },
   { label: 'Error', key: 'error' },
-  { label: 'Container', key: 'container_id' },
+  { label: 'Execution handle', key: 'container_id' },
 ];
 
 function buildFullInvocation(payload: Record<string, unknown>): string | null {

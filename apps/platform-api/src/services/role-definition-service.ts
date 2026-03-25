@@ -300,12 +300,12 @@ function validateExecutionContainerConfig(
     return;
   }
   if (typeof value.image === 'string') {
-    assertValidContainerImage(value.image, 'Execution container image');
+    assertValidContainerImage(value.image, 'Specialist Execution image');
   }
   if (typeof value.cpu === 'string') {
-    assertValidContainerCpu(value.cpu, 'Execution container CPU');
+    assertValidContainerCpu(value.cpu, 'Specialist Execution CPU');
   }
   if (typeof value.memory === 'string') {
-    assertValidContainerMemory(value.memory, 'Execution container memory');
+    assertValidContainerMemory(value.memory, 'Specialist Execution memory');
   }
 }

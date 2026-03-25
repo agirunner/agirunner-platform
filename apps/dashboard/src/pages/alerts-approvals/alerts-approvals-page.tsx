@@ -167,7 +167,7 @@ function WorkItemFlowActionBlock({
       </div>
       <p className="text-xs text-muted">
         Use the grouped work-item flow first. Open the step record later from the work-item view
-        only if you need runtime diagnostics.
+        only if you need execution diagnostics.
       </p>
     </div>
   );
@@ -433,9 +433,9 @@ export function AlertsApprovalsPage(): JSX.Element {
     mutationFn: (taskId: string) => dashboardApi.retryTask(taskId, { force: true }),
     onSuccess: async () => {
       await invalidateAll();
-      toast.success('Specialist step re-run on a new worker initiated');
+      toast.success('Specialist step re-run on a new agent initiated');
     },
-    onError: () => { toast.error('Failed to re-run step on a new worker'); },
+    onError: () => { toast.error('Failed to re-run step on a new agent'); },
   });
 
   const cancelFailedMutation = useMutation({

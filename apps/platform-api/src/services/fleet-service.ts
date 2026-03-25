@@ -427,7 +427,7 @@ export class FleetService {
   async getWorker(tenantId: string, id: string): Promise<FleetWorkerView> {
     const repo = new TenantScopedRepository(this.pool, tenantId);
     const row = await repo.findById<DesiredStateRow>('worker_desired_state', '*', id);
-    if (!row) throw new NotFoundError('Fleet worker not found');
+    if (!row) throw new NotFoundError('Fleet agent not found');
 
     const actual = await this.pool.query<ActualStateRow>(
       'SELECT * FROM worker_actual_state WHERE desired_state_id = $1',
@@ -517,7 +517,7 @@ export class FleetService {
       `UPDATE worker_desired_state SET ${setClauses.join(', ')} WHERE tenant_id = $1 AND id = $2 RETURNING *`,
       values,
     );
-    if (!result.rowCount) throw new NotFoundError('Fleet worker not found');
+    if (!result.rowCount) throw new NotFoundError('Fleet agent not found');
     return toPublicDesiredStateRow(result.rows[0]);
   }
 
@@ -526,7 +526,7 @@ export class FleetService {
       'UPDATE worker_desired_state SET enabled = false, updated_at = NOW() WHERE tenant_id = $1 AND id = $2',
       [tenantId, id],
     );
-    if (!result.rowCount) throw new NotFoundError('Fleet worker not found');
+    if (!result.rowCount) throw new NotFoundError('Fleet agent not found');
   }
 
   async restartWorker(tenantId: string, id: string): Promise<PublicDesiredStateRow> {
@@ -535,7 +535,7 @@ export class FleetService {
        WHERE tenant_id = $1 AND id = $2 RETURNING *`,
       [tenantId, id],
     );
-    if (!result.rowCount) throw new NotFoundError('Fleet worker not found');
+    if (!result.rowCount) throw new NotFoundError('Fleet agent not found');
     return toPublicDesiredStateRow(result.rows[0]);
   }
 
@@ -545,7 +545,7 @@ export class FleetService {
        WHERE tenant_id = $1 AND id = $2 RETURNING *`,
       [tenantId, id],
     );
-    if (!result.rowCount) throw new NotFoundError('Fleet worker not found');
+    if (!result.rowCount) throw new NotFoundError('Fleet agent not found');
     return toPublicDesiredStateRow(result.rows[0]);
   }
 
@@ -555,7 +555,7 @@ export class FleetService {
        WHERE tenant_id = $1 AND id = $2 RETURNING *`,
       [tenantId, id],
     );
-    if (!result.rowCount) throw new NotFoundError('Fleet worker not found');
+    if (!result.rowCount) throw new NotFoundError('Fleet agent not found');
     return toPublicDesiredStateRow(result.rows[0]);
   }
 
@@ -892,7 +892,7 @@ export class FleetService {
     const repo = new TenantScopedRepository(this.pool, tenantId);
     const row = await repo.findById<DesiredStateRow>('worker_desired_state', '*', id);
     if (!row) {
-      throw new NotFoundError('Fleet worker not found');
+      throw new NotFoundError('Fleet agent not found');
     }
     return row;
   }

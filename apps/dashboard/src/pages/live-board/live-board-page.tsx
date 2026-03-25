@@ -1089,7 +1089,7 @@ function NeedsAttentionSection({
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-muted">
-            The operator queue is clear, but worker recovery still needs attention.
+            The operator queue is clear, but Specialist Agent recovery still needs attention.
           </p>
           <Badge variant="warning">{fleetAttentionLabel}</Badge>
         </CardContent>
@@ -1441,7 +1441,7 @@ function ActivePlaybookBoards(props: {
                     value={isLoading ? 'Loading…' : hasError ? 'Unavailable' : describeOrchestratorPool(activationSummary)}
                   />
                   <SnapshotMetric
-                    label="Specialist pool"
+                    label="Specialist Agent pool"
                     value={describeSpecialistPool(specialistSummary)}
                   />
                   <SnapshotMetric
@@ -1660,7 +1660,7 @@ function FleetStatusPanel({ workers }: FleetStatusPanelProps): JSX.Element {
           <SnapshotMetric label="Assigned steps" value={String(fleetSummary.assignedSteps)} />
         </div>
         {workers.length === 0 ? (
-          <p className="text-sm text-muted">No workers registered.</p>
+          <p className="text-sm text-muted">No Specialist Agents registered.</p>
         ) : (
           <div className="space-y-2">
             {workers.map((w) => (

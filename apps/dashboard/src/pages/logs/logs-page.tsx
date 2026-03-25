@@ -247,7 +247,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
           <TabsContent value="summary" id="operator-log-summary" className="space-y-4">
             <p className="text-sm leading-6 text-muted">
               A curated summary of the current log results. Top activity paths, role lanes, and
-              worker or operator activity reflect the current filters.
+              agent or operator activity reflect the current filters.
             </p>
              <LogFilters
               hideEntityScope={Boolean(logScope)}
