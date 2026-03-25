@@ -1726,9 +1726,10 @@ export class PlaybookWorkflowControlService {
                   AND COALESCE(th.role_data->>'task_kind', '') = 'assessment'
                   AND COALESCE(th.role_data->>'subject_task_id', '') = COALESCE(latest_delivery.subject_task_id::text, '')
                   AND COALESCE(NULLIF(th.role_data->>'subject_revision', '')::int, -1) = COALESCE(latest_delivery.subject_revision, -1)
-                  AND th.resolution IN ('request_changes', 'rejected')
+                  AND th.resolution IN ('approved', 'request_changes', 'rejected', 'blocked')
                 ORDER BY th.role, th.sequence DESC, th.created_at DESC
              ) assessment_handoff
+            WHERE assessment_handoff.resolution IN ('request_changes', 'rejected', 'blocked')
             LIMIT 1
          ) latest_assessment ON true`,
       [tenantId, workflowId, workItemId],
