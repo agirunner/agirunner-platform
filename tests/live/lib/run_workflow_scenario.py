@@ -32,6 +32,14 @@ DEFAULT_FINAL_SETTLE_DELAY_SECONDS = 1
 TASK_LIST_PER_PAGE = 100
 OUTCOME_DRIVEN_VERIFICATION_MODE = 'outcome_driven'
 STRICT_VERIFICATION_MODE = 'strict'
+GUIDED_CLOSURE_HELPER_TOOLS = {
+    "close_work_item_with_callouts",
+    "close_workflow_with_callouts",
+    "reattach_or_replace_stale_owner",
+    "reopen_work_item_for_missing_handoff",
+    "rerun_task_with_corrected_brief",
+    "waive_preferred_step",
+}
 
 
 def env(name: str, default: str | None = None, *, required: bool = False) -> str:
@@ -761,6 +769,204 @@ def summarize_log_anomalies(logs: Any) -> dict[str, Any]:
     return {"count": len(rows), "rows": rows}
 
 
+def _completion_callouts(source: Any) -> dict[str, Any]:
+    if not isinstance(source, dict):
+        return {}
+    callouts = source.get("completion_callouts")
+    return callouts if isinstance(callouts, dict) else {}
+
+
+def _count_completion_notes(callouts: dict[str, Any]) -> int:
+    notes = callouts.get("completion_notes")
+    if isinstance(notes, str):
+        return 1 if notes.strip() != "" else 0
+    if isinstance(notes, list):
+        return sum(1 for note in notes if isinstance(note, str) and note.strip() != "")
+    return 0
+
+
+def _count_list_entries(value: Any) -> int:
+    if not isinstance(value, list):
+        return 0
+    return len(value)
+
+
+def _count_work_item_completion_callout_entries(work_items: Any, key: str) -> int:
+    total = 0
+    for item in _work_items(work_items):
+        total += _count_list_entries(_completion_callouts(item).get(key))
+    return total
+
+
+def _tool_name_from_row(row: dict[str, Any]) -> str:
+    payload = row.get("payload")
+    if not isinstance(payload, dict):
+        return ""
+    tool = payload.get("tool")
+    return str(tool).strip() if isinstance(tool, str) else ""
+
+
+def _tool_result_output(row: dict[str, Any]) -> dict[str, Any]:
+    payload = row.get("payload")
+    if not isinstance(payload, dict):
+        return {}
+    output = payload.get("output")
+    if isinstance(output, dict):
+        return output
+    if not isinstance(output, str) or output.strip() == "":
+        return {}
+    try:
+        parsed = json.loads(output)
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
+def _count_anomaly_levels(rows: list[dict[str, Any]]) -> tuple[int, int]:
+    warning_count = 0
+    error_count = 0
+    for row in rows:
+        level = str(row.get("level") or "").lower()
+        if level in {"warn", "warning"}:
+            warning_count += 1
+            continue
+        if level in {"error", "fatal"} or str(row.get("status") or "").lower() == "failed":
+            error_count += 1
+    return warning_count, error_count
+
+
+def _count_container_kinds(rows: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        kind = row.get("kind")
+        if not isinstance(kind, str) or kind.strip() == "":
+            continue
+        counts[kind] = counts.get(kind, 0) + 1
+    return counts
+
+
+def build_scenario_outcome_metrics(
+    *,
+    final_state: str,
+    verification: dict[str, Any],
+    workflow: dict[str, Any],
+    board: Any,
+    work_items: Any,
+    stage_gates: Any,
+    artifacts: Any,
+    approval_actions: list[dict[str, Any]],
+    workflow_actions: list[dict[str, Any]],
+    execution_logs: Any,
+    evidence: dict[str, Any],
+) -> dict[str, Any]:
+    verification_payload = verification if isinstance(verification, dict) else {}
+    workflow_callouts = _completion_callouts(workflow)
+    unresolved_advisory_item_count = _count_list_entries(
+        workflow_callouts.get("unresolved_advisory_items")
+    ) + _count_work_item_completion_callout_entries(work_items, "unresolved_advisory_items")
+    helper_tool_counts: dict[str, int] = {}
+    recoverable_mutation_count = 0
+    recovery_class_counts: dict[str, int] = {}
+    suggested_next_action_count = 0
+
+    for row in execution_log_rows(execution_logs):
+        operation = str(row.get("operation") or "").strip()
+        if operation == "tool_call":
+            tool_name = _tool_name_from_row(row)
+            if tool_name in GUIDED_CLOSURE_HELPER_TOOLS:
+                helper_tool_counts[tool_name] = helper_tool_counts.get(tool_name, 0) + 1
+            continue
+        if operation != "tool_result":
+            continue
+        output = _tool_result_output(row)
+        if output.get("mutation_outcome") != "recoverable_not_applied":
+            continue
+        recoverable_mutation_count += 1
+        recovery_class = output.get("recovery_class")
+        if isinstance(recovery_class, str) and recovery_class.strip() != "":
+            recovery_class_counts[recovery_class] = recovery_class_counts.get(recovery_class, 0) + 1
+        suggested_next_actions = output.get("suggested_next_actions")
+        if isinstance(suggested_next_actions, list):
+            suggested_next_action_count += len(suggested_next_actions)
+
+    gate_effect_counts: dict[str, int] = {}
+    for gate in _stage_gates(stage_gates):
+        if not isinstance(gate, dict):
+            continue
+        closure_effect = gate.get("closure_effect")
+        if not isinstance(closure_effect, str) or closure_effect.strip() == "":
+            continue
+        gate_effect_counts[closure_effect] = gate_effect_counts.get(closure_effect, 0) + 1
+
+    anomalies = evidence.get("log_anomalies", {})
+    anomaly_rows = anomalies.get("rows", []) if isinstance(anomalies, dict) else []
+    if not isinstance(anomaly_rows, list):
+        anomaly_rows = []
+    warning_count, error_count = _count_anomaly_levels(
+        [row for row in anomaly_rows if isinstance(row, dict)]
+    )
+
+    runtime_cleanup = evidence.get("runtime_cleanup", {})
+    runtime_cleanup_passed = isinstance(runtime_cleanup, dict) and bool(runtime_cleanup.get("all_clean"))
+    runtime_cleanup_rows = runtime_cleanup.get("runtime_containers", []) if isinstance(runtime_cleanup, dict) else []
+    if not isinstance(runtime_cleanup_rows, list):
+        runtime_cleanup_rows = []
+    live_containers = evidence.get("live_containers", {})
+    live_container_rows = _live_container_rows(live_containers)
+    container_observations = evidence.get("container_observations", {})
+    observed_container_rows = container_observation_rows(container_observations)
+
+    return {
+        "status": "passed" if bool(verification_payload.get("passed")) else "failed",
+        "workflow_state": final_state,
+        "success": {
+            "output_artifact_count": artifact_output_count(artifacts),
+            "completed_non_orchestrator_task_count": completed_non_orchestrator_task_count(workflow),
+            "terminal_work_item_count": _completed_work_item_count(work_items, board),
+            "approval_action_count": len(approval_actions),
+            "workflow_action_count": len(workflow_actions),
+        },
+        "closure": {
+            "completion_note_count": _count_completion_notes(workflow_callouts),
+            "residual_risk_count": _count_list_entries(workflow_callouts.get("residual_risks")),
+            "waived_step_count": _count_list_entries(workflow_callouts.get("waived_steps")),
+            "unresolved_advisory_item_count": unresolved_advisory_item_count,
+        },
+        "invoked_controls": {
+            "closure_effect_counts": gate_effect_counts,
+        },
+        "orchestrator_improvisation": {
+            "helper_tool_usage_count": sum(helper_tool_counts.values()),
+            "helper_tool_counts": helper_tool_counts,
+            "recoverable_mutation_count": recoverable_mutation_count,
+            "recovery_class_counts": recovery_class_counts,
+            "suggested_next_action_count": suggested_next_action_count,
+        },
+        "verification": {
+            "advisory_count": len(verification_payload.get("advisories", []))
+            if isinstance(verification_payload.get("advisories"), list)
+            else 0,
+            "failure_count": len(verification_payload.get("failures", []))
+            if isinstance(verification_payload.get("failures"), list)
+            else 0,
+        },
+        "anomalies": {
+            "warning_count": warning_count,
+            "error_count": error_count,
+        },
+        "hygiene": {
+            "runtime_cleanup_passed": runtime_cleanup_passed,
+            "runtime_container_count": len([row for row in runtime_cleanup_rows if isinstance(row, dict)]),
+            "live_container_kind_counts": _count_container_kinds(
+                [row for row in live_container_rows if isinstance(row, dict)]
+            ),
+            "observed_container_kind_counts": _count_container_kinds(
+                [row for row in observed_container_rows if isinstance(row, dict)]
+            ),
+        },
+    }
+
+
 def write_evidence_artifacts(trace_dir: str, evidence: dict[str, Any]) -> dict[str, str]:
     evidence_root = Path(trace_dir).resolve().parent / "evidence"
     evidence_root.mkdir(parents=True, exist_ok=True)
@@ -771,6 +977,7 @@ def write_evidence_artifacts(trace_dir: str, evidence: dict[str, Any]) -> dict[s
         "container_observations": "container-observations.json",
         "runtime_cleanup": "runtime-cleanup.json",
         "docker_log_rotation": "docker-log-rotation.json",
+        "scenario_outcome_metrics": "scenario-outcome-metrics.json",
     }
     written: dict[str, str] = {}
     for key, file_name in file_names.items():
@@ -2836,6 +3043,21 @@ def build_run_result_payload(
     if not isinstance(specialist_teardown, dict):
         specialist_teardown = {}
     brief_proof = build_brief_proof(workflow=workflow, logs=execution_logs)
+    outcome_metrics = evidence_payload.get("scenario_outcome_metrics")
+    if not isinstance(outcome_metrics, dict):
+        outcome_metrics = build_scenario_outcome_metrics(
+            final_state=final_state,
+            verification=verification_payload,
+            workflow=workflow,
+            board=board,
+            work_items=work_items,
+            stage_gates=stage_gates,
+            artifacts=artifacts,
+            approval_actions=approval_actions,
+            workflow_actions=workflow_actions,
+            execution_logs=execution_logs,
+            evidence=evidence_payload,
+        )
     return {
         "workflow_id": workflow_id,
         "state": final_state,
@@ -2880,6 +3102,7 @@ def build_run_result_payload(
         ),
         "specialist_teardown_lag_seconds": specialist_teardown.get("max_lag_seconds"),
         "brief_proof": brief_proof,
+        "outcome_metrics": outcome_metrics,
     }
 
 
@@ -3301,8 +3524,6 @@ def main() -> None:
         if latest_live_containers.get("ok")
         else {"all_runtime_containers_bounded": False, "error": latest_live_containers.get("error")},
     }
-    evidence_payload["artifacts"] = write_evidence_artifacts(trace_dir, evidence_payload)
-
     final_state = latest_workflow.get("state")
     verification = evaluate_expectations(
         expectation_plan,
@@ -3322,6 +3543,20 @@ def main() -> None:
         evidence=evidence_payload,
         verification_mode=verification_mode,
     )
+    evidence_payload["scenario_outcome_metrics"] = build_scenario_outcome_metrics(
+        final_state=final_state,
+        verification=verification,
+        workflow=latest_workflow,
+        board=board_snapshot,
+        work_items=work_items_snapshot,
+        stage_gates=stage_gates_snapshot,
+        artifacts=artifacts_snapshot,
+        approval_actions=approval_actions,
+        workflow_actions=workflow_actions,
+        execution_logs=execution_logs_snapshot,
+        evidence=evidence_payload,
+    )
+    evidence_payload["artifacts"] = write_evidence_artifacts(trace_dir, evidence_payload)
     emit_run_result(
         build_run_result_payload(
             workflow_id=workflow_id,

@@ -112,8 +112,10 @@ Per scenario run:
 - `<scenario>/evidence/container-observations.json`
 - `<scenario>/evidence/runtime-cleanup.json`
 - `<scenario>/evidence/docker-log-rotation.json`
+- `<scenario>/evidence/scenario-outcome-metrics.json`
 
 These artifacts are designed for trace-first troubleshooting and later automated validation.
+`scenario-outcome-metrics.json` is the per-scenario summary that records status, success basics, closure callouts, orchestrator improvisation, anomalies, and runtime hygiene.
 
 ## Pass Criteria
 

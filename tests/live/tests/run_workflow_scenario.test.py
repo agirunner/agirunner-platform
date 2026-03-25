@@ -311,6 +311,8 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertTrue(payload["brief_proof"]["tasks"][0]["execution_brief_present"])
         self.assertFalse(payload["brief_proof"]["tasks"][0]["system_prompt_contains_workflow_brief"])
         self.assertIn("## Workflow Brief", payload["brief_proof"]["tasks"][0]["execution_brief_excerpt"])
+        self.assertIn("outcome_metrics", payload)
+        self.assertEqual("passed", payload["outcome_metrics"]["status"])
 
     def test_build_brief_proof_prefers_task_started_summary(self) -> None:
         proof = run_workflow_scenario.build_brief_proof(
@@ -395,6 +397,111 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertFalse(payload["timed_out"])
         self.assertFalse(payload["terminal"])
         self.assertEqual("pending", payload["workflow_state"])
+
+    def test_build_scenario_outcome_metrics_summarizes_recovery_and_remaining_risk(self) -> None:
+        metrics = run_workflow_scenario.build_scenario_outcome_metrics(
+            final_state="completed",
+            verification={"passed": True, "failures": [], "checks": [], "advisories": ["ideal path drift"]},
+            workflow={
+                "id": "wf-1",
+                "state": "completed",
+                "tasks": [
+                    {"id": "task-1", "is_orchestrator_task": False, "state": "completed"},
+                ],
+                "completion_callouts": {
+                    "completion_notes": "Closed with explicit operator caveats.",
+                    "residual_risks": ["Pending brand review"],
+                    "waived_steps": [{"code": "secondary_review", "reason": "Primary review was decisive."}],
+                    "unresolved_advisory_items": [{"kind": "approval", "summary": "Approval stayed advisory."}],
+                },
+            },
+            board={"data": {"data": {"columns": [{"id": "done", "is_terminal": True}], "work_items": [{"id": "wi-1", "column_id": "done"}]}}},
+            work_items={
+                "data": {
+                    "data": [
+                        {
+                            "id": "wi-1",
+                            "column_id": "done",
+                            "completion_callouts": {
+                                "unresolved_advisory_items": [{"kind": "escalation", "summary": "Escalation remained advisory."}],
+                            },
+                        }
+                    ]
+                }
+            },
+            stage_gates={"data": [{"id": "gate-1", "closure_effect": "advisory"}]},
+            artifacts={"data": {"items": [{"logical_path": "reports/summary.md"}]}},
+            approval_actions=[{"action": "approve"}],
+            workflow_actions=[{"type": "create_work_items", "count": 1}],
+            execution_logs={
+                "data": [
+                    {"operation": "tool_call", "payload": {"tool": "waive_preferred_step"}},
+                    {"operation": "tool_call", "payload": {"tool": "close_workflow_with_callouts"}},
+                    {
+                        "operation": "tool_result",
+                        "payload": {
+                            "tool": "request_gate_approval",
+                            "output": '{"mutation_outcome":"recoverable_not_applied","recovery_class":"approval_not_configured","suggested_next_actions":[{"action":"continue_workflow"}]}',
+                        },
+                    },
+                ]
+            },
+            evidence={
+                "log_anomalies": {
+                    "rows": [
+                        {"level": "warning"},
+                        {"level": "error"},
+                    ]
+                },
+                "runtime_cleanup": {
+                    "all_clean": True,
+                    "runtime_containers": [{"kind": "orchestrator"}, {"kind": "orchestrator"}],
+                },
+                "live_containers": {"data": [{"kind": "orchestrator"}, {"kind": "orchestrator"}]},
+                "container_observations": {
+                    "rows": [
+                        {"kind": "orchestrator"},
+                        {"kind": "specialist", "task_id": "task-1"},
+                        {"kind": "specialist", "task_id": "task-2"},
+                    ]
+                },
+            },
+        )
+
+        self.assertEqual("passed", metrics["status"])
+        self.assertEqual(1, metrics["success"]["output_artifact_count"])
+        self.assertEqual(1, metrics["success"]["completed_non_orchestrator_task_count"])
+        self.assertEqual(1, metrics["closure"]["residual_risk_count"])
+        self.assertEqual(1, metrics["closure"]["waived_step_count"])
+        self.assertEqual(2, metrics["closure"]["unresolved_advisory_item_count"])
+        self.assertEqual({"advisory": 1}, metrics["invoked_controls"]["closure_effect_counts"])
+        self.assertEqual(2, metrics["orchestrator_improvisation"]["helper_tool_usage_count"])
+        self.assertEqual({"waive_preferred_step": 1, "close_workflow_with_callouts": 1}, metrics["orchestrator_improvisation"]["helper_tool_counts"])
+        self.assertEqual(1, metrics["orchestrator_improvisation"]["recoverable_mutation_count"])
+        self.assertEqual({"approval_not_configured": 1}, metrics["orchestrator_improvisation"]["recovery_class_counts"])
+        self.assertEqual(1, metrics["orchestrator_improvisation"]["suggested_next_action_count"])
+        self.assertEqual(1, metrics["verification"]["advisory_count"])
+        self.assertEqual(1, metrics["anomalies"]["warning_count"])
+        self.assertEqual(1, metrics["anomalies"]["error_count"])
+        self.assertTrue(metrics["hygiene"]["runtime_cleanup_passed"])
+
+    def test_write_evidence_artifacts_writes_outcome_metrics_json(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            trace_dir = str(Path(tmpdir) / "trace")
+            Path(trace_dir).mkdir(parents=True, exist_ok=True)
+
+            written = run_workflow_scenario.write_evidence_artifacts(
+                trace_dir,
+                {
+                    "db_state": {"ok": True},
+                    "scenario_outcome_metrics": {"status": "passed", "success": {"output_artifact_count": 1}},
+                },
+            )
+
+            self.assertIn("scenario_outcome_metrics", written)
+            self.assertTrue(written["scenario_outcome_metrics"].endswith("scenario-outcome-metrics.json"))
+            payload = json.loads(Path(written["scenario_outcome_metrics"]).read_text())
+            self.assertEqual("passed", payload["status"])
 
     def test_collect_execution_logs_paginates_all_pages(self) -> None:
         client = FakeWorkflowClient(
