@@ -19,7 +19,7 @@ export function buildRuntimeManifestPackets(
     {
       label: 'Base image',
       value: manifest.base_image || 'No base image',
-      detail: `Runtime preset ${manifest.template || 'unspecified'} anchors the current runtime manifest.`,
+      detail: `Specialist Agent preset ${manifest.template || 'unspecified'} anchors the current image manifest.`,
     },
     {
       label: 'System packages',
@@ -31,19 +31,19 @@ export function buildRuntimeManifestPackets(
       value: String(fileCount),
       detail: fileCount > 0
         ? 'Managed files and path mapping are present in this manifest packet.'
-        : 'No managed files are attached to this runtime manifest.',
+        : 'No managed files are attached to this Specialist Agent image manifest.',
     },
     {
       label: 'Setup path',
       value: customizations.setup_script?.path ?? 'No setup script',
       detail: customizations.setup_script
-        ? 'A setup script is part of the runtime handoff.'
-        : 'No setup script is recorded for this runtime manifest.',
+        ? 'A setup script is part of the Specialist Agent image handoff.'
+        : 'No setup script is recorded for this Specialist Agent image manifest.',
     },
     {
       label: 'Reasoning levels',
       value: summarizeReasoningLevels(manifest),
-      detail: 'Resolved orchestrator and specialist reasoning posture for this runtime image.',
+      detail: 'Resolved orchestrator and specialist reasoning posture for this Specialist Agent image.',
     },
   ];
 }

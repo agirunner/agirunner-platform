@@ -968,7 +968,7 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
     },
     {
       label: 'Specialist Agent modes',
-      value: `${props.executionBackendCapacity.runtimeOnlyRuntimes + props.executionBackendCapacity.runtimePlusTaskRuntimes} runtimes`,
+      value: `${props.executionBackendCapacity.runtimeOnlyRuntimes + props.executionBackendCapacity.runtimePlusTaskRuntimes} Specialist Agents`,
       detail: `${props.executionBackendCapacity.runtimeOnlyRuntimes} Specialist Agent only • ${props.executionBackendCapacity.runtimePlusTaskRuntimes} Specialist Agent + Specialist Execution`,
       icon: Cpu,
       color: 'text-violet-600',
@@ -978,7 +978,7 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
       value:
         props.executionBackendCapacity.taskSandboxes > 0
           ? `${props.executionBackendCapacity.taskSandboxes} active`
-          : 'No active sandboxes',
+          : 'No active Specialist Executions',
       detail: 'Specialist repo, shell, git, file, artifact upload, and web activity.',
       icon: Server,
       color: 'text-amber-600',

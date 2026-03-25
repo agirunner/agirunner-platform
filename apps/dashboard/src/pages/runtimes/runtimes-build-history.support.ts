@@ -72,12 +72,12 @@ export function describeRuntimePosture(
 ): string {
   const derived = deriveStatusFromState(status);
   if (derived === 'linked') {
-    return 'Active runtime image matches a configured digest.';
+    return 'Active Specialist Agent image matches a configured digest.';
   }
   if (derived === 'valid') {
-    return 'Runtime is reachable, but the configured digest is not fully linked.';
+    return 'Specialist Agent image service is reachable, but the configured digest is not fully linked.';
   }
-  return 'Runtime image needs recovery before operators can trust rollout state.';
+  return 'Specialist Agent image needs recovery before operators can trust rollout state.';
 }
 
 export function describeRuntimeNextAction(
@@ -85,12 +85,12 @@ export function describeRuntimeNextAction(
 ): string {
   const derived = deriveStatusFromState(status);
   if (derived === 'linked') {
-    return 'Inspect the manifest packet before making the next runtime change.';
+    return 'Inspect the manifest packet before making the next Specialist Agent image change.';
   }
   if (derived === 'valid') {
     return 'Compare the configured digest and active digest before rollout or rollback decisions.';
   }
-  return 'Inspect the manifest and rebuild or relink the runtime image before rollout.';
+  return 'Inspect the manifest and rebuild or relink the Specialist Agent image before rollout.';
 }
 
 export function buildHistoryFromStatus(
@@ -121,7 +121,7 @@ export function describeBuildRecoveryPath(status: 'linked' | 'valid' | 'failed')
   if (status === 'valid') {
     return 'Link the configured digest before rollout or rollback.';
   }
-  return 'Inspect the manifest and rebuild or relink the runtime image.';
+  return 'Inspect the manifest and rebuild or relink the Specialist Agent image.';
 }
 
 export function buildRuntimeRecoveryBrief(
@@ -130,11 +130,11 @@ export function buildRuntimeRecoveryBrief(
   const derived = deriveStatusFromState(status);
   if (derived === 'linked') {
     return {
-      headline: 'Runtime image is linked and ready for inspection.',
-      detail: 'Confirm the manifest packet before making the next runtime change so rollout context stays intact.',
+      headline: 'Specialist Agent image is linked and ready for inspection.',
+      detail: 'Confirm the manifest packet before making the next Specialist Agent image change so rollout context stays intact.',
       steps: [
         'Inspect the manifest packet and confirm the base image and customization inputs.',
-        'Compare the active digest with the next runtime change before rollout.',
+        'Compare the active digest with the next Specialist Agent image change before rollout.',
         'Use build history to confirm no recovery work is pending.',
       ],
       tone: 'linked',
@@ -142,23 +142,23 @@ export function buildRuntimeRecoveryBrief(
   }
   if (derived === 'valid') {
     return {
-      headline: 'Runtime is reachable, but linkage still needs confirmation.',
+      headline: 'Specialist Agent image service is reachable, but linkage still needs confirmation.',
       detail: 'Treat this as a pre-rollout checkpoint. Finish digest linkage before trusting rollback or rollout decisions.',
       steps: [
-        'Inspect the manifest packet to verify the runtime inputs that produced the current image.',
+        'Inspect the manifest packet to verify the Specialist Agent image inputs that produced the current image.',
         'Link the configured digest before rollout or rollback decisions.',
-        'Delay further runtime-default changes until the digest mismatch is resolved.',
+        'Delay further Specialist Agent default changes until the digest mismatch is resolved.',
       ],
       tone: 'valid',
     };
   }
   return {
-    headline: 'Runtime needs recovery before further configuration changes.',
-    detail: 'Do recovery work first so operators do not compound a broken runtime state with new defaults.',
+    headline: 'Specialist Agent image needs recovery before further configuration changes.',
+    detail: 'Do recovery work first so operators do not compound a broken Specialist Agent image state with new defaults.',
     steps: [
       'Inspect the manifest packet and build history together to confirm what failed.',
-      'Rebuild or relink the runtime image before rollout work continues.',
-      'Do not change runtime defaults again until recovery completes.',
+      'Rebuild or relink the Specialist Agent image before rollout work continues.',
+      'Do not change Specialist Agent defaults again until recovery completes.',
     ],
     tone: 'failed',
   };
@@ -177,20 +177,20 @@ export function buildRuntimeHistorySummaryCards(
         entries.length === 0
           ? 'No linked or reconstructed builds recorded yet.'
           : entries.length === 1
-            ? 'One runtime build packet is available for inspection.'
-            : `${entries.length} runtime build packets are available for inspection.`,
+            ? 'One Specialist Agent image packet is available for inspection.'
+            : `${entries.length} Specialist Agent image packets are available for inspection.`,
     },
     {
       label: 'Current posture',
       value: derivedStatus ?? 'unknown',
-      detail: status ? describeRuntimePosture(status) : 'Runtime status is not available right now.',
+      detail: status ? describeRuntimePosture(status) : 'Specialist Agent image status is not available right now.',
     },
     {
       label: 'Recovery path',
-      value: derivedStatus ? describeBuildRecoveryPath(derivedStatus) : 'Inspect runtime service health',
+      value: derivedStatus ? describeBuildRecoveryPath(derivedStatus) : 'Inspect Specialist Agent image service health',
       detail: status
         ? describeRuntimeNextAction(status)
-        : 'Reconnect runtime status before trusting rollout or rollback posture.',
+        : 'Reconnect the Specialist Agent image service before trusting rollout or rollback posture.',
     },
   ];
 }

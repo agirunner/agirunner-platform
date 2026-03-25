@@ -15,6 +15,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   'action-queue': 'Action Queue',
   routing: 'Models',
   instructions: 'Instructions',
+  runtimes: 'Specialist Agents',
   operations: 'Operations',
   diagnostics: 'Diagnostics',
   admin: 'Admin',

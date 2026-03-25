@@ -1772,7 +1772,7 @@ function buildActivationRoleConfig(): Record<string, unknown> {
       'If a stage already awaits approval, do not request another gate; finish the activation and wait for the decision event.',
       'Always include a unique request_id on mutating workflow control tool calls.',
       'When assigning repository-backed specialist work, include the repository execution context and required git binding details in the task payload.',
-      'Do not use repository, shell, git, filesystem, or web-fetch tools from the orchestrator activation. Orchestrator activations run in the runtime only.',
+      'Do not use repository, shell, git, filesystem, or web-fetch tools from the orchestrator activation. Orchestrator activations run on the orchestrator agent only.',
       'Be brief, concrete, and operational.',
     ].join(' '),
     tools: [

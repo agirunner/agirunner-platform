@@ -10,7 +10,7 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   {
     key: 'server_timeouts',
     title: 'Server timeouts',
-    description: 'Bound runtime HTTP server shutdown and request-header handling.',
+    description: 'Bound Specialist Agent HTTP server shutdown and request-header handling.',
   },
   {
     key: 'runtime_api',
@@ -20,7 +20,7 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   {
     key: 'llm_transport',
     title: 'LLM transport',
-    description: 'Control upstream model transport deadlines used by runtime provider adapters.',
+    description: 'Control upstream model transport deadlines used by Specialist Agent provider adapters.',
   },
   {
     key: 'tool_timeouts',
@@ -30,7 +30,7 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   {
     key: 'lifecycle_timeouts',
     title: 'Lifecycle timeouts',
-    description: 'Control health checks and task-container stop/destroy deadlines.',
+    description: 'Control health checks and Specialist Execution stop and destroy deadlines.',
   },
   {
     key: 'task_timeouts',
@@ -95,12 +95,12 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     key: 'capture_timeouts',
     title: 'Capture resilience',
     description:
-      'Control how aggressively the runtime retries result publication and how long capture-side steps may run.',
+      'Control how aggressively the Specialist Agent retries result publication and how long capture-side steps may run.',
   },
   {
     key: 'secrets_timeouts',
     title: 'Secrets backends',
-    description: 'Limit secret-provider calls made by the runtime during task execution.',
+    description: 'Limit secret-provider calls made by the Specialist Agent during task execution.',
   },
   {
     key: 'subagent_timeouts',
@@ -115,7 +115,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'server.shutdown_timeout_seconds',
     label: 'Shutdown timeout (seconds)',
-    description: 'How long the runtime waits for graceful shutdown before forcing termination.',
+    description: 'How long the Specialist Agent waits for graceful shutdown before forcing termination.',
     configType: 'number',
     placeholder: '5',
     section: 'server_timeouts',
@@ -137,7 +137,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'api.events_heartbeat_seconds',
     label: 'Event heartbeat interval (seconds)',
-    description: 'How often the runtime emits task-event heartbeats while a stream is open.',
+    description: 'How often the Specialist Agent emits task-event heartbeats while a stream is open.',
     configType: 'number',
     placeholder: '10',
     section: 'runtime_api',
@@ -148,7 +148,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'llm.http_timeout_seconds',
     label: 'Provider HTTP timeout (seconds)',
-    description: 'Upper bound for outbound LLM HTTP requests from the runtime.',
+    description: 'Upper bound for outbound LLM HTTP requests from the Specialist Agent.',
     configType: 'number',
     placeholder: '120',
     section: 'llm_transport',
@@ -183,7 +183,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'capture.push_retries',
     label: 'Capture push retry budget',
     description:
-      'How many times the runtime retries git push or result publication before giving up.',
+      'How many times the Specialist Agent retries git push or result publication before giving up.',
     configType: 'number',
     placeholder: '5',
     section: 'capture_timeouts',
@@ -301,7 +301,7 @@ function buildLifecycleTimeoutFields(): FieldDefinition[] {
       key: 'lifecycle.healthcheck_timeout_seconds',
       label: 'Healthcheck timeout (seconds)',
       description:
-        'Deadline for lifecycle health probes before the runtime marks the check as failed.',
+        'Deadline for lifecycle health probes before the Specialist Agent marks the check as failed.',
       configType: 'number',
       placeholder: '5',
       section: 'lifecycle_timeouts',
@@ -313,7 +313,7 @@ function buildLifecycleTimeoutFields(): FieldDefinition[] {
       key: 'lifecycle.healthcheck_retry_delay_seconds',
       label: 'Healthcheck retry delay (seconds)',
       description:
-        'How long the runtime waits before retrying a failed task-container health probe.',
+        'How long the Specialist Agent waits before retrying a failed Specialist Execution health probe.',
       configType: 'number',
       placeholder: '2',
       section: 'lifecycle_timeouts',
@@ -325,7 +325,7 @@ function buildLifecycleTimeoutFields(): FieldDefinition[] {
       key: 'lifecycle.failed_start_stop_timeout_seconds',
       label: 'Failed-start stop timeout (seconds)',
       description:
-        'How long the runtime waits when stopping a Specialist Execution that never became healthy.',
+        'How long the Specialist Agent waits when stopping a Specialist Execution that never became healthy.',
       configType: 'number',
       placeholder: '2',
       section: 'lifecycle_timeouts',
@@ -336,7 +336,7 @@ function buildLifecycleTimeoutFields(): FieldDefinition[] {
     {
       key: 'lifecycle.destroy_stop_timeout_seconds',
       label: 'Destroy stop timeout (seconds)',
-      description: 'How long the runtime waits when destroying an existing Specialist Execution.',
+      description: 'How long the Specialist Agent waits when destroying an existing Specialist Execution.',
       configType: 'number',
       placeholder: '10',
       defaultValue: '1',
@@ -561,7 +561,7 @@ function buildWorkspaceOperationFields(): FieldDefinition[] {
     {
       key: 'workspace.clone_max_retries',
       label: 'Clone retry budget',
-      description: 'How many times the runtime retries a workspace clone before failing the task.',
+      description: 'How many times the Specialist Agent retries a workspace clone before failing the task.',
       configType: 'number',
       placeholder: '5',
       section: 'workspace_operations',
@@ -1026,7 +1026,7 @@ function toolTimeoutField(key: string, label: string, placeholder: string): Fiel
   return {
     key,
     label: `${label} (seconds)`,
-    description: `Maximum runtime duration for ${label.toLowerCase()} operations.`,
+    description: `Maximum Specialist Agent duration for ${label.toLowerCase()} operations.`,
     configType: 'number',
     placeholder,
     section: 'tool_timeouts',

@@ -15,7 +15,7 @@ export function ActiveRuntimeManifestPacket(props: {
       <div className="space-y-1">
         <p className="text-sm font-medium text-foreground">Manifest packet</p>
         <p className="text-sm leading-6 text-muted">
-          Review the runtime image inputs and reasoning before making the next rebuild or relink decision.
+          Review the Specialist Agent image inputs and reasoning before making the next rebuild or relink decision.
         </p>
       </div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

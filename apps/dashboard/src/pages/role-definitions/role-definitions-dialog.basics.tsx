@@ -187,7 +187,7 @@ export function RoleExecutionContainerSection(props: {
       <CardHeader>
         <CardTitle>Specialist Execution override</CardTitle>
         <CardDescription>
-          Override the default Specialist Execution environment for this role. Leave fields blank to inherit the system defaults from Runtimes.
+          Override the default Specialist Execution environment for this role. Leave fields blank to inherit the system defaults from Specialist Agents.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2">

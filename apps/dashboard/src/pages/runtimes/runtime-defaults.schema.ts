@@ -227,7 +227,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'agent.specialist_context_strategy',
     label: 'Specialist context strategy',
     description:
-      'Default specialist continuity strategy. Auto prefers semantic handling and can adopt provider-native compaction when the runtime explicitly supports it.',
+      'Default specialist continuity strategy. Auto prefers semantic handling and can adopt provider-native compaction when the active Specialist Agent path explicitly supports it.',
     configType: 'string',
     placeholder: 'auto',
     section: 'agent_context',
@@ -461,7 +461,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'agent.max_burst_elapsed_ms',
     label: 'Maximum burst elapsed time (ms)',
     description:
-      'How long a reactive burst may run before the runtime forces a new planning boundary.',
+      'How long a reactive burst may run before the Specialist Agent forces a new planning boundary.',
     configType: 'number',
     placeholder: '120000',
     section: 'agent_safeguards',
@@ -473,7 +473,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'agent.max_parallel_tool_calls_per_burst',
     label: 'Maximum parallel tool calls per burst',
     description:
-      'How many read-only tool calls a reactive burst may execute in parallel before the runtime throttles concurrency.',
+      'How many read-only tool calls a reactive burst may execute in parallel before the Specialist Agent throttles concurrency.',
     configType: 'number',
     placeholder: '8',
     section: 'agent_safeguards',
@@ -485,7 +485,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'agent.max_stuck_interventions',
     label: 'Maximum stuck interventions',
     description:
-      'How many automatic recovery interventions the runtime attempts before failing the task.',
+      'How many automatic recovery interventions the Specialist Agent attempts before failing the task.',
     configType: 'number',
     placeholder: '2',
     section: 'agent_safeguards',

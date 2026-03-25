@@ -66,13 +66,13 @@ export function ActiveRuntimeImageCard(): JSX.Element {
   }
 
   if (isLoading) {
-    return <RuntimeLoadingCard title="Active Runtime Image" />;
+    return <RuntimeLoadingCard title="Active Specialist Agent Image" />;
   }
   if (error || !status) {
     return (
       <RuntimeUnavailableCard
-        title="Active Runtime Image"
-        body="Runtime status unavailable. The customization service may not be configured or reachable."
+        title="Active Specialist Agent Image"
+        body="Specialist Agent image status unavailable. The customization service may not be configured or reachable."
       />
     );
   }
@@ -85,7 +85,7 @@ export function ActiveRuntimeImageCard(): JSX.Element {
       <CardHeader className="space-y-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="space-y-1">
-            <CardTitle className="text-base">Active Runtime Image</CardTitle>
+            <CardTitle className="text-base">Active Specialist Agent Image</CardTitle>
             <p className="text-sm text-muted">{describeRuntimePosture(status)}</p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -114,7 +114,7 @@ export function ActiveRuntimeImageCard(): JSX.Element {
           <Badge variant={statusBadgeVariant(derivedStatus)}>{derivedStatus}</Badge>
           <Badge variant="outline">{status.state}</Badge>
           <span className="text-xs text-muted">
-            Recovery is rebuild-or-relink only on this surface. Direct rollback is not exposed until versioned runtime history exists.
+            Recovery is rebuild-or-relink only on this surface. Direct rollback is not exposed until versioned Specialist Agent image history exists.
           </span>
         </div>
         {manifestVisible ? (
@@ -146,7 +146,7 @@ export function BuildHistoryCard(): JSX.Element {
     return (
       <RuntimeUnavailableCard
         title="Build History"
-        body="Unable to load build history. Inspect the runtime service connection before trusting rollout state."
+        body="Unable to load build history. Inspect the Specialist Agent image service connection before trusting rollout state."
       />
     );
   }
@@ -156,8 +156,8 @@ export function BuildHistoryCard(): JSX.Element {
       <CardHeader className="space-y-2">
         <CardTitle className="text-base">Build History</CardTitle>
         <p className="text-sm text-muted">
-          Recent runtime build linkage and recovery posture. Review the active digest and recovery
-          path before changing runtime defaults.
+          Recent Specialist Agent image linkage and recovery posture. Review the active digest and
+          recovery path before changing Specialist Agent defaults.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -175,7 +175,7 @@ export function BuildHistoryCard(): JSX.Element {
         </div>
         {entries.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border/70 bg-muted/10 p-4 text-sm text-muted">
-            No runtime builds recorded yet. Build or link a runtime image before rollout work begins.
+            No Specialist Agent image builds recorded yet. Build or link a Specialist Agent image before rollout work begins.
           </p>
         ) : (
           <>
@@ -413,7 +413,7 @@ export function RuntimeManagementCard(): JSX.Element {
             ) : (
               <Hammer className="h-3 w-3" />
             )}
-            Build runtime image
+            Build Specialist Agent image
           </Button>
           {lastBuildId ? (
             <Button variant="outline" size="sm" onClick={handleLink} disabled={anyPending}>

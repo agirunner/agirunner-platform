@@ -174,7 +174,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configKey: 'api.events_heartbeat_seconds',
     configValue: '10',
     configType: 'number',
-    description: 'How often the runtime emits task-event heartbeats while a stream is open',
+    description: 'How often the Specialist Agent emits task-event heartbeats while a stream is open',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -209,7 +209,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configKey: 'workspace.clone_max_retries',
     configValue: '5',
     configType: 'number',
-    description: 'How many times the runtime retries a workspace clone before failing the task',
+    description: 'How many times the Specialist Agent retries a workspace clone before failing the task',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -244,7 +244,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configKey: 'pool.refresh_interval_seconds',
     configValue: '300',
     configType: 'number',
-    description: 'How often the runtime refreshes pool state from the platform',
+    description: 'How often the Specialist Agent refreshes pool state from the platform',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -265,7 +265,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     configKey: 'log.level',
     configValue: 'debug',
     configType: 'string',
-    description: 'Runtime process log level applied to connected Specialist Agent processes',
+    description: 'Specialist Agent process log level applied to connected Specialist Agent processes',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -601,7 +601,7 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
       configKey: 'server.shutdown_timeout_seconds',
       configValue: '5',
       configType: 'number',
-      description: 'How long the runtime waits for graceful shutdown before forcing termination',
+      description: 'How long the Specialist Agent waits for graceful shutdown before forcing termination',
     },
     {
       configKey: 'server.read_header_timeout_seconds',
@@ -613,7 +613,7 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
       configKey: 'llm.http_timeout_seconds',
       configValue: '120',
       configType: 'number',
-      description: 'Upper bound for outbound LLM HTTP requests from runtime provider adapters',
+      description: 'Upper bound for outbound LLM HTTP requests from Specialist Agent provider adapters',
     },
     {
       configKey: 'tools.file_read_timeout_seconds',
@@ -709,7 +709,7 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
       configKey: 'lifecycle.healthcheck_timeout_seconds',
       configValue: '5',
       configType: 'number',
-      description: 'Timeout in seconds for runtime health checks against newly created containers',
+      description: 'Timeout in seconds for Specialist Agent health checks against newly created Specialist Executions',
     },
     {
       configKey: 'lifecycle.healthcheck_retry_delay_seconds',
@@ -949,13 +949,13 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
       configKey: 'agent.max_tool_steps_per_burst',
       configValue: '12',
       configType: 'number',
-      description: 'Maximum tool steps the runtime executes inside one reactive burst before re-evaluating',
+      description: 'Maximum tool steps the Specialist Agent executes inside one reactive burst before re-evaluating',
     },
     {
       configKey: 'agent.max_mutating_steps_per_burst',
       configValue: '5',
       configType: 'number',
-      description: 'Maximum mutating tool steps the runtime executes inside one reactive burst before re-evaluating',
+      description: 'Maximum mutating tool steps the Specialist Agent executes inside one reactive burst before re-evaluating',
     },
     {
       configKey: 'agent.max_burst_elapsed_ms',
@@ -967,13 +967,13 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
       configKey: 'agent.max_parallel_tool_calls_per_burst',
       configValue: '8',
       configType: 'number',
-      description: 'Maximum read-only tool calls the runtime executes in parallel inside one reactive burst',
+      description: 'Maximum read-only tool calls the Specialist Agent executes in parallel inside one reactive burst',
     },
     {
       configKey: 'agent.max_stuck_interventions',
       configValue: '2',
       configType: 'number',
-      description: 'How many automatic recovery interventions the runtime attempts before failing the task',
+      description: 'How many automatic recovery interventions the Specialist Agent attempts before failing the task',
     },
   ] as const;
 

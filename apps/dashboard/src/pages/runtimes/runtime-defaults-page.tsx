@@ -11,7 +11,7 @@ import { RuntimeDefaultsEditorPage } from './runtime-defaults-editor-page.js';
 export function RuntimeDefaultsPage(): JSX.Element {
   return (
     <RuntimeDefaultsEditorPage
-      title="Runtimes"
+      title="Specialist Agents"
       description="Configure platform-wide defaults for Specialist Agents, Specialist Executions, and agent execution behavior. Every value shown here is explicit, required, and persisted."
       icon={Server}
       fieldDefinitions={FIELD_DEFINITIONS}
@@ -19,8 +19,8 @@ export function RuntimeDefaultsPage(): JSX.Element {
       primarySectionKeys={PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS}
       inlineSectionColumns={RUNTIME_INLINE_SECTION_COLUMNS}
       sectionIdPrefix="runtime-defaults"
-      successMessage="Runtime configuration saved."
-      errorLabel="runtime configuration"
+      successMessage="Specialist configuration saved."
+      errorLabel="specialist configuration"
     />
   );
 }

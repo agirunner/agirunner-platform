@@ -108,7 +108,12 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Models', href: '/platform/routing', icon: Cog, keywords: ['models', 'routing', 'model routing', 'llm'] },
       { label: 'Instructions', href: '/platform/instructions', icon: ScrollText },
       { label: 'Orchestrator', href: '/platform/orchestrator', icon: Bot, keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture'] },
-      { label: 'Runtimes', href: '/platform/runtimes', icon: Server },
+      {
+        label: 'Specialist Agents',
+        href: '/platform/runtimes',
+        icon: Server,
+        keywords: ['specialist agent', 'specialist agents', 'runtime', 'runtimes'],
+      },
       { label: 'Operations', href: '/platform/operations', icon: Settings2, keywords: ['operations', 'timing', 'supervision', 'fleet', 'activation'] },
       { label: 'Tools', href: '/platform/tools', icon: Wrench },
     ],
