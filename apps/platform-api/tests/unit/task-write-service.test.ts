@@ -2377,6 +2377,102 @@ describe('TaskWriteService', () => {
     expect(eventService.emit).not.toHaveBeenCalled();
   });
 
+  it('creates a task as ready when all dependencies are already completed', async () => {
+    let insertedState: string | null = null;
+    const pool = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (isLinkedWorkItemLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{ workflow_id: 'workflow-1', stage_name: 'drafting' }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (
+          sql.includes('FROM tasks')
+          && sql.includes('workflow_id = $2')
+          && sql.includes('request_id = $3')
+        ) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (
+          sql.includes('FROM tasks')
+          && sql.includes('work_item_id = $3')
+          && sql.includes('role = $4')
+          && sql.includes('state = ANY($5::task_state[])')
+        ) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql === 'SELECT id FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[])') {
+          return { rowCount: 1, rows: [{ id: 'task-upstream' }] };
+        }
+        if (
+          sql ===
+          "SELECT 1 FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[]) AND state <> 'completed' LIMIT 1"
+        ) {
+          expect(values).toEqual(['tenant-1', ['task-upstream']]);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('INSERT INTO tasks')) {
+          insertedState = (values?.[8] as string) ?? null;
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-ready',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              request_id: 'request-ready-after-completed-dependency',
+              role: 'technical-editor',
+              stage_name: 'drafting',
+              state: insertedState,
+              depends_on: ['task-upstream'],
+              metadata: {},
+            }],
+          };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    const result = await service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'Refine brief after completed dependency',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        request_id: 'request-ready-after-completed-dependency',
+        role: 'technical-editor',
+        depends_on: ['task-upstream'],
+      },
+    );
+
+    expect(insertedState).toBe('ready');
+    expect(result.state).toBe('ready');
+  });
+
   it('preserves explicit specialist token budgets for insert and request replay matching', async () => {
     let insertedTokenBudget: number | null = null;
     const pool = {

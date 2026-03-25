@@ -185,7 +185,8 @@ export class TaskWriteService {
       return this.deps.toTaskResponse(existingReusableTask);
     }
 
-    const initialState = await this.resolveInitialState(identity.tenantId, normalizedInput, dependencies.length);
+    const hasUnfinishedDependencies = await this.hasUnfinishedDependencies(identity.tenantId, dependencies, db);
+    const initialState = await this.resolveInitialState(identity.tenantId, normalizedInput, hasUnfinishedDependencies);
     const timeoutMinutes = await this.resolveTimeoutMinutes(identity.tenantId, normalizedInput, db);
 
     const insertResult = await db.query(
@@ -832,9 +833,9 @@ export class TaskWriteService {
   private async resolveInitialState(
     tenantId: string,
     input: CreateTaskInput,
-    dependencyCount: number,
+    hasUnfinishedDependencies: boolean,
   ) {
-    if (dependencyCount > 0) {
+    if (hasUnfinishedDependencies) {
       return 'pending';
     }
 
@@ -848,6 +849,22 @@ export class TaskWriteService {
       return 'pending';
     }
     return 'ready';
+  }
+
+  private async hasUnfinishedDependencies(
+    tenantId: string,
+    dependencies: string[],
+    db: DatabaseClient,
+  ): Promise<boolean> {
+    if (dependencies.length === 0) {
+      return false;
+    }
+
+    const unfinishedDeps = await db.query(
+      "SELECT 1 FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[]) AND state <> 'completed' LIMIT 1",
+      [tenantId, dependencies],
+    );
+    return unfinishedDeps.rowCount > 0;
   }
 
   async updateTask(tenantId: string, taskId: string, payload: Record<string, unknown>) {
