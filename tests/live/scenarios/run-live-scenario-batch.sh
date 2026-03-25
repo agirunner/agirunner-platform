@@ -91,6 +91,10 @@ next_index=0
 launch_scenario() {
   local scenario="$1"
   local log_file="${batch_artifacts_dir}/${scenario}.log"
+  local scenario_arg="${scenario}"
+  if [[ ! -f "${scenario_arg}" && -f "${scenario_root}/${scenario}.json" ]]; then
+    scenario_arg="${scenario_root}/${scenario}.json"
+  fi
   rm -f "${log_file}"
   (
     env -u LIVE_TEST_SCENARIO_DIR \
@@ -98,7 +102,7 @@ launch_scenario() {
       LIVE_TEST_ARTIFACTS_DIR="${artifacts_dir}" \
       LIVE_TEST_SHARED_CONTEXT_FILE="${shared_context_file}" \
       LIVE_TEST_BOOTSTRAP_SCRIPT="${scenario_bootstrap_script}" \
-      "${scenario_runner}" "${scenario}"
+      "${scenario_runner}" "${scenario_arg}"
   ) >"${log_file}" 2>&1 &
   local pid=$!
   pid_to_scenario["${pid}"]="${scenario}"
