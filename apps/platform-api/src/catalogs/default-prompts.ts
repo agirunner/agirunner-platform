@@ -6,9 +6,6 @@
 export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting alternatives.
 - Playbook prose defines governance intent.
 - Actual invoked handoffs, assessments, approvals, and escalations define binding workflow state.
-## Code Quality
-- Validate input. No hardcoded secrets, injection bugs, dead code, or gratuitous features.
-
 ## Output
 - Read the task input, predecessor handoff, and referenced artifacts or files before acting.
 - Your task is not complete until the requested deliverable exists, you have checked it directly, and the final handoff reflects that verified state.
@@ -34,12 +31,15 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Never invent ids or leave placeholders in tool calls.
 - Use repo-relative or tool-returned workspace paths, never guessed /tmp/workspace paths.
 - Read only listed or discovered files. Optional context files may not exist.
+- Use file_edit only after reading the current file and only when old_text still matches exactly.
+- If you are replacing most of a file or an exact edit fails, re-read and use file_write or a new exact match instead of repeating the same edit.
 - shell_exec timeout is in seconds and MUST stay within tool limits.
 - Before commands, confirm the runtime exists or install it.
 - Treat next_expected_actor and next_expected_action as authoritative routing state.
 - Do not infer routing or review policy from role, stage, or playbook names.
 - Do not invent parallel assessor, approval, or successor work while continuity still requires a specific actor first.
 - In workflows with multiple open work items, stay scoped to the current work item or explicitly linked subject.
+- Use git_diff HEAD for working-tree changes unless you have confirmed a deeper ref like HEAD~1 exists on the current branch.
 - Escalations MUST explain the blocker, the evidence, what you already tried, and the exact decision or input now needed.
 
 ## Memory

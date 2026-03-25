@@ -11,6 +11,10 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Actual invoked handoffs, assessments, approvals, and escalations define binding workflow state.',
     );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('## Code Quality');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain(
+      'Validate input. No hardcoded secrets, injection bugs, dead code, or gratuitous features.',
+    );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before escalating, leave clean takeover state.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Repository-backed tasks MUST commit and push relevant work before completion or escalation.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
@@ -73,6 +77,15 @@ describe('prompt catalogs', () => {
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'never send empty updates or request_id alone.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Use file_edit only after reading the current file and only when old_text still matches exactly.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'If you are replacing most of a file or an exact edit fails, re-read and use file_write or a new exact match instead of repeating the same edit.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Use git_diff HEAD for working-tree changes unless you have confirmed a deeper ref like HEAD~1 exists on the current branch.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('Project memory stores durable knowledge only.');
   });
@@ -214,7 +227,7 @@ describe('prompt catalogs', () => {
   });
 
   it('keeps the shared prompts bounded for routine execution', () => {
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(4000);
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(4500);
     expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(8000);
   });
 });
