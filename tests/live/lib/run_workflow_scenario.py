@@ -2861,6 +2861,33 @@ def progress_verification_candidate_ready(
     return True
 
 
+def progress_verification_can_end_run(
+    verification: dict[str, Any],
+    *,
+    workflow: dict[str, Any],
+) -> bool:
+    if not bool(verification.get("passed")):
+        return False
+    advisories = verification.get("advisories", [])
+    if isinstance(advisories, list) and len(advisories) > 0:
+        return False
+
+    active_states = {
+        "pending",
+        "ready",
+        "claimed",
+        "in_progress",
+        "awaiting_approval",
+        "output_pending_assessment",
+    }
+    for task in _workflow_tasks(workflow):
+        if not isinstance(task, dict):
+            continue
+        if str(task.get("state") or "") in active_states:
+            return False
+    return True
+
+
 def evaluate_progress_expectations(
     client: ApiClient,
     *,
@@ -3666,7 +3693,13 @@ def main() -> None:
                 verification_mode=verification_mode,
                 trace=trace,
             )
-            if progress_verification["passed"]:
+            if progress_verification_can_end_run(
+                progress_verification,
+                workflow=attach_workflow_tasks(
+                    latest_workflow,
+                    fetch_workflow_tasks(client, workflow_id=workflow_id),
+                ),
+            ):
                 timed_out = False
                 break
         time.sleep(poll_interval_seconds)

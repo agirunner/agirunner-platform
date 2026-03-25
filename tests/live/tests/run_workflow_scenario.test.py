@@ -76,6 +76,51 @@ class FakeWorkflowClient:
 
 
 class RunWorkflowScenarioTests(unittest.TestCase):
+    def test_progress_verification_cannot_finish_when_advisories_remain(self) -> None:
+        self.assertFalse(
+            run_workflow_scenario.progress_verification_can_end_run(
+                {
+                    "passed": True,
+                    "advisories": ["blocked sequence not observed yet"],
+                },
+                workflow={
+                    "tasks": [
+                        {"id": "task-1", "is_orchestrator_task": False, "state": "completed"},
+                    ]
+                },
+            )
+        )
+
+    def test_progress_verification_cannot_finish_while_tasks_are_active(self) -> None:
+        self.assertFalse(
+            run_workflow_scenario.progress_verification_can_end_run(
+                {
+                    "passed": True,
+                    "advisories": [],
+                },
+                workflow={
+                    "tasks": [
+                        {"id": "task-1", "is_orchestrator_task": False, "state": "in_progress"},
+                    ]
+                },
+            )
+        )
+
+    def test_progress_verification_can_finish_once_clean_and_idle(self) -> None:
+        self.assertTrue(
+            run_workflow_scenario.progress_verification_can_end_run(
+                {
+                    "passed": True,
+                    "advisories": [],
+                },
+                workflow={
+                    "tasks": [
+                        {"id": "task-1", "is_orchestrator_task": False, "state": "completed"},
+                    ]
+                },
+            )
+        )
+
     def test_evaluate_progress_expectations_outcome_driven_waits_for_clean_runtime_cleanup(self) -> None:
         workflow = {"id": "wf-1", "state": "active", "tasks": []}
         expectations = {
