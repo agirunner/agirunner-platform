@@ -56,7 +56,7 @@ export function ProcessInstructionsSection(props: SectionProps): JSX.Element {
     <SectionCard
       id="playbook-process-instructions"
       title="Process Instructions"
-      description="Tell the orchestrator how this workflow should run, when to seek specialist review, when to pause for human approval, and how to escalate when the work needs intervention."
+      description="Define the best-intent guide for this workflow: mandatory outcomes, preferred steps, real blockers, acceptable fallback paths, and the evidence the orchestrator must leave behind when it drives the work to closure."
     >
       <div className="space-y-2">
         <Textarea
@@ -68,11 +68,17 @@ export function ProcessInstructionsSection(props: SectionProps): JSX.Element {
             }))
           }
           className="min-h-[220px]"
-          placeholder="Example: The architect clarifies scope, the developer implements in the delivery stage, a reviewer performs a substantive release review before completion, and the orchestrator requests human approval once the release packet is ready."
+          placeholder="Example: Mandatory outcomes: ship a validated release packet and close the workflow with any residual risks recorded. Preferred steps: the architect clarifies scope, the developer implements in the delivery stage, a reviewer performs a substantive release review, and the orchestrator requests human approval once the release packet is ready. If a preferred step stalls or fails, the orchestrator must still drive the workflow to closure, record waived steps or unresolved advisory items, and explain the final judgement call."
         />
         <p className="text-sm text-muted">
-          This guidance is the workflow contract. The orchestrator should use handoffs,
-          assessments, approvals, and escalations when the instructions call for them.
+          This guidance is the workflow contract. The orchestrator should use explicit handoffs,
+          assessments, approvals, and escalations when the instructions call for them, but it
+          must still drive the workflow to closure when only preferred steps remain unresolved.
+        </p>
+        <p className="text-sm text-muted">
+          Write this as a best-intent guide: spell out Mandatory outcomes, preferred steps,
+          acceptable fallback paths, blockers that truly require intervention, and what callouts
+          or residual risks must be recorded if the happy path does not land perfectly.
         </p>
       </div>
     </SectionCard>
@@ -178,7 +184,7 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
     <SectionCard
       id="playbook-workflow-stages"
       title="Workflow Stages"
-      description="Define the structured milestones for this workflow. The process instructions tell the orchestrator what should happen inside each stage."
+      description="Define the structured milestones for this workflow. The process instructions tell the orchestrator what should happen inside each stage, what must finish there, and what can be waived or rerouted when reality does not match the ideal path."
     >
       <div className="space-y-4">
         {props.draft.stages.map((stage, index) => (

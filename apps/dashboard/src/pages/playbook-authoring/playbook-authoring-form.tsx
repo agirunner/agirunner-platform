@@ -120,8 +120,13 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
               <CardTitle>Process-first authoring</CardTitle>
               <p className="text-sm text-muted">
                 Define the workflow outcome, structure the stages, and tell the orchestrator how
-                the process should run. Reviews, approvals, handoffs, and escalations come from the
-                playbook instructions instead of separate governance config.
+                the process should run. Mandatory outcomes, preferred reviews, fallback paths, and closure expectations come from
+                the playbook instructions instead of separate governance config.
+              </p>
+              <p className="text-sm text-muted">
+                Treat the playbook as a best-intent execution guide: it should tell the orchestrator
+                what must happen, what should happen if possible, and what evidence or callouts must
+                remain if the workflow finishes close enough instead of perfectly.
               </p>
             </CardHeader>
           </Card>

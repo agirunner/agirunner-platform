@@ -93,8 +93,8 @@ export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): Playb
   return {
     process_instructions:
       lifecycle === 'ongoing'
-        ? 'Keep this workflow open, clarify new work as it arrives, move each item through the defined stages, and use assessments, approvals, escalations, and handoffs whenever the process requires them.'
-        : 'Run this workflow as a bounded plan, move each work item through the defined stages, and use assessments, approvals, escalations, and handoffs whenever the process requires them before finishing.',
+        ? 'Mandatory outcomes: keep the workflow moving, clarify new work as it arrives, and close each work item with usable output or recorded callouts. Preferred steps: seek specialist reviews, approvals, assessments, and escalations when they improve the outcome, but if a preferred step cannot complete the orchestrator must still drive to the closest responsible result, record residual risks, and close the workflow when the mandatory outcomes are satisfied.'
+        : 'Mandatory outcomes: produce the requested result, move each work item through the defined stages, and close the workflow once the required output exists. Preferred steps: seek specialist reviews, approvals, assessments, and escalations when they improve quality, but if a preferred step cannot complete the orchestrator must still drive to the closest responsible result, record residual risks and waived steps, and close the workflow when the mandatory outcomes are satisfied.',
     roles: [],
     columns: [
       { id: 'inbox', label: 'Inbox', description: '', is_blocked: false, is_terminal: false },

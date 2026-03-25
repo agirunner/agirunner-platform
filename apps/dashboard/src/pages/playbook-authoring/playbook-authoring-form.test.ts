@@ -14,6 +14,8 @@ describe('playbook authoring form source', () => {
     expect(source).toContain(
       'Define the workflow outcome, structure the stages, and tell the orchestrator how',
     );
+    expect(source).toContain('Mandatory outcomes, preferred reviews, fallback paths, and closure expectations');
+    expect(source).toContain('best-intent execution guide');
     expect(source).toContain('instead of separate governance config');
     expect(source).toContain('Process');
     expect(source).toContain('Inputs');

@@ -18,9 +18,10 @@ describe('playbook authoring support', () => {
     expect(draft.roles).toEqual([]);
     expect(draft.stages).toEqual([]);
     expect(draft.columns).toHaveLength(5);
-    expect(draft.process_instructions).toContain('stages');
-    expect(draft.process_instructions).toContain('assessments');
-    expect(draft.process_instructions).toContain('approvals');
+    expect(draft.process_instructions).toContain('mandatory');
+    expect(draft.process_instructions).toContain('preferred');
+    expect(draft.process_instructions).toContain('residual risks');
+    expect(draft.process_instructions).toContain('close the workflow');
   });
 
   it('builds a prose-governed playbook definition', () => {
@@ -146,6 +147,28 @@ describe('playbook authoring support', () => {
         columnCount: 5,
       }),
     );
+  });
+
+  it('preserves must-versus-preferred prose when building the definition', () => {
+    const draft = createDefaultAuthoringDraft('planned');
+    draft.process_instructions =
+      'Mandatory: produce a publishable release packet and close the workflow with residual risks recorded when needed. Preferred: get peer review and human approval before release, but if those are unavailable the orchestrator must still drive to a close-enough outcome and record callouts.';
+    draft.stages = [{ name: 'deliver', goal: 'Ship the requested change.', guidance: '' }];
+
+    const built = buildPlaybookDefinition('planned', draft);
+
+    expect(built).toEqual(
+      expect.objectContaining({
+        ok: true,
+        value: expect.objectContaining({
+          process_instructions: expect.stringContaining('Mandatory: produce a publishable release packet'),
+        }),
+      }),
+    );
+    if (built.ok) {
+      expect(String(built.value.process_instructions)).toContain('Preferred: get peer review');
+      expect(String(built.value.process_instructions)).toContain('record callouts');
+    }
   });
 
   it('validates role membership and board entry columns', () => {
