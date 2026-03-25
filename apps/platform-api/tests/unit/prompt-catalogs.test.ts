@@ -145,6 +145,12 @@ describe('prompt catalogs', () => {
       'A blocked work item, unresolved escalation, or unsatisfied approval or assessment requirement makes successor dispatch and completion illegal.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'An open escalation or other restrictive same-stage finding does not by itself satisfy remaining current-stage role obligations.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Use the work item escalation status and structured handoffs as authoritative evidence of an active escalation.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Superseded approvals or assessments are historical evidence, not current authorization.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
@@ -197,6 +203,6 @@ describe('prompt catalogs', () => {
 
   it('keeps the shared prompts bounded for routine execution', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(4000);
-    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(6500);
+    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(8000);
   });
 });

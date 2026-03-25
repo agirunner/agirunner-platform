@@ -1,4 +1,8 @@
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
+import {
+  readAssessmentSubjectLinkage,
+  readWorkflowTaskKind,
+} from './assessment-subject-service.js';
 import { roleConfigOwnsRepositorySurface } from './tool-tag-service.js';
 
 interface InstructionLayerDocument {
@@ -80,6 +84,7 @@ export function buildWorkflowInstructionLayer(
         boardColumn,
         focusedWorkItem,
         activeStages: readStringArray(workflowInstructionContext.active_stages),
+        boardTasks: readBoardTasks(input.orchestratorContext),
         pendingDispatches: readPendingDispatches(input.orchestratorContext),
         activationTransition,
         currentStageHasWorkItems,
@@ -110,10 +115,11 @@ function buildOrchestratorSections(params: {
   lifecycle: 'planned' | 'ongoing';
   definition: ReturnType<typeof parsePlaybookDefinition>;
   workflow: Record<string, unknown>;
-  stage: { name: string; goal: string; guidance?: string } | null;
+  stage: { name: string; goal: string; guidance?: string; involves?: string[] } | null;
   boardColumn?: { label: string } | null;
   focusedWorkItem: Record<string, unknown>;
   activeStages: string[];
+  boardTasks: Record<string, unknown>[];
   pendingDispatches: Array<{ work_item_id: string; stage_name: string | null; actor: string; action: string; title: string | null }>;
   activationTransition: { previousStageName: string | null };
   currentStageHasWorkItems: boolean;
@@ -150,6 +156,15 @@ function buildOrchestratorSections(params: {
 
   if (params.lifecycle === 'ongoing' && params.activeStages.length > 0) {
     sections.push(`## Active Stages\n${params.activeStages.join(', ')}`);
+  }
+
+  const stageRoleCoverage = formatStageRoleCoverage(
+    params.stage,
+    params.focusedWorkItem,
+    params.boardTasks,
+  );
+  if (stageRoleCoverage) {
+    sections.push(`## Stage Role Coverage\n${stageRoleCoverage}`);
   }
 
   const roleCatalog = readOrchestratorRoleCatalog(params.workflow);
@@ -456,6 +471,7 @@ function formatPlannedHandoffSemantics() {
     'A handoff by itself does not authorize dispatching successor-role tasks on the current stage work item.',
     'Create or move successor work into the next stage before dispatching successor-role specialists.',
     'Only actual invoked approvals, assessments, and escalations create blocking workflow state. Process prose may instruct you to invoke those controls, but there is no separate governance metadata to consult.',
+    'Use the work item escalation status and structured handoffs as authoritative evidence of an active escalation; do not require direct escalation-record inspection before honoring it.',
   ].join('\n');
 }
 
@@ -541,6 +557,108 @@ function starterRolesForStage(
   const stage = definition.stages.find((entry) => entry.name === stageName);
   void definition;
   return stage?.involves ?? [];
+}
+
+function formatStageRoleCoverage(
+  stage: { name: string; involves?: string[] } | null,
+  focusedWorkItem: Record<string, unknown>,
+  boardTasks: Record<string, unknown>[],
+) {
+  const stageRoles = (stage?.involves ?? [])
+    .map((role) => role.trim())
+    .filter((role) => role.length > 0);
+  if (stageRoles.length === 0) {
+    return '';
+  }
+
+  const workItemId = readString(focusedWorkItem.id);
+  if (!workItemId) {
+    return '';
+  }
+
+  const currentSubjectRevision = readOptionalPositiveInteger(focusedWorkItem.current_subject_revision);
+  const tasks = boardTasks
+    .filter((task) => readString(task.work_item_id) === workItemId)
+    .filter((task) => readString(task.stage_name) === stage?.name)
+    .filter((task) => readString(task.role));
+
+  const lines = stageRoles.map((role) => `- ${role}: ${describeStageRoleStatus(role, tasks, currentSubjectRevision)}`);
+  lines.push(
+    'An open escalation or other restrictive same-stage finding does not by itself satisfy the remaining current-stage roles.',
+  );
+  lines.push(
+    'If any named current-stage role has not contributed and has not been explicitly skipped for a concrete playbook-grounded reason, keep routing within the current stage instead of stopping at the first restrictive finding.',
+  );
+  lines.push(
+    'Use the work item escalation status and structured handoffs as authoritative evidence of an active escalation; do not require direct escalation-record inspection before honoring it.',
+  );
+  if (currentSubjectRevision !== null) {
+    lines.push(
+      `Current subject revision: ${currentSubjectRevision}. Confirm older assessment contributions still apply to this revision before treating them as sufficient.`,
+    );
+  }
+  return lines.join('\n');
+}
+
+function describeStageRoleStatus(
+  role: string,
+  tasks: Record<string, unknown>[],
+  currentSubjectRevision: number | null,
+) {
+  const roleTasks = tasks.filter((task) => readString(task.role) === role);
+  if (roleTasks.some(isOpenTask)) {
+    return 'active task already in flight on the current work item.';
+  }
+  if (roleTasks.some((task) => isCurrentSubjectAssessmentTask(task, currentSubjectRevision) && isTerminalTask(task))) {
+    return 'completed current-subject assessment recorded on the current work item.';
+  }
+  if (roleTasks.some((task) => isTerminalTask(task) && !isAssessmentTask(task))) {
+    return 'completed task recorded on the current work item.';
+  }
+  if (roleTasks.some((task) => isAssessmentTask(task) && isTerminalTask(task))) {
+    return 'older assessment task recorded on the current work item; confirm whether it still applies to the current subject revision.';
+  }
+  return 'no current task or recorded contribution yet on the current work item.';
+}
+
+function readBoardTasks(
+  orchestratorContext: Record<string, unknown> | null | undefined,
+) {
+  const board = asRecord(asRecord(orchestratorContext).board);
+  const tasks = Array.isArray(board.tasks) ? board.tasks : [];
+  return tasks.filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object' && !Array.isArray(entry));
+}
+
+function isOpenTask(task: Record<string, unknown>) {
+  const state = readString(task.state);
+  return state === 'ready'
+    || state === 'claimed'
+    || state === 'in_progress'
+    || state === 'awaiting_approval'
+    || state === 'output_pending_assessment';
+}
+
+function isTerminalTask(task: Record<string, unknown>) {
+  const state = readString(task.state);
+  return state === 'completed' || state === 'failed' || state === 'cancelled' || state === 'escalated';
+}
+
+function isAssessmentTask(task: Record<string, unknown>) {
+  return readWorkflowTaskKind(asRecord(task.metadata), Boolean(task.is_orchestrator_task)) === 'assessment';
+}
+
+function isCurrentSubjectAssessmentTask(
+  task: Record<string, unknown>,
+  currentSubjectRevision: number | null,
+) {
+  if (!isAssessmentTask(task)) {
+    return false;
+  }
+  if (currentSubjectRevision === null) {
+    return true;
+  }
+  const linkage = readAssessmentSubjectLinkage(asRecord(task.input), asRecord(task.metadata));
+  return linkage.subjectRevision === currentSubjectRevision;
 }
 
 function selectFocusedWorkItem(
@@ -683,4 +801,8 @@ function readString(value: unknown) {
 
 function readNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function readOptionalPositiveInteger(value: unknown) {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
 }

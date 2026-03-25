@@ -489,6 +489,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
           next_expected_actor: workItem.next_expected_actor ?? null,
           next_expected_action: workItem.next_expected_action ?? null,
           rework_count: workItem.rework_count ?? 0,
+          escalation_status: workItem.escalation_status ?? null,
           latest_handoff_completion: workItem.latest_handoff_completion ?? null,
           latest_handoff_resolution: workItem.latest_handoff_resolution ?? null,
           unresolved_findings: workItem.unresolved_findings ?? [],

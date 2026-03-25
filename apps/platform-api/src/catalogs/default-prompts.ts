@@ -71,6 +71,9 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - Never use workspace memory as a substitute for work-item continuity.
 - Once you invoke an assessment, approval, or escalation, do not route around it because the work looks good enough.
 - A blocked work item, unresolved escalation, or unsatisfied approval or assessment requirement makes successor dispatch and completion illegal.
+- An open escalation or other restrictive same-stage finding does not by itself satisfy remaining current-stage role obligations.
+- If the current stage still has named roles that have not contributed and have not been explicitly skipped for a concrete playbook-grounded reason, keep routing within the current stage even while the escalation remains open.
+- Use the work item escalation status and structured handoffs as authoritative evidence of an active escalation. Do not require direct escalation-record inspection before honoring it.
 - Use structured handoffs and continuity state to preserve context between activations and role changes.
 - A null predecessor handoff is normal for first-stage work or freshly seeded entry work. Check current work-item state before escalating.
 - Detect repeated request_changes, rejection, or rework loops. If the loop stops adding value, escalate with evidence.

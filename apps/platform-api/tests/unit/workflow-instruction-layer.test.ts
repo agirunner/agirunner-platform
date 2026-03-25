@@ -105,6 +105,87 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).not.toContain('Human gate: yes');
   });
 
+  it('tells the orchestrator that restrictive findings do not satisfy missing same-stage roles', () => {
+    const layer = buildWorkflowInstructionLayer({
+      isOrchestratorTask: true,
+      workflow: {
+        lifecycle: 'planned',
+        active_stages: ['draft-revision'],
+        playbook: {
+          definition: {
+            lifecycle: 'planned',
+            process_instructions:
+              'Keep the stage open until all named stage roles have contributed or been intentionally skipped for a concrete playbook-grounded reason.',
+            board: {
+              columns: [
+                { id: 'planned', label: 'Planned' },
+                { id: 'active', label: 'Active' },
+                { id: 'done', label: 'Done', is_terminal: true },
+              ],
+            },
+            stages: [
+              {
+                name: 'draft-revision',
+                goal: 'Implementation revisions are assessed.',
+                involves: ['author', 'quality-assessor', 'brand-assessor'],
+              },
+            ],
+          },
+        },
+      },
+      orchestratorContext: {
+        activation: { payload: { work_item_id: 'wi-1', stage_name: 'draft-revision' } },
+        board: {
+          work_items: [
+            {
+              id: 'wi-1',
+              stage_name: 'draft-revision',
+              column_id: 'planned',
+              current_subject_revision: 2,
+              escalation_status: 'open',
+              next_expected_actor: null,
+              next_expected_action: null,
+            },
+          ],
+          tasks: [
+            {
+              id: 'task-author-2',
+              role: 'author',
+              work_item_id: 'wi-1',
+              stage_name: 'draft-revision',
+              state: 'completed',
+              is_orchestrator_task: false,
+              metadata: { task_kind: 'code' },
+              input: {},
+            },
+            {
+              id: 'task-quality-2',
+              role: 'quality-assessor',
+              work_item_id: 'wi-1',
+              stage_name: 'draft-revision',
+              state: 'completed',
+              is_orchestrator_task: false,
+              metadata: { task_kind: 'assessment' },
+              input: { subject_revision: 2 },
+            },
+          ],
+        },
+      },
+    });
+
+    expect(layer).not.toBeNull();
+    expect(layer!.content).toContain('## Stage Role Coverage');
+    expect(layer!.content).toContain('- author: completed task recorded on the current work item.');
+    expect(layer!.content).toContain('- quality-assessor: completed current-subject assessment recorded on the current work item.');
+    expect(layer!.content).toContain('- brand-assessor: no current task or recorded contribution yet on the current work item.');
+    expect(layer!.content).toContain(
+      'An open escalation or other restrictive same-stage finding does not by itself satisfy the remaining current-stage roles.',
+    );
+    expect(layer!.content).toContain(
+      'Use the work item escalation status and structured handoffs as authoritative evidence of an active escalation; do not require direct escalation-record inspection before honoring it.',
+    );
+  });
+
   it('builds ongoing specialist guidance without flattening workflow brief or predecessor prose', () => {
     const layer = buildWorkflowInstructionLayer({
       isOrchestratorTask: false,
