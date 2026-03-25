@@ -26,13 +26,10 @@ require_live_test_file "${SHARED_BOOTSTRAP_SCRIPT}" "shared live test bootstrap 
 require_live_test_file "${SCENARIO_RUNNER}" "live test scenario runner"
 require_live_test_file "${SCENARIO_BOOTSTRAP_SCRIPT}" "live test bootstrap script"
 
-rm -rf "${SCENARIO_DIR}"
-mkdir -p "${SCENARIO_DIR}" "${EVIDENCE_DIR}"
-
-tmp_root="$(mktemp -d "${SCENARIO_DIR}/batch.XXXXXX")"
+tmp_root="$(mktemp -d)"
 scenario_root="${tmp_root}/scenarios"
 batch_logs_dir="${SCENARIO_DIR}/batch-logs"
-mkdir -p "${scenario_root}" "${batch_logs_dir}"
+mkdir -p "${scenario_root}"
 
 cleanup() {
   rm -rf "${tmp_root}"
@@ -119,6 +116,8 @@ PY
 
 log_live_test "Running live scenarios with concurrency=${INNER_CONCURRENCY}"
 bash "${SHARED_BOOTSTRAP_SCRIPT}"
+rm -rf "${SCENARIO_DIR}"
+mkdir -p "${SCENARIO_DIR}" "${EVIDENCE_DIR}" "${batch_logs_dir}"
 
 declare -A pid_to_name=()
 declare -A pid_to_log=()
