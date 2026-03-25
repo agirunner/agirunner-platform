@@ -103,13 +103,22 @@ for path in sorted(Path(sys.argv[1]).glob("*.json")):
 PY
 )
 
+mapfile -t scenario_paths < <(python3 - "${scenario_root}" <<'PY'
+import sys
+from pathlib import Path
+
+for path in sorted(Path(sys.argv[1]).glob("*.json")):
+    print(str(path))
+PY
+)
+
 set +e
 env \
   LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE}" \
   LIVE_TEST_SHARED_CONTEXT_FILE="${SHARED_CONTEXT_FILE}" \
   LIVE_TEST_ARTIFACTS_DIR="${ARTIFACTS_DIR}" \
   LIVE_TEST_SCENARIO_ROOT="${scenario_root}" \
-  "${BATCH_RUNNER}" "${INNER_CONCURRENCY}" "${scenario_names[@]}"
+  "${BATCH_RUNNER}" "${INNER_CONCURRENCY}" "${scenario_paths[@]}"
 batch_status=$?
 set -e
 

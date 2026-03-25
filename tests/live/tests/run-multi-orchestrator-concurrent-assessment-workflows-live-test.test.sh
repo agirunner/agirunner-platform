@@ -38,6 +38,7 @@ EOF
 artifacts_dir="${LIVE_TEST_ARTIFACTS_DIR:?}"
 shift
 for scenario in "$@"; do
+  scenario="$(basename "${scenario%.json}")"
   mkdir -p "${artifacts_dir}/${scenario}"
   actor="orch-a"
   if [[ "${scenario}" == *"-02" ]]; then
@@ -113,6 +114,7 @@ EOF
 artifacts_dir="${LIVE_TEST_ARTIFACTS_DIR:?}"
 shift
 for scenario in "$@"; do
+  scenario="$(basename "${scenario%.json}")"
   mkdir -p "${artifacts_dir}/${scenario}"
   cat >"${artifacts_dir}/${scenario}/workflow-run.json" <<JSON
 {
