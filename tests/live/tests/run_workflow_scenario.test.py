@@ -298,6 +298,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertEqual("outcome_driven", payload["verification_mode"])
         self.assertEqual("completed", payload["workflow_state"])
         self.assertTrue(payload["verification_passed"])
+        self.assertEqual(0, payload["runner_exit_code"])
         self.assertFalse(payload["harness_failure"])
         self.assertEqual(12.5, payload["workflow_duration_seconds"])
         self.assertEqual(1.5, payload["non_orchestrator_max_llm_turns_per_attempt"])
@@ -397,6 +398,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertFalse(payload["timed_out"])
         self.assertFalse(payload["terminal"])
         self.assertEqual("pending", payload["workflow_state"])
+        self.assertEqual(0, payload["runner_exit_code"])
 
     def test_build_scenario_outcome_metrics_summarizes_recovery_and_remaining_risk(self) -> None:
         metrics = run_workflow_scenario.build_scenario_outcome_metrics(

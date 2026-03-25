@@ -3139,6 +3139,7 @@ def build_run_result_payload(
         )
     return {
         "workflow_id": workflow_id,
+        "runner_exit_code": 0 if bool(verification_payload.get("passed")) else 1,
         "state": final_state,
         "workflow_state": final_state,
         "terminal": final_state in TERMINAL_STATES,
