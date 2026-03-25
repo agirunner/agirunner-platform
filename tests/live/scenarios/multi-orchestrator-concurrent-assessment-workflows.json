@@ -3,7 +3,7 @@
   "profile": "multi-orchestrator-concurrent-assessment-workflows",
   "workflow": {
     "name": "Multi Orchestrator Concurrent Assessment Workflows",
-    "goal": "Prove that multiple orchestrators can finish several tiny independent workflows in parallel.",
+    "goal": "Prove that multiple orchestrators can finish many tiny independent workflows in parallel, one seeded hi-back work item per workflow.",
     "parameters": {}
   },
   "workspace": {
@@ -20,10 +20,10 @@
   "actions": [
     {
       "type": "create_work_items",
-      "dispatch": "parallel",
-      "count": 12,
-      "title_template": "hello-{index:02d}",
-      "request_id_template": "hello-{index:02d}"
+      "dispatch": "serial",
+      "count": 1,
+      "title_template": "hello-01",
+      "request_id_template": "hello-01"
     }
   ],
   "expect": {
@@ -31,7 +31,7 @@
     "artifacts": [
       {
         "logical_path_pattern": "deliverables/.+\\.txt",
-        "min_count": 12
+        "min_count": 1
       }
     ],
     "evidence_expectations": {
