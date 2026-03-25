@@ -76,7 +76,7 @@ class FakeWorkflowClient:
 
 
 class RunWorkflowScenarioTests(unittest.TestCase):
-    def test_progress_verification_cannot_finish_when_advisories_remain(self) -> None:
+    def test_progress_verification_cannot_finish_when_advisories_remain_in_exact_mode(self) -> None:
         self.assertFalse(
             run_workflow_scenario.progress_verification_can_end_run(
                 {
@@ -88,6 +88,22 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                         {"id": "task-1", "is_orchestrator_task": False, "state": "completed"},
                     ]
                 },
+            )
+        )
+
+    def test_progress_verification_can_finish_with_advisories_in_outcome_driven_mode(self) -> None:
+        self.assertTrue(
+            run_workflow_scenario.progress_verification_can_end_run(
+                {
+                    "passed": True,
+                    "advisories": ["blocked sequence not observed yet"],
+                },
+                workflow={
+                    "tasks": [
+                        {"id": "task-1", "is_orchestrator_task": False, "state": "completed"},
+                    ]
+                },
+                verification_mode=run_workflow_scenario.OUTCOME_DRIVEN_VERIFICATION_MODE,
             )
         )
 
@@ -118,6 +134,20 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                         {"id": "task-1", "is_orchestrator_task": False, "state": "completed"},
                     ]
                 },
+            )
+        )
+
+    def test_progress_verification_candidate_ready_uses_allowed_states_for_outcome_driven_mode(self) -> None:
+        self.assertTrue(
+            run_workflow_scenario.progress_verification_candidate_ready(
+                {
+                    "state": "active",
+                    "outcome_envelope": {"allowed_states": ["active", "completed"]},
+                },
+                workflow={"state": "completed"},
+                work_items={"data": {"data": []}},
+                board={"data": {"data": {"columns": [], "work_items": []}}},
+                verification_mode=run_workflow_scenario.OUTCOME_DRIVEN_VERIFICATION_MODE,
             )
         )
 

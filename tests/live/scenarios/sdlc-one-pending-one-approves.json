@@ -17,7 +17,8 @@
     "state": "active",
     "outcome_envelope": {
       "allowed_states": [
-        "active"
+        "active",
+        "completed"
       ],
       "require_output_artifacts": true,
       "require_completed_non_orchestrator_tasks": true,

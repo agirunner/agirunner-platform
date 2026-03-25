@@ -2974,10 +2974,18 @@ def progress_verification_candidate_ready(
     workflow: dict[str, Any],
     work_items: Any,
     board: Any,
+    verification_mode: str = "",
 ) -> bool:
-    expected_state = expectations.get("state")
-    if expected_state is not None and workflow.get("state") != expected_state:
-        return False
+    if verification_mode == OUTCOME_DRIVEN_VERIFICATION_MODE:
+        outcome_envelope = expectations.get("outcome_envelope", {})
+        allowed_states = outcome_envelope.get("allowed_states")
+        if isinstance(allowed_states, list) and allowed_states:
+            if workflow.get("state") not in allowed_states:
+                return False
+    else:
+        expected_state = expectations.get("state")
+        if expected_state is not None and workflow.get("state") != expected_state:
+            return False
 
     work_item_expectations = expectations.get("work_items", {})
     if not isinstance(work_item_expectations, dict):
@@ -2995,11 +3003,16 @@ def progress_verification_can_end_run(
     verification: dict[str, Any],
     *,
     workflow: dict[str, Any],
+    verification_mode: str = "",
 ) -> bool:
     if not bool(verification.get("passed")):
         return False
     advisories = verification.get("advisories", [])
-    if isinstance(advisories, list) and len(advisories) > 0:
+    if (
+        verification_mode != OUTCOME_DRIVEN_VERIFICATION_MODE
+        and isinstance(advisories, list)
+        and len(advisories) > 0
+    ):
         return False
 
     active_states = {
@@ -3059,7 +3072,13 @@ def evaluate_progress_expectations(
         return verification
     if not progress_verification_requires_full_evidence(expectations, verification_mode):
         return verification
-    if not progress_verification_candidate_ready(expectations, workflow=workflow, work_items=work_items, board=board):
+    if not progress_verification_candidate_ready(
+        expectations,
+        workflow=workflow,
+        work_items=work_items,
+        board=board,
+        verification_mode=verification_mode,
+    ):
         return verification
 
     events_snapshot = collect_workflow_events(client, workflow_id=workflow_id)
@@ -3833,6 +3852,7 @@ def main() -> None:
                     latest_workflow,
                     fetch_workflow_tasks(client, workflow_id=workflow_id),
                 ),
+                verification_mode=verification_mode,
             ):
                 timed_out = False
                 break
