@@ -108,6 +108,9 @@ describe('prompt catalogs', () => {
       'When closure is legal but preferred work or advisory items remain, use complete_work_item or complete_workflow with structured completion_callouts instead of leaving the workflow open.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'When you call complete_workflow, include final_artifacts with the repo-relative deliverables or uploaded artifact paths that represent the final workflow output.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Use platform-produced closure_context, recent recovery outcomes, and attempt history as the recovery contract; do not guess from prose or stale memory.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use structured handoffs and continuity state to preserve context between activations and role changes.');

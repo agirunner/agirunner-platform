@@ -96,6 +96,9 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Closure Discipline');
     expect(layer!.content).toContain('call complete_work_item in the same activation');
     expect(layer!.content).toContain('call complete_workflow in the same activation');
+    expect(layer!.content).toContain(
+      'include final_artifacts with the repo-relative deliverables or uploaded artifact paths that represent the final workflow output.',
+    );
     expect(layer!.content).toContain('## Guided Recovery');
     expect(layer!.content).toContain('retry transient failures');
     expect(layer!.content).toContain('close with callouts if closure is legal');

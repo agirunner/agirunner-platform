@@ -512,6 +512,45 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertEqual(500, metrics["agentic_effort"]["output_token_count"])
         self.assertEqual(2500, metrics["agentic_effort"]["total_token_count"])
 
+    def test_evaluate_expectations_outcome_driven_mode_accepts_repo_backed_task_output(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "state": "completed",
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-1",
+                        "role": "publisher",
+                        "is_orchestrator_task": False,
+                        "state": "completed",
+                        "output": {
+                            "summary": "Published the release packet and pushed the repository branch.",
+                            "artifacts": [
+                                {"path": "/tmp/agirunner-artifacts/task-1/files_changed.json", "size": 128},
+                                {"path": "/tmp/agirunner-artifacts/task-1/git_diff.patch", "size": 512},
+                            ],
+                        },
+                    },
+                ],
+            },
+            board={"data": {"data": {"columns": [{"id": "done", "is_terminal": True}], "work_items": [{"id": "wi-1", "column_id": "done"}]}}},
+            work_items={"data": {"data": [{"id": "wi-1", "column_id": "done"}]}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+            evidence={
+                "db_state": {"ok": True},
+                "runtime_cleanup": {"all_clean": True},
+                "log_anomalies": {"rows": []},
+            },
+            verification_mode="outcome_driven",
+        )
+
+        self.assertTrue(verification["passed"])
+
     def test_write_evidence_artifacts_writes_outcome_metrics_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             trace_dir = str(Path(tmpdir) / "trace")

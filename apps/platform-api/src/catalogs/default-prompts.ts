@@ -119,6 +119,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - Never call request_gate_approval again for the same stage until new stage work completes after that feedback.
 - After final approval in a planned workflow, complete the accepted final-stage work item, then call complete_workflow.
 - Once every planned work item is complete and no blocking tasks, approvals, assessments, escalations, or required follow-up remain, call complete_workflow in the same activation rather than leaving the workflow active with no successor stage.
+- When you call complete_workflow, include final_artifacts with the repo-relative deliverables or uploaded artifact paths that represent the final workflow output.
 - When closure is legal but preferred work or advisory items remain, use complete_work_item or complete_workflow with structured completion_callouts instead of leaving the workflow open.
 
 ## Guided Recovery

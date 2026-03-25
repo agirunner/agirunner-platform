@@ -425,11 +425,33 @@ def _workflow_final_artifacts(workflow: dict[str, Any]) -> list[str]:
     ]
 
 
+def _completed_task_output_artifact_count(workflow: dict[str, Any]) -> int:
+    count = 0
+    for task in _workflow_tasks(workflow):
+        if not isinstance(task, dict):
+            continue
+        if bool(task.get('is_orchestrator_task')):
+            continue
+        if task.get('state') != 'completed':
+            continue
+        output = task.get('output')
+        if not isinstance(output, dict):
+            continue
+        artifacts = output.get('artifacts')
+        if not isinstance(artifacts, list):
+            continue
+        count += sum(1 for artifact in artifacts if isinstance(artifact, dict) and artifact.get('path'))
+    return count
+
+
 def output_artifact_count(*, workflow: dict[str, Any], snapshot: Any) -> int:
     artifact_count = len(_artifacts(snapshot))
     if artifact_count > 0:
         return artifact_count
-    return len(_workflow_final_artifacts(workflow))
+    final_artifact_count = len(_workflow_final_artifacts(workflow))
+    if final_artifact_count > 0:
+        return final_artifact_count
+    return _completed_task_output_artifact_count(workflow)
 
 
 def completed_non_orchestrator_task_count(workflow: dict[str, Any]) -> int:

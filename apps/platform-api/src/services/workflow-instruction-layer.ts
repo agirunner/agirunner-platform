@@ -418,6 +418,7 @@ function plannedClosureDiscipline() {
   return [
     'When the current planned-workflow work item satisfies its authored stage goal, board posture, continuity, and process instructions, call complete_work_item in the same activation instead of leaving accepted work open.',
     'When every planned work item is terminal and no blocking tasks, approvals, assessments, escalations, or required follow-up remain, call complete_workflow in the same activation.',
+    'When you call complete_workflow, include final_artifacts with the repo-relative deliverables or uploaded artifact paths that represent the final workflow output.',
     'When closure is legal but preferred work or advisory items remain, use complete_work_item or complete_workflow with structured completion_callouts instead of leaving the workflow open.',
     'Do not rely on board lane guesses or specialist prose to imply closure. Perform the explicit workflow mutation yourself.',
   ].join('\n');
