@@ -9,6 +9,7 @@ describe('workflow stage gate service', () => {
       workflow_id: 'workflow-1',
       stage_name: 'approval',
       status: 'approved',
+      closure_effect: 'blocking',
       recommendation: 'approve',
       concerns: [],
       key_artifacts: [],
@@ -29,6 +30,7 @@ describe('workflow stage gate service', () => {
       decision_to_continuation_started_seconds: 2,
       decision_to_continuation_completed_seconds: 5,
     });
+    expect(response.closure_effect).toBe('blocking');
   });
 
   it('returns null continuation metrics when the decision or resume timestamps are absent', () => {
@@ -37,6 +39,7 @@ describe('workflow stage gate service', () => {
       workflow_id: 'workflow-2',
       stage_name: 'approval',
       status: 'awaiting_approval',
+      closure_effect: 'advisory',
       recommendation: null,
       concerns: [],
       key_artifacts: [],
@@ -49,6 +52,7 @@ describe('workflow stage gate service', () => {
       decision_to_continuation_started_seconds: null,
       decision_to_continuation_completed_seconds: null,
     });
+    expect(response.closure_effect).toBe('advisory');
   });
 
   it('maps blocked gate status to a blocked human decision action', () => {

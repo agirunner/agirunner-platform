@@ -4,8 +4,11 @@ import { Link } from 'react-router-dom';
 
 import {
   dashboardApi,
+  type DashboardCompletionCallouts,
   type DashboardWorkspaceRecord,
   type DashboardResolvedDocumentReference,
+  type DashboardWorkflowRecord,
+  type DashboardWorkflowWorkItemRecord,
 } from '../../lib/api.js';
 import { buildArtifactPermalink } from '../../components/artifact-preview/artifact-preview-support.js';
 import { ChainStructuredEntryEditor } from '../../components/chain-workflow/chain-workflow-parameters.js';
@@ -68,6 +71,138 @@ import {
   validateWorkflowDocumentDraft,
 } from './workflow-detail-document-support.js';
 import { WorkflowSurfaceRecoveryState } from './workflow-surface-recovery-state.js';
+
+function hasCompletionCallouts(callouts: DashboardCompletionCallouts | null | undefined): boolean {
+  return Boolean(
+    callouts?.completion_notes?.trim() ||
+      (callouts?.residual_risks?.length ?? 0) > 0 ||
+      (callouts?.unmet_preferred_expectations?.length ?? 0) > 0 ||
+      (callouts?.waived_steps?.length ?? 0) > 0 ||
+      (callouts?.unresolved_advisory_items?.length ?? 0) > 0,
+  );
+}
+
+function CompletionCalloutSection(props: {
+  title: string;
+  callouts: DashboardCompletionCallouts;
+  badges?: ReactNode;
+}) {
+  return (
+    <div className="grid gap-3 rounded-xl border border-border/70 bg-border/5 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">{props.title}</p>
+          {props.callouts.completion_notes?.trim() ? (
+            <p className="text-sm leading-6 text-muted">{props.callouts.completion_notes}</p>
+          ) : (
+            <p className="text-sm leading-6 text-muted">
+              Good enough closure recorded without additional narrative notes.
+            </p>
+          )}
+        </div>
+        {props.badges ? <div className="flex flex-wrap gap-2">{props.badges}</div> : null}
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
+        <CalloutList
+          title="Residual risks"
+          items={props.callouts.residual_risks ?? []}
+          emptyLabel="No residual risks recorded."
+        />
+        <CalloutList
+          title="Unmet preferred expectations"
+          items={props.callouts.unmet_preferred_expectations ?? []}
+          emptyLabel="No unmet preferred expectations recorded."
+        />
+        <CalloutList
+          title="Waived steps"
+          items={(props.callouts.waived_steps ?? []).map(
+            (step) =>
+              `${step.code}${step.role ? ` (${step.role})` : ''}: ${step.reason}`,
+          )}
+          emptyLabel="No waived steps recorded."
+        />
+        <CalloutList
+          title="Unresolved advisory items"
+          items={(props.callouts.unresolved_advisory_items ?? []).map(
+            (item) => `${item.kind}${item.id ? ` ${item.id}` : ''}: ${item.summary}`,
+          )}
+          emptyLabel="No unresolved advisory items recorded."
+        />
+      </div>
+    </div>
+  );
+}
+
+function CalloutList(props: { title: string; items: string[]; emptyLabel: string }) {
+  return (
+    <div className="grid gap-2 rounded-lg border border-border/70 bg-background/80 p-3">
+      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+        {props.title}
+      </div>
+      {props.items.length > 0 ? (
+        <ul className="grid gap-2 text-sm leading-6 text-foreground">
+          {props.items.map((item) => (
+            <li key={`${props.title}:${item}`} className="rounded-md bg-border/10 px-3 py-2">
+              {item}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-muted">{props.emptyLabel}</p>
+      )}
+    </div>
+  );
+}
+
+export function WorkflowClosureCalloutsCard(props: {
+  workflow?: DashboardWorkflowRecord;
+  workItems?: DashboardWorkflowWorkItemRecord[];
+}) {
+  const workflowCallouts = props.workflow?.completion_callouts ?? null;
+  const workItemCallouts = (props.workItems ?? []).filter((item) =>
+    hasCompletionCallouts(item.completion_callouts),
+  );
+  const hasWorkflowCallouts = hasCompletionCallouts(workflowCallouts);
+
+  return (
+    <Card className="border-border/70 bg-card/80 shadow-sm">
+      <CardHeader>
+        <CardTitle>Closure Callouts</CardTitle>
+        <CardDescription>
+          Closure notes, waived steps, residual risks, and unresolved advisory items recorded when
+          the board or a work item was closed as good enough.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {!hasWorkflowCallouts && workItemCallouts.length === 0 ? (
+          <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
+            No closure callouts are recorded on this workflow yet.
+          </p>
+        ) : null}
+        {hasWorkflowCallouts && workflowCallouts ? (
+          <CompletionCalloutSection
+            title="Workflow close"
+            callouts={workflowCallouts}
+            badges={<Badge variant="secondary">{props.workflow?.state ?? 'completed'}</Badge>}
+          />
+        ) : null}
+        {workItemCallouts.map((item) => (
+          <CompletionCalloutSection
+            key={item.id}
+            title={item.title}
+            callouts={item.completion_callouts as DashboardCompletionCallouts}
+            badges={
+              <>
+                <Badge variant="outline">{item.stage_name}</Badge>
+                <Badge variant="outline">{item.column_id}</Badge>
+              </>
+            }
+          />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
 
 export function WorkflowDocumentsCard(props: {
   workflowId: string;

@@ -37,6 +37,7 @@ export interface WorkflowInspectorFocusWorkItem {
   unresolvedFindingsCount: number;
   assessmentFocusCount: number;
   knownRiskCount: number;
+  closureCalloutCount: number;
   latestHandoffCompletion: string | null;
 }
 
@@ -85,6 +86,11 @@ export function buildWorkflowInspectorTraceModel(input: {
         detail: describeContinuityDetail(focusWorkItem),
       },
       {
+        label: 'Closure callouts',
+        value: formatCount(readWorkflowClosureCalloutCount(workflow, focusWorkItem)),
+        detail: describeClosureCalloutMetric(workflow, focusWorkItem),
+      },
+      {
         label: 'Stage gates',
         value: formatCount(readAttentionGateCount(stages, workItemSummary?.awaiting_gate_count ?? 0)),
         detail: describeGateMetric(stages, workItemSummary?.awaiting_gate_count ?? 0),
@@ -118,6 +124,7 @@ export function buildWorkflowInspectorTraceModel(input: {
             unresolvedFindingsCount: focusWorkItem.unresolved_findings?.length ?? 0,
             assessmentFocusCount: focusWorkItem.focus_areas?.length ?? 0,
             knownRiskCount: focusWorkItem.known_risks?.length ?? 0,
+            closureCalloutCount: readCompletionCalloutCount(asRecord(focusWorkItem.completion_callouts)),
             latestHandoffCompletion: focusWorkItem.latest_handoff_completion ?? null,
           }
       : null,
@@ -225,6 +232,27 @@ function describeContinuityDetail(focusWorkItem: DashboardWorkflowWorkItemRecord
   return 'No unresolved findings are recorded on the focus work item right now.';
 }
 
+function describeClosureCalloutMetric(
+  workflow: DashboardWorkflowRecord | undefined,
+  focusWorkItem: DashboardWorkflowWorkItemRecord | null,
+) {
+  const workflowCount = readCompletionCalloutCount(asRecord(workflow?.completion_callouts));
+  const workItemCount = focusWorkItem
+    ? readCompletionCalloutCount(asRecord(focusWorkItem.completion_callouts))
+    : 0;
+  const total = workflowCount + workItemCount;
+  if (total === 0) {
+    return 'No workflow or focus-item closure callouts are recorded yet.';
+  }
+  if (workflowCount > 0 && workItemCount > 0) {
+    return `${workflowCount} workflow-level and ${workItemCount} focus-item callouts are recorded for operator review.`;
+  }
+  if (workflowCount > 0) {
+    return `${workflowCount} workflow-level closure callout${workflowCount === 1 ? ' is' : 's are'} recorded for operator review.`;
+  }
+  return `${workItemCount} focus-item closure callout${workItemCount === 1 ? ' is' : 's are'} recorded for operator review.`;
+}
+
 function describeFocusContinuityDetail(
   focusWorkItem: WorkflowInspectorFocusWorkItem,
   latestHandoff: DashboardTaskHandoffRecord | null,
@@ -253,6 +281,11 @@ function describeFocusContinuityDetail(
   if (focusWorkItem.knownRiskCount > 0) {
     fragments.push(`${focusWorkItem.knownRiskCount} known risk${focusWorkItem.knownRiskCount === 1 ? '' : 's'}`);
   }
+  if (focusWorkItem.closureCalloutCount > 0) {
+    fragments.push(
+      `${focusWorkItem.closureCalloutCount} closure callout${focusWorkItem.closureCalloutCount === 1 ? '' : 's'}`,
+    );
+  }
   if (latestHandoff?.summary) {
     fragments.push(`Latest handoff: ${latestHandoff.summary}`);
   }
@@ -271,6 +304,33 @@ function describeFocusContinuityDetail(
     return fragments.join(' • ');
   }
   return `${focusWorkItem.stageName} is the most relevant live work-item context in this trace.`;
+}
+
+function readWorkflowClosureCalloutCount(
+  workflow: DashboardWorkflowRecord | undefined,
+  focusWorkItem: DashboardWorkflowWorkItemRecord | null,
+) {
+  return readCompletionCalloutCount(asRecord(workflow?.completion_callouts))
+    + (focusWorkItem
+      ? readCompletionCalloutCount(asRecord(focusWorkItem.completion_callouts))
+      : 0);
+}
+
+function readCompletionCalloutCount(record: Record<string, unknown>) {
+  if (Object.keys(record).length === 0) {
+    return 0;
+  }
+  let count = 0;
+  if (typeof record.completion_notes === 'string' && record.completion_notes.trim().length > 0) {
+    count += 1;
+  }
+  for (const key of ['residual_risks', 'unmet_preferred_expectations', 'waived_steps', 'unresolved_advisory_items']) {
+    const value = record[key];
+    if (Array.isArray(value)) {
+      count += value.length;
+    }
+  }
+  return count;
 }
 
 function describeGateMetric(

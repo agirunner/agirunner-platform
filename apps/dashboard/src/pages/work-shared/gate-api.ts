@@ -12,6 +12,7 @@ export interface DashboardGateDetailRecord {
   stage_goal?: string | null;
   status: string;
   gate_status: string;
+  closure_effect?: 'blocking' | 'advisory' | null;
   request_summary?: string | null;
   summary?: string | null;
   recommendation?: string | null;

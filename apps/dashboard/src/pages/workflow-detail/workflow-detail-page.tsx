@@ -68,7 +68,11 @@ import {
   describeTimelineEvent,
   WorkflowInteractionTimelineCard,
 } from './workflow-history-card.js';
-import { WorkflowDocumentsCard, WorkspaceMemoryCard } from './workflow-detail-content.js';
+import {
+  WorkflowClosureCalloutsCard,
+  WorkflowDocumentsCard,
+  WorkspaceMemoryCard,
+} from './workflow-detail-content.js';
 import { invalidateWorkflowQueries } from './workflow-detail-query.js';
 import { deriveWorkflowStageDisplay } from './workflow-detail-stage-presentation.js';
 import { WorkflowSurfaceRecoveryState } from './workflow-surface-recovery-state.js';
@@ -872,6 +876,10 @@ export function WorkflowDetailPage(): JSX.Element {
               isLoading={budgetQuery.isLoading}
               hasError={Boolean(budgetQuery.error)}
               context="workflow-detail"
+            />
+            <WorkflowClosureCalloutsCard
+              workflow={workflowQuery.data}
+              workItems={workflowQuery.data?.work_items ?? []}
             />
             <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-1">
               <WorkflowSignalTile

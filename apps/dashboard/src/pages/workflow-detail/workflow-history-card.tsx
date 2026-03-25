@@ -204,6 +204,12 @@ function TimelineEntry(props: {
   record: TimelineRecord;
 }) {
   const { descriptor, event } = props.record;
+  const closureEffect =
+    typeof (event.data as Record<string, unknown> | null)?.closure_effect === 'string'
+      ? String((event.data as Record<string, unknown>).closure_effect)
+      : null;
+  const completionCallouts =
+    readCompletionCalloutSummary(event.data as Record<string, unknown> | null);
   const actions = buildTimelineEntryActions({
     activationId: descriptor.activationId,
     childWorkflowHref: descriptor.childWorkflowHref,
@@ -231,6 +237,11 @@ function TimelineEntry(props: {
                 {badge}
               </Badge>
             ))}
+            {closureEffect ? (
+              <Badge variant={closureEffect === 'advisory' ? 'secondary' : 'destructive'}>
+                {closureEffect === 'advisory' ? 'Advisory closure effect' : 'Blocking closure effect'}
+              </Badge>
+            ) : null}
           </div>
           <strong>{descriptor.narrativeHeadline}</strong>
           <span
@@ -253,6 +264,9 @@ function TimelineEntry(props: {
           {descriptor.scopeSummary}
         </p>
       ) : null}
+      {completionCallouts ? (
+        <p className="text-xs leading-5 text-muted">{completionCallouts}</p>
+      ) : null}
       <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
         {actions.map((action) => (
           <Link
@@ -267,6 +281,40 @@ function TimelineEntry(props: {
       <TimelineEventPacket event={event} descriptor={descriptor} />
     </li>
   );
+}
+
+function readCompletionCalloutSummary(
+  data: Record<string, unknown> | null,
+): string | null {
+  if (!data || typeof data !== 'object') {
+    return null;
+  }
+  const callouts = data.completion_callouts;
+  if (!callouts || typeof callouts !== 'object' || Array.isArray(callouts)) {
+    return null;
+  }
+  const record = callouts as Record<string, unknown>;
+  const counts = [
+    countArrayEntries(record.residual_risks, 'residual risk'),
+    countArrayEntries(record.unmet_preferred_expectations, 'unmet preferred expectation'),
+    countArrayEntries(record.waived_steps, 'waived step'),
+    countArrayEntries(record.unresolved_advisory_items, 'advisory item'),
+  ].filter(Boolean);
+  const completionNotes =
+    typeof record.completion_notes === 'string' && record.completion_notes.trim().length > 0
+      ? record.completion_notes.trim()
+      : null;
+  if (!completionNotes && counts.length === 0) {
+    return null;
+  }
+  return ['Closure callouts', ...counts, completionNotes].filter(Boolean).join(' • ');
+}
+
+function countArrayEntries(value: unknown, label: string): string | null {
+  if (!Array.isArray(value) || value.length === 0) {
+    return null;
+  }
+  return `${value.length} ${label}${value.length === 1 ? '' : 's'}`;
 }
 
 function timelineEntryClassName(

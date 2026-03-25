@@ -85,6 +85,7 @@ describe('workflow inspector telemetry', () => {
         unresolvedFindingsCount: 0,
         assessmentFocusCount: 0,
         knownRiskCount: 0,
+        closureCalloutCount: 0,
         latestHandoffCompletion: null,
       },
       memoryHistory: [

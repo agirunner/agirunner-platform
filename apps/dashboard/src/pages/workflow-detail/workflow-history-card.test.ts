@@ -204,6 +204,9 @@ describe('workflow interaction timeline', () => {
     expect(source).toContain('descriptor.emphasisLabel');
     expect(source).toContain('descriptor.scopeSummary');
     expect(source).toContain('descriptor.signalBadges');
+    expect(source).toContain('Advisory closure effect');
+    expect(source).toContain('Blocking closure effect');
+    expect(source).toContain('Closure callouts');
     expect(source).toContain('TimelineEventPacket');
     expect(source).toContain('descriptor={descriptor}');
     expect(source).toContain('buildTimelineEntryActions');

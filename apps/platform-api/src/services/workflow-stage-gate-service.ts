@@ -10,6 +10,7 @@ export interface WorkflowStageGateRecord {
   stage_name: string;
   stage_goal?: string | null;
   status: string;
+  closure_effect?: 'blocking' | 'advisory' | null;
   request_summary?: string | null;
   recommendation: string | null;
   concerns: unknown;
@@ -59,6 +60,7 @@ export function toGateResponse(row: WorkflowStageGateRecord) {
     stage_goal: row.stage_goal ?? null,
     status: row.status,
     gate_status: row.status,
+    closure_effect: row.closure_effect ?? 'blocking',
     request_summary: requestSummary,
     summary: requestSummary,
     recommendation,

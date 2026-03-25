@@ -211,6 +211,9 @@ export function GateDetailCard(props: {
               <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
                 <Badge variant="warning">Stage gate</Badge>
                 <Badge variant="outline">{gate.stage_name}</Badge>
+                <Badge variant={gate.closure_effect === 'advisory' ? 'secondary' : 'destructive'}>
+                  {gate.closure_effect === 'advisory' ? 'Advisory gate' : 'Blocking gate'}
+                </Badge>
                 <Badge variant="secondary">Gate ID {gateId ?? 'pending'}</Badge>
                 {decisionAction ? (
                   <Badge

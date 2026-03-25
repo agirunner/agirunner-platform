@@ -439,6 +439,23 @@ export interface DashboardWorkflowStageRecord {
   total_work_item_count: number;
 }
 
+export interface DashboardCompletionCallouts {
+  residual_risks?: string[];
+  unmet_preferred_expectations?: string[];
+  waived_steps?: Array<{
+    code: string;
+    summary?: string | null;
+    role?: string | null;
+    reason: string;
+  }>;
+  unresolved_advisory_items?: Array<{
+    kind: string;
+    id?: string | null;
+    summary: string;
+  }>;
+  completion_notes?: string | null;
+}
+
 export interface DashboardWorkflowWorkItemRecordBase {
   id: string;
   workflow_id: string;
@@ -471,6 +488,7 @@ export interface DashboardWorkflowWorkItemRecordBase {
   unresolved_findings?: string[];
   focus_areas?: string[];
   known_risks?: string[];
+  completion_callouts?: DashboardCompletionCallouts | null;
   priority: string;
   notes?: string | null;
   metadata?: Record<string, unknown> | null;
@@ -498,6 +516,8 @@ export interface DashboardTaskHandoffRecord {
   sequence: number;
   summary: string;
   completion: string;
+  closure_effect?: 'blocking' | 'advisory' | null;
+  completion_callouts?: DashboardCompletionCallouts | null;
   changes: unknown[];
   decisions: unknown[];
   remaining_items: unknown[];
@@ -593,6 +613,7 @@ interface DashboardWorkflowRecordBase {
   task_counts?: Record<string, number>;
   metadata?: Record<string, unknown>;
   context?: Record<string, unknown>;
+  completion_callouts?: DashboardCompletionCallouts | null;
   workflow_relations?: DashboardWorkflowRelations | null;
   workflow_stages?: DashboardWorkflowStageRecord[];
   work_items?: DashboardWorkflowWorkItemRecord[];
@@ -646,6 +667,7 @@ export interface DashboardApprovalStageGateRecord {
   stage_goal: string;
   status?: string;
   gate_status: string;
+  closure_effect?: 'blocking' | 'advisory' | null;
   summary?: string | null;
   recommendation?: string | null;
   concerns: string[];

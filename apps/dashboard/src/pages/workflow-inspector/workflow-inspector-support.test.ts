@@ -50,6 +50,10 @@ describe('workflow inspector support', () => {
             unresolved_findings: ['Verify the rollback notes.'],
             focus_areas: ['Rollback notes'],
             known_risks: ['Release timing'],
+            completion_callouts: {
+              completion_notes: 'Closed with a documented release-risk caveat.',
+              unresolved_advisory_items: [{ kind: 'approval', summary: 'Approval remained advisory.' }],
+            },
             latest_handoff_completion: 'partial',
             priority: 'high',
           },
@@ -79,6 +83,9 @@ describe('workflow inspector support', () => {
             produced_artifacts: [{ id: 'artifact-1' }, { id: 'artifact-2' }],
           },
         },
+        completion_callouts: {
+          waived_steps: [{ code: 'secondary_review', reason: 'Primary review already covered the release risk.' }],
+        },
       },
       workspace: {
         id: 'workspace-1',
@@ -107,6 +114,11 @@ describe('workflow inspector support', () => {
         label: 'Continuity',
         value: 'reviewer -> review',
         detail: '1 unresolved finding is still attached to the focus work item.',
+      },
+      {
+        label: 'Closure callouts',
+        value: '3',
+        detail: '1 workflow-level and 2 focus-item callouts are recorded for operator review.',
       },
       {
         label: 'Stage gates',
@@ -172,6 +184,7 @@ describe('workflow inspector support', () => {
       unresolvedFindingsCount: 1,
       assessmentFocusCount: 1,
       knownRiskCount: 1,
+      closureCalloutCount: 2,
       latestHandoffCompletion: 'partial',
       currentSubjectRevision: 2,
     });
@@ -227,6 +240,9 @@ describe('workflow inspector support', () => {
             unresolved_findings: ['Verify rollback notes'],
             focus_areas: ['Rollback notes'],
             known_risks: ['Release timing'],
+            completion_callouts: {
+              waived_steps: [{ code: 'secondary_review', reason: 'Primary review already covered the release risk.' }],
+            },
             latest_handoff_completion: 'partial',
             current_subject_revision: 2,
             priority: 'high',
@@ -245,6 +261,7 @@ describe('workflow inspector support', () => {
       unresolvedFindingsCount: 1,
       assessmentFocusCount: 1,
       knownRiskCount: 1,
+      closureCalloutCount: 1,
       latestHandoffCompletion: 'partial',
       currentSubjectRevision: 2,
     });
@@ -273,7 +290,7 @@ describe('workflow inspector support', () => {
     ).toEqual({
       title: 'Focus on Review release notes',
       detail:
-        'Stage review • Subject revision 2 • 2 reworks • 1 unresolved finding • 1 assessment focus item • 1 known risk • Latest handoff: QA validated the approved branch successfully. • Successor context: Use the verified QA evidence as the release input. • Next actor: reviewer should review next',
+        'Stage review • Subject revision 2 • 2 reworks • 1 unresolved finding • 1 assessment focus item • 1 known risk • 1 closure callout • Latest handoff: QA validated the approved branch successfully. • Successor context: Use the verified QA evidence as the release input. • Next actor: reviewer should review next',
       nextAction:
         'Open the focus work item first, clear the unresolved findings and assessment focus notes, then decide whether the next move is approval, rework, or a new orchestrator turn.',
       actionLabel: 'Open focus work item',
@@ -296,7 +313,7 @@ describe('workflow inspector support', () => {
       value: '0',
       detail: 'No activation batches are recorded on this workflow yet.',
     });
-    expect(model.metrics[5]).toEqual({
+    expect(model.metrics[6]).toEqual({
       label: 'Memory handoff',
       value: 'Not recorded',
       detail: 'No workspace memory handoff packets are available for this workflow yet.',

@@ -40,6 +40,12 @@ describe('workflow detail content source', () => {
     expect(source).toContain('Delete Reference');
     expect(source).toContain('Confirm Delete');
     expect(source).toContain('WorkflowSurfaceRecoveryState');
+    expect(source).toContain('WorkflowClosureCalloutsCard');
+    expect(source).toContain('Closure Callouts');
+    expect(source).toContain('Good enough closure recorded');
+    expect(source).toContain('Residual risks');
+    expect(source).toContain('Unresolved advisory items');
+    expect(source).toContain('No closure callouts are recorded on this workflow yet.');
     expect(source).toContain('Workflow documents are unavailable');
     expect(source).toContain('Retry documents');
     expect(source).toContain('Reference library empty');

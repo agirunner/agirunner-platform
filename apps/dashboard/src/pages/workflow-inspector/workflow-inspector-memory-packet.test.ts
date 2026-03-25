@@ -14,6 +14,7 @@ describe('workflow inspector memory packet', () => {
         unresolvedFindingsCount: 0,
         assessmentFocusCount: 0,
         knownRiskCount: 0,
+        closureCalloutCount: 0,
         latestHandoffCompletion: null,
       },
       memoryHistory: [
@@ -70,6 +71,7 @@ describe('workflow inspector memory packet', () => {
         unresolvedFindingsCount: 0,
         assessmentFocusCount: 0,
         knownRiskCount: 0,
+        closureCalloutCount: 0,
         latestHandoffCompletion: null,
       },
       memoryHistory: [
