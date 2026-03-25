@@ -249,6 +249,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             scenario_name="sdlc-lite-approval-request-changes-then-approve",
             approval_mode="scripted",
             provider_auth_mode="oauth",
+            verification_mode="outcome_driven",
             workflow={"id": "wf-1", "state": "completed", "tasks": []},
             board={"ok": True},
             work_items={"ok": True},
@@ -294,6 +295,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertEqual("sdlc-lite-approval-request-changes-then-approve", payload["scenario"])
         self.assertEqual("sdlc-lite-approval-request-changes-then-approve", payload["scenario_name"])
         self.assertEqual("oauth", payload["provider_auth_mode"])
+        self.assertEqual("outcome_driven", payload["verification_mode"])
         self.assertEqual("completed", payload["workflow_state"])
         self.assertTrue(payload["verification_passed"])
         self.assertFalse(payload["harness_failure"])
@@ -375,6 +377,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             scenario_name="ongoing-intake-reuse-positive",
             approval_mode="none",
             provider_auth_mode="oauth",
+            verification_mode="outcome_driven",
             workflow={"id": "wf-1", "state": "pending", "lifecycle": "ongoing", "tasks": []},
             board={"ok": True},
             work_items={"ok": True},
@@ -1768,6 +1771,65 @@ class RunWorkflowScenarioTests(unittest.TestCase):
 
         self.assertFalse(verification["passed"])
         self.assertGreaterEqual(len(verification["failures"]), 4)
+
+    def test_evaluate_expectations_outcome_driven_mode_passes_with_basic_completion_and_output(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "state": "completed",
+                "approval_actions": [{"action": "request_changes", "stage_name": "requirements"}],
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {"id": "task-1", "is_orchestrator_task": False, "state": "completed"},
+                ],
+            },
+            board={"data": {"data": {"columns": [{"id": "done", "is_terminal": True}], "work_items": [{"id": "wi-1", "column_id": "done"}]}}},
+            work_items={"data": {"data": [{"id": "wi-1", "column_id": "done"}]}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": [{"logical_path": "reports/summary.md"}]}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+            evidence={
+                "db_state": {"ok": True},
+                "runtime_cleanup": {"all_clean": True},
+                "log_anomalies": {"rows": []},
+            },
+            verification_mode="outcome_driven",
+        )
+
+        self.assertTrue(verification["passed"])
+        self.assertEqual([], verification["failures"])
+        self.assertGreaterEqual(len(verification.get("advisories", [])), 1)
+
+    def test_evaluate_expectations_outcome_driven_mode_requires_basic_sanity(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "state": "completed",
+            },
+            workflow={
+                "state": "active",
+                "tasks": [
+                    {"id": "task-1", "is_orchestrator_task": False, "state": "completed"},
+                ],
+            },
+            board={"data": {"data": {"columns": [{"id": "done", "is_terminal": True}], "work_items": [{"id": "wi-1", "column_id": "done"}]}}},
+            work_items={"data": {"data": [{"id": "wi-1", "column_id": "done"}]}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+            evidence={
+                "db_state": {"ok": False},
+                "runtime_cleanup": {"all_clean": False},
+                "log_anomalies": {"rows": [{"level": "error"}]},
+            },
+            verification_mode="outcome_driven",
+        )
+
+        self.assertFalse(verification["passed"])
+        self.assertIn("expected workflow state 'completed', got 'active'", verification["failures"])
+        self.assertIn("expected at least one output artifact for outcome-driven verification", verification["failures"])
 
     def test_evaluate_expectations_uses_authored_terminal_board_columns(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(

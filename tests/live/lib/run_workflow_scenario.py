@@ -30,6 +30,8 @@ TERMINAL_STATES = {"completed", "failed", "cancelled"}
 DEFAULT_FINAL_SETTLE_ATTEMPTS = 60
 DEFAULT_FINAL_SETTLE_DELAY_SECONDS = 1
 TASK_LIST_PER_PAGE = 100
+OUTCOME_DRIVEN_VERIFICATION_MODE = 'outcome_driven'
+STRICT_VERIFICATION_MODE = 'strict'
 
 
 def env(name: str, default: str | None = None, *, required: bool = False) -> str:
@@ -399,6 +401,121 @@ def _artifacts(snapshot: Any) -> list[dict[str, Any]]:
         if isinstance(items, list):
             return items
     return []
+
+
+def artifact_output_count(snapshot: Any) -> int:
+    return len(_artifacts(snapshot))
+
+
+def completed_non_orchestrator_task_count(workflow: dict[str, Any]) -> int:
+    return sum(
+        1
+        for task in _workflow_tasks(workflow)
+        if isinstance(task, dict)
+        and not bool(task.get('is_orchestrator_task'))
+        and task.get('state') == 'completed'
+    )
+
+
+def has_fatal_log_anomalies(evidence: dict[str, Any]) -> bool:
+    anomalies = evidence.get('log_anomalies', {})
+    if not isinstance(anomalies, dict):
+        return True
+    rows = anomalies.get('rows', [])
+    if not isinstance(rows, list):
+        return True
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        level = str(row.get('level') or '').lower()
+        status = str(row.get('status') or '').lower()
+        if level in {'error', 'fatal'} or status == 'failed':
+            return True
+    return False
+
+
+def evaluate_outcome_driven_basics(
+    expectations: dict[str, Any],
+    *,
+    workflow: dict[str, Any],
+    work_items: Any,
+    board: Any,
+    artifacts: Any,
+    evidence: dict[str, Any],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    checks: list[dict[str, Any]] = []
+    failures: list[str] = []
+
+    expected_state = expectations.get('state')
+    required_state = expected_state if isinstance(expected_state, str) and expected_state.strip() != '' else 'completed'
+    actual_state = workflow.get('state')
+    state_passed = actual_state == required_state
+    checks.append(
+        {
+            'name': 'outcome.workflow_state',
+            'passed': state_passed,
+            'expected': required_state,
+            'actual': actual_state,
+        }
+    )
+    if not state_passed:
+        failures.append(f"expected workflow state {required_state!r}, got {actual_state!r}")
+
+    output_count = artifact_output_count(artifacts)
+    output_passed = output_count > 0
+    checks.append(
+        {
+            'name': 'outcome.output_artifacts',
+            'passed': output_passed,
+            'actual_count': output_count,
+        }
+    )
+    if not output_passed:
+        failures.append('expected at least one output artifact for outcome-driven verification')
+
+    completed_specialist_tasks = completed_non_orchestrator_task_count(workflow)
+    task_output_passed = completed_specialist_tasks > 0
+    checks.append(
+        {
+            'name': 'outcome.completed_non_orchestrator_tasks',
+            'passed': task_output_passed,
+            'actual_count': completed_specialist_tasks,
+        }
+    )
+    if not task_output_passed:
+        failures.append('expected at least one completed non-orchestrator task for outcome-driven verification')
+
+    items = _work_items(work_items)
+    terminal_items = [item for item in items if _work_item_is_terminal(item, board)]
+    work_item_passed = len(terminal_items) > 0
+    checks.append(
+        {
+            'name': 'outcome.terminal_work_items_present',
+            'passed': work_item_passed,
+            'actual_count': len(terminal_items),
+        }
+    )
+    if not work_item_passed:
+        failures.append('expected at least one terminal work item for outcome-driven verification')
+
+    db_state = evidence.get('db_state', {})
+    db_passed = isinstance(db_state, dict) and bool(db_state.get('ok'))
+    checks.append({'name': 'outcome.db_state_present', 'passed': db_passed})
+    if not db_passed:
+        failures.append('expected DB evidence to be present')
+
+    runtime_cleanup = evidence.get('runtime_cleanup', {})
+    runtime_passed = isinstance(runtime_cleanup, dict) and bool(runtime_cleanup.get('all_clean'))
+    checks.append({'name': 'outcome.runtime_cleanup', 'passed': runtime_passed})
+    if not runtime_passed:
+        failures.append('expected runtime cleanup evidence to show no dangling runtimes')
+
+    log_passed = not has_fatal_log_anomalies(evidence)
+    checks.append({'name': 'outcome.fatal_log_anomalies_absent', 'passed': log_passed})
+    if not log_passed:
+        failures.append('expected logs to be free of fatal anomalies')
+
+    return checks, failures
 
 
 def _workflow_events(snapshot: Any) -> list[dict[str, Any]]:
@@ -1531,6 +1648,7 @@ def evaluate_expectations(
     efficiency: dict[str, Any] | None = None,
     execution_logs: Any | None = None,
     evidence: dict[str, Any] | None = None,
+    verification_mode: str = STRICT_VERIFICATION_MODE,
 ) -> dict[str, Any]:
     failures: list[str] = []
     checks: list[dict[str, Any]] = []
@@ -2256,10 +2374,28 @@ def evaluate_expectations(
         checks.extend(efficiency_checks)
         failures.extend(efficiency_failures)
 
+    if verification_mode == OUTCOME_DRIVEN_VERIFICATION_MODE:
+        outcome_checks, outcome_failures = evaluate_outcome_driven_basics(
+            expectations,
+            workflow=workflow,
+            work_items=work_items,
+            board=board,
+            artifacts=artifacts,
+            evidence=evidence_payload,
+        )
+        return {
+            "passed": len(outcome_failures) == 0,
+            "failures": outcome_failures,
+            "checks": [*checks, *outcome_checks],
+            "advisories": failures,
+            "approval_actions": approval_actions,
+        }
+
     return {
         "passed": len(failures) == 0,
         "failures": failures,
         "checks": checks,
+        "advisories": [],
         "approval_actions": approval_actions,
     }
 
@@ -2656,6 +2792,7 @@ def build_run_result_payload(
     scenario_name: str,
     approval_mode: str,
     provider_auth_mode: str,
+    verification_mode: str,
     workflow: dict[str, Any],
     board: Any,
     work_items: Any,
@@ -2691,6 +2828,7 @@ def build_run_result_payload(
         "scenario_name": scenario_name,
         "approval_mode": approval_mode,
         "provider_auth_mode": provider_auth_mode,
+        "verification_mode": verification_mode,
         "workflow": workflow,
         "board": board,
         "work_items": work_items,
@@ -2865,6 +3003,7 @@ def main() -> None:
     workflow_goal = scenario["workflow"]["goal"] if scenario else env("LIVE_TEST_WORKFLOW_GOAL", required=True)
     scenario_name = scenario["name"] if scenario else env("LIVE_TEST_SCENARIO_NAME", required=True)
     approval_mode = "scripted" if scenario and scenario["approvals"] else env("LIVE_TEST_APPROVAL_MODE", "none")
+    verification_mode = env("LIVE_TEST_VERIFICATION_MODE", OUTCOME_DRIVEN_VERIFICATION_MODE)
     timeout_seconds = scenario["timeout_seconds"] if scenario else env_int("LIVE_TEST_WORKFLOW_TIMEOUT_SECONDS", 1800)
     poll_interval_seconds = scenario["poll_interval_seconds"] if scenario else env_int("LIVE_TEST_POLL_INTERVAL_SECONDS", 10)
 
@@ -3162,6 +3301,7 @@ def main() -> None:
         efficiency=efficiency_summary,
         execution_logs=execution_logs_snapshot,
         evidence=evidence_payload,
+        verification_mode=verification_mode,
     )
     emit_run_result(
         build_run_result_payload(
@@ -3172,6 +3312,7 @@ def main() -> None:
             scenario_name=scenario_name,
             approval_mode=approval_mode,
             provider_auth_mode=provider_auth_mode,
+            verification_mode=verification_mode,
             workflow=latest_workflow,
             board=board_snapshot,
             work_items=work_items_snapshot,

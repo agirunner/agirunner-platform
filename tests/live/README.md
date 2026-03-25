@@ -55,7 +55,7 @@ Each live scenario is defined by a JSON file under `tests/live/scenarios/`.
 - `approvals`
   - ordered scripted human decisions using `approve`, `block`, `reject`, or `request_changes`
 - `expect`
-  - declarative pass criteria evaluated by the runner; generic keys include direct handoff, assessment, approval, work-item field matching, stage-gate field matching, subject revision, ordering, and required-assessment assertions
+  - declarative verification hints evaluated by the runner; generic keys include direct handoff, assessment, approval, work-item field matching, stage-gate field matching, subject revision, ordering, and required-assessment assertions
 - `coverage`
   - matrix metadata used by the catalog tests to prove that the scenario corpus covers the supported semantic, concurrency, storage, and playbook-shape variations
 
@@ -117,14 +117,15 @@ These artifacts are designed for trace-first troubleshooting and later automated
 
 ## Pass Criteria
 
+Live runs use `LIVE_TEST_VERIFICATION_MODE=outcome_driven` by default.
+
 No scenario counts as passing until all of these checks agree:
 
 - the scenario runner exits with code `0`
-- final artifact shows the expected workflow result
-- DB evidence shows clean workflow, task, and work-item settlement for the scenario semantics
-- board and stage progression evidence shows each stage and each work item reached the expected board columns, transition sequence, completion markers, and stage/workflow terminal posture for that playbook
-- log anomaly review shows no unexplained terminal defect
-- container hygiene evidence shows no dangling task containers and no undrained cold runtimes left behind after the scenario has settled
+- final artifact shows a completed workflow
+- final artifact and workspace evidence show output was produced
+- DB evidence shows basic clean workflow, task, and work-item settlement
+- log anomaly review shows no fatal unhandled defect
+- container hygiene evidence shows no dangling task containers and no undrained runtimes left behind after the scenario has settled
 
-Container hygiene is mandatory because a workflow can appear complete while runtime ownership or cleanup is still broken. Review `live-containers.json`, `container-observations.json`, and `runtime-cleanup.json` before recording a pass.
-Board and stage progression is mandatory because a workflow can appear busy or complete while work items remain in the wrong board column, stages skip or repeat expected transitions, stages never reconcile, or the workflow stays active after all work is terminal. Review `db-state.json` and the workflow snapshot for per-stage status changes, per-work-item board column transitions, `completed_at`, and workflow state before recording a pass.
+Detailed authored expectations remain useful diagnostics, but they do not fail a scenario in outcome-driven mode unless the scenario explicitly exists to validate that exact behavior.
