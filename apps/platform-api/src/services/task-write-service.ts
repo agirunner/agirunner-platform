@@ -854,7 +854,7 @@ export class TaskWriteService {
   private async hasUnfinishedDependencies(
     tenantId: string,
     dependencies: string[],
-    db: DatabaseClient,
+    db: DatabaseClient | DatabasePool,
   ): Promise<boolean> {
     if (dependencies.length === 0) {
       return false;
@@ -864,7 +864,7 @@ export class TaskWriteService {
       "SELECT 1 FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[]) AND state <> 'completed' LIMIT 1",
       [tenantId, dependencies],
     );
-    return unfinishedDeps.rowCount > 0;
+    return (unfinishedDeps.rowCount ?? 0) > 0;
   }
 
   async updateTask(tenantId: string, taskId: string, payload: Record<string, unknown>) {
