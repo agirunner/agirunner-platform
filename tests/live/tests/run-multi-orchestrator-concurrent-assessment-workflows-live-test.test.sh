@@ -16,12 +16,13 @@ make_stub() {
   chmod +x "${path}"
 }
 
-test_multi_orchestrator_script_passes_when_batch_uses_two_runtime_actors() {
-  local tmpdir envfile batch_stub artifacts_dir
+test_multi_orchestrator_script_passes_when_child_runs_use_two_runtime_actors() {
+  local tmpdir envfile bootstrap_stub runner_stub artifacts_dir
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "${tmpdir}"' RETURN
   envfile="${tmpdir}/env/local.env"
-  batch_stub="${tmpdir}/batch.sh"
+  bootstrap_stub="${tmpdir}/bootstrap.sh"
+  runner_stub="${tmpdir}/runner.sh"
   artifacts_dir="${tmpdir}/artifacts"
   mkdir -p "$(dirname "${envfile}")" "${artifacts_dir}"
 
@@ -34,17 +35,17 @@ POSTGRES_PORT=5432
 PLATFORM_API_PORT=8080
 EOF
 
-  make_stub "${batch_stub}" '
+  make_stub "${bootstrap_stub}" ':'
+  make_stub "${runner_stub}" '
+scenario_path="$1"
+scenario="$(basename "${scenario_path%.json}")"
 artifacts_dir="${LIVE_TEST_ARTIFACTS_DIR:?}"
-shift
-for scenario in "$@"; do
-  scenario="$(basename "${scenario%.json}")"
-  mkdir -p "${artifacts_dir}/${scenario}"
-  actor="orch-a"
-  if [[ "${scenario}" == *"-02" ]]; then
-    actor="orch-b"
-  fi
-  cat >"${artifacts_dir}/${scenario}/workflow-run.json" <<JSON
+mkdir -p "${artifacts_dir}/${scenario}"
+actor="orch-a"
+if [[ "${scenario}" == *"-02" ]]; then
+  actor="orch-b"
+fi
+cat >"${artifacts_dir}/${scenario}/workflow-run.json" <<JSON
 {
   "workflow_id": "${scenario}-wf",
   "runner_exit_code": 0,
@@ -73,12 +74,12 @@ for scenario in "$@"; do
   }
 }
 JSON
-done
 '
 
   LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_ARTIFACTS_DIR="${artifacts_dir}" \
-    LIVE_TEST_MULTI_ORCH_BATCH_RUNNER="${batch_stub}" \
+    LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
+    LIVE_TEST_MULTI_ORCH_SCENARIO_RUNNER="${runner_stub}" \
     LIVE_TEST_MULTI_ORCH_WORKFLOW_COUNT=3 \
     "${SCRIPT_PATH}"
 
@@ -93,11 +94,12 @@ PY
 }
 
 test_multi_orchestrator_script_fails_when_only_one_runtime_actor_is_used() {
-  local tmpdir envfile batch_stub artifacts_dir
+  local tmpdir envfile bootstrap_stub runner_stub artifacts_dir
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "${tmpdir}"' RETURN
   envfile="${tmpdir}/env/local.env"
-  batch_stub="${tmpdir}/batch.sh"
+  bootstrap_stub="${tmpdir}/bootstrap.sh"
+  runner_stub="${tmpdir}/runner.sh"
   artifacts_dir="${tmpdir}/artifacts"
   mkdir -p "$(dirname "${envfile}")" "${artifacts_dir}"
 
@@ -110,13 +112,13 @@ POSTGRES_PORT=5432
 PLATFORM_API_PORT=8080
 EOF
 
-  make_stub "${batch_stub}" '
+  make_stub "${bootstrap_stub}" ':'
+  make_stub "${runner_stub}" '
+scenario_path="$1"
+scenario="$(basename "${scenario_path%.json}")"
 artifacts_dir="${LIVE_TEST_ARTIFACTS_DIR:?}"
-shift
-for scenario in "$@"; do
-  scenario="$(basename "${scenario%.json}")"
-  mkdir -p "${artifacts_dir}/${scenario}"
-  cat >"${artifacts_dir}/${scenario}/workflow-run.json" <<JSON
+mkdir -p "${artifacts_dir}/${scenario}"
+cat >"${artifacts_dir}/${scenario}/workflow-run.json" <<JSON
 {
   "workflow_id": "${scenario}-wf",
   "runner_exit_code": 0,
@@ -145,12 +147,12 @@ for scenario in "$@"; do
   }
 }
 JSON
-done
 '
 
   if LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_ARTIFACTS_DIR="${artifacts_dir}" \
-    LIVE_TEST_MULTI_ORCH_BATCH_RUNNER="${batch_stub}" \
+    LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
+    LIVE_TEST_MULTI_ORCH_SCENARIO_RUNNER="${runner_stub}" \
     LIVE_TEST_MULTI_ORCH_WORKFLOW_COUNT=3 \
     "${SCRIPT_PATH}"; then
     fail "expected script to fail when only one orchestrator actor is used"
@@ -166,5 +168,5 @@ assert any("at least 2 distinct orchestrator runtime actors" in item for item in
 PY
 }
 
-test_multi_orchestrator_script_passes_when_batch_uses_two_runtime_actors
+test_multi_orchestrator_script_passes_when_child_runs_use_two_runtime_actors
 test_multi_orchestrator_script_fails_when_only_one_runtime_actor_is_used

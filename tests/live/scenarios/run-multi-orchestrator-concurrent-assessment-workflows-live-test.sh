@@ -16,18 +16,23 @@ SCENARIO_DIR="${ARTIFACTS_DIR}/${SCENARIO_NAME}"
 EVIDENCE_DIR="${SCENARIO_DIR}/evidence"
 WORKFLOW_RUN_FILE="${SCENARIO_DIR}/workflow-run.json"
 SHARED_CONTEXT_FILE="${LIVE_TEST_SHARED_CONTEXT_FILE:-${ARTIFACTS_DIR}/bootstrap/context.json}"
-BATCH_RUNNER="${LIVE_TEST_MULTI_ORCH_BATCH_RUNNER:-${LIVE_TEST_ROOT}/scenarios/run-live-scenario-batch.sh}"
+SHARED_BOOTSTRAP_SCRIPT="${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/prepare-live-test-shared-environment.sh}"
+SCENARIO_RUNNER="${LIVE_TEST_MULTI_ORCH_SCENARIO_RUNNER:-${LIVE_TEST_ROOT}/scenarios/run-live-scenario.sh}"
+SCENARIO_BOOTSTRAP_SCRIPT="${LIVE_TEST_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/prepare-live-test-run.sh}"
 WORKFLOW_COUNT="${LIVE_TEST_MULTI_ORCH_WORKFLOW_COUNT:-6}"
 INNER_CONCURRENCY="${LIVE_TEST_MULTI_ORCH_CONCURRENCY:-${WORKFLOW_COUNT}}"
 
-require_live_test_file "${BATCH_RUNNER}" "multi-orchestrator batch runner"
+require_live_test_file "${SHARED_BOOTSTRAP_SCRIPT}" "shared live test bootstrap script"
+require_live_test_file "${SCENARIO_RUNNER}" "live test scenario runner"
+require_live_test_file "${SCENARIO_BOOTSTRAP_SCRIPT}" "live test bootstrap script"
 
 rm -rf "${SCENARIO_DIR}"
 mkdir -p "${SCENARIO_DIR}" "${EVIDENCE_DIR}"
 
 tmp_root="$(mktemp -d "${SCENARIO_DIR}/batch.XXXXXX")"
 scenario_root="${tmp_root}/scenarios"
-mkdir -p "${scenario_root}"
+batch_logs_dir="${SCENARIO_DIR}/batch-logs"
+mkdir -p "${scenario_root}" "${batch_logs_dir}"
 
 cleanup() {
   rm -rf "${tmp_root}"
@@ -112,24 +117,100 @@ for path in sorted(Path(sys.argv[1]).glob("*.json")):
 PY
 )
 
-set +e
-env \
-  LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE}" \
-  LIVE_TEST_SHARED_CONTEXT_FILE="${SHARED_CONTEXT_FILE}" \
-  LIVE_TEST_ARTIFACTS_DIR="${ARTIFACTS_DIR}" \
-  LIVE_TEST_SCENARIO_ROOT="${scenario_root}" \
-  "${BATCH_RUNNER}" "${INNER_CONCURRENCY}" "${scenario_paths[@]}"
-batch_status=$?
-set -e
+log_live_test "Running live scenarios with concurrency=${INNER_CONCURRENCY}"
+bash "${SHARED_BOOTSTRAP_SCRIPT}"
 
-python3 - "${SCENARIO_DIR}" "${WORKFLOW_RUN_FILE}" "${batch_status}" "${WORKFLOW_COUNT}" "${scenario_names[@]}" <<'PY'
+declare -A pid_to_name=()
+declare -A pid_to_log=()
+declare -a active_pids=()
+passed=0
+failed=0
+completed=0
+next_index=0
+
+launch_scenario() {
+  local scenario_path="$1"
+  local scenario_name
+  scenario_name="$(basename "${scenario_path}" .json)"
+  local log_file="${batch_logs_dir}/${scenario_name}.log"
+  rm -f "${log_file}"
+  (
+    env -u LIVE_TEST_SCENARIO_DIR \
+      LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE}" \
+      LIVE_TEST_ARTIFACTS_DIR="${ARTIFACTS_DIR}" \
+      LIVE_TEST_SHARED_CONTEXT_FILE="${SHARED_CONTEXT_FILE}" \
+      LIVE_TEST_BOOTSTRAP_SCRIPT="${SCENARIO_BOOTSTRAP_SCRIPT}" \
+      "${SCENARIO_RUNNER}" "${scenario_path}"
+  ) >"${log_file}" 2>&1 &
+  local pid=$!
+  pid_to_name["${pid}"]="${scenario_name}"
+  pid_to_log["${pid}"]="${log_file}"
+  active_pids+=("${pid}")
+}
+
+collect_finished_scenario() {
+  local pid="$1"
+  local scenario_name="${pid_to_name[${pid}]}"
+  local log_file="${pid_to_log[${pid}]}"
+  local status
+
+  set +e
+  wait "${pid}"
+  status=$?
+  set -e
+
+  completed=$((completed + 1))
+  if (( status == 0 )); then
+    passed=$((passed + 1))
+    log_live_test "PASS ${scenario_name}"
+  else
+    failed=$((failed + 1))
+    log_live_test "FAIL ${scenario_name}"
+  fi
+  if [[ -f "${log_file}" ]]; then
+    cat "${log_file}"
+  fi
+  unset 'pid_to_name[$pid]'
+  unset 'pid_to_log[$pid]'
+}
+
+while (( next_index < ${#scenario_paths[@]} || ${#active_pids[@]} > 0 )); do
+  while (( next_index < ${#scenario_paths[@]} && ${#active_pids[@]} < INNER_CONCURRENCY )); do
+    launch_scenario "${scenario_paths[${next_index}]}"
+    next_index=$((next_index + 1))
+  done
+
+  finished_pid=""
+  for pid in "${active_pids[@]}"; do
+    if ! kill -0 "${pid}" 2>/dev/null; then
+      finished_pid="${pid}"
+      break
+    fi
+  done
+
+  if [[ -z "${finished_pid}" ]]; then
+    sleep 0.1
+    continue
+  fi
+
+  collect_finished_scenario "${finished_pid}"
+  remaining_pids=()
+  for pid in "${active_pids[@]}"; do
+    if [[ "${pid}" != "${finished_pid}" ]]; then
+      remaining_pids+=("${pid}")
+    fi
+  done
+  active_pids=("${remaining_pids[@]}")
+done
+
+python3 - "${SCENARIO_DIR}" "${WORKFLOW_RUN_FILE}" "${failed}" "${WORKFLOW_COUNT}" "${scenario_names[@]}" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 scenario_dir = Path(sys.argv[1])
 workflow_run_file = Path(sys.argv[2])
-batch_status = int(sys.argv[3])
+failed_count = int(sys.argv[3])
 expected_count = int(sys.argv[4])
 scenario_names = sys.argv[5:]
 
@@ -212,7 +293,7 @@ if distinct_runtime_count < 2:
         "expected at least 2 distinct orchestrator runtime actors across child workflows"
     )
 
-all_clean = batch_status == 0 and len(failures) == 0
+all_clean = failed_count == 0 and len(failures) == 0
 
 http_server_error_count = sum(
     count for status, count in http_counts.items() if str(status).startswith("5")
