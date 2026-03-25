@@ -99,6 +99,34 @@ raise SystemExit(0 if actual == expected else 1)
 PY
 }
 
+shared_bootstrap_contains_requested_profile() {
+  local context_file="$1"
+  local profile_name="$2"
+
+  python3 - "${context_file}" "${profile_name}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+context_path = Path(sys.argv[1])
+profile_name = sys.argv[2].strip()
+if not context_path.exists() or not profile_name:
+    raise SystemExit(1)
+
+try:
+    context = json.loads(context_path.read_text(encoding="utf-8"))
+except Exception:
+    raise SystemExit(1)
+
+profiles = context.get("profiles")
+if not isinstance(profiles, dict):
+    raise SystemExit(1)
+
+profile = profiles.get(profile_name)
+raise SystemExit(0 if isinstance(profile, dict) else 1)
+PY
+}
+
 SCENARIO_INPUT="${1:-${LIVE_TEST_SCENARIO_NAME:-}}"
 if [[ -z "${SCENARIO_INPUT}" ]]; then
   echo "[tests/live] scenario name or path is required" >&2
@@ -163,7 +191,8 @@ export LIVE_TEST_SCENARIO_FILE
 export LIVE_TEST_SCENARIO_NAME
 if [[ ! -f "${LIVE_TEST_SHARED_CONTEXT_FILE}" ]] \
   || ! probe_live_test_http "${PLATFORM_API_BASE_URL}/health" \
-  || ! shared_bootstrap_matches_requested_config "${LIVE_TEST_SHARED_CONTEXT_FILE}"; then
+  || ! shared_bootstrap_matches_requested_config "${LIVE_TEST_SHARED_CONTEXT_FILE}" \
+  || ! shared_bootstrap_contains_requested_profile "${LIVE_TEST_SHARED_CONTEXT_FILE}" "${LIVE_TEST_PROFILE}"; then
   "${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT}"
 fi
 
