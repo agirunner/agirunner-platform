@@ -7,35 +7,44 @@ function readSource() {
   return [
     './tools-page.tsx',
     './tools-page.support.ts',
+    '../../lib/dashboard-badge-palette.ts',
   ]
     .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
     .join('\n');
 }
 
 describe('tools page source', () => {
-  it('keeps custom tool tags editable while removing the create modal entry point', () => {
+  it('renders the tools page without creation or row-level action controls', () => {
     const source = readSource();
     expect(source).toContain('dashboardApi.listToolTags()');
-    expect(source).toContain('dashboardApi.updateToolTag');
-    expect(source).toContain('dashboardApi.deleteToolTag');
     expect(source).toContain('describeToolCategory');
-    expect(source).toContain('Edit Tool Tag');
-    expect(source).toContain('Delete Tool Tag');
-    expect(source).toContain('tool.is_built_in');
-    expect(source).toContain('Built-in tools are read-only');
+    expect(source).toContain('Agentic runtime owned');
+    expect(source).toContain('Task execution owned');
     expect(source).not.toContain('dashboardApi.createToolTag');
-    expect(source).not.toContain('openCreateDialog');
+    expect(source).not.toContain('dashboardApi.updateToolTag');
+    expect(source).not.toContain('dashboardApi.deleteToolTag');
     expect(source).not.toContain('Create Tool Tag');
+    expect(source).not.toContain('Edit Tool Tag');
+    expect(source).not.toContain('Delete Tool Tag');
   });
 
   it('displays tools in a table with categories', () => {
     const source = readSource();
     expect(source).toContain('TableHeader');
     expect(source).toContain('Category');
-    expect(source).toContain('Owner');
-    expect(source).toContain('describeToolOwner');
-    expect(source).toContain("label: 'Runtime'");
-    expect(source).toContain("label: 'Task sandbox'");
-    expect(source).toContain('Badge');
+    expect(source).toContain('Access');
+    expect(source).toContain('describeToolAccessScope');
+    expect(source).toContain('Orchestrator only');
+    expect(source).toContain('Specialist + orchestrator');
+    expect(source).toContain('DASHBOARD_BADGE_BASE_CLASS_NAME');
+    expect(source).not.toContain('Owner');
+    expect(source).not.toContain('describeToolOwner');
+    expect(source).not.toContain('Actions');
+    expect(source).not.toContain(
+      'Workflow-management surface. Specialists must not receive this tool.',
+    );
+    expect(source).not.toContain(
+      'Enabled through the resolved model provider instead of a normal tool call.',
+    );
   });
 });

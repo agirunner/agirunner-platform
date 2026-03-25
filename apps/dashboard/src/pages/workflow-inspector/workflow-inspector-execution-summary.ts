@@ -57,7 +57,7 @@ function buildStageExecutionSummary(
     value: formatCost(entries.reduce((total, entry) => total + entry.totalCostUsd, 0)),
     detail: `${entries.length} recorded stage${entries.length === 1 ? '' : 's'} across ${taskCount} contributing step${taskCount === 1 ? '' : 's'}.`,
     sourceLabel: 'Workflow run summary',
-    href: buildWorkflowInspectorLink(workflowId, { view: 'detailed' }),
+    href: buildWorkflowInspectorLink(workflowId, { view: 'summary' }),
   };
 }
 
@@ -83,7 +83,7 @@ function buildTaskExecutionSummary(
     value: formatCost(groups.reduce((total, group) => total + readGroupCost(group), 0)),
     detail: `${groups.length} traced step${groups.length === 1 ? '' : 's'} across ${totals?.count ?? 0} trace entr${totals?.count === 1 ? 'y' : 'ies'} • ${formatDuration(totals?.total_duration_ms ?? 0)} total recorded duration.`,
     sourceLabel: 'Inspector log slice',
-    href: buildWorkflowInspectorLink(workflowId, { view: 'detailed' }),
+    href: buildWorkflowInspectorLink(workflowId, { view: 'summary' }),
   };
 }
 
@@ -109,7 +109,7 @@ function buildActivationExecutionSummary(
     value: formatCost(groups.reduce((total, group) => total + readGroupCost(group), 0)),
     detail: `${groups.length} orchestrator activation${groups.length === 1 ? '' : 's'} across ${totals?.count ?? 0} trace entr${totals?.count === 1 ? 'y' : 'ies'} • ${formatDuration(totals?.total_duration_ms ?? 0)} total recorded duration.`,
     sourceLabel: 'Inspector orchestrator slice',
-    href: buildWorkflowInspectorLink(workflowId, { view: 'detailed' }),
+    href: buildWorkflowInspectorLink(workflowId, { view: 'summary' }),
   };
 }
 
@@ -140,7 +140,7 @@ function buildWorkItemExecutionSummary(
     value: formatCost(entries.reduce((total, entry) => total + entry.totalCostUsd, 0)),
     detail: `${entries.length} workflow work item${entries.length === 1 ? '' : 's'} across ${taskCount} contributing step${taskCount === 1 ? '' : 's'}.`,
     sourceLabel: 'Workflow run summary',
-    href: buildWorkflowInspectorLink(workflowId, { view: 'detailed' }),
+    href: buildWorkflowInspectorLink(workflowId, { view: 'summary' }),
   };
 }
 

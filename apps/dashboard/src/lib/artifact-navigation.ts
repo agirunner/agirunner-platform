@@ -144,7 +144,7 @@ export function buildWorkspaceArtifactBrowserPath(
   }
   appendStateParam(searchParams, 'artifact_id', state.artifactId);
   const query = searchParams.toString();
-  const path = `/workspaces/${encodeURIComponent(workspaceId)}/artifacts`;
+  const path = `/design/workspaces/${encodeURIComponent(workspaceId)}/artifacts`;
   return query ? `${path}?${query}` : path;
 }
 

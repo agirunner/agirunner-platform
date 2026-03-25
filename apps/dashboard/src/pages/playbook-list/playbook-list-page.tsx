@@ -86,7 +86,7 @@ export function PlaybookListPage(): JSX.Element {
       await queryClient.invalidateQueries({ queryKey: ['playbooks'] });
       resetForm();
       setCreateMode(false);
-      await navigate(`/config/playbooks/${playbook.id}`);
+      await navigate(`/design/playbooks/${playbook.id}`);
     },
     onError: (error) => {
       setDefinitionError(error instanceof Error ? error.message : 'Failed to create playbook');

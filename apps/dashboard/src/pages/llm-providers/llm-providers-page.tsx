@@ -56,6 +56,11 @@ import {
   type AddProviderDraft,
   type ProviderType,
 } from './llm-providers-page.support.js';
+import { cn } from '../../lib/utils.js';
+import {
+  DASHBOARD_BADGE_BASE_CLASS_NAME,
+  DASHBOARD_BADGE_TOKENS,
+} from '../../lib/dashboard-badge-palette.js';
 
 /* ─── Types ─────────────────────────────────────────────────────────────── */
 
@@ -158,6 +163,11 @@ const DIALOG_ALERT_CLASS_NAME = 'rounded-xl border px-4 py-3 text-sm shadow-sm';
 const FIELD_ERROR_CLASS_NAME = 'text-xs font-medium';
 const WARNING_ROLE_CHIP_CLASS_NAME =
   'inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium';
+const OVERRIDES_CHIP_CLASS_NAME = DASHBOARD_BADGE_BASE_CLASS_NAME;
+const OVERRIDES_NEUTRAL_CHIP_CLASS_NAME =
+  DASHBOARD_BADGE_TOKENS.informationPrimary.className;
+const OVERRIDES_WARNING_CHIP_CLASS_NAME =
+  DASHBOARD_BADGE_TOKENS.warning.className;
 const DELETE_ACTION_CLASS_NAME =
   'text-destructive hover:bg-destructive/10 hover:text-destructive';
 const SUCCESS_PANEL_STYLE = {
@@ -199,6 +209,18 @@ function renderRoleStatusBadge(role: AssignmentRoleRow): JSX.Element {
     return <Badge variant="warning">Inactive</Badge>;
   }
   return <Badge variant="warning">Assignment only</Badge>;
+}
+
+function renderOverridesSummaryChip(
+  label: string,
+  tone: 'neutral' | 'warning' = 'neutral',
+): JSX.Element {
+  const toneClassName =
+    tone === 'warning'
+      ? OVERRIDES_WARNING_CHIP_CLASS_NAME
+      : OVERRIDES_NEUTRAL_CHIP_CLASS_NAME;
+
+  return <span className={cn(OVERRIDES_CHIP_CLASS_NAME, toneClassName)}>{label}</span>;
 }
 
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
@@ -1356,17 +1378,15 @@ function RoleAssignmentsSection({
               different model or reasoning policy.
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">1 orchestrator</Badge>
-              <Badge variant="outline">{activeRoleCount} active roles</Badge>
-              <Badge variant={explicitOverrideCount > 0 ? 'default' : 'outline'}>
-                {explicitOverrideCount} explicit overrides
-              </Badge>
+              {renderOverridesSummaryChip(`${activeRoleCount} active roles`)}
+              {renderOverridesSummaryChip(`${explicitOverrideCount} explicit overrides`)}
               {staleRoleCount > 0 ? (
-                <Badge variant="warning">
-                  {summarizeStaleRoleBadgeLabel({
+                renderOverridesSummaryChip(
+                  summarizeStaleRoleBadgeLabel({
                     missingAssignmentCount,
-                  })}
-                </Badge>
+                  }),
+                  'warning',
+                )
               ) : null}
             </div>
           </div>
@@ -1784,7 +1804,7 @@ export function LlmProvidersPage(): JSX.Element {
       <section id="llm-providers-library" className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold">LLM Providers</h1>
+            <h1 className="text-2xl font-semibold">Models</h1>
             <p className="text-sm text-muted">
               Manage language model providers, the model catalog, and role assignments.
             </p>

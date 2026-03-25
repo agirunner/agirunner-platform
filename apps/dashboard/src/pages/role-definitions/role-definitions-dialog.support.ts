@@ -41,7 +41,7 @@ export function validateRoleDialog(
 export function summarizeRoleSetup(form: RoleFormState): RoleSetupSummary {
   return {
     toolSummary: `${form.allowedTools.length} tool${form.allowedTools.length === 1 ? '' : 's'} enabled`,
-    modelSummary: 'Model assigned via LLM Providers',
+    modelSummary: 'Model assigned on Models page',
   };
 }
 

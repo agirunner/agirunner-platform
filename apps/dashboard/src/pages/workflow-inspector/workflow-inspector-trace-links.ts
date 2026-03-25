@@ -21,7 +21,7 @@ export function buildWorkflowInspectorTraceLinks(
   const links: WorkflowInspectorTraceLink[] = [
     {
       label: 'Board trace',
-      href: `/work/boards/${workflowId}`,
+      href: `/mission-control/workflows/${workflowId}`,
       detail: 'Open activations, work items, gates, and specialist steps in one board view.',
     },
   ];
@@ -31,7 +31,7 @@ export function buildWorkflowInspectorTraceLinks(
     links.push({
       label: 'Activation drill-in',
       href: buildWorkflowInspectorLogLink(workflowId, {
-        view: 'detailed',
+        view: 'summary',
         activation: latestActivation.activation_id ?? latestActivation.id,
       }),
       detail:
@@ -53,7 +53,7 @@ export function buildWorkflowInspectorTraceLinks(
   if (highlightedGateStage) {
     links.push({
       label: 'Gate decision lane',
-      href: buildWorkflowBoardLink(workflowId, { stage: highlightedGateStage.name }),
+      href: buildWorkflowBoardLink(workflowId, { gate: highlightedGateStage.name }),
       detail: `${highlightedGateStage.name} is carrying the current gate decision posture for this workflow.`,
     });
   }
@@ -62,7 +62,7 @@ export function buildWorkflowInspectorTraceLinks(
     links.push(
       {
         label: 'Workspace memory',
-        href: `/workspaces/${workspaceId}/memory`,
+        href: `/design/workspaces/${workspaceId}/memory`,
         detail: 'Inspect memory versions, diffs, and run handoff packets.',
       },
       {
@@ -105,19 +105,19 @@ function buildWorkflowBoardLink(
   const searchParams = new URLSearchParams(params);
   const query = searchParams.toString();
   return query
-    ? `/work/boards/${workflowId}?${query}`
-    : `/work/boards/${workflowId}`;
+    ? `/mission-control/workflows/${workflowId}?${query}`
+    : `/mission-control/workflows/${workflowId}`;
 }
 
 function buildWorkflowInspectorLogLink(
   workflowId: string,
-  params: { view: 'summary' | 'detailed' | 'debug'; activation?: string },
+  params: { view: 'summary'; activation?: string },
 ): string {
   const searchParams = new URLSearchParams({ view: params.view });
   if (params.activation) {
     searchParams.set('activation', params.activation);
   }
-  return `/work/boards/${workflowId}/inspector?${searchParams.toString()}`;
+  return `/mission-control/workflows/${workflowId}/inspector?${searchParams.toString()}`;
 }
 
 function humanizeToken(value: string): string {

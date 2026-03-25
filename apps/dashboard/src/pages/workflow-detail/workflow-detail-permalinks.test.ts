@@ -9,16 +9,16 @@ describe('workflow detail permalinks', () => {
   it('builds stable work item, activation, child workflow, and gate permalinks', () => {
     expect(
       buildWorkflowDetailPermalink('workflow-1', { workItemId: 'work-item-1' }),
-    ).toBe('/work/boards/workflow-1?work_item=work-item-1#work-item-work-item-1');
+    ).toBe('/mission-control/workflows/workflow-1?work_item=work-item-1#work-item-work-item-1');
     expect(
       buildWorkflowDetailPermalink('workflow-1', { activationId: 'activation-1' }),
-    ).toBe('/work/boards/workflow-1?activation=activation-1#activation-activation-1');
+    ).toBe('/mission-control/workflows/workflow-1?activation=activation-1#activation-activation-1');
     expect(
       buildWorkflowDetailPermalink('workflow-1', { childWorkflowId: 'workflow-2' }),
-    ).toBe('/work/boards/workflow-1?child=workflow-2#child-workflow-workflow-2');
+    ).toBe('/mission-control/workflows/workflow-1?child=workflow-2#child-workflow-workflow-2');
     expect(
       buildWorkflowDetailPermalink('workflow-1', { gateStageName: 'review' }),
-    ).toBe('/work/boards/workflow-1?gate=review#gate-review');
+    ).toBe('/mission-control/workflows/workflow-1?gate=review#gate-review');
   });
 
   it('matches highlighted workflow detail targets from query or hash', () => {

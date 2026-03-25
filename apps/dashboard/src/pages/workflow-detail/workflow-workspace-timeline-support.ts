@@ -59,8 +59,8 @@ export function buildWorkflowWorkspaceTimelinePacket(
   return {
     workflowId: entry.workflow_id,
     workflowName: entry.name,
-    workflowHref: entry.link || `/work/boards/${entry.workflow_id}`,
-    inspectorHref: `/work/boards/${entry.workflow_id}/inspector`,
+    workflowHref: entry.link || `/mission-control/workflows/${entry.workflow_id}`,
+    inspectorHref: `/mission-control/workflows/${entry.workflow_id}/inspector`,
     stateLabel: humanizeState(entry.state),
     summary: describePacketSummary(entry),
     nextAction: describeNextAction(entry),

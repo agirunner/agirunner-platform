@@ -19,7 +19,7 @@ export function buildWorkItemTaskLinkActions(input: {
   if (workflowId && workItemId) {
     actions.push({
       label: 'Open work-item flow',
-      href: `/work/boards/${encodeURIComponent(workflowId)}?work_item=${encodeURIComponent(workItemId)}#work-item-${encodeURIComponent(workItemId)}`,
+      href: `/mission-control/workflows/${encodeURIComponent(workflowId)}?work_item=${encodeURIComponent(workItemId)}#work-item-${encodeURIComponent(workItemId)}`,
       isPrimary: true,
     });
   }
@@ -31,7 +31,7 @@ export function buildWorkItemTaskLinkActions(input: {
           ? 'Open failed step diagnostics'
           : 'Open step diagnostics'
         : 'Open step record',
-    href: `/work/tasks/${encodeURIComponent(taskId)}`,
+    href: `/mission-control/tasks/${encodeURIComponent(taskId)}`,
     isPrimary: false,
   });
 

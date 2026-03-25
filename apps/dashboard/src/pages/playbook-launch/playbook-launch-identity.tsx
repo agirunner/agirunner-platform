@@ -14,12 +14,12 @@ export function LaunchPageHeader(props: { selectedPlaybookId: string }): JSX.Ele
   return (
     <div className="space-y-3 rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
       <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
-        <Link to="/config/playbooks" className="underline-offset-4 hover:underline">
+        <Link to="/design/playbooks" className="underline-offset-4 hover:underline">
           Back to Playbooks
         </Link>
         {props.selectedPlaybookId ? (
           <Link
-            to={`/config/playbooks/${props.selectedPlaybookId}`}
+            to={`/design/playbooks/${props.selectedPlaybookId}`}
             className="underline-offset-4 hover:underline"
           >
             Open Playbook Detail

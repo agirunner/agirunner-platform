@@ -151,7 +151,7 @@ export function ApprovalQueuePage(): JSX.Element {
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold">Approval Queue</h1>
+              <h1 className="text-2xl font-semibold">Action Queue</h1>
               <Badge variant="secondary">{totalApprovals}</Badge>
             </div>
             <p className="text-sm text-muted">

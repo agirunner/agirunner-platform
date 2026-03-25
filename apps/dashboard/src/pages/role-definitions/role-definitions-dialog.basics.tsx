@@ -123,7 +123,7 @@ export function RoleModelAssignmentSection(props: {
       <CardHeader>
         <CardTitle>Model assignment</CardTitle>
         <CardDescription>
-          Assign a model to this role. This is the same assignment shown on the LLM Providers page.
+          Assign a model to this role. This is the same assignment shown on the Models page.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -170,7 +170,7 @@ export function RoleModelAssignmentSection(props: {
         <p className="text-xs text-muted">
           {props.error
             ? `Model catalog unavailable: ${props.error}.`
-            : 'Syncs with LLM Providers. Workflow and workspace overrides can supersede.'}
+            : 'Syncs with Models. Workflow and workspace overrides can supersede.'}
         </p>
       </CardContent>
     </Card>
@@ -185,7 +185,7 @@ export function RoleExecutionContainerSection(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Task sandbox override</CardTitle>
+        <CardTitle>Task execution container override</CardTitle>
         <CardDescription>
           Override the default specialist task sandbox for this role. Leave fields blank to inherit the system defaults from Runtimes.
         </CardDescription>

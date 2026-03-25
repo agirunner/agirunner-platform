@@ -9,8 +9,24 @@ import {
 } from './role-definitions-page.support.js';
 
 const toolCatalog = [
-  { id: 'file_read', name: 'file_read', owner: 'task' as const },
-  { id: 'git_diff', name: 'git_diff', owner: 'task' as const },
+  {
+    id: 'file_read',
+    name: 'file_read',
+    owner: 'task' as const,
+    access_scope: 'specialist_and_orchestrator' as const,
+  },
+  {
+    id: 'git_diff',
+    name: 'git_diff',
+    owner: 'task' as const,
+    access_scope: 'specialist_and_orchestrator' as const,
+  },
+  {
+    id: 'create_task',
+    name: 'create_task',
+    owner: 'runtime' as const,
+    access_scope: 'orchestrator_only' as const,
+  },
 ];
 
 describe('role definitions support helpers', () => {
@@ -162,5 +178,19 @@ describe('role definitions support helpers', () => {
         },
       ),
     ).not.toContainEqual(expect.objectContaining({ id: 'native_search' }));
+  });
+
+  it('filters orchestrator-only tools out of the specialist role picker', () => {
+    expect(
+      listAvailableTools(
+        toolCatalog,
+        { id: 'role-1', name: 'researcher', allowed_tools: ['file_read', 'create_task'] },
+        {
+          id: 'model-2',
+          model_id: 'gpt-4o',
+          native_search: null,
+        },
+      ).map((tool) => tool.id),
+    ).toEqual(['file_read', 'git_diff']);
   });
 });

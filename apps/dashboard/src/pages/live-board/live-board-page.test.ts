@@ -43,7 +43,7 @@ describe('live board page source', () => {
 
   it('uses board and step language and avoids raw task-status comparisons in the operator lane', () => {
     const source = readSource();
-    expect(source).toContain('Operator Live Board');
+    expect(source).toContain('Live Board');
     expect(source).toContain('Mission Control');
     expect(source).toContain('Triage what needs attention first');
     expect(source).toContain('decision packet with full context');
@@ -51,7 +51,7 @@ describe('live board page source', () => {
     expect(source).toContain('describeAttentionStep');
     expect(source).toContain('resolveTaskOperatorState');
     expect(source).toContain('buildAttentionTaskActions');
-    expect(source).toContain('Open approvals');
+    expect(source).toContain('Open action queue');
     expect(source).toContain('Open work-item flow');
     expect(source).toContain('Open board context');
     expect(source).toContain('Open failed step diagnostics');

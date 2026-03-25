@@ -60,16 +60,16 @@ export function ExecutionInspectorFilterBar(
           onClick={() => setIsExpanded((current) => !current)}
         >
           <div className="space-y-1">
-            <p className="text-sm font-medium">Focus the execution slice</p>
+            <p className="text-sm font-medium">Focus the current log results</p>
             {!isExpanded ? (
               <p className="text-sm text-muted">
                 {activeFilterCount > 0
                   ? `${activeFilterCount} active filter${activeFilterCount > 1 ? 's' : ''} applied`
-                  : 'Tap to narrow by board, step, stage, activation, role, or emitter'}
+                  : 'Tap to narrow by workflow, step, role, or emitter'}
               </p>
             ) : (
               <p className="text-sm text-muted">
-                Narrow the inspector by board, specialist step, stage, activation, role, or runtime emitter.
+                Narrow the inspector by workflow, specialist step, role, or runtime emitter.
               </p>
             )}
           </div>
@@ -93,7 +93,7 @@ export function ExecutionInspectorFilterBar(
                     className="pl-9"
                     value={searchDraft}
                     onChange={(event) => setSearchDraft(event.target.value)}
-                    placeholder="operation, board, step, error, or payload text"
+                    placeholder="operation, workflow, step, error, or payload text"
                   />
                 </div>
               </label>
@@ -137,10 +137,9 @@ export function ExecutionInspectorFilterBar(
                 }
               />
             </div>
-
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-2">
               <FilterInput
-                label="Board ID"
+                label="Workflow ID"
                 value={props.filters.workflowId}
                 onChange={(value) => props.onChange({ ...props.filters, workflowId: value })}
               />
@@ -148,21 +147,6 @@ export function ExecutionInspectorFilterBar(
                 label="Step ID"
                 value={props.filters.taskId}
                 onChange={(value) => props.onChange({ ...props.filters, taskId: value })}
-              />
-              <FilterInput
-                label="Work item ID"
-                value={props.filters.workItemId}
-                onChange={(value) => props.onChange({ ...props.filters, workItemId: value })}
-              />
-              <FilterInput
-                label="Stage"
-                value={props.filters.stageName}
-                onChange={(value) => props.onChange({ ...props.filters, stageName: value })}
-              />
-              <FilterInput
-                label="Activation"
-                value={props.filters.activationId}
-                onChange={(value) => props.onChange({ ...props.filters, activationId: value })}
               />
             </div>
 
@@ -184,9 +168,6 @@ function countActiveFilters(filters: InspectorFilters): number {
   if (filters.search.trim().length > 0) count++;
   if (filters.workflowId.trim().length > 0) count++;
   if (filters.taskId.trim().length > 0) count++;
-  if (filters.workItemId.trim().length > 0) count++;
-  if (filters.stageName.trim().length > 0) count++;
-  if (filters.activationId.trim().length > 0) count++;
   if (filters.operation.trim().length > 0) count++;
   if (filters.role.trim().length > 0) count++;
   if (filters.actor.trim().length > 0) count++;

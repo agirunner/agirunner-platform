@@ -10,9 +10,14 @@ interface BreadcrumbBuildOptions {
 export const WORKSPACE_BREADCRUMB_STORAGE_PREFIX = 'agirunner.workspaceLabel.';
 
 const SEGMENT_LABELS: Record<string, string> = {
-  boards: 'Workflow Boards',
-  workflows: 'Workflow Boards',
-  governance: 'General',
+  design: 'Work Design',
+  workflows: 'Workflows',
+  'action-queue': 'Action Queue',
+  routing: 'Models',
+  instructions: 'Instructions',
+  diagnostics: 'Diagnostics',
+  admin: 'Admin',
+  governance: 'Admin',
   users: 'Legacy User Access',
   memory: 'Memory',
   content: 'Documents',
@@ -28,28 +33,26 @@ const SEGMENT_LABELS: Record<string, string> = {
  */
 const ROUTABLE_PATHS: ReadonlySet<string> = new Set([
   '/mission-control',
-  '/mission-control/alerts',
+  '/mission-control/workflows',
+  '/mission-control/tasks',
+  '/mission-control/action-queue',
   '/mission-control/costs',
-  '/logs',
-  '/work/boards',
-  '/work/tasks',
-  '/work/approvals',
-  '/workspaces',
-  '/workspaces/memory',
-  '/workspaces/content',
-  '/config/playbooks',
-  '/config/roles',
-  '/config/llm',
-  '/config/runtimes',
-  '/config/instructions',
-  '/config/tools',
-  '/config/webhooks',
-  '/config/triggers',
-  '/config/agent-protocols',
+  '/design/workspaces',
+  '/design/playbooks',
+  '/design/roles',
+  '/platform/routing',
+  '/platform/runtimes',
+  '/platform/instructions',
+  '/platform/orchestrator',
+  '/platform/tools',
+  '/integrations/webhooks',
+  '/integrations/triggers',
+  '/integrations/agent-protocols',
+  '/diagnostics/logs',
+  '/diagnostics/containers',
+  '/admin/settings',
+  '/admin/api-keys',
   '/config/assistant',
-  '/fleet/containers',
-  '/governance/settings',
-  '/governance/api-keys',
   '/governance/users',
   '/governance/retention',
 ]);
@@ -129,8 +132,7 @@ export function buildBreadcrumbs(pathname: string, options: BreadcrumbBuildOptio
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i];
     const previousSegment = segments[i - 1];
-    const normalizedSegment = segment === 'workflows' ? 'boards' : segment;
-    currentPath += `/${normalizedSegment}`;
+    currentPath += `/${segment}`;
     const isLast = i === segments.length - 1;
     const isWorkspaceIdentitySegment =
       previousSegment === 'workspaces' && !ROUTABLE_PATHS.has(currentPath);
@@ -138,7 +140,7 @@ export function buildBreadcrumbs(pathname: string, options: BreadcrumbBuildOptio
       ? ROUTABLE_PATHS.has(currentPath)
         ? currentPath
         : isWorkspaceIdentitySegment
-          ? `/workspaces/${segment}`
+          ? workspaceIdentityHref(segments, segment)
           : undefined
       : undefined;
 
@@ -155,13 +157,31 @@ export function buildBreadcrumbs(pathname: string, options: BreadcrumbBuildOptio
 
 function extractWorkspaceIdentitySegment(pathname: string): string | null {
   const segments = pathname.split('/').filter(Boolean);
-  if (segments[0] !== 'workspaces' || !segments[1]) {
+  const startsWithCanonicalWorkspacePath =
+    segments[0] === 'design' && segments[1] === 'workspaces';
+  const startsWithLegacyWorkspacePath = segments[0] === 'workspaces';
+  if ((!startsWithCanonicalWorkspacePath && !startsWithLegacyWorkspacePath) || !segments.at(-1)) {
     return null;
   }
-  const normalizedSegment = segments[1] === 'workflows' ? 'boards' : segments[1];
-  return ROUTABLE_PATHS.has(`/workspaces/${normalizedSegment}`) ? null : segments[1];
+  const identityIndex = startsWithCanonicalWorkspacePath ? 2 : 1;
+  const workspaceId = segments[identityIndex];
+  if (!workspaceId) {
+    return null;
+  }
+  return ROUTABLE_PATHS.has(`${workspaceIdentityBasePath(segments)}/${workspaceId}`) ? null : workspaceId;
 }
 
 function fallbackWorkspaceLabel(segment: string): string {
   return isUuidLike(segment) ? 'Workspace' : capitalizeSegment(segment);
+}
+
+function workspaceIdentityHref(segments: string[], workspaceId: string): string {
+  return `${workspaceIdentityBasePath(segments)}/${workspaceId}`;
+}
+
+function workspaceIdentityBasePath(segments: string[]): string {
+  if (segments[0] === 'design' && segments[1] === 'workspaces') {
+    return '/design/workspaces';
+  }
+  return '/workspaces';
 }

@@ -15,11 +15,11 @@ describe('artifact navigation', () => {
     );
     expect(
       buildArtifactPermalink('task-1', 'artifact-1', {
-        returnTo: '/workspaces/workspace-1/artifacts?workflow_id=workflow-1',
+        returnTo: '/design/workspaces/workspace-1/artifacts?workflow_id=workflow-1',
         returnSource: 'workspace-artifacts',
       }),
     ).toBe(
-      '/artifacts/tasks/task-1/artifact-1?return_to=%2Fworkspaces%2Fworkspace-1%2Fartifacts%3Fworkflow_id%3Dworkflow-1&return_source=workspace-artifacts',
+      '/artifacts/tasks/task-1/artifact-1?return_to=%2Fdesign%2Fworkspaces%2Fworkspace-1%2Fartifacts%3Fworkflow_id%3Dworkflow-1&return_source=workspace-artifacts',
     );
   });
 
@@ -69,16 +69,16 @@ describe('artifact navigation', () => {
         artifactId: 'artifact-2',
       }),
     ).toBe(
-      '/workspaces/workspace-1/artifacts?workflow_id=workflow-1&work_item_id=wi-1&preview_mode=inline&artifact_id=artifact-2',
+      '/design/workspaces/workspace-1/artifacts?workflow_id=workflow-1&work_item_id=wi-1&preview_mode=inline&artifact_id=artifact-2',
     );
   });
 
   it('reads preview return context from query params', () => {
     const searchParams = new URLSearchParams(
-      'return_to=%2Fworkspaces%2Fworkspace-1%2Fartifacts%3Fworkflow_id%3Dworkflow-1&return_source=workspace-artifacts',
+      'return_to=%2Fdesign%2Fworkspaces%2Fworkspace-1%2Fartifacts%3Fworkflow_id%3Dworkflow-1&return_source=workspace-artifacts',
     );
     expect(readArtifactPreviewReturnState(searchParams)).toEqual({
-      returnTo: '/workspaces/workspace-1/artifacts?workflow_id=workflow-1',
+      returnTo: '/design/workspaces/workspace-1/artifacts?workflow_id=workflow-1',
       returnSource: 'workspace-artifacts',
     });
   });

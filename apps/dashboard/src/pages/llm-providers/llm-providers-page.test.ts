@@ -1,5 +1,5 @@
 /**
- * Structural and unit tests for the LLM Providers page.
+ * Structural and unit tests for the Models page.
  *
  * Tests cover:
  *  - Page renders the three sections (Providers, Model Catalog, Role Assignments)
@@ -46,7 +46,8 @@ describe('LlmProvidersPage renders three sections', () => {
   const source = readLlmProvidersSource();
 
   it('renders the Providers section with heading and Add Provider button', () => {
-    expect(source).toContain('LLM Providers');
+    expect(source).toContain('Models');
+    expect(source).not.toContain('<h1 className="text-2xl font-semibold">Routing</h1>');
     expect(source).toContain('Add Provider');
     expect(source).toContain('ProviderCard');
     expect(source).toContain('max-h-[85vh] max-w-2xl overflow-y-auto');
@@ -95,7 +96,7 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('validateAssignmentSetup');
     expect(source).toContain('summarizeAssignmentSurface');
     expect(source).toContain('Orchestrator and Role Overrides');
-    expect(source).toContain('1 orchestrator');
+    expect(source).not.toContain('1 orchestrator');
     expect(source).toContain('Add a shared default or choose explicit models for the affected roles below.');
     expect(source).toContain('Affected roles');
     expect(source).toContain('assignmentValidation.missingRoleNames.map((roleName) => (');
@@ -122,7 +123,7 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('Provider Selection');
     expect(source).toContain('Status');
     expect(source).toContain('Use the shared system default unless the orchestrator or a specific role needs a');
-    expect(source).toContain("Badge variant={explicitOverrideCount > 0 ? 'default' : 'outline'}");
+    expect(source).toContain('renderOverridesSummaryChip(');
     expect(source).toContain("aria-expanded={isOverridesExpanded}");
     expect(source).toContain("Show overrides");
     expect(source).toContain("Hide overrides");

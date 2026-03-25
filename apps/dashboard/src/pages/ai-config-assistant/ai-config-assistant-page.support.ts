@@ -221,32 +221,32 @@ export function resolveSuggestionDestination(path: string): SuggestionDestinatio
     normalized.startsWith('agent.') ||
     normalized.startsWith('global_')
   ) {
-    return { href: '/config/runtimes', label: 'Open runtime defaults' };
+    return { href: '/platform/runtimes', label: 'Open runtime defaults' };
   }
   if (
     normalized.startsWith('llm.') ||
     normalized.startsWith('model.') ||
     normalized.startsWith('provider.')
   ) {
-    return { href: '/config/llm', label: 'Open LLM Providers' };
+    return { href: '/platform/routing', label: 'Open models' };
   }
   if (normalized.startsWith('playbook.') || normalized.startsWith('workflow.')) {
-    return { href: '/config/playbooks', label: 'Open playbooks' };
+    return { href: '/design/playbooks', label: 'Open playbooks' };
   }
   if (normalized.startsWith('webhook.')) {
-    return { href: '/config/webhooks', label: 'Open webhooks' };
+    return { href: '/integrations/webhooks', label: 'Open webhooks' };
   }
   if (normalized.startsWith('tool.') || normalized.startsWith('tools.')) {
-    return { href: '/config/tools', label: 'Open tools' };
+    return { href: '/platform/tools', label: 'Open tools' };
   }
   if (normalized.startsWith('instruction.') || normalized.startsWith('instructions.')) {
-    return { href: '/config/instructions', label: 'Open platform instructions' };
+    return { href: '/platform/instructions', label: 'Open instructions' };
   }
   if (normalized.startsWith('trigger.') || normalized.startsWith('work_item_trigger.')) {
-    return { href: '/config/triggers', label: 'Open work-item triggers' };
+    return { href: '/integrations/triggers', label: 'Open work-item triggers' };
   }
   if (normalized.startsWith('role.') || normalized.startsWith('roles.')) {
-    return { href: '/config/roles', label: 'Open role definitions' };
+    return { href: '/design/roles', label: 'Open role definitions' };
   }
   return null;
 }

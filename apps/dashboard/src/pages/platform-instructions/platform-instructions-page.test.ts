@@ -7,6 +7,12 @@ function readSource() {
 }
 
 describe('platform instructions page source', () => {
+  it('uses the shorter Instructions heading in the platform section', () => {
+    const source = readSource();
+    expect(source).toContain('Instructions');
+    expect(source).not.toContain('Platform Instructions');
+  });
+
   it('uses the platform instructions API', () => {
     const source = readSource();
     expect(source).toContain('dashboardApi.getPlatformInstructions()');

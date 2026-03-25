@@ -15,12 +15,12 @@ describe('live board attention actions', () => {
     ).toEqual([
       {
         label: 'Open work-item flow',
-        href: '/work/boards/workflow-1?work_item=work-item-1&activation=activation-1',
+        href: '/mission-control/workflows/workflow-1?work_item=work-item-1&activation=activation-1',
         isPrimary: true,
       },
       {
         label: 'Open failed step diagnostics',
-        href: '/work/tasks/task-1',
+        href: '/mission-control/tasks/task-1',
         isPrimary: false,
       },
     ]);
@@ -36,12 +36,12 @@ describe('live board attention actions', () => {
     ).toEqual([
       {
         label: 'Open board context',
-        href: '/work/boards/workflow-2',
+        href: '/mission-control/workflows/workflow-2',
         isPrimary: true,
       },
       {
         label: 'Open step diagnostics',
-        href: '/work/tasks/task-2',
+        href: '/mission-control/tasks/task-2',
         isPrimary: false,
       },
     ]);
@@ -53,7 +53,7 @@ describe('live board attention actions', () => {
     ).toEqual([
       {
         label: 'Open step record',
-        href: '/work/tasks/task-3',
+        href: '/mission-control/tasks/task-3',
         isPrimary: false,
       },
     ]);

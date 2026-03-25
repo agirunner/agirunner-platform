@@ -79,16 +79,16 @@ export function ContainersTable(props: {
                 <CellText>{sanitizeContainerContextLabel(row.role_name)}</CellText>
               </DiffCell>
               <DiffCell row={row} field="playbook" className="py-3">
-                {renderEntityLink(row.playbook_id, row.playbook_name, '/config/playbooks')}
+                {renderEntityLink(row.playbook_id, row.playbook_name, '/design/playbooks')}
               </DiffCell>
               <DiffCell row={row} field="workflow" className="py-3">
-                {renderEntityLink(row.workflow_id, row.workflow_name, '/work/boards')}
+                {renderEntityLink(row.workflow_id, row.workflow_name, '/mission-control/workflows')}
               </DiffCell>
               <DiffCell row={row} field="stage" className="py-3">
                 <CellText>{row.stage_name ?? '-'}</CellText>
               </DiffCell>
               <DiffCell row={row} field="task" className="py-3">
-                {renderEntityLink(row.task_id, row.task_title, '/work/tasks')}
+                {renderEntityLink(row.task_id, row.task_title, '/mission-control/tasks')}
               </DiffCell>
               <DiffCell row={row} field="image" className="py-3">
                 <code className="block truncate text-xs text-foreground" title={row.image}>

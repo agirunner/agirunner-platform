@@ -56,7 +56,7 @@ export function WorkItemHistoryEntry(props: {
               Stay in the work-item flow first. Open linked step diagnostics only when you need the lower-level specialist trace behind this event.
             </p>
             <Button asChild variant="outline" size="sm">
-              <Link to={`/work/tasks/${taskId}`}>Open linked step diagnostics</Link>
+              <Link to={`/mission-control/tasks/${taskId}`}>Open linked step diagnostics</Link>
             </Button>
           </>
         ) : null}

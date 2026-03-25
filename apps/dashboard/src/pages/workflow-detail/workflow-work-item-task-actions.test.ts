@@ -14,12 +14,12 @@ describe('workflow work-item task actions', () => {
     ).toEqual([
       {
         label: 'Open work-item flow',
-        href: '/work/boards/workflow-1?work_item=work-item-1#work-item-work-item-1',
+        href: '/mission-control/workflows/workflow-1?work_item=work-item-1#work-item-work-item-1',
         isPrimary: true,
       },
       {
         label: 'Open failed step diagnostics',
-        href: '/work/tasks/task-1',
+        href: '/mission-control/tasks/task-1',
         isPrimary: false,
       },
     ]);
@@ -34,7 +34,7 @@ describe('workflow work-item task actions', () => {
     ).toEqual([
       {
         label: 'Open step record',
-        href: '/work/tasks/task-2',
+        href: '/mission-control/tasks/task-2',
         isPrimary: false,
       },
     ]);

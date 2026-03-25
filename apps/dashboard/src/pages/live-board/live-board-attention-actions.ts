@@ -25,13 +25,13 @@ export function buildAttentionTaskActions(input: {
     }
     actions.push({
       label: 'Open work-item flow',
-      href: `/work/boards/${encodeURIComponent(workflowId)}?${params.toString()}`,
+      href: `/mission-control/workflows/${encodeURIComponent(workflowId)}?${params.toString()}`,
       isPrimary: true,
     });
   } else if (workflowId) {
     actions.push({
       label: 'Open board context',
-      href: `/work/boards/${encodeURIComponent(workflowId)}`,
+      href: `/mission-control/workflows/${encodeURIComponent(workflowId)}`,
       isPrimary: true,
     });
   }
@@ -43,7 +43,7 @@ export function buildAttentionTaskActions(input: {
           ? 'Open failed step diagnostics'
           : 'Open step diagnostics'
         : 'Open step record',
-    href: `/work/tasks/${encodeURIComponent(input.taskId)}`,
+    href: `/mission-control/tasks/${encodeURIComponent(input.taskId)}`,
     isPrimary: false,
   });
 

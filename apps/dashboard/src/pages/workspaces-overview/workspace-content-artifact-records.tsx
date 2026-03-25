@@ -46,7 +46,7 @@ export function ArtifactCard(props: {
           ) : null}
           <Link
             className="text-sm text-accent hover:underline"
-            to={`/work/tasks/${props.artifact.task_id}`}
+            to={`/mission-control/tasks/${props.artifact.task_id}`}
           >
             Open task
           </Link>
@@ -98,7 +98,10 @@ export function ArtifactDesktopRow(props: {
               {props.deletingArtifactId === props.artifact.id ? 'Deleting…' : 'Delete'}
             </Button>
           ) : null}
-          <Link className="text-sm text-accent hover:underline" to={`/work/tasks/${props.taskId}`}>
+          <Link
+            className="text-sm text-accent hover:underline"
+            to={`/mission-control/tasks/${props.taskId}`}
+          >
             Open task
           </Link>
         </div>

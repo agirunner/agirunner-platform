@@ -78,14 +78,14 @@ describe('FR-030: modern SPA structure', () => {
   it('app includes route definitions covering all major pages', () => {
     const source = readComponent('app/app.tsx');
     expect(source).toContain('/mission-control');
-    expect(source).toContain('/work/boards');
+    expect(source).toContain('/mission-control/workflows');
     expect(source).toContain('/artifacts/tasks/:taskId/:artifactId');
-    expect(source).toContain('/workspaces');
-    expect(source).toContain('/config/playbooks');
+    expect(source).toContain('/design/workspaces');
+    expect(source).toContain('/design/playbooks');
     expect(source).not.toContain('/config/templates');
     expect(source).not.toContain('/fleet/workers');
-    expect(source).toContain('/fleet/containers');
-    expect(source).toContain('/governance/api-keys');
+    expect(source).toContain('/diagnostics/containers');
+    expect(source).toContain('/admin/api-keys');
     expect(source).toContain('/login');
   });
 
@@ -317,7 +317,7 @@ describe('FR-420 / FR-424 / FR-426: playbook browser, workflow launch, API key m
   it('app and layout expose playbook-only configuration routes', () => {
     const appSource = readComponent('app/app.tsx');
     const layoutSource = readComponent('components/layout/layout.tsx');
-    expect(appSource).toContain('/config/playbooks');
+    expect(appSource).toContain('/design/playbooks');
     expect(appSource).not.toContain('/config/templates');
     expect(layoutSource).not.toContain('Templates (Legacy)');
   });
@@ -335,7 +335,7 @@ describe('FR-RT-1620..1625: guided runtime customization flow', () => {
 
   it('layout exposes runtime configuration navigation in the sidebar', () => {
     const source = readComponent('components/layout/layout.tsx');
-    expect(source).toContain('/config/runtimes');
+    expect(source).toContain('/platform/runtimes');
     expect(source).toContain('Runtimes');
   });
 });
@@ -349,19 +349,19 @@ describe('FR-427: dashboard navigation and layout', () => {
     expect(source).toContain('export function DashboardLayout');
   });
 
-  it('layout includes navigation links to the shipped major sections and a trimmed fleet shell group', () => {
+  it('layout includes navigation links to the shipped major sections with the refreshed IA groups', () => {
     const source = readComponent('components/layout/layout.tsx');
     expect(source).toContain('Mission Control');
-    expect(source).toContain('Work');
+    expect(source).toContain('Work Design');
+    expect(source).toContain('Platform');
     expect(source).toContain('Workspaces');
-    expect(source).toContain('Configuration');
-    expect(source).toContain("label: 'Fleet'");
-    expect(source).toContain("href: '/config/runtimes'");
-    expect(source).toContain("href: '/fleet/containers'");
-    expect(source).not.toContain("href: '/fleet/workers'");
-    expect(source).not.toContain("href: '/fleet/warm-pools'");
-    expect(source).not.toContain("href: '/fleet/status'");
-    expect(source).toContain('Governance');
+    expect(source).toContain('Diagnostics');
+    expect(source).toContain('Admin');
+    expect(source).toContain("href: '/platform/runtimes'");
+    expect(source).toContain("href: '/diagnostics/containers'");
+    expect(source).not.toContain("label: 'Fleet'");
+    expect(source).not.toContain('Configuration');
+    expect(source).not.toContain('Governance');
   });
 
   it('layout includes Cmd+K keyboard shortcut for search', () => {

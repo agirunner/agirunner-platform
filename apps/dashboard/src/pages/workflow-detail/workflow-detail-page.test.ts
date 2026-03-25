@@ -339,7 +339,7 @@ describe('workflow detail deep links', () => {
       'utf8',
     );
 
-    expect(source).toContain('<CardTitle>Workflow Board</CardTitle>');
+    expect(source).toContain('<CardTitle>Workflow</CardTitle>');
     expect(source).toContain('<CardTitle>Launch Child Board</CardTitle>');
     expect(source).toContain('Create Child Board');
     expect(source).toContain('<CardTitle>Board Summary</CardTitle>');

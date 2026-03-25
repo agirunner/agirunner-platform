@@ -143,10 +143,18 @@ export function listAvailableTools(
   model?: LlmModelRecord | null,
 ) {
   const catalogEntries = toolCatalog.filter(
-    (tool) => tool.id !== NATIVE_SEARCH_TOOL || supportsNativeSearch(model),
+    (tool) =>
+      isSpecialistSelectableTool(tool)
+      && (tool.id !== NATIVE_SEARCH_TOOL || supportsNativeSearch(model)),
   );
   const storedTools = (role?.allowed_tools ?? []).filter(
-    (tool) => tool !== NATIVE_SEARCH_TOOL || supportsNativeSearch(model),
+    (toolId) => {
+      if (toolId === NATIVE_SEARCH_TOOL && !supportsNativeSearch(model)) {
+        return false;
+      }
+      const catalogTool = toolCatalog.find((tool) => tool.id === toolId);
+      return catalogTool ? isSpecialistSelectableTool(catalogTool) : true;
+    },
   );
   const toolsById = new Map<string, RoleToolCatalogEntry>();
 
@@ -263,4 +271,8 @@ function normalizeStringList(values: string[]): string[] {
 
 function supportsNativeSearch(model?: LlmModelRecord | null): boolean {
   return Boolean(model?.native_search);
+}
+
+function isSpecialistSelectableTool(tool: RoleToolCatalogEntry): boolean {
+  return tool.access_scope !== 'orchestrator_only';
 }

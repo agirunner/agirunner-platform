@@ -71,7 +71,7 @@ export function PlatformInstructionsPage(): JSX.Element {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <ScrollText className="h-5 w-5 text-accent" />
-            <h1 className="text-2xl font-semibold">Platform Instructions</h1>
+            <h1 className="text-2xl font-semibold">Instructions</h1>
           </div>
           <p className="max-w-3xl text-sm text-muted">
             Org-wide baseline instructions applied to all agents — orchestrator and specialists.

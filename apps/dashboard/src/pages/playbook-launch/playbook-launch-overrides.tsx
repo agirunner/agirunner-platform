@@ -256,7 +256,7 @@ function RoleOverrideCard(props: {
       </div>
       <p className="text-xs text-muted">
         Choose from discovered models for the selected provider. Manage providers and model
-        discovery on the LLM Providers page.
+        discovery on the Routing page.
       </p>
       <StructuredEntryEditor
         title="Reasoning Config Entries"

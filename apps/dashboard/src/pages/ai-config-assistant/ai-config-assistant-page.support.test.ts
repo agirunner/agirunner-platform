@@ -62,44 +62,44 @@ describe('ai config assistant support', () => {
 
   it('maps known suggestion paths back to concrete config destinations', () => {
     expect(resolveSuggestionDestination('runtime.default_runtime_image')).toEqual({
-      href: '/config/runtimes',
+      href: '/platform/runtimes',
       label: 'Open runtime defaults',
     });
     expect(resolveSuggestionDestination('provider.openai.base_url')).toEqual({
-      href: '/config/llm',
-      label: 'Open LLM Providers',
+      href: '/platform/routing',
+      label: 'Open models',
     });
     expect(resolveSuggestionDestination('integration.github.token')).toBeNull();
     expect(resolveSuggestionDestination('tool.shell_exec')).toEqual({
-      href: '/config/tools',
+      href: '/platform/tools',
       label: 'Open tools',
     });
     expect(resolveSuggestionDestination('tools.catalog_posture')).toEqual({
-      href: '/config/tools',
+      href: '/platform/tools',
       label: 'Open tools',
     });
     expect(resolveSuggestionDestination('instruction.system_prompt')).toEqual({
-      href: '/config/instructions',
-      label: 'Open platform instructions',
+      href: '/platform/instructions',
+      label: 'Open instructions',
     });
     expect(resolveSuggestionDestination('instructions.role_context')).toEqual({
-      href: '/config/instructions',
-      label: 'Open platform instructions',
+      href: '/platform/instructions',
+      label: 'Open instructions',
     });
     expect(resolveSuggestionDestination('trigger.on_push')).toEqual({
-      href: '/config/triggers',
+      href: '/integrations/triggers',
       label: 'Open work-item triggers',
     });
     expect(resolveSuggestionDestination('work_item_trigger.on_pr')).toEqual({
-      href: '/config/triggers',
+      href: '/integrations/triggers',
       label: 'Open work-item triggers',
     });
     expect(resolveSuggestionDestination('role.developer')).toEqual({
-      href: '/config/roles',
+      href: '/design/roles',
       label: 'Open role definitions',
     });
     expect(resolveSuggestionDestination('roles.reviewer')).toEqual({
-      href: '/config/roles',
+      href: '/design/roles',
       label: 'Open role definitions',
     });
     expect(resolveSuggestionDestination('unknown.path')).toBeNull();
@@ -168,18 +168,18 @@ describe('ai config assistant support', () => {
       ),
     ).toEqual([
       {
-        key: '/config/webhooks',
+        key: '/integrations/webhooks',
         label: 'Open webhooks',
-        href: '/config/webhooks',
+        href: '/integrations/webhooks',
         actionLabel: 'Open webhooks',
         pendingCount: 1,
         reviewedCount: 0,
         detail: '1 suggestion still needs review on this surface.',
       },
       {
-        key: '/config/runtimes',
+        key: '/platform/runtimes',
         label: 'Open runtime defaults',
-        href: '/config/runtimes',
+        href: '/platform/runtimes',
         actionLabel: 'Open runtime defaults',
         pendingCount: 0,
         reviewedCount: 1,

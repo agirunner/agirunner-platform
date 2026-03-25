@@ -26,7 +26,7 @@ export function WorkspaceArtifactExplorerShell(props: {
               </p>
             </div>
             <Button asChild variant="outline" size="sm">
-              <Link to={`/workspaces/${props.workspaceId}`}>Back to Workspace</Link>
+              <Link to={`/design/workspaces/${props.workspaceId}`}>Back to Workspace</Link>
             </Button>
           </div>
         </div>

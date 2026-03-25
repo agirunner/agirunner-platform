@@ -57,7 +57,7 @@ describe('workspace delivery history question-driven support', () => {
         }),
       ]),
     );
-    expect(overview.nextActionHref).toBe('/work/boards/workflow-2/inspector');
+    expect(overview.nextActionHref).toBe('/mission-control/workflows/workflow-2/inspector');
   });
 
   it('describes per-run attention and inspection guidance for failed delivery', () => {
@@ -67,7 +67,7 @@ describe('workspace delivery history question-driven support', () => {
       state: 'failed',
       created_at: '2026-03-12T19:30:00Z',
       stage_metrics: [],
-      link: '/work/boards/workflow-2',
+      link: '/mission-control/workflows/workflow-2',
     } as never);
 
     expect(state.statusLabel).toBe('Failed');
@@ -75,7 +75,7 @@ describe('workspace delivery history question-driven support', () => {
     expect(state.nextAction).toBe(
       'Start with inspector: confirm the failing activation and affected work items.',
     );
-    expect(state.primaryActionHref).toBe('/work/boards/workflow-2/inspector');
+    expect(state.primaryActionHref).toBe('/mission-control/workflows/workflow-2/inspector');
   });
 
   it('compresses delivery metrics into terse operator signals for each run', () => {

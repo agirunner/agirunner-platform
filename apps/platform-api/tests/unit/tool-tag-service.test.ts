@@ -74,6 +74,40 @@ describe('ToolTagService', () => {
       expect(byId.get('glob')).toEqual(expect.objectContaining({ owner: 'task' }));
     });
 
+    it('exposes access scope and callability for built-in tools', async () => {
+      const pool = {
+        query: vi.fn(async () => ({ rowCount: 0, rows: [] })),
+      };
+
+      const service = new ToolTagService(pool as never);
+      const result = await service.listToolTags('tenant-1');
+      const byId = new Map(
+        result.data.map((entry: Record<string, unknown>) => [String(entry.id), entry]),
+      );
+
+      expect(byId.get('file_read')).toEqual(
+        expect.objectContaining({
+          access_scope: 'specialist_and_orchestrator',
+          usage_surface: 'task_sandbox',
+          is_callable: true,
+        }),
+      );
+      expect(byId.get('create_task')).toEqual(
+        expect.objectContaining({
+          access_scope: 'orchestrator_only',
+          usage_surface: 'runtime',
+          is_callable: true,
+        }),
+      );
+      expect(byId.get('native_search')).toEqual(
+        expect.objectContaining({
+          access_scope: 'specialist_and_orchestrator',
+          usage_surface: 'provider_capability',
+          is_callable: false,
+        }),
+      );
+    });
+
     it('exposes current task review controls while excluding legacy aliases', async () => {
       const pool = {
         query: vi.fn(async () => ({ rowCount: 0, rows: [] })),

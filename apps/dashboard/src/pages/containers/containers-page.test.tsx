@@ -29,14 +29,16 @@ describe('containers page source', () => {
     expect(pageSource).toContain(
       'Live container inventory from the platform API, showing image, CPU, and memory of running and recently-active containers.',
     );
-    expect(pageSource).toContain("SelectItem value=\"inactive\"");
-    expect(pageSource).toContain("SelectItem value=\"running\">Active</SelectItem>");
     expect(pageSource).toContain('{runningCount} active • {inactiveCount} inactive this session');
     expect(pageSource).toContain('partitionSessionContainerRowsByFunction');
+    expect(pageSource).not.toContain('filterSessionContainerRows');
+    expect(pageSource).not.toContain('Search kinds, roles, workflows, stages, tasks, or images');
+    expect(pageSource).not.toContain('All kinds');
+    expect(pageSource).not.toContain('All statuses');
     expect(pageSource).toContain('Orchestrator agent');
     expect(pageSource).toContain('Specialists');
-    expect(pageSource).toContain('Specialist agent');
-    expect(pageSource).toContain('Specialist task execution');
+    expect(tableSource).toContain('Specialist agent');
+    expect(tableSource).toContain('Specialist task execution');
     expect(pageSource).not.toContain('Orchestrator worker');
     expect(pageSource).not.toContain('Running now');
     expect(pageSource).not.toContain('Recently inactive');
@@ -61,8 +63,8 @@ describe('containers page source', () => {
     expect(tableSource).toContain("row.presence === 'inactive' ? 'Inactive' : 'Active'");
     expect(tableSource).toContain('sanitizeContainerContextLabel');
     expect(tableSource).toContain("value?.trim().toLowerCase() === 'specialist runtimes'");
-    expect(tableSource).toContain("renderEntityLink(row.playbook_id, row.playbook_name, '/config/playbooks')");
-    expect(tableSource).toContain("renderEntityLink(row.workflow_id, row.workflow_name, '/work/boards')");
+    expect(tableSource).toContain("renderEntityLink(row.playbook_id, row.playbook_name, '/design/playbooks')");
+    expect(tableSource).toContain("renderEntityLink(row.workflow_id, row.workflow_name, '/mission-control/workflows')");
     expect(tableSource).toContain("if (label?.trim() && !id) {");
     expect(tableSource).toContain('<span className="text-sm text-foreground">{label}</span>');
     expect(tableSource).not.toContain('Unassigned');
@@ -78,5 +80,10 @@ describe('containers page source', () => {
     expect(supportSource).toContain('applyRememberedContext');
     expect(tableSource).not.toContain('Orchestrator Pool');
     expect(tableSource).not.toContain('Specialist Pool');
+    expect(pageSource).toContain('No orchestrator containers were reported in this session.');
+    expect(pageSource).toContain('No specialist containers were reported in this session.');
+    expect(supportSource).not.toContain('ContainerStatusFilter');
+    expect(supportSource).not.toContain('ContainerKindFilter');
+    expect(supportSource).not.toContain('buildSearchableFields');
   });
 });

@@ -95,11 +95,11 @@ export function readGateId(gate: GateIdentityShape): string | null {
 }
 
 export function buildWorkflowGatePermalink(workflowId: string, stageName: string): string {
-  return `/work/boards/${workflowId}?gate=${encodeURIComponent(stageName)}#gate-${encodeURIComponent(stageName)}`;
+  return `/mission-control/workflows/${workflowId}?gate=${encodeURIComponent(stageName)}#gate-${encodeURIComponent(stageName)}`;
 }
 
 export function buildApprovalQueueGatePermalink(gateId: string): string {
-  return `/work/approvals?gate=${encodeURIComponent(gateId)}#gate-${encodeURIComponent(gateId)}`;
+  return `/mission-control/action-queue?gate=${encodeURIComponent(gateId)}#gate-${encodeURIComponent(gateId)}`;
 }
 
 export function isGateHighlighted(search: string, hash: string, gateId: string | null): boolean {

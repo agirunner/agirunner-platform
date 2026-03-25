@@ -61,7 +61,7 @@ export function WorkflowTable(props: { workflows: WorkflowListRecord[] }): JSX.E
                   <TableCell className="align-top">
                     <div className="space-y-1">
                       <Link
-                        to={`/work/boards/${workflow.id}`}
+                        to={`/mission-control/workflows/${workflow.id}`}
                         className="font-medium text-accent hover:underline"
                       >
                         {workflow.name}
@@ -130,7 +130,7 @@ function WorkflowListCard(props: { workflow: WorkflowListRecord }): JSX.Element 
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 space-y-1">
             <Link
-              to={`/work/boards/${props.workflow.id}`}
+              to={`/mission-control/workflows/${props.workflow.id}`}
               className="block truncate text-base font-semibold text-accent hover:underline"
             >
               {props.workflow.name}
@@ -165,7 +165,7 @@ function WorkflowListCard(props: { workflow: WorkflowListRecord }): JSX.Element 
               workspaceId={props.workflow.workspace_id}
             />
             <Button size="sm" asChild>
-              <Link to={`/work/boards/${props.workflow.id}`}>Open board</Link>
+              <Link to={`/mission-control/workflows/${props.workflow.id}`}>Open board</Link>
             </Button>
           </div>
         </div>

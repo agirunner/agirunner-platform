@@ -38,13 +38,13 @@ describe('ai config assistant page source', () => {
 
   it('resolves destinations for all shipped config surfaces', () => {
     const source = readSource();
-    expect(source).toContain("'/config/tools'");
+    expect(source).toContain("'/platform/tools'");
     expect(source).toContain("'Open tools'");
-    expect(source).toContain("'/config/instructions'");
-    expect(source).toContain("'Open platform instructions'");
-    expect(source).toContain("'/config/triggers'");
+    expect(source).toContain("'/platform/instructions'");
+    expect(source).toContain("'Open instructions'");
+    expect(source).toContain("'/integrations/triggers'");
     expect(source).toContain("'Open work-item triggers'");
-    expect(source).toContain("'/config/roles'");
+    expect(source).toContain("'/design/roles'");
     expect(source).toContain("'Open role definitions'");
   });
 

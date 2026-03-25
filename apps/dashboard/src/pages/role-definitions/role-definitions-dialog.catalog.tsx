@@ -26,7 +26,7 @@ export function RoleToolGrantsSection(props: {
       <CardHeader>
         <CardTitle>Tool grants</CardTitle>
         <CardDescription>
-          Select which runtime tools and task sandbox tools this role can use.
+          Select which agentic runtime tools and task execution tools this role can use. Orchestrator-only tools are managed on the orchestrator surface.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -36,14 +36,14 @@ export function RoleToolGrantsSection(props: {
             : 'No tools enabled. Toggle tools on to grant the role access.'}
         </div>
         <ToolGrantGroup
-          title="Runtime tools"
-          description="Run directly in the runtime loop and do not require a task sandbox."
+          title="Agentic runtime tools"
+          description="Run directly in the runtime loop and are safe to grant to specialist roles."
           tools={runtimeTools}
           allowedTools={props.form.allowedTools}
           toggleTool={props.toggleTool}
         />
         <ToolGrantGroup
-          title="Task sandbox tools"
+          title="Task execution tools"
           description="Run inside the specialist task sandbox and can materialize repo or filesystem state."
           tools={taskTools}
           allowedTools={props.form.allowedTools}

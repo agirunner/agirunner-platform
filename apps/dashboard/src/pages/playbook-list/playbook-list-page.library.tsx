@@ -130,7 +130,7 @@ export function PlaybookFamilyCard(props: {
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
             <CardTitle className="text-lg">
-              <Link className="hover:underline" to={`/config/playbooks/${playbook.id}`}>
+              <Link className="hover:underline" to={`/design/playbooks/${playbook.id}`}>
                 {family.name}
               </Link>
             </CardTitle>
@@ -173,7 +173,7 @@ export function PlaybookFamilyCard(props: {
         ) : null}
         <div className="mt-auto flex flex-wrap gap-2">
           <Button asChild size="sm">
-            <Link to={`/config/playbooks/${playbook.id}`}>
+            <Link to={`/design/playbooks/${playbook.id}`}>
               <Settings2 className="h-4 w-4" />
               Manage
             </Link>
@@ -185,7 +185,7 @@ export function PlaybookFamilyCard(props: {
             </Button>
           ) : (
             <Button asChild size="sm">
-              <Link to={`/config/playbooks/${playbook.id}/launch`}>
+              <Link to={`/design/playbooks/${playbook.id}/launch`}>
                 <Rocket className="h-4 w-4" />
                 Launch
               </Link>

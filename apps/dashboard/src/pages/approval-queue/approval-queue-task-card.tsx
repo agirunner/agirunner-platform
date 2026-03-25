@@ -117,13 +117,13 @@ export function TaskApprovalCard(props: {
   const operatorFlowLabel = readTaskOperatorFlowLabel(task);
   const workflowContextLink =
     buildWorkflowOperatorPermalink(task) ??
-    (task.workflow_id ? `/work/boards/${task.workflow_id}` : null);
+    (task.workflow_id ? `/mission-control/workflows/${task.workflow_id}` : null);
   const primaryFlowLabel = workItemFlow ? 'Open Work Item Flow' : 'Open Workflow Operator Flow';
   const diagnosticsLabel = workflowOperatorFlow ? 'Open Step Diagnostics' : 'Open Step Record';
   const stepReferenceLabel = workflowOperatorFlow ? 'Step diagnostics' : 'Step record';
   const primaryTitleHref = workflowOperatorFlow && workflowContextLink
     ? workflowContextLink
-    : `/work/tasks/${task.id}`;
+    : `/mission-control/tasks/${task.id}`;
   const handoffSummary = sanitizeApprovalText(task.latest_handoff?.summary);
   const successorContext = sanitizeApprovalText(task.latest_handoff?.successor_context);
 
@@ -172,7 +172,7 @@ export function TaskApprovalCard(props: {
                 </div>
                 {task.workflow_name && task.workflow_id ? (
                   <Link
-                    to={workflowContextLink ?? `/work/boards/${task.workflow_id}`}
+                    to={workflowContextLink ?? `/mission-control/workflows/${task.workflow_id}`}
                     className="font-medium text-accent hover:underline"
                   >
                     Open board context
@@ -190,7 +190,7 @@ export function TaskApprovalCard(props: {
                     </Link>
                   </Button>
                   <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
-                    <Link to={`/work/tasks/${task.id}`}>{diagnosticsLabel}</Link>
+                    <Link to={`/mission-control/tasks/${task.id}`}>{diagnosticsLabel}</Link>
                   </Button>
                 </>
               ) : (
@@ -233,7 +233,7 @@ export function TaskApprovalCard(props: {
                     Reject
                   </Button>
                   <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
-                    <Link to={`/work/tasks/${task.id}`}>{diagnosticsLabel}</Link>
+                    <Link to={`/mission-control/tasks/${task.id}`}>{diagnosticsLabel}</Link>
                   </Button>
                   {!workflowOperatorFlow && workflowContextLink ? (
                     <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>

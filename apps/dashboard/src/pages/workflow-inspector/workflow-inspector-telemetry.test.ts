@@ -136,14 +136,14 @@ describe('workflow inspector telemetry', () => {
         label: 'Stage cost leader',
         value: '$4.5000',
         detail: 'review is leading reported stage spend across 3 steps.',
-        href: '/work/boards/workflow-1/inspector?view=detailed&stage=review',
+        href: '/mission-control/workflows/workflow-1/inspector?view=summary&stage=review',
       },
       {
         label: 'Task cost leader',
         value: '$1.7500',
         detail:
           'Step task-123 leads the current log slice across 6 trace entries • 200 ms average recorded duration.',
-        href: '/work/boards/workflow-1/inspector?view=detailed&task=task-123456789',
+        href: '/mission-control/workflows/workflow-1/inspector?view=summary&task=task-123456789',
       },
       {
         label: 'Activation cost leader',
@@ -151,7 +151,7 @@ describe('workflow inspector telemetry', () => {
         detail:
           'Activation activati is carrying the highest orchestrator batch spend across 5 trace entries.',
         href:
-          '/work/boards/workflow-1/inspector?view=detailed&activation=activation-123456789',
+          '/mission-control/workflows/workflow-1/inspector?view=summary&activation=activation-123456789',
       },
     ]);
     expect(model.executionSummaryPackets).toEqual([
@@ -160,28 +160,28 @@ describe('workflow inspector telemetry', () => {
         value: '$6.7500',
         detail: '2 recorded stages across 5 contributing steps.',
         sourceLabel: 'Workflow run summary',
-        href: '/work/boards/workflow-1/inspector?view=detailed',
+        href: '/mission-control/workflows/workflow-1/inspector?view=summary',
       },
       {
         label: 'Task spend coverage',
         value: '$1.7500',
         detail: '1 traced step across 12 trace entries • 2.00 s total recorded duration.',
         sourceLabel: 'Inspector log slice',
-        href: '/work/boards/workflow-1/inspector?view=detailed',
+        href: '/mission-control/workflows/workflow-1/inspector?view=summary',
       },
       {
         label: 'Activation spend coverage',
         value: '$2.2500',
         detail: '1 orchestrator activation across 5 trace entries • 900 ms total recorded duration.',
         sourceLabel: 'Inspector orchestrator slice',
-        href: '/work/boards/workflow-1/inspector?view=detailed',
+        href: '/mission-control/workflows/workflow-1/inspector?view=summary',
       },
       {
         label: 'Work item spend coverage',
         value: '$6.7500',
         detail: '2 workflow work items across 5 contributing steps.',
         sourceLabel: 'Workflow run summary',
-        href: '/work/boards/workflow-1/inspector?view=detailed',
+        href: '/mission-control/workflows/workflow-1/inspector?view=summary',
       },
     ]);
     expect(
@@ -195,13 +195,13 @@ describe('workflow inspector telemetry', () => {
             label: 'review',
             value: '$4.5000',
             detail: '3 steps contributed to this stage.',
-            href: '/work/boards/workflow-1/inspector?view=detailed&stage=review',
+            href: '/mission-control/workflows/workflow-1/inspector?view=summary&stage=review',
           },
           {
             label: 'qa',
             value: '$2.2500',
             detail: '2 steps contributed to this stage.',
-            href: '/work/boards/workflow-1/inspector?view=detailed&stage=qa',
+            href: '/mission-control/workflows/workflow-1/inspector?view=summary&stage=qa',
           },
         ],
       },
@@ -213,7 +213,7 @@ describe('workflow inspector telemetry', () => {
             label: 'Step task-123',
             value: '$1.7500',
             detail: '6 trace entries • 200 ms average recorded duration.',
-            href: '/work/boards/workflow-1/inspector?view=detailed&task=task-123456789',
+            href: '/mission-control/workflows/workflow-1/inspector?view=summary&task=task-123456789',
           },
         ],
       },
@@ -226,7 +226,7 @@ describe('workflow inspector telemetry', () => {
             value: '$2.2500',
             detail: '5 trace entries • 180 ms average recorded duration.',
             href:
-              '/work/boards/workflow-1/inspector?view=detailed&activation=activation-123456789',
+              '/mission-control/workflows/workflow-1/inspector?view=summary&activation=activation-123456789',
           },
         ],
       },
@@ -238,13 +238,13 @@ describe('workflow inspector telemetry', () => {
             label: 'Review release notes',
             value: '$4.5000',
             detail: 'review • 3 steps contributed to this work item.',
-            href: '/work/boards/workflow-1/inspector?view=detailed&work_item=work-item-1',
+            href: '/mission-control/workflows/workflow-1/inspector?view=summary&work_item=work-item-1',
           },
           {
             label: 'QA verification',
             value: '$2.2500',
             detail: 'qa • 2 steps contributed to this work item.',
-            href: '/work/boards/workflow-1/inspector?view=detailed&work_item=work-item-2',
+            href: '/mission-control/workflows/workflow-1/inspector?view=summary&work_item=work-item-2',
           },
         ],
       },

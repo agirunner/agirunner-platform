@@ -183,55 +183,75 @@ export function App(): JSX.Element {
 
             {/* Mission Control */}
             <Route path="/mission-control" element={<LiveBoardPage />} />
-            <Route path="/mission-control/alerts" element={<AlertsApprovalsPage />} />
+            <Route path="/mission-control/workflows" element={<WorkflowListPage />} />
+            <Route path="/mission-control/workflows/:id" element={<WorkflowDetailPage />} />
+            <Route path="/mission-control/workflows/:id/inspector" element={<WorkflowInspectorPage />} />
+            <Route path="/mission-control/tasks" element={<TaskListPage />} />
+            <Route path="/mission-control/tasks/:id" element={<TaskDetailPage />} />
+            <Route path="/mission-control/action-queue" element={<AlertsApprovalsPage />} />
             <Route path="/mission-control/costs" element={<CostDashboardPage />} />
-            <Route path="/logs" element={<LogsPage />} />
-
-            {/* Work */}
-            <Route path="/work/boards" element={<WorkflowListPage />} />
-            <Route path="/work/boards/:id" element={<WorkflowDetailPage />} />
-            <Route path="/work/boards/:id/inspector" element={<WorkflowInspectorPage />} />
+            <Route path="/mission-control/alerts" element={<Navigate to="/mission-control/action-queue" replace />} />
+            <Route path="/work/boards/*" element={<LegacyWorkflowBoardRedirect />} />
             <Route path="/work/workflows/*" element={<LegacyWorkflowBoardRedirect />} />
-            <Route path="/work/tasks" element={<TaskListPage />} />
-            <Route path="/work/tasks/:id" element={<TaskDetailPage />} />
+            <Route path="/work/tasks" element={<Navigate to="/mission-control/tasks" replace />} />
+            <Route path="/work/tasks/:id" element={<LegacyTaskRedirect />} />
+            <Route path="/work/approvals" element={<Navigate to="/mission-control/action-queue" replace />} />
+
+            {/* Work Design */}
             <Route path="/artifacts/tasks/:taskId/:artifactId" element={<ArtifactPreviewPage />} />
-            <Route path="/work/approvals" element={<ApprovalQueuePage />} />
+            <Route path="/design/workspaces" element={<WorkspaceListPage />} />
+            <Route path="/design/workspaces/:id" element={<WorkspaceDetailPage />} />
+            <Route path="/design/workspaces/:id/memory" element={<LegacyWorkspaceKnowledgeRedirect />} />
+            <Route path="/design/workspaces/:id/content" element={<LegacyWorkspaceKnowledgeRedirect />} />
+            <Route path="/design/workspaces/:id/artifacts" element={<LegacyWorkspaceKnowledgeRedirect />} />
+            <Route path="/workspaces" element={<Navigate to="/design/workspaces" replace />} />
+            <Route path="/workspaces/memory" element={<Navigate to="/design/workspaces" replace />} />
+            <Route path="/workspaces/content" element={<Navigate to="/design/workspaces" replace />} />
+            <Route path="/workspaces/*" element={<LegacyWorkspaceRouteRedirect />} />
+            <Route path="/design/playbooks" element={<PlaybookListPage />} />
+            <Route path="/design/playbooks/:id" element={<PlaybookDetailPage />} />
+            <Route path="/design/playbooks/:id/launch" element={<PlaybookLaunchPage />} />
+            <Route path="/design/playbooks/launch" element={<PlaybookLaunchPage />} />
+            <Route path="/config/playbooks/*" element={<LegacyPlaybookRouteRedirect />} />
+            <Route path="/design/roles" element={<RoleDefinitionsPage />} />
+            <Route path="/config/roles" element={<Navigate to="/design/roles" replace />} />
 
-            {/* Workspaces */}
-            <Route path="/workspaces" element={<WorkspaceListPage />} />
-            <Route path="/workspaces/:id" element={<WorkspaceDetailPage />} />
-            <Route path="/workspaces/:id/memory" element={<LegacyWorkspaceKnowledgeRedirect />} />
-            <Route path="/workspaces/:id/content" element={<LegacyWorkspaceKnowledgeRedirect />} />
-            <Route path="/workspaces/:id/artifacts" element={<LegacyWorkspaceKnowledgeRedirect />} />
-            <Route path="/workspaces/memory" element={<Navigate to="/workspaces" replace />} />
-            <Route path="/workspaces/content" element={<Navigate to="/workspaces" replace />} />
-
-            {/* Configuration */}
-            <Route path="/config/playbooks" element={<PlaybookListPage />} />
-            <Route path="/config/playbooks/:id" element={<PlaybookDetailPage />} />
-            <Route path="/config/playbooks/:id/launch" element={<PlaybookLaunchPage />} />
-            <Route path="/config/playbooks/launch" element={<PlaybookLaunchPage />} />
-            <Route path="/config/orchestrator" element={<OrchestratorPage />} />
-            <Route path="/config/roles" element={<RoleDefinitionsPage />} />
-            <Route path="/config/llm" element={<LlmProvidersPage />} />
-            <Route path="/config/runtimes" element={<RuntimesPage />} />
-            <Route path="/config/instructions" element={<PlatformInstructionsPage />} />
+            {/* Platform */}
+            <Route path="/platform/orchestrator" element={<OrchestratorPage />} />
+            <Route path="/platform/routing" element={<LlmProvidersPage />} />
+            <Route path="/platform/runtimes" element={<RuntimesPage />} />
+            <Route path="/platform/instructions" element={<PlatformInstructionsPage />} />
+            <Route path="/platform/tools" element={<ToolsPage />} />
+            <Route path="/config/orchestrator" element={<Navigate to="/platform/orchestrator" replace />} />
+            <Route path="/config/llm" element={<Navigate to="/platform/routing" replace />} />
+            <Route path="/config/runtimes" element={<Navigate to="/platform/runtimes" replace />} />
+            <Route path="/config/instructions" element={<Navigate to="/platform/instructions" replace />} />
+            <Route path="/config/runtime-defaults" element={<Navigate to="/platform/runtimes" replace />} />
+            <Route path="/config/tools" element={<Navigate to="/platform/tools" replace />} />
             <Route path="/config/assistant" element={<AiConfigAssistantPage />} />
-            <Route path="/config/runtime-defaults" element={<Navigate to="/config/runtimes" replace />} />
-            <Route path="/config/tools" element={<ToolsPage />} />
-            <Route path="/config/webhooks" element={<WebhooksPage />} />
-            <Route path="/config/triggers" element={<WorkItemTriggersPage />} />
-            <Route path="/config/agent-protocols" element={<AgentProtocolsPage />} />
-            <Route path="/config/work-item-triggers" element={<Navigate to="/config/triggers" replace />} />
 
-            {/* Fleet */}
-            <Route path="/fleet/containers" element={<ContainersPage />} />
+            {/* Integrations */}
+            <Route path="/integrations/webhooks" element={<WebhooksPage />} />
+            <Route path="/integrations/triggers" element={<WorkItemTriggersPage />} />
+            <Route path="/integrations/agent-protocols" element={<AgentProtocolsPage />} />
+            <Route path="/config/webhooks" element={<Navigate to="/integrations/webhooks" replace />} />
+            <Route path="/config/triggers" element={<Navigate to="/integrations/triggers" replace />} />
+            <Route path="/config/agent-protocols" element={<Navigate to="/integrations/agent-protocols" replace />} />
+            <Route path="/config/work-item-triggers" element={<Navigate to="/integrations/triggers" replace />} />
 
-            {/* General */}
-            <Route path="/governance/settings" element={<SettingsPage />} />
-            <Route path="/governance/api-keys" element={<ApiKeyPage />} />
+            {/* Diagnostics */}
+            <Route path="/diagnostics/logs" element={<LogsPage />} />
+            <Route path="/diagnostics/containers" element={<ContainersPage />} />
+            <Route path="/logs" element={<Navigate to="/diagnostics/logs" replace />} />
+            <Route path="/fleet/containers" element={<Navigate to="/diagnostics/containers" replace />} />
+
+            {/* Admin */}
+            <Route path="/admin/settings" element={<SettingsPage />} />
+            <Route path="/admin/api-keys" element={<ApiKeyPage />} />
+            <Route path="/governance/settings" element={<Navigate to="/admin/settings" replace />} />
+            <Route path="/governance/api-keys" element={<Navigate to="/admin/api-keys" replace />} />
             <Route path="/governance/users" element={<UserManagementPage />} />
-            <Route path="/governance/retention" element={<Navigate to="/governance/settings" replace />} />
+            <Route path="/governance/retention" element={<Navigate to="/admin/settings" replace />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/mission-control" replace />} />
@@ -261,9 +281,22 @@ function RequireAuth(): JSX.Element {
 
 function LegacyWorkflowBoardRedirect(): JSX.Element {
   const location = useLocation();
+  const nextPath = location.pathname.startsWith('/work/workflows')
+    ? location.pathname.replace('/work/workflows', '/mission-control/workflows')
+    : location.pathname.replace('/work/boards', '/mission-control/workflows');
   return (
     <Navigate
-      to={`${location.pathname.replace('/work/workflows', '/work/boards')}${location.search}${location.hash}`}
+      to={`${nextPath}${location.search}${location.hash}`}
+      replace
+    />
+  );
+}
+
+function LegacyTaskRedirect(): JSX.Element {
+  const location = useLocation();
+  return (
+    <Navigate
+      to={`${location.pathname.replace('/work/tasks', '/mission-control/tasks')}${location.search}${location.hash}`}
       replace
     />
   );
@@ -273,14 +306,34 @@ function LegacyWorkspaceKnowledgeRedirect(): JSX.Element {
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
   if (!id) {
-    return <Navigate to="/workspaces" replace />;
+    return <Navigate to="/design/workspaces" replace />;
   }
   const panel = location.pathname.endsWith('/memory')
     ? 'memory'
     : location.pathname.endsWith('/artifacts')
       ? 'artifacts'
       : 'artifacts';
-  return <Navigate to={`/workspaces/${id}?tab=knowledge&panel=${panel}`} replace />;
+  return <Navigate to={`/design/workspaces/${id}?tab=knowledge&panel=${panel}`} replace />;
+}
+
+function LegacyWorkspaceRouteRedirect(): JSX.Element {
+  const location = useLocation();
+  return (
+    <Navigate
+      to={`${location.pathname.replace('/workspaces', '/design/workspaces')}${location.search}${location.hash}`}
+      replace
+    />
+  );
+}
+
+function LegacyPlaybookRouteRedirect(): JSX.Element {
+  const location = useLocation();
+  return (
+    <Navigate
+      to={`${location.pathname.replace('/config/playbooks', '/design/playbooks')}${location.search}${location.hash}`}
+      replace
+    />
+  );
 }
 
 function SSOCallbackPage(): JSX.Element {

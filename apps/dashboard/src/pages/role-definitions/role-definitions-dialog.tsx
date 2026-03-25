@@ -63,11 +63,27 @@ export function RoleDialog(props: {
   );
 
   const [form, setForm] = useState<RoleFormState>(() => {
-    const defaultToolIds = props.tools.map((tool) => tool.id);
-    if (props.role) return createRoleForm(props.role, defaultToolIds);
+    const defaultToolIds = listAvailableTools(props.tools, null, initialEffectiveModel).map(
+      (tool) => tool.id,
+    );
+    if (props.role) {
+      return {
+        ...createRoleForm(props.role, defaultToolIds),
+        allowedTools: listAvailableTools(props.tools, props.role, initialEffectiveModel).map(
+          (tool) => tool.id,
+        ),
+      };
+    }
     if (props.duplicateFrom) {
       const duplicated = syncNativeSearchGrant(
-        createRoleForm(props.duplicateFrom, defaultToolIds),
+        {
+          ...createRoleForm(props.duplicateFrom, defaultToolIds),
+          allowedTools: listAvailableTools(
+            props.tools,
+            props.duplicateFrom,
+            initialEffectiveModel,
+          ).map((tool) => tool.id),
+        },
         initialEffectiveModel,
         { enableByDefault: true },
       );

@@ -167,14 +167,14 @@ export function buildTaskContextPacket(task: QueueTaskContextLike): TaskContextP
   if (task.workflow_id) {
     links.push({
       label: 'Open board context',
-      to: `/work/boards/${task.workflow_id}`,
+      to: `/mission-control/workflows/${task.workflow_id}`,
       priority: task.work_item_id ? 'secondary' : 'primary',
     });
   }
 
   links.push({
     label: task.workflow_id && task.work_item_id ? 'Open step diagnostics' : 'Open step detail',
-    to: `/work/tasks/${task.id}`,
+    to: `/mission-control/tasks/${task.id}`,
     priority: 'secondary',
   });
 

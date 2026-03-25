@@ -15,9 +15,7 @@ export function ConfigPlaceholderPage(props: {
           <CardTitle>Coming soon</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm leading-6 text-muted">
-            This surface is reserved for the next version of the product.
-          </p>
+          <p className="text-sm leading-6 text-muted">Coming in the next iteration, stay tuned.</p>
         </CardContent>
       </Card>
     </div>

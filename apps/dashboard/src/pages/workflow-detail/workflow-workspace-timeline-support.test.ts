@@ -46,8 +46,8 @@ describe('workflow workspace timeline support', () => {
     expect(packet).toEqual({
       workflowId: 'workflow-1',
       workflowName: 'Release candidate',
-      workflowHref: '/work/boards/workflow-1',
-      inspectorHref: '/work/boards/workflow-1/inspector',
+      workflowHref: '/mission-control/workflows/workflow-1',
+      inspectorHref: '/mission-control/workflows/workflow-1/inspector',
       stateLabel: 'active',
       summary:
         'This linked run is still active. Review progress, gate pressure, and spend before intervening.',

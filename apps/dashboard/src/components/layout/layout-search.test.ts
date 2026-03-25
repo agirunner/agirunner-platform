@@ -23,17 +23,17 @@ const QUICK_LINKS: CommandPaletteItem[] = [
     kind: 'navigation',
   },
   {
-    id: 'nav:/work/boards',
-    href: '/work/boards',
-    label: 'Workflow Boards',
-    meta: 'Work',
+    id: 'nav:/mission-control/workflows',
+    href: '/mission-control/workflows',
+    label: 'Workflows',
+    meta: 'Mission Control',
     kind: 'navigation',
   },
   {
-    id: 'nav:/config/playbooks',
-    href: '/config/playbooks',
+    id: 'nav:/design/playbooks',
+    href: '/design/playbooks',
     label: 'Playbooks',
-    meta: 'Configuration',
+    meta: 'Work Design',
     kind: 'navigation',
   },
 ];
@@ -63,10 +63,10 @@ describe('command palette helpers', () => {
 
   it('filters quick links by label and section metadata', () => {
     expect(filterCommandPaletteQuickLinks(QUICK_LINKS, '')).toEqual(QUICK_LINKS);
-    expect(filterCommandPaletteQuickLinks(QUICK_LINKS, 'config')).toEqual([
+    expect(filterCommandPaletteQuickLinks(QUICK_LINKS, 'design')).toEqual([
       QUICK_LINKS[2],
     ]);
-    expect(filterCommandPaletteQuickLinks(QUICK_LINKS, 'work')).toEqual([
+    expect(filterCommandPaletteQuickLinks(QUICK_LINKS, 'workflow')).toEqual([
       QUICK_LINKS[1],
     ]);
   });
@@ -74,18 +74,18 @@ describe('command palette helpers', () => {
   it('surfaces nav items via keyword match when the label does not contain the query', () => {
     const links: CommandPaletteItem[] = [
       {
-        id: 'nav:/config/orchestrator',
-        href: '/config/orchestrator',
+        id: 'nav:/platform/orchestrator',
+        href: '/platform/orchestrator',
         label: 'Orchestrator',
-        meta: 'Configuration',
+        meta: 'Platform',
         kind: 'navigation',
         keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture'],
       },
       {
-        id: 'nav:/config/roles',
-        href: '/config/roles',
+        id: 'nav:/design/roles',
+        href: '/design/roles',
         label: 'Roles',
-        meta: 'Configuration',
+        meta: 'Work Design',
         kind: 'navigation',
         keywords: ['specialist', 'agent roles', 'role definitions'],
       },
@@ -93,19 +93,19 @@ describe('command palette helpers', () => {
 
     const promptResults = filterCommandPaletteQuickLinks(links, 'prompt');
     expect(promptResults).toHaveLength(1);
-    expect(promptResults[0].id).toBe('nav:/config/orchestrator');
+    expect(promptResults[0].id).toBe('nav:/platform/orchestrator');
 
     const orchestratorResults = filterCommandPaletteQuickLinks(links, 'orchestrator');
     expect(orchestratorResults).toHaveLength(1);
-    expect(orchestratorResults[0].id).toBe('nav:/config/orchestrator');
+    expect(orchestratorResults[0].id).toBe('nav:/platform/orchestrator');
 
     const poolResults = filterCommandPaletteQuickLinks(links, 'pool');
     expect(poolResults).toHaveLength(1);
-    expect(poolResults[0].id).toBe('nav:/config/orchestrator');
+    expect(poolResults[0].id).toBe('nav:/platform/orchestrator');
 
     const roleDefResults = filterCommandPaletteQuickLinks(links, 'role definitions');
     expect(roleDefResults).toHaveLength(1);
-    expect(roleDefResults[0].id).toBe('nav:/config/roles');
+    expect(roleDefResults[0].id).toBe('nav:/design/roles');
   });
 
   it('maps dashboard search results into palette items', () => {
@@ -115,14 +115,14 @@ describe('command palette helpers', () => {
         type: 'workflow',
         label: 'Auth Workflow',
         subtitle: 'running',
-        href: '/work/boards/workflow-1',
+        href: '/mission-control/workflows/workflow-1',
       },
     ]);
 
     expect(items).toEqual([
       {
         id: 'workflow:workflow-1',
-        href: '/work/boards/workflow-1',
+        href: '/mission-control/workflows/workflow-1',
         label: 'Auth Workflow',
         meta: 'running',
         kind: 'workflow',
@@ -146,9 +146,9 @@ describe('command palette helpers', () => {
       recentItems: [
         {
           id: 'workflow:recent-auth',
-          href: '/work/boards/recent-auth',
+          href: '/mission-control/workflows/recent-auth',
           label: 'Recent Auth Workflow',
-          meta: 'Workflow Boards',
+          meta: 'Workflows',
           kind: 'workflow',
         },
       ],
@@ -159,21 +159,21 @@ describe('command palette helpers', () => {
           type: 'workflow',
           label: 'Auth Workflow',
           subtitle: 'review stage',
-          href: '/work/boards/workflow-1',
+          href: '/mission-control/workflows/workflow-1',
         },
         {
           id: 'task-1',
           type: 'task',
           label: 'Auth Review Task',
           subtitle: 'in progress',
-          href: '/work/tasks/task-1',
+          href: '/mission-control/tasks/task-1',
         },
       ],
     });
 
     expect(sections.map((section) => section.title)).toEqual([
       'Recent',
-      'Workflow Boards',
+      'Workflows',
       'Tasks',
     ]);
   });
@@ -182,9 +182,9 @@ describe('command palette helpers', () => {
     const storage = createStorageStub();
     const recentWorkflow: CommandPaletteItem = {
       id: 'workflow:recent-auth',
-      href: '/work/boards/recent-auth',
+      href: '/mission-control/workflows/recent-auth',
       label: 'Recent Auth Workflow',
-      meta: 'Workflow Boards',
+      meta: 'Workflows',
       kind: 'workflow',
     };
 

@@ -57,7 +57,7 @@ export function buildTaskPrimaryOperatorAction(
     };
   }
   return {
-    href: `/work/tasks/${task.id}`,
+    href: `/mission-control/tasks/${task.id}`,
     label: 'Open step record',
     helper: 'Open the step record for full context and recent activity.',
     showsDiagnosticLink: false,
@@ -71,7 +71,7 @@ export function buildTaskDiagnosticAction(
     return null;
   }
   return {
-    href: `/work/tasks/${task.id}`,
+    href: `/mission-control/tasks/${task.id}`,
     label: isRecoveryStatus(task) ? 'Open failed step diagnostics' : 'Open step diagnostics',
   };
 }

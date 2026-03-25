@@ -194,9 +194,9 @@ export function GateDetailCard(props: {
         })
       : null;
   const requestTaskPermalink = gate.requested_by_task?.id
-    ? `/work/tasks/${gate.requested_by_task.id}`
+    ? `/mission-control/tasks/${gate.requested_by_task.id}`
     : null;
-  const resumeTaskPermalink = resume?.task?.id ? `/work/tasks/${resume.task.id}` : null;
+  const resumeTaskPermalink = resume?.task?.id ? `/mission-control/tasks/${resume.task.id}` : null;
 
   return (
     <>
@@ -258,7 +258,7 @@ export function GateDetailCard(props: {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Link
-                  to={permalink ?? `/work/boards/${workflowId}`}
+                  to={permalink ?? `/mission-control/workflows/${workflowId}`}
                   className="text-sm font-semibold text-accent hover:underline"
                 >
                   {gate.workflow_name ?? workflowId}
@@ -368,7 +368,7 @@ export function GateDetailCard(props: {
                                 {taskId ? (
                                   <Link
                                     className="font-medium text-accent hover:underline"
-                                    to={`/work/tasks/${taskId}`}
+                                    to={`/mission-control/tasks/${taskId}`}
                                   >
                                     {label}
                                   </Link>

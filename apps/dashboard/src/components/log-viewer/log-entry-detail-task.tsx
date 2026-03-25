@@ -25,7 +25,7 @@ const FIELDS: readonly FieldDef[] = [
   { label: 'Reuse', key: 'reuse_decision' },
   { label: 'Step Count', key: 'task_count' },
   { label: 'Failed Steps', key: 'failed_task_count' },
-  { label: 'Board', key: 'workflow_name' },
+  { label: 'Workflow', key: 'workflow_name' },
   { label: 'Work item', key: 'work_item_id', format: shortId },
   { label: 'Activation', key: 'activation_id', format: shortId },
   {
@@ -37,7 +37,7 @@ const FIELDS: readonly FieldDef[] = [
     },
   },
   { label: 'Method', key: 'method' },
-  { label: 'Board handle', key: 'workflow_id', format: shortId },
+  { label: 'Workflow handle', key: 'workflow_id', format: shortId },
   { label: 'Runtime handle', key: 'runtime_id', format: shortId },
   { label: 'Container handle', key: 'container_id', format: shortId },
 ];

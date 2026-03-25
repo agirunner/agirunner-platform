@@ -103,7 +103,7 @@ function BoardColumnView(props: BoardSection): JSX.Element {
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 space-y-1">
                   <Link
-                    to={`/work/boards/${workflow.id}`}
+                    to={`/mission-control/workflows/${workflow.id}`}
                     className="block truncate text-sm font-semibold text-accent hover:underline"
                   >
                     {workflow.name}
@@ -135,7 +135,7 @@ function BoardColumnView(props: BoardSection): JSX.Element {
                   workspaceId={workflow.workspace_id}
                 />
                 <Button variant="outline" size="sm" asChild>
-                  <Link to={`/work/boards/${workflow.id}`}>Open board</Link>
+                  <Link to={`/mission-control/workflows/${workflow.id}`}>Open board</Link>
                 </Button>
               </div>
             </CardContent>

@@ -59,7 +59,7 @@ export function CreateWorkspaceDialog(props?: {
       setForm(INITIAL_FORM);
       setIsOpen(false);
       toast.success('Workspace created. Continue setup in the workspace workspace.');
-      navigate(`/workspaces/${created.id}`);
+      navigate(`/design/workspaces/${created.id}`);
     },
   });
 
@@ -112,7 +112,7 @@ export function DeleteWorkspaceDialog(props: {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['workspaces'] });
       props.onClose();
-      navigate('/workspaces');
+      navigate('/design/workspaces');
       toast.success('Workspace deleted');
     },
     onError: () => {

@@ -37,7 +37,10 @@ export function LogClassificationTabs({
   const activeTab = resolveActiveTab(activeCategories);
 
   return (
-    <div className="flex gap-1 rounded-lg bg-muted/50 p-1" role="tablist">
+    <div
+      className="flex flex-wrap gap-1 rounded-xl border border-border/70 bg-card/80 p-1 shadow-sm"
+      role="tablist"
+    >
       {LOG_CLASSIFICATIONS.map((cls) => (
         <button
           key={cls.id}
@@ -45,10 +48,10 @@ export function LogClassificationTabs({
           role="tab"
           aria-selected={activeTab === cls.id}
           className={cn(
-            'rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+            'rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors',
             activeTab === cls.id
-              ? 'bg-surface text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground hover:bg-surface/50',
+              ? 'border-sky-600 bg-sky-600 text-white shadow-sm dark:border-sky-400 dark:bg-sky-400 dark:text-sky-950'
+              : 'border-transparent text-foreground/80 hover:border-border/80 hover:bg-accent/70 hover:text-foreground dark:text-foreground/75 dark:hover:bg-accent/60',
           )}
           onClick={() => onChange(cls.categories)}
         >

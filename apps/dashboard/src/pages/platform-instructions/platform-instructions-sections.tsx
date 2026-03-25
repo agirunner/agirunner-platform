@@ -231,7 +231,7 @@ export function ClearPlatformInstructionsDialog(props: {
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Clear Current Platform Instructions</DialogTitle>
+          <DialogTitle>Clear Current Instructions</DialogTitle>
           <DialogDescription>
             This writes a new empty platform-instructions version. Historical versions remain
             available for diffing and restore.

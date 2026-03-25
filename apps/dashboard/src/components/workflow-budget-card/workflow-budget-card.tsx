@@ -107,11 +107,11 @@ export function WorkflowBudgetCard(props: WorkflowBudgetCardProps): JSX.Element 
             <div className="flex flex-wrap gap-2">
               {props.context === 'inspector' ? (
                 <Button variant="outline" asChild>
-                  <Link to={`/work/boards/${props.workflowId}`}>Back to board controls</Link>
+                  <Link to={`/mission-control/workflows/${props.workflowId}`}>Back to board controls</Link>
                 </Button>
               ) : (
                 <Button variant="outline" asChild>
-                  <Link to={`/work/boards/${props.workflowId}/inspector`}>
+                  <Link to={`/mission-control/workflows/${props.workflowId}/inspector`}>
                     Inspect budget context
                   </Link>
                 </Button>

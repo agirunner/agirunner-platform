@@ -9,7 +9,7 @@ function readSource() {
 describe('workflow list page source', () => {
   it('uses board-first posture labels and operator summaries', () => {
     const source = readSource();
-    expect(source).toContain('Workflow Boards');
+    expect(source).toContain('Workflows');
     expect(source).toContain('Board operations');
     expect(source).toContain('WorkflowSummaryCards');
     expect(source).toContain('Board posture view');

@@ -22,14 +22,15 @@ describe('execution inspector support', () => {
     const filters = buildLogFilters({
       ...DEFAULT_INSPECTOR_FILTERS,
       workflowId: 'wf-1',
-      stageName: 'build',
       operation: 'task.run',
       actor: 'agent-1',
       search: 'timeout',
     });
 
     expect(filters.workflow_id).toBe('wf-1');
-    expect(filters.stage_name).toBe('build');
+    expect(filters.stage_name).toBeUndefined();
+    expect(filters.work_item_id).toBeUndefined();
+    expect(filters.activation_id).toBeUndefined();
     expect(filters.operation).toBe('task.run');
     expect(filters.actor).toBe('agent-1');
     expect(filters.search).toBe('timeout');
@@ -59,7 +60,7 @@ describe('execution inspector support', () => {
         created_at: '2026-03-11T00:00:00Z',
       },
     )).toEqual([
-      'board Delivery',
+      'workflow Delivery',
       'step Implement billing',
       'stage build',
       'work item work-ite',
@@ -94,7 +95,7 @@ describe('execution inspector support', () => {
       'Orchestrator activity failed during Workflow activation failed',
     );
     expect(describeExecutionSummary(entry)).toBe(
-      'board Delivery • stage build • work item work-ite • activation activati • Recorded by Coordinator • via platform • task lifecycle',
+      'workflow Delivery • stage build • work item work-ite • activation activati • Recorded by Coordinator • via platform • task lifecycle',
     );
     expect(describeExecutionNextAction(entry)).toBe(
       'Review the failure packet, then decide whether to retry, rework, or escalate the affected step.',
@@ -145,7 +146,7 @@ describe('execution inspector support', () => {
       'Step Review smoke result recorded continuity packet',
     );
     expect(summarizeLogContext(entry)).toEqual([
-      'board Delivery',
+      'workflow Delivery',
       'step Review smoke result',
       'stage qa',
       'work item work-ite',
@@ -200,7 +201,7 @@ describe('execution inspector support', () => {
       'Step Review smoke result attached predecessor handoff',
     );
     expect(summarizeLogContext(entry)).toEqual([
-      'board Delivery',
+      'workflow Delivery',
       'step Review smoke result',
       'stage qa',
       'work item work-ite',
@@ -246,7 +247,7 @@ describe('execution inspector support', () => {
       'Step Review smoke result submitted specialist handoff',
     );
     expect(summarizeLogContext(entry)).toEqual([
-      'board Delivery',
+      'workflow Delivery',
       'step Review smoke result',
       'stage qa',
       'work item work-ite',
@@ -290,14 +291,14 @@ describe('execution inspector support', () => {
       'Step Review smoke result skipped assessment resolution',
     );
     expect(summarizeLogContext(entry)).toEqual([
-      'board Delivery',
+      'workflow Delivery',
       'step Review smoke result',
       'stage qa',
       'work item work-ite',
       'Assessment resolution packet',
     ]);
     expect(describeExecutionNextAction(entry)).toBe(
-      'Check why the assessment resolution was skipped before assuming the board is ready to continue.',
+      'Check why the assessment resolution was skipped before assuming the workflow is ready to continue.',
     );
     expect(readExecutionSignals(entry)).toEqual([
       'Governance',
@@ -390,7 +391,7 @@ describe('execution inspector support', () => {
       'Step Implement billing recorded escalation response',
     );
     expect(summarizeLogContext(entry)).toEqual([
-      'board Delivery',
+      'workflow Delivery',
       'step Implement billing',
       'stage review',
       'work item work-ite',
@@ -425,34 +426,35 @@ describe('execution inspector support', () => {
     const filters = readInspectorFilters(initial);
 
     expect(filters.workflowId).toBe('wf-1');
-    expect(filters.workItemId).toBe('wi-1');
     expect(filters.timeWindowHours).toBe('6');
     expect(filters.level).toBe('error');
+    expect('workItemId' in filters).toBe(false);
+    expect('stageName' in filters).toBe(false);
+    expect('activationId' in filters).toBe(false);
 
     const next = writeInspectorFilters(
       initial,
       {
         ...DEFAULT_INSPECTOR_FILTERS,
-        activationId: 'act-1',
-        stageName: 'review',
       },
     );
 
     expect(next.get('workflow')).toBeNull();
     expect(next.get('work_item')).toBeNull();
-    expect(next.get('activation')).toBe('act-1');
-    expect(next.get('stage')).toBe('review');
+    expect(next.get('activation')).toBeNull();
+    expect(next.get('stage')).toBeNull();
     expect(next.get('time_window')).toBeNull();
     expect(next.get('level')).toBeNull();
   });
 
   it('reads selected log id and inspector view from search params', () => {
-    const params = new URLSearchParams('log=42&view=debug');
+    const params = new URLSearchParams('log=42&view=detailed');
 
     expect(readSelectedInspectorLogId(params)).toBe(42);
-    expect(readInspectorView(params)).toBe('debug');
+    expect(readInspectorView(params)).toBe('summary');
     expect(readInspectorView(new URLSearchParams())).toBe('raw');
     expect(readInspectorView(new URLSearchParams('view=summary'))).toBe('summary');
+    expect(readInspectorView(new URLSearchParams('view=debug'))).toBe('raw');
   });
 
   it('MCL-005: formats zero cost as $0.00 and non-zero cost with four decimal places', () => {
@@ -533,7 +535,7 @@ describe('execution inspector support', () => {
     );
     expect(describeExecutionOperationLabel(entry.operation)).toBe('Activation finish completed');
     expect(summarizeLogContext(entry)).toEqual([
-      'board Delivery',
+      'workflow Delivery',
       'activation activati',
       'Activation checkpoint packet',
     ]);

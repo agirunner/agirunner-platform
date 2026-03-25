@@ -45,7 +45,7 @@ describe('workspace list page source', () => {
   it('routes the card surface to a single manage action and removes the entry-point grid', () => {
     const source = readSource();
     expect(source).toContain('const workspaceLinkState = { workspaceLabel: props.workspace.name };');
-    expect(source).toContain('to={`/workspaces/${props.workspace.id}`}');
+    expect(source).toContain('to={`/design/workspaces/${props.workspace.id}`}');
     expect(source).toContain('state={workspaceLinkState}');
     expect(source).toContain('Manage');
     expect(source).toContain('Storage');
@@ -75,8 +75,8 @@ describe('workspace list page source', () => {
     expect(dialogSource).toContain('dashboardApi.deleteWorkspace');
     expect(dialogSource).toContain('dashboardApi.createWorkspace');
     expect(dialogSource).toContain('max-h-[calc(100vh-4rem)] overflow-y-auto');
-    expect(dialogSource).toContain('navigate(`/workspaces/${created.id}`)');
-    expect(dialogSource).toContain("navigate('/workspaces')");
+    expect(dialogSource).toContain('navigate(`/design/workspaces/${created.id}`)');
+    expect(dialogSource).toContain("navigate('/design/workspaces')");
     expect(dialogSource).not.toContain('?tab=settings');
     expect(dialogSource).not.toContain('Repository URL');
     expect(dialogSource).not.toContain('repository_url');

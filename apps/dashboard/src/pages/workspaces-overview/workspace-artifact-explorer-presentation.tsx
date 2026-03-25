@@ -189,11 +189,11 @@ export function WorkspaceArtifactQuickInspector(props: {
 
             <div className="flex flex-wrap gap-2">
               <Button asChild variant="outline" size="sm">
-                <Link to={`/work/tasks/${props.artifact.taskId}`}>Open Task</Link>
+                <Link to={`/mission-control/tasks/${props.artifact.taskId}`}>Open Task</Link>
               </Button>
               {props.artifact.workflowId ? (
                 <Button asChild variant="outline" size="sm">
-                  <Link to={`/work/boards/${props.artifact.workflowId}`}>Open Workflow Board</Link>
+                  <Link to={`/mission-control/workflows/${props.artifact.workflowId}`}>Open Workflow</Link>
                 </Button>
               ) : null}
               <Button asChild size="sm">

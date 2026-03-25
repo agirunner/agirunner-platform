@@ -84,9 +84,9 @@ function LiveState({ props }: { props: LogStreamIndicatorProps }): JSX.Element {
   return (
     <div className="flex items-center gap-2">
       <StatusDot color="green" isPulsing />
-      <span className="text-xs font-medium text-green-700">Live</span>
+      <span className="text-xs font-medium text-green-800 dark:text-green-300">Live</span>
       {entriesPerSecond > 0 && (
-        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground">
+        <span className="rounded-md border border-sky-600 bg-sky-600 px-1.5 py-0.5 text-[10px] font-mono text-white dark:border-sky-400 dark:bg-sky-400 dark:text-sky-950">
           {entriesPerSecond}/s
         </span>
       )}

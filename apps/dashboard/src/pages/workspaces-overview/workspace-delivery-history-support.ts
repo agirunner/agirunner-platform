@@ -64,8 +64,8 @@ export function buildWorkspaceDeliveryPacket(
   return {
     workflowId: entry.workflow_id,
     workflowName: entry.name,
-    workflowHref: entry.link || `/work/boards/${entry.workflow_id}`,
-    inspectorHref: `/work/boards/${entry.workflow_id}/inspector`,
+    workflowHref: entry.link || `/mission-control/workflows/${entry.workflow_id}`,
+    inspectorHref: `/mission-control/workflows/${entry.workflow_id}/inspector`,
     stateLabel: humanizeState(entry.state),
     stateVariant: statusBadgeVariant(entry.state),
     createdLabel: formatRelativeTimestamp(entry.created_at),
@@ -94,7 +94,7 @@ export function buildWorkspaceDeliveryAttentionState(
       statusLabel: 'Paused',
       attentionLabel: 'Review blocked progress',
       nextAction: 'Open board: resolve the blocked gate or work item before resuming.',
-      primaryActionHref: entry.link || `/work/boards/${entry.workflow_id}`,
+      primaryActionHref: entry.link || `/mission-control/workflows/${entry.workflow_id}`,
     };
   }
   if (requiresAttention(entry)) {
@@ -110,14 +110,14 @@ export function buildWorkspaceDeliveryAttentionState(
       statusLabel: 'Completed',
       attentionLabel: 'Delivered',
       nextAction: 'Open board: verify outputs, downstream work, and reported spend.',
-      primaryActionHref: entry.link || `/work/boards/${entry.workflow_id}`,
+      primaryActionHref: entry.link || `/mission-control/workflows/${entry.workflow_id}`,
     };
   }
   return {
     statusLabel: humanizeState(entry.state),
     attentionLabel: 'Inspect run',
     nextAction: 'Open board: review the current workflow context and recent activity.',
-    primaryActionHref: entry.link || `/work/boards/${entry.workflow_id}`,
+    primaryActionHref: entry.link || `/mission-control/workflows/${entry.workflow_id}`,
   };
 }
 
@@ -393,7 +393,7 @@ function buildInspectorHref(entry: DashboardWorkspaceTimelineEntry | undefined):
   if (!entry) {
     return '#';
   }
-  return `/work/boards/${entry.workflow_id}/inspector`;
+  return `/mission-control/workflows/${entry.workflow_id}/inspector`;
 }
 
 function readWorkItemCounts(metric: unknown): Record<string, unknown> | null {

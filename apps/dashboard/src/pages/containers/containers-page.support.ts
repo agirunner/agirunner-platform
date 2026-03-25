@@ -24,8 +24,6 @@ const ALL_DIFF_FIELDS: ContainerDiffField[] = [
   'started',
 ];
 
-export type ContainerStatusFilter = 'all' | 'running' | 'inactive';
-export type ContainerKindFilter = 'all' | DashboardLiveContainerRecord['kind'];
 export type ContainerDiffField =
   | 'status'
   | 'kind'
@@ -162,29 +160,6 @@ export function hasRecentlyChangedField(
   return isRecentlyChangedRow(row, now) && row.changed_fields.includes(field);
 }
 
-export function filterSessionContainerRows(
-  rows: SessionContainerRow[],
-  filters: {
-    query: string;
-    kind: ContainerKindFilter;
-    status: ContainerStatusFilter;
-  },
-): SessionContainerRow[] {
-  const normalizedQuery = filters.query.trim().toLowerCase();
-  return rows.filter((row) => {
-    if (filters.kind !== 'all' && row.kind !== filters.kind) {
-      return false;
-    }
-    if (filters.status !== 'all' && row.presence !== filters.status) {
-      return false;
-    }
-    if (!normalizedQuery) {
-      return true;
-    }
-    return buildSearchableFields(row).some((value) => value.includes(normalizedQuery));
-  });
-}
-
 export function partitionSessionContainerRowsByFunction(rows: SessionContainerRow[]): {
   orchestrator: SessionContainerRow[];
   specialists: SessionContainerRow[];
@@ -200,25 +175,6 @@ export function partitionSessionContainerRowsByFunction(rows: SessionContainerRo
     },
     { orchestrator: [] as SessionContainerRow[], specialists: [] as SessionContainerRow[] },
   );
-}
-
-function buildSearchableFields(row: SessionContainerRow): string[] {
-  return [
-    row.id,
-    row.container_id,
-    row.name,
-    row.image,
-    row.kind,
-    row.role_name ?? '',
-    row.playbook_name ?? '',
-    row.workflow_name ?? '',
-    row.task_title ?? '',
-    row.stage_name ?? '',
-    row.activity_state ?? '',
-    row.status ?? '',
-  ]
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
 }
 
 function isOrchestratorFunctionRow(row: SessionContainerRow): boolean {

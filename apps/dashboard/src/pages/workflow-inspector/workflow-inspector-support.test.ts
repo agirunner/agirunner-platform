@@ -133,32 +133,32 @@ describe('workflow inspector support', () => {
     expect(model.links).toEqual([
       {
         label: 'Board trace',
-        href: '/work/boards/workflow-1',
+        href: '/mission-control/workflows/workflow-1',
         detail: 'Open activations, work items, gates, and specialist steps in one board view.',
       },
       {
         label: 'Activation drill-in',
-        href: '/work/boards/workflow-1/inspector?view=detailed&activation=activation-1',
+        href: '/mission-control/workflows/workflow-1/inspector?view=summary&activation=activation-1',
         detail: 'Queued follow-up review work.',
       },
       {
         label: 'Open work item',
-        href: '/work/boards/workflow-1?work_item=work-item-1',
+        href: '/mission-control/workflows/workflow-1?work_item=work-item-1',
         detail: 'Review release notes is still open in review.',
       },
       {
         label: 'Gate decision lane',
-        href: '/work/boards/workflow-1?stage=review',
+        href: '/mission-control/workflows/workflow-1?gate=review',
         detail: 'review is carrying the current gate decision posture for this workflow.',
       },
       {
         label: 'Workspace memory',
-        href: '/workspaces/workspace-1/memory',
+        href: '/design/workspaces/workspace-1/memory',
         detail: 'Inspect memory versions, diffs, and run handoff packets.',
       },
       {
         label: 'Workspace artifacts',
-        href: '/workspaces/workspace-1/artifacts?workflow_id=workflow-1',
+        href: '/design/workspaces/workspace-1/artifacts?workflow_id=workflow-1',
         detail: 'Review delivered artifacts and workflow output packets.',
       },
     ]);
@@ -277,7 +277,7 @@ describe('workflow inspector support', () => {
       nextAction:
         'Open the focus work item first, clear the unresolved findings and assessment focus notes, then decide whether the next move is approval, rework, or a new orchestrator turn.',
       actionLabel: 'Open focus work item',
-      actionHref: '/work/boards/workflow-5?work_item=work-item-5',
+      actionHref: '/mission-control/workflows/workflow-5?work_item=work-item-5',
     });
   });
 
@@ -306,7 +306,7 @@ describe('workflow inspector support', () => {
     expect(model.links).toEqual([
       {
         label: 'Board trace',
-        href: '/work/boards/workflow-2',
+        href: '/mission-control/workflows/workflow-2',
         detail: 'Open activations, work items, gates, and specialist steps in one board view.',
       },
     ]);
@@ -367,7 +367,7 @@ describe('workflow inspector support', () => {
       nextAction:
         'Start with the board stage that is waiting for operator decision, then use the trace packets below to confirm spend, artifacts, and memory context before deciding.',
       actionLabel: 'Open board stage',
-      actionHref: '/work/boards/workflow-3',
+      actionHref: '/mission-control/workflows/workflow-3',
     });
   });
 
@@ -433,7 +433,7 @@ describe('workflow inspector support', () => {
       nextAction:
         'Open the focus work item first, clear the unresolved findings and assessment focus notes, then decide whether the next move is approval, rework, or a new orchestrator turn.',
       actionLabel: 'Open focus work item',
-      actionHref: '/work/boards/workflow-5?work_item=work-item-5',
+      actionHref: '/mission-control/workflows/workflow-5?work_item=work-item-5',
     });
   });
 });

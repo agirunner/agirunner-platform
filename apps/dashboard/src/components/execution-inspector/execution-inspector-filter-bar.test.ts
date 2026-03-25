@@ -13,15 +13,18 @@ describe('execution inspector filter bar source', () => {
   it('uses operator-readable labels and focus guidance', () => {
     const source = readSource();
 
-    expect(source).toContain('Focus the execution slice');
+    expect(source).toContain('Focus the current log results');
     expect(source).toContain(
-      'Narrow the inspector by board, specialist step, stage, activation, role, or runtime emitter.',
+      'Narrow the inspector by workflow, specialist step, role, or runtime emitter.',
     );
-    expect(source).toContain('placeholder="operation, board, step, error, or payload text"');
-    expect(source).toContain('label="Board ID"');
+    expect(source).toContain('placeholder="operation, workflow, step, error, or payload text"');
+    expect(source).toContain('label="Workflow ID"');
     expect(source).toContain('label="Step ID"');
     expect(source).toContain('label="Step role"');
     expect(source).toContain('label="Emitter"');
+    expect(source).not.toContain('label="Work item ID"');
+    expect(source).not.toContain('label="Stage"');
+    expect(source).not.toContain('label="Activation"');
   });
 
   it('debounces text inputs to avoid per-keystroke refetches', () => {
@@ -48,6 +51,6 @@ describe('execution inspector filter bar source', () => {
     expect(source).toContain('active filter');
     expect(source).toContain('ChevronDown');
     expect(source).toContain('ChevronUp');
-    expect(source).toContain('Tap to narrow by board');
+    expect(source).toContain('Tap to narrow by workflow');
   });
 });

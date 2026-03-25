@@ -9,9 +9,10 @@ function readSource() {
 describe('app trigger routes source', () => {
   it('registers the trigger overview route and redirects the legacy path', () => {
     const source = readSource();
+    expect(source).toContain('path="/integrations/triggers"');
     expect(source).toContain('path="/config/triggers"');
     expect(source).toContain('path="/config/work-item-triggers"');
-    expect(source).toContain('Navigate to="/config/triggers" replace');
+    expect(source).toContain('Navigate to="/integrations/triggers" replace');
   });
 
   it('keeps the browser auth callback free of token query parsing', () => {
@@ -27,30 +28,32 @@ describe('app trigger routes source', () => {
 
   it('keeps legacy workspace-scoped explorer routes as redirects back to knowledge and preserves inspector routes', () => {
     const source = readSource();
-    expect(source).toContain('path="/workspaces/:id/memory"');
-    expect(source).toContain('path="/workspaces/:id/content"');
-    expect(source).toContain('path="/workspaces/:id/artifacts"');
+    expect(source).toContain('path="/design/workspaces/:id/memory"');
+    expect(source).toContain('path="/design/workspaces/:id/content"');
+    expect(source).toContain('path="/design/workspaces/:id/artifacts"');
     expect(source).toContain('function LegacyWorkspaceKnowledgeRedirect()');
     expect(source).toContain("const panel = location.pathname.endsWith('/memory')");
     expect(source).toContain("? 'memory'");
     expect(source).toContain("location.pathname.endsWith('/artifacts')");
     expect(source).toContain("? 'artifacts'");
-    expect(source).toContain('Navigate to={`/workspaces/${id}?tab=knowledge&panel=${panel}`} replace');
-    expect(source).toContain('path="/work/boards/:id/inspector"');
+    expect(source).toContain('Navigate to={`/design/workspaces/${id}?tab=knowledge&panel=${panel}`} replace');
+    expect(source).toContain('path="/mission-control/workflows/:id/inspector"');
     expect(source).toContain('path="/work/workflows/*"');
-    expect(source).toContain("replace('/work/workflows', '/work/boards')");
+    expect(source).toContain("replace('/work/workflows', '/mission-control/workflows')");
   });
 
-  it('keeps /config/runtimes as the canonical route and redirects the legacy runtime-defaults path', () => {
+  it('keeps /platform/runtimes as the canonical route and redirects the legacy runtime-defaults path', () => {
     const source = readSource();
+    expect(source).toContain('path="/platform/runtimes"');
     expect(source).toContain('path="/config/runtimes"');
     expect(source).toContain('path="/config/runtime-defaults"');
-    expect(source).toContain('Navigate to="/config/runtimes" replace');
+    expect(source).toContain('Navigate to="/platform/runtimes" replace');
   });
 
   it('removes deprecated worker, agent, and docker pages in favor of the containers route', () => {
     const source = readSource();
     expect(source).toContain("../pages/containers/containers-page.js");
+    expect(source).toContain('path="/diagnostics/containers"');
     expect(source).toContain('path="/fleet/containers"');
     expect(source).not.toContain("../pages/fleet/worker-list-page.js");
     expect(source).not.toContain("../pages/fleet/warm-pools-page.js");

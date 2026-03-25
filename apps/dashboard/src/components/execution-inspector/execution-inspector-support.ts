@@ -1,14 +1,11 @@
 import type { LogEntry } from '../../lib/api.js';
 
-export type InspectorView = 'raw' | 'summary' | 'detailed' | 'debug';
+export type InspectorView = 'raw' | 'summary';
 
 export interface InspectorFilters {
   search: string;
   workflowId: string;
   taskId: string;
-  workItemId: string;
-  stageName: string;
-  activationId: string;
   level: string;
   operation: string;
   role: string;
@@ -20,9 +17,6 @@ export const DEFAULT_INSPECTOR_FILTERS: InspectorFilters = {
   search: '',
   workflowId: '',
   taskId: '',
-  workItemId: '',
-  stageName: '',
-  activationId: '',
   level: 'info',
   operation: '',
   role: '',
@@ -42,9 +36,6 @@ const FILTER_PARAM_KEYS = {
   search: 'search',
   workflowId: 'workflow',
   taskId: 'task',
-  workItemId: 'work_item',
-  stageName: 'stage',
-  activationId: 'activation',
   level: 'level',
   operation: 'operation',
   role: 'role',
@@ -65,9 +56,6 @@ export function buildLogFilters(
   setIfPresent(params, 'search', filters.search);
   setIfPresent(params, 'workflow_id', filters.workflowId);
   setIfPresent(params, 'task_id', filters.taskId);
-  setIfPresent(params, 'work_item_id', filters.workItemId);
-  setIfPresent(params, 'stage_name', filters.stageName);
-  setIfPresent(params, 'activation_id', filters.activationId);
   setIfPresent(params, 'operation', filters.operation);
   setIfPresent(params, 'role', filters.role);
   setIfPresent(params, 'actor', filters.actor);
@@ -82,12 +70,6 @@ export function readInspectorFilters(
     workflowId:
       searchParams.get(FILTER_PARAM_KEYS.workflowId) ?? DEFAULT_INSPECTOR_FILTERS.workflowId,
     taskId: searchParams.get(FILTER_PARAM_KEYS.taskId) ?? DEFAULT_INSPECTOR_FILTERS.taskId,
-    workItemId:
-      searchParams.get(FILTER_PARAM_KEYS.workItemId) ?? DEFAULT_INSPECTOR_FILTERS.workItemId,
-    stageName:
-      searchParams.get(FILTER_PARAM_KEYS.stageName) ?? DEFAULT_INSPECTOR_FILTERS.stageName,
-    activationId:
-      searchParams.get(FILTER_PARAM_KEYS.activationId) ?? DEFAULT_INSPECTOR_FILTERS.activationId,
     level: searchParams.get(FILTER_PARAM_KEYS.level) ?? DEFAULT_INSPECTOR_FILTERS.level,
     operation:
       searchParams.get(FILTER_PARAM_KEYS.operation) ?? DEFAULT_INSPECTOR_FILTERS.operation,
@@ -104,13 +86,13 @@ export function writeInspectorFilters(
   filters: InspectorFilters,
 ): URLSearchParams {
   const next = new URLSearchParams(searchParams);
+  next.delete('work_item');
+  next.delete('stage');
+  next.delete('activation');
 
   setFilterParam(next, FILTER_PARAM_KEYS.search, filters.search);
   setFilterParam(next, FILTER_PARAM_KEYS.workflowId, filters.workflowId);
   setFilterParam(next, FILTER_PARAM_KEYS.taskId, filters.taskId);
-  setFilterParam(next, FILTER_PARAM_KEYS.workItemId, filters.workItemId);
-  setFilterParam(next, FILTER_PARAM_KEYS.stageName, filters.stageName);
-  setFilterParam(next, FILTER_PARAM_KEYS.activationId, filters.activationId);
   setFilterParam(next, FILTER_PARAM_KEYS.operation, filters.operation);
   setFilterParam(next, FILTER_PARAM_KEYS.role, filters.role);
   setFilterParam(next, FILTER_PARAM_KEYS.actor, filters.actor);
@@ -141,7 +123,10 @@ export function readSelectedInspectorLogId(searchParams: URLSearchParams): numbe
 
 export function readInspectorView(searchParams: URLSearchParams): InspectorView {
   const view = searchParams.get('view');
-  return view === 'summary' || view === 'detailed' || view === 'debug' ? view : 'raw';
+  if (view === 'summary' || view === 'detailed') {
+    return 'summary';
+  }
+  return 'raw';
 }
 
 export function describeTaskContextPacketKind(
@@ -186,7 +171,7 @@ const GOVERNANCE_EXECUTION_DESCRIPTORS: Record<string, GovernanceExecutionDescri
     contextLabel: 'Assessment resolution packet',
     headlineSuffix: 'applied assessment resolution',
     nextAction:
-      'Confirm the assessment resolution updated the board state you expected before resuming execution.',
+      'Confirm the assessment resolution updated the workflow state you expected before resuming execution.',
     signals: ['Governance', 'Assessment'],
   },
   'task.assessment_resolution_skipped': {
@@ -194,7 +179,7 @@ const GOVERNANCE_EXECUTION_DESCRIPTORS: Record<string, GovernanceExecutionDescri
     contextLabel: 'Assessment resolution packet',
     headlineSuffix: 'skipped assessment resolution',
     nextAction:
-      'Check why the assessment resolution was skipped before assuming the board is ready to continue.',
+      'Check why the assessment resolution was skipped before assuming the workflow is ready to continue.',
     signals: ['Governance', 'Assessment'],
   },
   'task.retry_scheduled': {
@@ -368,7 +353,7 @@ export function isTaskContextContinuityOperation(operation: string): boolean {
 export function summarizeLogContext(entry: LogEntry): string[] {
   const items: string[] = [];
   if (entry.workflow_name || entry.workflow_id) {
-    items.push(`board ${entry.workflow_name ?? shortId(entry.workflow_id)}`);
+    items.push(`workflow ${entry.workflow_name ?? shortId(entry.workflow_id)}`);
   }
   if (entry.task_title || entry.task_id) {
     items.push(`step ${entry.task_title ?? shortId(entry.task_id)}`);
@@ -499,10 +484,10 @@ export function describeExecutionNextAction(entry: LogEntry): string {
     return 'Review the failure packet, then decide whether to retry, rework, or escalate the affected step.';
   }
   if (entry.level === 'warn') {
-    return 'Review this warning before it turns into a gate or board blocker.';
+    return 'Review this warning before it turns into a gate or workflow blocker.';
   }
   if (entry.status === 'started') {
-    return 'Track the live activity and confirm the follow-on board movement once it settles.';
+    return 'Track the live activity and confirm the follow-on workflow movement once it settles.';
   }
   if (entry.status === 'skipped') {
     return 'Confirm the skip was intentional before treating the lane as clear.';
@@ -567,6 +552,7 @@ export function formatCost(value: unknown): string {
 }
 
 export function levelVariant(level: string):
+  | 'info'
   | 'secondary'
   | 'success'
   | 'warning'
@@ -575,7 +561,7 @@ export function levelVariant(level: string):
     case 'debug':
       return 'secondary';
     case 'info':
-      return 'success';
+      return 'info';
     case 'warn':
       return 'warning';
     case 'error':
@@ -638,7 +624,7 @@ function readExecutionSubject(entry: LogEntry): string {
     return `Activation ${shortId(entry.activation_id)}`;
   }
   if (entry.workflow_name) {
-    return `Board ${entry.workflow_name}`;
+    return `Workflow ${entry.workflow_name}`;
   }
   return 'Execution activity';
 }

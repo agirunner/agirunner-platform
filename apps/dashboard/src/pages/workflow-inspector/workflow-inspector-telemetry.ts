@@ -181,7 +181,7 @@ function buildStageSpendPacket(
     label: 'Stage cost leader',
     value: formatCost(topStage.totalCostUsd),
     detail: `${topStage.stageName} is leading reported stage spend across ${topStage.taskCount} step${topStage.taskCount === 1 ? '' : 's'}.`,
-    href: buildWorkflowInspectorLink(workflowId, { view: 'detailed', stage: topStage.stageName }),
+    href: buildWorkflowInspectorLink(workflowId, { view: 'summary', stage: topStage.stageName }),
   };
 }
 
@@ -201,7 +201,7 @@ function buildTaskSpendPacket(
     label: 'Task cost leader',
     value: formatCost(readGroupCost(topTask)),
     detail: `Step ${shortId(topTask.group)} leads the current log slice across ${topTask.count} trace entr${topTask.count === 1 ? 'y' : 'ies'} • ${formatDuration(topTask.avg_duration_ms)} average recorded duration.`,
-    href: buildWorkflowInspectorLink(workflowId, { view: 'detailed', task: topTask.group }),
+    href: buildWorkflowInspectorLink(workflowId, { view: 'summary', task: topTask.group }),
   };
 }
 
@@ -217,7 +217,7 @@ function buildActivationSpendPacket(
       value: formatCost(readGroupCost(topActivation)),
       detail: `Activation ${shortId(topActivation.group)} is carrying the highest orchestrator batch spend across ${topActivation.count} trace entr${topActivation.count === 1 ? 'y' : 'ies'}.`,
       href: buildWorkflowInspectorLink(workflowId, {
-        view: 'detailed',
+        view: 'summary',
         activation: topActivation.group,
       }),
     };
@@ -237,7 +237,7 @@ function buildActivationSpendPacket(
     label: 'Activation cost leader',
     value: formatCost(totalCostUsd / activationCount),
     detail: `Average orchestrator activation spend from ${activationCount} recorded activation batch${activationCount === 1 ? '' : 'es'}.`,
-    href: buildWorkflowInspectorLink(workflowId, { view: 'detailed' }),
+    href: buildWorkflowInspectorLink(workflowId, { view: 'summary' }),
   };
 }
 
@@ -258,7 +258,7 @@ function buildStageBreakdownEntries(
         detail: `${Number(asRecord(entry).task_count ?? 0)} step${Number(asRecord(entry).task_count ?? 0) === 1 ? '' : 's'} contributed to this stage.`,
         costUsd: totalCostUsd,
         href: buildWorkflowInspectorLink(workflowId, {
-          view: 'detailed',
+          view: 'summary',
           stage:
             readString(asRecord(entry).stage_name)
             ?? readString(asRecord(entry).group_key)
@@ -277,7 +277,7 @@ function buildTaskBreakdownEntries(
     formatLabel: (group) => `Step ${shortId(group.group)}`,
     formatDetail: (group) =>
       `${group.count} trace entr${group.count === 1 ? 'y' : 'ies'} • ${formatDuration(group.avg_duration_ms)} average recorded duration.`,
-    hrefFor: (group) => buildWorkflowInspectorLink(workflowId, { view: 'detailed', task: group.group }),
+    hrefFor: (group) => buildWorkflowInspectorLink(workflowId, { view: 'summary', task: group.group }),
   });
 }
 
@@ -290,6 +290,6 @@ function buildActivationBreakdownEntries(
     formatDetail: (group) =>
       `${group.count} trace entr${group.count === 1 ? 'y' : 'ies'} • ${formatDuration(group.avg_duration_ms)} average recorded duration.`,
     hrefFor: (group) =>
-      buildWorkflowInspectorLink(workflowId, { view: 'detailed', activation: group.group }),
+      buildWorkflowInspectorLink(workflowId, { view: 'summary', activation: group.group }),
   });
 }

@@ -709,7 +709,7 @@ export function LiveBoardPage(): JSX.Element {
             Mission Control
           </Badge>
           <div className="space-y-1">
-            <h1 className="text-3xl font-semibold tracking-tight">Operator Live Board</h1>
+            <h1 className="text-3xl font-semibold tracking-tight">Live Board</h1>
             <p className="max-w-3xl text-sm leading-6 text-muted">
               Triage what needs attention first, then drill into the affected board, work item, or
               decision packet with full context.
@@ -1226,7 +1226,7 @@ function StageGateQueueCard(props: {
       </div>
       <div className="flex shrink-0 flex-wrap gap-2 sm:ml-4">
         <Button size="sm" asChild>
-          <Link to="/work/approvals?view=gates">Open approvals</Link>
+          <Link to="/mission-control/action-queue?view=gates">Open action queue</Link>
         </Button>
         <Button size="sm" variant="outline" asChild>
           <Link
@@ -1329,7 +1329,7 @@ function SpecialistQueueCard(props: { task: TaskRecord }): JSX.Element {
           ))}
         {resolveTaskOperatorState(task) === 'awaiting_approval' ? (
           <Button size="sm" variant="outline" asChild>
-            <Link to="/work/approvals?view=tasks">Open approvals</Link>
+            <Link to="/mission-control/action-queue?view=tasks">Open action queue</Link>
           </Button>
         ) : null}
         {taskActions
@@ -1401,7 +1401,7 @@ function ActivePlaybookBoards(props: {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Link
-                      to={`/work/boards/${workflow.id}`}
+                      to={`/mission-control/workflows/${workflow.id}`}
                       className="block truncate font-medium text-accent hover:underline"
                     >
                       {workflow.name}
@@ -1463,7 +1463,7 @@ function ActivePlaybookBoards(props: {
                           workspaceId={workflow.workspace_id}
                         />
                         <Button size="sm" variant="outline" asChild>
-                          <Link to={`/work/boards/${workflow.id}`}>Open board</Link>
+                          <Link to={`/mission-control/workflows/${workflow.id}`}>Open board</Link>
                         </Button>
                       </div>
                     </div>

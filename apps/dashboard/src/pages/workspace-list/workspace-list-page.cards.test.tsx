@@ -43,7 +43,7 @@ describe('workspace list page cards', () => {
 
     expect(markup).toContain('Alpha');
     expect(markup).toContain('Active');
-    expect(markup).toContain('href="/workspaces/workspace-1"');
+    expect(markup).toContain('href="/design/workspaces/workspace-1"');
     expect(markup).toContain('Storage');
     expect(markup).toContain('Workspace Artifacts');
     expect(markup).toContain('Workflows');

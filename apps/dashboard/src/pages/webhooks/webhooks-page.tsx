@@ -4,7 +4,7 @@ export function WebhooksPage(): JSX.Element {
   return (
     <ConfigPlaceholderPage
       title="Webhooks"
-      description="Future webhook management will return here after the current webhook system is removed."
+      description="Configure outbound webhooks for platform event delivery."
     />
   );
 }

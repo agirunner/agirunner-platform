@@ -979,7 +979,7 @@ function DocumentCard(props: {
           ) : null}
           {document.task_id ? (
             <Button asChild variant="outline" size="sm">
-              <Link to={`/work/tasks/${document.task_id}`}>Open Linked Step</Link>
+              <Link to={`/mission-control/tasks/${document.task_id}`}>Open Linked Step</Link>
             </Button>
           ) : null}
           {document.url ? (

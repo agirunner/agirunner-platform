@@ -20,11 +20,11 @@ describe('artifact preview page support', () => {
       }),
     ).toEqual({
       primaryHref:
-        '/work/boards/workflow-1?work_item=work-item-1&activation=activation-1#work-item-work-item-1',
+        '/mission-control/workflows/workflow-1?work_item=work-item-1&activation=activation-1#work-item-work-item-1',
       primaryLabel: 'Back to work-item flow',
       primaryHelper:
         'Return to the grouped work-item flow first so artifact review stays attached to board context and operator decisions.',
-      diagnosticHref: '/work/tasks/task-1',
+      diagnosticHref: '/mission-control/tasks/task-1',
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
         'This preview stays tied to the grouped work-item flow that produced it, so operators can return there first and only open step diagnostics when they need lower-level runtime detail.',
@@ -41,11 +41,11 @@ describe('artifact preview page support', () => {
         },
       }),
     ).toEqual({
-      primaryHref: '/work/boards/workflow-1?gate=review#gate-review',
+      primaryHref: '/mission-control/workflows/workflow-1?gate=review#gate-review',
       primaryLabel: 'Back to board stage flow',
       primaryHelper:
         'Return to the board stage flow first so review, rework, and escalation stay attached to the current stage.',
-      diagnosticHref: '/work/tasks/task-2',
+      diagnosticHref: '/mission-control/tasks/task-2',
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
         'This preview stays tied to the current board stage flow, so operators can return there first and only open step diagnostics when they need lower-level runtime detail.',
@@ -59,11 +59,11 @@ describe('artifact preview page support', () => {
         },
       }),
     ).toEqual({
-      primaryHref: '/work/boards/workflow-1',
+      primaryHref: '/mission-control/workflows/workflow-1',
       primaryLabel: 'Back to board context',
       primaryHelper:
         'Return to the board context first, then open step diagnostics only if you need lower-level runtime detail.',
-      diagnosticHref: '/work/tasks/task-3',
+      diagnosticHref: '/mission-control/tasks/task-3',
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
         'This preview stays tied to the surrounding board context, so operators can return there first and only open step diagnostics when they need lower-level runtime detail.',
@@ -75,7 +75,7 @@ describe('artifact preview page support', () => {
         task: null,
       }),
     ).toEqual({
-      primaryHref: '/work/tasks/task-4',
+      primaryHref: '/mission-control/tasks/task-4',
       primaryLabel: 'Back to step record',
       primaryHelper: 'This artifact is only linked to the source step record, so continue review there.',
       diagnosticHref: null,
@@ -94,16 +94,16 @@ describe('artifact preview page support', () => {
           work_item_id: 'work-item-1',
         },
         returnContext: {
-          returnTo: '/workspaces/workspace-1/artifacts?workflow_id=workflow-1',
+          returnTo: '/design/workspaces/workspace-1/artifacts?workflow_id=workflow-1',
           returnSource: 'workspace-artifacts',
         },
       }),
     ).toEqual({
-      primaryHref: '/workspaces/workspace-1/artifacts?workflow_id=workflow-1',
+      primaryHref: '/design/workspaces/workspace-1/artifacts?workflow_id=workflow-1',
       primaryLabel: 'Back to workspace artifacts',
       primaryHelper:
         'Return to the workspace artifact explorer so the selected workflow scope, filters, and artifact packet stay intact.',
-      diagnosticHref: '/work/tasks/task-1',
+      diagnosticHref: '/mission-control/tasks/task-1',
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
         'This preview was opened from the workspace artifact explorer, so return there first to keep workspace-level browsing, provenance checks, and adjacent artifact review intact.',
@@ -114,16 +114,16 @@ describe('artifact preview page support', () => {
         taskId: 'task-1',
         task: null,
         returnContext: {
-          returnTo: '/workspaces/workspace-1/content?tab=artifacts&workflow=workflow-1',
+          returnTo: '/design/workspaces/workspace-1/content?tab=artifacts&workflow=workflow-1',
           returnSource: 'workspace-content',
         },
       }),
     ).toEqual({
-      primaryHref: '/workspaces/workspace-1/content?tab=artifacts&workflow=workflow-1',
+      primaryHref: '/design/workspaces/workspace-1/content?tab=artifacts&workflow=workflow-1',
       primaryLabel: 'Back to workspace content',
       primaryHelper:
         'Return to the workspace content surface so artifact review stays attached to the current workflow and task packet.',
-      diagnosticHref: '/work/tasks/task-1',
+      diagnosticHref: '/mission-control/tasks/task-1',
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
         'This preview was opened from the workspace content surface, so return there first to continue document and artifact management in one place.',

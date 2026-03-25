@@ -2531,11 +2531,11 @@ describe('dashboard global search', () => {
       'playbook',
       'agent',
     ]);
-    expect(results[0].href).toBe('/work/boards/workflow-1');
-    expect(results[1].href).toBe('/work/tasks/task-1');
-    expect(results[2].href).toBe('/workspaces/workspace-1');
-    expect(results[3].href).toBe('/config/playbooks/playbook-1');
-    expect(results[4].href).toBe('/fleet/containers');
+    expect(results[0].href).toBe('/mission-control/workflows/workflow-1');
+    expect(results[1].href).toBe('/mission-control/tasks/task-1');
+    expect(results[2].href).toBe('/design/workspaces/workspace-1');
+    expect(results[3].href).toBe('/design/playbooks/playbook-1');
+    expect(results[4].href).toBe('/diagnostics/containers');
   });
 
   it('search() merges matches from all dashboard resources', async () => {

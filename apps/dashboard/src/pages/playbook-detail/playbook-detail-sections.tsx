@@ -92,35 +92,35 @@ export function PlaybookControlCenterCard(
             title="Global instructions"
             description="Platform-wide guidance applied to orchestrator and specialist context."
             value="Configure system instructions"
-            href="/config/instructions"
+            href="/platform/instructions"
           />
           <LinkedConfigCard
             icon={<Bot className="h-4 w-4" />}
             title="Role prompts and escalation"
             description="Specialist prompts, tool grants, verification, and escalation routing."
             value={`${props.activeRoleCount} active role definitions`}
-            href="/config/roles"
+            href="/design/roles"
           />
           <LinkedConfigCard
             icon={<Cpu className="h-4 w-4" />}
             title="Model catalog and launch policy"
             description="Provider credentials and available models used by workflow-scoped overrides."
             value={`${enabledProviderCount} providers • ${enabledModelCount} enabled models`}
-            href="/config/llm"
+            href="/platform/routing"
           />
           <LinkedConfigCard
             icon={<Bot className="h-4 w-4" />}
             title="Launch-time model overrides"
             description="Preview and set role-scoped model policy for this playbook before each workflow launch."
             value="Open launch form"
-            href={`/config/playbooks/${props.playbook.id}/launch`}
+            href={`/design/playbooks/${props.playbook.id}/launch`}
           />
           <LinkedConfigCard
             icon={<Cpu className="h-4 w-4" />}
             title="Container defaults"
             description="Global specialist runtime and execution-container defaults live outside the playbook."
             value="Inspect specialist container defaults"
-            href="/config/runtimes"
+            href="/platform/runtimes"
           />
         </div>
       </CardContent>

@@ -231,16 +231,16 @@ export function summarizeOrchestratorControlSurfaces(
         prompt.statusLabel === 'No active prompt'
           ? 'Platform instructions define orchestrator tone, review posture, and stall recovery before any run starts.'
           : 'Platform instructions own the orchestrator baseline for delegation, recovery, and review language.',
-      href: '/config/instructions',
+      href: '/platform/instructions',
       label: 'Open prompt settings',
     },
     {
       id: 'model',
-      title: 'Model routing',
+      title: 'Models',
       summary: model.modelLabel,
       detail: `${model.sourceLabel} · ${model.reasoningLabel}`,
-      href: '/config/llm',
-      label: 'Open model routing',
+      href: '/platform/routing',
+      label: 'Open models',
     },
     {
       id: 'pool',
@@ -249,7 +249,7 @@ export function summarizeOrchestratorControlSurfaces(
       detail: `Orchestrator posture owns the primary worker runtime image and capacity. Runtime defaults control the shared specialist execution envelope and safeguards.`,
       href: '/config/orchestrator',
       label: 'Open orchestrator',
-      secondaryHref: '/config/runtimes',
+      secondaryHref: '/platform/runtimes',
       secondaryLabel: 'Open runtime defaults',
     },
     {

@@ -175,7 +175,7 @@ export function PlaybookDetailPage(): JSX.Element {
       setDefinitionError(null);
       setMessage(`Playbook saved as v${playbook.version}.`);
       void playbooksQuery.refetch();
-      void navigate(`/config/playbooks/${playbook.id}`, { replace: true });
+      void navigate(`/design/playbooks/${playbook.id}`, { replace: true });
     },
     onError: (error) => {
       setMessage(null);
@@ -186,7 +186,7 @@ export function PlaybookDetailPage(): JSX.Element {
     mutationFn: () => dashboardApi.deletePlaybook(playbookId),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['playbooks'] });
-      await navigate('/config/playbooks');
+      await navigate('/design/playbooks');
     },
     onError: (error) => {
       setMessage(null);
@@ -253,7 +253,7 @@ export function PlaybookDetailPage(): JSX.Element {
         <div className="flex flex-wrap gap-2">
           {playbook.is_active ? (
             <Button asChild variant="outline">
-              <Link to={`/config/playbooks/${playbook.id}/launch`}>Launch</Link>
+              <Link to={`/design/playbooks/${playbook.id}/launch`}>Launch</Link>
             </Button>
           ) : null}
           <Button onClick={() => updateMutation.mutate()} disabled={!canSave || updateMutation.isPending}>

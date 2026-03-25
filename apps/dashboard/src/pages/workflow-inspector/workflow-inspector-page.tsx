@@ -146,7 +146,7 @@ export function WorkflowInspectorPage(): JSX.Element {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <Workflow className="h-5 w-5 text-muted-foreground" />
-                <CardTitle>Workflow Board Inspector</CardTitle>
+                <CardTitle>Workflow Inspector</CardTitle>
               </div>
               <CardDescription className="max-w-3xl">
                 Inspect execution traces for a single workflow with the shared inspector tooling,
@@ -155,14 +155,14 @@ export function WorkflowInspectorPage(): JSX.Element {
             </div>
             <div className="flex flex-wrap gap-2">
               <Button asChild variant="outline">
-                <Link to={`/work/boards/${workflowId}`}>
-                  Workflow Board
+                <Link to={`/mission-control/workflows/${workflowId}`}>
+                  Workflow
                   <ExternalLink className="h-4 w-4" />
                 </Link>
               </Button>
               {workflow?.workspace_id ? (
                 <Button asChild variant="outline">
-                  <Link to={`/workspaces/${workflow.workspace_id}`}>
+                  <Link to={`/design/workspaces/${workflow.workspace_id}`}>
                     Workspace
                     <ExternalLink className="h-4 w-4" />
                   </Link>
@@ -170,7 +170,7 @@ export function WorkflowInspectorPage(): JSX.Element {
               ) : null}
               {workflow?.workspace_id ? (
                 <Button asChild variant="outline">
-                  <Link to={`/workspaces/${workflow.workspace_id}/memory`}>
+                  <Link to={`/design/workspaces/${workflow.workspace_id}/memory`}>
                     Workspace Memory
                     <ExternalLink className="h-4 w-4" />
                   </Link>
@@ -333,7 +333,7 @@ export function WorkflowInspectorPage(): JSX.Element {
               <div className="text-sm font-medium text-foreground">Scoped log trace</div>
               <p className="text-sm leading-6 text-muted">
                 Raw logs stay in the same inspector route so you can move from board-level packets
-                into delivery traces, debug detail, and export without losing workflow context.
+                into delivery packets and expanded raw-log detail without losing workflow context.
               </p>
             </div>
             <div className="rounded-xl border border-border/70 bg-background/80 p-4">
@@ -341,7 +341,7 @@ export function WorkflowInspectorPage(): JSX.Element {
                 Trace drill-in posture
               </div>
               <p className="mt-2 text-sm leading-6 text-foreground">
-                Start with the raw stream, then open delivery or trace detail only for the packet
+                Start with the raw stream, then open delivery only for the packet
                 that actually explains the current board posture.
               </p>
             </div>

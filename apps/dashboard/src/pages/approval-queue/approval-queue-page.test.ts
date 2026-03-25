@@ -7,6 +7,12 @@ function readSource() {
 }
 
 describe('approval queue page source', () => {
+  it('uses the action-queue title in the operator surface', () => {
+    const source = readSource();
+    expect(source).toContain('Action Queue');
+    expect(source).not.toContain('Approval Queue');
+  });
+
   it('prioritizes stage gates with stronger summary cards and section hierarchy', () => {
     const source = readSource();
     expect(source).toContain('Review stage gates first');

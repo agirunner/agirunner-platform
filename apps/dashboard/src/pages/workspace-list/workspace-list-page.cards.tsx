@@ -82,7 +82,7 @@ function WorkspaceCard(props: {
         <div className="flex items-start justify-between gap-3">
           <CardTitle className="text-base leading-6">
             <Link
-              to={`/workspaces/${props.workspace.id}`}
+              to={`/design/workspaces/${props.workspace.id}`}
               state={workspaceLinkState}
               className="rounded-sm underline-offset-4 transition hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
@@ -107,7 +107,7 @@ function WorkspaceCard(props: {
         </div>
         <div className="mt-auto flex flex-wrap gap-2">
           <Button asChild size="sm">
-            <Link to={`/workspaces/${props.workspace.id}`} state={workspaceLinkState}>
+            <Link to={`/design/workspaces/${props.workspace.id}`} state={workspaceLinkState}>
               Manage
             </Link>
           </Button>

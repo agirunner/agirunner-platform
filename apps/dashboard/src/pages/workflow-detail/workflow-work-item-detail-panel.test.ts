@@ -96,8 +96,7 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Blocked reason');
     expect(source).toContain('Escalation');
     expect(source).toContain('Branch');
-    expect(source).toContain('Retained assessments');
-    expect(source).toContain('Invalidated assessments');
+    expect(source).toContain('Assessment status');
     expect(source).toContain('Operator next step:');
     expect(source).toContain('rework loop');
     expect(source).toContain('Stage and board routing');

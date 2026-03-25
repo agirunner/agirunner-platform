@@ -1927,7 +1927,7 @@ function WorkItemTasksSection(props: {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="grid gap-2">
-                      <Link to={`/work/tasks/${task.id}`} className="font-medium text-foreground">
+                      <Link to={`/mission-control/tasks/${task.id}`} className="font-medium text-foreground">
                         {task.title}
                       </Link>
                       <CopyableIdBadge value={task.id} label="Step" />
@@ -1993,7 +1993,7 @@ function WorkItemTasksSection(props: {
               <TableRow key={task.id}>
                 <TableCell>
                   <div className="grid gap-2">
-                    <Link to={`/work/tasks/${task.id}`}>{task.title}</Link>
+                    <Link to={`/mission-control/tasks/${task.id}`}>{task.title}</Link>
                     <CopyableIdBadge value={task.id} label="Step" />
                   </div>
                 </TableCell>
@@ -2038,7 +2038,7 @@ function TaskExecutionCard(props: {
         <div className="grid gap-2">
           <div className="grid gap-2">
             <Link
-              to={`/work/tasks/${props.task.id}`}
+              to={`/mission-control/tasks/${props.task.id}`}
               className="text-base font-semibold text-foreground"
             >
               {props.task.title}

@@ -217,7 +217,7 @@ export function TaskGraphCard(props: {
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="grid gap-1">
-                          <Link to={`/work/tasks/${task.id}`} className="font-medium text-foreground">
+                          <Link to={`/mission-control/tasks/${task.id}`} className="font-medium text-foreground">
                             {task.title}
                           </Link>
                           <p className="text-sm text-muted">{packet.focus}</p>
@@ -251,7 +251,7 @@ export function TaskGraphCard(props: {
                         <TableRow key={task.id}>
                           <TableCell className="font-medium">
                             <div className="grid gap-1">
-                              <Link to={`/work/tasks/${task.id}`}>{task.title}</Link>
+                              <Link to={`/mission-control/tasks/${task.id}`}>{task.title}</Link>
                               <Badge variant={badgeVariantForState(task.state)} className="w-fit">
                                 {task.state}
                               </Badge>
@@ -1119,14 +1119,14 @@ export function WorkflowActivationsCard(props: {
                 </Button>
                 <CopyableIdBadge value={activation.activation_id ?? activation.id} label="Activation" />
                 <Link
-                  to={`/work/boards/${activation.workflow_id}/inspector?activation=${activation.activation_id ?? activation.id}&view=debug`}
+                  to={`/mission-control/workflows/${activation.workflow_id}/inspector?activation=${activation.activation_id ?? activation.id}&view=summary`}
                   className="text-sm text-muted underline-offset-4 hover:underline"
                 >
                   Open inspector
                 </Link>
                 {activation.redispatched_task_id ? (
                   <Link
-                    to={`/work/tasks/${activation.redispatched_task_id}`}
+                    to={`/mission-control/tasks/${activation.redispatched_task_id}`}
                     className="text-sm text-muted underline-offset-4 hover:underline"
                   >
                     Redispatched task
