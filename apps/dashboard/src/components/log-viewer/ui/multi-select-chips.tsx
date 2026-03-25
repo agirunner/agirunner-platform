@@ -21,10 +21,10 @@ export interface MultiSelectChipsProps {
 }
 
 export const SOURCE_OPTIONS: MultiSelectOption[] = [
-  { value: 'runtime', label: 'Runtime' },
+  { value: 'runtime', label: 'Agent' },
   { value: 'platform', label: 'Platform' },
   { value: 'container_manager', label: 'Container Manager' },
-  { value: 'task_container', label: 'Task Container' },
+  { value: 'task_container', label: 'Execution' },
 ];
 
 export const CATEGORY_OPTIONS: MultiSelectOption[] = [
@@ -32,7 +32,7 @@ export const CATEGORY_OPTIONS: MultiSelectOption[] = [
   { value: 'tool', label: 'Tool' },
   { value: 'agent_loop', label: 'Agent Loop' },
   { value: 'task_lifecycle', label: 'Task Lifecycle' },
-  { value: 'runtime_lifecycle', label: 'Runtime Lifecycle' },
+  { value: 'runtime_lifecycle', label: 'Agent Lifecycle' },
   { value: 'container', label: 'Container' },
   { value: 'api', label: 'API' },
   { value: 'config', label: 'Config' },

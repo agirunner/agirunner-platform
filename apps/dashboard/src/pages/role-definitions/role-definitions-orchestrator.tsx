@@ -118,7 +118,7 @@ export function OrchestratorControlPlane(props: {
               detail="Manage the primary orchestrator worker runtime and capacity here."
               facts={[
                 {
-                  label: 'Runtime image',
+                  label: 'Agent image',
                   value: props.poolSummary.runtimeLabel,
                   mono: true,
                 },

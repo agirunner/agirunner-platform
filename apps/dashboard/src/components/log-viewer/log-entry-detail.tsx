@@ -93,7 +93,7 @@ const DETAIL_CATEGORY_LABELS: Record<string, string> = {
   tool: 'Tool',
   agent_loop: 'Agent Loop',
   task_lifecycle: 'Execution Step Lifecycle',
-  runtime_lifecycle: 'Runtime Lifecycle',
+  runtime_lifecycle: 'Agent Lifecycle',
   container: 'Container',
   api: 'API',
   config: 'Config',

@@ -87,7 +87,7 @@ export function OrchestratorPoolDialog(props: {
           <CardContent className="grid gap-4 md:grid-cols-2">
             {workerOptions.length > 1 ? (
               <div className="space-y-2 md:col-span-2">
-                <label className="text-sm font-medium">Worker entry</label>
+                <label className="text-sm font-medium">Agent entry</label>
                 <Select
                   value={draft.workerId ?? '__new__'}
                   onValueChange={(nextValue) => {
@@ -115,7 +115,7 @@ export function OrchestratorPoolDialog(props: {
               </div>
             ) : null}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Worker name</label>
+              <label className="text-sm font-medium">Agent name</label>
               <Input
                 value={draft.workerName}
                 onChange={(event) =>
@@ -137,7 +137,7 @@ export function OrchestratorPoolDialog(props: {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Image</label>
+              <label className="text-sm font-medium">Agent image</label>
               <ImageReferenceField
                 value={draft.runtimeImage}
                 onChange={(value) => setDraft((current) => ({ ...current, runtimeImage: value }))}

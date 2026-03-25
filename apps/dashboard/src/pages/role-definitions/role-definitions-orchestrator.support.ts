@@ -247,7 +247,7 @@ export function summarizeOrchestratorControlSurfaces(
       id: 'pool',
       title: 'Pool and runtime',
       summary: `${pool.enabledWorkers} enabled / ${pool.desiredReplicas} desired replicas`,
-      detail: `Orchestrator posture owns the primary worker runtime image and capacity. Runtime defaults control the shared specialist execution envelope and safeguards.`,
+      detail: `Orchestrator posture owns the primary orchestrator agent image and capacity. Runtime defaults control the shared specialist agent and execution envelope and safeguards.`,
       href: '/config/orchestrator',
       label: 'Open orchestrator',
       secondaryHref: '/platform/runtimes',

@@ -122,7 +122,7 @@ export function describeSelectedAgent(agent: DashboardAgentRecord | null): Array
 
   const details = [{ label: 'Status', value: normalizeAgentStatus(agent.status) }];
   if (agent.worker_id) {
-    details.push({ label: 'Worker', value: agent.worker_id });
+    details.push({ label: 'Agent', value: agent.worker_id });
   }
   if (agent.current_task_id) {
     details.push({ label: 'Current task', value: agent.current_task_id });

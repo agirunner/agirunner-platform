@@ -1028,13 +1028,13 @@ function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onR
 interface FailedCardProps {
   task: TaskRecord;
   onRetry: () => void;
-  onRetryDifferentWorker: () => void;
+  onRetryDifferentAgent: () => void;
   onSkip: (reason: string) => void;
   onCancel: () => void;
   isLoading: boolean;
 }
 
-function FailedCard({ task, onRetry, onRetryDifferentWorker, onSkip, onCancel, isLoading }: FailedCardProps): JSX.Element {
+function FailedCard({ task, onRetry, onRetryDifferentAgent, onSkip, onCancel, isLoading }: FailedCardProps): JSX.Element {
   const workItemFlow = usesWorkItemOperatorFlow(task);
   const workflowOperatorFlow = usesWorkflowOperatorFlow(task);
   return (
@@ -1078,11 +1078,11 @@ function FailedCard({ task, onRetry, onRetryDifferentWorker, onSkip, onCancel, i
             <Button
               size="sm"
               variant="outline"
-              onClick={onRetryDifferentWorker}
+              onClick={onRetryDifferentAgent}
               disabled={isLoading}
             >
               <RefreshCw className="mr-1 h-3.5 w-3.5" />
-              Re-run on New Worker
+              Re-run on New Agent
             </Button>
             <FeedbackAction
               label="Bypass Step"
