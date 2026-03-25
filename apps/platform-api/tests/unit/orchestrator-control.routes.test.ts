@@ -332,6 +332,7 @@ describe('orchestratorControlRoutes', () => {
       'workflow-1',
       'work-item-1',
       {
+        acting_task_id: 'task-orchestrator',
         request_id: 'complete-work-item-1',
         waived_steps: [{ code: 'secondary_review', reason: 'Primary review was decisive.' }],
         unresolved_advisory_items: [{ kind: 'approval', id: 'gate-1', summary: 'Approval stayed advisory.' }],
@@ -862,7 +863,11 @@ describe('orchestratorControlRoutes', () => {
       expect.anything(),
       'workflow-1',
       'work-item-1',
-      { request_id: 'close-helper-1', completion_notes: 'Closed with advisory callouts.' },
+      {
+        acting_task_id: 'task-orchestrator',
+        request_id: 'close-helper-1',
+        completion_notes: 'Closed with advisory callouts.',
+      },
       expect.anything(),
     );
 

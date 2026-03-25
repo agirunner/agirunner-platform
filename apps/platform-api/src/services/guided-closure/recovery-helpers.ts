@@ -115,6 +115,7 @@ export class GuidedClosureRecoveryHelpersService {
     workflowId: string,
     workItemId: string,
     input: {
+      acting_task_id?: string | null;
       completion_callouts?: unknown;
       waived_steps?: unknown;
       unresolved_advisory_items?: unknown;
@@ -127,7 +128,10 @@ export class GuidedClosureRecoveryHelpersService {
       identity,
       workflowId,
       workItemId,
-      { completion_callouts: completionCallouts },
+      {
+        acting_task_id: input.acting_task_id ?? null,
+        completion_callouts: completionCallouts,
+      },
       client,
     );
   }

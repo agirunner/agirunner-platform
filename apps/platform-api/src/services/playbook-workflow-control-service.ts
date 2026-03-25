@@ -154,6 +154,7 @@ export interface UpdateWorkflowWorkItemInput {
 }
 
 export interface CompleteWorkflowWorkItemInput {
+  acting_task_id?: string | null;
   completion_callouts?: CompletionCallouts;
   waived_steps?: CompletionCallouts['waived_steps'];
   unresolved_advisory_items?: CompletionCallouts['unresolved_advisory_items'];
@@ -930,6 +931,7 @@ export class PlaybookWorkflowControlService {
     workflowId: string,
     workItemId: string,
     workItemTitle: string,
+    actingTaskId: string | null,
     db: DatabaseClient,
   ) {
     const result = await db.query<BlockingTaskRow>(
@@ -938,10 +940,11 @@ export class PlaybookWorkflowControlService {
         WHERE tenant_id = $1
           AND workflow_id = $2
           AND work_item_id = $3
+          AND ($5::uuid IS NULL OR id <> $5::uuid)
           AND state::text <> ALL($4::text[])
         ORDER BY created_at ASC
         LIMIT 1`,
-      [tenantId, workflowId, workItemId, TERMINAL_TASK_STATES],
+      [tenantId, workflowId, workItemId, TERMINAL_TASK_STATES, actingTaskId],
     );
     const row = result.rows[0];
     if (!row) {
@@ -1370,6 +1373,7 @@ export class PlaybookWorkflowControlService {
         workflowId,
         workItemId,
         workItem.title,
+        null,
         db,
       );
       await this.assertNoPendingBlockingContinuation(
@@ -1500,6 +1504,7 @@ export class PlaybookWorkflowControlService {
       workflowId,
       workItemId,
       workItem.title,
+      input.acting_task_id ?? null,
       db,
     );
     await this.assertNoPendingBlockingContinuation(

@@ -576,7 +576,10 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
             request.auth!,
             taskScope.workflow_id,
             params.workItemId,
-            body,
+            {
+              ...body,
+              acting_task_id: taskScope.id,
+            },
             client,
           ),
       );
@@ -606,7 +609,10 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
             request.auth!,
             taskScope.workflow_id,
             params.workItemId,
-            body,
+            {
+              ...body,
+              acting_task_id: taskScope.id,
+            },
             client,
           ),
       );
