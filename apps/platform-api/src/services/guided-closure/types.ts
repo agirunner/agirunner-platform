@@ -104,6 +104,8 @@ export const guidedClosureContextSchema = z.object({
   active_advisory_controls: z.array(guidedClosureControlSummarySchema).default([]),
   preferred_obligations: z.array(guidedClosurePreferredObligationSchema).default([]),
   closure_readiness: z.enum(['blocked', 'not_ready', 'can_close_with_callouts', 'ready_to_close']),
+  open_specialist_task_count: z.number().int().nonnegative().default(0),
+  open_specialist_task_roles: z.array(z.string().min(1).max(255)).default([]),
   recent_recovery_outcomes: z.array(guidedClosureRecoveryOutcomeSummarySchema).default([]),
   attempt_count_by_work_item: z.record(z.number().int().nonnegative()).default({}),
   attempt_count_by_role: z.record(z.number().int().nonnegative()).default({}),

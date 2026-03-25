@@ -579,17 +579,30 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         taskScope.workflow_id,
         'complete_work_item',
         body.request_id,
-        (client) =>
-          playbookControlService.completeWorkItem(
-            request.auth!,
-            taskScope.workflow_id,
-            params.workItemId,
-            {
-              ...body,
-              acting_task_id: taskScope.id,
-            },
-            client,
-          ),
+        async (client) => {
+          try {
+            return await playbookControlService.completeWorkItem(
+              request.auth!,
+              taskScope.workflow_id,
+              params.workItemId,
+              {
+                ...body,
+                acting_task_id: taskScope.id,
+              },
+              client,
+            );
+          } catch (error) {
+            const recoverableResult = buildRecoverableCompleteWorkItemNoopIfNotReady({
+              error,
+              taskScope,
+              workItemId: params.workItemId,
+            });
+            if (recoverableResult) {
+              return recoverableResult;
+            }
+            throw error;
+          }
+        },
       );
       return { data: stored };
     },
@@ -612,17 +625,30 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         taskScope.workflow_id,
         'close_work_item_with_callouts',
         body.request_id,
-        (client) =>
-          recoveryHelpers.closeWorkItemWithCallouts(
-            request.auth!,
-            taskScope.workflow_id,
-            params.workItemId,
-            {
-              ...body,
-              acting_task_id: taskScope.id,
-            },
-            client,
-          ),
+        async (client) => {
+          try {
+            return await recoveryHelpers.closeWorkItemWithCallouts(
+              request.auth!,
+              taskScope.workflow_id,
+              params.workItemId,
+              {
+                ...body,
+                acting_task_id: taskScope.id,
+              },
+              client,
+            );
+          } catch (error) {
+            const recoverableResult = buildRecoverableCompleteWorkItemNoopIfNotReady({
+              error,
+              taskScope,
+              workItemId: params.workItemId,
+            });
+            if (recoverableResult) {
+              return recoverableResult;
+            }
+            throw error;
+          }
+        },
       );
       return { data: stored };
     },
@@ -1950,6 +1976,108 @@ function classifyRecoverableCreateWorkItemReason(message: string): string | null
     return 'predecessor_waiting_for_handoff';
   }
   return null;
+}
+
+function classifyRecoverableCompleteWorkItemReason(message: string): string | null {
+  if (message.includes('while task') && message.includes('is still')) {
+    return 'work_item_tasks_not_ready';
+  }
+  if (message.includes('while required') && message.includes('is still pending')) {
+    return 'work_item_waiting_for_continuation';
+  }
+  return null;
+}
+
+function recoverableCompleteWorkItemActions(
+  reasonCode: string,
+  taskScope: ActiveOrchestratorTaskScope,
+  workItemId: string,
+) {
+  switch (reasonCode) {
+    case 'work_item_waiting_for_continuation':
+      return [
+        {
+          action_code: 'inspect_current_work_item',
+          target_type: 'work_item',
+          target_id: workItemId,
+          why: 'The current work item still has unresolved continuity that blocks closure.',
+          requires_orchestrator_judgment: false,
+        },
+        {
+          action_code: 'route_pending_current_stage_action',
+          target_type: 'work_item',
+          target_id: workItemId,
+          why: 'Resolve the pending current-stage continuation before attempting closure again.',
+          requires_orchestrator_judgment: true,
+        },
+      ];
+    case 'work_item_tasks_not_ready':
+    default:
+      return [
+        {
+          action_code: 'inspect_current_work_item',
+          target_type: 'work_item',
+          target_id: workItemId,
+          why: 'The current work item state determines whether closure is legal yet.',
+          requires_orchestrator_judgment: false,
+        },
+        {
+          action_code: 'wait_for_current_work_item_tasks',
+          target_type: 'work_item',
+          target_id: workItemId,
+          why: 'Wait for in-flight specialist work on the current work item to settle before closing it.',
+          requires_orchestrator_judgment: false,
+        },
+      ];
+  }
+}
+
+function buildRecoverableCompleteWorkItemNoopIfNotReady(input: {
+  error: unknown;
+  taskScope: ActiveOrchestratorTaskScope;
+  workItemId: string;
+}) {
+  if (!(input.error instanceof ValidationError)) {
+    return null;
+  }
+  const reasonCode = classifyRecoverableCompleteWorkItemReason(input.error.message);
+  if (!reasonCode) {
+    return null;
+  }
+  logSafetynetTriggered(
+    NOT_READY_NOOP_RECOVERY_SAFETYNET,
+    'recoverable complete_work_item noop returned',
+    { work_item_id: input.workItemId, reason_code: reasonCode },
+  );
+  return buildLegacyCompatibleRecoverableNoop({
+    taskScope: input.taskScope,
+    reasonCode,
+    message: input.error.message,
+    legacyFields: {
+      safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
+      blocked_on: [input.error.message],
+      work_item_id: input.workItemId,
+      stage_name: input.taskScope.stage_name ?? null,
+    },
+    stateSnapshot: {
+      workflow_id: input.taskScope.workflow_id,
+      work_item_id: input.workItemId,
+      task_id: input.taskScope.id,
+      current_stage: input.taskScope.stage_name ?? null,
+      active_blocking_controls: [],
+      active_advisory_controls: [],
+    },
+    suggestedNextActions: recoverableCompleteWorkItemActions(
+      reasonCode,
+      input.taskScope,
+      input.workItemId,
+    ),
+    suggestedTargetIds: {
+      workflow_id: input.taskScope.workflow_id,
+      work_item_id: input.workItemId,
+      task_id: input.taskScope.id,
+    },
+  });
 }
 
 function recoverableCreateWorkItemActions(

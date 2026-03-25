@@ -107,6 +107,9 @@ describe('prompt catalogs', () => {
       'Use complete_work_item for accepted work; do not guess terminal column_id with update_work_item.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Before complete_work_item or close_work_item_with_callouts, confirm closure_context.work_item_can_close_now is yes and no current-work-item specialist tasks remain open.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       "call it in the same activation once the work item's playbook-defined success criteria are satisfied and no further current-work-item role work is required.",
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
@@ -163,6 +166,9 @@ describe('prompt catalogs', () => {
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If newer continuity shows the target task or work item already advanced, do not retry stale mutations; finish and wait for the next event.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'If a workflow mutation returns recoverable_not_applied, treat it as platform guidance: inspect current state, follow suggested_next_actions, and do not loop the same stale mutation again in the same state.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If request_changes reuses an already reopened task, call update_task_input with the concrete rework contract before the specialist resumes.',
@@ -229,6 +235,6 @@ describe('prompt catalogs', () => {
 
   it('keeps the shared prompts bounded for routine execution', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(4500);
-    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(8000);
+    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(9000);
   });
 });

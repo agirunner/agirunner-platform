@@ -417,6 +417,7 @@ function outputProtocol(repoBacked: boolean, orchestrator: boolean) {
 function plannedClosureDiscipline() {
   return [
     'When the current planned-workflow work item satisfies its authored stage goal, board posture, continuity, and process instructions, call complete_work_item in the same activation instead of leaving accepted work open.',
+    'Before complete_work_item or close_work_item_with_callouts, confirm closure_context.work_item_can_close_now is yes and no current-work-item specialist tasks remain open.',
     'When every planned work item is terminal and no blocking tasks, approvals, assessments, escalations, or required follow-up remain, call complete_workflow in the same activation.',
     'When you call complete_workflow, include final_artifacts with the repo-relative deliverables or uploaded artifact paths that represent the final workflow output.',
     'When closure is legal but preferred work or advisory items remain, use complete_work_item or complete_workflow with structured completion_callouts instead of leaving the workflow open.',
@@ -663,6 +664,12 @@ function formatClosureContext(workflow: Record<string, unknown>) {
     `Work item can close now: ${parsed.data.work_item_can_close_now ? 'yes' : 'no'}`,
     `Workflow can close now: ${parsed.data.workflow_can_close_now ? 'yes' : 'no'}`,
   ];
+  if (parsed.data.open_specialist_task_count > 0) {
+    lines.push(`Open specialist tasks on current work item: ${parsed.data.open_specialist_task_count}`);
+  }
+  if (parsed.data.open_specialist_task_roles.length > 0) {
+    lines.push(`Open specialist task roles: ${parsed.data.open_specialist_task_roles.join(', ')}`);
+  }
   for (const control of parsed.data.active_blocking_controls) {
     lines.push(`Blocking control ${control.kind} ${control.id}: ${control.summary ?? 'Blocking control remains open.'}`);
   }
@@ -700,6 +707,7 @@ function formatClosureContext(workflow: Record<string, unknown>) {
 function guidedRecoveryGuidance() {
   return [
     'Use platform-produced closure_context, recent recovery outcomes, and attempt history as the recovery contract; do not guess from prose or stale memory.',
+    'If a workflow mutation returns recoverable_not_applied, treat it as platform guidance: inspect current state, follow suggested_next_actions, and do not loop the same stale mutation again in the same state.',
     'Follow a fallback ladder: retry transient failures, inspect canonical state, reroute or reassign, rerun missing predecessor work with a corrected brief, waive preferred steps explicitly, close with callouts if legal, and escalate only when closure is impossible without external input.',
     'If recovery options are exhausted and closure remains legal, close with callouts if closure is legal instead of leaving the workflow open.',
   ].join('\n');

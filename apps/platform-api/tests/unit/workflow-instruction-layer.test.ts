@@ -160,12 +160,12 @@ describe('buildWorkflowInstructionLayer', () => {
             },
           ],
         },
-        closure_context: {
-          workflow_can_close_now: false,
-          work_item_can_close_now: true,
-          active_blocking_controls: [],
-          active_advisory_controls: [
-            {
+          closure_context: {
+            workflow_can_close_now: false,
+            work_item_can_close_now: false,
+            active_blocking_controls: [],
+            active_advisory_controls: [
+              {
               kind: 'escalation',
               id: 'esc-1',
               closure_effect: 'advisory',
@@ -179,10 +179,12 @@ describe('buildWorkflowInstructionLayer', () => {
               subject: 'brand-reviewer',
             },
           ],
-          closure_readiness: 'can_close_with_callouts',
-          recent_recovery_outcomes: [
-            {
-              recovery_class: 'predecessor_missing_handoff',
+            closure_readiness: 'can_close_with_callouts',
+            open_specialist_task_count: 1,
+            open_specialist_task_roles: ['editorial-policy-assessor'],
+            recent_recovery_outcomes: [
+              {
+                recovery_class: 'predecessor_missing_handoff',
               suggested_next_actions: [
                 {
                   action_code: 'rerun_predecessor_for_handoff',
@@ -217,8 +219,10 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer).not.toBeNull();
     expect(layer!.content).toContain('## Closure Context');
     expect(layer!.content).toContain('Closure readiness: can_close_with_callouts');
-    expect(layer!.content).toContain('Work item can close now: yes');
+    expect(layer!.content).toContain('Work item can close now: no');
     expect(layer!.content).toContain('Workflow can close now: no');
+    expect(layer!.content).toContain('Open specialist tasks on current work item: 1');
+    expect(layer!.content).toContain('Open specialist task roles: editorial-policy-assessor');
     expect(layer!.content).toContain('Advisory control escalation esc-1: Editorial escalation remains advisory.');
     expect(layer!.content).toContain('Preferred obligation brand-reviewer (stage_role_contribution): unmet');
     expect(layer!.content).toContain('Recent recovery predecessor_missing_handoff');

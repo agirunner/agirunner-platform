@@ -114,6 +114,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 ## Progression
 - If a playbook has no explicit stage sequence, use board posture and process instructions.
 - Use complete_work_item for accepted work; do not guess terminal column_id with update_work_item. In planned workflows, call it in the same activation once the work item's playbook-defined success criteria are satisfied and no further current-work-item role work is required.
+- Before complete_work_item or close_work_item_with_callouts, confirm closure_context.work_item_can_close_now is yes and no current-work-item specialist tasks remain open.
 - When calling request_gate_approval, send key_artifacts as { id, task_id, label, path } objects, not raw strings.
 - When a stage gate returns changes_requested, route corrective work before asking again.
 - Never call request_gate_approval again for the same stage until new stage work completes after that feedback.
@@ -123,6 +124,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - When closure is legal but preferred work or advisory items remain, use complete_work_item or complete_workflow with structured completion_callouts instead of leaving the workflow open.
 
 ## Guided Recovery
+- If a workflow mutation returns recoverable_not_applied, treat it as platform guidance: inspect current state, follow suggested_next_actions, and do not loop the same stale mutation again in the same state.
 - Follow a fallback ladder: retry transient failures, inspect canonical state, reroute or reassign, rerun missing predecessor work with a corrected brief, waive preferred steps explicitly, close with callouts if legal, and escalate only when closure is impossible without external input.
 
 ## Memory Discipline

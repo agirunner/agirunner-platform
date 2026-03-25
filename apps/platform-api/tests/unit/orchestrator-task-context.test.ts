@@ -418,6 +418,8 @@ describe('buildOrchestratorTaskContext', () => {
         },
       ],
       closure_readiness: 'can_close_with_callouts',
+      open_specialist_task_count: 0,
+      open_specialist_task_roles: [],
       recent_recovery_outcomes: [
         {
           recovery_class: 'predecessor_missing_handoff',

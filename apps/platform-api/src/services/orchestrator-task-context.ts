@@ -402,6 +402,13 @@ function buildClosureContext(params: {
       readOptionalString(row.work_item_id) === focusedWorkItemId
       && isOpenSpecialistTask(row),
   );
+  const openSpecialistTaskRoles = Array.from(
+    new Set(
+      focusedOpenSpecialistTasks
+        .map((row) => readOptionalString(row.role))
+        .filter((value): value is string => Boolean(value)),
+    ),
+  );
   const workItemCanCloseNow = activeBlockingControls.length === 0 && focusedOpenSpecialistTasks.length === 0;
   const workflowCanCloseNow = params.workItems.every((row) => row.completed_at !== null && row.completed_at !== undefined)
     && specialistTasks.every((row) => !isOpenSpecialistTask(row))
@@ -421,6 +428,8 @@ function buildClosureContext(params: {
     active_advisory_controls: activeAdvisoryControls,
     preferred_obligations: preferredObligations,
     closure_readiness: closureReadiness,
+    open_specialist_task_count: focusedOpenSpecialistTasks.length,
+    open_specialist_task_roles: openSpecialistTaskRoles,
     recent_recovery_outcomes: recentRecoveryOutcomes,
     attempt_count_by_work_item: attemptCountByWorkItem,
     attempt_count_by_role: attemptCountByRole,
