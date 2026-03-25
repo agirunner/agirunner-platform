@@ -3,7 +3,7 @@
   "profile": "multi-orchestrator-concurrent-assessment-workflows",
   "workflow": {
     "name": "Multi Orchestrator Concurrent Assessment Workflows",
-    "goal": "Exercise a concurrency slice designed for multiple orchestrators working across concurrent assessment workflows.",
+    "goal": "Prove that multiple orchestrators can finish one simple workflow with many tiny independent work items.",
     "parameters": {}
   },
   "workspace": {
@@ -16,13 +16,25 @@
     {
       "type": "create_work_items",
       "dispatch": "parallel",
-      "count": 2,
-      "title_template": "multi-orch-{index:02d}",
-      "request_id_template": "multi-orch-{index:02d}"
+      "count": 12,
+      "title_template": "hello-{index:02d}",
+      "request_id_template": "hello-{index:02d}"
     }
   ],
   "expect": {
     "state": "completed",
+    "artifacts": [
+      {
+        "logical_path_pattern": "deliverables/.+\\.txt",
+        "min_count": 12
+      }
+    ],
+    "evidence_expectations": {
+      "db_state_present": true,
+      "runtime_cleanup_passed": true,
+      "docker_log_rotation_passed": true,
+      "distinct_orchestrator_runtime_count_min": 2
+    },
     "outcome_envelope": {
       "allowed_states": [
         "completed"
@@ -36,9 +48,20 @@
     }
   },
   "coverage": {
+    "assessor_cardinality": [
+      "zero"
+    ],
+    "playbook_shapes": [
+      "single_stage",
+      "direct_stage_flow"
+    ],
     "concurrency": [
-      "multiple_workflows_concurrent",
       "multiple_orchestrators_concurrent"
+    ],
+    "storage_execution": [
+      "git_workspace",
+      "cold_specialists",
+      "warm_orchestrators"
     ]
   }
 }

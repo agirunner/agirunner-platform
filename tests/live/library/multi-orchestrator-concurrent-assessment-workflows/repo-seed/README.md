@@ -1,14 +1,10 @@
-# Workflow CLI
+# Multi Orchestrator Hello Fixture
 
-This repository contains a small seeded Python CLI used by the live assessment matrix.
+This repository seed exists only for the simple multi-orchestrator proof.
 
-## Current behavior
+## Specialist contract
 
-- `python3 -m workflow_cli status`
-  - prints a stable JSON status payload
-
-## Development
-
-- extend the existing Python standard-library stack in place
-- keep command output deterministic and machine-readable
-- verify changes with `./scripts/verify.sh`
+- write one file in `deliverables/`
+- the file content must be exactly `hi back` with a trailing newline
+- verify that file with `./scripts/verify.sh <deliverable-path>`
+- upload the same file as the work item artifact

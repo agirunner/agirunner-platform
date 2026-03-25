@@ -668,6 +668,8 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             workflow_actions=[{"type": "create_work_items", "count": 1}],
             execution_logs={
                 "data": [
+                    {"operation": "task.execute", "role": "orchestrator", "actor_name": "orch-a"},
+                    {"operation": "task.execute", "role": "orchestrator", "actor_name": "orch-b"},
                     {"operation": "tool_call", "payload": {"tool": "waive_preferred_step"}},
                     {"operation": "tool_call", "payload": {"tool": "close_workflow_with_callouts"}},
                     {
@@ -725,6 +727,8 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertEqual(2, metrics["anomalies"]["http_client_error_count"])
         self.assertEqual(1, metrics["anomalies"]["http_server_error_count"])
         self.assertTrue(metrics["hygiene"]["runtime_cleanup_passed"])
+        self.assertEqual(2, metrics["orchestrator_distribution"]["distinct_runtime_count"])
+        self.assertEqual(["orch-a", "orch-b"], metrics["orchestrator_distribution"]["runtime_actors"])
         self.assertEqual(7, metrics["agentic_effort"]["total_loop_count"])
         self.assertEqual(3, metrics["agentic_effort"]["orchestrator_loop_count"])
         self.assertEqual(4, metrics["agentic_effort"]["specialist_loop_count"])
@@ -2736,6 +2740,33 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertIn("expected runtime cleanup evidence to pass", verification["failures"])
         self.assertIn("expected Docker log rotation evidence to pass", verification["failures"])
         self.assertIn("expected execution-log anomaly review to be empty", verification["failures"])
+
+    def test_evaluate_expectations_enforces_distinct_orchestrator_runtime_minimum(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "state": "completed",
+                "evidence_expectations": {
+                    "distinct_orchestrator_runtime_count_min": 2,
+                },
+            },
+            workflow={"state": "completed", "tasks": []},
+            board={"data": {"data": {"columns": []}}},
+            work_items={"data": {"data": []}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+            execution_logs={
+                "data": [
+                    {"operation": "task.execute", "role": "orchestrator", "actor_name": "orch-a"},
+                    {"operation": "task.execute", "role": "orchestrator", "actor_name": "orch-b"},
+                ]
+            },
+            evidence={},
+        )
+
+        self.assertTrue(verification["passed"])
+        self.assertEqual([], verification["failures"])
 
     def test_evaluate_expectations_accepts_generic_assessment_contracts(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(

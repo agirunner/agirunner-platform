@@ -1,11 +1,11 @@
 {
-  "name": "Multi Orchestrator Concurrent Assessment Workflows Pipeline",
-  "slug": "live-test-multi-orchestrator-concurrent-assessment-workflows-v1",
-  "description": "Concurrent workflow corpus slice intended for multiple orchestrators.",
-  "outcome": "Multiple orchestrators can coordinate concurrent assessment workflows while preserving correctness.",
+  "name": "Multi Orchestrator Hello Fanout",
+  "slug": "live-test-multi-orchestrator-concurrent-assessment-workflows-v2",
+  "description": "Single-stage workflow that proves more than one orchestrator actually executes work while routing many tiny independent specialist tasks.",
+  "outcome": "Twelve tiny work items finish cleanly, each with one verified hi-back output, and more than one orchestrator actually executes orchestrator tasks during the run.",
   "lifecycle": "planned",
   "definition": {
-    "process_instructions": "Run the workflow through the authored stages `multi-orchestrator-validation`. Treat each stage as a distinct checkpoint of evidence and handoff quality: `multi-orchestrator-validation` exists to Concurrent subjects are delivered and assessed cleanly.\nUse these roles deliberately: `multi-orchestrator-delivery-engineer` Implements delivery outputs across concurrent work items; `multi-orchestrator-quality-assessor` Assesses concurrent subject outputs for quality risk; `multi-orchestrator-compliance-assessor` Assesses concurrent subject outputs for compliance risk.\nHappy path: start with the earliest unfinished stage, dispatch the best matching producing role for that stage, require a full handoff with concrete artifacts or evidence, then move to the next stage only when the current output is usable. When a later stage is primarily evaluative, dispatch the reviewer or assessor roles after the producing role has handed off; when a later stage is packaging or release-oriented, dispatch the coordinating role only after upstream evidence is complete.\nUnhappy path: If any role reports missing evidence, partial delivery, request changes, rejection, blocking risk, or an escalation, keep the current subject open, route work back to the most relevant producing role, and require a fresh handoff before trying again. If two decisions conflict, preserve both in history, but route using the newest subject state and the most restrictive still-active finding. Do not skip a stage just because a later role believes it can improvise around incomplete upstream work. This workflow may run alongside sibling workflows under multiple orchestrators. The orchestrator SHOULD minimize assumptions about exclusivity, use exact IDs in every mutation, and keep decisions scoped to this workflow only.\nCompletion rules: finish only after the last required stage has a final, internally consistent handoff, the final package matches the current subject state, and every role named above has either contributed or been intentionally skipped for a clear reason grounded in the playbook. Stage-specific closure for this playbook: each `multi-orchestrator-validation` work item stays open until `multi-orchestrator-delivery-engineer`, `multi-orchestrator-quality-assessor`, and `multi-orchestrator-compliance-assessor` have either submitted current-subject handoffs that satisfy the `multi-orchestrator-validation` goal or been intentionally skipped with a concrete reason grounded in the playbook. Do not fabricate approvals, assessments, escalations, or branch changes that the playbook does not actually justify, and do not treat stale findings as permission to advance new work. Guided closure rule: treat the authored flow as best-intent process guidance. Preferred review paths and stage order SHOULD be followed when they remain useful, but the orchestrator MAY waive a preferred step with a recorded reason when closure is still legally possible. Only explicit blockers grounded in the current subject state should keep work open; non-blocking deviations, redundant reviews, and stale advisory findings should be recorded as callouts instead of preventing closure.",
+    "process_instructions": "Run the workflow through the authored stage `many-hellos`. This workflow is intentionally simple: it exists only to prove real orchestrator sharing under light but repeated workflow activity.\nUse this role deliberately: `multi-orchestrator-hello-specialist` owns every non-orchestrator task. No approvals, assessments, escalations, or extra reviewer flows belong in this playbook.\nHappy path: as soon as work items exist, dispatch them aggressively in parallel within the authored limits. For each work item, route `multi-orchestrator-hello-specialist`, require one tiny verified output, require one full handoff, then close that work item immediately when the handoff is complete. Any orchestrator may continue the workflow; do not assume one orchestrator owns the whole run.\nSpecialist contract: for the current work item only, create `deliverables/<work-item-title>.txt` with the exact content `hi back` followed by a trailing newline, run `./scripts/verify.sh deliverables/<work-item-title>.txt`, upload that file as an artifact, and submit one full handoff describing the delivered file. Do not edit unrelated files, do not open side quests, and do not invent extra review or governance steps.\nUnhappy path: If a file name is wrong, verification fails, artifact upload is missing, or the handoff is incomplete, rerun or replace the tiny specialist task and keep the current work item open until the exact tiny output is correct. Do not escalate unless the repository itself is missing or the verification script is unavailable.\nCompletion rules: finish only after all authored work items in `many-hellos` are terminal, each one has exactly one usable hi-back output for its own title, each one has a full handoff, and the workflow has no remaining active tasks. Guided closure rule: this playbook is best-intent guidance. The preferred pattern is to repeat the same tiny verified handoff flow for every work item without improvising new governance. For this proof there are no soft optional steps to waive, and only missing repository inputs or an unavailable verification script should block closure; otherwise the orchestrator keeps driving the remaining tiny work items to completion until every one is done. If the run finishes with anything imperfect but still usable, record that as a callout rather than inventing extra governance.",
     "parameters": [
       {
         "name": "goal",
@@ -16,9 +16,7 @@
       }
     ],
     "roles": [
-      "multi-orchestrator-delivery-engineer",
-      "multi-orchestrator-quality-assessor",
-      "multi-orchestrator-compliance-assessor"
+      "multi-orchestrator-hello-specialist"
     ],
     "board": {
       "entry_column_id": "planned",
@@ -49,20 +47,18 @@
     },
     "stages": [
       {
-        "name": "multi-orchestrator-validation",
-        "goal": "Concurrent subjects are delivered and assessed cleanly.",
+        "name": "many-hellos",
+        "goal": "Each independent work item gets one verified hi-back output and a full handoff.",
         "involves": [
-          "multi-orchestrator-delivery-engineer",
-          "multi-orchestrator-quality-assessor",
-          "multi-orchestrator-compliance-assessor"
+          "multi-orchestrator-hello-specialist"
         ]
       }
     ],
     "lifecycle": "planned",
     "orchestrator": {
-      "max_rework_iterations": 5,
-      "max_active_tasks": 10,
-      "max_active_tasks_per_work_item": 3,
+      "max_rework_iterations": 3,
+      "max_active_tasks": 12,
+      "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": true
     }
   }

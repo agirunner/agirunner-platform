@@ -980,6 +980,31 @@ def _count_anomaly_levels(rows: list[dict[str, Any]]) -> tuple[int, int]:
     return warning_count, error_count
 
 
+def _execution_row_actor_handle(row: dict[str, Any]) -> str:
+    actor_name = str(row.get("actor_name") or "").strip()
+    if actor_name and actor_name.lower() not in {"worker", "agent", "runtime"}:
+        return actor_name
+    actor_id = str(row.get("actor_id") or "").strip()
+    if actor_id and actor_id.lower() not in {"worker", "agent", "runtime"}:
+        return actor_id
+    return ""
+
+
+def _distinct_orchestrator_runtime_actors(execution_logs: Any) -> list[str]:
+    actors: set[str] = set()
+    for row in execution_log_rows(execution_logs):
+        role = str(row.get("role") or "").strip()
+        if role != "orchestrator":
+            continue
+        operation = str(row.get("operation") or "").strip()
+        if operation not in {"task.execute", "tool.execute", "runtime.task.start"}:
+            continue
+        actor = _execution_row_actor_handle(row)
+        if actor:
+            actors.add(actor)
+    return sorted(actors)
+
+
 def _count_container_kinds(rows: list[dict[str, Any]]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for row in rows:
@@ -1093,6 +1118,7 @@ def build_scenario_outcome_metrics(
     container_observations = evidence.get("container_observations", {})
     observed_container_rows = container_observation_rows(container_observations)
     workflow_tasks = _workflow_tasks(workflow)
+    orchestrator_runtime_actors = _distinct_orchestrator_runtime_actors(execution_logs)
     orchestrator_tasks = [
         task
         for task in workflow_tasks
@@ -1145,6 +1171,10 @@ def build_scenario_outcome_metrics(
             "input_token_count": sum(_task_metric_int(task, "input_tokens") for task in workflow_tasks if isinstance(task, dict)),
             "output_token_count": sum(_task_metric_int(task, "output_tokens") for task in workflow_tasks if isinstance(task, dict)),
             "total_token_count": sum(_task_metric_int(task, "total_tokens") for task in workflow_tasks if isinstance(task, dict)),
+        },
+        "orchestrator_distribution": {
+            "distinct_runtime_count": len(orchestrator_runtime_actors),
+            "runtime_actors": orchestrator_runtime_actors,
         },
         "anomalies": {
             "warning_count": warning_count,
@@ -2390,6 +2420,22 @@ def evaluate_expectations(
             checks.append({"name": "evidence_expectations.log_anomalies_empty", "passed": passed})
             if not passed:
                 failures.append("expected execution-log anomaly review to be empty")
+        if "distinct_orchestrator_runtime_count_min" in evidence_expectations:
+            minimum = evidence_expectations["distinct_orchestrator_runtime_count_min"]
+            actual = len(_distinct_orchestrator_runtime_actors(execution_logs))
+            passed = isinstance(minimum, int) and actual >= minimum
+            checks.append(
+                {
+                    "name": "evidence_expectations.distinct_orchestrator_runtime_count_min",
+                    "passed": passed,
+                    "expected_min": minimum,
+                    "actual": actual,
+                }
+            )
+            if not passed:
+                failures.append(
+                    f"expected at least {minimum} distinct orchestrator runtime actor(s), found {actual}"
+                )
 
     fleet_expectations = expectations.get("fleet", {})
     if isinstance(fleet_expectations, dict):
