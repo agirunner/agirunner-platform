@@ -26,6 +26,12 @@ import {
   loadOpenWorkItemEscalation,
   resolveWorkItemEscalation,
 } from './work-item-escalations.js';
+import {
+  completionCalloutsSchema,
+  mergeCompletionCallouts,
+  normalizeCompletionCalloutsInput,
+  type CompletionCallouts,
+} from './guided-closure/types.js';
 
 interface WorkflowContextRow {
   id: string;
@@ -35,6 +41,7 @@ interface WorkflowContextRow {
   active_stage_name: string | null;
   state: string;
   orchestration_state?: Record<string, unknown> | null;
+  completion_callouts?: Record<string, unknown> | null;
   definition: unknown;
 }
 
@@ -57,6 +64,7 @@ interface WorkflowWorkItemRow {
   notes: string | null;
   completed_at: Date | null;
   metadata: Record<string, unknown>;
+  completion_callouts: Record<string, unknown>;
   updated_at: Date;
 }
 
@@ -145,7 +153,12 @@ export interface UpdateWorkflowWorkItemInput {
   metadata?: Record<string, unknown>;
 }
 
-export interface CompleteWorkflowWorkItemInput {}
+export interface CompleteWorkflowWorkItemInput {
+  completion_callouts?: CompletionCallouts;
+  waived_steps?: CompletionCallouts['waived_steps'];
+  unresolved_advisory_items?: CompletionCallouts['unresolved_advisory_items'];
+  completion_notes?: string | null;
+}
 
 export interface ResolveWorkflowWorkItemEscalationInput {
   action: 'dismiss' | 'unblock_subject' | 'reopen_subject';
@@ -172,6 +185,10 @@ export interface AdvanceStageInput {
 export interface CompleteWorkflowInput {
   summary: string;
   final_artifacts?: string[];
+  completion_callouts?: CompletionCallouts;
+  waived_steps?: CompletionCallouts['waived_steps'];
+  unresolved_advisory_items?: CompletionCallouts['unresolved_advisory_items'];
+  completion_notes?: string | null;
 }
 
 interface NormalizedWorkItemUpdate {
@@ -868,6 +885,7 @@ export class PlaybookWorkflowControlService {
       | 'metadata'
     >,
     db: DatabaseClient,
+    allowAdvisoryCarryForward = false,
   ) {
     if (workItem.blocked_state === 'blocked') {
       throw new ValidationError(
@@ -875,6 +893,9 @@ export class PlaybookWorkflowControlService {
       );
     }
     if (workItem.escalation_status === 'open') {
+      if (allowAdvisoryCarryForward) {
+        return;
+      }
       throw new ValidationError(
         `Cannot complete work item '${workItem.title}' while it still has an open escalation.`,
       );
@@ -888,6 +909,12 @@ export class PlaybookWorkflowControlService {
     if (
       workItem.next_expected_action === 'handoff'
       && await this.hasSatisfiedPendingHandoff(tenantId, workflowId, workItem, db)
+    ) {
+      return;
+    }
+    if (
+      allowAdvisoryCarryForward
+      && isAdvisoryContinuationAction(workItem.next_expected_action)
     ) {
       return;
     }
@@ -930,6 +957,7 @@ export class PlaybookWorkflowControlService {
     workflowId: string,
     stageName: string,
     db: DatabaseClient,
+    allowAdvisoryCarryForward = false,
   ) {
     const result = await db.query<BlockingStageWorkItemRow>(
       `SELECT wi.id,
@@ -962,11 +990,17 @@ export class PlaybookWorkflowControlService {
       );
     }
     if (row?.escalation_status === 'open') {
+      if (allowAdvisoryCarryForward) {
+        return;
+      }
       throw new ValidationError(
         `Cannot complete workflow while stage '${stageName}' still has open escalation on work item '${row.title}'.`,
       );
     }
     if (!row?.next_expected_actor || !row.next_expected_action) {
+      return;
+    }
+    if (allowAdvisoryCarryForward && isAdvisoryContinuationAction(row.next_expected_action)) {
       return;
     }
 
@@ -1019,12 +1053,15 @@ export class PlaybookWorkflowControlService {
         state: 'completed',
         summary: readCompletionSummary(workflow) ?? input.summary.trim(),
         final_artifacts: readCompletionArtifacts(workflow),
+        completion_callouts: readWorkflowCompletionCallouts(workflow),
       };
     }
 
     await this.assertWorkflowHasNoActiveNonOrchestratorTasks(identity.tenantId, workflowId, db);
 
     const finalArtifacts = normalizeStringArray(input.final_artifacts);
+    const requestedCompletionCallouts = normalizeCompletionCalloutsInput(input);
+    const allowAdvisoryCarryForward = requestedCompletionCallouts.unresolved_advisory_items.length > 0;
     const completedStageNames = new Set<string>();
     for (let remainingStages = Math.max(definition.stages.length, 1); remainingStages > 0; remainingStages -= 1) {
       await reconcilePlannedWorkflowStages(db, identity.tenantId, workflowId);
@@ -1044,6 +1081,7 @@ export class PlaybookWorkflowControlService {
         workflowId,
         stage.name,
         db,
+        allowAdvisoryCarryForward,
       );
       await this.assertStageHasNoBlockingAssessmentResolution(
         identity.tenantId,
@@ -1101,6 +1139,16 @@ export class PlaybookWorkflowControlService {
       throw new ValidationError(`Workflow still has incomplete stage '${incompleteStages.rows[0].name}'`);
     }
 
+    const workItemCallouts = await this.loadWorkflowCompletionCallouts(
+      identity.tenantId,
+      workflowId,
+      db,
+    );
+    const aggregatedCompletionCallouts = mergeCompletionCallouts(
+      ...workItemCallouts,
+      requestedCompletionCallouts,
+    );
+
     await db.query(
       `UPDATE workflows
           SET orchestration_state = jsonb_set(
@@ -1114,10 +1162,17 @@ export class PlaybookWorkflowControlService {
                 $4::jsonb,
                 true
               ),
+              completion_callouts = $5::jsonb,
               updated_at = now()
         WHERE tenant_id = $1
           AND id = $2`,
-      [identity.tenantId, workflowId, input.summary.trim(), JSON.stringify(finalArtifacts)],
+      [
+        identity.tenantId,
+        workflowId,
+        input.summary.trim(),
+        JSON.stringify(finalArtifacts),
+        aggregatedCompletionCallouts,
+      ],
     );
     const state = await this.deps.stateService.recomputeWorkflowState(identity.tenantId, workflowId, db, {
       actorType: identity.scope,
@@ -1148,7 +1203,11 @@ export class PlaybookWorkflowControlService {
         entityId: workflowId,
         actorType: identity.scope,
         actorId: identity.keyPrefix,
-        data: { summary: input.summary.trim(), final_artifacts: finalArtifacts },
+        data: {
+          summary: input.summary.trim(),
+          final_artifacts: finalArtifacts,
+          completion_callouts: aggregatedCompletionCallouts,
+        },
       },
       db,
     );
@@ -1157,6 +1216,7 @@ export class PlaybookWorkflowControlService {
       state,
       summary: input.summary.trim(),
       final_artifacts: finalArtifacts,
+      completion_callouts: aggregatedCompletionCallouts,
     };
   }
 
@@ -1182,8 +1242,9 @@ export class PlaybookWorkflowControlService {
               w.playbook_id,
               w.lifecycle,
               w.state,
-              p.definition
-              , w.orchestration_state
+              p.definition,
+              w.orchestration_state,
+              w.completion_callouts
          FROM workflows w
          JOIN playbooks p
            ON p.tenant_id = w.tenant_id
@@ -1238,6 +1299,7 @@ export class PlaybookWorkflowControlService {
               notes,
               completed_at,
               metadata,
+              completion_callouts,
               updated_at
          FROM workflow_work_items
         WHERE tenant_id = $1
@@ -1250,6 +1312,21 @@ export class PlaybookWorkflowControlService {
       throw new NotFoundError('Workflow work item not found');
     }
     return result.rows[0];
+  }
+
+  private async loadWorkflowCompletionCallouts(
+    tenantId: string,
+    workflowId: string,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    const result = await db.query<{ completion_callouts: unknown }>(
+      `SELECT completion_callouts
+         FROM workflow_work_items
+        WHERE tenant_id = $1
+          AND workflow_id = $2`,
+      [tenantId, workflowId],
+    );
+    return result.rows.map((row) => completionCalloutsSchema.parse(row.completion_callouts ?? {}));
   }
 
   private async updateWorkItemInTransaction(
@@ -1402,7 +1479,7 @@ export class PlaybookWorkflowControlService {
     identity: ApiKeyIdentity,
     workflowId: string,
     workItemId: string,
-    _input: CompleteWorkflowWorkItemInput,
+    input: CompleteWorkflowWorkItemInput,
     db: DatabaseClient,
   ) {
     const workflow = await this.loadWorkflow(identity.tenantId, workflowId, db);
@@ -1411,13 +1488,119 @@ export class PlaybookWorkflowControlService {
     if (!terminalColumnId) {
       throw new ValidationError('This workflow has no terminal board column configured');
     }
-    return this.updateWorkItemInTransaction(
-      identity,
+    const workItem = await this.loadWorkItem(identity.tenantId, workflowId, workItemId, db);
+    if (workItem.completed_at && workItem.column_id === terminalColumnId) {
+      return toWorkItemResponse(workItem);
+    }
+
+    const completionCallouts = normalizeCompletionCalloutsInput(input);
+    const allowAdvisoryCarryForward = completionCallouts.unresolved_advisory_items.length > 0;
+    await this.assertWorkItemHasNoActiveTasks(
+      identity.tenantId,
       workflowId,
       workItemId,
-      { column_id: terminalColumnId },
+      workItem.title,
       db,
     );
+    await this.assertNoPendingBlockingContinuation(
+      identity.tenantId,
+      workflowId,
+      workItem,
+      db,
+      allowAdvisoryCarryForward,
+    );
+    await this.assertWorkItemHasNoBlockingAssessmentResolution(
+      identity.tenantId,
+      workflowId,
+      workItemId,
+      workItem.title,
+      db,
+    );
+
+    const result = await db.query<WorkflowWorkItemRow>(
+      `UPDATE workflow_work_items
+          SET parent_work_item_id = $4,
+              title = $5,
+              goal = $6,
+              acceptance_criteria = $7,
+              stage_name = $8,
+              column_id = $9,
+              owner_role = $10,
+              next_expected_actor = NULL,
+              next_expected_action = NULL,
+              priority = $11,
+              notes = $12,
+              completed_at = COALESCE(completed_at, now()),
+              metadata = $13::jsonb,
+              completion_callouts = $14::jsonb,
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = $3
+      RETURNING id,
+                parent_work_item_id,
+                stage_name,
+                title,
+                goal,
+                acceptance_criteria,
+                column_id,
+                owner_role,
+                next_expected_actor,
+                next_expected_action,
+                blocked_state,
+                blocked_reason,
+                escalation_status,
+                rework_count,
+                priority,
+                notes,
+                completed_at,
+                metadata,
+                completion_callouts,
+                updated_at`,
+      [
+        identity.tenantId,
+        workflowId,
+        workItemId,
+        workItem.parent_work_item_id,
+        workItem.title,
+        workItem.goal,
+        workItem.acceptance_criteria,
+        workItem.stage_name,
+        terminalColumnId,
+        workItem.owner_role,
+        workItem.priority,
+        workItem.notes,
+        stripOrchestratorFinishState(workItem.metadata),
+        completionCallouts,
+      ],
+    );
+    const updatedWorkItem = result.rows[0];
+    if (workflow.lifecycle === 'planned') {
+      await reconcilePlannedWorkflowStages(db, identity.tenantId, workflowId);
+    }
+    await emitWorkItemUpdateEvents(this.deps, identity, workflowId, workItem, updatedWorkItem, db);
+    const activation = await this.deps.activationService.enqueueForWorkflow(
+      {
+        tenantId: identity.tenantId,
+        workflowId,
+        reason: 'work_item.updated',
+        eventType: 'work_item.updated',
+        payload: buildWorkItemUpdatePayload(workItem, updatedWorkItem),
+        actorType: identity.scope,
+        actorId: identity.keyPrefix,
+      },
+      db,
+    );
+    await this.deps.activationDispatchService.dispatchActivation(
+      identity.tenantId,
+      String(activation.id),
+      db,
+    );
+    await this.deps.stateService.recomputeWorkflowState(identity.tenantId, workflowId, db, {
+      actorType: identity.scope,
+      actorId: identity.keyPrefix,
+    });
+    return toWorkItemResponse(updatedWorkItem);
   }
 
   private async resolveWorkItemEscalationInTransaction(
@@ -2167,6 +2350,10 @@ function readCompletionArtifacts(workflow: WorkflowContextRow) {
   return normalizeStringArray(state.final_artifacts);
 }
 
+function readWorkflowCompletionCallouts(workflow: WorkflowContextRow) {
+  return completionCalloutsSchema.parse(workflow.completion_callouts ?? {});
+}
+
 function normalizeStringArray(value: unknown) {
   if (!Array.isArray(value)) {
     return [] as string[];
@@ -2189,6 +2376,10 @@ function sameStringArray(left: string[], right: string[]) {
     return false;
   }
   return left.every((value, index) => value === right[index]);
+}
+
+function isAdvisoryContinuationAction(action: string) {
+  return action === 'approve' || action === 'assess';
 }
 
 function sameRecordArray(
@@ -2377,6 +2568,7 @@ async function emitWorkItemUpdateEvents(
 function toWorkItemResponse(row: WorkflowWorkItemRow): WorkflowWorkItemResponse {
   return {
     ...row,
+    completion_callouts: completionCalloutsSchema.parse(row.completion_callouts ?? {}),
     completed_at: row.completed_at?.toISOString() ?? null,
     updated_at: row.updated_at.toISOString(),
   };

@@ -4096,6 +4096,13 @@ describe('PlaybookWorkflowControlService', () => {
       state: 'completed',
       summary: 'Ship it',
       final_artifacts: [],
+      completion_callouts: {
+        residual_risks: [],
+        unmet_preferred_expectations: [],
+        waived_steps: [],
+        unresolved_advisory_items: [],
+        completion_notes: null,
+      },
     });
   });
 
@@ -4215,6 +4222,10 @@ describe('PlaybookWorkflowControlService', () => {
           expect(params).toEqual(['tenant-1', 'workflow-1']);
           return { rowCount: 0, rows: [] };
         }
+        if (sql.includes('SELECT completion_callouts') && sql.includes('FROM workflow_work_items')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1']);
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.includes('UPDATE workflow_activations')) {
           expect(params).toEqual(['tenant-1', 'workflow-1']);
           consumedQueuedActivations = true;
@@ -4226,6 +4237,13 @@ describe('PlaybookWorkflowControlService', () => {
             'workflow-1',
             'Ship it',
             JSON.stringify(['artifacts/release-notes.md', 'artifacts/test-report.json']),
+            {
+              residual_risks: [],
+              unmet_preferred_expectations: [],
+              waived_steps: [],
+              unresolved_advisory_items: [],
+              completion_notes: null,
+            },
           ]);
           return { rowCount: 1, rows: [] };
         }
@@ -4258,6 +4276,13 @@ describe('PlaybookWorkflowControlService', () => {
       state: 'completed',
       summary: 'Ship it',
       final_artifacts: ['artifacts/release-notes.md', 'artifacts/test-report.json'],
+      completion_callouts: {
+        residual_risks: [],
+        unmet_preferred_expectations: [],
+        waived_steps: [],
+        unresolved_advisory_items: [],
+        completion_notes: null,
+      },
     });
     expect(recomputeWorkflowState).toHaveBeenCalledWith(
       'tenant-1',
@@ -4277,10 +4302,346 @@ describe('PlaybookWorkflowControlService', () => {
       2,
       expect.objectContaining({
         type: 'workflow.completed',
-        data: {
+        data: expect.objectContaining({
           summary: 'Ship it',
           final_artifacts: ['artifacts/release-notes.md', 'artifacts/test-report.json'],
-        },
+        }),
+      }),
+      pool,
+    );
+    expect(consumedQueuedActivations).toBe(true);
+  });
+
+  it('persists structured completion callouts when completing a work item', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const activationService = {
+      enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-9' })),
+    };
+    const dispatchService = {
+      dispatchActivation: vi.fn(async () => 'task-9'),
+    };
+    const stateService = {
+      recomputeWorkflowState: vi.fn(async () => 'active'),
+    };
+    const updatedAt = new Date('2026-03-11T02:00:30Z');
+    const callouts = {
+      residual_risks: [],
+      unmet_preferred_expectations: [],
+      waived_steps: [{ code: 'secondary_review', reason: 'Primary review was decisive.' }],
+      unresolved_advisory_items: [{ kind: 'approval', id: 'gate-1', summary: 'Approval stayed advisory.' }],
+      completion_notes: 'Closed with one waived preferred review.',
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'ongoing',
+              active_stage_name: null,
+              state: 'active',
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('AND id = $3') && sql.includes('FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-ongoing-1',
+              parent_work_item_id: null,
+              stage_name: 'requirements',
+              title: 'Triage request',
+              goal: 'Clarify the incoming ask',
+              acceptance_criteria: 'Next action is unblocked',
+              column_id: 'planned',
+              owner_role: 'analyst',
+              next_expected_actor: 'reviewer',
+              next_expected_action: 'approve',
+              blocked_state: null,
+              blocked_reason: null,
+              escalation_status: null,
+              rework_count: 0,
+              priority: 'normal',
+              notes: null,
+              completed_at: null,
+              metadata: { lane: 'default' },
+              completion_callouts: {},
+              updated_at: new Date('2026-03-11T02:00:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'wi-ongoing-1',
+            null,
+            'Triage request',
+            'Clarify the incoming ask',
+            'Next action is unblocked',
+            'requirements',
+            'done',
+            'analyst',
+            'normal',
+            null,
+            { lane: 'default' },
+            callouts,
+          ]);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-ongoing-1',
+              parent_work_item_id: null,
+              stage_name: 'requirements',
+              title: 'Triage request',
+              goal: 'Clarify the incoming ask',
+              acceptance_criteria: 'Next action is unblocked',
+              column_id: 'done',
+              owner_role: 'analyst',
+              next_expected_actor: null,
+              next_expected_action: null,
+              blocked_state: null,
+              blocked_reason: null,
+              escalation_status: null,
+              rework_count: 0,
+              priority: 'normal',
+              notes: null,
+              completed_at: new Date('2026-03-11T02:00:00Z'),
+              metadata: { lane: 'default' },
+              completion_callouts: callouts,
+              updated_at: updatedAt,
+            }],
+          };
+        }
+        if (sql.includes('SELECT id,') && sql.includes('completion_callouts')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-ongoing-1',
+              parent_work_item_id: null,
+              stage_name: 'requirements',
+              title: 'Triage request',
+              goal: 'Clarify the incoming ask',
+              acceptance_criteria: 'Next action is unblocked',
+              column_id: 'done',
+              owner_role: 'analyst',
+              next_expected_actor: null,
+              next_expected_action: null,
+              blocked_state: null,
+              blocked_reason: null,
+              escalation_status: null,
+              rework_count: 0,
+              priority: 'normal',
+              notes: null,
+              completed_at: new Date('2026-03-11T02:00:00Z'),
+              metadata: { lane: 'default' },
+              completion_callouts: callouts,
+              updated_at: updatedAt,
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('work_item_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT latest_assessment.resolution AS blocking_resolution')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-ongoing-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: eventService as never,
+      stateService: stateService as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
+    });
+
+    const updated = await service.completeWorkItem(
+      { tenantId: 'tenant-1', scope: 'admin', ownerType: 'user', ownerId: 'user-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'wi-ongoing-1',
+      {
+        waived_steps: [{ code: 'secondary_review', reason: 'Primary review was decisive.' }],
+        unresolved_advisory_items: [{ kind: 'approval', id: 'gate-1', summary: 'Approval stayed advisory.' }],
+        completion_notes: 'Closed with one waived preferred review.',
+      },
+      pool as never,
+    );
+
+    expect(updated).toEqual(expect.objectContaining({
+      id: 'wi-ongoing-1',
+      completion_callouts: callouts,
+    }));
+  });
+
+  it('records aggregated completion callouts when finishing a workflow', async () => {
+    const emit = vi.fn(async () => undefined);
+    const recomputeWorkflowState = vi.fn(async () => 'completed');
+    const aggregatedCallouts = {
+      residual_risks: [
+        { code: 'known_gap', summary: 'One non-blocking risk remained.', evidence_refs: ['handoff:1'] },
+      ],
+      unmet_preferred_expectations: [],
+      waived_steps: [{ code: 'extra_review', reason: 'Core review already covered the risk.' }],
+      unresolved_advisory_items: [{ kind: 'escalation', id: 'esc-1', summary: 'Escalation was advisory.' }],
+      completion_notes: 'Workflow completed with advisory callouts.',
+    };
+    let consumedQueuedActivations = false;
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'planned',
+              active_stage_name: 'implementation',
+              state: 'active',
+              orchestration_state: {},
+              completion_callouts: {},
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stages') && sql.includes('name = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-2',
+              name: 'implementation',
+              position: 1,
+              goal: 'Ship the feature',
+              guidance: null,
+              human_gate: false,
+              status: 'in_progress',
+              gate_status: 'not_requested',
+              iteration_count: 0,
+              summary: null,
+              metadata: {},
+              started_at: new Date('2026-03-11T01:00:00Z'),
+              completed_at: null,
+              updated_at: new Date('2026-03-11T01:00:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('blocking_resolution')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT ws.id') && sql.includes('FROM workflow_stages ws')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-2',
+              lifecycle: 'planned',
+              name: 'implementation',
+              position: 1,
+              goal: 'Ship the feature',
+              guidance: null,
+              human_gate: false,
+              status: 'active',
+              gate_status: 'not_requested',
+              iteration_count: 0,
+              summary: null,
+              started_at: new Date('2026-03-11T01:00:00Z'),
+              completed_at: null,
+              open_work_item_count: 0,
+              total_work_item_count: 1,
+              first_work_item_at: new Date('2026-03-11T01:00:00Z'),
+              last_completed_work_item_at: new Date('2026-03-11T02:00:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_stages')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT wi.id,') && sql.includes('wi.next_expected_actor') && sql.includes('wi.next_expected_action')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT completion_callouts') && sql.includes('FROM workflow_work_items')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              completion_callouts: {
+                residual_risks: [
+                  { code: 'known_gap', summary: 'One non-blocking risk remained.', evidence_refs: ['handoff:1'] },
+                ],
+                unmet_preferred_expectations: [],
+                waived_steps: [],
+                unresolved_advisory_items: [],
+                completion_notes: null,
+              },
+            }],
+          };
+        }
+        if (sql.includes('SELECT name') && sql.includes('FROM workflow_stages')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE workflow_activations')) {
+          consumedQueuedActivations = true;
+          return { rowCount: 1, rows: [{ id: 'activation-1' }] };
+        }
+        if (sql.includes('UPDATE workflows')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'Ship it',
+            JSON.stringify(['artifacts/release-notes.md']),
+            aggregatedCallouts,
+          ]);
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = false')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: { emit } as never,
+      stateService: { recomputeWorkflowState } as never,
+      activationService: { enqueueForWorkflow: vi.fn() } as never,
+      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+    });
+
+    const result = await service.completeWorkflow(
+      { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      {
+        summary: 'Ship it',
+        final_artifacts: ['artifacts/release-notes.md'],
+        waived_steps: [{ code: 'extra_review', reason: 'Core review already covered the risk.' }],
+        unresolved_advisory_items: [{ kind: 'escalation', id: 'esc-1', summary: 'Escalation was advisory.' }],
+        completion_notes: 'Workflow completed with advisory callouts.',
+      },
+      pool as never,
+    );
+
+    expect(result).toEqual({
+      workflow_id: 'workflow-1',
+      state: 'completed',
+      summary: 'Ship it',
+      final_artifacts: ['artifacts/release-notes.md'],
+      completion_callouts: aggregatedCallouts,
+    });
+    expect(emit).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        type: 'workflow.completed',
+        data: expect.objectContaining({
+          completion_callouts: aggregatedCallouts,
+        }),
       }),
       pool,
     );
@@ -4409,12 +4770,23 @@ describe('PlaybookWorkflowControlService', () => {
           expect(params).toEqual(['tenant-1', 'workflow-1']);
           return { rowCount: 0, rows: [] };
         }
+        if (sql.includes('SELECT completion_callouts') && sql.includes('FROM workflow_work_items')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1']);
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.includes('UPDATE workflows') && sql.includes('orchestration_state')) {
           expect(params).toEqual([
             'tenant-1',
             'workflow-1',
             'Ship it',
             JSON.stringify([]),
+            {
+              residual_risks: [],
+              unmet_preferred_expectations: [],
+              waived_steps: [],
+              unresolved_advisory_items: [],
+              completion_notes: null,
+            },
           ]);
           return { rowCount: 1, rows: [] };
         }
@@ -4444,11 +4816,28 @@ describe('PlaybookWorkflowControlService', () => {
       state: 'completed',
       summary: 'Ship it',
       final_artifacts: [],
+      completion_callouts: {
+        residual_risks: [],
+        unmet_preferred_expectations: [],
+        waived_steps: [],
+        unresolved_advisory_items: [],
+        completion_notes: null,
+      },
     });
     expect(emit).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'workflow.completed',
-        data: { summary: 'Ship it', final_artifacts: [] },
+        data: {
+          summary: 'Ship it',
+          final_artifacts: [],
+          completion_callouts: {
+            residual_risks: [],
+            unmet_preferred_expectations: [],
+            waived_steps: [],
+            unresolved_advisory_items: [],
+            completion_notes: null,
+          },
+        },
       }),
       pool,
     );
@@ -4743,12 +5132,23 @@ describe('PlaybookWorkflowControlService', () => {
         if (sql.includes('UPDATE workflow_activations')) {
           return { rowCount: 0, rows: [] };
         }
+        if (sql.includes('SELECT completion_callouts') && sql.includes('FROM workflow_work_items')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1']);
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.includes('UPDATE workflows') && sql.includes('orchestration_state')) {
           expect(params).toEqual([
             'tenant-1',
             'workflow-1',
             'Ship it',
             JSON.stringify([]),
+            {
+              residual_risks: [],
+              unmet_preferred_expectations: [],
+              waived_steps: [],
+              unresolved_advisory_items: [],
+              completion_notes: null,
+            },
           ]);
           return { rowCount: 1, rows: [] };
         }
@@ -4778,6 +5178,13 @@ describe('PlaybookWorkflowControlService', () => {
       state: 'completed',
       summary: 'Ship it',
       final_artifacts: [],
+      completion_callouts: {
+        residual_risks: [],
+        unmet_preferred_expectations: [],
+        waived_steps: [],
+        unresolved_advisory_items: [],
+        completion_notes: null,
+      },
     });
     expect(emit).toHaveBeenNthCalledWith(
       1,
@@ -4799,7 +5206,7 @@ describe('PlaybookWorkflowControlService', () => {
       3,
       expect.objectContaining({
         type: 'workflow.completed',
-        data: { summary: 'Ship it', final_artifacts: [] },
+        data: expect.objectContaining({ summary: 'Ship it', final_artifacts: [] }),
       }),
       pool,
     );

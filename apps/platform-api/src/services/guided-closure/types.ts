@@ -12,28 +12,28 @@ export const guidedClosureWaivedStepSchema = z.object({
   reason: z.string().min(1).max(4000),
 }).strict();
 
+export const guidedClosureResidualRiskSchema = z.object({
+  code: calloutCodeSchema,
+  summary: calloutSummarySchema,
+  evidence_refs: z.array(z.string().min(1).max(255)).default([]),
+}).strict();
+
+export const guidedClosureUnmetExpectationSchema = z.object({
+  code: calloutCodeSchema,
+  summary: calloutSummarySchema,
+}).strict();
+
+export const guidedClosureUnresolvedAdvisoryItemSchema = z.object({
+  kind: z.string().min(1).max(120),
+  id: z.string().min(1).max(255),
+  summary: calloutSummarySchema,
+}).strict();
+
 export const completionCalloutsSchema = z.object({
-  residual_risks: z.array(
-    z.object({
-      code: calloutCodeSchema,
-      summary: calloutSummarySchema,
-      evidence_refs: z.array(z.string().min(1).max(255)).default([]),
-    }).strict(),
-  ).default([]),
-  unmet_preferred_expectations: z.array(
-    z.object({
-      code: calloutCodeSchema,
-      summary: calloutSummarySchema,
-    }).strict(),
-  ).default([]),
+  residual_risks: z.array(guidedClosureResidualRiskSchema).default([]),
+  unmet_preferred_expectations: z.array(guidedClosureUnmetExpectationSchema).default([]),
   waived_steps: z.array(guidedClosureWaivedStepSchema).default([]),
-  unresolved_advisory_items: z.array(
-    z.object({
-      kind: z.string().min(1).max(120),
-      id: z.string().min(1).max(255),
-      summary: calloutSummarySchema,
-    }).strict(),
-  ).default([]),
+  unresolved_advisory_items: z.array(guidedClosureUnresolvedAdvisoryItemSchema).default([]),
   completion_notes: z.string().min(1).max(4000).nullable().default(null),
 }).strict();
 
@@ -109,6 +109,78 @@ export type GuidedClosureCalloutRecommendation = z.infer<typeof guidedClosureCal
 
 export function emptyCompletionCallouts(): CompletionCallouts {
   return completionCalloutsSchema.parse({});
+}
+
+function dedupeByJson<T>(entries: T[]): T[] {
+  const seen = new Set<string>();
+  const deduped: T[] = [];
+  for (const entry of entries) {
+    const key = JSON.stringify(entry);
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    deduped.push(entry);
+  }
+  return deduped;
+}
+
+function normalizeOptionalCompletionNotes(value: unknown): string | null {
+  if (value === undefined) {
+    return null;
+  }
+  if (value === null) {
+    return null;
+  }
+  const parsed = z.string().min(1).max(4000).parse(value);
+  return parsed.trim();
+}
+
+export function normalizeCompletionCalloutsInput(input: {
+  completion_callouts?: unknown;
+  waived_steps?: unknown;
+  unresolved_advisory_items?: unknown;
+  completion_notes?: unknown;
+}): CompletionCallouts {
+  const base = completionCalloutsSchema.parse(input.completion_callouts ?? {});
+  const explicitWaivedSteps = guidedClosureWaivedStepSchema.array().max(100).parse(
+    Array.isArray(input.waived_steps) ? input.waived_steps : [],
+  );
+  const explicitUnresolved = guidedClosureUnresolvedAdvisoryItemSchema.array().max(100).parse(
+    Array.isArray(input.unresolved_advisory_items) ? input.unresolved_advisory_items : [],
+  );
+  const explicitNotes = normalizeOptionalCompletionNotes(input.completion_notes);
+
+  return completionCalloutsSchema.parse({
+    ...base,
+    waived_steps: explicitWaivedSteps.length > 0 ? explicitWaivedSteps : base.waived_steps,
+    unresolved_advisory_items:
+      explicitUnresolved.length > 0 ? explicitUnresolved : base.unresolved_advisory_items,
+    completion_notes: input.completion_notes === undefined ? base.completion_notes : explicitNotes,
+  });
+}
+
+export function mergeCompletionCallouts(...values: unknown[]): CompletionCallouts {
+  const merged = values
+    .filter((value) => value !== undefined && value !== null)
+    .map((value) => completionCalloutsSchema.parse(value))
+    .reduce<CompletionCallouts>(
+      (accumulator, current) => ({
+        residual_risks: dedupeByJson([...accumulator.residual_risks, ...current.residual_risks]),
+        unmet_preferred_expectations: dedupeByJson([
+          ...accumulator.unmet_preferred_expectations,
+          ...current.unmet_preferred_expectations,
+        ]),
+        waived_steps: dedupeByJson([...accumulator.waived_steps, ...current.waived_steps]),
+        unresolved_advisory_items: dedupeByJson([
+          ...accumulator.unresolved_advisory_items,
+          ...current.unresolved_advisory_items,
+        ]),
+        completion_notes: current.completion_notes ?? accumulator.completion_notes,
+      }),
+      emptyCompletionCallouts(),
+    );
+  return completionCalloutsSchema.parse(merged);
 }
 
 export function buildAppliedMutationResult<T extends Record<string, unknown>>(result: T) {

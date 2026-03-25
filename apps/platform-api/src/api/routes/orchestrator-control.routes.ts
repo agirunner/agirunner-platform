@@ -41,7 +41,10 @@ import { logSafetynetTriggered } from '../../services/safetynet/logging.js';
 import { buildArtifactStorageConfig } from '../../content/storage-config.js';
 import { createArtifactStorage } from '../../content/storage-factory.js';
 import {
+  completionCalloutsSchema,
   buildRecoverableMutationResult,
+  guidedClosureUnresolvedAdvisoryItemSchema,
+  guidedClosureWaivedStepSchema,
   type GuidedClosureStateSnapshot,
 } from '../../services/guided-closure/types.js';
 
@@ -81,7 +84,11 @@ const workItemUpdateSchema = z.object({
 
 const workItemCompleteSchema = z.object({
   request_id: z.string().min(1).max(255),
-});
+  completion_callouts: completionCalloutsSchema.optional(),
+  waived_steps: z.array(guidedClosureWaivedStepSchema).max(100).optional(),
+  unresolved_advisory_items: z.array(guidedClosureUnresolvedAdvisoryItemSchema).max(100).optional(),
+  completion_notes: z.string().min(1).max(4000).nullable().optional(),
+}).strict();
 
 const orchestratorTaskCreateSchema = z.object({
   request_id: z.string().min(1).max(255),
@@ -172,7 +179,11 @@ const workflowCompleteSchema = z.object({
   request_id: z.string().min(1).max(255),
   summary: z.string().min(1).max(4000),
   final_artifacts: z.array(z.string().min(1).max(2000)).max(100).optional(),
-});
+  completion_callouts: completionCalloutsSchema.optional(),
+  waived_steps: z.array(guidedClosureWaivedStepSchema).max(100).optional(),
+  unresolved_advisory_items: z.array(guidedClosureUnresolvedAdvisoryItemSchema).max(100).optional(),
+  completion_notes: z.string().min(1).max(4000).nullable().optional(),
+}).strict();
 
 const workspaceMemoryUpdatesSchema = z
   .record(z.string().min(1).max(256), z.unknown())
@@ -461,7 +472,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
             request.auth!,
             taskScope.workflow_id,
             params.workItemId,
-            {},
+            body,
             client,
           ),
       );
