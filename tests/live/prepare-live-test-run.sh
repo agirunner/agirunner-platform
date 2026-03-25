@@ -22,7 +22,7 @@ print(scenario["workspace"]["storage"]["type"])
 PY
 }
 
-SCENARIO_INPUT="${1:-${LIVE_TEST_SCENARIO_NAME:-}}"
+SCENARIO_INPUT="${1:-${LIVE_TEST_SCENARIO_FILE:-${LIVE_TEST_SCENARIO_NAME:-}}}"
 if [[ -z "${SCENARIO_INPUT}" ]]; then
   echo "[tests/live] scenario name or path is required" >&2
   exit 1

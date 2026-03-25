@@ -234,9 +234,64 @@ fi'
   assert_contains "\"workspace_id\":\"workspace-1\"" "${run_context_file}"
 }
 
+test_prepare_run_honors_explicit_live_test_scenario_file_without_positional_arg() {
+  local tmpdir stubdir logfile envfile output_root shared_context_file run_context_file custom_scenario_file
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' RETURN
+  stubdir="${tmpdir}/bin"
+  logfile="${tmpdir}/calls.log"
+  envfile="${tmpdir}/env/local.env"
+  output_root="${tmpdir}/artifacts"
+  shared_context_file="${output_root}/bootstrap/context.json"
+  run_context_file="${output_root}/custom-scenario/run-context.json"
+  custom_scenario_file="${tmpdir}/custom-scenarios/custom-scenario.json"
+  mkdir -p "${stubdir}" "$(dirname "${envfile}")" "$(dirname "${shared_context_file}")" "$(dirname "${custom_scenario_file}")"
+
+  cat >"${envfile}" <<'EOF'
+DEFAULT_ADMIN_API_KEY=test-admin-key
+LIVE_TEST_PROVIDER_AUTH_MODE=oauth
+LIVE_TEST_OAUTH_PROFILE_ID=openai-codex
+LIVE_TEST_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"enc:v1:access","refreshToken":"enc:v1:refresh"}}'
+POSTGRES_DB=agirunner
+POSTGRES_USER=agirunner
+POSTGRES_PASSWORD=agirunner
+POSTGRES_PORT=5432
+PLATFORM_API_PORT=8080
+EOF
+
+  cat >"${shared_context_file}" <<'EOF'
+{"provider_auth_mode":"oauth","profiles":{"custom-profile":{"playbook_id":"playbook-custom","playbook_slug":"playbook-custom"}}}
+EOF
+
+  cat >"${custom_scenario_file}" <<'EOF'
+{"name":"custom-scenario","profile":"custom-profile","workflow":{"name":"Custom Scenario","goal":"Use explicit scenario file","parameters":{},"metadata":{}},"workspace":{"repo":false,"storage":{"type":"workspace_artifacts"},"memory":{"workspace_kind":"artifact-only"},"spec":{}},"approvals":[],"actions":[],"expect":{"state":"completed"}}
+EOF
+
+  make_stub "${stubdir}/python3" '
+if [[ "${1:-}" == "-" ]]; then
+  printf "scenario_file=%s\n" "${3:-}" >>"'"${logfile}"'"
+  printf "%s\n" "custom-profile" "workspace_artifacts"
+else
+  printf "%s\n" "{\"workspace_id\":\"workspace-custom\",\"workspace_slug\":\"custom-scenario-run\",\"playbook_id\":\"playbook-custom\",\"run_token\":\"run-custom\"}" >"${LIVE_TEST_RUN_CONTEXT_FILE}"
+fi'
+
+  PATH="${stubdir}:${PATH}" \
+    LIVE_TEST_ENV_FILE="${envfile}" \
+    LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
+    LIVE_TEST_SHARED_CONTEXT_FILE="${shared_context_file}" \
+    LIVE_TEST_SCENARIO_FILE="${custom_scenario_file}" \
+    LIVE_TEST_SCENARIO_NAME="custom-scenario" \
+    LIVE_TEST_RUN_TOKEN="run-custom" \
+    "${SCRIPT_PATH}" >"${tmpdir}/stdout.log"
+
+  assert_contains "scenario_file=${custom_scenario_file}" "${logfile}"
+  assert_contains "\"workspace_id\":\"workspace-custom\"" "${run_context_file}"
+}
+
 test_git_remote_run_preparation_uses_unique_branch_and_writes_run_context
 test_git_remote_run_preparation_pushes_run_branch_to_fixtures_origin_remote
 test_host_directory_run_preparation_uses_unique_host_workspace_path
 test_git_remote_run_preparation_defaults_fixtures_repo_path
+test_prepare_run_honors_explicit_live_test_scenario_file_without_positional_arg
 
 echo "[tests/live/prepare-live-test-run.test] PASS"
