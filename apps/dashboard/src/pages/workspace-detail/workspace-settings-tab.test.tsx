@@ -107,12 +107,12 @@ describe('workspace settings tab source', () => {
     expect(supportSource).toContain('export function buildWorkspaceGitAccessVerificationFingerprint');
   });
 
-  it('points workspace artifact uploads back to the knowledge tab with concise storage guidance', () => {
+  it('describes workspace artifacts as built-in platform storage for specialist materials', () => {
     const source = readSource('./workspace-settings-tab.tsx');
 
-    expect(source).toContain('Artifacts upload from the Knowledge tab.');
-    expect(source).toContain('Stored artifacts appear in task context');
-    expect(source).toContain('working directory automatically.');
+    expect(source).toContain('Workspace artifacts is storage that is built into the platform.');
+    expect(source).toContain('Knowledge tab to upload artifacts');
+    expect(source).toContain('specialists wlil be instructed');
     expect(source).not.toContain(
       'Workspace persistence happens through uploaded artifacts. Prior artifacts are listed in',
     );

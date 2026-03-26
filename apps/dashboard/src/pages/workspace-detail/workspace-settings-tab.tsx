@@ -293,8 +293,10 @@ export function WorkspaceSettingsTab(props: {
 
           {draft.storageType === 'workspace_artifacts' ? (
             <div className="rounded-xl border border-border/70 bg-muted/30 p-3 text-sm leading-6 text-muted">
-              Artifacts upload from the Knowledge tab. Stored artifacts appear in task context and do
-              not restore into the working directory automatically.
+              Workspace artifacts is storage that is built into the platform. You can use the
+              Knowledge tab to upload artifacts that will be accessible to specialists, and
+              specialists wlil be instructed to rely on built-in storage when reading and
+              producing materials.
             </div>
           ) : null}
         </div>
