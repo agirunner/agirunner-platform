@@ -111,12 +111,12 @@ export function buildWorkspaceKnowledgeOverview(
     packets: [
       {
         label: 'Workspace artifacts',
-        value: 'Inline workspace',
+        value: 'Workspace-owned files stay here for upload, review, and removal.',
         detail: 'Artifact inspection stays nested here instead of taking another top-level tab.',
       },
       {
         label: 'Shared memory',
-        value: `${memoryCount} entries`,
+        value: 'Evolving notes and learned state stay here as work progresses.',
         detail:
           memoryCount > 0
             ? 'Working memory holds evolving notes and learned state without leaving the workspace surface.'

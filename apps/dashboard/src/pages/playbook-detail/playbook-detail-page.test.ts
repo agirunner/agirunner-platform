@@ -15,11 +15,7 @@ describe('playbook detail page source', () => {
     expect(source).toContain('space-y-6 p-4 sm:p-6');
     expect(source).toContain('PlaybookAuthoringForm');
     expect(source).toContain('PlaybookRevisionHistoryCard');
-    expect(source).toContain('ToggleCard');
-    expect(source).toContain('Playbook Availability');
-    expect(source).toContain('Inactive playbooks cannot launch new workflows until you save and reactivate them.');
-    expect(source).toContain("checkedLabel=\"Active\"");
-    expect(source).toContain("uncheckedLabel=\"Inactive\"");
+    expect(source).toContain('aria-label="Playbook active"');
     expect(source).toContain('This playbook is staged as inactive. Save the page to stop new workflow launches');
     expect(source).toContain('dashboardApi.deletePlaybook');
     expect(source).toContain('Delete Playbook Revision');
@@ -47,6 +43,8 @@ describe('playbook detail page source', () => {
     expect(source).not.toContain('Description</span>');
     expect(source).not.toContain('Operator-facing catalog copy only.');
     expect(source).not.toContain('buildPlaybookRestorePayload');
+    expect(source).not.toContain('Playbook Availability');
+    expect(source).not.toContain('Inactive playbooks cannot launch new workflows until you save and reactivate them.');
     expect(source).not.toContain('Raw JSON');
     expect(source).not.toContain('Shared prompts, role prompts, and specialist defaults are configured elsewhere.');
     expect(source).not.toContain('PlaybookControlCenterCard');

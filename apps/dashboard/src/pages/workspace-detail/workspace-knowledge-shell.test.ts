@@ -37,9 +37,11 @@ describe('workspace knowledge surface source', () => {
   it('keeps section headers compact so the page stays action-oriented', () => {
     const source = readSource('./workspace-knowledge-shell.tsx');
 
-    expect(source).toContain('Workspace-owned files stay here for upload, review, and removal.');
-    expect(source).toContain('Evolving notes and learned state stay here as work progresses.');
+    expect(source).toContain('buildArtifactSummary');
+    expect(source).toContain("getPacketValue(props.overview, 'Shared memory')");
     expect(source).toContain('max-w-3xl text-sm leading-5 text-muted');
+    expect(source).not.toContain('description:');
+    expect(source).not.toContain('{props.description}');
     expect(source).not.toContain('guidance:');
     expect(source).not.toContain('formatSectionSummary');
   });
@@ -50,7 +52,7 @@ describe('workspace knowledge surface source', () => {
     expect(source).toContain('artifactSummary?: string;');
     expect(source).toContain('memorySummary?: string;');
     expect(source).toContain('props.memorySummary');
-    expect(source).toContain("getPacketSummary(props.overview, 'Shared memory')");
+    expect(source).toContain("getPacketValue(props.overview, 'Shared memory')");
     expect(source).not.toContain('workspaceId: string;');
   });
 

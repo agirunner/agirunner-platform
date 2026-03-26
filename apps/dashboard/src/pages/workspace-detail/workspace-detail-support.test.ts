@@ -144,8 +144,14 @@ describe('workspace detail support', () => {
     expect(overview.summary).toContain('workspace-owned artifacts');
     expect(overview.packets).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ label: 'Workspace artifacts', value: 'Inline workspace' }),
-        expect.objectContaining({ label: 'Shared memory', value: '2 entries' }),
+        expect.objectContaining({
+          label: 'Workspace artifacts',
+          value: 'Workspace-owned files stay here for upload, review, and removal.',
+        }),
+        expect.objectContaining({
+          label: 'Shared memory',
+          value: 'Evolving notes and learned state stay here as work progresses.',
+        }),
       ]),
     );
     expect(overview.packets.map((packet) => packet.label)).not.toContain('Workspace Context');

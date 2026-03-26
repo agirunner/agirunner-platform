@@ -27,8 +27,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
+import { Switch } from '../../components/ui/switch.js';
 import { Textarea } from '../../components/ui/textarea.js';
-import { ToggleCard } from '../../components/ui/toggle-card.js';
 import { cn } from '../../lib/utils.js';
 import {
   buildPlaybookDefinition,
@@ -280,30 +280,30 @@ export function PlaybookDetailPage(): JSX.Element {
         </div>
       </div>
 
-        <Card id="playbook-identity">
-          <CardHeader className="space-y-2">
-          <CardTitle>Playbook Basics</CardTitle>
+      <Card id="playbook-identity">
+        <CardHeader className="space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <CardTitle>Playbook Basics</CardTitle>
+            <div className="flex shrink-0 items-center gap-2 pt-0.5">
+              <span className="text-xs font-medium text-muted">
+                {isActive ? 'Active' : 'Inactive'}
+              </span>
+              <Switch
+                checked={isActive}
+                aria-label="Playbook active"
+                onCheckedChange={(checked) => {
+                  setIsActive(checked);
+                  setIsDirty(true);
+                }}
+              />
+            </div>
+          </div>
           <p className="text-sm text-muted">
             Keep the identity and operating model visible while you edit the process-first
             authoring sections below.
           </p>
         </CardHeader>
         <CardContent className="grid gap-6">
-          <ToggleCard
-            label="Playbook Availability"
-            description={
-              isActive
-                ? 'Active playbooks can launch new workflows from this family.'
-                : 'Inactive playbooks cannot launch new workflows until you save and reactivate them.'
-            }
-            checked={isActive}
-            checkedLabel="Active"
-            uncheckedLabel="Inactive"
-            onCheckedChange={(checked) => {
-              setIsActive(checked);
-              setIsDirty(true);
-            }}
-          />
           <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr),minmax(0,1.35fr)] lg:items-stretch">
             <div className="grid gap-4">
               <label className="grid gap-2 text-sm">

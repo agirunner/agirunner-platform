@@ -17,19 +17,16 @@ interface WorkspaceKnowledgeShellProps {
 const KNOWLEDGE_PANELS: Array<{
   value: 'artifacts' | 'memory';
   label: string;
-  description: string;
   icon: typeof BrainCircuit;
 }> = [
   {
     value: 'artifacts',
     label: 'Workspace Artifacts',
-    description: 'Workspace-owned files stay here for upload, review, and removal.',
     icon: PackageSearch,
   },
   {
     value: 'memory',
     label: 'Workspace Memory',
-    description: 'Evolving notes and learned state stay here as work progresses.',
     icon: BrainCircuit,
   },
 ];
@@ -39,10 +36,8 @@ export function WorkspaceKnowledgeShell(props: WorkspaceKnowledgeShellProps): JS
     artifacts: props.artifactSummary ?? buildArtifactSummary(props.overview),
     memory:
       props.memorySummary
-      ?? (
-        getPacketSummary(props.overview, 'Shared memory')
-        || 'Workspace memory captures evolving notes and learned state.'
-      ),
+      ?? (getPacketValue(props.overview, 'Shared memory')
+        || 'Evolving notes and learned state stay here as work progresses.'),
   };
 
   return (
@@ -66,7 +61,6 @@ export function WorkspaceKnowledgeShell(props: WorkspaceKnowledgeShellProps): JS
               key={panel.value}
               title={panel.label}
               summary={sectionSummaries[panel.value]}
-              description={panel.description}
               icon={panel.icon}
             >
               {panel.value === 'artifacts'
@@ -85,7 +79,6 @@ export function WorkspaceKnowledgeShell(props: WorkspaceKnowledgeShellProps): JS
 function StaticKnowledgeSection(props: {
   title: string;
   summary: string;
-  description: string;
   icon: typeof BrainCircuit;
   children: ReactNode;
 }): JSX.Element {
@@ -102,20 +95,19 @@ function StaticKnowledgeSection(props: {
           <p className="max-w-3xl text-sm leading-5 text-muted">{props.summary}</p>
         </div>
       </div>
-      <CardContent className="space-y-3 border-t border-border/70 px-4 py-4">
-        <p className="text-sm leading-6 text-muted">{props.description}</p>
-        {props.children}
-      </CardContent>
+      <CardContent className="space-y-3 border-t border-border/70 px-4 py-4">{props.children}</CardContent>
     </Card>
   );
 }
 
 function buildArtifactSummary(overview: WorkspaceOverview): string {
-  const artifacts = getPacketSummary(overview, 'Workspace artifacts');
-  return artifacts || 'Workspace-owned files available to this workspace';
+  return (
+    getPacketValue(overview, 'Workspace artifacts')
+    || 'Workspace-owned files stay here for upload, review, and removal.'
+  );
 }
 
-function getPacketSummary(overview: WorkspaceOverview, label: string): string {
+function getPacketValue(overview: WorkspaceOverview, label: string): string {
   const packet = overview.packets.find((entry) => entry.label === label);
-  return packet ? `${packet.label}: ${packet.value}` : '';
+  return packet?.value ?? '';
 }

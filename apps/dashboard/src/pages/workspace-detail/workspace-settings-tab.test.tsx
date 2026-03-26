@@ -11,20 +11,19 @@ describe('workspace settings tab source', () => {
     const tabSource = readSource('./workspace-settings-tab.tsx');
     const shellSource = readSource('./workspace-settings-shell.tsx');
 
+    expect(tabSource).toContain("import { Badge } from '../../components/ui/badge.js';");
     expect(shellSource).toContain('className="sr-only"');
     expect(shellSource).toContain('props.overview.summary');
     expect(shellSource).toContain('>Settings<');
     expect(shellSource).not.toContain('Settings Control Plane');
-    expect(tabSource).toContain('Basics and storage stay open here');
     expect(tabSource).toContain('Resolve Before Saving');
-    expect(tabSource).toContain('Workspace Lifecycle');
+    expect(tabSource).toContain('aria-label="Workspace active"');
     expect(tabSource).toContain('Workspace Basics');
     expect(tabSource).toContain('Workspace Storage');
     expect(tabSource).toContain('Storage type');
     expect(tabSource).toContain('Git token');
     expect(tabSource).toContain('Host Directory');
     expect(tabSource).toContain('Workspace Artifacts');
-    expect(tabSource).toContain('Active workspaces can receive new work.');
     expect(tabSource).toContain('Danger');
     expect(tabSource).toContain('Delete workspace');
     expect(tabSource).toContain('StaticSettingsSection');
@@ -48,6 +47,9 @@ describe('workspace settings tab source', () => {
     expect(tabSource).not.toContain('Git identity');
     expect(tabSource).not.toContain('Save readiness');
     expect(tabSource).not.toContain('Jump to section');
+    expect(tabSource).not.toContain('Basics and storage stay open here');
+    expect(tabSource).not.toContain('Workspace Lifecycle');
+    expect(tabSource).not.toContain('Active workspaces can receive new work.');
     expect(tabSource).not.toContain('Workspace model overrides must be valid JSON');
     expect(tabSource).not.toContain('uppercase tracking-[0.16em] text-muted');
     expect(tabSource).not.toContain('Credentials posture');

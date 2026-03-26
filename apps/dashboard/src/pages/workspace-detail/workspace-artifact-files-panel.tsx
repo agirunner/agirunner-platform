@@ -65,7 +65,7 @@ export function WorkspaceArtifactFilesPanel(props: { workspaceId: string }): JSX
           <div className="space-y-1">
             <h3 className="text-base font-semibold text-foreground">Upload workspace artifacts</h3>
             <p className="max-w-3xl text-sm leading-6 text-muted">
-              Upload one or many workspace files here. Keys default from file names, descriptions stay optional, and everything remains scoped to this workspace.
+              Upload workspace files here. Keys default from file names, descriptions are optional, and everything stays workspace-scoped.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">

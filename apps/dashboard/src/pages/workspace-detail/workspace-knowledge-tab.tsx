@@ -112,7 +112,8 @@ function normalizeMemoryDrafts(drafts: StructuredEntryDraft[]): StructuredEntryD
 }
 
 function buildMemoryDraftSummary(memoryCount: number): string {
-  return `Shared memory: ${memoryCount} ${memoryCount === 1 ? 'entry' : 'entries'}`;
+  void memoryCount;
+  return 'Evolving notes and learned state stay here as work progresses.';
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
+import { Switch } from '../../components/ui/switch.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { ToggleCard } from '../../components/ui/toggle-card.js';
 import { dashboardApi } from '../../lib/api.js';
@@ -88,148 +89,129 @@ export function WorkspaceSettingsTab(props: {
           </Button>
         }
       >
-      <Card className="border-border/70 shadow-none">
-        <CardContent className="space-y-3 p-4">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline">{surfaceSummary.lifecycleLabel}</Badge>
-              <Badge variant="outline">{surfaceSummary.storageLabel}</Badge>
-              {surfaceSummary.blockingIssueCount > 0 ? (
-                <Badge variant="warning">
-                  {surfaceSummary.blockingIssueCount}{' '}
-                  {surfaceSummary.blockingIssueCount === 1 ? 'blocker' : 'blockers'}
-                </Badge>
-              ) : null}
+        {surfaceSummary.blockingIssueCount > 0 ? (
+          <BlockingIssuesPanel title="Resolve Before Saving" issues={validation.blockingIssues} />
+        ) : null}
+
+        <StaticSettingsSection
+          id="workspace-settings-basics"
+          title="Workspace Basics"
+          description="Name and slug."
+          summary={basicsSummary}
+          headerAction={
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-muted">
+                {draft.isActive ? 'Active' : 'Inactive'}
+              </span>
+              <Switch
+                checked={draft.isActive}
+                aria-label="Workspace active"
+                onCheckedChange={(checked) =>
+                  setDraft((current) => ({ ...current, isActive: checked }))
+                }
+              />
             </div>
-            <p className="text-sm leading-6 text-muted">
-              Basics and storage stay open here so the primary workspace configuration is always
-              visible. Storage is explicit at the workspace level and lower-level repo or path
-              overrides are not used.
-            </p>
-          </div>
-
-          {surfaceSummary.blockingIssueCount > 0 ? (
-            <BlockingIssuesPanel title="Resolve Before Saving" issues={validation.blockingIssues} />
-          ) : null}
-
-          <ToggleCard
-            label="Workspace Lifecycle"
-            description={
-              draft.isActive
-                ? 'Active workspaces can receive new work.'
-                : 'Inactive workspaces stay available for review without receiving new work.'
-            }
-            checked={draft.isActive}
-            checkedLabel="Active"
-            uncheckedLabel="Inactive"
-            onCheckedChange={(checked) => setDraft((current) => ({ ...current, isActive: checked }))}
-          />
-        </CardContent>
-      </Card>
-
-      <StaticSettingsSection
-        id="workspace-settings-basics"
-        title="Workspace Basics"
-        description="Name and slug."
-        summary={basicsSummary}
-      >
-        <div className="space-y-3">
-          <div className="grid gap-3 md:grid-cols-2">
-            <TextField
-              label="Name"
-              value={draft.name}
-              error={validation.fieldErrors.name}
-              onChange={(value) => setDraft((current) => ({ ...current, name: value }))}
-            />
-            <TextField
-              label="Slug"
-              value={draft.slug}
-              error={validation.fieldErrors.slug}
-              onChange={(value) => setDraft((current) => ({ ...current, slug: value }))}
-            />
-          </div>
-        </div>
-      </StaticSettingsSection>
-
-      <StaticSettingsSection
-        id="workspace-settings-storage"
-        title="Workspace Storage"
-        description="Storage type and settings."
-        summary={storageSummary}
-      >
-        <div className="space-y-3">
-          <label className="grid gap-1.5 text-sm sm:max-w-[240px]">
-            <span className="font-medium">Storage type</span>
-            <Select
-              value={draft.storageType}
-              onValueChange={(value) =>
-                setDraft((current) => ({
-                  ...current,
-                  storageType: value as WorkspaceSettingsDraft['storageType'],
-                }))
-              }
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STORAGE_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-
-          {draft.storageType === 'git_remote' ? (
-            <div className="space-y-3">
-              <div className="grid gap-3 md:grid-cols-2">
-                <TextField
-                  label="Repository URL"
-                  value={draft.repositoryUrl}
-                  error={validation.fieldErrors.repositoryUrl}
-                  onChange={(value) => setDraft((current) => ({ ...current, repositoryUrl: value }))}
-                />
-                <TextField
-                  label="Default branch"
-                  value={draft.defaultBranch}
-                  onChange={(value) => setDraft((current) => ({ ...current, defaultBranch: value }))}
-                />
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <TextField
-                  label="Git user name"
-                  value={draft.gitUserName}
-                  onChange={(value) => setDraft((current) => ({ ...current, gitUserName: value }))}
-                />
-                <TextField
-                  label="Git user email"
-                  value={draft.gitUserEmail}
-                  error={validation.fieldErrors.gitUserEmail}
-                  onChange={(value) => setDraft((current) => ({ ...current, gitUserEmail: value }))}
-                />
-              </div>
-              <div className="space-y-2">
-                <SecretDisclosureRow
-                  label="Git token"
-                  draft={draft.credentials.gitToken}
-                  error={validation.fieldErrors.gitToken}
-                  isExpanded={isGitTokenExpanded}
-                  onToggle={() => setGitTokenExpanded((current) => !current)}
-                  onChange={(next) =>
-                    setDraft((current) => ({
-                      ...current,
-                      credentials: {
-                        ...current.credentials,
-                        gitToken: next,
-                      },
-                    }))
-                  }
-                />
-              </div>
+          }
+        >
+          <div className="space-y-3">
+            <div className="grid gap-3 md:grid-cols-2">
+              <TextField
+                label="Name"
+                value={draft.name}
+                error={validation.fieldErrors.name}
+                onChange={(value) => setDraft((current) => ({ ...current, name: value }))}
+              />
+              <TextField
+                label="Slug"
+                value={draft.slug}
+                error={validation.fieldErrors.slug}
+                onChange={(value) => setDraft((current) => ({ ...current, slug: value }))}
+              />
             </div>
-          ) : null}
+          </div>
+        </StaticSettingsSection>
+
+        <StaticSettingsSection
+          id="workspace-settings-storage"
+          title="Workspace Storage"
+          description="Storage type and settings."
+          summary={storageSummary}
+        >
+          <div className="space-y-3">
+            <label className="grid gap-1.5 text-sm sm:max-w-[240px]">
+              <span className="font-medium">Storage type</span>
+              <Select
+                value={draft.storageType}
+                onValueChange={(value) =>
+                  setDraft((current) => ({
+                    ...current,
+                    storageType: value as WorkspaceSettingsDraft['storageType'],
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STORAGE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+
+            {draft.storageType === 'git_remote' ? (
+              <div className="space-y-3">
+                <div className="grid gap-3 md:grid-cols-2">
+                  <TextField
+                    label="Repository URL"
+                    value={draft.repositoryUrl}
+                    error={validation.fieldErrors.repositoryUrl}
+                    onChange={(value) => setDraft((current) => ({ ...current, repositoryUrl: value }))}
+                  />
+                  <TextField
+                    label="Default branch"
+                    value={draft.defaultBranch}
+                    onChange={(value) =>
+                      setDraft((current) => ({ ...current, defaultBranch: value }))
+                    }
+                  />
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  <TextField
+                    label="Git user name"
+                    value={draft.gitUserName}
+                    onChange={(value) => setDraft((current) => ({ ...current, gitUserName: value }))}
+                  />
+                  <TextField
+                    label="Git user email"
+                    value={draft.gitUserEmail}
+                    error={validation.fieldErrors.gitUserEmail}
+                    onChange={(value) => setDraft((current) => ({ ...current, gitUserEmail: value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <SecretDisclosureRow
+                    label="Git token"
+                    draft={draft.credentials.gitToken}
+                    error={validation.fieldErrors.gitToken}
+                    isExpanded={isGitTokenExpanded}
+                    onToggle={() => setGitTokenExpanded((current) => !current)}
+                    onChange={(next) =>
+                      setDraft((current) => ({
+                        ...current,
+                        credentials: {
+                          ...current.credentials,
+                          gitToken: next,
+                        },
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+            ) : null}
 
           {draft.storageType === 'host_directory' ? (
             <div className="space-y-3">
@@ -293,16 +275,20 @@ function StaticSettingsSection(props: {
   title: string;
   description: string;
   summary: string;
+  headerAction?: ReactNode;
   children: ReactNode;
 }): JSX.Element {
   return (
     <Card id={props.id} className="border-border/70 shadow-none">
       <div className="px-4 py-4">
-        <div className="min-w-0 flex-1 space-y-1">
-          <div className="text-base font-semibold text-foreground">{props.title}</div>
-          <p className="text-sm leading-6 text-muted">
-            {props.description} {props.summary}
-          </p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1 space-y-1">
+            <div className="text-base font-semibold text-foreground">{props.title}</div>
+            <p className="text-sm leading-6 text-muted">
+              {props.description} {props.summary}
+            </p>
+          </div>
+          {props.headerAction ? <div className="shrink-0">{props.headerAction}</div> : null}
         </div>
       </div>
       <CardContent className="border-t border-border/70 p-4 pt-4">{props.children}</CardContent>
