@@ -92,6 +92,8 @@ describe('log entry context', () => {
     expect(detailSource).toContain('Recorded payload');
     expect(detailSource).toContain('DETAIL_SECTION_CLASS_NAME');
     expect(detailSource).toContain('bg-surface/90');
+    expect(detailSource).toContain("grid w-full grid-cols-[max-content_minmax(0,1fr)] gap-x-6 gap-y-0 text-sm");
+    expect(detailSource).not.toContain('grid max-w-lg grid-cols-[auto_1fr] gap-x-6 gap-y-0 text-sm');
     expect(detailSource).toContain('isEscalationEntry');
     expect(detailSource).toContain('Escalation note');
     expect(detailSource).toContain('entry.error && !isEscalation');

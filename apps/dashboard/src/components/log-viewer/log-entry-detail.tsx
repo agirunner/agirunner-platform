@@ -137,7 +137,7 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
   return (
     <>
       <div className="text-muted-foreground whitespace-nowrap py-0.5">{label}</div>
-      <div className="py-0.5">{children}</div>
+      <div className="min-w-0 py-0.5">{children}</div>
     </>
   );
 }
@@ -159,7 +159,7 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
       <p className="mb-3 text-xs text-muted-foreground">
         Workflow, stage, and specialist-step context for this activity.
       </p>
-      <div className="grid max-w-lg grid-cols-[auto_1fr] gap-x-6 gap-y-0 text-sm">
+      <div className="grid w-full grid-cols-[max-content_minmax(0,1fr)] gap-x-6 gap-y-0 text-sm">
         <DetailRow label="Timestamp">
           <span className="font-mono text-xs">{formatDetailTimestamp(entry.created_at)}</span>
         </DetailRow>
@@ -294,7 +294,7 @@ function DiagnosticHandlesSection({ entry }: { entry: LogEntry }): JSX.Element {
       <p className="mb-3 text-xs text-muted-foreground">
         Use these only when correlating entries across traces, exports, or support investigations.
       </p>
-      <div className="grid max-w-lg grid-cols-[auto_1fr] gap-x-6 gap-y-0 text-sm">
+      <div className="grid w-full grid-cols-[max-content_minmax(0,1fr)] gap-x-6 gap-y-0 text-sm">
         <DetailRow label="Trace handle">
           <span className="font-mono text-xs">{entry.trace_id}</span>
         </DetailRow>
