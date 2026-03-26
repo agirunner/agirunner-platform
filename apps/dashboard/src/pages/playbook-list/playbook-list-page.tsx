@@ -165,7 +165,7 @@ export function PlaybookListPage(): JSX.Element {
     return (
       <div
         data-testid="playbook-create-workspace"
-        className="mx-auto max-w-[88rem] space-y-6 px-4 py-6 sm:px-6 lg:px-8"
+        className="space-y-6 p-4 sm:p-6"
       >
         <div className="space-y-4 rounded-3xl border border-border/70 bg-card/80 p-5 shadow-sm">
           <Button variant="ghost" className="w-fit px-0 text-muted" onClick={closeCreateWorkspace}>

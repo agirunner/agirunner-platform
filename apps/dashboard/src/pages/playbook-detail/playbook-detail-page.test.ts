@@ -30,8 +30,10 @@ describe('playbook detail page source', () => {
     expect(source).toContain('max-h-[70vh] max-w-lg overflow-y-auto');
     expect(source).toContain('Playbook lifecycle');
     expect(source).toContain('sm:grid-cols-2');
-    expect(source).toContain('Playbook Setup');
-    expect(source).toContain('Shared prompts, role prompts, and container defaults are configured elsewhere.');
+    expect(source).toContain('Playbook Basics');
+    expect(source).toContain('Edit the playbook definition, workflow guidance, and launch inputs for this revision.');
+    expect(source).toContain('max-w-full overflow-x-auto whitespace-nowrap text-sm text-muted');
+    expect(source).toContain('Shared prompts, role prompts, and specialist defaults are configured elsewhere.');
     expect(source).toContain('Created');
     expect(source).toContain('Updated');
     expect(source).toContain('process instructions, mandatory workflow rules');

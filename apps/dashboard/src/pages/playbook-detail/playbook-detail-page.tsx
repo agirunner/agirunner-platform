@@ -245,9 +245,8 @@ export function PlaybookDetailPage(): JSX.Element {
               <span>{formatDate(playbook.updated_at)}</span>
             </div>
           </div>
-          <p className="max-w-3xl text-sm text-muted">
-            Keep the outcome, process instructions, team rules, and launch inputs together in one
-            place without dropping to raw JSON.
+          <p className="max-w-full overflow-x-auto whitespace-nowrap text-sm text-muted">
+            Edit the playbook definition, workflow guidance, and launch inputs for this revision.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -263,9 +262,9 @@ export function PlaybookDetailPage(): JSX.Element {
         </div>
       </div>
 
-      <Card id="playbook-identity">
-        <CardHeader className="space-y-2">
-          <CardTitle>Playbook Setup</CardTitle>
+        <Card id="playbook-identity">
+          <CardHeader className="space-y-2">
+          <CardTitle>Playbook Basics</CardTitle>
           <p className="text-sm text-muted">
             Keep the identity and operating model visible while you edit the process-first
             authoring sections below.
