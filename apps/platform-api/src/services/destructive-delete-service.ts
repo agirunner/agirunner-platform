@@ -1,4 +1,5 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
+import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 
@@ -21,6 +22,7 @@ export interface PlaybookDeleteImpact {
 interface DestructiveDeleteDeps {
   cancelWorkflow?: (identity: ApiKeyIdentity, workflowId: string) => Promise<unknown>;
   cancelTask?: (identity: ApiKeyIdentity, taskId: string) => Promise<unknown>;
+  artifactStorage?: Pick<ArtifactStorageAdapter, 'deleteObject'>;
 }
 
 export class DestructiveDeleteService {
@@ -119,12 +121,7 @@ export class DestructiveDeleteService {
             AND workspace_id = $2`,
         [identity.tenantId, workspaceId],
       );
-      await client.query(
-        `DELETE FROM workspace_artifact_files
-          WHERE tenant_id = $1
-            AND workspace_id = $2`,
-        [identity.tenantId, workspaceId],
-      );
+      await this.deleteWorkspaceArtifactFiles(client, identity.tenantId, workspaceId);
       await client.query(
         `DELETE FROM workspaces
           WHERE tenant_id = $1
@@ -138,6 +135,35 @@ export class DestructiveDeleteService {
         deleted_workflow_count: purgeCounts.deleted_workflow_count,
         deleted_task_count: purgeCounts.deleted_task_count,
       };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async deleteWorkspaceWithoutDependencies(identity: ApiKeyIdentity, workspaceId: string) {
+    await this.assertWorkspaceExists(identity.tenantId, workspaceId);
+
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `DELETE FROM workspace_spec_versions
+          WHERE tenant_id = $1
+            AND workspace_id = $2`,
+        [identity.tenantId, workspaceId],
+      );
+      await this.deleteWorkspaceArtifactFiles(client, identity.tenantId, workspaceId);
+      await client.query(
+        `DELETE FROM workspaces
+          WHERE tenant_id = $1
+            AND id = $2`,
+        [identity.tenantId, workspaceId],
+      );
+      await client.query('COMMIT');
+      return { id: workspaceId, deleted: true as const };
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -305,15 +331,12 @@ export class DestructiveDeleteService {
           )`,
       workflowTaskWorkspaceParams,
     );
-    await client.query(
-      `DELETE FROM workflow_artifacts
-        WHERE tenant_id = $1
-          AND (
-            workflow_id = ANY($2::uuid[])
-            OR task_id = ANY($3::uuid[])
-            OR ($4::uuid IS NOT NULL AND workspace_id = $4::uuid)
-          )`,
-      workflowTaskWorkspaceParams,
+    await this.deleteWorkflowArtifacts(
+      client,
+      tenantId,
+      uniqueWorkflowIds,
+      uniqueTaskIds,
+      workspaceId ?? null,
     );
     await client.query('DELETE FROM workflow_tool_results WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', workflowParams);
     await client.query('DELETE FROM orchestrator_grants WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', workflowParams);
@@ -571,6 +594,75 @@ export class DestructiveDeleteService {
     }
     for (const taskId of uniqueIds(taskIds)) {
       await this.deps.cancelTask(identity, taskId);
+    }
+  }
+
+  private async deleteWorkflowArtifacts(
+    db: DatabaseClient,
+    tenantId: string,
+    workflowIds: string[],
+    taskIds: string[],
+    workspaceId: string | null,
+  ) {
+    const params = [tenantId, workflowIds, taskIds, workspaceId];
+    await this.deleteStoredArtifacts(
+      db,
+      `SELECT DISTINCT storage_key
+         FROM workflow_artifacts
+        WHERE tenant_id = $1
+          AND (
+            workflow_id = ANY($2::uuid[])
+            OR task_id = ANY($3::uuid[])
+            OR ($4::uuid IS NOT NULL AND workspace_id = $4::uuid)
+          )`,
+      params,
+    );
+    await db.query(
+      `DELETE FROM workflow_artifacts
+        WHERE tenant_id = $1
+          AND (
+            workflow_id = ANY($2::uuid[])
+            OR task_id = ANY($3::uuid[])
+            OR ($4::uuid IS NOT NULL AND workspace_id = $4::uuid)
+          )`,
+      params,
+    );
+  }
+
+  private async deleteWorkspaceArtifactFiles(
+    db: DatabaseClient,
+    tenantId: string,
+    workspaceId: string,
+  ) {
+    const params = [tenantId, workspaceId];
+    await this.deleteStoredArtifacts(
+      db,
+      `SELECT DISTINCT storage_key
+         FROM workspace_artifact_files
+        WHERE tenant_id = $1
+          AND workspace_id = $2`,
+      params,
+    );
+    await db.query(
+      `DELETE FROM workspace_artifact_files
+        WHERE tenant_id = $1
+          AND workspace_id = $2`,
+      params,
+    );
+  }
+
+  private async deleteStoredArtifacts(
+    db: Pick<DatabaseClient, 'query'>,
+    sql: string,
+    values: unknown[],
+  ) {
+    if (!this.deps.artifactStorage) {
+      return;
+    }
+
+    const result = await db.query<{ storage_key: string }>(sql, values);
+    for (const storageKey of uniqueIds(result.rows.map((row) => row.storage_key))) {
+      await this.deps.artifactStorage.deleteObject(storageKey);
     }
   }
 }

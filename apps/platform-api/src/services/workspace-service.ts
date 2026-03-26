@@ -136,7 +136,7 @@ export class WorkspaceService {
   private readonly encryptionKey: string;
   private readonly destructiveDeleteService: Pick<
     DestructiveDeleteService,
-    'getWorkspaceDeleteImpact' | 'deleteWorkspaceCascading'
+    'getWorkspaceDeleteImpact' | 'deleteWorkspaceCascading' | 'deleteWorkspaceWithoutDependencies'
   >;
   private readonly workspaceGitAccessVerifier: Pick<WorkspaceGitAccessVerifier, 'verify'>;
 
@@ -152,7 +152,7 @@ export class WorkspaceService {
     deps?: {
       destructiveDeleteService?: Pick<
         DestructiveDeleteService,
-        'getWorkspaceDeleteImpact' | 'deleteWorkspaceCascading'
+        'getWorkspaceDeleteImpact' | 'deleteWorkspaceCascading' | 'deleteWorkspaceWithoutDependencies'
       >;
       workspaceGitAccessVerifier?: Pick<WorkspaceGitAccessVerifier, 'verify'>;
     },
@@ -538,10 +538,10 @@ export class WorkspaceService {
       throw new ConflictError('Workspace cannot be deleted while workflows or tasks reference it');
     }
 
-    await this.pool.query('DELETE FROM workspaces WHERE tenant_id = $1 AND id = $2', [
-      identity.tenantId,
+    const result = await this.destructiveDeleteService.deleteWorkspaceWithoutDependencies(
+      identity,
       workspaceId,
-    ]);
+    );
 
     await this.eventService.emit({
       tenantId: identity.tenantId,
@@ -553,7 +553,7 @@ export class WorkspaceService {
       data: {},
     });
 
-    return { id: workspaceId, deleted: true };
+    return result;
   }
 
   async setGitWebhookConfig(

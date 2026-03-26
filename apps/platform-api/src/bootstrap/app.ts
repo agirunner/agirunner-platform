@@ -135,13 +135,14 @@ export async function buildApp() {
   const workerConnectionHub = new WorkerConnectionHub();
   const workerService = new WorkerService(pool, eventService, workerConnectionHub, appConfig);
   const taskService = new TaskService(pool, eventService, appConfig, workerConnectionHub, logService);
+  const artifactStorage = createArtifactStorage(buildArtifactStorageConfig(appConfig));
   await applyDefaultTenantLoggingLevel({
     governanceService,
     logger: app.log,
   });
   const workspaceArtifactFileService = new WorkspaceArtifactFileService(
     pool,
-    createArtifactStorage(buildArtifactStorageConfig(appConfig)),
+    artifactStorage,
     appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_FILES,
     appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_BYTES,
   );
@@ -156,6 +157,7 @@ export async function buildApp() {
   const destructiveDeleteService = new DestructiveDeleteService(pool, {
     cancelWorkflow: workflowService.cancelWorkflow.bind(workflowService),
     cancelTask: taskService.cancelTask.bind(taskService),
+    artifactStorage,
   });
   const workspaceService = new WorkspaceService(pool, eventService, appConfig, {
     destructiveDeleteService,

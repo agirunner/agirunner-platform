@@ -1,5 +1,6 @@
 .git
 .gitignore
+.artifacts
 .cache
 .turbo
 tests/artifacts

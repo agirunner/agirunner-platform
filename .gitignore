@@ -38,4 +38,5 @@ tasks/
 .secrets/
 .cache/
 .tmp/
+.artifacts/
 tests/live/env/local.env

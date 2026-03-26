@@ -603,6 +603,7 @@ describe('WorkspaceService deletion contract', () => {
           active_tasks: 2,
           work_items: 3,
         }),
+      deleteWorkspaceWithoutDependencies: vi.fn(),
       deleteWorkspaceCascading: vi.fn().mockResolvedValue({
         id: 'workspace-1',
         deleted: true,
@@ -633,5 +634,53 @@ describe('WorkspaceService deletion contract', () => {
       identity,
       'workspace-1',
     );
+  });
+
+  it('uses destructive cleanup for workspace deletion after dependency checks pass', async () => {
+    const eventService = createEventService();
+    const destructiveDeleteService = {
+      getWorkspaceDeleteImpact: vi.fn().mockResolvedValue({
+        workflows: 0,
+        active_workflows: 0,
+        tasks: 0,
+        active_tasks: 0,
+        work_items: 0,
+      }),
+      deleteWorkspaceWithoutDependencies: vi.fn().mockResolvedValue({
+        id: 'workspace-1',
+        deleted: true,
+      }),
+      deleteWorkspaceCascading: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(),
+    };
+    const service = new WorkspaceService(
+      pool as never,
+      eventService as never,
+      undefined,
+      { destructiveDeleteService } as never,
+    );
+    const identity = createIdentity();
+
+    await expect(service.deleteWorkspace(identity as never, 'workspace-1')).resolves.toEqual({
+      id: 'workspace-1',
+      deleted: true,
+    });
+
+    expect(destructiveDeleteService.deleteWorkspaceWithoutDependencies).toHaveBeenCalledWith(
+      identity,
+      'workspace-1',
+    );
+    expect(pool.query).not.toHaveBeenCalled();
+    expect(eventService.emit).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      type: 'workspace.deleted',
+      entityType: 'workspace',
+      entityId: 'workspace-1',
+      actorType: 'admin',
+      actorId: 'admin-key',
+      data: {},
+    });
   });
 });

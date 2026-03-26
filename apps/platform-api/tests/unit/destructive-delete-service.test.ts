@@ -58,7 +58,14 @@ describe('DestructiveDeleteService', () => {
     };
     const cancelWorkflow = vi.fn().mockResolvedValue(undefined);
     const cancelTask = vi.fn().mockResolvedValue(undefined);
-    const service = new DestructiveDeleteService(pool as never, { cancelWorkflow, cancelTask });
+    const artifactStorage = {
+      deleteObject: vi.fn().mockResolvedValue(undefined),
+    };
+    const service = new DestructiveDeleteService(pool as never, {
+      cancelWorkflow,
+      cancelTask,
+      artifactStorage,
+    });
 
     await expect(
       service.deleteWorkspaceCascading(createIdentity(), 'workspace-1'),
@@ -71,6 +78,19 @@ describe('DestructiveDeleteService', () => {
 
     expect(cancelWorkflow).toHaveBeenCalledWith(createIdentity(), 'workflow-1');
     expect(cancelTask).toHaveBeenCalledWith(createIdentity(), 'task-standalone-1');
+    expect(artifactStorage.deleteObject).toHaveBeenCalledTimes(3);
+    expect(artifactStorage.deleteObject).toHaveBeenNthCalledWith(
+      1,
+      'tenant-1/workflow-1/artifact-1/report.md',
+    );
+    expect(artifactStorage.deleteObject).toHaveBeenNthCalledWith(
+      2,
+      'tenant-1/task-standalone-1/artifact-2/log.txt',
+    );
+    expect(artifactStorage.deleteObject).toHaveBeenNthCalledWith(
+      3,
+      'tenant-1/workspace-1/workspace-file-1/brief.md',
+    );
     expect(client.release).toHaveBeenCalled();
   });
 });
@@ -95,6 +115,21 @@ function createStrictTransactionalClient() {
       }
       if (sql.includes('SELECT id') && sql.includes('FROM tasks') && sql.includes('workspace_id = $2')) {
         return { rowCount: 2, rows: [{ id: 'task-1' }, { id: 'task-standalone-1' }] };
+      }
+      if (sql.includes('SELECT DISTINCT storage_key') && sql.includes('FROM workflow_artifacts')) {
+        return {
+          rowCount: 2,
+          rows: [
+            { storage_key: 'tenant-1/workflow-1/artifact-1/report.md' },
+            { storage_key: 'tenant-1/task-standalone-1/artifact-2/log.txt' },
+          ],
+        };
+      }
+      if (sql.includes('SELECT DISTINCT storage_key') && sql.includes('FROM workspace_artifact_files')) {
+        return {
+          rowCount: 1,
+          rows: [{ storage_key: 'tenant-1/workspace-1/workspace-file-1/brief.md' }],
+        };
       }
       if (sql.startsWith('DELETE FROM tasks')) {
         const taskIds = Array.isArray(params?.[1]) ? (params[1] as string[]) : [];
