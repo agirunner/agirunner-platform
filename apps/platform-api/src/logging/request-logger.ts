@@ -12,9 +12,12 @@ const SKIP_PATHS = new Set([
   // Log endpoints — would create recursive logging feedback loop
   '/api/v1/logs',
   '/api/v1/logs/ingest',
+  '/api/v1/logs/:id',
   '/api/v1/logs/stats',
   '/api/v1/logs/operations',
+  '/api/v1/logs/roles',
   '/api/v1/logs/actors',
+  '/api/v1/logs/workflows',
   '/api/v1/logs/export',
   // Heartbeats — high-frequency (every 5-60s per worker/agent/runtime)
   '/api/v1/fleet/heartbeat',

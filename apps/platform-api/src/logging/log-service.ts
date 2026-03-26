@@ -731,7 +731,7 @@ export class LogService {
       `SELECT w.id, w.name, w.workspace_id
          FROM workflows w
         WHERE ${conditions.join(' AND ')}
-        ORDER BY COALESCE(NULLIF(TRIM(w.name), ''), w.id) ASC
+        ORDER BY COALESCE(NULLIF(TRIM(w.name), ''), w.id::text) ASC
         LIMIT 100`,
       values,
     );

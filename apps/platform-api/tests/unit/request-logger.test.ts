@@ -127,4 +127,53 @@ describe('request logger', () => {
       }),
     );
   });
+
+  it('skips log reader endpoints including log detail and workflow filter values', async () => {
+    let onResponseHandler:
+      | ((request: Record<string, unknown>, reply: Record<string, unknown>) => Promise<void>)
+      | undefined;
+
+    const app = {
+      addHook: vi.fn((name: string, handler: typeof onResponseHandler) => {
+        if (name === 'onResponse') {
+          onResponseHandler = handler;
+        }
+      }),
+    };
+    const logService = {
+      insert: vi.fn().mockResolvedValue(undefined),
+    };
+
+    registerRequestLogger(app as never, logService as never);
+
+    await onResponseHandler?.(
+      {
+        method: 'GET',
+        url: '/api/v1/logs/123',
+        id: 'req-4',
+        headers: { 'user-agent': 'vitest' },
+        routeOptions: { url: '/api/v1/logs/:id' },
+      },
+      {
+        elapsedTime: 4,
+        statusCode: 500,
+      },
+    );
+
+    await onResponseHandler?.(
+      {
+        method: 'GET',
+        url: '/api/v1/logs/workflows',
+        id: 'req-5',
+        headers: { 'user-agent': 'vitest' },
+        routeOptions: { url: '/api/v1/logs/workflows' },
+      },
+      {
+        elapsedTime: 3,
+        statusCode: 200,
+      },
+    );
+
+    expect(logService.insert).not.toHaveBeenCalled();
+  });
 });

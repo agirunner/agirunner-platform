@@ -1437,6 +1437,28 @@ describe('LogService', () => {
     });
   });
 
+  describe('workflowValues', () => {
+    it('ordersByNameOrIdWithoutMixingTextAndUuidTypes', async () => {
+      const pool = createMockPool();
+      pool.query.mockResolvedValue({
+        rows: [{ id: 'wf-1', name: 'Customer migration', workspace_id: 'ws-1' }],
+        rowCount: 1,
+      });
+      const service = new LogService(pool as never);
+
+      const result = await service.workflowValues('tenant-1', {
+        workspaceId: 'ws-1',
+      });
+
+      expect(result).toEqual([
+        { id: 'wf-1', name: 'Customer migration', workspace_id: 'ws-1' },
+      ]);
+      const [sql, params] = pool.query.mock.calls[0];
+      expect(sql).toContain("ORDER BY COALESCE(NULLIF(TRIM(w.name), ''), w.id::text) ASC");
+      expect(params).toContain('ws-1');
+    });
+  });
+
   describe('export', () => {
     it('yieldsAllRowsAcrossMultiplePages', async () => {
       const pool = createMockPool();
