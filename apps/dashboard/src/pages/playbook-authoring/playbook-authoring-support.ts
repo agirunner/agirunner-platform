@@ -436,18 +436,27 @@ function buildParameters(parameters: ParameterDraft[]): Array<Record<string, unk
 }
 
 function readBoardColumns(board: unknown): BoardColumnDraft[] {
-  return readRecordArray(asRecord(board).columns).map((entry) => ({
+  const columns = readRecordArray(asRecord(board).columns).map((entry) => ({
     id: readString(entry.id),
     label: readString(entry.label),
     description: readString(entry.description),
     is_blocked: Boolean(entry.is_blocked),
     is_terminal: Boolean(entry.is_terminal),
   }));
+  return normalizeHydratedBoardColumns(columns);
 }
 
 function readBoardEntryColumnId(board: unknown, columns: BoardColumnDraft[], fallback: string): string {
-  const value = readString(asRecord(board).entry_column_id);
-  return columns.some((column) => column.id === value) ? value : fallback;
+  const value = readString(asRecord(board).entry_column_id).trim();
+  if (
+    value &&
+    columns.some(
+      (column) => column.id.trim() === value && !column.is_blocked && !column.is_terminal,
+    )
+  ) {
+    return value;
+  }
+  return resolveHydratedEntryColumnId(columns, fallback);
 }
 
 function readStages(value: unknown): StageDraft[] {
@@ -526,6 +535,35 @@ function readOptionalBooleanString(value: unknown): '' | 'true' | 'false' | unde
     return 'false';
   }
   return undefined;
+}
+
+function normalizeHydratedBoardColumns(columns: BoardColumnDraft[]): BoardColumnDraft[] {
+  const blockedIndex = columns.findIndex((column) => column.is_blocked);
+  const terminalIndex = columns.findIndex(
+    (column, index) => column.is_terminal && index !== blockedIndex,
+  );
+
+  return columns.map((column, index) => ({
+    ...column,
+    is_blocked: blockedIndex >= 0 && index === blockedIndex,
+    is_terminal: terminalIndex >= 0 && index === terminalIndex,
+  }));
+}
+
+function resolveHydratedEntryColumnId(columns: BoardColumnDraft[], fallback: string): string {
+  const preferredEntryColumn = columns.find(
+    (column) => column.id.trim() && !column.is_blocked && !column.is_terminal,
+  );
+  if (preferredEntryColumn) {
+    return preferredEntryColumn.id.trim();
+  }
+
+  const fallbackValue = fallback.trim();
+  if (fallbackValue && columns.some((column) => column.id.trim() === fallbackValue)) {
+    return fallbackValue;
+  }
+
+  return columns.find((column) => column.id.trim())?.id.trim() ?? fallbackValue;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

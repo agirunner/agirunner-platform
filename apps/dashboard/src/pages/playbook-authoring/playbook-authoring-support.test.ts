@@ -105,6 +105,32 @@ describe('playbook authoring support', () => {
     });
   });
 
+  it('normalizes legacy board semantics when hydrating a draft', () => {
+    const draft = hydratePlaybookAuthoringDraft('planned', {
+      process_instructions: 'Move work through the board and close cleanly.',
+      roles: ['developer'],
+      board: {
+        entry_column_id: 'blocked_a',
+        columns: [
+          { id: 'planned', label: 'Planned' },
+          { id: 'blocked_a', label: 'Blocked A', is_blocked: true },
+          { id: 'blocked_b', label: 'Blocked B', is_blocked: true },
+          { id: 'done', label: 'Done', is_terminal: true },
+          { id: 'cancelled', label: 'Cancelled', is_terminal: true },
+        ],
+      },
+    });
+
+    expect(draft.columns.filter((column) => column.is_blocked).map((column) => column.id)).toEqual([
+      'blocked_a',
+    ]);
+    expect(draft.columns.filter((column) => column.is_terminal).map((column) => column.id)).toEqual([
+      'done',
+    ]);
+    expect(draft.entry_column_id).toBe('planned');
+    expect(validateBoardColumnsDraft(draft.columns, draft.entry_column_id).isValid).toBe(true);
+  });
+
   it('omits orchestration-policy overrides unless the user sets them', () => {
     const draft = createDefaultAuthoringDraft('planned');
     draft.roles = [{ value: 'architect' }];
