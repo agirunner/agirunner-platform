@@ -387,6 +387,15 @@ export class WorkItemService {
           input.parent_work_item_id ?? null,
           stageName,
           input.owner_role ?? null,
+          {
+            title: input.title.trim(),
+            goal: input.goal?.trim(),
+            acceptance_criteria: input.acceptance_criteria?.trim(),
+            column_id: columnId,
+            priority: input.priority ?? 'normal',
+            notes: input.notes?.trim(),
+            metadata: input.metadata,
+          },
           client,
         );
         if (reusableWorkItem) {
@@ -893,6 +902,15 @@ export class WorkItemService {
     parentWorkItemId: string | null,
     stageName: string,
     ownerRole: string | null,
+    expected: {
+      title: string;
+      goal?: string;
+      acceptance_criteria?: string;
+      column_id: string;
+      priority: string;
+      notes?: string;
+      metadata?: Record<string, unknown>;
+    },
     client: DatabaseClient,
   ): Promise<Record<string, unknown> | null> {
     if (!parentWorkItemId) {
@@ -918,6 +936,9 @@ export class WorkItemService {
     }
 
     const workItem = existing.rows[0] as Record<string, unknown>;
+    if (!matchesReusablePlannedChildCheckpoint(workItem, stageName, ownerRole, expected)) {
+      return null;
+    }
     if (!shouldResetReusableChildCheckpoint(workItem)) {
       return workItem;
     }
@@ -1534,6 +1555,36 @@ function assertMatchingCreateWorkItemReplay(
   ) {
     throw new ConflictError('work item request_id replay does not match the existing work item');
   }
+}
+
+function matchesReusablePlannedChildCheckpoint(
+  existing: Record<string, unknown>,
+  stageName: string,
+  ownerRole: string | null,
+  expected: {
+    title: string;
+    goal?: string;
+    acceptance_criteria?: string;
+    column_id: string;
+    priority: string;
+    notes?: string;
+    metadata?: Record<string, unknown>;
+  },
+): boolean {
+  return (
+    existing.stage_name === stageName
+    && (existing.owner_role ?? null) === ownerRole
+    && existing.title === expected.title
+    && existing.column_id === expected.column_id
+    && existing.priority === expected.priority
+    && (expected.goal === undefined || (existing.goal ?? null) === expected.goal)
+    && (
+      expected.acceptance_criteria === undefined
+      || (existing.acceptance_criteria ?? null) === expected.acceptance_criteria
+    )
+    && (expected.notes === undefined || (existing.notes ?? null) === expected.notes)
+    && (expected.metadata === undefined || areJsonValuesEquivalent(asRecord(existing.metadata), expected.metadata))
+  );
 }
 
 function shouldResetReusableChildCheckpoint(workItem: Record<string, unknown>) {
