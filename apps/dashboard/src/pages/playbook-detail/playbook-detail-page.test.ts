@@ -27,8 +27,11 @@ describe('playbook detail page source', () => {
     expect(source).toContain('Playbook lifecycle');
     expect(source).toContain('Playbook Basics');
     expect(source).toContain('Edit the playbook definition, workflow guidance, and launch inputs for this revision.');
+    expect(source).toContain('Set the core playbook identity, outcome, and lifecycle for this revision.');
     expect(source).toContain('max-w-full overflow-x-auto whitespace-nowrap text-sm text-muted');
     expect(source).toContain('lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)]');
+    expect(source).toContain('lg:grid-cols-[6rem_minmax(0,1fr)] lg:items-center lg:gap-3');
+    expect(source).toContain('lg:grid-cols-[6rem_minmax(0,1fr)] lg:items-stretch lg:gap-3');
     expect(source).not.toContain('lg:grid-cols-[minmax(0,0.95fr),minmax(0,1.35fr)]');
     expect(source).toContain('className="min-h-[220px] lg:h-full lg:min-h-0"');
     expect(source).toContain('Created');
@@ -48,6 +51,7 @@ describe('playbook detail page source', () => {
     expect(source).not.toContain('Inactive playbooks cannot launch new workflows until you save and reactivate them.');
     expect(source).not.toContain('Raw JSON');
     expect(source).not.toContain('Shared prompts, role prompts, and specialist defaults are configured elsewhere.');
+    expect(source).not.toContain('Keep the identity and operating model visible while you edit the process-first');
     expect(source).not.toContain('PlaybookControlCenterCard');
     expect(source).not.toContain('PlaybookEditingActionRailCard');
     expect(source).not.toContain('PlaybookEditOutlineCard');

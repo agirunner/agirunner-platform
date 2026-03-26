@@ -110,6 +110,7 @@ describe('playbook authoring support', () => {
 
   it('omits orchestration-policy overrides unless the user sets them', () => {
     const draft = createDefaultAuthoringDraft('planned');
+    draft.roles = [{ value: 'architect' }];
     draft.stages = [{ name: 'deliver', goal: 'Ship the requested change.', guidance: '' }];
 
     const built = buildPlaybookDefinition('planned', draft);
@@ -172,6 +173,7 @@ describe('playbook authoring support', () => {
 
   it('preserves must-versus-preferred prose when building the definition', () => {
     const draft = createDefaultAuthoringDraft('planned');
+    draft.roles = [{ value: 'architect' }];
     draft.process_instructions =
       'Mandatory: produce a publishable release packet and close the workflow with residual risks recorded when needed. Preferred: get peer review and human approval before release, but if those are unavailable the orchestrator must still drive to a close-enough outcome and record callouts.';
     draft.stages = [{ name: 'deliver', goal: 'Ship the requested change.', guidance: '' }];
@@ -194,6 +196,8 @@ describe('playbook authoring support', () => {
 
   it('validates role membership and board entry columns', () => {
     expect(validateRoleDrafts([{ value: 'architect' }], ['architect']).isValid).toBe(true);
+    expect(validateRoleDrafts([], ['architect']).isValid).toBe(false);
+    expect(validateRoleDrafts([{ value: '  ' }], ['architect']).isValid).toBe(false);
     expect(
       validateBoardColumnsDraft(
         [{ id: 'active', label: 'Active', description: '', is_blocked: false, is_terminal: false }],
@@ -214,5 +218,17 @@ describe('playbook authoring support', () => {
     const nextIssues = ['Every stage needs a goal.'];
 
     expect(reconcileValidationIssues(currentIssues, nextIssues)).toBe(nextIssues);
+  });
+
+  it('blocks playbook definitions that do not select any specialists', () => {
+    const built = buildPlaybookDefinition('planned', {
+      ...createDefaultAuthoringDraft('planned'),
+      process_instructions: 'Mandatory outcomes: complete the work and record residual risk.',
+    });
+
+    expect(built).toEqual({
+      ok: false,
+      error: 'Select at least one specialist for this workflow.',
+    });
   });
 });

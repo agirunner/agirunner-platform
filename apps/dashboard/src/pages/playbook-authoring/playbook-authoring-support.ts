@@ -85,6 +85,7 @@ export interface ParameterDraftValidationResult {
 
 export interface RoleDraftValidationResult {
   roleErrors: Array<string | undefined>;
+  selectionIssue?: string;
   blockingIssues: string[];
   isValid: boolean;
 }
@@ -171,11 +172,15 @@ export function buildPlaybookDefinition(
   lifecycle: PlaybookLifecycle,
   draft: PlaybookAuthoringDraft,
 ): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {
+  const selectedRoles = draft.roles.map((entry) => entry.value.trim()).filter(Boolean);
   const boardValidation = validateBoardColumnsDraft(draft.columns, draft.entry_column_id);
   const stageValidation = validateWorkflowRulesDraft(draft);
   const parameterValidation = validateParameterDrafts(draft.parameters);
   if (!draft.process_instructions.trim()) {
     return { ok: false, error: 'Add process instructions for the orchestrator.' };
+  }
+  if (selectedRoles.length === 0) {
+    return { ok: false, error: 'Select at least one specialist for this workflow.' };
   }
   if (!boardValidation.isValid) {
     return { ok: false, error: boardValidation.blockingIssues[0] ?? 'Fix the board columns.' };
@@ -206,7 +211,7 @@ export function buildPlaybookDefinition(
   const definition: Record<string, unknown> = {
     lifecycle,
     process_instructions: draft.process_instructions.trim(),
-    roles: draft.roles.map((entry) => entry.value.trim()).filter(Boolean),
+    roles: selectedRoles,
     board: {
       entry_column_id: resolveEntryColumnId(draft.entry_column_id, draft.columns),
       columns: buildBoardColumns(draft.columns).map((column) => compactRecord(column)),
@@ -316,16 +321,21 @@ export function validateRoleDrafts(
   availableRoleNames: string[],
 ): RoleDraftValidationResult {
   const available = new Set(availableRoleNames.map((value) => value.trim()).filter(Boolean));
+  const selectedRoleCount = roles.map((role) => role.value.trim()).filter(Boolean).length;
+  const selectionIssue =
+    selectedRoleCount === 0 ? 'Select at least one specialist for this workflow.' : undefined;
   const roleErrors = roles.map((role) => {
     const name = role.value.trim();
     return name && !available.has(name)
-      ? 'Select an active role definition from the shared catalog.'
+      ? 'Select an active specialist from the shared catalog.'
       : undefined;
   });
+  const blockingIssues = uniqueStrings([selectionIssue, ...roleErrors]);
   return {
     roleErrors,
-    blockingIssues: uniqueStrings(roleErrors),
-    isValid: roleErrors.every((entry) => !entry),
+    selectionIssue,
+    blockingIssues,
+    isValid: blockingIssues.length === 0,
   };
 }
 

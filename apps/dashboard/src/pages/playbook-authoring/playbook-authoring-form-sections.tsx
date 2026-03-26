@@ -71,15 +71,8 @@ export function ProcessInstructionsSection(props: SectionProps): JSX.Element {
           className="min-h-[220px]"
           placeholder="Example: Mandatory outcomes: ship a validated release packet and close the workflow with any residual risks recorded. Preferred steps: the architect clarifies scope, the developer implements in the delivery stage, a reviewer performs a substantive release review, and the orchestrator requests human approval once the release packet is ready. If a preferred step stalls or fails, the orchestrator must still drive the workflow to closure, record waived steps or unresolved advisory items, and explain the final judgement call."
         />
-        <p className="text-sm text-muted">
-          This guidance is the workflow contract. The orchestrator should use explicit handoffs,
-          assessments, approvals, and escalations when the instructions call for them, but it
-          must still drive the workflow to closure when only preferred steps remain unresolved.
-        </p>
-        <p className="text-sm text-muted">
-          Write this as a process guide: spell out mandatory outcomes, preferred steps,
-          acceptable fallback paths, blockers that truly require intervention, and what callouts
-          or residual risks must be recorded if the happy path does not land perfectly.
+        <p className="max-w-full overflow-x-auto whitespace-nowrap text-sm text-muted">
+          This guidance is the workflow contract: write it as a process guide that spells out mandatory outcomes, preferred steps, acceptable fallback paths, true blockers that require intervention, and any callouts or residual risks the orchestrator must record when the happy path does not land perfectly.
         </p>
       </div>
     </SectionCard>
@@ -94,13 +87,13 @@ export function TeamRolesSection(
   return (
     <SectionCard
       id="playbook-team-roles"
-      title="Team Roles"
-      description="Choose the shared role definitions that may participate in this workflow."
+      title="Specialists"
+      description="Choose the active specialist definitions for this workflow."
     >
       <div className="space-y-3">
-        <p className="text-sm text-muted">
-          Playbooks use active role definitions from the shared workspace configuration.
-        </p>
+        {roleValidation.selectionIssue ? (
+          <p className="text-xs text-red-600 dark:text-red-400">{roleValidation.selectionIssue}</p>
+        ) : null}
         {props.draft.roles.map((role, index) => (
           <div key={`role-${index}`} className="grid gap-1.5">
             <div className="flex items-start gap-2">
@@ -118,10 +111,10 @@ export function TeamRolesSection(
                 }
               >
                 <SelectTrigger className="min-w-0 flex-1">
-                  <SelectValue placeholder="Select a role definition" />
+                  <SelectValue placeholder="Select a specialist" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value={ROLE_SELECT_UNSET}>Select a role definition</SelectItem>
+                  <SelectItem value={ROLE_SELECT_UNSET}>Select a specialist</SelectItem>
                   {availableRoleNames.map((name) => (
                     <SelectItem key={name} value={name}>
                       {name}
@@ -150,7 +143,7 @@ export function TeamRolesSection(
                 }
               >
                 <Minus className="h-4 w-4" />
-                Remove Role
+                Remove Specialist
               </Button>
             </div>
             {roleValidation.roleErrors[index] ? (
@@ -172,7 +165,7 @@ export function TeamRolesSection(
           }
         >
           <Plus className="h-4 w-4" />
-          Add Role
+          Add specialist
         </Button>
       </div>
     </SectionCard>
@@ -189,42 +182,62 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
     >
       <div className="space-y-4">
         {props.draft.stages.map((stage, index) => (
-          <DraftCard
-            key={`stage-${index}`}
-            moveEarlier={moveHandler(props, 'stages', index, 'earlier')}
-            moveLater={moveHandler(props, 'stages', index, 'later')}
-            onRemove={() =>
-              props.onChange((current) => ({
-                ...current,
-                stages: current.stages.filter((_, entryIndex) => entryIndex !== index),
-              }))
-            }
-          >
-            <div className="grid gap-3 md:grid-cols-2">
-              <LabeledField label="Stage name">
-                <Input
-                  value={stage.name}
-                  onChange={(event) => updateStage(props, index, 'name', event.target.value)}
-                />
-              </LabeledField>
-              <LabeledField label="Stage goal">
-                <Input
-                  value={stage.goal}
-                  onChange={(event) => updateStage(props, index, 'goal', event.target.value)}
-                />
-              </LabeledField>
+          <div key={`stage-${index}`} className="rounded-xl border border-border/70 bg-card/60 p-4">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)] lg:items-stretch">
+              <div className="grid gap-3">
+                <div className="grid gap-2 text-sm lg:grid-cols-[6rem_minmax(0,1fr)] lg:items-start lg:gap-3">
+                  <span className="font-medium lg:pt-2 lg:text-right">Stage name</span>
+                  <div className="grid gap-2">
+                    <Input
+                      value={stage.name}
+                      onChange={(event) => updateStage(props, index, 'name', event.target.value)}
+                    />
+                    <ValidationText issue={stageValidation.stageErrors[index]?.name} />
+                  </div>
+                </div>
+                <div className="grid gap-2 text-sm lg:grid-cols-[6rem_minmax(0,1fr)] lg:items-start lg:gap-3">
+                  <span className="font-medium lg:pt-2 lg:text-right">Stage goal</span>
+                  <div className="grid gap-2">
+                    <Input
+                      value={stage.goal}
+                      onChange={(event) => updateStage(props, index, 'goal', event.target.value)}
+                    />
+                    <ValidationText issue={stageValidation.stageErrors[index]?.goal} />
+                  </div>
+                </div>
+              </div>
+              <div className="grid gap-3 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start">
+                <div className="flex items-center gap-2 lg:pt-1">
+                  <IconButton
+                    icon={<ChevronUp className="h-4 w-4" />}
+                    onClick={moveHandler(props, 'stages', index, 'earlier')}
+                  />
+                  <IconButton
+                    icon={<ChevronDown className="h-4 w-4" />}
+                    onClick={moveHandler(props, 'stages', index, 'later')}
+                  />
+                  <IconButton
+                    icon={<Minus className="h-4 w-4" />}
+                    onClick={() =>
+                      props.onChange((current) => ({
+                        ...current,
+                        stages: current.stages.filter((_, entryIndex) => entryIndex !== index),
+                      }))
+                    }
+                  />
+                </div>
+                <div className="grid gap-2 text-sm lg:grid-cols-[6rem_minmax(0,1fr)] lg:items-stretch lg:gap-3">
+                  <span className="font-medium lg:pt-2 lg:text-right">Stage guidance</span>
+                  <Textarea
+                    value={stage.guidance}
+                    onChange={(event) => updateStage(props, index, 'guidance', event.target.value)}
+                    className="min-h-[110px] lg:h-full"
+                    placeholder="Optional stage-specific guidance for the orchestrator."
+                  />
+                </div>
+              </div>
             </div>
-            <LabeledField label="Stage guidance">
-              <Textarea
-                value={stage.guidance}
-                onChange={(event) => updateStage(props, index, 'guidance', event.target.value)}
-                className="min-h-[110px]"
-                placeholder="Optional stage-specific guidance for the orchestrator."
-              />
-            </LabeledField>
-            <ValidationText issue={stageValidation.stageErrors[index]?.name} />
-            <ValidationText issue={stageValidation.stageErrors[index]?.goal} />
-          </DraftCard>
+          </div>
         ))}
         {stageValidation.blockingIssues.length > 0 && props.draft.stages.length === 0 ? (
           <p className="text-xs text-red-600 dark:text-red-400">
