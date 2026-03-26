@@ -42,8 +42,8 @@ test_git_remote_run_preparation_uses_unique_branch_and_writes_run_context() {
   cat >"${envfile}" <<'EOF'
 DEFAULT_ADMIN_API_KEY=test-admin-key
 LIVE_TEST_PROVIDER_AUTH_MODE=oauth
-LIVE_TEST_OAUTH_PROFILE_ID=openai-codex
-LIVE_TEST_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"enc:v1:access","refreshToken":"enc:v1:refresh"}}'
+LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID=openai-codex
+LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"enc:v1:access","refreshToken":"enc:v1:refresh"}}'
 LIVE_TEST_GITHUB_TOKEN=test-github-token
 POSTGRES_DB=agirunner
 POSTGRES_USER=agirunner
@@ -98,8 +98,8 @@ test_git_remote_run_preparation_pushes_run_branch_to_fixtures_origin_remote() {
   cat >"${envfile}" <<'EOF'
 DEFAULT_ADMIN_API_KEY=test-admin-key
 LIVE_TEST_PROVIDER_AUTH_MODE=oauth
-LIVE_TEST_OAUTH_PROFILE_ID=openai-codex
-LIVE_TEST_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"enc:v1:access","refreshToken":"enc:v1:refresh"}}'
+LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID=openai-codex
+LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"enc:v1:access","refreshToken":"enc:v1:refresh"}}'
 LIVE_TEST_GITHUB_TOKEN=test-github-token
 POSTGRES_DB=agirunner
 POSTGRES_USER=agirunner
@@ -152,8 +152,8 @@ test_host_directory_run_preparation_uses_unique_host_workspace_path() {
   cat >"${envfile}" <<'EOF'
 DEFAULT_ADMIN_API_KEY=test-admin-key
 LIVE_TEST_PROVIDER_AUTH_MODE=oauth
-LIVE_TEST_OAUTH_PROFILE_ID=openai-codex
-LIVE_TEST_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"enc:v1:access","refreshToken":"enc:v1:refresh"}}'
+LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID=openai-codex
+LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"enc:v1:access","refreshToken":"enc:v1:refresh"}}'
 POSTGRES_DB=agirunner
 POSTGRES_USER=agirunner
 POSTGRES_PASSWORD=agirunner
@@ -200,8 +200,8 @@ test_git_remote_run_preparation_defaults_fixtures_repo_path() {
   cat >"${envfile}" <<'EOF'
 DEFAULT_ADMIN_API_KEY=test-admin-key
 LIVE_TEST_PROVIDER_AUTH_MODE=oauth
-LIVE_TEST_OAUTH_PROFILE_ID=openai-codex
-LIVE_TEST_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"enc:v1:access","refreshToken":"enc:v1:refresh"}}'
+LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID=openai-codex
+LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"enc:v1:access","refreshToken":"enc:v1:refresh"}}'
 LIVE_TEST_GITHUB_TOKEN=test-github-token
 POSTGRES_DB=agirunner
 POSTGRES_USER=agirunner
@@ -250,8 +250,8 @@ test_prepare_run_honors_explicit_live_test_scenario_file_without_positional_arg(
   cat >"${envfile}" <<'EOF'
 DEFAULT_ADMIN_API_KEY=test-admin-key
 LIVE_TEST_PROVIDER_AUTH_MODE=oauth
-LIVE_TEST_OAUTH_PROFILE_ID=openai-codex
-LIVE_TEST_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"enc:v1:access","refreshToken":"enc:v1:refresh"}}'
+LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID=openai-codex
+LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"enc:v1:access","refreshToken":"enc:v1:refresh"}}'
 POSTGRES_DB=agirunner
 POSTGRES_USER=agirunner
 POSTGRES_PASSWORD=agirunner

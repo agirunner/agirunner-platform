@@ -40,12 +40,12 @@ test_exports_session_json_to_stdout() {
 POSTGRES_DB=agirunner
 POSTGRES_USER=agirunner
 POSTGRES_PASSWORD=agirunner
-LIVE_TEST_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"plain-access","refreshToken":"plain-refresh","authorizedAt":"2026-03-19T00:00:00.000Z"}}'
+LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"plain-access","refreshToken":"plain-refresh","authorizedAt":"2026-03-19T00:00:00.000Z"}}'
 EOF
 
   LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_PLATFORM_ROOT="${fake_platform_root}" \
-    LIVE_TEST_OAUTH_PROFILE_ID="openai-codex" \
+    LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID="openai-codex" \
     "${SCRIPT_PATH}" >"${stdout_log}"
 
   assert_contains '{"credentials":{"accessToken":"plain-access","refreshToken":"plain-refresh","authorizedAt":"2026-03-19T00:00:00.000Z"}}' "${stdout_log}"
@@ -66,13 +66,13 @@ test_writes_session_json_to_requested_file() {
 POSTGRES_DB=agirunner
 POSTGRES_USER=agirunner
 POSTGRES_PASSWORD=agirunner
-LIVE_TEST_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"plain-access","authorizedAt":"2026-03-19T00:00:00.000Z"}}'
+LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"plain-access","authorizedAt":"2026-03-19T00:00:00.000Z"}}'
 EOF
 
   LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_PLATFORM_ROOT="${fake_platform_root}" \
-    LIVE_TEST_OAUTH_PROFILE_ID="openai-codex" \
-    LIVE_TEST_OAUTH_SESSION_OUTPUT_FILE="${output_file}" \
+    LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID="openai-codex" \
+    LIVE_TEST_PROVIDER_OAUTH_SESSION_OUTPUT_FILE="${output_file}" \
     "${SCRIPT_PATH}" >"${stdout_log}"
 
   if [[ ! -f "${output_file}" ]]; then

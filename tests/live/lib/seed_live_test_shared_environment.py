@@ -44,8 +44,8 @@ def main() -> None:
     provider_type = env("LIVE_TEST_PROVIDER_TYPE", "openai")
     provider_base_url = env("LIVE_TEST_PROVIDER_BASE_URL", "https://chatgpt.com/backend-api")
     provider_api_key = env("LIVE_TEST_PROVIDER_API_KEY") or None
-    oauth_profile_id = env("LIVE_TEST_OAUTH_PROFILE_ID") or None
-    oauth_session_json = env("LIVE_TEST_OAUTH_SESSION_JSON")
+    oauth_profile_id = env("LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID") or None
+    oauth_session_json = env("LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON")
     oauth_session = json.loads(oauth_session_json) if oauth_session_json else None
     model_id = env("LIVE_TEST_MODEL_ID", "gpt-5.4-mini")
     model_endpoint_type = env("LIVE_TEST_MODEL_ENDPOINT_TYPE", "responses")
