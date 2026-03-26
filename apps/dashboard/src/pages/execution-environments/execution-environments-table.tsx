@@ -183,6 +183,7 @@ function IconActionButton(props: {
 }): JSX.Element {
   return (
     <Button
+      type="button"
       size="icon"
       variant="outline"
       aria-label={props.label}

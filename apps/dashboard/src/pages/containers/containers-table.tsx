@@ -93,9 +93,9 @@ export function ContainersTable(props: {
               <DiffCell row={row} field="image" className="py-3">
                 <code
                   className="block truncate text-xs text-foreground"
-                  title={row.execution_environment_image ?? row.image}
+                  title={row.image}
                 >
-                  {row.execution_environment_image ?? row.image}
+                  {row.image}
                 </code>
                 {renderExecutionEnvironmentSummary(row)}
               </DiffCell>
@@ -182,10 +182,12 @@ function formatLimit(value: string | null | undefined): string {
 }
 
 function renderExecutionEnvironmentSummary(row: SessionContainerRow): JSX.Element | null {
+  if (row.kind !== 'task') {
+    return null;
+  }
   const summaryParts = [
     row.execution_environment_name?.trim() || null,
     row.execution_environment_distro?.trim() || null,
-    row.execution_environment_package_manager?.trim() || null,
   ].filter((value): value is string => value !== null);
   if (summaryParts.length === 0) {
     return null;

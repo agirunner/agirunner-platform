@@ -52,6 +52,7 @@ describe('containers page source', () => {
     expect(tableSource).toContain('execution_environment_image');
     expect(tableSource).toContain('execution_environment_package_manager');
     expect(tableSource).toContain('renderExecutionEnvironmentSummary');
+    expect(tableSource).not.toContain('row.execution_environment_package_manager?.trim() || null');
     expect(tableSource).toContain('const TABLE_COLUMN_CLASS_NAMES = [');
     expect(tableSource).toContain("const TABLE_COLUMN_CLASS_NAMES = [\n  'w-[7rem]',\n  'w-[12rem]',");
     expect(tableSource).toContain('<colgroup>');

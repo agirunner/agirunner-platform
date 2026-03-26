@@ -50,6 +50,7 @@ describe('execution environments page source', () => {
 
     expect(markup).toContain('aria-label="Copy environment"');
     expect(markup).toContain('title="Copy environment"');
+    expect(markup).toContain('type="button"');
     expect(markup).toContain('aria-label="Edit environment"');
     expect(markup).toContain('title="Edit environment"');
     expect(markup).toContain('aria-label="Verify environment"');
