@@ -37,6 +37,7 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Terminal lane');
     expect(source).toContain('lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)] lg:items-stretch');
     expect(source).toContain('lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start');
+    expect(source).not.toContain('lg:grid-cols-[6rem_minmax(0,1fr)]');
     expect(source).toContain('Launch Inputs');
     expect(source).toContain('Workspace mapping');
     expect(source).toContain('Category');

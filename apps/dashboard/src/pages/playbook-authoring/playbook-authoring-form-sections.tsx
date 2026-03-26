@@ -185,26 +185,22 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
           <div key={`stage-${index}`} className="rounded-xl border border-border/70 bg-card/60 p-4">
             <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)] lg:items-stretch">
               <div className="grid gap-3">
-                <div className="grid gap-2 text-sm lg:grid-cols-[6rem_minmax(0,1fr)] lg:items-start lg:gap-3">
-                  <span className="font-medium lg:pt-2 lg:text-right">Stage name</span>
-                  <div className="grid gap-2">
-                    <Input
-                      value={stage.name}
-                      onChange={(event) => updateStage(props, index, 'name', event.target.value)}
-                    />
-                    <ValidationText issue={stageValidation.stageErrors[index]?.name} />
-                  </div>
-                </div>
-                <div className="grid gap-2 text-sm lg:grid-cols-[6rem_minmax(0,1fr)] lg:items-start lg:gap-3">
-                  <span className="font-medium lg:pt-2 lg:text-right">Stage goal</span>
-                  <div className="grid gap-2">
-                    <Input
-                      value={stage.goal}
-                      onChange={(event) => updateStage(props, index, 'goal', event.target.value)}
-                    />
-                    <ValidationText issue={stageValidation.stageErrors[index]?.goal} />
-                  </div>
-                </div>
+                <label className="grid gap-2 text-sm">
+                  <span className="font-medium">Stage name</span>
+                  <Input
+                    value={stage.name}
+                    onChange={(event) => updateStage(props, index, 'name', event.target.value)}
+                  />
+                  <ValidationText issue={stageValidation.stageErrors[index]?.name} />
+                </label>
+                <label className="grid gap-2 text-sm">
+                  <span className="font-medium">Stage goal</span>
+                  <Input
+                    value={stage.goal}
+                    onChange={(event) => updateStage(props, index, 'goal', event.target.value)}
+                  />
+                  <ValidationText issue={stageValidation.stageErrors[index]?.goal} />
+                </label>
               </div>
               <div className="grid gap-3 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start">
                 <div className="flex items-center gap-2 lg:pt-1">
@@ -226,15 +222,15 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
                     }
                   />
                 </div>
-                <div className="grid gap-2 text-sm lg:grid-cols-[6rem_minmax(0,1fr)] lg:items-stretch lg:gap-3">
-                  <span className="font-medium lg:pt-2 lg:text-right">Stage guidance</span>
+                <label className="grid gap-2 text-sm">
+                  <span className="font-medium">Stage guidance</span>
                   <Textarea
                     value={stage.guidance}
                     onChange={(event) => updateStage(props, index, 'guidance', event.target.value)}
                     className="min-h-[110px] lg:h-full"
                     placeholder="Optional stage-specific guidance for the orchestrator."
                   />
-                </div>
+                </label>
               </div>
             </div>
           </div>

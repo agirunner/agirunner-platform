@@ -305,43 +305,41 @@ export function PlaybookDetailPage(): JSX.Element {
         <CardContent className="grid gap-6">
           <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)] lg:items-stretch">
             <div className="grid gap-4">
-              <label className="grid gap-2 text-sm lg:grid-cols-[6rem_minmax(0,1fr)] lg:items-center lg:gap-3">
-                <span className="font-medium lg:text-right">Name</span>
+              <label className="grid gap-2 text-sm">
+                <span className="font-medium">Name</span>
                 <Input value={name} onChange={(event) => { setName(event.target.value); setIsDirty(true); }} />
               </label>
-              <label className="grid gap-2 text-sm lg:grid-cols-[6rem_minmax(0,1fr)] lg:items-center lg:gap-3">
-                <span className="font-medium lg:text-right">Slug</span>
+              <label className="grid gap-2 text-sm">
+                <span className="font-medium">Slug</span>
                 <Input value={slug} onChange={(event) => { setSlug(event.target.value); setIsDirty(true); }} />
               </label>
-              <div className="grid gap-2 text-sm lg:grid-cols-[6rem_minmax(0,1fr)] lg:items-start lg:gap-3">
-                <span className="font-medium lg:pt-2 lg:text-right">Lifecycle</span>
-                <div className="grid gap-2">
-                  <Select
-                    value={lifecycle}
-                    onValueChange={(value) => {
-                      setLifecycle(value as 'planned' | 'ongoing');
-                      setIsDirty(true);
-                    }}
-                  >
-                    <SelectTrigger aria-label="Playbook lifecycle">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {lifecycleOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-xs text-muted">
-                    {lifecycleOptions.find((option) => option.value === lifecycle)?.description}
-                  </p>
-                </div>
+              <div className="grid gap-2 text-sm">
+                <span className="font-medium">Lifecycle</span>
+                <Select
+                  value={lifecycle}
+                  onValueChange={(value) => {
+                    setLifecycle(value as 'planned' | 'ongoing');
+                    setIsDirty(true);
+                  }}
+                >
+                  <SelectTrigger aria-label="Playbook lifecycle">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {lifecycleOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted">
+                  {lifecycleOptions.find((option) => option.value === lifecycle)?.description}
+                </p>
               </div>
             </div>
-            <div className="grid gap-2 text-sm lg:grid-cols-[6rem_minmax(0,1fr)] lg:items-stretch lg:gap-3">
-              <span className="font-medium lg:pt-2 lg:text-right">Outcome</span>
+            <div className="grid gap-2 text-sm">
+              <span className="font-medium">Outcome</span>
               <Textarea
                 value={outcome}
                 onChange={(event) => { setOutcome(event.target.value); setIsDirty(true); }}
