@@ -412,7 +412,7 @@ func levelForContainerAction(action events.Action, attrs map[string]string) stri
 	case events.ActionHealthStatusUnhealthy:
 		return "warn"
 	case events.ActionDie:
-		if attrs["exitCode"] == "0" {
+		if isExpectedManagedExit(attrs["exitCode"]) {
 			return "debug"
 		}
 		return "warn"
@@ -420,6 +420,15 @@ func levelForContainerAction(action events.Action, attrs map[string]string) stri
 		return "debug"
 	default:
 		return "debug"
+	}
+}
+
+func isExpectedManagedExit(code string) bool {
+	switch code {
+	case "0", "137", "143":
+		return true
+	default:
+		return false
 	}
 }
 

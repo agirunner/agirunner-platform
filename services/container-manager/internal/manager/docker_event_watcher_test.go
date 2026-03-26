@@ -116,8 +116,8 @@ func TestLevelForContainerAction(t *testing.T) {
 	}{
 		{"die exit 0", events.ActionDie, map[string]string{"exitCode": "0"}, "debug"},
 		{"die exit 1", events.ActionDie, map[string]string{"exitCode": "1"}, "warn"},
-		{"die exit 137 SIGKILL", events.ActionDie, map[string]string{"exitCode": "137"}, "warn"},
-		{"die exit 143 SIGTERM", events.ActionDie, map[string]string{"exitCode": "143"}, "warn"},
+		{"die exit 137 SIGKILL", events.ActionDie, map[string]string{"exitCode": "137"}, "debug"},
+		{"die exit 143 SIGTERM", events.ActionDie, map[string]string{"exitCode": "143"}, "debug"},
 		{"oom", events.ActionOOM, nil, "error"},
 		{"kill", events.ActionKill, nil, "debug"},
 		{"stop", events.ActionStop, nil, "debug"},
@@ -250,7 +250,7 @@ func TestWatcherSignalKillIsWarnNoCrashLogs(t *testing.T) {
 	emitter, getEntries := newTestEmitter(t)
 	watcher := newTestDockerEventWatcher(docker, emitter)
 
-	// Exit 137 = SIGKILL from reconciler → warn, no crash logs
+	// Exit 137 = reconciler-managed shutdown → debug, no crash logs
 	watcher.handleEvent(context.Background(), events.Message{
 		Type:   events.ContainerEventType,
 		Action: events.ActionDie,
@@ -274,8 +274,8 @@ func TestWatcherSignalKillIsWarnNoCrashLogs(t *testing.T) {
 	if entries[0].Operation != "docker.container.died" {
 		t.Errorf("operation = %q, want %q", entries[0].Operation, "docker.container.died")
 	}
-	if entries[0].Level != "warn" {
-		t.Errorf("level = %q, want %q for exit 137", entries[0].Level, "warn")
+	if entries[0].Level != "debug" {
+		t.Errorf("level = %q, want %q for exit 137", entries[0].Level, "debug")
 	}
 }
 

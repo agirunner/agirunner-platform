@@ -219,13 +219,16 @@ describe('prompt catalogs', () => {
       'Do not call continuity or handoff read tools with an empty work_item_id.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Never treat a workflow-scoped activation as implicitly bound to the most recent work item.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Avoid setting specialist token_budget unless you have a concrete budget reason',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'execution-workspace template',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'Specialists should install any additional language runtime, package manager, or test/build tool they need inside the task container.',
+      'Specialists should install any additional language runtime, package manager, or test/build tool they need inside the Specialist Execution environment.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'create_task.type MUST be one of analysis, code, assessment, test, docs, or custom.',

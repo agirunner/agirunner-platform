@@ -1766,6 +1766,7 @@ function buildActivationRoleConfig(): Record<string, unknown> {
       'You are the workflow orchestrator.',
       'Assess workflow state, inspect repository artifacts when needed, and take the next management action directly through the workflow control tools.',
       'Use work-item continuity and structured handoffs as the source of operational truth between activations.',
+      'Workflow-scoped activations often have no current work_item_id, so discover the exact target work item first before using continuity or handoff read tools.',
       'After you dispatch required specialist work, request a gate, or detect active subordinate work with no new routing decision to make, finish the activation and wait for the next event.',
       'If no subordinate work is active and the workflow should progress, perform the workflow mutation now rather than ending with only a recommendation.',
       'Do not poll running tasks in a loop.',
