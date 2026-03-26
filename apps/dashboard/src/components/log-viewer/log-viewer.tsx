@@ -20,6 +20,7 @@ const LIVE_ENTRY_LIMIT = 100;
 export interface LogViewerProps {
   scope?: LogScope;
   compact?: boolean;
+  defaultLive?: boolean;
   operationItemsOverride?: ComboboxItem[];
   roleItemsOverride?: ComboboxItem[];
   actorItemsOverride?: ComboboxItem[];
@@ -34,6 +35,7 @@ export interface LogViewerProps {
 export function LogViewer({
   scope,
   compact = false,
+  defaultLive = false,
   operationItemsOverride,
   roleItemsOverride,
   actorItemsOverride,
@@ -46,7 +48,7 @@ export function LogViewer({
 }: LogViewerProps): JSX.Element {
   const [cursor, setCursor] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<LogViewMode>('flat');
-  const [isLive, setIsLive] = useState(false);
+  const [isLive, setIsLive] = useState(defaultLive);
   const [liveEntries, setLiveEntries] = useState<LogEntry[]>([]);
 
   const { filters, setFilter, toQueryParams } = useLogFilters();

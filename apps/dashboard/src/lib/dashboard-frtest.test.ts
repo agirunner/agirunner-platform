@@ -82,9 +82,11 @@ describe('FR-030: modern SPA structure', () => {
     expect(source).toContain('/artifacts/tasks/:taskId/:artifactId');
     expect(source).toContain('/design/workspaces');
     expect(source).toContain('/design/playbooks');
+    expect(source).toContain('/design/specialists');
     expect(source).not.toContain('/config/templates');
     expect(source).not.toContain('/fleet/workers');
-    expect(source).toContain('/diagnostics/containers');
+    expect(source).toContain('/diagnostics/live-containers');
+    expect(source).toContain('/diagnostics/live-logs');
     expect(source).toContain('/admin/api-keys');
     expect(source).toContain('/login');
   });
@@ -335,9 +337,9 @@ describe('FR-RT-1620..1625: guided runtime customization flow', () => {
 
   it('layout exposes runtime configuration navigation in the sidebar', () => {
     const source = readComponent('components/layout/layout.tsx');
-    expect(source).toContain('/platform/runtimes');
+    expect(source).toContain('/admin/agent-settings');
     expect(source).toContain('/platform/environments');
-    expect(source).toContain('Specialist Agents');
+    expect(source).toContain('Advanced agent settings');
     expect(source).toContain('Environments');
   });
 });
@@ -359,9 +361,11 @@ describe('FR-427: dashboard navigation and layout', () => {
     expect(source).toContain('Workspaces');
     expect(source).toContain('Diagnostics');
     expect(source).toContain('Admin');
-    expect(source).toContain("href: '/platform/runtimes'");
+    expect(source).toContain("href: '/admin/agent-settings'");
+    expect(source).toContain("href: '/admin/platform-settings'");
     expect(source).toContain("href: '/platform/environments'");
-    expect(source).toContain("href: '/diagnostics/containers'");
+    expect(source).toContain("href: '/diagnostics/live-containers'");
+    expect(source).toContain("href: '/diagnostics/live-logs'");
     expect(source).not.toContain("label: 'Fleet'");
     expect(source).not.toContain('Configuration');
     expect(source).not.toContain('Governance');

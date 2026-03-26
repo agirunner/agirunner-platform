@@ -53,21 +53,21 @@ export function RoleDefinitionsPage(): JSX.Element {
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!deletingRole) {
-        throw new Error('Choose a role to delete.');
+        throw new Error('Choose a specialist to delete.');
       }
       await deleteRole(deletingRole.id);
     },
     onSuccess: async () => {
-      const deletedRoleName = deletingRole?.name ?? 'Role';
+      const deletedRoleName = deletingRole?.name ?? 'Specialist';
       await queryClient.invalidateQueries({ queryKey: ['roles'] });
       if (editingRole?.id === deletingRole?.id) {
         setEditingRole(null);
       }
       setDeletingRole(null);
-      toast.success(`Deleted role ${deletedRoleName}.`);
+      toast.success(`Deleted specialist ${deletedRoleName}.`);
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : 'Failed to delete role.';
+      const message = error instanceof Error ? error.message : 'Failed to delete specialist.';
       toast.error(message);
     },
   });
@@ -80,10 +80,10 @@ export function RoleDefinitionsPage(): JSX.Element {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['roles'] });
-      toast.success('Updated role active state.');
+      toast.success('Updated specialist active state.');
     },
     onError: (error) => {
-      const message = error instanceof Error ? error.message : 'Failed to update role.';
+      const message = error instanceof Error ? error.message : 'Failed to update specialist.';
       toast.error(message);
     },
   });
@@ -92,7 +92,7 @@ export function RoleDefinitionsPage(): JSX.Element {
     return <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>;
   }
   if (rolesQuery.error || toolsQuery.error || environmentsQuery.error) {
-    return <div className="p-6"><div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">Failed to load roles: {String(rolesQuery.error ?? toolsQuery.error ?? environmentsQuery.error)}</div></div>;
+    return <div className="p-6"><div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">Failed to load specialists: {String(rolesQuery.error ?? toolsQuery.error ?? environmentsQuery.error)}</div></div>;
   }
 
   const allRoles = [...(rolesQuery.data ?? [])].sort((a, b) => a.name.localeCompare(b.name));
@@ -120,44 +120,44 @@ export function RoleDefinitionsPage(): JSX.Element {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-accent" />
-            <h1 className="text-2xl font-semibold">Roles</h1>
+            <h1 className="text-2xl font-semibold">Specialists</h1>
           </div>
           <p className="max-w-3xl text-sm text-muted">
-            Define specialist roles — identity, prompt, model assignment, and tool grants.
+            Define specialist identity, prompt, model assignment, and tool grants.
           </p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted">Active only</span>
-            <Switch checked={showActiveOnly} onCheckedChange={setShowActiveOnly} aria-label="Show active roles only" />
+            <Switch checked={showActiveOnly} onCheckedChange={setShowActiveOnly} aria-label="Show active specialists only" />
           </div>
-          <Button onClick={() => setIsCreating(true)}><Plus className="h-4 w-4" />Create Role</Button>
+          <Button onClick={() => setIsCreating(true)}><Plus className="h-4 w-4" />Create Specialist</Button>
         </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        <MetricCard label="Total roles" value={summary.total} />
-        <MetricCard label="Active roles" value={summary.active} tone="success" />
-        <MetricCard label="Inactive roles" value={summary.inactive} tone="warning" />
+        <MetricCard label="Total specialists" value={summary.total} />
+        <MetricCard label="Active specialists" value={summary.active} tone="success" />
+        <MetricCard label="Inactive specialists" value={summary.inactive} tone="warning" />
       </div>
 
       {roles.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/70 bg-muted/10 py-12 text-center text-muted">
           <ShieldCheck className="h-12 w-12" />
           <div>
-            <p className="font-medium">No roles defined</p>
-            <p className="text-sm">Create the first specialist role definition.</p>
+            <p className="font-medium">No specialists defined</p>
+            <p className="text-sm">Create the first specialist definition.</p>
           </div>
           <Button onClick={() => setIsCreating(true)}>
             <Plus className="h-4 w-4" />
-            Create Role
+            Create Specialist
           </Button>
         </div>
       ) : (
         <Card id="specialist-role-definitions">
           <CardHeader>
-            <CardTitle>Specialist role definitions</CardTitle>
-            <CardDescription>Review roles at a glance, then expand any row for the full prompt and tool details.</CardDescription>
+            <CardTitle>Specialist definitions</CardTitle>
+            <CardDescription>Review specialists at a glance, then expand any row for the full prompt and tool details.</CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <Table>

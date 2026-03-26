@@ -11,7 +11,7 @@ import {
 describe('ai config assistant support', () => {
   it('provides bounded quick-start prompts for common operator audits', () => {
     expect(ASSISTANT_STARTER_PROMPTS.map((prompt) => prompt.label)).toEqual([
-      'Audit runtimes',
+      'Audit advanced agent settings',
       'Provider posture',
       'Playbook review',
       'Integration hygiene',
@@ -62,8 +62,8 @@ describe('ai config assistant support', () => {
 
   it('maps known suggestion paths back to concrete config destinations', () => {
     expect(resolveSuggestionDestination('runtime.default_runtime_image')).toEqual({
-      href: '/platform/runtimes',
-      label: 'Open runtime defaults',
+      href: '/admin/agent-settings',
+      label: 'Open advanced agent settings',
     });
     expect(resolveSuggestionDestination('provider.openai.base_url')).toEqual({
       href: '/platform/routing',
@@ -95,12 +95,12 @@ describe('ai config assistant support', () => {
       label: 'Open work-item triggers',
     });
     expect(resolveSuggestionDestination('role.developer')).toEqual({
-      href: '/design/roles',
-      label: 'Open role definitions',
+      href: '/design/specialists',
+      label: 'Open specialists',
     });
     expect(resolveSuggestionDestination('roles.reviewer')).toEqual({
-      href: '/design/roles',
-      label: 'Open role definitions',
+      href: '/design/specialists',
+      label: 'Open specialists',
     });
     expect(resolveSuggestionDestination('unknown.path')).toBeNull();
   });
@@ -110,7 +110,7 @@ describe('ai config assistant support', () => {
       badge: 'Empty session',
       title: 'Start with a bounded operator audit',
       detail:
-        'Ask one concrete question about runtimes, providers, playbooks, integrations, or work items so the assistant can return a reviewable packet instead of vague advice.',
+        'Ask one concrete question about advanced agent settings, providers, playbooks, integrations, or work items so the assistant can return a reviewable packet instead of vague advice.',
       nextAction: 'Run a quick audit or choose one of the preset asks to start the handoff.',
     });
 
@@ -177,10 +177,10 @@ describe('ai config assistant support', () => {
         detail: '1 suggestion still needs review on this surface.',
       },
       {
-        key: '/platform/runtimes',
-        label: 'Open runtime defaults',
-        href: '/platform/runtimes',
-        actionLabel: 'Open runtime defaults',
+        key: '/admin/agent-settings',
+        label: 'Open advanced agent settings',
+        href: '/admin/agent-settings',
+        actionLabel: 'Open advanced agent settings',
         pendingCount: 0,
         reviewedCount: 1,
         detail: 'Everything grouped under this surface has been reviewed in the current session.',

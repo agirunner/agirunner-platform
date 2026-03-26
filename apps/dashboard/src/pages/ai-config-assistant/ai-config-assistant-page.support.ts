@@ -47,7 +47,7 @@ export interface SuggestionDestination {
 
 export const ASSISTANT_STARTER_PROMPTS: AssistantStarterPrompt[] = [
   {
-    label: 'Audit Specialist Agents',
+    label: 'Audit advanced agent settings',
     prompt:
       'Review specialist agent settings and call out the highest-risk configuration gaps for orchestrators and specialists.',
   },
@@ -122,7 +122,7 @@ export function buildAssistantSessionStage(
       badge: 'Empty session',
       title: 'Start with a bounded operator audit',
       detail:
-        'Ask one concrete question about specialist agents, providers, playbooks, integrations, or work items so the assistant can return a reviewable packet instead of vague advice.',
+        'Ask one concrete question about advanced agent settings, providers, playbooks, integrations, or work items so the assistant can return a reviewable packet instead of vague advice.',
       nextAction: 'Run a quick audit or choose one of the preset asks to start the handoff.',
     };
   }
@@ -221,7 +221,7 @@ export function resolveSuggestionDestination(path: string): SuggestionDestinatio
     normalized.startsWith('agent.') ||
     normalized.startsWith('global_')
   ) {
-    return { href: '/platform/runtimes', label: 'Open Specialist Agents' };
+    return { href: '/admin/agent-settings', label: 'Open advanced agent settings' };
   }
   if (
     normalized.startsWith('llm.') ||
@@ -246,7 +246,7 @@ export function resolveSuggestionDestination(path: string): SuggestionDestinatio
     return { href: '/integrations/triggers', label: 'Open work-item triggers' };
   }
   if (normalized.startsWith('role.') || normalized.startsWith('roles.')) {
-    return { href: '/design/roles', label: 'Open role definitions' };
+    return { href: '/design/specialists', label: 'Open specialists' };
   }
   return null;
 }

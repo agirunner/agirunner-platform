@@ -169,7 +169,7 @@ export function RoleDialog(props: {
     <Dialog open onOpenChange={(open) => !open && props.onClose()}>
       <DialogContent className="top-[5vh] flex max-h-[90vh] max-w-[68rem] translate-y-0 flex-col overflow-hidden p-0">
         <DialogHeader className="border-b border-border/70 px-6 py-5">
-          <DialogTitle>{props.role ? `Edit Role: ${props.role.name}` : 'Create Role'}</DialogTitle>
+          <DialogTitle>{props.role ? `Edit Specialist: ${props.role.name}` : 'Create Specialist'}</DialogTitle>
           <DialogDescription>
             Define the specialist identity, prompt, model, and tools.
           </DialogDescription>
@@ -232,7 +232,7 @@ export function RoleDialog(props: {
             mutationError={mutation.error}
             validation={validation}
             isPending={mutation.isPending}
-            submitLabel={props.role ? 'Save Role' : 'Create Role'}
+            submitLabel={props.role ? 'Save Specialist' : 'Create Specialist'}
             onClose={props.onClose}
           />
         </form>

@@ -35,10 +35,10 @@ describe('layout breadcrumbs', () => {
     ]);
   });
 
-  it('labels the platform operations page in breadcrumbs', () => {
-    expect(buildBreadcrumbs('/platform/operations')).toEqual([
-      { label: 'Platform' },
-      { label: 'Operations' },
+  it('labels the advanced platform settings page in breadcrumbs', () => {
+    expect(buildBreadcrumbs('/admin/platform-settings')).toEqual([
+      { label: 'Admin' },
+      { label: 'Advanced platform settings' },
     ]);
   });
 
@@ -57,20 +57,25 @@ describe('layout breadcrumbs', () => {
 
   it('points integrations navigation at the triggers route', () => {
     const source = readLayoutSource();
+    expect(source).toContain("label: 'Integrations (soon)'");
     expect(source).toContain("label: 'Triggers'");
     expect(source).toContain("href: '/integrations/triggers'");
   });
 
-  it('splits platform and diagnostics navigation instead of using fleet', () => {
+  it('keeps advanced settings under admin and leaves platform focused on regular operator surfaces', () => {
     const source = readLayoutSource();
     expect(source).toContain("label: 'Platform'");
-    expect(source).toContain("label: 'Runtimes'");
-    expect(source).toContain("href: '/platform/runtimes'");
-    expect(source).toContain("label: 'Operations'");
-    expect(source).toContain("href: '/platform/operations'");
+    expect(source).toContain("href: '/platform/environments'");
+    expect(source).toContain("href: '/platform/tools'");
     expect(source).toContain("label: 'Diagnostics'");
-    expect(source).toContain("label: 'Containers'");
-    expect(source).toContain("href: '/diagnostics/containers'");
+    expect(source).toContain("label: 'Live Containers'");
+    expect(source).toContain("href: '/diagnostics/live-containers'");
+    expect(source).toContain("label: 'Advanced agent settings'");
+    expect(source).toContain("href: '/admin/agent-settings'");
+    expect(source).toContain("label: 'Advanced platform settings'");
+    expect(source).toContain("href: '/admin/platform-settings'");
+    expect(source).not.toContain("href: '/platform/runtimes'");
+    expect(source).not.toContain("href: '/platform/operations'");
     expect(source).not.toContain("label: 'Fleet'");
     expect(source).not.toContain("label: 'Runtime Defaults'");
     expect(source).not.toContain("href: '/fleet/workers'");
@@ -78,12 +83,28 @@ describe('layout breadcrumbs', () => {
     expect(source).not.toContain("href: '/fleet/status'");
   });
 
-  it('has separate Orchestrator and Roles nav entries in their new groups', () => {
+  it('has separate Orchestrator and Specialists nav entries in their new groups', () => {
     const source = readLayoutSource();
     expect(source).toContain("label: 'Orchestrator'");
     expect(source).toContain("href: '/platform/orchestrator'");
-    expect(source).toContain("label: 'Roles'");
-    expect(source).toContain("href: '/design/roles'");
+    expect(source).toContain("label: 'Specialists'");
+    expect(source).toContain("href: '/design/specialists'");
+  });
+
+  it('uses distinct icons for playbooks, environments, live diagnostics, webhooks, and advanced agent settings', () => {
+    const source = readLayoutSource();
+    expect(source).toContain("{ label: 'Playbooks', href: '/design/playbooks', icon: FileText }");
+    expect(source).toContain("label: 'Environments'");
+    expect(source).toContain("href: '/platform/environments'");
+    expect(source).toContain('icon: Container');
+    expect(source).toContain("href: '/diagnostics/live-containers'");
+    expect(source).toContain('icon: Package');
+    expect(source).toContain("href: '/diagnostics/live-logs'");
+    expect(source).toContain("label: 'Live Logs'");
+    expect(source).toContain("href: '/integrations/webhooks'");
+    expect(source).toContain('icon: Send');
+    expect(source).toContain("href: '/admin/agent-settings',");
+    expect(source).toContain('icon: Server');
   });
 
   it('hides the AI Assistant page from primary navigation', () => {
@@ -95,6 +116,9 @@ describe('layout breadcrumbs', () => {
     const source = readLayoutSource();
     expect(source).toContain("label: 'Admin'");
     expect(source).toContain("label: 'API Keys'");
+    expect(source).toContain("href: '/admin/api-keys'");
+    expect(source).toContain("href: '/admin/settings'");
+    expect(source.indexOf("href: '/admin/api-keys'")).toBeLessThan(source.indexOf("href: '/admin/settings'"));
     expect(source).not.toContain("label: 'Retention Policy'");
     expect(source).not.toContain("label: 'User Management'");
   });
@@ -168,6 +192,7 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("label: 'Models'");
     expect(source).toContain("'pool posture'");
     expect(source).toContain("'role definitions'");
+    expect(source).toContain("label: 'Specialists'");
   });
 
   it('passes nav item keywords through to command palette quick links', () => {

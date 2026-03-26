@@ -215,22 +215,23 @@ export function App(): JSX.Element {
             <Route path="/design/playbooks/:id/launch" element={<PlaybookLaunchPage />} />
             <Route path="/design/playbooks/launch" element={<PlaybookLaunchPage />} />
             <Route path="/config/playbooks/*" element={<LegacyPlaybookRouteRedirect />} />
-            <Route path="/design/roles" element={<RoleDefinitionsPage />} />
-            <Route path="/config/roles" element={<Navigate to="/design/roles" replace />} />
+            <Route path="/design/specialists" element={<RoleDefinitionsPage />} />
+            <Route path="/design/roles" element={<LegacySpecialistsRouteRedirect />} />
+            <Route path="/config/roles" element={<Navigate to="/design/specialists" replace />} />
 
             {/* Platform */}
             <Route path="/platform/orchestrator" element={<OrchestratorPage />} />
             <Route path="/platform/routing" element={<LlmProvidersPage />} />
-            <Route path="/platform/runtimes" element={<RuntimesPage />} />
+            <Route path="/platform/runtimes" element={<Navigate to="/admin/agent-settings" replace />} />
             <Route path="/platform/environments" element={<ExecutionEnvironmentsPage />} />
-            <Route path="/platform/operations" element={<OperationsPage />} />
+            <Route path="/platform/operations" element={<Navigate to="/admin/platform-settings" replace />} />
             <Route path="/platform/instructions" element={<PlatformInstructionsPage />} />
             <Route path="/platform/tools" element={<ToolsPage />} />
             <Route path="/config/orchestrator" element={<Navigate to="/platform/orchestrator" replace />} />
             <Route path="/config/llm" element={<Navigate to="/platform/routing" replace />} />
-            <Route path="/config/runtimes" element={<Navigate to="/platform/runtimes" replace />} />
+            <Route path="/config/runtimes" element={<Navigate to="/admin/agent-settings" replace />} />
             <Route path="/config/instructions" element={<Navigate to="/platform/instructions" replace />} />
-            <Route path="/config/runtime-defaults" element={<Navigate to="/platform/runtimes" replace />} />
+            <Route path="/config/runtime-defaults" element={<Navigate to="/admin/agent-settings" replace />} />
             <Route path="/config/tools" element={<Navigate to="/platform/tools" replace />} />
             <Route path="/config/assistant" element={<AiConfigAssistantPage />} />
 
@@ -244,14 +245,18 @@ export function App(): JSX.Element {
             <Route path="/config/work-item-triggers" element={<Navigate to="/integrations/triggers" replace />} />
 
             {/* Diagnostics */}
-            <Route path="/diagnostics/logs" element={<LogsPage />} />
-            <Route path="/diagnostics/containers" element={<ContainersPage />} />
-            <Route path="/logs" element={<Navigate to="/diagnostics/logs" replace />} />
-            <Route path="/fleet/containers" element={<Navigate to="/diagnostics/containers" replace />} />
+            <Route path="/diagnostics/live-logs" element={<LogsPage />} />
+            <Route path="/diagnostics/live-containers" element={<ContainersPage />} />
+            <Route path="/diagnostics/logs" element={<LegacyLiveLogsRedirect />} />
+            <Route path="/diagnostics/containers" element={<LegacyLiveContainersRedirect />} />
+            <Route path="/logs" element={<LegacyLiveLogsRedirect />} />
+            <Route path="/fleet/containers" element={<LegacyLiveContainersRedirect />} />
 
             {/* Admin */}
             <Route path="/admin/settings" element={<SettingsPage />} />
             <Route path="/admin/api-keys" element={<ApiKeyPage />} />
+            <Route path="/admin/agent-settings" element={<RuntimesPage />} />
+            <Route path="/admin/platform-settings" element={<OperationsPage />} />
             <Route path="/governance/settings" element={<Navigate to="/admin/settings" replace />} />
             <Route path="/governance/api-keys" element={<Navigate to="/admin/api-keys" replace />} />
             <Route path="/governance/users" element={<UserManagementPage />} />
@@ -338,6 +343,26 @@ function LegacyPlaybookRouteRedirect(): JSX.Element {
       replace
     />
   );
+}
+
+function LegacySpecialistsRouteRedirect(): JSX.Element {
+  const location = useLocation();
+  return (
+    <Navigate
+      to={`${location.pathname.replace('/design/roles', '/design/specialists')}${location.search}${location.hash}`}
+      replace
+    />
+  );
+}
+
+function LegacyLiveLogsRedirect(): JSX.Element {
+  const location = useLocation();
+  return <Navigate to={`/diagnostics/live-logs${location.search}${location.hash}`} replace />;
+}
+
+function LegacyLiveContainersRedirect(): JSX.Element {
+  const location = useLocation();
+  return <Navigate to={`/diagnostics/live-containers${location.search}${location.hash}`} replace />;
 }
 
 function SSOCallbackPage(): JSX.Element {

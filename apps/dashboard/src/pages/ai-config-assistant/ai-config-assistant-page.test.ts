@@ -16,7 +16,7 @@ describe('ai config assistant page source', () => {
   it('uses playbook and runtime terminology consistently', () => {
     const source = readSource();
     expect(source).toContain('playbook model');
-    expect(source).toContain('runtime defaults');
+    expect(source).toContain('advanced agent settings');
     expect(source).toContain('providers, playbooks');
     expect(source).toContain('work items, and operator controls');
     expect(source).not.toContain('templates, and more');
@@ -28,7 +28,7 @@ describe('ai config assistant page source', () => {
     expect(source).toContain('Mark reviewed');
     expect(source).toContain('Quick asks');
     expect(source).toContain('Run quick audit');
-    expect(source).toContain('Open runtime defaults');
+    expect(source).toContain('Open advanced agent settings');
     expect(source).toContain('Review queue');
     expect(source).toContain('Start with a bounded operator audit');
     expect(source).toContain('never applies changes from this page.');
@@ -44,8 +44,8 @@ describe('ai config assistant page source', () => {
     expect(source).toContain("'Open instructions'");
     expect(source).toContain("'/integrations/triggers'");
     expect(source).toContain("'Open work-item triggers'");
-    expect(source).toContain("'/design/roles'");
-    expect(source).toContain("'Open role definitions'");
+    expect(source).toContain("'/design/specialists'");
+    expect(source).toContain("'Open specialists'");
   });
 
   it('exposes quick prompts for tool catalog and platform instructions', () => {

@@ -99,7 +99,7 @@ export function PlaybookControlCenterCard(
             title="Role prompts and escalation"
             description="Specialist prompts, tool grants, verification, and escalation routing."
             value={`${props.activeRoleCount} active role definitions`}
-            href="/design/roles"
+            href="/design/specialists"
           />
           <LinkedConfigCard
             icon={<Cpu className="h-4 w-4" />}
@@ -119,8 +119,8 @@ export function PlaybookControlCenterCard(
             icon={<Cpu className="h-4 w-4" />}
             title="Specialist defaults"
             description="Global specialist agent and specialist execution defaults live outside the playbook."
-            value="Inspect specialist defaults"
-            href="/platform/runtimes"
+            value="Inspect advanced agent settings"
+            href="/admin/agent-settings"
           />
         </div>
       </CardContent>

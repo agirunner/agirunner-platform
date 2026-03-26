@@ -41,7 +41,7 @@ function readExpandedRoleRowSource() {
 describe('role definitions page source', () => {
   it('exposes a first-class create role flow instead of edit-only administration', () => {
     const source = readCombinedSource();
-    expect(source).toContain('Create Role');
+    expect(source).toContain('Create Specialist');
     expect(source).toContain('saveRole');
     expect(source).toContain('dashboardApi.saveRoleDefinition');
   });
@@ -90,7 +90,7 @@ describe('role definitions page source', () => {
     const source = readCombinedSource();
     expect(source).toContain('onToggleActive');
     expect(source).toContain('toggleActiveMutation');
-    expect(source).toContain('Updated role active state.');
+    expect(source).toContain('Updated specialist active state.');
     expect(source).toContain("aria-label={`Toggle ${props.role.name} active`}");
   });
 
@@ -104,15 +104,15 @@ describe('role definitions page source', () => {
 
   it('shows a primary CTA button in the empty state per UX guideline 44', () => {
     const source = readSource();
-    expect(source).toContain('No roles defined');
-    expect(source).toContain('Create Role');
-    const emptyStateMatch = source.match(/No roles defined[\s\S]*?Create Role/);
+    expect(source).toContain('No specialists defined');
+    expect(source).toContain('Create Specialist');
+    const emptyStateMatch = source.match(/No specialists defined[\s\S]*?Create Specialist/);
     expect(emptyStateMatch).not.toBeNull();
   });
 
   it('supports a first-class create role flow and uses the live create and replace routes', () => {
     const source = readCombinedSource();
-    expect(source).toContain('Create Role');
+    expect(source).toContain('Create Specialist');
     expect(source).toContain('dashboardApi.saveRoleDefinition');
     expect(source).not.toContain("method: 'PATCH'");
   });
@@ -173,9 +173,19 @@ describe('role definitions page source', () => {
     const source = readCombinedSource();
     expect(source).toContain('dashboardApi.deleteRoleDefinition');
     expect(source).toContain('DeleteRoleDialog');
-    expect(source).toContain('Delete Role');
+    expect(source).toContain('Delete Specialist');
     expect(source).toContain('Update any playbooks that still reference it before deletion.');
     expect(source).toContain('onDelete={setDeletingRole}');
+  });
+
+  it('renames the primary surface to Specialists while keeping role-definition internals intact', () => {
+    const source = readSource();
+    expect(source).toContain('Specialists</h1>');
+    expect(source).toContain('Total specialists');
+    expect(source).toContain('Active specialists');
+    expect(source).toContain('Inactive specialists');
+    expect(source).toContain('Specialist definitions');
+    expect(source).not.toContain('Roles</h1>');
   });
 
   it('keeps the expanded role row compact and human-readable', () => {

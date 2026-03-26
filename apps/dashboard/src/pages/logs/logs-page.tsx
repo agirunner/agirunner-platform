@@ -122,7 +122,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
     <div data-testid="operator-log-surface" className="flex flex-col gap-6 p-4 sm:p-6">
       <section className="grid gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">Operator Log</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Live Logs</h1>
           <p className="text-sm text-muted">
             {rawFirstSurface
               ? 'Raw logs stay visible as the source of truth. Activity Summary highlights the current filtered results without leaving the stream.'
@@ -173,6 +173,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
             </p>
             <LogViewer
               compact
+              defaultLive
               scope={scopedWorkflowId ? { workflowId: scopedWorkflowId } : undefined}
             />
           </TabsContent>

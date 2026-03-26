@@ -169,8 +169,8 @@ describe('role definitions orchestrator support', () => {
         },
         {
           id: 'pool',
-          title: 'Enable the orchestrator worker pool.',
-          detail: 'Set at least one enabled worker with desired replicas so orchestrator tasks have capacity to run.',
+          title: 'Enable the orchestrator agent pool.',
+          detail: 'Set at least one enabled agent with desired replicas so orchestrator tasks have capacity to run.',
         },
       ],
       isReady: false,

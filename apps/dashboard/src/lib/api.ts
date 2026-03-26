@@ -3614,7 +3614,7 @@ export function buildSearchResults(
     id: item.id,
     label: item.name ?? item.id,
     subtitle: item.status ?? 'agent',
-    href: '/diagnostics/containers',
+    href: '/diagnostics/live-containers',
   }));
 
   const workspaceMatches = filterRecords(collections.workspaces, normalizedQuery).map((item) => ({

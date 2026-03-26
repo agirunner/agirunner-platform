@@ -11,16 +11,16 @@ import { RuntimeDefaultsEditorPage } from '../runtimes/runtime-defaults-editor-p
 export function OperationsPage(): JSX.Element {
   return (
     <RuntimeDefaultsEditorPage
-      title="Operations"
-      description="Configure platform-side operational defaults for activation timing, supervision, fleet behavior, and control-plane loops. Every value shown here is explicit, required, and persisted."
+      title="Advanced platform settings"
+      description="Configure advanced platform-side operational defaults for activation timing, supervision, fleet behavior, and control-plane loops. Every value shown here is explicit, required, and persisted."
       icon={Cog}
       fieldDefinitions={OPERATIONS_FIELD_DEFINITIONS}
       sectionDefinitions={OPERATIONS_SECTION_DEFINITIONS}
       primarySectionKeys={PRIMARY_OPERATIONS_SECTION_KEYS}
       inlineSectionColumns={OPERATIONS_INLINE_SECTION_COLUMNS}
       sectionIdPrefix="platform-operations"
-      successMessage="Operations configuration saved."
-      errorLabel="operations configuration"
+      successMessage="Advanced platform settings saved."
+      errorLabel="advanced platform settings"
     />
   );
 }

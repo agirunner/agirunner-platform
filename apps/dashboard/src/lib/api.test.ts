@@ -2544,7 +2544,7 @@ describe('dashboard global search', () => {
     expect(results[1].href).toBe('/mission-control/tasks/task-1');
     expect(results[2].href).toBe('/design/workspaces/workspace-1');
     expect(results[3].href).toBe('/design/playbooks/playbook-1');
-    expect(results[4].href).toBe('/diagnostics/containers');
+    expect(results[4].href).toBe('/diagnostics/live-containers');
   });
 
   it('search() merges matches from all dashboard resources', async () => {

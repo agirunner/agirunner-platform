@@ -18,8 +18,8 @@ describe('tools page source', () => {
     const source = readSource();
     expect(source).toContain('dashboardApi.listToolTags()');
     expect(source).toContain('describeToolCategory');
-    expect(source).toContain('Agent owned');
-    expect(source).toContain('Execution owned');
+    expect(source).toContain('Specialist agent owned');
+    expect(source).toContain('Specialist execution owned');
     expect(source).not.toContain('dashboardApi.createToolTag');
     expect(source).not.toContain('dashboardApi.updateToolTag');
     expect(source).not.toContain('dashboardApi.deleteToolTag');
@@ -37,6 +37,9 @@ describe('tools page source', () => {
     expect(source).toContain('Orchestrator only');
     expect(source).toContain('Specialist + orchestrator');
     expect(source).toContain('DASHBOARD_BADGE_BASE_CLASS_NAME');
+    expect(source).toContain('bg-amber-100');
+    expect(source).toContain('bg-indigo-100');
+    expect(source).toContain('bg-sky-100');
     expect(source).not.toContain('Owner');
     expect(source).not.toContain('describeToolOwner');
     expect(source).not.toContain('Actions');

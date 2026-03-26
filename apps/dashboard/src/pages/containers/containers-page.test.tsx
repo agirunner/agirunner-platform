@@ -26,6 +26,7 @@ describe('containers page source', () => {
     const supportSource = readSupportSource();
     expect(pageSource).toContain('dashboardApi.fetchLiveContainers()');
     expect(pageSource).toContain('ContainersTable');
+    expect(pageSource).toContain('Live Containers</h1>');
     expect(pageSource).toContain(
       'Live container inventory from the platform API, showing image, CPU, and memory of running and recently-active containers.',
     );

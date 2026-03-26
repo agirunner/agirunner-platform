@@ -42,14 +42,34 @@ describe('app trigger routes source', () => {
     expect(source).toContain("replace('/work/workflows', '/mission-control/workflows')");
   });
 
-  it('keeps /platform/runtimes as the canonical route and redirects the legacy runtime-defaults path', () => {
+  it('uses admin-owned advanced settings routes and redirects the legacy platform paths', () => {
     const source = readSource();
-    expect(source).toContain('path="/platform/runtimes"');
-    expect(source).toContain('path="/platform/environments"');
-    expect(source).toContain('path="/platform/operations"');
+    expect(source).toContain('path="/admin/agent-settings"');
+    expect(source).toContain('path="/admin/platform-settings"');
     expect(source).toContain('path="/config/runtimes"');
     expect(source).toContain('path="/config/runtime-defaults"');
-    expect(source).toContain('Navigate to="/platform/runtimes" replace');
+    expect(source).toContain('path="/platform/runtimes"');
+    expect(source).toContain('path="/platform/operations"');
+    expect(source).toContain('Navigate to="/admin/agent-settings" replace');
+    expect(source).toContain('Navigate to="/admin/platform-settings" replace');
+  });
+
+  it('uses specialists and live diagnostics as the canonical work-design and diagnostics routes', () => {
+    const source = readSource();
+    expect(source).toContain('path="/design/specialists"');
+    expect(source).toContain('path="/design/roles"');
+    expect(source).toContain('function LegacySpecialistsRouteRedirect()');
+    expect(source).toContain("location.pathname.replace('/design/roles', '/design/specialists')");
+    expect(source).toContain('path="/diagnostics/live-logs"');
+    expect(source).toContain('path="/diagnostics/live-containers"');
+    expect(source).toContain('path="/diagnostics/logs"');
+    expect(source).toContain('path="/diagnostics/containers"');
+    expect(source).toContain('path="/logs"');
+    expect(source).toContain('path="/fleet/containers"');
+    expect(source).toContain('function LegacyLiveLogsRedirect()');
+    expect(source).toContain('function LegacyLiveContainersRedirect()');
+    expect(source).toContain('/diagnostics/live-logs${location.search}${location.hash}');
+    expect(source).toContain('/diagnostics/live-containers${location.search}${location.hash}');
   });
 
   it('removes deprecated worker, agent, and docker pages in favor of the containers route', () => {

@@ -13,7 +13,7 @@ describe('tools page support', () => {
       }),
     ).toMatchObject({
       badgeVariant: 'outline',
-      badgeClassName: expect.stringContaining('bg-slate-700 text-white'),
+      badgeClassName: expect.stringContaining('bg-amber-100 text-amber-900'),
     });
 
     expect(
@@ -25,19 +25,41 @@ describe('tools page support', () => {
       }),
     ).toMatchObject({
       badgeVariant: 'outline',
-      badgeClassName: expect.stringContaining('bg-slate-700 text-white'),
+      badgeClassName: expect.stringContaining('bg-indigo-100 text-indigo-900'),
+    });
+
+    expect(
+      describeToolAccessScope({
+        id: 'provider-tool',
+        name: 'Provider Tool',
+        usage_surface: 'provider_capability',
+        is_callable: false,
+      }),
+    ).toMatchObject({
+      badgeVariant: 'outline',
+      badgeClassName: expect.stringContaining('bg-sky-100 text-sky-900'),
     });
   });
 
-  it('uses restrained badge styling for tool categories', () => {
+  it('uses differentiated badge styling for tool categories in light mode', () => {
     expect(describeToolCategory('workflow')).toMatchObject({
       badgeVariant: 'outline',
-      badgeClassName: expect.stringContaining('bg-slate-700 text-white'),
+      badgeClassName: expect.stringContaining('bg-amber-100 text-amber-900'),
     });
 
     expect(describeToolCategory('files')).toMatchObject({
       badgeVariant: 'outline',
-      badgeClassName: expect.stringContaining('bg-slate-700 text-white'),
+      badgeClassName: expect.stringContaining('bg-indigo-100 text-indigo-900'),
+    });
+
+    expect(describeToolCategory('search')).toMatchObject({
+      badgeVariant: 'outline',
+      badgeClassName: expect.stringContaining('bg-sky-100 text-sky-900'),
+    });
+
+    expect(describeToolCategory('execution')).toMatchObject({
+      badgeVariant: 'outline',
+      badgeClassName: expect.stringContaining('bg-emerald-100 text-emerald-900'),
     });
   });
 });

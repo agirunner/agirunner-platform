@@ -82,9 +82,9 @@ describe('command palette helpers', () => {
         keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture'],
       },
       {
-        id: 'nav:/design/roles',
-        href: '/design/roles',
-        label: 'Roles',
+        id: 'nav:/design/specialists',
+        href: '/design/specialists',
+        label: 'Specialists',
         meta: 'Work Design',
         kind: 'navigation',
         keywords: ['specialist', 'agent roles', 'role definitions'],
@@ -105,7 +105,7 @@ describe('command palette helpers', () => {
 
     const roleDefResults = filterCommandPaletteQuickLinks(links, 'role definitions');
     expect(roleDefResults).toHaveLength(1);
-    expect(roleDefResults[0].id).toBe('nav:/design/roles');
+    expect(roleDefResults[0].id).toBe('nav:/design/specialists');
   });
 
   it('maps dashboard search results into palette items', () => {

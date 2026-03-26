@@ -41,17 +41,26 @@ export interface ToolSummaryCard {
 const neutralBadgeClassName =
   DASHBOARD_BADGE_TOKENS.informationNeutral.className;
 
+const primaryBadgeClassName =
+  DASHBOARD_BADGE_TOKENS.informationPrimary.className;
+
+const secondaryBadgeClassName =
+  DASHBOARD_BADGE_TOKENS.informationSecondary.className;
+
 const warmBadgeClassName =
   DASHBOARD_BADGE_TOKENS.warning.className;
 
+const successBadgeClassName =
+  DASHBOARD_BADGE_TOKENS.success.className;
+
 const providerBadgeClassName =
-  DASHBOARD_BADGE_TOKENS.informationPrimary.className;
+  primaryBadgeClassName;
 
 const TOOL_ACCESS_SCOPE_DESCRIPTORS = {
   specialist_and_orchestrator: {
     label: 'Specialist + orchestrator',
     badgeVariant: 'outline',
-    badgeClassName: neutralBadgeClassName,
+    badgeClassName: secondaryBadgeClassName,
   },
   orchestrator_only: {
     label: 'Orchestrator only',
@@ -70,19 +79,19 @@ const CATEGORY_DESCRIPTORS: Record<ToolCategory, ToolCategoryDescriptor> = {
     label: 'Files',
     detail: 'Read, write, edit, and list files in the workspace.',
     badgeVariant: 'outline',
-    badgeClassName: neutralBadgeClassName,
+    badgeClassName: secondaryBadgeClassName,
   },
   search: {
     label: 'Search',
     detail: 'Find files and search content with grep, glob, and tool discovery.',
     badgeVariant: 'outline',
-    badgeClassName: neutralBadgeClassName,
+    badgeClassName: primaryBadgeClassName,
   },
   execution: {
     label: 'Specialist execution',
     detail: 'Shell command execution with output truncation.',
     badgeVariant: 'outline',
-    badgeClassName: neutralBadgeClassName,
+    badgeClassName: successBadgeClassName,
   },
   git: {
     label: 'Git',
@@ -94,7 +103,7 @@ const CATEGORY_DESCRIPTORS: Record<ToolCategory, ToolCategoryDescriptor> = {
     label: 'Artifacts',
     detail: 'Upload, list, and read workflow artifacts.',
     badgeVariant: 'outline',
-    badgeClassName: neutralBadgeClassName,
+    badgeClassName: secondaryBadgeClassName,
   },
   memory: {
     label: 'Memory',
@@ -106,7 +115,7 @@ const CATEGORY_DESCRIPTORS: Record<ToolCategory, ToolCategoryDescriptor> = {
     label: 'Web',
     detail: 'Fetch content from URLs.',
     badgeVariant: 'outline',
-    badgeClassName: neutralBadgeClassName,
+    badgeClassName: primaryBadgeClassName,
   },
   workflow: {
     label: 'Workflow',
@@ -118,7 +127,7 @@ const CATEGORY_DESCRIPTORS: Record<ToolCategory, ToolCategoryDescriptor> = {
     label: 'Control',
     detail: 'Escalation and agent control flow.',
     badgeVariant: 'outline',
-    badgeClassName: neutralBadgeClassName,
+    badgeClassName: successBadgeClassName,
   },
 };
 

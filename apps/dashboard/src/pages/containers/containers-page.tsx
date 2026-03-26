@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Container } from 'lucide-react';
+import { Package } from 'lucide-react';
 
 import { dashboardApi, type DashboardLiveContainerRecord } from '../../lib/api.js';
 import { ContainersTable } from './containers-table.js';
@@ -73,8 +73,8 @@ export function ContainersPage(): JSX.Element {
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <Container className="h-6 w-6 text-muted-foreground" />
-            <h1 className="text-2xl font-semibold">Containers</h1>
+            <Package className="h-6 w-6 text-muted-foreground" />
+            <h1 className="text-2xl font-semibold">Live Containers</h1>
           </div>
           <p className="max-w-4xl text-sm text-muted-foreground">
             Live container inventory from the platform API, showing image, CPU, and memory of running and recently-active containers.

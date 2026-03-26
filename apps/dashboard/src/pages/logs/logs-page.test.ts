@@ -7,16 +7,17 @@ function readPage() {
 }
 
 describe('logs page source', () => {
-  it('keeps the mission-control logs route raw-log-first while preserving summary-only inspector tabs', () => {
+  it('keeps the live logs route raw-log-first while preserving summary-only inspector tabs', () => {
     const source = readPage();
     expect(source).toContain('return <LogsSurface mode="logs" />;');
     expect(source).toContain("const surfaceMode = props.mode ?? (scopedWorkflowId ? 'inspector' : 'logs');");
     expect(source).toContain('readLogsSurfaceView(searchParams)');
     expect(source).toContain("const selectedView = useMemo(() => readLogsSurfaceView(searchParams), [searchParams]);");
-    expect(source).toContain('Operator Log</h1>');
+    expect(source).toContain('Live Logs</h1>');
     expect(source).toContain(
       "Raw logs stay visible as the source of truth. Activity Summary highlights the current filtered results without leaving the stream.",
     );
+    expect(source).toContain('defaultLive');
     expect(source).toContain("rawFirstSurface ? 'Log Stream' : 'Raw Logs'");
     expect(source).toContain("rawFirstSurface ? 'Activity Summary' : 'Summary'");
     expect(source).toContain('Chronological raw logs and events across the current filters.');
@@ -115,7 +116,7 @@ describe('logs page source', () => {
     expect(source).toContain('useLogFilters()');
     expect(source).not.toContain('readInspectorView(searchParams)');
     expect(source).toContain("next.set('view', 'summary')");
-    expect(source).not.toContain("return `/diagnostics/logs?");
+    expect(source).not.toContain("return `/diagnostics/live-logs?");
     expect(source).not.toContain("setLogsSurfaceView(view)");
   });
 

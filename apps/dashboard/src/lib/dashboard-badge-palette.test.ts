@@ -22,10 +22,12 @@ describe('dashboard badge palette', () => {
   });
 
   it('keeps the selected semantic classes filled in both themes', () => {
-    expect(DASHBOARD_BADGE_TOKENS.warning.className).toContain('bg-slate-700');
+    expect(DASHBOARD_BADGE_TOKENS.warning.className).toContain('bg-amber-100');
     expect(DASHBOARD_BADGE_TOKENS.warning.className).toContain('dark:bg-amber-300');
-    expect(DASHBOARD_BADGE_TOKENS.informationPrimary.className).toContain('bg-sky-600');
+    expect(DASHBOARD_BADGE_TOKENS.informationPrimary.className).toContain('bg-sky-100');
     expect(DASHBOARD_BADGE_TOKENS.informationPrimary.className).toContain('dark:bg-sky-400');
+    expect(DASHBOARD_BADGE_TOKENS.informationSecondary.className).toContain('bg-indigo-100');
     expect(DASHBOARD_BADGE_TOKENS.success.className).toContain('dark:bg-green-400');
+    expect(DASHBOARD_BADGE_TOKENS.success.className).toContain('bg-emerald-100');
   });
 });

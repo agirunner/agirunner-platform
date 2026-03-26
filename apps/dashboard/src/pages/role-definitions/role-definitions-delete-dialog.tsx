@@ -26,9 +26,9 @@ export function DeleteRoleDialog(props: {
     <Dialog open onOpenChange={props.onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Delete role definition?</DialogTitle>
+          <DialogTitle>Delete specialist?</DialogTitle>
           <DialogDescription>
-            Remove this role definition from the workspace configuration. This action is irreversible.
+            Remove this specialist definition from the workspace configuration. This action is irreversible.
           </DialogDescription>
         </DialogHeader>
 
@@ -65,7 +65,7 @@ export function DeleteRoleDialog(props: {
             disabled={props.isDeleting}
           >
             {props.isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-            Delete Role
+            Delete Specialist
           </Button>
         </div>
       </DialogContent>
