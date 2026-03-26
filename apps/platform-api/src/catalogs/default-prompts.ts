@@ -12,6 +12,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Before escalating, leave clean takeover state.
 - Repository-backed tasks MUST commit and push relevant work before completion or escalation.
 - Repository-backed containers already provide repo checkout and git.
+- Repository-backed images do not guarantee python3, bash, jq, or any other optional runtime. Probe each runtime explicitly before chaining it into a command, or install it first.
 - Do not assume python3 or any other optional runtime is present unless the execution contract or direct verification says so. Install missing runtimes or use only verified baseline commands.
 - Before completion, ensure one successful structured handoff exists with a unique request_id; Rejected attempts do not count; Do not duplicate unchanged handoffs.
 - Completion is rejected without a structured handoff.

@@ -21,6 +21,9 @@ describe('prompt catalogs', () => {
       'Repository-backed containers already provide repo checkout and git.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Repository-backed images do not guarantee python3, bash, jq, or any other optional runtime.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Do not assume python3 or any other optional runtime is present unless the execution contract or direct verification says so.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('operational state such as rework counters');
