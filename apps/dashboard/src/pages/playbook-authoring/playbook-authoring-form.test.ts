@@ -10,16 +10,18 @@ describe('playbook authoring form source', () => {
   it('keeps the primary authoring path process-first instead of summary-card-first', () => {
     const source = readSource();
     expect(source).toContain('dashboardApi.listRoleDefinitions');
-    expect(source).toContain('Process-first authoring');
-    expect(source).toContain(
-      'Define the workflow outcome, structure the stages, and tell the orchestrator how',
-    );
-    expect(source).toContain('Mandatory outcomes, preferred reviews, fallback paths, and closure expectations');
-    expect(source).toContain('Treat the playbook as an execution guide');
-    expect(source).toContain('instead of separate governance config');
     expect(source).toContain('Process');
     expect(source).toContain('Inputs');
     expect(source).toContain('Advanced');
+    expect(source).not.toContain('Process-first authoring');
+    expect(source).not.toContain(
+      'Define the workflow outcome, structure the stages, and tell the orchestrator how',
+    );
+    expect(source).not.toContain(
+      'Mandatory outcomes, preferred reviews, fallback paths, and closure expectations',
+    );
+    expect(source).not.toContain('Treat the playbook as an execution guide');
+    expect(source).not.toContain('instead of separate governance config');
     expect(source).not.toContain('Authoring Overview');
     expect(source).not.toContain('OverviewCard');
   });

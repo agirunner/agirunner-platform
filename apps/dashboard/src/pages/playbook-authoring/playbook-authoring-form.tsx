@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import { dashboardApi } from '../../lib/api.js';
 import {
@@ -115,21 +114,6 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
         </div>
 
         <TabsContent value="process" className="space-y-4">
-          <Card className="border-border/70 bg-card/80 shadow-sm">
-            <CardHeader className="space-y-2">
-              <CardTitle>Process-first authoring</CardTitle>
-              <p className="text-sm text-muted">
-                Define the workflow outcome, structure the stages, and tell the orchestrator how
-                the process should run. Mandatory outcomes, preferred reviews, fallback paths, and closure expectations come from
-                the playbook instructions instead of separate governance config.
-              </p>
-              <p className="text-sm text-muted">
-                Treat the playbook as an execution guide: it should tell the orchestrator what must
-                happen, what should happen if possible, and what evidence or callouts must remain
-                after the workflow completes.
-              </p>
-            </CardHeader>
-          </Card>
           <ProcessInstructionsSection draft={props.draft} onChange={updateDraft} />
           <TeamRolesSection
             draft={props.draft}
