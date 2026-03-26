@@ -91,6 +91,9 @@ describe('runtime defaults page source', () => {
     expect(pageSource).toContain('RUNTIME_INLINE_SECTION_COLUMNS');
     expect(editorSource).toContain('RuntimeDefaultsSection');
     expect(editorSource).toContain('inlineSectionColumns');
+    expect(editorSource).toContain('grid gap-6 xl:grid-cols-2');
+    expect(editorSource).toContain('renderPrimaryAsideCard');
+    expect(editorSource).toContain('Configuration status');
     expect(editorSource).not.toContain('RuntimeAdvancedSettingsSection');
     expect(editorSource).toContain('Reset changes');
     expect(editorSource).toContain('Save');
