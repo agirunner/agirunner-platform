@@ -7,6 +7,7 @@ function readSource() {
     './playbook-list-page.tsx',
     './playbook-list-page.library.tsx',
     './playbook-list-page.support.ts',
+    '../../components/list-pagination.tsx',
   ]
     .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
     .join('\n');
@@ -29,7 +30,11 @@ describe('playbook list page source', () => {
     expect(source).toContain('This playbook is inactive. Open it to reactivate the family before launching a new');
     expect(source).toContain('Back to playbook library');
     expect(source).toContain('PlaybookLibraryToolbar');
-    expect(source).toContain('PlaybookFamilyCard');
+    expect(source).toContain('PlaybookLibraryTable');
+    expect(source).toContain('Page size');
+    expect(source).toContain('Showing');
+    expect(source).toContain('Previous');
+    expect(source).toContain('Next');
     expect(source).toContain('buildPlaybookFamilies');
     expect(source).toContain('filterPlaybookFamilies');
     expect(source).toContain('summarizePlaybookProcess');
@@ -37,6 +42,7 @@ describe('playbook list page source', () => {
     expect(source).toContain('roles');
     expect(source).toContain('stages');
     expect(source).toContain('inputs');
+    expect(source).toContain('Playbook details');
     expect(source).toContain('Most revisions');
     expect(source).toContain('families ·');
     expect(source).toContain('statusFilter');
@@ -57,6 +63,7 @@ describe('playbook list page source', () => {
     expect(source).not.toContain('Delete Playbook Revision');
     expect(source).not.toContain('dashboardApi.archivePlaybook');
     expect(source).not.toContain('dashboardApi.restorePlaybook');
+    expect(source).not.toContain('PlaybookFamilyCard');
   });
 
   it('keeps fresh playbook drafts blank instead of backfilling active roles', () => {

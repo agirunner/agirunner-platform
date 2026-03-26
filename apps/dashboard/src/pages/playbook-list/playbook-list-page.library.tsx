@@ -1,9 +1,17 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCheck, Rocket, Search, Settings2, Users } from 'lucide-react';
+import {
+  CheckCheck,
+  ChevronDown,
+  ChevronRight,
+  Rocket,
+  Search,
+  Settings2,
+  Users,
+} from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Input } from '../../components/ui/input.js';
 import {
   Select,
@@ -12,6 +20,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../../components/ui/table.js';
 import {
   type PlaybookFamilyRecord,
   type PlaybookLifecycleFilter,
@@ -115,9 +131,36 @@ export function PlaybookLibraryToolbar(props: {
   );
 }
 
-export function PlaybookFamilyCard(props: {
+export function PlaybookLibraryTable(props: {
+  families: PlaybookFamilyRecord[];
+}): JSX.Element {
+  return (
+    <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Playbook</TableHead>
+            <TableHead>Lifecycle</TableHead>
+            <TableHead>Team</TableHead>
+            <TableHead>Structure</TableHead>
+            <TableHead>Revision</TableHead>
+            <TableHead className="w-[160px] text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {props.families.map((family) => (
+            <PlaybookFamilyRow key={family.slug} family={family} />
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+function PlaybookFamilyRow(props: {
   family: PlaybookFamilyRecord;
 }): JSX.Element {
+  const [isExpanded, setIsExpanded] = useState(false);
   const { family } = props;
   const playbook = family.primaryRevision;
   const isArchivedFamily = family.activeRevisionCount === 0;
@@ -125,74 +168,103 @@ export function PlaybookFamilyCard(props: {
     family.process.processInstructions || 'Open the playbook to define process instructions.';
 
   return (
-    <Card className="flex min-h-[420px] flex-col border-border/70 bg-card/80 shadow-sm">
-      <CardHeader className="space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            <CardTitle className="text-lg">
+    <>
+      <TableRow onClick={() => setIsExpanded((value) => !value)}>
+        <TableCell>
+          <div className="flex items-start gap-2">
+            {isExpanded ? (
+              <ChevronDown className="mt-1 h-4 w-4 text-muted" />
+            ) : (
+              <ChevronRight className="mt-1 h-4 w-4 text-muted" />
+            )}
+            <div className="min-w-0 space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <Link className="font-medium underline-offset-4 hover:underline" to={`/design/playbooks/${playbook.id}`}>
+                  {family.name}
+                </Link>
+                <Badge variant="outline">v{playbook.version}</Badge>
+                {isArchivedFamily ? <Badge variant="secondary">Inactive</Badge> : null}
+              </div>
+              <p className="text-sm text-muted">{family.slug}</p>
+            </div>
+          </div>
+        </TableCell>
+        <TableCell>
+          <Badge variant="secondary">{describePlaybookLifecycle(family.lifecycle)}</Badge>
+        </TableCell>
+        <TableCell className="text-sm text-muted">
+          {family.process.roleCount} roles · {family.process.inputCount} inputs
+        </TableCell>
+        <TableCell className="text-sm text-muted">
+          {family.structure.stages} stages / {family.structure.boardColumns} columns
+        </TableCell>
+        <TableCell className="text-sm text-muted">
+          v{playbook.version} · {family.revisionCount} revision{family.revisionCount === 1 ? '' : 's'}
+        </TableCell>
+        <TableCell className="text-right">
+          <div className="flex justify-end gap-2">
+            <Button asChild size="sm" variant="outline" onClick={(event) => event.stopPropagation()}>
               <Link className="hover:underline" to={`/design/playbooks/${playbook.id}`}>
-                {family.name}
+                <Settings2 className="h-4 w-4" />
+                Manage
               </Link>
-            </CardTitle>
-            <p className="text-sm text-muted">{family.slug}</p>
-          </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Badge variant="outline">v{playbook.version}</Badge>
-            <Badge variant="secondary">{describePlaybookLifecycle(family.lifecycle)}</Badge>
-            {isArchivedFamily ? <Badge variant="secondary">Inactive</Badge> : null}
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2 text-xs text-muted">
-          <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1">
-            <Users className="h-3.5 w-3.5" />
-            {family.process.roleCount} roles
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1">
-            <CheckCheck className="h-3.5 w-3.5" />
-            {family.structure.stages} stages / {family.structure.boardColumns} columns
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1">
-            {family.process.inputCount} inputs
-          </span>
-        </div>
-      </CardHeader>
-      <CardContent className="flex flex-1 flex-col space-y-4 overflow-hidden">
-        <div className="rounded-xl border border-border/70 bg-background/60 p-3 text-sm">
-          <div className="font-medium">Outcome</div>
-          <div className="mt-1 line-clamp-2 text-muted">{family.outcome}</div>
-        </div>
-        <div className="h-[108px] overflow-hidden rounded-xl border border-border/70 bg-background/60 p-3 text-sm">
-          <div className="font-medium">Process</div>
-          <div className="mt-1 line-clamp-3 text-muted">{processSummary}</div>
-        </div>
-        {isArchivedFamily ? (
-          <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-            This playbook is inactive. Open it to reactivate the family before launching a new
-            workflow.
-          </div>
-        ) : null}
-        <div className="mt-auto flex flex-wrap gap-2">
-          <Button asChild size="sm">
-            <Link to={`/design/playbooks/${playbook.id}`}>
-              <Settings2 className="h-4 w-4" />
-              Manage
-            </Link>
-          </Button>
-          {isArchivedFamily ? (
-            <Button size="sm" disabled>
-              <Rocket className="h-4 w-4" />
-              Launch
             </Button>
-          ) : (
-            <Button asChild size="sm">
-              <Link to={`/design/playbooks/${playbook.id}/launch`}>
+            {isArchivedFamily ? (
+              <Button size="sm" disabled onClick={(event) => event.stopPropagation()}>
                 <Rocket className="h-4 w-4" />
                 Launch
-              </Link>
-            </Button>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+              </Button>
+            ) : (
+              <Button asChild size="sm" onClick={(event) => event.stopPropagation()}>
+                <Link to={`/design/playbooks/${playbook.id}/launch`}>
+                  <Rocket className="h-4 w-4" />
+                  Launch
+                </Link>
+              </Button>
+            )}
+          </div>
+        </TableCell>
+      </TableRow>
+      {isExpanded ? (
+        <TableRow>
+          <TableCell colSpan={6} className="bg-border/10">
+            <div className="space-y-3 py-3">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                Playbook details
+              </div>
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr),minmax(0,1.2fr)]">
+                <div className="rounded-lg border border-border/70 bg-background/80 p-3 text-sm">
+                  <div className="font-medium">Outcome</div>
+                  <div className="mt-2 text-muted">{family.outcome}</div>
+                </div>
+                <div className="rounded-lg border border-border/70 bg-background/80 p-3 text-sm">
+                  <div className="font-medium">Process</div>
+                  <div className="mt-2 text-muted">{processSummary}</div>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs text-muted">
+                <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1">
+                  <Users className="h-3.5 w-3.5" />
+                  {family.process.roleCount} roles
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1">
+                  <CheckCheck className="h-3.5 w-3.5" />
+                  {family.structure.stages} stages / {family.structure.boardColumns} columns
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1">
+                  {family.process.inputCount} inputs
+                </span>
+              </div>
+              {isArchivedFamily ? (
+                <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                  This playbook is inactive. Open it to reactivate the family before launching a new
+                  workflow.
+                </div>
+              ) : null}
+            </div>
+          </TableCell>
+        </TableRow>
+      ) : null}
+    </>
   );
 }

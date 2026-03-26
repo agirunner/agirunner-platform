@@ -2,6 +2,11 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, ShieldCheck, Users } from 'lucide-react';
 
+import {
+  DEFAULT_LIST_PAGE_SIZE,
+  ListPagination,
+  paginateListItems,
+} from '../../components/list-pagination.js';
 import { Button } from '../../components/ui/button.js';
 import { Switch } from '../../components/ui/switch.js';
 import {
@@ -43,6 +48,8 @@ export function RoleDefinitionsPage(): JSX.Element {
   const [duplicateFrom, setDuplicateFrom] = useState<RoleDefinition | null>(null);
   const [deletingRole, setDeletingRole] = useState<RoleDefinition | null>(null);
   const [showActiveOnly, setShowActiveOnly] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_LIST_PAGE_SIZE);
   const rolesQuery = useQuery({ queryKey: ['roles'], queryFn: fetchRoles });
   const toolsQuery = useQuery({ queryKey: ['role-tools'], queryFn: fetchToolCatalog });
   const environmentsQuery = useQuery({
@@ -97,6 +104,7 @@ export function RoleDefinitionsPage(): JSX.Element {
 
   const allRoles = [...(rolesQuery.data ?? [])].sort((a, b) => a.name.localeCompare(b.name));
   const roles = showActiveOnly ? allRoles.filter((r) => r.is_active !== false) : allRoles;
+  const pagination = paginateListItems(roles, page, pageSize);
   const summary = countRoleStateSummary(allRoles);
 
   const { assignments, models } = orchestratorState.roleDialogCatalog;
@@ -129,7 +137,14 @@ export function RoleDefinitionsPage(): JSX.Element {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted">Active only</span>
-            <Switch checked={showActiveOnly} onCheckedChange={setShowActiveOnly} aria-label="Show active specialists only" />
+            <Switch
+              checked={showActiveOnly}
+              onCheckedChange={(value) => {
+                setShowActiveOnly(value);
+                setPage(1);
+              }}
+              aria-label="Show active specialists only"
+            />
           </div>
           <Button onClick={() => setIsCreating(true)}><Plus className="h-4 w-4" />Create Specialist</Button>
         </div>
@@ -159,7 +174,7 @@ export function RoleDefinitionsPage(): JSX.Element {
             <CardTitle>Specialist definitions</CardTitle>
             <CardDescription>Review specialists at a glance, then expand any row for the full prompt and tool details.</CardDescription>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent className="overflow-x-auto pb-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -170,7 +185,7 @@ export function RoleDefinitionsPage(): JSX.Element {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {roles.map((role) => (
+                {pagination.items.map((role) => (
                   <RoleRow
                     key={role.id}
                     role={role}
@@ -188,6 +203,20 @@ export function RoleDefinitionsPage(): JSX.Element {
               </TableBody>
             </Table>
           </CardContent>
+          <ListPagination
+            page={pagination.page}
+            pageSize={pageSize}
+            totalItems={pagination.totalItems}
+            totalPages={pagination.totalPages}
+            start={pagination.start}
+            end={pagination.end}
+            itemLabel="specialists"
+            onPageChange={setPage}
+            onPageSizeChange={(value) => {
+              setPageSize(value);
+              setPage(1);
+            }}
+          />
         </Card>
       )}
 

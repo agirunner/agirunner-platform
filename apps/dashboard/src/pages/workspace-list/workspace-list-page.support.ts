@@ -129,6 +129,17 @@ export function buildWorkspaceMetrics(
   return parts.join(' · ');
 }
 
+export function buildWorkspaceActivityLabel(workspace: DashboardWorkspaceRecord): string {
+  const lastActivity = readLastWorkflowActivity(workspace);
+  if (lastActivity === null) {
+    return 'No activity yet';
+  }
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(lastActivity);
+}
+
 export function buildWorkspaceSortDirectionLabel(
   field: WorkspaceListSortField,
   direction: WorkspaceListSortDirection,

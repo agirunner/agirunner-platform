@@ -5,9 +5,10 @@ import { describe, expect, it } from 'vitest';
 function readSource() {
   return [
     './workspace-list-page.tsx',
-    './workspace-list-page.cards.tsx',
+    './workspace-list-page.table.tsx',
     './workspace-list-page.dialogs.tsx',
     './workspace-list-page.support.ts',
+    '../../components/list-pagination.tsx',
   ]
     .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
     .join('\n');
@@ -42,15 +43,22 @@ describe('workspace list page source', () => {
     expect(source).toContain('No workflows yet');
   });
 
-  it('routes the card surface to a single manage action and removes the entry-point grid', () => {
+  it('uses a paged table surface with a single manage action and compact detail rows', () => {
     const source = readSource();
     expect(source).toContain('const workspaceLinkState = { workspaceLabel: props.workspace.name };');
     expect(source).toContain('to={`/design/workspaces/${props.workspace.id}`}');
     expect(source).toContain('state={workspaceLinkState}');
     expect(source).toContain('Manage');
+    expect(source).toContain('WorkspaceListTable');
+    expect(source).toContain('Page size');
+    expect(source).toContain('Showing');
+    expect(source).toContain('Previous');
+    expect(source).toContain('Next');
     expect(source).toContain('Storage');
     expect(source).toContain('Workflows');
-    expect(source).not.toContain('const WORKSPACE_WORKSPACE_LINKS = [');
+    expect(source).toContain('Last activity');
+    expect(source).toContain('Workspace details');
+    expect(source).not.toContain('WorkspaceListGrid');
     expect(source).not.toContain('?tab=settings');
     expect(source).not.toContain('?tab=knowledge');
     expect(source).not.toContain('?tab=automation');

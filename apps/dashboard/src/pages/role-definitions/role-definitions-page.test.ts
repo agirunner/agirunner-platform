@@ -3,7 +3,12 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './role-definitions-page.tsx'), 'utf8');
+  return [
+    './role-definitions-page.tsx',
+    '../../components/list-pagination.tsx',
+  ]
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 function readCombinedSource() {
@@ -185,6 +190,10 @@ describe('role definitions page source', () => {
     expect(source).toContain('Active specialists');
     expect(source).toContain('Inactive specialists');
     expect(source).toContain('Specialist definitions');
+    expect(source).toContain('Page size');
+    expect(source).toContain('Showing');
+    expect(source).toContain('Previous');
+    expect(source).toContain('Next');
     expect(source).not.toContain('Roles</h1>');
   });
 

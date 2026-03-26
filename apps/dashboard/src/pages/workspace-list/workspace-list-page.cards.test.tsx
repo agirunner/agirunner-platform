@@ -6,8 +6,8 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   WorkspaceListEmptyState,
   WorkspaceListFilteredEmptyState,
-  WorkspaceListGrid,
-} from './workspace-list-page.cards.js';
+  WorkspaceListTable,
+} from './workspace-list-page.table.js';
 
 vi.mock('./workspace-list-page.dialogs.js', () => ({
   CreateWorkspaceDialog: (props: { buttonLabel?: string }) =>
@@ -15,9 +15,9 @@ vi.mock('./workspace-list-page.dialogs.js', () => ({
   DeleteWorkspaceDialog: () => createElement('div', undefined, 'Delete workspace dialog'),
 }));
 
-describe('workspace list page cards', () => {
-  it('renders workspace cards with a single manage action and aligned card chrome', () => {
-    const markup = renderCards(
+describe('workspace list page table', () => {
+  it('renders workspace rows with a single manage action and compact table columns', () => {
+    const markup = renderTable(
       [
         {
           id: 'workspace-1',
@@ -44,12 +44,14 @@ describe('workspace list page cards', () => {
     expect(markup).toContain('Alpha');
     expect(markup).toContain('Active');
     expect(markup).toContain('href="/design/workspaces/workspace-1"');
+    expect(markup).toContain('<table');
+    expect(markup).toContain('Workspace');
     expect(markup).toContain('Storage');
     expect(markup).toContain('Workspace Artifacts');
     expect(markup).toContain('Workflows');
+    expect(markup).toContain('Last activity');
     expect(markup).toContain('7 workflows total');
     expect(markup).toContain('Manage');
-    expect(markup).toContain('bg-card/80');
     expect(markup).not.toContain('Edit basics');
     expect(markup).not.toContain('Delete');
     expect(markup).not.toContain('Needs attention');
@@ -70,8 +72,8 @@ describe('workspace list page cards', () => {
     expect(markup).not.toContain('Primary delivery workspace');
   });
 
-  it('keeps inactive cards neutral without separate attention badges', () => {
-    const markup = renderCards([
+  it('keeps inactive rows neutral without separate attention badges', () => {
+    const markup = renderTable([
       {
         id: 'workspace-2',
         name: 'Beta',
@@ -139,9 +141,9 @@ describe('workspace list page cards', () => {
   });
 });
 
-function renderCards(
-  workspaces: Parameters<typeof WorkspaceListGrid>[0]['workspaces'],
-  sortKey: Parameters<typeof WorkspaceListGrid>[0]['sortKey'] = 'recent_activity',
+function renderTable(
+  workspaces: Parameters<typeof WorkspaceListTable>[0]['workspaces'],
+  sortKey: Parameters<typeof WorkspaceListTable>[0]['sortKey'] = 'recent_activity',
 ): string {
   const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   try {
@@ -149,7 +151,7 @@ function renderCards(
       createElement(
         MemoryRouter,
         undefined,
-        createElement(WorkspaceListGrid, { workspaces, sortKey }),
+        createElement(WorkspaceListTable, { workspaces, sortKey }),
       ),
     );
   } finally {

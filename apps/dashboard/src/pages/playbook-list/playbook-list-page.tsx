@@ -4,7 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus } from 'lucide-react';
 
 import { dashboardApi } from '../../lib/api.js';
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Button } from '../../components/ui/button.js';
+import {
+  DEFAULT_LIST_PAGE_SIZE,
+  ListPagination,
+  paginateListItems,
+} from '../../components/list-pagination.js';
 import { Input } from '../../components/ui/input.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
@@ -32,7 +38,7 @@ import {
   type PlaybookStatusFilter,
 } from './playbook-list-page.support.js';
 import {
-  PlaybookFamilyCard,
+  PlaybookLibraryTable,
   PlaybookLibraryToolbar,
 } from './playbook-list-page.library.js';
 
@@ -54,6 +60,8 @@ export function PlaybookListPage(): JSX.Element {
   const [statusFilter, setStatusFilter] = useState<PlaybookStatusFilter>('all');
   const [lifecycleFilter, setLifecycleFilter] = useState<PlaybookLifecycleFilter>('all');
   const [sort, setSort] = useState<PlaybookSortOption>('updated-desc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_LIST_PAGE_SIZE);
   const [draft, setDraft] = useState<PlaybookAuthoringDraft>(() =>
     createDefaultAuthoringDraft(DEFAULT_LIFECYCLE),
   );
@@ -99,6 +107,10 @@ export function PlaybookListPage(): JSX.Element {
     () =>
       filterPlaybookFamilies(playbookFamilies, search, statusFilter, lifecycleFilter, sort),
     [lifecycleFilter, playbookFamilies, search, sort, statusFilter],
+  );
+  const pagination = useMemo(
+    () => paginateListItems(filteredFamilies, page, pageSize),
+    [filteredFamilies, page, pageSize],
   );
   const libraryCounts = useMemo(
     () => summarizePlaybookFamilyCounts(playbookFamilies),
@@ -374,19 +386,16 @@ export function PlaybookListPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="min-w-0 flex-1 space-y-2">
-          <h1 className="text-2xl font-semibold">Playbooks</h1>
-          <p className="text-sm leading-6 text-muted">
-            Define reusable orchestrated workflow operating models and manage them from a single
-            library surface.
-          </p>
-        </div>
-        <Button onClick={openCreateWorkspace}>
-          <Plus className="h-4 w-4" />
-          New Playbook
-        </Button>
-      </div>
+      <DashboardPageHeader
+        navHref="/design/playbooks"
+        description="Define reusable orchestrated workflow operating models and manage them from a single library surface."
+        actions={
+          <Button onClick={openCreateWorkspace}>
+            <Plus className="h-4 w-4" />
+            New Playbook
+          </Button>
+        }
+      />
 
       <PlaybookLibraryToolbar
         search={search}
@@ -396,10 +405,22 @@ export function PlaybookListPage(): JSX.Element {
         familyCount={libraryCounts.familyCount}
         activeFamilyCount={libraryCounts.activeFamilyCount}
         archivedFamilyCount={libraryCounts.archivedFamilyCount}
-        onSearchChange={setSearch}
-        onStatusFilterChange={setStatusFilter}
-        onLifecycleFilterChange={setLifecycleFilter}
-        onSortChange={setSort}
+        onSearchChange={(value) => {
+          setSearch(value);
+          setPage(1);
+        }}
+        onStatusFilterChange={(value) => {
+          setStatusFilter(value);
+          setPage(1);
+        }}
+        onLifecycleFilterChange={(value) => {
+          setLifecycleFilter(value);
+          setPage(1);
+        }}
+        onSortChange={(value) => {
+          setSort(value);
+          setPage(1);
+        }}
       />
 
       {playbooksQuery.isLoading ? <p className="text-sm text-muted">Loading playbooks...</p> : null}
@@ -407,20 +428,35 @@ export function PlaybookListPage(): JSX.Element {
         <p className="text-sm text-red-600 dark:text-red-400">Failed to load playbooks.</p>
       ) : null}
 
-      <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {filteredFamilies.map((family) => {
-          return (
-            <PlaybookFamilyCard key={family.slug} family={family} />
-          );
-        })}
-        {!playbooksQuery.isLoading && filteredFamilies.length === 0 ? (
-          <Card>
-            <CardContent className="p-6 text-sm text-muted">
-              No playbooks match the current search.
-            </CardContent>
-          </Card>
-        ) : null}
-      </div>
+      {!playbooksQuery.isLoading && filteredFamilies.length === 0 ? (
+        <Card>
+          <CardContent className="p-6 text-sm text-muted">
+            No playbooks match the current search.
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {filteredFamilies.length > 0 ? (
+        <>
+          <PlaybookLibraryTable families={pagination.items} />
+          <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm">
+            <ListPagination
+              page={pagination.page}
+              pageSize={pageSize}
+              totalItems={pagination.totalItems}
+              totalPages={pagination.totalPages}
+              start={pagination.start}
+              end={pagination.end}
+              itemLabel="playbook families"
+              onPageChange={setPage}
+              onPageSizeChange={(value) => {
+                setPageSize(value);
+                setPage(1);
+              }}
+            />
+          </div>
+        </>
+      ) : null}
     </div>
   );
 }

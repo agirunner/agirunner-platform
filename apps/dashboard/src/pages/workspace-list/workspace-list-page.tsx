@@ -2,6 +2,12 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 
+import {
+  DEFAULT_LIST_PAGE_SIZE,
+  ListPagination,
+  paginateListItems,
+} from '../../components/list-pagination.js';
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import {
@@ -16,8 +22,8 @@ import { CreateWorkspaceDialog } from './workspace-list-page.dialogs.js';
 import {
   WorkspaceListEmptyState,
   WorkspaceListFilteredEmptyState,
-  WorkspaceListGrid,
-} from './workspace-list-page.cards.js';
+  WorkspaceListTable,
+} from './workspace-list-page.table.js';
 import {
   buildWorkspaceSortDirectionLabel,
   filterWorkspaces,
@@ -34,6 +40,8 @@ export function WorkspaceListPage(): JSX.Element {
     key: 'recent_activity',
     direction: 'desc',
   });
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_LIST_PAGE_SIZE);
   const { data, isLoading, error } = useQuery({
     queryKey: ['workspaces'],
     queryFn: () => dashboardApi.listWorkspaces(),
@@ -58,24 +66,19 @@ export function WorkspaceListPage(): JSX.Element {
   }
 
   const workspaces = normalizeWorkspaces(data ?? []);
-  const visibleWorkspaces = sortWorkspaces(filterWorkspaces(workspaces, search, status), sort);
+  const filteredWorkspaces = sortWorkspaces(filterWorkspaces(workspaces, search, status), sort);
+  const pagination = paginateListItems(filteredWorkspaces, page, pageSize);
   const activeCount = workspaces.filter((workspace) => workspace.is_active !== false).length;
   const inactiveCount = workspaces.length - activeCount;
   const hasFilters = search.trim().length > 0 || status !== 'active';
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="min-w-0 flex-1 space-y-2">
-          <h1 className="text-2xl font-semibold">Workspaces</h1>
-          <p className="text-sm leading-6 text-muted">
-            Open a workspace and jump to settings, knowledge, automation, or delivery.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <CreateWorkspaceDialog />
-        </div>
-      </div>
+      <DashboardPageHeader
+        navHref="/design/workspaces"
+        description="Open a workspace and jump to settings, knowledge, automation, or delivery."
+        actions={<CreateWorkspaceDialog />}
+      />
 
       <div className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
@@ -91,7 +94,10 @@ export function WorkspaceListPage(): JSX.Element {
                 <Input
                   aria-label="Search workspaces"
                   value={search}
-                  onChange={(event) => setSearch(event.target.value)}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    setPage(1);
+                  }}
                   placeholder="Search workspaces"
                 />
               </label>
@@ -101,7 +107,10 @@ export function WorkspaceListPage(): JSX.Element {
                 </span>
                 <Select
                   value={status}
-                  onValueChange={(value) => setStatus(value as WorkspaceListStatusFilter)}
+                  onValueChange={(value) => {
+                    setStatus(value as WorkspaceListStatusFilter);
+                    setPage(1);
+                  }}
                 >
                   <SelectTrigger aria-label="Workspace status">
                     <SelectValue />
@@ -119,12 +128,13 @@ export function WorkspaceListPage(): JSX.Element {
                 </span>
                 <Select
                   value={sort.key}
-                  onValueChange={(value) =>
+                  onValueChange={(value) => {
                     setSort((current) => ({
                       ...current,
                       key: value as WorkspaceListSortState['key'],
-                    }))
-                  }
+                    }));
+                    setPage(1);
+                  }}
                 >
                   <SelectTrigger aria-label="Sort workspaces">
                     <SelectValue />
@@ -143,12 +153,13 @@ export function WorkspaceListPage(): JSX.Element {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
+                  onClick={() => {
                     setSort((current) => ({
                       ...current,
                       direction: current.direction === 'asc' ? 'desc' : 'asc',
-                    }))
-                  }
+                    }));
+                    setPage(1);
+                  }}
                 >
                   {buildWorkspaceSortDirectionLabel(sort.key, sort.direction)}
                 </Button>
@@ -160,20 +171,39 @@ export function WorkspaceListPage(): JSX.Element {
 
       {workspaces.length === 0 ? (
         <WorkspaceListEmptyState />
-      ) : visibleWorkspaces.length === 0 ? (
+      ) : filteredWorkspaces.length === 0 ? (
         <WorkspaceListFilteredEmptyState
           onResetFilters={() => {
             setSearch('');
             setStatus('all');
+            setPage(1);
           }}
         />
       ) : (
-        <WorkspaceListGrid workspaces={visibleWorkspaces} />
+        <>
+          <WorkspaceListTable workspaces={pagination.items} sortKey={sort.key} />
+          <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm">
+            <ListPagination
+              page={pagination.page}
+              pageSize={pageSize}
+              totalItems={pagination.totalItems}
+              totalPages={pagination.totalPages}
+              start={pagination.start}
+              end={pagination.end}
+              itemLabel="workspaces"
+              onPageChange={setPage}
+              onPageSizeChange={(value) => {
+                setPageSize(value);
+                setPage(1);
+              }}
+            />
+          </div>
+        </>
       )}
 
-      {visibleWorkspaces.length > 0 && hasFilters ? (
+      {filteredWorkspaces.length > 0 && hasFilters ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted">
-          <span>{visibleWorkspaces.length} matching workspace{visibleWorkspaces.length === 1 ? '' : 's'}</span>
+          <span>{filteredWorkspaces.length} matching workspace{filteredWorkspaces.length === 1 ? '' : 's'}</span>
         </div>
       ) : null}
     </div>
