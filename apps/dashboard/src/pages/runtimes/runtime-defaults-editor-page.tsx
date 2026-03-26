@@ -157,6 +157,24 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
         .filter(isDefined),
     };
   }, [props.inlineSectionColumns, renderableSectionsByKey]);
+  const leftColumnSections = useMemo(() => {
+    if (!inlineSectionColumns) {
+      return null;
+    }
+    return [
+      ...primarySections.filter((_, index) => index % 2 === 0),
+      ...inlineSectionColumns.left,
+    ];
+  }, [inlineSectionColumns, primarySections]);
+  const rightColumnSections = useMemo(() => {
+    if (!inlineSectionColumns) {
+      return null;
+    }
+    return [
+      ...primarySections.filter((_, index) => index % 2 === 1),
+      ...inlineSectionColumns.right,
+    ];
+  }, [inlineSectionColumns, primarySections]);
   const configuredFieldCount = useMemo(
     () => sectionSummaries.reduce((total, section) => total + section.configuredCount, 0),
     [sectionSummaries],
@@ -333,7 +351,17 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
         </CardHeader>
       </Card>
 
-      {primarySections.length > 0 ? (
+      {leftColumnSections && rightColumnSections ? (
+        <div className="grid gap-6 xl:grid-cols-2">
+          <div className="space-y-6">
+            {leftColumnSections.map((section) => renderSectionCard(section))}
+          </div>
+          <div className="space-y-6">
+            {primarySections.length === 1 ? renderPrimaryAsideCard() : null}
+            {rightColumnSections.map((section) => renderSectionCard(section))}
+          </div>
+        </div>
+      ) : primarySections.length > 0 ? (
         primarySections.length === 1 ? (
           <div className="grid gap-6 xl:grid-cols-2">
             <div className="space-y-6">
@@ -348,17 +376,6 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
             {primarySections.map((section) => renderSectionCard(section))}
           </div>
         )
-      ) : null}
-
-      {inlineSectionColumns ? (
-        <div className="grid gap-6 xl:grid-cols-2">
-          <div className="space-y-6">
-            {inlineSectionColumns.left.map((section) => renderSectionCard(section))}
-          </div>
-          <div className="space-y-6">
-            {inlineSectionColumns.right.map((section) => renderSectionCard(section))}
-          </div>
-        </div>
       ) : remainingSections.length > 0 ? (
         <div className="grid gap-6 xl:grid-cols-2">
           {remainingSections.map((section) => renderSectionCard(section))}

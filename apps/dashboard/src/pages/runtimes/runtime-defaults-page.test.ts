@@ -100,6 +100,9 @@ describe('runtime defaults page source', () => {
     expect(editorSource).toContain('buildValidationErrors');
     expect(editorSource).toContain('summarizeRuntimeDefaultSections');
     expect(editorSource).toContain('className="space-y-6 p-6"');
+    expect(editorSource).toContain('const leftColumnSections = useMemo');
+    expect(editorSource).toContain('const rightColumnSections = useMemo');
+    expect(editorSource).toContain('rightColumnSections.map((section) => renderSectionCard(section))');
     expect(pageSource).not.toContain('sticky bottom-4');
     expect(pageSource).not.toContain('Save runtime defaults');
     expect(pageSource).not.toContain('ActiveRuntimeImageCard');
