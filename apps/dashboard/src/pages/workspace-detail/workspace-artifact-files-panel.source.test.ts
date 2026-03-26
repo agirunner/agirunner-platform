@@ -23,4 +23,11 @@ describe('workspace artifact files panel source', () => {
     expect(source).toContain('URL.createObjectURL(download.blob)');
     expect(source).toContain('link.download = download.file_name ?? file.file_name;');
   });
+
+  it('keeps the upload guidance sentence on one line on desktop widths', () => {
+    const source = readSource();
+
+    expect(source).toContain('lg:whitespace-nowrap');
+    expect(source).not.toContain('max-w-3xl text-sm leading-6 text-muted');
+  });
 });
