@@ -124,9 +124,9 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
                 the playbook instructions instead of separate governance config.
               </p>
               <p className="text-sm text-muted">
-                Treat the playbook as a best-intent execution guide: it should tell the orchestrator
-                what must happen, what should happen if possible, and what evidence or callouts must
-                remain if the workflow finishes close enough instead of perfectly.
+                Treat the playbook as an execution guide: it should tell the orchestrator what must
+                happen, what should happen if possible, and what evidence or callouts must remain
+                after the workflow completes.
               </p>
             </CardHeader>
           </Card>
