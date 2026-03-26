@@ -14,16 +14,31 @@ import (
 )
 
 var requiredExecutionEnvironmentCommands = []string{
+	"sleep",
 	"sh",
-	"mkdir",
 	"cat",
+	"mkdir",
 	"mv",
 	"chmod",
+	"rm",
 	"cp",
-	"ls",
-	"grep",
 	"find",
-	"xargs",
+	"sort",
+	"awk",
+	"sed",
+	"grep",
+	"head",
+}
+
+var preBootstrapExecutionEnvironmentCommands = []string{
+	"sleep",
+	"sh",
+	"cat",
+	"mkdir",
+	"mv",
+	"chmod",
+	"rm",
+	"cp",
 }
 
 type ExecutionEnvironmentVerifyRequest struct {
@@ -36,12 +51,12 @@ type ExecutionEnvironmentVerifyRequest struct {
 }
 
 type ExecutionEnvironmentVerifyResponse struct {
-	CompatibilityStatus      string                 `json:"compatibility_status"`
-	CompatibilityErrors      []string               `json:"compatibility_errors"`
-	VerificationContractVersion string              `json:"verification_contract_version"`
-	VerifiedMetadata         map[string]any         `json:"verified_metadata"`
-	ToolCapabilities         map[string]any         `json:"tool_capabilities"`
-	ProbeOutput              map[string]any         `json:"probe_output"`
+	CompatibilityStatus         string         `json:"compatibility_status"`
+	CompatibilityErrors         []string       `json:"compatibility_errors"`
+	VerificationContractVersion string         `json:"verification_contract_version"`
+	VerifiedMetadata            map[string]any `json:"verified_metadata"`
+	ToolCapabilities            map[string]any `json:"tool_capabilities"`
+	ProbeOutput                 map[string]any `json:"probe_output"`
 }
 
 func VerifyExecutionEnvironment(
@@ -166,22 +181,23 @@ func VerifyExecutionEnvironment(
 		), nil
 	}
 
-	parsedProbe := parseProbeOutput(rawLogs)
-	compatibilityErrors := buildProbeCompatibilityErrors(exitCode, parsedProbe)
+	parsedProbes := parseProbeOutput(rawLogs)
+	finalProbe := selectFinalProbe(parsedProbes)
+	compatibilityErrors := buildProbeCompatibilityErrors(exitCode, parsedProbes)
 	verifiedMetadata := map[string]any{
-		"os_family":       readProbeString(parsedProbe, "os_family"),
-		"distro":          readProbeString(parsedProbe, "distro"),
-		"distro_version":  readProbeString(parsedProbe, "distro_version"),
-		"package_manager": readProbeString(parsedProbe, "package_manager"),
-		"shell":           readProbeString(parsedProbe, "shell"),
-		"detected_runtimes": splitCSV(readProbeString(parsedProbe, "detected_runtimes")),
-		"image_ref":       strings.TrimSpace(input.Image),
+		"os_family":         readProbeString(finalProbe, "os_family"),
+		"distro":            readProbeString(finalProbe, "distro"),
+		"distro_version":    readProbeString(finalProbe, "distro_version"),
+		"package_manager":   readProbeString(finalProbe, "package_manager"),
+		"shell":             readProbeString(finalProbe, "shell"),
+		"detected_runtimes": splitCSV(readProbeString(finalProbe, "detected_runtimes")),
+		"image_ref":         strings.TrimSpace(input.Image),
 	}
 	toolCapabilities := map[string]any{
-		"verified_baseline_commands": splitCSV(readProbeString(parsedProbe, "verified_baseline_commands")),
-		"git_present":                readProbeBool(parsedProbe, "git_present"),
-		"docker_cli_present":         readProbeBool(parsedProbe, "docker_cli_present"),
-		"shell_glob":                 readProbeBool(parsedProbe, "shell_glob"),
+		"verified_baseline_commands": splitCSV(readProbeString(finalProbe, "verified_baseline_commands")),
+		"git_present":                readProbeBool(finalProbe, "git_present"),
+		"docker_cli_present":         readProbeBool(finalProbe, "docker_cli_present"),
+		"shell_glob":                 readProbeBool(finalProbe, "shell_glob"),
 		"shell_pipe":                 true,
 		"shell_redirect":             true,
 	}
@@ -191,16 +207,18 @@ func VerifyExecutionEnvironment(
 	}
 
 	return &ExecutionEnvironmentVerifyResponse{
-		CompatibilityStatus: compatibilityStatus,
-		CompatibilityErrors: compatibilityErrors,
+		CompatibilityStatus:         compatibilityStatus,
+		CompatibilityErrors:         compatibilityErrors,
 		VerificationContractVersion: "v1",
-		VerifiedMetadata: verifiedMetadata,
-		ToolCapabilities: toolCapabilities,
+		VerifiedMetadata:            verifiedMetadata,
+		ToolCapabilities:            toolCapabilities,
 		ProbeOutput: map[string]any{
 			"container_id": resp.ID,
 			"exit_code":    exitCode,
 			"raw_output":   string(rawLogs),
-			"parsed":       parsedProbe,
+			"parsed":       finalProbe,
+			"pre_probe":    parsedProbes.Pre,
+			"post_probe":   parsedProbes.Post,
 		},
 	}, nil
 }
@@ -208,14 +226,6 @@ func VerifyExecutionEnvironment(
 func buildExecutionEnvironmentProbeScript(bootstrapCommands []string) string {
 	var builder strings.Builder
 	builder.WriteString("set -eu\n")
-	for _, command := range bootstrapCommands {
-		trimmed := strings.TrimSpace(command)
-		if trimmed == "" {
-			continue
-		}
-		builder.WriteString(trimmed)
-		builder.WriteString("\n")
-	}
 	builder.WriteString(`
 append_csv() {
   current="$1"
@@ -235,114 +245,161 @@ has_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
-verified_baseline_commands=""
-for candidate in sh mkdir cat mv chmod cp ls xargs; do
-  if has_cmd "$candidate"; then
-    verified_baseline_commands=$(append_csv "$verified_baseline_commands" "$candidate")
+emit_probe() {
+  phase="$1"
+  verified_baseline_commands=""
+  for candidate in sleep sh cat mkdir mv chmod rm cp find sort awk sed grep head; do
+    if has_cmd "$candidate"; then
+      verified_baseline_commands=$(append_csv "$verified_baseline_commands" "$candidate")
+    fi
+  done
+
+  detected_runtimes=""
+  for runtime in python3 python node go rustc cargo java php docker git; do
+    if has_cmd "$runtime"; then
+      case "$runtime" in
+        python3|python) detected_runtimes=$(append_csv "$detected_runtimes" "python") ;;
+        rustc|cargo) detected_runtimes=$(append_csv "$detected_runtimes" "rust") ;;
+        docker|git) : ;;
+        *) detected_runtimes=$(append_csv "$detected_runtimes" "$runtime") ;;
+      esac
+    fi
+  done
+
+  package_manager=""
+  for manager in apt-get apk dnf microdnf yum; do
+    if has_cmd "$manager"; then
+      package_manager="$manager"
+      break
+    fi
+  done
+
+  shell_glob=false
+  set -- /bin/*
+  if [ "${1:-/bin/*}" != '/bin/*' ]; then
+    shell_glob=true
   fi
-done
 
-if has_cmd grep && printf 'alpha\nbeta\n' | grep -q beta; then
-  verified_baseline_commands=$(append_csv "$verified_baseline_commands" "grep")
-fi
-
-if has_cmd find && find /tmp -maxdepth 0 >/dev/null 2>&1; then
-  verified_baseline_commands=$(append_csv "$verified_baseline_commands" "find")
-fi
-
-detected_runtimes=""
-for runtime in python3 python node go rustc cargo java php docker git; do
-  if has_cmd "$runtime"; then
-    case "$runtime" in
-      python3|python) detected_runtimes=$(append_csv "$detected_runtimes" "python") ;;
-      rustc|cargo) detected_runtimes=$(append_csv "$detected_runtimes" "rust") ;;
-      docker) : ;;
-      git) : ;;
-      *) detected_runtimes=$(append_csv "$detected_runtimes" "$runtime") ;;
-    esac
+  os_family=linux
+  distro=unknown
+  distro_version=
+  if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    distro="${ID:-unknown}"
+    distro_version="${VERSION_ID:-}"
   fi
-done
 
-package_manager=""
-for manager in apt-get apk dnf microdnf yum; do
-  if has_cmd "$manager"; then
-    package_manager="$manager"
-    break
-  fi
-done
+  printf '__AGIRUNNER_%s_PROBE_BEGIN__\n' "$phase"
+  printf 'os_family=%s\n' "$os_family"
+  printf 'distro=%s\n' "$distro"
+  printf 'distro_version=%s\n' "$distro_version"
+  printf 'package_manager=%s\n' "$package_manager"
+  printf 'shell=%s\n' "$(command -v sh || true)"
+  printf 'detected_runtimes=%s\n' "$detected_runtimes"
+  printf 'verified_baseline_commands=%s\n' "$verified_baseline_commands"
+  printf 'git_present=%s\n' "$(has_cmd git && printf true || printf false)"
+  printf 'docker_cli_present=%s\n' "$(has_cmd docker && printf true || printf false)"
+  printf 'shell_glob=%s\n' "$shell_glob"
+  printf '__AGIRUNNER_%s_PROBE_END__\n' "$phase"
+}
 
-shell_glob=false
-set -- /bin/*
-if [ "${1:-/bin/*}" != '/bin/*' ]; then
-  shell_glob=true
-fi
-
-os_family=linux
-distro=unknown
-distro_version=
-if [ -f /etc/os-release ]; then
-  . /etc/os-release
-  distro="${ID:-unknown}"
-  distro_version="${VERSION_ID:-}"
-fi
-
-printf '__AGIRUNNER_PROBE_BEGIN__\n'
-printf 'os_family=%s\n' "$os_family"
-printf 'distro=%s\n' "$distro"
-printf 'distro_version=%s\n' "$distro_version"
-printf 'package_manager=%s\n' "$package_manager"
-printf 'shell=%s\n' "$(command -v sh || true)"
-printf 'detected_runtimes=%s\n' "$detected_runtimes"
-printf 'verified_baseline_commands=%s\n' "$verified_baseline_commands"
-printf 'git_present=%s\n' "$(has_cmd git && printf true || printf false)"
-printf 'docker_cli_present=%s\n' "$(has_cmd docker && printf true || printf false)"
-printf 'shell_glob=%s\n' "$shell_glob"
-printf '__AGIRUNNER_PROBE_END__\n'
+emit_probe PRE
+`)
+	for _, command := range bootstrapCommands {
+		trimmed := strings.TrimSpace(command)
+		if trimmed == "" {
+			continue
+		}
+		builder.WriteString(trimmed)
+		builder.WriteString("\n")
+	}
+	builder.WriteString(`
+emit_probe POST
 `)
 	return builder.String()
 }
 
-func parseProbeOutput(raw []byte) map[string]string {
+type executionEnvironmentProbePhases struct {
+	Pre  map[string]string
+	Post map[string]string
+}
+
+func parseProbeOutput(raw []byte) executionEnvironmentProbePhases {
 	lines := bufio.NewScanner(bytes.NewReader(raw))
-	inProbe := false
-	result := map[string]string{}
+	phase := ""
+	result := executionEnvironmentProbePhases{
+		Pre:  map[string]string{},
+		Post: map[string]string{},
+	}
 	for lines.Scan() {
 		line := strings.TrimSpace(lines.Text())
 		switch line {
-		case "__AGIRUNNER_PROBE_BEGIN__":
-			inProbe = true
+		case "__AGIRUNNER_PRE_PROBE_BEGIN__":
+			phase = "pre"
 			continue
-		case "__AGIRUNNER_PROBE_END__":
-			inProbe = false
+		case "__AGIRUNNER_PRE_PROBE_END__":
+			phase = ""
+			continue
+		case "__AGIRUNNER_POST_PROBE_BEGIN__":
+			phase = "post"
+			continue
+		case "__AGIRUNNER_POST_PROBE_END__":
+			phase = ""
 			continue
 		}
-		if !inProbe {
+		if phase == "" {
 			continue
 		}
 		key, value, found := strings.Cut(line, "=")
 		if !found {
 			continue
 		}
-		result[strings.TrimSpace(key)] = strings.TrimSpace(value)
+		target := result.Pre
+		if phase == "post" {
+			target = result.Post
+		}
+		target[strings.TrimSpace(key)] = strings.TrimSpace(value)
 	}
 	return result
 }
 
-func buildProbeCompatibilityErrors(exitCode int64, parsed map[string]string) []string {
+func buildProbeCompatibilityErrors(exitCode int64, parsed executionEnvironmentProbePhases) []string {
 	var errors []string
 	if exitCode != 0 {
 		errors = append(errors, fmt.Sprintf("probe exited with code %d", exitCode))
 	}
+	if len(parsed.Pre) == 0 {
+		errors = append(errors, "pre-bootstrap probe output missing")
+	} else {
+		errors = appendMissingProbeCommands(errors, parsed.Pre, preBootstrapExecutionEnvironmentCommands)
+	}
+	if len(parsed.Post) == 0 {
+		errors = append(errors, "post-bootstrap probe output missing")
+	} else {
+		errors = appendMissingProbeCommands(errors, parsed.Post, requiredExecutionEnvironmentCommands)
+	}
+	return errors
+}
+
+func appendMissingProbeCommands(
+	errors []string,
+	parsed map[string]string,
+	requiredCommands []string,
+) []string {
 	verifiedCommands := splitCSV(parsed["verified_baseline_commands"])
-	for _, command := range requiredExecutionEnvironmentCommands {
+	for _, command := range requiredCommands {
 		if !slices.Contains(verifiedCommands, command) {
 			errors = append(errors, fmt.Sprintf("missing required baseline command: %s", command))
 		}
 	}
-	if !readProbeBool(parsed, "shell_glob") {
-		errors = append(errors, "shell glob support is required")
-	}
 	return errors
+}
+
+func selectFinalProbe(parsed executionEnvironmentProbePhases) map[string]string {
+	if len(parsed.Post) > 0 {
+		return parsed.Post
+	}
+	return parsed.Pre
 }
 
 func buildIncompatibleVerification(
@@ -351,8 +408,8 @@ func buildIncompatibleVerification(
 	errors ...string,
 ) *ExecutionEnvironmentVerifyResponse {
 	return &ExecutionEnvironmentVerifyResponse{
-		CompatibilityStatus: "incompatible",
-		CompatibilityErrors: errors,
+		CompatibilityStatus:         "incompatible",
+		CompatibilityErrors:         errors,
 		VerificationContractVersion: "v1",
 		VerifiedMetadata: map[string]any{
 			"image_ref": strings.TrimSpace(input.Image),

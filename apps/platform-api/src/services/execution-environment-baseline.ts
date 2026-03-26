@@ -4,16 +4,20 @@ import {
 } from './execution-environment-contract.js';
 
 export const BASELINE_EXECUTION_ENVIRONMENT_COMMANDS = [
+  'sleep',
   'sh',
-  'mkdir',
   'cat',
+  'mkdir',
   'mv',
   'chmod',
+  'rm',
   'cp',
-  'ls',
-  'grep',
   'find',
-  'xargs',
+  'sort',
+  'awk',
+  'sed',
+  'grep',
+  'head',
 ] as const;
 
 export function buildCatalogSeedVerification(
