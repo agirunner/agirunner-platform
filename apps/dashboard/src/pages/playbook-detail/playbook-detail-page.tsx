@@ -304,7 +304,7 @@ export function PlaybookDetailPage(): JSX.Element {
           </p>
         </CardHeader>
         <CardContent className="grid gap-6">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr),minmax(0,1.35fr)] lg:items-stretch">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)] lg:items-stretch">
             <div className="grid gap-4">
               <label className="grid gap-2 text-sm">
                 <span className="font-medium">Name</span>
