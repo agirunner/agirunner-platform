@@ -11,6 +11,7 @@ export function OperationsPage(): JSX.Element {
     <RuntimeDefaultsEditorPage
       navHref="/admin/platform-settings"
       description="Configure platform-side operational defaults for activation timing, supervision, fleet behavior, and control-plane loops. Every value shown here is explicit, required, and persisted."
+      headerDescriptionClassName="max-w-none whitespace-nowrap"
       fieldDefinitions={OPERATIONS_FIELD_DEFINITIONS}
       sectionDefinitions={OPERATIONS_SECTION_DEFINITIONS}
       primarySectionKeys={PRIMARY_OPERATIONS_SECTION_KEYS}

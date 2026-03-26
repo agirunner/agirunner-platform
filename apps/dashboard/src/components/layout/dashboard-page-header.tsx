@@ -6,6 +6,7 @@ import { findNavigationItemByHref } from './layout.js';
 interface DashboardPageHeaderProps {
   navHref: string;
   description: string;
+  descriptionClassName?: string;
   actions?: ReactNode;
   eyebrow?: ReactNode;
   className?: string;
@@ -32,7 +33,12 @@ export function DashboardPageHeader(props: DashboardPageHeaderProps): JSX.Elemen
           <Icon className="h-5 w-5 text-muted-foreground" />
           <h1 className="text-2xl font-semibold tracking-tight">{navItem.label}</h1>
         </div>
-        <p className="max-w-4xl text-sm leading-6 text-muted-foreground">
+        <p
+          className={cn(
+            'max-w-4xl text-sm leading-6 text-muted-foreground',
+            props.descriptionClassName,
+          )}
+        >
           {props.description}
         </p>
       </div>

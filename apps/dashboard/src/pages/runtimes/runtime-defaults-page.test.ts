@@ -88,11 +88,13 @@ describe('runtime defaults page source', () => {
     expect(pageSource).toContain('RuntimeDefaultsEditorPage');
     expect(pageSource).toContain('navHref="/admin/agentic-settings"');
     expect(pageSource).toContain('successMessage="Agentic Settings saved."');
+    expect(pageSource).toContain('headerDescriptionClassName="max-w-none whitespace-nowrap"');
     expect(pageSource).toContain('PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS');
     expect(pageSource).toContain('RUNTIME_INLINE_SECTION_COLUMNS');
     expect(editorSource).toContain('RuntimeDefaultsSection');
     expect(editorSource).toContain('DashboardPageHeader');
     expect(editorSource).toContain('navHref={props.navHref}');
+    expect(editorSource).toContain('descriptionClassName={props.headerDescriptionClassName}');
     expect(editorSource).toContain('inlineSectionColumns');
     expect(editorSource).toContain('grid gap-6 xl:grid-cols-2');
     expect(editorSource).toContain('renderPrimaryAsideCard');

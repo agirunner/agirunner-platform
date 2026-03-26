@@ -15,6 +15,12 @@ describe('dashboard page header consistency', () => {
     expect(source).toContain('navItem.label');
   });
 
+  it('allows pages to opt into custom description wrapping classes', () => {
+    const source = readSource('./dashboard-page-header.tsx');
+    expect(source).toContain('descriptionClassName?: string;');
+    expect(source).toContain("props.descriptionClassName");
+  });
+
   it('uses the shared nav-backed header for top-level dashboard pages', () => {
     const expectations: Array<[string, string]> = [
       ['../../pages/workflow-list/workflow-list-page.tsx', 'navHref="/mission-control/workflows"'],

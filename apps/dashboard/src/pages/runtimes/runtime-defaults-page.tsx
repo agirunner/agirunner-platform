@@ -11,6 +11,7 @@ export function RuntimeDefaultsPage(): JSX.Element {
     <RuntimeDefaultsEditorPage
       navHref="/admin/agentic-settings"
       description="Configure defaults for specialist agent runtime behavior, safeguards, and execution posture. Specialist execution environments are managed on Platform > Environments."
+      headerDescriptionClassName="max-w-none whitespace-nowrap"
       fieldDefinitions={FIELD_DEFINITIONS}
       sectionDefinitions={SECTION_DEFINITIONS}
       primarySectionKeys={PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS}

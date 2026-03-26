@@ -12,6 +12,7 @@ describe('operations page source', () => {
     expect(source).toContain('RuntimeDefaultsEditorPage');
     expect(source).toContain('navHref="/admin/platform-settings"');
     expect(source).toContain("successMessage=\"Platform settings saved.\"");
+    expect(source).toContain('headerDescriptionClassName="max-w-none whitespace-nowrap"');
     expect(source).toContain('OPERATIONS_INLINE_SECTION_COLUMNS');
     expect(source).toContain('inlineSectionColumns={OPERATIONS_INLINE_SECTION_COLUMNS}');
     expect(source).not.toContain('/api/v1/config/runtime-defaults');

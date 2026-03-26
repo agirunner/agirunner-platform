@@ -38,6 +38,7 @@ import { summarizeRuntimeDefaultSections } from './runtime-defaults-page.support
 interface RuntimeDefaultsEditorPageProps {
   navHref: string;
   description: string;
+  headerDescriptionClassName?: string;
   fieldDefinitions: FieldDefinition[];
   sectionDefinitions: SectionDefinition[];
   primarySectionKeys: readonly string[];
@@ -314,6 +315,7 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
       <DashboardPageHeader
         navHref={props.navHref}
         description={props.description}
+        descriptionClassName={props.headerDescriptionClassName}
         actions={
           <>
             <Button
