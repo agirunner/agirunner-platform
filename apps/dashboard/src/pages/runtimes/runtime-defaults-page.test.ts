@@ -103,8 +103,8 @@ describe('runtime defaults page source', () => {
     expect(editorSource).toContain('descriptionClassName={props.headerDescriptionClassName}');
     expect(editorSource).toContain('inlineSectionColumns');
     expect(editorSource).toContain('grid gap-6 xl:grid-cols-2');
-    expect(editorSource).toContain('renderPrimaryAsideCard');
-    expect(editorSource).toContain('Configuration status');
+    expect(editorSource).not.toContain('renderPrimaryAsideCard');
+    expect(editorSource).not.toContain('Configuration status');
     expect(editorSource).not.toContain('RuntimeAdvancedSettingsSection');
     expect(editorSource).toContain('Reset changes');
     expect(editorSource).toContain('Save');
@@ -140,18 +140,12 @@ describe('runtime defaults page source', () => {
     const source = readSource('./runtime-defaults-editor-page.tsx');
     const loadingIndex = source.indexOf('if (isLoading)');
     const errorIndex = source.indexOf('if (error)');
-    const configuredFieldCountIndex = source.indexOf('const configuredFieldCount = useMemo');
-    const totalFieldCountIndex = source.indexOf('const totalFieldCount = useMemo');
-    const sectionsWithErrorsIndex = source.indexOf('const sectionsWithErrors = useMemo');
+    const sectionSummaryByKeyIndex = source.indexOf('const sectionSummaryByKey = useMemo');
 
     expect(loadingIndex).toBeGreaterThan(-1);
     expect(errorIndex).toBeGreaterThan(loadingIndex);
-    expect(configuredFieldCountIndex).toBeGreaterThan(-1);
-    expect(totalFieldCountIndex).toBeGreaterThan(-1);
-    expect(sectionsWithErrorsIndex).toBeGreaterThan(-1);
-    expect(configuredFieldCountIndex).toBeLessThan(loadingIndex);
-    expect(totalFieldCountIndex).toBeLessThan(loadingIndex);
-    expect(sectionsWithErrorsIndex).toBeLessThan(loadingIndex);
+    expect(sectionSummaryByKeyIndex).toBeGreaterThan(-1);
+    expect(sectionSummaryByKeyIndex).toBeLessThan(loadingIndex);
   });
 
   it('renders runtime defaults sections exclusively through shared config field primitives', () => {

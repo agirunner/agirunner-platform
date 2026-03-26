@@ -4,13 +4,6 @@ import { Loader2, RotateCcw, Save } from 'lucide-react';
 
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Button } from '../../components/ui/button.js';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../../components/ui/card.js';
 import { toast } from '../../lib/toast.js';
 import { useUnsavedChanges } from '../../lib/use-unsaved-changes.js';
 import {
@@ -175,18 +168,6 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
       ...inlineSectionColumns.right,
     ];
   }, [inlineSectionColumns, primarySections]);
-  const configuredFieldCount = useMemo(
-    () => sectionSummaries.reduce((total, section) => total + section.configuredCount, 0),
-    [sectionSummaries],
-  );
-  const totalFieldCount = useMemo(
-    () => sectionSummaries.reduce((total, section) => total + section.fieldCount, 0),
-    [sectionSummaries],
-  );
-  const sectionsWithErrors = useMemo(
-    () => sectionSummaries.filter((section) => section.errorCount > 0).length,
-    [sectionSummaries],
-  );
 
   useUnsavedChanges(isDirty);
 
@@ -278,38 +259,6 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
     );
   }
 
-  function renderPrimaryAsideCard(): JSX.Element {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Configuration status</CardTitle>
-          <CardDescription>
-            Keep the specialist agent defaults aligned with the rest of the runtime settings.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <StatusFact
-            label="Configured defaults"
-            value={`${configuredFieldCount} / ${totalFieldCount}`}
-          />
-          <StatusFact
-            label="Sections with issues"
-            value={sectionsWithErrors === 0 ? '0' : String(sectionsWithErrors)}
-            tone={sectionsWithErrors > 0 ? 'warning' : 'default'}
-          />
-          <StatusFact
-            label="Unsaved changes"
-            value={isDirty ? 'Pending save' : 'No pending edits'}
-            tone={isDirty ? 'warning' : 'default'}
-          />
-          <p className="text-sm leading-6 text-muted">
-            Specialist execution environments are configured separately on Platform &gt; Environments.
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-6 p-6">
       <DashboardPageHeader
@@ -347,45 +296,18 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
             {leftColumnSections.map((section) => renderSectionCard(section))}
           </div>
           <div className="space-y-6">
-            {primarySections.length === 1 ? renderPrimaryAsideCard() : null}
             {rightColumnSections.map((section) => renderSectionCard(section))}
           </div>
         </div>
       ) : primarySections.length > 0 ? (
-        primarySections.length === 1 ? (
-          <div className="grid gap-6 xl:grid-cols-2">
-            <div className="space-y-6">
-              {primarySections.map((section) => renderSectionCard(section))}
-            </div>
-            <div className="space-y-6">
-              {renderPrimaryAsideCard()}
-            </div>
-          </div>
-        ) : (
-          <div className="grid gap-6 xl:grid-cols-2">
-            {primarySections.map((section) => renderSectionCard(section))}
-          </div>
-        )
+        <div className="grid gap-6 xl:grid-cols-2">
+          {primarySections.map((section) => renderSectionCard(section))}
+        </div>
       ) : remainingSections.length > 0 ? (
         <div className="grid gap-6 xl:grid-cols-2">
           {remainingSections.map((section) => renderSectionCard(section))}
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function StatusFact(props: {
-  label: string;
-  value: string;
-  tone?: 'default' | 'warning';
-}): JSX.Element {
-  return (
-    <div className="rounded-lg border border-border/70 bg-muted/10 px-4 py-3">
-      <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{props.label}</p>
-      <p className={props.tone === 'warning' ? 'mt-2 text-lg font-semibold text-warning' : 'mt-2 text-lg font-semibold text-foreground'}>
-        {props.value}
-      </p>
     </div>
   );
 }
