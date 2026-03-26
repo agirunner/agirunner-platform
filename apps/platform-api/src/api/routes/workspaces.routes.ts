@@ -140,6 +140,17 @@ export const workspaceRoutes: FastifyPluginAsync = async (app) => {
   });
 
   app.get(
+    '/api/v1/workspaces/:id/delete-impact',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      return {
+        data: await workspaceService.getWorkspaceDeleteImpact(request.auth!, params.id),
+      };
+    },
+  );
+
+  app.get(
     '/api/v1/workspaces/:id/model-overrides',
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
@@ -377,7 +388,10 @@ export const workspaceRoutes: FastifyPluginAsync = async (app) => {
 
   app.delete('/api/v1/workspaces/:id', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
     const params = request.params as { id: string };
-    const result = await workspaceService.deleteWorkspace(request.auth!, params.id);
+    const query = request.query as { cascade?: string };
+    const result = await workspaceService.deleteWorkspace(request.auth!, params.id, {
+      cascade: query.cascade === 'true',
+    });
     return { data: result };
   });
 };

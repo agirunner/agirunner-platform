@@ -5,6 +5,10 @@ import type { AppEnv } from '../config/schema.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { TenantScopedRepository, type TenantRow } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import {
+  DestructiveDeleteService,
+  type DeleteImpactSummary,
+} from './destructive-delete-service.js';
 import { EventService } from './event-service.js';
 import type { WorkspaceMemoryMutationContext } from './workspace-memory-scope-service.js';
 import {
@@ -118,13 +122,25 @@ interface GitWebhookConfig {
 
 export class WorkspaceService {
   private readonly encryptionKey: string;
+  private readonly destructiveDeleteService: Pick<
+    DestructiveDeleteService,
+    'getWorkspaceDeleteImpact' | 'deleteWorkspaceCascading'
+  >;
 
   constructor(
     private readonly pool: DatabasePool,
     private readonly eventService: EventService,
     config?: Pick<AppEnv, 'WEBHOOK_ENCRYPTION_KEY'>,
+    deps?: {
+      destructiveDeleteService?: Pick<
+        DestructiveDeleteService,
+        'getWorkspaceDeleteImpact' | 'deleteWorkspaceCascading'
+      >;
+    },
   ) {
     this.encryptionKey = config?.WEBHOOK_ENCRYPTION_KEY ?? '';
+    this.destructiveDeleteService =
+      deps?.destructiveDeleteService ?? new DestructiveDeleteService(pool);
   }
 
   async createWorkspace(identity: ApiKeyIdentity, input: CreateWorkspaceInput) {
@@ -461,21 +477,40 @@ export class WorkspaceService {
     return redactWorkspaceSecrets(updatedWorkspace);
   }
 
-  async deleteWorkspace(identity: ApiKeyIdentity, workspaceId: string) {
-    await this.getWorkspace(identity.tenantId, workspaceId);
+  getWorkspaceDeleteImpact(
+    identity: ApiKeyIdentity,
+    workspaceId: string,
+  ): Promise<DeleteImpactSummary> {
+    return this.destructiveDeleteService.getWorkspaceDeleteImpact(identity.tenantId, workspaceId);
+  }
 
-    const [workflows, tasks] = await Promise.all([
-      this.pool.query<{ total: string }>(
-        'SELECT count(*)::text AS total FROM workflows WHERE tenant_id = $1 AND workspace_id = $2',
-        [identity.tenantId, workspaceId],
-      ),
-      this.pool.query<{ total: string }>(
-        'SELECT count(*)::text AS total FROM tasks WHERE tenant_id = $1 AND workspace_id = $2',
-        [identity.tenantId, workspaceId],
-      ),
-    ]);
+  async deleteWorkspace(
+    identity: ApiKeyIdentity,
+    workspaceId: string,
+    options?: { cascade?: boolean },
+  ) {
+    if (options?.cascade) {
+      const result = await this.destructiveDeleteService.deleteWorkspaceCascading(
+        identity,
+        workspaceId,
+      );
+      await this.eventService.emit({
+        tenantId: identity.tenantId,
+        type: 'workspace.deleted',
+        entityType: 'workspace',
+        entityId: workspaceId,
+        actorType: identity.scope,
+        actorId: identity.keyPrefix,
+        data: { cascade: true },
+      });
+      return result;
+    }
 
-    if (Number(workflows.rows[0]?.total ?? '0') > 0 || Number(tasks.rows[0]?.total ?? '0') > 0) {
+    const impact = await this.destructiveDeleteService.getWorkspaceDeleteImpact(
+      identity.tenantId,
+      workspaceId,
+    );
+    if (impact.workflows > 0 || impact.tasks > 0) {
       throw new ConflictError('Workspace cannot be deleted while workflows or tasks reference it');
     }
 

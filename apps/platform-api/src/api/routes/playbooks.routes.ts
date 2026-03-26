@@ -53,6 +53,11 @@ export const playbookRoutes: FastifyPluginAsync = async (app) => {
     return { data: await app.playbookService.getPlaybook(request.auth!.tenantId, params.id) };
   });
 
+  app.get('/api/v1/playbooks/:id/delete-impact', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
+    const params = request.params as { id: string };
+    return { data: await app.playbookService.getPlaybookDeleteImpact(request.auth!.tenantId, params.id) };
+  });
+
   app.patch('/api/v1/playbooks/:id', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
     const params = request.params as { id: string };
     const body = parseOrThrow(playbookUpdateSchema.safeParse(request.body));
@@ -80,5 +85,10 @@ export const playbookRoutes: FastifyPluginAsync = async (app) => {
   app.delete('/api/v1/playbooks/:id', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
     const params = request.params as { id: string };
     return { data: await app.playbookService.deletePlaybook(request.auth!.tenantId, params.id) };
+  });
+
+  app.delete('/api/v1/playbooks/:id/permanent', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
+    const params = request.params as { id: string };
+    return { data: await app.playbookService.deletePlaybookPermanently(request.auth!, params.id) };
   });
 };

@@ -2,6 +2,11 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
+import {
+  DestructiveDeleteService,
+  type PlaybookDeleteImpact,
+} from './destructive-delete-service.js';
+import type { ApiKeyIdentity } from '../auth/api-key.js';
 
 export interface CreatePlaybookInput {
   name: string;
@@ -22,7 +27,23 @@ export interface UpdatePlaybookInput {
 }
 
 export class PlaybookService {
-  constructor(private readonly pool: DatabasePool) {}
+  private readonly destructiveDeleteService: Pick<
+    DestructiveDeleteService,
+    'getPlaybookDeleteImpact' | 'deletePlaybookPermanently'
+  >;
+
+  constructor(
+    private readonly pool: DatabasePool,
+    deps?: {
+      destructiveDeleteService?: Pick<
+        DestructiveDeleteService,
+        'getPlaybookDeleteImpact' | 'deletePlaybookPermanently'
+      >;
+    },
+  ) {
+    this.destructiveDeleteService =
+      deps?.destructiveDeleteService ?? new DestructiveDeleteService(pool);
+  }
 
   async createPlaybook(tenantId: string, input: CreatePlaybookInput) {
     const definition = parsePlaybookDefinition(input.definition);
@@ -146,6 +167,14 @@ export class PlaybookService {
       throw new NotFoundError('Playbook not found');
     }
     return { id: playbookId, deleted: true as const };
+  }
+
+  getPlaybookDeleteImpact(tenantId: string, playbookId: string): Promise<PlaybookDeleteImpact> {
+    return this.destructiveDeleteService.getPlaybookDeleteImpact(tenantId, playbookId);
+  }
+
+  deletePlaybookPermanently(identity: ApiKeyIdentity, playbookId: string) {
+    return this.destructiveDeleteService.deletePlaybookPermanently(identity, playbookId);
   }
 
   private async insertPlaybookVersion(

@@ -21,6 +21,7 @@ import { AcpSessionService } from '../services/acp-session-service.js';
 import { AgentService } from '../services/agent-service.js';
 import { ApiKeyService } from '../services/api-key-service.js';
 import { ContainerInventoryService } from '../services/container-inventory-service.js';
+import { DestructiveDeleteService } from '../services/destructive-delete-service.js';
 import { ContainerManagerExecutionEnvironmentVerifier } from '../services/container-manager-execution-environment-verifier.js';
 import { EventStreamService } from '../services/event-stream-service.js';
 import { EventService } from '../services/event-service.js';
@@ -138,14 +139,12 @@ export async function buildApp() {
     governanceService,
     logger: app.log,
   });
-  const workspaceService = new WorkspaceService(pool, eventService, appConfig);
   const workspaceArtifactFileService = new WorkspaceArtifactFileService(
     pool,
     createArtifactStorage(buildArtifactStorageConfig(appConfig)),
     appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_FILES,
     appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_BYTES,
   );
-  const playbookService = new PlaybookService(pool);
   const workflowService = new WorkflowService(
     pool,
     eventService,
@@ -154,6 +153,16 @@ export async function buildApp() {
     logService,
     taskService,
   );
+  const destructiveDeleteService = new DestructiveDeleteService(pool, {
+    cancelWorkflow: workflowService.cancelWorkflow.bind(workflowService),
+    cancelTask: taskService.cancelTask.bind(taskService),
+  });
+  const workspaceService = new WorkspaceService(pool, eventService, appConfig, {
+    destructiveDeleteService,
+  });
+  const playbookService = new PlaybookService(pool, {
+    destructiveDeleteService,
+  });
   const workflowActivationService = new WorkflowActivationService(pool, eventService);
   const workflowActivationDispatchService = new WorkflowActivationDispatchService({
     pool,

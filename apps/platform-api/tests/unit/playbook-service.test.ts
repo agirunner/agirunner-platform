@@ -191,6 +191,82 @@ describe('PlaybookService', () => {
     );
   });
 
+  it('returns revision and permanent delete impact summaries', async () => {
+    const destructiveDeleteService = {
+      getPlaybookDeleteImpact: vi.fn().mockResolvedValue({
+        revision: {
+          workflows: 2,
+          active_workflows: 1,
+          tasks: 5,
+          active_tasks: 2,
+          work_items: 3,
+        },
+        family: {
+          revisions: 4,
+          workflows: 7,
+          active_workflows: 2,
+          tasks: 16,
+          active_tasks: 4,
+          work_items: 9,
+        },
+      }),
+    };
+    const service = new PlaybookService({} as never, { destructiveDeleteService } as never);
+
+    await expect(service.getPlaybookDeleteImpact('tenant-1', 'playbook-1')).resolves.toEqual({
+      revision: {
+        workflows: 2,
+        active_workflows: 1,
+        tasks: 5,
+        active_tasks: 2,
+        work_items: 3,
+      },
+      family: {
+        revisions: 4,
+        workflows: 7,
+        active_workflows: 2,
+        tasks: 16,
+        active_tasks: 4,
+        work_items: 9,
+      },
+    });
+    expect(destructiveDeleteService.getPlaybookDeleteImpact).toHaveBeenCalledWith(
+      'tenant-1',
+      'playbook-1',
+    );
+  });
+
+  it('deletes a playbook family permanently through the destructive delete service', async () => {
+    const destructiveDeleteService = {
+      deletePlaybookPermanently: vi.fn().mockResolvedValue({
+        id: 'playbook-1',
+        deleted: true,
+        deleted_revision_count: 4,
+        deleted_workflow_count: 7,
+      }),
+    };
+    const identity = {
+      tenantId: 'tenant-1',
+      scope: 'admin',
+      ownerType: 'tenant',
+      ownerId: 'tenant-1',
+      keyPrefix: 'admin',
+      id: 'key-1',
+    };
+    const service = new PlaybookService({} as never, { destructiveDeleteService } as never);
+
+    await expect(service.deletePlaybookPermanently(identity as never, 'playbook-1')).resolves.toEqual({
+      id: 'playbook-1',
+      deleted: true,
+      deleted_revision_count: 4,
+      deleted_workflow_count: 7,
+    });
+    expect(destructiveDeleteService.deletePlaybookPermanently).toHaveBeenCalledWith(
+      identity,
+      'playbook-1',
+    );
+  });
+
   it('rejects playbook roles that are not active role definitions', async () => {
     const pool = {
       query: vi.fn().mockResolvedValueOnce({

@@ -44,6 +44,7 @@ describe('workspace routes', () => {
     app.decorate('workspaceService', {
       createWorkspace: vi.fn(),
       getWorkspace: vi.fn(),
+      getWorkspaceDeleteImpact: vi.fn(),
       updateWorkspace: vi.fn(),
       patchWorkspaceMemory: vi.fn(),
       removeWorkspaceMemory: vi.fn(),
@@ -115,6 +116,7 @@ describe('workspace routes', () => {
     app.decorate('workspaceService', {
       createWorkspace: vi.fn(),
       getWorkspace: vi.fn(),
+      getWorkspaceDeleteImpact: vi.fn(),
       updateWorkspace: vi.fn(),
       patchWorkspaceMemory: vi.fn(),
       removeWorkspaceMemory: vi.fn(),
@@ -186,6 +188,7 @@ describe('workspace routes', () => {
     app.decorate('workspaceService', {
       createWorkspace: vi.fn(),
       getWorkspace: vi.fn(),
+      getWorkspaceDeleteImpact: vi.fn(),
       updateWorkspace: vi.fn(),
       patchWorkspaceMemory: vi.fn(),
       removeWorkspaceMemory,
@@ -215,5 +218,106 @@ describe('workspace routes', () => {
       'workspace-1',
       'operator_note',
     );
+  });
+
+  it('returns a workspace delete impact summary', async () => {
+    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
+    app.decorate('pgPool', {});
+    app.decorate('eventService', {});
+    app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
+    app.decorate('workspaceService', {
+      createWorkspace: vi.fn(),
+      getWorkspace: vi.fn(),
+      getWorkspaceDeleteImpact: vi.fn().mockResolvedValue({
+        workflows: 3,
+        active_workflows: 1,
+        tasks: 9,
+        active_tasks: 2,
+        work_items: 4,
+      }),
+      updateWorkspace: vi.fn(),
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+      setGitWebhookConfig: vi.fn(),
+      deleteWorkspace: vi.fn(),
+      listWorkspaces: vi.fn(),
+    });
+    app.decorate('workspaceArtifactFileService', {
+      listWorkspaceArtifactFiles: vi.fn(),
+      uploadWorkspaceArtifactFile: vi.fn(),
+      uploadWorkspaceArtifactFiles: vi.fn(),
+      deleteWorkspaceArtifactFile: vi.fn(),
+      downloadWorkspaceArtifactFile: vi.fn(),
+    });
+
+    await app.register(workspaceRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/workspaces/workspace-1/delete-impact',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(app.workspaceService.getWorkspaceDeleteImpact).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workspace-1',
+    );
+    expect(response.json().data).toEqual({
+      workflows: 3,
+      active_workflows: 1,
+      tasks: 9,
+      active_tasks: 2,
+      work_items: 4,
+    });
+  });
+
+  it('passes the cascade flag through workspace deletion', async () => {
+    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
+    app.decorate('pgPool', {});
+    app.decorate('eventService', {});
+    app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
+    app.decorate('workspaceService', {
+      createWorkspace: vi.fn(),
+      getWorkspace: vi.fn(),
+      getWorkspaceDeleteImpact: vi.fn(),
+      updateWorkspace: vi.fn(),
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+      setGitWebhookConfig: vi.fn(),
+      deleteWorkspace: vi.fn().mockResolvedValue({ id: 'workspace-1', deleted: true }),
+      listWorkspaces: vi.fn(),
+    });
+    app.decorate('workspaceArtifactFileService', {
+      listWorkspaceArtifactFiles: vi.fn(),
+      uploadWorkspaceArtifactFile: vi.fn(),
+      uploadWorkspaceArtifactFiles: vi.fn(),
+      deleteWorkspaceArtifactFile: vi.fn(),
+      downloadWorkspaceArtifactFile: vi.fn(),
+    });
+
+    await app.register(workspaceRoutes);
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/workspaces/workspace-1?cascade=true',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(app.workspaceService.deleteWorkspace).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workspace-1',
+      { cascade: true },
+    );
+    expect(response.json().data).toEqual({ id: 'workspace-1', deleted: true });
   });
 });
