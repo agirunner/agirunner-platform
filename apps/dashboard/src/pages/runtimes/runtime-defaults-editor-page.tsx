@@ -157,6 +157,18 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
         .filter(isDefined),
     };
   }, [props.inlineSectionColumns, renderableSectionsByKey]);
+  const configuredFieldCount = useMemo(
+    () => sectionSummaries.reduce((total, section) => total + section.configuredCount, 0),
+    [sectionSummaries],
+  );
+  const totalFieldCount = useMemo(
+    () => sectionSummaries.reduce((total, section) => total + section.fieldCount, 0),
+    [sectionSummaries],
+  );
+  const sectionsWithErrors = useMemo(
+    () => sectionSummaries.filter((section) => section.errorCount > 0).length,
+    [sectionSummaries],
+  );
 
   useUnsavedChanges(isDirty);
 
@@ -223,18 +235,6 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
   }
 
   const Icon = props.icon;
-  const configuredFieldCount = useMemo(
-    () => sectionSummaries.reduce((total, section) => total + section.configuredCount, 0),
-    [sectionSummaries],
-  );
-  const totalFieldCount = useMemo(
-    () => sectionSummaries.reduce((total, section) => total + section.fieldCount, 0),
-    [sectionSummaries],
-  );
-  const sectionsWithErrors = useMemo(
-    () => sectionSummaries.filter((section) => section.errorCount > 0).length,
-    [sectionSummaries],
-  );
 
   function renderSectionCard(section: {
     key: string;

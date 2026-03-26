@@ -121,6 +121,24 @@ describe('runtime defaults page source', () => {
     expect(source).toContain('useUnsavedChanges(isDirty)');
   });
 
+  it('keeps all hooks before the loading and error early returns', () => {
+    const source = readSource('./runtime-defaults-editor-page.tsx');
+    const loadingIndex = source.indexOf('if (isLoading)');
+    const errorIndex = source.indexOf('if (error)');
+    const configuredFieldCountIndex = source.indexOf('const configuredFieldCount = useMemo');
+    const totalFieldCountIndex = source.indexOf('const totalFieldCount = useMemo');
+    const sectionsWithErrorsIndex = source.indexOf('const sectionsWithErrors = useMemo');
+
+    expect(loadingIndex).toBeGreaterThan(-1);
+    expect(errorIndex).toBeGreaterThan(loadingIndex);
+    expect(configuredFieldCountIndex).toBeGreaterThan(-1);
+    expect(totalFieldCountIndex).toBeGreaterThan(-1);
+    expect(sectionsWithErrorsIndex).toBeGreaterThan(-1);
+    expect(configuredFieldCountIndex).toBeLessThan(loadingIndex);
+    expect(totalFieldCountIndex).toBeLessThan(loadingIndex);
+    expect(sectionsWithErrorsIndex).toBeLessThan(loadingIndex);
+  });
+
   it('renders runtime defaults sections exclusively through shared config field primitives', () => {
     const source = readSource('./runtime-defaults-fields.tsx');
     expect(source).toContain('ConfigField');
