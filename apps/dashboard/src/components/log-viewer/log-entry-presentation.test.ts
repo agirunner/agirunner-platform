@@ -41,6 +41,17 @@ describe('log entry presentation', () => {
     expect(describeLogActorDetail(entry)).toBe('-');
   });
 
+  it('shows orchestrator agent for orchestrator execution rows', () => {
+    const entry = makeEntry({
+      actor_type: 'agent',
+      role: 'orchestrator',
+      is_orchestrator_task: true,
+      actor_name: 'Specialist Execution',
+    });
+
+    expect(describeLogActorLabel(entry)).toBe('Orchestrator agent');
+  });
+
   it('keeps tool activity labels human and omits raw invocation arguments', () => {
     const entry = makeEntry({
       payload: {

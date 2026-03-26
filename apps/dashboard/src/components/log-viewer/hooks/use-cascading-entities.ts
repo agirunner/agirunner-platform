@@ -69,6 +69,9 @@ interface CascadingEntityOverrides {
   isLoadingWorkspaces?: boolean;
   isLoadingWorkflows?: boolean;
   isLoadingTasks?: boolean;
+  isWorkspaceMenuOpen?: boolean;
+  isWorkflowMenuOpen?: boolean;
+  isTaskMenuOpen?: boolean;
 }
 
 export function useCascadingEntities(
@@ -80,6 +83,9 @@ export function useCascadingEntities(
   const useWorkspaceOverride = Array.isArray(overrides.workspaces);
   const useWorkflowOverride = Array.isArray(overrides.workflows);
   const useTaskOverride = Array.isArray(overrides.tasks);
+  const shouldLoadWorkspaces = overrides.isWorkspaceMenuOpen || Boolean(workspaceId);
+  const shouldLoadWorkflows = overrides.isWorkflowMenuOpen || Boolean(workflowId);
+  const shouldLoadTasks = overrides.isTaskMenuOpen || Boolean(taskId);
 
   const workspacesQuery = useQuery({
     queryKey: ['log-filter-workspaces'],
@@ -87,11 +93,8 @@ export function useCascadingEntities(
       const res = await dashboardApi.listWorkspaces();
       return res.data;
     },
-    staleTime: 60_000,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
-    enabled: !useWorkspaceOverride,
+    staleTime: 300_000,
+    enabled: !useWorkspaceOverride && shouldLoadWorkspaces,
   });
 
   const workflowsQuery = useQuery({
@@ -102,11 +105,8 @@ export function useCascadingEntities(
       const res = await dashboardApi.listWorkflows(filters);
       return extractList<WorkflowRecord>(res);
     },
-    staleTime: 30_000,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
-    enabled: !useWorkflowOverride,
+    staleTime: 300_000,
+    enabled: !useWorkflowOverride && shouldLoadWorkflows,
   });
 
   const tasksQuery = useQuery({
@@ -117,11 +117,8 @@ export function useCascadingEntities(
       const res = await dashboardApi.listTasks(filters);
       return extractList<TaskRecord>(res);
     },
-    staleTime: 30_000,
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
-    refetchOnWindowFocus: true,
-    enabled: !useTaskOverride,
+    staleTime: 300_000,
+    enabled: !useTaskOverride && shouldLoadTasks,
   });
 
   const workspaces: ComboboxItem[] = useMemo(

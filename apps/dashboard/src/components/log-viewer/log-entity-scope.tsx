@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { SearchableCombobox } from './ui/searchable-combobox.js';
 import { useCascadingEntities, type CascadingEntityState } from './hooks/use-cascading-entities.js';
 import type { ComboboxItem } from './ui/searchable-combobox.js';
@@ -29,6 +29,9 @@ export function LogEntityScope({
   isLoadingTasksOverride,
 }: LogEntityScopeProps): JSX.Element {
   const state: CascadingEntityState = { workspaceId, workflowId, taskId };
+  const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
+  const [isWorkflowMenuOpen, setIsWorkflowMenuOpen] = useState(false);
+  const [isTaskMenuOpen, setIsTaskMenuOpen] = useState(false);
 
   const handleChange = useCallback(
     (next: CascadingEntityState) => {
@@ -48,6 +51,9 @@ export function LogEntityScope({
     isLoadingWorkspaces: isLoadingWorkspacesOverride,
     isLoadingWorkflows: isLoadingWorkflowsOverride,
     isLoadingTasks: isLoadingTasksOverride,
+    isWorkspaceMenuOpen,
+    isWorkflowMenuOpen,
+    isTaskMenuOpen,
   });
 
   return (
@@ -56,6 +62,7 @@ export function LogEntityScope({
         items={entities.workspaces}
         value={workspaceId}
         onChange={entities.setWorkspace}
+        onOpenChange={setIsWorkspaceMenuOpen}
         placeholder="All workspaces"
         searchPlaceholder="Search workspaces..."
         allGroupLabel="All Workspaces"
@@ -67,6 +74,7 @@ export function LogEntityScope({
         items={entities.workflows}
         value={workflowId}
         onChange={entities.setWorkflow}
+        onOpenChange={setIsWorkflowMenuOpen}
         placeholder="All workflows"
         searchPlaceholder="Search workflows..."
         allGroupLabel="All Workflows"
@@ -78,6 +86,7 @@ export function LogEntityScope({
         items={entities.tasks}
         value={taskId}
         onChange={entities.setTask}
+        onOpenChange={setIsTaskMenuOpen}
         placeholder="All tasks"
         searchPlaceholder="Search tasks..."
         allGroupLabel="All Tasks"

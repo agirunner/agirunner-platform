@@ -30,6 +30,7 @@ export interface SearchableComboboxProps {
   recentItems?: ComboboxItem[];
   value: string | null;
   onChange: (id: string | null) => void;
+  onOpenChange?: (open: boolean) => void;
   placeholder?: string;
   searchPlaceholder?: string;
   allGroupLabel?: string;
@@ -95,6 +96,7 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
       recentItems = [],
       value,
       onChange,
+      onOpenChange,
       placeholder = 'Select...',
       searchPlaceholder = 'Search...',
       allGroupLabel = 'All',
@@ -248,8 +250,16 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
       return () => clearTimeout(debounceRef.current);
     }, []);
 
+    const handleOpenChange = useCallback(
+      (nextOpen: boolean) => {
+        setOpen(nextOpen);
+        onOpenChange?.(nextOpen);
+      },
+      [onOpenChange],
+    );
+
     return (
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger asChild>
           <button
             ref={ref}

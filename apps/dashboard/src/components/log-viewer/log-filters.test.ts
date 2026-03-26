@@ -9,17 +9,14 @@ function readSource(fileName: string): string {
 describe('log filters source', () => {
   it('exposes actor and status controls while hiding transport-detail controls in the raw logs filter bar', () => {
     const source = readSource('./log-filters.tsx');
-    expect(source).toContain('const optionBaseFilters = useMemo(');
-    expect(source).toContain('applyLogScope(toQueryParams(), scope)');
-    expect(source).toContain('delete next.operation;');
-    expect(source).toContain('delete next.role;');
-    expect(source).toContain('delete next.actor_kind;');
-    expect(source).toContain('operationItemsOverride');
-    expect(source).toContain('roleItemsOverride');
-    expect(source).toContain('actorItemsOverride');
-    expect(source).toContain('disableOptionQueries');
+    expect(source).toContain('const [isRoleMenuOpen, setRoleMenuOpen] = useState(false);');
+    expect(source).toContain('const [isActorMenuOpen, setActorMenuOpen] = useState(false);');
+    expect(source).toContain('const [isOperationMenuOpen, setIsOperationMenuOpen] = useState(false);');
+    expect(source).toContain('buildFilterOptionScope(filters, scope)');
     expect(source).toContain('useLogActors(');
-    expect(source).toContain('!actorItemsOverride && !disableOptionQueries');
+    expect(source).toContain('isActorMenuOpen && !actorItemsOverride && !disableOptionQueries');
+    expect(source).toContain('isRoleMenuOpen && !roleItemsOverride && !disableOptionQueries');
+    expect(source).toContain('isOperationMenuOpen && !operationItemsOverride && !disableOptionQueries');
     expect(source).toContain("placeholder={\n            filters.actors.length > 0");
     expect(source).toContain('allGroupLabel="Actors"');
     expect(source).toContain('allGroupLabel="Statuses"');
@@ -67,12 +64,9 @@ describe('log filters source', () => {
     expect(source).toContain('const operationItems = operationItemsOverride ?? toOperationItems(operationsData);');
     expect(source).toContain('const roleItems = roleItemsOverride ?? toRoleItems(rolesData);');
     expect(source).toContain('const actorItems = actorItemsOverride ?? toActorItems(actorsData);');
-    expect(source).toContain('workspaceItemsOverride');
-    expect(source).toContain('workflowItemsOverride');
-    expect(source).toContain('taskItemsOverride');
-    expect(source).toContain('workspacesOverride={');
-    expect(source).toContain('workflowsOverride={');
-    expect(source).toContain('tasksOverride={');
+    expect(source).toContain('onOpenChange={setRoleMenuOpen}');
+    expect(source).toContain('onOpenChange={setActorMenuOpen}');
+    expect(source).toContain('onOpenChange={setIsOperationMenuOpen}');
     expect(source).toContain('disableOptionQueries = false');
   });
 

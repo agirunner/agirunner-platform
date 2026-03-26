@@ -1316,6 +1316,48 @@ describe('LogService', () => {
       expect(sql).toContain('GROUP BY actor_kind');
       expect(params).toContain('wf-1');
     });
+
+    it('classifies orchestrator agent rows from agent actors as orchestrator agents', async () => {
+      const pool = createMockPool();
+      pool.query.mockResolvedValue({
+        rows: [
+          {
+            actor_kind: 'orchestrator_agent',
+            actor_id: null,
+            actor_name: null,
+            count: '18',
+            latest_role: 'orchestrator',
+            latest_workflow_id: 'wf-1',
+            latest_workflow_name: 'Customer migration',
+            latest_workflow_label: 'Customer migration',
+          },
+        ],
+        rowCount: 1,
+      });
+      const service = new LogService(pool as never);
+
+      const result = await service.actors('tenant-1', {
+        since: new Date('2026-03-08T00:00:00Z').toISOString(),
+      });
+
+      expect(result).toEqual([
+        {
+          actor_kind: 'orchestrator_agent',
+          actor_id: null,
+          actor_name: null,
+          count: 18,
+          latest_role: 'orchestrator',
+          latest_workflow_id: 'wf-1',
+          latest_workflow_name: 'Customer migration',
+          latest_workflow_label: 'Customer migration',
+        },
+      ]);
+      const [sql] = pool.query.mock.calls[0];
+      expect(sql).toContain("WHEN l.actor_type IN ('worker', 'agent')");
+      expect(sql).toContain("LOWER(COALESCE(l.role, '')) = 'orchestrator'");
+      expect(sql).toContain("COALESCE(l.is_orchestrator_task, false) = true");
+      expect(sql).toContain("THEN 'orchestrator_agent'");
+    });
   });
 
   describe('export', () => {

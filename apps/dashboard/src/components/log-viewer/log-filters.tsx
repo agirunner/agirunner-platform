@@ -12,6 +12,7 @@ import { useLogRoles } from './hooks/use-log-roles.js';
 import { useLogActors } from './hooks/use-log-actors.js';
 import type { ComboboxItem } from './ui/searchable-combobox.js';
 import {
+  buildFilterOptionScope,
   DEBOUNCE_MS,
   STATUS_ITEMS,
   mapSavedViewToUrlParams,
@@ -24,7 +25,7 @@ import {
 import { SavedViews, type SavedViewFilters } from '../saved-views/saved-views.js';
 import { Button } from '../ui/button.js';
 import { Input } from '../ui/input.js';
-import { applyLogScope, type LogScope } from './log-scope.js';
+import type { LogScope } from './log-scope.js';
 
 interface LogFiltersComponentProps {
   hideEntityScope?: boolean;
@@ -62,37 +63,22 @@ export function LogFilters({
 }: LogFiltersComponentProps = {}): JSX.Element {
   const { filters, setFilter, setEntityScope, resetFilters, replaceAllParams, toQueryParams } =
     useLogFilters();
-  const optionBaseFilters = useMemo(
-    () => applyLogScope(toQueryParams(), scope),
-    [scope, toQueryParams],
-  );
-  const operationOptionFilters = useMemo(() => {
-    const next = { ...optionBaseFilters };
-    delete next.operation;
-    return next;
-  }, [optionBaseFilters]);
-  const roleOptionFilters = useMemo(() => {
-    const next = { ...optionBaseFilters };
-    delete next.role;
-    return next;
-  }, [optionBaseFilters]);
-  const actorOptionFilters = useMemo(() => {
-    const next = { ...optionBaseFilters };
-    delete next.actor_kind;
-    return next;
-  }, [optionBaseFilters]);
+  const [isRoleMenuOpen, setRoleMenuOpen] = useState(false);
+  const [isActorMenuOpen, setActorMenuOpen] = useState(false);
+  const [isOperationMenuOpen, setIsOperationMenuOpen] = useState(false);
+  const optionBaseFilters = useMemo(() => buildFilterOptionScope(filters, scope), [filters, scope]);
   const { data: operationsData } = useLogOperations(
     undefined,
-    operationOptionFilters,
-    !operationItemsOverride && !disableOptionQueries,
+    optionBaseFilters,
+    isOperationMenuOpen && !operationItemsOverride && !disableOptionQueries,
   );
   const { data: rolesData } = useLogRoles(
-    roleOptionFilters,
-    !roleItemsOverride && !disableOptionQueries,
+    optionBaseFilters,
+    isRoleMenuOpen && !roleItemsOverride && !disableOptionQueries,
   );
   const { data: actorsData } = useLogActors(
-    actorOptionFilters,
-    !actorItemsOverride && !disableOptionQueries,
+    optionBaseFilters,
+    isActorMenuOpen && !actorItemsOverride && !disableOptionQueries,
   );
 
   const [searchDraft, setSearchDraft] = useState(filters.search);
@@ -216,6 +202,7 @@ export function LogFilters({
           items={roleItems}
           value={null}
           onChange={toggleRole}
+          onOpenChange={setRoleMenuOpen}
           placeholder={
             filters.roles.length > 0
               ? `${filters.roles.length} role${filters.roles.length > 1 ? 's' : ''}`
@@ -232,6 +219,7 @@ export function LogFilters({
           items={actorItems}
           value={null}
           onChange={toggleActor}
+          onOpenChange={setActorMenuOpen}
           placeholder={
             filters.actors.length > 0
               ? `${filters.actors.length} actor${filters.actors.length > 1 ? 's' : ''}`
@@ -248,6 +236,7 @@ export function LogFilters({
           items={operationItems}
           value={null}
           onChange={toggleOperation}
+          onOpenChange={setIsOperationMenuOpen}
           placeholder={
             filters.operations.length > 0
               ? `${filters.operations.length} op${filters.operations.length > 1 ? 's' : ''}`

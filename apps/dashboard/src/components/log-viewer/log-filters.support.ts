@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { ComboboxItem } from './ui/searchable-combobox.js';
 import type { SavedViewFilters } from '../saved-views/saved-views.js';
+import type { LogScope } from './log-scope.js';
+import type { LogFilters as LogFilterState } from './hooks/use-log-filters.js';
+import { applyLogScope } from './log-scope.js';
 import {
   describeActorKindLabel,
   describeActorComboboxSubtitle,
@@ -57,6 +60,17 @@ export function mapSavedViewToUrlParams(saved: SavedViewFilters): Record<string,
     urlParams[urlKey] = value;
   }
   return urlParams;
+}
+
+export function buildFilterOptionScope(
+  filters: Pick<LogFilterState, 'workspace' | 'workflow' | 'task'>,
+  scope?: LogScope,
+): Record<string, string> {
+  const params: Record<string, string> = {};
+  if (filters.workspace) params.workspace_id = filters.workspace;
+  if (filters.workflow) params.workflow_id = filters.workflow;
+  if (filters.task) params.task_id = filters.task;
+  return applyLogScope(params, scope);
 }
 
 export function toOperationItems(

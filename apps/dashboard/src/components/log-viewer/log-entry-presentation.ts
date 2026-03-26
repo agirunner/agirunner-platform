@@ -126,13 +126,13 @@ function describeBaseActivityDetail(entry: LogEntry, payload: Record<string, unk
 }
 
 function readActorKind(entry: LogEntry): string {
-  if (entry.actor_type === 'worker') {
-    return entry.role?.trim()?.toLowerCase() === 'orchestrator'
-      ? 'orchestrator_agent'
-      : 'specialist_agent';
-  }
-  if (entry.actor_type === 'agent') {
-    return 'specialist_task_execution';
+  if (entry.actor_type === 'worker' || entry.actor_type === 'agent') {
+    if (entry.role?.trim()?.toLowerCase() === 'orchestrator' || entry.is_orchestrator_task) {
+      return 'orchestrator_agent';
+    }
+    return entry.actor_type === 'worker'
+      ? 'specialist_agent'
+      : 'specialist_task_execution';
   }
   if (entry.actor_type === 'operator' || entry.actor_type === 'user' || entry.actor_type === 'api_key') {
     return 'operator';

@@ -217,7 +217,11 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const ACTOR_KIND_SQL = `CASE
-  WHEN l.actor_type = 'worker' AND LOWER(COALESCE(l.role, '')) = 'orchestrator' THEN 'orchestrator_agent'
+  WHEN l.actor_type IN ('worker', 'agent')
+    AND (
+      LOWER(COALESCE(l.role, '')) = 'orchestrator'
+      OR COALESCE(l.is_orchestrator_task, false) = true
+    ) THEN 'orchestrator_agent'
   WHEN l.actor_type = 'worker' THEN 'specialist_agent'
   WHEN l.actor_type = 'agent' THEN 'specialist_task_execution'
   WHEN l.actor_type IN ('operator', 'user', 'api_key', 'admin', 'service') THEN 'operator'
