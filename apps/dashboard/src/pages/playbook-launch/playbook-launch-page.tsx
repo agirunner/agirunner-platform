@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { dashboardApi } from '../../lib/api.js';
@@ -38,7 +38,6 @@ export function PlaybookLaunchPage(): JSX.Element {
   const [workflowName, setWorkflowName] = useState('');
   const [workspaceId, setWorkspaceId] = useState('');
   const [parameterDrafts, setParameterDrafts] = useState<Record<string, string>>({});
-  const [extraParameterDrafts, setExtraParameterDrafts] = useState<StructuredEntryDraft[]>([]);
   const [metadataDrafts, setMetadataDrafts] = useState<StructuredEntryDraft[]>([]);
   const [workflowConfigDrafts, setWorkflowConfigDrafts] = useState<Record<string, string>>({});
   const [extraWorkflowConfigDrafts, setExtraWorkflowConfigDrafts] = useState<
@@ -52,7 +51,6 @@ export function PlaybookLaunchPage(): JSX.Element {
     createWorkflowBudgetDraft(),
   );
   const [error, setError] = useState<string | null>(null);
-  const autoFilledParameterDraftsRef = useRef<Record<string, string>>({});
   const playbooksQuery = useQuery({
     queryKey: ['playbooks'],
     queryFn: () => dashboardApi.listPlaybooks(),
@@ -132,10 +130,6 @@ export function PlaybookLaunchPage(): JSX.Element {
       }),
     [suppressedInstructionLayers, workflowPolicyDefinition.defaultSuppressedLayers],
   );
-  const extraParametersValidation = useMemo(
-    () => validateStructuredEntries(extraParameterDrafts),
-    [extraParameterDrafts],
-  );
   const metadataValidation = useMemo(
     () => validateStructuredEntries(metadataDrafts),
     [metadataDrafts],
@@ -183,7 +177,8 @@ export function PlaybookLaunchPage(): JSX.Element {
         selectedPlaybook,
         workflowName,
         workflowBudgetDraft,
-        additionalParametersError: extraParametersValidation.blockingIssues[0],
+        parameterSpecs: launchDefinition.parameterSpecs,
+        parameterDrafts,
         metadataError: metadataValidation.blockingIssues[0],
         workflowConfigOverridesError: workflowConfigBlockingError,
         workflowOverrideError: workflowOverrideBlockingError,
@@ -192,7 +187,8 @@ export function PlaybookLaunchPage(): JSX.Element {
       selectedPlaybook,
       workflowName,
       workflowBudgetDraft,
-      extraParametersValidation.blockingIssues,
+      launchDefinition.parameterSpecs,
+      parameterDrafts,
       metadataValidation.blockingIssues,
       workflowConfigBlockingError,
       workflowOverrideBlockingError,
@@ -219,14 +215,12 @@ export function PlaybookLaunchPage(): JSX.Element {
     launchDefinition,
     workflowName,
     workspaceId,
-    extraParameterDrafts,
     metadataDrafts,
     workflowConfigDrafts,
     extraWorkflowConfigDrafts,
     suppressedInstructionLayers,
     modelOverrideDrafts,
     workflowBudgetDraft,
-    autoFilledParameterDraftsRef,
     setSelectedPlaybookId,
     setWorkflowName,
     setParameterDrafts,
@@ -240,7 +234,6 @@ export function PlaybookLaunchPage(): JSX.Element {
     workspaceId,
     launchDefinition,
     parameterDrafts,
-    extraParameterDrafts,
     metadataDrafts,
     workflowPolicyDefinition,
     workflowConfigDrafts,
@@ -251,7 +244,6 @@ export function PlaybookLaunchPage(): JSX.Element {
     setError,
   });
   const canLaunch = launchValidation.isValid && !launchMutation.isPending;
-  const hasAdditionalParameters = extraParameterDrafts.length > 0;
   const hasMetadataEntries = metadataDrafts.length > 0;
   const hasWorkflowOverrides = configuredWorkflowOverrideCount > 0;
 
@@ -269,8 +261,6 @@ export function PlaybookLaunchPage(): JSX.Element {
         launchValidation={launchValidation}
         launchDefinition={launchDefinition}
         parameterDrafts={parameterDrafts}
-        extraParameterDrafts={extraParameterDrafts}
-        extraParametersValidation={extraParametersValidation}
         metadataDrafts={metadataDrafts}
         metadataValidation={metadataValidation}
         workflowPolicyDefinition={workflowPolicyDefinition}
@@ -312,10 +302,6 @@ export function PlaybookLaunchPage(): JSX.Element {
         onParameterChange={(key, value) => {
           setError(null);
           setParameterDrafts((current) => ({ ...current, [key]: value }));
-        }}
-        onExtraParameterDraftsChange={(drafts) => {
-          setError(null);
-          setExtraParameterDrafts(drafts);
         }}
         onMetadataDraftsChange={(drafts) => {
           setError(null);

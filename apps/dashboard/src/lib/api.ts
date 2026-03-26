@@ -1845,7 +1845,7 @@ export interface DashboardApi {
     playbook_id: string;
     name: string;
     workspace_id?: string;
-    parameters?: Record<string, unknown>;
+    parameters?: Record<string, string>;
     metadata?: Record<string, unknown>;
     config_overrides?: Record<string, unknown>;
     instruction_config?: Record<string, unknown>;
@@ -1977,7 +1977,7 @@ export interface DashboardApi {
     payload: {
       playbook_id: string;
       name?: string;
-      parameters?: Record<string, unknown>;
+      parameters?: Record<string, string>;
     },
   ): Promise<unknown>;
   listTasks(filters?: Record<string, string>): Promise<ApiListResponse<DashboardTaskRecord>>;

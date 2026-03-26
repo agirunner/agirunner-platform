@@ -26,7 +26,7 @@ describe('playbook detail page source', () => {
     expect(source).toContain('max-h-[70vh] max-w-lg overflow-y-auto');
     expect(source).toContain('Playbook lifecycle');
     expect(source).toContain('Playbook Basics');
-    expect(source).toContain('Edit the playbook definition, workflow guidance, and launch inputs for this revision.');
+    expect(source).toContain('Edit the playbook definition, workflow guidance, and workflow goals for this revision.');
     expect(source).toContain('Set the core playbook identity, outcome, and lifecycle for this revision.');
     expect(source).toContain('max-w-full overflow-x-auto whitespace-nowrap text-sm text-muted');
     expect(source).toContain('lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)]');

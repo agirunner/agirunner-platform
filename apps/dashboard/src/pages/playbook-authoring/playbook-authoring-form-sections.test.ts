@@ -12,10 +12,11 @@ function readSource() {
 }
 
 describe('playbook authoring form sections source', () => {
-  it('centers the authoring flow on process instructions, stages, roles, inputs, and orchestration policy', () => {
+  it('centers the authoring flow on process instructions, specialists, launch inputs, stages, and orchestration policy', () => {
     const source = readSource();
     expect(source).toContain('Process Instructions');
     expect(source).toContain('Specialists');
+    expect(source).toContain('Launch Inputs');
     expect(source).toContain('Workflow Stages');
     expect(source).toContain('mandatory outcomes, preferred steps');
     expect(source).toContain('This guidance is the workflow contract:');
@@ -32,26 +33,41 @@ describe('playbook authoring form sections source', () => {
     expect(source).not.toContain('Remove Role');
     expect(source).not.toContain('Select a role definition');
     expect(source).not.toContain('Playbooks use active role definitions from the shared workspace configuration.');
+    expect(source).toContain('Each launch input declares one workflow goal that operators can provide when the workflow starts.');
+    expect(source).toContain('Slug');
+    expect(source).toContain('Title');
+    expect(source).toContain('Required');
+    expect(source).not.toContain('<span className="font-medium">Required</span>');
+    expect(source).not.toContain('<span className="font-medium">Actions</span>');
+    expect(source).toContain('Add Input');
+    expect(source).not.toContain('Workspace mapping');
+    expect(source).not.toContain('Category');
+    expect(source).not.toContain('Operator label');
+    expect(source).not.toContain('Allowed values');
+    expect(source).not.toContain('Default value');
+    expect(source).not.toContain('Secret');
     expect(source).toContain('Default intake column');
+    expect(source).toContain('md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end');
     expect(source).toContain('Blocked lane');
     expect(source).toContain('Terminal lane');
     expect(source).toContain('lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)] lg:items-stretch');
     expect(source).toContain('lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start');
     expect(source).not.toContain('lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start');
     expect(source).not.toContain('lg:grid-cols-[6rem_minmax(0,1fr)]');
-    expect(source).toContain('Launch Inputs');
-    expect(source).toContain('Workspace mapping');
-    expect(source).toContain('Category');
-    expect(source).toContain('Operator label');
     expect(source).toContain('Max rework iterations');
-    expect(source).toContain('System default: 5');
+    expect(source).toContain('placeholder="3"');
     expect(source).toContain('Task max iterations');
     expect(source).toContain('LLM retry attempts');
-    expect(source).toContain('System default: 4');
-    expect(source).toContain('System default: 2');
+    expect(source).toContain('placeholder="800"');
+    expect(source).toContain('placeholder="5"');
     expect(source).toContain('Max active tasks per work item');
-    expect(source).toContain('System default: enabled');
+    expect(source).toContain('placeholder="No cap"');
+    expect(source).toContain('<SelectValue placeholder="Default (Enabled)" />');
+    expect(source).toContain('<SelectItem value={ORCHESTRATION_POLICY_UNSET}>Default (Enabled)</SelectItem>');
+    expect(source).toContain('<SelectItem value="true">Enabled</SelectItem>');
+    expect(source).toContain('<SelectItem value="false">Disabled</SelectItem>');
     expect(source).toContain('Orchestration Policy');
+    expect(source).not.toContain('System default:');
     expect(source).not.toContain('Assessment Rules');
     expect(source).not.toContain('Approval Rules');
     expect(source).not.toContain('Branch Policies');

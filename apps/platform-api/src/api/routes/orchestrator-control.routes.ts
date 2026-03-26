@@ -236,7 +236,7 @@ const childWorkflowCreateSchema = z.object({
   playbook_id: z.string().uuid(),
   name: z.string().min(1).max(255),
   parent_context: z.string().max(8000).optional(),
-  parameters: z.record(z.unknown()).optional(),
+  parameters: z.record(z.string()).optional(),
   metadata: z.record(z.unknown()).optional(),
   config_overrides: z.record(z.unknown()).optional(),
   instruction_config: z.record(z.unknown()).optional(),

@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
@@ -16,6 +15,7 @@ import {
   createEmptyParameterDraft,
   createEmptyRoleDraft,
   createEmptyStageDraft,
+  normalizeParameterSlug,
   validateBoardColumnsDraft,
   validateParameterDrafts,
   validateRoleDrafts,
@@ -27,7 +27,6 @@ import {
 } from './playbook-authoring-support.js';
 import { canMoveDraftItem, moveDraftItem } from './playbook-authoring-reorder.js';
 import { LabeledField, SectionCard, ToggleField } from './playbook-authoring-form-fields.js';
-import { TypedParameterValueControl } from './playbook-authoring-structured-controls.js';
 
 interface SectionProps {
   draft: PlaybookAuthoringDraft;
@@ -37,20 +36,6 @@ interface SectionProps {
 const ROLE_SELECT_UNSET = '__unset__';
 const ENTRY_COLUMN_UNSET = '__unset__';
 const ORCHESTRATION_POLICY_UNSET = '__orchestration_policy_default__';
-const PARAMETER_TYPE_OPTIONS = [
-  { value: 'string', label: 'String' },
-  { value: 'number', label: 'Number' },
-  { value: 'boolean', label: 'Boolean' },
-  { value: 'object', label: 'Object' },
-  { value: 'array', label: 'Array' },
-] as const;
-const PARAMETER_CATEGORY_OPTIONS = [
-  { value: '', label: 'No mapping category' },
-  { value: 'input', label: 'Input' },
-  { value: 'repository', label: 'Repository' },
-  { value: 'credential', label: 'Credential' },
-] as const;
-const WORKSPACE_MAPPING_OPTIONS = ['', 'workspace.credentials.git_token'];
 
 export function ProcessInstructionsSection(props: SectionProps): JSX.Element {
   return (
@@ -258,42 +243,63 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
   );
 }
 
-export function LaunchInputsSection(
-  props: SectionProps & {
-    onParameterIssueChange(index: number, kind: 'default' | 'mapping', issue?: string): void;
-  },
-): JSX.Element {
+export function LaunchInputsSection(props: SectionProps): JSX.Element {
   const parameterValidation = validateParameterDrafts(props.draft.parameters);
   return (
     <SectionCard
       id="playbook-launch-inputs"
       title="Launch Inputs"
-      description="Define the operator inputs and optional workspace mappings available when the workflow starts."
+      description="Each launch input declares one workflow goal that operators can provide when the workflow starts."
     >
       <div className="space-y-4">
         {props.draft.parameters.map((parameter, index) => (
-          <DraftCard
+          <div
             key={`parameter-${index}`}
-            moveEarlier={moveHandler(props, 'parameters', index, 'earlier')}
-            moveLater={moveHandler(props, 'parameters', index, 'later')}
-            onRemove={() =>
-              props.onChange((current) => ({
-                ...current,
-                parameters: current.parameters.filter((_, entryIndex) => entryIndex !== index),
-              }))
-            }
+            className="grid gap-3 rounded-xl border border-border/70 bg-card/60 p-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)_auto_auto] lg:items-start"
           >
-            <ParameterFields
-              index={index}
-              parameter={parameter}
-              onChange={(field, value) => updateParameter(props, index, field, value)}
-              onBooleanChange={(field, value) => updateParameterBoolean(props, index, field, value)}
-              onParameterIssueChange={props.onParameterIssueChange}
-            />
-            <ValidationText issue={parameterValidation.parameterErrors[index]?.category} />
-            <ValidationText issue={parameterValidation.parameterErrors[index]?.secret} />
-            <ValidationText issue={parameterValidation.parameterErrors[index]?.maps_to} />
-          </DraftCard>
+            <label className="grid gap-2 text-sm">
+              <span className="font-medium">Slug</span>
+              <Input
+                value={parameter.slug}
+                onChange={(event) => updateParameter(props, index, 'slug', event.target.value)}
+              />
+              <ValidationText issue={parameterValidation.parameterErrors[index]?.slug} />
+            </label>
+            <label className="grid gap-2 text-sm">
+              <span className="font-medium">Title</span>
+              <Input
+                value={parameter.title}
+                onChange={(event) => updateParameterTitle(props, index, event.target.value)}
+              />
+              <ValidationText issue={parameterValidation.parameterErrors[index]?.title} />
+            </label>
+            <div className="flex items-start lg:min-w-[7rem] lg:pt-7">
+              <ToggleField
+                label="Required"
+                checked={parameter.required}
+                onCheckedChange={(checked) => updateParameterBoolean(props, index, 'required', checked)}
+              />
+            </div>
+            <div className="flex items-start gap-2 lg:min-w-[8rem] lg:pt-7">
+              <IconButton
+                icon={<ChevronUp className="h-4 w-4" />}
+                onClick={moveHandler(props, 'parameters', index, 'earlier')}
+              />
+              <IconButton
+                icon={<ChevronDown className="h-4 w-4" />}
+                onClick={moveHandler(props, 'parameters', index, 'later')}
+              />
+              <IconButton
+                icon={<Minus className="h-4 w-4" />}
+                onClick={() =>
+                  props.onChange((current) => ({
+                    ...current,
+                    parameters: current.parameters.filter((_, entryIndex) => entryIndex !== index),
+                  }))
+                }
+              />
+            </div>
+          </div>
         ))}
         <Button
           type="button"
@@ -363,18 +369,8 @@ function BoardColumnsSection(props: SectionProps): JSX.Element {
           </p>
         ) : null}
         {props.draft.columns.map((column, index) => (
-          <DraftCard
-            key={`column-${index}`}
-            moveEarlier={moveHandler(props, 'columns', index, 'earlier')}
-            moveLater={moveHandler(props, 'columns', index, 'later')}
-            onRemove={() =>
-              props.onChange((current) => ({
-                ...current,
-                columns: current.columns.filter((_, entryIndex) => entryIndex !== index),
-              }))
-            }
-          >
-            <div className="grid gap-3 md:grid-cols-2">
+          <div key={`column-${index}`} className="rounded-xl border border-border/70 bg-card/60 p-4">
+            <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
               <LabeledField label="Column id">
                 <Input
                   value={column.id}
@@ -387,29 +383,50 @@ function BoardColumnsSection(props: SectionProps): JSX.Element {
                   onChange={(event) => updateColumn(props, index, 'label', event.target.value)}
                 />
               </LabeledField>
+              <div className="flex items-center justify-end gap-2 md:pb-2">
+                <IconButton
+                  icon={<ChevronUp className="h-4 w-4" />}
+                  onClick={moveHandler(props, 'columns', index, 'earlier')}
+                />
+                <IconButton
+                  icon={<ChevronDown className="h-4 w-4" />}
+                  onClick={moveHandler(props, 'columns', index, 'later')}
+                />
+                <IconButton
+                  icon={<Minus className="h-4 w-4" />}
+                  onClick={() =>
+                    props.onChange((current) => ({
+                      ...current,
+                      columns: current.columns.filter((_, entryIndex) => entryIndex !== index),
+                    }))
+                  }
+                />
+              </div>
             </div>
-            <LabeledField label="Description">
+            <div className="mt-3 space-y-3">
+              <LabeledField label="Description">
               <Textarea
                 value={column.description}
                 onChange={(event) => updateColumn(props, index, 'description', event.target.value)}
                 className="min-h-[90px]"
               />
-            </LabeledField>
-            <div className="flex flex-col gap-3 md:flex-row">
-              <ToggleField
-                label="Blocked lane"
-                checked={column.is_blocked}
-                onCheckedChange={(checked) => updateColumnBoolean(props, index, 'is_blocked', checked)}
-              />
-              <ToggleField
-                label="Terminal lane"
-                checked={column.is_terminal}
-                onCheckedChange={(checked) => updateColumnBoolean(props, index, 'is_terminal', checked)}
-              />
+              </LabeledField>
+              <div className="flex flex-col gap-3 md:flex-row">
+                <ToggleField
+                  label="Blocked lane"
+                  checked={column.is_blocked}
+                  onCheckedChange={(checked) => updateColumnBoolean(props, index, 'is_blocked', checked)}
+                />
+                <ToggleField
+                  label="Terminal lane"
+                  checked={column.is_terminal}
+                  onCheckedChange={(checked) => updateColumnBoolean(props, index, 'is_terminal', checked)}
+                />
+              </div>
+              <ValidationText issue={boardValidation.columnErrors[index]?.id} />
+              <ValidationText issue={boardValidation.columnErrors[index]?.label} />
             </div>
-            <ValidationText issue={boardValidation.columnErrors[index]?.id} />
-            <ValidationText issue={boardValidation.columnErrors[index]?.label} />
-          </DraftCard>
+          </div>
         ))}
         <Button
           type="button"
@@ -440,7 +457,7 @@ function OrchestratorSection(props: SectionProps): JSX.Element {
         <LabeledField label="Max rework iterations">
           <Input
             value={props.draft.orchestrator.max_rework_iterations}
-            placeholder="System default: 5"
+            placeholder="3"
             onChange={(event) =>
               updateOrchestrator(props, 'max_rework_iterations', event.target.value)
             }
@@ -449,26 +466,28 @@ function OrchestratorSection(props: SectionProps): JSX.Element {
         <LabeledField label="Task max iterations">
           <Input
             value={props.draft.orchestrator.max_iterations}
+            placeholder="800"
             onChange={(event) => updateOrchestrator(props, 'max_iterations', event.target.value)}
           />
         </LabeledField>
         <LabeledField label="LLM retry attempts">
           <Input
             value={props.draft.orchestrator.llm_max_retries}
+            placeholder="5"
             onChange={(event) => updateOrchestrator(props, 'llm_max_retries', event.target.value)}
           />
         </LabeledField>
         <LabeledField label="Max active tasks">
           <Input
             value={props.draft.orchestrator.max_active_tasks}
-            placeholder="System default: 4"
+            placeholder="No cap"
             onChange={(event) => updateOrchestrator(props, 'max_active_tasks', event.target.value)}
           />
         </LabeledField>
         <LabeledField label="Max active tasks per work item">
           <Input
             value={props.draft.orchestrator.max_active_tasks_per_work_item}
-            placeholder="System default: 2"
+            placeholder="No cap"
             onChange={(event) =>
               updateOrchestrator(props, 'max_active_tasks_per_work_item', event.target.value)
             }
@@ -486,10 +505,10 @@ function OrchestratorSection(props: SectionProps): JSX.Element {
             }
           >
             <SelectTrigger>
-              <SelectValue placeholder="System default: enabled" />
+              <SelectValue placeholder="Default (Enabled)" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={ORCHESTRATION_POLICY_UNSET}>System default: enabled</SelectItem>
+              <SelectItem value={ORCHESTRATION_POLICY_UNSET}>Default (Enabled)</SelectItem>
               <SelectItem value="true">Enabled</SelectItem>
               <SelectItem value="false">Disabled</SelectItem>
             </SelectContent>
@@ -497,127 +516,11 @@ function OrchestratorSection(props: SectionProps): JSX.Element {
         </LabeledField>
       </div>
       <p className="text-sm text-muted">
-        System defaults: rework iterations `5`, max active tasks `4`, max active tasks per work
-        item `2`, parallel work items enabled.
+        Leave fields blank to inherit the defaults: rework iterations `3`, task max iterations
+        `800`, LLM retry attempts `5`, max active tasks `No cap`, max active tasks per work item
+        `No cap`, parallel work items enabled.
       </p>
     </SectionCard>
-  );
-}
-
-function ParameterFields(props: {
-  parameter: ParameterDraft;
-  index: number;
-  onChange(field: keyof Omit<ParameterDraft, 'required' | 'secret'>, value: string): void;
-  onBooleanChange(field: 'required' | 'secret', value: boolean): void;
-  onParameterIssueChange(index: number, kind: 'default' | 'mapping', issue?: string): void;
-}): JSX.Element {
-  return (
-    <div className="grid gap-3 md:grid-cols-2">
-      <LabeledField label="Name">
-        <Input value={props.parameter.name} onChange={(event) => props.onChange('name', event.target.value)} />
-      </LabeledField>
-      <LabeledField label="Type">
-        <Select value={props.parameter.type} onValueChange={(value) => props.onChange('type', value)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PARAMETER_TYPE_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </LabeledField>
-      <LabeledField label="Operator label">
-        <Input value={props.parameter.label} onChange={(event) => props.onChange('label', event.target.value)} />
-      </LabeledField>
-      <LabeledField label="Workspace mapping">
-        <Select
-          value={props.parameter.maps_to || ENTRY_COLUMN_UNSET}
-          onValueChange={(value) => {
-            props.onChange('maps_to', value === ENTRY_COLUMN_UNSET ? '' : value);
-            props.onParameterIssueChange(props.index, 'mapping');
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Optional workspace mapping" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ENTRY_COLUMN_UNSET}>No workspace mapping</SelectItem>
-            {WORKSPACE_MAPPING_OPTIONS.filter(Boolean).map((option) => (
-              <SelectItem key={option} value={option}>
-                {option}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </LabeledField>
-      <LabeledField label="Category">
-        <Select value={props.parameter.category || ENTRY_COLUMN_UNSET} onValueChange={(value) => props.onChange('category', value === ENTRY_COLUMN_UNSET ? '' : value)}>
-          <SelectTrigger>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {PARAMETER_CATEGORY_OPTIONS.map((option) => (
-              <SelectItem key={option.value || ENTRY_COLUMN_UNSET} value={option.value || ENTRY_COLUMN_UNSET}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </LabeledField>
-      <LabeledField label="Description">
-        <Input value={props.parameter.description} onChange={(event) => props.onChange('description', event.target.value)} />
-      </LabeledField>
-      <LabeledField label="Help text">
-        <Input value={props.parameter.help_text} onChange={(event) => props.onChange('help_text', event.target.value)} />
-      </LabeledField>
-      <LabeledField label="Allowed values">
-        <Input value={props.parameter.allowed_values} onChange={(event) => props.onChange('allowed_values', event.target.value)} />
-      </LabeledField>
-      <LabeledField label="Default value" className="md:col-span-2">
-          <TypedParameterValueControl
-            valueType={props.parameter.type}
-            value={props.parameter.default_value}
-            onChange={(nextValue) => props.onChange('default_value', nextValue)}
-            onValidationChange={(issue?: string) =>
-              props.onParameterIssueChange(props.index, 'default', issue)
-            }
-          />
-      </LabeledField>
-      <div className="flex flex-col gap-3 md:col-span-2 md:flex-row">
-        <ToggleField
-          label="Required"
-          checked={props.parameter.required}
-          onCheckedChange={(checked) => props.onBooleanChange('required', checked)}
-        />
-        <ToggleField
-          label="Secret"
-          checked={props.parameter.secret}
-          onCheckedChange={(checked) => props.onBooleanChange('secret', checked)}
-        />
-      </div>
-    </div>
-  );
-}
-
-function DraftCard(props: {
-  children: ReactNode;
-  moveEarlier?: () => void;
-  moveLater?: () => void;
-  onRemove(): void;
-}): JSX.Element {
-  return (
-    <div className="rounded-xl border border-border/70 bg-card/60 p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
-        <IconButton icon={<ChevronUp className="h-4 w-4" />} onClick={props.moveEarlier} />
-        <IconButton icon={<ChevronDown className="h-4 w-4" />} onClick={props.moveLater} />
-        <IconButton icon={<Minus className="h-4 w-4" />} onClick={props.onRemove} />
-      </div>
-      <div className="space-y-3">{props.children}</div>
-    </div>
   );
 }
 
@@ -717,7 +620,7 @@ function updateOrchestrator(
 function updateParameter(
   props: SectionProps,
   index: number,
-  field: keyof Omit<ParameterDraft, 'required' | 'secret'>,
+  field: keyof Omit<ParameterDraft, 'required'>,
   value: string,
 ): void {
   props.onChange((current) => ({
@@ -728,10 +631,34 @@ function updateParameter(
   }));
 }
 
+function updateParameterTitle(
+  props: SectionProps,
+  index: number,
+  value: string,
+): void {
+  props.onChange((current) => ({
+    ...current,
+    parameters: current.parameters.map((entry, entryIndex) => {
+      if (entryIndex !== index) {
+        return entry;
+      }
+
+      const nextSlug = normalizeParameterSlug(value);
+      const currentSlug = entry.slug.trim();
+      const priorTitleSlug = normalizeParameterSlug(entry.title);
+      return {
+        ...entry,
+        title: value,
+        slug: !currentSlug || currentSlug === priorTitleSlug ? nextSlug : entry.slug,
+      };
+    }),
+  }));
+}
+
 function updateParameterBoolean(
   props: SectionProps,
   index: number,
-  field: 'required' | 'secret',
+  field: 'required',
   value: boolean,
 ): void {
   props.onChange((current) => ({

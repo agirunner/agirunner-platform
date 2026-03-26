@@ -29,8 +29,8 @@ export function LaunchPageHeader(props: { selectedPlaybookId: string }): JSX.Ele
       <div>
         <h1 className="text-2xl font-semibold">Launch Workflow</h1>
         <p className="text-sm text-muted">
-          Start a workflow from a playbook with structured launch inputs, workspace autofill, and
-          workflow-scoped policy overrides.
+          Start a workflow from a playbook with declared launch inputs and workflow-scoped policy
+          overrides.
         </p>
       </div>
     </div>

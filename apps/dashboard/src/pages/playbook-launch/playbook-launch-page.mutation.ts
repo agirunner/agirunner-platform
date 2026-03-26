@@ -6,7 +6,6 @@ import {
   buildModelOverrides,
   buildParametersFromDrafts,
   buildStructuredObject,
-  mergeStructuredObjects,
   type RoleOverrideDraft,
   type StructuredEntryDraft,
   type readLaunchDefinition,
@@ -25,7 +24,6 @@ interface UsePlaybookLaunchMutationInput {
   workspaceId: string;
   launchDefinition: ReturnType<typeof readLaunchDefinition>;
   parameterDrafts: Record<string, string>;
-  extraParameterDrafts: StructuredEntryDraft[];
   metadataDrafts: StructuredEntryDraft[];
   workflowPolicyDefinition: WorkflowPolicyDefinition;
   workflowConfigDrafts: Record<string, string>;
@@ -39,10 +37,9 @@ interface UsePlaybookLaunchMutationInput {
 export function usePlaybookLaunchMutation(input: UsePlaybookLaunchMutationInput) {
   return useMutation({
     mutationFn: async () => {
-      const parameters = mergeStructuredObjects(
-        buildParametersFromDrafts(input.launchDefinition.parameterSpecs, input.parameterDrafts),
-        buildStructuredObject(input.extraParameterDrafts, 'Additional parameters'),
-        'Parameters',
+      const parameters = buildParametersFromDrafts(
+        input.launchDefinition.parameterSpecs,
+        input.parameterDrafts,
       );
       const metadata = buildStructuredObject(input.metadataDrafts, 'Metadata');
       return dashboardApi.createWorkflow({

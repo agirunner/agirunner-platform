@@ -7,19 +7,14 @@ import {
   buildWorkflowBudgetInput,
   clearWorkflowBudgetDraft,
   createWorkflowBudgetDraft,
-  describeLaunchParameterResolution,
-  describeMappedWorkspacePath,
-  defaultParameterDraftValue,
-  readWorkflowBudgetMode,
-  readMappedWorkspaceParameterDraft,
   readLaunchDefinition,
+  readWorkflowBudgetMode,
   summarizeWorkflowBudgetDraft,
-  syncRoleOverrideDrafts,
   validateLaunchDraft,
 } from './playbook-launch-support.js';
 
 describe('playbook launch support', () => {
-  it('reads structured launch metadata from the playbook definition', () => {
+  it('reads only the declared launch input contract from the playbook definition', () => {
     const summary = readLaunchDefinition({
       id: 'pb-1',
       name: 'Ship',
@@ -40,9 +35,8 @@ describe('playbook launch support', () => {
           { name: 'delivery', goal: 'Deliver the outcome' },
         ],
         parameters: [
-          { name: 'ticket_id', label: 'Ticket', type: 'string', description: 'External issue key' },
-          { name: 'urgency', enum: ['low', 'high'] },
-          { name: 'retry_count', type: 'number', default: 2 },
+          { slug: 'workflow_goal', title: 'Workflow Goal', required: true },
+          { slug: 'acceptance_notes', title: 'Acceptance Notes', required: false },
         ],
       },
     });
@@ -54,98 +48,25 @@ describe('playbook launch support', () => {
       { id: 'doing', label: 'Doing' },
     ]);
     expect(summary.parameterSpecs).toEqual([
-      {
-        key: 'ticket_id',
-        label: 'Ticket',
-        description: 'External issue key',
-        helpText: '',
-        inputType: 'string',
-        defaultValue: undefined,
-        options: [],
-        mapsTo: undefined,
-      },
-      {
-        key: 'urgency',
-        label: 'urgency',
-        description: '',
-        helpText: '',
-        inputType: 'select',
-        defaultValue: undefined,
-        options: ['low', 'high'],
-        mapsTo: undefined,
-      },
-      {
-        key: 'retry_count',
-        label: 'retry_count',
-        description: '',
-        helpText: '',
-        inputType: 'number',
-        defaultValue: 2,
-        options: [],
-        mapsTo: undefined,
-      },
+      { slug: 'workflow_goal', title: 'Workflow Goal', required: true },
+      { slug: 'acceptance_notes', title: 'Acceptance Notes', required: false },
     ]);
   });
 
-  it('builds structured parameter objects from playbook-driven inputs', () => {
+  it('builds workflow parameters from declared launch inputs only', () => {
     const parameters = buildParametersFromDrafts(
       [
-        {
-          key: 'ticket_id',
-          label: 'Ticket',
-          description: '',
-          helpText: '',
-          inputType: 'string',
-          options: [],
-        },
-        {
-          key: 'retry_count',
-          label: 'Retry Count',
-          description: '',
-          helpText: '',
-          inputType: 'number',
-          options: [],
-        },
-        {
-          key: 'run_checks',
-          label: 'Run Checks',
-          description: '',
-          helpText: '',
-          inputType: 'boolean',
-          options: [],
-        },
-        {
-          key: 'mode',
-          label: 'Mode',
-          description: '',
-          helpText: '',
-          inputType: 'select',
-          options: ['plan', 'ship'],
-        },
-        {
-          key: 'context',
-          label: 'Context',
-          description: '',
-          helpText: '',
-          inputType: 'json',
-          options: [],
-        },
+        { slug: 'workflow_goal', title: 'Workflow Goal', required: true },
+        { slug: 'acceptance_notes', title: 'Acceptance Notes', required: false },
       ],
       {
-        ticket_id: 'ABC-123',
-        retry_count: '3',
-        run_checks: 'true',
-        mode: 'ship',
-        context: '{"branch":"main"}',
+        workflow_goal: 'Ship the release candidate',
+        acceptance_notes: '',
       },
     );
 
     expect(parameters).toEqual({
-      ticket_id: 'ABC-123',
-      retry_count: 3,
-      run_checks: true,
-      mode: 'ship',
-      context: { branch: 'main' },
+      workflow_goal: 'Ship the release candidate',
     });
   });
 
@@ -172,225 +93,6 @@ describe('playbook launch support', () => {
         { id: 'a', role: 'architect', provider: 'openai', model: '', reasoningEntries: [] },
       ]),
     ).toThrow(/must include both provider and model/i);
-  });
-
-  it('preserves playbook roles while allowing custom override rows', () => {
-    const synced = syncRoleOverrideDrafts(
-      ['architect', 'developer'],
-      [
-        { id: '1', role: 'architect', provider: 'openai', model: 'gpt-5', reasoningEntries: [] },
-        {
-          id: '2',
-          role: 'qa',
-          provider: 'anthropic',
-          model: 'claude-sonnet',
-          reasoningEntries: [],
-        },
-      ],
-    );
-
-    expect(synced.map((entry) => entry.role)).toEqual(['architect', 'developer', 'qa']);
-  });
-
-  it('serializes default draft values for structured controls', () => {
-    expect(defaultParameterDraftValue(true, 'boolean')).toBe('true');
-    expect(defaultParameterDraftValue({ branch: 'main' }, 'json')).toBe('{\n  "branch": "main"\n}');
-    expect(defaultParameterDraftValue(undefined, 'string')).toBe('');
-  });
-
-  it('reads workspace-mapped launch parameter values through maps_to paths', () => {
-    const repositoryDraft = readMappedWorkspaceParameterDraft(
-      {
-        key: 'repository_url',
-        label: 'Repository URL',
-        description: '',
-        helpText: '',
-        inputType: 'string',
-        options: [],
-        mapsTo: 'workspace.repository_url',
-      },
-      {
-        id: 'workspace-1',
-        name: 'Demo',
-        slug: 'demo',
-        repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
-        settings: { default_branch: 'main' },
-      },
-    );
-    const branchDraft = readMappedWorkspaceParameterDraft(
-      {
-        key: 'default_branch',
-        label: 'Default Branch',
-        description: '',
-        helpText: '',
-        inputType: 'string',
-        options: [],
-        mapsTo: 'workspace.settings.default_branch',
-      },
-      {
-        id: 'workspace-1',
-        name: 'Demo',
-        slug: 'demo',
-        repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
-        settings: { default_branch: 'main' },
-      },
-    );
-    const knowledgeDraft = readMappedWorkspaceParameterDraft(
-      {
-        key: 'release_window',
-        label: 'Release window',
-        description: '',
-        helpText: '',
-        inputType: 'string',
-        options: [],
-        mapsTo: 'workspace.settings.knowledge.release_window',
-      },
-      {
-        id: 'workspace-1',
-        name: 'Demo',
-        slug: 'demo',
-        repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
-        settings: {
-          default_branch: 'main',
-          knowledge: { release_window: 'Friday 16:00 Pacific' },
-        },
-      },
-    );
-
-    expect(repositoryDraft).toBe('https://github.com/agirunner/agirunner-test-fixtures');
-    expect(branchDraft).toBe('main');
-    expect(knowledgeDraft).toBe('Friday 16:00 Pacific');
-  });
-
-  it('describes launch parameter resolution through playbook default, workspace autofill, and launch override', () => {
-    expect(describeMappedWorkspacePath('workspace.settings.default_branch')).toBe(
-      'settings → default branch',
-    );
-    expect(
-      describeLaunchParameterResolution({
-        spec: {
-          key: 'default_branch',
-          label: 'Default Branch',
-          description: '',
-          helpText: '',
-          inputType: 'string',
-          options: [],
-          defaultValue: 'main',
-          mapsTo: 'workspace.settings.default_branch',
-        },
-        workspace: {
-          id: 'workspace-1',
-          name: 'Demo',
-          slug: 'demo',
-          settings: {
-            default_branch: 'release/2026',
-          },
-        },
-        currentValue: 'release/2026',
-      }),
-    ).toMatchObject({
-      badgeLabel: 'Using workspace autofill',
-      activeSource: 'workspace-autofill',
-      canRestoreWorkspaceValue: false,
-      canRestoreDefaultValue: true,
-      steps: [
-        {
-          key: 'playbook-default',
-          label: 'Playbook default',
-          value: 'main',
-          isActive: false,
-        },
-        {
-          key: 'workspace-autofill',
-          label: 'Workspace autofill',
-          value: 'release/2026',
-          isActive: true,
-        },
-        {
-          key: 'launch-override',
-          label: 'Launch override',
-          value: undefined,
-          isActive: false,
-          detail: 'No launch override entered.',
-        },
-      ],
-    });
-    expect(
-      describeLaunchParameterResolution({
-        spec: {
-          key: 'default_branch',
-          label: 'Default Branch',
-          description: '',
-          helpText: '',
-          inputType: 'string',
-          options: [],
-          defaultValue: 'main',
-          mapsTo: 'workspace.settings.default_branch',
-        },
-        workspace: {
-          id: 'workspace-1',
-          name: 'Demo',
-          slug: 'demo',
-          settings: {
-            default_branch: 'release/2026',
-          },
-        },
-        currentValue: 'hotfix/urgent',
-      }),
-    ).toMatchObject({
-      badgeLabel: 'Launch override active',
-      activeSource: 'launch-override',
-      canRestoreWorkspaceValue: true,
-      canRestoreDefaultValue: true,
-      steps: [
-        {
-          key: 'playbook-default',
-          label: 'Playbook default',
-          value: 'main',
-          isActive: false,
-        },
-        {
-          key: 'workspace-autofill',
-          label: 'Workspace autofill',
-          value: 'release/2026',
-          isActive: false,
-        },
-        {
-          key: 'launch-override',
-          label: 'Launch override',
-          value: 'hotfix/urgent',
-          isActive: true,
-        },
-      ],
-    });
-    expect(
-      describeLaunchParameterResolution({
-        spec: {
-          key: 'default_branch',
-          label: 'Default Branch',
-          description: '',
-          helpText: '',
-          inputType: 'string',
-          options: [],
-          defaultValue: 'main',
-          mapsTo: 'workspace.settings.default_branch',
-        },
-        workspace: {
-          id: 'workspace-1',
-          name: 'Demo',
-          slug: 'demo',
-          settings: {
-            default_branch: 'release/2026',
-          },
-        },
-        currentValue: '',
-      }),
-    ).toMatchObject({
-      badgeLabel: 'Launch override clears inherited value',
-      activeSource: 'launch-override',
-      canRestoreWorkspaceValue: true,
-      canRestoreDefaultValue: true,
-    });
   });
 
   it('builds structured workflow budget input from bounded launch fields', () => {
@@ -447,7 +149,7 @@ describe('playbook launch support', () => {
     ).toBe('Workflow guardrails set for $12.5 cost cap, 90 minutes.');
   });
 
-  it('validates launch identity and budget fields with concrete recovery guidance', () => {
+  it('validates launch identity, required launch inputs, and budget fields', () => {
     expect(
       validateLaunchDraft({
         selectedPlaybook: null,
@@ -457,6 +159,8 @@ describe('playbook launch support', () => {
           costCapUsd: '-2',
           maxDurationMinutes: '0',
         },
+        parameterSpecs: [],
+        parameterDrafts: {},
       }),
     ).toMatchObject({
       fieldErrors: {
@@ -483,13 +187,14 @@ describe('playbook launch support', () => {
         },
         workflowName: 'Ship Run',
         workflowBudgetDraft: createWorkflowBudgetDraft(),
-        additionalParametersError: 'Add a key or remove this row.',
+        parameterSpecs: [{ slug: 'workflow_goal', title: 'Workflow Goal', required: true }],
+        parameterDrafts: { workflow_goal: '' },
         metadataError: 'Keys must be unique within this section.',
         workflowOverrideError: 'Workflow model override roles are required.',
       }),
     ).toMatchObject({
       fieldErrors: {
-        additionalParameters: 'Add a key or remove this row.',
+        parameters: "Enter a value for required launch input 'Workflow Goal'.",
         metadata: 'Keys must be unique within this section.',
         workflowOverrides: 'Workflow model override roles are required.',
       },

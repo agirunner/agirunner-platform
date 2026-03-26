@@ -421,7 +421,7 @@ describe('WorkflowCreationService', () => {
           playbook_id: 'playbook-1',
           name: 'Workflow One',
           parameters: {
-            workflow_goal: 42,
+            workflow_goal: 42 as unknown as string,
           },
         },
       ),

@@ -30,7 +30,7 @@ export class WorkflowChainingService {
       request_id?: string;
       playbook_id: string;
       name?: string;
-      parameters?: Record<string, unknown>;
+      parameters?: Record<string, string>;
     },
   ) {
     const sourceWorkflow = await this.fetchSourceWorkflow(identity.tenantId, sourceWorkflowId);
@@ -65,7 +65,7 @@ export class WorkflowChainingService {
     payload: {
       playbook_id: string;
       name?: string;
-      parameters?: Record<string, unknown>;
+      parameters?: Record<string, string>;
     },
     requestId: string,
   ) {

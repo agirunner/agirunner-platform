@@ -1953,13 +1953,18 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             peaks,
         )
 
-    def test_build_workflow_create_payload_includes_required_goal_parameter(self) -> None:
+    def test_build_workflow_create_payload_uses_only_declared_launch_input_slugs(self) -> None:
         payload = run_workflow_scenario.build_workflow_create_payload(
             playbook_id="playbook-1",
             workspace_id="workspace-1",
             workflow_name="SDLC Baseline Proof",
             scenario_name="sdlc-baseline",
             workflow_goal="Add support for named greetings and uppercase output while preserving the default greeting.",
+            playbook_launch_inputs=[
+                {"slug": "goal", "title": "Goal", "required": True},
+                {"slug": "scenario_name", "title": "Scenario Name", "required": True},
+                {"slug": "feature_request", "title": "Feature Request", "required": True},
+            ],
             workflow_parameters={"feature_request": "Add named greetings"},
             workflow_metadata={"lane": "repo"},
         )
@@ -1980,6 +1985,40 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             payload["metadata"],
         )
 
+    def test_build_workflow_create_payload_omits_undeclared_defaults_and_raises_for_missing_required_slugs(self) -> None:
+        payload = run_workflow_scenario.build_workflow_create_payload(
+            playbook_id="playbook-2",
+            workspace_id="workspace-2",
+            workflow_name="Single Specialist Proof",
+            scenario_name="single-specialist-spawn-agent",
+            workflow_goal="Run the workflow on one specialist only.",
+            playbook_launch_inputs=[
+                {"slug": "goal", "title": "Goal", "required": True},
+            ],
+        )
+
+        self.assertEqual(
+            {
+                "goal": "Run the workflow on one specialist only.",
+            },
+            payload["parameters"],
+        )
+
+        with self.assertRaisesRegex(
+            RuntimeError, "missing required playbook launch input slug: feature_request"
+        ):
+            run_workflow_scenario.build_workflow_create_payload(
+                playbook_id="playbook-3",
+                workspace_id="workspace-3",
+                workflow_name="Broken Proof",
+                scenario_name="broken-proof",
+                workflow_goal="This scenario is missing a declared required input.",
+                playbook_launch_inputs=[
+                    {"slug": "goal", "title": "Goal", "required": True},
+                    {"slug": "feature_request", "title": "Feature Request", "required": True},
+                ],
+            )
+
     def test_build_workflow_create_payload_merges_execution_environment_context(self) -> None:
         payload = run_workflow_scenario.build_workflow_create_payload(
             playbook_id="playbook-1",
@@ -1987,6 +2026,9 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             workflow_name="Execution Environment Proof",
             scenario_name="execution-environment-proof",
             workflow_goal="Run the workflow on the selected execution environment.",
+            playbook_launch_inputs=[
+                {"slug": "goal", "title": "Goal", "required": True},
+            ],
             workflow_metadata={"lane": "repo"},
             execution_environment={
                 "id": "env-ubuntu",

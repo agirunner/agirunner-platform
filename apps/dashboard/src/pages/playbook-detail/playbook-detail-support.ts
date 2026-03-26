@@ -51,7 +51,7 @@ export function buildPlaybookRevisionDiff(
     diffRow('Stages', formatStages(currentDefinition), formatStages(comparedDefinition)),
     diffRow('Entry column', formatEntryColumn(currentDefinition), formatEntryColumn(comparedDefinition)),
     diffRow('Board columns', formatColumns(currentDefinition), formatColumns(comparedDefinition)),
-    diffRow('Parameters', formatParameters(currentDefinition), formatParameters(comparedDefinition)),
+    diffRow('Workflow goals', formatParameters(currentDefinition), formatParameters(comparedDefinition)),
     diffRow(
       'Parallelism policy',
       formatParallelism(currentDefinition),
@@ -169,16 +169,14 @@ function formatParameters(definition: Record<string, unknown>): string {
   const parameters = readArray(definition.parameters)
     .map((parameter) => {
       const record = asRecord(parameter);
-      const name = readString(record.name);
-      if (!name) {
+      const slug = readString(record.slug);
+      const title = readString(record.title);
+      if (!slug || !title) {
         return '';
       }
-      const flags = [
-        record.required === true ? 'required' : '',
-        record.secret === true ? 'secret' : '',
-        readString(record.maps_to) ? `maps ${readString(record.maps_to)}` : '',
-      ].filter(Boolean);
-      return flags.length > 0 ? `${name} (${flags.join(', ')})` : name;
+      return record.required === true
+        ? `${title} (${slug}, required)`
+        : `${title} (${slug})`;
     })
     .filter(Boolean);
   return parameters.length > 0 ? parameters.join(', ') : 'none';

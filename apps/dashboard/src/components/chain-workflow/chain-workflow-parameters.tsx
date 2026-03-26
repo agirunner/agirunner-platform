@@ -25,25 +25,17 @@ export function ChainParameterField(props: {
   return (
     <div className="grid gap-2 text-sm">
       <div className="flex items-center justify-between gap-3">
-        <span className="font-medium">{props.spec.label}</span>
+        <span className="font-medium">{props.spec.title}</span>
         <div className="flex gap-2">
-          {props.spec.options.length > 0 ? (
-            <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
-              {props.spec.options.length} options
-            </span>
-          ) : null}
+          <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
+            {props.spec.required ? 'Required' : 'Optional'}
+          </span>
           <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {props.spec.key}
+            {props.spec.slug}
           </span>
         </div>
       </div>
-      {props.spec.description ? <p className="text-xs text-muted">{props.spec.description}</p> : null}
-      <ChainValueInput
-        valueType={props.spec.inputType === 'select' ? 'string' : props.spec.inputType}
-        value={props.value}
-        options={props.spec.options}
-        onChange={props.onChange}
-      />
+      <Input value={props.value} onChange={(event) => props.onChange(event.target.value)} />
     </div>
   );
 }

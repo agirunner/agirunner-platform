@@ -28,7 +28,7 @@ export interface CreateWorkflowInput {
   playbook_id: string;
   workspace_id?: string;
   name: string;
-  parameters?: Record<string, unknown>;
+  parameters?: Record<string, string>;
   metadata?: Record<string, unknown>;
   config_overrides?: Record<string, unknown>;
   instruction_config?: Record<string, unknown>;

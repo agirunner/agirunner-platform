@@ -68,9 +68,9 @@ describe('playbook detail support', () => {
         ],
         parameters: [
           {
-            name: 'goal',
-            type: 'string',
-            category: 'input',
+            slug: 'goal',
+            title: 'Workflow goal',
+            required: true,
           },
         ],
       },
@@ -130,7 +130,7 @@ function createPlaybook(
       max_active_tasks_per_work_item: 2,
       allow_parallel_work_items: true,
     },
-    parameters: [{ name: 'goal', type: 'string', required: true }],
+    parameters: [{ slug: 'goal', title: 'Workflow goal', required: true }],
   };
 
   return {

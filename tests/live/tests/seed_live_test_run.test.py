@@ -87,6 +87,11 @@ class SeedLiveTestRunTests(unittest.TestCase):
                 "sdlc-assessment-approve": {
                     "playbook_id": "playbook-123",
                     "playbook_slug": "live-test-sdlc-assessment-approve-v1",
+                    "playbook_launch_inputs": [
+                        {"slug": "goal", "title": "Goal", "required": True},
+                        {"slug": "scenario_name", "title": "Scenario Name", "required": True},
+                        {"slug": "assessment_contract", "title": "Assessment Contract", "required": True},
+                    ],
                     "roles": [
                         {
                             "name": "default-image-implementation-engineer",
@@ -128,6 +133,14 @@ class SeedLiveTestRunTests(unittest.TestCase):
         self.assertEqual("oauth", context["provider_auth_mode"])
         self.assertEqual("run-01", context["run_token"])
         self.assertEqual("sdlc-assessment-approve-run-01", context["workspace_slug"])
+        self.assertEqual(
+            [
+                {"slug": "goal", "title": "Goal", "required": True},
+                {"slug": "scenario_name", "title": "Scenario Name", "required": True},
+                {"slug": "assessment_contract", "title": "Assessment Contract", "required": True},
+            ],
+            context["playbook_launch_inputs"],
+        )
         self.assertEqual("env-ubuntu", context["default_execution_environment"]["id"])
         self.assertEqual("env-ubuntu", context["tenant_default_execution_environment"]["id"])
         self.assertEqual("ubuntu", context["default_execution_environment"]["verified_metadata"]["distro"])
@@ -183,6 +196,9 @@ class SeedLiveTestRunTests(unittest.TestCase):
                 "host-directory-assessment": {
                     "playbook_id": "playbook-host",
                     "playbook_slug": "live-test-host-directory-assessment-v1",
+                    "playbook_launch_inputs": [
+                        {"slug": "goal", "title": "Goal", "required": True},
+                    ],
                     "roles": [
                         {
                             "name": "host-directory-writer",
@@ -222,6 +238,10 @@ class SeedLiveTestRunTests(unittest.TestCase):
         self.assertEqual("workspace-1", context["workspace_id"])
         self.assertEqual("env-debian", context["default_execution_environment"]["id"])
         self.assertEqual("env-debian", context["tenant_default_execution_environment"]["id"])
+        self.assertEqual(
+            [{"slug": "goal", "title": "Goal", "required": True}],
+            context["playbook_launch_inputs"],
+        )
         create_call = client.calls[2]
         self.assertEqual(
             "/tmp/live-tests/host-directory-content-assessment/run-02",

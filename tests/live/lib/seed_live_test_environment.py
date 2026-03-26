@@ -414,6 +414,35 @@ def sync_playbook(client: ApiClient, playbook_fixture_path: str) -> dict[str, An
     )
 
 
+def read_playbook_launch_inputs(playbook_fixture_path: str) -> list[dict[str, Any]]:
+    payload = load_fixture(playbook_fixture_path)
+    if not isinstance(payload, dict):
+        raise RuntimeError("playbook fixture must contain an object")
+    definition = payload.get("definition")
+    if not isinstance(definition, dict):
+        return []
+    parameters = definition.get("parameters")
+    if not isinstance(parameters, list):
+        return []
+
+    launch_inputs: list[dict[str, Any]] = []
+    for parameter in parameters:
+        if not isinstance(parameter, dict):
+            continue
+        slug = str(parameter.get("slug") or "").strip()
+        title = str(parameter.get("title") or "").strip()
+        if slug == "" or title == "":
+            continue
+        launch_inputs.append(
+            {
+                "slug": slug,
+                "title": title,
+                "required": bool(parameter.get("required", False)),
+            }
+        )
+    return launch_inputs
+
+
 def sync_library_profiles(
     client: ApiClient,
     *,
@@ -448,9 +477,11 @@ def sync_library_profiles(
             if isinstance(role, dict) and isinstance(role.get("name"), str)
         }
         playbook = sync_playbook(client, str(playbook_fixture))
+        playbook_launch_inputs = read_playbook_launch_inputs(str(playbook_fixture))
         registry[profile_dir.name] = {
             "playbook_id": playbook["id"],
             "playbook_slug": playbook["slug"],
+            "playbook_launch_inputs": playbook_launch_inputs,
             "role_names": [role["name"] for role in roles],
             "roles": [
                 {

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import { dashboardApi } from '../../lib/api.js';
 import {
+  validateParameterDrafts,
   validateRoleDrafts,
   validateWorkflowRulesDraft,
   type PlaybookAuthoringDraft,
@@ -24,7 +25,6 @@ interface PlaybookAuthoringFormProps {
 }
 
 export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.Element {
-  const [parameterIssues, setParameterIssues] = useState<Record<string, string>>({});
   const roleDefinitionsQuery = useQuery({
     queryKey: ['role-definitions', 'active'],
     queryFn: () => dashboardApi.listRoleDefinitions(),
@@ -43,66 +43,23 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
   }
 
   useEffect(() => {
-    setParameterIssues((current) =>
-      Object.fromEntries(
-        Object.entries(current).filter(
-          ([key]) => readParameterIssueIndex(key) < props.draft.parameters.length,
-        ),
-      ),
-    );
-  }, [props.draft.parameters.length]);
-
-  useEffect(() => {
     props.onValidationChange?.([
       ...roleValidation.blockingIssues,
       ...workflowRuleValidation.blockingIssues,
-      ...Object.values(parameterIssues).filter(Boolean),
+      ...validateParameterDrafts(props.draft.parameters).blockingIssues,
     ]);
-  }, [
-    parameterIssues,
-    props.onValidationChange,
-    roleValidation.blockingIssues,
-    workflowRuleValidation.blockingIssues,
-  ]);
-
-  function updateParameterIssue(
-    index: number,
-    kind: 'default' | 'mapping',
-    issue?: string,
-  ): void {
-    const issueKey = buildParameterIssueKey(index, kind);
-    setParameterIssues((current) => {
-      if (!issue) {
-        if (!(issueKey in current)) {
-          return current;
-        }
-        const next = { ...current };
-        delete next[issueKey];
-        return next;
-      }
-      if (current[issueKey] === issue) {
-        return current;
-      }
-      return { ...current, [issueKey]: issue };
-    });
-  }
+  }, [props.draft.parameters, props.onValidationChange, roleValidation.blockingIssues, workflowRuleValidation.blockingIssues]);
 
   return (
     <div className="grid gap-5">
       <Tabs defaultValue="process" className="space-y-4" data-testid="playbook-authoring-tabs">
         <div className="sticky top-4 z-10 -mx-1 rounded-2xl bg-background/95 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/80">
-          <TabsList className="grid h-auto w-full gap-2 rounded-xl bg-border/20 p-2 sm:grid-cols-3">
+          <TabsList className="grid h-auto w-full gap-2 rounded-xl bg-border/20 p-2 sm:grid-cols-2">
             <TabsTrigger
               value="process"
               className="h-auto min-h-11 w-full justify-start px-4 py-3 text-left"
             >
               <span className="font-medium">Process</span>
-            </TabsTrigger>
-            <TabsTrigger
-              value="inputs"
-              className="h-auto min-h-11 w-full justify-start px-4 py-3 text-left"
-            >
-              <span className="font-medium">Inputs</span>
             </TabsTrigger>
             <TabsTrigger
               value="advanced"
@@ -120,18 +77,11 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
             onChange={updateDraft}
             availableRoleNames={availableRoleNames}
           />
-          <WorkflowStagesSection
-            draft={props.draft}
-            onChange={updateDraft}
-          />
-        </TabsContent>
-
-        <TabsContent value="inputs" className="space-y-4">
           <LaunchInputsSection
             draft={props.draft}
             onChange={updateDraft}
-            onParameterIssueChange={updateParameterIssue}
           />
+          <WorkflowStagesSection draft={props.draft} onChange={updateDraft} />
         </TabsContent>
 
         <TabsContent value="advanced" className="space-y-4">
@@ -140,13 +90,4 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
       </Tabs>
     </div>
   );
-}
-
-function buildParameterIssueKey(index: number, kind: 'default' | 'mapping'): string {
-  return `${index}:${kind}`;
-}
-
-function readParameterIssueIndex(issueKey: string): number {
-  const [index] = issueKey.split(':', 1);
-  return Number.parseInt(index ?? '', 10);
 }

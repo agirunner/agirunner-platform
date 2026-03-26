@@ -44,17 +44,9 @@ describe('playbook authoring support', () => {
     ];
     draft.parameters = [
       {
-        name: 'goal',
-        type: 'string',
+        slug: 'workflow_goal',
+        title: 'Workflow Goal',
         required: true,
-        secret: false,
-        category: 'input',
-        maps_to: '',
-        description: 'Requested outcome',
-        default_value: '',
-        label: 'Workflow Goal',
-        help_text: 'Describe what the workflow should accomplish',
-        allowed_values: '',
       },
     ];
 
@@ -67,6 +59,7 @@ describe('playbook authoring support', () => {
           lifecycle: 'planned',
           roles: ['architect', 'developer', 'reviewer'],
           process_instructions: draft.process_instructions,
+          parameters: [{ slug: 'workflow_goal', title: 'Workflow Goal', required: true }],
           stages: expect.arrayContaining([
             expect.objectContaining({ name: 'plan', goal: 'Clarify the objective and execution path.' }),
             expect.objectContaining({
@@ -96,7 +89,7 @@ describe('playbook authoring support', () => {
         columns: [{ id: 'active', label: 'Active' }],
       },
       orchestrator: { max_active_tasks: 6 },
-      parameters: [{ name: 'goal', type: 'string', default: 'ship it' }],
+      parameters: [{ slug: 'workflow_goal', title: 'Workflow Goal', required: true }],
     });
 
     expect(draft.process_instructions).toContain('request human approval');
@@ -105,7 +98,11 @@ describe('playbook authoring support', () => {
     ]);
     expect(draft.entry_column_id).toBe('active');
     expect(draft.orchestrator.max_active_tasks).toBe('6');
-    expect(draft.parameters[0]?.default_value).toBe('ship it');
+    expect(draft.parameters[0]).toEqual({
+      slug: 'workflow_goal',
+      title: 'Workflow Goal',
+      required: true,
+    });
   });
 
   it('omits orchestration-policy overrides unless the user sets them', () => {
@@ -125,22 +122,24 @@ describe('playbook authoring support', () => {
     );
   });
 
-  it('validates stages and workspace-mapped credential inputs', () => {
+  it('validates stages and minimal launch inputs', () => {
     const draft = createDefaultAuthoringDraft('planned');
     draft.stages = [{ name: '', goal: '', guidance: '' }];
     draft.parameters = [
       {
-        name: 'git_token',
-        type: 'string',
+        slug: '',
+        title: '',
         required: false,
-        secret: true,
-        category: '',
-        maps_to: 'workspace.credentials.git_token',
-        description: '',
-        default_value: '',
-        label: '',
-        help_text: '',
-        allowed_values: '',
+      },
+      {
+        slug: 'workflow_goal',
+        title: 'Workflow Goal',
+        required: true,
+      },
+      {
+        slug: 'workflow_goal',
+        title: 'Workflow Goal Copy',
+        required: false,
       },
     ];
 
@@ -151,9 +150,9 @@ describe('playbook authoring support', () => {
     expect(stageValidation.blockingIssues).toContain('Every stage needs a name.');
     expect(stageValidation.blockingIssues).toContain('Every stage needs a goal.');
     expect(parameterValidation.isValid).toBe(false);
-    expect(parameterValidation.blockingIssues).toContain(
-      'Choose a category before mapping an input into the workspace.',
-    );
+    expect(parameterValidation.blockingIssues).toContain('Every launch input needs a slug.');
+    expect(parameterValidation.blockingIssues).toContain('Every launch input needs a title.');
+    expect(parameterValidation.blockingIssues).toContain('Launch input slugs must be unique.');
   });
 
   it('summarizes stages instead of governance-rule counts', () => {

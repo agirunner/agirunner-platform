@@ -149,6 +149,7 @@ def create_run_context(
         "workspace_slug": workspace["slug"],
         "playbook_id": profile_context["playbook_id"],
         "playbook_slug": profile_context.get("playbook_slug"),
+        "playbook_launch_inputs": profile_context.get("playbook_launch_inputs", []),
         "provider_auth_mode": shared_context.get("provider_auth_mode"),
         "run_token": run_token,
         "scenario_name": scenario["name"],

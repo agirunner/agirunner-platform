@@ -18,7 +18,6 @@ import { LaunchPageHeader, RunIdentitySection } from './playbook-launch-identity
 import {
   LaunchActionCard,
   LaunchDefinitionSnapshot,
-  ResolutionOrderPanel,
   StructuredSection,
 } from './playbook-launch-page.sections.js';
 import { ParameterField } from './playbook-launch-parameters.js';
@@ -53,8 +52,6 @@ export function PlaybookLaunchForm(props: {
   launchValidation: LaunchValidationResult;
   launchDefinition: LaunchDefinitionSummary;
   parameterDrafts: Record<string, string>;
-  extraParameterDrafts: StructuredEntryDraft[];
-  extraParametersValidation: StructuredEntryValidationResult;
   metadataDrafts: StructuredEntryDraft[];
   metadataValidation: StructuredEntryValidationResult;
   workflowPolicyDefinition: WorkflowPolicyDefinition;
@@ -93,7 +90,6 @@ export function PlaybookLaunchForm(props: {
   onWorkflowNameChange(name: string): void;
   onWorkspaceChange(id: string): void;
   onParameterChange(key: string, value: string): void;
-  onExtraParameterDraftsChange(drafts: StructuredEntryDraft[]): void;
   onMetadataDraftsChange(drafts: StructuredEntryDraft[]): void;
   onWorkflowConfigChange(path: string, value: string): void;
   onExtraWorkflowConfigDraftsChange(drafts: StructuredEntryDraft[]): void;
@@ -102,13 +98,11 @@ export function PlaybookLaunchForm(props: {
   onModelOverrideDraftsChange(drafts: RoleOverrideDraft[]): void;
   onLaunch(): void;
 }): JSX.Element {
-  const hasAdditionalParameters = props.extraParameterDrafts.length > 0;
   const hasMetadataEntries = props.metadataDrafts.length > 0;
   const hasWorkflowOverrides = props.configuredWorkflowOverrideCount > 0;
   const hasPrimaryParameterSpecs = props.launchDefinition.parameterSpecs.length > 0;
   const hasWorkflowBudgetGuardrails = readWorkflowBudgetMode(props.workflowBudgetDraft) === 'guarded';
   const advancedAdjustmentCount = [
-    hasPrimaryParameterSpecs && hasAdditionalParameters ? 1 : 0,
     hasMetadataEntries ? 1 : 0,
     props.configuredWorkflowConfigOverrideCount > 0 || props.hasInstructionConfigOverride ? 1 : 0,
     hasWorkflowBudgetGuardrails ? 1 : 0,
@@ -120,7 +114,7 @@ export function PlaybookLaunchForm(props: {
       props.error ||
         props.workflowConfigBlockingError ||
         props.workflowOverrideBlockingError ||
-        (hasPrimaryParameterSpecs && props.launchValidation.fieldErrors.additionalParameters) ||
+        props.launchValidation.fieldErrors.parameters ||
         props.launchValidation.fieldErrors.metadata,
     );
 
@@ -139,8 +133,8 @@ export function PlaybookLaunchForm(props: {
             <div className="space-y-1">
               <CardTitle>Process-First Launch</CardTitle>
               <p className="text-sm text-muted">
-                Start with the playbook process, add workspace context when it can autofill inputs,
-                then open advanced launch policy only when this run needs extra control.
+                Start with the playbook process, add any declared launch inputs, then open
+                advanced launch policy only when this run needs extra control.
               </p>
             </div>
           </CardHeader>
@@ -172,32 +166,29 @@ export function PlaybookLaunchForm(props: {
             <StructuredSection
               id="launch-inputs"
               title="Launch Inputs"
-              description="Resolution order is playbook default, then workspace autofill, then any launch override you enter here."
+              description="Declared launch inputs map directly to workflow parameters for this run."
             >
-              <ResolutionOrderPanel />
-
               {hasPrimaryParameterSpecs ? (
                 <div className="grid gap-4">
                   {props.launchDefinition.parameterSpecs.map((spec) => (
                     <ParameterField
-                      key={spec.key}
+                      key={spec.slug}
                       spec={spec}
-                      workspace={props.selectedWorkspace}
-                      value={props.parameterDrafts[spec.key] ?? ''}
-                      onChange={(value) => props.onParameterChange(spec.key, value)}
+                      value={props.parameterDrafts[spec.slug] ?? ''}
+                      onChange={(value) => props.onParameterChange(spec.slug, value)}
                     />
                   ))}
                 </div>
               ) : (
-                <StructuredEntryEditor
-                  title="Parameters"
-                  description="This playbook does not define parameter specs yet, so add only the launch inputs this run actually needs."
-                  drafts={props.extraParameterDrafts}
-                  validation={props.extraParametersValidation}
-                  onChange={props.onExtraParameterDraftsChange}
-                  addLabel="Add parameter"
-                />
+                <p className="text-sm text-muted">
+                  This playbook does not declare launch inputs.
+                </p>
               )}
+              {props.launchValidation.fieldErrors.parameters ? (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {props.launchValidation.fieldErrors.parameters}
+                </p>
+              ) : null}
             </StructuredSection>
 
             <details
@@ -223,23 +214,6 @@ export function PlaybookLaunchForm(props: {
                 </div>
               </summary>
               <div className="mt-4 grid gap-6">
-                {hasPrimaryParameterSpecs ? (
-                  <StructuredSection
-                    id="launch-extra-parameters"
-                    title="Additional Parameters"
-                    description="Add extra launch parameters only when this run needs fields beyond the playbook-defined inputs."
-                  >
-                    <StructuredEntryEditor
-                      title="Additional Parameters"
-                      description="Add extra launch parameters without typing a full JSON object."
-                      drafts={props.extraParameterDrafts}
-                      validation={props.extraParametersValidation}
-                      onChange={props.onExtraParameterDraftsChange}
-                      addLabel="Add parameter"
-                    />
-                  </StructuredSection>
-                ) : null}
-
                 <StructuredSection
                   id="launch-metadata"
                   title="Metadata"
@@ -355,9 +329,7 @@ export function PlaybookLaunchForm(props: {
             selectedPlaybook={props.selectedPlaybook}
             selectedWorkspace={props.selectedWorkspace}
             workflowName={props.workflowName}
-            hasStructuredParameters={
-              props.launchDefinition.parameterSpecs.length > 0 || hasAdditionalParameters
-            }
+            hasDeclaredParameters={props.launchDefinition.parameterSpecs.length > 0}
             hasMetadataEntries={hasMetadataEntries}
             hasWorkflowConfigOverrides={
               props.configuredWorkflowConfigOverrideCount > 0 ||

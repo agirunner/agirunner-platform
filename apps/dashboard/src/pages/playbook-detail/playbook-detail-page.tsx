@@ -264,7 +264,7 @@ export function PlaybookDetailPage(): JSX.Element {
             </div>
           </div>
           <p className="max-w-full overflow-x-auto whitespace-nowrap text-sm text-muted">
-            Edit the playbook definition, workflow guidance, and launch inputs for this revision.
+            Edit the playbook definition, workflow guidance, and workflow goals for this revision.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

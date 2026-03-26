@@ -28,7 +28,7 @@ describe('playbook launch model override source', () => {
   it('describes playbook launch in v2 workflow terms', () => {
     const source = readSource();
     expect(source).toContain(
-      'Start a workflow from a playbook with structured launch inputs, workspace autofill, and',
+      'Start a workflow from a playbook with declared launch inputs and workflow-scoped policy',
     );
   });
 
@@ -38,32 +38,22 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('mx-auto max-w-[88rem] space-y-6 px-4 py-6 sm:px-6');
     expect(source).toContain('Process-First Launch');
     expect(source).toContain(
-      'Start with the playbook process, add workspace context when it can autofill inputs,',
+      'Start with the playbook process, add any declared launch inputs, then open',
     );
-    expect(source).toContain(
-      'then open advanced launch policy only when this run needs extra control.',
-    );
+    expect(source).toContain('advanced launch policy only when this run needs extra control.');
     expect(source).toContain('Workflow Basics');
     expect(source).toContain('Process Snapshot');
     expect(source).toContain('LaunchReadinessPanel');
     expect(source).toContain('LaunchDefinitionSnapshot');
     expect(source).toContain('Workflow stages');
-    expect(source).toContain('Resolution order');
-    expect(source).toContain('Playbook default');
-    expect(source).toContain('Workspace autofill');
-    expect(source).toContain('Launch override');
     expect(source).toContain('launchablePlaybooks');
     expect(source).toContain('Inactive playbook selected - save reactivation first');
     expect(source).toContain(
       'This playbook is inactive. Save a reactivated version from the playbook detail page',
     );
     expect(source).toContain('Launch Inputs');
-    expect(source).toContain('Using playbook default');
-    expect(source).toContain('Using workspace autofill');
-    expect(source).toContain('Launch override active');
-    expect(source).toContain('Launch override clears inherited value');
-    expect(source).toContain('Use workspace autofill');
-    expect(source).toContain('Restore playbook default');
+    expect(source).toContain('Declared launch inputs');
+    expect(source).toContain('Workflow Goal');
     expect(source).toContain('Metadata Entries');
     expect(source).toContain('Advanced launch policy');
     expect(source).toContain('Open only when this run needs metadata, workflow policy, budget');
@@ -102,10 +92,15 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('Ready to launch');
     expect(source).toContain('Resolve blockers');
     expect(source).toContain('validateLaunchDraft');
-    expect(source).toContain('additionalParametersError');
+    expect(source).toContain('parameterSpecs');
+    expect(source).toContain('parameterDrafts');
     expect(source).toContain('metadataError');
     expect(source).toContain('launchValidation.fieldErrors.workflowName');
     expect(source).toContain('All required launch inputs are present.');
+    expect(source).not.toContain('Resolution order');
+    expect(source).not.toContain('Workspace autofill');
+    expect(source).not.toContain('Launch override');
+    expect(source).not.toContain('Additional Parameters');
     expect(source).toContain('Launch Workflow');
     expect(source).not.toContain('Workflow launch status');
     expect(source).not.toContain('Reasoning Config JSON');
@@ -120,7 +115,6 @@ describe('playbook launch model override source', () => {
   it('assembles the existing workflow create contract from structured launch state', () => {
     const source = readSource();
     expect(source).toContain('buildParametersFromDrafts');
-    expect(source).toContain('readMappedWorkspaceParameterDraft');
     expect(source).toContain("buildStructuredObject(input.metadataDrafts, 'Metadata')");
     expect(source).toContain('buildWorkflowConfigOverrides({');
     expect(source).toContain('buildInstructionConfig({');
@@ -128,11 +122,15 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('buildWorkflowBudgetInput(workflowBudgetDraft)');
     expect(source).toContain('props.validation.blockingIssues');
     expect(source).toContain('dashboardApi.createWorkflow({');
+    expect(source).toContain('const parameters = buildParametersFromDrafts(');
+    expect(source).toContain('parameters,');
     expect(source).toContain('config_overrides: buildWorkflowConfigOverrides({');
     expect(source).toContain('instruction_config: buildInstructionConfig({');
     expect(source).toContain('model_overrides: buildModelOverrides(input.modelOverrideDrafts)');
     expect(source).toContain('budget: input.workflowBudget');
     expect(source).toContain('Resolved Effective Models');
     expect(source).toContain('scroll-mt-24');
+    expect(source).not.toContain('mergeStructuredObjects');
+    expect(source).not.toContain('extraParameterDrafts');
   });
 });

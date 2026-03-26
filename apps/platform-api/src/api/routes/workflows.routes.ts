@@ -47,7 +47,7 @@ const workflowCreateSchema = z.object({
   playbook_id: z.string().uuid(),
   workspace_id: z.string().uuid().optional(),
   name: z.string().min(1).max(255),
-  parameters: z.record(z.unknown()).optional(),
+  parameters: z.record(z.string()).optional(),
   metadata: z.record(z.unknown()).optional(),
   config_overrides: z.record(z.unknown()).optional(),
   instruction_config: z.record(z.unknown()).optional(),
@@ -67,7 +67,7 @@ const workflowChainSchema = z.object({
   request_id: requestIdSchema,
   playbook_id: z.string().uuid(),
   name: z.string().min(1).max(255).optional(),
-  parameters: z.record(z.unknown()).optional(),
+  parameters: z.record(z.string()).optional(),
 });
 
 const workflowControlMutationSchema = z.object({

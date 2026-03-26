@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
 import sys
 import unittest
 import tempfile
@@ -212,7 +213,22 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
                 profile_dir = library_root / profile_name
                 profile_dir.mkdir(parents=True)
                 (profile_dir / "roles.json").write_text("[]", encoding="utf-8")
-                (profile_dir / "playbook.json").write_text("{}", encoding="utf-8")
+                (profile_dir / "playbook.json").write_text(
+                    json.dumps(
+                        {
+                            "definition": {
+                                "parameters": [
+                                    {
+                                        "slug": f"{profile_name}-goal",
+                                        "title": f"{profile_name} Goal",
+                                        "required": True,
+                                    }
+                                ]
+                            }
+                        }
+                    ),
+                    encoding="utf-8",
+                )
 
             with (
                 patch.object(
@@ -243,6 +259,13 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
                 "profile-a": {
                     "playbook_id": "playbook-profile-a",
                     "playbook_slug": "slug-profile-a",
+                    "playbook_launch_inputs": [
+                        {
+                            "slug": "profile-a-goal",
+                            "title": "profile-a Goal",
+                            "required": True,
+                        }
+                    ],
                     "role_names": ["profile-a-role"],
                     "roles": [
                         {
@@ -255,6 +278,13 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
                 "profile-b": {
                     "playbook_id": "playbook-profile-b",
                     "playbook_slug": "slug-profile-b",
+                    "playbook_launch_inputs": [
+                        {
+                            "slug": "profile-b-goal",
+                            "title": "profile-b Goal",
+                            "required": True,
+                        }
+                    ],
                     "role_names": ["profile-b-role"],
                     "roles": [
                         {

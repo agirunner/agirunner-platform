@@ -103,6 +103,23 @@ class LiveTestCatalogTests(unittest.TestCase):
                 self.assertNotIn("handoff_rules", definition)
                 self.assertNotIn("branch_policies", definition)
 
+    def test_playbook_fixtures_use_minimal_launch_input_shape(self) -> None:
+        for playbook_file in sorted(LIBRARY_DIR.glob("*/playbook.json")):
+            with self.subTest(playbook=playbook_file.parent.name):
+                payload = live_test_catalog.read_fixture(playbook_file)
+                parameters = payload.get("definition", {}).get("parameters", [])
+                self.assertIsInstance(parameters, list)
+                for parameter in parameters:
+                    self.assertEqual(
+                        {"slug", "title", "required"},
+                        set(parameter.keys()),
+                    )
+                    self.assertIsInstance(parameter["slug"], str)
+                    self.assertTrue(parameter["slug"].strip())
+                    self.assertIsInstance(parameter["title"], str)
+                    self.assertTrue(parameter["title"].strip())
+                    self.assertIsInstance(parameter["required"], bool)
+
     def test_playbook_process_instructions_are_stage_and_role_specific_with_unhappy_paths(self) -> None:
         for playbook_file in sorted(LIBRARY_DIR.glob("*/playbook.json")):
             with self.subTest(playbook=playbook_file.parent.name):
@@ -254,7 +271,7 @@ class LiveTestCatalogTests(unittest.TestCase):
             LIBRARY_DIR / "sdlc-assessment-request-changes-once" / "playbook.json"
         )
         parameter_names = {
-            entry["name"] for entry in playbook["definition"]["parameters"]
+            entry["slug"] for entry in playbook["definition"]["parameters"]
         }
         self.assertIn("initial_revision_scope", parameter_names)
         self.assertIn("rework_completion_scope", parameter_names)
@@ -328,7 +345,7 @@ class LiveTestCatalogTests(unittest.TestCase):
         playbook = live_test_catalog.read_fixture(
             LIBRARY_DIR / "sdlc-parallel-assessors-mixed-outcomes" / "playbook.json"
         )
-        parameter_names = {entry["name"] for entry in playbook["definition"]["parameters"]}
+        parameter_names = {entry["slug"] for entry in playbook["definition"]["parameters"]}
         self.assertIn("initial_revision_scope", parameter_names)
         self.assertIn("quality_rework_scope", parameter_names)
         self.assertIn("security_rework_scope", parameter_names)
@@ -403,7 +420,7 @@ class LiveTestCatalogTests(unittest.TestCase):
         playbook = live_test_catalog.read_fixture(
             LIBRARY_DIR / "sdlc-revision-rework" / "playbook.json"
         )
-        parameter_names = {entry["name"] for entry in playbook["definition"]["parameters"]}
+        parameter_names = {entry["slug"] for entry in playbook["definition"]["parameters"]}
         self.assertIn("initial_revision_scope", parameter_names)
         self.assertIn("architect_rework_scope", parameter_names)
         self.assertIn("final_revision_scope", parameter_names)

@@ -3284,6 +3284,63 @@ def login(client: ApiClient, admin_api_key: str) -> str:
     return token
 
 
+def normalize_playbook_launch_inputs(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+
+    launch_inputs: list[dict[str, Any]] = []
+    for entry in value:
+        if not isinstance(entry, dict):
+            continue
+        slug = str(entry.get("slug") or "").strip()
+        title = str(entry.get("title") or "").strip()
+        if slug == "" or title == "":
+            continue
+        launch_inputs.append(
+            {
+                "slug": slug,
+                "title": title,
+                "required": bool(entry.get("required", False)),
+            }
+        )
+    return launch_inputs
+
+
+def build_declared_workflow_parameters(
+    *,
+    playbook_launch_inputs: list[dict[str, Any]],
+    scenario_name: str,
+    workflow_goal: str,
+    workflow_parameters: dict[str, Any] | None,
+) -> dict[str, str]:
+    declared_inputs = normalize_playbook_launch_inputs(playbook_launch_inputs)
+    parameters = {} if workflow_parameters is None else dict(workflow_parameters)
+    declared_slugs = {entry["slug"] for entry in declared_inputs}
+
+    if "goal" in declared_slugs and "goal" not in parameters:
+        parameters["goal"] = workflow_goal
+    if "scenario_name" in declared_slugs and "scenario_name" not in parameters:
+        parameters["scenario_name"] = scenario_name
+
+    unexpected = sorted(key for key in parameters if key not in declared_slugs)
+    if unexpected:
+        raise RuntimeError(
+            f"workflow parameters contain undeclared playbook launch input slugs: {', '.join(unexpected)}"
+        )
+
+    normalized: dict[str, str] = {}
+    for entry in declared_inputs:
+        slug = entry["slug"]
+        value = parameters.get(slug)
+        trimmed = value.strip() if isinstance(value, str) else ""
+        if trimmed:
+            normalized[slug] = trimmed
+            continue
+        if bool(entry.get("required", False)):
+            raise RuntimeError(f"missing required playbook launch input slug: {slug}")
+    return normalized
+
+
 def build_workflow_create_payload(
     *,
     playbook_id: str,
@@ -3291,21 +3348,21 @@ def build_workflow_create_payload(
     workflow_name: str,
     scenario_name: str,
     workflow_goal: str,
+    playbook_launch_inputs: list[dict[str, Any]] | None = None,
     workflow_parameters: dict[str, Any] | None = None,
     workflow_metadata: dict[str, Any] | None = None,
     execution_environment: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    parameters = {
-        "goal": workflow_goal,
-        "scenario_name": scenario_name,
-    }
-    if workflow_parameters:
-        parameters.update(workflow_parameters)
     return {
         "playbook_id": playbook_id,
         "workspace_id": workspace_id,
         "name": workflow_name,
-        "parameters": parameters,
+        "parameters": build_declared_workflow_parameters(
+            playbook_launch_inputs=[] if playbook_launch_inputs is None else playbook_launch_inputs,
+            scenario_name=scenario_name,
+            workflow_goal=workflow_goal,
+            workflow_parameters=workflow_parameters,
+        ),
         "metadata": {
             **({} if workflow_metadata is None else workflow_metadata),
             "live_test": {
@@ -3810,6 +3867,7 @@ def main() -> None:
     bootstrap_context = read_json(bootstrap_context_file)
     workspace_id = env("LIVE_TEST_WORKSPACE_ID", bootstrap_context["workspace_id"], required=True)
     playbook_id = env("LIVE_TEST_PLAYBOOK_ID", bootstrap_context["playbook_id"], required=True)
+    playbook_launch_inputs = normalize_playbook_launch_inputs(bootstrap_context.get("playbook_launch_inputs"))
     selected_execution_environment = (
         dict(bootstrap_context["default_execution_environment"])
         if isinstance(bootstrap_context.get("default_execution_environment"), dict)
@@ -3857,6 +3915,7 @@ def main() -> None:
                 workflow_name=workflow_name,
                 scenario_name=scenario_name,
                 workflow_goal=workflow_goal,
+                playbook_launch_inputs=playbook_launch_inputs,
                 workflow_parameters={} if scenario is None else scenario["workflow"]["parameters"],
                 workflow_metadata={} if scenario is None else scenario["workflow"]["metadata"],
                 execution_environment=selected_execution_environment,

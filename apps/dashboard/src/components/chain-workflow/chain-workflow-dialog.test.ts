@@ -7,10 +7,15 @@ function readSource() {
 }
 
 describe('chain workflow dialog source', () => {
-  it('uses structured parameter controls instead of a raw json textarea', () => {
+  it('uses declared workflow goals instead of raw or ad hoc parameter payloads', () => {
     const source = readSource();
     expect(source).toContain('ChainParameterField');
-    expect(source).toContain('ChainStructuredEntryEditor');
+    expect(source).toContain('Workflow Goals');
+    expect(source).toContain('Provide the declared workflow goals for the chained run.');
+    expect(source).toContain('buildParametersFromDrafts(');
+    expect(source).not.toContain('ChainStructuredEntryEditor');
+    expect(source).not.toContain('mergeStructuredObjects');
+    expect(source).not.toContain('defaultParameterDraftValue');
     expect(source).not.toContain('Parameter Overrides (JSON)');
     expect(source).not.toContain('parseParameters(');
   });

@@ -1,8 +1,6 @@
-import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useEffect, type Dispatch, type SetStateAction } from 'react';
 
 import {
-  defaultParameterDraftValue,
-  readMappedWorkspaceParameterDraft,
   syncRoleOverrideDrafts,
   type RoleOverrideDraft,
   type StructuredEntryDraft,
@@ -19,14 +17,12 @@ interface UsePlaybookLaunchPageEffectsInput {
   launchDefinition: ReturnType<typeof readLaunchDefinition>;
   workflowName: string;
   workspaceId: string;
-  extraParameterDrafts: StructuredEntryDraft[];
   metadataDrafts: StructuredEntryDraft[];
   workflowConfigDrafts: Record<string, string>;
   extraWorkflowConfigDrafts: StructuredEntryDraft[];
   suppressedInstructionLayers: string[];
   modelOverrideDrafts: RoleOverrideDraft[];
   workflowBudgetDraft: WorkflowBudgetDraft;
-  autoFilledParameterDraftsRef: MutableRefObject<Record<string, string>>;
   setSelectedPlaybookId: Dispatch<SetStateAction<string>>;
   setWorkflowName: Dispatch<SetStateAction<string>>;
   setParameterDrafts: Dispatch<SetStateAction<Record<string, string>>>;
@@ -47,39 +43,11 @@ export function usePlaybookLaunchPageEffects(input: UsePlaybookLaunchPageEffects
 
   useEffect(() => {
     input.setParameterDrafts((current) => {
-      const next = { ...current };
-      const nextAutoFilled: Record<string, string> = {};
-      for (const spec of input.launchDefinition.parameterSpecs) {
-        const defaultValue = defaultParameterDraftValue(spec.defaultValue, spec.inputType);
-        const mappedValue = readMappedWorkspaceParameterDraft(spec, input.selectedWorkspace);
-        const currentValue = current[spec.key];
-        const priorAutoFilled = input.autoFilledParameterDraftsRef.current[spec.key];
-        if (mappedValue !== undefined) {
-          nextAutoFilled[spec.key] = mappedValue;
-        }
-        const shouldAutofill =
-          mappedValue !== undefined &&
-          (currentValue === undefined ||
-            currentValue === '' ||
-            currentValue === defaultValue ||
-            currentValue === priorAutoFilled);
-        if (shouldAutofill) {
-          next[spec.key] = mappedValue;
-          continue;
-        }
-        if (currentValue === undefined || currentValue === priorAutoFilled) {
-          next[spec.key] = defaultValue;
-        }
-      }
-      input.autoFilledParameterDraftsRef.current = nextAutoFilled;
-      return next;
+      return Object.fromEntries(
+        input.launchDefinition.parameterSpecs.map((spec) => [spec.slug, current[spec.slug] ?? '']),
+      );
     });
-  }, [
-    input.autoFilledParameterDraftsRef,
-    input.launchDefinition.parameterSpecs,
-    input.selectedWorkspace,
-    input.setParameterDrafts,
-  ]);
+  }, [input.launchDefinition.parameterSpecs, input.setParameterDrafts]);
 
   useEffect(() => {
     input.setModelOverrideDrafts((current) =>
@@ -90,7 +58,6 @@ export function usePlaybookLaunchPageEffects(input: UsePlaybookLaunchPageEffects
   useEffect(() => {
     input.setError(null);
   }, [
-    input.extraParameterDrafts,
     input.extraWorkflowConfigDrafts,
     input.suppressedInstructionLayers,
     input.metadataDrafts,

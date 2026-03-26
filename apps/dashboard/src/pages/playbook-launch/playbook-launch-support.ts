@@ -1,6 +1,5 @@
 import type {
   DashboardPlaybookRecord,
-  DashboardWorkspaceRecord,
   DashboardRoleModelOverride,
   DashboardWorkflowBudgetInput,
 } from '../../lib/api.js';
@@ -8,14 +7,9 @@ import type {
 export type StructuredValueType = 'string' | 'number' | 'boolean' | 'json';
 
 export interface LaunchParameterSpec {
-  key: string;
-  label: string;
-  description: string;
-  helpText: string;
-  inputType: StructuredValueType | 'select';
-  defaultValue?: unknown;
-  options: string[];
-  mapsTo?: string;
+  slug: string;
+  title: string;
+  required: boolean;
 }
 
 export interface LaunchDefinitionSummary {
@@ -52,33 +46,16 @@ export interface LaunchValidationResult {
   fieldErrors: {
     playbook?: string;
     workflowName?: string;
+    parameters?: string;
     tokenBudget?: string;
     costCapUsd?: string;
     maxDurationMinutes?: string;
-    additionalParameters?: string;
     metadata?: string;
     workflowConfigOverrides?: string;
     workflowOverrides?: string;
   };
   blockingIssues: string[];
   isValid: boolean;
-}
-
-export interface LaunchParameterResolutionStep {
-  key: 'playbook-default' | 'workspace-autofill' | 'launch-override';
-  label: string;
-  detail: string;
-  value?: string;
-  isActive: boolean;
-}
-
-export interface LaunchParameterResolutionState {
-  badgeLabel: string;
-  detail: string;
-  activeSource: LaunchParameterResolutionStep['key'] | 'unset';
-  steps: LaunchParameterResolutionStep[];
-  canRestoreWorkspaceValue: boolean;
-  canRestoreDefaultValue: boolean;
 }
 
 let draftCounter = 0;
@@ -98,16 +75,17 @@ export function readLaunchDefinition(
 export function buildParametersFromDrafts(
   specs: LaunchParameterSpec[],
   drafts: Record<string, string>,
-): Record<string, unknown> | undefined {
-  const parameters: Record<string, unknown> = {};
+): Record<string, string> | undefined {
+  const parameters: Record<string, string> = {};
+
   for (const spec of specs) {
-    const rawValue =
-      drafts[spec.key] ?? defaultParameterDraftValue(spec.defaultValue, spec.inputType);
-    const normalized = parseDraftValue(rawValue, spec.inputType, `Parameter '${spec.label}'`);
-    if (normalized !== undefined) {
-      parameters[spec.key] = normalized;
+    const value = drafts[spec.slug]?.trim() ?? '';
+    if (!value) {
+      continue;
     }
+    parameters[spec.slug] = value;
   }
+
   return Object.keys(parameters).length > 0 ? parameters : undefined;
 }
 
@@ -116,6 +94,7 @@ export function buildStructuredObject(
   label: string,
 ): Record<string, unknown> | undefined {
   const value: Record<string, unknown> = {};
+
   for (const draft of drafts) {
     const key = draft.key.trim();
     if (!key) {
@@ -133,35 +112,15 @@ export function buildStructuredObject(
     }
     value[key] = parsed;
   }
-  return Object.keys(value).length > 0 ? value : undefined;
-}
 
-export function mergeStructuredObjects(
-  base: Record<string, unknown> | undefined,
-  extra: Record<string, unknown> | undefined,
-  label: string,
-): Record<string, unknown> | undefined {
-  if (!base && !extra) {
-    return undefined;
-  }
-  if (!base) {
-    return extra;
-  }
-  if (!extra) {
-    return base;
-  }
-  for (const key of Object.keys(extra)) {
-    if (Object.prototype.hasOwnProperty.call(base, key)) {
-      throw new Error(`${label} contains a duplicate key '${key}'.`);
-    }
-  }
-  return { ...base, ...extra };
+  return Object.keys(value).length > 0 ? value : undefined;
 }
 
 export function buildModelOverrides(
   drafts: RoleOverrideDraft[],
 ): Record<string, DashboardRoleModelOverride> | undefined {
   const overrides: Record<string, DashboardRoleModelOverride> = {};
+
   for (const draft of drafts) {
     const role = draft.role.trim();
     const provider = draft.provider.trim();
@@ -169,6 +128,7 @@ export function buildModelOverrides(
     const reasoningEntries = draft.reasoningEntries.filter(
       (entry) => entry.key.trim().length > 0 || entry.value.trim().length > 0,
     );
+
     if (!role && !provider && !model && reasoningEntries.length === 0) {
       continue;
     }
@@ -181,33 +141,20 @@ export function buildModelOverrides(
     if (!provider || !model) {
       throw new Error(`Workflow model override '${role}' must include both provider and model.`);
     }
+
     const reasoningConfig =
       reasoningEntries.length > 0
         ? buildStructuredObject(reasoningEntries, `Workflow model override '${role}' reasoning`)
         : undefined;
+
     overrides[role] = {
       provider,
       model,
       ...(reasoningConfig ? { reasoning_config: reasoningConfig } : {}),
     };
   }
-  return Object.keys(overrides).length > 0 ? overrides : undefined;
-}
 
-export function defaultParameterDraftValue(
-  value: unknown,
-  inputType: LaunchParameterSpec['inputType'],
-): string {
-  if (value === undefined || value === null) {
-    return '';
-  }
-  if (inputType === 'boolean') {
-    return value ? 'true' : 'false';
-  }
-  if (inputType === 'json') {
-    return JSON.stringify(value, null, 2);
-  }
-  return String(value);
+  return Object.keys(overrides).length > 0 ? overrides : undefined;
 }
 
 export function createStructuredEntryDraft(): StructuredEntryDraft {
@@ -240,118 +187,6 @@ export function syncRoleOverrideDrafts(
     return role.length === 0 || !roles.includes(role);
   });
   return [...ordered, ...custom];
-}
-
-export function readMappedWorkspaceParameterDraft(
-  spec: LaunchParameterSpec,
-  workspace: DashboardWorkspaceRecord | null,
-): string | undefined {
-  const mappedValue = readMappedWorkspaceValue(workspace, spec.mapsTo);
-  if (mappedValue === undefined) {
-    return undefined;
-  }
-  return defaultParameterDraftValue(mappedValue, spec.inputType);
-}
-
-export function describeMappedWorkspacePath(mapsTo: string | undefined): string {
-  const normalized = mapsTo?.trim().replace(/^workspace\./, '') ?? '';
-  if (!normalized) {
-    return 'workspace field';
-  }
-  return normalized
-    .split('.')
-    .filter(Boolean)
-    .map((segment, index) => {
-      const label = segment.replace(/_/g, ' ');
-      if (index === 0) {
-        return label;
-      }
-      return label;
-    })
-    .join(' → ');
-}
-
-export function describeLaunchParameterResolution(input: {
-  spec: LaunchParameterSpec;
-  workspace: DashboardWorkspaceRecord | null;
-  currentValue: string;
-}): LaunchParameterResolutionState {
-  const hasWorkspaceMapping = Boolean(input.spec.mapsTo);
-  const sourceLabel = describeMappedWorkspacePath(input.spec.mapsTo);
-  const defaultValue = readParameterSourceValue(input.spec.defaultValue, input.spec.inputType);
-  const mappedValue = readMappedWorkspaceParameterDraft(input.spec, input.workspace);
-  const hasInheritedValue = Boolean(defaultValue) || mappedValue !== undefined;
-  const hasCurrentValue = input.currentValue.trim().length > 0;
-
-  let activeSource: LaunchParameterResolutionState['activeSource'] = 'unset';
-  if (!hasCurrentValue && hasInheritedValue) {
-    activeSource = 'launch-override';
-  } else if (mappedValue !== undefined && input.currentValue === mappedValue) {
-    activeSource = 'workspace-autofill';
-  } else if (defaultValue !== undefined && input.currentValue === defaultValue) {
-    activeSource = 'playbook-default';
-  } else if (hasCurrentValue) {
-    activeSource = 'launch-override';
-  }
-
-  const steps: LaunchParameterResolutionStep[] = [
-    {
-      key: 'playbook-default',
-      label: 'Playbook default',
-      detail: defaultValue
-        ? 'Base value declared on the playbook.'
-        : 'No playbook default is declared for this parameter.',
-      value: defaultValue,
-      isActive: activeSource === 'playbook-default',
-    },
-  ];
-
-  if (input.spec.mapsTo) {
-    steps.push({
-      key: 'workspace-autofill',
-      label: 'Workspace autofill',
-      detail: readWorkspaceAutofillDetail({
-        workspace: input.workspace,
-        sourceLabel,
-        mappedValue,
-      }),
-      value: mappedValue,
-      isActive: activeSource === 'workspace-autofill',
-    });
-  }
-
-  steps.push({
-    key: 'launch-override',
-    label: 'Launch override',
-    detail: readLaunchOverrideDetail({
-      activeSource,
-      hasCurrentValue,
-      hasInheritedValue,
-      hasWorkspaceMapping,
-      workspace: input.workspace,
-      sourceLabel,
-      hasPlaybookDefault: defaultValue !== undefined,
-    }),
-    value: activeSource === 'launch-override' && hasCurrentValue ? input.currentValue : undefined,
-    isActive: activeSource === 'launch-override',
-  });
-
-  return {
-    badgeLabel: readResolutionBadgeLabel(activeSource, hasCurrentValue),
-    detail: readResolutionDetail({
-      activeSource,
-      workspace: input.workspace,
-      sourceLabel,
-      mappedValue,
-      hasWorkspaceMapping,
-      hasPlaybookDefault: defaultValue !== undefined,
-      hasCurrentValue,
-    }),
-    activeSource,
-    steps,
-    canRestoreWorkspaceValue: mappedValue !== undefined && input.currentValue !== mappedValue,
-    canRestoreDefaultValue: defaultValue !== undefined && input.currentValue !== defaultValue,
-  };
 }
 
 export function createWorkflowBudgetDraft(): WorkflowBudgetDraft {
@@ -394,7 +229,8 @@ export function validateLaunchDraft(input: {
   selectedPlaybook: DashboardPlaybookRecord | null;
   workflowName: string;
   workflowBudgetDraft: WorkflowBudgetDraft;
-  additionalParametersError?: string;
+  parameterSpecs: LaunchParameterSpec[];
+  parameterDrafts: Record<string, string>;
   metadataError?: string;
   workflowConfigOverridesError?: string;
   workflowOverrideError?: string;
@@ -406,16 +242,18 @@ export function validateLaunchDraft(input: {
   if (!input.selectedPlaybook) {
     fieldErrors.playbook = 'Select a playbook before launching a run.';
   } else if (input.selectedPlaybook.is_active === false) {
-    fieldErrors.playbook = 'Inactive playbooks must be reactivated from the detail page before launch.';
+    fieldErrors.playbook =
+      'Inactive playbooks must be reactivated from the detail page before launch.';
   }
 
   if (!input.workflowName.trim()) {
     fieldErrors.workflowName = 'Workflow name is required before launch.';
   }
 
-  if (input.additionalParametersError) {
-    fieldErrors.additionalParameters = input.additionalParametersError;
-  }
+  fieldErrors.parameters = readRequiredParameterError(
+    input.parameterSpecs,
+    input.parameterDrafts,
+  );
 
   if (input.metadataError) {
     fieldErrors.metadata = input.metadataError;
@@ -456,6 +294,18 @@ export function summarizeWorkflowBudgetDraft(draft: WorkflowBudgetDraft): string
     : 'No explicit budget guardrails; the workflow will use open-ended defaults.';
 }
 
+function readRequiredParameterError(
+  specs: LaunchParameterSpec[],
+  drafts: Record<string, string>,
+): string | undefined {
+  const missingRequired = specs.find(
+    (spec) => spec.required && (drafts[spec.slug]?.trim().length ?? 0) === 0,
+  );
+  return missingRequired
+    ? `Enter a value for required launch input '${missingRequired.title}'.`
+    : undefined;
+}
+
 function readParameterSpecs(value: unknown): LaunchParameterSpec[] {
   if (!Array.isArray(value)) {
     return [];
@@ -467,56 +317,16 @@ function readParameterSpecs(value: unknown): LaunchParameterSpec[] {
 
 function readParameterSpec(value: unknown): LaunchParameterSpec | null {
   const record = asRecord(value);
-  const key =
-    readNonEmptyString(record.name) ??
-    readNonEmptyString(record.key) ??
-    readNonEmptyString(record.id);
-  if (!key) {
+  const slug = readNonEmptyString(record.slug);
+  const title = readNonEmptyString(record.title);
+  if (!slug || !title) {
     return null;
   }
-  const options = readOptions(record.options ?? record.choices ?? record.enum);
-  const defaultValue = record.default ?? record.default_value ?? record.value;
-  const inputType = inferInputType(record.type, options, defaultValue);
   return {
-    key,
-    label: readNonEmptyString(record.label) ?? readNonEmptyString(record.title) ?? key,
-    description: readNonEmptyString(record.description) ?? readNonEmptyString(record.help) ?? '',
-    helpText: readNonEmptyString(record.help_text) ?? readNonEmptyString(record.helpText) ?? '',
-    inputType,
-    defaultValue,
-    options,
-    mapsTo: readNonEmptyString(record.maps_to) ?? readNonEmptyString(record.mapsTo) ?? undefined,
+    slug,
+    title,
+    required: record.required === true,
   };
-}
-
-function inferInputType(
-  rawType: unknown,
-  options: string[],
-  defaultValue: unknown,
-): LaunchParameterSpec['inputType'] {
-  const type = readNonEmptyString(rawType)?.toLowerCase();
-  if (options.length > 0) {
-    return 'select';
-  }
-  if (type === 'number' || type === 'integer') {
-    return 'number';
-  }
-  if (type === 'boolean') {
-    return 'boolean';
-  }
-  if (type === 'json' || type === 'object' || type === 'array') {
-    return 'json';
-  }
-  if (typeof defaultValue === 'number') {
-    return 'number';
-  }
-  if (typeof defaultValue === 'boolean') {
-    return 'boolean';
-  }
-  if (defaultValue && typeof defaultValue === 'object') {
-    return 'json';
-  }
-  return 'string';
 }
 
 function readStageNames(definition: Record<string, unknown>): string[] {
@@ -556,130 +366,9 @@ function readStringArray(value: unknown): string[] {
     : [];
 }
 
-function readOptions(value: unknown): string[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value
-    .map((entry) => {
-      if (typeof entry === 'string') {
-        return entry.trim();
-      }
-      const record = asRecord(entry);
-      return (
-        readNonEmptyString(record.value) ??
-        readNonEmptyString(record.id) ??
-        readNonEmptyString(record.label) ??
-        ''
-      );
-    })
-    .filter((entry) => entry.length > 0);
-}
-
-function readParameterSourceValue(
-  value: unknown,
-  inputType: LaunchParameterSpec['inputType'],
-): string | undefined {
-  const draftValue = defaultParameterDraftValue(value, inputType);
-  return draftValue === '' ? undefined : draftValue;
-}
-
-function readWorkspaceAutofillDetail(input: {
-  workspace: DashboardWorkspaceRecord | null;
-  sourceLabel: string;
-  mappedValue: string | undefined;
-}): string {
-  if (!input.workspace) {
-    return `Select a workspace to autofill from ${input.sourceLabel}.`;
-  }
-  if (input.mappedValue === undefined) {
-    return `${input.workspace.name} does not currently provide ${input.sourceLabel}.`;
-  }
-  return `Mapped from ${input.workspace.name} → ${input.sourceLabel}.`;
-}
-
-function readLaunchOverrideDetail(input: {
-  activeSource: LaunchParameterResolutionState['activeSource'];
-  hasCurrentValue: boolean;
-  hasInheritedValue: boolean;
-  hasWorkspaceMapping: boolean;
-  workspace: DashboardWorkspaceRecord | null;
-  sourceLabel: string;
-  hasPlaybookDefault: boolean;
-}): string {
-  if (input.activeSource !== 'launch-override') {
-    return 'No launch override entered.';
-  }
-  if (!input.hasCurrentValue && input.hasInheritedValue) {
-    return 'This run clears the inherited value until you restore a source below.';
-  }
-  if (input.workspace && input.hasWorkspaceMapping) {
-    return `This run overrides ${input.workspace.name} → ${input.sourceLabel}.`;
-  }
-  if (input.hasPlaybookDefault) {
-    return 'This run overrides the playbook default for this parameter.';
-  }
-  return 'This run supplies a launch-only value.';
-}
-
-function readResolutionBadgeLabel(
-  activeSource: LaunchParameterResolutionState['activeSource'],
-  hasCurrentValue: boolean,
-): string {
-  if (activeSource === 'playbook-default') {
-    return 'Using playbook default';
-  }
-  if (activeSource === 'workspace-autofill') {
-    return 'Using workspace autofill';
-  }
-  if (activeSource === 'launch-override') {
-    return hasCurrentValue ? 'Launch override active' : 'Launch override clears inherited value';
-  }
-  return 'Awaiting launch value';
-}
-
-function readResolutionDetail(input: {
-  activeSource: LaunchParameterResolutionState['activeSource'];
-  workspace: DashboardWorkspaceRecord | null;
-  sourceLabel: string;
-  mappedValue: string | undefined;
-  hasWorkspaceMapping: boolean;
-  hasPlaybookDefault: boolean;
-  hasCurrentValue: boolean;
-}): string {
-  if (input.activeSource === 'playbook-default') {
-    if (!input.hasWorkspaceMapping) {
-      return 'This run uses the playbook default until you override it at launch.';
-    }
-    if (input.workspace && input.hasWorkspaceMapping && input.mappedValue !== undefined) {
-      return `This run stays pinned to the playbook default instead of ${input.workspace.name} autofill.`;
-    }
-    if (input.workspace && input.hasWorkspaceMapping && input.mappedValue === undefined) {
-      return `${input.workspace.name} does not currently supply ${input.sourceLabel}, so the playbook default stays in effect.`;
-    }
-    return 'This run uses the playbook default until you attach workspace context or override it.';
-  }
-  if (input.activeSource === 'workspace-autofill' && input.workspace && input.hasWorkspaceMapping) {
-    return `${input.workspace.name} supplies ${input.sourceLabel}, so this run inherits that value unless you override it at launch.`;
-  }
-  if (input.activeSource === 'launch-override') {
-    if (!input.hasCurrentValue) {
-      return 'This run clears the inherited value and will send nothing unless you restore a source.';
-    }
-    if (input.workspace && input.hasWorkspaceMapping && input.mappedValue !== undefined) {
-      return `This run overrides the ${input.workspace.name} autofill for this parameter.`;
-    }
-    if (input.hasPlaybookDefault) {
-      return 'This run overrides the playbook default for this parameter.';
-    }
-    return 'This run provides a launch-only value for this parameter.';
-  }
-  return 'No playbook default, workspace autofill, or launch override is active yet.';
-}
-
 function parseDraftValue(
   rawValue: string,
-  valueType: StructuredValueType | 'select',
+  valueType: StructuredValueType,
   label: string,
 ): unknown {
   const trimmed = rawValue.trim();
@@ -713,14 +402,6 @@ function parseJsonValue(value: string, label: string): unknown {
       `${label} must be valid JSON: ${error instanceof Error ? error.message : 'parse error'}`,
     );
   }
-}
-
-function parseJsonRecord(value: string, label: string): Record<string, unknown> {
-  const parsed = parseJsonValue(value, label);
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error(`${label} must be a JSON object.`);
-  }
-  return parsed as Record<string, unknown>;
 }
 
 function parsePositiveInteger(value: string, label: string): number | undefined {
@@ -798,28 +479,4 @@ function readNonEmptyString(value: unknown): string | undefined {
 function nextDraftId(prefix: string): string {
   draftCounter += 1;
   return `${prefix}-${draftCounter}`;
-}
-
-function readMappedWorkspaceValue(
-  workspace: DashboardWorkspaceRecord | null,
-  mapsTo: string | undefined,
-): unknown {
-  if (!workspace || !mapsTo) {
-    return undefined;
-  }
-  const normalized = mapsTo.trim().replace(/^workspace\./, '');
-  if (!normalized) {
-    return undefined;
-  }
-  let current: unknown = workspace;
-  for (const segment of normalized.split('.')) {
-    if (!segment) {
-      return undefined;
-    }
-    if (!current || typeof current !== 'object' || Array.isArray(current)) {
-      return undefined;
-    }
-    current = (current as Record<string, unknown>)[segment];
-  }
-  return current;
 }

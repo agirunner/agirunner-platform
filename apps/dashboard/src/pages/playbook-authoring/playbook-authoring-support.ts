@@ -1,5 +1,3 @@
-import { validateStructuredParameterDefaultValue } from './playbook-authoring-structured-controls.support.js';
-
 export type PlaybookLifecycle = 'planned' | 'ongoing';
 
 export interface RoleDraft {
@@ -21,17 +19,9 @@ export interface StageDraft {
 }
 
 export interface ParameterDraft {
-  name: string;
-  type: string;
+  slug: string;
+  title: string;
   required: boolean;
-  secret: boolean;
-  category: string;
-  maps_to: string;
-  description: string;
-  default_value: string;
-  label: string;
-  help_text: string;
-  allowed_values: string;
 }
 
 export interface PlaybookAuthoringDraft {
@@ -59,8 +49,6 @@ export interface PlaybookAuthoringSummary {
   blockedColumnCount: number;
   terminalColumnCount: number;
   parameterCount: number;
-  requiredParameterCount: number;
-  secretParameterCount: number;
   runtimeOverrideCount: number;
 }
 
@@ -78,7 +66,7 @@ export interface WorkflowRuleValidationResult {
 }
 
 export interface ParameterDraftValidationResult {
-  parameterErrors: Array<{ category?: string; maps_to?: string; secret?: string }>;
+  parameterErrors: Array<{ slug?: string; title?: string }>;
   blockingIssues: string[];
   isValid: boolean;
 }
@@ -132,17 +120,9 @@ export function createEmptyStageDraft(): StageDraft {
 
 export function createEmptyParameterDraft(): ParameterDraft {
   return {
-    name: '',
-    type: 'string',
+    slug: '',
+    title: '',
     required: false,
-    secret: false,
-    category: '',
-    maps_to: '',
-    description: '',
-    default_value: '',
-    label: '',
-    help_text: '',
-    allowed_values: '',
   };
 }
 
@@ -193,19 +173,8 @@ export function buildPlaybookDefinition(
   }
 
   const parameters = buildParameters(draft.parameters);
-  const defaultValueIssue = parameters
-    .map((parameter) =>
-      validateStructuredParameterDefaultValue(
-        String(parameter.type ?? 'string'),
-        String(parameter.default ?? ''),
-      ),
-    )
-    .find((issue): issue is string => Boolean(issue));
-  if (defaultValueIssue) {
-    return { ok: false, error: defaultValueIssue };
-  }
-  if (hasDuplicates(parameters.map((parameter) => String(parameter.name ?? '')))) {
-    return { ok: false, error: 'Playbook parameter names must be unique.' };
+  if (hasDuplicates(parameters.map((parameter) => parameter.slug))) {
+    return { ok: false, error: 'Playbook launch input slugs must be unique.' };
   }
 
   const definition: Record<string, unknown> = {
@@ -296,23 +265,26 @@ export function validateWorkflowRulesDraft(
 export function validateParameterDrafts(
   parameters: ParameterDraft[],
 ): ParameterDraftValidationResult {
+  const duplicateSlugs = new Set(
+    parameters
+      .map((parameter) => parameter.slug.trim().toLowerCase())
+      .filter((value, index, values) => value && values.indexOf(value) !== index),
+  );
   const parameterErrors = parameters.map((parameter) => ({
-    category:
-      parameter.maps_to.trim() && !parameter.category.trim()
-        ? 'Choose a category before mapping an input into the workspace.'
-        : undefined,
-    maps_to:
-      parameter.category.trim() === 'credential' && !parameter.maps_to.trim()
-        ? 'Credential inputs must map to a workspace credential.'
-        : undefined,
-    secret:
-      parameter.secret && parameter.category.trim() !== 'credential'
-        ? 'Secret inputs must use the credential category.'
+    slug:
+      !parameter.slug.trim()
+        ? 'Every launch input needs a slug.'
+        : !isValidParameterSlug(parameter.slug)
+          ? 'Launch input slugs must use lowercase letters, numbers, underscores, or hyphens.'
+          : duplicateSlugs.has(parameter.slug.trim().toLowerCase())
+            ? 'Launch input slugs must be unique.'
+            : undefined,
+    title:
+      !parameter.title.trim()
+        ? 'Every launch input needs a title.'
         : undefined,
   }));
-  const blockingIssues = uniqueStrings(
-    parameterErrors.flatMap((entry) => [entry.category, entry.maps_to, entry.secret]),
-  );
+  const blockingIssues = uniqueStrings(parameterErrors.flatMap((entry) => [entry.slug, entry.title]));
   return { parameterErrors, blockingIssues, isValid: blockingIssues.length === 0 };
 }
 
@@ -369,8 +341,6 @@ export function summarizePlaybookAuthoringDraft(
     blockedColumnCount: columns.filter((column) => column.is_blocked).length,
     terminalColumnCount: columns.filter((column) => column.is_terminal).length,
     parameterCount: parameters.length,
-    requiredParameterCount: parameters.filter((parameter) => parameter.required).length,
-    secretParameterCount: parameters.filter((parameter) => parameter.secret).length,
     runtimeOverrideCount: 0,
   };
 }
@@ -408,19 +378,11 @@ function buildStages(stages: StageDraft[]): StageDraft[] {
 function buildParameters(parameters: ParameterDraft[]): Array<Record<string, unknown>> {
   return parameters
     .map((parameter) => ({
-      name: parameter.name.trim(),
-      type: parameter.type.trim() || 'string',
-      required: parameter.required || undefined,
-      secret: parameter.secret || undefined,
-      category: parameter.category.trim() || undefined,
-      maps_to: parameter.maps_to.trim() || undefined,
-      description: parameter.description.trim() || undefined,
-      default: parameter.default_value.trim() || undefined,
-      label: parameter.label.trim() || undefined,
-      help_text: parameter.help_text.trim() || undefined,
-      allowed_values: parameter.allowed_values.trim() || undefined,
+      slug: parameter.slug.trim(),
+      title: parameter.title.trim(),
+      required: parameter.required,
     }))
-    .filter((parameter) => Boolean(parameter.name));
+    .filter((parameter) => Boolean(parameter.slug));
 }
 
 function readBoardColumns(board: unknown): BoardColumnDraft[] {
@@ -448,18 +410,19 @@ function readStages(value: unknown): StageDraft[] {
 
 function readParameters(value: unknown): ParameterDraft[] {
   return readRecordArray(value).map((entry) => ({
-    name: readString(entry.name),
-    type: readString(entry.type) || 'string',
+    slug: readString(entry.slug),
+    title: readString(entry.title),
     required: Boolean(entry.required),
-    secret: Boolean(entry.secret),
-    category: readString(entry.category),
-    maps_to: readString(entry.maps_to),
-    description: readString(entry.description),
-    default_value: readString(entry.default),
-    label: readString(entry.label),
-    help_text: readString(entry.help_text),
-    allowed_values: readString(entry.allowed_values),
   }));
+}
+
+export function normalizeParameterSlug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .replace(/_{2,}/g, '_');
 }
 
 function readOrchestrator(value: unknown): Partial<PlaybookAuthoringDraft['orchestrator']> {
@@ -537,6 +500,10 @@ function readStringArray(value: unknown): string[] {
 
 function hasDuplicates(values: string[]): boolean {
   return new Set(values.filter(Boolean)).size !== values.filter(Boolean).length;
+}
+
+function isValidParameterSlug(value: string): boolean {
+  return /^[a-z0-9][a-z0-9_-]*$/.test(value.trim());
 }
 
 function compactRecord<T extends object>(record: T): T {

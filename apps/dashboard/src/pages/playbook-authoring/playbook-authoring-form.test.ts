@@ -11,7 +11,6 @@ describe('playbook authoring form source', () => {
     const source = readSource();
     expect(source).toContain('dashboardApi.listRoleDefinitions');
     expect(source).toContain('Process');
-    expect(source).toContain('Inputs');
     expect(source).toContain('Advanced');
     expect(source).not.toContain('Process-first authoring');
     expect(source).not.toContain(
@@ -32,19 +31,19 @@ describe('playbook authoring form source', () => {
     expect(source).toContain('sticky top-4');
     expect(source).toContain('TabsList');
     expect(source).toContain('TabsTrigger');
-    expect(source).toContain('sm:grid-cols-3');
+    expect(source).toContain('sm:grid-cols-2');
     expect(source).toContain('Process');
-    expect(source).toContain('Inputs');
     expect(source).toContain('Advanced');
   });
 
-  it('rebuilds the detailed sections around process guidance, stages, inputs, and advanced overrides', () => {
+  it('keeps launch inputs inside process instead of a separate tab', () => {
     const source = readSource();
     expect(source).toContain('ProcessInstructionsSection');
     expect(source).toContain('TeamRolesSection');
-    expect(source).toContain('WorkflowStagesSection');
     expect(source).toContain('LaunchInputsSection');
+    expect(source).toContain('WorkflowStagesSection');
     expect(source).toContain('AdvancedWorkflowSection');
+    expect(source).not.toContain('value="inputs"');
     expect(source).not.toContain('availableToolOptions');
   });
 });

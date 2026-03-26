@@ -10,7 +10,7 @@ export function LaunchReadinessPanel(props: {
   selectedPlaybook: DashboardPlaybookRecord | null;
   selectedWorkspace: DashboardWorkspaceRecord | null;
   workflowName: string;
-  hasStructuredParameters: boolean;
+  hasDeclaredParameters: boolean;
   hasMetadataEntries: boolean;
   hasWorkflowConfigOverrides: boolean;
   hasWorkflowOverrides: boolean;
@@ -60,7 +60,7 @@ function buildReadinessChecks(
     selectedPlaybook: DashboardPlaybookRecord | null;
     selectedWorkspace: DashboardWorkspaceRecord | null;
     workflowName: string;
-    hasStructuredParameters: boolean;
+    hasDeclaredParameters: boolean;
     hasMetadataEntries: boolean;
     hasWorkflowConfigOverrides: boolean;
     hasWorkflowOverrides: boolean;
@@ -88,13 +88,13 @@ function buildReadinessChecks(
       isReady: true,
     },
     {
-      label: 'Structured launch inputs',
-      detail: props.validation.fieldErrors.additionalParameters
-        ? props.validation.fieldErrors.additionalParameters
-        : props.hasStructuredParameters
-          ? 'Parameters are configured through structured controls.'
-          : 'This run will start with playbook defaults only.',
-      isReady: !props.validation.fieldErrors.additionalParameters,
+      label: 'Declared launch inputs',
+      detail: props.validation.fieldErrors.parameters
+        ? props.validation.fieldErrors.parameters
+        : props.hasDeclaredParameters
+          ? 'All declared playbook launch inputs have values for this run.'
+          : 'This playbook does not declare launch inputs.',
+      isReady: !props.validation.fieldErrors.parameters,
     },
     {
       label: 'Metadata and workflow policy',

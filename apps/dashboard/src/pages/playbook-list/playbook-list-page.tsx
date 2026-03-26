@@ -223,8 +223,8 @@ export function PlaybookListPage(): JSX.Element {
             <CardHeader className="space-y-2">
               <CardTitle>Playbook Basics</CardTitle>
               <p className="text-sm text-muted">
-                Define the playbook identity first, then author the process, team, required rules,
-                and launch inputs below.
+                Define the playbook identity first, then author the process, specialists,
+                workflow goals, and required rules below.
               </p>
             </CardHeader>
             <CardContent className="grid gap-6">
@@ -328,8 +328,8 @@ export function PlaybookListPage(): JSX.Element {
                   </div>
                 ) : (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
-                    Playbook basics are ready. Continue shaping the process, rules, and launch
-                    inputs below.
+                    Playbook basics are ready. Continue shaping the process, specialists, and
+                    workflow goals below.
                   </div>
                 )}
                 <ReadinessRow
@@ -354,8 +354,8 @@ export function PlaybookListPage(): JSX.Element {
                   ready={summary.hasProcessInstructions && summary.roleCount > 0}
                 />
                 <ReadinessRow
-                  label="Launch inputs"
-                  value={`${summary.parameterCount} inputs • ${summary.secretParameterCount} secret`}
+                  label="Workflow goals"
+                  value={`${summary.parameterCount} goal${summary.parameterCount === 1 ? '' : 's'}`}
                   ready={authoringValidationIssues.length === 0}
                 />
               </CardContent>
@@ -371,11 +371,7 @@ export function PlaybookListPage(): JSX.Element {
               <CardContent className="grid gap-3 text-sm text-muted">
                 <div>
                   <div className="font-medium text-foreground">Process</div>
-                  Process instructions, team roles, and workflow stages.
-                </div>
-                <div>
-                  <div className="font-medium text-foreground">Inputs</div>
-                  Launch parameters and workspace-linked workflow inputs.
+                  Process instructions, specialists, workflow goals, and workflow stages.
                 </div>
                 <div>
                   <div className="font-medium text-foreground">Advanced</div>
@@ -412,7 +408,7 @@ export function PlaybookListPage(): JSX.Element {
     <div className="space-y-6 p-4 sm:p-6">
       <DashboardPageHeader
         navHref="/design/playbooks"
-        description="Create and manage playbooks that define workflow guidance, team structure, and launch inputs."
+        description="Create and manage playbooks that define workflow guidance, team structure, and workflow goals."
         actions={
           <Button onClick={openCreateWorkspace}>
             <Plus className="h-4 w-4" />

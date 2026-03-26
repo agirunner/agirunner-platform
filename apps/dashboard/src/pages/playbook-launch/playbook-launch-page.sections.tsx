@@ -80,37 +80,6 @@ function SnapshotList(props: {
   );
 }
 
-export function ResolutionOrderPanel(): JSX.Element {
-  return (
-    <div className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
-      <div>
-        <div className="font-medium text-foreground">Resolution order</div>
-        <p className="mt-1 text-sm text-muted">
-          Every launch input resolves in the same order so operators can see what belongs to the
-          playbook, what came from the workspace, and what this run overrides.
-        </p>
-      </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        <ResolutionStep
-          step="1"
-          title="Playbook default"
-          detail="Start from the value declared on the playbook."
-        />
-        <ResolutionStep
-          step="2"
-          title="Workspace autofill"
-          detail="If the parameter maps to workspace data, that workspace value replaces the default."
-        />
-        <ResolutionStep
-          step="3"
-          title="Launch override"
-          detail="Anything entered at launch wins for this run only."
-        />
-      </div>
-    </div>
-  );
-}
-
 export function LaunchActionCard(props: {
   canLaunch: boolean;
   isLaunching: boolean;
@@ -152,21 +121,5 @@ export function LaunchActionCard(props: {
         </Button>
       </CardContent>
     </Card>
-  );
-}
-
-function ResolutionStep(props: {
-  step: string;
-  title: string;
-  detail: string;
-}): JSX.Element {
-  return (
-    <div className="rounded-xl border border-border/70 bg-background/70 p-3 text-sm">
-      <div className="flex items-center gap-2">
-        <Badge variant="outline">{props.step}</Badge>
-        <div className="font-medium text-foreground">{props.title}</div>
-      </div>
-      <p className="mt-2 text-muted">{props.detail}</p>
-    </div>
   );
 }

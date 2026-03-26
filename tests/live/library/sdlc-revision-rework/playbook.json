@@ -8,39 +8,29 @@
     "process_instructions": "Run the workflow through the authored stages `architecture-pass`, `implementation-pass`, and `release-pass`. Treat each stage as a distinct checkpoint of evidence and handoff quality: `architecture-pass` exists to Design direction exists; `implementation-pass` exists to Implementation revisions are assessed; `release-pass` exists to Release packaging is validated.\nUse these roles deliberately: `platform-architect` Produces the initial design and later remediation guidance when routed; `feature-engineer` Implements and reimplements the delivery subject over multiple revisions; `integration-quality-assessor` Assesses implementation revisions and release-readiness revisions; `integration-assessor` Assesses downstream integration risk after implementation revisions; `revision-release-coordinator` Packages the release candidate after assessments clear.\nHappy path: start with the earliest unfinished stage, dispatch the best matching producing role for that stage, require a full handoff with concrete artifacts or evidence, then move to the next stage only when the current output is usable. When a later stage is primarily evaluative, dispatch the reviewer or assessor roles after the producing role has handed off; when a later stage is packaging or release-oriented, dispatch the coordinating role only after upstream evidence is complete.\nUnhappy path: If any role reports missing evidence, partial delivery, request changes, rejection, blocking risk, or an escalation, keep the current subject open, route work back to the most relevant producing role, and require a fresh handoff before trying again. If two decisions conflict, preserve both in history, but route using the newest subject state and the most restrictive still-active finding. Do not skip a stage just because a later role believes it can improvise around incomplete upstream work. This playbook is built around explicit multi-revision repository work: the platform architect drives the initial reopen_subject rework, the orchestrator routes the revision back to the platform architect when architecture findings reopen the subject, and every assessor must reassess later release-readiness output against the newest revision before packaging.\nCompletion rules: finish only after the last required stage has a final, internally consistent handoff, the final package matches the current subject state, and every role named above has either contributed or been intentionally skipped for a clear reason grounded in the playbook. Stage-specific closure for this playbook: each `architecture-pass` work item stays open until `platform-architect` has either submitted current-subject handoffs that satisfy the `architecture-pass` goal or been intentionally skipped with a concrete reason grounded in the playbook; each `implementation-pass` work item stays open until `feature-engineer`, `integration-quality-assessor`, and `integration-assessor` have either submitted current-subject handoffs that satisfy the `implementation-pass` goal or been intentionally skipped with a concrete reason grounded in the playbook; each `release-pass` work item stays open until `revision-release-coordinator` and `integration-quality-assessor` have either submitted current-subject handoffs that satisfy the `release-pass` goal or been intentionally skipped with a concrete reason grounded in the playbook. Do not fabricate approvals, assessments, escalations, or branch changes that the playbook does not actually justify, and do not treat stale findings as permission to advance new work. Guided closure rule: treat the authored flow as best-intent process guidance. Preferred review paths and stage order SHOULD be followed when they remain useful, but the orchestrator MAY waive a preferred step with a recorded reason when closure is still legally possible. Only explicit blockers grounded in the current subject state should keep work open; non-blocking deviations, redundant reviews, and stale advisory findings should be recorded as callouts instead of preventing closure.",
     "parameters": [
       {
-        "name": "goal",
-        "type": "string",
-        "required": true,
-        "category": "input",
-        "description": "What this live workflow should accomplish"
+        "slug": "goal",
+        "title": "Goal",
+        "required": true
       },
       {
-        "name": "initial_revision_scope",
-        "type": "string",
-        "required": true,
-        "category": "input",
-        "description": "What revision 1 must deliver before any rework begins"
+        "slug": "initial_revision_scope",
+        "title": "Initial Revision Scope",
+        "required": true
       },
       {
-        "name": "architect_rework_scope",
-        "type": "string",
-        "required": true,
-        "category": "input",
-        "description": "What revision 2 must deliver after the first reopen_subject cycle"
+        "slug": "architect_rework_scope",
+        "title": "Architect Rework Scope",
+        "required": true
       },
       {
-        "name": "final_revision_scope",
-        "type": "string",
-        "required": true,
-        "category": "input",
-        "description": "What revision 3 must deliver after the architect-routed redesign"
+        "slug": "final_revision_scope",
+        "title": "Final Revision Scope",
+        "required": true
       },
       {
-        "name": "revision_progression_contract",
-        "type": "string",
-        "required": true,
-        "category": "input",
-        "description": "Authored assessor outcomes across the three revisions"
+        "slug": "revision_progression_contract",
+        "title": "Revision Progression Contract",
+        "required": true
       }
     ],
     "roles": [
