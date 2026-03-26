@@ -205,6 +205,71 @@ describe('playbook authoring support', () => {
     ).toBe(false);
   });
 
+  it('requires exactly one blocked lane and one terminal lane', () => {
+    expect(
+      validateBoardColumnsDraft([
+        { id: 'inbox', label: 'Inbox', description: '', is_blocked: false, is_terminal: false },
+        { id: 'done', label: 'Done', description: '', is_blocked: false, is_terminal: true },
+      ], 'inbox'),
+    ).toEqual(
+      expect.objectContaining({
+        isValid: false,
+        blockingIssues: expect.arrayContaining(['Choose exactly one blocked lane.']),
+      }),
+    );
+
+    expect(
+      validateBoardColumnsDraft([
+        { id: 'inbox', label: 'Inbox', description: '', is_blocked: true, is_terminal: false },
+        { id: 'blocked', label: 'Blocked', description: '', is_blocked: true, is_terminal: false },
+        { id: 'done', label: 'Done', description: '', is_blocked: false, is_terminal: true },
+      ], 'inbox'),
+    ).toEqual(
+      expect.objectContaining({
+        isValid: false,
+        blockingIssues: expect.arrayContaining(['Choose exactly one blocked lane.']),
+      }),
+    );
+
+    expect(
+      validateBoardColumnsDraft([
+        { id: 'inbox', label: 'Inbox', description: '', is_blocked: true, is_terminal: false },
+        { id: 'active', label: 'Active', description: '', is_blocked: false, is_terminal: false },
+      ], 'active'),
+    ).toEqual(
+      expect.objectContaining({
+        isValid: false,
+        blockingIssues: expect.arrayContaining(['Choose exactly one terminal lane.']),
+      }),
+    );
+  });
+
+  it('rejects intake lanes that point at blocked or terminal columns', () => {
+    expect(
+      validateBoardColumnsDraft([
+        { id: 'inbox', label: 'Inbox', description: '', is_blocked: true, is_terminal: false },
+        { id: 'done', label: 'Done', description: '', is_blocked: false, is_terminal: true },
+      ], 'inbox'),
+    ).toEqual(
+      expect.objectContaining({
+        isValid: false,
+        blockingIssues: expect.arrayContaining(['Choose an intake lane that is not blocked or terminal.']),
+      }),
+    );
+
+    expect(
+      validateBoardColumnsDraft([
+        { id: 'inbox', label: 'Inbox', description: '', is_blocked: false, is_terminal: false },
+        { id: 'done', label: 'Done', description: '', is_blocked: false, is_terminal: true },
+      ], 'done'),
+    ).toEqual(
+      expect.objectContaining({
+        isValid: false,
+        blockingIssues: expect.arrayContaining(['Choose an intake lane that is not blocked or terminal.']),
+      }),
+    );
+  });
+
   it('reuses the current validation-issue array when the contents are unchanged', () => {
     const currentIssues = ['Every stage needs a name.', 'Every stage needs a goal.'];
     const nextIssues = ['Every stage needs a name.', 'Every stage needs a goal.'];

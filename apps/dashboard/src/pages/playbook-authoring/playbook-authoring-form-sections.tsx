@@ -330,6 +330,19 @@ export function AdvancedWorkflowSection(props: SectionProps): JSX.Element {
 
 function BoardColumnsSection(props: SectionProps): JSX.Element {
   const boardValidation = validateBoardColumnsDraft(props.draft.columns, props.draft.entry_column_id);
+  const columnOptions = buildBoardColumnSelectOptions(props.draft.columns);
+  const intakeValue = resolveEntryColumnSelectionValue(props.draft.columns, props.draft.entry_column_id);
+  const blockedValue = resolveSemanticColumnSelectionValue(props.draft.columns, 'is_blocked');
+  const terminalValue = resolveSemanticColumnSelectionValue(props.draft.columns, 'is_terminal');
+  const intakeOptions = columnOptions.filter(
+    (option) => option.value === intakeValue || (option.value !== blockedValue && option.value !== terminalValue),
+  );
+  const blockedOptions = columnOptions.filter(
+    (option) => option.value === blockedValue || (option.value !== intakeValue && option.value !== terminalValue),
+  );
+  const terminalOptions = columnOptions.filter(
+    (option) => option.value === terminalValue || (option.value !== intakeValue && option.value !== blockedValue),
+  );
   return (
     <SectionCard
       id="playbook-board-columns"
@@ -337,37 +350,71 @@ function BoardColumnsSection(props: SectionProps): JSX.Element {
       description="Keep the board simple. Most playbooks should keep the standard intake, active, review, blocked, and done lanes."
     >
       <div className="space-y-4">
-        <LabeledField label="Default intake column">
-          <Select
-            value={props.draft.entry_column_id || ENTRY_COLUMN_UNSET}
-            onValueChange={(value) =>
-              props.onChange((current) => ({
-                ...current,
-                entry_column_id: value === ENTRY_COLUMN_UNSET ? '' : value,
-              }))
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Choose the default intake column" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ENTRY_COLUMN_UNSET}>Choose the default intake column</SelectItem>
-              {props.draft.columns
-                .map((column) => column.id.trim())
-                .filter(Boolean)
-                .map((columnId) => (
-                  <SelectItem key={columnId} value={columnId}>
-                    {columnId}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-        </LabeledField>
-        {boardValidation.entryColumnError ? (
-          <p className="text-xs text-red-600 dark:text-red-400">
-            {boardValidation.entryColumnError}
-          </p>
-        ) : null}
+        <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-1.5">
+            <LabeledField label="Intake lane">
+              <Select
+                value={intakeValue}
+                onValueChange={(value) => updateEntryColumnSelection(props, value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose the intake lane" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ENTRY_COLUMN_UNSET}>Choose the intake lane</SelectItem>
+                  {intakeOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </LabeledField>
+            <ValidationText issue={boardValidation.entryColumnError} />
+          </div>
+          <div className="grid gap-1.5">
+            <LabeledField label="Blocked lane">
+              <Select
+                value={blockedValue}
+                onValueChange={(value) => updateSemanticColumnSelection(props, 'is_blocked', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose the blocked lane" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ENTRY_COLUMN_UNSET}>Choose the blocked lane</SelectItem>
+                  {blockedOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </LabeledField>
+            <ValidationText issue={boardValidation.blockedColumnError} />
+          </div>
+          <div className="grid gap-1.5">
+            <LabeledField label="Terminal lane">
+              <Select
+                value={terminalValue}
+                onValueChange={(value) => updateSemanticColumnSelection(props, 'is_terminal', value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose the terminal lane" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ENTRY_COLUMN_UNSET}>Choose the terminal lane</SelectItem>
+                  {terminalOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </LabeledField>
+            <ValidationText issue={boardValidation.terminalColumnError} />
+          </div>
+        </div>
         {props.draft.columns.map((column, index) => (
           <div key={`column-${index}`} className="rounded-xl border border-border/70 bg-card/60 p-4">
             <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end">
@@ -405,24 +452,12 @@ function BoardColumnsSection(props: SectionProps): JSX.Element {
             </div>
             <div className="mt-3 space-y-3">
               <LabeledField label="Description">
-              <Textarea
-                value={column.description}
-                onChange={(event) => updateColumn(props, index, 'description', event.target.value)}
-                className="min-h-[90px]"
-              />
+                <Textarea
+                  value={column.description}
+                  onChange={(event) => updateColumn(props, index, 'description', event.target.value)}
+                  className="min-h-[90px]"
+                />
               </LabeledField>
-              <div className="flex flex-col gap-3 md:flex-row">
-                <ToggleField
-                  label="Blocked lane"
-                  checked={column.is_blocked}
-                  onCheckedChange={(checked) => updateColumnBoolean(props, index, 'is_blocked', checked)}
-                />
-                <ToggleField
-                  label="Terminal lane"
-                  checked={column.is_terminal}
-                  onCheckedChange={(checked) => updateColumnBoolean(props, index, 'is_terminal', checked)}
-                />
-              </div>
               <ValidationText issue={boardValidation.columnErrors[index]?.id} />
               <ValidationText issue={boardValidation.columnErrors[index]?.label} />
             </div>
@@ -586,23 +621,38 @@ function updateColumn(
 ): void {
   props.onChange((current) => ({
     ...current,
+    entry_column_id:
+      field === 'id' && current.columns[index]?.id.trim() === current.entry_column_id.trim()
+        ? value.trim()
+        : current.entry_column_id,
     columns: current.columns.map((entry, entryIndex) =>
       entryIndex === index ? { ...entry, [field]: value } : entry,
     ),
   }));
 }
 
-function updateColumnBoolean(
+function updateEntryColumnSelection(
   props: SectionProps,
-  index: number,
-  field: 'is_blocked' | 'is_terminal',
-  value: boolean,
+  value: string,
 ): void {
   props.onChange((current) => ({
     ...current,
-    columns: current.columns.map((entry, entryIndex) =>
-      entryIndex === index ? { ...entry, [field]: value } : entry,
-    ),
+    entry_column_id: resolveSelectedColumnId(current.columns, value),
+  }));
+}
+
+function updateSemanticColumnSelection(
+  props: SectionProps,
+  field: 'is_blocked' | 'is_terminal',
+  value: string,
+): void {
+  const selectedIndex = parseSelectedColumnIndex(value);
+  props.onChange((current) => ({
+    ...current,
+    columns: current.columns.map((entry, entryIndex) => ({
+      ...entry,
+      [field]: selectedIndex !== null && entryIndex === selectedIndex,
+    })),
   }));
 }
 
@@ -685,4 +735,54 @@ function ValidationText(props: { issue?: string }): JSX.Element | null {
   return props.issue ? (
     <p className="text-xs text-red-600 dark:text-red-400">{props.issue}</p>
   ) : null;
+}
+
+function buildBoardColumnSelectOptions(
+  columns: BoardColumnDraft[],
+): Array<{ value: string; label: string }> {
+  return columns
+    .map((column, index) => {
+      const id = column.id.trim();
+      if (!id) {
+        return null;
+      }
+      const label = column.label.trim();
+      return {
+        value: String(index),
+        label: label && label !== id ? `${label} (${id})` : label || id,
+      };
+    })
+    .filter((option): option is { value: string; label: string } => option !== null);
+}
+
+function resolveEntryColumnSelectionValue(
+  columns: BoardColumnDraft[],
+  entryColumnId: string,
+): string {
+  const selectedIndex = columns.findIndex((column) => column.id.trim() === entryColumnId.trim());
+  return selectedIndex >= 0 ? String(selectedIndex) : ENTRY_COLUMN_UNSET;
+}
+
+function resolveSemanticColumnSelectionValue(
+  columns: BoardColumnDraft[],
+  field: 'is_blocked' | 'is_terminal',
+): string {
+  const selectedIndex = columns.findIndex((column) => column.id.trim() && column[field]);
+  return selectedIndex >= 0 ? String(selectedIndex) : ENTRY_COLUMN_UNSET;
+}
+
+function resolveSelectedColumnId(columns: BoardColumnDraft[], value: string): string {
+  const selectedIndex = parseSelectedColumnIndex(value);
+  if (selectedIndex === null) {
+    return '';
+  }
+  return columns[selectedIndex]?.id.trim() ?? '';
+}
+
+function parseSelectedColumnIndex(value: string): number | null {
+  if (value === ENTRY_COLUMN_UNSET) {
+    return null;
+  }
+  const parsed = Number.parseInt(value, 10);
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
 }

@@ -97,6 +97,7 @@ export function parsePlaybookDefinition(value: unknown): PlaybookDefinition {
 
   assertUniqueIds(normalized.board.columns.map((column) => column.id), 'board column');
   assertBoardEntryColumn(normalized);
+  assertSingularBoardLaneSemantics(normalized);
   assertUniqueIds(normalized.stages.map((stage) => stage.name), 'stage');
   assertUniqueIds(normalized.parameters?.map((parameter) => parameter.slug) ?? [], 'launch input');
   return normalized;
@@ -177,6 +178,37 @@ function assertBoardEntryColumn(definition: PlaybookDefinition): void {
   if (!exists) {
     throw new SchemaValidationFailedError(
       `Unknown board entry column '${entryColumnId}' in playbook definition`,
+    );
+  }
+}
+
+function assertSingularBoardLaneSemantics(definition: PlaybookDefinition): void {
+  const blockedColumns = definition.board.columns.filter((column) => column.is_blocked);
+  if (blockedColumns.length > 1) {
+    throw new SchemaValidationFailedError(
+      `Expected at most one blocked board column, found ${blockedColumns.length}`,
+    );
+  }
+
+  const terminalColumns = definition.board.columns.filter((column) => column.is_terminal);
+  if (terminalColumns.length > 1) {
+    throw new SchemaValidationFailedError(
+      `Expected at most one terminal board column, found ${terminalColumns.length}`,
+    );
+  }
+
+  const entryColumnId = definition.board.entry_column_id;
+  if (!entryColumnId) {
+    return;
+  }
+
+  const entryColumn = definition.board.columns.find((column) => column.id === entryColumnId);
+  if (!entryColumn) {
+    return;
+  }
+  if (entryColumn.is_blocked || entryColumn.is_terminal) {
+    throw new SchemaValidationFailedError(
+      `Board entry column '${entryColumnId}' cannot be blocked or terminal`,
     );
   }
 }

@@ -182,6 +182,57 @@ describe('playbook model runtime pools', () => {
     ).toThrow(SchemaValidationFailedError);
   });
 
+  it('rejects multiple blocked board columns', () => {
+    expect(() =>
+      parsePlaybookDefinition({
+        process_instructions: 'Move work forward and record blockers clearly.',
+        roles: ['developer'],
+        board: {
+          columns: [
+            { id: 'planned', label: 'Planned' },
+            { id: 'blocked_a', label: 'Blocked A', is_blocked: true },
+            { id: 'blocked_b', label: 'Blocked B', is_blocked: true },
+            { id: 'done', label: 'Done', is_terminal: true },
+          ],
+        },
+      }),
+    ).toThrow(SchemaValidationFailedError);
+  });
+
+  it('rejects multiple terminal board columns', () => {
+    expect(() =>
+      parsePlaybookDefinition({
+        process_instructions: 'Move work forward and close it in one terminal lane.',
+        roles: ['developer'],
+        board: {
+          columns: [
+            { id: 'planned', label: 'Planned' },
+            { id: 'blocked', label: 'Blocked', is_blocked: true },
+            { id: 'done', label: 'Done', is_terminal: true },
+            { id: 'cancelled', label: 'Cancelled', is_terminal: true },
+          ],
+        },
+      }),
+    ).toThrow(SchemaValidationFailedError);
+  });
+
+  it('rejects entry columns that point at blocked or terminal lanes', () => {
+    expect(() =>
+      parsePlaybookDefinition({
+        process_instructions: 'Start work in the authored intake lane.',
+        roles: ['developer'],
+        board: {
+          entry_column_id: 'blocked',
+          columns: [
+            { id: 'planned', label: 'Planned' },
+            { id: 'blocked', label: 'Blocked', is_blocked: true },
+            { id: 'done', label: 'Done', is_terminal: true },
+          ],
+        },
+      }),
+    ).toThrow(SchemaValidationFailedError);
+  });
+
   it('derives fallback process instructions for legacy definitions with stages only', () => {
     const definition = parsePlaybookDefinition({
       roles: ['developer'],

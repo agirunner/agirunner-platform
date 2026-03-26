@@ -55,6 +55,8 @@ export interface PlaybookAuthoringSummary {
 export interface BoardColumnValidationResult {
   columnErrors: Array<{ id?: string; label?: string }>;
   entryColumnError?: string;
+  blockedColumnError?: string;
+  terminalColumnError?: string;
   blockingIssues: string[];
   isValid: boolean;
 }
@@ -211,7 +213,7 @@ export function validateBoardColumnsDraft(
   entryColumnId = '',
 ): BoardColumnValidationResult {
   if (columns.length === 0) {
-    return invalidBoard([], undefined, 'At least one board column is required.');
+    return invalidBoard([], undefined, undefined, undefined, 'At least one board column is required.');
   }
   const duplicateIds = new Set(
     columns
@@ -224,15 +226,28 @@ export function validateBoardColumnsDraft(
   }));
   const entryColumnError =
     entryColumnId.trim().length === 0
-      ? 'Choose the default intake column.'
+      ? 'Choose the intake lane.'
       : columns.some((column) => column.id.trim() === entryColumnId.trim())
-        ? undefined
-        : 'Choose a default intake column from the board.';
+        ? resolveIntakeLaneError(columns, entryColumnId.trim())
+        : 'Choose the intake lane from the board.';
+  const blockedColumnError = resolveLaneCountError(columns, 'is_blocked', 'blocked');
+  const terminalColumnError = resolveLaneCountError(columns, 'is_terminal', 'terminal');
+  const laneConflictError = resolveLaneConflictError(columns);
   const blockingIssues = uniqueStrings([
     ...columnErrors.flatMap((entry) => [entry.id, entry.label]),
     entryColumnError,
+    blockedColumnError,
+    terminalColumnError,
+    laneConflictError,
   ]);
-  return { columnErrors, entryColumnError, blockingIssues, isValid: blockingIssues.length === 0 };
+  return {
+    columnErrors,
+    entryColumnError,
+    blockedColumnError,
+    terminalColumnError,
+    blockingIssues,
+    isValid: blockingIssues.length === 0,
+  };
 }
 
 export function validateWorkflowRulesDraft(
@@ -348,9 +363,44 @@ export function summarizePlaybookAuthoringDraft(
 function invalidBoard(
   columnErrors: Array<{ id?: string; label?: string }>,
   entryColumnError: string | undefined,
+  blockedColumnError: string | undefined,
+  terminalColumnError: string | undefined,
   issue: string,
 ): BoardColumnValidationResult {
-  return { columnErrors, entryColumnError, blockingIssues: [issue], isValid: false };
+  return {
+    columnErrors,
+    entryColumnError,
+    blockedColumnError,
+    terminalColumnError,
+    blockingIssues: [issue],
+    isValid: false,
+  };
+}
+
+function resolveIntakeLaneError(columns: BoardColumnDraft[], entryColumnId: string): string | undefined {
+  const entryColumn = columns.find((column) => column.id.trim() === entryColumnId) ?? null;
+  if (!entryColumn) {
+    return 'Choose the intake lane from the board.';
+  }
+  if (entryColumn.is_blocked || entryColumn.is_terminal) {
+    return 'Choose an intake lane that is not blocked or terminal.';
+  }
+  return undefined;
+}
+
+function resolveLaneCountError(
+  columns: BoardColumnDraft[],
+  field: 'is_blocked' | 'is_terminal',
+  label: 'blocked' | 'terminal',
+): string | undefined {
+  const count = columns.filter((column) => column[field]).length;
+  return count === 1 ? undefined : `Choose exactly one ${label} lane.`;
+}
+
+function resolveLaneConflictError(columns: BoardColumnDraft[]): string | undefined {
+  return columns.some((column) => column.is_blocked && column.is_terminal)
+    ? 'Choose different blocked and terminal lanes.'
+    : undefined;
 }
 
 function buildBoardColumns(columns: BoardColumnDraft[]): BoardColumnDraft[] {

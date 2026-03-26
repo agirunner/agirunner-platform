@@ -46,10 +46,15 @@ describe('playbook authoring form sections source', () => {
     expect(source).not.toContain('Allowed values');
     expect(source).not.toContain('Default value');
     expect(source).not.toContain('Secret');
-    expect(source).toContain('Default intake column');
+    expect(source).toContain('Intake lane');
     expect(source).toContain('md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end');
     expect(source).toContain('Blocked lane');
     expect(source).toContain('Terminal lane');
+    expect(source).toContain('Choose the intake lane');
+    expect(source).toContain('Choose the blocked lane');
+    expect(source).toContain('Choose the terminal lane');
+    expect(source).not.toContain('checked={column.is_blocked}');
+    expect(source).not.toContain('checked={column.is_terminal}');
     expect(source).toContain('lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)] lg:items-stretch');
     expect(source).toContain('lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start');
     expect(source).not.toContain('lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start');
