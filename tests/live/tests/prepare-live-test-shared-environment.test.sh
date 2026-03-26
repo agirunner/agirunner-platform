@@ -19,6 +19,16 @@ assert_contains() {
   fi
 }
 
+assert_not_contains() {
+  local needle="$1"
+  local file="$2"
+  if grep -Fq "$needle" "$file"; then
+    echo "--- ${file} ---" >&2
+    cat "$file" >&2
+    fail "expected not to find: ${needle}"
+  fi
+}
+
 make_stub() {
   local path="$1"
   local body="$2"
@@ -41,7 +51,6 @@ test_shared_bootstrap_builds_stack_syncs_fixture_repo_and_writes_profile_registr
   bootstrap_context_file="${output_root}/bootstrap/context.json"
   trace_dir="${output_root}/bootstrap/api-trace"
   mkdir -p "${stubdir}" "${runtime_root}" "${fixtures_root}" "${fake_platform_root}/apps/platform-api" "${fake_platform_root}/tests/live/lib" "$(dirname "${envfile}")"
-  touch "${runtime_root}/Dockerfile.execution"
   touch "${fake_platform_root}/docker-compose.yml"
   touch "${fake_platform_root}/tests/live/lib/seed_live_test_shared_environment.py"
 
@@ -74,7 +83,8 @@ EOF
     "${SCRIPT_PATH}" >"${stdout_log}"
 
   assert_contains "docker build -t agirunner-runtime:local ${runtime_root}" "${logfile}"
-  assert_contains "docker build -f ${runtime_root}/Dockerfile.execution -t agirunner-runtime-execution:local ${runtime_root}" "${logfile}"
+  assert_not_contains "Dockerfile.execution" "${logfile}"
+  assert_not_contains "agirunner-runtime-execution:local" "${logfile}"
   assert_contains "docker compose -p agirunner-platform -f ${fake_platform_root}/docker-compose.yml down -v --remove-orphans JWT_SECRET=12345678901234567890123456789012 WEBHOOK_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456 DEFAULT_ADMIN_API_KEY=test-admin-key" "${logfile}"
   assert_contains "docker compose -p agirunner-platform -f ${fake_platform_root}/docker-compose.yml up -d --build JWT_SECRET=12345678901234567890123456789012 WEBHOOK_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456 DEFAULT_ADMIN_API_KEY=test-admin-key" "${logfile}"
   assert_contains "docker compose -p agirunner-platform -f ${fake_platform_root}/docker-compose.yml exec -T platform-api env JWT_SECRET=12345678901234567890123456789012 WEBHOOK_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456 DEFAULT_ADMIN_API_KEY=test-admin-key" "${logfile}"
@@ -96,7 +106,6 @@ test_shared_bootstrap_requires_platform_startup_secrets() {
   fixtures_root="${tmpdir}/fixtures"
   fake_platform_root="${tmpdir}/platform"
   mkdir -p "${stubdir}" "${runtime_root}" "${fixtures_root}" "${fake_platform_root}/apps/platform-api" "${fake_platform_root}/tests/live/lib" "$(dirname "${envfile}")"
-  touch "${runtime_root}/Dockerfile.execution"
   touch "${fake_platform_root}/docker-compose.yml"
   touch "${fake_platform_root}/tests/live/lib/seed_live_test_shared_environment.py"
 
@@ -136,7 +145,6 @@ test_live_env_overrides_stale_shell_values() {
   bootstrap_context_file="${output_root}/bootstrap/context.json"
   trace_dir="${output_root}/bootstrap/api-trace"
   mkdir -p "${stubdir}" "${runtime_root}" "${fixtures_root}" "${fake_platform_root}/apps/platform-api" "${fake_platform_root}/tests/live/lib" "$(dirname "${envfile}")"
-  touch "${runtime_root}/Dockerfile.execution"
   touch "${fake_platform_root}/docker-compose.yml"
   touch "${fake_platform_root}/tests/live/lib/seed_live_test_shared_environment.py"
 

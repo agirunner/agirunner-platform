@@ -172,10 +172,6 @@ const REMOVED_RUNTIME_DEFAULT_KEYS = new Set([
   'workspace.inject_context_rename_timeout_seconds',
   'platform.webhook_max_attempts',
   'platform.webhook_retry_base_delay_ms',
-  'specialist_execution_default_image',
-  'specialist_execution_default_cpu',
-  'specialist_execution_default_memory',
-  'specialist_execution_default_pull_policy',
 ]);
 const NON_DELETABLE_RUNTIME_DEFAULT_KEYS = new Set([
   'global_max_specialists',

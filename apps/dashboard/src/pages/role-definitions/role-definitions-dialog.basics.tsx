@@ -1,6 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
 
-import { Badge } from '../../components/ui/badge.js';
 import {
   Card,
   CardContent,
@@ -26,6 +25,7 @@ import type {
   RoleExecutionEnvironmentSummary,
   RoleFormState,
 } from './role-definitions-page.support.js';
+import { isSelectableExecutionEnvironment } from './role-definitions-page.support.js';
 import { ReasoningControl } from './role-definitions-orchestrator.dialog-shared.js';
 
 const DEFAULT_ENVIRONMENT_VALUE = '__default__';
@@ -190,7 +190,7 @@ export function RoleExecutionEnvironmentSection(props: {
       <CardHeader>
         <CardTitle>Execution environment</CardTitle>
         <CardDescription>
-          Select the Specialist execution environment for this role. Tenant default inherits the environment marked default on Platform &gt; Environments.
+          Select the specialist execution environment for this role. Default inherits the environment marked default on Platform &gt; Environments.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -206,12 +206,16 @@ export function RoleExecutionEnvironmentSection(props: {
             }
           >
             <SelectTrigger>
-              <SelectValue placeholder="Use tenant default environment" />
+              <SelectValue placeholder="Use default environment" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={DEFAULT_ENVIRONMENT_VALUE}>Tenant default environment</SelectItem>
+              <SelectItem value={DEFAULT_ENVIRONMENT_VALUE}>Default environment</SelectItem>
               {props.environments.map((environment) => (
-                <SelectItem key={environment.id} value={environment.id}>
+                <SelectItem
+                  key={environment.id}
+                  value={environment.id}
+                  disabled={!isSelectableExecutionEnvironment(environment)}
+                >
                   {environment.name}
                 </SelectItem>
               ))}
@@ -230,24 +234,14 @@ function ExecutionEnvironmentDetails(props: {
   if (!props.environment) {
     return (
       <div className="rounded-lg border border-border/70 bg-muted/10 px-4 py-3 text-sm text-muted">
-        Roles without an override inherit the tenant default environment, including its image, CPU, memory, and pull policy.
+        Roles without an override inherit the default environment, including its image, CPU, memory, and pull policy.
       </div>
     );
   }
 
   return (
     <div className="rounded-lg border border-border/70 bg-muted/10 px-4 py-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="font-medium text-foreground">{props.environment.name}</p>
-        <Badge variant={props.environment.compatibility_status === 'compatible' ? 'success' : 'warning'}>
-          {props.environment.compatibility_status}
-        </Badge>
-        {props.environment.support_status ? (
-          <Badge variant={props.environment.support_status === 'active' ? 'outline' : 'warning'}>
-            {props.environment.support_status}
-          </Badge>
-        ) : null}
-      </div>
+      <p className="font-medium text-foreground">{props.environment.name}</p>
       <dl className="mt-3 grid gap-3 text-sm md:grid-cols-2">
         <EnvironmentDetail label="Image" value={props.environment.image} mono />
         <EnvironmentDetail label="Resources" value={`CPU ${props.environment.cpu} | Memory ${props.environment.memory}`} />

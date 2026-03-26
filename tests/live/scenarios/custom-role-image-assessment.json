@@ -3,9 +3,9 @@
   "profile": "custom-image-assessment",
   "workflow": {
     "name": "Custom Role Image Assessment",
-    "goal": "Run a build step in a custom role image and assess the result before rollout.",
+    "goal": "Run a build step in a custom role execution environment and assess the result before rollout.",
     "parameters": {
-      "build_contract": "The assessor approves the custom-image build output on the first pass."
+      "build_contract": "The assessor approves the custom-execution-environment build output on the first pass."
     }
   },
   "workspace": {
@@ -38,7 +38,7 @@
   },
   "coverage": {
     "storage_execution": [
-      "custom_role_image"
+      "custom_execution_environment"
     ]
   }
 }

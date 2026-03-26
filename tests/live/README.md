@@ -18,7 +18,7 @@
 ## Layout
 
 - `prepare-live-test-shared-environment.sh`
-  - rebuilds runtime and execution images
+  - rebuilds the runtime image and the default platform compose stack
   - resets seeded platform state once for the full corpus
   - seeds provider/model defaults plus all test-owned roles and playbooks through API
   - restarts orchestrator capacity through fleet API and waits for healthy DCM state
@@ -84,7 +84,7 @@ The current corpus is intentionally realistic rather than toy-like. It spans:
 - ongoing intake flows
 - host-directory maintenance flows
 - concurrency and race-condition stress scenarios
-- custom role-image coverage
+- custom execution-environment coverage
 - prose-driven governance scenarios across SDLC, requirements, publishing, host-directory, and concurrency flows
 
 Long-term corpus planning lives in:

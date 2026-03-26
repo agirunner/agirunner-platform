@@ -19,6 +19,7 @@ import {
   RoleReadinessCard,
 } from './role-definitions-dialog.summary.js';
 import {
+  buildRoleExecutionEnvironmentOptions,
   createRoleForm,
   listAvailableTools,
   resolveEffectiveRoleModel,
@@ -132,8 +133,14 @@ export function RoleDialog(props: {
     selectedModelId,
     props.systemDefault?.modelId,
   );
+  const executionEnvironmentOptions = buildRoleExecutionEnvironmentOptions(
+    props.executionEnvironments,
+    form.executionEnvironmentId,
+    sourceRole?.execution_environment ?? null,
+  );
   const selectedEnvironment =
-    props.executionEnvironments.find((environment) => environment.id === form.executionEnvironmentId)
+    executionEnvironmentOptions.find((environment) => environment.id === form.executionEnvironmentId)
+    ?? sourceRole?.execution_environment
     ?? null;
   const tools = listAvailableTools(props.tools, sourceRole, effectiveModel);
   const validation = validateRoleDialog(form, props.roles, props.role);
@@ -216,7 +223,7 @@ export function RoleDialog(props: {
               <RoleExecutionEnvironmentSection
                 form={form}
                 setForm={setForm}
-                environments={props.executionEnvironments}
+                environments={executionEnvironmentOptions}
               />
               <RoleReadinessCard validation={validation} summary={summary} />
             </div>

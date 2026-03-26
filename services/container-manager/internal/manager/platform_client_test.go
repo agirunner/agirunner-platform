@@ -347,7 +347,7 @@ func TestReportLiveContainerInventoryPostsDockerTruth(t *testing.T) {
 			ExecutionBackend: "runtime_plus_task",
 			State:       "running",
 			Status:      "Up 90 seconds",
-			Image:       "agirunner-runtime-execution:local",
+			Image:       "debian:trixie-slim",
 			CPULimit:    "1",
 			MemoryLimit: "768m",
 			RuntimeID:   "runtime-1",

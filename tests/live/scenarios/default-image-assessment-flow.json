@@ -3,10 +3,10 @@
   "profile": "default-image-assessment-flow",
   "workflow": {
     "name": "Default Image Assessment Flow",
-    "goal": "Verify that a generic assessment-driven repository workflow succeeds using only the default role image path.",
+    "goal": "Verify that a generic assessment-driven repository workflow succeeds using only the tenant default execution environment path.",
     "parameters": {
       "scenario_name": "default-image-assessment-flow",
-      "assessment_contract": "Approve the first implementation revision when the seeded verification path passes and the delivery output stays within the default image tool contract."
+      "assessment_contract": "Approve the first implementation revision when the seeded verification path passes and the delivery output stays within the tenant default execution environment tool contract."
     }
   },
   "workspace": {
@@ -37,7 +37,7 @@
   },
   "coverage": {
     "storage_execution": [
-      "default_image"
+      "default_execution_environment"
     ],
     "delivery_paths": [
       "assessment_then_successor"

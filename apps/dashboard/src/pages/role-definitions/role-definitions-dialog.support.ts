@@ -77,7 +77,7 @@ function summarizeEnvironmentSelection(
   selectedEnvironment?: RoleExecutionEnvironmentSummary | null,
 ): string {
   if (!environmentId.trim()) {
-    return 'Uses tenant default environment';
+    return 'Uses default environment';
   }
   if (!selectedEnvironment) {
     return 'Uses selected execution environment';

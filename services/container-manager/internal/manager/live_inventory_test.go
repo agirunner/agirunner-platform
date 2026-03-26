@@ -43,7 +43,7 @@ func TestBuildLiveContainerReportsUsesDockerTruth(t *testing.T) {
 		{
 			ID:          "task-container-1",
 			Name:        "task-3d749b2c",
-			Image:       "agirunner-runtime-execution:local",
+			Image:       "debian:trixie-slim",
 			State:       "running",
 			Status:      "Up 90 seconds",
 			CPULimit:    "1",

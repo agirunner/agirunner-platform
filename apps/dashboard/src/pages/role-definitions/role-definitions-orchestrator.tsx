@@ -115,7 +115,7 @@ export function OrchestratorControlPlane(props: {
               title="Pool posture"
               status={`${props.poolSummary.enabledWorkers} enabled agents`}
               value={`${props.poolSummary.runningContainers} running / ${props.poolSummary.desiredReplicas} desired replicas`}
-              detail="Manage the primary orchestrator agent image and capacity here."
+              detail="Configure the runtime environment for the orchestrator and how many replicas should be available."
               facts={[
                 {
                   label: 'Agent image',

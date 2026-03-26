@@ -73,15 +73,16 @@ export function OrchestratorPoolDialog(props: {
         <DialogHeader>
           <DialogTitle>Edit orchestrator pool posture</DialogTitle>
           <DialogDescription>
-            Keep the primary orchestrator agent entry editable here, including image and resource
-            limits.
+            Configure the runtime environment for the orchestrator, and how many replicas should
+            be available.
           </DialogDescription>
         </DialogHeader>
         <Card className="border-border/70 shadow-none">
           <CardHeader>
             <CardTitle className="text-base">Agent configuration</CardTitle>
             <CardDescription>
-              Configure the orchestrator agent image and capacity.
+              Configure the runtime environment for the orchestrator and how many replicas should
+              be available.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">

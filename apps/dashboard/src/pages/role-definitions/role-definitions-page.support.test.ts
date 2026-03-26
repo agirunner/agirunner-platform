@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildRoleExecutionEnvironmentOptions,
   buildRoleModelOptions,
   buildRolePayload,
   createRoleForm,
   createDuplicateRoleForm,
+  isSelectableExecutionEnvironment,
   listAvailableTools,
 } from './role-definitions-page.support.js';
 
@@ -67,7 +69,7 @@ describe('role definitions support helpers', () => {
     );
   });
 
-  it('defaults to the tenant execution environment when no override is set', () => {
+  it('defaults to the shared execution environment when no override is set', () => {
     expect(createRoleForm().executionEnvironmentId).toBe('');
   });
 
@@ -161,5 +163,63 @@ describe('role definitions support helpers', () => {
         },
       ).map((tool) => tool.id),
     ).toEqual(['file_read', 'git_diff']);
+  });
+
+  it('treats archived environments as non-selectable for new role assignments', () => {
+    expect(
+      isSelectableExecutionEnvironment({
+        id: 'environment-1',
+        name: 'Ubuntu archived',
+        source_kind: 'catalog',
+        image: 'ubuntu:24.04',
+        cpu: '2',
+        memory: '1g',
+        pull_policy: 'if-not-present',
+        compatibility_status: 'compatible',
+        support_status: 'active',
+        is_archived: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('keeps a currently selected archived environment visible while excluding other archived choices', () => {
+    const activeEnvironment = {
+      id: 'environment-active',
+      name: 'Debian Base',
+      source_kind: 'catalog' as const,
+      image: 'debian:trixie-slim',
+      cpu: '1',
+      memory: '768m',
+      pull_policy: 'if-not-present' as const,
+      compatibility_status: 'compatible' as const,
+      support_status: 'active' as const,
+      is_archived: false,
+    };
+    const archivedEnvironment = {
+      id: 'environment-archived',
+      name: 'Fedora archived',
+      source_kind: 'custom' as const,
+      image: 'fedora:42',
+      cpu: '2',
+      memory: '1g',
+      pull_policy: 'always' as const,
+      compatibility_status: 'compatible' as const,
+      support_status: 'active' as const,
+      is_archived: true,
+    };
+
+    expect(
+      buildRoleExecutionEnvironmentOptions(
+        [activeEnvironment, archivedEnvironment],
+        'environment-archived',
+      ).map((environment) => environment.id),
+    ).toEqual(['environment-active', 'environment-archived']);
+
+    expect(
+      buildRoleExecutionEnvironmentOptions(
+        [activeEnvironment, archivedEnvironment],
+        '',
+      ).map((environment) => environment.id),
+    ).toEqual(['environment-active']);
   });
 });

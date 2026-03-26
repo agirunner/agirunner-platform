@@ -50,8 +50,8 @@ export class ExecutionEnvironmentVerificationService {
         result.compatibility_status,
         result.verification_contract_version,
         environment.image,
-        JSON.stringify(result.probe_output),
-        JSON.stringify(result.compatibility_errors),
+        serializeVerificationJson(result.probe_output),
+        serializeVerificationJson(result.compatibility_errors),
       ],
     );
 
@@ -71,10 +71,10 @@ export class ExecutionEnvironmentVerificationService {
         tenantId,
         environmentId,
         result.compatibility_status,
-        JSON.stringify(result.compatibility_errors),
+        serializeVerificationJson(result.compatibility_errors),
         result.verification_contract_version,
-        JSON.stringify(result.verified_metadata),
-        JSON.stringify(result.tool_capabilities),
+        serializeVerificationJson(result.verified_metadata),
+        serializeVerificationJson(result.tool_capabilities),
         result.compatibility_status === 'compatible' && environment.support_status !== 'blocked',
       ],
     );
@@ -111,4 +111,25 @@ export class ExecutionEnvironmentVerificationService {
     }
     return row;
   }
+}
+
+function serializeVerificationJson(value: unknown): string {
+  return JSON.stringify(sanitizeVerificationJsonValue(value));
+}
+
+function sanitizeVerificationJsonValue(value: unknown): unknown {
+  if (typeof value === 'string') {
+    return value.replaceAll('\u0000', '');
+  }
+  if (Array.isArray(value)) {
+    return value.map((entry) => sanitizeVerificationJsonValue(entry));
+  }
+  if (value && typeof value === 'object') {
+    const sanitized: Record<string, unknown> = {};
+    for (const [key, child] of Object.entries(value)) {
+      sanitized[key] = sanitizeVerificationJsonValue(child);
+    }
+    return sanitized;
+  }
+  return value;
 }

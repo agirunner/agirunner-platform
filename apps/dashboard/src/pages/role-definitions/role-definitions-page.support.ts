@@ -12,6 +12,7 @@ export interface RoleExecutionEnvironmentSummary {
   pull_policy: 'always' | 'if-not-present' | 'never';
   compatibility_status: 'unknown' | 'compatible' | 'incompatible';
   support_status?: 'active' | 'deprecated' | 'blocked' | null;
+  is_archived?: boolean;
   verification_contract_version?: string | null;
   verified_metadata?: Record<string, unknown>;
   tool_capabilities?: Record<string, unknown>;
@@ -239,6 +240,40 @@ export function countRoleStateSummary(roles: RoleDefinition[]) {
     }),
     { total: 0, active: 0, inactive: 0 },
   );
+}
+
+export function isSelectableExecutionEnvironment(
+  environment: RoleExecutionEnvironmentSummary,
+): boolean {
+  return (
+    environment.compatibility_status === 'compatible'
+    && environment.support_status !== 'blocked'
+    && environment.is_archived !== true
+  );
+}
+
+export function buildRoleExecutionEnvironmentOptions(
+  environments: RoleExecutionEnvironmentSummary[],
+  selectedEnvironmentId: string,
+  selectedEnvironment?: RoleExecutionEnvironmentSummary | null,
+): RoleExecutionEnvironmentSummary[] {
+  const selectableEnvironments = environments.filter(isSelectableExecutionEnvironment);
+  const normalizedSelectedId = selectedEnvironmentId.trim();
+  if (normalizedSelectedId === '') {
+    return selectableEnvironments;
+  }
+
+  const selectedOption =
+    environments.find((environment) => environment.id === normalizedSelectedId)
+    ?? selectedEnvironment
+    ?? null;
+  if (!selectedOption) {
+    return selectableEnvironments;
+  }
+  if (selectableEnvironments.some((environment) => environment.id === selectedOption.id)) {
+    return selectableEnvironments;
+  }
+  return [...selectableEnvironments, selectedOption];
 }
 
 function normalizeExecutionEnvironmentId(value: string): string | null {

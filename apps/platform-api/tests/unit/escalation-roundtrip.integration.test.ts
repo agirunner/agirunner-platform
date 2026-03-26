@@ -15,6 +15,23 @@ import {
   type TestDatabase,
 } from '../helpers/postgres.js';
 
+const VERIFIED_BASELINE_COMMANDS = [
+  'sleep',
+  'sh',
+  'cat',
+  'mkdir',
+  'mv',
+  'chmod',
+  'rm',
+  'cp',
+  'find',
+  'sort',
+  'awk',
+  'sed',
+  'grep',
+  'head',
+] as const;
+
 describe('V2 escalation round-trip integration', () => {
   let db: TestDatabase;
   let harness: ReturnType<typeof createV2Harness>;
@@ -66,10 +83,6 @@ describe('V2 escalation round-trip integration', () => {
       ['specialist_runtime_default_cpu', '1'],
       ['specialist_runtime_default_memory', '512Mi'],
       ['specialist_runtime_default_pull_policy', 'if-not-present'],
-      ['specialist_execution_default_image', 'agirunner-runtime-execution:local'],
-      ['specialist_execution_default_cpu', '1'],
-      ['specialist_execution_default_memory', '1Gi'],
-      ['specialist_execution_default_pull_policy', 'if-not-present'],
     ] as const) {
       await runtimeDefaultsService.createDefault(identity.tenantId, {
         configKey,
@@ -77,6 +90,51 @@ describe('V2 escalation round-trip integration', () => {
         configType: 'string',
       });
     }
+    await db.pool.query(
+      `INSERT INTO execution_environments (
+         tenant_id,
+         slug,
+         name,
+         description,
+         source_kind,
+         catalog_key,
+         catalog_version,
+         image,
+         cpu,
+         memory,
+         pull_policy,
+         bootstrap_commands,
+         bootstrap_required_domains,
+         declared_metadata,
+         verified_metadata,
+         tool_capabilities,
+         compatibility_status,
+         compatibility_errors,
+         verification_contract_version,
+         last_verified_at,
+         is_default,
+         is_archived,
+         is_claimable
+       ) VALUES (
+         $1, 'default-specialist-env', 'Default Specialist Environment', 'Default execution environment',
+         'custom', NULL, NULL, 'debian:trixie-slim', '1', '1Gi', 'if-not-present',
+         '[]'::jsonb, '[]'::jsonb, '{}'::jsonb,
+         '{"distro":"debian","package_manager":"apt-get"}'::jsonb,
+         $2::jsonb,
+         'compatible', '[]'::jsonb, 'v1', now(), true, false, true
+       )`,
+      [
+        identity.tenantId,
+        JSON.stringify({
+          verified_baseline_commands: VERIFIED_BASELINE_COMMANDS,
+          git_present: true,
+          docker_cli_present: false,
+          shell_glob: true,
+          shell_pipe: true,
+          shell_redirect: true,
+        }),
+      ],
+    );
     const modelCatalogService = new ModelCatalogService(db.pool);
     const provider = await modelCatalogService.createProvider(identity.tenantId, {
       name: 'escalation-flow-provider',
@@ -141,7 +199,7 @@ describe('V2 escalation round-trip integration', () => {
       name: 'runtime-escalation-harness',
       runtime_type: 'external',
       connection_mode: 'polling',
-      routing_tags: ['coding'],
+      routing_tags: ['coding', 'role:developer'],
       agents: [
         {
           name: 'workflow-orchestrator',
@@ -151,7 +209,7 @@ describe('V2 escalation round-trip integration', () => {
         {
           name: 'developer-specialist',
           execution_mode: 'specialist',
-          routing_tags: ['coding', 'testing'],
+          routing_tags: ['coding', 'testing', 'role:developer'],
         },
       ],
     });
@@ -257,7 +315,7 @@ describe('V2 escalation round-trip integration', () => {
     const specialistClaim = await harness.taskService.claimTask(agentIdentity(String(specialistAgent?.id)), {
       agent_id: String(specialistAgent?.id),
       worker_id: registration.worker_id,
-      routing_tags: ['coding', 'testing'],
+      routing_tags: ['coding', 'testing', 'role:developer'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -387,7 +445,7 @@ describe('V2 escalation round-trip integration', () => {
       {
         agent_id: String(specialistAgent?.id),
         worker_id: registration.worker_id,
-        routing_tags: ['coding', 'testing'],
+        routing_tags: ['coding', 'testing', 'role:developer'],
         include_context: true,
         playbook_id: String(playbook.id),
       },

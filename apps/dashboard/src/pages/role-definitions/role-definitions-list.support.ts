@@ -18,7 +18,7 @@ export function buildRoleDetailSummary(role: RoleDefinition, modelLabel: string)
 function summarizeExecutionEnvironment(role: RoleDefinition): string {
   const environment = role.execution_environment;
   if (!environment) {
-    return 'Tenant default environment';
+    return 'Default environment';
   }
 
   const parts = [

@@ -109,9 +109,7 @@ export function RoleDefinitionsPage(): JSX.Element {
   const dialogProps = {
     roles: allRoles,
     tools: toolsQuery.data ?? [],
-    executionEnvironments: (environmentsQuery.data ?? []).filter(
-      (environment) => environment.compatibility_status === 'compatible' && environment.support_status !== 'blocked',
-    ),
+    executionEnvironments: environmentsQuery.data ?? [],
     ...orchestratorState.roleDialogCatalog,
     onSave: saveRole,
   };

@@ -59,8 +59,8 @@ describe('role definitions page source', () => {
     const source = readCombinedSource();
     expect(source).toContain('listAvailableTools');
     expect(source).toContain('dashboardApi.listToolTags()');
-    expect(source).toContain('Specialist Agent tools');
-    expect(source).toContain('Specialist Execution tools');
+    expect(source).toContain('Specialist agent tools');
+    expect(source).toContain('Specialist execution tools');
     expect(source).toContain('Orchestrator-only tools are managed on the orchestrator surface');
     expect(source).toContain('ToggleCard');
     expect(source).not.toContain('KNOWN_TOOLS =');
@@ -76,13 +76,14 @@ describe('role definitions page source', () => {
     expect(source).toContain('Choose a unique role name.');
   });
 
-  it('reuses the shared image reference field across roles and orchestrator posture editing', () => {
+  it('uses the shared image reference field for orchestrator runtime editing while roles select a named execution environment', () => {
     const source = readCombinedSource();
     expect(source).toContain('ImageReferenceField');
-    expect(source).toContain('Specialist Execution container override');
+    expect(source).toContain('Execution environment');
+    expect(source).toContain('Select the specialist execution environment for this role.');
+    expect(source).not.toContain('Specialist Execution container override');
     expect(source).toContain('placeholder="2"');
     expect(source).toContain('placeholder="256m"');
-    expect(source).toContain('placeholder="512m"');
   });
 
   it('provides an inline active toggle so operators skip the full dialog for status changes', () => {
@@ -130,11 +131,11 @@ describe('role definitions page source', () => {
     expect(source).toContain('primaryLabel="Edit model"');
     expect(source).toContain('primaryLabel="Edit pool"');
     expect(source).toContain('detailClassName="line-clamp-3"');
-    expect(source).toContain('Agent runtime configuration');
-    expect(source).toContain('Configure the orchestrator agentic runtime');
+    expect(source).toContain('Agent configuration');
+    expect(source).toContain('Configure the runtime environment for the orchestrator');
     expect(source).not.toContain('Edit model here');
     expect(source).not.toContain('Edit pool here');
-    expect(source).toContain('Runtime image');
+    expect(source).toContain('Agent image');
     expect(source).toContain('CPU / memory');
     expect(source).not.toContain('Worker desired state');
     expect(source).not.toContain('Configure the main orchestrator worker entry');

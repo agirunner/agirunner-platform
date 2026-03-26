@@ -39,7 +39,7 @@ describe('role dialog support', () => {
     ).toEqual({
       toolSummary: '1 tool enabled',
       modelSummary: 'Model assigned on Models page',
-      environmentSummary: 'Uses tenant default environment',
+      environmentSummary: 'Uses default environment',
     });
   });
 

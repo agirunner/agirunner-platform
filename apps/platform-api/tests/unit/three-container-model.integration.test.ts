@@ -15,6 +15,23 @@ import {
   type TestDatabase,
 } from '../helpers/postgres.js';
 
+const VERIFIED_BASELINE_COMMANDS = [
+  'sleep',
+  'sh',
+  'cat',
+  'mkdir',
+  'mv',
+  'chmod',
+  'rm',
+  'cp',
+  'find',
+  'sort',
+  'awk',
+  'sed',
+  'grep',
+  'head',
+] as const;
+
 describe('three-container model integration', () => {
   let db: TestDatabase;
   let harness: ReturnType<typeof createV2Harness>;
@@ -70,10 +87,6 @@ describe('three-container model integration', () => {
       ['specialist_runtime_default_cpu', '1'],
       ['specialist_runtime_default_memory', '512Mi'],
       ['specialist_runtime_default_pull_policy', 'if-not-present'],
-      ['specialist_execution_default_image', 'agirunner-runtime-execution:local'],
-      ['specialist_execution_default_cpu', '1'],
-      ['specialist_execution_default_memory', '1Gi'],
-      ['specialist_execution_default_pull_policy', 'if-not-present'],
     ] as const) {
       await runtimeDefaultsService.createDefault(identity.tenantId, {
         configKey,
@@ -141,12 +154,22 @@ describe('three-container model integration', () => {
        ) VALUES (
          $1, 'default-specialist-env', 'Default Specialist Environment', 'Default execution environment',
          'custom', NULL, NULL, 'debian:trixie-slim', '1', '1Gi', 'if-not-present',
-         '[]'::jsonb, '[]'::jsonb, '{}'::jsonb, '{"distro":"debian"}'::jsonb,
-         '{"verified_baseline_commands":["sh","mkdir","grep"]}'::jsonb,
+         '[]'::jsonb, '[]'::jsonb, '{}'::jsonb, '{"distro":"debian","package_manager":"apt-get"}'::jsonb,
+         $2::jsonb,
          'compatible', '[]'::jsonb, 'v1', now(), true, false, true
        )
        RETURNING id`,
-      [identity.tenantId],
+      [
+        identity.tenantId,
+        JSON.stringify({
+          verified_baseline_commands: VERIFIED_BASELINE_COMMANDS,
+          git_present: true,
+          docker_cli_present: false,
+          shell_glob: true,
+          shell_pipe: true,
+          shell_redirect: true,
+        }),
+      ],
     );
     const heavyEnvironment = await db.pool.query<{ id: string }>(
       `INSERT INTO execution_environments (
@@ -176,12 +199,22 @@ describe('three-container model integration', () => {
        ) VALUES (
          $1, 'heavy-specialist-env', 'Heavy Specialist Environment', 'Role-specific execution environment',
          'custom', NULL, NULL, 'ubuntu:24.04', '1', '3Gi', 'if-not-present',
-         '[]'::jsonb, '[]'::jsonb, '{}'::jsonb, '{"distro":"ubuntu"}'::jsonb,
-         '{"verified_baseline_commands":["sh","mkdir","grep"]}'::jsonb,
+         '[]'::jsonb, '[]'::jsonb, '{}'::jsonb, '{"distro":"ubuntu","package_manager":"apt-get"}'::jsonb,
+         $2::jsonb,
          'compatible', '[]'::jsonb, 'v1', now(), false, false, true
        )
        RETURNING id`,
-      [identity.tenantId],
+      [
+        identity.tenantId,
+        JSON.stringify({
+          verified_baseline_commands: VERIFIED_BASELINE_COMMANDS,
+          git_present: true,
+          docker_cli_present: false,
+          shell_glob: true,
+          shell_pipe: true,
+          shell_redirect: true,
+        }),
+      ],
     );
 
     await harness.roleDefinitionService.createRole(identity.tenantId, {
@@ -382,26 +415,15 @@ describe('three-container model integration', () => {
       },
     );
 
-    const runtimeDefaultsService = new RuntimeDefaultsService(db.pool);
-    const imageDefault = await runtimeDefaultsService.getByKey(
-      identity.tenantId,
-      'specialist_execution_default_image',
+    await db.pool.query(
+      `UPDATE execution_environments
+          SET image = 'debian:bookworm-slim',
+              memory = '2Gi',
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND is_default = true`,
+      [identity.tenantId],
     );
-    const memoryDefault = await runtimeDefaultsService.getByKey(
-      identity.tenantId,
-      'specialist_execution_default_memory',
-    );
-    expect(imageDefault?.id).toBeDefined();
-    expect(memoryDefault?.id).toBeDefined();
-
-    await runtimeDefaultsService.updateDefault(identity.tenantId, String(imageDefault?.id), {
-      configValue: 'agirunner-runtime-execution:new-default',
-      configType: 'string',
-    });
-    await runtimeDefaultsService.updateDefault(identity.tenantId, String(memoryDefault?.id), {
-      configValue: '2Gi',
-      configType: 'string',
-    });
 
     const updatedDefaultTask = await harness.taskService.createTask(identity, {
       title: 'Updated tenant execution defaults',
@@ -423,7 +445,7 @@ describe('three-container model integration', () => {
 
     expect(updatedClaim?.id).toBe(updatedDefaultTask.id);
     expect((updatedClaim as Record<string, any>).execution_container).toEqual({
-      image: 'agirunner-runtime-execution:new-default',
+      image: 'debian:bookworm-slim',
       cpu: '1',
       memory: '2Gi',
       pull_policy: 'if-not-present',

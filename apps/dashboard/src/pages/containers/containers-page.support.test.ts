@@ -19,7 +19,7 @@ function createRow(overrides: Partial<SessionContainerRow> = {}): SessionContain
     name: 'task-3d749b2c',
     state: 'running',
     status: 'Up 90 seconds',
-    image: 'agirunner-runtime-execution:local',
+    image: 'debian:trixie-slim',
     cpu_limit: '1',
     memory_limit: '768m',
     started_at: '2026-03-21T18:26:00.000Z',

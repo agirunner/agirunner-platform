@@ -3,8 +3,18 @@ import { describe, expect, it } from 'vitest';
 import { PUBLIC_LOG_CSV_COLUMNS, toPublicLogRow } from '../../src/logging/public-log-row.js';
 import type { LogRow } from '../../src/logging/log-service.js';
 
+function mergeDefinedOverrides(baseRow: LogRow, overrides: Partial<LogRow>): LogRow {
+  const mergedRow: LogRow = { ...baseRow };
+  for (const [key, value] of Object.entries(overrides) as Array<[keyof LogRow, LogRow[keyof LogRow] | undefined]>) {
+    if (value !== undefined) {
+      mergedRow[key] = value as never;
+    }
+  }
+  return mergedRow;
+}
+
 function baseLogRow(overrides: Partial<LogRow>): LogRow {
-  return {
+  return mergeDefinedOverrides({
     id: '1',
     tenant_id: 'tenant-1',
     trace_id: 'trace-1',
@@ -37,9 +47,13 @@ function baseLogRow(overrides: Partial<LogRow>): LogRow {
     resource_type: null,
     resource_id: null,
     resource_name: null,
+    execution_environment_id: null,
+    execution_environment_name: null,
+    execution_environment_image: null,
+    execution_environment_distro: null,
+    execution_environment_package_manager: null,
     created_at: '2026-03-11T00:00:00.000Z',
-    ...overrides,
-  };
+  }, overrides);
 }
 
 describe('public log row', () => {

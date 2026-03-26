@@ -1,7 +1,6 @@
 package manager
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -9,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	dockercontainer "github.com/docker/docker/api/types/container"
 )
@@ -181,7 +181,8 @@ func VerifyExecutionEnvironment(
 		), nil
 	}
 
-	parsedProbes := parseProbeOutput(rawLogs)
+	plainProbeOutput := buildPlainProbeOutput(rawLogs)
+	parsedProbes := parseProbeOutput([]byte(plainProbeOutput))
 	finalProbe := selectFinalProbe(parsedProbes)
 	compatibilityErrors := buildProbeCompatibilityErrors(exitCode, parsedProbes)
 	verifiedMetadata := map[string]any{
@@ -215,12 +216,20 @@ func VerifyExecutionEnvironment(
 		ProbeOutput: map[string]any{
 			"container_id": resp.ID,
 			"exit_code":    exitCode,
-			"raw_output":   string(rawLogs),
+			"raw_output":   plainProbeOutput,
 			"parsed":       finalProbe,
 			"pre_probe":    parsedProbes.Pre,
 			"post_probe":   parsedProbes.Post,
 		},
 	}, nil
+}
+
+func buildPlainProbeOutput(raw []byte) string {
+	lines := readLogLines(bytes.NewReader(raw))
+	if len(lines) == 0 {
+		return ""
+	}
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func buildExecutionEnvironmentProbeScript(bootstrapCommands []string) string {
@@ -325,14 +334,14 @@ type executionEnvironmentProbePhases struct {
 }
 
 func parseProbeOutput(raw []byte) executionEnvironmentProbePhases {
-	lines := bufio.NewScanner(bytes.NewReader(raw))
-	phase := ""
+	lines := readLogLines(bytes.NewReader(raw))
 	result := executionEnvironmentProbePhases{
 		Pre:  map[string]string{},
 		Post: map[string]string{},
 	}
-	for lines.Scan() {
-		line := strings.TrimSpace(lines.Text())
+	phase := ""
+	for _, rawLine := range lines {
+		line := sanitizeProbeLine(rawLine)
 		switch line {
 		case "__AGIRUNNER_PRE_PROBE_BEGIN__":
 			phase = "pre"
@@ -361,6 +370,15 @@ func parseProbeOutput(raw []byte) executionEnvironmentProbePhases {
 		target[strings.TrimSpace(key)] = strings.TrimSpace(value)
 	}
 	return result
+}
+
+func sanitizeProbeLine(raw string) string {
+	return strings.TrimSpace(strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, raw))
 }
 
 func buildProbeCompatibilityErrors(exitCode int64, parsed executionEnvironmentProbePhases) []string {

@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { seedDefaultTenant } from '../../src/db/seed.js';
 import { seedConfigTables } from '../../src/bootstrap/seed.js';
+import { BUILT_IN_EXECUTION_ENVIRONMENT_CATALOG } from '../../src/services/execution-environment-starters.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,
@@ -92,7 +93,7 @@ describe.runIf(canRunIntegration)('seedConfigTables LLM defaults integration', (
     expect(defaults.rows).toEqual([]);
   }, 120_000);
 
-  it('seeds authoritative orchestrator, runtime, and execution container defaults', async () => {
+  it('seeds authoritative orchestrator, runtime, and execution environment defaults', async () => {
     expect(db).not.toBeNull();
     const pool = db!.pool;
 
@@ -105,20 +106,47 @@ describe.runIf(canRunIntegration)('seedConfigTables LLM defaults integration', (
         WHERE tenant_id = $1
           AND config_key IN (
             'specialist_runtime_default_cpu',
-            'specialist_runtime_default_memory',
-            'specialist_execution_default_cpu',
-            'specialist_execution_default_memory'
+            'specialist_runtime_default_memory'
           )
         ORDER BY config_key ASC`,
       [DEFAULT_TENANT_ID],
     );
 
     expect(defaults.rows).toEqual([
-      { config_key: 'specialist_execution_default_cpu', config_value: '2' },
-      { config_key: 'specialist_execution_default_memory', config_value: '512m' },
       { config_key: 'specialist_runtime_default_cpu', config_value: '2' },
       { config_key: 'specialist_runtime_default_memory', config_value: '256m' },
     ]);
+
+    const environments = await pool.query<{
+      catalog_key: string;
+      catalog_version: number;
+      name: string;
+      image: string;
+      cpu: string;
+      memory: string;
+      pull_policy: string;
+      is_default: boolean;
+      is_claimable: boolean;
+    }>(
+      `SELECT catalog_key, catalog_version, name, image, cpu, memory, pull_policy, is_default, is_claimable
+         FROM execution_environments
+        WHERE tenant_id = $1
+        ORDER BY catalog_key ASC, catalog_version ASC`,
+      [DEFAULT_TENANT_ID],
+    );
+
+    expect(environments.rows).toHaveLength(BUILT_IN_EXECUTION_ENVIRONMENT_CATALOG.length);
+    expect(environments.rows.find((row) => row.is_default)).toEqual({
+      catalog_key: 'debian-base',
+      catalog_version: 1,
+      name: 'Debian Base',
+      image: 'debian:trixie-slim',
+      cpu: '2',
+      memory: '1Gi',
+      pull_policy: 'if-not-present',
+      is_default: true,
+      is_claimable: true,
+    });
 
     const orchestrator = await pool.query<{ cpu_limit: string; memory_limit: string }>(
       `SELECT cpu_limit, memory_limit
