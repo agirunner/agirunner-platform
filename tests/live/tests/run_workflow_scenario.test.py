@@ -2139,6 +2139,28 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             payload["parameters"],
         )
 
+        payload_with_stale_extras = run_workflow_scenario.build_workflow_create_payload(
+            playbook_id="playbook-2",
+            workspace_id="workspace-2",
+            workflow_name="Single Specialist Proof",
+            scenario_name="single-specialist-spawn-agent",
+            workflow_goal="Run the workflow on one specialist only.",
+            playbook_launch_inputs=[
+                {"slug": "goal", "title": "Goal", "required": True},
+            ],
+            workflow_parameters={
+                "goal": "Run the workflow on one specialist only.",
+                "delivery_contract": "This stale extra should be ignored.",
+            },
+        )
+
+        self.assertEqual(
+            {
+                "goal": "Run the workflow on one specialist only.",
+            },
+            payload_with_stale_extras["parameters"],
+        )
+
         with self.assertRaisesRegex(
             RuntimeError, "missing required playbook launch input slug: feature_request"
         ):

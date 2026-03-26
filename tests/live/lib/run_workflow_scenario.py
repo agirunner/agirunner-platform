@@ -3430,19 +3430,18 @@ def build_declared_workflow_parameters(
     workflow_parameters: dict[str, Any] | None,
 ) -> dict[str, str]:
     declared_inputs = normalize_playbook_launch_inputs(playbook_launch_inputs)
-    parameters = {} if workflow_parameters is None else dict(workflow_parameters)
+    provided_parameters = {} if workflow_parameters is None else dict(workflow_parameters)
     declared_slugs = {entry["slug"] for entry in declared_inputs}
+    parameters = {
+        key: value
+        for key, value in provided_parameters.items()
+        if key in declared_slugs
+    }
 
     if "goal" in declared_slugs and "goal" not in parameters:
         parameters["goal"] = workflow_goal
     if "scenario_name" in declared_slugs and "scenario_name" not in parameters:
         parameters["scenario_name"] = scenario_name
-
-    unexpected = sorted(key for key in parameters if key not in declared_slugs)
-    if unexpected:
-        raise RuntimeError(
-            f"workflow parameters contain undeclared playbook launch input slugs: {', '.join(unexpected)}"
-        )
 
     normalized: dict[str, str] = {}
     for entry in declared_inputs:
