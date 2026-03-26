@@ -118,8 +118,27 @@ describe('playbook model runtime pools', () => {
         guidance: 'Deliver tested code and a clear handoff.',
       },
     ]);
+    expect(definition.parameters).toEqual(undefined);
     expect(defaultStageName(definition)).toBe('requirements');
     expect('checkpoints' in definition).toBe(false);
+  });
+
+  it('parses only the minimal playbook launch input contract', () => {
+    const definition = parsePlaybookDefinition({
+      process_instructions: 'Collect the required launch goal and deliver the outcome.',
+      roles: ['developer'],
+      board: { columns: [{ id: 'planned', label: 'Planned' }] },
+      stages: [{ name: 'delivery', goal: 'Ship the requested outcome.' }],
+      parameters: [
+        { slug: 'workflow_goal', title: 'Workflow Goal', required: true },
+        { slug: 'acceptance_notes', title: 'Acceptance Notes', required: false },
+      ],
+    });
+
+    expect(definition.parameters).toEqual([
+      { slug: 'workflow_goal', title: 'Workflow Goal', required: true },
+      { slug: 'acceptance_notes', title: 'Acceptance Notes', required: false },
+    ]);
   });
 
   it('rejects deleted governance fields and stage human_gate config', () => {
@@ -140,6 +159,25 @@ describe('playbook model runtime pools', () => {
         approval_rules: [{ on: 'completion', approved_by: 'human', required: true }],
         handoff_rules: [{ from_role: 'developer', to_role: 'reviewer', required: true }],
         branch_policies: [{ branch_key: 'release', termination_policy: 'stop_branch_only' }],
+      }),
+    ).toThrow(SchemaValidationFailedError);
+  });
+
+  it('rejects deprecated playbook launch input fields', () => {
+    expect(() =>
+      parsePlaybookDefinition({
+        process_instructions: 'Collect the workflow goal and complete the work.',
+        roles: ['developer'],
+        board: { columns: [{ id: 'planned', label: 'Planned' }] },
+        stages: [{ name: 'delivery', goal: 'Ship the requested outcome.' }],
+        parameters: [
+          {
+            slug: 'workflow_goal',
+            title: 'Workflow Goal',
+            required: true,
+            type: 'string',
+          },
+        ],
       }),
     ).toThrow(SchemaValidationFailedError);
   });

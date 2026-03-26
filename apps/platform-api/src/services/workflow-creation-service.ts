@@ -1,7 +1,11 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import { defaultStageName, parsePlaybookDefinition } from '../orchestration/playbook-model.js';
+import {
+  defaultStageName,
+  parsePlaybookDefinition,
+  type PlaybookDefinition,
+} from '../orchestration/playbook-model.js';
 import { resolveWorkflowConfig } from './config-hierarchy-service.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
@@ -80,6 +84,7 @@ export class WorkflowCreationService {
         workspaceConfig,
         input.config_overrides ?? {},
       );
+      const workflowParameters = validateWorkflowParameters(definition, input.parameters);
       const initialStageName = initialWorkflowStageName(definition);
       const workflowResult = await client.query(
         `INSERT INTO workflows (
@@ -96,7 +101,7 @@ export class WorkflowCreationService {
           input.name,
           definition.lifecycle,
           null,
-          input.parameters ?? {},
+          workflowParameters,
           input.metadata ?? {},
           resolvedConfig.resolved,
           resolvedConfig.layers,
@@ -217,4 +222,39 @@ function sanitizeCreatedWorkflow(workflow: CreatedWorkflow): CreatedWorkflow {
 
   const { current_stage: _currentStage, ...rest } = workflow;
   return rest as CreatedWorkflow;
+}
+
+function validateWorkflowParameters(
+  definition: PlaybookDefinition,
+  parameters: Record<string, unknown> | undefined,
+): Record<string, string> {
+  const declaredParameters = definition.parameters ?? [];
+  const submittedParameters = parameters ?? {};
+  const allowedSlugs = new Set(declaredParameters.map((parameter) => parameter.slug));
+  const normalized: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(submittedParameters)) {
+    if (!allowedSlugs.has(key)) {
+      throw new ValidationError(`Unknown playbook launch input '${key}'.`);
+    }
+    if (typeof value !== 'string') {
+      throw new ValidationError(`Playbook launch input '${key}' must be a string.`);
+    }
+    const trimmed = value.trim();
+    if (!trimmed) {
+      continue;
+    }
+    normalized[key] = trimmed;
+  }
+
+  for (const parameter of declaredParameters) {
+    if (!parameter.required) {
+      continue;
+    }
+    if (!normalized[parameter.slug]) {
+      throw new ValidationError(`Missing required playbook launch input '${parameter.slug}'.`);
+    }
+  }
+
+  return normalized;
 }

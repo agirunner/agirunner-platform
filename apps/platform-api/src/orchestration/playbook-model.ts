@@ -17,6 +17,18 @@ const stageSchema = z.object({
   guidance: z.string().max(8000).optional(),
 });
 
+const parameterSchema = z
+  .object({
+    slug: z
+      .string()
+      .min(1)
+      .max(120)
+      .regex(/^[a-z0-9][a-z0-9_-]*$/, 'Parameter slug must use lowercase letters, numbers, underscores, or hyphens'),
+    title: z.string().min(1).max(255),
+    required: z.boolean().optional().default(false),
+  })
+  .strict();
+
 const runtimePoolSchema = z.object({
   pool_mode: z.enum(['warm', 'cold']).optional(),
   max_runtimes: z.number().int().positive().optional(),
@@ -35,6 +47,7 @@ const runtimeSchema = runtimePoolSchema.extend({
 });
 
 const playbookDefinitionSchema = z.object({
+  outcome: z.string().max(4000).optional(),
   process_instructions: z.string().min(1).max(12000).optional(),
   roles: z.array(z.string().min(1).max(120)).default([]),
   board: z.object({
@@ -55,8 +68,11 @@ const playbookDefinitionSchema = z.object({
       allow_parallel_work_items: z.boolean().optional(),
     })
     .optional(),
+  config: z.record(z.unknown()).optional(),
+  config_policy: z.record(z.unknown()).optional(),
+  default_instruction_config: z.record(z.unknown()).optional(),
   runtime: runtimeSchema.optional(),
-  parameters: z.array(z.record(z.unknown())).optional(),
+  parameters: z.array(parameterSchema).optional(),
 }).strict();
 
 export type PlaybookDefinition = z.infer<typeof playbookDefinitionSchema>;
@@ -82,6 +98,7 @@ export function parsePlaybookDefinition(value: unknown): PlaybookDefinition {
   assertUniqueIds(normalized.board.columns.map((column) => column.id), 'board column');
   assertBoardEntryColumn(normalized);
   assertUniqueIds(normalized.stages.map((stage) => stage.name), 'stage');
+  assertUniqueIds(normalized.parameters?.map((parameter) => parameter.slug) ?? [], 'launch input');
   return normalized;
 }
 
