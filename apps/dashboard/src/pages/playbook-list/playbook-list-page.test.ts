@@ -77,13 +77,17 @@ describe('playbook list page source', () => {
     expect(source).not.toContain('roles: activeRoleNames.map');
   });
 
-  it('uses approved lifecycle badge colors, shows process before outcome, and keeps actions visually aligned', () => {
+  it('uses plain lifecycle text, shows process before outcome, and drops the expanded process metric chips', () => {
     const source = readLibrarySource();
-    expect(source).toContain("from '../../lib/dashboard-badge-palette.js'");
-    expect(source).toContain('DASHBOARD_BADGE_TOKENS.success.className');
-    expect(source).toContain('DASHBOARD_BADGE_TOKENS.informationNeutral.className');
-    expect(source).not.toContain('variant="secondary">{describePlaybookLifecycle');
+    expect(source).not.toContain("from '../../lib/dashboard-badge-palette.js'");
+    expect(source).not.toContain('lifecycleBadgeClassName');
+    expect(source).toContain('<TableHead>Lifecycle</TableHead>');
+    expect(source).toContain('<TableCell className="text-sm text-muted">');
+    expect(source).toContain('{describePlaybookLifecycle(family.lifecycle)}');
     expect(source).not.toContain('<Button asChild size="sm" variant="outline"');
+    expect(source).not.toContain('Users className="h-3.5 w-3.5"');
+    expect(source).not.toContain('CheckCheck className="h-3.5 w-3.5"');
+    expect(source).not.toContain('inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1');
 
     const processIndex = source.indexOf('<div className="font-medium">Process</div>');
     const outcomeIndex = source.indexOf('<div className="font-medium">Outcome</div>');

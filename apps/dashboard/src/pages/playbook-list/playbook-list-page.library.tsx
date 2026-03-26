@@ -1,19 +1,16 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  CheckCheck,
   ChevronDown,
   ChevronRight,
   Rocket,
   Search,
   Settings2,
-  Users,
 } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
-import { DASHBOARD_BADGE_TOKENS } from '../../lib/dashboard-badge-palette.js';
 import {
   Select,
   SelectContent,
@@ -38,12 +35,6 @@ import {
 
 function describePlaybookLifecycle(lifecycle: 'planned' | 'ongoing'): string {
   return lifecycle === 'planned' ? 'Planned' : 'Ongoing';
-}
-
-function lifecycleBadgeClassName(lifecycle: 'planned' | 'ongoing'): string {
-  return lifecycle === 'ongoing'
-    ? DASHBOARD_BADGE_TOKENS.success.className
-    : DASHBOARD_BADGE_TOKENS.informationNeutral.className;
 }
 
 export function PlaybookLibraryToolbar(props: {
@@ -196,11 +187,7 @@ function PlaybookFamilyRow(props: {
             </div>
           </div>
         </TableCell>
-        <TableCell>
-          <Badge variant="outline" className={lifecycleBadgeClassName(family.lifecycle)}>
-            {describePlaybookLifecycle(family.lifecycle)}
-          </Badge>
-        </TableCell>
+        <TableCell className="text-sm text-muted">{describePlaybookLifecycle(family.lifecycle)}</TableCell>
         <TableCell className="text-sm text-muted">
           {family.process.roleCount} roles · {family.process.inputCount} inputs
         </TableCell>
@@ -250,19 +237,6 @@ function PlaybookFamilyRow(props: {
                   <div className="font-medium">Outcome</div>
                   <div className="mt-2 text-muted">{family.outcome}</div>
                 </div>
-              </div>
-              <div className="flex flex-wrap gap-2 text-xs text-muted">
-                <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1">
-                  <Users className="h-3.5 w-3.5" />
-                  {family.process.roleCount} roles
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1">
-                  <CheckCheck className="h-3.5 w-3.5" />
-                  {family.structure.stages} stages / {family.structure.boardColumns} columns
-                </span>
-                <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1">
-                  {family.process.inputCount} inputs
-                </span>
               </div>
               {isArchivedFamily ? (
                 <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">

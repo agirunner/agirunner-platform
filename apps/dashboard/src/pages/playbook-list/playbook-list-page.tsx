@@ -61,7 +61,7 @@ export function PlaybookListPage(): JSX.Element {
   const [lifecycleFilter, setLifecycleFilter] = useState<PlaybookLifecycleFilter>('all');
   const [sort, setSort] = useState<PlaybookSortOption>('updated-desc');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_LIST_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_LIST_PAGE_SIZE);
   const [draft, setDraft] = useState<PlaybookAuthoringDraft>(() =>
     createDefaultAuthoringDraft(DEFAULT_LIFECYCLE),
   );
