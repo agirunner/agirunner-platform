@@ -17,7 +17,7 @@ describe('logs page source', () => {
     expect(source).toContain(
       "Raw logs stay visible as the source of truth. Activity Summary highlights the current filtered results without leaving the stream.",
     );
-    expect(source).toContain('defaultLive');
+    expect(source).not.toContain('defaultLive');
     expect(source).toContain("rawFirstSurface ? 'Log Stream' : 'Raw Logs'");
     expect(source).toContain("rawFirstSurface ? 'Activity Summary' : 'Summary'");
     expect(source).toContain('Chronological raw logs and events across the current filters.');

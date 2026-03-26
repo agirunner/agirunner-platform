@@ -183,7 +183,6 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
             </p>
             <LogViewer
               compact
-              defaultLive
               scope={scopedWorkflowId ? { workflowId: scopedWorkflowId } : undefined}
             />
           </TabsContent>
