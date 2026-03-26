@@ -1864,7 +1864,7 @@ export function LlmProvidersPage(): JSX.Element {
   return (
     <div className="p-6 space-y-8">
       <DashboardPageHeader
-        navHref="/platform/routing"
+        navHref="/platform/models"
         description="Manage model providers, the model catalog, and specialist model assignments."
         actions={
           <>

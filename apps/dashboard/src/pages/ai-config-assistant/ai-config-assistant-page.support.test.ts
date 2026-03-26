@@ -66,7 +66,7 @@ describe('ai config assistant support', () => {
       label: 'Open agentic settings',
     });
     expect(resolveSuggestionDestination('provider.openai.base_url')).toEqual({
-      href: '/platform/routing',
+      href: '/platform/models',
       label: 'Open models',
     });
     expect(resolveSuggestionDestination('integration.github.token')).toBeNull();

@@ -240,7 +240,7 @@ export function summarizeOrchestratorControlSurfaces(
       title: 'Models',
       summary: model.modelLabel,
       detail: `${model.sourceLabel} · ${model.reasoningLabel}`,
-      href: '/platform/routing',
+      href: '/platform/models',
       label: 'Open models',
     },
     {

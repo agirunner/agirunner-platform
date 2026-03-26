@@ -221,14 +221,14 @@ export function App(): JSX.Element {
 
             {/* Platform */}
             <Route path="/platform/orchestrator" element={<OrchestratorPage />} />
-            <Route path="/platform/routing" element={<LlmProvidersPage />} />
+            <Route path="/platform/models" element={<LlmProvidersPage />} />
             <Route path="/platform/runtimes" element={<Navigate to="/admin/agentic-settings" replace />} />
             <Route path="/platform/environments" element={<ExecutionEnvironmentsPage />} />
             <Route path="/platform/operations" element={<Navigate to="/admin/platform-settings" replace />} />
             <Route path="/platform/instructions" element={<PlatformInstructionsPage />} />
             <Route path="/platform/tools" element={<ToolsPage />} />
             <Route path="/config/orchestrator" element={<Navigate to="/platform/orchestrator" replace />} />
-            <Route path="/config/llm" element={<Navigate to="/platform/routing" replace />} />
+            <Route path="/config/llm" element={<Navigate to="/platform/models" replace />} />
             <Route path="/config/runtimes" element={<Navigate to="/admin/agentic-settings" replace />} />
             <Route path="/config/instructions" element={<Navigate to="/platform/instructions" replace />} />
             <Route path="/config/runtime-defaults" element={<Navigate to="/admin/agentic-settings" replace />} />

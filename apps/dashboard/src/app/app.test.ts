@@ -68,6 +68,14 @@ describe('app trigger routes source', () => {
     expect(source).toContain('Navigate to="/admin/general-settings" replace');
   });
 
+  it('uses /platform/models as the canonical models route without keeping /platform/routing', () => {
+    const source = readSource();
+    expect(source).toContain('path="/platform/models"');
+    expect(source).toContain('path="/config/llm"');
+    expect(source).toContain('Navigate to="/platform/models" replace');
+    expect(source).not.toContain('path="/platform/routing"');
+  });
+
   it('uses specialists and live diagnostics as the canonical work-design and diagnostics routes', () => {
     const source = readSource();
     expect(source).toContain('path="/design/specialists"');

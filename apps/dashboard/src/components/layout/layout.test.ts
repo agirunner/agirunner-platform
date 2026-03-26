@@ -28,8 +28,8 @@ describe('layout breadcrumbs', () => {
     ]);
   });
 
-  it('labels the platform routing page as Models in breadcrumbs', () => {
-    expect(buildBreadcrumbs('/platform/routing')).toEqual([
+  it('labels the platform models page as Models in breadcrumbs', () => {
+    expect(buildBreadcrumbs('/platform/models')).toEqual([
       { label: 'Platform' },
       { label: 'Models' },
     ]);

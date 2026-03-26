@@ -106,7 +106,7 @@ export function PlaybookControlCenterCard(
             title="Model catalog and launch policy"
             description="Provider credentials and available models used by workflow-scoped overrides."
             value={`${enabledProviderCount} providers • ${enabledModelCount} enabled models`}
-            href="/platform/routing"
+            href="/platform/models"
           />
           <LinkedConfigCard
             icon={<Bot className="h-4 w-4" />}

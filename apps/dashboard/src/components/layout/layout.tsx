@@ -106,7 +106,7 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Platform',
     icon: Cog,
     items: [
-      { label: 'Models', href: '/platform/routing', icon: Cog, keywords: ['models', 'routing', 'model routing', 'llm'] },
+      { label: 'Models', href: '/platform/models', icon: Cog, keywords: ['models', 'routing', 'model routing', 'llm'] },
       { label: 'Instructions', href: '/platform/instructions', icon: ScrollText },
       { label: 'Orchestrator', href: '/platform/orchestrator', icon: Bot, keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture'] },
       {

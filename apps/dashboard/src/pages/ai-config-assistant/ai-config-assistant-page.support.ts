@@ -228,7 +228,7 @@ export function resolveSuggestionDestination(path: string): SuggestionDestinatio
     normalized.startsWith('model.') ||
     normalized.startsWith('provider.')
   ) {
-    return { href: '/platform/routing', label: 'Open models' };
+    return { href: '/platform/models', label: 'Open models' };
   }
   if (normalized.startsWith('playbook.') || normalized.startsWith('workflow.')) {
     return { href: '/design/playbooks', label: 'Open playbooks' };
