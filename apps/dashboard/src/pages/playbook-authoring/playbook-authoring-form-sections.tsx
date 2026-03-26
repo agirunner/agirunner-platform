@@ -77,7 +77,7 @@ export function ProcessInstructionsSection(props: SectionProps): JSX.Element {
           must still drive the workflow to closure when only preferred steps remain unresolved.
         </p>
         <p className="text-sm text-muted">
-          Write this as a best-intent guide: spell out Mandatory outcomes, preferred steps,
+          Write this as a process guide: spell out mandatory outcomes, preferred steps,
           acceptable fallback paths, blockers that truly require intervention, and what callouts
           or residual risks must be recorded if the happy path does not land perfectly.
         </p>

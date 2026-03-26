@@ -16,9 +16,9 @@ describe('playbook authoring form sections source', () => {
     const source = readSource();
     expect(source).toContain('Process Instructions');
     expect(source).toContain('Workflow Stages');
-    expect(source).toContain('Mandatory outcomes, preferred steps');
+    expect(source).toContain('mandatory outcomes, preferred steps');
     expect(source).toContain('The orchestrator should use explicit handoffs');
-    expect(source).toContain('best-intent guide');
+    expect(source).toContain('process guide');
     expect(source).toContain('must still drive the workflow to closure');
     expect(source).toContain('Playbooks use active role definitions');
     expect(source).toContain('Default intake column');
