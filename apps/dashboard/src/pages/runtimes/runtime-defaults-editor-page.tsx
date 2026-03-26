@@ -314,42 +314,38 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
 
   return (
     <div className="space-y-6 p-6">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Icon className="h-5 w-5 text-muted" />
-                <CardTitle className="text-2xl">{props.title}</CardTitle>
-              </div>
-              <CardDescription className="text-sm leading-6">
-                {props.description}
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                onClick={resetForm}
-                disabled={!isDirty || saveMutation.isPending}
-              >
-                <RotateCcw className="h-4 w-4" />
-                Reset changes
-              </Button>
-              <Button
-                onClick={saveForm}
-                disabled={!isDirty || saveMutation.isPending || hasValidationErrors}
-              >
-                {saveMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                Save
-              </Button>
-            </div>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Icon className="h-5 w-5 text-muted" />
+            <h1 className="text-2xl font-semibold">{props.title}</h1>
           </div>
-        </CardHeader>
-      </Card>
+          <p className="text-sm leading-6 text-muted">
+            {props.description}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={resetForm}
+            disabled={!isDirty || saveMutation.isPending}
+          >
+            <RotateCcw className="h-4 w-4" />
+            Reset changes
+          </Button>
+          <Button
+            onClick={saveForm}
+            disabled={!isDirty || saveMutation.isPending || hasValidationErrors}
+          >
+            {saveMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            Save
+          </Button>
+        </div>
+      </div>
 
       {leftColumnSections && rightColumnSections ? (
         <div className="grid gap-6 xl:grid-cols-2">

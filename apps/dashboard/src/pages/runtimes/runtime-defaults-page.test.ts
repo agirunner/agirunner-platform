@@ -100,6 +100,8 @@ describe('runtime defaults page source', () => {
     expect(editorSource).toContain('buildValidationErrors');
     expect(editorSource).toContain('summarizeRuntimeDefaultSections');
     expect(editorSource).toContain('className="space-y-6 p-6"');
+    expect(editorSource).toContain('<h1 className="text-2xl font-semibold">{props.title}</h1>');
+    expect(editorSource).not.toContain('<Card>\n        <CardHeader>\n          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">');
     expect(editorSource).toContain('const leftColumnSections = useMemo');
     expect(editorSource).toContain('const rightColumnSections = useMemo');
     expect(editorSource).toContain('rightColumnSections.map((section) => renderSectionCard(section))');

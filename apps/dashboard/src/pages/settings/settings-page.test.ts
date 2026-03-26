@@ -30,7 +30,7 @@ describe('settings page source', () => {
   it('uses the runtimes-style shell with one top save action and section content below', () => {
     const source = readSettingsPageSource();
 
-    expect(source).toContain('CardTitle className="text-2xl">Settings</CardTitle>');
+    expect(source).toContain('<h1 className="text-2xl font-semibold">Settings</h1>');
     expect(source).toContain('flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between');
     expect(source).toContain('handleSubmit');
     expect(source).toContain('const isDirty =');
@@ -38,6 +38,7 @@ describe('settings page source', () => {
     expect(source).toContain('Logging</h2>');
     expect(source).toContain('Retention</h2>');
     expect(source).toContain('border-t border-border/70 pt-6');
+    expect(source).not.toContain('<Card>\n        <CardHeader>');
     expect(source).not.toContain('CardFooter');
     expect(source).not.toContain('handleLoggingSubmit');
     expect(source).not.toContain('handleRetentionSubmit');

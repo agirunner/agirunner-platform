@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Save, Settings2 } from 'lucide-react';
 import { dashboardApi, type DashboardGovernanceRetentionPolicy } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
-import { Card, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import {
@@ -123,31 +122,27 @@ export function SettingsPage(): JSX.Element {
 
   return (
     <form className="space-y-6 p-6" onSubmit={handleSubmit}>
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Settings2 className="h-5 w-5 text-muted" />
-                <CardTitle className="text-2xl">Settings</CardTitle>
-              </div>
-              <CardDescription className="text-sm leading-6">
-                Configure general operational settings in one place.
-              </CardDescription>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button type="submit" disabled={!isDirty || isSaving || hasRetentionValidationErrors}>
-                {isSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                Save
-              </Button>
-            </div>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Settings2 className="h-5 w-5 text-muted" />
+            <h1 className="text-2xl font-semibold">Settings</h1>
           </div>
-        </CardHeader>
-      </Card>
+          <p className="text-sm leading-6 text-muted">
+            Configure general operational settings in one place.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button type="submit" disabled={!isDirty || isSaving || hasRetentionValidationErrors}>
+            {isSaving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            Save
+          </Button>
+        </div>
+      </div>
 
       <section className="space-y-4">
         <div className="space-y-1">
