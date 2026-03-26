@@ -3,42 +3,13 @@ import { useQuery } from '@tanstack/react-query';
 import { dashboardApi } from '../../../lib/api.js';
 import type {
   DashboardTaskRecord,
-  DashboardTaskState,
-  DashboardWorkflowRecord,
-  DashboardWorkflowState,
 } from '../../../lib/api.js';
 import type { ComboboxItem } from '../ui/searchable-combobox.js';
-
-interface WorkflowRecord extends Partial<Pick<DashboardWorkflowRecord, 'id' | 'name' | 'workspace_id'>> {
-  id: string;
-  state?: DashboardWorkflowState;
-  status?: string;
-  workspace?: { id: string; name: string } | null;
-}
 
 interface TaskRecord
   extends Partial<Pick<DashboardTaskRecord, 'id' | 'title' | 'description' | 'workflow_id' | 'role'>> {
   id: string;
-  state?: DashboardTaskState;
-  status?: string;
   workflow?: { id: string; name?: string | null; workspace_id?: string | null } | null;
-}
-
-export function normalizeEntityStatus(status?: string): ComboboxItem['status'] {
-  if (!status) return undefined;
-  const s = status.toLowerCase();
-  if (s === 'active' || s === 'in_progress') return 'active';
-  if (s === 'completed' || s === 'succeeded') return 'completed';
-  if (s === 'failed' || s === 'error') return 'failed';
-  return 'pending';
-}
-
-export function readWorkflowEntityStatus(workflow: WorkflowRecord): ComboboxItem['status'] {
-  return normalizeEntityStatus(workflow.state ?? workflow.status);
-}
-
-export function readTaskEntityStatus(task: TaskRecord): ComboboxItem['status'] {
-  return normalizeEntityStatus(task.state ?? task.status);
 }
 
 export interface CascadingEntityState {
@@ -100,10 +71,10 @@ export function useCascadingEntities(
   const workflowsQuery = useQuery({
     queryKey: ['log-filter-workflows', workspaceId ?? 'all'],
     queryFn: async () => {
-      const filters: Record<string, string> = { per_page: '100' };
+      const filters: Record<string, string> = {};
       if (workspaceId) filters.workspace_id = workspaceId;
-      const res = await dashboardApi.listWorkflows(filters);
-      return extractList<WorkflowRecord>(res);
+      const res = await dashboardApi.getLogWorkflowValues(filters);
+      return res.data;
     },
     staleTime: 300_000,
     enabled: !useWorkflowOverride && shouldLoadWorkflows,
@@ -139,8 +110,6 @@ export function useCascadingEntities(
         : (workflowsQuery.data ?? []).map((w) => ({
         id: w.id,
         label: w.name ?? w.id,
-        subtitle: w.workspace?.name ?? undefined,
-        status: readWorkflowEntityStatus(w),
       })),
     [overrides.workflows, useWorkflowOverride, workflowsQuery.data],
   );
@@ -152,8 +121,6 @@ export function useCascadingEntities(
         : (tasksQuery.data ?? []).map((t) => ({
         id: t.id,
         label: t.title ?? t.description ?? t.id,
-        subtitle: t.role ?? undefined,
-        status: readTaskEntityStatus(t),
       })),
     [overrides.tasks, useTaskOverride, tasksQuery.data],
   );
@@ -167,15 +134,9 @@ export function useCascadingEntities(
 
   const setWorkflow = useCallback(
     (id: string | null) => {
-      if (id && !workspaceId) {
-        const wf = (workflowsQuery.data ?? []).find((w) => w.id === id);
-        const inferredWorkspace = wf?.workspace_id ?? wf?.workspace?.id ?? null;
-        onChange({ workspaceId: inferredWorkspace, workflowId: id, taskId: null });
-        return;
-      }
       onChange({ workspaceId, workflowId: id, taskId: null });
     },
-    [onChange, workspaceId, workflowsQuery.data],
+    [onChange, workspaceId],
   );
 
   const setTask = useCallback(
@@ -185,7 +146,7 @@ export function useCascadingEntities(
         const inferredWorkflow = task?.workflow_id ?? task?.workflow?.id ?? null;
         if (inferredWorkflow && !workspaceId) {
           const wf = (workflowsQuery.data ?? []).find((w) => w.id === inferredWorkflow);
-          const inferredWorkspace = wf?.workspace_id ?? wf?.workspace?.id ?? null;
+          const inferredWorkspace = wf?.workspace_id ?? null;
           onChange({
             workspaceId: inferredWorkspace,
             workflowId: inferredWorkflow,

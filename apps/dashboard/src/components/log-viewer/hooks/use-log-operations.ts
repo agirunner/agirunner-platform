@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { dashboardApi, type LogOperationRecord } from '../../../lib/api.js';
+import { dashboardApi, type LogOperationValueRecord } from '../../../lib/api.js';
 
 export function useLogOperations(
   category?: string,
@@ -9,9 +9,9 @@ export function useLogOperations(
   const filters: Record<string, string> = { ...baseFilters };
   if (category) filters.category = category;
 
-  return useQuery<{ data: LogOperationRecord[] }>({
+  return useQuery<{ data: LogOperationValueRecord[] }>({
     queryKey: ['log-operations', filters],
-    queryFn: () => dashboardApi.getLogOperations(filters),
+    queryFn: () => dashboardApi.getLogOperationValues(filters),
     staleTime: 300_000,
     enabled,
   });

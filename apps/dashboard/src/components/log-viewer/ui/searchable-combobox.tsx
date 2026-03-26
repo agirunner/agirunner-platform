@@ -53,6 +53,7 @@ const STATUS_COLORS: Record<string, string> = {
 const ITEM_HEIGHT_PX = 48;
 const GROUP_HEADER_HEIGHT_PX = 28;
 const MAX_LIST_HEIGHT_PX = 384;
+const VIRTUALIZE_AFTER_ROW_COUNT = 24;
 
 type FlatRow =
   | { type: 'header'; label: string }
@@ -150,6 +151,7 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
     );
 
     const selectableItems = useMemo(() => collectSelectableItems(flatRows), [flatRows]);
+    const shouldVirtualize = flatRows.length > VIRTUALIZE_AFTER_ROW_COUNT;
 
     const selectedItem = useMemo(
       () => (value ? items.find((i) => i.id === value) ?? recentItems.find((i) => i.id === value) : null),
@@ -327,7 +329,7 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
               <div className="py-4 text-center text-sm text-muted">No results found</div>
             )}
 
-            {!isLoading && selectableItems.length > 0 && (
+            {!isLoading && selectableItems.length > 0 && shouldVirtualize && (
               <div
                 style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
               >
@@ -375,6 +377,68 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
                         height: virtualRow.size,
                         transform: `translateY(${virtualRow.start}px)`,
                       }}
+                      onClick={() => handleSelect(item.id)}
+                      onMouseEnter={() => setHighlightIndex(flatIndex)}
+                    >
+                      <div className="flex items-center gap-2">
+                        {multiSelect && (
+                          <span
+                            className={cn(
+                              'flex h-4 w-4 shrink-0 items-center justify-center rounded-sm border border-border',
+                              isItemSelected && 'border-accent bg-accent text-accent-foreground',
+                            )}
+                          >
+                            {isItemSelected && <Check className="h-3 w-3" />}
+                          </span>
+                        )}
+                        {item.status && (
+                          <span
+                            className={cn(
+                              'inline-block h-2 w-2 shrink-0 rounded-full',
+                              STATUS_COLORS[item.status] ?? 'bg-border',
+                            )}
+                          />
+                        )}
+                        <span className="truncate text-foreground">{item.label}</span>
+                      </div>
+                      {item.subtitle && (
+                        <span className={cn('truncate text-xs text-muted', multiSelect ? 'pl-6' : 'pl-4')}>{item.subtitle}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {!isLoading && selectableItems.length > 0 && !shouldVirtualize && (
+              <div className="py-1">
+                {flatRows.map((row) => {
+                  if (row.type === 'header') {
+                    return (
+                      <div
+                        key={`header-${row.label}`}
+                        className="px-3 py-1 text-xs font-semibold text-muted"
+                      >
+                        {row.label}
+                      </div>
+                    );
+                  }
+
+                  const { item, flatIndex } = row;
+                  const isItemSelected = multiSelect
+                    ? selectedIds?.has(item.id) ?? false
+                    : item.id === value;
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="option"
+                      aria-selected={isItemSelected}
+                      className={cn(
+                        'flex w-full cursor-default select-none flex-col rounded-sm px-2 py-1.5 text-left text-sm outline-none',
+                        flatIndex === highlightIndex && 'bg-accent/10',
+                        isItemSelected && 'font-medium',
+                      )}
                       onClick={() => handleSelect(item.id)}
                       onMouseEnter={() => setHighlightIndex(flatIndex)}
                     >

@@ -7,36 +7,16 @@ import {
 import { toActorItems } from './log-filters.support.js';
 
 describe('log actor presentation', () => {
-  it('always includes operator and container-style actor kinds in filter items', () => {
+  it('uses only actor kinds present in the current filter values', () => {
     const items = toActorItems({
       data: [
         {
           actor_kind: 'specialist_agent',
-          actor_id: null,
-          actor_name: null,
-          count: 12,
-          latest_role: 'developer',
-          latest_workflow_id: 'wf-1',
-          latest_workflow_name: 'Customer migration',
-          latest_workflow_label: 'Customer migration',
         },
       ],
     });
 
-    expect(items.map((item) => item.id)).toEqual([
-      'orchestrator_agent',
-      'specialist_agent',
-      'specialist_task_execution',
-      'operator',
-      'platform_system',
-    ]);
-    expect(items.map((item) => item.label)).toEqual([
-      'Orchestrator agent',
-      'Specialist Agent',
-      'Specialist Execution',
-      'Operator',
-      'System',
-    ]);
+    expect(items).toEqual([{ id: 'specialist_agent', label: 'Specialist Agent' }]);
   });
 
   it('sorts actor kinds in operator-facing order', () => {

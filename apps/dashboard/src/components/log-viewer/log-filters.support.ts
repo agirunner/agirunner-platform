@@ -6,8 +6,7 @@ import type { LogFilters as LogFilterState } from './hooks/use-log-filters.js';
 import { applyLogScope } from './log-scope.js';
 import {
   describeActorKindLabel,
-  describeActorComboboxSubtitle,
-  sortActorKindRecords,
+  sortActorKinds,
 } from './log-actor-presentation.js';
 
 export const DEBOUNCE_MS = 300;
@@ -74,24 +73,22 @@ export function buildFilterOptionScope(
 }
 
 export function toOperationItems(
-  data: { data: { operation: string; count: number }[] } | undefined,
+  data: { data: { operation: string }[] } | undefined,
 ): ComboboxItem[] {
   if (!data?.data) return [];
   return data.data.map((row) => ({
     id: row.operation,
     label: row.operation,
-    subtitle: `${row.count} entries`,
   }));
 }
 
 export function toRoleItems(
-  data: { data: { role: string; count: number }[] } | undefined,
+  data: { data: { role: string }[] } | undefined,
 ): ComboboxItem[] {
   if (!data?.data) return [];
   return data.data.map((row) => ({
     id: row.role,
     label: row.role.charAt(0).toUpperCase() + row.role.slice(1),
-    subtitle: `${row.count} entries`,
   }));
 }
 
@@ -99,37 +96,12 @@ export function toActorItems(
   data: {
     data: {
       actor_kind: string;
-      actor_id: string | null;
-      actor_name: string | null;
-      latest_role?: string | null;
-      latest_workflow_id?: string | null;
-      latest_workflow_name?: string | null;
-      latest_workflow_label?: string | null;
-      count: number;
     }[];
   } | undefined,
 ): ComboboxItem[] {
-  const actorRecords = new Map((data?.data ?? []).map((row) => [row.actor_kind, row] as const));
-  const kinds = [
-    'orchestrator_agent',
-    'specialist_agent',
-    'specialist_task_execution',
-    'operator',
-    'platform_system',
-  ];
-
-  return sortActorKindRecords(
-    kinds.map((actorKind) => {
-      const row = actorRecords.get(actorKind);
-      return row ?? { actor_kind: actorKind, actor_id: null, actor_name: null, count: 0 };
-    }),
-  ).map((row) => ({
+  return sortActorKinds(data?.data ?? []).map((row) => ({
     id: row.actor_kind,
     label: describeActorKindLabel(row.actor_kind),
-    subtitle:
-      row.count > 0
-        ? describeActorComboboxSubtitle(row)
-        : 'Filter the current results by this actor kind',
   }));
 }
 
@@ -141,10 +113,10 @@ export const SOURCE_ITEMS: ComboboxItem[] = [
 ];
 
 export const STATUS_ITEMS: ComboboxItem[] = [
-  { id: 'started', label: 'Started', subtitle: 'Work began' },
-  { id: 'completed', label: 'Completed', subtitle: 'Work finished successfully' },
-  { id: 'failed', label: 'Failed', subtitle: 'Execution or delivery failure' },
-  { id: 'skipped', label: 'Skipped', subtitle: 'Execution intentionally skipped' },
+  { id: 'started', label: 'Started' },
+  { id: 'completed', label: 'Completed' },
+  { id: 'failed', label: 'Failed' },
+  { id: 'skipped', label: 'Skipped' },
 ];
 
 export const EXECUTION_BACKEND_ITEMS: ComboboxItem[] = [

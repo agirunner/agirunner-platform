@@ -530,6 +530,10 @@ describe('execution-logs route helpers', () => {
         getById: vi.fn(),
         export: vi.fn(),
         stats: input.stats ?? vi.fn().mockResolvedValue({ groups: [], totals: {} }),
+        operationValues: vi.fn().mockResolvedValue([]),
+        roleValues: vi.fn().mockResolvedValue([]),
+        actorKindValues: vi.fn().mockResolvedValue([]),
+        workflowValues: vi.fn().mockResolvedValue([]),
         operations: input.operations ?? vi.fn().mockResolvedValue([]),
         roles: input.roles ?? vi.fn().mockResolvedValue([]),
         actors: input.actors ?? vi.fn().mockResolvedValue([]),
@@ -538,6 +542,10 @@ describe('execution-logs route helpers', () => {
       await app.register(executionLogRoutes);
       return app.logService as {
         stats: ReturnType<typeof vi.fn>;
+        operationValues: ReturnType<typeof vi.fn>;
+        roleValues: ReturnType<typeof vi.fn>;
+        actorKindValues: ReturnType<typeof vi.fn>;
+        workflowValues: ReturnType<typeof vi.fn>;
         operations: ReturnType<typeof vi.fn>;
         roles: ReturnType<typeof vi.fn>;
         actors: ReturnType<typeof vi.fn>;
@@ -566,6 +574,25 @@ describe('execution-logs route helpers', () => {
           search: 'timeout',
         }),
       );
+    });
+
+    it('usesDistinctOperationValuesWhenRequested', async () => {
+      const logService = await registerRoutesWithSpies();
+
+      const response = await app!.inject({
+        method: 'GET',
+        url: '/api/v1/logs/operations?mode=values&workflow_id=wf-1',
+        headers: { authorization: 'Bearer test' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(logService.operationValues).toHaveBeenCalledWith(
+        'tenant-1',
+        expect.objectContaining({
+          workflowId: 'wf-1',
+        }),
+      );
+      expect(logService.operations).not.toHaveBeenCalled();
     });
 
     it('passesFullParsedFiltersToRoles', async () => {
@@ -606,6 +633,32 @@ describe('execution-logs route helpers', () => {
           role: ['developer'],
         }),
       );
+    });
+
+    it('returnsWorkflowValueRowsForLogScopeDropdowns', async () => {
+      const logService = await registerRoutesWithSpies({
+        actors: vi.fn().mockResolvedValue([]),
+      });
+      logService.workflowValues.mockResolvedValue([
+        { id: 'wf-1', name: 'Customer migration', workspace_id: 'ws-1' },
+      ]);
+
+      const response = await app!.inject({
+        method: 'GET',
+        url: '/api/v1/logs/workflows?workspace_id=ws-1',
+        headers: { authorization: 'Bearer test' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(logService.workflowValues).toHaveBeenCalledWith(
+        'tenant-1',
+        expect.objectContaining({
+          workspaceId: 'ws-1',
+        }),
+      );
+      expect(response.json()).toEqual({
+        data: [{ id: 'wf-1', name: 'Customer migration', workspace_id: 'ws-1' }],
+      });
     });
 
     it('returnsActorRowsWithRepresentativeContext', async () => {

@@ -1244,6 +1244,32 @@ describe('LogService', () => {
     });
   });
 
+  describe('operationValues', () => {
+    it('queriesDistinctOperationValuesWithoutCounts', async () => {
+      const pool = createMockPool();
+      pool.query.mockResolvedValue({
+        rows: [{ operation: 'llm.chat_stream' }, { operation: 'tool.shell_exec' }],
+        rowCount: 2,
+      });
+      const service = new LogService(pool as never);
+
+      const result = await service.operationValues('tenant-1', {
+        since: new Date('2026-03-08T00:00:00Z').toISOString(),
+        workflowId: 'wf-1',
+      });
+
+      expect(result).toEqual([
+        { operation: 'llm.chat_stream' },
+        { operation: 'tool.shell_exec' },
+      ]);
+      const [sql, params] = pool.query.mock.calls[0];
+      expect(sql).toContain('SELECT DISTINCT l.operation');
+      expect(sql).not.toContain('COUNT(*)');
+      expect(sql).not.toContain('GROUP BY');
+      expect(params).toContain('wf-1');
+    });
+  });
+
   describe('roles', () => {
     it('queriesScopedRolesFromExecutionLogsOnly', async () => {
       const pool = createMockPool();
@@ -1269,6 +1295,28 @@ describe('LogService', () => {
       expect(sql).toContain('CASE');
       expect(params).toContain('wf-1');
       expect(params).toContainEqual(['specialist_task_execution']);
+    });
+  });
+
+  describe('roleValues', () => {
+    it('queriesDistinctRoleValuesWithoutCounts', async () => {
+      const pool = createMockPool();
+      pool.query.mockResolvedValue({
+        rows: [{ role: 'developer' }, { role: 'reviewer' }],
+        rowCount: 2,
+      });
+      const service = new LogService(pool as never);
+
+      const result = await service.roleValues('tenant-1', {
+        since: new Date('2026-03-08T00:00:00Z').toISOString(),
+        workflowId: 'wf-1',
+      });
+
+      expect(result).toEqual([{ role: 'developer' }, { role: 'reviewer' }]);
+      const [sql] = pool.query.mock.calls[0];
+      expect(sql).toContain('SELECT DISTINCT l.role');
+      expect(sql).not.toContain('COUNT(*)');
+      expect(sql).not.toContain('GROUP BY');
     });
   });
 
@@ -1361,6 +1409,31 @@ describe('LogService', () => {
       expect(sql).toContain("LOWER(COALESCE(l.role, '')) = 'orchestrator'");
       expect(sql).toContain("COALESCE(l.is_orchestrator_task, false) = true");
       expect(sql).toContain("THEN 'orchestrator_agent'");
+    });
+  });
+
+  describe('actorKindValues', () => {
+    it('queriesDistinctActorKindsWithoutCounts', async () => {
+      const pool = createMockPool();
+      pool.query.mockResolvedValue({
+        rows: [{ actor_kind: 'orchestrator_agent' }, { actor_kind: 'specialist_agent' }],
+        rowCount: 2,
+      });
+      const service = new LogService(pool as never);
+
+      const result = await service.actorKindValues('tenant-1', {
+        since: new Date('2026-03-08T00:00:00Z').toISOString(),
+      });
+
+      expect(result).toEqual([
+        { actor_kind: 'orchestrator_agent' },
+        { actor_kind: 'specialist_agent' },
+      ]);
+      const [sql] = pool.query.mock.calls[0];
+      expect(sql).toContain('SELECT DISTINCT CASE');
+      expect(sql).toContain("THEN 'orchestrator_agent'");
+      expect(sql).not.toContain('COUNT(*)');
+      expect(sql).not.toContain('GROUP BY actor_kind');
     });
   });
 

@@ -367,7 +367,11 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const query = request.query as Record<string, string | undefined>;
-      return { data: await logService.operations(request.auth!.tenantId, parseCommonLogFilters(query)) };
+      const filters = parseCommonLogFilters(query);
+      if (query.mode === 'values') {
+        return { data: await logService.operationValues(request.auth!.tenantId, filters) };
+      }
+      return { data: await logService.operations(request.auth!.tenantId, filters) };
     },
   );
 
@@ -378,7 +382,11 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const query = request.query as Record<string, string | undefined>;
-      return { data: await logService.roles(request.auth!.tenantId, parseCommonLogFilters(query)) };
+      const filters = parseCommonLogFilters(query);
+      if (query.mode === 'values') {
+        return { data: await logService.roleValues(request.auth!.tenantId, filters) };
+      }
+      return { data: await logService.roles(request.auth!.tenantId, filters) };
     },
   );
 
@@ -389,7 +397,25 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const query = request.query as Record<string, string | undefined>;
-      return { data: await logService.actors(request.auth!.tenantId, parseCommonLogFilters(query)) };
+      const filters = parseCommonLogFilters(query);
+      if (query.mode === 'values') {
+        return { data: await logService.actorKindValues(request.auth!.tenantId, filters) };
+      }
+      return { data: await logService.actors(request.auth!.tenantId, filters) };
+    },
+  );
+
+  app.get(
+    '/api/v1/logs/workflows',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const query = request.query as Record<string, string | undefined>;
+      const filters = parseCommonLogFilters(query);
+      return {
+        data: await logService.workflowValues(request.auth!.tenantId, {
+          workspaceId: filters.workspaceId,
+        }),
+      };
     },
   );
 };

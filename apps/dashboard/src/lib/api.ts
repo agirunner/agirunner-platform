@@ -1528,9 +1528,17 @@ export interface LogOperationRecord {
   count: number;
 }
 
+export interface LogOperationValueRecord {
+  operation: string;
+}
+
 export interface LogRoleRecord {
   role: string;
   count: number;
+}
+
+export interface LogRoleValueRecord {
+  role: string;
 }
 
 export interface LogActorRecord {
@@ -1542,6 +1550,16 @@ export interface LogActorRecord {
   latest_workflow_name?: string | null;
   latest_workflow_label?: string | null;
   count: number;
+}
+
+export interface LogActorKindValueRecord {
+  actor_kind: string;
+}
+
+export interface LogWorkflowValueRecord {
+  id: string;
+  name: string | null;
+  workspace_id: string | null;
 }
 
 export interface FleetWorkerActualRecord {
@@ -2101,6 +2119,10 @@ export interface DashboardApi {
   getLogOperations(filters?: Record<string, string>): Promise<{ data: LogOperationRecord[] }>;
   getLogRoles(filters?: Record<string, string>): Promise<{ data: LogRoleRecord[] }>;
   getLogActors(filters?: Record<string, string>): Promise<{ data: LogActorRecord[] }>;
+  getLogOperationValues(filters?: Record<string, string>): Promise<{ data: LogOperationValueRecord[] }>;
+  getLogRoleValues(filters?: Record<string, string>): Promise<{ data: LogRoleValueRecord[] }>;
+  getLogActorKindValues(filters?: Record<string, string>): Promise<{ data: LogActorKindValueRecord[] }>;
+  getLogWorkflowValues(filters?: Record<string, string>): Promise<{ data: LogWorkflowValueRecord[] }>;
   exportLogs(filters: Record<string, string>): Promise<Blob>;
   deleteWorkspace(workspaceId: string): Promise<void>;
   askConfigAssistant(question: string): Promise<DashboardConfigAssistantResponse>;
@@ -3460,6 +3482,42 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         requestJson<{ data: LogActorRecord[] }>(`/api/v1/logs/actors${buildQueryString(filters)}`, {
           method: 'GET',
         }),
+      ),
+    getLogOperationValues: (filters) =>
+      withRefresh(() =>
+        requestJson<{ data: LogOperationValueRecord[] }>(
+          `/api/v1/logs/operations${buildQueryString({ ...(filters ?? {}), mode: 'values' })}`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    getLogRoleValues: (filters) =>
+      withRefresh(() =>
+        requestJson<{ data: LogRoleValueRecord[] }>(
+          `/api/v1/logs/roles${buildQueryString({ ...(filters ?? {}), mode: 'values' })}`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    getLogActorKindValues: (filters) =>
+      withRefresh(() =>
+        requestJson<{ data: LogActorKindValueRecord[] }>(
+          `/api/v1/logs/actors${buildQueryString({ ...(filters ?? {}), mode: 'values' })}`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    getLogWorkflowValues: (filters) =>
+      withRefresh(() =>
+        requestJson<{ data: LogWorkflowValueRecord[] }>(
+          `/api/v1/logs/workflows${buildQueryString(filters)}`,
+          {
+            method: 'GET',
+          },
+        ),
       ),
     exportLogs: (filters) =>
       withRefresh(async () => {

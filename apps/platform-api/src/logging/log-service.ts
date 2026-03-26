@@ -191,6 +191,24 @@ export interface OperationCount {
   count: number;
 }
 
+export interface OperationValue {
+  operation: string;
+}
+
+export interface RoleValue {
+  role: string;
+}
+
+export interface ActorKindValue {
+  actor_kind: string;
+}
+
+export interface WorkflowValue {
+  id: string;
+  name: string | null;
+  workspace_id: string | null;
+}
+
 export interface LogBatchRejectionDetail {
   index: number;
   trace_id: string;
@@ -535,6 +553,27 @@ export class LogService {
     }));
   }
 
+  async operationValues(tenantId: string, filters: LogFilters): Promise<OperationValue[]> {
+    const conditions: string[] = ['l.tenant_id = $1', `l.operation IS NOT NULL`, `l.operation <> ''`];
+    const values: unknown[] = [tenantId];
+    const scopedFilters = omitLogFilters(applyDefaultTimeBounds(filters), ['operation']);
+    this.applyFilters(conditions, values, scopedFilters);
+
+    const whereClause = conditions.join(' AND ');
+    const result = await this.pool.query<{ operation: string }>(
+      `SELECT DISTINCT l.operation
+       ${LOG_FROM_SQL}
+       WHERE ${whereClause}
+       ORDER BY l.operation
+       LIMIT 100`,
+      values,
+    );
+
+    return result.rows.map((row) => ({
+      operation: row.operation,
+    }));
+  }
+
   async roles(tenantId: string, filters: LogFilters): Promise<{ role: string; count: number }[]> {
     const conditions: string[] = ['l.tenant_id = $1', `l.role IS NOT NULL`, `l.role <> ''`];
     const values: unknown[] = [tenantId];
@@ -555,6 +594,27 @@ export class LogService {
     return result.rows.map((row) => ({
       role: row.role,
       count: Number(row.count),
+    }));
+  }
+
+  async roleValues(tenantId: string, filters: LogFilters): Promise<RoleValue[]> {
+    const conditions: string[] = ['l.tenant_id = $1', `l.role IS NOT NULL`, `l.role <> ''`];
+    const values: unknown[] = [tenantId];
+    const scopedFilters = omitLogFilters(applyDefaultTimeBounds(filters), ['role']);
+    this.applyFilters(conditions, values, scopedFilters);
+    const whereClause = conditions.join(' AND ');
+
+    const result = await this.pool.query<{ role: string }>(
+      `SELECT DISTINCT l.role
+       ${LOG_FROM_SQL}
+       WHERE ${whereClause}
+       ORDER BY l.role
+       LIMIT 50`,
+      values,
+    );
+
+    return result.rows.map((row) => ({
+      role: row.role,
     }));
   }
 
@@ -635,6 +695,51 @@ export class LogService {
       latest_workflow_id: row.latest_workflow_id,
       latest_workflow_name: row.latest_workflow_name,
       latest_workflow_label: row.latest_workflow_label,
+    }));
+  }
+
+  async actorKindValues(tenantId: string, filters: LogFilters): Promise<ActorKindValue[]> {
+    const conditions: string[] = ['l.tenant_id = $1', 'l.actor_type IS NOT NULL'];
+    const values: unknown[] = [tenantId];
+    const scopedFilters = omitLogFilters(applyDefaultTimeBounds(filters), ['actorKind', 'actorType']);
+    this.applyFilters(conditions, values, scopedFilters);
+    const whereClause = conditions.join(' AND ');
+
+    const result = await this.pool.query<{ actor_kind: string }>(
+      `SELECT DISTINCT ${ACTOR_KIND_SQL} AS actor_kind
+       ${LOG_FROM_SQL}
+       WHERE ${whereClause}
+       ORDER BY actor_kind`,
+      values,
+    );
+
+    return result.rows.map((row) => ({
+      actor_kind: row.actor_kind,
+    }));
+  }
+
+  async workflowValues(tenantId: string, filters: Pick<LogFilters, 'workspaceId'>): Promise<WorkflowValue[]> {
+    const values: unknown[] = [tenantId];
+    const conditions = ['w.tenant_id = $1'];
+
+    if (filters.workspaceId) {
+      values.push(filters.workspaceId);
+      conditions.push(`w.workspace_id = $${values.length}`);
+    }
+
+    const result = await this.pool.query<{ id: string; name: string | null; workspace_id: string | null }>(
+      `SELECT w.id, w.name, w.workspace_id
+         FROM workflows w
+        WHERE ${conditions.join(' AND ')}
+        ORDER BY COALESCE(NULLIF(TRIM(w.name), ''), w.id) ASC
+        LIMIT 100`,
+      values,
+    );
+
+    return result.rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      workspace_id: row.workspace_id,
     }));
   }
 

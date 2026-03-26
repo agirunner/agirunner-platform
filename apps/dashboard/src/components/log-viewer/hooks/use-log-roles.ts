@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-import { dashboardApi, type LogRoleRecord } from '../../../lib/api.js';
+import { dashboardApi, type LogRoleValueRecord } from '../../../lib/api.js';
 
 export function useLogRoles(baseFilters: Record<string, string> = {}, enabled = true) {
-  return useQuery<{ data: LogRoleRecord[] }>({
+  return useQuery<{ data: LogRoleValueRecord[] }>({
     queryKey: ['log-roles', baseFilters],
-    queryFn: () => dashboardApi.getLogRoles(baseFilters),
+    queryFn: () => dashboardApi.getLogRoleValues(baseFilters),
     staleTime: 300_000,
     enabled,
   });

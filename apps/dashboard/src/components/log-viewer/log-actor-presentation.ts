@@ -52,10 +52,6 @@ export function describeActorDetail(item: ActorLike): string {
   return parts.join(' · ') || describeActorKindLabel(item.actor_kind);
 }
 
-export function describeActorComboboxSubtitle(item: ActorLike & { count: number }): string {
-  return `${describeActorDetail(item)} · ${item.count} entries`;
-}
-
 export function sortActorKindRecords<T extends ActorLike & { count: number }>(items: T[]): T[] {
   const order = new Map<string, number>([
     ['orchestrator_agent', 0],
@@ -72,6 +68,22 @@ export function sortActorKindRecords<T extends ActorLike & { count: number }>(it
       return leftOrder - rightOrder;
     }
     return right.count - left.count;
+  });
+}
+
+export function sortActorKinds<T extends Pick<LogActorRecord, 'actor_kind'>>(items: T[]): T[] {
+  const order = new Map<string, number>([
+    ['orchestrator_agent', 0],
+    ['specialist_agent', 1],
+    ['specialist_task_execution', 2],
+    ['operator', 3],
+    ['platform_system', 4],
+  ]);
+
+  return [...items].sort((left, right) => {
+    const leftOrder = order.get(left.actor_kind) ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = order.get(right.actor_kind) ?? Number.MAX_SAFE_INTEGER;
+    return leftOrder - rightOrder;
   });
 }
 
