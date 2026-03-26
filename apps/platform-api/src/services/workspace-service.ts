@@ -837,7 +837,10 @@ function resolveWorkspaceGitVerificationToken(
         'Git access verification cannot use external secret references. Enter the concrete token value before saving.',
       );
     }
-    return readProviderSecret(replacement);
+    return readWorkspaceGitVerificationSecret(
+      replacement,
+      'Git token could not be read for verification. Enter the token again before saving.',
+    );
   }
 
   const settings = normalizeWorkspaceSettings(workspace.settings);
@@ -850,7 +853,18 @@ function resolveWorkspaceGitVerificationToken(
       'The stored Git token uses an external secret reference and cannot be reverified on save. Replace the token before changing the repository.',
     );
   }
-  return readProviderSecret(storedGitToken);
+  return readWorkspaceGitVerificationSecret(
+    storedGitToken,
+    'Stored Git token could not be read for verification. Replace the token before changing the repository.',
+  );
+}
+
+function readWorkspaceGitVerificationSecret(secret: string, message: string): string {
+  try {
+    return readProviderSecret(secret);
+  } catch {
+    throw new ValidationError(message);
+  }
 }
 
 function redactWorkspaceSecrets(workspace: WorkspaceRow): Record<string, unknown> {

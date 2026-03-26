@@ -72,6 +72,8 @@ export interface WorkspaceSecretPostureSummary {
 }
 
 const REDACTED_SECRET = 'redacted://workspace-settings-secret';
+const WORKSPACE_GIT_VERIFICATION_ERROR_FALLBACK =
+  'Git access verification failed before saving workspace settings.';
 const KNOWN_SETTING_KEYS = new Set([
   'workspace_storage_type',
   'workspace_storage',
@@ -314,6 +316,12 @@ export function buildWorkspaceGitAccessVerificationFingerprint(
         ? draft.credentials.gitToken.value.trim()
         : '',
   });
+}
+
+export function formatWorkspaceGitVerificationErrorMessage(error: unknown): string {
+  const rawMessage = error instanceof Error ? error.message.trim() : '';
+  const message = rawMessage.replace(/^HTTP\s+\d+(?::\s*)?/i, '').trim();
+  return message || WORKSPACE_GIT_VERIFICATION_ERROR_FALLBACK;
 }
 
 export function buildWorkspaceSecretPostureSummary(

@@ -30,6 +30,7 @@ import {
   buildWorkspaceSettingsPatch,
   buildWorkspaceSettingsSurfaceSummary,
   createWorkspaceSettingsDraft,
+  formatWorkspaceGitVerificationErrorMessage,
   requiresWorkspaceGitAccessVerification,
   type WorkspaceSecretDraft,
   type WorkspaceSecretMode,
@@ -114,12 +115,9 @@ export function WorkspaceSettingsTab(props: {
       try {
         await verifyMutation.mutateAsync();
       } catch (error) {
-        const message = error instanceof Error
-          ? error.message
-          : 'Git access verification failed before saving workspace settings.';
         setGitVerificationIssue({
           fingerprint: gitVerificationFingerprint,
-          message,
+          message: formatWorkspaceGitVerificationErrorMessage(error),
         });
         return;
       }

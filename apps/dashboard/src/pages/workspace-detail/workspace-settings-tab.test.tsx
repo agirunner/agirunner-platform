@@ -94,6 +94,7 @@ describe('workspace settings tab source', () => {
     const supportSource = readSource('./workspace-settings-support.ts');
 
     expect(source).toContain('dashboardApi.verifyWorkspaceGitAccess');
+    expect(source).toContain('formatWorkspaceGitVerificationErrorMessage');
     expect(source).toContain('verifiedGitAccessFingerprint');
     expect(source).toContain('gitVerificationIssue');
     expect(source).toContain('buildWorkspaceGitAccessVerificationFingerprint');
@@ -101,6 +102,7 @@ describe('workspace settings tab source', () => {
     expect(source).toContain('requiresWorkspaceGitAccessVerification');
     expect(source).toContain('mutation.mutateAsync()');
     expect(supportSource).toContain('export function requiresWorkspaceGitAccessVerification');
+    expect(supportSource).toContain('export function formatWorkspaceGitVerificationErrorMessage');
     expect(supportSource).toContain('export function buildWorkspaceGitAccessVerificationInput');
     expect(supportSource).toContain('export function buildWorkspaceGitAccessVerificationFingerprint');
   });
