@@ -31,6 +31,7 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('unique request_id');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Completion is rejected without a structured handoff');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not use submit_handoff for scratch progress');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('submit_handoff requires the completion string field.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.',
     );

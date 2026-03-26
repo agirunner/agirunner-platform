@@ -16,6 +16,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Before completion, ensure one successful structured handoff exists with a unique request_id; Rejected attempts do not count; Do not duplicate unchanged handoffs.
 - Completion is rejected without a structured handoff.
 - Do not use submit_handoff for scratch progress.
+- submit_handoff requires the completion string field. Use completion: full or completion: blocked; never send completed: true or other stale boolean variants.
 - Only assessment or approval handoffs may include resolution.
 - Completion and decision are separate.
 - Full assessment or approval handoffs MUST set resolution to approved, request_changes, rejected, or blocked.
