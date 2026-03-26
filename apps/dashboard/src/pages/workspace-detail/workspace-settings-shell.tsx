@@ -15,7 +15,7 @@ export function WorkspaceSettingsShell(props: WorkspaceSettingsShellProps): JSX.
     <section className="space-y-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Settings Control Plane</h2>
+          <h2 className="text-sm font-semibold text-foreground">Settings</h2>
           <p className="sr-only">{props.overview.summary}</p>
         </div>
         {props.headerAction ? <div className="shrink-0">{props.headerAction}</div> : null}

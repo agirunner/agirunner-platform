@@ -7,26 +7,30 @@ function readSource() {
 }
 
 describe('workspace detail shell source', () => {
-  it('owns the shared header chrome, quick actions, and the remaining tab controls', () => {
+  it('uses a plain page header with the active badge and the remaining tab controls', () => {
     const source = readSource();
 
     expect(source).toContain('export function WorkspaceDetailShell');
     expect(source).toContain('headerState.quickActions.map((action)');
-    expect(source).toContain('headerState.activeTab.label');
     expect(source).toContain('SelectTrigger aria-label="Select workspace workspace tab"');
     expect(source).toContain('TabsList');
     expect(source).toContain('TabsTrigger');
     expect(source).toContain('grid-cols-2');
+    expect(source).toContain("{workspace.is_active ? 'Active' : 'Inactive'}");
+    expect(source).not.toContain('Card className="border-border/70 shadow-none"');
+    expect(source).not.toContain('CardHeader');
+    expect(source).not.toContain('headerState.activeTab.label');
     expect(source).not.toContain('grid-cols-3');
     expect(source).not.toContain('overviewContent');
     expect(source).not.toContain('Workspace workspace');
   });
 
-  it('keeps the workspace title size compact across the remaining tabs', () => {
+  it('matches the playbook-style workspace title treatment without grouped background chrome', () => {
     const source = readSource();
 
-    expect(source).not.toContain("'text-2xl font-semibold tracking-tight'");
-    expect(source).toContain('className="text-lg font-semibold tracking-tight"');
+    expect(source).toContain('className="text-2xl font-semibold"');
+    expect(source).not.toContain('className="text-lg font-semibold tracking-tight"');
+    expect(source).toContain('space-y-3');
   });
 
   it('keeps the settings and knowledge panels together in one shell component', () => {

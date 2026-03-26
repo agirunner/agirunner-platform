@@ -13,6 +13,8 @@ describe('workspace settings tab source', () => {
 
     expect(shellSource).toContain('className="sr-only"');
     expect(shellSource).toContain('props.overview.summary');
+    expect(shellSource).toContain('>Settings<');
+    expect(shellSource).not.toContain('Settings Control Plane');
     expect(tabSource).toContain('Basics and storage stay open here');
     expect(tabSource).toContain('Resolve Before Saving');
     expect(tabSource).toContain('Workspace Lifecycle');

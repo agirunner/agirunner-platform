@@ -5,7 +5,6 @@ import type { DashboardWorkspaceRecord } from '../../lib/api.js';
 import { rememberWorkspaceBreadcrumbLabel } from '../../components/layout/layout-breadcrumbs.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
-import { Card, CardHeader } from '../../components/ui/card.js';
 import {
   Select,
   SelectContent,
@@ -57,49 +56,42 @@ function WorkspaceDetailHeader(props: {
   const workspaceLinkState = { workspaceLabel: workspace.name };
 
   return (
-    <Card className="border-border/70 shadow-none">
-      <CardHeader className="space-y-2 py-3">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0 flex-1 space-y-1.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant={workspace.is_active ? 'success' : 'secondary'}>
-                {workspace.is_active ? 'Active' : 'Inactive'}
-              </Badge>
-              <Badge variant="outline">{headerState.activeTab.label}</Badge>
-            </div>
-            <div className="space-y-1">
-              <h1 className="text-lg font-semibold tracking-tight">
-                {headerState.title}
-              </h1>
-              <p className="text-sm leading-6 text-muted">{headerState.description}</p>
-            </div>
-            {headerState.contextPills.length > 0 ? (
-              <div className="flex flex-wrap gap-2 text-xs text-muted">
-                {headerState.contextPills.map((pill) => (
-                  <span
-                    key={pill}
-                    className="rounded-full border border-border/70 bg-background/70 px-3 py-1"
-                  >
-                    {pill}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          {headerState.quickActions.length > 0 ? (
-            <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
-              {headerState.quickActions.map((action) => (
-                <Button key={action.label} asChild size="sm" variant={action.variant}>
-                  <Link to={action.href} state={workspaceLinkState}>
-                    {action.label}
-                  </Link>
-                </Button>
-              ))}
-            </div>
-          ) : null}
+    <div className="flex flex-wrap items-start justify-between gap-4">
+      <div className="min-w-0 flex-1 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant={workspace.is_active ? 'success' : 'secondary'}>
+            {workspace.is_active ? 'Active' : 'Inactive'}
+          </Badge>
         </div>
-      </CardHeader>
-    </Card>
+        <div className="space-y-1">
+          <h1 className="text-2xl font-semibold">{headerState.title}</h1>
+          <p className="text-sm leading-6 text-muted">{headerState.description}</p>
+        </div>
+        {headerState.contextPills.length > 0 ? (
+          <div className="flex flex-wrap gap-2 text-xs text-muted">
+            {headerState.contextPills.map((pill) => (
+              <span
+                key={pill}
+                className="rounded-full border border-border/70 bg-background/70 px-3 py-1"
+              >
+                {pill}
+              </span>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      {headerState.quickActions.length > 0 ? (
+        <div className="flex w-full flex-wrap items-center gap-1.5 sm:w-auto sm:justify-end">
+          {headerState.quickActions.map((action) => (
+            <Button key={action.label} asChild size="sm" variant={action.variant}>
+              <Link to={action.href} state={workspaceLinkState}>
+                {action.label}
+              </Link>
+            </Button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
