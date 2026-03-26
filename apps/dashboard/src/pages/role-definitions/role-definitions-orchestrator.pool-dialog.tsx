@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import type { FleetWorkerRecord } from '../../lib/api.js';
-import { ImageReferenceField } from '../../components/forms/image-reference-field.js';
 import {
   Card,
   CardContent,
@@ -27,7 +26,6 @@ import {
 import {
   buildOrchestratorPoolDraft,
   listOrchestratorWorkerOptions,
-  listSuggestedRuntimeImages,
   validateOrchestratorPoolDraft,
 } from './role-definitions-orchestrator.form.js';
 import { DialogActions } from './role-definitions-orchestrator.dialog-shared.js';
@@ -51,10 +49,6 @@ export function OrchestratorPoolDialog(props: {
     () => listOrchestratorWorkerOptions(props.workers),
     [props.workers],
   );
-  const runtimeImages = useMemo(
-    () => listSuggestedRuntimeImages(props.workers),
-    [props.workers],
-  );
   const [draft, setDraft] = useState(() =>
     buildOrchestratorPoolDraft(props.workers),
   );
@@ -69,7 +63,7 @@ export function OrchestratorPoolDialog(props: {
 
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
-      <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit orchestrator pool posture</DialogTitle>
           <DialogDescription>
@@ -137,17 +131,27 @@ export function OrchestratorPoolDialog(props: {
                 }
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 md:col-span-2">
               <label className="text-sm font-medium">Agent image</label>
-              <ImageReferenceField
+              <Input
                 value={draft.runtimeImage}
-                onChange={(value) => setDraft((current) => ({ ...current, runtimeImage: value }))}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, runtimeImage: event.target.value }))
+                }
                 placeholder="agirunner-runtime:local"
-                suggestions={runtimeImages}
-                listId="orchestrator-runtime-image-suggestions"
-                error={validationErrors.runtimeImage}
-                helperText="Use the same standard image ref format as Roles and Specialist agent defaults."
+                aria-invalid={validationErrors.runtimeImage ? 'true' : 'false'}
               />
+              {validationErrors.runtimeImage ? (
+                <p className="text-xs text-red-600">{validationErrors.runtimeImage}</p>
+              ) : null}
+              <p className="text-xs text-muted">
+                Use the same standard image ref format as Roles and Specialist agent defaults.
+              </p>
+              <div className="rounded-lg border border-border/70 bg-muted/10 px-3 py-3 text-xs leading-5 text-muted">
+                This image is different from the environment where your specialists execute their
+                tasks. This small alpine-based image is optimized for running the orchestrator
+                loop, not for executing complex tasks.
+              </div>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">CPU</label>
@@ -179,25 +183,25 @@ export function OrchestratorPoolDialog(props: {
             </div>
           </CardContent>
         </Card>
-      <DialogActions
-        isSaving={props.isSaving}
-        saveLabel={draft.workerId ? 'Save pool posture' : 'Create pool posture'}
-        onCancel={() => props.onOpenChange(false)}
-        onSave={async () => {
-          if (hasValidationErrors) {
-            return;
-          }
-          await props.onSave({
-            workerId: draft.workerId,
-            workerName: draft.workerName,
-            runtimeImage: draft.runtimeImage,
-            cpuLimit: draft.cpuLimit,
-            memoryLimit: draft.memoryLimit,
-            replicas: Math.max(1, parseInt(draft.replicas || '1', 10) || 1),
-            enabled: draft.enabled,
-          });
-          props.onOpenChange(false);
-        }}
+        <DialogActions
+          isSaving={props.isSaving}
+          saveLabel={draft.workerId ? 'Save pool posture' : 'Create pool posture'}
+          onCancel={() => props.onOpenChange(false)}
+          onSave={async () => {
+            if (hasValidationErrors) {
+              return;
+            }
+            await props.onSave({
+              workerId: draft.workerId,
+              workerName: draft.workerName,
+              runtimeImage: draft.runtimeImage,
+              cpuLimit: draft.cpuLimit,
+              memoryLimit: draft.memoryLimit,
+              replicas: Math.max(1, parseInt(draft.replicas || '1', 10) || 1),
+              enabled: draft.enabled,
+            });
+            props.onOpenChange(false);
+          }}
         />
       </DialogContent>
     </Dialog>

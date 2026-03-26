@@ -157,7 +157,6 @@ export function ExecutionEnvironmentsPage(): JSX.Element {
   );
   const stats = buildExecutionEnvironmentStats(environments);
   const defaultEnvironment = environments.find((environment) => environment.is_default) ?? null;
-  const imageSuggestions = [...new Set(environments.map((environment) => environment.image))];
 
   if (environmentsQuery.isLoading) {
     return (
@@ -244,7 +243,6 @@ export function ExecutionEnvironmentsPage(): JSX.Element {
           }
           submitLabel={dialogState.mode === 'edit' ? 'Save Environment' : 'Create Environment'}
           form={dialogForm}
-          imageSuggestions={imageSuggestions}
           isPending={createOrUpdateMutation.isPending}
           mutationError={
             createOrUpdateMutation.error instanceof Error

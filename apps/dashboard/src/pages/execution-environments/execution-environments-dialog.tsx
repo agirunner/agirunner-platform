@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 import { Loader2 } from 'lucide-react';
 
-import { ImageReferenceField } from '../../components/forms/image-reference-field.js';
 import {
   Dialog,
   DialogContent,
@@ -46,7 +45,6 @@ export function ExecutionEnvironmentDialog(props: {
   description: string;
   submitLabel: string;
   form: ExecutionEnvironmentFormState;
-  imageSuggestions: string[];
   isPending: boolean;
   mutationError?: string | null;
   onFormChange: (next: ExecutionEnvironmentFormState) => void;
@@ -96,14 +94,17 @@ export function ExecutionEnvironmentDialog(props: {
           </label>
           <label className="grid gap-2 text-sm">
             <span className="font-medium">Image</span>
-            <ImageReferenceField
+            <Input
               value={props.form.image}
-              onChange={(image) => props.onFormChange({ ...props.form, image })}
+              onChange={(event) =>
+                props.onFormChange({ ...props.form, image: event.target.value })
+              }
               placeholder="ghcr.io/customer/dev:1.2.3"
-              suggestions={props.imageSuggestions}
-              error={validationErrors.image}
-              helperText="Enter any public image reference or choose a starter image."
+              aria-invalid={Boolean(validationErrors.image)}
             />
+            {validationErrors.image ? (
+              <span className="text-xs text-red-600 dark:text-red-400">{validationErrors.image}</span>
+            ) : null}
           </label>
           <div className="grid gap-4 md:grid-cols-3">
             <label className="grid gap-2 text-sm">

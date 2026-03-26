@@ -80,4 +80,17 @@ describe('execution environments page source', () => {
     expect(pageSource).toContain("title={dialogState.mode === 'edit' ? 'Edit Environment' : dialogState.mode === 'copy' ? 'Copy Environment' : 'Create Custom Environment'}");
     expect(pageSource).toContain("submitLabel={dialogState.mode === 'edit' ? 'Save Environment' : 'Create Environment'}");
   });
+
+  it('keeps environment image editing as a plain text field instead of a suggestion-backed picker', () => {
+    const dialogSource = readSource('./execution-environments-dialog.tsx');
+    const pageSource = readSource('./execution-environments-page.tsx');
+
+    expect(dialogSource).not.toContain('ImageReferenceField');
+    expect(dialogSource).toContain('<Input');
+    expect(dialogSource).toContain('value={props.form.image}');
+    expect(dialogSource).not.toContain('imageSuggestions: string[];');
+    expect(dialogSource).not.toContain('suggestions={props.imageSuggestions}');
+    expect(pageSource).not.toContain('const imageSuggestions =');
+    expect(pageSource).not.toContain('imageSuggestions={imageSuggestions}');
+  });
 });

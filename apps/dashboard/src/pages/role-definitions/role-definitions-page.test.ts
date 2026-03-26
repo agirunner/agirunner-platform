@@ -81,11 +81,17 @@ describe('role definitions page source', () => {
     expect(source).toContain('Choose a unique role name.');
   });
 
-  it('uses the shared image reference field for orchestrator runtime editing while roles select a named execution environment', () => {
+  it('uses a plain text field for orchestrator runtime editing while roles select a named execution environment', () => {
     const source = readCombinedSource();
-    expect(source).toContain('ImageReferenceField');
+    expect(source).not.toContain('ImageReferenceField');
     expect(source).toContain('Execution environment');
     expect(source).toContain('Select the specialist execution environment for this role.');
+    expect(source).toContain('value={draft.runtimeImage}');
+    expect(source).not.toContain('orchestrator-runtime-image-suggestions');
+    expect(source).toContain('This image is different from the environment where your specialists execute their');
+    expect(source).toContain('tasks. This small alpine-based image is optimized for running the orchestrator');
+    expect(source).toContain('loop, not for executing complex tasks.');
+    expect(source).toContain('max-h-[90vh] max-w-4xl overflow-y-auto');
     expect(source).not.toContain('Specialist Execution container override');
     expect(source).toContain('placeholder="2"');
     expect(source).toContain('placeholder="256m"');

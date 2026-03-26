@@ -101,17 +101,6 @@ export function listOrchestratorWorkerOptions(workers: FleetWorkerRecord[]) {
     }));
 }
 
-export function listSuggestedRuntimeImages(workers: FleetWorkerRecord[]): string[] {
-  const images = new Set(
-    workers
-      .filter((worker) => worker.pool_kind === 'orchestrator')
-      .map((worker) => worker.runtime_image.trim())
-      .filter(Boolean),
-  );
-  images.add(ORCHESTRATOR_DEFAULT_RUNTIME_IMAGE);
-  return [...images];
-}
-
 export function validateOrchestratorPoolDraft(draft: OrchestratorPoolDraft): {
   runtimeImage?: string;
   cpuLimit?: string;
