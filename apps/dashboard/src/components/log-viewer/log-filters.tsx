@@ -96,20 +96,31 @@ export function LogFilters({
   );
 
   const [searchDraft, setSearchDraft] = useState(filters.search);
+  const [environmentDraft, setEnvironmentDraft] = useState(filters.executionEnvironment);
 
   const handleSearchCommit = useCallback(
     (committed: string) => setFilter('search', committed),
     [setFilter],
   );
+  const handleEnvironmentCommit = useCallback(
+    (committed: string) => setFilter('executionEnvironment', committed.trim()),
+    [setFilter],
+  );
 
   useDebounced(searchDraft, DEBOUNCE_MS, handleSearchCommit);
+  useDebounced(environmentDraft, DEBOUNCE_MS, handleEnvironmentCommit);
 
   const handleSearchChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => setSearchDraft(e.target.value),
     [],
   );
+  const handleEnvironmentChange = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => setEnvironmentDraft(e.target.value),
+    [],
+  );
 
   useEffect(() => setSearchDraft(filters.search), [filters.search]);
+  useEffect(() => setEnvironmentDraft(filters.executionEnvironment), [filters.executionEnvironment]);
 
   const toggleOperation = useArrayToggle(filters.operations, setFilter, 'operations');
   const clearOperations = useCallback(() => setFilter('operations', []), [setFilter]);
@@ -291,14 +302,22 @@ export function LogFilters({
           selected={filters.categories}
           onChange={(next) => setFilter('categories', next)}
         />
-        <div className="relative w-full sm:w-48 sm:ml-auto">
-          <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+        <div className="flex w-full flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row">
           <Input
-            value={searchDraft}
-            onChange={handleSearchChange}
-            placeholder="Search logs..."
-            className="pl-8 h-8 text-xs"
+            value={environmentDraft}
+            onChange={handleEnvironmentChange}
+            placeholder="Execution environment"
+            className="h-8 w-full text-xs sm:w-44"
           />
+          <div className="relative w-full sm:w-48">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+            <Input
+              value={searchDraft}
+              onChange={handleSearchChange}
+              placeholder="Search logs..."
+              className="pl-8 h-8 text-xs"
+            />
+          </div>
         </div>
       </div>
     </div>

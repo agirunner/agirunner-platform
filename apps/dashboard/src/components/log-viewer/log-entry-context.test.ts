@@ -85,6 +85,9 @@ describe('log entry context', () => {
     expect(detailSource).toContain("task_lifecycle: 'Execution Step Lifecycle'");
     expect(detailSource).toContain('<DetailRow label="Workflow">');
     expect(detailSource).toContain('<DetailRow label="Step">');
+    expect(detailSource).toContain('<DetailRow label="Execution environment">');
+    expect(detailSource).toContain('<DetailRow label="Environment image">');
+    expect(detailSource).toContain('<DetailRow label="Package manager">');
     expect(detailSource).toContain('Diagnostic handles');
     expect(detailSource).toContain('Recorded payload');
     expect(detailSource).toContain('DETAIL_SECTION_CLASS_NAME');
@@ -98,7 +101,7 @@ describe('log entry context', () => {
     expect(taskDetailSource).toContain("label: 'Workflow'");
     expect(taskDetailSource).toContain("label: 'Step Title'");
     expect(taskDetailSource).toContain("label: 'Work item'");
-    expect(taskDetailSource).toContain("label: 'Agent handle'");
+    expect(taskDetailSource).toContain("label: 'Specialist agent handle'");
     expect(groupedTableSource).toContain('non-step');
   });
 });

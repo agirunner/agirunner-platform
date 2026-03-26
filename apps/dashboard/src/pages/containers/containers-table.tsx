@@ -91,9 +91,13 @@ export function ContainersTable(props: {
                 {renderEntityLink(row.task_id, row.task_title, '/mission-control/tasks')}
               </DiffCell>
               <DiffCell row={row} field="image" className="py-3">
-                <code className="block truncate text-xs text-foreground" title={row.image}>
-                  {row.image}
+                <code
+                  className="block truncate text-xs text-foreground"
+                  title={row.execution_environment_image ?? row.image}
+                >
+                  {row.execution_environment_image ?? row.image}
                 </code>
+                {renderExecutionEnvironmentSummary(row)}
               </DiffCell>
               <DiffCell row={row} field="cpu" className="py-3">
                 <CellText>{formatLimit(row.cpu_limit)}</CellText>
@@ -175,6 +179,22 @@ function renderEntityLink(
 
 function formatLimit(value: string | null | undefined): string {
   return value?.trim() ? value : 'Docker default';
+}
+
+function renderExecutionEnvironmentSummary(row: SessionContainerRow): JSX.Element | null {
+  const summaryParts = [
+    row.execution_environment_name?.trim() || null,
+    row.execution_environment_distro?.trim() || null,
+    row.execution_environment_package_manager?.trim() || null,
+  ].filter((value): value is string => value !== null);
+  if (summaryParts.length === 0) {
+    return null;
+  }
+  return (
+    <p className="mt-1 truncate text-xs text-muted-foreground" title={summaryParts.join(' · ')}>
+      {summaryParts.join(' · ')}
+    </p>
+  );
 }
 
 function isSyntheticContainerContextLabel(value: string | null | undefined): boolean {

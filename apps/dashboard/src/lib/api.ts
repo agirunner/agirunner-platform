@@ -970,6 +970,7 @@ export interface DashboardTaskRecord extends Task {
   stage_name?: string | null;
   activation_id?: string | null;
   execution_backend: 'runtime_only' | 'runtime_plus_task';
+  execution_environment?: DashboardExecutionEnvironmentRecord | null;
   used_task_sandbox: boolean;
 }
 
@@ -1480,6 +1481,11 @@ export interface LogEntry {
   role?: string | null;
   execution_backend?: 'runtime_only' | 'runtime_plus_task' | null;
   tool_owner?: 'runtime' | 'task' | null;
+  execution_environment_id?: string | null;
+  execution_environment_name?: string | null;
+  execution_environment_image?: string | null;
+  execution_environment_distro?: string | null;
+  execution_environment_package_manager?: string | null;
   actor_type: string;
   actor_id: string;
   actor_name?: string | null;
@@ -1597,6 +1603,11 @@ export interface DashboardLiveContainerRecord {
   task_title?: string | null;
   stage_name?: string | null;
   activity_state?: string | null;
+  execution_environment_id?: string | null;
+  execution_environment_name?: string | null;
+  execution_environment_image?: string | null;
+  execution_environment_distro?: string | null;
+  execution_environment_package_manager?: string | null;
 }
 
 export interface DashboardApi {

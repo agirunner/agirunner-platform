@@ -55,6 +55,10 @@ interface RememberedContainerContext {
   task_id: string | null;
   task_title: string | null;
   activity_state: string | null;
+  execution_environment_name: string | null;
+  execution_environment_image: string | null;
+  execution_environment_distro: string | null;
+  execution_environment_package_manager: string | null;
 }
 
 export interface SessionContainerRow extends DashboardLiveContainerRecord {
@@ -481,6 +485,16 @@ function rememberContainerContext(
     task_id: normalizeText(row.task_id) || prior?.task_id || null,
     task_title: normalizeText(row.task_title) || prior?.task_title || null,
     activity_state: normalizeText(row.activity_state) || prior?.activity_state || null,
+    execution_environment_name:
+      normalizeText(row.execution_environment_name) || prior?.execution_environment_name || null,
+    execution_environment_image:
+      normalizeText(row.execution_environment_image) || prior?.execution_environment_image || null,
+    execution_environment_distro:
+      normalizeText(row.execution_environment_distro) || prior?.execution_environment_distro || null,
+    execution_environment_package_manager:
+      normalizeText(row.execution_environment_package_manager)
+      || prior?.execution_environment_package_manager
+      || null,
   };
 
   return Object.values(next).some((value) => value) ? next : null;
@@ -504,6 +518,15 @@ function applyRememberedContext(
     task_id: normalizeText(row.task_id) || rememberedContext.task_id,
     task_title: normalizeText(row.task_title) || rememberedContext.task_title,
     activity_state: normalizeText(row.activity_state) || rememberedContext.activity_state,
+    execution_environment_name:
+      normalizeText(row.execution_environment_name) || rememberedContext.execution_environment_name,
+    execution_environment_image:
+      normalizeText(row.execution_environment_image) || rememberedContext.execution_environment_image,
+    execution_environment_distro:
+      normalizeText(row.execution_environment_distro) || rememberedContext.execution_environment_distro,
+    execution_environment_package_manager:
+      normalizeText(row.execution_environment_package_manager)
+      || rememberedContext.execution_environment_package_manager,
   };
 }
 
@@ -529,5 +552,10 @@ function extractLiveRecord(row: SessionContainerRow): DashboardLiveContainerReco
     task_title: row.task_title,
     stage_name: row.stage_name,
     activity_state: row.activity_state,
+    execution_environment_id: row.execution_environment_id,
+    execution_environment_name: row.execution_environment_name,
+    execution_environment_image: row.execution_environment_image,
+    execution_environment_distro: row.execution_environment_distro,
+    execution_environment_package_manager: row.execution_environment_package_manager,
   };
 }

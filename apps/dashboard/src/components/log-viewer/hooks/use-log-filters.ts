@@ -18,6 +18,7 @@ export interface LogFilters {
   operations: string[];
   roles: string[];
   actors: string[];
+  executionEnvironment: string;
   executionBackend: string[];
   toolOwner: string[];
 }
@@ -74,6 +75,7 @@ export function useLogFilters() {
       operations: parseList(searchParams.get('operation')),
       roles: parseList(searchParams.get('role')),
       actors: parseList(searchParams.get('actor_kind') ?? searchParams.get('actor_type') ?? searchParams.get('actor')),
+      executionEnvironment: searchParams.get('execution_environment') ?? '',
       executionBackend: parseList(searchParams.get('execution_backend')),
       toolOwner: parseList(searchParams.get('tool_owner')),
     }),
@@ -183,6 +185,7 @@ export function useLogFilters() {
     if (filters.operations.length > 0) params.operation = filters.operations.join(',');
     if (filters.roles.length > 0) params.role = filters.roles.join(',');
     if (filters.actors.length > 0) params.actor_kind = filters.actors.join(',');
+    if (filters.executionEnvironment) params.execution_environment = filters.executionEnvironment;
     if (filters.executionBackend.length > 0) {
       params.execution_backend = filters.executionBackend.join(',');
     }

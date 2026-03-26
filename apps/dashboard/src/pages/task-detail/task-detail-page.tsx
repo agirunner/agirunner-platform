@@ -81,6 +81,13 @@ interface Task {
   metadata?: Record<string, unknown>;
   verification?: Record<string, unknown>;
   metrics?: Record<string, unknown>;
+  execution_environment?: {
+    id?: string | null;
+    name?: string | null;
+    image?: string | null;
+    pull_policy?: string | null;
+    verified_metadata?: Record<string, unknown>;
+  } | null;
   rework_count?: number;
   type?: string;
 }
@@ -153,6 +160,36 @@ function formatDuration(task: Task): string {
   const seconds = (end - start) / 1000;
   if (seconds < 60) return `${Math.round(seconds)}s`;
   return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+}
+
+function readExecutionEnvironmentMetadata(
+  task: Task,
+  key: string,
+): string | null {
+  const value = task.execution_environment?.verified_metadata?.[key];
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function renderExecutionEnvironmentValue(task: Task): React.ReactNode {
+  const name = task.execution_environment?.name?.trim();
+  const image = task.execution_environment?.image?.trim();
+  const distro = readExecutionEnvironmentMetadata(task, 'distro');
+  const value = name ?? image ?? '-';
+
+  if (!distro || value === '-') {
+    return value;
+  }
+
+  return (
+    <span>
+      {value}
+      <span className="block text-xs text-muted">{distro}</span>
+    </span>
+  );
+}
+
+function describeExecutionEnvironmentPackageManager(task: Task): string {
+  return readExecutionEnvironmentMetadata(task, 'package_manager') ?? '-';
 }
 
 function InfoCard({
@@ -829,6 +866,16 @@ export function TaskDetailPage(): JSX.Element {
           icon={Cpu}
           label={describeExecutionSurface(task)}
           value={describeTaskSandboxUsage(task)}
+        />
+        <InfoCard
+          icon={Cpu}
+          label="Execution environment"
+          value={renderExecutionEnvironmentValue(task)}
+        />
+        <InfoCard
+          icon={Cpu}
+          label="Package manager"
+          value={describeExecutionEnvironmentPackageManager(task)}
         />
         <InfoCard icon={User} label="Role" value={task.role ?? '-'} />
         <InfoCard icon={Clock} label="Created" value={renderTimestamp(task.created_at)} />

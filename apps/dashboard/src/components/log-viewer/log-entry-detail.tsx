@@ -149,6 +149,9 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
       ? entry.payload.role
       : null);
   const stageName = entry.stage_name && entry.stage_name !== '' ? entry.stage_name : null;
+  const executionEnvironmentLabel = readExecutionEnvironmentLabel(entry);
+  const executionEnvironmentImage = entry.execution_environment_image?.trim() || null;
+  const executionEnvironmentPackageManager = entry.execution_environment_package_manager?.trim() || null;
 
   return (
     <div className={DETAIL_SECTION_CLASS_NAME}>
@@ -233,6 +236,21 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
             <span className="font-medium">{describeGenericToolOwnerSurface(entry.tool_owner)}</span>
           </DetailRow>
         ) : null}
+        {executionEnvironmentLabel ? (
+          <DetailRow label="Execution environment">
+            <span className="font-medium">{executionEnvironmentLabel}</span>
+          </DetailRow>
+        ) : null}
+        {executionEnvironmentImage ? (
+          <DetailRow label="Environment image">
+            <span className="font-mono text-xs">{executionEnvironmentImage}</span>
+          </DetailRow>
+        ) : null}
+        {executionEnvironmentPackageManager ? (
+          <DetailRow label="Package manager">
+            <span className="font-medium">{executionEnvironmentPackageManager}</span>
+          </DetailRow>
+        ) : null}
         {role && (
           <DetailRow label="Role">
             <span className="font-medium">{role as string}</span>
@@ -258,6 +276,15 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
       </div>
     </div>
   );
+}
+
+function readExecutionEnvironmentLabel(entry: LogEntry): string | null {
+  const name = entry.execution_environment_name?.trim();
+  const distro = entry.execution_environment_distro?.trim();
+  if (name && distro) {
+    return `${name} (${distro})`;
+  }
+  return name || distro || null;
 }
 
 function DiagnosticHandlesSection({ entry }: { entry: LogEntry }): JSX.Element {

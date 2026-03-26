@@ -177,11 +177,20 @@ describe('dashboard api auth/session behavior', () => {
     expect(toolTagBlock).toContain("owner?: 'runtime' | 'task';");
     expect(taskBlock).toContain("execution_backend: 'runtime_only' | 'runtime_plus_task';");
     expect(taskBlock).toContain('used_task_sandbox: boolean;');
+    expect(taskBlock).toContain('execution_environment?: DashboardExecutionEnvironmentRecord | null;');
     expect(logEntryBlock).toContain("execution_backend?: 'runtime_only' | 'runtime_plus_task' | null;");
     expect(logEntryBlock).toContain("tool_owner?: 'runtime' | 'task' | null;");
+    expect(logEntryBlock).toContain('execution_environment_name?: string | null;');
+    expect(logEntryBlock).toContain('execution_environment_image?: string | null;');
+    expect(logEntryBlock).toContain('execution_environment_distro?: string | null;');
+    expect(logEntryBlock).toContain('execution_environment_package_manager?: string | null;');
     expect(liveContainerBlock).toContain(
       "execution_backend?: 'runtime_only' | 'runtime_plus_task' | null;",
     );
+    expect(liveContainerBlock).toContain('execution_environment_name?: string | null;');
+    expect(liveContainerBlock).toContain('execution_environment_image?: string | null;');
+    expect(liveContainerBlock).toContain('execution_environment_distro?: string | null;');
+    expect(liveContainerBlock).toContain('execution_environment_package_manager?: string | null;');
   });
 
   it('refreshes token and retries request when access token is expired', async () => {

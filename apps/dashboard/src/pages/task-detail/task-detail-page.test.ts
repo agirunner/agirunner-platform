@@ -18,6 +18,9 @@ describe('task detail page source', () => {
     expect(source).toContain('describeExecutionSurface(task)');
     expect(source).toContain('work_item_id');
     expect(source).toContain('activation_id');
+    expect(source).toContain('execution_environment');
+    expect(source).toContain('Execution environment');
+    expect(source).toContain('Package manager');
     expect(source).toContain('Stage');
   });
 

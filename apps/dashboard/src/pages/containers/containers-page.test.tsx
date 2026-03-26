@@ -48,6 +48,10 @@ describe('containers page source', () => {
     expect(tableSource).toContain('<TableHead>Stage</TableHead>');
     expect(tableSource).not.toContain('<TableHead>Container</TableHead>');
     expect(tableSource).not.toContain('<p className="text-xs text-muted-foreground">{row.name}</p>');
+    expect(tableSource).toContain('execution_environment_name');
+    expect(tableSource).toContain('execution_environment_image');
+    expect(tableSource).toContain('execution_environment_package_manager');
+    expect(tableSource).toContain('renderExecutionEnvironmentSummary');
     expect(tableSource).toContain('const TABLE_COLUMN_CLASS_NAMES = [');
     expect(tableSource).toContain("const TABLE_COLUMN_CLASS_NAMES = [\n  'w-[7rem]',\n  'w-[12rem]',");
     expect(tableSource).toContain('<colgroup>');
@@ -78,10 +82,14 @@ describe('containers page source', () => {
     expect(supportSource).toContain('diffVisibleFields');
     expect(supportSource).toContain('rememberContainerContext');
     expect(supportSource).toContain('applyRememberedContext');
+    expect(supportSource).toContain('execution_environment_name');
+    expect(supportSource).toContain('execution_environment_image');
+    expect(supportSource).toContain('execution_environment_distro');
+    expect(supportSource).toContain('execution_environment_package_manager');
     expect(tableSource).not.toContain('Orchestrator Pool');
     expect(tableSource).not.toContain('Specialist Pool');
-    expect(pageSource).toContain('No orchestrator containers were reported in this session.');
-    expect(pageSource).toContain('No specialist containers were reported in this session.');
+    expect(pageSource).toContain('No orchestrator agents were reported in this session.');
+    expect(pageSource).toContain('No specialist agents or specialist executions were reported in this session.');
     expect(supportSource).not.toContain('ContainerStatusFilter');
     expect(supportSource).not.toContain('ContainerKindFilter');
     expect(supportSource).not.toContain('buildSearchableFields');
