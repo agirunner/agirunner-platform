@@ -11,21 +11,19 @@ describe('operations page support', () => {
   it('moves platform-owned timing and supervision settings onto the operations surface', () => {
     expect(OPERATIONS_SECTION_DEFINITIONS.map((section) => section.key)).toEqual([
       'task_timeouts',
-      'runtime_fleet',
       'connected_platform',
-      'workflow_activation',
-      'worker_supervision',
-      'agent_supervision',
       'container_manager',
+      'worker_supervision',
       'realtime_transport',
       'platform_loops',
     ]);
 
     expect(fieldsForSection('task_timeouts', OPERATIONS_FIELD_DEFINITIONS).map((field) => field.key)).toEqual([
       'tasks.default_timeout_minutes',
-    ]);
-    expect(fieldsForSection('runtime_fleet', OPERATIONS_FIELD_DEFINITIONS).map((field) => field.key)).toEqual([
-      'specialist_runtime_drain_grace_seconds',
+      'platform.workflow_activation_delay_ms',
+      'platform.workflow_activation_heartbeat_interval_ms',
+      'platform.workflow_activation_stale_after_ms',
+      'platform.task_cancel_signal_grace_period_ms',
     ]);
     expect(
       fieldsForSection('connected_platform', OPERATIONS_FIELD_DEFINITIONS).map((field) => field.key),
@@ -39,36 +37,49 @@ describe('operations page support', () => {
       ]),
     );
     expect(
-      fieldsForSection('workflow_activation', OPERATIONS_FIELD_DEFINITIONS).map((field) => field.key),
+      fieldsForSection('worker_supervision', OPERATIONS_FIELD_DEFINITIONS).map((field) => field.key),
     ).toEqual(
       expect.arrayContaining([
-        'platform.workflow_activation_delay_ms',
-        'platform.workflow_activation_heartbeat_interval_ms',
-        'platform.workflow_activation_stale_after_ms',
+        'platform.worker_dispatch_ack_timeout_ms',
+        'platform.worker_key_expiry_ms',
+        'platform.worker_default_heartbeat_interval_seconds',
+        'platform.worker_offline_grace_period_ms',
+        'platform.worker_offline_threshold_multiplier',
+        'platform.worker_degraded_threshold_multiplier',
+        'platform.agent_default_heartbeat_interval_seconds',
+        'platform.agent_heartbeat_grace_period_ms',
+        'platform.agent_heartbeat_threshold_multiplier',
+        'platform.agent_key_expiry_ms',
       ]),
     );
     expect(
       fieldsForSection('container_manager', OPERATIONS_FIELD_DEFINITIONS).map((field) => field.key),
     ).toEqual(
       expect.arrayContaining([
+        'specialist_runtime_drain_grace_seconds',
         'container_manager.reconcile_interval_seconds',
         'container_manager.stop_timeout_seconds',
       ]),
     );
+    expect(OPERATIONS_SECTION_DEFINITIONS.map((section) => section.title)).toEqual([
+      'Workflow Timing',
+      'Platform Connection & Reporting',
+      'Specialist Worker Containers',
+      'Heartbeats & API Keys',
+      'Realtime transport',
+      'Background Sweeps & Dispatch',
+    ]);
   });
 
   it('balances inline operations groups into explicit left and right columns', () => {
     expect(OPERATIONS_INLINE_SECTION_COLUMNS).toEqual({
       left: [
         'task_timeouts',
-        'runtime_fleet',
         'connected_platform',
         'container_manager',
       ],
       right: [
-        'workflow_activation',
         'worker_supervision',
-        'agent_supervision',
         'realtime_transport',
         'platform_loops',
       ],

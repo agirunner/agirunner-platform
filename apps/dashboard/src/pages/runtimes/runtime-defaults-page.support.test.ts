@@ -15,16 +15,11 @@ describe('runtime defaults page support', () => {
     expect(SECTION_DEFINITIONS.map((section) => section.key)).toEqual([
       'runtime_containers',
       'task_limits',
-      'capacity_limits',
-      'runtime_throughput',
       'server_timeouts',
-      'runtime_api',
-      'llm_transport',
       'tool_timeouts',
       'lifecycle_timeouts',
       'connected_platform',
       'workspace_timeouts',
-      'workspace_operations',
       'capture_timeouts',
       'secrets_timeouts',
       'subagent_timeouts',
@@ -34,7 +29,7 @@ describe('runtime defaults page support', () => {
     ]);
     expect(
       SECTION_DEFINITIONS.filter((section) => section.defaultExpanded).map((section) => section.key),
-    ).toEqual(['runtime_containers', 'task_limits', 'capacity_limits']);
+    ).toEqual(['runtime_containers', 'task_limits']);
 
     expect(fieldsForSection('runtime_containers').map((field) => field.key)).toEqual([
       'specialist_runtime_default_image',
@@ -42,8 +37,9 @@ describe('runtime defaults page support', () => {
       'specialist_runtime_default_memory',
       'specialist_runtime_default_pull_policy',
     ]);
-    expect(fieldsForSection('task_limits').map((field) => field.key)).toEqual(['agent.max_iterations']);
-    expect(fieldsForSection('capacity_limits').map((field) => field.key)).toEqual([
+    expect(fieldsForSection('task_limits').map((field) => field.key)).toEqual([
+      'queue.max_depth',
+      'agent.max_iterations',
       'global_max_specialists',
     ]);
     expect(fieldsForSection('runtime_containers')).toEqual(
@@ -69,12 +65,26 @@ describe('runtime defaults page support', () => {
       'agent.max_stuck_interventions',
       'agent.llm_max_retries',
     ]);
-    expect(fieldsForSection('runtime_throughput').map((field) => field.key)).toEqual([
-      'queue.max_depth',
+    expect(fieldsForSection('server_timeouts').map((field) => field.key)).toEqual([
+      'server.shutdown_timeout_seconds',
+      'server.read_header_timeout_seconds',
+      'api.events_heartbeat_seconds',
+      'llm.http_timeout_seconds',
     ]);
     expect(fieldsForSection('connected_platform').map((field) => field.key)).toEqual([
       'specialist_runtime_bootstrap_claim_timeout_seconds',
       'platform.claim_poll_seconds',
+    ]);
+    expect(fieldsForSection('workspace_timeouts').map((field) => field.key)).toEqual([
+      'workspace.create_layout_timeout_seconds',
+      'workspace.configure_git_timeout_seconds',
+      'workspace.cleanup_git_timeout_seconds',
+      'workspace.configure_identity_timeout_seconds',
+      'workspace.clone_timeout_seconds',
+      'workspace.clone_max_retries',
+      'workspace.clone_backoff_base_seconds',
+      'workspace.snapshot_interval',
+      'workspace.snapshot_max_per_task',
     ]);
     expect(FIELD_DEFINITIONS.map((field) => field.key)).not.toEqual(
       expect.arrayContaining([
@@ -99,22 +109,17 @@ describe('runtime defaults page support', () => {
     ]);
     expect(RUNTIME_INLINE_SECTION_COLUMNS).toEqual({
       left: [
-        'runtime_throughput',
         'server_timeouts',
-        'runtime_api',
-        'llm_transport',
         'tool_timeouts',
         'lifecycle_timeouts',
-        'connected_platform',
+        'workspace_timeouts',
         'capture_timeouts',
-        'secrets_timeouts',
-        'subagent_timeouts',
       ],
       right: [
         'task_limits',
-        'capacity_limits',
-        'workspace_timeouts',
-        'workspace_operations',
+        'connected_platform',
+        'secrets_timeouts',
+        'subagent_timeouts',
         'agent_context',
         'orchestrator_context',
         'agent_safeguards',
@@ -334,20 +339,20 @@ describe('runtime defaults page support', () => {
           errorCount: 0,
         }),
         expect.objectContaining({
-          key: 'capacity_limits',
-          title: 'Specialist capacity',
+          key: 'task_limits',
+          title: 'Workload Limits & Backlog',
           configuredCount: 0,
           errorCount: 0,
         }),
         expect.objectContaining({
           key: 'tool_timeouts',
-          title: 'Tool timeouts',
+          title: 'Tool Execution Timeouts',
           configuredCount: 1,
           errorCount: 1,
         }),
         expect.objectContaining({
           key: 'agent_context',
-          title: 'Agent context handling',
+          title: 'Specialist Context',
           configuredCount: 2,
           errorCount: 1,
         }),

@@ -24,15 +24,12 @@ export const ORCHESTRATOR_CONTEXT_STRATEGY_OPTIONS = [
 export const BOOLEAN_OPTIONS = ['true', 'false'] as const;
 
 const RUNTIME_OPERATION_RUNTIME_SECTION_KEYS = new Set<FieldDefinition['section']>([
-  'runtime_throughput',
+  'task_limits',
   'server_timeouts',
-  'runtime_api',
-  'llm_transport',
   'tool_timeouts',
   'lifecycle_timeouts',
   'connected_platform',
   'workspace_timeouts',
-  'workspace_operations',
   'capture_timeouts',
   'secrets_timeouts',
   'subagent_timeouts',
@@ -68,33 +65,26 @@ const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
   },
   {
     key: 'task_limits',
-    title: 'Task limits',
+    title: 'Workload Limits & Backlog',
     description:
-      'Keep the default hard stop on task iterations visible so runaway loops are easy to catch early.',
-    defaultExpanded: true,
-  },
-  {
-    key: 'capacity_limits',
-    title: 'Specialist capacity',
-    description:
-      'Shared ceiling for active specialists. Each active specialist consumes one specialist agent and one specialist execution. When the cap is reached, new specialist work waits for a free slot.',
+      'Set specialist loop ceilings, active-specialist capacity, and queued backlog limits.',
     defaultExpanded: true,
   },
   {
     key: 'agent_context',
-    title: 'Agent context handling',
+    title: 'Specialist Context',
     description:
       'Tune specialist history retention and compaction so long-running tasks stay concise without losing recent execution context.',
   },
   {
     key: 'orchestrator_context',
-    title: 'Orchestrator context overrides',
+    title: 'Orchestrator Context',
     description:
       'Give orchestrator activations a different retention or compaction posture when planning and review require more context than specialist execution.',
   },
   {
     key: 'agent_safeguards',
-    title: 'Agent safeguards',
+    title: 'Loop Safeguards & Retries',
     description:
       'Control repetition detection, intervention limits, and hard iteration ceilings for agent loops.',
   },
@@ -481,7 +471,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
       'Maximum concurrent specialist tasks. Each active specialist consumes one specialist agent and one specialist execution.',
     configType: 'number',
     placeholder: '20',
-    section: 'capacity_limits',
+    section: 'task_limits',
     inputMode: 'numeric',
     min: 1,
     step: 1,
@@ -489,11 +479,12 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
 ];
 
 export const SECTION_DEFINITIONS: SectionDefinition[] = [
-  ...BASE_SECTION_DEFINITIONS.slice(0, 3),
+  BASE_SECTION_DEFINITIONS[0],
+  BASE_SECTION_DEFINITIONS[1],
   ...RUNTIME_OPERATION_SECTION_DEFINITIONS.filter((section) =>
     RUNTIME_OPERATION_RUNTIME_SECTION_KEYS.has(section.key),
   ),
-  ...BASE_SECTION_DEFINITIONS.slice(3),
+  ...BASE_SECTION_DEFINITIONS.slice(2),
 ];
 
 export const PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS = [
@@ -502,22 +493,17 @@ export const PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS = [
 
 export const RUNTIME_INLINE_SECTION_COLUMNS: SectionColumnLayout = {
   left: [
-    'runtime_throughput',
     'server_timeouts',
-    'runtime_api',
-    'llm_transport',
     'tool_timeouts',
     'lifecycle_timeouts',
-    'connected_platform',
+    'workspace_timeouts',
     'capture_timeouts',
-    'secrets_timeouts',
-    'subagent_timeouts',
   ],
   right: [
     'task_limits',
-    'capacity_limits',
-    'workspace_timeouts',
-    'workspace_operations',
+    'connected_platform',
+    'secrets_timeouts',
+    'subagent_timeouts',
     'agent_context',
     'orchestrator_context',
     'agent_safeguards',
@@ -554,17 +540,17 @@ function operationSectionByKey(key: FieldDefinition['section']): SectionDefiniti
 export const OPERATIONS_SECTION_DEFINITIONS: SectionDefinition[] = [
   operationSectionByKey('task_timeouts'),
   {
-    key: 'runtime_fleet',
-    title: 'Specialist agent fleet',
+    ...operationSectionByKey('connected_platform'),
+    title: 'Platform Connection & Reporting',
     description:
-      'Control platform-managed specialist agent teardown and replacement timing.',
-    defaultExpanded: true,
+      'Tune API, log, drain, and cleanup behavior for platform-connected specialist agents.',
   },
-  operationSectionByKey('connected_platform'),
-  operationSectionByKey('workflow_activation'),
+  {
+    ...operationSectionByKey('container_manager'),
+    description:
+      'Control specialist agent drain timing plus container reconcile, shutdown, and log-management behavior.',
+  },
   operationSectionByKey('worker_supervision'),
-  operationSectionByKey('agent_supervision'),
-  operationSectionByKey('container_manager'),
   operationSectionByKey('realtime_transport'),
   operationSectionByKey('platform_loops'),
 ];
@@ -574,31 +560,37 @@ export const PRIMARY_OPERATIONS_SECTION_KEYS = [] as const;
 export const OPERATIONS_INLINE_SECTION_COLUMNS: SectionColumnLayout = {
   left: [
     'task_timeouts',
-    'runtime_fleet',
     'connected_platform',
     'container_manager',
   ],
   right: [
-    'workflow_activation',
     'worker_supervision',
-    'agent_supervision',
     'realtime_transport',
     'platform_loops',
   ],
 };
 
 export const OPERATIONS_FIELD_DEFINITIONS: FieldDefinition[] = [
-  fieldByKey('tasks.default_timeout_minutes'),
   {
     ...fieldByKey('specialist_runtime_drain_grace_seconds'),
-    section: 'runtime_fleet',
+    section: 'container_manager',
   },
+  fieldByKey('tasks.default_timeout_minutes'),
   ...RUNTIME_OPERATION_FIELD_DEFINITIONS.filter(
     (field) =>
       (PLATFORM_OPERATION_SECTION_KEYS.has(field.section)
         || OPERATIONS_CONNECTED_PLATFORM_FIELD_KEYS.has(field.key))
-      && field.key !== 'tasks.default_timeout_minutes',
-  ),
+      && field.key !== 'tasks.default_timeout_minutes'
+      && field.key !== 'specialist_runtime_drain_grace_seconds',
+  ).map((field) => {
+    if (field.section === 'workflow_activation') {
+      return { ...field, section: 'task_timeouts' };
+    }
+    if (field.section === 'agent_supervision') {
+      return { ...field, section: 'worker_supervision' };
+    }
+    return field;
+  }),
 ];
 
 export function fieldsForSection(

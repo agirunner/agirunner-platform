@@ -9,8 +9,9 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   },
   {
     key: 'server_timeouts',
-    title: 'Server timeouts',
-    description: 'Bound specialist agent HTTP server shutdown and request-header handling.',
+    title: 'Agent Transport & Timeouts',
+    description:
+      'Bound local HTTP handling plus agent API heartbeats and upstream model request timeouts.',
   },
   {
     key: 'runtime_api',
@@ -24,25 +25,25 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   },
   {
     key: 'tool_timeouts',
-    title: 'Tool timeouts',
+    title: 'Tool Execution Timeouts',
     description: 'Set execution ceilings for the built-in file, git, shell, web, and MCP tools.',
   },
   {
     key: 'lifecycle_timeouts',
-    title: 'Lifecycle timeouts',
-    description: 'Control health checks and specialist execution stop and destroy deadlines.',
+    title: 'Health Checks & Shutdown',
+    description: 'Control health checks plus stop and destroy deadlines for specialist executions.',
   },
   {
     key: 'task_timeouts',
-    title: 'Task timeouts',
+    title: 'Workflow Timing',
     description:
-      'Set the default timeout applied when newly created tasks do not specify one explicitly.',
+      'Set the default task timeout plus activation, heartbeat, stale, and cancellation timing.',
   },
   {
     key: 'connected_platform',
-    title: 'Connected agents',
+    title: 'Platform Attachment',
     description:
-      'Tune claim polling, bootstrap behavior, and manual drain handling when specialist agents are attached to the platform fleet.',
+      'Tune claim polling and connection behavior when specialist agents attach to the platform fleet.',
   },
   {
     key: 'realtime_transport',
@@ -58,15 +59,15 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   },
   {
     key: 'container_manager',
-    title: 'Container manager',
+    title: 'Specialist Worker Containers',
     description:
-      'Control fleet reconcile cadence and stop/remove grace periods for the manager service.',
+      'Control specialist agent container reconcile, shutdown, and log-management behavior.',
   },
   {
     key: 'worker_supervision',
-    title: 'Specialist agent supervision',
+    title: 'Heartbeats & API Keys',
     description:
-      'Tune specialist agent heartbeat defaults, dispatch acknowledgements, and offline/disconnected thresholds.',
+      'Tune heartbeats, dispatch acknowledgement, and API key lifetimes for specialist and standalone agents.',
   },
   {
     key: 'agent_supervision',
@@ -76,15 +77,15 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   },
   {
     key: 'platform_loops',
-    title: 'Platform loops',
+    title: 'Background Sweeps & Dispatch',
     description:
       'Control the cadence of background platform enforcement, dispatch, pruning, and retention sweeps.',
   },
   {
     key: 'workspace_timeouts',
-    title: 'Workspace timeouts',
+    title: 'Workspace Setup & Snapshots',
     description:
-      'Bound repo bootstrap, identity setup, and context injection steps before work begins.',
+      'Bound workspace bootstrap steps and control clone retries and automatic snapshot cadence.',
   },
   {
     key: 'workspace_operations',
@@ -93,18 +94,18 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   },
   {
     key: 'capture_timeouts',
-    title: 'Capture resilience',
+    title: 'Result Capture & Publishing',
     description:
       'Control how aggressively the specialist agent retries result publication and how long capture-side steps may run.',
   },
   {
     key: 'secrets_timeouts',
-    title: 'Secrets backends',
+    title: 'Secret Provider Access',
     description: 'Limit secret-provider calls made by the specialist agent during task execution.',
   },
   {
     key: 'subagent_timeouts',
-    title: 'Subagents',
+    title: 'Subagent Limits',
     description:
       'Set default timeout and fanout limits for delegated subagents spawned from a parent task.',
   },
@@ -140,7 +141,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
     description: 'How often the specialist agent emits task-event heartbeats while a stream is open.',
     configType: 'number',
     placeholder: '10',
-    section: 'runtime_api',
+    section: 'server_timeouts',
     inputMode: 'numeric',
     min: 1,
     step: 1,
@@ -151,7 +152,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
     description: 'Upper bound for outbound LLM HTTP requests from the specialist agent.',
     configType: 'number',
     placeholder: '120',
-    section: 'llm_transport',
+    section: 'server_timeouts',
     inputMode: 'numeric',
     min: 1,
     step: 1,
@@ -481,7 +482,7 @@ function buildRuntimeThroughputFields(): FieldDefinition[] {
         'Maximum number of accepted queued tasks before the specialist agent starts rejecting additional submissions.',
       configType: 'number',
       placeholder: '100',
-      section: 'runtime_throughput',
+      section: 'task_limits',
       inputMode: 'numeric',
       min: 1,
       step: 1,
@@ -564,7 +565,7 @@ function buildWorkspaceOperationFields(): FieldDefinition[] {
       description: 'How many times the specialist agent retries a workspace clone before failing the task.',
       configType: 'number',
       placeholder: '5',
-      section: 'workspace_operations',
+      section: 'workspace_timeouts',
       inputMode: 'numeric',
       min: 1,
       step: 1,
@@ -575,7 +576,7 @@ function buildWorkspaceOperationFields(): FieldDefinition[] {
       description: 'Base backoff in seconds used between workspace clone retry attempts.',
       configType: 'number',
       placeholder: '2',
-      section: 'workspace_operations',
+      section: 'workspace_timeouts',
       inputMode: 'numeric',
       min: 1,
       step: 1,
@@ -587,7 +588,7 @@ function buildWorkspaceOperationFields(): FieldDefinition[] {
         'Automatic workspace snapshot cadence in engine iterations; set to 0 to disable snapshots.',
       configType: 'number',
       placeholder: '1',
-      section: 'workspace_operations',
+      section: 'workspace_timeouts',
       inputMode: 'numeric',
       min: 0,
       step: 1,
@@ -599,7 +600,7 @@ function buildWorkspaceOperationFields(): FieldDefinition[] {
         'Maximum number of archived workspace snapshots retained for one task before older snapshots are pruned.',
       configType: 'number',
       placeholder: '10',
-      section: 'workspace_operations',
+      section: 'workspace_timeouts',
       inputMode: 'numeric',
       min: 0,
       step: 1,
