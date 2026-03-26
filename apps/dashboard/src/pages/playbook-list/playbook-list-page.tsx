@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus } from 'lucide-react';
 
 import { dashboardApi } from '../../lib/api.js';
+import { toast } from '../../lib/toast.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Button } from '../../components/ui/button.js';
 import {
@@ -32,6 +33,7 @@ import {
 import {
   buildPlaybookFamilies,
   filterPlaybookFamilies,
+  type PlaybookFamilyRecord,
   summarizePlaybookFamilyCounts,
   validatePlaybookCreateDraft,
   type PlaybookSortOption,
@@ -99,6 +101,23 @@ export function PlaybookListPage(): JSX.Element {
     },
     onError: (error) => {
       setDefinitionError(error instanceof Error ? error.message : 'Failed to create playbook');
+    },
+  });
+  const toggleActiveMutation = useMutation({
+    mutationFn: (family: PlaybookFamilyRecord) => {
+      if (family.activeRevisionCount === 0) {
+        return dashboardApi.restorePlaybook(family.primaryRevision.id);
+      }
+      return dashboardApi.archivePlaybook(family.primaryRevision.id);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['playbooks'] });
+      toast.success('Updated playbook family active state.');
+    },
+    onError: (error) => {
+      const message =
+        error instanceof Error ? error.message : 'Failed to update playbook family active state.';
+      toast.error(message);
     },
   });
 
@@ -443,7 +462,15 @@ export function PlaybookListPage(): JSX.Element {
 
       {filteredFamilies.length > 0 ? (
         <>
-          <PlaybookLibraryTable families={pagination.items} />
+          <PlaybookLibraryTable
+            families={pagination.items}
+            togglingFamilySlug={
+              toggleActiveMutation.isPending
+                ? (toggleActiveMutation.variables as PlaybookFamilyRecord | undefined)?.slug ?? null
+                : null
+            }
+            onToggleActive={(family) => toggleActiveMutation.mutate(family)}
+          />
           <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm">
             <ListPagination
               page={pagination.page}

@@ -6,6 +6,7 @@ import type { DashboardWorkspaceRecord } from '../../lib/api.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
+import { Switch } from '../../components/ui/switch.js';
 import {
   Table,
   TableBody,
@@ -27,6 +28,8 @@ import { readWorkspaceStorageLabel } from '../workspace-detail/workspace-detail-
 export function WorkspaceListTable(props: {
   workspaces: DashboardWorkspaceRecord[];
   sortKey?: WorkspaceListSortField;
+  togglingWorkspaceId?: string | null;
+  onToggleActive?(workspace: DashboardWorkspaceRecord): void;
 }): JSX.Element {
   return (
     <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm">
@@ -46,6 +49,8 @@ export function WorkspaceListTable(props: {
               key={workspace.id}
               workspace={workspace}
               sortKey={props.sortKey ?? 'recent_activity'}
+              togglingWorkspaceId={props.togglingWorkspaceId ?? null}
+              onToggleActive={props.onToggleActive}
             />
           ))}
         </TableBody>
@@ -94,6 +99,8 @@ export function WorkspaceListFilteredEmptyState(props: {
 function WorkspaceTableRow(props: {
   workspace: DashboardWorkspaceRecord;
   sortKey: WorkspaceListSortField;
+  togglingWorkspaceId: string | null;
+  onToggleActive?(workspace: DashboardWorkspaceRecord): void;
 }): JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
   const workspaceLinkState = { workspaceLabel: props.workspace.name };
@@ -102,6 +109,7 @@ function WorkspaceTableRow(props: {
   const storageLabel = readWorkspaceStorageLabel(props.workspace);
   const storageSummary = buildWorkspaceStorageSummary(props.workspace);
   const activityLabel = buildWorkspaceActivityLabel(props.workspace);
+  const isTogglePending = props.togglingWorkspaceId === props.workspace.id;
 
   return (
     <>
@@ -126,6 +134,14 @@ function WorkspaceTableRow(props: {
                 >
                   {props.workspace.name}
                 </Link>
+                <Switch
+                  checked={props.workspace.is_active !== false}
+                  disabled={isTogglePending}
+                  onCheckedChange={() => props.onToggleActive?.(props.workspace)}
+                  onClick={(event) => event.stopPropagation()}
+                  aria-label={`Toggle ${props.workspace.name} active`}
+                  className="scale-90"
+                />
                 <Badge variant={readiness.variant}>{readiness.label}</Badge>
               </div>
             </div>

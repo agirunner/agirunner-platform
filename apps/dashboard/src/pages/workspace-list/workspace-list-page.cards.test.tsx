@@ -44,6 +44,7 @@ describe('workspace list page table', () => {
     expect(markup).toContain('Alpha');
     expect(markup).toContain('Active');
     expect(markup).toContain('href="/design/workspaces/workspace-1"');
+    expect(markup).toContain('Toggle Alpha active');
     expect(markup).toContain('<table');
     expect(markup).toContain('Workspace');
     expect(markup).toContain('Storage');

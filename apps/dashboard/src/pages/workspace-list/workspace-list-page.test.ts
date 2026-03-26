@@ -29,6 +29,7 @@ describe('workspace list page source', () => {
     expect(source).toContain('Newest first');
     expect(source).toContain('A → Z');
     expect(source).toContain('Most workflows');
+    expect(source).toContain('dashboardApi.patchWorkspace');
     expect(source).toContain('active workflow');
     expect(source).toContain('workflow completed');
     expect(source).toContain('Active');
@@ -49,6 +50,7 @@ describe('workspace list page source', () => {
     expect(source).toContain('const workspaceLinkState = { workspaceLabel: props.workspace.name };');
     expect(source).toContain('to={`/design/workspaces/${props.workspace.id}`}');
     expect(source).toContain('state={workspaceLinkState}');
+    expect(source).toContain('aria-label={`Toggle ${props.workspace.name} active`}');
     expect(source).toContain('className="font-medium text-foreground underline-offset-4 transition hover:underline"');
     expect(source).toContain('<TableCell className="text-sm text-foreground">{workspaceMetrics}</TableCell>');
     expect(source).toContain('<TableCell className="text-sm text-foreground">{activityLabel}</TableCell>');

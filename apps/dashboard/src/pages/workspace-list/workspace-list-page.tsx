@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 
 import {
@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from '../../components/ui/select.js';
 import { dashboardApi } from '../../lib/api.js';
+import { toast } from '../../lib/toast.js';
 import { CreateWorkspaceDialog } from './workspace-list-page.dialogs.js';
 import {
   WorkspaceListEmptyState,
@@ -34,6 +35,7 @@ import {
 } from './workspace-list-page.support.js';
 
 export function WorkspaceListPage(): JSX.Element {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<WorkspaceListStatusFilter>('active');
   const [sort, setSort] = useState<WorkspaceListSortState>({
@@ -45,6 +47,20 @@ export function WorkspaceListPage(): JSX.Element {
   const { data, isLoading, error } = useQuery({
     queryKey: ['workspaces'],
     queryFn: () => dashboardApi.listWorkspaces(),
+  });
+  const toggleActiveMutation = useMutation({
+    mutationFn: (workspace: { id: string; is_active?: boolean }) =>
+      dashboardApi.patchWorkspace(workspace.id, {
+        is_active: workspace.is_active === false,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      toast.success('Updated workspace active state.');
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : 'Failed to update workspace.';
+      toast.error(message);
+    },
   });
 
   if (isLoading) {
@@ -181,7 +197,16 @@ export function WorkspaceListPage(): JSX.Element {
         />
       ) : (
         <>
-          <WorkspaceListTable workspaces={pagination.items} sortKey={sort.key} />
+          <WorkspaceListTable
+            workspaces={pagination.items}
+            sortKey={sort.key}
+            togglingWorkspaceId={
+              toggleActiveMutation.isPending
+                ? ((toggleActiveMutation.variables as { id: string } | undefined)?.id ?? null)
+                : null
+            }
+            onToggleActive={(workspace) => toggleActiveMutation.mutate(workspace)}
+          />
           <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm">
             <ListPagination
               page={pagination.page}

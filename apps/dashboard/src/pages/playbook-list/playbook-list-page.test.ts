@@ -30,14 +30,17 @@ describe('playbook list page source', () => {
     expect(source).not.toContain('Definition JSON');
     expect(source).toContain('buildPlaybookDefinition(');
     expect(source).toContain('aria-label={`Open ${family.name}`}');
+    expect(source).toContain('aria-label={`Toggle ${family.name} active`}');
     expect(source).toContain('variant="ghost"');
     expect(source).toContain('className="h-8 w-8"');
     expect(source).toContain('aria-label={`Launch ${family.name}`}');
     expect(source).toContain('size="icon"');
-    expect(source).toContain('This playbook is inactive. Open it to reactivate the family before launching a new');
+    expect(source).toContain('This playbook is inactive. Use the row toggle to reactivate the family before');
     expect(source).toContain('Back to playbook library');
     expect(source).toContain('PlaybookLibraryToolbar');
     expect(source).toContain('PlaybookLibraryTable');
+    expect(source).toContain('dashboardApi.archivePlaybook');
+    expect(source).toContain('dashboardApi.restorePlaybook');
     expect(source).toContain('Create and manage playbooks that define workflow guidance, team structure, and launch inputs.');
     expect(source).toContain('Page size');
     expect(source).toContain('Showing');
@@ -69,8 +72,6 @@ describe('playbook list page source', () => {
     expect(source).not.toContain('PlaybookLibrarySummaryCards');
     expect(source).not.toContain('dashboardApi.deletePlaybook');
     expect(source).not.toContain('Delete Playbook Revision');
-    expect(source).not.toContain('dashboardApi.archivePlaybook');
-    expect(source).not.toContain('dashboardApi.restorePlaybook');
     expect(source).not.toContain('PlaybookFamilyCard');
   });
 

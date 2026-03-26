@@ -12,6 +12,7 @@ import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import { DASHBOARD_BADGE_TOKENS } from '../../lib/dashboard-badge-palette.js';
+import { Switch } from '../../components/ui/switch.js';
 import {
   Select,
   SelectContent,
@@ -138,6 +139,8 @@ export function PlaybookLibraryToolbar(props: {
 
 export function PlaybookLibraryTable(props: {
   families: PlaybookFamilyRecord[];
+  togglingFamilySlug?: string | null;
+  onToggleActive?(family: PlaybookFamilyRecord): void;
 }): JSX.Element {
   return (
     <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm">
@@ -154,7 +157,12 @@ export function PlaybookLibraryTable(props: {
         </TableHeader>
         <TableBody>
           {props.families.map((family) => (
-            <PlaybookFamilyRow key={family.slug} family={family} />
+            <PlaybookFamilyRow
+              key={family.slug}
+              family={family}
+              togglingFamilySlug={props.togglingFamilySlug ?? null}
+              onToggleActive={props.onToggleActive}
+            />
           ))}
         </TableBody>
       </Table>
@@ -164,17 +172,23 @@ export function PlaybookLibraryTable(props: {
 
 function PlaybookFamilyRow(props: {
   family: PlaybookFamilyRecord;
+  togglingFamilySlug: string | null;
+  onToggleActive?(family: PlaybookFamilyRecord): void;
 }): JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
   const { family } = props;
   const playbook = family.primaryRevision;
   const isArchivedFamily = family.activeRevisionCount === 0;
+  const isTogglePending = props.togglingFamilySlug === family.slug;
   const processSummary =
     family.process.processInstructions || 'Open the playbook to define process instructions.';
 
   return (
     <>
-      <TableRow onClick={() => setIsExpanded((value) => !value)}>
+      <TableRow
+        className={isArchivedFamily ? 'opacity-75' : undefined}
+        onClick={() => setIsExpanded((value) => !value)}
+      >
         <TableCell>
           <div className="flex items-start gap-2">
             {isExpanded ? (
@@ -187,8 +201,18 @@ function PlaybookFamilyRow(props: {
                 <Link className="font-medium text-foreground underline-offset-4 hover:underline" to={`/design/playbooks/${playbook.id}`}>
                   {family.name}
                 </Link>
+                <Switch
+                  checked={!isArchivedFamily}
+                  disabled={isTogglePending}
+                  onCheckedChange={() => props.onToggleActive?.(family)}
+                  onClick={(event) => event.stopPropagation()}
+                  aria-label={`Toggle ${family.name} active`}
+                  className="scale-90"
+                />
+                <Badge variant={isArchivedFamily ? 'secondary' : 'success'}>
+                  {isArchivedFamily ? 'Inactive' : 'Active'}
+                </Badge>
                 <Badge variant="outline">v{playbook.version}</Badge>
-                {isArchivedFamily ? <Badge variant="secondary">Inactive</Badge> : null}
               </div>
               <p className="text-sm text-foreground">{family.slug}</p>
             </div>
@@ -270,8 +294,8 @@ function PlaybookFamilyRow(props: {
               </div>
               {isArchivedFamily ? (
                 <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-                  This playbook is inactive. Open it to reactivate the family before launching a new
-                  workflow.
+                  This playbook is inactive. Use the row toggle to reactivate the family before
+                  launching a new workflow.
                 </div>
               ) : null}
             </div>
