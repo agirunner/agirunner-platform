@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Wrench } from 'lucide-react';
 
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import {
   Card,
   CardContent,
@@ -51,15 +52,10 @@ export function ToolsPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Wrench className="h-5 w-5 text-accent" />
-          <h1 className="text-2xl font-semibold">Tools</h1>
-        </div>
-        <p className="text-sm text-muted">
-          These tools include specialist tools for performing tasks, and orchestrator-specific tools for playbook management.
-        </p>
-      </div>
+      <DashboardPageHeader
+        navHref="/platform/tools"
+        description="These tools include specialist tools for performing tasks, and orchestrator-specific tools for playbook management."
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         {summaryCards.map((summary) => (

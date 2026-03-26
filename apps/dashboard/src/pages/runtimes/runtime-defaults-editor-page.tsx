@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { ElementType } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, RotateCcw, Save } from 'lucide-react';
 
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Button } from '../../components/ui/button.js';
 import {
   Card,
@@ -36,9 +36,8 @@ import { buildValidationErrors } from './runtime-defaults.validation.js';
 import { summarizeRuntimeDefaultSections } from './runtime-defaults-page.support.js';
 
 interface RuntimeDefaultsEditorPageProps {
-  title: string;
+  navHref: string;
   description: string;
-  icon: ElementType;
   fieldDefinitions: FieldDefinition[];
   sectionDefinitions: SectionDefinition[];
   primarySectionKeys: readonly string[];
@@ -252,8 +251,6 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
     );
   }
 
-  const Icon = props.icon;
-
   function renderSectionCard(section: {
     key: string;
     title: string;
@@ -314,38 +311,33 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Icon className="h-5 w-5 text-muted" />
-            <h1 className="text-2xl font-semibold">{props.title}</h1>
-          </div>
-          <p className="text-sm leading-6 text-muted">
-            {props.description}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            onClick={resetForm}
-            disabled={!isDirty || saveMutation.isPending}
-          >
-            <RotateCcw className="h-4 w-4" />
-            Reset changes
-          </Button>
-          <Button
-            onClick={saveForm}
-            disabled={!isDirty || saveMutation.isPending || hasValidationErrors}
-          >
-            {saveMutation.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            Save
-          </Button>
-        </div>
-      </div>
+      <DashboardPageHeader
+        navHref={props.navHref}
+        description={props.description}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={resetForm}
+              disabled={!isDirty || saveMutation.isPending}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reset changes
+            </Button>
+            <Button
+              onClick={saveForm}
+              disabled={!isDirty || saveMutation.isPending || hasValidationErrors}
+            >
+              {saveMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              Save
+            </Button>
+          </>
+        }
+      />
 
       {leftColumnSections && rightColumnSections ? (
         <div className="grid gap-6 xl:grid-cols-2">

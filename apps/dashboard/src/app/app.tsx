@@ -64,7 +64,6 @@ const WorkflowInspectorPage = lazyWithRetry(() => import('../pages/workflow-insp
 const TaskListPage = lazyWithRetry(() => import('../pages/task-list/task-list-page.js').then((m) => ({ default: m.TaskListPage })));
 const TaskDetailPage = lazyWithRetry(() => import('../pages/task-detail/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })));
 const ArtifactPreviewPage = lazyWithRetry(() => import('../components/artifact-preview/artifact-preview-page.js').then((m) => ({ default: m.ArtifactPreviewPage })));
-const ApprovalQueuePage = lazyWithRetry(() => import('../pages/approval-queue/approval-queue-page.js').then((m) => ({ default: m.ApprovalQueuePage })));
 
 const WorkspaceListPage = lazyWithRetry(() => import('../pages/workspace-list/workspace-list-page.js').then((m) => ({ default: m.WorkspaceListPage })));
 const WorkspaceDetailPage = lazyWithRetry(() => import('../pages/workspace-detail/workspace-detail-page.js').then((m) => ({ default: m.WorkspaceDetailPage })));
@@ -83,7 +82,8 @@ const PlaybookLaunchPage = lazyWithRetry(() => import('../pages/playbook-launch/
 const ToolsPage = lazyWithRetry(() => import('../pages/tools/tools-page.js').then((m) => ({ default: m.ToolsPage })));
 const WebhooksPage = lazyWithRetry(() => import('../pages/webhooks/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })));
 const WorkItemTriggersPage = lazyWithRetry(() => import('../pages/work-item-triggers/work-item-triggers-page.js').then((m) => ({ default: m.WorkItemTriggersPage })));
-const AgentProtocolsPage = lazyWithRetry(() => import('../pages/agent-protocols/agent-protocols-page.js').then((m) => ({ default: m.AgentProtocolsPage })));
+const McpPage = lazyWithRetry(() => import('../pages/mcp/mcp-page.js').then((m) => ({ default: m.McpPage })));
+const AcpPage = lazyWithRetry(() => import('../pages/acp/acp-page.js').then((m) => ({ default: m.AcpPage })));
 
 const ContainersPage = lazyWithRetry(() => import('../pages/containers/containers-page.js').then((m) => ({ default: m.ContainersPage })));
 
@@ -238,10 +238,12 @@ export function App(): JSX.Element {
             {/* Integrations */}
             <Route path="/integrations/webhooks" element={<WebhooksPage />} />
             <Route path="/integrations/triggers" element={<WorkItemTriggersPage />} />
-            <Route path="/integrations/agent-protocols" element={<AgentProtocolsPage />} />
+            <Route path="/integrations/mcp" element={<McpPage />} />
+            <Route path="/integrations/acp" element={<AcpPage />} />
+            <Route path="/integrations/agent-protocols" element={<Navigate to="/integrations/mcp" replace />} />
             <Route path="/config/webhooks" element={<Navigate to="/integrations/webhooks" replace />} />
             <Route path="/config/triggers" element={<Navigate to="/integrations/triggers" replace />} />
-            <Route path="/config/agent-protocols" element={<Navigate to="/integrations/agent-protocols" replace />} />
+            <Route path="/config/agent-protocols" element={<Navigate to="/integrations/mcp" replace />} />
             <Route path="/config/work-item-triggers" element={<Navigate to="/integrations/triggers" replace />} />
 
             {/* Diagnostics */}

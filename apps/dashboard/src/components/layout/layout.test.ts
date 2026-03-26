@@ -71,6 +71,11 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("label: 'Integrations (soon)'");
     expect(source).toContain("label: 'Triggers'");
     expect(source).toContain("href: '/integrations/triggers'");
+    expect(source).toContain("label: 'MCP'");
+    expect(source).toContain("href: '/integrations/mcp'");
+    expect(source).toContain("label: 'ACP'");
+    expect(source).toContain("href: '/integrations/acp'");
+    expect(source).not.toContain("label: 'Agent Protocols'");
   });
 
   it('keeps playbooks above workspaces in the Work Design nav group', () => {

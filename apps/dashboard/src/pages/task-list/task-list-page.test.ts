@@ -17,7 +17,8 @@ function readSource() {
 describe('task list page source', () => {
   it('frames the list as specialist execution instead of a generic task table', () => {
     const source = readSource();
-    expect(source).toContain('Execution Steps');
+    expect(source).toContain('DashboardPageHeader');
+    expect(source).toContain('navHref="/mission-control/tasks"');
     expect(source).toContain('Operator view of specialist steps');
     expect(source).toContain('TaskListFilters');
     expect(source).toContain('TaskListContent');

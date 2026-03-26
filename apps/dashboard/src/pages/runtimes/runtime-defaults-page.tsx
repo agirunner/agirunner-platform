@@ -1,5 +1,3 @@
-import { Server } from 'lucide-react';
-
 import {
   FIELD_DEFINITIONS,
   PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS,
@@ -11,9 +9,8 @@ import { RuntimeDefaultsEditorPage } from './runtime-defaults-editor-page.js';
 export function RuntimeDefaultsPage(): JSX.Element {
   return (
     <RuntimeDefaultsEditorPage
-      title="Agentic Settings"
+      navHref="/admin/agentic-settings"
       description="Configure defaults for specialist agent runtime behavior, safeguards, and execution posture. Specialist execution environments are managed on Platform > Environments."
-      icon={Server}
       fieldDefinitions={FIELD_DEFINITIONS}
       sectionDefinitions={SECTION_DEFINITIONS}
       primarySectionKeys={PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS}

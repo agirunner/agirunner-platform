@@ -10,6 +10,13 @@ function readSource() {
 }
 
 describe('alerts approvals page source', () => {
+  it('matches the action-queue nav title and shared header shell', () => {
+    const source = readSource();
+    expect(source).toContain('DashboardPageHeader');
+    expect(source).toContain('navHref="/mission-control/action-queue"');
+    expect(source).not.toContain('Alerts & Approvals');
+  });
+
   it('treats stage gates as the first operator approval surface', () => {
     const source = readSource();
     expect(source).toContain('getApprovalQueue');

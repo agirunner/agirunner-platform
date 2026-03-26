@@ -1,5 +1,6 @@
 import { Key, Plus, ShieldAlert, ShieldCheck, TimerReset } from 'lucide-react';
 
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
@@ -21,21 +22,17 @@ const TABLE_COLUMN_WIDTHS = ['18%', '14%', '26%', '14%', '14%', '7%', '7%'] as c
 
 export function ApiKeyHeader(props: { onCreate(): void }): JSX.Element {
   return (
-    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Key className="h-6 w-6 text-muted-foreground" />
-          <h1 className="text-2xl font-semibold tracking-tight">API Keys</h1>
-        </div>
-        <p className="text-sm leading-6 text-muted">
-          Issue short-lived credentials, review stale usage, and retire keys outside the operator lifecycle.
-        </p>
-      </div>
-      <Button onClick={props.onCreate} className="w-full sm:w-auto">
-        <Plus className="h-4 w-4" />
-        Create API key
-      </Button>
-    </div>
+    <DashboardPageHeader
+      navHref="/admin/api-keys"
+      description="Issue short-lived credentials, review stale usage, and retire keys outside the operator lifecycle."
+      actions={
+        <Button onClick={props.onCreate} className="w-full sm:w-auto">
+          <Plus className="h-4 w-4" />
+          Create API key
+        </Button>
+      }
+      className="lg:items-end"
+    />
   );
 }
 

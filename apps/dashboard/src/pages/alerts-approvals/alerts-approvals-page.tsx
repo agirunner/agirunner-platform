@@ -26,6 +26,7 @@ import {
 } from '../../components/ui/card.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs.js';
 import { GateDetailCard } from '../work-shared/gate-detail-card.js';
 import {
@@ -558,18 +559,16 @@ export function AlertsApprovalsPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold">Alerts & Approvals</h1>
-          <p className="max-w-3xl text-sm text-muted">
-            Review stage gates first, then operator step reviews, escalations, and execution failures across active boards.
-          </p>
-        </div>
-        <Button variant="outline" onClick={() => void invalidateAll()}>
-          <RefreshCw className="h-4 w-4" />
-          Refresh Queue
-        </Button>
-      </div>
+      <DashboardPageHeader
+        navHref="/mission-control/action-queue"
+        description="Review stage gates first, then operator step reviews, escalations, and execution failures across active boards."
+        actions={(
+          <Button variant="outline" onClick={() => void invalidateAll()}>
+            <RefreshCw className="h-4 w-4" />
+            Refresh Queue
+          </Button>
+        )}
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         <QueueSummaryCard

@@ -86,11 +86,13 @@ describe('runtime defaults page source', () => {
     const editorSource = readSource('./runtime-defaults-editor-page.tsx');
     const fieldsSource = readSource('./runtime-defaults-fields.tsx');
     expect(pageSource).toContain('RuntimeDefaultsEditorPage');
-    expect(pageSource).toContain('title="Agentic Settings"');
+    expect(pageSource).toContain('navHref="/admin/agentic-settings"');
     expect(pageSource).toContain('successMessage="Agentic Settings saved."');
     expect(pageSource).toContain('PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS');
     expect(pageSource).toContain('RUNTIME_INLINE_SECTION_COLUMNS');
     expect(editorSource).toContain('RuntimeDefaultsSection');
+    expect(editorSource).toContain('DashboardPageHeader');
+    expect(editorSource).toContain('navHref={props.navHref}');
     expect(editorSource).toContain('inlineSectionColumns');
     expect(editorSource).toContain('grid gap-6 xl:grid-cols-2');
     expect(editorSource).toContain('renderPrimaryAsideCard');
@@ -101,7 +103,6 @@ describe('runtime defaults page source', () => {
     expect(editorSource).toContain('buildValidationErrors');
     expect(editorSource).toContain('summarizeRuntimeDefaultSections');
     expect(editorSource).toContain('className="space-y-6 p-6"');
-    expect(editorSource).toContain('<h1 className="text-2xl font-semibold">{props.title}</h1>');
     expect(editorSource).not.toContain('<Card>\n        <CardHeader>\n          <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">');
     expect(editorSource).toContain('const leftColumnSections = useMemo');
     expect(editorSource).toContain('const rightColumnSections = useMemo');

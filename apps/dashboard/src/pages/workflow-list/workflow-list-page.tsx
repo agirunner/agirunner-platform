@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Plus, Search } from 'lucide-react';
 
 import { dashboardApi } from '../../lib/api.js';
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
@@ -119,26 +120,23 @@ export function WorkflowListPage(): JSX.Element {
 
 function WorkflowListHeader(): JSX.Element {
   return (
-    <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-      <div className="space-y-2">
+    <DashboardPageHeader
+      navHref="/mission-control/workflows"
+      description="Review posture, progress, live stages, gate pressure, and reported spend without drilling into every board run."
+      eyebrow={
         <Badge variant="outline" className="w-fit">
           Board operations
         </Badge>
-        <div className="space-y-1">
-          <h1 className="text-3xl font-semibold tracking-tight">Workflows</h1>
-          <p className="max-w-3xl text-sm leading-6 text-muted">
-            Review posture, progress, live stages, gate pressure, and reported spend without
-            drilling into every board run.
-          </p>
-        </div>
-      </div>
-      <Button asChild className="w-full sm:w-auto">
-        <Link to="/design/playbooks/launch">
-          <Plus className="h-4 w-4" />
-          Launch Playbook
-        </Link>
-      </Button>
-    </div>
+      }
+      actions={
+        <Button asChild className="w-full sm:w-auto">
+          <Link to="/design/playbooks/launch">
+            <Plus className="h-4 w-4" />
+            Launch Playbook
+          </Link>
+        </Button>
+      }
+    />
   );
 }
 

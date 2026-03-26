@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Save, ScrollText } from 'lucide-react';
+import { Loader2, Save } from 'lucide-react';
 
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Button } from '../../components/ui/button.js';
 import {
   Card,
@@ -67,28 +68,23 @@ export function PlatformInstructionsPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <ScrollText className="h-5 w-5 text-accent" />
-            <h1 className="text-2xl font-semibold">Instructions</h1>
-          </div>
-          <p className="max-w-3xl text-sm text-muted">
-            General instructions applied to all agents — orchestrator and specialists.
-          </p>
-        </div>
-        <Button
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending || !hasUnsavedChanges}
-        >
-          {saveMutation.isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4" />
-          )}
-          Save
-        </Button>
-      </div>
+      <DashboardPageHeader
+        navHref="/platform/instructions"
+        description="General instructions applied to all agents — orchestrator and specialists."
+        actions={
+          <Button
+            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending || !hasUnsavedChanges}
+          >
+            {saveMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            Save
+          </Button>
+        }
+      />
 
       <Card>
         <CardHeader>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useSearchParams } from 'react-router-dom';
-import { Clock3, FileText, GitBranch, Inbox, Loader2, Search, Workflow } from 'lucide-react';
+import { Bell, Clock3, FileText, GitBranch, Inbox, Loader2, Search, Workflow } from 'lucide-react';
 
 import { dashboardApi, type DashboardApprovalQueueResponse } from '../../lib/api.js';
 import { subscribeToEvents } from '../../lib/sse.js';
@@ -151,7 +151,10 @@ export function ApprovalQueuePage(): JSX.Element {
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold">Action Queue</h1>
+              <div className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-muted-foreground" />
+                <h1 className="text-2xl font-semibold">Action Queue</h1>
+              </div>
               <Badge variant="secondary">{totalApprovals}</Badge>
             </div>
             <p className="text-sm text-muted">

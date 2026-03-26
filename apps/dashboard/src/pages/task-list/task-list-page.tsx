@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 import { dashboardApi } from '../../lib/api.js';
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Skeleton } from '../../components/ui/skeleton.js';
 import {
   STATUS_FILTERS,
@@ -78,13 +79,10 @@ export function TaskListPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">Execution Steps</h1>
-        <p className="max-w-3xl text-sm leading-6 text-muted">
-          Operator view of specialist steps, reviews, escalations, and orchestrator turns. Lead
-          with the next action, then open the step or board only when you need deeper context.
-        </p>
-      </div>
+      <DashboardPageHeader
+        navHref="/mission-control/tasks"
+        description="Operator view of specialist steps, reviews, escalations, and orchestrator turns. Lead with the next action, then open the step or board only when you need deeper context."
+      />
       <TaskListFilters
         filteredCount={filteredTasks.length}
         searchQuery={searchQuery}

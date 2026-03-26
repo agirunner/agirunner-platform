@@ -30,8 +30,8 @@ describe('settings page source', () => {
   it('uses the runtimes-style shell with one top save action and section content below', () => {
     const source = readSettingsPageSource();
 
-    expect(source).toContain('<h1 className="text-2xl font-semibold">General Settings</h1>');
-    expect(source).toContain('flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between');
+    expect(source).toContain('DashboardPageHeader');
+    expect(source).toContain('navHref="/admin/general-settings"');
     expect(source).toContain('handleSubmit');
     expect(source).toContain('const isDirty =');
     expect(source).toContain('const isSaving =');

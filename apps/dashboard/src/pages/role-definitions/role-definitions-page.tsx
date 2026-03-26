@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, ShieldCheck, Users } from 'lucide-react';
+import { Loader2, Plus, ShieldCheck } from 'lucide-react';
 
 import {
   DEFAULT_LIST_PAGE_SIZE,
   ListPagination,
   paginateListItems,
 } from '../../components/list-pagination.js';
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Button } from '../../components/ui/button.js';
 import { Switch } from '../../components/ui/switch.js';
 import {
@@ -124,31 +125,26 @@ export function RoleDefinitionsPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-accent" />
-            <h1 className="text-2xl font-semibold">Specialists</h1>
-          </div>
-          <p className="max-w-3xl text-sm text-muted">
-            Define specialist identity, prompt, model assignment, and tool grants.
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm text-muted">Active only</span>
-            <Switch
-              checked={showActiveOnly}
-              onCheckedChange={(value) => {
-                setShowActiveOnly(value);
-                setPage(1);
-              }}
-              aria-label="Show active specialists only"
-            />
-          </div>
-          <Button onClick={() => setIsCreating(true)}><Plus className="h-4 w-4" />Create Specialist</Button>
-        </div>
-      </div>
+      <DashboardPageHeader
+        navHref="/design/specialists"
+        description="Define specialist identity, prompt, model assignment, and tool grants."
+        actions={
+          <>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted">Active only</span>
+              <Switch
+                checked={showActiveOnly}
+                onCheckedChange={(value) => {
+                  setShowActiveOnly(value);
+                  setPage(1);
+                }}
+                aria-label="Show active specialists only"
+              />
+            </div>
+            <Button onClick={() => setIsCreating(true)}><Plus className="h-4 w-4" />Create Specialist</Button>
+          </>
+        }
+      />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <MetricCard label="Total specialists" value={summary.total} />

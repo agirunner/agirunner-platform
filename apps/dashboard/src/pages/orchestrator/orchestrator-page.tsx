@@ -1,5 +1,6 @@
-import { Bot, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import {
   OrchestratorControlPlane,
 } from '../role-definitions/role-definitions-orchestrator.js';
@@ -14,15 +15,10 @@ export function OrchestratorPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Bot className="h-5 w-5 text-accent" />
-          <h1 className="text-2xl font-semibold">Orchestrator</h1>
-        </div>
-        <p className="max-w-3xl text-sm text-muted">
-          Configure the workflow orchestrator — prompt baseline, model routing, and agent pool posture.
-        </p>
-      </div>
+      <DashboardPageHeader
+        navHref="/platform/orchestrator"
+        description="Configure the workflow orchestrator — prompt baseline, model routing, and agent pool posture."
+      />
 
       <OrchestratorControlPlane {...orchestratorState.controlPlaneProps} />
     </div>

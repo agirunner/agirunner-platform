@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Package } from 'lucide-react';
 
 import { dashboardApi, type DashboardLiveContainerRecord } from '../../lib/api.js';
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { ContainersTable } from './containers-table.js';
 import {
   advanceSessionContainerRows,
@@ -70,20 +70,15 @@ export function ContainersPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Package className="h-6 w-6 text-muted-foreground" />
-            <h1 className="text-2xl font-semibold">Live Containers</h1>
-          </div>
-          <p className="max-w-4xl text-sm text-muted-foreground">
-            Live container inventory from the platform API, showing image, CPU, and memory of running and recently-active containers.
+      <DashboardPageHeader
+        navHref="/diagnostics/live-containers"
+        description="Live container inventory from the platform API, showing image, CPU, and memory of running and recently-active containers."
+        actions={
+          <p className="text-sm text-muted-foreground">
+            {runningCount} active • {inactiveCount} inactive this session
           </p>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {runningCount} active • {inactiveCount} inactive this session
-        </p>
-      </div>
+        }
+      />
 
       {containersQuery.error ? (
         <div className="rounded-lg border border-warning/40 bg-warning/5 px-4 py-3 text-sm text-muted-foreground">

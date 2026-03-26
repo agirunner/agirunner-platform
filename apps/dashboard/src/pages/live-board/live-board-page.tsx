@@ -34,6 +34,7 @@ import { Skeleton } from '../../components/ui/skeleton.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { SavedViews, type SavedViewFilters } from '../../components/saved-views/saved-views.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
@@ -704,44 +705,41 @@ export function LiveBoardPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div className="space-y-2">
+      <DashboardPageHeader
+        navHref="/mission-control"
+        eyebrow={(
           <Badge variant="outline" className="w-fit">
             Mission Control
           </Badge>
-          <div className="space-y-1">
-            <h1 className="text-3xl font-semibold tracking-tight">Live Board</h1>
-            <p className="max-w-3xl text-sm leading-6 text-muted">
-              Triage what needs attention first, then drill into the affected board, work item, or
-              decision packet with full context.
-            </p>
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={visibleSpecialistSummary.escalations > 0 ? 'destructive' : 'outline'}>
-            {visibleSpecialistSummary.escalations > 0
-              ? `${visibleSpecialistSummary.escalations} escalations`
-              : 'No escalations'}
-          </Badge>
-          <Badge variant={visibleActivationSummary.stale > 0 ? 'warning' : 'outline'}>
-            {formatCountLabel(
-              visibleActivationSummary.stale,
-              'stale turn',
-              'No stale turns',
-            )}
-          </Badge>
-          <Badge variant={visibleGateReviews > 0 ? 'warning' : 'outline'}>
-            {visibleGateReviews > 0
-              ? `${visibleGateReviews} gate reviews`
-              : 'No gate reviews'}
-          </Badge>
-          <Badge variant={fleetAttentionCount > 0 ? 'destructive' : 'outline'}>
-            {fleetAttentionCount > 0
-              ? describeFleetAttention(fleetSummary)
-              : 'Fleet healthy'}
-          </Badge>
-        </div>
-      </div>
+        )}
+        description="Triage what needs attention first, then drill into the affected board, work item, or decision packet with full context."
+        actions={(
+          <>
+            <Badge variant={visibleSpecialistSummary.escalations > 0 ? 'destructive' : 'outline'}>
+              {visibleSpecialistSummary.escalations > 0
+                ? `${visibleSpecialistSummary.escalations} escalations`
+                : 'No escalations'}
+            </Badge>
+            <Badge variant={visibleActivationSummary.stale > 0 ? 'warning' : 'outline'}>
+              {formatCountLabel(
+                visibleActivationSummary.stale,
+                'stale turn',
+                'No stale turns',
+              )}
+            </Badge>
+            <Badge variant={visibleGateReviews > 0 ? 'warning' : 'outline'}>
+              {visibleGateReviews > 0
+                ? `${visibleGateReviews} gate reviews`
+                : 'No gate reviews'}
+            </Badge>
+            <Badge variant={fleetAttentionCount > 0 ? 'destructive' : 'outline'}>
+              {fleetAttentionCount > 0
+                ? describeFleetAttention(fleetSummary)
+                : 'Fleet healthy'}
+            </Badge>
+          </>
+        )}
+      />
 
       <Card className="border-border/70 shadow-sm">
         <CardContent className="grid gap-4 p-4">

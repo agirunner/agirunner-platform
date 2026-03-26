@@ -17,6 +17,7 @@ import {
 import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { Button } from '../../components/ui/button.js';
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Input } from '../../components/ui/input.js';
 import {
@@ -1802,18 +1803,16 @@ export function LlmProvidersPage(): JSX.Element {
     <div className="p-6 space-y-8">
       {/* ── Providers Section ──────────────────────────────────────────── */}
       <section id="llm-providers-library" className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">Models</h1>
-            <p className="text-sm text-muted">
-              Manage model providers, the model catalog, and specialist model assignments.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <ConnectOAuthDialog />
-            <AddProviderDialog existingNames={providers.map((provider) => provider.name)} />
-          </div>
-        </div>
+        <DashboardPageHeader
+          navHref="/platform/routing"
+          description="Manage model providers, the model catalog, and specialist model assignments."
+          actions={
+            <>
+              <ConnectOAuthDialog />
+              <AddProviderDialog existingNames={providers.map((provider) => provider.name)} />
+            </>
+          }
+        />
 
         {providers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted">

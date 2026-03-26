@@ -64,20 +64,20 @@ interface LayoutProps {
   onToggleTheme: () => void;
 }
 
-interface NavItem {
+export interface NavItem {
   label: string;
   href: string;
   icon: ElementType;
   keywords?: string[];
 }
 
-interface NavSection {
+export interface NavSection {
   label: string;
   icon: ElementType;
   items: NavItem[];
 }
 
-const NAV_SECTIONS: NavSection[] = [
+export const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Mission Control',
     icon: Gauge,
@@ -124,7 +124,8 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Webhooks', href: '/integrations/webhooks', icon: Send },
       { label: 'Triggers', href: '/integrations/triggers', icon: Zap },
-      { label: 'Agent Protocols', href: '/integrations/agent-protocols', icon: Bot },
+      { label: 'MCP', href: '/integrations/mcp', icon: Link2 },
+      { label: 'ACP', href: '/integrations/acp', icon: Bot },
     ],
   },
   {
@@ -156,6 +157,16 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
 ];
+
+export function findNavigationItemByHref(href: string): NavItem | null {
+  for (const section of NAV_SECTIONS) {
+    const match = section.items.find((item) => item.href === href);
+    if (match) {
+      return match;
+    }
+  }
+  return null;
+}
 
 const COMMAND_PALETTE_QUICK_LINKS: CommandPaletteItem[] = NAV_SECTIONS.flatMap((section) =>
   section.items.map((item) => ({

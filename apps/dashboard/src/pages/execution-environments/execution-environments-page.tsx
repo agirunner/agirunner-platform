@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { Loader2, Plus, ServerCog } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Button } from '../../components/ui/button.js';
 import { toast } from '../../lib/toast.js';
 import type { DashboardExecutionEnvironmentRecord } from '../../lib/api.js';
@@ -178,26 +179,21 @@ export function ExecutionEnvironmentsPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <ServerCog className="h-5 w-5 text-accent" />
-            <h1 className="text-2xl font-semibold">Environments</h1>
-          </div>
-          <p className="whitespace-nowrap text-sm text-muted">
-            Configure specialist execution environments. These records define the image, CPU, memory, and pull policy used for execution containers.
-          </p>
-        </div>
-        <Button
-          onClick={() => {
-            setDialogState({ mode: 'create', environmentId: null });
-            setDialogForm(createExecutionEnvironmentForm());
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          Create Custom Environment
-        </Button>
-      </div>
+      <DashboardPageHeader
+        navHref="/platform/environments"
+        description="Configure specialist execution environments. These records define the image, CPU, memory, and pull policy used for execution containers."
+        actions={
+          <Button
+            onClick={() => {
+              setDialogState({ mode: 'create', environmentId: null });
+              setDialogForm(createExecutionEnvironmentForm());
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            Create Custom Environment
+          </Button>
+        }
+      />
 
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard label="Total environments" value={stats.total} />

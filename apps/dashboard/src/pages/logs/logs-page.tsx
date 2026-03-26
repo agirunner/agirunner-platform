@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import { dashboardApi } from '../../lib/api.js';
+import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { ExecutionInspectorSummaryView } from '../../components/execution-inspector/execution-inspector-summary-view.js';
 import { WorkflowBudgetCard } from '../../components/workflow-budget-card/workflow-budget-card.js';
 import { type InspectorView } from '../../components/execution-inspector/execution-inspector-support.js';
@@ -121,14 +122,14 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
   return (
     <div data-testid="operator-log-surface" className="flex flex-col gap-6 p-4 sm:p-6">
       <section className="grid gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-bold tracking-tight">Live Logs</h1>
-          <p className="text-sm text-muted">
-            {rawFirstSurface
-              ? 'Raw logs stay visible as the source of truth. Activity Summary highlights the current filtered results without leaving the stream.'
-              : 'Browse raw logs and a single activity summary view without leaving the workflow inspector.'}
-          </p>
-          {scopedWorkflowId ? (
+        {scopedWorkflowId ? (
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight">Live Logs</h1>
+            <p className="text-sm text-muted">
+              {rawFirstSurface
+                ? 'Raw logs stay visible as the source of truth. Activity Summary highlights the current filtered results without leaving the stream.'
+                : 'Browse raw logs and a single activity summary view without leaving the workflow inspector.'}
+            </p>
             <div className="text-sm">
               <Link
                 className="underline-offset-4 hover:underline"
@@ -137,8 +138,17 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
                 Back to Workflow
               </Link>
             </div>
-          ) : null}
-        </div>
+          </div>
+        ) : (
+          <DashboardPageHeader
+            navHref="/diagnostics/live-logs"
+            description={
+              rawFirstSurface
+                ? 'Raw logs stay visible as the source of truth. Activity Summary highlights the current filtered results without leaving the stream.'
+                : 'Browse raw logs and a single activity summary view without leaving the workflow inspector.'
+            }
+          />
+        )}
       </section>
 
       {scopedWorkflowId ? (

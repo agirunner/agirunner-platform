@@ -17,9 +17,14 @@ describe('integration placeholder page copy', () => {
     expect(source).toContain('Configure triggers that turn events into work.');
   });
 
-  it('describes agent protocols as external agent connectivity', () => {
-    const source = readPageSource('./agent-protocols/agent-protocols-page.tsx');
-    expect(source).toContain('Configure external agent protocol connections.');
+  it('describes MCP as Model Context Protocol integration management', () => {
+    const source = readPageSource('./mcp/mcp-page.tsx');
+    expect(source).toContain('Configure Model Context Protocol integrations.');
+  });
+
+  it('describes ACP as Agent Communication Protocol integration management', () => {
+    const source = readPageSource('./acp/acp-page.tsx');
+    expect(source).toContain('Configure Agent Communication Protocol integrations.');
   });
 
   it('uses the shared next-iteration placeholder copy', () => {

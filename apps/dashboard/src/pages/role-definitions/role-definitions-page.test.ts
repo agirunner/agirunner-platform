@@ -179,13 +179,16 @@ describe('role definitions page source', () => {
     expect(source).toContain('dashboardApi.deleteRoleDefinition');
     expect(source).toContain('DeleteRoleDialog');
     expect(source).toContain('Delete Specialist');
+    expect(source).toContain('deleteErrorMessage={formatRoleDeleteError(deleteMutation.error)}');
+    expect(source).toContain('deleteMutation.reset()');
     expect(source).toContain('Update any playbooks that still reference it before deletion.');
     expect(source).toContain('onDelete={setDeletingRole}');
   });
 
   it('renames the primary surface to Specialists while keeping role-definition internals intact', () => {
     const source = readSource();
-    expect(source).toContain('Specialists</h1>');
+    expect(source).toContain('DashboardPageHeader');
+    expect(source).toContain('navHref="/design/specialists"');
     expect(source).toContain('Total specialists');
     expect(source).toContain('Active specialists');
     expect(source).toContain('Inactive specialists');

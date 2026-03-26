@@ -3,7 +3,7 @@ import { ConfigPlaceholderPage } from '../config-placeholder/config-placeholder-
 export function WorkItemTriggersPage(): JSX.Element {
   return (
     <ConfigPlaceholderPage
-      title="Triggers"
+      navHref="/integrations/triggers"
       description="Configure triggers that turn events into work."
     />
   );
