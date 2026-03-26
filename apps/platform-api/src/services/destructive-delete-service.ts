@@ -233,32 +233,38 @@ export class DestructiveDeleteService {
     taskIds: string[],
     workspaceId?: string,
   ) {
-    const params = [tenantId, uniqueIds(workflowIds), uniqueIds(taskIds), workspaceId ?? null];
+    const uniqueWorkflowIds = uniqueIds(workflowIds);
+    const uniqueTaskIds = uniqueIds(taskIds);
+    const workflowParams = [tenantId, uniqueWorkflowIds];
+    const taskParams = [tenantId, uniqueTaskIds];
+    const workflowTaskParams = [tenantId, uniqueWorkflowIds, uniqueTaskIds];
+    const workflowWorkspaceParams = [tenantId, uniqueWorkflowIds, workspaceId ?? null];
+    const workflowTaskWorkspaceParams = [tenantId, uniqueWorkflowIds, uniqueTaskIds, workspaceId ?? null];
     await client.query(
       `UPDATE agents
           SET current_task_id = NULL,
               status = (CASE WHEN status = 'inactive' THEN 'inactive' ELSE 'idle' END)::agent_status
         WHERE tenant_id = $1
-          AND current_task_id = ANY($3::uuid[])`,
-      params,
+          AND current_task_id = ANY($2::uuid[])`,
+      taskParams,
     );
     await client.query(
       `UPDATE workers
           SET current_task_id = NULL
         WHERE tenant_id = $1
-          AND current_task_id = ANY($3::uuid[])`,
-      params,
+          AND current_task_id = ANY($2::uuid[])`,
+      taskParams,
     );
-    await client.query('DELETE FROM integration_actions WHERE tenant_id = $1 AND task_id = ANY($3::uuid[])', params);
-    await client.query('DELETE FROM worker_signals WHERE tenant_id = $1 AND task_id = ANY($3::uuid[])', params);
+    await client.query('DELETE FROM integration_actions WHERE tenant_id = $1 AND task_id = ANY($2::uuid[])', taskParams);
+    await client.query('DELETE FROM worker_signals WHERE tenant_id = $1 AND task_id = ANY($2::uuid[])', taskParams);
     await client.query(
       `DELETE FROM task_handoffs
         WHERE tenant_id = $1
           AND (task_id = ANY($3::uuid[]) OR workflow_id = ANY($2::uuid[]))`,
-      params,
+      workflowTaskParams,
     );
-    await client.query('DELETE FROM task_tool_results WHERE tenant_id = $1 AND task_id = ANY($3::uuid[])', params);
-    await client.query('DELETE FROM execution_container_leases WHERE tenant_id = $1 AND task_id = ANY($3::uuid[])', params);
+    await client.query('DELETE FROM task_tool_results WHERE tenant_id = $1 AND task_id = ANY($2::uuid[])', taskParams);
+    await client.query('DELETE FROM execution_container_leases WHERE tenant_id = $1 AND task_id = ANY($2::uuid[])', taskParams);
     await client.query(
       `DELETE FROM orchestrator_task_messages
         WHERE tenant_id = $1
@@ -267,7 +273,7 @@ export class DestructiveDeleteService {
             OR orchestrator_task_id = ANY($3::uuid[])
             OR workflow_id = ANY($2::uuid[])
           )`,
-      params,
+      workflowTaskParams,
     );
     await client.query(
       `DELETE FROM workflow_subject_escalations
@@ -277,7 +283,7 @@ export class DestructiveDeleteService {
             OR created_by_task_id = ANY($3::uuid[])
             OR resolved_by_task_id = ANY($3::uuid[])
           )`,
-      params,
+      workflowTaskParams,
     );
     await client.query(
       `DELETE FROM workflow_stage_gates
@@ -287,7 +293,7 @@ export class DestructiveDeleteService {
             OR requested_by_task_id = ANY($3::uuid[])
             OR resolved_by_task_id = ANY($3::uuid[])
           )`,
-      params,
+      workflowTaskParams,
     );
     await client.query(
       `DELETE FROM workflow_documents
@@ -297,7 +303,7 @@ export class DestructiveDeleteService {
             OR task_id = ANY($3::uuid[])
             OR ($4::uuid IS NOT NULL AND workspace_id = $4::uuid)
           )`,
-      params,
+      workflowTaskWorkspaceParams,
     );
     await client.query(
       `DELETE FROM workflow_artifacts
@@ -307,10 +313,10 @@ export class DestructiveDeleteService {
             OR task_id = ANY($3::uuid[])
             OR ($4::uuid IS NOT NULL AND workspace_id = $4::uuid)
           )`,
-      params,
+      workflowTaskWorkspaceParams,
     );
-    await client.query('DELETE FROM workflow_tool_results WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', params);
-    await client.query('DELETE FROM orchestrator_grants WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', params);
+    await client.query('DELETE FROM workflow_tool_results WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', workflowParams);
+    await client.query('DELETE FROM orchestrator_grants WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', workflowParams);
     await client.query(
       `DELETE FROM integration_adapter_deliveries
         WHERE tenant_id = $1
@@ -320,13 +326,13 @@ export class DestructiveDeleteService {
              WHERE tenant_id = $1
                AND workflow_id = ANY($2::uuid[])
           )`,
-      params,
+      workflowParams,
     );
     await client.query(
       `DELETE FROM integration_adapters
         WHERE tenant_id = $1
           AND workflow_id = ANY($2::uuid[])`,
-      params,
+      workflowParams,
     );
     await client.query(
       `DELETE FROM webhook_work_item_trigger_invocations
@@ -337,19 +343,19 @@ export class DestructiveDeleteService {
              WHERE tenant_id = $1
                AND (
                  workflow_id = ANY($2::uuid[])
-                 OR ($4::uuid IS NOT NULL AND workspace_id = $4::uuid)
+                 OR ($3::uuid IS NOT NULL AND workspace_id = $3::uuid)
                )
           )`,
-      params,
+      workflowWorkspaceParams,
     );
     await client.query(
       `DELETE FROM webhook_work_item_triggers
         WHERE tenant_id = $1
           AND (
             workflow_id = ANY($2::uuid[])
-            OR ($4::uuid IS NOT NULL AND workspace_id = $4::uuid)
+            OR ($3::uuid IS NOT NULL AND workspace_id = $3::uuid)
           )`,
-      params,
+      workflowWorkspaceParams,
     );
     await client.query(
       `DELETE FROM scheduled_work_item_trigger_invocations
@@ -360,37 +366,37 @@ export class DestructiveDeleteService {
              WHERE tenant_id = $1
                AND (
                  workflow_id = ANY($2::uuid[])
-                 OR ($4::uuid IS NOT NULL AND workspace_id = $4::uuid)
+                 OR ($3::uuid IS NOT NULL AND workspace_id = $3::uuid)
                )
           )`,
-      params,
+      workflowWorkspaceParams,
     );
     await client.query(
       `DELETE FROM scheduled_work_item_triggers
         WHERE tenant_id = $1
           AND (
             workflow_id = ANY($2::uuid[])
-            OR ($4::uuid IS NOT NULL AND workspace_id = $4::uuid)
+            OR ($3::uuid IS NOT NULL AND workspace_id = $3::uuid)
           )`,
-      params,
+      workflowWorkspaceParams,
     );
-    await client.query('DELETE FROM workflow_branches WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', params);
-    await client.query('DELETE FROM workflow_stages WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', params);
+    await client.query('DELETE FROM workflow_branches WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', workflowParams);
+    await client.query('DELETE FROM workflow_stages WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', workflowParams);
     const deletedTasks = await client.query<{ id: string }>(
       `DELETE FROM tasks
         WHERE tenant_id = $1
-          AND id = ANY($3::uuid[])
+          AND id = ANY($2::uuid[])
       RETURNING id`,
-      params,
+      taskParams,
     );
-    await client.query('DELETE FROM workflow_work_items WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', params);
-    await client.query('DELETE FROM workflow_activations WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', params);
+    await client.query('DELETE FROM workflow_work_items WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', workflowParams);
+    await client.query('DELETE FROM workflow_activations WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', workflowParams);
     const deletedWorkflows = await client.query<{ id: string }>(
       `DELETE FROM workflows
         WHERE tenant_id = $1
           AND id = ANY($2::uuid[])
       RETURNING id`,
-      params,
+      workflowParams,
     );
     return {
       deleted_task_count: deletedTasks.rowCount ?? 0,
