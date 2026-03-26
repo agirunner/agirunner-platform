@@ -27,12 +27,15 @@ import { PlaybookTaskParallelismService } from './playbook-task-parallelism-serv
 import { readAgentSupervisionTimingDefaults } from './platform-timing-defaults.js';
 import type { ExecutionContainerLeaseService } from './execution-container-lease-service.js';
 import {
-  type ExecutionContainerContract,
-  mergeExecutionContainerContract,
   readPositiveInteger,
   readRequiredPositiveIntegerRuntimeDefault,
-  readSpecialistExecutionDefaults,
 } from './runtime-default-values.js';
+import {
+  buildExecutionEnvironmentAgentHint,
+  type ExecutionContainerContract,
+  type ExecutionEnvironmentSummary,
+  normalizeStringArray,
+} from './execution-environment-contract.js';
 import { matchesWorkerToTaskRouting } from './task-routing-contract.js';
 import { flattenInstructionLayers } from './task-context-service.js';
 import {
@@ -134,6 +137,12 @@ interface TaskLoopContract {
   llmMaxRetries: number;
 }
 
+interface ResolvedTaskExecutionEnvironment {
+  executionContainer: ExecutionContainerContract;
+  executionEnvironment: ExecutionEnvironmentSummary;
+  snapshot: ExecutionEnvironmentSummary;
+}
+
 interface ClaimPeerAgentRow {
   id: string;
   routing_tags: string[] | null;
@@ -141,6 +150,25 @@ interface ClaimPeerAgentRow {
   last_heartbeat_at: string | Date | null;
   heartbeat_interval_seconds: number | null;
   metadata: Record<string, unknown> | null;
+}
+
+interface ClaimableExecutionEnvironmentRow {
+  id: string;
+  name: string;
+  source_kind: string;
+  catalog_key: string | null;
+  catalog_version: number | null;
+  image: string;
+  cpu: string;
+  memory: string;
+  pull_policy: string;
+  compatibility_status: string;
+  verification_contract_version: string | null;
+  verified_metadata: unknown;
+  tool_capabilities: unknown;
+  bootstrap_commands: unknown;
+  bootstrap_required_domains: unknown;
+  support_status: string | null;
 }
 
 interface TaskModelOverrideSelection {
@@ -153,6 +181,7 @@ function buildExecutionContractLogPayload(input: {
   llmResolution: TaskLLMResolution;
   loopContract: TaskLoopContract;
   executionContainer: ExecutionContainerContract | null;
+  executionEnvironment: ExecutionEnvironmentSummary | null;
   agentId: string;
   workerId: string | null;
   task: Record<string, unknown>;
@@ -178,6 +207,12 @@ function buildExecutionContractLogPayload(input: {
     execution_container_cpu: input.executionContainer?.cpu ?? null,
     execution_container_memory: input.executionContainer?.memory ?? null,
     execution_container_pull_policy: input.executionContainer?.pull_policy ?? null,
+    execution_environment_id: input.executionEnvironment?.id ?? null,
+    execution_environment_name: input.executionEnvironment?.name ?? null,
+    execution_environment_source_kind: input.executionEnvironment?.source_kind ?? null,
+    execution_environment_support_status: input.executionEnvironment?.support_status ?? null,
+    execution_environment_compatibility_status:
+      input.executionEnvironment?.compatibility_status ?? null,
     llm_input_cost_per_million_usd: input.llmResolution.resolved.model.inputCostPerMillionUsd,
     llm_output_cost_per_million_usd: input.llmResolution.resolved.model.outputCostPerMillionUsd,
     ...gitContract,
@@ -412,11 +447,13 @@ export class TaskClaimService {
         task,
         client,
       );
-      const executionContainer = await this.resolveExecutionContainerContract(
+      const resolvedExecutionEnvironment = await this.resolveExecutionEnvironmentContract(
         identity.tenantId,
         task,
         client,
       );
+      const executionContainer = resolvedExecutionEnvironment?.executionContainer ?? null;
+      const executionEnvironment = resolvedExecutionEnvironment?.executionEnvironment ?? null;
       if (
         executionContainer
         && this.deps.executionContainerLeaseService
@@ -449,10 +486,21 @@ export class TaskClaimService {
       const updatedTaskRes = await client.query(
         `UPDATE tasks
          SET state = 'claimed', state_changed_at = now(),
-             assigned_agent_id = $3, assigned_worker_id = $4, claimed_at = now()
+             assigned_agent_id = $3,
+             assigned_worker_id = $4,
+             claimed_at = now(),
+             execution_environment_id = $5,
+             execution_environment_snapshot = $6::jsonb
          WHERE tenant_id = $1 AND id = $2
          RETURNING *`,
-        [identity.tenantId, task.id, payload.agent_id, payload.worker_id ?? null],
+        [
+          identity.tenantId,
+          task.id,
+          payload.agent_id,
+          payload.worker_id ?? null,
+          executionEnvironment?.id ?? null,
+          JSON.stringify(resolvedExecutionEnvironment?.snapshot ?? null),
+        ],
       );
 
       await client.query(
@@ -524,6 +572,7 @@ export class TaskClaimService {
           llmResolution,
           loopContract,
           executionContainer,
+          executionEnvironment,
           agentId: payload.agent_id,
           workerId: payload.worker_id ?? null,
           task: runtimeReadyTask,
@@ -551,6 +600,7 @@ export class TaskClaimService {
           max_iterations: loopContract.maxIterations,
           llm_max_retries: loopContract.llmMaxRetries,
           execution_container: executionContainer,
+          execution_environment: executionEnvironment,
           runtime_capabilities: runtimeCapabilities,
           tool_owners: toolOwners,
           tools: toolMatch,
@@ -566,6 +616,7 @@ export class TaskClaimService {
         max_iterations: loopContract.maxIterations,
         llm_max_retries: loopContract.llmMaxRetries,
         execution_container: executionContainer,
+        execution_environment: executionEnvironment,
         runtime_capabilities: runtimeCapabilities,
         tool_owners: toolOwners,
         tools: toolMatch,
@@ -1035,48 +1086,88 @@ export class TaskClaimService {
     };
   }
 
-  private async resolveExecutionContainerContract(
-    tenantId: string,
-    task: Record<string, unknown>,
-    db: DatabaseClient,
-  ): Promise<ExecutionContainerContract | null> {
-    if (readTaskExecutionBackend(task) !== 'runtime_plus_task') {
-      return null;
-    }
-    const defaults = await readSpecialistExecutionDefaults(db, tenantId);
-    const override = await this.readRoleExecutionContainerOverride(
-      tenantId,
-      typeof task.role === 'string' ? task.role : '',
-      db,
-    );
-    return mergeExecutionContainerContract(defaults, override);
-  }
-
-  private async readRoleExecutionContainerOverride(
+  private async readRoleScopedExecutionEnvironmentId(
     tenantId: string,
     roleName: string,
     db: DatabaseClient,
-  ): Promise<Partial<ExecutionContainerContract> | null> {
+  ): Promise<string | null> {
     const trimmedRoleName = roleName.trim();
     if (trimmedRoleName.length === 0) {
       return null;
     }
-    try {
-      const result = await db.query<{ execution_container_config: Record<string, unknown> | null }>(
-        `SELECT execution_container_config
-           FROM role_definitions
-          WHERE tenant_id = $1
-            AND name = $2
-            AND is_active = true
-          LIMIT 1`,
-        [tenantId, trimmedRoleName],
-      );
-      return coerceExecutionContainerContractOverride(
-        result.rows[0]?.execution_container_config ?? null,
-      );
-    } catch {
+    const result = await db.query<{ execution_environment_id: string | null }>(
+      `SELECT execution_environment_id
+         FROM role_definitions
+        WHERE tenant_id = $1
+          AND name = $2
+          AND is_active = true
+        LIMIT 1`,
+      [tenantId, trimmedRoleName],
+    );
+    return result.rows[0]?.execution_environment_id ?? null;
+  }
+
+  private async readClaimableExecutionEnvironmentRow(
+    tenantId: string,
+    requestedId: string | null,
+    db: DatabaseClient,
+  ): Promise<ClaimableExecutionEnvironmentRow | null> {
+    const result = await db.query<ClaimableExecutionEnvironmentRow>(
+      `SELECT
+         ee.id,
+         ee.name,
+         ee.source_kind,
+         ee.catalog_key,
+         ee.catalog_version,
+         ee.image,
+         ee.cpu,
+         ee.memory,
+         ee.pull_policy,
+         ee.compatibility_status,
+         ee.verification_contract_version,
+         ee.verified_metadata,
+         ee.tool_capabilities,
+         ee.bootstrap_commands,
+         ee.bootstrap_required_domains,
+         c.support_status
+       FROM execution_environments ee
+       LEFT JOIN execution_environment_catalog c
+         ON c.catalog_key = ee.catalog_key
+        AND c.catalog_version = ee.catalog_version
+      WHERE ee.tenant_id = $1
+        AND ee.is_archived = false
+        AND ee.is_claimable = true
+        AND COALESCE(c.support_status, 'active') <> 'blocked'
+        AND (
+          ($2::uuid IS NOT NULL AND ee.id = $2::uuid)
+          OR ($2::uuid IS NULL AND ee.is_default = true)
+        )
+      LIMIT 1`,
+      [tenantId, requestedId],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  private async resolveExecutionEnvironmentContract(
+    tenantId: string,
+    task: Record<string, unknown>,
+    db: DatabaseClient,
+  ): Promise<ResolvedTaskExecutionEnvironment | null> {
+    if (readTaskExecutionBackend(task) !== 'runtime_plus_task') {
       return null;
     }
+    const environmentId = await this.readRoleScopedExecutionEnvironmentId(
+      tenantId,
+      typeof task.role === 'string' ? task.role : '',
+      db,
+    );
+    const row = await this.readClaimableExecutionEnvironmentRow(tenantId, environmentId, db);
+    if (!row) {
+      throw new ValidationError(
+        'No claimable Specialist Execution environment is configured for this role or tenant default',
+      );
+    }
+    return buildResolvedTaskExecutionEnvironment(row);
   }
 
   private async resolveLoopContractValue(
@@ -1202,30 +1293,53 @@ function mergeSystemPrompt(
   };
 }
 
-function coerceExecutionContainerContractOverride(
-  value: unknown,
-): Partial<ExecutionContainerContract> | null {
-  if (!isRecord(value)) {
-    return null;
-  }
-
-  const override: Partial<ExecutionContainerContract> = {};
-  if (typeof value.image === 'string' && value.image.trim().length > 0) {
-    override.image = value.image.trim();
-  }
-  if (typeof value.cpu === 'string' && value.cpu.trim().length > 0) {
-    override.cpu = value.cpu.trim();
-  }
-  if (typeof value.memory === 'string' && value.memory.trim().length > 0) {
-    override.memory = value.memory.trim();
-  }
-  if (
-    typeof value.pull_policy === 'string'
-    && ['always', 'if-not-present', 'never'].includes(value.pull_policy.trim())
-  ) {
-    override.pull_policy = value.pull_policy.trim() as ExecutionContainerContract['pull_policy'];
-  }
-  return Object.keys(override).length > 0 ? override : null;
+function buildResolvedTaskExecutionEnvironment(
+  row: ClaimableExecutionEnvironmentRow,
+): ResolvedTaskExecutionEnvironment {
+  const verifiedMetadata = isRecord(row.verified_metadata) ? row.verified_metadata : {};
+  const toolCapabilities = isRecord(row.tool_capabilities) ? row.tool_capabilities : {};
+  const executionEnvironment: ExecutionEnvironmentSummary = {
+    id: row.id,
+    name: row.name,
+    source_kind: row.source_kind === 'catalog' ? 'catalog' : 'custom',
+    catalog_key: row.catalog_key,
+    catalog_version: row.catalog_version,
+    image: row.image,
+    cpu: row.cpu,
+    memory: row.memory,
+    pull_policy: row.pull_policy === 'always' || row.pull_policy === 'never' ? row.pull_policy : 'if-not-present',
+    compatibility_status:
+      row.compatibility_status === 'compatible' || row.compatibility_status === 'incompatible'
+        ? row.compatibility_status
+        : 'unknown',
+    support_status:
+      row.support_status === 'deprecated' || row.support_status === 'blocked'
+        ? row.support_status
+        : row.source_kind === 'catalog'
+          ? 'active'
+          : null,
+    verification_contract_version: row.verification_contract_version,
+    verified_metadata: verifiedMetadata,
+    tool_capabilities: toolCapabilities,
+    bootstrap_commands: normalizeStringArray(row.bootstrap_commands),
+    bootstrap_required_domains: normalizeStringArray(row.bootstrap_required_domains),
+    agent_hint: buildExecutionEnvironmentAgentHint({
+      name: row.name,
+      image: row.image,
+      verifiedMetadata,
+      toolCapabilities,
+    }),
+  };
+  return {
+    executionContainer: {
+      image: executionEnvironment.image,
+      cpu: executionEnvironment.cpu,
+      memory: executionEnvironment.memory,
+      pull_policy: executionEnvironment.pull_policy,
+    },
+    executionEnvironment,
+    snapshot: executionEnvironment,
+  };
 }
 
 function readAgentExecutionMode(value: unknown): AgentExecutionMode {

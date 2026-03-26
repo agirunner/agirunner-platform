@@ -1,5 +1,6 @@
 import type { DatabaseQueryable } from '../db/database.js';
 import { ValidationError } from '../errors/domain-errors.js';
+import type { ExecutionEnvironmentPullPolicy } from './execution-environment-contract.js';
 
 export const TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY = 'tasks.default_timeout_minutes';
 export const TASK_MAX_ITERATIONS_RUNTIME_KEY = 'agent.max_iterations';
@@ -15,27 +16,11 @@ export const SPECIALIST_RUNTIME_DEFAULT_KEYS = {
   drainGraceSeconds: 'specialist_runtime_drain_grace_seconds',
 } as const;
 
-export const SPECIALIST_EXECUTION_DEFAULT_KEYS = {
-  image: 'specialist_execution_default_image',
-  cpu: 'specialist_execution_default_cpu',
-  memory: 'specialist_execution_default_memory',
-  pullPolicy: 'specialist_execution_default_pull_policy',
-} as const;
-
-export type RuntimePullPolicy = 'always' | 'if-not-present' | 'never';
-
-export interface ExecutionContainerContract {
-  image: string;
-  cpu: string;
-  memory: string;
-  pull_policy: RuntimePullPolicy;
-}
-
 export interface SpecialistRuntimeDefaults {
   image: string;
   cpu: string;
   memory: string;
-  pull_policy: RuntimePullPolicy;
+  pull_policy: ExecutionEnvironmentPullPolicy;
   bootstrap_claim_timeout_seconds: number;
   drain_grace_seconds: number;
 }
@@ -86,34 +71,6 @@ export async function readRequiredStringRuntimeDefault(
   return rawValue.trim();
 }
 
-export async function readSpecialistExecutionDefaults(
-  db: DatabaseQueryable,
-  tenantId: string,
-): Promise<ExecutionContainerContract> {
-  return {
-    image: await readRequiredStringRuntimeDefault(
-      db,
-      tenantId,
-      SPECIALIST_EXECUTION_DEFAULT_KEYS.image,
-    ),
-    cpu: await readRequiredStringRuntimeDefault(
-      db,
-      tenantId,
-      SPECIALIST_EXECUTION_DEFAULT_KEYS.cpu,
-    ),
-    memory: await readRequiredStringRuntimeDefault(
-      db,
-      tenantId,
-      SPECIALIST_EXECUTION_DEFAULT_KEYS.memory,
-    ),
-    pull_policy: await readRequiredPullPolicyRuntimeDefault(
-      db,
-      tenantId,
-      SPECIALIST_EXECUTION_DEFAULT_KEYS.pullPolicy,
-    ),
-  };
-}
-
 export async function readSpecialistRuntimeDefaults(
   db: DatabaseQueryable,
   tenantId: string,
@@ -152,42 +109,11 @@ export async function readSpecialistRuntimeDefaults(
   };
 }
 
-export function mergeExecutionContainerContract(
-  defaults: ExecutionContainerContract,
-  overrides: Partial<ExecutionContainerContract> | null | undefined,
-): ExecutionContainerContract {
-  if (!overrides) {
-    return defaults;
-  }
-
-  return {
-    image: readOptionalOverride(overrides.image) ?? defaults.image,
-    cpu: readOptionalOverride(overrides.cpu) ?? defaults.cpu,
-    memory: readOptionalOverride(overrides.memory) ?? defaults.memory,
-    pull_policy: readOptionalPullPolicyOverride(overrides.pull_policy) ?? defaults.pull_policy,
-  };
-}
-
-function readOptionalOverride(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
-}
-
-function readOptionalPullPolicyOverride(value: unknown): RuntimePullPolicy | null {
-  switch (typeof value === 'string' ? value.trim() : '') {
-  case 'always':
-  case 'if-not-present':
-  case 'never':
-    return value as RuntimePullPolicy;
-  default:
-    return null;
-  }
-}
-
 async function readRequiredPullPolicyRuntimeDefault(
   db: DatabaseQueryable,
   tenantId: string,
   key: string,
-): Promise<RuntimePullPolicy> {
+): Promise<ExecutionEnvironmentPullPolicy> {
   const value = await readRequiredStringRuntimeDefault(db, tenantId, key);
   switch (value) {
   case 'always':

@@ -15,6 +15,7 @@ import {
 
 import { agents } from './agents.js';
 import { executionBackendEnum, taskPriorityEnum, taskStateEnum } from './enums.js';
+import { executionEnvironments } from './execution-environments.js';
 import { workflows } from './workflows.js';
 import { workspaces } from './workspaces.js';
 import { tenants } from './tenants.js';
@@ -65,6 +66,10 @@ export const tasks = pgTable(
     maxRetries: integer('max_retries').notNull().default(0),
     maxIterations: integer('max_iterations'),
     llmMaxRetries: integer('llm_max_retries'),
+    executionEnvironmentId: uuid('execution_environment_id').references(
+      () => executionEnvironments.id,
+    ),
+    executionEnvironmentSnapshot: jsonb('execution_environment_snapshot'),
     retryCount: integer('retry_count').notNull().default(0),
     reworkCount: integer('rework_count').notNull().default(0),
     completedAt: timestamp('completed_at', { withTimezone: true }),
@@ -108,6 +113,7 @@ export const tasks = pgTable(
       .on(table.assignedWorkerId)
       .where(sql`${table.assignedWorkerId} IS NOT NULL`),
     index('idx_tasks_workflow_state').on(table.tenantId, table.workflowId, table.state),
+    index('idx_tasks_execution_environment').on(table.tenantId, table.executionEnvironmentId),
     index('idx_tasks_active_timeout')
       .on(table.state, table.startedAt, table.claimedAt)
       .where(sql`${table.state} IN ('claimed', 'in_progress')`),

@@ -3,6 +3,30 @@ import { describe, expect, it, vi } from 'vitest';
 import { flattenInstructionLayers } from '../../src/services/task-context-service.js';
 import { TaskClaimService } from '../../src/services/task-claim-service.js';
 
+function buildExecutionEnvironmentRow(
+  overrides: Partial<Record<string, unknown>> = {},
+): Record<string, unknown> {
+  return {
+    id: 'env-default',
+    name: 'Debian Base',
+    source_kind: 'catalog',
+    catalog_key: 'debian-base',
+    catalog_version: 1,
+    image: 'debian:trixie-slim',
+    cpu: '1',
+    memory: '1Gi',
+    pull_policy: 'if-not-present',
+    compatibility_status: 'compatible',
+    verification_contract_version: 'v1',
+    verified_metadata: { distro: 'debian' },
+    tool_capabilities: { verified_baseline_commands: ['sh'] },
+    bootstrap_commands: [],
+    bootstrap_required_domains: [],
+    support_status: 'active',
+    ...overrides,
+  };
+}
+
 describe('flattenInstructionLayers', () => {
   it('concatenates layers in order with headers', () => {
     const layers = {
@@ -146,19 +170,13 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
         if (key === 'agent.llm_max_retries') {
           return { rowCount: 1, rows: [{ config_value: '5' }] };
         }
-        if (key === 'specialist_execution_default_image') {
-          return { rowCount: 1, rows: [{ config_value: 'agirunner-runtime-execution:local' }] };
-        }
-        if (key === 'specialist_execution_default_cpu') {
-          return { rowCount: 1, rows: [{ config_value: '1' }] };
-        }
-        if (key === 'specialist_execution_default_memory') {
-          return { rowCount: 1, rows: [{ config_value: '1Gi' }] };
-        }
-        if (key === 'specialist_execution_default_pull_policy') {
-          return { rowCount: 1, rows: [{ config_value: 'if-not-present' }] };
-        }
         return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('SELECT execution_environment_id')) {
+        return { rowCount: 1, rows: [{ execution_environment_id: null }] };
+      }
+      if (sql.includes('FROM execution_environments ee')) {
+        return { rowCount: 1, rows: [buildExecutionEnvironmentRow()] };
       }
       if (sql.includes("SET state = 'claimed'")) {
         return { rowCount: 1, rows: [{ ...taskRow, state: 'claimed' }] };

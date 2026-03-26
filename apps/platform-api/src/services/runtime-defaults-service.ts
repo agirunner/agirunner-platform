@@ -147,7 +147,6 @@ const DECIMAL_DEFAULT_RULES = new Map([
 const ENUM_DEFAULT_RULES = new Map<string, readonly string[]>([
   ['default_pull_policy', ['always', 'if-not-present', 'never']],
   ['specialist_runtime_default_pull_policy', ['always', 'if-not-present', 'never']],
-  ['specialist_execution_default_pull_policy', ['always', 'if-not-present', 'never']],
   ['log.level', ['debug', 'info', 'warn', 'error']],
   ['agent.specialist_context_strategy', ['auto', 'semantic_local', 'deterministic', 'provider_native', 'off']],
   ['agent.orchestrator_context_strategy', ['activation_checkpoint', 'emergency_only', 'off']],
@@ -173,6 +172,10 @@ const REMOVED_RUNTIME_DEFAULT_KEYS = new Set([
   'workspace.inject_context_rename_timeout_seconds',
   'platform.webhook_max_attempts',
   'platform.webhook_retry_base_delay_ms',
+  'specialist_execution_default_image',
+  'specialist_execution_default_cpu',
+  'specialist_execution_default_memory',
+  'specialist_execution_default_pull_policy',
 ]);
 const NON_DELETABLE_RUNTIME_DEFAULT_KEYS = new Set([
   'global_max_specialists',
@@ -185,10 +188,6 @@ const NON_DELETABLE_RUNTIME_DEFAULT_KEYS = new Set([
   'specialist_runtime_default_pull_policy',
   'specialist_runtime_bootstrap_claim_timeout_seconds',
   'specialist_runtime_drain_grace_seconds',
-  'specialist_execution_default_image',
-  'specialist_execution_default_cpu',
-  'specialist_execution_default_memory',
-  'specialist_execution_default_pull_policy',
   'platform.api_request_timeout_seconds',
   'platform.log_ingest_timeout_seconds',
   'container_manager.reconcile_interval_seconds',

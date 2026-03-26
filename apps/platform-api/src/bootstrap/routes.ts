@@ -8,6 +8,7 @@ import { apiKeyRoutes } from '../api/routes/api-keys.routes.js';
 import { authRoutes } from '../api/routes/auth.routes.js';
 import { eventRoutes } from '../api/routes/events.routes.js';
 import { executeRoutes } from '../api/routes/execute.routes.js';
+import { executionEnvironmentRoutes } from '../api/routes/execution-environments.routes.js';
 import { governanceRoutes } from '../api/routes/governance.routes.js';
 import { healthRoutes } from '../api/routes/health.routes.js';
 import { orchestratorGrantRoutes } from '../api/routes/orchestrator-grants.routes.js';
@@ -68,6 +69,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(workspaceRoutes);
   await app.register(runtimeCustomizationRoutes);
   await app.register(roleDefinitionRoutes);
+  await app.register(executionEnvironmentRoutes);
   await app.register(llmConfigRoutes);
   await app.register(runtimeDefaultsRoutes);
   await app.register(runtimeConfigRoutes);

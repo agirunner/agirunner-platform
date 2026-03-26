@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -53,7 +54,8 @@ func main() {
 	m := manager.New(cfg, docker, logger)
 
 	metricsAddr := envOrDefault("METRICS_ADDR", ":9090")
-	metricsServer := startMetricsServer(metricsAddr, m, logger)
+	controlToken := envOrFileOrDefault("CONTAINER_MANAGER_CONTROL_TOKEN", "CONTAINER_MANAGER_CONTROL_TOKEN_FILE", "")
+	metricsServer := startMetricsServer(metricsAddr, m, cfg.DockerHost, controlToken, logger)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer cancel()
@@ -177,9 +179,42 @@ func (c *noopDockerClient) ContainerLogs(_ context.Context, _ string, _ containe
 }
 
 // startMetricsServer launches an HTTP server serving Prometheus metrics on /metrics.
-func startMetricsServer(addr string, m *manager.Manager, logger *slog.Logger) *http.Server {
+func startMetricsServer(
+	addr string,
+	m *manager.Manager,
+	dockerHost string,
+	controlToken string,
+	logger *slog.Logger,
+) *http.Server {
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.HandlerFor(m.MetricsRegistry(), promhttp.HandlerOpts{}))
+	mux.HandleFunc("/api/v1/execution-environments/verify", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if strings.TrimSpace(controlToken) != "" && bearerToken(r) != strings.TrimSpace(controlToken) {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		var request manager.ExecutionEnvironmentVerifyRequest
+		if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+			http.Error(w, fmt.Sprintf("invalid request body: %v", err), http.StatusBadRequest)
+			return
+		}
+
+		result, err := manager.VerifyExecutionEnvironment(r.Context(), dockerHost, request)
+		if err != nil {
+			http.Error(w, fmt.Sprintf("verification failed: %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(result); err != nil {
+			logger.Error("encode verification response failed", "error", err)
+		}
+	})
 
 	srv := &http.Server{
 		Addr:              addr,
@@ -195,4 +230,16 @@ func startMetricsServer(addr string, m *manager.Manager, logger *slog.Logger) *h
 	}()
 
 	return srv
+}
+
+func bearerToken(r *http.Request) string {
+	auth := strings.TrimSpace(r.Header.Get("Authorization"))
+	if auth == "" {
+		return ""
+	}
+	const prefix = "Bearer "
+	if !strings.HasPrefix(auth, prefix) {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(auth, prefix))
 }

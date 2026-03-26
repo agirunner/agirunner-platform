@@ -108,26 +108,94 @@ describe('three-container model integration', () => {
     }
   });
 
-  it('resolves specialist execution defaults, merges role overrides, and backpressures claims at the execution cap', async (context) => {
+  it('resolves specialist execution environments and backpressures claims at the execution cap', async (context) => {
     if (!canRunIntegration) {
       context.skip();
     }
 
+    await db.pool.query<{ id: string }>(
+      `INSERT INTO execution_environments (
+         tenant_id,
+         slug,
+         name,
+         description,
+         source_kind,
+         catalog_key,
+         catalog_version,
+         image,
+         cpu,
+         memory,
+         pull_policy,
+         bootstrap_commands,
+         bootstrap_required_domains,
+         declared_metadata,
+         verified_metadata,
+         tool_capabilities,
+         compatibility_status,
+         compatibility_errors,
+         verification_contract_version,
+         last_verified_at,
+         is_default,
+         is_archived,
+         is_claimable
+       ) VALUES (
+         $1, 'default-specialist-env', 'Default Specialist Environment', 'Default execution environment',
+         'custom', NULL, NULL, 'debian:trixie-slim', '1', '1Gi', 'if-not-present',
+         '[]'::jsonb, '[]'::jsonb, '{}'::jsonb, '{"distro":"debian"}'::jsonb,
+         '{"verified_baseline_commands":["sh","mkdir","grep"]}'::jsonb,
+         'compatible', '[]'::jsonb, 'v1', now(), true, false, true
+       )
+       RETURNING id`,
+      [identity.tenantId],
+    );
+    const heavyEnvironment = await db.pool.query<{ id: string }>(
+      `INSERT INTO execution_environments (
+         tenant_id,
+         slug,
+         name,
+         description,
+         source_kind,
+         catalog_key,
+         catalog_version,
+         image,
+         cpu,
+         memory,
+         pull_policy,
+         bootstrap_commands,
+         bootstrap_required_domains,
+         declared_metadata,
+         verified_metadata,
+         tool_capabilities,
+         compatibility_status,
+         compatibility_errors,
+         verification_contract_version,
+         last_verified_at,
+         is_default,
+         is_archived,
+         is_claimable
+       ) VALUES (
+         $1, 'heavy-specialist-env', 'Heavy Specialist Environment', 'Role-specific execution environment',
+         'custom', NULL, NULL, 'ubuntu:24.04', '1', '3Gi', 'if-not-present',
+         '[]'::jsonb, '[]'::jsonb, '{}'::jsonb, '{"distro":"ubuntu"}'::jsonb,
+         '{"verified_baseline_commands":["sh","mkdir","grep"]}'::jsonb,
+         'compatible', '[]'::jsonb, 'v1', now(), false, false, true
+       )
+       RETURNING id`,
+      [identity.tenantId],
+    );
+
     await harness.roleDefinitionService.createRole(identity.tenantId, {
       name: 'default-specialist',
-      description: 'Uses the tenant execution defaults',
+      description: 'Uses the tenant default execution environment',
       allowedTools: [],
       maxEscalationDepth: 3,
     });
     await harness.roleDefinitionService.createRole(identity.tenantId, {
       name: 'heavy-specialist',
-      description: 'Overrides the execution container contract',
+      description: 'Uses a role-specific execution environment',
       allowedTools: [],
       maxEscalationDepth: 3,
-      executionContainerConfig: {
-        image: 'agirunner-runtime-execution-override:local',
-        memory: '3Gi',
-      },
+      executionEnvironmentId: heavyEnvironment.rows[0].id,
     });
 
     const playbook = await harness.playbookService.createPlaybook(identity.tenantId, {
@@ -224,7 +292,7 @@ describe('three-container model integration', () => {
 
     expect(firstClaim?.id).toBe(defaultTask.id);
     expect((firstClaim as Record<string, any>).execution_container).toEqual({
-      image: 'agirunner-runtime-execution:local',
+      image: 'debian:trixie-slim',
       cpu: '1',
       memory: '1Gi',
       pull_policy: 'if-not-present',
@@ -290,7 +358,7 @@ describe('three-container model integration', () => {
 
     expect(secondClaim?.id).toBe(overrideTask.id);
     expect((secondClaim as Record<string, any>).execution_container).toEqual({
-      image: 'agirunner-runtime-execution-override:local',
+      image: 'ubuntu:24.04',
       cpu: '1',
       memory: '3Gi',
       pull_policy: 'if-not-present',

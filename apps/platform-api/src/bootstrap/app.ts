@@ -21,8 +21,12 @@ import { AcpSessionService } from '../services/acp-session-service.js';
 import { AgentService } from '../services/agent-service.js';
 import { ApiKeyService } from '../services/api-key-service.js';
 import { ContainerInventoryService } from '../services/container-inventory-service.js';
+import { ContainerManagerExecutionEnvironmentVerifier } from '../services/container-manager-execution-environment-verifier.js';
 import { EventStreamService } from '../services/event-stream-service.js';
 import { EventService } from '../services/event-service.js';
+import { ExecutionEnvironmentCatalogService } from '../services/execution-environment-catalog-service.js';
+import { ExecutionEnvironmentService } from '../services/execution-environment-service.js';
+import { ExecutionEnvironmentVerificationService } from '../services/execution-environment-verification-service.js';
 import { FleetService } from '../services/fleet-service.js';
 import { GovernanceService } from '../services/governance-service.js';
 import { OAuthService } from '../services/oauth-service.js';
@@ -162,6 +166,20 @@ export async function buildApp() {
   const roleDefinitionService = new RoleDefinitionService(pool);
   const fleetService = new FleetService(pool);
   const runtimeDefaultsService = new RuntimeDefaultsService(pool, fleetService, eventService);
+  const executionEnvironmentCatalogService = new ExecutionEnvironmentCatalogService(pool);
+  const executionEnvironmentService = new ExecutionEnvironmentService(
+    pool,
+    executionEnvironmentCatalogService,
+  );
+  const executionEnvironmentVerifier = new ContainerManagerExecutionEnvironmentVerifier(
+    appConfig.CONTAINER_MANAGER_CONTROL_URL,
+    appConfig.CONTAINER_MANAGER_CONTROL_TOKEN ?? null,
+  );
+  const executionEnvironmentVerificationService = new ExecutionEnvironmentVerificationService(
+    pool,
+    executionEnvironmentService,
+    executionEnvironmentVerifier,
+  );
   const modelCatalogService = new ModelCatalogService(pool);
   const oauthService = new OAuthService(pool);
   const orchestratorGrantService = new OrchestratorGrantService(pool, eventService);
@@ -197,6 +215,26 @@ export async function buildApp() {
   app.decorate('orchestratorConfigService', createLoggedService(orchestratorConfigService, 'OrchestratorConfigService', logService));
   app.decorate('roleDefinitionService', createLoggedService(roleDefinitionService, 'RoleDefinitionService', logService));
   app.decorate('runtimeDefaultsService', createLoggedService(runtimeDefaultsService, 'RuntimeDefaultsService', logService));
+  app.decorate(
+    'executionEnvironmentCatalogService',
+    createLoggedService(
+      executionEnvironmentCatalogService,
+      'ExecutionEnvironmentCatalogService',
+      logService,
+    ),
+  );
+  app.decorate(
+    'executionEnvironmentService',
+    createLoggedService(executionEnvironmentService, 'ExecutionEnvironmentService', logService),
+  );
+  app.decorate(
+    'executionEnvironmentVerificationService',
+    createLoggedService(
+      executionEnvironmentVerificationService,
+      'ExecutionEnvironmentVerificationService',
+      logService,
+    ),
+  );
   app.decorate('fleetService', createLoggedService(fleetService, 'FleetService', logService));
   app.decorate('modelCatalogService', createLoggedService(modelCatalogService, 'ModelCatalogService', logService));
   app.decorate('oauthService', createLoggedService(oauthService, 'OAuthService', logService));

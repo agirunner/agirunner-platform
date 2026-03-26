@@ -40,6 +40,30 @@ const defaultResolvedRoleConfig = {
   reasoningConfig: { reasoning_effort: 'low' },
 };
 
+function buildExecutionEnvironmentRow(
+  overrides: Partial<Record<string, unknown>> = {},
+): Record<string, unknown> {
+  return {
+    id: 'env-default',
+    name: 'Debian Base',
+    source_kind: 'catalog',
+    catalog_key: 'debian-base',
+    catalog_version: 1,
+    image: 'debian:trixie-slim',
+    cpu: '1',
+    memory: '1Gi',
+    pull_policy: 'if-not-present',
+    compatibility_status: 'compatible',
+    verification_contract_version: 'v1',
+    verified_metadata: { distro: 'debian', package_manager: 'apt-get' },
+    tool_capabilities: { verified_baseline_commands: ['sh', 'mkdir', 'grep'] },
+    bootstrap_commands: [],
+    bootstrap_required_domains: [],
+    support_status: 'active',
+    ...overrides,
+  };
+}
+
 function createClient(executionMode: 'specialist' | 'orchestrator') {
   return {
     query: vi.fn(async (sql: string, _params?: unknown[]) => {
@@ -91,6 +115,12 @@ function createService(
 }
 
 function runtimeDefaultQueryResult(sql: string, params?: unknown[]) {
+  if (sql.includes('SELECT execution_environment_id')) {
+    return { rowCount: 1, rows: [{ execution_environment_id: null }] };
+  }
+  if (sql.includes('FROM execution_environments ee')) {
+    return { rowCount: 1, rows: [buildExecutionEnvironmentRow()] };
+  }
   if (!sql.includes('FROM runtime_defaults')) {
     return null;
   }
@@ -112,18 +142,6 @@ function runtimeDefaultQueryResult(sql: string, params?: unknown[]) {
   }
   if (key === 'agent.llm_max_retries') {
     return { rowCount: 1, rows: [{ config_value: '5' }] };
-  }
-  if (key === 'specialist_execution_default_image') {
-    return { rowCount: 1, rows: [{ config_value: 'agirunner-runtime-execution:local' }] };
-  }
-  if (key === 'specialist_execution_default_cpu') {
-    return { rowCount: 1, rows: [{ config_value: '1' }] };
-  }
-  if (key === 'specialist_execution_default_memory') {
-    return { rowCount: 1, rows: [{ config_value: '1Gi' }] };
-  }
-  if (key === 'specialist_execution_default_pull_policy') {
-    return { rowCount: 1, rows: [{ config_value: 'if-not-present' }] };
   }
   return { rowCount: 0, rows: [] };
 }
@@ -628,7 +646,7 @@ describe('TaskClaimService', () => {
     });
 
     expect(task?.execution_container).toEqual({
-      image: 'agirunner-runtime-execution:local',
+      image: 'debian:trixie-slim',
       cpu: '1',
       memory: '1Gi',
       pull_policy: 'if-not-present',
@@ -761,19 +779,23 @@ describe('TaskClaimService', () => {
             }],
           };
         }
-        if (
-          sql.includes('SELECT execution_container_config FROM role_definitions')
-          || sql.includes('SELECT execution_container_config')
-        ) {
+        if (sql.includes('SELECT execution_environment_id')) {
           return {
             rowCount: 1,
-            rows: [{
-              execution_container_config: {
-                image: 'agirunner-runtime-execution:role',
-                cpu: '3',
-                pull_policy: 'never',
-              },
-            }],
+            rows: [{ execution_environment_id: 'env-role' }],
+          };
+        }
+        if (sql.includes('FROM execution_environments ee')) {
+          return {
+            rowCount: 1,
+            rows: [buildExecutionEnvironmentRow({
+              id: 'env-role',
+              name: 'Role Environment',
+              image: 'debian:role',
+              cpu: '3',
+              memory: '1Gi',
+              pull_policy: 'never',
+            })],
           };
         }
         if (sql.includes("SET state = 'claimed'")) {
@@ -831,11 +853,17 @@ describe('TaskClaimService', () => {
     });
 
     expect(task?.execution_container).toEqual({
-      image: 'agirunner-runtime-execution:role',
+      image: 'debian:role',
       cpu: '3',
       memory: '1Gi',
       pull_policy: 'never',
     });
+    expect(task?.execution_environment).toEqual(
+      expect.objectContaining({
+        id: 'env-role',
+        name: 'Role Environment',
+      }),
+    );
   });
 
   it('does not attach execution-container contracts to runtime_only orchestrator tasks', async () => {
@@ -944,7 +972,7 @@ describe('TaskClaimService', () => {
     expect(executionContainerLeaseService.reserveForTask).not.toHaveBeenCalled();
   });
 
-  it('ignores role execution-container overrides for runtime_only orchestrator tasks', async () => {
+  it('ignores role execution environments for runtime_only orchestrator tasks', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -979,21 +1007,6 @@ describe('TaskClaimService', () => {
               is_orchestrator_task: true,
               max_iterations: null,
               llm_max_retries: null,
-            }],
-          };
-        }
-        if (
-          sql.includes('SELECT execution_container_config FROM role_definitions')
-          || sql.includes('SELECT execution_container_config')
-        ) {
-          return {
-            rowCount: 1,
-            rows: [{
-              execution_container_config: {
-                image: 'agirunner-runtime-execution:orchestrator',
-                cpu: '2',
-                memory: '2Gi',
-              },
             }],
           };
         }

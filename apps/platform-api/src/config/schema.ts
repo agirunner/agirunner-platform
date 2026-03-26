@@ -77,6 +77,8 @@ export const envSchema = z
     AGIRUNNER_SSO_GITHUB_REDIRECT_URI: optionalUrl,
     RUNTIME_URL: optionalUrl,
     RUNTIME_API_KEY: z.string().optional(),
+    CONTAINER_MANAGER_CONTROL_URL: z.string().url().default('http://container-manager:9090'),
+    CONTAINER_MANAGER_CONTROL_TOKEN: z.string().optional(),
     EXECUTE_ROUTE_MODE: z
       .enum(['disabled', 'test-simulated', 'test-execution-backed'])
       .default('disabled'),
