@@ -17,6 +17,11 @@ import {
 import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { Button } from '../../components/ui/button.js';
+import {
+  DEFAULT_LIST_PAGE_SIZE,
+  ListPagination,
+  paginateListItems,
+} from '../../components/list-pagination.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Input } from '../../components/ui/input.js';
@@ -1140,6 +1145,8 @@ function RoleAssignmentsSection({
   const [defaultReasoning, setDefaultReasoning] = useState<Record<string, unknown> | null>(
     systemDefault.reasoningConfig,
   );
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_LIST_PAGE_SIZE);
 
   const [roleStates, setRoleStates] = useState<Record<string, RoleState>>(() => {
     const initial: Record<string, RoleState> = {};
@@ -1177,6 +1184,7 @@ function RoleAssignmentsSection({
       [role]: { ...prev[role], ...patch },
     }));
   };
+  const pagination = paginateListItems(roleRows, page, pageSize);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -1402,7 +1410,7 @@ function RoleAssignmentsSection({
               stay visible until they are cleaned up.
             </p>
             <div className="grid gap-3 md:hidden">
-              {roleRows.map((role) => {
+              {pagination.items.map((role) => {
                 const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
                 return (
                   <Card key={role.name} className={ELEVATED_SURFACE_CLASS_NAME}>
@@ -1448,7 +1456,7 @@ function RoleAssignmentsSection({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {roleRows.map((role) => {
+                  {pagination.items.map((role) => {
                     const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
                     const description = truncateRoleDescription(summarizeRoleDescription(role));
                     return (
@@ -1480,6 +1488,20 @@ function RoleAssignmentsSection({
                 </TableBody>
               </Table>
             </div>
+            <ListPagination
+              page={pagination.page}
+              pageSize={pageSize}
+              totalItems={pagination.totalItems}
+              totalPages={pagination.totalPages}
+              start={pagination.start}
+              end={pagination.end}
+              itemLabel="overrides"
+              onPageChange={setPage}
+              onPageSizeChange={(value) => {
+                setPageSize(value);
+                setPage(1);
+              }}
+            />
           </div>
         ) : null}
       </div>

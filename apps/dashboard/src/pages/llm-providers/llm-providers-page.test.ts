@@ -93,6 +93,12 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('Model Assignments');
     expect(source).toContain('Specialists may inherit this model when they do not need an explicit override.');
     expect(source).toContain('RoleAssignmentsSection');
+    expect(source).toContain('DEFAULT_LIST_PAGE_SIZE');
+    expect(source).toContain('paginateListItems');
+    expect(source).toContain('ListPagination');
+    expect(source).toContain('const [page, setPage] = useState(1);');
+    expect(source).toContain('const [pageSize, setPageSize] = useState<number>(DEFAULT_LIST_PAGE_SIZE);');
+    expect(source).toContain('const pagination = paginateListItems(roleRows, page, pageSize);');
     expect(source).toContain('listRoleDefinitions');
     expect(source).toContain('buildAssignmentRoleRows');
     expect(source).toContain('validateAssignmentSetup');
@@ -130,6 +136,11 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain("Show overrides");
     expect(source).toContain("Hide overrides");
     expect(source).toContain("() => explicitOverrideCount > 0");
+    expect(source).toContain('pagination.items.map((role) => {');
+    expect(source).toContain('itemLabel="overrides"');
+    expect(source).toContain('onPageChange={setPage}');
+    expect(source).toContain('setPageSize(value);');
+    expect(source).toContain('setPage(1);');
     expect(source).toContain('disabled={saveMutation.isPending || !assignmentValidation.isValid || !hasUnsavedChanges}');
     expect(source).not.toContain('const ROLE_NAMES');
   });
