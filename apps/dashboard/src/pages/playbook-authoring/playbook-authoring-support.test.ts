@@ -4,6 +4,7 @@ import {
   buildPlaybookDefinition,
   createDefaultAuthoringDraft,
   hydratePlaybookAuthoringDraft,
+  reconcileValidationIssues,
   summarizePlaybookAuthoringDraft,
   validateBoardColumnsDraft,
   validateParameterDrafts,
@@ -199,5 +200,19 @@ describe('playbook authoring support', () => {
         'missing',
       ).isValid,
     ).toBe(false);
+  });
+
+  it('reuses the current validation-issue array when the contents are unchanged', () => {
+    const currentIssues = ['Every stage needs a name.', 'Every stage needs a goal.'];
+    const nextIssues = ['Every stage needs a name.', 'Every stage needs a goal.'];
+
+    expect(reconcileValidationIssues(currentIssues, nextIssues)).toBe(currentIssues);
+  });
+
+  it('replaces the validation-issue array when the contents change', () => {
+    const currentIssues = ['Every stage needs a name.'];
+    const nextIssues = ['Every stage needs a goal.'];
+
+    expect(reconcileValidationIssues(currentIssues, nextIssues)).toBe(nextIssues);
   });
 });

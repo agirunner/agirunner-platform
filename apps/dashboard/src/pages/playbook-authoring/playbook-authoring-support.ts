@@ -329,6 +329,23 @@ export function validateRoleDrafts(
   };
 }
 
+export function reconcileValidationIssues(
+  currentIssues: string[],
+  nextIssues: string[],
+): string[] {
+  if (currentIssues.length !== nextIssues.length) {
+    return nextIssues;
+  }
+
+  for (let index = 0; index < currentIssues.length; index += 1) {
+    if (currentIssues[index] !== nextIssues[index]) {
+      return nextIssues;
+    }
+  }
+
+  return currentIssues;
+}
+
 export function summarizePlaybookAuthoringDraft(
   draft: PlaybookAuthoringDraft,
 ): PlaybookAuthoringSummary {

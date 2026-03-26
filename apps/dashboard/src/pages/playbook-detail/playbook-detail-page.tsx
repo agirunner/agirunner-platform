@@ -29,6 +29,7 @@ import { cn } from '../../lib/utils.js';
 import {
   buildPlaybookDefinition,
   hydratePlaybookAuthoringDraft,
+  reconcileValidationIssues,
   type PlaybookAuthoringDraft,
 } from '../playbook-authoring/playbook-authoring-support.js';
 import { PlaybookAuthoringForm } from '../playbook-authoring/playbook-authoring-form.js';
@@ -343,7 +344,11 @@ export function PlaybookDetailPage(): JSX.Element {
           setDefinitionError(null);
           setMessage(null);
         }}
-        onValidationChange={setAuthoringValidationIssues}
+        onValidationChange={(nextIssues) =>
+          setAuthoringValidationIssues((currentIssues) =>
+            reconcileValidationIssues(currentIssues, nextIssues),
+          )
+        }
       />
 
       {authoringValidationIssues.length > 0 ? (

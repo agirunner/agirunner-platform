@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import {
   buildPlaybookDefinition,
   createDefaultAuthoringDraft,
+  reconcileValidationIssues,
   summarizePlaybookAuthoringDraft,
   type PlaybookAuthoringDraft,
 } from '../playbook-authoring/playbook-authoring-support.js';
@@ -277,7 +278,11 @@ export function PlaybookListPage(): JSX.Element {
                 draft={draft}
                 onChange={setDraft}
                 onClearError={() => setDefinitionError(null)}
-                onValidationChange={setAuthoringValidationIssues}
+                onValidationChange={(nextIssues) =>
+                  setAuthoringValidationIssues((currentIssues) =>
+                    reconcileValidationIssues(currentIssues, nextIssues),
+                  )
+                }
               />
 
               {definitionError ? <p className="text-sm text-red-600 dark:text-red-400">{definitionError}</p> : null}

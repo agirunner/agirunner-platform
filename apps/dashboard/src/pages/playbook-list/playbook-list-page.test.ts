@@ -60,7 +60,7 @@ describe('playbook list page source', () => {
     expect(source).toContain('validatePlaybookCreateDraft');
     expect(source).toContain('Resolve these blockers before creating the playbook.');
     expect(source).toContain('Slug preview:');
-    expect(source).toContain('onValidationChange={setAuthoringValidationIssues}');
+    expect(source).toContain('reconcileValidationIssues(currentIssues, nextIssues)');
     expect(source).toContain('Start with the outcome, process instructions, team roles, and required workflow');
     expect(source).not.toContain('col-span-2 w-full');
     expect(source).not.toContain('Description</span>');
@@ -84,7 +84,7 @@ describe('playbook list page source', () => {
     expect(source).not.toContain("from '../../lib/dashboard-badge-palette.js'");
     expect(source).not.toContain('lifecycleBadgeClassName');
     expect(source).toContain('<TableHead>Lifecycle</TableHead>');
-    expect(source).toContain('<TableCell className="text-sm text-muted">');
+    expect(source).toContain('className="font-medium underline-offset-4 hover:underline"');
     expect(source).toContain('{describePlaybookLifecycle(family.lifecycle)}');
     expect(source).not.toContain('<Button asChild size="sm" variant="outline"');
     expect(source).not.toContain('Users className="h-3.5 w-3.5"');
