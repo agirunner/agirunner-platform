@@ -287,52 +287,49 @@ export function PlaybookDetailPage(): JSX.Element {
               setIsDirty(true);
             }}
           />
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr),minmax(0,1fr),minmax(0,0.9fr)]">
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Name</span>
-              <Input value={name} onChange={(event) => { setName(event.target.value); setIsDirty(true); }} />
-            </label>
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Slug</span>
-              <Input value={slug} onChange={(event) => { setSlug(event.target.value); setIsDirty(true); }} />
-            </label>
-            <label className="grid gap-2 text-sm md:col-span-2">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr),minmax(0,1.35fr)] xl:items-stretch">
+            <div className="grid gap-4">
+              <label className="grid gap-2 text-sm">
+                <span className="font-medium">Name</span>
+                <Input value={name} onChange={(event) => { setName(event.target.value); setIsDirty(true); }} />
+              </label>
+              <label className="grid gap-2 text-sm">
+                <span className="font-medium">Slug</span>
+                <Input value={slug} onChange={(event) => { setSlug(event.target.value); setIsDirty(true); }} />
+              </label>
+              <div className="grid gap-2 text-sm">
+                <span className="font-medium">Lifecycle</span>
+                <Select
+                  value={lifecycle}
+                  onValueChange={(value) => {
+                    setLifecycle(value as 'planned' | 'ongoing');
+                    setIsDirty(true);
+                  }}
+                >
+                  <SelectTrigger aria-label="Playbook lifecycle">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {lifecycleOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted">
+                  {lifecycleOptions.find((option) => option.value === lifecycle)?.description}
+                </p>
+              </div>
+            </div>
+            <label className="grid gap-2 text-sm xl:h-full">
               <span className="font-medium">Outcome</span>
               <Textarea
                 value={outcome}
                 onChange={(event) => { setOutcome(event.target.value); setIsDirty(true); }}
-                className="min-h-[88px]"
+                className="min-h-[220px] xl:h-full xl:min-h-0"
               />
             </label>
-            <div className="grid gap-2 text-sm xl:row-span-2">
-              <span className="font-medium">Lifecycle</span>
-              <Select
-                value={lifecycle}
-                onValueChange={(value) => {
-                  setLifecycle(value as 'planned' | 'ongoing');
-                  setIsDirty(true);
-                }}
-              >
-                <SelectTrigger aria-label="Playbook lifecycle">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {lifecycleOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted">
-                {lifecycleOptions.find((option) => option.value === lifecycle)?.description}
-              </p>
-            </div>
-            <div className="rounded-xl border border-border/70 bg-muted/15 p-4 text-sm text-muted md:col-span-2 xl:col-span-2">
-              Shared prompts, role prompts, and specialist defaults are configured elsewhere. This
-              page owns the playbook outcome, process instructions, mandatory workflow rules, and
-              any advanced overrides for this family.
-            </div>
           </div>
         </CardContent>
       </Card>
