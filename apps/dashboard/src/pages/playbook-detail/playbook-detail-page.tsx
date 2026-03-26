@@ -338,12 +338,12 @@ export function PlaybookDetailPage(): JSX.Element {
                 </p>
               </div>
             </div>
-            <div className="grid gap-2 text-sm">
+            <div className="grid gap-2 text-sm lg:grid-rows-[auto_minmax(0,1fr)]">
               <span className="font-medium">Outcome</span>
               <Textarea
                 value={outcome}
                 onChange={(event) => { setOutcome(event.target.value); setIsDirty(true); }}
-                className="min-h-[220px] lg:h-full lg:min-h-0"
+                className="min-h-[220px] h-full lg:min-h-0"
               />
             </div>
           </div>

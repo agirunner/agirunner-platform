@@ -202,8 +202,17 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
                   <ValidationText issue={stageValidation.stageErrors[index]?.goal} />
                 </label>
               </div>
-              <div className="grid gap-3 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start">
-                <div className="flex items-center gap-2 lg:pt-1">
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+                <label className="grid gap-2 text-sm">
+                  <span className="font-medium">Stage guidance</span>
+                  <Textarea
+                    value={stage.guidance}
+                    onChange={(event) => updateStage(props, index, 'guidance', event.target.value)}
+                    className="min-h-[110px] lg:h-full"
+                    placeholder="Optional stage-specific guidance for the orchestrator."
+                  />
+                </label>
+                <div className="flex items-center gap-2 lg:pt-7">
                   <IconButton
                     icon={<ChevronUp className="h-4 w-4" />}
                     onClick={moveHandler(props, 'stages', index, 'earlier')}
@@ -222,15 +231,6 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
                     }
                   />
                 </div>
-                <label className="grid gap-2 text-sm">
-                  <span className="font-medium">Stage guidance</span>
-                  <Textarea
-                    value={stage.guidance}
-                    onChange={(event) => updateStage(props, index, 'guidance', event.target.value)}
-                    className="min-h-[110px] lg:h-full"
-                    placeholder="Optional stage-specific guidance for the orchestrator."
-                  />
-                </label>
               </div>
             </div>
           </div>

@@ -30,9 +30,10 @@ describe('playbook detail page source', () => {
     expect(source).toContain('Set the core playbook identity, outcome, and lifecycle for this revision.');
     expect(source).toContain('max-w-full overflow-x-auto whitespace-nowrap text-sm text-muted');
     expect(source).toContain('lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.35fr)]');
+    expect(source).toContain('lg:grid-rows-[auto_minmax(0,1fr)]');
     expect(source).not.toContain('lg:grid-cols-[minmax(0,0.95fr),minmax(0,1.35fr)]');
     expect(source).not.toContain('lg:grid-cols-[6rem_minmax(0,1fr)]');
-    expect(source).toContain('className="min-h-[220px] lg:h-full lg:min-h-0"');
+    expect(source).toContain('className="min-h-[220px] h-full lg:min-h-0"');
     expect(source).toContain('Created');
     expect(source).toContain('Updated');
     expect(source).toContain('Compare every saved playbook setting against an earlier revision.');
