@@ -235,6 +235,16 @@ describe('role definitions support helpers', () => {
       'This specialist is still used by playbook "SDLC All Assessors Request Changes Pipeline". Update that playbook before deleting the specialist.',
     );
 
+    expect(
+      formatRoleDeleteError(
+        new Error(
+          'HTTP 409: Cannot delete role "all-request-architecture-lead" — referenced by workflow playbook versions: SDLC All Assessors Request Changes Pipeline.',
+        ),
+      ),
+    ).toBe(
+      'This specialist is still referenced by workflow-linked playbook versions "SDLC All Assessors Request Changes Pipeline". Delete those workflows before deleting the specialist.',
+    );
+
     expect(formatRoleDeleteError(new Error('HTTP 500: Internal server error'))).toBe(
       'Internal server error',
     );

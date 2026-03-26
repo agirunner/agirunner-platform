@@ -3,7 +3,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { ChevronDown, Save, Trash2 } from 'lucide-react';
 
-import { dashboardApi } from '../../lib/api.js';
+import {
+  dashboardApi,
+  type DashboardDeleteImpactSummary,
+  type DashboardPlaybookDeleteImpact,
+} from '../../lib/api.js';
 import { useUnsavedChanges } from '../../lib/use-unsaved-changes.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -76,6 +80,7 @@ export function PlaybookDetailPage(): JSX.Element {
   const [loadedPlaybookId, setLoadedPlaybookId] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [permanentDeleteOpen, setPermanentDeleteOpen] = useState(false);
   const [dangerOpen, setDangerOpen] = useState(false);
 
   const playbookQuery = useQuery({
@@ -86,6 +91,11 @@ export function PlaybookDetailPage(): JSX.Element {
   const playbooksQuery = useQuery({
     queryKey: ['playbooks'],
     queryFn: () => dashboardApi.listPlaybooks(),
+  });
+  const playbookDeleteImpactQuery = useQuery({
+    queryKey: ['playbook-delete-impact', playbookId],
+    queryFn: () => dashboardApi.getPlaybookDeleteImpact(playbookId),
+    enabled: playbookId.length > 0 && (deleteOpen || permanentDeleteOpen),
   });
   const [comparedRevisionId, setComparedRevisionId] = useState('');
 
@@ -189,9 +199,12 @@ export function PlaybookDetailPage(): JSX.Element {
       await queryClient.invalidateQueries({ queryKey: ['playbooks'] });
       await navigate('/design/playbooks');
     },
-    onError: (error) => {
-      setMessage(null);
-      setDefinitionError(error instanceof Error ? error.message : 'Failed to delete playbook.');
+  });
+  const permanentDeleteMutation = useMutation({
+    mutationFn: () => dashboardApi.deletePlaybookPermanently(playbookId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['playbooks'] });
+      await navigate('/design/playbooks');
     },
   });
 
@@ -209,6 +222,10 @@ export function PlaybookDetailPage(): JSX.Element {
   }
 
   const playbook = playbookQuery.data;
+  const deleteImpact = playbookDeleteImpactQuery.data ?? null;
+  const revisionDeleteBlocked = isPlaybookRevisionDeleteBlocked(deleteImpact);
+  const revisionImpact = deleteImpact?.revision ?? null;
+  const familyImpact = deleteImpact?.family ?? null;
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
@@ -393,12 +410,12 @@ export function PlaybookDetailPage(): JSX.Element {
           <div className="space-y-1.5">
             <div className="text-base font-semibold text-foreground">Danger</div>
             <p className="text-sm leading-6 text-muted">
-              Delete this playbook revision only when it should be removed permanently from the
-              library.
+              Delete this revision without affecting sibling revisions, or permanently remove the
+              entire playbook family.
             </p>
             <p className="max-w-3xl text-sm leading-5 text-muted">
-              Playbook deletion is destructive. Leave this closed unless you intentionally need to
-              remove the revision.
+              Permanent delete removes every revision in this playbook family and deletes linked
+              workflows, tasks, and work items after stopping active work.
             </p>
           </div>
           <div className="flex items-center gap-2 pt-0.5">
@@ -415,19 +432,47 @@ export function PlaybookDetailPage(): JSX.Element {
         </button>
         {dangerOpen ? (
           <CardContent className="border-t border-border/70 p-4 pt-4">
-            <div className="space-y-3">
-              <p className="text-sm leading-6 text-muted">
-                Delete this playbook revision only when it should be removed permanently from the
-                library.
-              </p>
-              <Button
-                variant="destructive"
-                onClick={() => setDeleteOpen(true)}
-                disabled={deleteMutation.isPending}
-              >
-                <Trash2 className="h-4 w-4" />
-                Delete Revision
-              </Button>
+            <div className="grid gap-4 lg:grid-cols-2">
+              <div className="space-y-3 rounded-xl border border-border/70 bg-muted/15 p-4">
+                <div className="space-y-1">
+                  <div className="font-medium text-foreground">Delete revision</div>
+                  <p className="text-sm leading-6 text-muted">
+                    Delete this revision only. If workflows still reference it, revision deletion
+                    stays blocked.
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    deleteMutation.reset();
+                    setDeleteOpen(true);
+                  }}
+                  disabled={deleteMutation.isPending}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Revision
+                </Button>
+              </div>
+              <div className="space-y-3 rounded-xl border border-red-300 bg-red-50/60 p-4 dark:border-red-900/60 dark:bg-red-950/20">
+                <div className="space-y-1">
+                  <div className="font-medium text-foreground">Delete playbook permanently</div>
+                  <p className="text-sm leading-6 text-muted">
+                    Delete permanently removes every revision in this playbook family and all linked
+                    work.
+                  </p>
+                </div>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    permanentDeleteMutation.reset();
+                    setPermanentDeleteOpen(true);
+                  }}
+                  disabled={permanentDeleteMutation.isPending}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete Playbook Permanently
+                </Button>
+              </div>
             </div>
           </CardContent>
         ) : null}
@@ -438,16 +483,35 @@ export function PlaybookDetailPage(): JSX.Element {
           <DialogHeader>
             <DialogTitle>Delete Playbook Revision</DialogTitle>
             <DialogDescription>
-              Delete permanently removes this revision from the playbook library.
+              Delete this revision only. If workflows still reference it, revision deletion stays
+              blocked.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 text-sm text-muted">
             <p>
               Deleting <span className="font-medium text-foreground">{playbook.name}</span>{' '}
               version <span className="font-mono">v{playbook.version}</span> does not remove
-              sibling revisions, but any workflows that already reference this revision will block
-              deletion.
+              sibling revisions.
             </p>
+            <div className="rounded-xl border border-border/70 bg-muted/15 p-4">
+              <div className="text-sm font-medium text-foreground">Delete impact</div>
+              <PlaybookDeleteImpactDetails
+                impact={revisionImpact}
+                revisions={null}
+                isLoading={playbookDeleteImpactQuery.isLoading}
+                error={playbookDeleteImpactQuery.error}
+              />
+            </div>
+            <p>
+              {revisionDeleteBlocked && revisionImpact
+                ? `This revision is still referenced by ${revisionImpact.workflows} workflow${revisionImpact.workflows === 1 ? '' : 's'} and cannot be deleted yet.`
+                : 'No workflows currently reference this revision.'}
+            </p>
+            {deleteMutation.error ? (
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {formatPlaybookDeleteError(deleteMutation.error)}
+              </p>
+            ) : null}
             <div className="flex flex-wrap justify-end gap-2">
               <Button variant="outline" onClick={() => setDeleteOpen(false)}>
                 Keep revision
@@ -455,7 +519,12 @@ export function PlaybookDetailPage(): JSX.Element {
               <Button
                 variant="destructive"
                 onClick={() => deleteMutation.mutate()}
-                disabled={deleteMutation.isPending}
+                disabled={
+                  deleteMutation.isPending
+                  || playbookDeleteImpactQuery.isLoading
+                  || Boolean(playbookDeleteImpactQuery.error)
+                  || revisionDeleteBlocked
+                }
               >
                 Delete Revision
               </Button>
@@ -463,8 +532,112 @@ export function PlaybookDetailPage(): JSX.Element {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={permanentDeleteOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPermanentDeleteOpen(false);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[70vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Delete Playbook Permanently</DialogTitle>
+            <DialogDescription>
+              Delete permanently removes every revision in this playbook family.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 text-sm text-muted">
+            <p>
+              Deleting <span className="font-medium text-foreground">{playbook.name}</span>{' '}
+              permanently removes every saved revision, stops active workflows, and deletes linked
+              workflows, tasks, and work items.
+            </p>
+            <div className="rounded-xl border border-border/70 bg-muted/15 p-4">
+              <div className="text-sm font-medium text-foreground">Delete impact</div>
+              <PlaybookDeleteImpactDetails
+                impact={familyImpact}
+                revisions={familyImpact?.revisions ?? null}
+                isLoading={playbookDeleteImpactQuery.isLoading}
+                error={playbookDeleteImpactQuery.error}
+              />
+            </div>
+            {permanentDeleteMutation.error ? (
+              <p className="text-sm text-red-600 dark:text-red-400">
+                {formatPlaybookDeleteError(permanentDeleteMutation.error)}
+              </p>
+            ) : null}
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button variant="outline" onClick={() => setPermanentDeleteOpen(false)}>
+                Keep playbook
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => permanentDeleteMutation.mutate()}
+                disabled={permanentDeleteMutation.isPending || playbookDeleteImpactQuery.isLoading || Boolean(playbookDeleteImpactQuery.error)}
+              >
+                Delete Playbook Permanently
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
+}
+
+function PlaybookDeleteImpactDetails(props: {
+  impact: DashboardDeleteImpactSummary | (DashboardDeleteImpactSummary & { revisions?: number }) | null;
+  revisions: number | null;
+  isLoading: boolean;
+  error: unknown;
+}): JSX.Element {
+  if (props.isLoading) {
+    return <p className="mt-2 text-sm text-muted">Loading delete impact…</p>;
+  }
+  if (props.error) {
+    return (
+      <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+        Failed to load delete impact: {formatPlaybookDeleteError(props.error)}
+      </p>
+    );
+  }
+  if (!props.impact) {
+    return null;
+  }
+
+  const items = [
+    props.revisions !== null ? ['Revisions', props.revisions] : null,
+    ['Workflows', props.impact.workflows],
+    ['Active workflows', props.impact.active_workflows],
+    ['Tasks', props.impact.tasks],
+    ['Active tasks', props.impact.active_tasks],
+    ['Work items', props.impact.work_items],
+  ].filter(Boolean) as Array<[string, number]>;
+
+  return (
+    <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+      {items.map(([label, value]) => (
+        <div key={label} className="rounded-lg border border-border/70 bg-background/80 px-3 py-2">
+          <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">{label}</dt>
+          <dd className="mt-1 text-sm font-medium text-foreground">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function isPlaybookRevisionDeleteBlocked(
+  impact: DashboardPlaybookDeleteImpact | null,
+): boolean {
+  return (impact?.revision.workflows ?? 0) > 0;
+}
+
+function formatPlaybookDeleteError(error: unknown): string {
+  const message = (error instanceof Error ? error.message : String(error ?? '')).trim();
+  const normalized = message.replace(/^HTTP\s+\d+:\s*/i, '').trim();
+  return normalized || 'Failed to delete playbook.';
 }
 
 function formatDate(value: string | null | undefined): string {

@@ -26,7 +26,7 @@ describe('playbook detail page source', () => {
     expect(source).toContain('Delete Revision');
     expect(source).toContain('playbook-danger-zone');
     expect(source).toContain('Danger');
-    expect(source).toContain('Delete this playbook revision only when it should be removed permanently');
+    expect(source).not.toContain('Delete this playbook revision only when it should be removed permanently');
     expect(source).toContain('max-h-[70vh] max-w-lg overflow-y-auto');
     expect(source).toContain('Playbook lifecycle');
     expect(source).toContain('Playbook Basics');

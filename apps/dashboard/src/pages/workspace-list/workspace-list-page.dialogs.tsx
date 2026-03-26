@@ -1,14 +1,19 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-import { dashboardApi, type DashboardWorkspaceRecord } from '../../lib/api.js';
+import {
+  dashboardApi,
+  type DashboardDeleteImpactSummary,
+  type DashboardWorkspaceRecord,
+} from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { Button } from '../../components/ui/button.js';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -26,7 +31,7 @@ const INITIAL_FORM: WorkspaceFormData = {
 };
 
 export function formatWorkspaceDialogError(error: unknown): string {
-  const message = String(error ?? '').trim();
+  const message = error instanceof Error ? error.message : String(error ?? '').trim();
   const normalizedMessage = message.toLowerCase();
   if (
     normalizedMessage.includes('http 409')
@@ -37,6 +42,12 @@ export function formatWorkspaceDialogError(error: unknown): string {
   }
 
   return message;
+}
+
+export function formatWorkspaceDeleteError(error: unknown): string {
+  const message = (error instanceof Error ? error.message : String(error ?? '')).trim();
+  const normalized = message.replace(/^HTTP\s+\d+:\s*/i, '').trim();
+  return normalized || 'Failed to delete workspace.';
 }
 
 export function CreateWorkspaceDialog(props?: {
@@ -107,16 +118,22 @@ export function DeleteWorkspaceDialog(props: {
 }): JSX.Element {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const deleteImpactQuery = useQuery({
+    queryKey: ['workspace-delete-impact', props.workspace.id],
+    queryFn: () => dashboardApi.getWorkspaceDeleteImpact(props.workspace.id),
+  });
+  const deleteImpact = deleteImpactQuery.data ?? null;
+  const shouldCascade = hasWorkspaceDeleteImpact(deleteImpact);
   const mutation = useMutation({
-    mutationFn: () => dashboardApi.deleteWorkspace(props.workspace.id),
+    mutationFn: () => dashboardApi.deleteWorkspace(props.workspace.id, { cascade: shouldCascade }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['workspaces'] });
       props.onClose();
       navigate('/design/workspaces');
       toast.success('Workspace deleted');
     },
-    onError: () => {
-      toast.error('Failed to delete workspace');
+    onError: (error) => {
+      toast.error(formatWorkspaceDeleteError(error));
     },
   });
 
@@ -125,13 +142,36 @@ export function DeleteWorkspaceDialog(props: {
       <DialogContent className="max-h-[calc(100vh-4rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Delete Workspace</DialogTitle>
+          <DialogDescription>
+            Delete permanently removes this workspace. Linked workflows, tasks, and work items are
+            deleted at the same time.
+          </DialogDescription>
         </DialogHeader>
-        <p className="text-sm leading-6 text-muted">
-          Are you sure you want to delete &quot;{props.workspace.name}&quot;? This action cannot be
-          undone.
-        </p>
+        <div className="space-y-4">
+          <p className="text-sm leading-6 text-muted">
+            Are you sure you want to delete &quot;{props.workspace.name}&quot;? This action cannot
+            be undone.
+          </p>
+          <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
+            <div className="text-sm font-medium text-foreground">Delete impact</div>
+            {deleteImpactQuery.isLoading ? (
+              <p className="mt-2 text-sm text-muted">Loading delete impact…</p>
+            ) : deleteImpactQuery.error ? (
+              <p className="mt-2 text-sm text-red-600 dark:text-red-400">
+                Failed to load delete impact: {formatWorkspaceDeleteError(deleteImpactQuery.error)}
+              </p>
+            ) : deleteImpact ? (
+              <WorkspaceDeleteImpactSummary impact={deleteImpact} />
+            ) : null}
+          </div>
+          <p className="text-sm leading-6 text-muted">
+            {shouldCascade
+              ? 'This will stop active workflows before deleting the workspace and every linked workflow, task, and work item.'
+              : 'This workspace has no linked work and can be deleted immediately.'}
+          </p>
+        </div>
         {mutation.error ? (
-          <p className="text-sm text-red-600">{String(mutation.error)}</p>
+          <p className="text-sm text-red-600">{formatWorkspaceDeleteError(mutation.error)}</p>
         ) : null}
         <div className="mt-4 flex flex-wrap justify-end gap-2">
           <Button variant="outline" onClick={props.onClose}>
@@ -140,15 +180,51 @@ export function DeleteWorkspaceDialog(props: {
           <Button
             variant="destructive"
             onClick={() => mutation.mutate()}
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || deleteImpactQuery.isLoading || Boolean(deleteImpactQuery.error)}
             data-testid="confirm-delete"
           >
             {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Delete workspace
+            {shouldCascade ? 'Delete workspace and linked work' : 'Delete workspace'}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function WorkspaceDeleteImpactSummary(props: {
+  impact: DashboardDeleteImpactSummary;
+}): JSX.Element {
+  const items = [
+    ['Workflows', props.impact.workflows],
+    ['Active workflows', props.impact.active_workflows],
+    ['Tasks', props.impact.tasks],
+    ['Active tasks', props.impact.active_tasks],
+    ['Work items', props.impact.work_items],
+  ] as const;
+
+  return (
+    <dl className="mt-3 grid gap-2 sm:grid-cols-2">
+      {items.map(([label, value]) => (
+        <div key={label} className="rounded-lg border border-border/70 bg-background/80 px-3 py-2">
+          <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">{label}</dt>
+          <dd className="mt-1 text-sm font-medium text-foreground">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function hasWorkspaceDeleteImpact(impact: DashboardDeleteImpactSummary | null): boolean {
+  if (!impact) {
+    return false;
+  }
+  return (
+    impact.workflows > 0
+    || impact.active_workflows > 0
+    || impact.tasks > 0
+    || impact.active_tasks > 0
+    || impact.work_items > 0
   );
 }
 

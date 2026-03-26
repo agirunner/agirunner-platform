@@ -29,9 +29,9 @@ describe('playbook list page source', () => {
     expect(source).toContain('xl:sticky xl:top-6');
     expect(source).not.toContain('Definition JSON');
     expect(source).toContain('buildPlaybookDefinition(');
-    expect(source).toContain('Manage');
-    expect(source).toContain('size="sm"');
-    expect(source).toContain('className="flex flex-wrap gap-2"');
+    expect(source).toContain('aria-label={`Open ${family.name}`}');
+    expect(source).toContain('aria-label={`Launch ${family.name}`}');
+    expect(source).toContain('size="icon"');
     expect(source).toContain('This playbook is inactive. Open it to reactivate the family before launching a new');
     expect(source).toContain('Back to playbook library');
     expect(source).toContain('PlaybookLibraryToolbar');
@@ -81,20 +81,21 @@ describe('playbook list page source', () => {
 
   it('uses plain lifecycle text, shows process before outcome, and drops the expanded process metric chips', () => {
     const source = readLibrarySource();
-    expect(source).not.toContain("from '../../lib/dashboard-badge-palette.js'");
-    expect(source).not.toContain('lifecycleBadgeClassName');
+    expect(source).toContain("from '../../lib/dashboard-badge-palette.js'");
+    expect(source).toContain('playbookLifecycleBadgeClassName');
     expect(source).toContain('<TableHead>Lifecycle</TableHead>');
     expect(source).toContain('className="font-medium text-foreground underline-offset-4 hover:underline"');
     expect(source).toContain('<p className="text-sm text-foreground">{family.slug}</p>');
-    expect(source).toContain('<TableCell className="text-sm text-foreground">{describePlaybookLifecycle(family.lifecycle)}</TableCell>');
-    expect((source.match(/<TableCell className="text-sm text-foreground">/g) ?? []).length).toBe(4);
+    expect(source).toContain('DASHBOARD_BADGE_TOKENS.success.className');
+    expect(source).toContain('DASHBOARD_BADGE_TOKENS.informationSecondary.className');
+    expect((source.match(/<TableCell className="text-sm text-foreground">/g) ?? []).length).toBe(3);
     expect(source).toContain('{describePlaybookLifecycle(family.lifecycle)}');
     expect(source).not.toContain('<Button asChild size="sm" variant="outline"');
     expect(source).not.toContain('Users className="h-3.5 w-3.5"');
     expect(source).not.toContain('CheckCheck className="h-3.5 w-3.5"');
     expect(source).not.toContain('inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1');
     expect(source).not.toContain('<p className="text-sm text-muted">{family.slug}</p>');
-    expect(source).not.toContain('<TableCell className="text-sm text-muted">{describePlaybookLifecycle(family.lifecycle)}</TableCell>');
+    expect(source).not.toContain('<TableCell className="text-sm text-foreground">{describePlaybookLifecycle(family.lifecycle)}</TableCell>');
 
     const processIndex = source.indexOf('<div className="font-medium">Process</div>');
     const outcomeIndex = source.indexOf('<div className="font-medium">Outcome</div>');
@@ -102,5 +103,6 @@ describe('playbook list page source', () => {
     expect(processIndex).toBeGreaterThan(-1);
     expect(outcomeIndex).toBeGreaterThan(-1);
     expect(processIndex).toBeLessThan(outcomeIndex);
+    expect(source).not.toContain('Manage');
   });
 });

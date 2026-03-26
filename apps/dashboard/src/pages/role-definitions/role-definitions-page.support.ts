@@ -286,6 +286,12 @@ export function formatRoleDeleteError(error: unknown): string | null {
   if (playbookMatch) {
     return `This specialist is still used by playbook "${playbookMatch[1]}". Update that playbook before deleting the specialist.`;
   }
+  const workflowPlaybookMatch = message.match(
+    /referenced by workflow playbook versions?:\s*(.+?)(?:[.]?$)/i,
+  );
+  if (workflowPlaybookMatch) {
+    return `This specialist is still referenced by workflow-linked playbook versions "${workflowPlaybookMatch[1]}". Delete those workflows before deleting the specialist.`;
+  }
 
   const normalized = message.replace(/^HTTP\s+\d+:\s*/i, '').trim();
   return normalized || 'Failed to delete specialist.';

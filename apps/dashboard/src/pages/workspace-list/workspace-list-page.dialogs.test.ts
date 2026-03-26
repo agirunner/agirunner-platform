@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { formatWorkspaceDialogError } from './workspace-list-page.dialogs.js';
+import {
+  formatWorkspaceDeleteError,
+  formatWorkspaceDialogError,
+} from './workspace-list-page.dialogs.js';
 
 describe('workspace list page dialog errors', () => {
   it('turns generic conflict failures into a clear duplicate slug message', () => {
@@ -16,6 +19,14 @@ describe('workspace list page dialog errors', () => {
   });
 
   it('falls back to the original message for non-conflict failures', () => {
-    expect(formatWorkspaceDialogError(new Error('network unavailable'))).toBe('Error: network unavailable');
+    expect(formatWorkspaceDialogError(new Error('network unavailable'))).toBe('network unavailable');
+  });
+
+  it('keeps destructive delete failures readable for inline dialog display', () => {
+    expect(
+      formatWorkspaceDeleteError(
+        new Error('HTTP 409: Workspace still has linked workflows and tasks.'),
+      ),
+    ).toBe('Workspace still has linked workflows and tasks.');
   });
 });

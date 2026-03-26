@@ -64,6 +64,19 @@ export interface DashboardPlaybookRecord {
   updated_at?: string;
 }
 
+export interface DashboardDeleteImpactSummary {
+  workflows: number;
+  active_workflows: number;
+  tasks: number;
+  active_tasks: number;
+  work_items: number;
+}
+
+export interface DashboardPlaybookDeleteImpact {
+  revision: DashboardDeleteImpactSummary;
+  family: DashboardDeleteImpactSummary & { revisions: number };
+}
+
 export interface DashboardEventRecord {
   id: string;
   type: string;
@@ -1778,6 +1791,8 @@ export interface DashboardApi {
   archivePlaybook(playbookId: string): Promise<DashboardPlaybookRecord>;
   restorePlaybook(playbookId: string): Promise<DashboardPlaybookRecord>;
   deletePlaybook(playbookId: string): Promise<void>;
+  getPlaybookDeleteImpact(playbookId: string): Promise<DashboardPlaybookDeleteImpact>;
+  deletePlaybookPermanently(playbookId: string): Promise<void>;
   listToolTags(): Promise<DashboardToolTagRecord[]>;
   createToolTag(payload: DashboardToolTagCreateInput): Promise<DashboardToolTagRecord>;
   updateToolTag(
@@ -2124,7 +2139,8 @@ export interface DashboardApi {
   getLogActorKindValues(filters?: Record<string, string>): Promise<{ data: LogActorKindValueRecord[] }>;
   getLogWorkflowValues(filters?: Record<string, string>): Promise<{ data: LogWorkflowValueRecord[] }>;
   exportLogs(filters: Record<string, string>): Promise<Blob>;
-  deleteWorkspace(workspaceId: string): Promise<void>;
+  getWorkspaceDeleteImpact(workspaceId: string): Promise<DashboardDeleteImpactSummary>;
+  deleteWorkspace(workspaceId: string, options?: { cascade?: boolean }): Promise<void>;
   askConfigAssistant(question: string): Promise<DashboardConfigAssistantResponse>;
 }
 
@@ -2737,6 +2753,16 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() => client.restorePlaybook(playbookId) as Promise<DashboardPlaybookRecord>),
     deletePlaybook: (playbookId) =>
       withRefresh(() => client.deletePlaybook(playbookId).then(() => undefined)),
+    getPlaybookDeleteImpact: (playbookId) =>
+      withRefresh(() =>
+        requestData<DashboardPlaybookDeleteImpact>(`/api/v1/playbooks/${playbookId}/delete-impact`, {
+          method: 'GET',
+        }),
+      ),
+    deletePlaybookPermanently: (playbookId) =>
+      withRefresh(async () => {
+        await requestJson(`/api/v1/playbooks/${playbookId}/permanent`, { method: 'DELETE' });
+      }),
     listLlmProviders: () =>
       withRefresh(() =>
         requestData<DashboardLlmProviderRecord[]>('/api/v1/config/llm/providers', {
@@ -3530,9 +3556,23 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         if (!res.ok) throw new Error(`Export failed: ${res.status}`);
         return res.blob();
       }),
-    deleteWorkspace: (workspaceId) =>
+    getWorkspaceDeleteImpact: (workspaceId) =>
       withRefresh(async () => {
-        await requestJson(`/api/v1/workspaces/${workspaceId}`, { method: 'DELETE' });
+        return requestData<DashboardDeleteImpactSummary>(
+          `/api/v1/workspaces/${workspaceId}/delete-impact`,
+          {
+            method: 'GET',
+          },
+        );
+      }),
+    deleteWorkspace: (workspaceId, options) =>
+      withRefresh(async () => {
+        await requestJson(
+          `/api/v1/workspaces/${workspaceId}${buildQueryString(
+            options?.cascade ? { cascade: 'true' } : undefined,
+          )}`,
+          { method: 'DELETE' },
+        );
       }),
     askConfigAssistant: (question) =>
       withRefresh(async () => {

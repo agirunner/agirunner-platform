@@ -2618,6 +2618,168 @@ describe('dashboard global search', () => {
     );
   });
 
+  it('loads workspace delete impact through the shared api client', async () => {
+    writeSession({ accessToken: 'delete-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            workflows: 3,
+            active_workflows: 1,
+            tasks: 8,
+            active_tasks: 2,
+            work_items: 4,
+          },
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
+
+    const api = createDashboardApi({
+      client: {} as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await expect(api.getWorkspaceDeleteImpact('workspace-42')).resolves.toEqual({
+      workflows: 3,
+      active_workflows: 1,
+      tasks: 8,
+      active_tasks: 2,
+      work_items: 4,
+    });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/workspaces/workspace-42/delete-impact',
+      expect.objectContaining({
+        method: 'GET',
+        credentials: 'include',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer delete-token',
+        }),
+      }),
+    );
+  });
+
+  it('deletes a workspace with cascade enabled through the shared api client', async () => {
+    writeSession({ accessToken: 'delete-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { deleted: true } }), { status: 200 }),
+    ) as unknown as typeof fetch;
+
+    const api = createDashboardApi({
+      client: {} as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await api.deleteWorkspace('workspace-42', { cascade: true });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/workspaces/workspace-42?cascade=true',
+      expect.objectContaining({
+        method: 'DELETE',
+        credentials: 'include',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer delete-token',
+        }),
+      }),
+    );
+  });
+
+  it('loads playbook delete impact through the shared api client', async () => {
+    writeSession({ accessToken: 'delete-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            revision: {
+              workflows: 1,
+              active_workflows: 0,
+              tasks: 2,
+              active_tasks: 0,
+              work_items: 1,
+            },
+            family: {
+              revisions: 4,
+              workflows: 7,
+              active_workflows: 2,
+              tasks: 18,
+              active_tasks: 4,
+              work_items: 9,
+            },
+          },
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
+
+    const api = createDashboardApi({
+      client: {} as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await expect(api.getPlaybookDeleteImpact('playbook-42')).resolves.toEqual({
+      revision: {
+        workflows: 1,
+        active_workflows: 0,
+        tasks: 2,
+        active_tasks: 0,
+        work_items: 1,
+      },
+      family: {
+        revisions: 4,
+        workflows: 7,
+        active_workflows: 2,
+        tasks: 18,
+        active_tasks: 4,
+        work_items: 9,
+      },
+    });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/playbooks/playbook-42/delete-impact',
+      expect.objectContaining({
+        method: 'GET',
+        credentials: 'include',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer delete-token',
+        }),
+      }),
+    );
+  });
+
+  it('deletes a playbook family permanently through the shared api client', async () => {
+    writeSession({ accessToken: 'delete-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { deleted: true } }), { status: 200 }),
+    ) as unknown as typeof fetch;
+
+    const api = createDashboardApi({
+      client: {} as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await api.deletePlaybookPermanently('playbook-42');
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/playbooks/playbook-42/permanent',
+      expect.objectContaining({
+        method: 'DELETE',
+        credentials: 'include',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer delete-token',
+        }),
+      }),
+    );
+  });
+
   it('asks the config assistant through the shared api client', async () => {
     writeSession({ accessToken: 'assistant-token', tenantId: 'tenant-1' });
 

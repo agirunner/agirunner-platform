@@ -11,6 +11,7 @@ import {
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
+import { DASHBOARD_BADGE_TOKENS } from '../../lib/dashboard-badge-palette.js';
 import {
   Select,
   SelectContent,
@@ -35,6 +36,12 @@ import {
 
 function describePlaybookLifecycle(lifecycle: 'planned' | 'ongoing'): string {
   return lifecycle === 'planned' ? 'Planned' : 'Ongoing';
+}
+
+function playbookLifecycleBadgeClassName(lifecycle: 'planned' | 'ongoing'): string {
+  return lifecycle === 'ongoing'
+    ? DASHBOARD_BADGE_TOKENS.success.className
+    : DASHBOARD_BADGE_TOKENS.informationSecondary.className;
 }
 
 export function PlaybookLibraryToolbar(props: {
@@ -187,7 +194,11 @@ function PlaybookFamilyRow(props: {
             </div>
           </div>
         </TableCell>
-        <TableCell className="text-sm text-foreground">{describePlaybookLifecycle(family.lifecycle)}</TableCell>
+        <TableCell>
+          <Badge variant="outline" className={playbookLifecycleBadgeClassName(family.lifecycle)}>
+            {describePlaybookLifecycle(family.lifecycle)}
+          </Badge>
+        </TableCell>
         <TableCell className="text-sm text-foreground">
           {family.process.roleCount} roles · {family.process.inputCount} inputs
         </TableCell>
@@ -199,22 +210,40 @@ function PlaybookFamilyRow(props: {
         </TableCell>
         <TableCell className="text-right">
           <div className="flex justify-end gap-2">
-            <Button asChild size="sm" onClick={(event) => event.stopPropagation()}>
+            <Button
+              asChild
+              size="icon"
+              variant="outline"
+              aria-label={`Open ${family.name}`}
+              title={`Open ${family.name}`}
+              onClick={(event) => event.stopPropagation()}
+            >
               <Link to={`/design/playbooks/${playbook.id}`}>
                 <Settings2 className="h-4 w-4" />
-                Manage
               </Link>
             </Button>
             {isArchivedFamily ? (
-              <Button size="sm" disabled onClick={(event) => event.stopPropagation()}>
+              <Button
+                size="icon"
+                variant="outline"
+                aria-label={`Launch ${family.name}`}
+                title={`Launch ${family.name}`}
+                disabled
+                onClick={(event) => event.stopPropagation()}
+              >
                 <Rocket className="h-4 w-4" />
-                Launch
               </Button>
             ) : (
-              <Button asChild size="sm" onClick={(event) => event.stopPropagation()}>
+              <Button
+                asChild
+                size="icon"
+                variant="outline"
+                aria-label={`Launch ${family.name}`}
+                title={`Launch ${family.name}`}
+                onClick={(event) => event.stopPropagation()}
+              >
                 <Link to={`/design/playbooks/${playbook.id}/launch`}>
                   <Rocket className="h-4 w-4" />
-                  Launch
                 </Link>
               </Button>
             )}

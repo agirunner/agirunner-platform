@@ -44,7 +44,7 @@ describe('workspace list page source', () => {
     expect(source).toContain('No workflows yet');
   });
 
-  it('uses a paged table surface with a single manage action and compact detail rows', () => {
+  it('uses a paged table surface with a single icon action and compact detail rows', () => {
     const source = readSource();
     expect(source).toContain('const workspaceLinkState = { workspaceLabel: props.workspace.name };');
     expect(source).toContain('to={`/design/workspaces/${props.workspace.id}`}');
@@ -52,7 +52,8 @@ describe('workspace list page source', () => {
     expect(source).toContain('className="font-medium text-foreground underline-offset-4 transition hover:underline"');
     expect(source).toContain('<TableCell className="text-sm text-foreground">{workspaceMetrics}</TableCell>');
     expect(source).toContain('<TableCell className="text-sm text-foreground">{activityLabel}</TableCell>');
-    expect(source).toContain('Manage');
+    expect(source).toContain('aria-label={`Open ${props.workspace.name}`}');
+    expect(source).toContain('size="icon"');
     expect(source).toContain('WorkspaceListTable');
     expect(source).toContain('Page size');
     expect(source).toContain('Showing');
@@ -80,7 +81,7 @@ describe('workspace list page source', () => {
     expect(source).not.toContain('hover:text-foreground');
     expect(source).not.toContain('<TableCell className="text-sm text-muted">{workspaceMetrics}</TableCell>');
     expect(source).not.toContain('<TableCell className="text-sm text-muted">{activityLabel}</TableCell>');
-    expect(source).not.toContain('Description');
+    expect(source).not.toContain('Workspace description');
     expect(source).not.toContain('No description provided.');
   });
 
@@ -90,10 +91,14 @@ describe('workspace list page source', () => {
       'utf8',
     );
     expect(dialogSource).toContain('dashboardApi.deleteWorkspace');
+    expect(dialogSource).toContain('dashboardApi.getWorkspaceDeleteImpact');
     expect(dialogSource).toContain('dashboardApi.createWorkspace');
     expect(dialogSource).toContain('max-h-[calc(100vh-4rem)] overflow-y-auto');
     expect(dialogSource).toContain('navigate(`/design/workspaces/${created.id}`)');
     expect(dialogSource).toContain("navigate('/design/workspaces')");
+    expect(dialogSource).toContain('Delete impact');
+    expect(dialogSource).toContain('stop active workflows before deleting the workspace');
+    expect(dialogSource).toContain('Delete workspace and linked work');
     expect(dialogSource).not.toContain('?tab=settings');
     expect(dialogSource).not.toContain('Repository URL');
     expect(dialogSource).not.toContain('repository_url');

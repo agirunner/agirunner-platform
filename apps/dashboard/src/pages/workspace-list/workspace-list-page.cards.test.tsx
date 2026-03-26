@@ -16,7 +16,7 @@ vi.mock('./workspace-list-page.dialogs.js', () => ({
 }));
 
 describe('workspace list page table', () => {
-  it('renders workspace rows with a single manage action and compact table columns', () => {
+  it('renders workspace rows with a single icon action and compact table columns', () => {
     const markup = renderTable(
       [
         {
@@ -51,7 +51,7 @@ describe('workspace list page table', () => {
     expect(markup).toContain('Workflows');
     expect(markup).toContain('Last activity');
     expect(markup).toContain('7 workflows total');
-    expect(markup).toContain('Manage');
+    expect(markup).toContain('aria-label="Open Alpha"');
     expect(markup).not.toContain('Edit basics');
     expect(markup).not.toContain('Delete');
     expect(markup).not.toContain('Needs attention');

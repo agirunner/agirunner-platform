@@ -135,9 +135,16 @@ function WorkspaceTableRow(props: {
         <TableCell className="text-sm text-foreground">{workspaceMetrics}</TableCell>
         <TableCell className="text-sm text-foreground">{activityLabel}</TableCell>
         <TableCell className="text-right">
-          <Button asChild size="sm" onClick={(event) => event.stopPropagation()}>
+          <Button
+            asChild
+            size="icon"
+            variant="outline"
+            aria-label={`Open ${props.workspace.name}`}
+            title={`Open ${props.workspace.name}`}
+            onClick={(event) => event.stopPropagation()}
+          >
             <Link to={`/design/workspaces/${props.workspace.id}`} state={workspaceLinkState}>
-              Manage
+              <FolderOpen className="h-4 w-4" />
             </Link>
           </Button>
         </TableCell>
