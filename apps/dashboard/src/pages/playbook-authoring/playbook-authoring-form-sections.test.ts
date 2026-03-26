@@ -55,7 +55,7 @@ describe('playbook authoring form sections source', () => {
     expect(source).not.toContain('lg:grid-cols-[auto_minmax(0,1fr)] lg:items-start');
     expect(source).not.toContain('lg:grid-cols-[6rem_minmax(0,1fr)]');
     expect(source).toContain('Max rework iterations');
-    expect(source).toContain('placeholder="3"');
+    expect(source).toContain('placeholder="10"');
     expect(source).toContain('Task max iterations');
     expect(source).toContain('LLM retry attempts');
     expect(source).toContain('placeholder="800"');
@@ -66,6 +66,7 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('<SelectItem value={ORCHESTRATION_POLICY_UNSET}>Default (Enabled)</SelectItem>');
     expect(source).toContain('<SelectItem value="true">Enabled</SelectItem>');
     expect(source).toContain('<SelectItem value="false">Disabled</SelectItem>');
+    expect(source).toContain('Leave fields blank to inherit the defaults: rework iterations `10`');
     expect(source).toContain('Orchestration Policy');
     expect(source).not.toContain('System default:');
     expect(source).not.toContain('Assessment Rules');

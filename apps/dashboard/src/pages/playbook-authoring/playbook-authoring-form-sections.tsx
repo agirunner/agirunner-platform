@@ -457,7 +457,7 @@ function OrchestratorSection(props: SectionProps): JSX.Element {
         <LabeledField label="Max rework iterations">
           <Input
             value={props.draft.orchestrator.max_rework_iterations}
-            placeholder="3"
+            placeholder="10"
             onChange={(event) =>
               updateOrchestrator(props, 'max_rework_iterations', event.target.value)
             }
@@ -516,7 +516,7 @@ function OrchestratorSection(props: SectionProps): JSX.Element {
         </LabeledField>
       </div>
       <p className="text-sm text-muted">
-        Leave fields blank to inherit the defaults: rework iterations `3`, task max iterations
+        Leave fields blank to inherit the defaults: rework iterations `10`, task max iterations
         `800`, LLM retry attempts `5`, max active tasks `No cap`, max active tasks per work item
         `No cap`, parallel work items enabled.
       </p>

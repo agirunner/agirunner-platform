@@ -170,7 +170,7 @@ function normalizeReworkPolicy(value: unknown, fieldName: string): ReworkPolicy 
     throw new ValidationError(`${fieldName} must be an object`);
   }
 
-  const maxCycles = Number(value.max_cycles ?? 3);
+  const maxCycles = Number(value.max_cycles ?? 10);
   if (!Number.isInteger(maxCycles) || maxCycles < 1) {
     throw new ValidationError(`${fieldName}.max_cycles must be a positive integer`);
   }

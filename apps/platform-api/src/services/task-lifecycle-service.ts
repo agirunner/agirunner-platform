@@ -1729,7 +1729,7 @@ export class TaskLifecycleService {
 
     const lifecyclePolicy = readPersistedLifecyclePolicy(task.metadata);
     const nextReworkCount = Number(task.rework_count ?? 0) + 1;
-    const maxReworkCount = lifecyclePolicy?.rework?.max_cycles ?? 3;
+    const maxReworkCount = lifecyclePolicy?.rework?.max_cycles ?? 10;
 
     if (nextReworkCount > maxReworkCount) {
       return this.applyStateTransition(identity, taskId, 'failed', {

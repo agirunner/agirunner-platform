@@ -2287,6 +2287,70 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
   });
 
+  it('uses the default max rework count of 10 when no lifecycle policy is present', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-default-rework-limit',
+                state: (values?.[2] as string) ?? 'ready',
+                workflow_id: null,
+                input: { assessment_feedback: 'Try one more time' },
+                rework_count: 10,
+                metadata: { assessment_action: 'request_changes' },
+              },
+            ],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const eventService = { emit: vi.fn() };
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-default-rework-limit',
+        state: 'output_pending_assessment',
+        workflow_id: null,
+        input: { summary: 'old output' },
+        rework_count: 9,
+        metadata: {},
+      }),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.requestTaskChanges(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-default-rework-limit',
+      {
+        feedback: 'Try one more time',
+      },
+    );
+
+    expect(result.state).toBe('ready');
+    expect(result.rework_count).toBe(10);
+    expect(eventService.emit).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'task.max_rework_exceeded' }),
+      expect.anything(),
+    );
+  });
+
   it('queues cancel signal before reassigning an in-progress task', async () => {
     const queueWorkerCancelSignal = vi.fn(async () => 'signal-2');
     const client = {
