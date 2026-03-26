@@ -70,12 +70,12 @@ export function ListPagination(props: {
   }
 
   return (
-    <div className="flex flex-col gap-3 border-t border-border/70 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 border-t border-border/70 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
       <p className="text-sm text-muted">
         Showing {props.start}-{props.end} of {props.totalItems} {props.itemLabel}.
       </p>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <label className="grid gap-1 text-sm sm:min-w-[132px]">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <label className="flex items-center gap-2 text-sm whitespace-nowrap">
           <span className="text-xs font-medium uppercase tracking-wide text-muted">
             Page size
           </span>
@@ -83,7 +83,7 @@ export function ListPagination(props: {
             value={String(props.pageSize)}
             onValueChange={(value) => props.onPageSizeChange(Number(value))}
           >
-            <SelectTrigger aria-label="Page size">
+            <SelectTrigger aria-label="Page size" className="h-9 w-[88px]">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -95,10 +95,10 @@ export function ListPagination(props: {
             </SelectContent>
           </Select>
         </label>
-        <div className="flex items-center justify-between gap-2 sm:justify-start">
-          <span className="text-sm text-muted">
-            Page {props.page} of {props.totalPages}
-          </span>
+        <span className="text-sm text-muted whitespace-nowrap">
+          Page {props.page} of {props.totalPages}
+        </span>
+        <div className="flex items-center gap-2">
           <Button
             type="button"
             variant="outline"

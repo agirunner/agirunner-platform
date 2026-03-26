@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -5,6 +8,10 @@ import {
   LIST_PAGE_SIZE_OPTIONS,
   paginateListItems,
 } from './list-pagination.js';
+
+function readSource(): string {
+  return readFileSync(resolve(import.meta.dirname, './list-pagination.tsx'), 'utf8');
+}
 
 describe('list pagination', () => {
   it('exposes the standard dashboard page-size options', () => {
@@ -50,5 +57,15 @@ describe('list pagination', () => {
       start: 1,
       end: 3,
     });
+  });
+
+  it('keeps page size, page status, and nav controls on one wrap-safe row', () => {
+    const source = readSource();
+
+    expect(source).toContain('className="flex flex-wrap items-center justify-end gap-3"');
+    expect(source).toContain('className="flex items-center gap-2 text-sm whitespace-nowrap"');
+    expect(source).toContain('className="h-9 w-[88px]"');
+    expect(source).not.toContain('className="grid gap-1 text-sm sm:min-w-[132px]"');
+    expect(source).not.toContain('className="flex flex-col gap-2 sm:flex-row sm:items-center"');
   });
 });
