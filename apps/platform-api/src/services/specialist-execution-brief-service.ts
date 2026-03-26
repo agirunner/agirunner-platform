@@ -233,7 +233,7 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
 
 function pathDisciplineGuidance(repoBacked: boolean) {
   if (repoBacked) {
-    return 'For repository-backed tasks, the repo root is already the base path. When reading or citing repository files, use repo-relative paths like src/auth/refresh.ts or docs/release-notes.md; never prefix them with repo/ and never use /tmp/workspace paths. Read task context files from `/workspace/context/...`, never `context/...` or `repo/context/...`. If you write task-local working files such as `output/...`, upload or persist the real deliverable and cite artifact ids, logical paths, repo-relative deliverables, memory keys, or workflow/task ids in the final handoff instead of that task-local path.';
+    return 'For repository-backed tasks, the repo root is already the base path. Tool arguments must be repo-relative: use workflow_cli/__main__.py, tests/test_cli.py, or README.md; never repo/workflow_cli/__main__.py, repo/tests/test_cli.py, repo/README.md, or /tmp/workspace paths. Read task context files from `/workspace/context/...`, never `context/...` or `repo/context/...`. If you write task-local working files such as `output/...`, upload or persist the real deliverable and cite artifact ids, logical paths, repo-relative deliverables, memory keys, or workflow/task ids in the final handoff instead of that task-local path.';
   }
   return 'For non-repository tasks, use workspace-relative paths for tool work only, never host-local or /tmp/workspace paths. If you write task-local working files such as `output/...`, upload or persist the real deliverable and cite artifact ids, logical paths, memory keys, or workflow/task ids in the final handoff instead of that task-local path.';
 }

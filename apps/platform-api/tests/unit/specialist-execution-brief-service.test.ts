@@ -139,7 +139,7 @@ describe('buildSpecialistExecutionBrief', () => {
     );
     expect(brief?.rendered_markdown).toContain('## Path Discipline');
     expect(brief?.rendered_markdown).toContain(
-      'use repo-relative paths like src/auth/refresh.ts or docs/release-notes.md',
+      'Tool arguments must be repo-relative: use workflow_cli/__main__.py, tests/test_cli.py, or README.md; never repo/workflow_cli/__main__.py, repo/tests/test_cli.py, repo/README.md, or /tmp/workspace paths.',
     );
     expect(brief?.rendered_markdown).toContain(
       'Read task context files from `/workspace/context/...`, never `context/...` or `repo/context/...`.',
