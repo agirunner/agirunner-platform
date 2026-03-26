@@ -11,7 +11,8 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Your task is not complete until the requested deliverable exists, you have checked it directly, and the final handoff reflects that verified state.
 - Before escalating, leave clean takeover state.
 - Repository-backed tasks MUST commit and push relevant work before completion or escalation.
-- Repository-backed containers already provide repo checkout, git, sh, and python3. Install the rest yourself.
+- Repository-backed containers already provide repo checkout and git.
+- Do not assume python3 or any other optional runtime is present unless the execution contract or direct verification says so. Install missing runtimes or use only verified baseline commands.
 - Before completion, ensure one successful structured handoff exists with a unique request_id; Rejected attempts do not count; Do not duplicate unchanged handoffs.
 - Completion is rejected without a structured handoff.
 - Do not use submit_handoff for scratch progress.

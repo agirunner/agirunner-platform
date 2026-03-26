@@ -18,7 +18,10 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before escalating, leave clean takeover state.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Repository-backed tasks MUST commit and push relevant work before completion or escalation.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
-      'Repository-backed containers already provide repo checkout, git, sh, and python3.',
+      'Repository-backed containers already provide repo checkout and git.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Do not assume python3 or any other optional runtime is present unless the execution contract or direct verification says so.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('operational state such as rework counters');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before completion, ensure');
