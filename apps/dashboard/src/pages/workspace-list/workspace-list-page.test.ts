@@ -9,6 +9,7 @@ function readSource() {
     './workspace-list-page.dialogs.tsx',
     './workspace-list-page.support.ts',
     '../../components/list-pagination.tsx',
+    '../../components/ui/icon-action-button.tsx',
   ]
     .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
     .join('\n');
@@ -55,9 +56,9 @@ describe('workspace list page source', () => {
     expect(source).toContain('className="font-medium text-foreground underline-offset-4 transition hover:underline"');
     expect(source).toContain('<TableCell className="text-sm text-foreground">{workspaceMetrics}</TableCell>');
     expect(source).toContain('<TableCell className="text-sm text-foreground">{activityLabel}</TableCell>');
-    expect(source).toContain('aria-label={`Open ${props.workspace.name}`}');
-    expect(source).toContain('variant="ghost"');
-    expect(source).toContain('className="h-8 w-8"');
+    expect(source).toContain("import { IconActionButton } from '../../components/ui/icon-action-button.js'");
+    expect(source).toContain('<IconActionButton');
+    expect(source).toContain('label={`Open ${props.workspace.name}`}');
     expect(source).toContain('size="icon"');
     expect(source).toContain('WorkspaceListTable');
     expect(source).toContain('Page size');
@@ -84,6 +85,8 @@ describe('workspace list page source', () => {
     expect(source).not.toContain('Edit details');
     expect(source).not.toContain('buildWorkspaceDescription');
     expect(source).not.toContain('hover:text-foreground');
+    expect(source).not.toContain('variant="ghost"');
+    expect(source).not.toContain('className="h-8 w-8"');
     expect(source).not.toContain('<TableCell className="text-sm text-muted">{workspaceMetrics}</TableCell>');
     expect(source).not.toContain('<TableCell className="text-sm text-muted">{activityLabel}</TableCell>');
     expect(source).not.toContain('Workspace description');

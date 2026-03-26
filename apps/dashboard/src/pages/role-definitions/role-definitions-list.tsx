@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight, Copy, Pencil, Trash2 } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
-import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
+import { IconActionButton } from '../../components/ui/icon-action-button.js';
 import { Switch } from '../../components/ui/switch.js';
 import { TableCell, TableRow } from '../../components/ui/table.js';
 import { cn } from '../../lib/utils.js';
@@ -97,43 +97,34 @@ export function RoleRow(props: {
         </TableCell>
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-1">
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              aria-label={`Duplicate ${props.role.name}`}
+            <IconActionButton
+              label={`Duplicate ${props.role.name}`}
               onClick={(event) => {
                 event.stopPropagation();
                 props.onDuplicate(props.role);
               }}
             >
-              <Copy className="h-3.5 w-3.5" />
-            </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              aria-label={`Edit ${props.role.name}`}
+              <Copy className="h-4 w-4" />
+            </IconActionButton>
+            <IconActionButton
+              label={`Edit ${props.role.name}`}
               onClick={(event) => {
                 event.stopPropagation();
                 props.onEdit(props.role);
               }}
             >
-              <Pencil className="h-3.5 w-3.5" />
-            </Button>
+              <Pencil className="h-4 w-4" />
+            </IconActionButton>
             {isDeletable ? (
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-8 w-8 text-red-600 hover:text-red-700"
-                aria-label={`Delete ${props.role.name}`}
+              <IconActionButton
+                label={`Delete ${props.role.name}`}
                 onClick={(event) => {
                   event.stopPropagation();
                   props.onDelete(props.role);
                 }}
               >
-                <Trash2 className="h-3.5 w-3.5" />
-              </Button>
+                <Trash2 className="h-4 w-4" />
+              </IconActionButton>
             ) : null}
           </div>
         </TableCell>

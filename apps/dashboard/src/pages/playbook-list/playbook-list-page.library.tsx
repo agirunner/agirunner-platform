@@ -10,6 +10,7 @@ import {
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
+import { IconActionButton } from '../../components/ui/icon-action-button.js';
 import { Input } from '../../components/ui/input.js';
 import { DASHBOARD_BADGE_TOKENS } from '../../lib/dashboard-badge-palette.js';
 import { Switch } from '../../components/ui/switch.js';
@@ -224,7 +225,7 @@ function PlaybookFamilyRow(props: {
           </Badge>
         </TableCell>
         <TableCell className="text-sm text-foreground">
-          {family.process.roleCount} roles · {family.process.inputCount} inputs
+          {family.process.roleCount} roles · {family.process.inputCount} goals
         </TableCell>
         <TableCell className="text-sm text-foreground">
           {family.structure.stages} stages / {family.structure.boardColumns} columns
@@ -234,43 +235,33 @@ function PlaybookFamilyRow(props: {
         </TableCell>
         <TableCell className="text-right">
           <div className="flex justify-end gap-2">
-            <Button
+            <IconActionButton
               asChild
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8"
-              aria-label={`Open ${family.name}`}
-              title={`Open ${family.name}`}
+              label={`Open ${family.name}`}
               onClick={(event) => event.stopPropagation()}
             >
               <Link to={`/design/playbooks/${playbook.id}`}>
                 <Pencil className="h-4 w-4" />
               </Link>
-            </Button>
+            </IconActionButton>
             {isArchivedFamily ? (
-              <Button
-                size="icon"
-                variant="outline"
-                aria-label={`Launch ${family.name}`}
-                title={`Launch ${family.name}`}
+              <IconActionButton
+                label={`Launch ${family.name}`}
                 disabled
                 onClick={(event) => event.stopPropagation()}
               >
                 <Rocket className="h-4 w-4" />
-              </Button>
+              </IconActionButton>
             ) : (
-              <Button
+              <IconActionButton
                 asChild
-                size="icon"
-                variant="outline"
-                aria-label={`Launch ${family.name}`}
-                title={`Launch ${family.name}`}
+                label={`Launch ${family.name}`}
                 onClick={(event) => event.stopPropagation()}
               >
                 <Link to={`/design/playbooks/${playbook.id}/launch`}>
                   <Rocket className="h-4 w-4" />
                 </Link>
-              </Button>
+              </IconActionButton>
             )}
           </div>
         </TableCell>

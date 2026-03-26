@@ -1,7 +1,6 @@
 import { Archive, Copy, Pencil, RotateCcw, SearchCheck, Star } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
-import { Button } from '../../components/ui/button.js';
 import {
   Card,
   CardContent,
@@ -9,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '../../components/ui/card.js';
+import { IconActionButton } from '../../components/ui/icon-action-button.js';
 import {
   Table,
   TableBody,
@@ -105,44 +105,50 @@ export function ExecutionEnvironmentTable(props: {
                   <div className="flex flex-nowrap justify-end gap-2 whitespace-nowrap">
                     <IconActionButton
                       label="Copy environment"
-                      icon={<Copy className="h-4 w-4" />}
                       onClick={() => props.onCopy(environment)}
-                    />
+                    >
+                      <Copy className="h-4 w-4" />
+                    </IconActionButton>
                     <IconActionButton
                       label="Edit environment"
-                      icon={<Pencil className="h-4 w-4" />}
                       onClick={() => props.onEdit(environment)}
-                    />
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </IconActionButton>
                     <IconActionButton
                       label="Verify environment"
-                      icon={<SearchCheck className="h-4 w-4" />}
                       disabled={props.busyEnvironmentId === environment.id}
                       onClick={() => props.onVerify(environment)}
-                    />
+                    >
+                      <SearchCheck className="h-4 w-4" />
+                    </IconActionButton>
                     <IconActionButton
                       label="Set default environment"
-                      icon={<Star className="h-4 w-4" />}
                       disabled={
                         environment.is_default ||
                         !canSetDefault(environment) ||
                         props.busyEnvironmentId === environment.id
                       }
                       onClick={() => props.onSetDefault(environment)}
-                    />
+                    >
+                      <Star className="h-4 w-4" />
+                    </IconActionButton>
                     {environment.is_archived ? (
                       <IconActionButton
                         label="Restore environment"
-                        icon={<RotateCcw className="h-4 w-4" />}
                         disabled={props.busyEnvironmentId === environment.id}
                         onClick={() => props.onRestore(environment)}
-                      />
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </IconActionButton>
                     ) : (
                       <IconActionButton
                         label="Archive environment"
-                        icon={<Archive className="h-4 w-4" />}
                         disabled={environment.is_default || props.busyEnvironmentId === environment.id}
                         onClick={() => props.onArchive(environment)}
-                      />
+                      >
+                        <Archive className="h-4 w-4" />
+                      </IconActionButton>
                     )}
                   </div>
                 </TableCell>
@@ -173,27 +179,6 @@ function renderCompatibilityStatus(value: string): string {
     return 'Incompatible';
   }
   return 'Pending verification';
-}
-
-function IconActionButton(props: {
-  label: string;
-  icon: JSX.Element;
-  onClick(): void;
-  disabled?: boolean;
-}): JSX.Element {
-  return (
-    <Button
-      type="button"
-      size="icon"
-      variant="outline"
-      aria-label={props.label}
-      title={props.label}
-      onClick={props.onClick}
-      disabled={props.disabled}
-    >
-      {props.icon}
-    </Button>
-  );
 }
 
 function canSetDefault(environment: DashboardExecutionEnvironmentRecord): boolean {

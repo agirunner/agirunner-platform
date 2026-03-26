@@ -112,7 +112,8 @@ describe('role definitions page source', () => {
     expect(source).toContain('onDuplicate');
     expect(source).toContain('duplicateFrom');
     expect(source).toContain('Duplicate');
-    expect(source).toContain("aria-label={`Duplicate ${props.role.name}`}");
+    expect(source).toContain('label={`Duplicate ${props.role.name}`}');
+    expect(source).toContain("import { IconActionButton } from '../../components/ui/icon-action-button.js'");
   });
 
   it('shows a primary CTA button in the empty state per UX guideline 44', () => {
@@ -210,6 +211,9 @@ describe('role definitions page source', () => {
 
   it('keeps the expanded role row compact and human-readable', () => {
     const source = readExpandedRoleRowSource();
+    expect(source).toContain('<IconActionButton');
+    expect(source).not.toContain('variant="ghost"');
+    expect(source).not.toContain('className="h-8 w-8"');
     expect(source).toContain('line-clamp-3');
     expect(source).not.toContain('Verification and escalation');
     expect(source).not.toContain('Capabilities');

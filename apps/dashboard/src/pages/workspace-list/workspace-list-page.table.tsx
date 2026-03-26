@@ -6,6 +6,7 @@ import type { DashboardWorkspaceRecord } from '../../lib/api.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
+import { IconActionButton } from '../../components/ui/icon-action-button.js';
 import { Switch } from '../../components/ui/switch.js';
 import {
   Table,
@@ -151,19 +152,15 @@ function WorkspaceTableRow(props: {
         <TableCell className="text-sm text-foreground">{workspaceMetrics}</TableCell>
         <TableCell className="text-sm text-foreground">{activityLabel}</TableCell>
         <TableCell className="text-right">
-          <Button
+          <IconActionButton
             asChild
-            size="icon"
-            variant="ghost"
-            className="h-8 w-8"
-            aria-label={`Open ${props.workspace.name}`}
-            title={`Open ${props.workspace.name}`}
+            label={`Open ${props.workspace.name}`}
             onClick={(event) => event.stopPropagation()}
           >
             <Link to={`/design/workspaces/${props.workspace.id}`} state={workspaceLinkState}>
               <Pencil className="h-4 w-4" />
             </Link>
-          </Button>
+          </IconActionButton>
         </TableCell>
       </TableRow>
       {isExpanded ? (

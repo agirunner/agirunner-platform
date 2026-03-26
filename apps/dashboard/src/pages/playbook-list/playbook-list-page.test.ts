@@ -8,6 +8,7 @@ function readSource() {
     './playbook-list-page.library.tsx',
     './playbook-list-page.support.ts',
     '../../components/list-pagination.tsx',
+    '../../components/ui/icon-action-button.tsx',
   ]
     .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
     .join('\n');
@@ -29,12 +30,12 @@ describe('playbook list page source', () => {
     expect(source).toContain('xl:sticky xl:top-6');
     expect(source).not.toContain('Definition JSON');
     expect(source).toContain('buildPlaybookDefinition(');
-    expect(source).toContain('aria-label={`Open ${family.name}`}');
+    expect(source).toContain('label={`Open ${family.name}`}');
     expect(source).toContain('aria-label={`Toggle ${family.name} active`}');
     expect(source).toContain('Pencil className="h-4 w-4"');
-    expect(source).toContain('variant="ghost"');
-    expect(source).toContain('className="h-8 w-8"');
-    expect(source).toContain('aria-label={`Launch ${family.name}`}');
+    expect(source).toContain("import { IconActionButton } from '../../components/ui/icon-action-button.js'");
+    expect(source).toContain('<IconActionButton');
+    expect(source).toContain('label={`Launch ${family.name}`}');
     expect(source).toContain('size="icon"');
     expect(source).toContain('This playbook is inactive. Use the row toggle to reactivate the family before');
     expect(source).toContain('Back to playbook library');
@@ -42,7 +43,7 @@ describe('playbook list page source', () => {
     expect(source).toContain('PlaybookLibraryTable');
     expect(source).toContain('dashboardApi.archivePlaybook');
     expect(source).toContain('dashboardApi.restorePlaybook');
-    expect(source).toContain('Create and manage playbooks that define workflow guidance, team structure, and launch inputs.');
+    expect(source).toContain('Create and manage playbooks that define workflow guidance, team structure, and workflow goals.');
     expect(source).toContain('Page size');
     expect(source).toContain('Showing');
     expect(source).toContain('Previous');
@@ -53,7 +54,7 @@ describe('playbook list page source', () => {
     expect(source).toContain('Process');
     expect(source).toContain('roles');
     expect(source).toContain('stages');
-    expect(source).toContain('inputs');
+    expect(source).toContain('goals');
     expect(source).toContain('Playbook details');
     expect(source).toContain('Most revisions');
     expect(source).toContain('families ·');
@@ -67,7 +68,7 @@ describe('playbook list page source', () => {
     expect(source).toContain('Resolve these blockers before creating the playbook.');
     expect(source).toContain('Slug preview:');
     expect(source).toContain('reconcileValidationIssues(currentIssues, nextIssues)');
-    expect(source).toContain('Start with the outcome, process instructions, team roles, and required workflow');
+    expect(source).toContain('Define the playbook identity first, then author the process, specialists,');
     expect(source).not.toContain('col-span-2 w-full');
     expect(source).not.toContain('Description</span>');
     expect(source).not.toContain('PlaybookLibrarySummaryCards');
@@ -75,6 +76,7 @@ describe('playbook list page source', () => {
     expect(source).not.toContain('Delete Playbook Revision');
     expect(source).not.toContain('PlaybookFamilyCard');
     expect(source).not.toContain('Settings2 className="h-4 w-4"');
+    expect(source).not.toContain('className="h-8 w-8"');
   });
 
   it('keeps fresh playbook drafts blank instead of backfilling active roles', () => {
