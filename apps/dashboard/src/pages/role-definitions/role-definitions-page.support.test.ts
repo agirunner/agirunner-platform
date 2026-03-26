@@ -40,6 +40,8 @@ describe('role definitions support helpers', () => {
         description: ' designs systems ',
         systemPrompt: ' think deeply ',
         allowedTools: ['git_diff', 'git_diff', ' file_read '],
+        mcpServerIds: ['server-2', 'server-1', 'server-2'],
+        skillIds: ['skill-2', 'skill-1', 'skill-2'],
         isActive: false,
         executionEnvironmentId: '',
       }),
@@ -48,6 +50,8 @@ describe('role definitions support helpers', () => {
       description: 'designs systems',
       systemPrompt: 'think deeply',
       allowedTools: ['git_diff', 'file_read'],
+      mcpServerIds: ['server-2', 'server-1'],
+      skillIds: ['skill-2', 'skill-1'],
       executionEnvironmentId: null,
       isActive: false,
     });
@@ -60,6 +64,8 @@ describe('role definitions support helpers', () => {
         description: '',
         systemPrompt: '',
         allowedTools: ['file_read'],
+        mcpServerIds: [],
+        skillIds: [],
         isActive: true,
         executionEnvironmentId: 'environment-123',
       }),
@@ -72,16 +78,22 @@ describe('role definitions support helpers', () => {
 
   it('defaults to the shared execution environment when no override is set', () => {
     expect(createRoleForm().executionEnvironmentId).toBe('');
+    expect(createRoleForm().mcpServerIds).toEqual([]);
+    expect(createRoleForm().skillIds).toEqual([]);
   });
 
   it('hydrates the current execution environment override into the form', () => {
-    expect(
-      createRoleForm({
+    const form = createRoleForm({
         id: 'role-1',
         name: 'developer',
         execution_environment_id: 'environment-123',
-      }).executionEnvironmentId,
-    ).toBe('environment-123');
+        mcp_server_ids: ['server-1'],
+        skill_ids: ['skill-2', 'skill-1'],
+      });
+
+    expect(form.executionEnvironmentId).toBe('environment-123');
+    expect(form.mcpServerIds).toEqual(['server-1']);
+    expect(form.skillIds).toEqual(['skill-2', 'skill-1']);
   });
 
   it('creates a duplicate form that clears the name and preserves all other role fields', () => {
@@ -91,6 +103,8 @@ describe('role definitions support helpers', () => {
       description: 'System design specialist',
       system_prompt: 'Think about architecture deeply.',
       allowed_tools: ['file_read', 'git_diff'],
+      mcp_server_ids: ['server-1'],
+      skill_ids: ['skill-1', 'skill-2'],
       is_active: false,
     });
 
@@ -98,6 +112,8 @@ describe('role definitions support helpers', () => {
     expect(form.description).toBe('System design specialist');
     expect(form.systemPrompt).toBe('Think about architecture deeply.');
     expect(form.allowedTools).toEqual(['file_read', 'git_diff']);
+    expect(form.mcpServerIds).toEqual(['server-1']);
+    expect(form.skillIds).toEqual(['skill-1', 'skill-2']);
     expect(form.isActive).toBe(false);
   });
 

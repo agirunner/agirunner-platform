@@ -13,6 +13,8 @@ describe('role dialog support', () => {
         ...createRoleForm(),
         name: 'Architect',
         allowedTools: [],
+        mcpServerIds: ['server-1'],
+        skillIds: ['skill-1'],
       },
       [{ id: 'role-1', name: 'architect' }],
     );
@@ -34,12 +36,16 @@ describe('role dialog support', () => {
       summarizeRoleSetup({
         ...createRoleForm(),
         allowedTools: ['file_read'],
+        mcpServerIds: ['server-1'],
+        skillIds: ['skill-1', 'skill-2'],
         executionEnvironmentId: '',
       }),
     ).toEqual({
       toolSummary: '1 tool enabled',
       modelSummary: 'Model assigned on Models page',
       environmentSummary: 'Uses default environment',
+      remoteMcpSummary: '1 remote MCP server granted',
+      skillSummary: '2 skills assigned',
     });
   });
 
@@ -48,6 +54,8 @@ describe('role dialog support', () => {
       {
         ...createRoleForm(),
         name: 'Developer',
+        mcpServerIds: [],
+        skillIds: [],
         executionEnvironmentId: 'environment-123',
       },
       [],

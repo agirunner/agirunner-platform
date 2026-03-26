@@ -21,7 +21,9 @@ import {
 import { toast } from '../../lib/toast.js';
 import { DeleteRoleDialog } from './role-definitions-delete-dialog.js';
 import {
+  fetchRemoteMcpServers,
   fetchRoles,
+  fetchSpecialistSkills,
   deleteRole,
   saveRole,
   fetchToolCatalog,
@@ -51,6 +53,14 @@ export function RoleDefinitionsPage(): JSX.Element {
   const environmentsQuery = useQuery({
     queryKey: ['execution-environments'],
     queryFn: fetchExecutionEnvironments,
+  });
+  const remoteMcpServersQuery = useQuery({
+    queryKey: ['remote-mcp-servers'],
+    queryFn: fetchRemoteMcpServers,
+  });
+  const specialistSkillsQuery = useQuery({
+    queryKey: ['specialist-skills'],
+    queryFn: fetchSpecialistSkills,
   });
   const orchestratorState = useRolePageOrchestratorState();
   const deleteMutation = useMutation({
@@ -87,11 +97,23 @@ export function RoleDefinitionsPage(): JSX.Element {
     },
   });
 
-  if (rolesQuery.isLoading || toolsQuery.isLoading || environmentsQuery.isLoading) {
+  if (
+    rolesQuery.isLoading
+    || toolsQuery.isLoading
+    || environmentsQuery.isLoading
+    || remoteMcpServersQuery.isLoading
+    || specialistSkillsQuery.isLoading
+  ) {
     return <div className="flex items-center justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-muted" /></div>;
   }
-  if (rolesQuery.error || toolsQuery.error || environmentsQuery.error) {
-    return <div className="p-6"><div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">Failed to load specialists: {String(rolesQuery.error ?? toolsQuery.error ?? environmentsQuery.error)}</div></div>;
+  if (
+    rolesQuery.error
+    || toolsQuery.error
+    || environmentsQuery.error
+    || remoteMcpServersQuery.error
+    || specialistSkillsQuery.error
+  ) {
+    return <div className="p-6"><div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">Failed to load specialists: {String(rolesQuery.error ?? toolsQuery.error ?? environmentsQuery.error ?? remoteMcpServersQuery.error ?? specialistSkillsQuery.error)}</div></div>;
   }
 
   const allRoles = [...(rolesQuery.data ?? [])].sort((a, b) => a.name.localeCompare(b.name));
@@ -110,6 +132,8 @@ export function RoleDefinitionsPage(): JSX.Element {
     roles: allRoles,
     tools: toolsQuery.data ?? [],
     executionEnvironments: environmentsQuery.data ?? [],
+    remoteMcpServers: remoteMcpServersQuery.data ?? [],
+    specialistSkills: specialistSkillsQuery.data ?? [],
     ...orchestratorState.roleDialogCatalog,
     onSave: saveRole,
   };

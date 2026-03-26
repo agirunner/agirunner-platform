@@ -12,8 +12,12 @@ import {
   RoleModelAssignmentSection,
 } from './role-definitions-dialog.basics.js';
 import {
+  RoleRemoteMcpSection,
+} from './role-definitions-dialog.mcp.js';
+import {
   RoleToolGrantsSection,
 } from './role-definitions-dialog.catalog.js';
+import { RoleSkillsSection } from './role-definitions-dialog.skills.js';
 import {
   RoleDialogFooter,
   RoleReadinessCard,
@@ -35,6 +39,10 @@ import type {
   RoleAssignmentRecord,
   SystemDefaultRecord,
 } from './role-definitions-orchestrator.support.js';
+import type {
+  DashboardRemoteMcpServerRecord,
+  DashboardSpecialistSkillRecord,
+} from '../../lib/api.js';
 import { updateAssignment } from './role-definitions-page.api.js';
 
 export function RoleDialog(props: {
@@ -45,6 +53,8 @@ export function RoleDialog(props: {
   models: LlmModelRecord[];
   tools: RoleToolCatalogEntry[];
   executionEnvironments: RoleExecutionEnvironmentSummary[];
+  remoteMcpServers: DashboardRemoteMcpServerRecord[];
+  specialistSkills: DashboardSpecialistSkillRecord[];
   systemDefault?: SystemDefaultRecord;
   assignments: RoleAssignmentRecord[];
   isModelCatalogLoading: boolean;
@@ -219,6 +229,18 @@ export function RoleDialog(props: {
                 form={form}
                 tools={tools}
                 toggleTool={toggleTool}
+              />
+              <RoleRemoteMcpSection
+                form={form}
+                setForm={(next) => setForm(next)}
+                role={sourceRole}
+                servers={props.remoteMcpServers}
+              />
+              <RoleSkillsSection
+                form={form}
+                setForm={(next) => setForm(next)}
+                role={sourceRole}
+                skills={props.specialistSkills}
               />
               <RoleExecutionEnvironmentSection
                 form={form}

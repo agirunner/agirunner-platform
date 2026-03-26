@@ -19,6 +19,8 @@ function readCombinedSource() {
     readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.tsx'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.basics.tsx'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.catalog.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.mcp.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.skills.tsx'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.summary.tsx'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.support.ts'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-delete-dialog.tsx'), 'utf8'),
@@ -79,6 +81,18 @@ describe('role definitions page source', () => {
     expect(source).toContain('Save readiness');
     expect(source).toContain('Resolve these role setup issues before saving.');
     expect(source).toContain('Choose a unique role name.');
+    expect(source).toContain('Remote MCP servers');
+    expect(source).toContain('Skills');
+    expect(source).toContain('Create skill');
+    expect(source).toContain('Edit skill');
+    expect(source).toContain('Archive skill');
+    expect(source).toContain('Restore skill');
+    expect(source).toContain('Move up');
+    expect(source).toContain('Move down');
+    expect(source).toContain('Remove skill');
+    expect(source).toContain('Select a skill');
+    expect(source).toContain('fetchRemoteMcpServers');
+    expect(source).toContain('fetchSpecialistSkills');
   });
 
   it('uses a plain text field for orchestrator runtime editing while roles select a named execution environment', () => {

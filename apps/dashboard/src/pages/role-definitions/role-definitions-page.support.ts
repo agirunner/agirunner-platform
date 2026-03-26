@@ -27,6 +27,22 @@ export interface RoleDefinition {
   description?: string | null;
   system_prompt?: string | null;
   allowed_tools?: string[];
+  mcp_server_ids?: string[];
+  skill_ids?: string[];
+  mcp_servers?: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    verification_status?: 'unknown' | 'verified' | 'failed';
+    is_archived?: boolean;
+  }>;
+  skills?: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    summary?: string | null;
+    is_archived?: boolean;
+  }>;
   model_preference?: string | null;
   verification_strategy?: string | null;
   escalation_target?: string | null;
@@ -43,6 +59,8 @@ export interface RoleFormState {
   description: string;
   systemPrompt: string;
   allowedTools: string[];
+  mcpServerIds: string[];
+  skillIds: string[];
   isActive: boolean;
   executionEnvironmentId: string;
 }
@@ -97,6 +115,8 @@ export function createRoleForm(
     description: role?.description ?? '',
     systemPrompt: role?.system_prompt ?? '',
     allowedTools: role?.allowed_tools ?? [...defaultToolIds],
+    mcpServerIds: normalizeStringList(role?.mcp_server_ids ?? []),
+    skillIds: normalizeStringList(role?.skill_ids ?? []),
     isActive: role?.is_active ?? true,
     executionEnvironmentId: role?.execution_environment_id ?? '',
   };
@@ -117,6 +137,8 @@ export function buildRolePayload(form: RoleFormState) {
     description: form.description.trim() || undefined,
     systemPrompt: form.systemPrompt.trim() || undefined,
     allowedTools: normalizeStringList(form.allowedTools),
+    mcpServerIds: normalizeStringList(form.mcpServerIds),
+    skillIds: normalizeStringList(form.skillIds),
     executionEnvironmentId: normalizeExecutionEnvironmentId(form.executionEnvironmentId),
     isActive: form.isActive,
   };

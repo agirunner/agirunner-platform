@@ -17,6 +17,8 @@ export interface RoleSetupSummary {
   toolSummary: string;
   modelSummary: string;
   environmentSummary: string;
+  remoteMcpSummary: string;
+  skillSummary: string;
 }
 
 export function validateRoleDialog(
@@ -43,6 +45,8 @@ export function summarizeRoleSetup(
     toolSummary: `${form.allowedTools.length} tool${form.allowedTools.length === 1 ? '' : 's'} enabled`,
     modelSummary: 'Model assigned on Models page',
     environmentSummary: summarizeEnvironmentSelection(form.executionEnvironmentId, selectedEnvironment),
+    remoteMcpSummary: summarizeRemoteMcpSelection(form.mcpServerIds),
+    skillSummary: summarizeSkillSelection(form.skillIds),
   };
 }
 
@@ -83,6 +87,14 @@ function summarizeEnvironmentSelection(
     return 'Uses selected execution environment';
   }
   return `${selectedEnvironment.name} | ${selectedEnvironment.image}`;
+}
+
+function summarizeRemoteMcpSelection(serverIds: string[]): string {
+  return `${serverIds.length} remote MCP server${serverIds.length === 1 ? '' : 's'} granted`;
+}
+
+function summarizeSkillSelection(skillIds: string[]): string {
+  return `${skillIds.length} skill${skillIds.length === 1 ? '' : 's'} assigned`;
 }
 
 function hasDuplicateRoleName(

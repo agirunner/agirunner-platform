@@ -469,6 +469,29 @@ export interface DashboardRemoteMcpAuthorizeResult {
   authorizeUrl: string;
 }
 
+export interface DashboardSpecialistSkillRecord {
+  id: string;
+  name: string;
+  slug: string;
+  summary: string | null;
+  content: string;
+  is_archived: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DashboardSpecialistSkillCreateInput {
+  name: string;
+  summary?: string;
+  content: string;
+}
+
+export interface DashboardSpecialistSkillUpdateInput {
+  name?: string;
+  summary?: string | null;
+  content?: string;
+}
+
 export interface DashboardRoleDefinitionRecord {
   id: string;
   name: string;
@@ -1929,6 +1952,17 @@ export interface DashboardApi {
   reverifyRemoteMcpServer(serverId: string): Promise<DashboardRemoteMcpServerRecord>;
   archiveRemoteMcpServer(serverId: string): Promise<DashboardRemoteMcpServerRecord>;
   unarchiveRemoteMcpServer(serverId: string): Promise<DashboardRemoteMcpServerRecord>;
+  listSpecialistSkills(): Promise<DashboardSpecialistSkillRecord[]>;
+  getSpecialistSkill(skillId: string): Promise<DashboardSpecialistSkillRecord>;
+  createSpecialistSkill(
+    payload: DashboardSpecialistSkillCreateInput,
+  ): Promise<DashboardSpecialistSkillRecord>;
+  updateSpecialistSkill(
+    skillId: string,
+    payload: DashboardSpecialistSkillUpdateInput,
+  ): Promise<DashboardSpecialistSkillRecord>;
+  archiveSpecialistSkill(skillId: string): Promise<DashboardSpecialistSkillRecord>;
+  unarchiveSpecialistSkill(skillId: string): Promise<DashboardSpecialistSkillRecord>;
   saveRoleDefinition(
     roleId: string | null,
     payload: Record<string, unknown>,
@@ -3344,6 +3378,49 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() =>
         requestData<DashboardRemoteMcpServerRecord>(
           `/api/v1/remote-mcp-servers/${serverId}/unarchive`,
+          {
+            body: {},
+          },
+        ),
+      ),
+    listSpecialistSkills: () =>
+      withRefresh(() =>
+        requestData<DashboardSpecialistSkillRecord[]>('/api/v1/specialist-skills', {
+          method: 'GET',
+        }),
+      ),
+    getSpecialistSkill: (skillId) =>
+      withRefresh(() =>
+        requestData<DashboardSpecialistSkillRecord>(`/api/v1/specialist-skills/${skillId}`, {
+          method: 'GET',
+        }),
+      ),
+    createSpecialistSkill: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardSpecialistSkillRecord>('/api/v1/specialist-skills', {
+          body: payload as unknown as Record<string, unknown>,
+        }),
+      ),
+    updateSpecialistSkill: (skillId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardSpecialistSkillRecord>(`/api/v1/specialist-skills/${skillId}`, {
+          method: 'PUT',
+          body: payload as unknown as Record<string, unknown>,
+        }),
+      ),
+    archiveSpecialistSkill: (skillId) =>
+      withRefresh(() =>
+        requestData<DashboardSpecialistSkillRecord>(
+          `/api/v1/specialist-skills/${skillId}/archive`,
+          {
+            body: {},
+          },
+        ),
+      ),
+    unarchiveSpecialistSkill: (skillId) =>
+      withRefresh(() =>
+        requestData<DashboardSpecialistSkillRecord>(
+          `/api/v1/specialist-skills/${skillId}/unarchive`,
           {
             body: {},
           },
