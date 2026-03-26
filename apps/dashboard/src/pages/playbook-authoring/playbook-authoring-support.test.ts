@@ -22,6 +22,10 @@ describe('playbook authoring support', () => {
     expect(draft.process_instructions).toContain('preferred');
     expect(draft.process_instructions).toContain('residual risks');
     expect(draft.process_instructions).toContain('close the workflow');
+    expect(draft.orchestrator.max_rework_iterations).toBe('');
+    expect(draft.orchestrator.max_active_tasks).toBe('');
+    expect(draft.orchestrator.max_active_tasks_per_work_item).toBe('');
+    expect(draft.orchestrator.allow_parallel_work_items).toBe('');
   });
 
   it('builds a prose-governed playbook definition', () => {
@@ -101,6 +105,22 @@ describe('playbook authoring support', () => {
     expect(draft.entry_column_id).toBe('active');
     expect(draft.orchestrator.max_active_tasks).toBe('6');
     expect(draft.parameters[0]?.default_value).toBe('ship it');
+  });
+
+  it('omits orchestration-policy overrides unless the user sets them', () => {
+    const draft = createDefaultAuthoringDraft('planned');
+    draft.stages = [{ name: 'deliver', goal: 'Ship the requested change.', guidance: '' }];
+
+    const built = buildPlaybookDefinition('planned', draft);
+
+    expect(built).toEqual(
+      expect.objectContaining({
+        ok: true,
+        value: expect.not.objectContaining({
+          orchestrator: expect.anything(),
+        }),
+      }),
+    );
   });
 
   it('validates stages and workspace-mapped credential inputs', () => {

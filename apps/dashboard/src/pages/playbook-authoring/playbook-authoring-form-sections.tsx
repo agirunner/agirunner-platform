@@ -36,6 +36,7 @@ interface SectionProps {
 
 const ROLE_SELECT_UNSET = '__unset__';
 const ENTRY_COLUMN_UNSET = '__unset__';
+const ORCHESTRATION_POLICY_UNSET = '__orchestration_policy_default__';
 const PARAMETER_TYPE_OPTIONS = [
   { value: 'string', label: 'String' },
   { value: 'number', label: 'Number' },
@@ -424,12 +425,13 @@ function OrchestratorSection(props: SectionProps): JSX.Element {
     <SectionCard
       id="playbook-orchestration-policy"
       title="Orchestration Policy"
-      description="Tune concurrency and iteration limits without changing the workflow contract."
+      description="Optional overrides for concurrency and iteration limits. Leave these blank to inherit the system defaults."
     >
       <div className="grid gap-3 md:grid-cols-2">
         <LabeledField label="Max rework iterations">
           <Input
             value={props.draft.orchestrator.max_rework_iterations}
+            placeholder="System default: 5"
             onChange={(event) =>
               updateOrchestrator(props, 'max_rework_iterations', event.target.value)
             }
@@ -450,30 +452,45 @@ function OrchestratorSection(props: SectionProps): JSX.Element {
         <LabeledField label="Max active tasks">
           <Input
             value={props.draft.orchestrator.max_active_tasks}
+            placeholder="System default: 4"
             onChange={(event) => updateOrchestrator(props, 'max_active_tasks', event.target.value)}
           />
         </LabeledField>
         <LabeledField label="Max active tasks per work item">
           <Input
             value={props.draft.orchestrator.max_active_tasks_per_work_item}
+            placeholder="System default: 2"
             onChange={(event) =>
               updateOrchestrator(props, 'max_active_tasks_per_work_item', event.target.value)
             }
           />
         </LabeledField>
-        <div className="flex items-center">
-          <ToggleField
-            label="Allow parallel work items"
-            checked={props.draft.orchestrator.allow_parallel_work_items}
-            onCheckedChange={(checked) =>
-              props.onChange((current) => ({
-                ...current,
-                orchestrator: { ...current.orchestrator, allow_parallel_work_items: checked },
-              }))
+        <LabeledField label="Allow parallel work items">
+          <Select
+            value={props.draft.orchestrator.allow_parallel_work_items || ORCHESTRATION_POLICY_UNSET}
+            onValueChange={(value) =>
+              updateOrchestrator(
+                props,
+                'allow_parallel_work_items',
+                value === ORCHESTRATION_POLICY_UNSET ? '' : value,
+              )
             }
-          />
-        </div>
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="System default: enabled" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ORCHESTRATION_POLICY_UNSET}>System default: enabled</SelectItem>
+              <SelectItem value="true">Enabled</SelectItem>
+              <SelectItem value="false">Disabled</SelectItem>
+            </SelectContent>
+          </Select>
+        </LabeledField>
       </div>
+      <p className="text-sm text-muted">
+        System defaults: rework iterations `5`, max active tasks `4`, max active tasks per work
+        item `2`, parallel work items enabled.
+      </p>
     </SectionCard>
   );
 }

@@ -29,9 +29,13 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Category');
     expect(source).toContain('Operator label');
     expect(source).toContain('Max rework iterations');
+    expect(source).toContain('System default: 5');
     expect(source).toContain('Task max iterations');
     expect(source).toContain('LLM retry attempts');
+    expect(source).toContain('System default: 4');
+    expect(source).toContain('System default: 2');
     expect(source).toContain('Max active tasks per work item');
+    expect(source).toContain('System default: enabled');
     expect(source).toContain('Orchestration Policy');
     expect(source).not.toContain('Assessment Rules');
     expect(source).not.toContain('Approval Rules');

@@ -47,7 +47,7 @@ export interface PlaybookAuthoringDraft {
     llm_max_retries: string;
     max_active_tasks: string;
     max_active_tasks_per_work_item: string;
-    allow_parallel_work_items: boolean;
+    allow_parallel_work_items: '' | 'true' | 'false';
   };
 }
 
@@ -107,12 +107,12 @@ export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): Playb
     stages: [],
     parameters: [],
     orchestrator: {
-      max_rework_iterations: '5',
+      max_rework_iterations: '',
       max_iterations: '',
       llm_max_retries: '',
-      max_active_tasks: '4',
-      max_active_tasks_per_work_item: '2',
-      allow_parallel_work_items: true,
+      max_active_tasks: '',
+      max_active_tasks_per_work_item: '',
+      allow_parallel_work_items: '',
     },
   };
 }
@@ -221,7 +221,7 @@ export function buildPlaybookDefinition(
     max_active_tasks_per_work_item: parseOptionalInt(
       draft.orchestrator.max_active_tasks_per_work_item,
     ),
-    allow_parallel_work_items: draft.orchestrator.allow_parallel_work_items,
+    allow_parallel_work_items: parseOptionalBoolean(draft.orchestrator.allow_parallel_work_items),
   });
   if (Object.keys(orchestrator).length > 0) {
     definition.orchestrator = orchestrator;
@@ -443,10 +443,7 @@ function readOrchestrator(value: unknown): Partial<PlaybookAuthoringDraft['orche
     llm_max_retries: readOptionalIntString(record.llm_max_retries),
     max_active_tasks: readOptionalIntString(record.max_active_tasks),
     max_active_tasks_per_work_item: readOptionalIntString(record.max_active_tasks_per_work_item),
-    allow_parallel_work_items:
-      typeof record.allow_parallel_work_items === 'boolean'
-        ? record.allow_parallel_work_items
-        : undefined,
+    allow_parallel_work_items: readOptionalBooleanString(record.allow_parallel_work_items),
   }) as Partial<PlaybookAuthoringDraft['orchestrator']>;
 }
 
@@ -467,8 +464,28 @@ function parseOptionalInt(value: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function parseOptionalBoolean(value: '' | 'true' | 'false'): boolean | undefined {
+  if (value === 'true') {
+    return true;
+  }
+  if (value === 'false') {
+    return false;
+  }
+  return undefined;
+}
+
 function readOptionalIntString(value: unknown): string | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? String(value) : undefined;
+}
+
+function readOptionalBooleanString(value: unknown): '' | 'true' | 'false' | undefined {
+  if (value === true) {
+    return 'true';
+  }
+  if (value === false) {
+    return 'false';
+  }
+  return undefined;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
