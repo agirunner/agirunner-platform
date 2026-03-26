@@ -114,6 +114,12 @@ const NAV_SECTIONS: NavSection[] = [
         icon: Server,
         keywords: ['specialist agent', 'specialist agents', 'runtime', 'runtimes'],
       },
+      {
+        label: 'Environments',
+        href: '/platform/environments',
+        icon: Server,
+        keywords: ['execution environment', 'execution environments', 'byoi', 'container image'],
+      },
       { label: 'Operations', href: '/platform/operations', icon: Settings2, keywords: ['operations', 'timing', 'supervision', 'fleet', 'activation'] },
       { label: 'Tools', href: '/platform/tools', icon: Wrench },
     ],

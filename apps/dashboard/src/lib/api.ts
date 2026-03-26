@@ -286,6 +286,104 @@ export interface DashboardRuntimeDefaultUpsertInput {
   description: string;
 }
 
+export type DashboardExecutionEnvironmentPullPolicy = 'always' | 'if-not-present' | 'never';
+export type DashboardExecutionEnvironmentCompatibilityStatus = 'unknown' | 'compatible' | 'incompatible';
+export type DashboardExecutionEnvironmentSupportStatus = 'active' | 'deprecated' | 'blocked';
+
+export interface DashboardExecutionEnvironmentCatalogRecord {
+  catalog_key: string;
+  catalog_version: number;
+  name: string;
+  description?: string | null;
+  image: string;
+  cpu: string;
+  memory: string;
+  pull_policy: DashboardExecutionEnvironmentPullPolicy;
+  bootstrap_commands: string[];
+  bootstrap_required_domains: string[];
+  declared_metadata: Record<string, unknown>;
+  support_status: DashboardExecutionEnvironmentSupportStatus;
+  replacement_catalog_key?: string | null;
+  replacement_catalog_version?: number | null;
+  created_at?: string;
+}
+
+export interface DashboardExecutionEnvironmentRecord {
+  id: string;
+  name: string;
+  description?: string | null;
+  source_kind: 'catalog' | 'custom';
+  catalog_key?: string | null;
+  catalog_version?: number | null;
+  image: string;
+  cpu: string;
+  memory: string;
+  pull_policy: DashboardExecutionEnvironmentPullPolicy;
+  bootstrap_commands: string[];
+  bootstrap_required_domains: string[];
+  operator_notes?: string | null;
+  declared_metadata: Record<string, unknown>;
+  verified_metadata: Record<string, unknown>;
+  tool_capabilities: Record<string, unknown>;
+  compatibility_status: DashboardExecutionEnvironmentCompatibilityStatus;
+  compatibility_errors: string[];
+  verification_contract_version?: string | null;
+  last_verified_at?: string | null;
+  is_default: boolean;
+  is_archived: boolean;
+  is_claimable: boolean;
+  support_status?: DashboardExecutionEnvironmentSupportStatus | null;
+  usage_count: number;
+  agent_hint: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface DashboardExecutionEnvironmentCreateInput {
+  name: string;
+  description?: string;
+  image: string;
+  cpu: string;
+  memory: string;
+  pullPolicy: DashboardExecutionEnvironmentPullPolicy;
+  operatorNotes?: string;
+}
+
+export interface DashboardExecutionEnvironmentCreateFromCatalogInput {
+  catalogKey: string;
+  catalogVersion: number;
+  name?: string;
+  description?: string;
+  operatorNotes?: string;
+}
+
+export interface DashboardExecutionEnvironmentUpdateInput {
+  name?: string;
+  description?: string | null;
+  image?: string;
+  cpu?: string;
+  memory?: string;
+  pullPolicy?: DashboardExecutionEnvironmentPullPolicy;
+  operatorNotes?: string | null;
+}
+
+export interface DashboardRoleDefinitionRecord {
+  id: string;
+  name: string;
+  description: string | null;
+  system_prompt?: string | null;
+  allowed_tools?: string[];
+  model_preference?: string | null;
+  verification_strategy?: string | null;
+  execution_environment_id?: string | null;
+  execution_environment?: DashboardExecutionEnvironmentRecord | null;
+  escalation_target?: string | null;
+  max_escalation_depth?: number | null;
+  is_active: boolean;
+  version?: number;
+  updated_at?: string | null;
+}
+
 export interface DashboardLlmSystemDefaultRecord {
   modelId: string | null;
   reasoningConfig: Record<string, unknown> | null;
@@ -1661,10 +1759,26 @@ export interface DashboardApi {
   listRuntimeDefaults(): Promise<DashboardRuntimeDefaultRecord[]>;
   upsertRuntimeDefault(input: DashboardRuntimeDefaultUpsertInput): Promise<void>;
   deleteRuntimeDefault(id: string): Promise<void>;
+  listExecutionEnvironmentCatalog(): Promise<DashboardExecutionEnvironmentCatalogRecord[]>;
+  listExecutionEnvironments(): Promise<DashboardExecutionEnvironmentRecord[]>;
+  createExecutionEnvironment(
+    payload: DashboardExecutionEnvironmentCreateInput,
+  ): Promise<DashboardExecutionEnvironmentRecord>;
+  createExecutionEnvironmentFromCatalog(
+    payload: DashboardExecutionEnvironmentCreateFromCatalogInput,
+  ): Promise<DashboardExecutionEnvironmentRecord>;
+  updateExecutionEnvironment(
+    environmentId: string,
+    payload: DashboardExecutionEnvironmentUpdateInput,
+  ): Promise<DashboardExecutionEnvironmentRecord>;
+  verifyExecutionEnvironment(environmentId: string): Promise<DashboardExecutionEnvironmentRecord>;
+  setDefaultExecutionEnvironment(environmentId: string): Promise<DashboardExecutionEnvironmentRecord>;
+  archiveExecutionEnvironment(environmentId: string): Promise<DashboardExecutionEnvironmentRecord>;
+  restoreExecutionEnvironment(environmentId: string): Promise<DashboardExecutionEnvironmentRecord>;
   saveRoleDefinition(
     roleId: string | null,
     payload: Record<string, unknown>,
-  ): Promise<{ id: string; name: string; description: string | null; is_active: boolean }>;
+  ): Promise<DashboardRoleDefinitionRecord>;
   deleteRoleDefinition(roleId: string): Promise<void>;
   getLlmSystemDefault(): Promise<DashboardLlmSystemDefaultRecord>;
   updateLlmSystemDefault(payload: DashboardLlmSystemDefaultRecord): Promise<void>;
@@ -1883,9 +1997,7 @@ export interface DashboardApi {
     workspaceId: string,
     payload: { brief: string; name?: string },
   ): Promise<unknown>;
-  listRoleDefinitions(): Promise<
-    Array<{ id: string; name: string; description: string | null; is_active: boolean }>
-  >;
+  listRoleDefinitions(): Promise<DashboardRoleDefinitionRecord[]>;
   getCostSummary(): Promise<DashboardCostSummaryRecord>;
   getRetentionPolicy(): Promise<DashboardGovernanceRetentionPolicy>;
   updateRetentionPolicy(
@@ -2858,9 +2970,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       ),
     listRoleDefinitions: () =>
       withRefresh(() =>
-        requestData<
-          Array<{ id: string; name: string; description: string | null; is_active: boolean }>
-        >('/api/v1/config/roles', {
+        requestData<DashboardRoleDefinitionRecord[]>('/api/v1/config/roles', {
           method: 'GET',
         }),
       ),
@@ -2907,17 +3017,91 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           method: 'DELETE',
         });
       }),
+    listExecutionEnvironmentCatalog: () =>
+      withRefresh(() =>
+        requestData<DashboardExecutionEnvironmentCatalogRecord[]>(
+          '/api/v1/execution-environment-catalog',
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    listExecutionEnvironments: () =>
+      withRefresh(() =>
+        requestData<DashboardExecutionEnvironmentRecord[]>('/api/v1/execution-environments', {
+          method: 'GET',
+        }),
+      ),
+    createExecutionEnvironment: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardExecutionEnvironmentRecord>('/api/v1/execution-environments', {
+          body: payload as unknown as Record<string, unknown>,
+        }),
+      ),
+    createExecutionEnvironmentFromCatalog: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardExecutionEnvironmentRecord>(
+          '/api/v1/execution-environments/from-catalog',
+          {
+            body: payload as unknown as Record<string, unknown>,
+          },
+        ),
+      ),
+    updateExecutionEnvironment: (environmentId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardExecutionEnvironmentRecord>(
+          `/api/v1/execution-environments/${environmentId}`,
+          {
+            method: 'PATCH',
+            body: payload as unknown as Record<string, unknown>,
+          },
+        ),
+      ),
+    verifyExecutionEnvironment: (environmentId) =>
+      withRefresh(() =>
+        requestData<DashboardExecutionEnvironmentRecord>(
+          `/api/v1/execution-environments/${environmentId}/verify`,
+          {
+            body: {},
+          },
+        ),
+      ),
+    setDefaultExecutionEnvironment: (environmentId) =>
+      withRefresh(() =>
+        requestData<DashboardExecutionEnvironmentRecord>(
+          `/api/v1/execution-environments/${environmentId}/set-default`,
+          {
+            body: {},
+          },
+        ),
+      ),
+    archiveExecutionEnvironment: (environmentId) =>
+      withRefresh(() =>
+        requestData<DashboardExecutionEnvironmentRecord>(
+          `/api/v1/execution-environments/${environmentId}/archive`,
+          {
+            body: {},
+          },
+        ),
+      ),
+    restoreExecutionEnvironment: (environmentId) =>
+      withRefresh(() =>
+        requestData<DashboardExecutionEnvironmentRecord>(
+          `/api/v1/execution-environments/${environmentId}/unarchive`,
+          {
+            body: {},
+          },
+        ),
+      ),
     saveRoleDefinition: (roleId, payload) =>
       withRefresh(() =>
-        requestData<{
-          id: string;
-          name: string;
-          description: string | null;
-          is_active: boolean;
-        }>(roleId ? `/api/v1/config/roles/${roleId}` : '/api/v1/config/roles', {
+        requestData<DashboardRoleDefinitionRecord>(
+          roleId ? `/api/v1/config/roles/${roleId}` : '/api/v1/config/roles',
+          {
           method: roleId ? 'PUT' : 'POST',
           body: payload,
-        }),
+          },
+        ),
       ),
     deleteRoleDefinition: (roleId) =>
       withRefresh(async () => {

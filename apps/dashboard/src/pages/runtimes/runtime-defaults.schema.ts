@@ -67,13 +67,6 @@ const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
     defaultExpanded: true,
   },
   {
-    key: 'execution_containers',
-    title: 'Specialist execution defaults',
-    description:
-      'Default image and resource limits for always-cold specialist executions.',
-    defaultExpanded: true,
-  },
-  {
     key: 'task_limits',
     title: 'Task limits',
     description:
@@ -139,40 +132,6 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     configType: 'string',
     placeholder: 'if-not-present',
     section: 'runtime_containers',
-    options: PULL_POLICY_OPTIONS,
-  },
-  {
-    key: 'specialist_execution_default_image',
-    label: 'Image',
-    description: 'Image used for always-cold specialist executions.',
-    configType: 'string',
-    placeholder: 'agirunner-runtime-execution:local',
-    section: 'execution_containers',
-  },
-  {
-    key: 'specialist_execution_default_cpu',
-    label: 'CPU',
-    description: 'CPU allocation per specialist execution.',
-    configType: 'string',
-    placeholder: '2',
-    section: 'execution_containers',
-  },
-  {
-    key: 'specialist_execution_default_memory',
-    label: 'Memory',
-    description:
-      'Memory allocation per specialist execution, for example 512m or 2Gi.',
-    configType: 'string',
-    placeholder: '512m',
-    section: 'execution_containers',
-  },
-  {
-    key: 'specialist_execution_default_pull_policy',
-    label: 'Pull policy',
-    description: 'When specialist execution images should be pulled from the registry.',
-    configType: 'string',
-    placeholder: 'if-not-present',
-    section: 'execution_containers',
     options: PULL_POLICY_OPTIONS,
   },
   {
@@ -530,16 +489,15 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
 ];
 
 export const SECTION_DEFINITIONS: SectionDefinition[] = [
-  ...BASE_SECTION_DEFINITIONS.slice(0, 4),
+  ...BASE_SECTION_DEFINITIONS.slice(0, 3),
   ...RUNTIME_OPERATION_SECTION_DEFINITIONS.filter((section) =>
     RUNTIME_OPERATION_RUNTIME_SECTION_KEYS.has(section.key),
   ),
-  ...BASE_SECTION_DEFINITIONS.slice(4),
+  ...BASE_SECTION_DEFINITIONS.slice(3),
 ];
 
 export const PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS = [
   'runtime_containers',
-  'execution_containers',
 ] as const;
 
 export const RUNTIME_INLINE_SECTION_COLUMNS: SectionColumnLayout = {
@@ -567,14 +525,14 @@ export const RUNTIME_INLINE_SECTION_COLUMNS: SectionColumnLayout = {
 };
 
 export const FIELD_DEFINITIONS: FieldDefinition[] = [
-  ...BASE_FIELD_DEFINITIONS.slice(0, 8),
+  ...BASE_FIELD_DEFINITIONS.slice(0, 4),
   ...RUNTIME_OPERATION_FIELD_DEFINITIONS.filter(
     (field) =>
       RUNTIME_OPERATION_RUNTIME_SECTION_KEYS.has(field.section)
       && !OPERATIONS_CONNECTED_PLATFORM_FIELD_KEYS.has(field.key)
       && field.key !== 'specialist_runtime_drain_grace_seconds',
   ),
-  ...BASE_FIELD_DEFINITIONS.slice(8),
+  ...BASE_FIELD_DEFINITIONS.slice(4),
 ];
 
 function fieldByKey(key: string): FieldDefinition {

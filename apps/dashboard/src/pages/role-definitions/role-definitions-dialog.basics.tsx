@@ -1,6 +1,6 @@
 import type { Dispatch, SetStateAction } from 'react';
 
-import { ImageReferenceField } from '../../components/forms/image-reference-field.js';
+import { Badge } from '../../components/ui/badge.js';
 import {
   Card,
   CardContent,
@@ -18,18 +18,17 @@ import {
 } from '../../components/ui/select.js';
 import { Switch } from '../../components/ui/switch.js';
 import { Textarea } from '../../components/ui/textarea.js';
-import type {
-  RoleDialogValidation,
-} from './role-definitions-dialog.support.js';
+import type { RoleDialogValidation } from './role-definitions-dialog.support.js';
 import type {
   LlmModelRecord,
   LlmProviderRecord,
   RoleDefinition,
+  RoleExecutionEnvironmentSummary,
   RoleFormState,
 } from './role-definitions-page.support.js';
 import { ReasoningControl } from './role-definitions-orchestrator.dialog-shared.js';
 
-const PULL_POLICY_OPTIONS = ['always', 'if-not-present', 'never'] as const;
+const DEFAULT_ENVIRONMENT_VALUE = '__default__';
 
 export function RoleBasicsSection(props: {
   form: RoleFormState;
@@ -177,111 +176,109 @@ export function RoleModelAssignmentSection(props: {
   );
 }
 
-export function RoleExecutionContainerSection(props: {
+export function RoleExecutionEnvironmentSection(props: {
   form: RoleFormState;
   setForm: Dispatch<SetStateAction<RoleFormState>>;
-  validation: RoleDialogValidation;
+  environments: RoleExecutionEnvironmentSummary[];
 }) {
+  const selectedEnvironment = props.environments.find(
+    (environment) => environment.id === props.form.executionEnvironmentId,
+  ) ?? null;
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Specialist execution override</CardTitle>
+        <CardTitle>Execution environment</CardTitle>
         <CardDescription>
-          Override the default specialist execution environment for this role. Leave fields blank to inherit the system defaults from Specialist Agents.
+          Select the Specialist execution environment for this role. Tenant default inherits the environment marked default on Platform &gt; Environments.
         </CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-4 md:grid-cols-2">
-        <label className="grid gap-2 text-sm md:col-span-2">
-          <span className="font-medium">Image</span>
-          <ImageReferenceField
-            value={props.form.executionContainer.image}
-            onChange={(value) =>
-              props.setForm((current) => ({
-                ...current,
-                executionContainer: {
-                  ...current.executionContainer,
-                  image: value,
-                },
-              }))
-            }
-            placeholder="agirunner-runtime-execution:local"
-            helperText="Blank means this role uses the default specialist execution image."
-            error={props.validation.fieldErrors.executionContainerImage}
-            listId="role-execution-image-suggestions"
-          />
-        </label>
+      <CardContent className="grid gap-4">
         <label className="grid gap-2 text-sm">
-          <span className="font-medium">CPU</span>
-          <Input
-            value={props.form.executionContainer.cpu}
-            aria-invalid={Boolean(props.validation.fieldErrors.executionContainerCpu)}
-            onChange={(event) =>
-              props.setForm((current) => ({
-                ...current,
-                executionContainer: {
-                  ...current.executionContainer,
-                  cpu: event.target.value,
-                },
-              }))
-            }
-            placeholder="2"
-          />
-          {props.validation.fieldErrors.executionContainerCpu ? (
-            <span className="text-xs text-red-600 dark:text-red-400">
-              {props.validation.fieldErrors.executionContainerCpu}
-            </span>
-          ) : null}
-        </label>
-        <label className="grid gap-2 text-sm">
-          <span className="font-medium">Memory</span>
-          <Input
-            value={props.form.executionContainer.memory}
-            aria-invalid={Boolean(props.validation.fieldErrors.executionContainerMemory)}
-            onChange={(event) =>
-              props.setForm((current) => ({
-                ...current,
-                executionContainer: {
-                  ...current.executionContainer,
-                  memory: event.target.value,
-                },
-              }))
-            }
-            placeholder="512m"
-          />
-          {props.validation.fieldErrors.executionContainerMemory ? (
-            <span className="text-xs text-red-600 dark:text-red-400">
-              {props.validation.fieldErrors.executionContainerMemory}
-            </span>
-          ) : null}
-        </label>
-        <label className="grid gap-2 text-sm md:col-span-2">
-          <span className="font-medium">Pull policy</span>
+          <span className="font-medium">Environment</span>
           <Select
-            value={props.form.executionContainer.pullPolicy || '__inherit__'}
+            value={props.form.executionEnvironmentId || DEFAULT_ENVIRONMENT_VALUE}
             onValueChange={(value) =>
               props.setForm((current) => ({
                 ...current,
-                executionContainer: {
-                  ...current.executionContainer,
-                  pullPolicy: value === '__inherit__' ? '' : value,
-                },
+                executionEnvironmentId: value === DEFAULT_ENVIRONMENT_VALUE ? '' : value,
               }))
             }
           >
             <SelectTrigger>
-              <SelectValue placeholder="Inherit system default" />
+              <SelectValue placeholder="Use tenant default environment" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__inherit__">Inherit system default</SelectItem>
-              {PULL_POLICY_OPTIONS.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option}
+              <SelectItem value={DEFAULT_ENVIRONMENT_VALUE}>Tenant default environment</SelectItem>
+              {props.environments.map((environment) => (
+                <SelectItem key={environment.id} value={environment.id}>
+                  {environment.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </label>
+        <ExecutionEnvironmentDetails environment={selectedEnvironment} />
       </CardContent>
     </Card>
   );
+}
+
+function ExecutionEnvironmentDetails(props: {
+  environment: RoleExecutionEnvironmentSummary | null;
+}) {
+  if (!props.environment) {
+    return (
+      <div className="rounded-lg border border-border/70 bg-muted/10 px-4 py-3 text-sm text-muted">
+        Roles without an override inherit the tenant default environment, including its image, CPU, memory, and pull policy.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-border/70 bg-muted/10 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="font-medium text-foreground">{props.environment.name}</p>
+        <Badge variant={props.environment.compatibility_status === 'compatible' ? 'success' : 'warning'}>
+          {props.environment.compatibility_status}
+        </Badge>
+        {props.environment.support_status ? (
+          <Badge variant={props.environment.support_status === 'active' ? 'outline' : 'warning'}>
+            {props.environment.support_status}
+          </Badge>
+        ) : null}
+      </div>
+      <dl className="mt-3 grid gap-3 text-sm md:grid-cols-2">
+        <EnvironmentDetail label="Image" value={props.environment.image} mono />
+        <EnvironmentDetail label="Resources" value={`CPU ${props.environment.cpu} | Memory ${props.environment.memory}`} />
+        <EnvironmentDetail label="Pull policy" value={props.environment.pull_policy} />
+        <EnvironmentDetail label="Source" value={buildSourceLabel(props.environment)} />
+      </dl>
+    </div>
+  );
+}
+
+function EnvironmentDetail(props: {
+  label: string;
+  value: string;
+  mono?: boolean;
+}) {
+  return (
+    <div>
+      <dt className="text-xs font-medium uppercase tracking-[0.16em] text-muted">{props.label}</dt>
+      <dd className={props.mono ? 'mt-1 font-mono text-foreground' : 'mt-1 text-foreground'}>
+        {props.value}
+      </dd>
+    </div>
+  );
+}
+
+function buildSourceLabel(environment: RoleExecutionEnvironmentSummary): string {
+  if (environment.source_kind === 'custom') {
+    return 'Custom';
+  }
+  if (environment.catalog_key && environment.catalog_version) {
+    return `${environment.catalog_key} v${environment.catalog_version}`;
+  }
+  return 'Catalog';
 }

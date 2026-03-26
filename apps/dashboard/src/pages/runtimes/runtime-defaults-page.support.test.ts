@@ -11,10 +11,9 @@ import { buildValidationErrors } from './runtime-defaults.validation.js';
 import { summarizeRuntimeDefaultSections } from './runtime-defaults-page.support.js';
 
 describe('runtime defaults page support', () => {
-  it('keeps runtime and execution defaults as the primary expanded sections', () => {
+  it('keeps specialist agent defaults as the primary expanded section', () => {
     expect(SECTION_DEFINITIONS.map((section) => section.key)).toEqual([
       'runtime_containers',
-      'execution_containers',
       'task_limits',
       'capacity_limits',
       'runtime_throughput',
@@ -35,19 +34,13 @@ describe('runtime defaults page support', () => {
     ]);
     expect(
       SECTION_DEFINITIONS.filter((section) => section.defaultExpanded).map((section) => section.key),
-    ).toEqual(['runtime_containers', 'execution_containers', 'task_limits', 'capacity_limits']);
+    ).toEqual(['runtime_containers', 'task_limits', 'capacity_limits']);
 
     expect(fieldsForSection('runtime_containers').map((field) => field.key)).toEqual([
       'specialist_runtime_default_image',
       'specialist_runtime_default_cpu',
       'specialist_runtime_default_memory',
       'specialist_runtime_default_pull_policy',
-    ]);
-    expect(fieldsForSection('execution_containers').map((field) => field.key)).toEqual([
-      'specialist_execution_default_image',
-      'specialist_execution_default_cpu',
-      'specialist_execution_default_memory',
-      'specialist_execution_default_pull_policy',
     ]);
     expect(fieldsForSection('task_limits').map((field) => field.key)).toEqual(['agent.max_iterations']);
     expect(fieldsForSection('capacity_limits').map((field) => field.key)).toEqual([
@@ -62,26 +55,6 @@ describe('runtime defaults page support', () => {
         expect.objectContaining({
           key: 'specialist_runtime_default_memory',
           placeholder: '256m',
-        }),
-      ]),
-    );
-    expect(fieldsForSection('execution_containers')).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          key: 'specialist_execution_default_cpu',
-          placeholder: '2',
-        }),
-        expect.objectContaining({
-          key: 'specialist_execution_default_memory',
-          placeholder: '512m',
-        }),
-      ]),
-    );
-    expect(fieldsForSection('execution_containers')).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          key: 'specialist_execution_default_memory',
-          description: expect.stringContaining('512m or 2Gi'),
         }),
       ]),
     );
@@ -123,7 +96,6 @@ describe('runtime defaults page support', () => {
   it('keeps the current top sections in place and explicitly balances the remaining columns', () => {
     expect(PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS).toEqual([
       'runtime_containers',
-      'execution_containers',
     ]);
     expect(RUNTIME_INLINE_SECTION_COLUMNS).toEqual({
       left: [
@@ -173,6 +145,17 @@ describe('runtime defaults page support', () => {
     expect(errors['capture.push_retries']).toContain('at least 0');
     expect(errors['subagent.max_depth']).toContain('at least 0');
     expect(errors['global_max_specialists']).toContain('at least 1');
+  });
+
+  it('does not expose specialist execution defaults on the specialist agents page', () => {
+    expect(FIELD_DEFINITIONS.map((field) => field.key)).not.toEqual(
+      expect.arrayContaining([
+        'specialist_execution_default_image',
+        'specialist_execution_default_cpu',
+        'specialist_execution_default_memory',
+        'specialist_execution_default_pull_policy',
+      ]),
+    );
   });
 
   it('requires explicit values instead of treating blanks as inherited defaults', () => {
@@ -289,12 +272,12 @@ describe('runtime defaults page support', () => {
     expect(maxBurstElapsedField).toMatchObject({
       placeholder: '120000',
       description:
-        'How long a reactive burst may run before the runtime forces a new planning boundary.',
+        'How long a reactive burst may run before the specialist agent forces a new planning boundary.',
     });
     expect(maxParallelField).toMatchObject({
       placeholder: '8',
       description:
-        'How many read-only tool calls a reactive burst may execute in parallel before the runtime throttles concurrency.',
+        'How many read-only tool calls a reactive burst may execute in parallel before the specialist agent throttles concurrency.',
     });
     expect(llmTimeoutField).toMatchObject({ placeholder: '120' });
     expect(shellExecTimeoutField).toMatchObject({ placeholder: '300' });
@@ -307,32 +290,24 @@ describe('runtime defaults page support', () => {
     expect(bootstrapClaimField).toMatchObject({ placeholder: '60' });
   });
 
-  it('rejects invalid runtime and execution container defaults with recovery guidance', () => {
+  it('rejects invalid specialist agent defaults with recovery guidance', () => {
     const errors = buildValidationErrors({
       specialist_runtime_default_image: 'https://ghcr.io/agirunner/agirunner runtime:latest',
       specialist_runtime_default_cpu: '0',
       specialist_runtime_default_memory: 'banana',
-      specialist_execution_default_image: 'https://ghcr.io/agirunner/execution latest',
-      specialist_execution_default_cpu: '0',
-      specialist_execution_default_memory: 'nope',
     });
 
     expect(errors['specialist_runtime_default_image']).toContain('image:tag or image@sha256:digest');
     expect(errors['specialist_runtime_default_cpu']).toContain('greater than 0');
     expect(errors['specialist_runtime_default_memory']).toContain('512m, 2g, or 2Gi');
-    expect(errors['specialist_execution_default_image']).toContain('image:tag or image@sha256:digest');
-    expect(errors['specialist_execution_default_cpu']).toContain('greater than 0');
-    expect(errors['specialist_execution_default_memory']).toContain('512m, 2g, or 2Gi');
   });
 
   it('rejects fractional cpu values for runtime defaults', () => {
     const errors = buildValidationErrors({
       specialist_runtime_default_cpu: '0.5',
-      specialist_execution_default_cpu: '0.5',
     });
 
     expect(errors['specialist_runtime_default_cpu']).toContain('whole number');
-    expect(errors['specialist_execution_default_cpu']).toContain('whole number');
   });
 
   it('builds section summaries with configured and error counts', () => {
@@ -340,7 +315,6 @@ describe('runtime defaults page support', () => {
       summarizeRuntimeDefaultSections(
         {
           specialist_runtime_default_image: 'agirunner-runtime:local',
-          specialist_execution_default_memory: '1Gi',
           'tools.git_push_timeout_seconds': '90',
           'agent.history_max_messages': '100',
           'agent.history_preserve_recent': '25',
@@ -355,13 +329,7 @@ describe('runtime defaults page support', () => {
       expect.arrayContaining([
         expect.objectContaining({
           key: 'runtime_containers',
-          title: 'Runtime container defaults',
-          configuredCount: 1,
-          errorCount: 0,
-        }),
-        expect.objectContaining({
-          key: 'execution_containers',
-          title: 'Execution container defaults',
+          title: 'Specialist agent defaults',
           configuredCount: 1,
           errorCount: 0,
         }),

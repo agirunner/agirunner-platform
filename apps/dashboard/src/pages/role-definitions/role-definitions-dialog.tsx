@@ -8,7 +8,7 @@ import {
 } from './role-definitions-dialog.support.js';
 import {
   RoleBasicsSection,
-  RoleExecutionContainerSection,
+  RoleExecutionEnvironmentSection,
   RoleModelAssignmentSection,
 } from './role-definitions-dialog.basics.js';
 import {
@@ -26,6 +26,7 @@ import {
   type LlmModelRecord,
   type LlmProviderRecord,
   type RoleDefinition,
+  type RoleExecutionEnvironmentSummary,
   type RoleFormState,
   type RoleToolCatalogEntry,
 } from './role-definitions-page.support.js';
@@ -42,6 +43,7 @@ export function RoleDialog(props: {
   providers: LlmProviderRecord[];
   models: LlmModelRecord[];
   tools: RoleToolCatalogEntry[];
+  executionEnvironments: RoleExecutionEnvironmentSummary[];
   systemDefault?: SystemDefaultRecord;
   assignments: RoleAssignmentRecord[];
   isModelCatalogLoading: boolean;
@@ -130,9 +132,12 @@ export function RoleDialog(props: {
     selectedModelId,
     props.systemDefault?.modelId,
   );
+  const selectedEnvironment =
+    props.executionEnvironments.find((environment) => environment.id === form.executionEnvironmentId)
+    ?? null;
   const tools = listAvailableTools(props.tools, sourceRole, effectiveModel);
   const validation = validateRoleDialog(form, props.roles, props.role);
-  const summary = summarizeRoleSetup(form);
+  const summary = summarizeRoleSetup(form, selectedEnvironment);
 
   useEffect(() => {
     setForm((current) =>
@@ -208,10 +213,10 @@ export function RoleDialog(props: {
                 tools={tools}
                 toggleTool={toggleTool}
               />
-              <RoleExecutionContainerSection
+              <RoleExecutionEnvironmentSection
                 form={form}
                 setForm={setForm}
-                validation={validation}
+                environments={props.executionEnvironments}
               />
               <RoleReadinessCard validation={validation} summary={summary} />
             </div>

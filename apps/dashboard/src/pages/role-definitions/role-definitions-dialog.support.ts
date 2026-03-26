@@ -1,16 +1,12 @@
-import type { RoleDefinition, RoleFormState } from './role-definitions-page.support.js';
-import {
-  validateContainerCpu,
-  validateContainerImage,
-  validateContainerMemory,
-} from '../../lib/container-resources.validation.js';
+import type {
+  RoleDefinition,
+  RoleExecutionEnvironmentSummary,
+  RoleFormState,
+} from './role-definitions-page.support.js';
 
 export interface RoleDialogValidation {
   fieldErrors: {
     name?: string;
-    executionContainerImage?: string;
-    executionContainerCpu?: string;
-    executionContainerMemory?: string;
   };
   blockingIssues: string[];
   advisoryIssues: string[];
@@ -20,6 +16,7 @@ export interface RoleDialogValidation {
 export interface RoleSetupSummary {
   toolSummary: string;
   modelSummary: string;
+  environmentSummary: string;
 }
 
 export function validateRoleDialog(
@@ -38,10 +35,14 @@ export function validateRoleDialog(
   };
 }
 
-export function summarizeRoleSetup(form: RoleFormState): RoleSetupSummary {
+export function summarizeRoleSetup(
+  form: RoleFormState,
+  selectedEnvironment?: RoleExecutionEnvironmentSummary | null,
+): RoleSetupSummary {
   return {
     toolSummary: `${form.allowedTools.length} tool${form.allowedTools.length === 1 ? '' : 's'} enabled`,
     modelSummary: 'Model assigned on Models page',
+    environmentSummary: summarizeEnvironmentSelection(form.executionEnvironmentId, selectedEnvironment),
   };
 }
 
@@ -57,32 +58,6 @@ function buildFieldErrors(
   } else if (hasDuplicateRoleName(trimmedName, roles, currentRole)) {
     errors.name = 'Choose a unique role name.';
   }
-
-  const imageError = validateContainerImage(form.executionContainer.image, 'Image', {
-    emptyValueHint: 'Clear the field to inherit the system default image.',
-  });
-  if (imageError) {
-    errors.executionContainerImage = imageError;
-  }
-
-  const cpuError = validateContainerCpu(form.executionContainer.cpu, 'CPU', {
-    emptyValueHint: 'Clear the field to inherit the system default CPU allocation.',
-  });
-  if (cpuError) {
-    errors.executionContainerCpu = cpuError;
-  }
-
-  const memoryError = validateContainerMemory(
-    form.executionContainer.memory,
-    'Memory',
-    {
-      emptyValueHint: 'Clear the field to inherit the system default memory allocation.',
-    },
-  );
-  if (memoryError) {
-    errors.executionContainerMemory = memoryError;
-  }
-
   return errors;
 }
 
@@ -95,6 +70,19 @@ function buildAdvisoryIssues(form: RoleFormState): string[] {
     issues.push('Enable at least one tool or confirm that this role should be read-only.');
   }
   return issues;
+}
+
+function summarizeEnvironmentSelection(
+  environmentId: string,
+  selectedEnvironment?: RoleExecutionEnvironmentSummary | null,
+): string {
+  if (!environmentId.trim()) {
+    return 'Uses tenant default environment';
+  }
+  if (!selectedEnvironment) {
+    return 'Uses selected execution environment';
+  }
+  return `${selectedEnvironment.name} | ${selectedEnvironment.image}`;
 }
 
 function hasDuplicateRoleName(

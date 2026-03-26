@@ -99,12 +99,6 @@ function validateContainerDefaults(
     memoryKey: 'specialist_runtime_default_memory',
     labelPrefix: 'Specialist Agent',
   });
-  validateContainerAllocation(values, errors, {
-    imageKey: 'specialist_execution_default_image',
-    cpuKey: 'specialist_execution_default_cpu',
-    memoryKey: 'specialist_execution_default_memory',
-    labelPrefix: 'Specialist Execution',
-  });
 }
 
 function validateContainerAllocation(

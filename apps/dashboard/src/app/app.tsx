@@ -73,6 +73,7 @@ const RoleDefinitionsPage = lazyWithRetry(() => import('../pages/role-definition
 const OrchestratorPage = lazyWithRetry(() => import('../pages/orchestrator/orchestrator-page.js').then((m) => ({ default: m.OrchestratorPage })));
 const LlmProvidersPage = lazyWithRetry(() => import('../pages/llm-providers/llm-providers-page.js').then((m) => ({ default: m.LlmProvidersPage })));
 const RuntimesPage = lazyWithRetry(() => import('../pages/runtimes/runtimes-page.js').then((m) => ({ default: m.RuntimesPage })));
+const ExecutionEnvironmentsPage = lazyWithRetry(() => import('../pages/execution-environments/execution-environments-page.js').then((m) => ({ default: m.ExecutionEnvironmentsPage })));
 const OperationsPage = lazyWithRetry(() => import('../pages/operations/operations-page.js').then((m) => ({ default: m.OperationsPage })));
 const PlatformInstructionsPage = lazyWithRetry(() => import('../pages/platform-instructions/platform-instructions-page.js').then((m) => ({ default: m.PlatformInstructionsPage })));
 const AiConfigAssistantPage = lazyWithRetry(() => import('../pages/ai-config-assistant/ai-config-assistant-page.js').then((m) => ({ default: m.AiConfigAssistantPage })));
@@ -221,6 +222,7 @@ export function App(): JSX.Element {
             <Route path="/platform/orchestrator" element={<OrchestratorPage />} />
             <Route path="/platform/routing" element={<LlmProvidersPage />} />
             <Route path="/platform/runtimes" element={<RuntimesPage />} />
+            <Route path="/platform/environments" element={<ExecutionEnvironmentsPage />} />
             <Route path="/platform/operations" element={<OperationsPage />} />
             <Route path="/platform/instructions" element={<PlatformInstructionsPage />} />
             <Route path="/platform/tools" element={<ToolsPage />} />

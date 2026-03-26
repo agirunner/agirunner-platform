@@ -34,33 +34,26 @@ describe('role dialog support', () => {
       summarizeRoleSetup({
         ...createRoleForm(),
         allowedTools: ['file_read'],
+        executionEnvironmentId: '',
       }),
     ).toEqual({
       toolSummary: '1 tool enabled',
       modelSummary: 'Model assigned on Models page',
+      environmentSummary: 'Uses tenant default environment',
     });
   });
 
-  it('surfaces execution container field errors for invalid overrides', () => {
+  it('summarizes explicit environment selection in operator-facing language', () => {
     const result = validateRoleDialog(
       {
         ...createRoleForm(),
         name: 'Developer',
-        executionContainer: {
-          image: 'https://ghcr.io/agirunner/runtime latest',
-          cpu: 'zero',
-          memory: 'banana',
-          pullPolicy: '',
-        },
+        executionEnvironmentId: 'environment-123',
       },
       [],
     );
 
-    expect(result.isValid).toBe(false);
-    expect(result.fieldErrors).toMatchObject({
-      executionContainerImage: expect.stringContaining('valid container image reference'),
-      executionContainerCpu: expect.stringContaining('whole number'),
-      executionContainerMemory: expect.stringContaining('512m, 2g, or 2Gi'),
-    });
+    expect(result.isValid).toBe(true);
+    expect(result.fieldErrors).toEqual({});
   });
 });

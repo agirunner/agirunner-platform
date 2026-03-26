@@ -336,7 +336,9 @@ describe('FR-RT-1620..1625: guided runtime customization flow', () => {
   it('layout exposes runtime configuration navigation in the sidebar', () => {
     const source = readComponent('components/layout/layout.tsx');
     expect(source).toContain('/platform/runtimes');
-    expect(source).toContain('Runtimes');
+    expect(source).toContain('/platform/environments');
+    expect(source).toContain('Specialist Agents');
+    expect(source).toContain('Environments');
   });
 });
 
@@ -358,6 +360,7 @@ describe('FR-427: dashboard navigation and layout', () => {
     expect(source).toContain('Diagnostics');
     expect(source).toContain('Admin');
     expect(source).toContain("href: '/platform/runtimes'");
+    expect(source).toContain("href: '/platform/environments'");
     expect(source).toContain("href: '/diagnostics/containers'");
     expect(source).not.toContain("label: 'Fleet'");
     expect(source).not.toContain('Configuration');

@@ -1,5 +1,25 @@
 import type { DashboardToolTagRecord } from '../../lib/api.js';
 
+export interface RoleExecutionEnvironmentSummary {
+  id: string;
+  name: string;
+  source_kind: 'catalog' | 'custom';
+  catalog_key?: string | null;
+  catalog_version?: number | null;
+  image: string;
+  cpu: string;
+  memory: string;
+  pull_policy: 'always' | 'if-not-present' | 'never';
+  compatibility_status: 'unknown' | 'compatible' | 'incompatible';
+  support_status?: 'active' | 'deprecated' | 'blocked' | null;
+  verification_contract_version?: string | null;
+  verified_metadata?: Record<string, unknown>;
+  tool_capabilities?: Record<string, unknown>;
+  bootstrap_commands?: string[];
+  bootstrap_required_domains?: string[];
+  agent_hint?: string;
+}
+
 export interface RoleDefinition {
   id: string;
   name: string;
@@ -10,22 +30,11 @@ export interface RoleDefinition {
   verification_strategy?: string | null;
   escalation_target?: string | null;
   max_escalation_depth?: number | null;
-  execution_container_config?: {
-    image?: string | null;
-    cpu?: string | null;
-    memory?: string | null;
-    pull_policy?: 'always' | 'if-not-present' | 'never' | null;
-  } | null;
+  execution_environment_id?: string | null;
+  execution_environment?: RoleExecutionEnvironmentSummary | null;
   is_active?: boolean;
   version?: number;
   updated_at?: string | null;
-}
-
-export interface RoleExecutionContainerFormState {
-  image: string;
-  cpu: string;
-  memory: string;
-  pullPolicy: string;
 }
 
 export interface RoleFormState {
@@ -34,7 +43,7 @@ export interface RoleFormState {
   systemPrompt: string;
   allowedTools: string[];
   isActive: boolean;
-  executionContainer: RoleExecutionContainerFormState;
+  executionEnvironmentId: string;
 }
 
 export interface LlmProviderRecord {
@@ -77,7 +86,6 @@ export interface RoleToolCatalogEntry extends DashboardToolTagRecord {
 }
 
 export const NATIVE_SEARCH_TOOL = 'native_search';
-export const DEFAULT_PULL_POLICY = 'if-not-present';
 
 export function createRoleForm(
   role?: RoleDefinition | null,
@@ -89,12 +97,7 @@ export function createRoleForm(
     systemPrompt: role?.system_prompt ?? '',
     allowedTools: role?.allowed_tools ?? [...defaultToolIds],
     isActive: role?.is_active ?? true,
-    executionContainer: {
-      image: role?.execution_container_config?.image ?? '',
-      cpu: role?.execution_container_config?.cpu ?? '',
-      memory: role?.execution_container_config?.memory ?? '',
-      pullPolicy: role?.execution_container_config?.pull_policy ?? DEFAULT_PULL_POLICY,
-    },
+    executionEnvironmentId: role?.execution_environment_id ?? '',
   };
 }
 
@@ -108,32 +111,13 @@ export function createDuplicateRoleForm(
 }
 
 export function buildRolePayload(form: RoleFormState) {
-  const executionContainerConfig = buildExecutionContainerPayload(form.executionContainer);
   return {
     name: form.name.trim(),
     description: form.description.trim() || undefined,
     systemPrompt: form.systemPrompt.trim() || undefined,
     allowedTools: normalizeStringList(form.allowedTools),
-    ...(executionContainerConfig ? { executionContainerConfig } : {}),
+    executionEnvironmentId: normalizeExecutionEnvironmentId(form.executionEnvironmentId),
     isActive: form.isActive,
-  };
-}
-
-function buildExecutionContainerPayload(form: RoleExecutionContainerFormState) {
-  const image = form.image.trim();
-  const cpu = form.cpu.trim();
-  const memory = form.memory.trim();
-  const pullPolicy = form.pullPolicy.trim() || DEFAULT_PULL_POLICY;
-
-  if (!image && !cpu && !memory) {
-    return undefined;
-  }
-
-  return {
-    image: image || undefined,
-    cpu: cpu || undefined,
-    memory: memory || undefined,
-    pullPolicy,
   };
 }
 
@@ -147,15 +131,13 @@ export function listAvailableTools(
       isSpecialistSelectableTool(tool)
       && (tool.id !== NATIVE_SEARCH_TOOL || supportsNativeSearch(model)),
   );
-  const storedTools = (role?.allowed_tools ?? []).filter(
-    (toolId) => {
-      if (toolId === NATIVE_SEARCH_TOOL && !supportsNativeSearch(model)) {
-        return false;
-      }
-      const catalogTool = toolCatalog.find((tool) => tool.id === toolId);
-      return catalogTool ? isSpecialistSelectableTool(catalogTool) : true;
-    },
-  );
+  const storedTools = (role?.allowed_tools ?? []).filter((toolId) => {
+    if (toolId === NATIVE_SEARCH_TOOL && !supportsNativeSearch(model)) {
+      return false;
+    }
+    const catalogTool = toolCatalog.find((tool) => tool.id === toolId);
+    return catalogTool ? isSpecialistSelectableTool(catalogTool) : true;
+  });
   const toolsById = new Map<string, RoleToolCatalogEntry>();
 
   for (const tool of catalogEntries) {
@@ -259,20 +241,19 @@ export function countRoleStateSummary(roles: RoleDefinition[]) {
   );
 }
 
-export function describeRoleModelPolicy(role: RoleDefinition) {
-  return {
-    primary: role.model_preference?.trim() || 'System default',
-  };
+function normalizeExecutionEnvironmentId(value: string): string | null {
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function normalizeStringList(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
 }
 
-function supportsNativeSearch(model?: LlmModelRecord | null): boolean {
-  return Boolean(model?.native_search);
-}
-
 function isSpecialistSelectableTool(tool: RoleToolCatalogEntry): boolean {
   return tool.access_scope !== 'orchestrator_only';
+}
+
+function supportsNativeSearch(model: LlmModelRecord | null | undefined): boolean {
+  return Boolean(model?.native_search);
 }

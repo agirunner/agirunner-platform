@@ -4,6 +4,7 @@ import type {
   LlmModelRecord,
   LlmProviderRecord,
   RoleDefinition,
+  RoleExecutionEnvironmentSummary,
   RoleFormState,
 } from './role-definitions-page.support.js';
 import { buildRolePayload } from './role-definitions-page.support.js';
@@ -24,6 +25,9 @@ export const fetchAssignments = (): Promise<RoleAssignmentRecord[]> =>
   dashboardApi.listLlmAssignments();
 
 export const fetchToolCatalog = () => dashboardApi.listToolTags();
+
+export const fetchExecutionEnvironments = (): Promise<RoleExecutionEnvironmentSummary[]> =>
+  dashboardApi.listExecutionEnvironments() as Promise<RoleExecutionEnvironmentSummary[]>;
 
 export function saveRole(roleId: string | null, form: RoleFormState) {
   return dashboardApi.saveRoleDefinition(

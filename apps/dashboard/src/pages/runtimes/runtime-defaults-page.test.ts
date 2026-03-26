@@ -12,7 +12,6 @@ describe('runtime defaults page source', () => {
   it('exposes the specialist runtime schema through structured exports', () => {
     expect(SECTION_DEFINITIONS.map((section) => section.key)).toEqual([
       'runtime_containers',
-      'execution_containers',
       'task_limits',
       'capacity_limits',
       'runtime_throughput',
@@ -38,10 +37,6 @@ describe('runtime defaults page source', () => {
         'specialist_runtime_default_cpu',
         'specialist_runtime_default_memory',
         'specialist_runtime_default_pull_policy',
-        'specialist_execution_default_image',
-        'specialist_execution_default_cpu',
-        'specialist_execution_default_memory',
-        'specialist_execution_default_pull_policy',
         'global_max_specialists',
         'specialist_runtime_bootstrap_claim_timeout_seconds',
         'queue.max_depth',
@@ -91,7 +86,7 @@ describe('runtime defaults page source', () => {
     const editorSource = readSource('./runtime-defaults-editor-page.tsx');
     const fieldsSource = readSource('./runtime-defaults-fields.tsx');
     expect(pageSource).toContain('RuntimeDefaultsEditorPage');
-    expect(pageSource).toContain('title="Runtimes"');
+    expect(pageSource).toContain('title="Specialist Agents"');
     expect(pageSource).toContain('PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS');
     expect(pageSource).toContain('RUNTIME_INLINE_SECTION_COLUMNS');
     expect(editorSource).toContain('RuntimeDefaultsSection');

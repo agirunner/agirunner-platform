@@ -15,7 +15,6 @@ export interface FieldDefinition {
   defaultValue?: string;
   section:
     | 'runtime_containers'
-    | 'execution_containers'
     | 'task_limits'
     | 'capacity_limits'
     | 'runtime_throughput'

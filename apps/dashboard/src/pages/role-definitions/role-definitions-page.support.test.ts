@@ -38,23 +38,19 @@ describe('role definitions support helpers', () => {
         systemPrompt: ' think deeply ',
         allowedTools: ['git_diff', 'git_diff', ' file_read '],
         isActive: false,
-        executionContainer: {
-          image: '',
-          cpu: '',
-          memory: '',
-          pullPolicy: '',
-        },
+        executionEnvironmentId: '',
       }),
     ).toEqual({
       name: 'architect',
       description: 'designs systems',
       systemPrompt: 'think deeply',
       allowedTools: ['git_diff', 'file_read'],
+      executionEnvironmentId: null,
       isActive: false,
     });
   });
 
-  it('includes execution container overrides only when a role sets them', () => {
+  it('includes an execution environment override only when a role sets one', () => {
     expect(
       buildRolePayload({
         name: 'developer',
@@ -62,54 +58,27 @@ describe('role definitions support helpers', () => {
         systemPrompt: '',
         allowedTools: ['file_read'],
         isActive: true,
-        executionContainer: {
-          image: 'agirunner-runtime-execution:large',
-          cpu: '2',
-          memory: '4Gi',
-          pullPolicy: 'always',
-        },
+        executionEnvironmentId: 'environment-123',
       }),
     ).toEqual(
       expect.objectContaining({
-        executionContainerConfig: {
-          image: 'agirunner-runtime-execution:large',
-          cpu: '2',
-          memory: '4Gi',
-          pullPolicy: 'always',
-        },
+        executionEnvironmentId: 'environment-123',
       }),
     );
   });
 
-  it('defaults role execution container pull policy to if-not-present', () => {
-    expect(createRoleForm().executionContainer.pullPolicy).toBe('if-not-present');
+  it('defaults to the tenant execution environment when no override is set', () => {
+    expect(createRoleForm().executionEnvironmentId).toBe('');
   });
 
-  it('fills in if-not-present when execution container overrides omit pull policy', () => {
+  it('hydrates the current execution environment override into the form', () => {
     expect(
-      buildRolePayload({
+      createRoleForm({
+        id: 'role-1',
         name: 'developer',
-        description: '',
-        systemPrompt: '',
-        allowedTools: ['file_read'],
-        isActive: true,
-        executionContainer: {
-          image: 'agirunner-runtime-execution:large',
-          cpu: '2',
-          memory: '4Gi',
-          pullPolicy: '',
-        },
-      }),
-    ).toEqual(
-      expect.objectContaining({
-        executionContainerConfig: {
-          image: 'agirunner-runtime-execution:large',
-          cpu: '2',
-          memory: '4Gi',
-          pullPolicy: 'if-not-present',
-        },
-      }),
-    );
+        execution_environment_id: 'environment-123',
+      }).executionEnvironmentId,
+    ).toBe('environment-123');
   });
 
   it('creates a duplicate form that clears the name and preserves all other role fields', () => {

@@ -45,6 +45,7 @@ describe('app trigger routes source', () => {
   it('keeps /platform/runtimes as the canonical route and redirects the legacy runtime-defaults path', () => {
     const source = readSource();
     expect(source).toContain('path="/platform/runtimes"');
+    expect(source).toContain('path="/platform/environments"');
     expect(source).toContain('path="/platform/operations"');
     expect(source).toContain('path="/config/runtimes"');
     expect(source).toContain('path="/config/runtime-defaults"');
