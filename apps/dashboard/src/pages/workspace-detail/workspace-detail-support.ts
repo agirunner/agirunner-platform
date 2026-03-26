@@ -2,12 +2,6 @@ import type { DashboardWorkspaceRecord } from '../../lib/api.js';
 
 export const WORKSPACE_DETAIL_TAB_OPTIONS = [
   {
-    value: 'overview',
-    label: 'Overview',
-    description:
-      'Start with workspace posture, knowledge depth, and storage readiness.',
-  },
-  {
     value: 'settings',
     label: 'Settings',
     description:
@@ -42,7 +36,7 @@ export interface WorkspaceDetailHeaderAction {
 }
 
 export interface WorkspaceDetailHeaderState {
-  mode: 'expanded' | 'compact';
+  mode: 'compact';
   title: string;
   description: string;
   activeTab: WorkspaceDetailTabOption;
@@ -65,42 +59,7 @@ export function normalizeWorkspaceDetailTab(value: string | null | undefined): W
   const normalized = value?.trim() ?? '';
   return WORKSPACE_DETAIL_TAB_OPTIONS.some((option) => option.value === normalized)
     ? (normalized as WorkspaceDetailTabValue)
-    : 'overview';
-}
-
-export function buildWorkspaceOverview(
-  workspace: DashboardWorkspaceRecord,
-): WorkspaceOverview {
-  const memoryCount = countObjectEntries(workspace.memory);
-  const updatedLabel = formatWorkspaceDateTime(workspace.updated_at);
-
-  return {
-    summary:
-      'Use this snapshot to confirm lifecycle, storage posture, and shared memory before switching workspaces.',
-    packets: [
-      {
-        label: 'Lifecycle',
-        value: workspace.is_active ? 'Active' : 'Inactive',
-        detail:
-          updatedLabel === '-'
-            ? 'Workspace activity state is available, but no recent update timestamp is recorded.'
-            : `Last updated ${updatedLabel}.`,
-      },
-      {
-        label: 'Shared memory',
-        value: `${memoryCount} ${memoryCount === 1 ? 'entry' : 'entries'}`,
-        detail:
-          memoryCount > 0
-            ? 'Workspace memory keeps evolving notes and learned state available between runs.'
-            : 'No workspace memory entries are saved yet.',
-      },
-      {
-        label: 'Storage',
-        value: readWorkspaceStorageLabel(workspace),
-        detail: describeWorkspaceStorage(workspace),
-      },
-    ],
-  };
+    : 'settings';
 }
 
 export function buildWorkspaceDetailHeaderState(
@@ -108,18 +67,6 @@ export function buildWorkspaceDetailHeaderState(
   activeTab: WorkspaceDetailTabValue,
 ): WorkspaceDetailHeaderState {
   const activeTabOption = getWorkspaceDetailTabOption(activeTab);
-  if (activeTab === 'overview') {
-    return {
-      mode: 'expanded',
-      title: workspace.name,
-      description:
-        'Use this workspace to move between settings and knowledge without losing context.',
-      activeTab: activeTabOption,
-      contextPills: [],
-      quickActions: [],
-    };
-  }
-
   return {
     mode: 'compact',
     title: workspace.name,
@@ -341,12 +288,4 @@ function describeWorkspaceStorage(workspace: DashboardWorkspaceRecord): string {
       : 'Specialist executions mount a host directory configured on the workspace.';
   }
   return 'Persistence happens through uploaded workspace artifacts instead of a shared repository checkout.';
-}
-
-function formatWorkspaceDateTime(value?: string | null): string {
-  if (!value) {
-    return '-';
-  }
-  const parsed = Date.parse(value);
-  return Number.isNaN(parsed) ? value : new Date(parsed).toLocaleString();
 }

@@ -41,7 +41,7 @@ export function WorkspaceListPage(): JSX.Element {
     direction: 'desc',
   });
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_LIST_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_LIST_PAGE_SIZE);
   const { data, isLoading, error } = useQuery({
     queryKey: ['workspaces'],
     queryFn: () => dashboardApi.listWorkspaces(),

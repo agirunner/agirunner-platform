@@ -5,7 +5,6 @@ import {
   buildWorkspaceDetailHeaderState,
   buildWorkspaceKnowledgeOverview,
   buildWorkspaceSettingsOverview,
-  buildWorkspaceOverview,
   buildStructuredObject,
   normalizeWorkspaceDetailTab,
   objectToStructuredDrafts,
@@ -53,72 +52,18 @@ describe('workspace detail support', () => {
     ).toThrow(/duplicate key 'retries'/i);
   });
 
-  it('normalizes unknown workspace-detail tabs back to the spec workspace', () => {
+  it('normalizes missing, unknown, and legacy workspace-detail tabs back to settings', () => {
     expect(WORKSPACE_DETAIL_TAB_OPTIONS.map((option) => option.value)).toEqual([
-      'overview',
       'settings',
       'knowledge',
     ]);
     expect(normalizeWorkspaceDetailTab('knowledge')).toBe('knowledge');
-    expect(normalizeWorkspaceDetailTab('unknown')).toBe('overview');
-    expect(normalizeWorkspaceDetailTab(null)).toBe('overview');
+    expect(normalizeWorkspaceDetailTab('overview')).toBe('settings');
+    expect(normalizeWorkspaceDetailTab('unknown')).toBe('settings');
+    expect(normalizeWorkspaceDetailTab(null)).toBe('settings');
   });
 
-  it('builds a workspace workspace overview from workspace and spec posture', () => {
-    const overview = buildWorkspaceOverview({
-      id: 'workspace-1',
-      name: 'Release automation',
-      slug: 'release-automation',
-      is_active: true,
-      repository_url: 'https://example.com/repo.git',
-      git_webhook_provider: 'github',
-      summary: {
-        active_workflow_count: 2,
-        completed_workflow_count: 5,
-        attention_workflow_count: 0,
-        total_workflow_count: 7,
-        last_workflow_activity_at: '2026-03-13T08:00:00Z',
-      },
-      memory: {
-        last_release: '2026-03-12',
-        rollout: { phase: 'candidate' },
-      },
-      updated_at: '2026-03-13T08:00:00Z',
-    });
-
-    expect(overview.summary).toContain('lifecycle');
-    expect(overview.packets).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ label: 'Lifecycle', value: 'Active' }),
-        expect.objectContaining({ label: 'Shared memory', value: '2 entries' }),
-        expect.objectContaining({ label: 'Storage', value: 'Git Remote' }),
-      ]),
-    );
-    expect(overview.packets.map((packet) => packet.value)).not.toContain('Ready');
-    expect(overview.packets.map((packet) => packet.label)).not.toContain('Automation');
-    expect(overview.packets.map((packet) => packet.label)).not.toContain('Delivery');
-  });
-
-  it('builds an expanded overview header state without redundant quick actions', () => {
-    const headerState = buildWorkspaceDetailHeaderState(
-      {
-        id: 'workspace-1',
-        name: 'Release automation',
-        slug: 'release-automation',
-        is_active: true,
-        repository_url: 'https://example.com/repo.git',
-      },
-      'overview',
-    );
-
-    expect(headerState.mode).toBe('expanded');
-    expect(headerState.activeTab.label).toBe('Overview');
-    expect(headerState.description).not.toContain('Overview surfaces posture');
-    expect(headerState.contextPills).toEqual([]);
-    expect(headerState.quickActions).toEqual([]);
-  });
-
-  it('builds a compact non-overview header state without redundant back links', () => {
+  it('builds a compact settings header state without redundant back links', () => {
     const headerState = buildWorkspaceDetailHeaderState(
       {
         id: 'workspace-1',
@@ -134,6 +79,24 @@ describe('workspace detail support', () => {
     expect(headerState.activeTab.label).toBe('Settings');
     expect(headerState.description).toBe('Adjust workspace basics and storage configuration.');
     expect(headerState.contextPills).toEqual([]);
+    expect(headerState.quickActions).toEqual([]);
+  });
+
+  it('builds a compact knowledge header state without overview copy', () => {
+    const headerState = buildWorkspaceDetailHeaderState(
+      {
+        id: 'workspace-1',
+        name: 'Release automation',
+        slug: 'release-automation',
+        is_active: true,
+        repository_url: null,
+      },
+      'knowledge',
+    );
+
+    expect(headerState.mode).toBe('compact');
+    expect(headerState.activeTab.label).toBe('Knowledge');
+    expect(headerState.description).toBe('Group workspace artifacts and shared memory in one surface.');
     expect(headerState.quickActions).toEqual([]);
   });
 

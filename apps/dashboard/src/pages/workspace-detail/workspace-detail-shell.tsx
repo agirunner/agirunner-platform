@@ -16,7 +16,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import {
   WORKSPACE_DETAIL_TAB_OPTIONS,
-  readWorkspaceStorageLabel,
   type WorkspaceDetailHeaderState,
   type WorkspaceDetailTabValue,
 } from './workspace-detail-support.js';
@@ -26,7 +25,6 @@ interface WorkspaceDetailShellProps {
   activeTab: WorkspaceDetailTabValue;
   headerState: WorkspaceDetailHeaderState;
   onTabChange(nextTab: WorkspaceDetailTabValue): void;
-  overviewContent: ReactNode;
   settingsContent: ReactNode;
   knowledgeContent: ReactNode;
 }
@@ -44,7 +42,6 @@ export function WorkspaceDetailShell(props: WorkspaceDetailShellProps): JSX.Elem
       >
         <WorkspaceDetailTabBar activeTab={props.activeTab} onTabChange={props.onTabChange} />
 
-        <TabsContent value="overview">{props.overviewContent}</TabsContent>
         <TabsContent value="settings">{props.settingsContent}</TabsContent>
         <TabsContent value="knowledge">{props.knowledgeContent}</TabsContent>
       </Tabs>
@@ -57,25 +54,18 @@ function WorkspaceDetailHeader(props: {
   headerState: WorkspaceDetailHeaderState;
 }): JSX.Element {
   const { workspace, headerState } = props;
-  const isExpanded = headerState.mode === 'expanded';
   const workspaceLinkState = { workspaceLabel: workspace.name };
 
   return (
     <Card className="border-border/70 shadow-none">
-      <CardHeader className={isExpanded ? 'space-y-4' : 'space-y-2 py-3'}>
+      <CardHeader className="space-y-2 py-3">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div
-            className={
-              isExpanded ? 'max-w-3xl space-y-3' : 'min-w-0 flex-1 space-y-1.5'
-            }
-          >
+          <div className="min-w-0 flex-1 space-y-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={workspace.is_active ? 'success' : 'secondary'}>
                 {workspace.is_active ? 'Active' : 'Inactive'}
               </Badge>
-              {isExpanded ? <Badge variant="outline">{workspace.slug}</Badge> : null}
-              {isExpanded ? <Badge variant="outline">{readWorkspaceStorageLabel(workspace)}</Badge> : null}
-              {!isExpanded ? <Badge variant="outline">{headerState.activeTab.label}</Badge> : null}
+              <Badge variant="outline">{headerState.activeTab.label}</Badge>
             </div>
             <div className="space-y-1">
               <h1 className="text-lg font-semibold tracking-tight">
@@ -137,7 +127,7 @@ function WorkspaceDetailTabBar(props: {
         </Select>
       </div>
 
-      <TabsList className="hidden h-auto w-full grid-cols-3 gap-1 rounded-xl bg-border/30 p-1 sm:grid">
+      <TabsList className="hidden h-auto w-full grid-cols-2 gap-1 rounded-xl bg-border/30 p-1 sm:grid">
         {WORKSPACE_DETAIL_TAB_OPTIONS.map((option) => (
           <TabsTrigger key={option.value} value={option.value} className="min-w-0">
             {option.label}

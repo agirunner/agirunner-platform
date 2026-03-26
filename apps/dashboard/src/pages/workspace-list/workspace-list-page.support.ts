@@ -155,6 +155,28 @@ export function buildWorkspaceSortDirectionLabel(
   return direction === 'asc' ? 'Oldest first' : 'Newest first';
 }
 
+export function buildWorkspaceStorageSummary(workspace: DashboardWorkspaceRecord): string {
+  const storageLabel = readWorkspaceStorageLabel(workspace);
+  const settings = asRecord(workspace.settings);
+  const storage = asRecord(settings.workspace_storage);
+
+  if (storageLabel === 'Git Remote') {
+    const repositoryUrl = readString(storage.repository_url) || readString(workspace.repository_url);
+    return repositoryUrl
+      ? `${storageLabel} · ${repositoryUrl}`
+      : `${storageLabel} · Repository configured`;
+  }
+
+  if (storageLabel === 'Host Directory') {
+    const hostPath = readString(storage.host_path);
+    return hostPath
+      ? `${storageLabel} · ${hostPath}`
+      : `${storageLabel} · Host path configured`;
+  }
+
+  return `${storageLabel} · Uploaded artifacts`;
+}
+
 function buildWorkspaceSearchText(workspace: DashboardWorkspaceRecord): string {
   return [
     workspace.name,
@@ -204,4 +226,14 @@ function compareNullableNumber(
     return -1;
   }
   return (left - right) * direction;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value : '';
 }

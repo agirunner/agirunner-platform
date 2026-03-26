@@ -276,6 +276,21 @@ export function buildRoleExecutionEnvironmentOptions(
   return [...selectableEnvironments, selectedOption];
 }
 
+export function formatRoleDeleteError(error: unknown): string | null {
+  if (!error) {
+    return null;
+  }
+
+  const message = (error instanceof Error ? error.message : String(error ?? '')).trim();
+  const playbookMatch = message.match(/used by playbook:\s*(.+?)(?:[.]?$)/i);
+  if (playbookMatch) {
+    return `This specialist is still used by playbook "${playbookMatch[1]}". Update that playbook before deleting the specialist.`;
+  }
+
+  const normalized = message.replace(/^HTTP\s+\d+:\s*/i, '').trim();
+  return normalized || 'Failed to delete specialist.';
+}
+
 function normalizeExecutionEnvironmentId(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;

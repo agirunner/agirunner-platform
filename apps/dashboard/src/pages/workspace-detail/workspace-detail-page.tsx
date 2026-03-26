@@ -8,13 +8,11 @@ import {
   buildWorkspaceDetailHeaderState,
   buildWorkspaceKnowledgeOverview,
   buildWorkspaceSettingsOverview,
-  buildWorkspaceOverview,
   normalizeWorkspaceDetailTab,
   type WorkspaceDetailTabValue,
 } from './workspace-detail-support.js';
 import { WorkspaceDetailShell } from './workspace-detail-shell.js';
 import { WorkspaceKnowledgeTab } from './workspace-knowledge-tab.js';
-import { WorkspaceOverviewShell } from './workspace-overview-shell.js';
 import { WorkspaceSettingsTab } from './workspace-settings-tab.js';
 
 export function WorkspaceDetailPage(): JSX.Element {
@@ -41,17 +39,13 @@ export function WorkspaceDetailPage(): JSX.Element {
 
   const workspace = data as DashboardWorkspaceRecord;
   const activeTab = normalizeWorkspaceDetailTab(searchParams.get('tab'));
-  const workspaceOverview = buildWorkspaceOverview(workspace);
   const settingsOverview = buildWorkspaceSettingsOverview(workspace);
   const knowledgeOverview = buildWorkspaceKnowledgeOverview(workspace);
-  const baseHeaderState = buildWorkspaceDetailHeaderState(workspace, activeTab);
-  const headerState = activeTab === 'knowledge'
-    ? { ...baseHeaderState, quickActions: [] }
-    : baseHeaderState;
+  const headerState = buildWorkspaceDetailHeaderState(workspace, activeTab);
 
   function handleTabChange(nextTab: WorkspaceDetailTabValue): void {
     const nextSearchParams = new URLSearchParams(searchParams);
-    if (nextTab === 'overview') {
+    if (nextTab === 'settings') {
       nextSearchParams.delete('tab');
     } else {
       nextSearchParams.set('tab', nextTab);
@@ -65,7 +59,6 @@ export function WorkspaceDetailPage(): JSX.Element {
       activeTab={activeTab}
       headerState={headerState}
       onTabChange={handleTabChange}
-      overviewContent={<WorkspaceOverviewShell overview={workspaceOverview} />}
       settingsContent={
         <WorkspaceSettingsTab workspace={workspace} overview={settingsOverview} />
       }

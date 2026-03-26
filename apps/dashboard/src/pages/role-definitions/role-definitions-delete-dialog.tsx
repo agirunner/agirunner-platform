@@ -14,6 +14,7 @@ import { describeRoleLifecyclePolicy } from './role-definitions-lifecycle.js';
 
 export function DeleteRoleDialog(props: {
   role: RoleDefinition | null;
+  deleteErrorMessage?: string | null;
   isDeleting: boolean;
   onConfirm(): void;
   onOpenChange(open: boolean): void;
@@ -48,6 +49,12 @@ export function DeleteRoleDialog(props: {
             {describeRoleLifecyclePolicy(props.role)}
           </p>
         </div>
+
+        {props.deleteErrorMessage ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            {props.deleteErrorMessage}
+          </div>
+        ) : null}
 
         <div className="flex justify-end gap-2">
           <Button

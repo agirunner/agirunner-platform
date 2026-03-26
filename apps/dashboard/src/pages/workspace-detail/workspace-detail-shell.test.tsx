@@ -7,33 +7,33 @@ function readSource() {
 }
 
 describe('workspace detail shell source', () => {
-  it('owns the shared header chrome, quick actions, and tab controls', () => {
+  it('owns the shared header chrome, quick actions, and the remaining tab controls', () => {
     const source = readSource();
 
     expect(source).toContain('export function WorkspaceDetailShell');
     expect(source).toContain('headerState.quickActions.map((action)');
-    expect(source).toContain("headerState.mode === 'expanded'");
     expect(source).toContain('headerState.activeTab.label');
     expect(source).toContain('SelectTrigger aria-label="Select workspace workspace tab"');
     expect(source).toContain('TabsList');
     expect(source).toContain('TabsTrigger');
+    expect(source).toContain('grid-cols-2');
+    expect(source).not.toContain('grid-cols-3');
+    expect(source).not.toContain('overviewContent');
     expect(source).not.toContain('Workspace workspace');
   });
 
-  it('keeps the workspace title size consistent between overview and the other tabs', () => {
+  it('keeps the workspace title size compact across the remaining tabs', () => {
     const source = readSource();
 
     expect(source).not.toContain("'text-2xl font-semibold tracking-tight'");
     expect(source).toContain('className="text-lg font-semibold tracking-tight"');
   });
 
-  it('keeps the remaining workspace tab panels together in one shell component', () => {
+  it('keeps the settings and knowledge panels together in one shell component', () => {
     const source = readSource();
 
-    expect(source).toContain('<TabsContent value="overview">');
     expect(source).toContain('<TabsContent value="settings">');
     expect(source).toContain('<TabsContent value="knowledge">');
-    expect(source).toContain('props.overviewContent');
     expect(source).toContain('props.settingsContent');
     expect(source).toContain('props.knowledgeContent');
     expect(source).not.toContain('automationContent');

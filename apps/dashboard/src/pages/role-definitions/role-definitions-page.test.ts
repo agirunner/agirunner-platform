@@ -182,7 +182,7 @@ describe('role definitions page source', () => {
     expect(source).toContain('deleteErrorMessage={formatRoleDeleteError(deleteMutation.error)}');
     expect(source).toContain('deleteMutation.reset()');
     expect(source).toContain('Update any playbooks that still reference it before deletion.');
-    expect(source).toContain('onDelete={setDeletingRole}');
+    expect(source).toContain('onDelete={(target) => {');
   });
 
   it('renames the primary surface to Specialists while keeping role-definition internals intact', () => {

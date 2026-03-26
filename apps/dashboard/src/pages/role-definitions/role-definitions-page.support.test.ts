@@ -6,6 +6,7 @@ import {
   buildRolePayload,
   createRoleForm,
   createDuplicateRoleForm,
+  formatRoleDeleteError,
   isSelectableExecutionEnvironment,
   listAvailableTools,
 } from './role-definitions-page.support.js';
@@ -221,5 +222,21 @@ describe('role definitions support helpers', () => {
         '',
       ).map((environment) => environment.id),
     ).toEqual(['environment-active']);
+  });
+
+  it('formats role delete conflicts for inline dialog display without the raw HTTP status', () => {
+    expect(
+      formatRoleDeleteError(
+        new Error(
+          'HTTP 409: Cannot delete role "all-request-architecture-lead" — used by playbook: SDLC All Assessors Request Changes Pipeline.',
+        ),
+      ),
+    ).toBe(
+      'This specialist is still used by playbook "SDLC All Assessors Request Changes Pipeline". Update that playbook before deleting the specialist.',
+    );
+
+    expect(formatRoleDeleteError(new Error('HTTP 500: Internal server error'))).toBe(
+      'Internal server error',
+    );
   });
 });

@@ -37,6 +37,7 @@ import { useRolePageOrchestratorState } from './role-definitions-page.orchestrat
 import {
   countRoleStateSummary,
   createRoleForm,
+  formatRoleDeleteError,
   type RoleDefinition,
 } from './role-definitions-page.support.js';
 import { RoleDialog } from './role-definitions-dialog.js';
@@ -50,7 +51,7 @@ export function RoleDefinitionsPage(): JSX.Element {
   const [deletingRole, setDeletingRole] = useState<RoleDefinition | null>(null);
   const [showActiveOnly, setShowActiveOnly] = useState(false);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_LIST_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_LIST_PAGE_SIZE);
   const rolesQuery = useQuery({ queryKey: ['roles'], queryFn: fetchRoles });
   const toolsQuery = useQuery({ queryKey: ['role-tools'], queryFn: fetchToolCatalog });
   const environmentsQuery = useQuery({
@@ -73,10 +74,6 @@ export function RoleDefinitionsPage(): JSX.Element {
       }
       setDeletingRole(null);
       toast.success(`Deleted specialist ${deletedRoleName}.`);
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : 'Failed to delete specialist.';
-      toast.error(message);
     },
   });
 
@@ -188,7 +185,10 @@ export function RoleDefinitionsPage(): JSX.Element {
                     modelLabel={getModelLabel(role.name)}
                     togglingRoleId={toggleActiveMutation.isPending ? (toggleActiveMutation.variables as RoleDefinition | undefined)?.id ?? null : null}
                     onEdit={setEditingRole}
-                    onDelete={setDeletingRole}
+                    onDelete={(target) => {
+                      deleteMutation.reset();
+                      setDeletingRole(target);
+                    }}
                     onToggleActive={(target) => toggleActiveMutation.mutate(target)}
                     onDuplicate={(source) => {
                       setDuplicateFrom(source);
@@ -220,10 +220,12 @@ export function RoleDefinitionsPage(): JSX.Element {
       {editingRole ? <RoleDialog {...dialogProps} role={editingRole} onClose={() => setEditingRole(null)} /> : null}
       <DeleteRoleDialog
         role={deletingRole}
+        deleteErrorMessage={formatRoleDeleteError(deleteMutation.error)}
         isDeleting={deleteMutation.isPending}
         onConfirm={() => deleteMutation.mutate()}
         onOpenChange={(open) => {
           if (!open && !deleteMutation.isPending) {
+            deleteMutation.reset();
             setDeletingRole(null);
           }
         }}

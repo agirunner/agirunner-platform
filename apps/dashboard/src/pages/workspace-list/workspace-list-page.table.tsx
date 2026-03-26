@@ -19,6 +19,7 @@ import {
   buildWorkspaceActivityLabel,
   buildWorkspaceMetrics,
   buildWorkspaceReadiness,
+  buildWorkspaceStorageSummary,
   type WorkspaceListSortField,
 } from './workspace-list-page.support.js';
 import { readWorkspaceStorageLabel } from '../workspace-detail/workspace-detail-support.js';
@@ -99,6 +100,7 @@ function WorkspaceTableRow(props: {
   const readiness = buildWorkspaceReadiness(props.workspace);
   const workspaceMetrics = buildWorkspaceMetrics(props.workspace, props.sortKey);
   const storageLabel = readWorkspaceStorageLabel(props.workspace);
+  const storageSummary = buildWorkspaceStorageSummary(props.workspace);
   const activityLabel = buildWorkspaceActivityLabel(props.workspace);
 
   return (
@@ -156,11 +158,9 @@ function WorkspaceTableRow(props: {
                 </div>
                 <div className="rounded-lg border border-border/70 bg-background/80 p-3">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
-                    Description
+                    Workspace storage
                   </div>
-                  <div className="mt-2 text-sm text-foreground">
-                    {props.workspace.description?.trim() || 'No description provided.'}
-                  </div>
+                  <div className="mt-2 text-sm text-foreground">{storageSummary}</div>
                 </div>
                 <div className="rounded-lg border border-border/70 bg-background/80 p-3">
                   <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">

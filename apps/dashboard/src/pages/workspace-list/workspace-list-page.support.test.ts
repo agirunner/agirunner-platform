@@ -4,6 +4,7 @@ import {
   buildWorkspaceMetrics,
   buildWorkspaceReadiness,
   buildWorkspaceSortDirectionLabel,
+  buildWorkspaceStorageSummary,
   filterWorkspaces,
   normalizeWorkspaces,
   sortWorkspaces,
@@ -56,7 +57,7 @@ describe('workspace list page support', () => {
         description: 'Dormant workspace',
         is_active: false,
         settings: {
-          workspace_storage_type: 'host_directory',
+          workspace_storage_type: 'host_directory' as const,
         },
       },
       {
@@ -265,6 +266,53 @@ describe('workspace list page support', () => {
     expect(buildWorkspaceSortDirectionLabel('recent_activity', 'desc')).toBe('Newest first');
     expect(buildWorkspaceSortDirectionLabel('workspace_name', 'asc')).toBe('A → Z');
     expect(buildWorkspaceSortDirectionLabel('workflow_volume', 'asc')).toBe('Fewest workflows');
+  });
+
+  it('builds workspace storage summaries from the configured storage backing', () => {
+    expect(
+      buildWorkspaceStorageSummary({
+        id: 'p1',
+        name: 'Alpha',
+        slug: 'alpha',
+        is_active: true,
+        repository_url: 'https://example.com/repo.git',
+        settings: {
+          workspace_storage_type: 'git_remote' as const,
+          workspace_storage: {
+            repository_url: 'https://example.com/repo.git',
+          },
+        },
+      }),
+    ).toBe('Git Remote · https://example.com/repo.git');
+
+    expect(
+      buildWorkspaceStorageSummary({
+        id: 'p2',
+        name: 'Beta',
+        slug: 'beta',
+        is_active: true,
+        repository_url: null,
+        settings: {
+          workspace_storage_type: 'host_directory' as const,
+          workspace_storage: {
+            host_path: '/srv/workspaces/beta',
+          },
+        },
+      }),
+    ).toBe('Host Directory · /srv/workspaces/beta');
+
+    expect(
+      buildWorkspaceStorageSummary({
+        id: 'p3',
+        name: 'Gamma',
+        slug: 'gamma',
+        is_active: true,
+        repository_url: null,
+        settings: {
+          workspace_storage_type: 'workspace_artifacts' as const,
+        },
+      }),
+    ).toBe('Workspace Artifacts · Uploaded artifacts');
   });
 
   it('normalizes list responses from either supported payload shape', () => {

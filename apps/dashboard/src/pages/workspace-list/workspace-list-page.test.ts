@@ -58,6 +58,7 @@ describe('workspace list page source', () => {
     expect(source).toContain('Workflows');
     expect(source).toContain('Last activity');
     expect(source).toContain('Workspace details');
+    expect(source).toContain('Workspace storage');
     expect(source).not.toContain('WorkspaceListGrid');
     expect(source).not.toContain('?tab=settings');
     expect(source).not.toContain('?tab=knowledge');
@@ -68,11 +69,12 @@ describe('workspace list page source', () => {
     expect(source).not.toContain('DropdownMenuTrigger asChild');
     expect(source).not.toContain('Edit basics');
     expect(source).not.toContain('text-foreground/80');
-    expect(source).not.toContain('Summary');
     expect(source).not.toContain('CompactSignalPill');
     expect(source).not.toContain('Workspace entry points');
     expect(source).not.toContain('Edit details');
     expect(source).not.toContain('buildWorkspaceDescription');
+    expect(source).not.toContain('Description');
+    expect(source).not.toContain('No description provided.');
   });
 
   it('keeps workspace dialogs on the shared api client and scroll-safe', () => {
