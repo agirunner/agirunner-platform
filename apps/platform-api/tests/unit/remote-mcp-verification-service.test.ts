@@ -16,6 +16,9 @@ describe('RemoteMcpVerificationService', () => {
   let verifier: {
     verify: ReturnType<typeof vi.fn>;
   };
+  let oauthAuthorizationResolver: {
+    resolveVerificationAuthorizationValue: ReturnType<typeof vi.fn>;
+  };
   let service: RemoteMcpVerificationService;
 
   beforeEach(() => {
@@ -27,7 +30,14 @@ describe('RemoteMcpVerificationService', () => {
       updateMetadataOnly: vi.fn(),
     };
     verifier = { verify: vi.fn() };
-    service = new RemoteMcpVerificationService(serverService as never, verifier as never);
+    oauthAuthorizationResolver = {
+      resolveVerificationAuthorizationValue: vi.fn(),
+    };
+    service = new RemoteMcpVerificationService(
+      serverService as never,
+      verifier as never,
+      oauthAuthorizationResolver as never,
+    );
   });
 
   it('rejects verification when discovery returns zero tools', async () => {
@@ -80,6 +90,68 @@ describe('RemoteMcpVerificationService', () => {
       expect.objectContaining({
         verifiedTransport: 'http_sse_compat',
         verificationContractVersion: 'remote-mcp-v1',
+      }),
+    );
+  });
+
+  it('adds the stored oauth authorization header when reverifying oauth-backed servers', async () => {
+    serverService.getStoredServer.mockResolvedValueOnce({
+      id: SERVER_ID,
+      endpoint_url: 'https://mcp.example.test/server',
+      auth_mode: 'oauth',
+      oauth_config: {
+        authorizationEndpoint: 'https://auth.example.test/authorize',
+        tokenEndpoint: 'https://auth.example.test/token',
+        registrationEndpoint: null,
+        issuer: null,
+        clientId: 'client-id',
+        clientSecret: null,
+        tokenEndpointAuthMethod: 'none',
+        clientIdMetadataDocumentUrl: null,
+        redirectUri: 'http://localhost:1455/auth/callback',
+        scopes: ['mcp'],
+        resource: 'https://mcp.example.test/server',
+      },
+      oauth_credentials: {
+        accessToken: 'enc:v1:token',
+        refreshToken: null,
+        expiresAt: null,
+        tokenType: 'Bearer',
+        scope: 'mcp',
+        authorizedAt: new Date().toISOString(),
+        authorizedByUserId: 'user-1',
+        needsReauth: false,
+      },
+      parameters: [],
+    });
+    oauthAuthorizationResolver.resolveVerificationAuthorizationValue.mockResolvedValueOnce(
+      'Bearer oauth-token',
+    );
+    verifier.verify.mockResolvedValueOnce({
+      verification_status: 'verified',
+      verification_error: null,
+      verified_transport: 'streamable_http',
+      verification_contract_version: 'remote-mcp-v1',
+      discovered_tools_snapshot: [{ original_name: 'search' }],
+    });
+    serverService.updateVerificationResult.mockResolvedValueOnce({ id: SERVER_ID });
+
+    await service.reverifyServer(TENANT_ID, SERVER_ID);
+
+    expect(oauthAuthorizationResolver.resolveVerificationAuthorizationValue).toHaveBeenCalledWith(
+      expect.objectContaining({ id: SERVER_ID }),
+    );
+    expect(verifier.verify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        authMode: 'oauth',
+        parameters: [
+          {
+            placement: 'header',
+            key: 'Authorization',
+            valueKind: 'secret',
+            value: 'Bearer oauth-token',
+          },
+        ],
       }),
     );
   });

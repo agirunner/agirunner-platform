@@ -200,10 +200,6 @@ export async function buildApp() {
   const oauthService = new OAuthService(pool);
   const remoteMcpServerService = new RemoteMcpServerService(pool);
   const remoteMcpVerifier = new RemoteMcpHttpVerifier();
-  const remoteMcpVerificationService = new RemoteMcpVerificationService(
-    remoteMcpServerService,
-    remoteMcpVerifier,
-  );
   const remoteMcpOAuthService = new RemoteMcpOAuthService(
     pool,
     remoteMcpServerService,
@@ -211,6 +207,11 @@ export async function buildApp() {
     {
       platformPublicBaseUrl: appConfig.PLATFORM_PUBLIC_BASE_URL,
     },
+  );
+  const remoteMcpVerificationService = new RemoteMcpVerificationService(
+    remoteMcpServerService,
+    remoteMcpVerifier,
+    remoteMcpOAuthService,
   );
   const specialistSkillService = new SpecialistSkillService(pool);
   const orchestratorGrantService = new OrchestratorGrantService(pool, eventService);

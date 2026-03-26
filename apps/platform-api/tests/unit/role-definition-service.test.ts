@@ -212,10 +212,25 @@ describe('RoleDefinitionService', () => {
           return { rows: [], rowCount: 0 };
         }
         if (sql.includes('FROM remote_mcp_servers')) {
-          return { rows: [{ id: MCP_SERVER_ID }], rowCount: 1 };
+          return {
+            rows: [{
+              id: MCP_SERVER_ID,
+              is_archived: false,
+              verification_status: 'verified',
+              already_assigned: false,
+            }],
+            rowCount: 1,
+          };
         }
         if (sql.includes('FROM specialist_skills')) {
-          return { rows: [{ id: SKILL_ID }], rowCount: 1 };
+          return {
+            rows: [{
+              id: SKILL_ID,
+              is_archived: false,
+              already_assigned: false,
+            }],
+            rowCount: 1,
+          };
         }
         if (sql.includes('INSERT INTO role_definitions')) {
           return { rows: [{ id: ROLE_ID }], rowCount: 1 };
@@ -367,10 +382,25 @@ describe('RoleDefinitionService', () => {
           };
         }
         if (sql.includes('FROM remote_mcp_servers')) {
-          return { rows: [{ id: MCP_SERVER_ID }], rowCount: 1 };
+          return {
+            rows: [{
+              id: MCP_SERVER_ID,
+              is_archived: false,
+              verification_status: 'verified',
+              already_assigned: false,
+            }],
+            rowCount: 1,
+          };
         }
         if (sql.includes('FROM specialist_skills')) {
-          return { rows: [{ id: SKILL_ID }], rowCount: 1 };
+          return {
+            rows: [{
+              id: SKILL_ID,
+              is_archived: false,
+              already_assigned: false,
+            }],
+            rowCount: 1,
+          };
         }
         return { rows: [], rowCount: 1 };
       });
@@ -394,6 +424,57 @@ describe('RoleDefinitionService', () => {
             typeof sql === 'string' && sql.includes('DELETE FROM specialist_skill_assignments'),
         ),
       ).toBe(true);
+    });
+
+    it('allows already-assigned archived MCP servers and skills to remain on update', async () => {
+      let roleLookupCount = 0;
+      pool.query.mockImplementation(async (sql: unknown) => {
+        if (typeof sql !== 'string') {
+          return { rows: [], rowCount: 1 };
+        }
+        if (sql.includes('WHERE rd.tenant_id = $1') && sql.includes('AND rd.id = $2')) {
+          roleLookupCount += 1;
+          return {
+            rows: [
+              buildRoleRow({
+                mcp_server_ids: [MCP_SERVER_ID],
+                skill_ids: [SKILL_ID],
+              }),
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM remote_mcp_servers s')) {
+          return {
+            rows: [{
+              id: MCP_SERVER_ID,
+              is_archived: true,
+              verification_status: 'failed',
+              already_assigned: true,
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM specialist_skills s')) {
+          return {
+            rows: [{
+              id: SKILL_ID,
+              is_archived: true,
+              already_assigned: true,
+            }],
+            rowCount: 1,
+          };
+        }
+        return { rows: [], rowCount: 1 };
+      });
+
+      const result = await service.updateRole(TENANT_ID, ROLE_ID, {
+        mcpServerIds: [MCP_SERVER_ID],
+        skillIds: [SKILL_ID],
+      });
+
+      expect(result.mcp_server_ids).toEqual([MCP_SERVER_ID]);
+      expect(result.skill_ids).toEqual([SKILL_ID]);
     });
 
     it('returns current role when no fields to update', async () => {

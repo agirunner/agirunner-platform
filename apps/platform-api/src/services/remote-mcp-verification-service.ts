@@ -1,7 +1,10 @@
 import { ValidationError } from '../errors/domain-errors.js';
 import type {
   CreateVerifiedRemoteMcpServerInput,
+  RemoteMcpOAuthConfigRecord,
+  RemoteMcpOAuthCredentialsRecord,
   RemoteMcpServerService,
+  StoredRemoteMcpServerRecord,
   UpdateVerifiedRemoteMcpServerInput,
 } from './remote-mcp-server-service.js';
 
@@ -35,6 +38,13 @@ export class RemoteMcpVerificationService {
       | 'updateMetadataOnly'
     >,
     private readonly verifier: RemoteMcpVerifier,
+    private readonly oauthAuthorizationResolver?: {
+      resolveVerificationAuthorizationValue(server: {
+        id: string;
+        oauthConfig: RemoteMcpOAuthConfigRecord | null;
+        oauthCredentials: RemoteMcpOAuthCredentialsRecord | null;
+      }): Promise<string>;
+    },
   ) {}
 
   async createServer(
@@ -82,8 +92,8 @@ export class RemoteMcpVerificationService {
         enabledByDefaultForNewSpecialists: input.enabledByDefaultForNewSpecialists,
       });
     }
-    const verification = await this.verifyOrThrow(
-      input.endpointUrl ?? current.endpoint_url,
+    const parameters = await this.buildVerificationParameters(
+      current,
       input.authMode ?? current.auth_mode,
       input.parameters ?? current.parameters.map((parameter) => ({
         placement: parameter.placement,
@@ -91,6 +101,11 @@ export class RemoteMcpVerificationService {
         valueKind: parameter.value_kind,
         value: parameter.value,
       })),
+    );
+    const verification = await this.verifyOrThrow(
+      input.endpointUrl ?? current.endpoint_url,
+      input.authMode ?? current.auth_mode,
+      parameters,
     );
     return this.serverService.updateVerifiedServer(tenantId, id, {
       ...input,
@@ -104,8 +119,8 @@ export class RemoteMcpVerificationService {
 
   async reverifyServer(tenantId: string, id: string) {
     const current = await this.serverService.getStoredServer(tenantId, id);
-    const verification = await this.verifyOrThrow(
-      current.endpoint_url,
+    const parameters = await this.buildVerificationParameters(
+      current,
       current.auth_mode,
       current.parameters.map((parameter) => ({
         placement: parameter.placement,
@@ -113,6 +128,11 @@ export class RemoteMcpVerificationService {
         valueKind: parameter.value_kind,
         value: parameter.value,
       })),
+    );
+    const verification = await this.verifyOrThrow(
+      current.endpoint_url,
+      current.auth_mode,
+      parameters,
     );
     return this.serverService.updateVerificationResult(tenantId, id, {
       verificationStatus: verification.verification_status,
@@ -138,5 +158,37 @@ export class RemoteMcpVerificationService {
       throw new ValidationError('Remote MCP verification discovered zero tools');
     }
     return verification;
+  }
+
+  private async buildVerificationParameters(
+    current: Pick<StoredRemoteMcpServerRecord, 'id' | 'oauth_config' | 'oauth_credentials'>,
+    authMode: 'none' | 'parameterized' | 'oauth',
+    parameters: Array<{
+      placement: 'path' | 'query' | 'header' | 'initialize_param';
+      key: string;
+      valueKind: 'static' | 'secret';
+      value: string;
+    }>,
+  ) {
+    if (authMode !== 'oauth') {
+      return parameters;
+    }
+    if (!this.oauthAuthorizationResolver) {
+      throw new ValidationError('Remote MCP OAuth verification support is not configured');
+    }
+    const authorizationValue = await this.oauthAuthorizationResolver.resolveVerificationAuthorizationValue({
+      id: current.id,
+      oauthConfig: current.oauth_config,
+      oauthCredentials: current.oauth_credentials,
+    });
+    return [
+      ...parameters,
+      {
+        placement: 'header' as const,
+        key: 'Authorization',
+        valueKind: 'secret' as const,
+        value: authorizationValue,
+      },
+    ];
   }
 }

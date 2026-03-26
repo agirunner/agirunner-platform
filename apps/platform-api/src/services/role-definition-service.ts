@@ -134,8 +134,8 @@ export class RoleDefinitionService {
       tenantId,
       validated.executionEnvironmentId,
     );
-    const mcpServerIds = await this.normalizeRemoteMcpServerIds(tenantId, validated.mcpServerIds);
-    const skillIds = await this.normalizeSkillIds(tenantId, validated.skillIds);
+    const mcpServerIds = await this.normalizeRemoteMcpServerIds(tenantId, validated.mcpServerIds, null);
+    const skillIds = await this.normalizeSkillIds(tenantId, validated.skillIds, null);
 
     try {
       const result = await this.pool.query<{ id: string }>(
@@ -198,11 +198,11 @@ export class RoleDefinitionService {
     const mcpServerIds =
       validated.mcpServerIds === undefined
         ? undefined
-        : await this.normalizeRemoteMcpServerIds(tenantId, validated.mcpServerIds);
+        : await this.normalizeRemoteMcpServerIds(tenantId, validated.mcpServerIds, id);
     const skillIds =
       validated.skillIds === undefined
         ? undefined
-        : await this.normalizeSkillIds(tenantId, validated.skillIds);
+        : await this.normalizeSkillIds(tenantId, validated.skillIds, id);
 
     const setClauses: string[] = [];
     const values: unknown[] = [tenantId, id];
@@ -365,40 +365,81 @@ export class RoleDefinitionService {
     return result.rows;
   }
 
-  private async normalizeRemoteMcpServerIds(tenantId: string, ids: string[]): Promise<string[]> {
+  private async normalizeRemoteMcpServerIds(
+    tenantId: string,
+    ids: string[],
+    roleId: string | null,
+  ): Promise<string[]> {
     const uniqueIds = Array.from(new Set(ids));
     if (uniqueIds.length === 0) {
       return [];
     }
-    const result = await this.pool.query<{ id: string }>(
-      `SELECT id
-         FROM remote_mcp_servers
-        WHERE tenant_id = $1
-          AND is_archived = false
-          AND verification_status = 'verified'
-          AND id = ANY($2::uuid[])`,
-      [tenantId, uniqueIds],
+    const result = await this.pool.query<{
+      id: string;
+      is_archived: boolean;
+      verification_status: string;
+      already_assigned: boolean;
+    }>(
+      `SELECT s.id,
+              s.is_archived,
+              s.verification_status,
+              EXISTS(
+                SELECT 1
+                  FROM specialist_mcp_server_grants g
+                 WHERE g.specialist_id = $3
+                   AND g.remote_mcp_server_id = s.id
+              ) AS already_assigned
+         FROM remote_mcp_servers s
+        WHERE s.tenant_id = $1
+          AND s.id = ANY($2::uuid[])`,
+      [tenantId, uniqueIds, roleId],
     );
     if (result.rows.length !== uniqueIds.length) {
+      throw new ValidationError('Remote MCP servers must exist before assignment');
+    }
+    const invalid = result.rows.find((row) =>
+      !row.already_assigned && (row.is_archived || row.verification_status !== 'verified'),
+    );
+    if (invalid) {
       throw new ValidationError('Remote MCP servers must be active and verified before assignment');
     }
     return uniqueIds;
   }
 
-  private async normalizeSkillIds(tenantId: string, ids: string[]): Promise<string[]> {
+  private async normalizeSkillIds(
+    tenantId: string,
+    ids: string[],
+    roleId: string | null,
+  ): Promise<string[]> {
     const uniqueIds = Array.from(new Set(ids));
     if (uniqueIds.length === 0) {
       return [];
     }
-    const result = await this.pool.query<{ id: string }>(
-      `SELECT id
-         FROM specialist_skills
-        WHERE tenant_id = $1
-          AND is_archived = false
-          AND id = ANY($2::uuid[])`,
-      [tenantId, uniqueIds],
+    const result = await this.pool.query<{
+      id: string;
+      is_archived: boolean;
+      already_assigned: boolean;
+    }>(
+      `SELECT s.id,
+              s.is_archived,
+              EXISTS(
+                SELECT 1
+                  FROM specialist_skill_assignments a
+                 WHERE a.specialist_id = $3
+                   AND a.skill_id = s.id
+              ) AS already_assigned
+         FROM specialist_skills s
+        WHERE s.tenant_id = $1
+          AND s.id = ANY($2::uuid[])`,
+      [tenantId, uniqueIds, roleId],
     );
     if (result.rows.length !== uniqueIds.length) {
+      throw new ValidationError('Specialist skills must exist before assignment');
+    }
+    const invalid = result.rows.find((row) =>
+      !row.already_assigned && row.is_archived,
+    );
+    if (invalid) {
       throw new ValidationError('Specialist skills must be active before assignment');
     }
     return uniqueIds;

@@ -277,6 +277,13 @@ export class RemoteMcpOAuthService {
   async resolveStoredAuthorizationSecret(
     server: AuthorizationSecretInput,
   ): Promise<string> {
+    const authorizationValue = await this.resolveVerificationAuthorizationValue(server);
+    return encryptRemoteMcpSecret(authorizationValue);
+  }
+
+  async resolveVerificationAuthorizationValue(
+    server: AuthorizationSecretInput,
+  ): Promise<string> {
     if (!server.oauthConfig || !server.oauthCredentials) {
       throw new ValidationError('Remote MCP OAuth server is missing a stored OAuth connection');
     }
@@ -286,7 +293,7 @@ export class RemoteMcpOAuthService {
     const credentials = await this.ensureValidOauthCredentials(server.id, server.oauthConfig, server.oauthCredentials);
     const tokenType = credentials.tokenType?.trim() || 'Bearer';
     const accessToken = decryptRemoteMcpSecret(credentials.accessToken);
-    return encryptRemoteMcpSecret(`${tokenType} ${accessToken}`);
+    return `${tokenType} ${accessToken}`;
   }
 
   private async prepareAuthorization(endpointUrl: string): Promise<PreparedOAuthFlow> {
