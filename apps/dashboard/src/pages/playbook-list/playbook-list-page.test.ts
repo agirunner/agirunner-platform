@@ -30,6 +30,8 @@ describe('playbook list page source', () => {
     expect(source).not.toContain('Definition JSON');
     expect(source).toContain('buildPlaybookDefinition(');
     expect(source).toContain('aria-label={`Open ${family.name}`}');
+    expect(source).toContain('variant="ghost"');
+    expect(source).toContain('className="h-8 w-8"');
     expect(source).toContain('aria-label={`Launch ${family.name}`}');
     expect(source).toContain('size="icon"');
     expect(source).toContain('This playbook is inactive. Open it to reactivate the family before launching a new');

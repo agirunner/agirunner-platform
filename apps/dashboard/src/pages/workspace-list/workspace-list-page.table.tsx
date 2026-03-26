@@ -138,7 +138,8 @@ function WorkspaceTableRow(props: {
           <Button
             asChild
             size="icon"
-            variant="outline"
+            variant="ghost"
+            className="h-8 w-8"
             aria-label={`Open ${props.workspace.name}`}
             title={`Open ${props.workspace.name}`}
             onClick={(event) => event.stopPropagation()}

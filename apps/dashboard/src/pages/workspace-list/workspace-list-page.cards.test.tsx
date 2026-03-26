@@ -52,6 +52,7 @@ describe('workspace list page table', () => {
     expect(markup).toContain('Last activity');
     expect(markup).toContain('7 workflows total');
     expect(markup).toContain('aria-label="Open Alpha"');
+    expect(markup).toContain('h-8 w-8');
     expect(markup).not.toContain('Edit basics');
     expect(markup).not.toContain('Delete');
     expect(markup).not.toContain('Needs attention');

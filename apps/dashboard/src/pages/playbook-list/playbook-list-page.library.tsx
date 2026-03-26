@@ -213,7 +213,8 @@ function PlaybookFamilyRow(props: {
             <Button
               asChild
               size="icon"
-              variant="outline"
+              variant="ghost"
+              className="h-8 w-8"
               aria-label={`Open ${family.name}`}
               title={`Open ${family.name}`}
               onClick={(event) => event.stopPropagation()}

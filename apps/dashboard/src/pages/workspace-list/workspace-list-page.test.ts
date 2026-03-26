@@ -53,6 +53,8 @@ describe('workspace list page source', () => {
     expect(source).toContain('<TableCell className="text-sm text-foreground">{workspaceMetrics}</TableCell>');
     expect(source).toContain('<TableCell className="text-sm text-foreground">{activityLabel}</TableCell>');
     expect(source).toContain('aria-label={`Open ${props.workspace.name}`}');
+    expect(source).toContain('variant="ghost"');
+    expect(source).toContain('className="h-8 w-8"');
     expect(source).toContain('size="icon"');
     expect(source).toContain('WorkspaceListTable');
     expect(source).toContain('Page size');
