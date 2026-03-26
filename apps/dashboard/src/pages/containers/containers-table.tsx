@@ -171,7 +171,7 @@ function renderEntityLink(
     return <span className="text-sm text-muted-foreground">-</span>;
   }
   return (
-    <Link className="text-sm text-accent hover:underline" to={`${hrefBase}/${id}`}>
+    <Link className="text-sm text-foreground hover:underline" to={`${hrefBase}/${id}`}>
       {label ?? id}
     </Link>
   );
@@ -193,7 +193,7 @@ function renderExecutionEnvironmentSummary(row: SessionContainerRow): JSX.Elemen
     return null;
   }
   return (
-    <p className="mt-1 truncate text-xs text-muted-foreground" title={summaryParts.join(' · ')}>
+    <p className="mt-1 truncate text-xs text-foreground" title={summaryParts.join(' · ')}>
       {summaryParts.join(' · ')}
     </p>
   );

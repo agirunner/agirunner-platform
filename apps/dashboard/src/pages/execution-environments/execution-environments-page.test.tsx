@@ -59,11 +59,17 @@ describe('execution environments page source', () => {
     expect(markup).toContain('title="Set default environment"');
     expect(markup).toContain('aria-label="Archive environment"');
     expect(markup).toContain('title="Archive environment"');
+    expect(markup).toContain('class="text-xs text-foreground">Curated Debian baseline</div>');
+    expect(markup).toContain('class="text-xs text-foreground">OS debian | Pkg apt</div>');
+    expect(markup).toContain('class="text-xs text-foreground">Pull if-not-present | Used by 1 role</div>');
     expect(markup).not.toContain('>Copy<');
     expect(markup).not.toContain('>Edit<');
     expect(markup).not.toContain('>Verify<');
     expect(markup).not.toContain('>Default<');
     expect(markup).not.toContain('>Archive<');
+    expect(markup).not.toContain('class="text-xs text-muted">Curated Debian baseline</div>');
+    expect(markup).not.toContain('class="text-xs text-muted">OS debian | Pkg apt</div>');
+    expect(markup).not.toContain('class="text-xs text-muted">Pull if-not-present | Used by 1 role</div>');
   });
 
   it('uses a copy mode that reopens the create dialog with a cleared name', () => {

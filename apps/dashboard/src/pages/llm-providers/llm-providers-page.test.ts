@@ -140,7 +140,7 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('function truncateRoleDescription(description: string): string {');
     expect(source).toContain('function summarizeStaleRoleBadgeLabel(input: {');
     expect(source).toContain('<TableHead className="w-1/5">Description</TableHead>');
-    expect(source).toContain('<TableCell className="align-middle text-sm text-muted">');
+    expect(source).toContain('<TableCell className="align-middle text-sm text-foreground">');
     expect(source).toContain('<span className="block truncate" title={summarizeRoleDescription(role)}>');
   });
 

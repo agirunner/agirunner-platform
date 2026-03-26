@@ -177,24 +177,24 @@ function PlaybookFamilyRow(props: {
             )}
             <div className="min-w-0 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <Link className="font-medium underline-offset-4 hover:underline" to={`/design/playbooks/${playbook.id}`}>
+                <Link className="font-medium text-foreground underline-offset-4 hover:underline" to={`/design/playbooks/${playbook.id}`}>
                   {family.name}
                 </Link>
                 <Badge variant="outline">v{playbook.version}</Badge>
                 {isArchivedFamily ? <Badge variant="secondary">Inactive</Badge> : null}
               </div>
-              <p className="text-sm text-muted">{family.slug}</p>
+              <p className="text-sm text-foreground">{family.slug}</p>
             </div>
           </div>
         </TableCell>
-        <TableCell className="text-sm text-muted">{describePlaybookLifecycle(family.lifecycle)}</TableCell>
-        <TableCell className="text-sm text-muted">
+        <TableCell className="text-sm text-foreground">{describePlaybookLifecycle(family.lifecycle)}</TableCell>
+        <TableCell className="text-sm text-foreground">
           {family.process.roleCount} roles · {family.process.inputCount} inputs
         </TableCell>
-        <TableCell className="text-sm text-muted">
+        <TableCell className="text-sm text-foreground">
           {family.structure.stages} stages / {family.structure.boardColumns} columns
         </TableCell>
-        <TableCell className="text-sm text-muted">
+        <TableCell className="text-sm text-foreground">
           v{playbook.version} · {family.revisionCount} revision{family.revisionCount === 1 ? '' : 's'}
         </TableCell>
         <TableCell className="text-right">

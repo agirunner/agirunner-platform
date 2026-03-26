@@ -121,7 +121,7 @@ function WorkspaceTableRow(props: {
                 <Link
                   to={`/design/workspaces/${props.workspace.id}`}
                   state={workspaceLinkState}
-                  className="font-medium underline-offset-4 transition hover:text-foreground hover:underline"
+                  className="font-medium text-foreground underline-offset-4 transition hover:underline"
                   onClick={(event) => event.stopPropagation()}
                 >
                   {props.workspace.name}
@@ -131,9 +131,9 @@ function WorkspaceTableRow(props: {
             </div>
           </div>
         </TableCell>
-        <TableCell className="text-sm">{storageLabel}</TableCell>
-        <TableCell className="text-sm text-muted">{workspaceMetrics}</TableCell>
-        <TableCell className="text-sm text-muted">{activityLabel}</TableCell>
+        <TableCell className="text-sm text-foreground">{storageLabel}</TableCell>
+        <TableCell className="text-sm text-foreground">{workspaceMetrics}</TableCell>
+        <TableCell className="text-sm text-foreground">{activityLabel}</TableCell>
         <TableCell className="text-right">
           <Button asChild size="sm" onClick={(event) => event.stopPropagation()}>
             <Link to={`/design/workspaces/${props.workspace.id}`} state={workspaceLinkState}>

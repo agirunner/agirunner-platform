@@ -49,6 +49,9 @@ describe('workspace list page source', () => {
     expect(source).toContain('const workspaceLinkState = { workspaceLabel: props.workspace.name };');
     expect(source).toContain('to={`/design/workspaces/${props.workspace.id}`}');
     expect(source).toContain('state={workspaceLinkState}');
+    expect(source).toContain('className="font-medium text-foreground underline-offset-4 transition hover:underline"');
+    expect(source).toContain('<TableCell className="text-sm text-foreground">{workspaceMetrics}</TableCell>');
+    expect(source).toContain('<TableCell className="text-sm text-foreground">{activityLabel}</TableCell>');
     expect(source).toContain('Manage');
     expect(source).toContain('WorkspaceListTable');
     expect(source).toContain('Page size');
@@ -74,6 +77,9 @@ describe('workspace list page source', () => {
     expect(source).not.toContain('Workspace entry points');
     expect(source).not.toContain('Edit details');
     expect(source).not.toContain('buildWorkspaceDescription');
+    expect(source).not.toContain('hover:text-foreground');
+    expect(source).not.toContain('<TableCell className="text-sm text-muted">{workspaceMetrics}</TableCell>');
+    expect(source).not.toContain('<TableCell className="text-sm text-muted">{activityLabel}</TableCell>');
     expect(source).not.toContain('Description');
     expect(source).not.toContain('No description provided.');
   });

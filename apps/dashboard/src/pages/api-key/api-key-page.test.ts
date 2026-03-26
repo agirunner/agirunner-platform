@@ -37,13 +37,21 @@ describe('governance api key page source', () => {
     const source = readSource();
     expect(source).toContain('Admin / Service Keys');
     expect(source).toContain('System Keys');
-    expect(source).toContain('Execution');
-    expect(source).toContain("worker: 'Agent'");
-    expect(source).toContain('created and deleted automatically with runtime lifecycle');
+    expect(source).toContain('Specialist Execution');
+    expect(source).toContain("worker: 'Specialist Agent'");
+    expect(source).toContain('created and deleted automatically with agent lifecycle');
+    expect(source).toContain('<p className="text-xs text-foreground">{formatDateLabel(key.created_at)}</p>');
+    expect(source).toContain('<td className="p-4 align-middle text-foreground">{key.label ?? \'Unlabeled\'}</td>');
+    expect(source).toContain('className="p-4 align-middle text-foreground"');
+    expect(source).toContain('return <span className="text-foreground">{scopeName(props.scope)}</span>;');
+    expect(source).toContain('return <span className="text-xs text-foreground">Automatic</span>;');
+    expect(source).toContain('return <span className="text-xs text-foreground">No action</span>;');
     expect(source).not.toContain('<th className="h-10 px-4 text-left font-medium text-muted">Owner</th>');
     expect(source).toContain('<colgroup>');
     expect(source).not.toContain('<Badge variant={scopeVariant(props.scope)}>');
     expect(source).not.toContain('badgeVariant={scopeVariant(props.record.scope)}');
+    expect(source).not.toContain('<td className="p-4 align-middle text-muted">{key.label ?? \'Unlabeled\'}</td>');
+    expect(source).not.toContain('return <span className="text-muted">{scopeName(props.scope)}</span>;');
   });
 
   it('limits operator key creation to admin and service scopes with a no-expiry option', () => {
@@ -55,7 +63,7 @@ describe('governance api key page source', () => {
     expect(source).not.toContain('<SelectItem value="agent">Agent</SelectItem>');
     expect(source).not.toContain('<SelectItem value="worker">Worker</SelectItem>');
     expect(source).toContain('Admin / Service scope');
-    expect(source).toContain("worker: 'Agent'");
-    expect(source).toContain("agent: 'Execution'");
+    expect(source).toContain("worker: 'Specialist Agent'");
+    expect(source).toContain("agent: 'Specialist Execution'");
   });
 });

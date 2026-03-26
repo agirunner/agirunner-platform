@@ -60,10 +60,10 @@ export function ExecutionEnvironmentTable(props: {
                         {environment.source_kind === 'catalog' ? 'Catalog' : 'Custom'}
                       </Badge>
                     </div>
-                    <div className="text-xs text-muted">
+                    <div className="text-xs text-foreground">
                       {environment.description ?? 'No description provided.'}
                     </div>
-                    <div className="text-xs text-muted">
+                    <div className="text-xs text-foreground">
                       {buildEnvironmentMeta(environment)}
                     </div>
                   </div>
@@ -99,7 +99,7 @@ export function ExecutionEnvironmentTable(props: {
                 </TableCell>
                 <TableCell>
                   <div className="text-sm text-foreground">{`CPU ${environment.cpu} | Memory ${environment.memory}`}</div>
-                  <div className="text-xs text-muted">{`Pull ${environment.pull_policy} | Used by ${environment.usage_count} role${environment.usage_count === 1 ? '' : 's'}`}</div>
+                  <div className="text-xs text-foreground">{`Pull ${environment.pull_policy} | Used by ${environment.usage_count} role${environment.usage_count === 1 ? '' : 's'}`}</div>
                 </TableCell>
                 <TableCell className="text-right">
                   <div className="flex flex-nowrap justify-end gap-2 whitespace-nowrap">

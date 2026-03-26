@@ -204,21 +204,21 @@ function ApiKeyTableSection(props: {
                         <td className="p-4 align-middle">
                           <div className="space-y-1">
                             <p className="font-mono text-xs">{key.key_prefix}...</p>
-                            <p className="text-xs text-muted">{formatDateLabel(key.created_at)}</p>
+                            <p className="text-xs text-foreground">{formatDateLabel(key.created_at)}</p>
                           </div>
                         </td>
                         <td className="p-4 align-middle">
                           <ScopeCell scope={key.scope} />
                         </td>
-                        <td className="p-4 align-middle text-muted">{key.label ?? 'Unlabeled'}</td>
+                        <td className="p-4 align-middle text-foreground">{key.label ?? 'Unlabeled'}</td>
                         <td
-                          className="p-4 align-middle text-muted"
+                          className="p-4 align-middle text-foreground"
                           title={formatAbsoluteTimestamp(key.last_used_at)}
                         >
                           {formatRelativeTimestamp(key.last_used_at)}
                         </td>
                         <td
-                          className="p-4 align-middle text-muted"
+                          className="p-4 align-middle text-foreground"
                           title={formatAbsoluteTimestamp(key.expires_at)}
                         >
                           {formatExpiryLabel(key.expires_at)}
@@ -283,7 +283,7 @@ function ApiKeyMobileCard(props: {
 }
 
 function ScopeCell(props: { scope: string }): JSX.Element {
-  return <span className="text-muted">{scopeName(props.scope)}</span>;
+  return <span className="text-foreground">{scopeName(props.scope)}</span>;
 }
 
 function StatusBadge(props: { record: DashboardApiKeyRecord }): JSX.Element {
@@ -300,11 +300,11 @@ function ActionCell(props: {
   onRevoke(record: DashboardApiKeyRecord): void;
 }): JSX.Element {
   if (props.kind === 'system') {
-    return <span className="text-xs text-muted">Automatic</span>;
+    return <span className="text-xs text-foreground">Automatic</span>;
   }
 
   if (props.record.is_revoked) {
-    return <span className="text-xs text-muted">No action</span>;
+    return <span className="text-xs text-foreground">No action</span>;
   }
 
   return (

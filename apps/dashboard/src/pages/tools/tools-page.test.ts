@@ -37,12 +37,14 @@ describe('tools page source', () => {
     expect(source).toContain('Orchestrator only');
     expect(source).toContain('Specialist + orchestrator');
     expect(source).toContain('DASHBOARD_BADGE_BASE_CLASS_NAME');
+    expect(source).toContain('<TableCell className="text-sm text-foreground">');
     expect(source).toContain('bg-amber-100');
     expect(source).toContain('bg-indigo-100');
     expect(source).toContain('bg-sky-100');
     expect(source).not.toContain('Owner');
     expect(source).not.toContain('describeToolOwner');
     expect(source).not.toContain('Actions');
+    expect(source).not.toContain('<TableCell className="text-sm text-muted">');
     expect(source).not.toContain(
       'Workflow-management surface. Specialists must not receive this tool.',
     );

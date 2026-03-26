@@ -74,7 +74,11 @@ describe('containers page source', () => {
     expect(tableSource).toContain("renderEntityLink(row.workflow_id, row.workflow_name, '/mission-control/workflows')");
     expect(tableSource).toContain("if (label?.trim() && !id) {");
     expect(tableSource).toContain('<span className="text-sm text-foreground">{label}</span>');
+    expect(tableSource).toContain('<Link className="text-sm text-foreground hover:underline" to={`${hrefBase}/${id}`}>');
+    expect(tableSource).toContain('<p className="mt-1 truncate text-xs text-foreground" title={summaryParts.join(\' · \')}>');
     expect(tableSource).not.toContain('Unassigned');
+    expect(tableSource).not.toContain('text-sm text-accent hover:underline');
+    expect(tableSource).not.toContain('text-xs text-muted-foreground" title={summaryParts.join(\' · \')}');
     expect(tableSource).toContain("return row.presence === 'inactive' ? 'bg-muted/6 italic hover:bg-muted/10' : 'hover:bg-background/60';");
     expect(tableSource).not.toContain('bg-accent/14');
     expect(supportSource).toContain('Orchestrator agent');

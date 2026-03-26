@@ -84,12 +84,17 @@ describe('playbook list page source', () => {
     expect(source).not.toContain("from '../../lib/dashboard-badge-palette.js'");
     expect(source).not.toContain('lifecycleBadgeClassName');
     expect(source).toContain('<TableHead>Lifecycle</TableHead>');
-    expect(source).toContain('className="font-medium underline-offset-4 hover:underline"');
+    expect(source).toContain('className="font-medium text-foreground underline-offset-4 hover:underline"');
+    expect(source).toContain('<p className="text-sm text-foreground">{family.slug}</p>');
+    expect(source).toContain('<TableCell className="text-sm text-foreground">{describePlaybookLifecycle(family.lifecycle)}</TableCell>');
+    expect((source.match(/<TableCell className="text-sm text-foreground">/g) ?? []).length).toBe(4);
     expect(source).toContain('{describePlaybookLifecycle(family.lifecycle)}');
     expect(source).not.toContain('<Button asChild size="sm" variant="outline"');
     expect(source).not.toContain('Users className="h-3.5 w-3.5"');
     expect(source).not.toContain('CheckCheck className="h-3.5 w-3.5"');
     expect(source).not.toContain('inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1');
+    expect(source).not.toContain('<p className="text-sm text-muted">{family.slug}</p>');
+    expect(source).not.toContain('<TableCell className="text-sm text-muted">{describePlaybookLifecycle(family.lifecycle)}</TableCell>');
 
     const processIndex = source.indexOf('<div className="font-medium">Process</div>');
     const outcomeIndex = source.indexOf('<div className="font-medium">Outcome</div>');

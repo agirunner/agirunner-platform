@@ -115,7 +115,7 @@ export function ToolsPage(): JSX.Element {
                           {accessScope.label}
                         </span>
                       </TableCell>
-                      <TableCell className="text-sm text-muted">
+                      <TableCell className="text-sm text-foreground">
                         {tool.description?.trim() || '—'}
                       </TableCell>
                     </TableRow>

@@ -1456,7 +1456,7 @@ function RoleAssignmentsSection({
                         <TableCell className="align-middle text-sm font-medium whitespace-nowrap">
                           {role.name}
                         </TableCell>
-                        <TableCell className="align-middle text-sm text-muted">
+                        <TableCell className="align-middle text-sm text-foreground">
                           <span className="block truncate" title={summarizeRoleDescription(role)}>
                             {description}
                           </span>
