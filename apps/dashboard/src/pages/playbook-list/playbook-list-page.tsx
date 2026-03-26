@@ -388,7 +388,7 @@ export function PlaybookListPage(): JSX.Element {
     <div className="space-y-6 p-4 sm:p-6">
       <DashboardPageHeader
         navHref="/design/playbooks"
-        description="Define reusable orchestrated workflow operating models and manage them from a single library surface."
+        description="Create and manage playbooks that define workflow guidance, team structure, and launch inputs."
         actions={
           <Button onClick={openCreateWorkspace}>
             <Plus className="h-4 w-4" />

@@ -36,6 +36,7 @@ describe('playbook list page source', () => {
     expect(source).toContain('Back to playbook library');
     expect(source).toContain('PlaybookLibraryToolbar');
     expect(source).toContain('PlaybookLibraryTable');
+    expect(source).toContain('Create and manage playbooks that define workflow guidance, team structure, and launch inputs.');
     expect(source).toContain('Page size');
     expect(source).toContain('Showing');
     expect(source).toContain('Previous');

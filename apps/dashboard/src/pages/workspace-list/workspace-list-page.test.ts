@@ -17,6 +17,7 @@ function readSource() {
 describe('workspace list page source', () => {
   it('uses a compact library toolbar with search, status, and sort controls', () => {
     const source = readSource();
+    expect(source).toContain('Create and manage workspaces, then open one to edit settings and knowledge.');
     expect(source).toContain('Search workspaces');
     expect(source).toContain('Workspace status');
     expect(source).toContain('All');

@@ -76,7 +76,7 @@ export function WorkspaceListPage(): JSX.Element {
     <div className="space-y-6 p-4 sm:p-6">
       <DashboardPageHeader
         navHref="/design/workspaces"
-        description="Open a workspace and jump to settings, knowledge, automation, or delivery."
+        description="Create and manage workspaces, then open one to edit settings and knowledge."
         actions={<CreateWorkspaceDialog />}
       />
 
