@@ -32,8 +32,8 @@ describe('playbook detail page source', () => {
     expect(source).toContain('Playbook Basics');
     expect(source).toContain('Edit the playbook definition, workflow guidance, and launch inputs for this revision.');
     expect(source).toContain('max-w-full overflow-x-auto whitespace-nowrap text-sm text-muted');
-    expect(source).toContain('xl:grid-cols-[minmax(0,0.95fr),minmax(0,1.35fr)]');
-    expect(source).toContain('className="min-h-[220px] xl:h-full xl:min-h-0"');
+    expect(source).toContain('lg:grid-cols-[minmax(0,0.95fr),minmax(0,1.35fr)]');
+    expect(source).toContain('className="min-h-[220px] lg:h-full lg:min-h-0"');
     expect(source).toContain('Created');
     expect(source).toContain('Updated');
     expect(source).toContain('Compare every saved playbook setting against an earlier revision.');

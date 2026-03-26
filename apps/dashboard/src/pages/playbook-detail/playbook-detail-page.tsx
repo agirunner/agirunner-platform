@@ -304,7 +304,7 @@ export function PlaybookDetailPage(): JSX.Element {
               setIsDirty(true);
             }}
           />
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr),minmax(0,1.35fr)] xl:items-stretch">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr),minmax(0,1.35fr)] lg:items-stretch">
             <div className="grid gap-4">
               <label className="grid gap-2 text-sm">
                 <span className="font-medium">Name</span>
@@ -339,12 +339,12 @@ export function PlaybookDetailPage(): JSX.Element {
                 </p>
               </div>
             </div>
-            <label className="grid gap-2 text-sm xl:h-full">
+            <label className="grid gap-2 text-sm lg:h-full">
               <span className="font-medium">Outcome</span>
               <Textarea
                 value={outcome}
                 onChange={(event) => { setOutcome(event.target.value); setIsDirty(true); }}
-                className="min-h-[220px] xl:h-full xl:min-h-0"
+                className="min-h-[220px] lg:h-full lg:min-h-0"
               />
             </label>
           </div>
