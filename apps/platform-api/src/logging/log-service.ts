@@ -79,6 +79,11 @@ export interface LogRow {
   resource_type: string | null;
   resource_id: string | null;
   resource_name: string | null;
+  execution_environment_id: string | null;
+  execution_environment_name: string | null;
+  execution_environment_image: string | null;
+  execution_environment_distro: string | null;
+  execution_environment_package_manager: string | null;
   created_at: string;
 }
 
@@ -102,6 +107,7 @@ export interface LogFilters {
   actorKind?: string[];
   actorType?: string[];
   actorId?: string[];
+  executionEnvironment?: string;
   search?: string;
   since?: string;
   until?: string;
@@ -130,6 +136,7 @@ export interface LogStatsFilters {
   actorKind?: string[];
   actorType?: string[];
   actorId?: string[];
+  executionEnvironment?: string;
   search?: string;
   since?: string;
   until?: string;
@@ -210,45 +217,77 @@ const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const ACTOR_KIND_SQL = `CASE
-  WHEN actor_type = 'worker' AND LOWER(COALESCE(role, '')) = 'orchestrator' THEN 'orchestrator_agent'
-  WHEN actor_type = 'worker' THEN 'specialist_agent'
-  WHEN actor_type = 'agent' THEN 'specialist_task_execution'
-  WHEN actor_type IN ('operator', 'user', 'api_key', 'admin', 'service') THEN 'operator'
-  WHEN actor_type = 'system' THEN 'platform_system'
-  ELSE COALESCE(actor_type, 'platform_system')
+  WHEN l.actor_type = 'worker' AND LOWER(COALESCE(l.role, '')) = 'orchestrator' THEN 'orchestrator_agent'
+  WHEN l.actor_type = 'worker' THEN 'specialist_agent'
+  WHEN l.actor_type = 'agent' THEN 'specialist_task_execution'
+  WHEN l.actor_type IN ('operator', 'user', 'api_key', 'admin', 'service') THEN 'operator'
+  WHEN l.actor_type = 'system' THEN 'platform_system'
+  ELSE COALESCE(l.actor_type, 'platform_system')
 END`;
 
 const SEARCH_DOCUMENT_PARTS = [
-  'operation',
-  'task_id::text',
-  'work_item_id::text',
-  'activation_id::text',
-  'workflow_id::text',
-  'workspace_id::text',
-  'stage_name',
-  'trace_id::text',
-  'span_id::text',
-  'workflow_name',
-  'workspace_name',
-  'task_title',
-  'role',
-  'actor_type',
-  'actor_id',
-  'actor_name',
-  'resource_type',
-  'resource_name',
-  "error->>'message'",
-  "payload->>'system_prompt'",
-  "payload->>'prompt_summary'",
-  "payload->>'response_summary'",
-  "payload->>'response_text'",
-  "payload->>'tool_name'",
-  'payload::text',
+  'l.operation',
+  'l.task_id::text',
+  'l.work_item_id::text',
+  'l.activation_id::text',
+  'l.workflow_id::text',
+  'l.workspace_id::text',
+  'l.stage_name',
+  'l.trace_id::text',
+  'l.span_id::text',
+  'l.workflow_name',
+  'l.workspace_name',
+  'l.task_title',
+  'l.role',
+  'l.actor_type',
+  'l.actor_id',
+  'l.actor_name',
+  'l.resource_type',
+  'l.resource_name',
+  "l.error->>'message'",
+  "l.payload->>'system_prompt'",
+  "l.payload->>'prompt_summary'",
+  "l.payload->>'response_summary'",
+  "l.payload->>'response_text'",
+  "l.payload->>'tool_name'",
+  'l.payload::text',
+  "task_ctx.execution_environment_snapshot->>'name'",
+  "task_ctx.execution_environment_snapshot->>'image'",
+  "task_ctx.execution_environment_snapshot->>'resolved_image'",
+  "task_ctx.execution_environment_snapshot->'verified_metadata'->>'distro'",
+  "task_ctx.execution_environment_snapshot->'verified_metadata'->>'package_manager'",
 ];
 
 const SEARCH_DOCUMENT_SQL = `to_tsvector('simple', ${SEARCH_DOCUMENT_PARTS.map((part) => `COALESCE(${part}, '')`).join(
   " || ' ' ||\n  ",
 )})`;
+
+const LOG_SELECT_COLUMNS = `l.id, l.tenant_id, l.trace_id, l.span_id, l.parent_span_id,
+            l.source, l.category, l.level, l.operation, l.status, l.duration_ms,
+            l.payload, l.error,
+            l.workspace_id, l.workflow_id, l.workflow_name, l.workspace_name, l.task_id,
+            l.work_item_id, l.stage_name, l.activation_id, l.is_orchestrator_task,
+            l.execution_backend, l.tool_owner,
+            l.task_title,
+            l.role,
+            l.actor_type, l.actor_id, l.actor_name,
+            l.resource_type, l.resource_id, l.resource_name,
+            task_ctx.execution_environment_snapshot->>'id' AS execution_environment_id,
+            task_ctx.execution_environment_snapshot->>'name' AS execution_environment_name,
+            COALESCE(
+              task_ctx.execution_environment_snapshot->>'image',
+              task_ctx.execution_environment_snapshot->>'resolved_image'
+            ) AS execution_environment_image,
+            task_ctx.execution_environment_snapshot->'verified_metadata'->>'distro'
+              AS execution_environment_distro,
+            task_ctx.execution_environment_snapshot->'verified_metadata'->>'package_manager'
+              AS execution_environment_package_manager,
+            l.created_at`;
+
+const LOG_FROM_SQL = `FROM execution_logs l
+       LEFT JOIN tasks task_ctx
+         ON task_ctx.tenant_id = l.tenant_id
+        AND task_ctx.id = l.task_id`;
 
 export function encodeCursor(id: string, createdAt: string): string {
   return Buffer.from(JSON.stringify({ id, created_at: createdAt })).toString('base64url');
@@ -346,7 +385,7 @@ export class LogService {
     const order = filters.order === 'asc' ? 'ASC' : 'DESC';
     const comparator = order === 'DESC' ? '<' : '>';
 
-    const conditions: string[] = ['tenant_id = $1'];
+    const conditions: string[] = ['l.tenant_id = $1'];
     const values: unknown[] = [tenantId];
 
     this.applyFilters(conditions, values, applyDefaultTimeBounds(filters));
@@ -354,27 +393,17 @@ export class LogService {
     if (filters.cursor) {
       const { id, createdAt } = decodeCursor(filters.cursor);
       values.push(createdAt, id);
-      conditions.push(`(created_at, id) ${comparator} ($${values.length - 1}, $${values.length})`);
+      conditions.push(`(l.created_at, l.id) ${comparator} ($${values.length - 1}, $${values.length})`);
     }
 
     const whereClause = conditions.join(' AND ');
     values.push(perPage + 1);
 
     const result = await this.pool.query<LogRow>(
-      `SELECT id, tenant_id, trace_id, span_id, parent_span_id,
-              source, category, level, operation, status, duration_ms,
-              payload, error,
-              workspace_id, workflow_id, workflow_name, workspace_name, task_id,
-              work_item_id, stage_name, activation_id, is_orchestrator_task,
-              execution_backend, tool_owner,
-              task_title,
-              role,
-              actor_type, actor_id, actor_name,
-              resource_type, resource_id, resource_name,
-              created_at
-       FROM execution_logs
+      `SELECT ${LOG_SELECT_COLUMNS}
+       ${LOG_FROM_SQL}
        WHERE ${whereClause}
-       ORDER BY created_at ${order}, id ${order}
+       ORDER BY l.created_at ${order}, l.id ${order}
        LIMIT $${values.length}`,
       values,
     );
@@ -401,20 +430,10 @@ export class LogService {
 
   async getById(tenantId: string, id: string): Promise<LogRow | null> {
     const result = await this.pool.query<LogRow>(
-      `SELECT id, tenant_id, trace_id, span_id, parent_span_id,
-              source, category, level, operation, status, duration_ms,
-              payload, error,
-              workspace_id, workflow_id, workflow_name, workspace_name, task_id,
-              work_item_id, stage_name, activation_id, is_orchestrator_task,
-              execution_backend, tool_owner,
-              task_title,
-              role,
-              actor_type, actor_id, actor_name,
-              resource_type, resource_id, resource_name,
-              created_at
-         FROM execution_logs
-        WHERE tenant_id = $1
-          AND id = $2
+      `SELECT ${LOG_SELECT_COLUMNS}
+         ${LOG_FROM_SQL}
+        WHERE l.tenant_id = $1
+          AND l.id = $2
         LIMIT 1`,
       [tenantId, id],
     );
@@ -423,7 +442,7 @@ export class LogService {
 
   async stats(tenantId: string, filters: LogStatsFilters): Promise<LogStats> {
     const groupExpression = groupExpressionFor(filters.groupBy);
-    const conditions: string[] = ['tenant_id = $1'];
+    const conditions: string[] = ['l.tenant_id = $1'];
     const values: unknown[] = [tenantId];
     const { groupBy: _groupBy, ...queryFilters } = filters;
     this.applyFilters(
@@ -447,13 +466,13 @@ export class LogService {
       `SELECT
         ${groupExpression} AS group_key,
         COUNT(*)::text AS count,
-        COUNT(*) FILTER (WHERE status = 'failed')::text AS error_count,
-        SUM(duration_ms)::text AS total_duration_ms,
-        AVG(duration_ms)::text AS avg_duration_ms,
-        SUM((payload->>'input_tokens')::integer) FILTER (WHERE category = 'llm')::text AS total_input_tokens,
-        SUM((payload->>'output_tokens')::integer) FILTER (WHERE category = 'llm')::text AS total_output_tokens,
-        SUM((payload->>'cost_usd')::numeric) FILTER (WHERE category = 'llm')::text AS total_cost_usd
-       FROM execution_logs
+        COUNT(*) FILTER (WHERE l.status = 'failed')::text AS error_count,
+        SUM(l.duration_ms)::text AS total_duration_ms,
+        AVG(l.duration_ms)::text AS avg_duration_ms,
+        SUM((l.payload->>'input_tokens')::integer) FILTER (WHERE l.category = 'llm')::text AS total_input_tokens,
+        SUM((l.payload->>'output_tokens')::integer) FILTER (WHERE l.category = 'llm')::text AS total_output_tokens,
+        SUM((l.payload->>'cost_usd')::numeric) FILTER (WHERE l.category = 'llm')::text AS total_cost_usd
+       ${LOG_FROM_SQL}
        WHERE ${whereClause}
        GROUP BY ${groupExpression}
        ORDER BY count DESC`,
@@ -482,17 +501,17 @@ export class LogService {
   }
 
   async operations(tenantId: string, filters: LogFilters): Promise<OperationCount[]> {
-    const conditions: string[] = ['tenant_id = $1'];
+    const conditions: string[] = ['l.tenant_id = $1'];
     const values: unknown[] = [tenantId];
     const scopedFilters = omitLogFilters(applyDefaultTimeBounds(filters), ['operation']);
     this.applyFilters(conditions, values, scopedFilters);
 
     const whereClause = conditions.join(' AND ');
     const result = await this.pool.query<{ operation: string; count: string }>(
-      `SELECT operation, COUNT(*)::text AS count
-       FROM execution_logs
+      `SELECT l.operation, COUNT(*)::text AS count
+       ${LOG_FROM_SQL}
        WHERE ${whereClause}
-       GROUP BY operation
+       GROUP BY l.operation
        ORDER BY count DESC
        LIMIT 100`,
       values,
@@ -505,17 +524,17 @@ export class LogService {
   }
 
   async roles(tenantId: string, filters: LogFilters): Promise<{ role: string; count: number }[]> {
-    const conditions: string[] = ['tenant_id = $1', `role IS NOT NULL`, `role <> ''`];
+    const conditions: string[] = ['l.tenant_id = $1', `l.role IS NOT NULL`, `l.role <> ''`];
     const values: unknown[] = [tenantId];
     const scopedFilters = omitLogFilters(applyDefaultTimeBounds(filters), ['role']);
     this.applyFilters(conditions, values, scopedFilters);
     const whereClause = conditions.join(' AND ');
 
     const result = await this.pool.query<{ role: string; count: string }>(
-      `SELECT role, COUNT(*)::text AS count
-       FROM execution_logs
+      `SELECT l.role, COUNT(*)::text AS count
+       ${LOG_FROM_SQL}
        WHERE ${whereClause}
-       GROUP BY role
+       GROUP BY l.role
        ORDER BY count DESC
        LIMIT 50`,
       values,
@@ -528,7 +547,7 @@ export class LogService {
   }
 
   async actors(tenantId: string, filters: LogFilters): Promise<ActorInfo[]> {
-    const conditions: string[] = ['tenant_id = $1', 'actor_type IS NOT NULL'];
+    const conditions: string[] = ['l.tenant_id = $1', 'l.actor_type IS NOT NULL'];
     const values: unknown[] = [tenantId];
     const scopedFilters = omitLogFilters(applyDefaultTimeBounds(filters), ['actorKind', 'actorType']);
     this.applyFilters(conditions, values, scopedFilters);
@@ -547,12 +566,12 @@ export class LogService {
       `WITH filtered AS (
          SELECT
            ${ACTOR_KIND_SQL} AS actor_kind,
-           role,
-           workflow_id,
-           workflow_name,
-           created_at,
-           id
-         FROM execution_logs
+           l.role,
+           l.workflow_id,
+           l.workflow_name,
+           l.created_at,
+           l.id
+         ${LOG_FROM_SQL}
          WHERE ${whereClause}
        ),
        actor_counts AS (
@@ -732,72 +751,72 @@ export class LogService {
   private applyFilters(conditions: string[], values: unknown[], filters: LogFilters): void {
     if (filters.workspaceId) {
       values.push(filters.workspaceId);
-      conditions.push(`workspace_id = $${values.length}`);
+      conditions.push(`l.workspace_id = $${values.length}`);
     }
     if (filters.workflowId) {
       values.push(filters.workflowId);
-      conditions.push(`workflow_id = $${values.length}`);
+      conditions.push(`l.workflow_id = $${values.length}`);
     }
     if (filters.taskId) {
       values.push(filters.taskId);
-      conditions.push(`task_id = $${values.length}`);
+      conditions.push(`l.task_id = $${values.length}`);
     }
     if (filters.workItemId) {
       values.push(filters.workItemId);
-      conditions.push(`work_item_id = $${values.length}`);
+      conditions.push(`l.work_item_id = $${values.length}`);
     }
     if (filters.stageName) {
       values.push(filters.stageName);
-      conditions.push(`stage_name = $${values.length}`);
+      conditions.push(`l.stage_name = $${values.length}`);
     }
     if (filters.activationId) {
       values.push(filters.activationId);
-      conditions.push(`activation_id = $${values.length}`);
+      conditions.push(`l.activation_id = $${values.length}`);
     }
     if (filters.isOrchestratorTask !== undefined) {
       values.push(filters.isOrchestratorTask);
-      conditions.push(`is_orchestrator_task = $${values.length}`);
+      conditions.push(`l.is_orchestrator_task = $${values.length}`);
     }
     if (filters.traceId) {
       values.push(filters.traceId);
-      conditions.push(`trace_id = $${values.length}`);
+      conditions.push(`l.trace_id = $${values.length}`);
     }
     if (filters.executionBackend?.length) {
       values.push(filters.executionBackend);
-      conditions.push(`execution_backend = ANY($${values.length}::execution_backend[])`);
+      conditions.push(`l.execution_backend = ANY($${values.length}::execution_backend[])`);
     }
     if (filters.toolOwner?.length) {
       values.push(filters.toolOwner);
-      conditions.push(`tool_owner = ANY($${values.length}::tool_owner[])`);
+      conditions.push(`l.tool_owner = ANY($${values.length}::tool_owner[])`);
     }
     if (filters.source?.length) {
       values.push(filters.source);
-      conditions.push(`source = ANY($${values.length}::execution_log_source[])`);
+      conditions.push(`l.source = ANY($${values.length}::execution_log_source[])`);
     }
     if (filters.category?.length) {
       values.push(filters.category);
-      conditions.push(`category = ANY($${values.length}::execution_log_category[])`);
+      conditions.push(`l.category = ANY($${values.length}::execution_log_category[])`);
     }
     if (filters.level && LEVELS_AT_OR_ABOVE[filters.level]) {
       values.push(LEVELS_AT_OR_ABOVE[filters.level]);
-      conditions.push(`level = ANY($${values.length}::execution_log_level[])`);
+      conditions.push(`l.level = ANY($${values.length}::execution_log_level[])`);
     }
     if (filters.operation?.length) {
       if (filters.operation.length === 1 && filters.operation[0].endsWith('*')) {
         values.push(filters.operation[0].slice(0, -1) + '%');
-        conditions.push(`operation LIKE $${values.length}`);
+        conditions.push(`l.operation LIKE $${values.length}`);
       } else {
         values.push(filters.operation);
-        conditions.push(`operation = ANY($${values.length}::text[])`);
+        conditions.push(`l.operation = ANY($${values.length}::text[])`);
       }
     }
     if (filters.status?.length) {
       values.push(filters.status);
-      conditions.push(`status = ANY($${values.length}::execution_log_status[])`);
+      conditions.push(`l.status = ANY($${values.length}::execution_log_status[])`);
     }
     if (filters.role?.length) {
       values.push(filters.role);
-      conditions.push(`role = ANY($${values.length}::text[])`);
+      conditions.push(`l.role = ANY($${values.length}::text[])`);
     }
     if (filters.actorKind?.length) {
       values.push(filters.actorKind);
@@ -805,11 +824,21 @@ export class LogService {
     }
     if (filters.actorType?.length) {
       values.push(filters.actorType);
-      conditions.push(`actor_type = ANY($${values.length}::text[])`);
+      conditions.push(`l.actor_type = ANY($${values.length}::text[])`);
     }
     if (filters.actorId?.length) {
       values.push(filters.actorId);
-      conditions.push(`actor_id = ANY($${values.length}::text[])`);
+      conditions.push(`l.actor_id = ANY($${values.length}::text[])`);
+    }
+    if (filters.executionEnvironment) {
+      values.push(`%${filters.executionEnvironment.trim()}%`);
+      conditions.push(`(
+        task_ctx.execution_environment_snapshot->>'name' ILIKE $${values.length}
+        OR task_ctx.execution_environment_snapshot->>'image' ILIKE $${values.length}
+        OR task_ctx.execution_environment_snapshot->>'resolved_image' ILIKE $${values.length}
+        OR task_ctx.execution_environment_snapshot->'verified_metadata'->>'distro' ILIKE $${values.length}
+        OR task_ctx.execution_environment_snapshot->'verified_metadata'->>'package_manager' ILIKE $${values.length}
+      )`);
     }
     if (filters.search) {
       const term = filters.search.trim();
@@ -818,11 +847,11 @@ export class LogService {
     }
     if (filters.since) {
       values.push(filters.since);
-      conditions.push(`created_at >= $${values.length}`);
+      conditions.push(`l.created_at >= $${values.length}`);
     }
     if (filters.until) {
       values.push(filters.until);
-      conditions.push(`created_at <= $${values.length}`);
+      conditions.push(`l.created_at <= $${values.length}`);
     }
   }
 
@@ -849,17 +878,17 @@ function omitLogFilters(
 }
 
 const GROUP_BY_EXPRESSIONS: Record<LogStatsFilters['groupBy'], string> = {
-  category: `COALESCE(category::text, 'unknown')`,
-  operation: `COALESCE(operation, 'unknown')`,
-  level: `COALESCE(level::text, 'unknown')`,
-  task_id: `COALESCE(task_id::text, 'unassigned')`,
-  work_item_id: `COALESCE(work_item_id::text, 'unassigned')`,
-  stage_name: `COALESCE(stage_name, 'unassigned')`,
-  activation_id: `COALESCE(activation_id::text, 'unassigned')`,
-  is_orchestrator_task: `CASE WHEN is_orchestrator_task THEN 'orchestrator' ELSE 'task' END`,
-  source: `COALESCE(source::text, 'unknown')`,
-  execution_backend: `COALESCE(execution_backend::text, 'unknown')`,
-  tool_owner: `COALESCE(tool_owner::text, 'unknown')`,
+  category: `COALESCE(l.category::text, 'unknown')`,
+  operation: `COALESCE(l.operation, 'unknown')`,
+  level: `COALESCE(l.level::text, 'unknown')`,
+  task_id: `COALESCE(l.task_id::text, 'unassigned')`,
+  work_item_id: `COALESCE(l.work_item_id::text, 'unassigned')`,
+  stage_name: `COALESCE(l.stage_name, 'unassigned')`,
+  activation_id: `COALESCE(l.activation_id::text, 'unassigned')`,
+  is_orchestrator_task: `CASE WHEN l.is_orchestrator_task THEN 'orchestrator' ELSE 'task' END`,
+  source: `COALESCE(l.source::text, 'unknown')`,
+  execution_backend: `COALESCE(l.execution_backend::text, 'unknown')`,
+  tool_owner: `COALESCE(l.tool_owner::text, 'unknown')`,
 };
 
 const LOG_SECRET_REDACTION = '[REDACTED]';

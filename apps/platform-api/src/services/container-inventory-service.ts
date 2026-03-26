@@ -200,6 +200,16 @@ SELECT
   w.name AS workflow_name,
   COALESCE(t.id, live.live_task_id, live.active_task_id, live.heartbeat_task_id) AS task_id,
   live.execution_backend,
+  t.execution_environment_snapshot->>'id' AS execution_environment_id,
+  t.execution_environment_snapshot->>'name' AS execution_environment_name,
+  COALESCE(
+    t.execution_environment_snapshot->>'image',
+    t.execution_environment_snapshot->>'resolved_image',
+    live.image
+  ) AS execution_environment_image,
+  t.execution_environment_snapshot->'verified_metadata'->>'distro' AS execution_environment_distro,
+  t.execution_environment_snapshot->'verified_metadata'->>'package_manager'
+    AS execution_environment_package_manager,
   CASE
     WHEN t.is_orchestrator_task IS TRUE
       AND NULLIF(BTRIM(t.title), '') IS NOT NULL
@@ -276,6 +286,11 @@ export interface LiveContainerInventoryRow {
   workflow_name: string | null;
   task_id: string | null;
   execution_backend: 'runtime_only' | 'runtime_plus_task' | null;
+  execution_environment_id: string | null;
+  execution_environment_name: string | null;
+  execution_environment_image: string | null;
+  execution_environment_distro: string | null;
+  execution_environment_package_manager: string | null;
   task_title: string | null;
   stage_name: string | null;
   activity_state: string | null;

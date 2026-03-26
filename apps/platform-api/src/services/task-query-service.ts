@@ -27,6 +27,7 @@ export type TaskResponseRecord = Record<string, unknown> & {
   verification: unknown;
   latest_handoff?: unknown;
   execution_backend?: 'runtime_only' | 'runtime_plus_task';
+  execution_environment?: Record<string, unknown> | null;
   used_task_sandbox?: boolean;
 };
 
@@ -47,12 +48,16 @@ export class TaskQueryService {
   toTaskResponse(task: Record<string, unknown>): TaskResponseRecord {
     const sanitizedTask = sanitizeTaskRecord(task);
     const metadata = (sanitizedTask.metadata ?? {}) as Record<string, unknown>;
+    const executionEnvironment = normalizeExecutionEnvironmentSnapshot(
+      sanitizedTask.execution_environment_snapshot,
+    );
     return {
       ...sanitizedTask,
       state: normalizeResponseTaskState(sanitizedTask.state),
       description: metadata.description ?? null,
       parent_id: metadata.parent_id ?? null,
       verification: metadata.verification ?? null,
+      execution_environment: executionEnvironment,
       used_task_sandbox: sanitizedTask.used_task_sandbox ?? false,
     } as TaskResponseRecord;
   }
@@ -254,6 +259,10 @@ function normalizeTaskHandoff(row: Record<string, unknown>) {
         ? row.created_at.toISOString()
         : row.created_at ?? null,
   };
+}
+
+function normalizeExecutionEnvironmentSnapshot(value: unknown): Record<string, unknown> | null {
+  return isRecord(value) ? value : null;
 }
 
 function readRelevantHandoffResolution(taskContext: unknown): RelevantHandoffResolution | null {

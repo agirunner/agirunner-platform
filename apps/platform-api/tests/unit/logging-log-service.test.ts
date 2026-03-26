@@ -722,7 +722,14 @@ describe('LogService', () => {
       const pool = createMockPool();
       pool.query.mockResolvedValue({
         rowCount: 1,
-        rows: [{ id: 'log-1', tenant_id: 'tenant-1', created_at: '2026-03-12T00:00:00.000Z' }],
+        rows: [{
+          id: 'log-1',
+          tenant_id: 'tenant-1',
+          created_at: '2026-03-12T00:00:00.000Z',
+          execution_environment_id: 'env-default',
+          execution_environment_name: 'Debian Base',
+          execution_environment_image: 'debian:trixie-slim',
+        }],
       });
       const service = new LogService(pool as never);
 
@@ -731,9 +738,14 @@ describe('LogService', () => {
       expect(pool.query).toHaveBeenCalledTimes(1);
       const [sql, params] = pool.query.mock.calls[0];
       expect(sql).toContain('FROM execution_logs');
+      expect(sql).toContain('LEFT JOIN tasks task_ctx');
+      expect(sql).toContain('execution_environment_snapshot');
       expect(sql).toContain('id = $2');
       expect(params).toEqual(['tenant-1', 'log-1']);
-      expect(result).toEqual(expect.objectContaining({ id: 'log-1' }));
+      expect(result).toEqual(expect.objectContaining({
+        id: 'log-1',
+        execution_environment_name: 'Debian Base',
+      }));
     });
 
     it('appliesDefaultTimeBoundsWhenNoTimeFilter', async () => {
@@ -769,7 +781,8 @@ describe('LogService', () => {
       expect(pool.query).toHaveBeenCalledTimes(1);
       const [sql, params] = pool.query.mock.calls[0];
       expect(sql).toContain('FROM execution_logs');
-      expect(sql).toContain('ORDER BY created_at DESC');
+      expect(sql).toContain('LEFT JOIN tasks task_ctx');
+      expect(sql).toContain('ORDER BY l.created_at DESC');
       expect(params[0]).toBe('tenant-1');
       expect(result.pagination.per_page).toBe(100);
       expect(result.pagination.has_more).toBe(false);
@@ -860,10 +873,24 @@ describe('LogService', () => {
       expect(sql).toContain("to_tsvector('simple'");
       expect(sql).toContain("websearch_to_tsquery('simple'");
       expect(sql).not.toContain('CONCAT_WS(');
-      expect(sql).toContain("COALESCE(operation, '')");
-      expect(sql).toContain("COALESCE(trace_id::text, '')");
+      expect(sql).toContain("COALESCE(l.operation, '')");
+      expect(sql).toContain("COALESCE(l.trace_id::text, '')");
       expect(sql).not.toContain('ILIKE');
       expect(params).toContain('shell_exec error');
+    });
+
+    it('filters logs by task execution environment name, image, or id', async () => {
+      const pool = createMockPool();
+      pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+      const service = new LogService(pool as never);
+
+      await service.query('tenant-1', { executionEnvironment: 'debian' });
+
+      const [sql, params] = pool.query.mock.calls[0];
+      expect(sql).toContain('execution_environment_snapshot');
+      expect(sql).toContain('ILIKE');
+      expect(sql).toContain('task_ctx.execution_environment_snapshot');
+      expect(params).toContain('%debian%');
     });
 
     it('indexes prompt-related payload fields in the search document', async () => {
@@ -906,7 +933,7 @@ describe('LogService', () => {
       await service.query('tenant-1', { cursor });
 
       const [sql, params] = pool.query.mock.calls[0];
-      expect(sql).toContain('(created_at, id) <');
+      expect(sql).toContain('(l.created_at, l.id) <');
       expect(params).toContain('2026-03-09T12:00:00.000Z');
       expect(params).toContain('500');
     });
@@ -949,7 +976,7 @@ describe('LogService', () => {
       await service.query('tenant-1', { order: 'asc' });
 
       const [sql] = pool.query.mock.calls[0];
-      expect(sql).toContain('ORDER BY created_at ASC');
+      expect(sql).toContain('ORDER BY l.created_at ASC');
     });
 
     it('usesAscendingKeysetComparatorWhenCursorAndAscOrderAreRequested', async () => {
@@ -961,8 +988,8 @@ describe('LogService', () => {
       await service.query('tenant-1', { cursor, order: 'asc' });
 
       const [sql, params] = pool.query.mock.calls[0];
-      expect(sql).toContain('(created_at, id) >');
-      expect(sql).toContain('ORDER BY created_at ASC');
+      expect(sql).toContain('(l.created_at, l.id) >');
+      expect(sql).toContain('ORDER BY l.created_at ASC');
       expect(params).toContain('2026-03-09T12:00:00.000Z');
       expect(params).toContain('500');
     });
@@ -1109,7 +1136,7 @@ describe('LogService', () => {
       const [sql, params] = pool.query.mock.calls[0];
       expect(sql).toContain('trace_id = $');
       expect(sql).toContain('task_id = $');
-      expect(sql).toContain("GROUP BY COALESCE(operation, 'unknown')");
+      expect(sql).toContain("GROUP BY COALESCE(l.operation, 'unknown')");
       expect(params).toContain('trace-1');
       expect(params).toContain('task-1');
     });
@@ -1141,7 +1168,7 @@ describe('LogService', () => {
       });
 
       const [sql, params] = pool.query.mock.calls[0];
-      expect(sql).toContain("COALESCE(stage_name, 'unassigned')");
+      expect(sql).toContain("COALESCE(l.stage_name, 'unassigned')");
       expect(sql).toContain('work_item_id = $');
       expect(sql).toContain('activation_id = $');
       expect(sql).toContain('is_orchestrator_task = $');
@@ -1183,7 +1210,7 @@ describe('LogService', () => {
         { operation: 'tool.shell_exec', count: 890 },
       ]);
       const [sql, params] = pool.query.mock.calls[0];
-      expect(sql).toContain('GROUP BY operation');
+      expect(sql).toContain('GROUP BY l.operation');
       expect(sql).toContain('LIMIT 100');
       expect(params[0]).toBe('tenant-1');
     });

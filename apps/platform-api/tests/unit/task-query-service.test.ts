@@ -169,6 +169,62 @@ describe('task query service git activity (FR-055)', () => {
     );
   });
 
+  it('exposes the immutable execution environment snapshot on task detail responses', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{
+            id: taskId,
+            tenant_id: tenantId,
+            metadata: {},
+            execution_environment_snapshot: {
+              id: 'env-default',
+              name: 'Debian Base',
+              image: 'debian:trixie-slim',
+              cpu: '1',
+              memory: '1Gi',
+              pull_policy: 'if-not-present',
+              verified_metadata: {
+                distro: 'debian',
+                distro_version: 'trixie',
+                package_manager: 'apt-get',
+              },
+              tool_capabilities: {
+                verified_baseline_commands: ['sh', 'cat', 'grep'],
+              },
+            },
+          }],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 0,
+          rows: [],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 0,
+          rows: [],
+        }),
+    };
+    const service = new TaskQueryService(pool as never);
+
+    const task = await service.getTask(tenantId, taskId);
+
+    expect(task).toEqual(
+      expect.objectContaining({
+        execution_environment: expect.objectContaining({
+          id: 'env-default',
+          name: 'Debian Base',
+          image: 'debian:trixie-slim',
+          verified_metadata: expect.objectContaining({
+            distro: 'debian',
+            package_manager: 'apt-get',
+          }),
+        }),
+      }),
+    );
+  });
+
   it('exposes verification payload from task metadata in normalized task response', () => {
     const service = new TaskQueryService(createPool({
       id: taskId,
@@ -211,6 +267,46 @@ describe('task query service git activity (FR-055)', () => {
     expect(response.is_orchestrator_task).toBe(true);
     expect(response.execution_backend).toBe('runtime_only');
     expect(response.used_task_sandbox).toBe(false);
+  });
+
+  it('normalizes execution environment snapshot fields into the public task response', () => {
+    const service = new TaskQueryService(createPool({
+      id: taskId,
+      tenant_id: tenantId,
+      metadata: {},
+      execution_environment_snapshot: {
+        id: 'env-default',
+        name: 'Debian Base',
+        image: 'debian:trixie-slim',
+        verified_metadata: {
+          distro: 'debian',
+          distro_version: 'trixie',
+        },
+      },
+    }) as never);
+
+    const response = service.toTaskResponse({
+      id: taskId,
+      tenant_id: tenantId,
+      metadata: {},
+      execution_environment_snapshot: {
+        id: 'env-default',
+        name: 'Debian Base',
+        image: 'debian:trixie-slim',
+        verified_metadata: {
+          distro: 'debian',
+          distro_version: 'trixie',
+        },
+      },
+    }) as any;
+
+    expect(response.execution_environment).toEqual(
+      expect.objectContaining({
+        id: 'env-default',
+        name: 'Debian Base',
+        image: 'debian:trixie-slim',
+      }),
+    );
   });
 
   it('keeps canonical persisted task states unchanged in the public response', () => {

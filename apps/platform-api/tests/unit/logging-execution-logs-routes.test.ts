@@ -67,6 +67,40 @@ describe('execution-logs route helpers', () => {
     });
   });
 
+  describe('execution environment query parsing', () => {
+    it('passes through the execution_environment filter as plain text', async () => {
+      const { executionLogRoutes } = await import('../../src/api/routes/execution-logs.routes.js');
+
+      const logService = {
+        query: vi.fn().mockResolvedValue({ data: [], pagination: { per_page: 100, has_more: false, next_cursor: null, prev_cursor: null } }),
+        getById: vi.fn(),
+        stats: vi.fn(),
+        operations: vi.fn(),
+        roles: vi.fn(),
+        actors: vi.fn(),
+        insertBatch: vi.fn(),
+        export: vi.fn(),
+      };
+
+      app = fastify();
+      app.decorate('logService', logService);
+      app.decorate('logStreamService', {});
+      registerErrorHandler(app);
+      await app.register(executionLogRoutes);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/v1/logs?execution_environment=debian',
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(logService.query).toHaveBeenCalledWith(
+        'tenant-1',
+        expect.objectContaining({ executionEnvironment: 'debian' }),
+      );
+    });
+  });
+
   describe('parseBoolean', () => {
     function parseBoolean(raw?: string): boolean | undefined {
       if (raw === undefined) return undefined;

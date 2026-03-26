@@ -119,7 +119,7 @@ describe('ContainerInventoryService', () => {
           name: 'task-3d749b2c',
           state: 'running',
           status: 'Up 90 seconds',
-          image: 'agirunner-runtime-execution:local',
+          image: 'debian:trixie-slim',
           cpu_limit: '1',
           memory_limit: '768m',
           started_at: new Date('2026-03-21T18:26:00.000Z'),
@@ -134,6 +134,11 @@ describe('ContainerInventoryService', () => {
           task_title: 'Investigate auth timeout',
           stage_name: 'Implement',
           activity_state: 'in_progress',
+          execution_environment_id: 'env-default',
+          execution_environment_name: 'Debian Base',
+          execution_environment_image: 'debian:trixie-slim',
+          execution_environment_distro: 'debian',
+          execution_environment_package_manager: 'apt-get',
         },
       ],
       rowCount: 3,
@@ -160,10 +165,15 @@ describe('ContainerInventoryService', () => {
     expect(rows[2]).toMatchObject({
       id: 'task:00000000-0000-0000-0000-000000000111',
       kind: 'task',
-      image: 'agirunner-runtime-execution:local',
+      image: 'debian:trixie-slim',
       task_title: 'Investigate auth timeout',
       stage_name: 'Implement',
       execution_backend: 'runtime_plus_task',
+      execution_environment_id: 'env-default',
+      execution_environment_name: 'Debian Base',
+      execution_environment_image: 'debian:trixie-slim',
+      execution_environment_distro: 'debian',
+      execution_environment_package_manager: 'apt-get',
     });
 
     const replaceQuery = pool.query.mock.calls[0]?.[0] as string;
@@ -178,6 +188,7 @@ describe('ContainerInventoryService', () => {
     expect(listQuery).toContain('LEFT JOIN tasks t');
     expect(listQuery).toContain('t.stage_name AS stage_name');
     expect(listQuery).toContain('execution_backend');
+    expect(listQuery).toContain('execution_environment_snapshot');
     expect(listQuery).toContain('LEFT JOIN workflows w');
   });
 
