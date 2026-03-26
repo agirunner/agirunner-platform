@@ -31,6 +31,12 @@ describe('runtime defaults page source', () => {
       'agent_safeguards',
     ]);
 
+    expect(
+      SECTION_DEFINITIONS.find((section) => section.key === 'runtime_containers')?.description,
+    ).toBe(
+      'Default image and resource limits for short-lived specialist agents that host the agent loop. This image is different from the environment where your specialists execute their tasks. This small alpine-based image is optimized for running the agentic loop, not for executing complex tasks.',
+    );
+
     expect(FIELD_DEFINITIONS.map((field) => field.key)).toEqual(
       expect.arrayContaining([
         'specialist_runtime_default_image',
