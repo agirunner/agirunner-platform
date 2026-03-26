@@ -1380,7 +1380,7 @@ function RoleAssignmentsSection({
               ) : (
                 <ChevronRight className="h-4 w-4 text-muted" />
               )}
-              <h3 className="text-sm font-semibold">Orchestrator and Role Overrides</h3>
+              <h3 className="text-sm font-semibold">Orchestrator and specialist agent model overrides</h3>
             </div>
             <p className="text-xs text-muted">
               Use the shared system default unless the orchestrator or a specific role needs a
@@ -1406,8 +1406,7 @@ function RoleAssignmentsSection({
         {isOverridesExpanded ? (
           <div className="space-y-4 border-t px-4 py-4">
             <p className="text-xs text-muted">
-              Choose explicit models only where the default is not enough. Older assignment rows
-              stay visible until they are cleaned up.
+              Choose explicit models only where the default is not enough.
             </p>
             <div className="grid gap-3 md:hidden">
               {pagination.items.map((role) => {

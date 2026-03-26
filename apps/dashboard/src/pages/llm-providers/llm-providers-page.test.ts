@@ -103,7 +103,7 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('buildAssignmentRoleRows');
     expect(source).toContain('validateAssignmentSetup');
     expect(source).toContain('summarizeAssignmentSurface');
-    expect(source).toContain('Orchestrator and Role Overrides');
+    expect(source).toContain('Orchestrator and specialist agent model overrides');
     expect(source).not.toContain('1 orchestrator');
     expect(source).toContain('Add a shared default or choose explicit models for the affected roles below.');
     expect(source).toContain('Affected roles');
@@ -123,6 +123,8 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('Default route');
     expect(source).toContain('Explicit overrides');
     expect(source).toContain('Catalog posture');
+    expect(source).toContain('Choose explicit models only where the default is not enough.');
+    expect(source).not.toContain('Older assignment rows stay visible until they are cleaned up.');
     expect(source).toContain('id="llm-model-assignments"');
     expect(source).toContain('id="llm-providers-library"');
     expect(source).toContain('id="llm-model-catalog"');
