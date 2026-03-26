@@ -1,4 +1,4 @@
-import { Archive, CheckCircle2, Pencil, RotateCcw, SearchCheck, Star } from 'lucide-react';
+import { Archive, Copy, Pencil, RotateCcw, SearchCheck, Star } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -22,6 +22,7 @@ import type { DashboardExecutionEnvironmentRecord } from '../../lib/api.js';
 export function ExecutionEnvironmentTable(props: {
   environments: DashboardExecutionEnvironmentRecord[];
   busyEnvironmentId: string | null;
+  onCopy: (environment: DashboardExecutionEnvironmentRecord) => void;
   onEdit: (environment: DashboardExecutionEnvironmentRecord) => void;
   onVerify: (environment: DashboardExecutionEnvironmentRecord) => void;
   onSetDefault: (environment: DashboardExecutionEnvironmentRecord) => void;
@@ -31,9 +32,9 @@ export function ExecutionEnvironmentTable(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Tenant environments</CardTitle>
+        <CardTitle>Configured environments</CardTitle>
         <CardDescription>
-          Manage the execution environments available to Specialist roles in this tenant.
+          Manage the execution environments available to Specialist roles.
         </CardDescription>
       </CardHeader>
       <CardContent className="overflow-x-auto">
@@ -44,7 +45,7 @@ export function ExecutionEnvironmentTable(props: {
               <TableHead>Image</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Resources</TableHead>
-              <TableHead className="w-[220px] text-right">Actions</TableHead>
+              <TableHead className="w-[360px] text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -55,7 +56,9 @@ export function ExecutionEnvironmentTable(props: {
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{environment.name}</span>
                       {environment.is_default ? <Badge variant="success">Default</Badge> : null}
-                      <Badge variant="secondary">{environment.source_kind}</Badge>
+                      <Badge variant={environment.source_kind === 'catalog' ? 'info' : 'secondary'}>
+                        {environment.source_kind === 'catalog' ? 'Catalog' : 'Custom'}
+                      </Badge>
                     </div>
                     <div className="text-xs text-muted">
                       {environment.description ?? 'No description provided.'}
@@ -77,15 +80,14 @@ export function ExecutionEnvironmentTable(props: {
                             : 'warning'
                       }
                     >
-                      {environment.compatibility_status}
+                      {renderCompatibilityStatus(environment.compatibility_status)}
                     </Badge>
-                    <Badge variant={environment.is_claimable ? 'outline' : 'warning'}>
-                      {environment.is_claimable ? 'claimable' : 'not claimable'}
+                    <Badge variant={environment.is_archived ? 'secondary' : 'outline'}>
+                      {environment.is_archived ? 'Archived' : 'Active'}
                     </Badge>
-                    {environment.is_archived ? <Badge variant="secondary">Archived</Badge> : null}
-                    {environment.support_status ? (
-                      <Badge variant={environment.support_status === 'active' ? 'outline' : 'warning'}>
-                        {environment.support_status}
+                    {environment.support_status && environment.support_status !== 'active' ? (
+                      <Badge variant={environment.support_status === 'blocked' ? 'destructive' : 'warning'}>
+                        {renderSupportStatus(environment.support_status)}
                       </Badge>
                     ) : null}
                   </div>
@@ -100,53 +102,47 @@ export function ExecutionEnvironmentTable(props: {
                   <div className="text-xs text-muted">{`Pull ${environment.pull_policy} | Used by ${environment.usage_count} role${environment.usage_count === 1 ? '' : 's'}`}</div>
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex flex-wrap justify-end gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
+                  <div className="flex flex-nowrap justify-end gap-2 whitespace-nowrap">
+                    <IconActionButton
+                      label="Copy environment"
+                      icon={<Copy className="h-4 w-4" />}
+                      onClick={() => props.onCopy(environment)}
+                    />
+                    <IconActionButton
+                      label="Edit environment"
+                      icon={<Pencil className="h-4 w-4" />}
                       onClick={() => props.onEdit(environment)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
+                    />
+                    <IconActionButton
+                      label="Verify environment"
+                      icon={<SearchCheck className="h-4 w-4" />}
                       disabled={props.busyEnvironmentId === environment.id}
                       onClick={() => props.onVerify(environment)}
-                    >
-                      <SearchCheck className="h-4 w-4" />
-                      Verify
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={environment.is_default || !environment.is_claimable || props.busyEnvironmentId === environment.id}
+                    />
+                    <IconActionButton
+                      label="Set default environment"
+                      icon={<Star className="h-4 w-4" />}
+                      disabled={
+                        environment.is_default ||
+                        !canSetDefault(environment) ||
+                        props.busyEnvironmentId === environment.id
+                      }
                       onClick={() => props.onSetDefault(environment)}
-                    >
-                      <Star className="h-4 w-4" />
-                      Default
-                    </Button>
+                    />
                     {environment.is_archived ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
+                      <IconActionButton
+                        label="Restore environment"
+                        icon={<RotateCcw className="h-4 w-4" />}
                         disabled={props.busyEnvironmentId === environment.id}
                         onClick={() => props.onRestore(environment)}
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                        Restore
-                      </Button>
+                      />
                     ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
+                      <IconActionButton
+                        label="Archive environment"
+                        icon={<Archive className="h-4 w-4" />}
                         disabled={environment.is_default || props.busyEnvironmentId === environment.id}
                         onClick={() => props.onArchive(environment)}
-                      >
-                        <Archive className="h-4 w-4" />
-                        Archive
-                      </Button>
+                      />
                     )}
                   </div>
                 </TableCell>
@@ -159,15 +155,57 @@ export function ExecutionEnvironmentTable(props: {
   );
 }
 
+function renderSupportStatus(value: string): string {
+  if (value === 'blocked') {
+    return 'Blocked';
+  }
+  if (value === 'deprecated') {
+    return 'Deprecated';
+  }
+  return value;
+}
+
+function renderCompatibilityStatus(value: string): string {
+  if (value === 'compatible') {
+    return 'Verified';
+  }
+  if (value === 'incompatible') {
+    return 'Incompatible';
+  }
+  return 'Pending verification';
+}
+
+function IconActionButton(props: {
+  label: string;
+  icon: JSX.Element;
+  onClick(): void;
+  disabled?: boolean;
+}): JSX.Element {
+  return (
+    <Button
+      size="icon"
+      variant="outline"
+      aria-label={props.label}
+      title={props.label}
+      onClick={props.onClick}
+      disabled={props.disabled}
+    >
+      {props.icon}
+    </Button>
+  );
+}
+
+function canSetDefault(environment: DashboardExecutionEnvironmentRecord): boolean {
+  return !environment.is_archived && environment.compatibility_status === 'compatible' && environment.support_status !== 'blocked';
+}
+
 function buildEnvironmentMeta(environment: DashboardExecutionEnvironmentRecord): string {
   const distro = readString(environment.verified_metadata, 'distro');
   const packageManager = readString(environment.verified_metadata, 'package_manager');
-  const commands = readStringArray(environment.tool_capabilities, 'verified_baseline_commands');
 
   const parts = [
     distro ? `OS ${distro}` : null,
     packageManager ? `Pkg ${packageManager}` : null,
-    commands.length > 0 ? `Verified ${commands.slice(0, 4).join(', ')}` : null,
   ].filter(Boolean);
 
   return parts.length > 0 ? parts.join(' | ') : 'Awaiting verification metadata';
@@ -176,12 +214,4 @@ function buildEnvironmentMeta(environment: DashboardExecutionEnvironmentRecord):
 function readString(value: Record<string, unknown>, key: string): string | null {
   const entry = value[key];
   return typeof entry === 'string' && entry.trim().length > 0 ? entry.trim() : null;
-}
-
-function readStringArray(value: Record<string, unknown>, key: string): string[] {
-  const entry = value[key];
-  if (!Array.isArray(entry)) {
-    return [];
-  }
-  return entry.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
 }

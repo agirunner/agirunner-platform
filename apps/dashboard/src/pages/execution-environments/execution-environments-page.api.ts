@@ -1,15 +1,9 @@
 import { dashboardApi } from '../../lib/api.js';
 import type {
-  DashboardExecutionEnvironmentCatalogRecord,
-  DashboardExecutionEnvironmentCreateFromCatalogInput,
   DashboardExecutionEnvironmentCreateInput,
   DashboardExecutionEnvironmentRecord,
   DashboardExecutionEnvironmentUpdateInput,
 } from '../../lib/api.js';
-
-export const fetchExecutionEnvironmentCatalog =
-  (): Promise<DashboardExecutionEnvironmentCatalogRecord[]> =>
-    dashboardApi.listExecutionEnvironmentCatalog();
 
 export const fetchExecutionEnvironments = (): Promise<DashboardExecutionEnvironmentRecord[]> =>
   dashboardApi.listExecutionEnvironments();
@@ -19,16 +13,43 @@ export const createExecutionEnvironment = (
 ): Promise<DashboardExecutionEnvironmentRecord> =>
   dashboardApi.createExecutionEnvironment(payload);
 
-export const createExecutionEnvironmentFromCatalog = (
-  payload: DashboardExecutionEnvironmentCreateFromCatalogInput,
-): Promise<DashboardExecutionEnvironmentRecord> =>
-  dashboardApi.createExecutionEnvironmentFromCatalog(payload);
-
 export const updateExecutionEnvironment = (
   environmentId: string,
   payload: DashboardExecutionEnvironmentUpdateInput,
 ): Promise<DashboardExecutionEnvironmentRecord> =>
   dashboardApi.updateExecutionEnvironment(environmentId, payload);
+
+export class ExecutionEnvironmentAutoVerifyError extends Error {
+  readonly savedEnvironment: DashboardExecutionEnvironmentRecord;
+
+  constructor(savedEnvironment: DashboardExecutionEnvironmentRecord, cause: unknown) {
+    const causeMessage = cause instanceof Error ? cause.message : 'Verification failed.';
+    super(`Saved environment ${savedEnvironment.name}, but automatic verification failed: ${causeMessage}`);
+    this.name = 'ExecutionEnvironmentAutoVerifyError';
+    this.savedEnvironment = savedEnvironment;
+    this.cause = cause;
+  }
+}
+
+export async function saveExecutionEnvironmentAndVerify(input: {
+  mode: 'create' | 'edit';
+  environmentId?: string;
+  payload: DashboardExecutionEnvironmentCreateInput | DashboardExecutionEnvironmentUpdateInput;
+}): Promise<DashboardExecutionEnvironmentRecord> {
+  const savedEnvironment =
+    input.mode === 'edit'
+      ? await updateExecutionEnvironment(
+          input.environmentId ?? '',
+          input.payload as DashboardExecutionEnvironmentUpdateInput,
+        )
+      : await createExecutionEnvironment(input.payload as DashboardExecutionEnvironmentCreateInput);
+
+  try {
+    return await verifyExecutionEnvironment(savedEnvironment.id);
+  } catch (error) {
+    throw new ExecutionEnvironmentAutoVerifyError(savedEnvironment, error);
+  }
+}
 
 export const verifyExecutionEnvironment = (
   environmentId: string,

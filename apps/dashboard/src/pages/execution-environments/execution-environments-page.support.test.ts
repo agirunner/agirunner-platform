@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildExecutionEnvironmentPayload,
   buildExecutionEnvironmentStats,
+  createCopiedExecutionEnvironmentForm,
   createExecutionEnvironmentForm,
   sortExecutionEnvironments,
 } from './execution-environments-page.support.js';
@@ -57,6 +58,42 @@ describe('execution environments page support', () => {
       }),
     ).toEqual({
       name: 'Debian Base',
+      description: 'Curated Debian baseline',
+      image: 'debian:trixie-slim',
+      cpu: '2',
+      memory: '1Gi',
+      pullPolicy: 'if-not-present',
+      operatorNotes: 'baseline',
+    });
+  });
+
+  it('prefills copied forms from an existing environment but clears the name', () => {
+    expect(
+      createCopiedExecutionEnvironmentForm({
+        id: 'environment-1',
+        name: 'Debian Base',
+        description: 'Curated Debian baseline',
+        image: 'debian:trixie-slim',
+        cpu: '2',
+        memory: '1Gi',
+        pull_policy: 'if-not-present',
+        operator_notes: 'baseline',
+        bootstrap_commands: [],
+        bootstrap_required_domains: [],
+        declared_metadata: {},
+        verified_metadata: {},
+        tool_capabilities: {},
+        compatibility_status: 'compatible',
+        compatibility_errors: [],
+        is_default: true,
+        is_archived: false,
+        is_claimable: true,
+        usage_count: 4,
+        source_kind: 'catalog',
+        agent_hint: 'Execution environment: Debian Base',
+      }),
+    ).toEqual({
+      name: '',
       description: 'Curated Debian baseline',
       image: 'debian:trixie-slim',
       cpu: '2',
@@ -205,8 +242,6 @@ describe('execution environments page support', () => {
       ]),
     ).toEqual({
       total: 3,
-      claimable: 1,
-      archived: 1,
       catalog: 2,
       custom: 1,
     });

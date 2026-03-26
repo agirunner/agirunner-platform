@@ -16,8 +16,6 @@ export interface ExecutionEnvironmentFormState {
 
 export interface ExecutionEnvironmentStats {
   total: number;
-  claimable: number;
-  archived: number;
   catalog: number;
   custom: number;
 }
@@ -33,6 +31,15 @@ export function createExecutionEnvironmentForm(
     memory: environment?.memory ?? '1Gi',
     pullPolicy: environment?.pull_policy ?? 'if-not-present',
     operatorNotes: environment?.operator_notes ?? '',
+  };
+}
+
+export function createCopiedExecutionEnvironmentForm(
+  environment?: Partial<DashboardExecutionEnvironmentRecord> | null,
+): ExecutionEnvironmentFormState {
+  return {
+    ...createExecutionEnvironmentForm(environment),
+    name: '',
   };
 }
 
@@ -84,15 +91,11 @@ export function buildExecutionEnvironmentStats(
   return environments.reduce(
     (summary, environment) => ({
       total: summary.total + 1,
-      claimable: summary.claimable + (environment.is_claimable ? 1 : 0),
-      archived: summary.archived + (environment.is_archived ? 1 : 0),
       catalog: summary.catalog + (environment.source_kind === 'catalog' ? 1 : 0),
       custom: summary.custom + (environment.source_kind === 'custom' ? 1 : 0),
     }),
     {
       total: 0,
-      claimable: 0,
-      archived: 0,
       catalog: 0,
       custom: 0,
     },
