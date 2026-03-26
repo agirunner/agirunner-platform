@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -11,6 +12,7 @@ from scenario_config import load_scenario
 from seed_live_test_environment import (
     build_workspace_create_payload,
     extract_data,
+    list_execution_environments,
     login,
     seed_workspace_context,
 )
@@ -40,6 +42,52 @@ def resolve_profile_context(shared_context: dict[str, Any], *, profile_name: str
     return profile
 
 
+def resolve_default_execution_environment_candidates(shared_context: dict[str, Any]) -> list[dict[str, Any]]:
+    execution_environments = shared_context.get("execution_environments")
+    if not isinstance(execution_environments, dict):
+        raise RuntimeError("shared context must contain execution_environments")
+    candidates = execution_environments.get("default_candidates")
+    if not isinstance(candidates, list) or not candidates:
+        raise RuntimeError("shared context must contain at least one default execution environment candidate")
+    normalized = [dict(item) for item in candidates if isinstance(item, dict)]
+    if not normalized:
+        raise RuntimeError("shared context execution environment candidates must be objects")
+    return normalized
+
+
+def select_default_execution_environment(
+    shared_context: dict[str, Any],
+    *,
+    scenario_name: str,
+    run_token: str,
+) -> dict[str, Any]:
+    candidates = resolve_default_execution_environment_candidates(shared_context)
+    selection_key = f"{scenario_name}:{run_token}".encode("utf-8")
+    index = int.from_bytes(sha256(selection_key).digest()[:8], "big") % len(candidates)
+    return candidates[index]
+
+
+def set_default_execution_environment(client: ApiClient, *, environment_id: str) -> None:
+    client.request(
+        "POST",
+        f"/api/v1/execution-environments/{environment_id}/set-default",
+        payload={},
+        expected=(200,),
+        label=f"execution-environments.set-default:{environment_id}",
+    )
+
+
+def resolve_tenant_default_execution_environment(client: ApiClient) -> dict[str, Any]:
+    environments = list_execution_environments(client)
+    current_default = next(
+        (environment for environment in environments if bool(environment.get("is_default"))),
+        None,
+    )
+    if not isinstance(current_default, dict):
+        raise RuntimeError("execution environments list does not include a current tenant default")
+    return current_default
+
+
 def create_run_context(
     client: ApiClient,
     *,
@@ -56,6 +104,21 @@ def create_run_context(
     host_workspace_path: str | None,
 ) -> dict[str, Any]:
     profile_context = resolve_profile_context(shared_context, profile_name=scenario["profile"])
+    default_execution_environment = select_default_execution_environment(
+        shared_context,
+        scenario_name=scenario["name"],
+        run_token=run_token,
+    )
+    default_execution_environment_id = str(default_execution_environment.get("id") or "").strip()
+    if default_execution_environment_id == "":
+        raise RuntimeError("selected default execution environment is missing an id")
+    set_default_execution_environment(client, environment_id=default_execution_environment_id)
+    tenant_default_execution_environment = resolve_tenant_default_execution_environment(client)
+    tenant_default_execution_environment_id = str(tenant_default_execution_environment.get("id") or "").strip()
+    if tenant_default_execution_environment_id != default_execution_environment_id:
+        raise RuntimeError(
+            "selected default execution environment was not persisted as the current tenant default"
+        )
     workspace_slug = build_workspace_slug(scenario_name=scenario["name"], run_token=run_token)
     workspace_name = f"{workspace_name_prefix} {run_token}"
 
@@ -90,6 +153,9 @@ def create_run_context(
         "run_token": run_token,
         "scenario_name": scenario["name"],
         "profile": scenario["profile"],
+        "profile_roles": profile_context.get("roles", []),
+        "default_execution_environment": default_execution_environment,
+        "tenant_default_execution_environment": tenant_default_execution_environment,
     }
 
 

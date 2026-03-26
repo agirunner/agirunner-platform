@@ -19,6 +19,36 @@ class FakeClient:
         self.calls: list[tuple[str, str, dict[str, object], tuple[int, ...], str | None]] = []
         self.models: list[dict[str, object]] = []
         self.roles: list[dict[str, object]] = []
+        self.execution_environments: list[dict[str, object]] = [
+            {
+                "id": "env-debian",
+                "name": "Debian Base",
+                "slug": "debian-base",
+                "source_kind": "catalog",
+                "catalog_key": "debian-base",
+                "catalog_version": 1,
+                "image": "debian:trixie-slim",
+                "is_claimable": True,
+                "is_archived": False,
+                "compatibility_status": "compatible",
+                "verified_metadata": {"distro": "debian", "package_manager": "apt-get"},
+                "tool_capabilities": {"verified_baseline_commands": ["sh", "grep"]},
+            },
+            {
+                "id": "env-ubuntu",
+                "name": "Ubuntu LTS Base",
+                "slug": "ubuntu-base",
+                "source_kind": "catalog",
+                "catalog_key": "ubuntu-base",
+                "catalog_version": 1,
+                "image": "ubuntu:24.04",
+                "is_claimable": True,
+                "is_archived": False,
+                "compatibility_status": "compatible",
+                "verified_metadata": {"distro": "ubuntu", "package_manager": "apt-get"},
+                "tool_capabilities": {"verified_baseline_commands": ["sh", "grep"]},
+            },
+        ]
         self.oauth_models = [
             {
                 "id": "model-gpt-5.4",
@@ -78,6 +108,7 @@ class FakeClient:
                 "id": f"role-{len(self.roles) + 1}",
                 "name": payload["name"],
                 "allowed_tools": payload.get("allowedTools", []),
+                "execution_environment_id": payload.get("executionEnvironmentId"),
             }
             self.roles.append(created)
             return {"data": created}
@@ -88,10 +119,61 @@ class FakeClient:
                 "id": role_id,
                 "name": payload["name"],
                 "allowed_tools": payload.get("allowedTools", []),
+                "execution_environment_id": payload.get("executionEnvironmentId"),
             }
             self.roles = [role for role in self.roles if role.get("id") != role_id]
             self.roles.append(updated)
             return {"data": updated}
+
+        if method == "GET" and path == "/api/v1/execution-environments":
+            return {"data": self.execution_environments}
+
+        if method == "POST" and path == "/api/v1/execution-environments":
+            created = {
+                "id": f"env-{payload['name'].lower().replace(' ', '-')}",
+                "slug": payload["name"].lower().replace(" ", "-"),
+                "name": payload["name"],
+                "source_kind": "custom",
+                "catalog_key": None,
+                "catalog_version": None,
+                "image": payload["image"],
+                "cpu": payload["cpu"],
+                "memory": payload["memory"],
+                "pull_policy": payload["pullPolicy"],
+                "bootstrap_commands": payload.get("bootstrapCommands", []),
+                "bootstrap_required_domains": payload.get("bootstrapRequiredDomains", []),
+                "compatibility_status": "unknown",
+                "compatibility_errors": [],
+                "is_claimable": False,
+                "is_archived": False,
+                "verified_metadata": {},
+                "tool_capabilities": {},
+            }
+            self.execution_environments.append(created)
+            return {"data": created}
+
+        if method == "POST" and path.startswith("/api/v1/execution-environments/") and path.endswith("/verify"):
+            environment_id = path.split("/")[4]
+            updated: dict[str, object] | None = None
+            for environment in self.execution_environments:
+                if environment.get("id") != environment_id:
+                    continue
+                environment["compatibility_status"] = "compatible"
+                environment["is_claimable"] = True
+                environment["verified_metadata"] = {"distro": "ubuntu", "package_manager": "apt-get"}
+                environment["tool_capabilities"] = {"verified_baseline_commands": ["sh", "grep", "find"]}
+                updated = environment
+                break
+            if updated is None:
+                raise AssertionError(f"missing execution environment for verify: {environment_id}")
+            return {"data": updated}
+
+        if method == "GET" and path.startswith("/api/v1/execution-environments/"):
+            environment_id = path.rsplit("/", 1)[-1]
+            for environment in self.execution_environments:
+                if environment.get("id") == environment_id:
+                    return {"data": environment}
+            raise AssertionError(f"missing execution environment: {environment_id}")
 
         if method == "POST" and path == "/api/v1/config/oauth/import-session":
             return {"data": {"providerId": "provider-oauth", "email": "operator@example.com"}}
@@ -162,11 +244,25 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
                     "playbook_id": "playbook-profile-a",
                     "playbook_slug": "slug-profile-a",
                     "role_names": ["profile-a-role"],
+                    "roles": [
+                        {
+                            "name": "profile-a-role",
+                            "execution_environment_id": None,
+                            "use_default_execution_environment": False,
+                        }
+                    ],
                 },
                 "profile-b": {
                     "playbook_id": "playbook-profile-b",
                     "playbook_slug": "slug-profile-b",
                     "role_names": ["profile-b-role"],
+                    "roles": [
+                        {
+                            "name": "profile-b-role",
+                            "execution_environment_id": None,
+                            "use_default_execution_environment": False,
+                        }
+                    ],
                 },
             },
             registry,
@@ -212,6 +308,104 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
         self.assertEqual(
             ["file_read", "web_fetch"],
             create_call[2]["allowedTools"],
+        )
+
+    def test_sync_roles_resolves_execution_environment_alias_to_execution_environment_id(self) -> None:
+        client = FakeClient()
+
+        with patch.object(
+            seed_live_test_environment,
+            "load_fixture",
+            return_value=[
+                {
+                    "name": "build-engineer",
+                    "allowedTools": ["shell_exec"],
+                    "executionEnvironmentAlias": "ubuntu-base",
+                }
+            ],
+        ):
+            roles = seed_live_test_environment.sync_roles(
+                client,
+                "ignored.json",
+                execution_environment_aliases={
+                    "ubuntu-base": {
+                        "id": "env-ubuntu",
+                        "name": "Ubuntu LTS Base",
+                    }
+                },
+            )
+
+        create_call = next(call for call in client.calls if call[0] == "POST" and call[1] == "/api/v1/config/roles")
+        self.assertEqual("env-ubuntu", create_call[2]["executionEnvironmentId"])
+        self.assertNotIn("executionEnvironmentAlias", create_call[2])
+        self.assertEqual("env-ubuntu", roles[0]["execution_environment_id"])
+
+    def test_sync_roles_assigns_catalog_execution_environment_when_role_has_no_override(self) -> None:
+        client = FakeClient()
+
+        with patch.object(
+            seed_live_test_environment,
+            "load_fixture",
+            return_value=[
+                {
+                    "name": "release-assessor",
+                    "allowedTools": ["shell_exec"],
+                }
+            ],
+        ):
+            roles = seed_live_test_environment.sync_roles(
+                client,
+                "ignored.json",
+                default_execution_environment_candidates=[
+                    {"id": "env-debian", "name": "Debian Base"},
+                    {"id": "env-ubuntu", "name": "Ubuntu LTS Base"},
+                ],
+            )
+
+        create_call = next(call for call in client.calls if call[0] == "POST" and call[1] == "/api/v1/config/roles")
+        self.assertEqual("env-debian", create_call[2]["executionEnvironmentId"])
+        self.assertEqual("env-debian", roles[0]["execution_environment_id"])
+
+    def test_sync_roles_preserves_default_execution_environment_opt_in_without_explicit_assignment(self) -> None:
+        client = FakeClient()
+
+        with patch.object(
+            seed_live_test_environment,
+            "load_fixture",
+            return_value=[
+                {
+                    "name": "default-image-engineer",
+                    "allowedTools": ["shell_exec"],
+                    "useDefaultExecutionEnvironment": True,
+                }
+            ],
+        ):
+            roles = seed_live_test_environment.sync_roles(
+                client,
+                "ignored.json",
+                default_execution_environment_candidates=[
+                    {"id": "env-debian", "name": "Debian Base"},
+                ],
+            )
+
+        create_call = next(call for call in client.calls if call[0] == "POST" and call[1] == "/api/v1/config/roles")
+        self.assertNotIn("executionEnvironmentId", create_call[2])
+        self.assertNotIn("useDefaultExecutionEnvironment", create_call[2])
+        self.assertIsNone(roles[0]["execution_environment_id"])
+
+    def test_ensure_live_test_execution_environments_registers_claimable_catalog_defaults(self) -> None:
+        client = FakeClient()
+
+        registry = seed_live_test_environment.ensure_live_test_execution_environments(client)
+
+        self.assertEqual(["env-debian", "env-ubuntu"], [item["id"] for item in registry["default_candidates"]])
+        self.assertEqual("env-debian", registry["aliases"]["debian-base"]["id"])
+        self.assertEqual("env-ubuntu", registry["aliases"]["ubuntu-base"]["id"])
+        self.assertEqual(
+            [
+                ("GET", "/api/v1/execution-environments"),
+            ],
+            [(method, path) for method, path, _, _, _ in client.calls],
         )
 
     def test_ensure_specialist_assignments_creates_missing_model_and_assigns_all_roles(self) -> None:

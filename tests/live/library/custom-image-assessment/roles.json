@@ -31,11 +31,7 @@
     "verificationStrategy": "peer_review",
     "escalationTarget": "human",
     "maxEscalationDepth": 5,
-    "isActive": true,
-    "executionContainerConfig": {
-      "image": "agirunner-runtime-execution:local",
-      "pullPolicy": "if-not-present"
-    }
+    "isActive": true
   },
   {
     "name": "release-assessor",

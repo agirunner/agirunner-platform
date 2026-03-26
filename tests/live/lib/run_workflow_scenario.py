@@ -93,6 +93,8 @@ SELECT jsonb_build_object(
           stage_name,
           is_orchestrator_task,
           execution_backend,
+          execution_environment_id,
+          execution_environment_snapshot,
           assigned_worker_id,
           created_at,
           updated_at,
@@ -411,6 +413,119 @@ def _artifacts(snapshot: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _db_state_tasks(snapshot: Any) -> list[dict[str, Any]]:
+    if not isinstance(snapshot, dict):
+        return []
+    tasks = snapshot.get("tasks", [])
+    return tasks if isinstance(tasks, list) else []
+
+
+def summarize_execution_environment_usage(
+    expectations: dict[str, Any] | None,
+    db_state: dict[str, Any] | None,
+) -> dict[str, Any]:
+    expectation_payload = expectations if isinstance(expectations, dict) else {}
+    db_payload = db_state if isinstance(db_state, dict) else {}
+    role_expectations = expectation_payload.get("roles", [])
+    if not isinstance(role_expectations, list) or not role_expectations:
+        return {
+            "applicable": False,
+            "passed": True,
+            "checked_task_count": 0,
+            "mismatch_count": 0,
+            "mismatches": [],
+            "observed_environment_ids": [],
+            "selected_default_environment_id": expectation_payload.get("selected_default_environment_id"),
+            "tenant_default_environment_id": expectation_payload.get("tenant_default_environment_id"),
+        }
+
+    selected_default_environment_id = str(expectation_payload.get("selected_default_environment_id") or "").strip()
+    tenant_default_environment_id = str(expectation_payload.get("tenant_default_environment_id") or "").strip()
+    role_expectation_by_name = {
+        str(role.get("name") or "").strip(): role
+        for role in role_expectations
+        if isinstance(role, dict) and isinstance(role.get("name"), str)
+    }
+    mismatches: list[dict[str, Any]] = []
+    observed_environment_ids: set[str] = set()
+    checked_task_count = 0
+    if selected_default_environment_id and tenant_default_environment_id:
+        if selected_default_environment_id != tenant_default_environment_id:
+            mismatches.append(
+                {
+                    "task_id": None,
+                    "role": None,
+                    "expected_environment_id": selected_default_environment_id,
+                    "actual_environment_id": tenant_default_environment_id,
+                    "reason": "selected default execution environment does not match the tenant default execution environment",
+                }
+            )
+
+    for task in _db_state_tasks(db_payload):
+        if not isinstance(task, dict):
+            continue
+        if bool(task.get("is_orchestrator_task")):
+            continue
+        if str(task.get("execution_backend") or "") != "runtime_plus_task":
+            continue
+        role_name = str(task.get("role") or "").strip()
+        role_expectation = role_expectation_by_name.get(role_name)
+        if role_expectation is None:
+            continue
+        checked_task_count += 1
+        actual_environment_id = str(task.get("execution_environment_id") or "").strip()
+        if actual_environment_id:
+            observed_environment_ids.add(actual_environment_id)
+        snapshot = task.get("execution_environment_snapshot")
+        snapshot_environment_id = ""
+        if isinstance(snapshot, dict):
+            snapshot_environment_id = str(snapshot.get("id") or "").strip()
+
+        use_default = bool(role_expectation.get("use_default_execution_environment"))
+        expected_environment_id = (
+            tenant_default_environment_id
+            if use_default
+            else str(role_expectation.get("execution_environment_id") or "").strip()
+        )
+        expectation_reason = (
+            "tenant default execution environment"
+            if use_default
+            else "explicit role execution environment"
+        )
+
+        if expected_environment_id and actual_environment_id != expected_environment_id:
+            mismatches.append(
+                {
+                    "task_id": task.get("id"),
+                    "role": role_name,
+                    "expected_environment_id": expected_environment_id,
+                    "actual_environment_id": actual_environment_id,
+                    "reason": f"task did not use the expected {expectation_reason}",
+                }
+            )
+        if snapshot_environment_id and actual_environment_id and snapshot_environment_id != actual_environment_id:
+            mismatches.append(
+                {
+                    "task_id": task.get("id"),
+                    "role": role_name,
+                    "expected_environment_id": actual_environment_id,
+                    "actual_environment_id": snapshot_environment_id,
+                    "reason": "execution environment snapshot id does not match the task execution environment id",
+                }
+            )
+
+    return {
+        "applicable": checked_task_count > 0 or len(mismatches) > 0,
+        "passed": len(mismatches) == 0,
+        "checked_task_count": checked_task_count,
+        "mismatch_count": len(mismatches),
+        "mismatches": mismatches,
+        "observed_environment_ids": sorted(observed_environment_ids),
+        "selected_default_environment_id": selected_default_environment_id or None,
+        "tenant_default_environment_id": tenant_default_environment_id or None,
+    }
+
+
 def _workflow_final_artifacts(workflow: dict[str, Any]) -> list[str]:
     orchestration_state = workflow.get("orchestration_state")
     if not isinstance(orchestration_state, dict):
@@ -616,6 +731,20 @@ def evaluate_outcome_driven_basics(
     )
     if http_required and not http_passed:
         failures.append('expected persisted execution logs to be free of HTTP 5xx responses')
+
+    execution_environment_usage = evidence.get("execution_environment_usage", {})
+    if isinstance(execution_environment_usage, dict) and execution_environment_usage.get("applicable") is True:
+        env_passed = bool(execution_environment_usage.get("passed"))
+        checks.append(
+            {
+                "name": "outcome.execution_environment_usage",
+                "passed": env_passed,
+                "checked_task_count": execution_environment_usage.get("checked_task_count", 0),
+                "mismatch_count": execution_environment_usage.get("mismatch_count", 0),
+            }
+        )
+        if not env_passed:
+            failures.append("expected task execution environments to match configured expectations")
 
     evidence_expectations = expectations.get('evidence_expectations', {})
     if isinstance(evidence_expectations, dict) and 'distinct_orchestrator_runtime_count_min' in evidence_expectations:
@@ -1192,6 +1321,9 @@ def build_scenario_outcome_metrics(
     live_container_rows = _live_container_rows(live_containers)
     container_observations = evidence.get("container_observations", {})
     observed_container_rows = container_observation_rows(container_observations)
+    execution_environment_usage = evidence.get("execution_environment_usage", {})
+    if not isinstance(execution_environment_usage, dict):
+        execution_environment_usage = {}
     workflow_tasks = _workflow_tasks(workflow)
     orchestrator_runtime_actors = _distinct_orchestrator_runtime_actors(execution_logs)
     orchestrator_tasks = [
@@ -1268,6 +1400,15 @@ def build_scenario_outcome_metrics(
                 [row for row in observed_container_rows if isinstance(row, dict)]
             ),
         },
+        "execution_environment_usage": {
+            "applicable": bool(execution_environment_usage.get("applicable")),
+            "passed": bool(execution_environment_usage.get("passed")),
+            "checked_task_count": int(execution_environment_usage.get("checked_task_count", 0) or 0),
+            "mismatch_count": int(execution_environment_usage.get("mismatch_count", 0) or 0),
+            "observed_environment_ids": execution_environment_usage.get("observed_environment_ids", []),
+            "selected_default_environment_id": execution_environment_usage.get("selected_default_environment_id"),
+            "tenant_default_environment_id": execution_environment_usage.get("tenant_default_environment_id"),
+        },
     }
 
 
@@ -1276,6 +1417,7 @@ def write_evidence_artifacts(trace_dir: str, evidence: dict[str, Any]) -> dict[s
     evidence_root.mkdir(parents=True, exist_ok=True)
     file_names = {
         "db_state": "db-state.json",
+        "execution_environment_usage": "execution-environment-usage.json",
         "log_anomalies": "log-anomalies.json",
         "http_status_summary": "http-status-summary.json",
         "live_containers": "live-containers.json",
@@ -3048,6 +3190,7 @@ def evaluate_progress_expectations(
     fleet_peaks: dict[str, int] | None,
     verification_mode: str,
     trace: TraceRecorder | None,
+    execution_environment_expectations: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     workflow_with_tasks = attach_workflow_tasks(workflow, fetch_workflow_tasks(client, workflow_id=workflow_id))
     verification = evaluate_expectations(
@@ -3096,6 +3239,10 @@ def evaluate_progress_expectations(
         if live_containers_snapshot.get("ok")
         else {"all_clean": False, "error": live_containers_snapshot.get("error")},
     }
+    evidence_payload["execution_environment_usage"] = summarize_execution_environment_usage(
+        execution_environment_expectations,
+        evidence_payload.get("db_state"),
+    )
     efficiency_summary = summarize_efficiency(
         workflow=workflow_with_tasks,
         logs=execution_logs_snapshot,
@@ -3146,6 +3293,7 @@ def build_workflow_create_payload(
     workflow_goal: str,
     workflow_parameters: dict[str, Any] | None = None,
     workflow_metadata: dict[str, Any] | None = None,
+    execution_environment: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     parameters = {
         "goal": workflow_goal,
@@ -3160,7 +3308,14 @@ def build_workflow_create_payload(
         "parameters": parameters,
         "metadata": {
             **({} if workflow_metadata is None else workflow_metadata),
-            "live_test": {"scenario_name": scenario_name},
+            "live_test": {
+                "scenario_name": scenario_name,
+                **(
+                    {}
+                    if execution_environment is None
+                    else {"execution_environment": execution_environment}
+                ),
+            },
         },
     }
 
@@ -3435,6 +3590,7 @@ def build_run_result_payload(
     execution_logs: Any | None = None,
     efficiency: dict[str, Any] | None = None,
     evidence: dict[str, Any] | None = None,
+    execution_environment: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     verification_payload = {} if verification is None else verification
     efficiency_payload = {} if efficiency is None else efficiency
@@ -3484,6 +3640,7 @@ def build_run_result_payload(
         "fleet": fleet,
         "fleet_peaks": fleet_peaks,
         "execution_logs": execution_logs,
+        "execution_environment": execution_environment,
         "evidence": evidence_payload,
         "efficiency": efficiency_payload,
         "verification": verification_payload,
@@ -3653,6 +3810,25 @@ def main() -> None:
     bootstrap_context = read_json(bootstrap_context_file)
     workspace_id = env("LIVE_TEST_WORKSPACE_ID", bootstrap_context["workspace_id"], required=True)
     playbook_id = env("LIVE_TEST_PLAYBOOK_ID", bootstrap_context["playbook_id"], required=True)
+    selected_execution_environment = (
+        dict(bootstrap_context["default_execution_environment"])
+        if isinstance(bootstrap_context.get("default_execution_environment"), dict)
+        else None
+    )
+    tenant_default_execution_environment = (
+        dict(bootstrap_context["tenant_default_execution_environment"])
+        if isinstance(bootstrap_context.get("tenant_default_execution_environment"), dict)
+        else None
+    )
+    execution_environment_expectations = {
+        "selected_default_environment_id": None
+        if selected_execution_environment is None
+        else selected_execution_environment.get("id"),
+        "tenant_default_environment_id": None
+        if tenant_default_execution_environment is None
+        else tenant_default_execution_environment.get("id"),
+        "roles": bootstrap_context.get("profile_roles", []),
+    }
     provider_auth_mode = env(
         "LIVE_TEST_PROVIDER_AUTH_MODE",
         str(bootstrap_context.get("provider_auth_mode") or "").strip(),
@@ -3683,6 +3859,7 @@ def main() -> None:
                 workflow_goal=workflow_goal,
                 workflow_parameters={} if scenario is None else scenario["workflow"]["parameters"],
                 workflow_metadata={} if scenario is None else scenario["workflow"]["metadata"],
+                execution_environment=selected_execution_environment,
             ),
             expected=(201,),
             label="workflows.create",
@@ -3845,6 +4022,7 @@ def main() -> None:
                 fleet_peaks=fleet_peaks,
                 verification_mode=verification_mode,
                 trace=trace,
+                execution_environment_expectations=execution_environment_expectations,
             )
             if progress_verification_can_end_run(
                 progress_verification,
@@ -3927,8 +4105,13 @@ def main() -> None:
         events=events_snapshot,
         approval_actions=approval_actions,
     )
+    db_state_snapshot = collect_db_state_snapshot(trace, workflow_id=workflow_id)
     evidence_payload = {
-        "db_state": collect_db_state_snapshot(trace, workflow_id=workflow_id),
+        "db_state": db_state_snapshot,
+        "execution_environment_usage": summarize_execution_environment_usage(
+            execution_environment_expectations,
+            db_state_snapshot,
+        ),
         "log_anomalies": summarize_log_anomalies(execution_logs_snapshot),
         "http_status_summary": summarize_http_status_anomalies(execution_logs_snapshot),
         "live_containers": latest_live_containers,
@@ -3995,6 +4178,7 @@ def main() -> None:
             efficiency=efficiency_summary,
             verification=verification,
             evidence=evidence_payload,
+            execution_environment=selected_execution_environment,
         )
     )
     if not verification["passed"]:

@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import os
 import time
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
@@ -187,12 +188,142 @@ def apply_native_search_default(
     return next_payload
 
 
+def summarize_execution_environment(payload: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: payload.get(key)
+        for key in (
+            "id",
+            "slug",
+            "name",
+            "source_kind",
+            "catalog_key",
+            "catalog_version",
+            "image",
+            "cpu",
+            "memory",
+            "pull_policy",
+            "compatibility_status",
+            "compatibility_errors",
+            "is_claimable",
+            "is_archived",
+            "verified_metadata",
+            "tool_capabilities",
+        )
+    }
+
+
+def list_execution_environments(client: ApiClient) -> list[dict[str, Any]]:
+    environments = extract_data(
+        client.request("GET", "/api/v1/execution-environments", expected=(200,), label="execution-environments.list")
+    )
+    if not isinstance(environments, list):
+        raise RuntimeError("execution environments list response must be an array")
+    return [dict(item) for item in environments if isinstance(item, dict)]
+
+
+def _is_claimable_execution_environment(environment: dict[str, Any]) -> bool:
+    return bool(environment.get("is_claimable")) and not bool(environment.get("is_archived"))
+
+
+def _find_execution_environment_by_name(
+    environments: list[dict[str, Any]],
+    name: str,
+) -> dict[str, Any] | None:
+    normalized_name = name.strip().lower()
+    for environment in environments:
+        if str(environment.get("name") or "").strip().lower() == normalized_name:
+            return environment
+    return None
+
+
+def ensure_live_test_execution_environments(client: ApiClient) -> dict[str, Any]:
+    environments = list_execution_environments(client)
+    default_candidates = [
+        summarize_execution_environment(environment)
+        for environment in environments
+        if _is_claimable_execution_environment(environment) and environment.get("source_kind") == "catalog"
+    ]
+    if not default_candidates:
+        raise RuntimeError("live test bootstrap requires at least one claimable catalog execution environment")
+
+    aliases: dict[str, dict[str, Any]] = {}
+    for candidate in default_candidates:
+        for alias in (
+            candidate.get("slug"),
+            candidate.get("catalog_key"),
+        ):
+            if not isinstance(alias, str) or alias.strip() == "":
+                continue
+            aliases[alias.strip()] = dict(candidate)
+
+    return {
+        "default_candidates": default_candidates,
+        "aliases": aliases,
+    }
+
+
+def resolve_execution_environment_alias(
+    payload: dict[str, Any],
+    *,
+    execution_environment_aliases: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    next_payload = dict(payload)
+    alias = next_payload.pop("executionEnvironmentAlias", None)
+    if alias is None:
+        return next_payload
+    if "executionEnvironmentId" in next_payload:
+        raise RuntimeError("roles fixture must not provide both executionEnvironmentAlias and executionEnvironmentId")
+    if not isinstance(alias, str) or alias.strip() == "":
+        raise RuntimeError("executionEnvironmentAlias must be a non-empty string")
+    aliases = execution_environment_aliases or {}
+    resolved = aliases.get(alias.strip())
+    if not isinstance(resolved, dict):
+        raise RuntimeError(f"unknown execution environment alias: {alias}")
+    environment_id = resolved.get("id")
+    if not isinstance(environment_id, str) or environment_id.strip() == "":
+        raise RuntimeError(f"execution environment alias {alias} is missing an id")
+    next_payload["executionEnvironmentId"] = environment_id.strip()
+    return next_payload
+
+
+def _role_prefers_default_execution_environment(payload: dict[str, Any]) -> bool:
+    value = payload.pop("useDefaultExecutionEnvironment", False)
+    if not isinstance(value, bool):
+        raise RuntimeError("useDefaultExecutionEnvironment must be a boolean when provided")
+    return value
+
+
+def _assign_catalog_execution_environment(
+    payload: dict[str, Any],
+    *,
+    default_execution_environment_candidates: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    next_payload = dict(payload)
+    if "executionEnvironmentId" in next_payload:
+        return next_payload
+    candidates = default_execution_environment_candidates or []
+    if not candidates:
+        return next_payload
+    role_name = str(next_payload.get("name") or "").strip()
+    if role_name == "":
+        raise RuntimeError("role name is required before assigning an execution environment")
+    index = int.from_bytes(sha256(role_name.encode("utf-8")).digest()[:8], "big") % len(candidates)
+    candidate = candidates[index]
+    environment_id = str(candidate.get("id") or "").strip()
+    if environment_id == "":
+        raise RuntimeError("default execution environment candidate is missing an id")
+    next_payload["executionEnvironmentId"] = environment_id
+    return next_payload
+
+
 def sync_roles(
     client: ApiClient,
     roles_fixture_path: str,
     *,
     provider_type: str | None = None,
     resolved_model_id: str | None = None,
+    execution_environment_aliases: dict[str, dict[str, Any]] | None = None,
+    default_execution_environment_candidates: list[dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     existing_roles = extract_data(
         client.request("GET", "/api/v1/config/roles", expected=(200,), label="roles.list")
@@ -206,6 +337,21 @@ def sync_roles(
             provider_type=provider_type,
             resolved_model_id=resolved_model_id,
         )
+        use_default_execution_environment = _role_prefers_default_execution_environment(synced_payload)
+        synced_payload = resolve_execution_environment_alias(
+            synced_payload,
+            execution_environment_aliases=execution_environment_aliases,
+        )
+        if use_default_execution_environment:
+            if "executionEnvironmentId" in synced_payload:
+                raise RuntimeError(
+                    "roles fixture must not provide executionEnvironmentId when useDefaultExecutionEnvironment is true"
+                )
+        else:
+            synced_payload = _assign_catalog_execution_environment(
+                synced_payload,
+                default_execution_environment_candidates=default_execution_environment_candidates,
+            )
         existing = existing_by_name.get(synced_payload["name"])
         if existing is None:
             role = extract_data(
@@ -270,6 +416,8 @@ def sync_library_profiles(
     library_root: str,
     provider_type: str | None = None,
     resolved_model_id: str | None = None,
+    execution_environment_aliases: dict[str, dict[str, Any]] | None = None,
+    default_execution_environment_candidates: list[dict[str, Any]] | None = None,
 ) -> dict[str, dict[str, Any]]:
     registry: dict[str, dict[str, Any]] = {}
     library_path = Path(library_root)
@@ -284,12 +432,32 @@ def sync_library_profiles(
             str(roles_fixture),
             provider_type=provider_type,
             resolved_model_id=resolved_model_id,
+            execution_environment_aliases=execution_environment_aliases,
+            default_execution_environment_candidates=default_execution_environment_candidates,
         )
+        fixture_roles = load_fixture(str(roles_fixture))
+        fixture_roles_by_name = {
+            str(role.get("name") or "").strip(): role
+            for role in fixture_roles
+            if isinstance(role, dict) and isinstance(role.get("name"), str)
+        }
         playbook = sync_playbook(client, str(playbook_fixture))
         registry[profile_dir.name] = {
             "playbook_id": playbook["id"],
             "playbook_slug": playbook["slug"],
             "role_names": [role["name"] for role in roles],
+            "roles": [
+                {
+                    "name": role["name"],
+                    "execution_environment_id": role.get("execution_environment_id"),
+                    "use_default_execution_environment": bool(
+                        fixture_roles_by_name.get(str(role.get("name") or "").strip(), {}).get(
+                            "useDefaultExecutionEnvironment"
+                        )
+                    ),
+                }
+                for role in roles
+            ],
         }
     return registry
 

@@ -10,6 +10,7 @@ from seed_live_test_environment import (
     clear_assignments,
     delete_models_and_providers,
     delete_workspaces,
+    ensure_live_test_execution_environments,
     login,
     restart_orchestrator,
     seed_provider_catalog,
@@ -68,12 +69,15 @@ def main() -> None:
     delete_models_and_providers(client)
     clear_assignments(client)
     delete_workspaces(client)
+    execution_environments = ensure_live_test_execution_environments(client)
 
     profiles = sync_library_profiles(
         client,
         library_root=library_root,
         provider_type=provider_type,
         resolved_model_id=specialist_model_id,
+        execution_environment_aliases=execution_environments["aliases"],
+        default_execution_environment_candidates=execution_environments["default_candidates"],
     )
     roles = [{"name": role_name} for profile in profiles.values() for role_name in profile["role_names"]]
 
@@ -116,6 +120,7 @@ def main() -> None:
             "specialist_model_id": specialist_model["id"],
             "specialist_model_name": specialist_model["model_id"],
             "specialist_reasoning": specialist_reasoning_effort,
+            "execution_environments": execution_environments,
             "profiles": profiles,
         }
     )

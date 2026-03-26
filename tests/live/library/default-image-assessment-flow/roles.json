@@ -31,7 +31,8 @@
     "verificationStrategy": "peer_review",
     "escalationTarget": "human",
     "maxEscalationDepth": 5,
-    "isActive": true
+    "isActive": true,
+    "useDefaultExecutionEnvironment": true
   },
   {
     "name": "default-image-implementation-engineer",
@@ -65,7 +66,8 @@
     "verificationStrategy": "peer_review",
     "escalationTarget": "human",
     "maxEscalationDepth": 5,
-    "isActive": true
+    "isActive": true,
+    "useDefaultExecutionEnvironment": true
   },
   {
     "name": "default-image-acceptance-assessor",
@@ -94,7 +96,8 @@
     "verificationStrategy": "peer_review",
     "escalationTarget": "human",
     "maxEscalationDepth": 5,
-    "isActive": true
+    "isActive": true,
+    "useDefaultExecutionEnvironment": true
   },
   {
     "name": "default-image-release-coordinator",
@@ -128,6 +131,7 @@
     "verificationStrategy": "peer_review",
     "escalationTarget": "human",
     "maxEscalationDepth": 5,
-    "isActive": true
+    "isActive": true,
+    "useDefaultExecutionEnvironment": true
   }
 ]

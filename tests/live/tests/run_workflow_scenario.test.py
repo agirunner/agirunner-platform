@@ -315,6 +315,115 @@ class RunWorkflowScenarioTests(unittest.TestCase):
 
         self.assertTrue(verification["passed"])
 
+    def test_evaluate_progress_expectations_outcome_driven_fails_on_execution_environment_mismatch(self) -> None:
+        workflow = {
+            "id": "wf-1",
+            "state": "completed",
+            "tasks": [
+                {
+                    "id": "task-specialist",
+                    "role": "default-image-implementation-engineer",
+                    "is_orchestrator_task": False,
+                    "state": "completed",
+                    "execution_backend": "runtime_plus_task",
+                }
+            ],
+        }
+        expectations = {
+            "state": "completed",
+            "outcome_envelope": {
+                "allowed_states": ["completed"],
+                "require_output_artifacts": True,
+                "require_completed_non_orchestrator_tasks": True,
+                "require_terminal_work_items": True,
+                "require_db_state": True,
+                "require_runtime_cleanup": True,
+                "require_fatal_log_free": True,
+            },
+        }
+        board = {
+            "data": {
+                "data": {
+                    "columns": [{"id": "done", "is_terminal": True}],
+                    "work_items": [{"id": "wi-done", "column_id": "done"}],
+                }
+            }
+        }
+        work_items = {"data": {"data": [{"id": "wi-done", "column_id": "done"}]}}
+        artifacts = {"data": {"items": [{"logical_path": "deliverables/out.md"}]}}
+        fake_client = object()
+
+        with (
+            mock.patch.object(
+                run_workflow_scenario,
+                "fetch_workflow_tasks",
+                return_value=workflow["tasks"],
+            ),
+            mock.patch.object(run_workflow_scenario, "collect_workflow_events", return_value={"ok": True, "data": []}),
+            mock.patch.object(run_workflow_scenario, "collect_execution_logs", return_value={"data": []}),
+            mock.patch.object(run_workflow_scenario, "summarize_efficiency", return_value={}),
+            mock.patch.object(
+                run_workflow_scenario,
+                "collect_live_container_snapshot",
+                return_value={"ok": True, "data": {"data": [{"kind": "orchestrator", "container_id": "c-1"}]}},
+            ),
+            mock.patch.object(
+                run_workflow_scenario,
+                "collect_db_state_snapshot",
+                return_value={
+                    "ok": True,
+                    "tasks": [
+                        {
+                            "id": "task-specialist",
+                            "role": "default-image-implementation-engineer",
+                            "state": "completed",
+                            "is_orchestrator_task": False,
+                            "execution_backend": "runtime_plus_task",
+                            "execution_environment_id": "env-debian",
+                            "execution_environment_snapshot": {"id": "env-debian"},
+                        }
+                    ],
+                },
+            ),
+            mock.patch.object(run_workflow_scenario, "summarize_log_anomalies", return_value={"count": 0, "rows": []}),
+            mock.patch.object(
+                run_workflow_scenario,
+                "inspect_runtime_cleanup",
+                return_value={"all_clean": True, "runtime_containers": [{"container_id": "c-1", "clean": True}]},
+            ),
+        ):
+            verification = run_workflow_scenario.evaluate_progress_expectations(
+                fake_client,  # type: ignore[arg-type]
+                workflow_id="wf-1",
+                expectations=expectations,
+                workflow=workflow,
+                board=board,
+                work_items=work_items,
+                stage_gates={"data": []},
+                workspace={},
+                artifacts=artifacts,
+                approval_actions=[],
+                fleet={},
+                playbook_id="pb-1",
+                fleet_peaks={},
+                verification_mode=run_workflow_scenario.OUTCOME_DRIVEN_VERIFICATION_MODE,
+                trace=None,
+                execution_environment_expectations={
+                    "tenant_default_environment_id": "env-ubuntu",
+                    "selected_default_environment_id": "env-ubuntu",
+                    "roles": [
+                        {
+                            "name": "default-image-implementation-engineer",
+                            "execution_environment_id": None,
+                            "use_default_execution_environment": True,
+                        }
+                    ],
+                },
+            )
+
+        self.assertFalse(verification["passed"])
+        self.assertIn("expected task execution environments to match", verification["failures"][0])
+
     def test_fetch_workflow_tasks_collects_paginated_task_pages(self) -> None:
         client = FakeWorkflowClient(
             [
@@ -351,10 +460,93 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         query = run_workflow_scenario.build_db_state_query("wf-1")
 
         self.assertIn("column_id", query)
+        self.assertIn("execution_environment_id", query)
+        self.assertIn("execution_environment_snapshot", query)
         self.assertNotIn(
             "SELECT\n          id,\n          title,\n          state,\n          stage_name,\n          column_id,",
             query,
         )
+
+    def test_summarize_execution_environment_usage_verifies_default_and_explicit_role_assignments(self) -> None:
+        summary = run_workflow_scenario.summarize_execution_environment_usage(
+            {
+                "tenant_default_environment_id": "env-ubuntu",
+                "selected_default_environment_id": "env-ubuntu",
+                "roles": [
+                    {
+                        "name": "default-image-implementation-engineer",
+                        "execution_environment_id": None,
+                        "use_default_execution_environment": True,
+                    },
+                    {
+                        "name": "release-assessor",
+                        "execution_environment_id": "env-debian",
+                        "use_default_execution_environment": False,
+                    },
+                ],
+            },
+            {
+                "ok": True,
+                "tasks": [
+                    {
+                        "id": "task-1",
+                        "role": "default-image-implementation-engineer",
+                        "state": "completed",
+                        "is_orchestrator_task": False,
+                        "execution_backend": "runtime_plus_task",
+                        "execution_environment_id": "env-ubuntu",
+                        "execution_environment_snapshot": {"id": "env-ubuntu"},
+                    },
+                    {
+                        "id": "task-2",
+                        "role": "release-assessor",
+                        "state": "completed",
+                        "is_orchestrator_task": False,
+                        "execution_backend": "runtime_plus_task",
+                        "execution_environment_id": "env-debian",
+                        "execution_environment_snapshot": {"id": "env-debian"},
+                    },
+                ],
+            },
+        )
+
+        self.assertTrue(summary["passed"])
+        self.assertEqual(2, summary["checked_task_count"])
+        self.assertEqual(0, summary["mismatch_count"])
+        self.assertEqual(["env-debian", "env-ubuntu"], summary["observed_environment_ids"])
+
+    def test_summarize_execution_environment_usage_reports_mismatch_for_wrong_default_environment(self) -> None:
+        summary = run_workflow_scenario.summarize_execution_environment_usage(
+            {
+                "tenant_default_environment_id": "env-ubuntu",
+                "selected_default_environment_id": "env-ubuntu",
+                "roles": [
+                    {
+                        "name": "default-image-implementation-engineer",
+                        "execution_environment_id": None,
+                        "use_default_execution_environment": True,
+                    }
+                ],
+            },
+            {
+                "ok": True,
+                "tasks": [
+                    {
+                        "id": "task-1",
+                        "role": "default-image-implementation-engineer",
+                        "state": "completed",
+                        "is_orchestrator_task": False,
+                        "execution_backend": "runtime_plus_task",
+                        "execution_environment_id": "env-debian",
+                        "execution_environment_snapshot": {"id": "env-debian"},
+                    }
+                ],
+            },
+        )
+
+        self.assertFalse(summary["passed"])
+        self.assertEqual(1, summary["mismatch_count"])
+        self.assertIn("tenant default execution environment", summary["mismatches"][0]["reason"])
 
     def test_emit_run_result_writes_directly_to_tmp_file_when_configured(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -601,6 +793,12 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                     }
                 ]
             },
+            execution_environment={
+                "id": "env-debian",
+                "name": "Debian Base",
+                "image": "debian:trixie-slim",
+                "verified_metadata": {"distro": "debian", "package_manager": "apt-get"},
+            },
             efficiency={
                 "workflow_duration_seconds": 12.5,
                 "total_llm_turns": 4,
@@ -634,6 +832,8 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertTrue(payload["brief_proof"]["tasks"][0]["execution_brief_present"])
         self.assertFalse(payload["brief_proof"]["tasks"][0]["system_prompt_contains_workflow_brief"])
         self.assertIn("## Workflow Brief", payload["brief_proof"]["tasks"][0]["execution_brief_excerpt"])
+        self.assertEqual("env-debian", payload["execution_environment"]["id"])
+        self.assertEqual("debian", payload["execution_environment"]["verified_metadata"]["distro"])
         self.assertIn("outcome_metrics", payload)
         self.assertEqual("passed", payload["outcome_metrics"]["status"])
 
@@ -1777,6 +1977,38 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         )
         self.assertEqual(
             {"lane": "repo", "live_test": {"scenario_name": "sdlc-baseline"}},
+            payload["metadata"],
+        )
+
+    def test_build_workflow_create_payload_merges_execution_environment_context(self) -> None:
+        payload = run_workflow_scenario.build_workflow_create_payload(
+            playbook_id="playbook-1",
+            workspace_id="workspace-1",
+            workflow_name="Execution Environment Proof",
+            scenario_name="execution-environment-proof",
+            workflow_goal="Run the workflow on the selected execution environment.",
+            workflow_metadata={"lane": "repo"},
+            execution_environment={
+                "id": "env-ubuntu",
+                "name": "Ubuntu LTS Base",
+                "image": "ubuntu:24.04",
+                "verified_metadata": {"distro": "ubuntu", "package_manager": "apt-get"},
+            },
+        )
+
+        self.assertEqual(
+            {
+                "lane": "repo",
+                "live_test": {
+                    "scenario_name": "execution-environment-proof",
+                    "execution_environment": {
+                        "id": "env-ubuntu",
+                        "name": "Ubuntu LTS Base",
+                        "image": "ubuntu:24.04",
+                        "verified_metadata": {"distro": "ubuntu", "package_manager": "apt-get"},
+                    },
+                },
+            },
             payload["metadata"],
         )
 

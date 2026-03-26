@@ -15,6 +15,7 @@ import seed_live_test_run  # noqa: E402
 class FakeClient:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, dict[str, object], tuple[int, ...], str | None]] = []
+        self.current_default_environment_id = "env-ubuntu"
 
     def request(
         self,
@@ -36,6 +37,24 @@ class FakeClient:
                     "settings": normalized_payload.get("settings", {}),
                 }
             }
+        if method == "POST" and path.startswith("/api/v1/execution-environments/") and path.endswith("/set-default"):
+            self.current_default_environment_id = path.split("/")[4]
+            return {"data": {"id": self.current_default_environment_id, "is_default": True}}
+        if method == "GET" and path == "/api/v1/execution-environments":
+            return {
+                "data": [
+                    {
+                        "id": "env-debian",
+                        "is_default": self.current_default_environment_id == "env-debian",
+                        "name": "Debian Base",
+                    },
+                    {
+                        "id": "env-ubuntu",
+                        "is_default": self.current_default_environment_id == "env-ubuntu",
+                        "name": "Ubuntu LTS Base",
+                    },
+                ]
+            }
         if method == "PATCH" and path.endswith("/memory"):
             return {"data": {"ok": True}}
         if method == "PUT" and path.endswith("/spec"):
@@ -48,10 +67,33 @@ class SeedLiveTestRunTests(unittest.TestCase):
         client = FakeClient()
         shared_context = {
             "provider_auth_mode": "oauth",
+            "execution_environments": {
+                "default_candidates": [
+                    {
+                        "id": "env-debian",
+                        "name": "Debian Base",
+                        "image": "debian:trixie-slim",
+                        "verified_metadata": {"distro": "debian", "package_manager": "apt-get"},
+                    },
+                    {
+                        "id": "env-ubuntu",
+                        "name": "Ubuntu LTS Base",
+                        "image": "ubuntu:24.04",
+                        "verified_metadata": {"distro": "ubuntu", "package_manager": "apt-get"},
+                    },
+                ]
+            },
             "profiles": {
                 "sdlc-assessment-approve": {
                     "playbook_id": "playbook-123",
                     "playbook_slug": "live-test-sdlc-assessment-approve-v1",
+                    "roles": [
+                        {
+                            "name": "default-image-implementation-engineer",
+                            "execution_environment_id": "env-debian",
+                            "use_default_execution_environment": False,
+                        }
+                    ],
                 }
             },
         }
@@ -86,8 +128,26 @@ class SeedLiveTestRunTests(unittest.TestCase):
         self.assertEqual("oauth", context["provider_auth_mode"])
         self.assertEqual("run-01", context["run_token"])
         self.assertEqual("sdlc-assessment-approve-run-01", context["workspace_slug"])
+        self.assertEqual("env-ubuntu", context["default_execution_environment"]["id"])
+        self.assertEqual("env-ubuntu", context["tenant_default_execution_environment"]["id"])
+        self.assertEqual("ubuntu", context["default_execution_environment"]["verified_metadata"]["distro"])
+        self.assertEqual(
+            [
+                {
+                    "name": "default-image-implementation-engineer",
+                    "execution_environment_id": "env-debian",
+                    "use_default_execution_environment": False,
+                }
+            ],
+            context["profile_roles"],
+        )
 
         create_call = client.calls[0]
+        self.assertEqual(
+            ("POST", "/api/v1/execution-environments/env-ubuntu/set-default"),
+            client.calls[0][:2],
+        )
+        create_call = client.calls[2]
         self.assertEqual(("POST", "/api/v1/workspaces"), create_call[:2])
         self.assertEqual("sdlc-assessment-approve-run-01", create_call[2]["slug"])
         self.assertEqual(
@@ -96,6 +156,8 @@ class SeedLiveTestRunTests(unittest.TestCase):
         )
         self.assertEqual(
             [
+                ("POST", "/api/v1/execution-environments/env-ubuntu/set-default"),
+                ("GET", "/api/v1/execution-environments"),
                 ("POST", "/api/v1/workspaces"),
                 ("PATCH", "/api/v1/workspaces/workspace-1/memory"),
                 ("PUT", "/api/v1/workspaces/workspace-1/spec"),
@@ -107,10 +169,27 @@ class SeedLiveTestRunTests(unittest.TestCase):
         client = FakeClient()
         shared_context = {
             "provider_auth_mode": "oauth",
+            "execution_environments": {
+                "default_candidates": [
+                    {
+                        "id": "env-debian",
+                        "name": "Debian Base",
+                        "image": "debian:trixie-slim",
+                        "verified_metadata": {"distro": "debian", "package_manager": "apt-get"},
+                    }
+                ]
+            },
             "profiles": {
                 "host-directory-assessment": {
                     "playbook_id": "playbook-host",
                     "playbook_slug": "live-test-host-directory-assessment-v1",
+                    "roles": [
+                        {
+                            "name": "host-directory-writer",
+                            "execution_environment_id": None,
+                            "use_default_execution_environment": True,
+                        }
+                    ],
                 }
             },
         }
@@ -141,7 +220,9 @@ class SeedLiveTestRunTests(unittest.TestCase):
         )
 
         self.assertEqual("workspace-1", context["workspace_id"])
-        create_call = client.calls[0]
+        self.assertEqual("env-debian", context["default_execution_environment"]["id"])
+        self.assertEqual("env-debian", context["tenant_default_execution_environment"]["id"])
+        create_call = client.calls[2]
         self.assertEqual(
             "/tmp/live-tests/host-directory-content-assessment/run-02",
             create_call[2]["settings"]["workspace_storage"]["host_path"],

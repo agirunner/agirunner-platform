@@ -68,7 +68,7 @@
     ],
     "storage_execution": [
       "artifact_heavy",
-      "default_image",
+      "custom_execution_environment",
       "cold_specialists",
       "warm_orchestrators"
     ]
