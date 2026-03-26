@@ -91,8 +91,14 @@ const claimSchema = z.object({
 const claimCredentialResolveSchema = z.object({
   llm_api_key_claim_handle: z.string().min(1).optional(),
   llm_extra_headers_claim_handle: z.string().min(1).optional(),
+  mcp_claim_handles: z.array(z.string().min(1)).min(1).optional(),
 }).refine(
-  (value) => Boolean(value.llm_api_key_claim_handle || value.llm_extra_headers_claim_handle),
+  (value) =>
+    Boolean(
+      value.llm_api_key_claim_handle
+      || value.llm_extra_headers_claim_handle
+      || value.mcp_claim_handles?.length,
+    ),
   { message: 'At least one claim credential handle is required.' },
 );
 

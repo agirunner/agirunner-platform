@@ -678,6 +678,62 @@ describe('tasks routes', () => {
     );
   });
 
+  it('accepts remote MCP claim handles through the agent task route', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const resolveClaimCredentials = vi.fn(async () => ({
+      mcp_claim_values: {
+        'claim:v1:mcp-1': 'resolved-remote-secret',
+      },
+    }));
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('taskService', {
+      listTasks: vi.fn(),
+      createTask: vi.fn(),
+      getTask: vi.fn(),
+      updateTask: vi.fn(),
+      getTaskContext: vi.fn(),
+      getTaskGitActivity: vi.fn(),
+      claimTask: vi.fn(),
+      resolveClaimCredentials,
+      startTask: vi.fn(),
+      completeTask: vi.fn(),
+      failTask: vi.fn(),
+      approveTask: vi.fn(),
+      approveTaskOutput: vi.fn(),
+      retryTask: vi.fn(),
+      cancelTask: vi.fn(),
+      rejectTask: vi.fn(),
+      requestTaskChanges: vi.fn(),
+      skipTask: vi.fn(),
+      reassignTask: vi.fn(),
+      escalateTask: vi.fn(),
+      respondToEscalation: vi.fn(),
+      overrideTaskOutput: vi.fn(),
+      agentEscalate: vi.fn(),
+      resolveEscalation: vi.fn(),
+    });
+
+    await app.register(taskRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/11111111-1111-1111-1111-111111111111/claim-credentials',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        mcp_claim_handles: ['claim:v1:mcp-1'],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(resolveClaimCredentials).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      '11111111-1111-1111-1111-111111111111',
+      { mcp_claim_handles: ['claim:v1:mcp-1'] },
+    );
+  });
+
   it('deduplicates repeated patch requests by request_id for workflow-backed tasks', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const updateTask = vi.fn(async () => ({

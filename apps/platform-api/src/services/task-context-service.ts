@@ -8,6 +8,12 @@ import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
 import { WorkspaceMemoryScopeService } from './workspace-memory-scope-service.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 import { buildSpecialistExecutionBrief } from './specialist-execution-brief-service.js';
+import {
+  buildRemoteMcpAvailabilitySection,
+  buildSpecialistSkillInstructionSection,
+  readSpecialistRoleCapabilities,
+  type SpecialistRoleCapabilities,
+} from './specialist-capability-service.js';
 import { buildWorkflowInstructionLayer } from './workflow-instruction-layer.js';
 import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
 
@@ -123,6 +129,10 @@ export async function buildTaskContext(
   const orchestratorPrompt = task.is_orchestrator_task
     ? await loadOrchestratorPrompt(db, tenantId)
     : undefined;
+  const specialistCapabilities =
+    task.is_orchestrator_task || !asOptionalString(task.role)
+      ? null
+      : await readSpecialistRoleCapabilities(db, tenantId, String(task.role));
   const flatInstructions = readFlatInstructions(asRecord(task.role_config), agent?.metadata);
   const orchestratorContext = await buildOrchestratorTaskContext(db, tenantId, task);
   const workflowContext = workflowRow
@@ -147,6 +157,7 @@ export async function buildTaskContext(
     isOrchestratorTask: Boolean(task.is_orchestrator_task),
     workspaceInstructions,
     roleConfig: asRecord(task.role_config),
+    specialistCapabilities: specialistCapabilities ?? undefined,
     taskInput: asRecord(task.input),
     taskId: String(task.id ?? ''),
     workspaceId: asOptionalString(task.workspace_id),
@@ -164,6 +175,7 @@ export async function buildTaskContext(
     : buildSpecialistExecutionBrief({
         role: asOptionalString(task.role) ?? null,
         roleConfig: asRecord(task.role_config),
+        specialistCapabilities: specialistCapabilities ?? undefined,
         workflow: workflowContext ?? null,
         workspace: workspaceContext ?? null,
         workItem,
@@ -640,6 +652,7 @@ function buildInstructionLayers(params: {
   isOrchestratorTask: boolean;
   workspaceInstructions?: Record<string, unknown>;
   roleConfig: Record<string, unknown>;
+  specialistCapabilities?: SpecialistRoleCapabilities;
   taskInput: Record<string, unknown>;
   taskId: string;
   workspaceId?: string;
@@ -706,7 +719,7 @@ function buildInstructionLayers(params: {
 
   if (!params.isOrchestratorTask) {
     const roleDocument = normalizeInstructionDocument(
-      buildRoleInstructionContent(params.roleConfig),
+      buildRoleInstructionContent(params.roleConfig, params.specialistCapabilities),
       'role instructions',
       10_000,
     );
@@ -758,18 +771,37 @@ function buildInstructionLayers(params: {
   return layers;
 }
 
-function buildRoleInstructionContent(roleConfig: Record<string, unknown>): string | undefined {
+function buildRoleInstructionContent(
+  roleConfig: Record<string, unknown>,
+  specialistCapabilities?: SpecialistRoleCapabilities,
+): string | undefined {
   const instructions = asOptionalString(roleConfig.system_prompt)
     ?? asOptionalString(roleConfig.instructions)
     ?? null;
-  const description = asOptionalString(roleConfig.description) ?? null;
-  if (!description) {
-    return instructions ?? undefined;
+  const description =
+    asOptionalString(roleConfig.description)
+    ?? specialistCapabilities?.description
+    ?? null;
+  const sections: string[] = [];
+  if (description) {
+    sections.push(`Role description: ${description}`);
   }
-  if (!instructions) {
-    return `Role description: ${description}`;
+  if (instructions) {
+    sections.push(instructions);
   }
-  return `Role description: ${description}\n\n${instructions}`;
+  const skillSection = buildSpecialistSkillInstructionSection(
+    specialistCapabilities?.skills ?? [],
+  );
+  if (skillSection) {
+    sections.push(skillSection);
+  }
+  const remoteMcpSection = buildRemoteMcpAvailabilitySection(
+    specialistCapabilities?.remoteMcpServers ?? [],
+  );
+  if (remoteMcpSection) {
+    sections.push(remoteMcpSection);
+  }
+  return sections.length > 0 ? sections.join('\n\n') : undefined;
 }
 
 const LAYER_HEADERS: Record<string, string> = {

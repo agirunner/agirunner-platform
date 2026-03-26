@@ -142,6 +142,27 @@ export const SERVICE_REGISTRY: Record<string, ServiceLogConfig> = {
     ignoreMethods: ['resolveValidToken', 'getStatus'],
     logMethods: ['initiateFlow', 'handleCallback'],
   },
+  RemoteMcpServerService: {
+    entityType: 'remote_mcp_server',
+    category: 'config',
+    nameField: 'name',
+    ignoreFields: ['created_at', 'updated_at', 'parameters', 'discovered_tools_snapshot'],
+    ignoreMethods: ['listServers', 'getServer', 'getStoredServer'],
+  },
+  RemoteMcpOAuthService: {
+    entityType: 'remote_mcp_oauth_connection',
+    category: 'auth',
+    nameField: 'serverId',
+    ignoreFields: ['authorizeUrl'],
+    ignoreMethods: ['resolveStoredAuthorizationSecret'],
+  },
+  SpecialistSkillService: {
+    entityType: 'specialist_skill',
+    category: 'config',
+    nameField: 'name',
+    ignoreFields: ['created_at', 'updated_at', 'content'],
+    ignoreMethods: ['listSkills', 'getSkill'],
+  },
   OrchestratorGrantService: {
     entityType: 'orchestrator_grant',
     category: 'auth',

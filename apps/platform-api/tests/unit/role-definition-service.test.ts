@@ -9,6 +9,8 @@ function createMockPool() {
 const TENANT_ID = '00000000-0000-0000-0000-000000000001';
 const ROLE_ID = '00000000-0000-0000-0000-000000000099';
 const ENVIRONMENT_ID = '00000000-0000-0000-0000-000000000777';
+const MCP_SERVER_ID = '00000000-0000-0000-0000-000000000888';
+const SKILL_ID = '00000000-0000-0000-0000-000000000889';
 
 function buildRoleRow(
   overrides: Partial<Record<string, unknown>> = {},
@@ -45,6 +47,10 @@ function buildRoleRow(
     ee_bootstrap_commands: null,
     ee_bootstrap_required_domains: null,
     ee_catalog_support_status: null,
+    mcp_server_ids: [],
+    skill_ids: [],
+    mcp_servers: [],
+    skills: [],
     ...overrides,
   };
 }
@@ -71,6 +77,8 @@ describe('RoleDefinitionService', () => {
           name: 'developer',
           execution_environment_id: null,
           execution_environment: null,
+          mcp_server_ids: [],
+          skill_ids: [],
         }),
       ]);
       expect(pool.query).toHaveBeenCalledOnce();
@@ -114,6 +122,25 @@ describe('RoleDefinitionService', () => {
     it('returns role when found', async () => {
       const roleRow = buildRoleRow({
         execution_environment_id: ENVIRONMENT_ID,
+        mcp_server_ids: [MCP_SERVER_ID],
+        skill_ids: [SKILL_ID],
+        mcp_servers: [
+          {
+            id: MCP_SERVER_ID,
+            name: 'Docs MCP',
+            slug: 'docs-mcp',
+            verification_status: 'verified',
+            is_archived: false,
+          },
+        ],
+        skills: [
+          {
+            id: SKILL_ID,
+            name: 'Docs Research',
+            slug: 'docs-research',
+            is_archived: false,
+          },
+        ],
         ee_id: ENVIRONMENT_ID,
         ee_name: 'Debian Base',
         ee_source_kind: 'catalog',
@@ -136,6 +163,8 @@ describe('RoleDefinitionService', () => {
       const result = await service.getRoleById(TENANT_ID, ROLE_ID);
 
       expect(result.execution_environment_id).toBe(ENVIRONMENT_ID);
+      expect(result.mcp_server_ids).toEqual([MCP_SERVER_ID]);
+      expect(result.skill_ids).toEqual([SKILL_ID]);
       expect(result.execution_environment).toEqual(
         expect.objectContaining({
           id: ENVIRONMENT_ID,
@@ -172,6 +201,60 @@ describe('RoleDefinitionService', () => {
       });
 
       expect(result.name).toBe('developer');
+    });
+
+    it('persists mcp grants and ordered skill assignments', async () => {
+      pool.query.mockImplementation(async (sql: unknown) => {
+        if (typeof sql !== 'string') {
+          return { rows: [], rowCount: 1 };
+        }
+        if (sql.includes('WHERE rd.tenant_id = $1') && sql.includes('AND rd.name = $2')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM remote_mcp_servers')) {
+          return { rows: [{ id: MCP_SERVER_ID }], rowCount: 1 };
+        }
+        if (sql.includes('FROM specialist_skills')) {
+          return { rows: [{ id: SKILL_ID }], rowCount: 1 };
+        }
+        if (sql.includes('INSERT INTO role_definitions')) {
+          return { rows: [{ id: ROLE_ID }], rowCount: 1 };
+        }
+        if (sql.includes('WHERE rd.tenant_id = $1') && sql.includes('AND rd.id = $2')) {
+          return {
+            rows: [
+              buildRoleRow({
+                mcp_server_ids: [MCP_SERVER_ID],
+                skill_ids: [SKILL_ID],
+              }),
+            ],
+            rowCount: 1,
+          };
+        }
+        return { rows: [], rowCount: 1 };
+      });
+
+      const result = await service.createRole(TENANT_ID, {
+        name: 'developer',
+        allowedTools: [],
+        mcpServerIds: [MCP_SERVER_ID],
+        skillIds: [SKILL_ID],
+      });
+
+      expect(result.mcp_server_ids).toEqual([MCP_SERVER_ID]);
+      expect(result.skill_ids).toEqual([SKILL_ID]);
+      expect(
+        pool.query.mock.calls.some(
+          ([sql]) =>
+            typeof sql === 'string' && sql.includes('INSERT INTO specialist_mcp_server_grants'),
+        ),
+      ).toBe(true);
+      expect(
+        pool.query.mock.calls.some(
+          ([sql]) =>
+            typeof sql === 'string' && sql.includes('INSERT INTO specialist_skill_assignments'),
+        ),
+      ).toBe(true);
     });
 
     it('persists execution environment references', async () => {
@@ -260,6 +343,57 @@ describe('RoleDefinitionService', () => {
 
       expect(result.execution_environment_id).toBe(ENVIRONMENT_ID);
       expect(pool.query.mock.calls[2]?.[1]).toContain(ENVIRONMENT_ID);
+    });
+
+    it('replaces mcp grants and ordered skill assignments on update', async () => {
+      let roleLookupCount = 0;
+      pool.query.mockImplementation(async (sql: unknown) => {
+        if (typeof sql !== 'string') {
+          return { rows: [], rowCount: 1 };
+        }
+        if (sql.includes('WHERE rd.tenant_id = $1') && sql.includes('AND rd.id = $2')) {
+          roleLookupCount += 1;
+          if (roleLookupCount === 1) {
+            return { rows: [buildRoleRow()], rowCount: 1 };
+          }
+          return {
+            rows: [
+              buildRoleRow({
+                mcp_server_ids: [MCP_SERVER_ID],
+                skill_ids: [SKILL_ID],
+              }),
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM remote_mcp_servers')) {
+          return { rows: [{ id: MCP_SERVER_ID }], rowCount: 1 };
+        }
+        if (sql.includes('FROM specialist_skills')) {
+          return { rows: [{ id: SKILL_ID }], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 1 };
+      });
+
+      const result = await service.updateRole(TENANT_ID, ROLE_ID, {
+        mcpServerIds: [MCP_SERVER_ID],
+        skillIds: [SKILL_ID],
+      });
+
+      expect(result.mcp_server_ids).toEqual([MCP_SERVER_ID]);
+      expect(result.skill_ids).toEqual([SKILL_ID]);
+      expect(
+        pool.query.mock.calls.some(
+          ([sql]) =>
+            typeof sql === 'string' && sql.includes('DELETE FROM specialist_mcp_server_grants'),
+        ),
+      ).toBe(true);
+      expect(
+        pool.query.mock.calls.some(
+          ([sql]) =>
+            typeof sql === 'string' && sql.includes('DELETE FROM specialist_skill_assignments'),
+        ),
+      ).toBe(true);
     });
 
     it('returns current role when no fields to update', async () => {
@@ -398,6 +532,8 @@ describe('RoleDefinitionService', () => {
         .mockResolvedValueOnce({ rows: [buildRoleRow()], rowCount: 1 })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 })
         .mockResolvedValueOnce({ rows: [], rowCount: 1 })
         .mockResolvedValueOnce({ rows: [], rowCount: 1 });
 

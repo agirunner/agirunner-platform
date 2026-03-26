@@ -191,6 +191,43 @@ describe('buildTaskContext active stage semantics', () => {
         if (sql.includes('SELECT DISTINCT wi.stage_name')) {
           return { rows: [{ stage_name: 'implementation' }] };
         }
+        if (sql.includes('FROM role_definitions rd')) {
+          return {
+            rows: [{
+              name: 'developer',
+              description: 'Implements the requested change.',
+              escalation_target: 'human',
+              allowed_tools: ['shell', 'web_fetch'],
+              skills: [
+                {
+                  id: 'skill-1',
+                  name: 'Structured Search',
+                  slug: 'structured-search',
+                  summary: 'Search deliberately.',
+                  content: 'Always open with a search plan before using remote research tools.',
+                  sort_order: 0,
+                },
+              ],
+              remote_mcp_servers: [
+                {
+                  id: 'mcp-1',
+                  name: 'Tavily Search',
+                  slug: 'tavily-search',
+                  description: 'Web search and lightweight research.',
+                  endpoint_url: 'https://mcp.tavily.com/mcp/{tenant}',
+                  auth_mode: 'parameterized',
+                  verified_transport: 'streamable_http',
+                  verification_contract_version: 'remote-mcp-v1',
+                  discovered_tools_snapshot: [
+                    { original_name: 'search', description: 'Search the web' },
+                    { original_name: 'research', description: 'Research deeply' },
+                  ],
+                  parameters: [],
+                },
+              ],
+            }],
+          };
+        }
         return { rows: [] };
       }),
     };
@@ -209,6 +246,14 @@ describe('buildTaskContext active stage semantics', () => {
     const roleLayer = ((context.instruction_layers as Record<string, any>).role ?? {});
     expect(roleLayer.content).toContain('Role description: Implements the requested change.');
     expect(roleLayer.content).toContain('Write the code and verify it before handoff.');
+    expect(roleLayer.content).toContain('## Specialist Skills');
+    expect(roleLayer.content).toContain('### Structured Search');
+    expect(roleLayer.content).toContain(
+      'Always open with a search plan before using remote research tools.',
+    );
+    expect(roleLayer.content).toContain('## Remote MCP Servers Available');
+    expect(roleLayer.content).toContain('Tavily Search');
+    expect(roleLayer.content).toContain('search, research');
   });
 
   it('derives standard workflow current stage from open work items instead of stale stored stage status', async () => {

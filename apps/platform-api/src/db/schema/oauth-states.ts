@@ -1,4 +1,4 @@
-import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { tenants } from './tenants.js';
 
@@ -12,6 +12,8 @@ export const oauthStates = pgTable(
     userId: uuid('user_id')
       .notNull(),
     profileId: text('profile_id').notNull(),
+    flowKind: text('flow_kind').notNull().default('llm_provider'),
+    flowPayload: jsonb('flow_payload').notNull().default({}),
     state: text('state').notNull().unique(),
     codeVerifier: text('code_verifier').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

@@ -1231,10 +1231,17 @@ describe('TaskClaimService', () => {
         if (sql.includes('UPDATE agents SET current_task_id')) {
           return { rowCount: 1, rows: [] };
         }
-        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+        if (sql.includes('FROM role_definitions rd')) {
           return {
             rowCount: 1,
-            rows: [{ escalation_target: null, allowed_tools: ['file_read', 'native_search'] }],
+            rows: [{
+              name: 'developer',
+              description: null,
+              escalation_target: null,
+              allowed_tools: ['file_read', 'native_search'],
+              skills: [],
+              remote_mcp_servers: [],
+            }],
           };
         }
         if (sql.includes('SELECT') && sql.includes('workflow_name')) {
@@ -1336,12 +1343,16 @@ describe('TaskClaimService', () => {
         if (sql.includes('UPDATE agents SET current_task_id')) {
           return { rowCount: 1, rows: [] };
         }
-        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+        if (sql.includes('FROM role_definitions rd')) {
           return {
             rowCount: 1,
             rows: [{
+              name: 'developer',
+              description: null,
               escalation_target: null,
               allowed_tools: ['file_read', 'create_task', 'memory_delete', 'native_search'],
+              skills: [],
+              remote_mcp_servers: [],
             }],
           };
         }
@@ -1450,12 +1461,16 @@ describe('TaskClaimService', () => {
         if (sql.includes('UPDATE agents SET current_task_id')) {
           return { rowCount: 1, rows: [] };
         }
-        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+        if (sql.includes('FROM role_definitions rd')) {
           return {
             rowCount: 1,
             rows: [{
+              name: 'maintenance-engineer',
+              description: null,
               escalation_target: null,
               allowed_tools: ['file_read', 'file_write', 'git_status', 'git_commit', 'submit_handoff'],
+              skills: [],
+              remote_mcp_servers: [],
             }],
           };
         }
@@ -3325,6 +3340,320 @@ describe('TaskClaimService', () => {
       llm_endpoint_type: 'responses',
     });
     expect(task?.credentials).not.toHaveProperty('llm_api_key_secret_ref');
+  });
+
+  it('emits resolved remote MCP server contracts without exposing their secret values', async () => {
+    const encryptedMcpSecret = storeProviderSecret('tavily-secret');
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-mcp',
+              workflow_id: 'wf-1',
+              state: 'ready',
+              role: 'researcher',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              input: { description: 'Research the latest issue.' },
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-mcp',
+              workflow_id: 'wf-1',
+              state: 'claimed',
+              role: 'researcher',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              input: { description: 'Research the latest issue.' },
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT assigned_agent_id, assigned_worker_id')) {
+          return {
+            rowCount: 1,
+            rows: [{ assigned_agent_id: 'agent-1', assigned_worker_id: null }],
+          };
+        }
+        if (sql.includes('FROM role_definitions rd')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              name: 'researcher',
+              description: 'Researches external sources.',
+              escalation_target: 'human',
+              allowed_tools: ['web_fetch'],
+              skills: [],
+              remote_mcp_servers: [
+                {
+                  id: 'mcp-1',
+                  name: 'Tavily Search',
+                  slug: 'tavily-search',
+                  description: 'Web search and research.',
+                  endpoint_url: 'https://mcp.tavily.com/mcp/{tenant}',
+                  auth_mode: 'parameterized',
+                  verified_transport: 'streamable_http',
+                  verification_contract_version: 'remote-mcp-v1',
+                  discovered_tools_snapshot: [
+                    { original_name: 'search', description: 'Search the web' },
+                  ],
+                  parameters: [
+                    {
+                      id: 'param-1',
+                      placement: 'query',
+                      key: 'tavilyApiKey',
+                      value_kind: 'secret',
+                      static_value: null,
+                      encrypted_secret_value: encryptedMcpSecret,
+                    },
+                  ],
+                },
+              ],
+            }],
+          };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql} :: ${JSON.stringify(params ?? [])}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      routing_tags: ['research', 'role:researcher'],
+    });
+
+    const mcpServers = (task?.role_config as Record<string, any>).mcp_servers;
+    expect(mcpServers).toHaveLength(1);
+    expect(mcpServers[0]).toEqual(
+      expect.objectContaining({
+        id: 'mcp-1',
+        name: 'tavily-search',
+        display_name: 'Tavily Search',
+        transport: 'streamable_http',
+        url: 'https://mcp.tavily.com/mcp/{tenant}',
+      }),
+    );
+    expect(mcpServers[0].parameters).toEqual([
+      expect.objectContaining({
+        placement: 'query',
+        key: 'tavilyApiKey',
+        value_kind: 'secret',
+        claim_handle: expect.stringMatching(/^claim:v1:/),
+      }),
+    ]);
+    expect(JSON.stringify(task)).not.toContain('tavily-secret');
+  });
+
+  it('emits oauth-backed remote MCP server contracts with opaque authorization claim handles', async () => {
+    const encryptedAccessToken = storeProviderSecret('mcp-oauth-access-token');
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-mcp-oauth',
+              workflow_id: 'wf-1',
+              state: 'ready',
+              role: 'researcher',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              input: { description: 'Research the latest issue.' },
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-mcp-oauth',
+              workflow_id: 'wf-1',
+              state: 'claimed',
+              role: 'researcher',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              input: { description: 'Research the latest issue.' },
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT assigned_agent_id, assigned_worker_id')) {
+          return {
+            rowCount: 1,
+            rows: [{ assigned_agent_id: 'agent-1', assigned_worker_id: null }],
+          };
+        }
+        if (sql.includes('FROM role_definitions rd')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              name: 'researcher',
+              description: 'Researches external sources.',
+              escalation_target: 'human',
+              allowed_tools: ['web_fetch'],
+              skills: [],
+              remote_mcp_servers: [
+                {
+                  id: 'mcp-oauth-1',
+                  name: 'Remote Research',
+                  slug: 'remote-research',
+                  description: 'OAuth-backed research MCP.',
+                  endpoint_url: 'https://mcp.example.test/server',
+                  auth_mode: 'oauth',
+                  verified_transport: 'streamable_http',
+                  verification_contract_version: 'remote-mcp-v1',
+                  discovered_tools_snapshot: [
+                    { original_name: 'search', description: 'Search the web' },
+                  ],
+                  parameters: [],
+                  oauth_config: {
+                    authorizationEndpoint: 'https://auth.example.test/oauth/authorize',
+                    tokenEndpoint: 'https://auth.example.test/oauth/token',
+                    clientId: 'https://platform.example.test/.well-known/oauth/mcp-client.json',
+                    clientSecret: null,
+                    tokenEndpointAuthMethod: 'none',
+                    clientIdMetadataDocumentUrl: 'https://platform.example.test/.well-known/oauth/mcp-client.json',
+                    redirectUri: 'http://localhost:1455/auth/callback',
+                    scopes: [],
+                    resource: 'https://mcp.example.test/server',
+                  },
+                  oauth_credentials: {
+                    accessToken: encryptedAccessToken,
+                    refreshToken: null,
+                    expiresAt: null,
+                    tokenType: 'Bearer',
+                    scope: null,
+                    authorizedAt: '2026-03-26T00:00:00.000Z',
+                    authorizedByUserId: 'user-1',
+                    needsReauth: false,
+                  },
+                },
+              ],
+            }],
+          };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql} :: ${JSON.stringify(params ?? [])}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      routing_tags: ['research', 'role:researcher'],
+    });
+
+    const mcpServers = (task?.role_config as Record<string, any>).mcp_servers;
+    expect(mcpServers).toHaveLength(1);
+    expect(mcpServers[0].parameters).toEqual([
+      expect.objectContaining({
+        placement: 'header',
+        key: 'Authorization',
+        value_kind: 'secret',
+        claim_handle: expect.stringMatching(/^claim:v1:/),
+      }),
+    ]);
+    expect(JSON.stringify(task)).not.toContain('mcp-oauth-access-token');
+
+    const resolved = await service.resolveClaimCredentials(identity, 'task-mcp-oauth', {
+      mcp_claim_handles: [mcpServers[0].parameters[0].claim_handle],
+    });
+    expect(resolved.mcp_claim_values).toEqual({
+      [mcpServers[0].parameters[0].claim_handle]: 'Bearer mcp-oauth-access-token',
+    });
   });
 
   it('issues opaque claim handles and resolves them only for the assigned agent', async () => {

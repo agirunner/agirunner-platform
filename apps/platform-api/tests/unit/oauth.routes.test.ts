@@ -65,6 +65,14 @@ describe('oauth routes', () => {
     return callbackUrl.toString();
   }
 
+  function buildDashboardMcpRedirect(query: Record<string, string>): string {
+    const callbackUrl = new URL('/auth/callback', 'http://localhost:3000');
+    const providerPath = new URL('/integrations/mcp', 'http://localhost:3000');
+    providerPath.search = new URLSearchParams(query).toString();
+    callbackUrl.searchParams.set('redirect_to', `${providerPath.pathname}${providerPath.search}`);
+    return callbackUrl.toString();
+  }
+
   it('redirects callback failures with sanitized oauth_error messages', async () => {
     const { oauthRoutes } = await import('../../src/api/routes/oauth.routes.js');
 
@@ -72,12 +80,16 @@ describe('oauth routes', () => {
     registerErrorHandler(app);
     app.decorate('config', { DASHBOARD_URL: 'http://localhost:3000' } as never);
     app.decorate('oauthService', {
+      peekFlowKind: vi.fn().mockResolvedValue('llm_provider'),
       handleCallback: vi.fn().mockRejectedValue(
         new Error('OAuth token exchange failed: 401 access_token=sk-secret-value'),
       ),
       initiateFlow: vi.fn(),
       getStatus: vi.fn(),
       disconnect: vi.fn(),
+    });
+    app.decorate('remoteMcpOAuthService', {
+      handleCallback: vi.fn(),
     });
 
     await app.register(oauthRoutes);
@@ -108,10 +120,14 @@ describe('oauth routes', () => {
     registerErrorHandler(app);
     app.decorate('config', { DASHBOARD_URL: 'http://localhost:3000' } as never);
     app.decorate('oauthService', {
+      peekFlowKind: vi.fn().mockResolvedValue('llm_provider'),
       handleCallback: vi.fn().mockRejectedValue(new Error('Provider not configured for OAuth')),
       initiateFlow: vi.fn(),
       getStatus: vi.fn(),
       disconnect: vi.fn(),
+    });
+    app.decorate('remoteMcpOAuthService', {
+      handleCallback: vi.fn(),
     });
 
     await app.register(oauthRoutes);
@@ -142,6 +158,7 @@ describe('oauth routes', () => {
     registerErrorHandler(app);
     app.decorate('config', { DASHBOARD_URL: 'http://localhost:3000' } as never);
     app.decorate('oauthService', {
+      peekFlowKind: vi.fn().mockResolvedValue('llm_provider'),
       handleCallback: vi.fn().mockResolvedValue({
         providerId: 'provider-1',
         email: 'operator@example.com',
@@ -149,6 +166,9 @@ describe('oauth routes', () => {
       initiateFlow: vi.fn(),
       getStatus: vi.fn(),
       disconnect: vi.fn(),
+    });
+    app.decorate('remoteMcpOAuthService', {
+      handleCallback: vi.fn(),
     });
 
     await app.register(oauthRoutes);
@@ -181,6 +201,7 @@ describe('oauth routes', () => {
     registerErrorHandler(app);
     app.decorate('config', { DASHBOARD_URL: 'http://localhost:3000' } as never);
     app.decorate('oauthService', {
+      peekFlowKind: vi.fn(),
       handleCallback: vi.fn(),
       initiateFlow: vi.fn(),
       getStatus: vi.fn(),
@@ -189,6 +210,9 @@ describe('oauth routes', () => {
         providerId: 'provider-1',
         email: 'operator@example.com',
       }),
+    });
+    app.decorate('remoteMcpOAuthService', {
+      handleCallback: vi.fn(),
     });
 
     await app.register(oauthRoutes);
@@ -217,5 +241,90 @@ describe('oauth routes', () => {
       },
     });
     expect(app.oauthService.importAuthorizedSession).toHaveBeenCalledWith('tenant-1', 'user-1', payload);
+  });
+
+  it('serves the MCP oauth client metadata document', async () => {
+    const { oauthRoutes } = await import('../../src/api/routes/oauth.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('config', {
+      DASHBOARD_URL: 'http://localhost:3000',
+      PLATFORM_PUBLIC_BASE_URL: 'https://platform.example.test',
+    } as never);
+    app.decorate('oauthService', {
+      peekFlowKind: vi.fn(),
+      handleCallback: vi.fn(),
+      initiateFlow: vi.fn(),
+      getStatus: vi.fn(),
+      disconnect: vi.fn(),
+      importAuthorizedSession: vi.fn(),
+    });
+    app.decorate('remoteMcpOAuthService', {
+      handleCallback: vi.fn(),
+    });
+
+    await app.register(oauthRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/.well-known/oauth/mcp-client.json',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      client_name: 'Agirunner MCP',
+      client_uri: 'https://platform.example.test',
+      grant_types: ['authorization_code', 'refresh_token'],
+      response_types: ['code'],
+      application_type: 'native',
+      redirect_uris: ['http://localhost:1455/auth/callback'],
+      token_endpoint_auth_method: 'none',
+    });
+  });
+
+  it('routes successful remote MCP callbacks through the dashboard auth bootstrap page', async () => {
+    const { oauthRoutes } = await import('../../src/api/routes/oauth.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('config', { DASHBOARD_URL: 'http://localhost:3000' } as never);
+    app.decorate('oauthService', {
+      peekFlowKind: vi.fn().mockResolvedValue('remote_mcp'),
+      handleCallback: vi.fn(),
+      initiateFlow: vi.fn(),
+      getStatus: vi.fn(),
+      disconnect: vi.fn(),
+    });
+    app.decorate('remoteMcpOAuthService', {
+      handleCallback: vi.fn().mockResolvedValue({
+        serverId: 'server-1',
+        serverName: 'Docs MCP',
+      }),
+    });
+
+    await app.register(oauthRoutes);
+
+    const response = {
+      writeHead: vi.fn(),
+      end: vi.fn(),
+    };
+    await serverState.handler?.(
+      { url: '/auth/callback?code=test-code&state=test-state' },
+      response,
+    );
+
+    expect(app.oauthService.peekFlowKind).toHaveBeenCalledWith('test-state');
+    expect(app.remoteMcpOAuthService.handleCallback).toHaveBeenCalledWith('test-code', 'test-state');
+    expect(response.writeHead).toHaveBeenCalledWith(
+      302,
+      expect.objectContaining({
+        Location: buildDashboardMcpRedirect({
+          oauth_success: 'true',
+          remote_mcp_server_id: 'server-1',
+          remote_mcp_server_name: 'Docs MCP',
+        }),
+      }),
+    );
   });
 });

@@ -88,6 +88,7 @@ interface StateRow {
   profile_id: string;
   state: string;
   code_verifier: string;
+  flow_kind?: string;
 }
 
 export class OAuthService {
@@ -239,6 +240,18 @@ export class OAuthService {
     await this.seedStaticModels(stateRow.tenant_id, providerId, profile);
 
     return { providerId, email };
+  }
+
+  async peekFlowKind(state: string): Promise<string> {
+    const result = await this.pool.query<{ flow_kind: string }>(
+      `SELECT flow_kind
+         FROM oauth_states
+        WHERE state = $1
+          AND expires_at > NOW()
+        LIMIT 1`,
+      [state],
+    );
+    return result.rows[0]?.flow_kind ?? 'llm_provider';
   }
 
   async resolveValidToken(providerId: string): Promise<ResolvedOAuthToken> {

@@ -54,4 +54,86 @@ describe('sanitizeSecretLikeValue', () => {
       token: 'redacted://secret',
     });
   });
+
+  it('redacts remote MCP secret parameter rows based on value_kind and auth-bearing keys', () => {
+    expect(
+      sanitizeSecretLikeValue({
+        parameters: [
+          {
+            placement: 'header',
+            key: 'Authorization',
+            valueKind: 'secret',
+            value: 'Bearer mcp-secret-token',
+          },
+          {
+            placement: 'query',
+            key: 'exaApiKey',
+            valueKind: 'secret',
+            value: 'exa-secret-value',
+          },
+          {
+            placement: 'initialize_param',
+            key: 'workspace_token',
+            valueKind: 'secret',
+            value: 'workspace-secret-value',
+          },
+        ],
+      }),
+    ).toEqual({
+      parameters: [
+        {
+          placement: 'header',
+          key: 'Authorization',
+          valueKind: 'secret',
+          value: 'redacted://secret',
+        },
+        {
+          placement: 'query',
+          key: 'exaApiKey',
+          valueKind: 'secret',
+          value: 'redacted://secret',
+        },
+        {
+          placement: 'initialize_param',
+          key: 'workspace_token',
+          valueKind: 'secret',
+          value: 'redacted://secret',
+        },
+      ],
+    });
+  });
+
+  it('redacts oauth-backed remote MCP connection payloads', () => {
+    expect(
+      sanitizeSecretLikeValue({
+        oauth_config: {
+          clientId: 'https://platform.example.test/.well-known/oauth/mcp-client.json',
+          clientSecret: 'enc:v1:client-secret',
+        },
+        oauth_credentials: {
+          accessToken: 'enc:v1:access-token',
+          refreshToken: 'enc:v1:refresh-token',
+        },
+      }),
+    ).toEqual({
+      oauth_config: {
+        clientId: 'https://platform.example.test/.well-known/oauth/mcp-client.json',
+        clientSecret: 'redacted://secret',
+      },
+      oauth_credentials: {
+        accessToken: 'redacted://secret',
+        refreshToken: 'redacted://secret',
+      },
+    });
+  });
+
+  it('redacts endpoint urls that embed secret-like query parameters', () => {
+    expect(
+      sanitizeSecretLikeValue({
+        endpoint_url: 'https://mcp.example.test/server?tavilyApiKey=tvly-secret-value&mode=search',
+      }),
+    ).toEqual({
+      endpoint_url: 'redacted://secret',
+    });
+  });
 });

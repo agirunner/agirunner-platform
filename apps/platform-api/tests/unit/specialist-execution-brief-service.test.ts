@@ -115,6 +115,32 @@ describe('buildSpecialistExecutionBrief', () => {
       roleConfig: {
         tools: ['file_read', 'git_diff', 'submit_handoff'],
       },
+      specialistCapabilities: {
+        name: 'Reviewer',
+        description: 'Reviews work and records findings.',
+        escalationTarget: null,
+        allowedTools: ['file_read', 'git_diff', 'submit_handoff'],
+        skills: [],
+        remoteMcpServers: [
+          {
+            id: 'mcp-1',
+            name: 'Tavily Search',
+            slug: 'tavily-search',
+            description: 'Web search and lightweight research.',
+            endpointUrl: 'https://mcp.tavily.com/mcp/{tenant}',
+            authMode: 'parameterized' as const,
+            verifiedTransport: 'streamable_http' as const,
+            verificationContractVersion: 'remote-mcp-v1',
+            discoveredToolsSnapshot: [
+              { original_name: 'search', description: 'Search the web' },
+              { original_name: 'research', description: 'Research deeply' },
+            ],
+            oauthConfig: null,
+            oauthCredentials: null,
+            parameters: [],
+          },
+        ],
+      },
     };
   }
 
@@ -181,6 +207,9 @@ describe('buildSpecialistExecutionBrief', () => {
     expect(brief?.rendered_markdown).toContain(
       'Use the declared shell and interpreter contract when invoking scripts. Do not force sh ./script on a bash-oriented script; inspect the shebang or script contents first and install the required interpreter when it is missing.',
     );
+    expect(brief?.rendered_markdown).toContain('## Remote MCP Servers');
+    expect(brief?.rendered_markdown).toContain('Tavily Search');
+    expect(brief?.rendered_markdown).toContain('search, research');
     expect(brief?.rendered_markdown).not.toContain('git_token_secret_ref');
     expect(brief?.rendered_markdown).not.toContain('secret:GITHUB_TOKEN');
   });

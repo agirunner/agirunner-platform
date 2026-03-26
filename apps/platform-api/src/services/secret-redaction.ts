@@ -67,6 +67,15 @@ function sanitizeValue(
     return value;
   }
 
+  if (isRemoteMcpParameterObject(value)) {
+    return sanitizeRemoteMcpParameterObject(
+      value as Record<string, unknown>,
+      inheritedSecret,
+      redactionValue,
+      allowSecretReferences,
+    );
+  }
+
   const sanitized: Record<string, unknown> = {};
   for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
     sanitized[key] = sanitizeValue(
@@ -92,7 +101,8 @@ function shouldRedactString(value: string, inheritedSecret: boolean, allowSecret
   }
   return exactSecretLikeValuePattern.test(trimmed) ||
     embeddedSecretLikeValuePattern.test(trimmed) ||
-    containsJWTLikeToken(trimmed);
+    containsJWTLikeToken(trimmed) ||
+    containsSecretLikeUrlQuery(trimmed);
 }
 
 export function isSecretLikeKey(key: string) {
@@ -134,4 +144,59 @@ function containsRedactionMarker(value: unknown): boolean {
     return false;
   }
   return Object.values(value).some((entry) => containsRedactionMarker(entry));
+}
+
+function isRemoteMcpParameterObject(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return typeof record.key === 'string' &&
+    typeof record.placement === 'string' &&
+    ('valueKind' in record || 'value_kind' in record);
+}
+
+function sanitizeRemoteMcpParameterObject(
+  value: Record<string, unknown>,
+  inheritedSecret: boolean,
+  redactionValue: string,
+  allowSecretReferences: boolean,
+): Record<string, unknown> {
+  const parameterKey = typeof value.key === 'string' ? value.key : '';
+  const valueKind = typeof value.valueKind === 'string'
+    ? value.valueKind
+    : typeof value.value_kind === 'string'
+      ? value.value_kind
+      : '';
+  const parameterIsSecret = inheritedSecret ||
+    valueKind.toLowerCase() === 'secret' ||
+    isSecretLikeKey(parameterKey);
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, nestedValue] of Object.entries(value)) {
+    const shouldForceRedact = parameterIsSecret &&
+      ['value', 'staticValue', 'static_value', 'encryptedSecretValue', 'encrypted_secret_value'].includes(key);
+    sanitized[key] = shouldForceRedact
+      ? redactionValue
+      : sanitizeValue(nestedValue, inheritedSecret || isSecretLikeKey(key), redactionValue, allowSecretReferences);
+  }
+  return sanitized;
+}
+
+function containsSecretLikeUrlQuery(value: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return false;
+  }
+  for (const [key, queryValue] of parsed.searchParams.entries()) {
+    if (!isSecretLikeKey(key)) {
+      continue;
+    }
+    if (queryValue.trim().length > 0) {
+      return true;
+    }
+  }
+  return false;
 }

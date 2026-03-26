@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto';
 
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
+import {
+  summarizeRemoteMcpToolNames,
+  type SpecialistRoleCapabilities,
+} from './specialist-capability-service.js';
 import { roleConfigOwnsRepositorySurface } from './tool-tag-service.js';
 
 interface ExecutionBriefRef {
@@ -54,6 +58,11 @@ export interface SpecialistExecutionBrief {
   verification_commands: string[];
   relevant_memory_refs: MemoryRef[];
   relevant_artifact_refs: ArtifactRef[];
+  remote_mcp_servers: Array<{
+    name: string;
+    description: string;
+    tool_names: string[];
+  }>;
   execution_environment_contract: {
     name: string | null;
     image: string | null;
@@ -73,6 +82,7 @@ interface SpecialistExecutionBriefInput {
   predecessorHandoff?: Record<string, unknown> | null;
   taskInput?: Record<string, unknown> | null;
   roleConfig?: Record<string, unknown> | null;
+  specialistCapabilities?: SpecialistRoleCapabilities | null;
   executionEnvironmentSnapshot?: Record<string, unknown> | null;
 }
 
@@ -99,6 +109,7 @@ export function buildSpecialistExecutionBrief(
   const workspace = asRecord(input.workspace);
   const taskInput = asRecord(input.taskInput);
   const roleConfig = asRecord(input.roleConfig);
+  const specialistCapabilities = input.specialistCapabilities ?? null;
   const executionEnvironmentSnapshot = asRecord(input.executionEnvironmentSnapshot);
   const stageName = readString(workItem.stage_name) ?? readString(workflow.current_stage);
   const stage = definition.stages.find((entry) => entry.name === stageName) ?? null;
@@ -161,6 +172,7 @@ export function buildSpecialistExecutionBrief(
     verification_commands: normalizeStrings(taskInput.verification_commands),
     relevant_memory_refs: relevantMemoryRefs,
     relevant_artifact_refs: relevantArtifactRefs,
+    remote_mcp_servers: summarizeRemoteMcpServers(specialistCapabilities),
     execution_environment_contract: executionEnvironmentContractFrom(executionEnvironmentSnapshot),
     rendered_markdown: '',
   };
@@ -242,6 +254,14 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
       'Use the declared shell and interpreter contract when invoking scripts. Do not force sh ./script on a bash-oriented script; inspect the shebang or script contents first and install the required interpreter when it is missing.',
     );
   }
+  if (brief.remote_mcp_servers.length > 0) {
+    lines.push('', '## Remote MCP Servers');
+    lines.push(
+      ...brief.remote_mcp_servers.map((server) =>
+        `- ${server.name}: ${server.description} Tools: ${server.tool_names.join(', ')}`.trim(),
+      ),
+    );
+  }
   if (brief.repo_status_summary) {
     lines.push('', '## Execution Surface');
     lines.push(brief.repo_status_summary);
@@ -313,7 +333,19 @@ function refreshInputsFrom(
     verification_commands: brief.verification_commands,
     relevant_memory_refs: brief.relevant_memory_refs.map((entry) => entry.key),
     relevant_artifact_refs: brief.relevant_artifact_refs.map((entry) => entry.artifact_id),
+    remote_mcp_servers: brief.remote_mcp_servers,
   };
+}
+
+function summarizeRemoteMcpServers(capabilities: SpecialistRoleCapabilities | null) {
+  if (!capabilities) {
+    return [];
+  }
+  return capabilities.remoteMcpServers.map((server) => ({
+    name: server.name,
+    description: server.description,
+    tool_names: summarizeRemoteMcpToolNames(server.discoveredToolsSnapshot),
+  }));
 }
 
 function selectLikelyRelevantFiles(predecessorHandoff: Record<string, unknown>) {

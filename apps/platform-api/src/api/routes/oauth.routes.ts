@@ -11,6 +11,7 @@ const OAUTH_CALLBACK_PORT = 1455;
 const GENERIC_OAUTH_ERROR = 'OAuth callback failed. Retry the connection or reconnect the provider.';
 const DASHBOARD_AUTH_CALLBACK_PATH = '/auth/callback';
 const OAUTH_PROVIDER_RETURN_PATH = '/config/llm';
+const REMOTE_MCP_RETURN_PATH = '/integrations/mcp';
 const DASHBOARD_REDIRECT_PARAM = 'redirect_to';
 
 export const oauthRoutes: FastifyPluginAsync = async (app) => {
@@ -69,6 +70,16 @@ export const oauthRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  app.get('/.well-known/oauth/mcp-client.json', async () => ({
+    client_name: 'Agirunner MCP',
+    client_uri: app.config.PLATFORM_PUBLIC_BASE_URL,
+    grant_types: ['authorization_code', 'refresh_token'],
+    response_types: ['code'],
+    application_type: 'native',
+    redirect_uris: ['http://localhost:1455/auth/callback'],
+    token_endpoint_auth_method: 'none',
+  }));
+
   app.get(
     '/api/v1/config/oauth/providers/:id/status',
     { preHandler: [authenticateApiKey, withScope('admin')] },
@@ -104,10 +115,11 @@ export const oauthRoutes: FastifyPluginAsync = async (app) => {
     const error = url.searchParams.get('error');
 
     if (error) {
+      const flowKind = state ? await app.oauthService.peekFlowKind(state).catch(() => 'llm_provider') : 'llm_provider';
       res.writeHead(302, {
         Location: buildDashboardRedirect(dashboardUrl, {
           oauth_error: sanitizeOAuthRedirectMessage(error),
-        }),
+        }, flowKind === 'remote_mcp' ? REMOTE_MCP_RETURN_PATH : OAUTH_PROVIDER_RETURN_PATH),
       });
       res.end();
       return;
@@ -123,7 +135,22 @@ export const oauthRoutes: FastifyPluginAsync = async (app) => {
       return;
     }
 
+    const flowKind = await app.oauthService.peekFlowKind(state);
+
     try {
+      if (flowKind === 'remote_mcp') {
+        const result = await app.remoteMcpOAuthService.handleCallback(code, state);
+        const query: Record<string, string> = {
+          oauth_success: 'true',
+          remote_mcp_server_id: result.serverId,
+          remote_mcp_server_name: result.serverName,
+        };
+        res.writeHead(302, {
+          Location: buildDashboardRedirect(dashboardUrl, query, REMOTE_MCP_RETURN_PATH),
+        });
+        res.end();
+        return;
+      }
       const result = await service.handleCallback(code, state);
       const query: Record<string, string> = {
         oauth_success: 'true',
@@ -139,7 +166,7 @@ export const oauthRoutes: FastifyPluginAsync = async (app) => {
       res.writeHead(302, {
         Location: buildDashboardRedirect(dashboardUrl, {
           oauth_error: sanitizeOAuthRedirectMessage(message),
-        }),
+        }, flowKind === 'remote_mcp' ? REMOTE_MCP_RETURN_PATH : OAUTH_PROVIDER_RETURN_PATH),
       });
       res.end();
     }
@@ -166,23 +193,24 @@ export const oauthRoutes: FastifyPluginAsync = async (app) => {
 function buildDashboardRedirect(
   dashboardUrl: string,
   query: Record<string, string>,
+  returnPath = OAUTH_PROVIDER_RETURN_PATH,
 ): string {
   const callbackUrl = new URL(DASHBOARD_AUTH_CALLBACK_PATH, dashboardUrl);
   callbackUrl.searchParams.set(
     DASHBOARD_REDIRECT_PARAM,
-    buildProviderReturnPath(query),
+    buildProviderReturnPath(query, returnPath),
   );
   return callbackUrl.toString();
 }
 
-function buildProviderReturnPath(query: Record<string, string>): string {
+function buildProviderReturnPath(query: Record<string, string>, returnPath: string): string {
   const params = new URLSearchParams(query);
   const queryString = params.toString();
   if (!queryString) {
-    return OAUTH_PROVIDER_RETURN_PATH;
+    return returnPath;
   }
 
-  return `${OAUTH_PROVIDER_RETURN_PATH}?${queryString}`;
+  return `${returnPath}?${queryString}`;
 }
 
 function sanitizeOAuthRedirectMessage(value: string): string {

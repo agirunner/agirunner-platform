@@ -15,6 +15,8 @@ const createRoleSchema = z.object({
   description: z.string().max(1000).optional(),
   systemPrompt: z.string().optional(),
   allowedTools: z.array(z.string()).default([]),
+  mcpServerIds: z.array(z.string().uuid()).default([]),
+  skillIds: z.array(z.string().uuid()).default([]),
   modelPreference: z.string().optional(),
   verificationStrategy: z.string().optional(),
   escalationTarget: z.string().max(100).nullable().optional(),
@@ -64,12 +66,20 @@ interface ExecutionEnvironmentJoinRow {
   ee_bootstrap_commands: unknown;
   ee_bootstrap_required_domains: unknown;
   ee_catalog_support_status: string | null;
+  mcp_server_ids?: unknown;
+  skill_ids?: unknown;
+  mcp_servers?: unknown;
+  skills?: unknown;
 }
 
 type RoleDefinitionQueryRow = RoleDefinitionDbRow & ExecutionEnvironmentJoinRow;
 
 export interface RoleDefinitionRow extends RoleDefinitionDbRow {
   execution_environment: ExecutionEnvironmentSummary | null;
+  mcp_server_ids: string[];
+  skill_ids: string[];
+  mcp_servers: Array<Record<string, unknown>>;
+  skills: Array<Record<string, unknown>>;
 }
 
 export class RoleDefinitionService {
@@ -124,6 +134,8 @@ export class RoleDefinitionService {
       tenantId,
       validated.executionEnvironmentId,
     );
+    const mcpServerIds = await this.normalizeRemoteMcpServerIds(tenantId, validated.mcpServerIds);
+    const skillIds = await this.normalizeSkillIds(tenantId, validated.skillIds);
 
     try {
       const result = await this.pool.query<{ id: string }>(
@@ -155,6 +167,12 @@ export class RoleDefinitionService {
           validated.isActive,
         ],
       );
+      if (mcpServerIds.length > 0) {
+        await this.replaceRemoteMcpServerGrants(result.rows[0].id, mcpServerIds);
+      }
+      if (skillIds.length > 0) {
+        await this.replaceSkillAssignments(result.rows[0].id, skillIds);
+      }
       return this.getRoleById(tenantId, result.rows[0].id);
     } catch (error) {
       handleRoleWriteError(error);
@@ -177,6 +195,14 @@ export class RoleDefinitionService {
       validated.executionEnvironmentId === undefined
         ? undefined
         : await this.normalizeExecutionEnvironmentId(tenantId, validated.executionEnvironmentId);
+    const mcpServerIds =
+      validated.mcpServerIds === undefined
+        ? undefined
+        : await this.normalizeRemoteMcpServerIds(tenantId, validated.mcpServerIds);
+    const skillIds =
+      validated.skillIds === undefined
+        ? undefined
+        : await this.normalizeSkillIds(tenantId, validated.skillIds);
 
     const setClauses: string[] = [];
     const values: unknown[] = [tenantId, id];
@@ -202,28 +228,37 @@ export class RoleDefinitionService {
       }
     }
 
-    if (setClauses.length === 0) {
+    if (setClauses.length === 0 && mcpServerIds === undefined && skillIds === undefined) {
       return current;
     }
 
-    setClauses.push('version = version + 1');
-    setClauses.push('updated_at = now()');
+    if (setClauses.length > 0) {
+      setClauses.push('version = version + 1');
+      setClauses.push('updated_at = now()');
 
-    try {
-      const result = await this.pool.query(
-        `UPDATE role_definitions
-            SET ${setClauses.join(', ')}
-          WHERE tenant_id = $1
-            AND id = $2
-          RETURNING id`,
-        values,
-      );
-      if (!result.rowCount) {
-        throw new NotFoundError('Role definition not found');
+      try {
+        const result = await this.pool.query(
+          `UPDATE role_definitions
+              SET ${setClauses.join(', ')}
+            WHERE tenant_id = $1
+              AND id = $2
+            RETURNING id`,
+          values,
+        );
+        if (!result.rowCount) {
+          throw new NotFoundError('Role definition not found');
+        }
+      } catch (error) {
+        handleRoleWriteError(error);
+        throw error;
       }
-    } catch (error) {
-      handleRoleWriteError(error);
-      throw error;
+    }
+
+    if (mcpServerIds !== undefined) {
+      await this.replaceRemoteMcpServerGrants(id, mcpServerIds);
+    }
+    if (skillIds !== undefined) {
+      await this.replaceSkillAssignments(id, skillIds);
     }
 
     return this.getRoleById(tenantId, id);
@@ -255,6 +290,8 @@ export class RoleDefinitionService {
       'DELETE FROM role_model_assignments WHERE tenant_id = $1 AND role_name = $2',
       [tenantId, role.name],
     );
+    await this.pool.query('DELETE FROM specialist_mcp_server_grants WHERE specialist_id = $1', [id]);
+    await this.pool.query('DELETE FROM specialist_skill_assignments WHERE specialist_id = $1', [id]);
 
     const result = await this.pool.query(
       'DELETE FROM role_definitions WHERE tenant_id = $1 AND id = $2',
@@ -327,6 +364,67 @@ export class RoleDefinitionService {
     );
     return result.rows;
   }
+
+  private async normalizeRemoteMcpServerIds(tenantId: string, ids: string[]): Promise<string[]> {
+    const uniqueIds = Array.from(new Set(ids));
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+    const result = await this.pool.query<{ id: string }>(
+      `SELECT id
+         FROM remote_mcp_servers
+        WHERE tenant_id = $1
+          AND is_archived = false
+          AND verification_status = 'verified'
+          AND id = ANY($2::uuid[])`,
+      [tenantId, uniqueIds],
+    );
+    if (result.rows.length !== uniqueIds.length) {
+      throw new ValidationError('Remote MCP servers must be active and verified before assignment');
+    }
+    return uniqueIds;
+  }
+
+  private async normalizeSkillIds(tenantId: string, ids: string[]): Promise<string[]> {
+    const uniqueIds = Array.from(new Set(ids));
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+    const result = await this.pool.query<{ id: string }>(
+      `SELECT id
+         FROM specialist_skills
+        WHERE tenant_id = $1
+          AND is_archived = false
+          AND id = ANY($2::uuid[])`,
+      [tenantId, uniqueIds],
+    );
+    if (result.rows.length !== uniqueIds.length) {
+      throw new ValidationError('Specialist skills must be active before assignment');
+    }
+    return uniqueIds;
+  }
+
+  private async replaceRemoteMcpServerGrants(roleId: string, ids: string[]): Promise<void> {
+    await this.pool.query('DELETE FROM specialist_mcp_server_grants WHERE specialist_id = $1', [roleId]);
+    for (const remoteMcpServerId of ids) {
+      await this.pool.query(
+        `INSERT INTO specialist_mcp_server_grants (specialist_id, remote_mcp_server_id)
+         VALUES ($1, $2)`,
+        [roleId, remoteMcpServerId],
+      );
+    }
+  }
+
+  private async replaceSkillAssignments(roleId: string, skillIds: string[]): Promise<void> {
+    await this.pool.query('DELETE FROM specialist_skill_assignments WHERE specialist_id = $1', [roleId]);
+    for (const [index, skillId] of skillIds.entries()) {
+      await this.pool.query(
+        `INSERT INTO specialist_skill_assignments (specialist_id, skill_id, sort_order)
+         VALUES ($1, $2, $3)`,
+        [roleId, skillId, index],
+      );
+    }
+  }
 }
 
 function roleDefinitionSelectSql(): string {
@@ -347,7 +445,43 @@ function roleDefinitionSelectSql(): string {
     ee.tool_capabilities AS ee_tool_capabilities,
     ee.bootstrap_commands AS ee_bootstrap_commands,
     ee.bootstrap_required_domains AS ee_bootstrap_required_domains,
-    c.support_status AS ee_catalog_support_status
+    c.support_status AS ee_catalog_support_status,
+    COALESCE((
+      SELECT array_agg(g.remote_mcp_server_id ORDER BY g.remote_mcp_server_id)
+        FROM specialist_mcp_server_grants g
+       WHERE g.specialist_id = rd.id
+    ), ARRAY[]::uuid[]) AS mcp_server_ids,
+    COALESCE((
+      SELECT array_agg(a.skill_id ORDER BY a.sort_order)
+        FROM specialist_skill_assignments a
+       WHERE a.specialist_id = rd.id
+    ), ARRAY[]::uuid[]) AS skill_ids,
+    COALESCE((
+      SELECT jsonb_agg(jsonb_build_object(
+        'id', s.id,
+        'name', s.name,
+        'slug', s.slug,
+        'verification_status', s.verification_status,
+        'is_archived', s.is_archived
+      ) ORDER BY s.name ASC)
+        FROM specialist_mcp_server_grants g
+        JOIN remote_mcp_servers s
+          ON s.id = g.remote_mcp_server_id
+       WHERE g.specialist_id = rd.id
+    ), '[]'::jsonb) AS mcp_servers,
+    COALESCE((
+      SELECT jsonb_agg(jsonb_build_object(
+        'id', s.id,
+        'name', s.name,
+        'slug', s.slug,
+        'summary', s.summary,
+        'is_archived', s.is_archived
+      ) ORDER BY a.sort_order ASC)
+        FROM specialist_skill_assignments a
+        JOIN specialist_skills s
+          ON s.id = a.skill_id
+       WHERE a.specialist_id = rd.id
+    ), '[]'::jsonb) AS skills
   FROM role_definitions rd
   LEFT JOIN execution_environments ee
     ON ee.tenant_id = rd.tenant_id
@@ -386,12 +520,28 @@ function sanitizeRoleDefinitionRow(row: RoleDefinitionQueryRow): RoleDefinitionR
     ) as string | null,
     max_escalation_depth: row.max_escalation_depth,
     is_active: row.is_active,
+    mcp_server_ids: normalizeUuidArray(row.mcp_server_ids),
+    skill_ids: normalizeUuidArray(row.skill_ids),
+    mcp_servers: normalizeObjectArray(row.mcp_servers),
+    skills: normalizeObjectArray(row.skills),
     version: row.version,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
   delete sanitized.fallback_model;
   return sanitized;
+}
+
+function normalizeUuidArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.flatMap((entry) => (typeof entry === 'string' ? [entry] : []))
+    : [];
+}
+
+function normalizeObjectArray(value: unknown): Array<Record<string, unknown>> {
+  return Array.isArray(value)
+    ? value.flatMap((entry) => (isRecord(entry) ? [entry] : []))
+    : [];
 }
 
 function buildExecutionEnvironmentSummary(

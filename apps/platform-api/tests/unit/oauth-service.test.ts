@@ -209,4 +209,24 @@ describe('OAuthService', () => {
     const seededModels = pool.query.mock.calls.filter(([sql]) => String(sql).includes('INSERT INTO llm_models'));
     expect(seededModels.length).toBeGreaterThan(0);
   });
+
+  it('reads the callback flow kind without consuming oauth state', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('SELECT flow_kind')) {
+          expect(params).toEqual(['state-1']);
+          return {
+            rowCount: 1,
+            rows: [{ flow_kind: 'remote_mcp' }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new OAuthService(pool as never);
+
+    const flowKind = await service.peekFlowKind('state-1');
+
+    expect(flowKind).toBe('remote_mcp');
+  });
 });

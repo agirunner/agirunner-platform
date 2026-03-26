@@ -35,6 +35,11 @@ import { OrchestratorConfigService } from '../services/orchestrator-config-servi
 import { OrchestratorGrantService } from '../services/orchestrator-grant-service.js';
 import { ToolTagService } from '../services/tool-tag-service.js';
 import { ModelCatalogService } from '../services/model-catalog-service.js';
+import { RemoteMcpServerService } from '../services/remote-mcp-server-service.js';
+import { RemoteMcpHttpVerifier } from '../services/remote-mcp-http-verifier.js';
+import { RemoteMcpOAuthService } from '../services/remote-mcp-oauth-service.js';
+import { RemoteMcpVerificationService } from '../services/remote-mcp-verification-service.js';
+import { SpecialistSkillService } from '../services/specialist-skill-service.js';
 import { WorkspaceArtifactFileService } from '../services/workspace-artifact-file-service.js';
 import { WorkspaceService } from '../services/workspace-service.js';
 import { PlaybookService } from '../services/playbook-service.js';
@@ -193,6 +198,21 @@ export async function buildApp() {
   );
   const modelCatalogService = new ModelCatalogService(pool);
   const oauthService = new OAuthService(pool);
+  const remoteMcpServerService = new RemoteMcpServerService(pool);
+  const remoteMcpVerifier = new RemoteMcpHttpVerifier();
+  const remoteMcpVerificationService = new RemoteMcpVerificationService(
+    remoteMcpServerService,
+    remoteMcpVerifier,
+  );
+  const remoteMcpOAuthService = new RemoteMcpOAuthService(
+    pool,
+    remoteMcpServerService,
+    remoteMcpVerifier,
+    {
+      platformPublicBaseUrl: appConfig.PLATFORM_PUBLIC_BASE_URL,
+    },
+  );
+  const specialistSkillService = new SpecialistSkillService(pool);
   const orchestratorGrantService = new OrchestratorGrantService(pool, eventService);
   const toolTagService = new ToolTagService(pool);
   const agentService = new AgentService(pool, eventService);
@@ -249,6 +269,10 @@ export async function buildApp() {
   app.decorate('fleetService', createLoggedService(fleetService, 'FleetService', logService));
   app.decorate('modelCatalogService', createLoggedService(modelCatalogService, 'ModelCatalogService', logService));
   app.decorate('oauthService', createLoggedService(oauthService, 'OAuthService', logService));
+  app.decorate('remoteMcpServerService', createLoggedService(remoteMcpServerService, 'RemoteMcpServerService', logService));
+  app.decorate('remoteMcpOAuthService', createLoggedService(remoteMcpOAuthService, 'RemoteMcpOAuthService', logService));
+  app.decorate('remoteMcpVerificationService', createLoggedService(remoteMcpVerificationService, 'RemoteMcpVerificationService', logService));
+  app.decorate('specialistSkillService', createLoggedService(specialistSkillService, 'SpecialistSkillService', logService));
   app.decorate('orchestratorGrantService', createLoggedService(orchestratorGrantService, 'OrchestratorGrantService', logService));
   app.decorate('acpSessionService', createLoggedService(acpSessionService, 'AcpSessionService', logService));
   app.decorate('toolTagService', createLoggedService(toolTagService, 'ToolTagService', logService));

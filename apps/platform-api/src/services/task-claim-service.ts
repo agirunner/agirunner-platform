@@ -25,6 +25,7 @@ import type { ResolvedRoleConfig } from './model-catalog-service.js';
 import { OAuthService } from './oauth-service.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { readAgentSupervisionTimingDefaults } from './platform-timing-defaults.js';
+import { RemoteMcpOAuthService } from './remote-mcp-oauth-service.js';
 import type { ExecutionContainerLeaseService } from './execution-container-lease-service.js';
 import {
   readPositiveInteger,
@@ -47,6 +48,11 @@ import {
   resolveWorkspaceToolTags,
   type ToolOwner,
 } from './tool-tag-service.js';
+import {
+  readSpecialistRoleCapabilities,
+  type SpecialistRemoteMcpServerCapability,
+  type SpecialistRoleCapabilities,
+} from './specialist-capability-service.js';
 import { resolveWorkspaceStorageBinding } from './workspace-storage.js';
 
 const priorityCase = "CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END";
@@ -82,7 +88,7 @@ const gitSSHKnownHostsCredentialKeys = [
   'ssh_known_hosts_ref',
   'known_hosts_ref',
 ];
-type ClaimCredentialKind = 'llm_api_key' | 'llm_extra_headers';
+type ClaimCredentialKind = 'llm_api_key' | 'llm_extra_headers' | 'mcp_parameter' | 'mcp_oauth';
 interface ClaimCredentialPayload {
   task_id?: string;
   kind?: string;
@@ -762,6 +768,7 @@ export class TaskClaimService {
     payload: {
       llm_api_key_claim_handle?: string;
       llm_extra_headers_claim_handle?: string;
+      mcp_claim_handles?: string[];
     },
   ): Promise<Record<string, unknown>> {
     if (!identity.ownerId?.trim()) {
@@ -788,6 +795,20 @@ export class TaskClaimService {
         this.deps.claimHandleSecret,
       );
       credentials.llm_extra_headers = parseExtraHeadersSecret(storedSecret);
+    }
+    if (Array.isArray(payload.mcp_claim_handles) && payload.mcp_claim_handles.length > 0) {
+      credentials.mcp_claim_values = Object.fromEntries(
+        payload.mcp_claim_handles.map((handle) => [
+          handle,
+          readProviderSecret(
+            parseMcpClaimCredentialHandle(
+              handle,
+              taskId,
+              this.deps.claimHandleSecret,
+            ),
+          ),
+        ]),
+      );
     }
     return credentials;
   }
@@ -941,27 +962,33 @@ export class TaskClaimService {
     task: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
     try {
-      const roleRes = await this.deps.pool.query<{
-        escalation_target: string | null;
-        allowed_tools: string[] | null;
-        description: string | null;
-      }>(
-        'SELECT escalation_target, allowed_tools, description FROM role_definitions WHERE tenant_id = $1 AND name = $2 AND is_active = true LIMIT 1',
-        [tenantId, roleName],
+      const capabilities = await readSpecialistRoleCapabilities(
+        this.deps.pool,
+        tenantId,
+        roleName,
       );
-      const row = roleRes.rows[0];
       const existingRoleConfig = (task.role_config ?? {}) as Record<string, unknown>;
       const updates: Record<string, unknown> = {};
 
-      if (row?.escalation_target) {
-        updates.escalation_target = row.escalation_target;
+      if (capabilities?.escalationTarget) {
+        updates.escalation_target = capabilities.escalationTarget;
       } else if (task.is_orchestrator_task === true) {
         updates.escalation_target = 'human';
       }
-      if (row) {
-        updates.tools = Array.isArray(row.allowed_tools) ? row.allowed_tools : [];
-        if (typeof row.description === 'string' && row.description.trim().length > 0) {
-          updates.description = row.description.trim();
+      if (capabilities) {
+        updates.tools = capabilities.allowedTools;
+        if (typeof capabilities.description === 'string' && capabilities.description.trim().length > 0) {
+          updates.description = capabilities.description.trim();
+        }
+        const remoteMcpServers = await buildRemoteMcpServerContracts(
+          String(task.id ?? ''),
+          tenantId,
+          capabilities,
+          this.deps.claimHandleSecret,
+          this.deps.pool,
+        );
+        if (remoteMcpServers.length > 0) {
+          updates.mcp_servers = remoteMcpServers;
         }
       }
 
@@ -1698,6 +1725,139 @@ function attachClaimCredentials(
   };
 }
 
+async function buildRemoteMcpServerContracts(
+  taskId: string,
+  tenantId: string,
+  capabilities: SpecialistRoleCapabilities,
+  claimHandleSecret: string,
+  pool: DatabasePool,
+): Promise<Record<string, unknown>[]> {
+  const oauthService = new RemoteMcpOAuthService(
+    pool,
+    {
+      getStoredServer: async () => {
+        throw new ValidationError('Remote MCP OAuth server reload is not available in claim path');
+      },
+      createVerifiedServer: async () => {
+        throw new ValidationError('Remote MCP OAuth server creation is not available in claim path');
+      },
+      updateVerifiedServer: async () => {
+        throw new ValidationError('Remote MCP OAuth server update is not available in claim path');
+      },
+    },
+    {
+      verify: async () => {
+        throw new ValidationError('Remote MCP verification is not available in claim path');
+      },
+    },
+    {
+    },
+  );
+  return Promise.all(
+    capabilities.remoteMcpServers.map((server) =>
+      buildRemoteMcpServerContract(taskId, tenantId, server, claimHandleSecret, oauthService),
+    ),
+  );
+}
+
+async function buildRemoteMcpServerContract(
+  taskId: string,
+  tenantId: string,
+  server: SpecialistRemoteMcpServerCapability,
+  claimHandleSecret: string,
+  oauthService: RemoteMcpOAuthService,
+): Promise<Record<string, unknown>> {
+  const parameters = server.parameters.map((parameter) =>
+    buildRemoteMcpParameterContract(taskId, parameter, claimHandleSecret),
+  );
+  const oauthParameter = server.authMode === 'oauth'
+    ? await buildRemoteMcpOauthParameterContract(taskId, tenantId, server, claimHandleSecret, oauthService)
+    : null;
+  return compactRecord({
+    id: server.id,
+    name: server.slug,
+    display_name: server.name,
+    description: server.description,
+    transport: server.verifiedTransport ?? 'streamable_http',
+    url: server.endpointUrl,
+    auth_mode: server.authMode,
+    verification_contract_version: server.verificationContractVersion,
+    discovered_tools_snapshot: server.discoveredToolsSnapshot,
+    parameters: oauthParameter ? [...parameters, oauthParameter] : parameters,
+  });
+}
+
+async function buildRemoteMcpOauthParameterContract(
+  taskId: string,
+  _tenantId: string,
+  server: SpecialistRemoteMcpServerCapability,
+  claimHandleSecret: string,
+  oauthService: RemoteMcpOAuthService,
+): Promise<Record<string, unknown>> {
+  const storedSecret = await oauthService.resolveStoredAuthorizationSecret({
+    id: server.id,
+    oauthConfig: server.oauthConfig,
+    oauthCredentials: server.oauthCredentials,
+  });
+  return {
+    placement: 'header',
+    key: 'Authorization',
+    value_kind: 'secret',
+    claim_handle: createClaimCredentialHandle(
+      taskId,
+      'mcp_oauth',
+      storedSecret,
+      claimHandleSecret,
+    ),
+  };
+}
+
+function buildRemoteMcpParameterContract(
+  taskId: string,
+  parameter: SpecialistRemoteMcpServerCapability['parameters'][number],
+  claimHandleSecret: string,
+): Record<string, unknown> {
+  if (parameter.valueKind === 'static') {
+    return compactRecord({
+      id: parameter.id,
+      placement: parameter.placement,
+      key: parameter.key,
+      value_kind: 'static',
+      value: parameter.staticValue,
+    });
+  }
+  const storedSecret = parameter.encryptedSecretValue?.trim() ?? '';
+  if (!storedSecret) {
+    return compactRecord({
+      id: parameter.id,
+      placement: parameter.placement,
+      key: parameter.key,
+      value_kind: 'secret',
+    });
+  }
+  if (isExternalSecretReference(storedSecret)) {
+    return {
+      id: parameter.id,
+      placement: parameter.placement,
+      key: parameter.key,
+      value_kind: 'secret',
+      secret_ref: storedSecret,
+    };
+  }
+  return {
+    id: parameter.id,
+    placement: parameter.placement,
+    key: parameter.key,
+    value_kind: 'secret',
+    claim_handle: createClaimCredentialHandle(
+      taskId,
+      'mcp_parameter',
+      storedSecret,
+      claimHandleSecret,
+    ),
+  };
+}
+
 function toClaimStringCredential(
   taskId: string,
   kind: ClaimCredentialKind,
@@ -1790,6 +1950,18 @@ function parseClaimCredentialHandle(
     throw new ValidationError('Invalid claim credential handle.');
   }
   return decoded.stored_secret;
+}
+
+function parseMcpClaimCredentialHandle(
+  handle: string,
+  expectedTaskId: string,
+  claimHandleSecret: string,
+): string {
+  try {
+    return parseClaimCredentialHandle(handle, expectedTaskId, 'mcp_parameter', claimHandleSecret);
+  } catch {
+    return parseClaimCredentialHandle(handle, expectedTaskId, 'mcp_oauth', claimHandleSecret);
+  }
 }
 
 function deriveClaimHandleKey(claimHandleSecret: string): Buffer {
