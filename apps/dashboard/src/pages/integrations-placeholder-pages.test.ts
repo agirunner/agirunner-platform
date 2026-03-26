@@ -17,9 +17,10 @@ describe('integration placeholder page copy', () => {
     expect(source).toContain('Configure triggers that turn events into work.');
   });
 
-  it('describes MCP as Model Context Protocol integration management', () => {
+  it('replaces the MCP placeholder with a real management page', () => {
     const source = readPageSource('./mcp/mcp-page.tsx');
-    expect(source).toContain('Configure Model Context Protocol integrations.');
+    expect(source).toContain('DashboardPageHeader');
+    expect(source).not.toContain('ConfigPlaceholderPage');
   });
 
   it('describes ACP as Agent Communication Protocol integration management', () => {

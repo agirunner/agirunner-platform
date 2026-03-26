@@ -394,6 +394,81 @@ export interface DashboardExecutionEnvironmentUpdateInput {
   operatorNotes?: string | null;
 }
 
+export type DashboardRemoteMcpAuthMode = 'none' | 'parameterized' | 'oauth';
+export type DashboardRemoteMcpTransport = 'streamable_http' | 'http_sse_compat';
+export type DashboardRemoteMcpParameterPlacement =
+  | 'path'
+  | 'query'
+  | 'header'
+  | 'initialize_param';
+
+export interface DashboardRemoteMcpServerParameterRecord {
+  id: string;
+  placement: DashboardRemoteMcpParameterPlacement;
+  key: string;
+  value_kind: 'static' | 'secret';
+  value: string;
+  has_stored_secret: boolean;
+}
+
+export interface DashboardRemoteMcpServerRecord {
+  id: string;
+  tenant_id?: string;
+  name: string;
+  slug: string;
+  description: string;
+  endpoint_url: string;
+  auth_mode: DashboardRemoteMcpAuthMode;
+  enabled_by_default_for_new_specialists: boolean;
+  is_archived: boolean;
+  verification_status: 'unknown' | 'verified' | 'failed';
+  verification_error: string | null;
+  verified_transport: DashboardRemoteMcpTransport | null;
+  verified_at: string | null;
+  verification_contract_version: string;
+  discovered_tools_snapshot: Record<string, unknown>[];
+  discovered_tool_count: number;
+  assigned_specialist_count: number;
+  parameters: DashboardRemoteMcpServerParameterRecord[];
+  oauth_connected: boolean;
+  oauth_authorized_at: string | null;
+  oauth_needs_reauth: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DashboardRemoteMcpServerParameterInput {
+  placement: DashboardRemoteMcpParameterPlacement;
+  key: string;
+  valueKind: 'static' | 'secret';
+  value: string;
+}
+
+export interface DashboardRemoteMcpServerCreateInput {
+  name: string;
+  description?: string;
+  endpointUrl: string;
+  authMode: DashboardRemoteMcpAuthMode;
+  enabledByDefaultForNewSpecialists: boolean;
+  grantToAllExistingSpecialists: boolean;
+  parameters: DashboardRemoteMcpServerParameterInput[];
+}
+
+export interface DashboardRemoteMcpServerUpdateInput {
+  name?: string;
+  description?: string;
+  endpointUrl?: string;
+  authMode?: DashboardRemoteMcpAuthMode;
+  enabledByDefaultForNewSpecialists?: boolean;
+  parameters?: DashboardRemoteMcpServerParameterInput[];
+}
+
+export interface DashboardRemoteMcpAuthorizeResult {
+  draftId?: string;
+  serverId?: string;
+  authorizeUrl: string;
+}
+
 export interface DashboardRoleDefinitionRecord {
   id: string;
   name: string;
@@ -1837,6 +1912,23 @@ export interface DashboardApi {
   setDefaultExecutionEnvironment(environmentId: string): Promise<DashboardExecutionEnvironmentRecord>;
   archiveExecutionEnvironment(environmentId: string): Promise<DashboardExecutionEnvironmentRecord>;
   restoreExecutionEnvironment(environmentId: string): Promise<DashboardExecutionEnvironmentRecord>;
+  listRemoteMcpServers(): Promise<DashboardRemoteMcpServerRecord[]>;
+  getRemoteMcpServer(serverId: string): Promise<DashboardRemoteMcpServerRecord>;
+  createRemoteMcpServer(
+    payload: DashboardRemoteMcpServerCreateInput,
+  ): Promise<DashboardRemoteMcpServerRecord>;
+  updateRemoteMcpServer(
+    serverId: string,
+    payload: DashboardRemoteMcpServerUpdateInput,
+  ): Promise<DashboardRemoteMcpServerRecord>;
+  initiateRemoteMcpOAuthAuthorization(
+    payload: DashboardRemoteMcpServerCreateInput,
+  ): Promise<DashboardRemoteMcpAuthorizeResult>;
+  reconnectRemoteMcpOAuth(serverId: string): Promise<DashboardRemoteMcpAuthorizeResult>;
+  disconnectRemoteMcpOAuth(serverId: string): Promise<void>;
+  reverifyRemoteMcpServer(serverId: string): Promise<DashboardRemoteMcpServerRecord>;
+  archiveRemoteMcpServer(serverId: string): Promise<DashboardRemoteMcpServerRecord>;
+  unarchiveRemoteMcpServer(serverId: string): Promise<DashboardRemoteMcpServerRecord>;
   saveRoleDefinition(
     roleId: string | null,
     payload: Record<string, unknown>,
@@ -3175,6 +3267,83 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() =>
         requestData<DashboardExecutionEnvironmentRecord>(
           `/api/v1/execution-environments/${environmentId}/unarchive`,
+          {
+            body: {},
+          },
+        ),
+      ),
+    listRemoteMcpServers: () =>
+      withRefresh(() =>
+        requestData<DashboardRemoteMcpServerRecord[]>('/api/v1/remote-mcp-servers', {
+          method: 'GET',
+        }),
+      ),
+    getRemoteMcpServer: (serverId) =>
+      withRefresh(() =>
+        requestData<DashboardRemoteMcpServerRecord>(`/api/v1/remote-mcp-servers/${serverId}`, {
+          method: 'GET',
+        }),
+      ),
+    createRemoteMcpServer: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardRemoteMcpServerRecord>('/api/v1/remote-mcp-servers', {
+          body: payload as unknown as Record<string, unknown>,
+        }),
+      ),
+    updateRemoteMcpServer: (serverId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardRemoteMcpServerRecord>(`/api/v1/remote-mcp-servers/${serverId}`, {
+          method: 'PUT',
+          body: payload as unknown as Record<string, unknown>,
+        }),
+      ),
+    initiateRemoteMcpOAuthAuthorization: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardRemoteMcpAuthorizeResult>(
+          '/api/v1/remote-mcp-servers/oauth/authorize',
+          {
+            body: payload as unknown as Record<string, unknown>,
+          },
+        ),
+      ),
+    reconnectRemoteMcpOAuth: (serverId) =>
+      withRefresh(() =>
+        requestData<DashboardRemoteMcpAuthorizeResult>(
+          `/api/v1/remote-mcp-servers/${serverId}/oauth/reconnect`,
+          {
+            body: {},
+          },
+        ),
+      ),
+    disconnectRemoteMcpOAuth: (serverId) =>
+      withRefresh(async () => {
+        await requestJson(`/api/v1/remote-mcp-servers/${serverId}/oauth/disconnect`, {
+          method: 'POST',
+          allowNoContent: true,
+        });
+      }),
+    reverifyRemoteMcpServer: (serverId) =>
+      withRefresh(() =>
+        requestData<DashboardRemoteMcpServerRecord>(
+          `/api/v1/remote-mcp-servers/${serverId}/reverify`,
+          {
+            body: {},
+          },
+        ),
+      ),
+    archiveRemoteMcpServer: (serverId) =>
+      withRefresh(() =>
+        requestData<DashboardRemoteMcpServerRecord>(
+          `/api/v1/remote-mcp-servers/${serverId}/archive`,
+          {
+            body: {},
+          },
+        ),
+      ),
+    unarchiveRemoteMcpServer: (serverId) =>
+      withRefresh(() =>
+        requestData<DashboardRemoteMcpServerRecord>(
+          `/api/v1/remote-mcp-servers/${serverId}/unarchive`,
           {
             body: {},
           },
