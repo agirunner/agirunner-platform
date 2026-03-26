@@ -243,6 +243,9 @@ function derivePlannedStageStatus(
   if (input.hasEarlierOpenStage) {
     return row.status === 'completed' ? 'completed' : 'pending';
   }
+  if (row.total_work_item_count > 0 && row.open_work_item_count === 0) {
+    return 'completed';
+  }
   if (row.status === 'completed') {
     return 'completed';
   }
