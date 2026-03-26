@@ -15,13 +15,14 @@
   },
   "supported": {
     "name": "all_supported_live_scenarios",
-    "total": 51,
+    "total": 52,
     "scenarios": [
       "artifact-memory-publishing-approval",
       "artifact-only-human-review",
       "concurrency-assessment-race-matrix",
       "content-assessment-blocked",
       "single-specialist-spawn-agent",
+      "architect-breakdown-task-breakout",
       "content-block-subject-policy",
       "content-direct-successor-no-assessment",
       "content-escalate-policy",

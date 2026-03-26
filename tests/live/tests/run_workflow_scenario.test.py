@@ -1563,6 +1563,141 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         check_names = {check["name"] for check in result["checks"]}
         self.assertIn("work_item_matches:{'stage_name': 'draft-review'}", check_names)
 
+    def test_evaluate_expectations_checks_structured_breakout_alignment(self) -> None:
+        result = run_workflow_scenario.evaluate_expectations(
+            {
+                "structured_breakout_expectations": [
+                    {
+                        "source_task_match": {"role": "solution-architect", "stage_name": "solution-design"},
+                        "source_structured_list_path": "latest_handoff.role_data.recommended_work_splits",
+                        "item_title_field": "title",
+                        "target_stage_name": "implementation",
+                        "target_task_match": {"role": "tiny-delivery-executor"},
+                        "min_count": 2,
+                    }
+                ]
+            },
+            workflow={
+                "state": "active",
+                "tasks": [
+                    {
+                        "id": "task-architect",
+                        "role": "solution-architect",
+                        "stage_name": "solution-design",
+                        "work_item_id": "wi-design",
+                        "is_orchestrator_task": False,
+                        "latest_handoff": {
+                            "role_data": {
+                                "recommended_work_splits": [
+                                    {"id": "chunk-a", "title": "Implement chunk a"},
+                                    {"id": "chunk-b", "title": "Implement chunk b"},
+                                ]
+                            }
+                        },
+                    },
+                    {
+                        "id": "task-a",
+                        "role": "tiny-delivery-executor",
+                        "stage_name": "implementation",
+                        "work_item_id": "wi-a",
+                        "is_orchestrator_task": False,
+                    },
+                    {
+                        "id": "task-b",
+                        "role": "tiny-delivery-executor",
+                        "stage_name": "implementation",
+                        "work_item_id": "wi-b",
+                        "is_orchestrator_task": False,
+                    },
+                ],
+            },
+            board={"ok": True},
+            work_items={
+                "ok": True,
+                "data": [
+                    {"id": "wi-design", "title": "Design the solution", "stage_name": "solution-design"},
+                    {"id": "wi-a", "title": "Implement chunk a", "stage_name": "implementation"},
+                    {"id": "wi-b", "title": "Implement chunk b", "stage_name": "implementation"},
+                ],
+            },
+            workspace={},
+            artifacts={"ok": True, "data": []},
+            approval_actions=[],
+            events={"ok": True, "data": []},
+            fleet={"ok": True, "data": {}},
+            playbook_id="playbook-1",
+            fleet_peaks={},
+            efficiency=None,
+            execution_logs={"ok": True, "data": []},
+        )
+
+        self.assertTrue(result["passed"])
+        check_names = {check["name"] for check in result["checks"]}
+        self.assertIn("structured_breakout_expectations:{'role': 'solution-architect', 'stage_name': 'solution-design'}", check_names)
+
+    def test_evaluate_expectations_reports_structured_breakout_alignment_failures(self) -> None:
+        result = run_workflow_scenario.evaluate_expectations(
+            {
+                "structured_breakout_expectations": [
+                    {
+                        "source_task_match": {"role": "solution-architect", "stage_name": "solution-design"},
+                        "source_structured_list_path": "latest_handoff.role_data.recommended_work_splits",
+                        "item_title_field": "title",
+                        "target_stage_name": "implementation",
+                        "target_task_match": {"role": "tiny-delivery-executor"},
+                        "min_count": 2,
+                    }
+                ]
+            },
+            workflow={
+                "state": "active",
+                "tasks": [
+                    {
+                        "id": "task-architect",
+                        "role": "solution-architect",
+                        "stage_name": "solution-design",
+                        "work_item_id": "wi-design",
+                        "is_orchestrator_task": False,
+                        "latest_handoff": {
+                            "role_data": {
+                                "recommended_work_splits": [
+                                    {"id": "chunk-a", "title": "Implement chunk a"},
+                                    {"id": "chunk-b", "title": "Implement chunk b"},
+                                ]
+                            }
+                        },
+                    },
+                    {
+                        "id": "task-a",
+                        "role": "tiny-delivery-executor",
+                        "stage_name": "implementation",
+                        "work_item_id": "wi-a",
+                        "is_orchestrator_task": False,
+                    },
+                ],
+            },
+            board={"ok": True},
+            work_items={
+                "ok": True,
+                "data": [
+                    {"id": "wi-design", "title": "Design the solution", "stage_name": "solution-design"},
+                    {"id": "wi-a", "title": "Implement chunk a", "stage_name": "implementation"},
+                ],
+            },
+            workspace={},
+            artifacts={"ok": True, "data": []},
+            approval_actions=[],
+            events={"ok": True, "data": []},
+            fleet={"ok": True, "data": {}},
+            playbook_id="playbook-1",
+            fleet_peaks={},
+            efficiency=None,
+            execution_logs={"ok": True, "data": []},
+        )
+
+        self.assertFalse(result["passed"])
+        self.assertIn("structured breakout", result["failures"][0])
+
     def test_evaluate_expectations_checks_stage_gate_matches(self) -> None:
         result = run_workflow_scenario.evaluate_expectations(
             {

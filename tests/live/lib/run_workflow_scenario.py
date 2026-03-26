@@ -1914,6 +1914,20 @@ def _matches_field_expectations(entry: dict[str, Any], expectations: dict[str, A
     return all(entry.get(field_name) == expected_value for field_name, expected_value in expectations.items())
 
 
+def _get_dotted_value(source: Any, dotted_path: str) -> Any:
+    if not isinstance(dotted_path, str) or dotted_path.strip() == "":
+        return None
+    current = source
+    for segment in dotted_path.split("."):
+        key = segment.strip()
+        if key == "":
+            return None
+        if not isinstance(current, dict) or key not in current:
+            return None
+        current = current[key]
+    return current
+
+
 def _find_matching_entries(
     entries: list[dict[str, Any]],
     match: dict[str, Any],
@@ -1992,6 +2006,94 @@ def _evaluate_log_row_expectation(
     if passed:
         return check, None
     return check, f"expected at least {minimum_count} execution log row(s) matching {match}, found {len(matches)}"
+
+
+def _evaluate_structured_breakout_expectation(
+    entry: dict[str, Any],
+    *,
+    workflow_tasks: list[dict[str, Any]],
+    work_items_snapshot: Any,
+) -> tuple[dict[str, Any], str | None]:
+    source_task_match = entry.get("source_task_match", {})
+    if not isinstance(source_task_match, dict):
+        source_task_match = {}
+    source_structured_list_path = str(entry.get("source_structured_list_path") or "").strip()
+    item_title_field = str(entry.get("item_title_field") or "title").strip()
+    target_stage_name = str(entry.get("target_stage_name") or "").strip()
+    target_work_item_title_field = str(entry.get("target_work_item_title_field") or "title").strip()
+    target_task_match = entry.get("target_task_match", {})
+    if not isinstance(target_task_match, dict):
+        target_task_match = {}
+    minimum_count = int(entry.get("min_count", 1))
+
+    source_tasks = [
+        task
+        for task in workflow_tasks
+        if isinstance(task, dict) and _matches_field_expectations(task, source_task_match)
+    ]
+
+    split_items: list[dict[str, Any]] = []
+    for task in source_tasks:
+        value = _get_dotted_value(task, source_structured_list_path)
+        if isinstance(value, list):
+            split_items = [item for item in value if isinstance(item, dict)]
+        if split_items:
+            break
+
+    expected_titles = [
+        str(item.get(item_title_field) or "").strip()
+        for item in split_items
+        if str(item.get(item_title_field) or "").strip() != ""
+    ][: max(0, minimum_count)]
+
+    work_items = [item for item in _work_items(work_items_snapshot) if isinstance(item, dict)]
+    missing_titles: list[str] = []
+    matched_titles: list[str] = []
+
+    for expected_title in expected_titles:
+        matching_work_items = [
+            item
+            for item in work_items
+            if item.get(target_work_item_title_field) == expected_title
+            and (target_stage_name == "" or item.get("stage_name") == target_stage_name)
+        ]
+        if not matching_work_items:
+            missing_titles.append(expected_title)
+            continue
+        has_matching_task = any(
+            isinstance(task, dict)
+            and any(task.get("work_item_id") == item.get("id") for item in matching_work_items)
+            and _matches_field_expectations(task, target_task_match)
+            for task in workflow_tasks
+        )
+        if not has_matching_task:
+            missing_titles.append(expected_title)
+            continue
+        matched_titles.append(expected_title)
+
+    passed = (
+        len(source_tasks) > 0
+        and len(split_items) >= minimum_count
+        and len(matched_titles) >= minimum_count
+        and len(missing_titles) == 0
+    )
+    check = {
+        "name": f"structured_breakout_expectations:{source_task_match}",
+        "passed": passed,
+        "expected_min_count": minimum_count,
+        "actual_source_task_count": len(source_tasks),
+        "actual_split_count": len(split_items),
+        "matched_titles": matched_titles,
+        "missing_titles": missing_titles,
+    }
+    if passed:
+        return check, None
+    return (
+        check,
+        f"expected structured breakout from source task match {source_task_match!r} "
+        f"to create aligned downstream work for at least {minimum_count} split item(s); "
+        f"missing titles: {missing_titles}",
+    )
 
 
 def _evaluate_container_observation_expectation(
@@ -2586,6 +2688,20 @@ def evaluate_expectations(
             if not isinstance(entry, dict):
                 continue
             check, failure = _evaluate_task_backend_expectation(entry, workflow_tasks=workflow_tasks)
+            checks.append(check)
+            if failure is not None:
+                failures.append(failure)
+
+    structured_breakout_expectations = expectations.get("structured_breakout_expectations", [])
+    if isinstance(structured_breakout_expectations, list):
+        for entry in structured_breakout_expectations:
+            if not isinstance(entry, dict):
+                continue
+            check, failure = _evaluate_structured_breakout_expectation(
+                entry,
+                workflow_tasks=workflow_tasks,
+                work_items_snapshot=work_items,
+            )
             checks.append(check)
             if failure is not None:
                 failures.append(failure)

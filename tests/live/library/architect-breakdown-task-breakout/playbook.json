@@ -1,0 +1,71 @@
+{
+  "name": "Architect Breakdown Task Breakout",
+  "slug": "live-test-architect-breakdown-task-breakout-v1",
+  "description": "Two-stage workflow that proves an architect can author a breakdown and the orchestrator can turn it into aligned implementation work.",
+  "outcome": "A design note and structured work breakdown lead to three implementation outputs that each say hi back.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "Run the workflow through the authored stages `solution-design` and `implementation`. Treat `solution-design` as the point where the workflow decides what work exists next, and treat `implementation` as the point where the orchestrator must turn that design output into concrete downstream work items and tasks. Use these roles deliberately: `architect-breakdown-designer` owns the design and decomposition step; `chunk-delivery-finisher` owns each implementation chunk and only needs to produce the small authored output for that chunk.\nHappy path: start in `solution-design`, dispatch `architect-breakdown-designer`, and require that role to read the repository brief, write both `docs/design-note.md` and `docs/work-breakdown.json`, verify the JSON structure directly, upload the work-breakdown artifact, and submit one full handoff. That handoff MUST include a machine-readable list of recommended work splits in generic `role_data`, and it MUST cite the repo-relative breakdown path so the orchestrator can inspect it. After that handoff, the orchestrator MUST read the architect output, create one `implementation` work item per recommended split using the exact authored chunk title, and route `chunk-delivery-finisher` for each created chunk.\nFor `implementation`, `chunk-delivery-finisher` must stay scoped to its current chunk. The specialist must read the assigned chunk title and any cited breakdown details, write `deliverables/<chunk-id>.txt` containing the exact phrase `hi back`, run `./scripts/verify.sh <chunk-id>`, upload the resulting file as an artifact, and submit a full handoff. The orchestrator must keep creating or routing the remaining chunk work until every authored split has a corresponding completed implementation work item and verified output.\nUnhappy path: If the architect omits a required split, produces malformed JSON, or leaves the machine-readable breakdown inconsistent with the design note, keep `solution-design` open and route corrected design work instead of guessing the missing breakdown. If an implementation chunk fails verification, reroute only that chunk back to `chunk-delivery-finisher` with a precise correction brief. Do not invent approvals, assessments, or escalations for this playbook unless the repository brief or verification path is genuinely missing. Do not skip a missing chunk just because the other chunks are complete, and do not create implementation work from vague prose when the authored breakdown artifact or structured handoff payload is incomplete.\nCompletion rules: finish only after `architect-breakdown-designer` has produced the verified design outputs, every recommended chunk from the architect's breakdown has a matching `implementation` work item, every such work item has been executed by `chunk-delivery-finisher`, and the repository contains the final chunk outputs. Guided closure rule: treat the authored flow as best-intent process guidance. Preferred routing is architect first and then one implementation task per authored chunk, but the orchestrator may waive a preferred detail with a recorded reason when closure is still legally possible. Only explicit blockers grounded in missing repository inputs, malformed authored breakdown data, or failed chunk verification should keep the workflow open; non-blocking deviations should be recorded as callouts instead of preventing closure.",
+    "parameters": [
+      {
+        "slug": "project_request",
+        "title": "Project Request",
+        "required": true
+      }
+    ],
+    "roles": [
+      "architect-breakdown-designer",
+      "chunk-delivery-finisher"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "solution-design",
+        "goal": "A verified design note and machine-readable work breakdown exist.",
+        "involves": [
+          "architect-breakdown-designer"
+        ]
+      },
+      {
+        "name": "implementation",
+        "goal": "Each authored chunk has a verified output.",
+        "involves": [
+          "chunk-delivery-finisher"
+        ]
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 3,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    }
+  }
+}

@@ -9,6 +9,7 @@ from scenario_config import load_scenario
 
 
 EXPECTED_SCENARIOS = {
+    "architect-breakdown-task-breakout",
     "artifact-memory-publishing-approval",
     "artifact-only-human-review",
     "concurrency-assessment-race-matrix",

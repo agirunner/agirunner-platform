@@ -1,0 +1,88 @@
+{
+  "name": "architect-breakdown-task-breakout",
+  "profile": "architect-breakdown-task-breakout",
+  "workflow": {
+    "name": "Architect Breakdown Task Breakout",
+    "goal": "Use an architect-produced breakdown to create aligned implementation work items and tiny chunk outputs.",
+    "parameters": {
+      "project_request": "Design a tiny greeting utility and split it into exactly three independent chunks named greeting-copy, greeting-format, and greeting-proof."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "artifacts": [
+      {
+        "logical_path_pattern": "deliverables/(greeting-copy|greeting-format|greeting-proof)\\.txt",
+        "min_count": 3
+      }
+    ],
+    "work_items": {
+      "min_count": 4,
+      "all_terminal": true
+    },
+    "workflow_tasks": {
+      "min_non_orchestrator_count": 4,
+      "forbid_task_kinds": [
+        "assessment",
+        "approval"
+      ]
+    },
+    "structured_breakout_expectations": [
+      {
+        "source_task_match": {
+          "role": "architect-breakdown-designer",
+          "stage_name": "solution-design"
+        },
+        "source_structured_list_path": "latest_handoff.role_data.recommended_work_splits",
+        "item_title_field": "title",
+        "target_stage_name": "implementation",
+        "target_task_match": {
+          "role": "chunk-delivery-finisher"
+        },
+        "min_count": 3
+      }
+    ],
+    "evidence_expectations": {
+      "db_state_present": true,
+      "runtime_cleanup_passed": true,
+      "docker_log_rotation_passed": true
+    },
+    "outcome_envelope": {
+      "allowed_states": [
+        "completed"
+      ],
+      "require_output_artifacts": true,
+      "require_completed_non_orchestrator_tasks": true,
+      "require_terminal_work_items": true,
+      "require_db_state": true,
+      "require_runtime_cleanup": true,
+      "require_fatal_log_free": true
+    }
+  },
+  "coverage": {
+    "delivery_paths": [
+      "direct_successor"
+    ],
+    "assessor_cardinality": [
+      "zero"
+    ],
+    "successor_gating": [
+      "direct_after_handoff"
+    ],
+    "playbook_shapes": [
+      "multi_stage"
+    ],
+    "storage_execution": [
+      "git_workspace",
+      "cold_specialists",
+      "warm_orchestrators"
+    ]
+  }
+}
