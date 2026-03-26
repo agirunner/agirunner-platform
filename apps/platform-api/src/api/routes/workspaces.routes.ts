@@ -44,6 +44,21 @@ const workspaceMemoryPatchSchema = z.object({
   value: z.unknown(),
 });
 
+const workspaceGitAccessVerifySchema = z.object({
+  repository_url: z.string().url(),
+  default_branch: z.string().min(1).max(255).optional(),
+  git_token_mode: z.enum(['preserve', 'replace', 'clear']),
+  git_token: z.string().max(20_000).optional(),
+}).superRefine((value, ctx) => {
+  if (value.git_token_mode === 'replace' && (!value.git_token || value.git_token.trim().length === 0)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['git_token'],
+      message: 'git_token is required when git_token_mode=replace',
+    });
+  }
+});
+
 const planningWorkflowSchema = z.object({
   brief: z.string().min(1).max(20000),
   name: z.string().min(1).max(255).optional(),
@@ -185,6 +200,18 @@ export const workspaceRoutes: FastifyPluginAsync = async (app) => {
             workspaceOverrides,
           ),
         },
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workspaces/:id/verify-git-access',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(workspaceGitAccessVerifySchema.safeParse(request.body));
+      return {
+        data: await workspaceService.verifyWorkspaceGitAccess(request.auth!, params.id, body),
       };
     },
   );

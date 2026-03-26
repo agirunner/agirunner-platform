@@ -1,4 +1,5 @@
 import type {
+  DashboardWorkspaceGitAccessVerifyInput,
   DashboardWorkspacePatchInput,
   DashboardWorkspaceRecord,
   DashboardWorkspaceSettingsInput,
@@ -255,6 +256,66 @@ export function buildWorkspaceSettingsSurfaceSummary(
   };
 }
 
+export function requiresWorkspaceGitAccessVerification(
+  workspace: DashboardWorkspaceRecord,
+  draft: WorkspaceSettingsDraft,
+): boolean {
+  if (draft.storageType !== 'git_remote') {
+    return false;
+  }
+
+  const current = readWorkspaceSettings(workspace);
+  if (current.storageType !== 'git_remote') {
+    return true;
+  }
+
+  if (normalizeDraftText(current.repositoryUrl) !== normalizeDraftText(draft.repositoryUrl)) {
+    return true;
+  }
+
+  if (normalizeDraftText(current.defaultBranch) !== normalizeDraftText(draft.defaultBranch)) {
+    return true;
+  }
+
+  if (draft.credentials.gitToken.mode === 'replace') {
+    return true;
+  }
+
+  if (draft.credentials.gitToken.mode === 'clear') {
+    return current.credentials.gitToken.configured;
+  }
+
+  return false;
+}
+
+export function buildWorkspaceGitAccessVerificationInput(
+  draft: WorkspaceSettingsDraft,
+): DashboardWorkspaceGitAccessVerifyInput {
+  return {
+    repository_url: draft.repositoryUrl.trim(),
+    ...(draft.defaultBranch.trim() ? { default_branch: draft.defaultBranch.trim() } : {}),
+    git_token_mode: draft.credentials.gitToken.mode,
+    ...(draft.credentials.gitToken.mode === 'replace' && draft.credentials.gitToken.value.trim()
+      ? { git_token: draft.credentials.gitToken.value.trim() }
+      : {}),
+  };
+}
+
+export function buildWorkspaceGitAccessVerificationFingerprint(
+  draft: WorkspaceSettingsDraft,
+): string {
+  return JSON.stringify({
+    storageType: draft.storageType,
+    repositoryUrl: draft.repositoryUrl.trim(),
+    defaultBranch: draft.defaultBranch.trim(),
+    gitTokenMode: draft.credentials.gitToken.mode,
+    gitTokenValue:
+      draft.credentials.gitToken.mode === 'replace'
+        ? draft.credentials.gitToken.value.trim()
+        : '',
+  });
+}
+
 export function buildWorkspaceSecretPostureSummary(
   draft: WorkspaceSecretDraft,
 ): WorkspaceSecretPostureSummary {
@@ -370,6 +431,10 @@ function buildWorkspaceStorageRecord(
 function emptyToUndefined(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeDraftText(value: string): string {
+  return value.trim();
 }
 
 function readString(value: unknown): string {

@@ -24,10 +24,13 @@ import { DeleteWorkspaceDialog } from '../workspace-list/workspace-list-page.dia
 import type { WorkspaceOverview } from './workspace-detail-support.js';
 import { WorkspaceSettingsShell } from './workspace-settings-shell.js';
 import {
+  buildWorkspaceGitAccessVerificationFingerprint,
+  buildWorkspaceGitAccessVerificationInput,
   buildWorkspaceSecretPostureSummary,
   buildWorkspaceSettingsPatch,
   buildWorkspaceSettingsSurfaceSummary,
   createWorkspaceSettingsDraft,
+  requiresWorkspaceGitAccessVerification,
   type WorkspaceSecretDraft,
   type WorkspaceSecretMode,
   type WorkspaceSettingsDraft,
@@ -55,14 +58,41 @@ export function WorkspaceSettingsTab(props: {
   const [showDelete, setShowDelete] = useState(false);
   const [isGitTokenExpanded, setGitTokenExpanded] = useState(false);
   const [isDangerExpanded, setDangerExpanded] = useState(false);
+  const [verifiedGitAccessFingerprint, setVerifiedGitAccessFingerprint] = useState<string | null>(null);
+  const [gitVerificationIssue, setGitVerificationIssue] = useState<{
+    fingerprint: string;
+    message: string;
+  } | null>(null);
   const validation = validateWorkspaceSettingsDraft(draft);
   const surfaceSummary = buildWorkspaceSettingsSurfaceSummary(props.workspace, draft, validation);
+  const verificationRequired = requiresWorkspaceGitAccessVerification(props.workspace, draft);
+  const gitVerificationFingerprint = buildWorkspaceGitAccessVerificationFingerprint(draft);
+  const activeGitVerificationIssue = gitVerificationIssue?.fingerprint === gitVerificationFingerprint
+    ? gitVerificationIssue.message
+    : null;
+  const blockingIssues = activeGitVerificationIssue
+    ? [...validation.blockingIssues, activeGitVerificationIssue]
+    : validation.blockingIssues;
+
+  const verifyMutation = useMutation({
+    mutationFn: () =>
+      dashboardApi.verifyWorkspaceGitAccess(
+        props.workspace.id,
+        buildWorkspaceGitAccessVerificationInput(draft),
+      ),
+    onSuccess: () => {
+      setVerifiedGitAccessFingerprint(gitVerificationFingerprint);
+      setGitVerificationIssue(null);
+    },
+  });
   const mutation = useMutation({
     mutationFn: () =>
       dashboardApi.patchWorkspace(props.workspace.id, buildWorkspaceSettingsPatch(props.workspace, draft)),
     onSuccess: async (updatedWorkspace) => {
       setDraft(createWorkspaceSettingsDraft(updatedWorkspace));
       setGitTokenExpanded(false);
+      setVerifiedGitAccessFingerprint(null);
+      setGitVerificationIssue(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['workspace', props.workspace.id] }),
         queryClient.invalidateQueries({ queryKey: ['workspaces'] }),
@@ -70,9 +100,34 @@ export function WorkspaceSettingsTab(props: {
       toast.success('Workspace settings saved.');
     },
   });
+  const isSavePending = mutation.isPending || verifyMutation.isPending;
 
   const basicsSummary = buildBasicsSummary(draft);
   const storageSummary = buildStorageSummary(draft, surfaceSummary.storageLabel);
+
+  async function handleSave() {
+    if (!validation.isValid) {
+      return;
+    }
+
+    if (verificationRequired && verifiedGitAccessFingerprint !== gitVerificationFingerprint) {
+      try {
+        await verifyMutation.mutateAsync();
+      } catch (error) {
+        const message = error instanceof Error
+          ? error.message
+          : 'Git access verification failed before saving workspace settings.';
+        setGitVerificationIssue({
+          fingerprint: gitVerificationFingerprint,
+          message,
+        });
+        return;
+      }
+    }
+
+    await mutation.mutateAsync();
+  }
+
   return (
     <>
       <WorkspaceSettingsShell
@@ -81,16 +136,18 @@ export function WorkspaceSettingsTab(props: {
         headerAction={
           <Button
             size="sm"
-            disabled={!validation.isValid || mutation.isPending}
-            onClick={() => mutation.mutate()}
+            disabled={!validation.isValid || isSavePending}
+            onClick={() => {
+              void handleSave();
+            }}
           >
             <Save className="h-4 w-4" />
             Save settings
           </Button>
         }
       >
-        {surfaceSummary.blockingIssueCount > 0 ? (
-          <BlockingIssuesPanel title="Resolve Before Saving" issues={validation.blockingIssues} />
+        {blockingIssues.length > 0 ? (
+          <BlockingIssuesPanel title="Resolve Before Saving" issues={blockingIssues} />
         ) : null}
 
         <StaticSettingsSection

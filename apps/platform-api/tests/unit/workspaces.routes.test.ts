@@ -320,4 +320,73 @@ describe('workspace routes', () => {
     );
     expect(response.json().data).toEqual({ id: 'workspace-1', deleted: true });
   });
+
+  it('verifies workspace git access through a dedicated admin route', async () => {
+    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
+
+    const verifyWorkspaceGitAccess = vi.fn().mockResolvedValue({
+      ok: true,
+      repository_url: 'https://github.com/example/private-repo.git',
+      default_branch: 'main',
+      branch_verified: true,
+    });
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
+    app.decorate('pgPool', {});
+    app.decorate('eventService', {});
+    app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
+    app.decorate('workspaceService', {
+      createWorkspace: vi.fn(),
+      getWorkspace: vi.fn(),
+      getWorkspaceDeleteImpact: vi.fn(),
+      updateWorkspace: vi.fn(),
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+      setGitWebhookConfig: vi.fn(),
+      deleteWorkspace: vi.fn(),
+      listWorkspaces: vi.fn(),
+      verifyWorkspaceGitAccess,
+    });
+    app.decorate('workspaceArtifactFileService', {
+      listWorkspaceArtifactFiles: vi.fn(),
+      uploadWorkspaceArtifactFile: vi.fn(),
+      uploadWorkspaceArtifactFiles: vi.fn(),
+      deleteWorkspaceArtifactFile: vi.fn(),
+      downloadWorkspaceArtifactFile: vi.fn(),
+    });
+
+    await app.register(workspaceRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workspaces/workspace-1/verify-git-access',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        repository_url: 'https://github.com/example/private-repo.git',
+        default_branch: 'main',
+        git_token_mode: 'preserve',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(verifyWorkspaceGitAccess).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workspace-1',
+      {
+        repository_url: 'https://github.com/example/private-repo.git',
+        default_branch: 'main',
+        git_token_mode: 'preserve',
+      },
+    );
+    expect(response.json()).toEqual({
+      data: {
+        ok: true,
+        repository_url: 'https://github.com/example/private-repo.git',
+        default_branch: 'main',
+        branch_verified: true,
+      },
+    });
+  });
 });

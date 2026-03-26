@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildWorkspaceGitAccessVerificationFingerprint,
+  buildWorkspaceGitAccessVerificationInput,
   buildWorkspaceSecretPostureSummary,
   buildWorkspaceSettingsSurfaceSummary,
   buildWorkspaceSettingsPatch,
   createWorkspaceSettingsDraft,
+  requiresWorkspaceGitAccessVerification,
   readWorkspaceSettings,
   summarizeWorkspaceBrief,
   validateWorkspaceSettingsDraft,
@@ -241,5 +244,69 @@ describe('workspace settings support', () => {
     expect(
       summarizeWorkspaceBrief('Keep release automation ready for Friday handoff.\nTrack rollback notes.'),
     ).toBe('Keep release automation ready for Friday handoff.');
+  });
+
+  it('requires git verification when repository access changes for a git remote workspace', () => {
+    const workspace = {
+      id: 'workspace-1',
+      name: 'Release automation',
+      slug: 'release-automation',
+      description: 'Ship weekly safely.',
+      repository_url: 'https://github.com/example/repo.git',
+      is_active: true,
+      settings: {
+        default_branch: 'main',
+        credentials: {
+          git_token: 'redacted://workspace-settings-secret',
+          git_token_configured: true,
+        },
+      },
+    };
+
+    const unchanged = createWorkspaceSettingsDraft(workspace);
+    const changedRepository = createWorkspaceSettingsDraft(workspace);
+    changedRepository.repositoryUrl = 'https://github.com/example/other-repo.git';
+    const changedToken = createWorkspaceSettingsDraft(workspace);
+    changedToken.credentials.gitToken.mode = 'replace';
+    changedToken.credentials.gitToken.value = 'ghp_changed';
+
+    expect(requiresWorkspaceGitAccessVerification(workspace, unchanged)).toBe(false);
+    expect(requiresWorkspaceGitAccessVerification(workspace, changedRepository)).toBe(true);
+    expect(requiresWorkspaceGitAccessVerification(workspace, changedToken)).toBe(true);
+  });
+
+  it('builds a stable git verification payload and fingerprint from the workspace draft', () => {
+    const workspace = {
+      id: 'workspace-1',
+      name: 'Release automation',
+      slug: 'release-automation',
+      description: 'Ship weekly safely.',
+      repository_url: null,
+      is_active: true,
+      settings: {},
+    };
+
+    const draft = createWorkspaceSettingsDraft(workspace);
+    draft.storageType = 'git_remote';
+    draft.repositoryUrl = 'https://github.com/example/private-repo.git';
+    draft.defaultBranch = 'release';
+    draft.credentials.gitToken.mode = 'replace';
+    draft.credentials.gitToken.value = 'ghp_live_value';
+
+    expect(buildWorkspaceGitAccessVerificationInput(draft)).toEqual({
+      repository_url: 'https://github.com/example/private-repo.git',
+      default_branch: 'release',
+      git_token_mode: 'replace',
+      git_token: 'ghp_live_value',
+    });
+    expect(buildWorkspaceGitAccessVerificationFingerprint(draft)).toBe(
+      JSON.stringify({
+        storageType: 'git_remote',
+        repositoryUrl: 'https://github.com/example/private-repo.git',
+        defaultBranch: 'release',
+        gitTokenMode: 'replace',
+        gitTokenValue: 'ghp_live_value',
+      }),
+    );
   });
 });

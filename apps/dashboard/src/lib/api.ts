@@ -216,6 +216,20 @@ export interface DashboardWorkspacePatchInput {
   is_active?: boolean;
 }
 
+export interface DashboardWorkspaceGitAccessVerifyInput {
+  repository_url: string;
+  default_branch?: string;
+  git_token_mode: 'preserve' | 'replace' | 'clear';
+  git_token?: string;
+}
+
+export interface DashboardWorkspaceGitAccessVerifyResult {
+  ok: true;
+  repository_url: string;
+  default_branch: string | null;
+  branch_verified: boolean;
+}
+
 export interface DashboardWorkflowBudgetInput {
   token_budget?: number;
   cost_cap_usd?: number;
@@ -1653,6 +1667,10 @@ export interface DashboardApi {
     workspaceId: string,
     payload: DashboardWorkspacePatchInput,
   ): Promise<DashboardWorkspaceRecord>;
+  verifyWorkspaceGitAccess(
+    workspaceId: string,
+    payload: DashboardWorkspaceGitAccessVerifyInput,
+  ): Promise<DashboardWorkspaceGitAccessVerifyResult>;
   getWorkspace(workspaceId: string): Promise<DashboardWorkspaceRecord>;
   getWorkspaceModelOverrides(
     workspaceId: string,
@@ -2422,6 +2440,16 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           method: 'PATCH',
           body: payload as Record<string, unknown>,
         }),
+      ),
+    verifyWorkspaceGitAccess: (workspaceId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardWorkspaceGitAccessVerifyResult>(
+          `/api/v1/workspaces/${workspaceId}/verify-git-access`,
+          {
+            method: 'POST',
+            body: payload as Record<string, unknown>,
+          },
+        ),
       ),
     getWorkspace: (workspaceId) =>
       withRefresh(() =>

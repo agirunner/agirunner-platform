@@ -20,6 +20,11 @@ import {
 import { resolveWorkspaceStorageBinding } from './workspace-storage.js';
 import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 import { encryptWebhookSecret, decryptWebhookSecret, isWebhookSecretEncrypted } from './webhook-secret-crypto.js';
+import { isExternalSecretReference, readProviderSecret } from '../lib/oauth-crypto.js';
+import {
+  WorkspaceGitAccessVerifier,
+  type VerifyWorkspaceGitAccessResult,
+} from './workspace-git-access-verifier.js';
 
 interface WorkspaceListQuery {
   page: number;
@@ -44,6 +49,13 @@ interface UpdateWorkspaceInput {
   repository_url?: string;
   settings?: Record<string, unknown> | StoredWorkspaceSettings;
   is_active?: boolean;
+}
+
+interface VerifyWorkspaceGitAccessInput {
+  repository_url: string;
+  default_branch?: string;
+  git_token_mode: 'preserve' | 'replace' | 'clear';
+  git_token?: string;
 }
 
 interface WorkspaceMemoryPatch {
@@ -126,21 +138,33 @@ export class WorkspaceService {
     DestructiveDeleteService,
     'getWorkspaceDeleteImpact' | 'deleteWorkspaceCascading'
   >;
+  private readonly workspaceGitAccessVerifier: Pick<WorkspaceGitAccessVerifier, 'verify'>;
 
   constructor(
     private readonly pool: DatabasePool,
     private readonly eventService: EventService,
-    config?: Pick<AppEnv, 'WEBHOOK_ENCRYPTION_KEY'>,
+    config?: Partial<
+      Pick<
+        AppEnv,
+        'WEBHOOK_ENCRYPTION_KEY' | 'WORKSPACE_GIT_VERIFY_TIMEOUT_SECONDS' | 'WORKSPACE_GIT_VERIFY_USERNAME'
+      >
+    >,
     deps?: {
       destructiveDeleteService?: Pick<
         DestructiveDeleteService,
         'getWorkspaceDeleteImpact' | 'deleteWorkspaceCascading'
       >;
+      workspaceGitAccessVerifier?: Pick<WorkspaceGitAccessVerifier, 'verify'>;
     },
   ) {
     this.encryptionKey = config?.WEBHOOK_ENCRYPTION_KEY ?? '';
     this.destructiveDeleteService =
       deps?.destructiveDeleteService ?? new DestructiveDeleteService(pool);
+    this.workspaceGitAccessVerifier = deps?.workspaceGitAccessVerifier
+      ?? new WorkspaceGitAccessVerifier({
+        timeoutSeconds: config?.WORKSPACE_GIT_VERIFY_TIMEOUT_SECONDS,
+        credentialUsername: config?.WORKSPACE_GIT_VERIFY_USERNAME,
+      });
   }
 
   async createWorkspace(identity: ApiKeyIdentity, input: CreateWorkspaceInput) {
@@ -623,6 +647,25 @@ export class WorkspaceService {
     return null;
   }
 
+  async verifyWorkspaceGitAccess(
+    identity: ApiKeyIdentity,
+    workspaceId: string,
+    input: VerifyWorkspaceGitAccessInput,
+  ): Promise<VerifyWorkspaceGitAccessResult> {
+    const workspace = await this.loadWorkspaceRecord(identity.tenantId, workspaceId);
+    const repositoryUrl = input.repository_url.trim();
+    if (!repositoryUrl) {
+      throw new ValidationError('Repository URL is required for Git access verification.');
+    }
+
+    const gitToken = resolveWorkspaceGitVerificationToken(workspace, input);
+    return this.workspaceGitAccessVerifier.verify({
+      repositoryUrl,
+      defaultBranch: input.default_branch?.trim() || null,
+      gitToken,
+    });
+  }
+
   private async ensureWorkspaceSecretsEncrypted(tenantId: string, workspace: WorkspaceRow): Promise<WorkspaceRow> {
     const withGitSettings = await this.ensureWorkspaceGitSettingsEncrypted(tenantId, workspace);
     return this.ensureGitWebhookSecretEncrypted(tenantId, withGitSettings);
@@ -774,6 +817,40 @@ export class WorkspaceService {
       ]),
     );
   }
+}
+
+function resolveWorkspaceGitVerificationToken(
+  workspace: WorkspaceRow,
+  input: VerifyWorkspaceGitAccessInput,
+): string | null {
+  if (input.git_token_mode === 'clear') {
+    return null;
+  }
+
+  if (input.git_token_mode === 'replace') {
+    const replacement = typeof input.git_token === 'string' ? input.git_token.trim() : '';
+    if (!replacement) {
+      throw new ValidationError('Git token is required when replacing repository access.');
+    }
+    if (isExternalSecretReference(replacement)) {
+      throw new ValidationError(
+        'Git access verification cannot use external secret references. Enter the concrete token value before saving.',
+      );
+    }
+    return readProviderSecret(replacement);
+  }
+
+  const settings = normalizeWorkspaceSettings(workspace.settings);
+  const storedGitToken = settings.credentials.git_token ?? null;
+  if (!storedGitToken) {
+    return null;
+  }
+  if (isExternalSecretReference(storedGitToken)) {
+    throw new ValidationError(
+      'The stored Git token uses an external secret reference and cannot be reverified on save. Replace the token before changing the repository.',
+    );
+  }
+  return readProviderSecret(storedGitToken);
 }
 
 function redactWorkspaceSecrets(workspace: WorkspaceRow): Record<string, unknown> {

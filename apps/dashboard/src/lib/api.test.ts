@@ -1181,6 +1181,66 @@ describe('dashboard api auth/session behavior', () => {
     );
   });
 
+  it('verifies workspace git access through the dashboard api surface', async () => {
+    writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          data: {
+            ok: true,
+            repository_url: 'https://github.com/example/private-repo.git',
+            default_branch: 'main',
+            branch_verified: true,
+          },
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listWorkflows: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    const result = await (api as any).verifyWorkspaceGitAccess('workspace-1', {
+      repository_url: 'https://github.com/example/private-repo.git',
+      default_branch: 'main',
+      git_token_mode: 'preserve',
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      repository_url: 'https://github.com/example/private-repo.git',
+      default_branch: 'main',
+      branch_verified: true,
+    });
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/workspaces/workspace-1/verify-git-access',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          repository_url: 'https://github.com/example/private-repo.git',
+          default_branch: 'main',
+          git_token_mode: 'preserve',
+        }),
+      }),
+    );
+  });
+
   it('sends bearer token when loading metrics if an in-memory access token exists', async () => {
     writeSession({ accessToken: 'metrics-token', tenantId: 'tenant-1' });
 

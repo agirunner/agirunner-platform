@@ -89,6 +89,22 @@ describe('workspace settings tab source', () => {
     expect(source).not.toContain('label="Description"');
   });
 
+  it('verifies changed git remotes before patching workspace settings', () => {
+    const source = readSource('./workspace-settings-tab.tsx');
+    const supportSource = readSource('./workspace-settings-support.ts');
+
+    expect(source).toContain('dashboardApi.verifyWorkspaceGitAccess');
+    expect(source).toContain('verifiedGitAccessFingerprint');
+    expect(source).toContain('gitVerificationIssue');
+    expect(source).toContain('buildWorkspaceGitAccessVerificationFingerprint');
+    expect(source).toContain('buildWorkspaceGitAccessVerificationInput');
+    expect(source).toContain('requiresWorkspaceGitAccessVerification');
+    expect(source).toContain('mutation.mutateAsync()');
+    expect(supportSource).toContain('export function requiresWorkspaceGitAccessVerification');
+    expect(supportSource).toContain('export function buildWorkspaceGitAccessVerificationInput');
+    expect(supportSource).toContain('export function buildWorkspaceGitAccessVerificationFingerprint');
+  });
+
   it('points workspace artifact uploads back to the knowledge tab with concise storage guidance', () => {
     const source = readSource('./workspace-settings-tab.tsx');
 
