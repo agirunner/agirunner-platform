@@ -1403,7 +1403,12 @@ function RoleAssignmentsSection({
           ) : null}
         </div>
         {isOverridesExpanded ? (
-          <div className="space-y-4 border-t border-border/70 pt-4">
+          <DashboardSectionCard
+            title="Override Matrix"
+            description="Edit explicit model and reasoning overrides for the orchestrator and any specialist roles that should diverge from the shared default."
+            className="bg-background/60 shadow-none"
+            bodyClassName="space-y-4"
+          >
             <p className="text-xs text-muted">
               Choose explicit models only where the default is not enough.
             </p>
@@ -1443,48 +1448,50 @@ function RoleAssignmentsSection({
               })}
             </div>
             <div className="hidden md:block">
-              <Table className="table-fixed">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-1/5">Role</TableHead>
-                    <TableHead className="w-1/5">Description</TableHead>
-                    <TableHead className="w-1/5 text-center">Status</TableHead>
-                    <TableHead className="w-1/5 text-center">Provider Selection</TableHead>
-                    <TableHead className="w-1/5 text-center">Reasoning</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pagination.items.map((role) => {
-                    const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
-                    const description = truncateRoleDescription(summarizeRoleDescription(role));
-                    return (
-                      <TableRow key={role.name} className="align-middle [&>td]:py-4">
-                        <TableCell className="align-middle text-sm font-medium whitespace-nowrap">
-                          {role.name}
-                        </TableCell>
-                        <TableCell className="align-middle text-sm text-foreground">
-                          <span className="block truncate" title={summarizeRoleDescription(role)}>
-                            {description}
-                          </span>
-                        </TableCell>
-                        <TableCell className="align-middle whitespace-nowrap">
-                          <div className="flex justify-center">
-                            {renderRoleStatusBadge(role)}
-                          </div>
-                        </TableCell>
-                        <ModelReasoningSelect
-                          modelId={s.modelId}
-                          reasoningConfig={s.reasoningConfig}
-                          enabledModels={enabledModels}
-                          modelError={undefined}
-                          onModelChange={(id) => updateRole(role.name, { modelId: id, reasoningConfig: null })}
-                          onReasoningChange={(cfg) => updateRole(role.name, { reasoningConfig: cfg })}
-                        />
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+              <div className="overflow-x-auto border-y border-border/70">
+                <Table className="table-fixed">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-1/5">Role</TableHead>
+                      <TableHead className="w-1/5">Description</TableHead>
+                      <TableHead className="w-1/5 text-center">Status</TableHead>
+                      <TableHead className="w-1/5 text-center">Provider Selection</TableHead>
+                      <TableHead className="w-1/5 text-center">Reasoning</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pagination.items.map((role) => {
+                      const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
+                      const description = truncateRoleDescription(summarizeRoleDescription(role));
+                      return (
+                        <TableRow key={role.name} className="align-middle [&>td]:py-4">
+                          <TableCell className="align-middle text-sm font-medium whitespace-nowrap">
+                            {role.name}
+                          </TableCell>
+                          <TableCell className="align-middle text-sm text-foreground">
+                            <span className="block truncate" title={summarizeRoleDescription(role)}>
+                              {description}
+                            </span>
+                          </TableCell>
+                          <TableCell className="align-middle whitespace-nowrap">
+                            <div className="flex justify-center">
+                              {renderRoleStatusBadge(role)}
+                            </div>
+                          </TableCell>
+                          <ModelReasoningSelect
+                            modelId={s.modelId}
+                            reasoningConfig={s.reasoningConfig}
+                            enabledModels={enabledModels}
+                            modelError={undefined}
+                            onModelChange={(id) => updateRole(role.name, { modelId: id, reasoningConfig: null })}
+                            onReasoningChange={(cfg) => updateRole(role.name, { reasoningConfig: cfg })}
+                          />
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
             </div>
             <ListPagination
               page={pagination.page}
@@ -1500,7 +1507,7 @@ function RoleAssignmentsSection({
                 setPage(1);
               }}
             />
-          </div>
+          </DashboardSectionCard>
         ) : null}
       </DashboardSectionCard>
 
@@ -1576,64 +1583,76 @@ function ModelCatalog({
     const isExpanded = expandedProviders.has(providerId);
     const enabledCount = group.models.filter((m) => m.is_enabled !== false).length;
     return (
-      <div key={providerId} className="border rounded-md">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-muted/50 transition-colors"
-          onClick={() => toggleProvider(providerId)}
-        >
+      <DashboardSectionCard
+        key={providerId}
+        title={group.providerName}
+        description={`${enabledCount} enabled of ${group.models.length} discovered models.`}
+        className="bg-background/60 shadow-none"
+        bodyClassName="space-y-0 p-0"
+        headerAction={
           <div className="flex items-center gap-2">
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4 text-muted" />
-            ) : (
-              <ChevronRight className="h-4 w-4 text-muted" />
-            )}
-            <span className="font-medium">{group.providerName}</span>
             <Badge variant="outline">{enabledCount}/{group.models.length} enabled</Badge>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => toggleProvider(providerId)}
+              aria-expanded={isExpanded}
+            >
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4 text-muted" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-muted" />
+              )}
+              {isExpanded ? 'Hide models' : 'Show models'}
+            </Button>
           </div>
-        </button>
+        }
+      >
         {isExpanded && (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Model ID</TableHead>
-                <TableHead>Context Window</TableHead>
-                <TableHead>Endpoint</TableHead>
-                <TableHead>Enabled</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...group.models].sort((a, b) => {
-                const ae = a.is_enabled !== false ? 0 : 1;
-                const be = b.is_enabled !== false ? 0 : 1;
-                return ae - be;
-              }).map((model) => (
-                <TableRow key={model.id ?? model.model_id}>
-                  <TableCell className="font-mono text-sm">
-                    {model.model_id}
-                  </TableCell>
-                  <TableCell>
-                    {formatContextWindow(model.context_window)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">
-                      {model.endpoint_type ?? '-'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      checked={model.is_enabled !== false}
-                      onCheckedChange={(checked) =>
-                        onToggleEnabled(model.id, checked)
-                      }
-                    />
-                  </TableCell>
+          <div className="overflow-x-auto border-t border-border/70">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Model ID</TableHead>
+                  <TableHead>Context Window</TableHead>
+                  <TableHead>Endpoint</TableHead>
+                  <TableHead>Enabled</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {[...group.models].sort((a, b) => {
+                  const ae = a.is_enabled !== false ? 0 : 1;
+                  const be = b.is_enabled !== false ? 0 : 1;
+                  return ae - be;
+                }).map((model) => (
+                  <TableRow key={model.id ?? model.model_id}>
+                    <TableCell className="font-mono text-sm">
+                      {model.model_id}
+                    </TableCell>
+                    <TableCell>
+                      {formatContextWindow(model.context_window)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {model.endpoint_type ?? '-'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={model.is_enabled !== false}
+                        onCheckedChange={(checked) =>
+                          onToggleEnabled(model.id, checked)
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
-      </div>
+      </DashboardSectionCard>
     );
   }
 

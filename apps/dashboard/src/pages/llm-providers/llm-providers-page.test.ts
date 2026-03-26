@@ -85,8 +85,13 @@ describe('LlmProvidersPage renders three sections', () => {
 
   it('renders the Model Catalog section with endpoint column', () => {
     expect(source).toContain('Model Catalog');
+    expect(source).toContain('Subscription Models');
     expect(source).toContain('formatContextWindow');
     expect(source).toContain('endpoint_type');
+    expect(source).toContain('title={group.providerName}');
+    expect(source).toContain('discovered models.');
+    expect(source).not.toContain('className="border rounded-md"');
+    expect(source).not.toContain('hover:bg-muted/50 transition-colors');
   });
 
   it('renders the Model Assignments section', () => {
@@ -137,6 +142,8 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain("aria-expanded={isOverridesExpanded}");
     expect(source).toContain("Show overrides");
     expect(source).toContain("Hide overrides");
+    expect(source).toContain('title="Override Matrix"');
+    expect(source).not.toContain('className="space-y-4 border-t px-4 py-4"');
     expect(source).toContain("() => explicitOverrideCount > 0");
     expect(source).toContain('pagination.items.map((role) => {');
     expect(source).toContain('itemLabel="overrides"');
