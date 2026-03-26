@@ -93,4 +93,25 @@ describe('execution environments page source', () => {
     expect(pageSource).not.toContain('const imageSuggestions =');
     expect(pageSource).not.toContain('imageSuggestions={imageSuggestions}');
   });
+
+  it('uses the shared page-level pagination controls for the environments grid', () => {
+    const pageSource = readSource('./execution-environments-page.tsx');
+
+    expect(pageSource).toContain('DEFAULT_LIST_PAGE_SIZE');
+    expect(pageSource).toContain('paginateListItems');
+    expect(pageSource).toContain('ListPagination');
+    expect(pageSource).toContain('DashboardSectionCard');
+    expect(pageSource).toContain('const [page, setPage] = useState(1);');
+    expect(pageSource).toContain(
+      'const [pageSize, setPageSize] = useState<number>(DEFAULT_LIST_PAGE_SIZE);',
+    );
+    expect(pageSource).toContain(
+      'const pagination = paginateListItems(environments, page, pageSize);',
+    );
+    expect(pageSource).toContain('environments={pagination.items}');
+    expect(pageSource).toContain('itemLabel="environments"');
+    expect(pageSource).toContain('onPageChange={setPage}');
+    expect(pageSource).toContain('setPageSize(value);');
+    expect(pageSource).toContain('setPage(1);');
+  });
 });

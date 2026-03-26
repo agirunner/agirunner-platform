@@ -2,7 +2,13 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { Loader2, Plus } from 'lucide-react';
 
+import {
+  DEFAULT_LIST_PAGE_SIZE,
+  ListPagination,
+  paginateListItems,
+} from '../../components/list-pagination.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
 import { toast } from '../../lib/toast.js';
 import type { DashboardExecutionEnvironmentRecord } from '../../lib/api.js';
@@ -40,6 +46,8 @@ export function ExecutionEnvironmentsPage(): JSX.Element {
     createExecutionEnvironmentForm(),
   );
   const [busyEnvironmentId, setBusyEnvironmentId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_LIST_PAGE_SIZE);
 
   const environmentsQuery = useQuery({
     queryKey: ['execution-environments'],
@@ -155,6 +163,7 @@ export function ExecutionEnvironmentsPage(): JSX.Element {
     () => sortExecutionEnvironments(environmentsQuery.data ?? []),
     [environmentsQuery.data],
   );
+  const pagination = paginateListItems(environments, page, pageSize);
   const stats = buildExecutionEnvironmentStats(environments);
   const defaultEnvironment = environments.find((environment) => environment.is_default) ?? null;
 
@@ -213,22 +222,44 @@ export function ExecutionEnvironmentsPage(): JSX.Element {
         </p>
       </div>
 
-      <ExecutionEnvironmentTable
-        environments={environments}
-        busyEnvironmentId={busyEnvironmentId}
-        onCopy={(environment) => {
-          setDialogState({ mode: 'copy', environmentId: null });
-          setDialogForm(createCopiedExecutionEnvironmentForm(environment));
-        }}
-        onEdit={(environment) => {
-          setDialogState({ mode: 'edit', environmentId: environment.id });
-          setDialogForm(createExecutionEnvironmentForm(environment));
-        }}
-        onVerify={(environment) => verifyMutation.mutate(environment)}
-        onSetDefault={(environment) => defaultMutation.mutate(environment)}
-        onArchive={(environment) => archiveMutation.mutate(environment)}
-        onRestore={(environment) => restoreMutation.mutate(environment)}
-      />
+      <DashboardSectionCard
+        title="Configured environments"
+        description="Manage the execution environments available to Specialist roles."
+        bodyClassName="space-y-0 p-0"
+      >
+        <div className="overflow-x-auto px-6 pb-0">
+          <ExecutionEnvironmentTable
+            environments={pagination.items}
+            busyEnvironmentId={busyEnvironmentId}
+            onCopy={(environment) => {
+              setDialogState({ mode: 'copy', environmentId: null });
+              setDialogForm(createCopiedExecutionEnvironmentForm(environment));
+            }}
+            onEdit={(environment) => {
+              setDialogState({ mode: 'edit', environmentId: environment.id });
+              setDialogForm(createExecutionEnvironmentForm(environment));
+            }}
+            onVerify={(environment) => verifyMutation.mutate(environment)}
+            onSetDefault={(environment) => defaultMutation.mutate(environment)}
+            onArchive={(environment) => archiveMutation.mutate(environment)}
+            onRestore={(environment) => restoreMutation.mutate(environment)}
+          />
+        </div>
+        <ListPagination
+          page={pagination.page}
+          pageSize={pageSize}
+          totalItems={pagination.totalItems}
+          totalPages={pagination.totalPages}
+          start={pagination.start}
+          end={pagination.end}
+          itemLabel="environments"
+          onPageChange={setPage}
+          onPageSizeChange={(value) => {
+            setPageSize(value);
+            setPage(1);
+          }}
+        />
+      </DashboardSectionCard>
 
       {dialogState ? (
         <ExecutionEnvironmentDialog

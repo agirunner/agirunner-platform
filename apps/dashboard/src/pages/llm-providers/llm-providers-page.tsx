@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -166,6 +166,7 @@ const INITIAL_FORM: AddProviderDraft = {
 
 const ELEVATED_SURFACE_CLASS_NAME = 'border-border/80 bg-surface shadow-sm';
 const SUBDUED_SURFACE_CLASS_NAME = 'rounded-xl border border-border/70 bg-surface p-4 shadow-sm';
+const INSET_PANEL_CLASS_NAME = 'rounded-xl border border-border/70 bg-background/60 p-4';
 const DIALOG_ALERT_CLASS_NAME = 'rounded-xl border px-4 py-3 text-sm shadow-sm';
 const FIELD_ERROR_CLASS_NAME = 'text-xs font-medium';
 const WARNING_ROLE_CHIP_CLASS_NAME =
@@ -228,6 +229,35 @@ function renderOverridesSummaryChip(
       : OVERRIDES_NEUTRAL_CHIP_CLASS_NAME;
 
   return <span className={cn(OVERRIDES_CHIP_CLASS_NAME, toneClassName)}>{label}</span>;
+}
+
+function SubsectionPanel(props: {
+  title: ReactNode;
+  description?: ReactNode;
+  headerAction?: ReactNode;
+  children: ReactNode;
+  className?: string;
+  contentClassName?: string;
+}): JSX.Element {
+  const hasContent =
+    props.children !== undefined && props.children !== null && props.children !== false;
+
+  return (
+    <section className={cn(INSET_PANEL_CLASS_NAME, props.className)}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="text-base font-semibold text-foreground">{props.title}</div>
+          {props.description ? (
+            <p className="text-sm leading-6 text-muted">{props.description}</p>
+          ) : null}
+        </div>
+        {props.headerAction ? <div className="shrink-0">{props.headerAction}</div> : null}
+      </div>
+      {hasContent ? (
+        <div className={cn('mt-4 space-y-4', props.contentClassName)}>{props.children}</div>
+      ) : null}
+    </section>
+  );
 }
 
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
@@ -1325,11 +1355,10 @@ function RoleAssignmentsSection({
         </div>
       ) : null}
 
-      <DashboardSectionCard
+      <SubsectionPanel
         title="System Default"
         description="The default model and reasoning level used for all roles unless overridden below."
-        className="bg-background/60 shadow-none"
-        bodyClassName="space-y-3"
+        contentClassName="space-y-3"
       >
         <div className="flex items-center gap-4">
           <Select value={defaultModelId} onValueChange={(v) => { setDefaultModelId(v); setDefaultReasoning(null); }}>
@@ -1366,10 +1395,9 @@ function RoleAssignmentsSection({
             Specialists may inherit this model when they do not need an explicit override.
           </p>
         )}
-      </DashboardSectionCard>
+      </SubsectionPanel>
 
-      <DashboardSectionCard
-        className="bg-background/60 shadow-none"
+      <SubsectionPanel
         title="Orchestrator and specialist agent model overrides"
         description="Use the shared system default unless the orchestrator or a specific role needs a different model or reasoning policy."
         headerAction={
@@ -1388,7 +1416,6 @@ function RoleAssignmentsSection({
             {isOverridesExpanded ? 'Hide overrides' : 'Show overrides'}
           </Button>
         }
-        bodyClassName="space-y-4"
       >
         <div className="flex flex-wrap items-center gap-2">
           {renderOverridesSummaryChip(`${activeRoleCount} active roles`)}
@@ -1403,12 +1430,7 @@ function RoleAssignmentsSection({
           ) : null}
         </div>
         {isOverridesExpanded ? (
-          <DashboardSectionCard
-            title="Override Matrix"
-            description="Edit explicit model and reasoning overrides for the orchestrator and any specialist roles that should diverge from the shared default."
-            className="bg-background/60 shadow-none"
-            bodyClassName="space-y-4"
-          >
+          <div className="space-y-4 border-t border-border/70 pt-4">
             <p className="text-xs text-muted">
               Choose explicit models only where the default is not enough.
             </p>
@@ -1507,9 +1529,9 @@ function RoleAssignmentsSection({
                 setPage(1);
               }}
             />
-          </DashboardSectionCard>
+          </div>
         ) : null}
-      </DashboardSectionCard>
+      </SubsectionPanel>
 
       {/* ── Save ──────────────────────────────────────────────────────── */}
       <div className="flex justify-end">
@@ -1583,12 +1605,11 @@ function ModelCatalog({
     const isExpanded = expandedProviders.has(providerId);
     const enabledCount = group.models.filter((m) => m.is_enabled !== false).length;
     return (
-      <DashboardSectionCard
+      <SubsectionPanel
         key={providerId}
         title={group.providerName}
         description={`${enabledCount} enabled of ${group.models.length} discovered models.`}
-        className="bg-background/60 shadow-none"
-        bodyClassName="space-y-0 p-0"
+        contentClassName="space-y-0"
         headerAction={
           <div className="flex items-center gap-2">
             <Badge variant="outline">{enabledCount}/{group.models.length} enabled</Badge>
@@ -1610,7 +1631,7 @@ function ModelCatalog({
         }
       >
         {isExpanded && (
-          <div className="overflow-x-auto border-t border-border/70">
+          <div className="overflow-x-auto border-t border-border/70 pt-4">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -1652,7 +1673,7 @@ function ModelCatalog({
             </Table>
           </div>
         )}
-      </DashboardSectionCard>
+      </SubsectionPanel>
     );
   }
 
@@ -1664,7 +1685,7 @@ function ModelCatalog({
         description={
           apiKeyGroups.length > 0
             ? `${apiKeyGroups.reduce((sum, [, g]) => sum + g.models.length, 0)} discovered API-key models.`
-            : 'No API-key provider models. Add a provider and run discovery.'
+            : undefined
         }
         bodyClassName="space-y-2"
       >

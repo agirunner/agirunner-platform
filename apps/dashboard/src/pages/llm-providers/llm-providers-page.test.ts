@@ -86,18 +86,28 @@ describe('LlmProvidersPage renders three sections', () => {
   it('renders the Model Catalog section with endpoint column', () => {
     expect(source).toContain('Model Catalog');
     expect(source).toContain('Subscription Models');
+    expect(source).toContain('SubsectionPanel');
     expect(source).toContain('formatContextWindow');
     expect(source).toContain('endpoint_type');
     expect(source).toContain('title={group.providerName}');
     expect(source).toContain('discovered models.');
+    expect(source).not.toContain('<DashboardSectionCard\n        key={providerId}');
     expect(source).not.toContain('className="border rounded-md"');
     expect(source).not.toContain('hover:bg-muted/50 transition-colors');
+  });
+
+  it('shows the no-model empty state copy only once', () => {
+    expect(
+      source.split('No API-key provider models. Add a provider and run discovery.').length - 1,
+    ).toBe(1);
   });
 
   it('renders the Model Assignments section', () => {
     expect(source).toContain('Model Assignments');
     expect(source).toContain('Specialists may inherit this model when they do not need an explicit override.');
     expect(source).toContain('RoleAssignmentsSection');
+    expect(source).toContain('SubsectionPanel');
+    expect(source).toContain('<SubsectionPanel');
     expect(source).toContain('DEFAULT_LIST_PAGE_SIZE');
     expect(source).toContain('paginateListItems');
     expect(source).toContain('ListPagination');
@@ -142,7 +152,10 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain("aria-expanded={isOverridesExpanded}");
     expect(source).toContain("Show overrides");
     expect(source).toContain("Hide overrides");
-    expect(source).toContain('title="Override Matrix"');
+    expect(source).toContain('title="System Default"');
+    expect(source).toContain('title="Orchestrator and specialist agent model overrides"');
+    expect(source).not.toContain('<DashboardSectionCard\n        title="System Default"');
+    expect(source).not.toContain('title="Override Matrix"');
     expect(source).not.toContain('className="space-y-4 border-t px-4 py-4"');
     expect(source).toContain("() => explicitOverrideCount > 0");
     expect(source).toContain('pagination.items.map((role) => {');

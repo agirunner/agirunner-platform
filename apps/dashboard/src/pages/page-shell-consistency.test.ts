@@ -16,7 +16,7 @@ const sectionShellSurfaces = [
   },
   {
     label: 'execution environments',
-    files: ['pages/execution-environments/execution-environments-table.tsx'],
+    files: ['pages/execution-environments/execution-environments-page.tsx'],
   },
   {
     label: 'tools catalog',
