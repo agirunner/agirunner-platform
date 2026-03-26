@@ -92,6 +92,26 @@ describe('buildSpecialistExecutionBrief', () => {
       taskInput: {
         description: 'Review the implementation and confirm the release-note update.',
       },
+      executionEnvironmentSnapshot: {
+        id: 'env-1',
+        name: 'Alpine Base',
+        image: 'alpine:3.23',
+        agent_hint: [
+          'Execution environment: Alpine Base',
+          'Image: alpine:3.23',
+          'Package manager: apk',
+          'Shell: /bin/sh',
+          'Verified baseline commands: sh, cat, grep',
+        ].join('\n'),
+        verified_metadata: {
+          package_manager: 'apk',
+          shell: '/bin/sh',
+          detected_runtimes: [],
+        },
+        tool_capabilities: {
+          verified_baseline_commands: ['sh', 'cat', 'grep'],
+        },
+      },
       roleConfig: {
         tools: ['file_read', 'git_diff', 'submit_handoff'],
       },
@@ -142,6 +162,9 @@ describe('buildSpecialistExecutionBrief', () => {
       'Tool arguments must be repo-relative: use workflow_cli/__main__.py, tests/test_cli.py, or README.md; never repo/workflow_cli/__main__.py, repo/tests/test_cli.py, repo/README.md, or /tmp/workspace paths.',
     );
     expect(brief?.rendered_markdown).toContain(
+      'If a discovered or copied repository path starts with repo/, strip that leading repo/ segment before calling any file tool.',
+    );
+    expect(brief?.rendered_markdown).toContain(
       'Read task context files from `/workspace/context/...`, never `context/...` or `repo/context/...`.',
     );
     expect(brief?.rendered_markdown).toContain(
@@ -149,6 +172,14 @@ describe('buildSpecialistExecutionBrief', () => {
     );
     expect(brief?.rendered_markdown).toContain(
       'Repository-backed task. Use Specialist Execution tools for repository, filesystem, shell, web fetch, and artifact upload work. The image already includes repo checkout and git, but optional runtimes such as python3, bash, jq, or language-specific CLIs may be absent; probe them first or install them before chaining them into commands.',
+    );
+    expect(brief?.rendered_markdown).toContain('## Execution Environment Contract');
+    expect(brief?.rendered_markdown).toContain('Execution environment: Alpine Base');
+    expect(brief?.rendered_markdown).toContain('Package manager: apk');
+    expect(brief?.rendered_markdown).toContain('Shell: /bin/sh');
+    expect(brief?.rendered_markdown).toContain('Verified baseline commands: sh, cat, grep');
+    expect(brief?.rendered_markdown).toContain(
+      'Use the declared shell and interpreter contract when invoking scripts. Do not force sh ./script on a bash-oriented script; inspect the shebang or script contents first and install the required interpreter when it is missing.',
     );
     expect(brief?.rendered_markdown).not.toContain('git_token_secret_ref');
     expect(brief?.rendered_markdown).not.toContain('secret:GITHUB_TOKEN');

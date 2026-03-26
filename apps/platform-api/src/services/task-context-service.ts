@@ -169,6 +169,10 @@ export async function buildTaskContext(
         workItem,
         predecessorHandoff,
         taskInput: asRecord(task.input),
+        executionEnvironmentSnapshot:
+          task.execution_environment_snapshot && typeof task.execution_environment_snapshot === 'object'
+            ? (task.execution_environment_snapshot as Record<string, unknown>)
+            : null,
       });
 
   return {

@@ -54,6 +54,14 @@ export interface SpecialistExecutionBrief {
   verification_commands: string[];
   relevant_memory_refs: MemoryRef[];
   relevant_artifact_refs: ArtifactRef[];
+  execution_environment_contract: {
+    name: string | null;
+    image: string | null;
+    shell: string | null;
+    package_manager: string | null;
+    verified_baseline_commands: string[];
+    agent_hint: string | null;
+  } | null;
   rendered_markdown: string;
 }
 
@@ -65,6 +73,7 @@ interface SpecialistExecutionBriefInput {
   predecessorHandoff?: Record<string, unknown> | null;
   taskInput?: Record<string, unknown> | null;
   roleConfig?: Record<string, unknown> | null;
+  executionEnvironmentSnapshot?: Record<string, unknown> | null;
 }
 
 export function buildSpecialistExecutionBrief(
@@ -90,6 +99,7 @@ export function buildSpecialistExecutionBrief(
   const workspace = asRecord(input.workspace);
   const taskInput = asRecord(input.taskInput);
   const roleConfig = asRecord(input.roleConfig);
+  const executionEnvironmentSnapshot = asRecord(input.executionEnvironmentSnapshot);
   const stageName = readString(workItem.stage_name) ?? readString(workflow.current_stage);
   const stage = definition.stages.find((entry) => entry.name === stageName) ?? null;
   const boardColumn = definition.board.columns.find((entry) => entry.id === readString(workItem.column_id)) ?? null;
@@ -151,6 +161,7 @@ export function buildSpecialistExecutionBrief(
     verification_commands: normalizeStrings(taskInput.verification_commands),
     relevant_memory_refs: relevantMemoryRefs,
     relevant_artifact_refs: relevantArtifactRefs,
+    execution_environment_contract: executionEnvironmentContractFrom(executionEnvironmentSnapshot),
     rendered_markdown: '',
   };
   brief.refresh_key = hashCanonicalJson(refreshInputsFrom(brief, workItem, predecessorHandoff));
@@ -224,6 +235,13 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
   }
   lines.push('', '## Path Discipline');
   lines.push(pathDisciplineGuidance(brief.repo_status_summary.startsWith('Repository-backed task.')));
+  if (brief.execution_environment_contract?.agent_hint) {
+    lines.push('', '## Execution Environment Contract');
+    lines.push(brief.execution_environment_contract.agent_hint);
+    lines.push(
+      'Use the declared shell and interpreter contract when invoking scripts. Do not force sh ./script on a bash-oriented script; inspect the shebang or script contents first and install the required interpreter when it is missing.',
+    );
+  }
   if (brief.repo_status_summary) {
     lines.push('', '## Execution Surface');
     lines.push(brief.repo_status_summary);
@@ -233,9 +251,26 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
 
 function pathDisciplineGuidance(repoBacked: boolean) {
   if (repoBacked) {
-    return 'For repository-backed tasks, the repo root is already the base path. Tool arguments must be repo-relative: use workflow_cli/__main__.py, tests/test_cli.py, or README.md; never repo/workflow_cli/__main__.py, repo/tests/test_cli.py, repo/README.md, or /tmp/workspace paths. Read task context files from `/workspace/context/...`, never `context/...` or `repo/context/...`. If you write task-local working files such as `output/...`, upload or persist the real deliverable and cite artifact ids, logical paths, repo-relative deliverables, memory keys, or workflow/task ids in the final handoff instead of that task-local path.';
+    return 'For repository-backed tasks, the repo root is already the base path. Tool arguments must be repo-relative: use workflow_cli/__main__.py, tests/test_cli.py, or README.md; never repo/workflow_cli/__main__.py, repo/tests/test_cli.py, repo/README.md, or /tmp/workspace paths. If a discovered or copied repository path starts with repo/, strip that leading repo/ segment before calling any file tool. Read task context files from `/workspace/context/...`, never `context/...` or `repo/context/...`. If you write task-local working files such as `output/...`, upload or persist the real deliverable and cite artifact ids, logical paths, repo-relative deliverables, memory keys, or workflow/task ids in the final handoff instead of that task-local path.';
   }
   return 'For non-repository tasks, use workspace-relative paths for tool work only, never host-local or /tmp/workspace paths. If you write task-local working files such as `output/...`, upload or persist the real deliverable and cite artifact ids, logical paths, memory keys, or workflow/task ids in the final handoff instead of that task-local path.';
+}
+
+function executionEnvironmentContractFrom(snapshot: Record<string, unknown>) {
+  if (Object.keys(snapshot).length === 0) {
+    return null;
+  }
+
+  const verifiedMetadata = asRecord(snapshot.verified_metadata);
+  const toolCapabilities = asRecord(snapshot.tool_capabilities);
+  return {
+    name: readString(snapshot.name),
+    image: readString(snapshot.image),
+    shell: readString(verifiedMetadata.shell),
+    package_manager: readString(verifiedMetadata.package_manager),
+    verified_baseline_commands: readStringArray(toolCapabilities.verified_baseline_commands),
+    agent_hint: readString(snapshot.agent_hint),
+  };
 }
 
 function continuitySummaryFrom(workItem: Record<string, unknown>) {

@@ -29,6 +29,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Never send next_expected_actor or next_expected_action inside submit_handoff. Those are continuity outputs, not handoff inputs.
 - Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.
 - When handoffs mention repository files, use repo-relative paths like workflow_cli/__main__.py, never repo/workflow_cli/__main__.py or /tmp/workspace paths.
+- If a discovered or copied repository path starts with repo/, strip that leading repo/ segment before using it in any file tool call.
 - For non-repository workspaces, treat the workspace root as the only valid file root and use workspace-relative paths only.
 - Never use host absolute paths from instructions, logs, or prior output in tool calls or handoffs.
 - Do not call git tools or assume a repository exists unless the execution contract explicitly provides a repository-backed workspace.
@@ -42,6 +43,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - shell_exec timeout is in seconds and MUST stay within tool limits.
 - Use sh-compatible shell_exec commands. When passing JSON or multiline content, prefer a temp file or quoted heredoc instead of fragile inline quoting or bash-only constructs unless you explicitly invoke bash yourself.
 - Do not assume bash exists. If a command or script requires bash, verify bash first or install it before use, or run a sh-compatible alternative instead.
+- Do not force sh ./script or bash ./script blindly. Inspect the shebang or script contents first and invoke the script through its intended interpreter.
 - Before executing a script path directly, verify it exists and is executable. If it is not executable, invoke it through the correct interpreter instead of assuming chmod or shebang behavior.
 - Before commands, confirm the runtime exists or install it.
 - Treat next_expected_actor and next_expected_action as authoritative routing state.

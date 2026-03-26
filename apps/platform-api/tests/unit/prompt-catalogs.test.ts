@@ -42,6 +42,9 @@ describe('prompt catalogs', () => {
       'When handoffs mention repository files, use repo-relative paths like workflow_cli/__main__.py, never repo/workflow_cli/__main__.py or /tmp/workspace paths.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'If a discovered or copied repository path starts with repo/, strip that leading repo/ segment before using it in any file tool call.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'For non-repository workspaces, treat the workspace root as the only valid file root and use workspace-relative paths only.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
@@ -101,6 +104,9 @@ describe('prompt catalogs', () => {
       'Use sh-compatible shell_exec commands.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not assume bash exists.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Do not force sh ./script or bash ./script blindly.',
+    );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Before executing a script path directly, verify it exists and is executable.',
     );
