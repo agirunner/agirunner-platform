@@ -239,6 +239,19 @@ describe('ContainerInventoryService', () => {
     expect(listQuery).not.toContain("COALESCE(p.id::text, NULLIF(BTRIM(live.live_playbook_id), ''))");
   });
 
+  it('matches orchestrator containers to active agent tasks by agent instance id', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    await service.listCurrentContainers(TENANT_ID);
+
+    const listQuery = pool.query.mock.calls[0]?.[0] as string;
+    expect(listQuery).toContain('active_agent_tasks AS');
+    expect(listQuery).toContain('JOIN agents a');
+    expect(listQuery).toContain("live.container_id LIKE (a.metadata->>'instance_id') || '%'");
+    expect(listQuery).toContain('t.id = a.current_task_id');
+    expect(listQuery).toContain('active_agent_task_id');
+  });
+
   it('does not expose unmatched live playbook ids as linkable playbook ids', async () => {
     pool.query.mockResolvedValueOnce({
       rows: [
@@ -296,9 +309,14 @@ describe('ContainerInventoryService', () => {
     await service.listCurrentContainers(TENANT_ID);
 
     const listQuery = pool.query.mock.calls[0]?.[0] as string;
-    expect(listQuery).toContain('COALESCE(t.id, live.live_task_id, live.active_task_id, live.heartbeat_task_id) AS task_id');
-    expect(listQuery).toContain('t.id = COALESCE(live.live_task_id, live.active_task_id, live.heartbeat_task_id)');
-    expect(listQuery).not.toContain('COALESCE(t.id, live.live_task_id, live.heartbeat_task_id, live.active_task_id) AS task_id');
+    expect(listQuery).toContain('live.active_agent_task_id');
+    expect(listQuery).toContain('live.active_task_id');
+    expect(listQuery).toContain('live.heartbeat_task_id');
+    expect(listQuery).toContain('live.live_task_id');
+    expect(listQuery).toContain('live.active_agent_task_id,');
+    expect(listQuery).toContain('t.id = COALESCE(');
+    expect(listQuery).toContain('COALESCE(');
+    expect(listQuery).not.toContain('live.heartbeat_task_id, live.active_task_id');
   });
 
   it('projects plain orchestrator task titles while keeping activation metadata separate', async () => {

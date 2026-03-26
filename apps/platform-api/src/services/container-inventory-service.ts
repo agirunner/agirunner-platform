@@ -140,6 +140,23 @@ WITH active_worker_tasks AS (
    WHERE was.desired_state_id IS NOT NULL
    ORDER BY was.container_id ASC, t.updated_at DESC
 ),
+active_agent_tasks AS (
+  SELECT DISTINCT ON (live.container_id)
+         live.container_id,
+         a.current_task_id AS active_agent_task_id
+    FROM live_container_inventory live
+    JOIN agents a
+      ON a.tenant_id = $1
+     AND COALESCE(a.metadata->>'instance_id', '') <> ''
+     AND live.container_id LIKE (a.metadata->>'instance_id') || '%'
+    JOIN tasks t
+      ON t.tenant_id = $1
+     AND t.id = a.current_task_id
+     AND t.state = ANY($2::task_state[])
+   WHERE live.tenant_id = $1
+     AND live.kind = 'orchestrator'
+   ORDER BY live.container_id ASC, t.updated_at DESC
+),
 live_rows AS (
   SELECT
     live.container_id,
@@ -160,11 +177,14 @@ live_rows AS (
     live.role_name AS live_role_name,
     live.playbook_id AS live_playbook_id,
     live.playbook_name AS live_playbook_name,
+    aat.active_agent_task_id,
     awt.active_task_id,
     rh.task_id AS heartbeat_task_id,
     rh.playbook_id AS heartbeat_playbook_id,
     rh.state AS heartbeat_state
   FROM live_container_inventory live
+  LEFT JOIN active_agent_tasks aat
+    ON aat.container_id = live.container_id
   LEFT JOIN active_worker_tasks awt
     ON awt.container_id = live.container_id
   LEFT JOIN runtime_heartbeats rh
@@ -198,7 +218,13 @@ SELECT
   COALESCE(p.name, NULLIF(BTRIM(live.live_playbook_name), '')) AS playbook_name,
   COALESCE(w.id, live.live_workflow_id) AS workflow_id,
   w.name AS workflow_name,
-  COALESCE(t.id, live.live_task_id, live.active_task_id, live.heartbeat_task_id) AS task_id,
+  COALESCE(
+    t.id,
+    live.live_task_id,
+    live.active_agent_task_id,
+    live.active_task_id,
+    live.heartbeat_task_id
+  ) AS task_id,
   live.execution_backend,
   t.execution_environment_snapshot->>'id' AS execution_environment_id,
   t.execution_environment_snapshot->>'name' AS execution_environment_name,
@@ -236,7 +262,12 @@ LEFT JOIN worker_desired_state wd
  AND wd.id = live.desired_state_id
 LEFT JOIN tasks t
   ON t.tenant_id = $1
- AND t.id = COALESCE(live.live_task_id, live.active_task_id, live.heartbeat_task_id)
+ AND t.id = COALESCE(
+   live.live_task_id,
+   live.active_agent_task_id,
+   live.active_task_id,
+   live.heartbeat_task_id
+ )
 LEFT JOIN workflows w
   ON w.tenant_id = $1
  AND w.id = COALESCE(live.live_workflow_id, t.workflow_id)
