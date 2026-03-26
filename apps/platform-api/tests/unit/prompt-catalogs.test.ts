@@ -62,7 +62,9 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('submit_handoff accepts only its documented schema fields.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not invent extras such as tests_run or verification_results');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('target_id is never a top-level handoff field');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Never send next_expected_actor or next_expected_action inside submit_handoff.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Optional context files may not exist.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not read guessed files directly.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('shell_exec timeout is in seconds and MUST stay within tool limits');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('confirm the runtime exists or install it');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Treat next_expected_actor and next_expected_action as authoritative routing state.');
@@ -93,6 +95,10 @@ describe('prompt catalogs', () => {
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Use sh-compatible shell_exec commands.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not assume bash exists.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Before executing a script path directly, verify it exists and is executable.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'prefer a temp file or quoted heredoc instead of fragile inline quoting or bash-only constructs',
@@ -183,6 +189,9 @@ describe('prompt catalogs', () => {
       'If a workflow mutation returns recoverable_not_applied, treat it as platform guidance: inspect current state, follow suggested_next_actions, and do not loop the same stale mutation again in the same state.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'If complete_workflow returns recoverable_not_applied because the workflow lifecycle is not closable yet, stop retrying completion in that state, record any needed callouts, and wait for the next actionable event or continue the ongoing workflow cycle.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If request_changes reuses an already reopened task, call update_task_input with the concrete rework contract before the specialist resumes.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
@@ -222,6 +231,9 @@ describe('prompt catalogs', () => {
       'Do not call continuity or handoff read tools with an empty work_item_id.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Do not use read_latest_handoff, read_handoff_chain, or read_work_item_continuity as speculative probes on workflow-scoped activations.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Never treat a workflow-scoped activation as implicitly bound to the most recent work item.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
@@ -255,7 +267,7 @@ describe('prompt catalogs', () => {
   });
 
   it('keeps the shared prompts bounded for routine execution', () => {
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(5000);
-    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(9000);
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(6500);
+    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(10000);
   });
 });

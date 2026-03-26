@@ -2,7 +2,7 @@ import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { registerErrorHandler } from '../../src/errors/error-handler.js';
-import { ValidationError } from '../../src/errors/domain-errors.js';
+import { ConflictError, ValidationError } from '../../src/errors/domain-errors.js';
 import { ArtifactService } from '../../src/services/artifact-service.js';
 import { GuidedClosureRecoveryHelpersService } from '../../src/services/guided-closure/recovery-helpers.js';
 import { PlaybookWorkflowControlService } from '../../src/services/playbook-workflow-control-service.js';
@@ -595,6 +595,88 @@ describe('orchestratorControlRoutes', () => {
       },
       expect.anything(),
     );
+
+    completeWorkflowSpy.mockRestore();
+    loadTaskScopeSpy.mockRestore();
+  });
+
+  it('returns guided recovery when complete_workflow is attempted for an ongoing lifecycle workflow', async () => {
+    const completeWorkflowSpy = vi
+      .spyOn(PlaybookWorkflowControlService.prototype, 'completeWorkflow')
+      .mockRejectedValue(new ConflictError('Only planned playbook workflows can be completed by the orchestrator'));
+    const loadTaskScopeSpy = vi
+      .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
+      .mockResolvedValue({
+        id: 'task-orchestrator',
+        workflow_id: 'workflow-1',
+        workspace_id: 'workspace-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'drafting',
+        activation_id: 'activation-1',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        is_orchestrator_task: true,
+        state: 'in_progress',
+      });
+
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'complete_workflow', 'complete-workflow-ongoing']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          expect(params?.[5]).toBe('recoverable_not_applied');
+          expect(params?.[6]).toBe('workflow_lifecycle_not_closable');
+          expect(params?.[4]).toMatchObject({
+            mutation_outcome: 'recoverable_not_applied',
+            recovery_class: 'workflow_lifecycle_not_closable',
+            closure_still_possible: true,
+            blocking: false,
+          });
+          return { rowCount: 1, rows: [{ response: params?.[4] }] };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', { connect: vi.fn(async () => client) });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', {});
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/workflow/complete',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'complete-workflow-ongoing',
+        summary: 'Attempt closure on an ongoing workflow',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toMatchObject({
+      mutation_outcome: 'recoverable_not_applied',
+      recovery_class: 'workflow_lifecycle_not_closable',
+      closure_still_possible: true,
+    });
 
     completeWorkflowSpy.mockRestore();
     loadTaskScopeSpy.mockRestore();

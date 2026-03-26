@@ -321,7 +321,7 @@ describe('tasks routes', () => {
 
     const body = response.json();
     expect(response.statusCode).toBe(422);
-    expect(body.error.message).toBe('Invalid request body');
+    expect(body.error.message).toContain('Invalid request body');
     expect(JSON.stringify(body.error.details)).toContain(
       'specialist tasks must use execution_backend runtime_plus_task',
     );

@@ -18,6 +18,7 @@ import {
 } from '../../services/task-agent-scope-service.js';
 import { HandoffService } from '../../services/handoff-service.js';
 import {
+  ConflictError,
   NotFoundError,
   SchemaValidationFailedError,
   ValidationError,
@@ -1394,11 +1395,12 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         'complete_workflow',
         body.request_id,
         (client) =>
-          playbookControlService.completeWorkflow(
+          completeWorkflowOrNoop(
             request.auth!,
-            taskScope.workflow_id,
+            taskScope,
             body,
             client,
+            playbookControlService,
           ),
       );
       return { data: stored };
@@ -1815,6 +1817,32 @@ async function createWorkflowWorkItemOrNoop(
   }
 }
 
+async function completeWorkflowOrNoop(
+  identity: ApiKeyIdentity,
+  taskScope: ActiveOrchestratorTaskScope,
+  input: z.infer<typeof workflowCompleteSchema>,
+  client: import('../../db/database.js').DatabaseClient,
+  playbookControlService: PlaybookWorkflowControlService,
+): Promise<Record<string, unknown>> {
+  try {
+    return await playbookControlService.completeWorkflow(
+      identity,
+      taskScope.workflow_id,
+      input,
+      client,
+    );
+  } catch (error) {
+    const noop = buildRecoverableCompleteWorkflowNoopIfNotReady({
+      error,
+      taskScope,
+    });
+    if (noop) {
+      return noop;
+    }
+    throw error;
+  }
+}
+
 async function buildUnconfiguredGateApprovalAdvisory(
   app: FastifyInstance,
   identity: ApiKeyIdentity,
@@ -1986,6 +2014,86 @@ function classifyRecoverableCompleteWorkItemReason(message: string): string | nu
     return 'work_item_waiting_for_continuation';
   }
   return null;
+}
+
+function classifyRecoverableCompleteWorkflowReason(message: string): string | null {
+  if (message.includes('Only planned playbook workflows can be completed by the orchestrator')) {
+    return 'workflow_lifecycle_not_closable';
+  }
+  return null;
+}
+
+function recoverableCompleteWorkflowActions(
+  reasonCode: string,
+  taskScope: ActiveOrchestratorTaskScope,
+) {
+  switch (reasonCode) {
+    case 'workflow_lifecycle_not_closable':
+    default:
+      return [
+        {
+          action_code: 'inspect_workflow_state',
+          target_type: 'workflow',
+          target_id: taskScope.workflow_id,
+          why: 'The workflow lifecycle and state determine whether global closure is legal.',
+          requires_orchestrator_judgment: false,
+        },
+        {
+          action_code: 'continue_ongoing_workflow',
+          target_type: 'workflow',
+          target_id: taskScope.workflow_id,
+          why: 'Ongoing workflows stay open after the current cycle settles; record callouts and wait for the next actionable event instead of forcing workflow completion.',
+          requires_orchestrator_judgment: true,
+        },
+      ];
+  }
+}
+
+function buildRecoverableCompleteWorkflowNoopIfNotReady(input: {
+  error: unknown;
+  taskScope: ActiveOrchestratorTaskScope;
+}) {
+  if (!(input.error instanceof ConflictError || input.error instanceof ValidationError)) {
+    return null;
+  }
+  const reasonCode = classifyRecoverableCompleteWorkflowReason(input.error.message);
+  if (!reasonCode) {
+    return null;
+  }
+  logSafetynetTriggered(
+    NOT_READY_NOOP_RECOVERY_SAFETYNET,
+    'recoverable complete_workflow noop returned',
+    { workflow_id: input.taskScope.workflow_id, reason_code: reasonCode },
+  );
+  return buildLegacyCompatibleRecoverableNoop({
+    taskScope: input.taskScope,
+    reasonCode,
+    message: input.error.message,
+    legacyFields: {
+      safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
+      blocked_on: [input.error.message],
+      work_item_id: input.taskScope.work_item_id ?? null,
+      stage_name: input.taskScope.stage_name ?? null,
+      workflow_id: input.taskScope.workflow_id,
+    },
+    stateSnapshot: {
+      workflow_id: input.taskScope.workflow_id,
+      work_item_id: input.taskScope.work_item_id ?? null,
+      task_id: input.taskScope.id,
+      current_stage: input.taskScope.stage_name ?? null,
+      active_blocking_controls: [],
+      active_advisory_controls: [],
+    },
+    suggestedNextActions: recoverableCompleteWorkflowActions(
+      reasonCode,
+      input.taskScope,
+    ),
+    suggestedTargetIds: {
+      workflow_id: input.taskScope.workflow_id,
+      work_item_id: input.taskScope.work_item_id ?? null,
+      task_id: input.taskScope.id,
+    },
+  });
 }
 
 function recoverableCompleteWorkItemActions(

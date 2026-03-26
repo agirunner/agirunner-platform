@@ -24,6 +24,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Blocked completions MUST omit resolution.
 - Delivery handoffs MUST omit resolution entirely. Omit the resolution key itself; do not send resolution: approved or placeholders.
 - submit_handoff accepts only its documented schema fields. Do not invent extras such as tests_run or verification_results; put evidence into the documented handoff fields. target_id is never a top-level handoff field; use it only inside recommended_next_actions entries when that structured list is needed.
+- Never send next_expected_actor or next_expected_action inside submit_handoff. Those are continuity outputs, not handoff inputs.
 - Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.
 - When handoffs mention repository files, use repo-relative paths like workflow_cli/__main__.py, never repo/workflow_cli/__main__.py or /tmp/workspace paths.
 - For non-repository workspaces, treat the workspace root as the only valid file root and use workspace-relative paths only.
@@ -32,11 +33,14 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Never invent ids or leave placeholders in tool calls.
 - Use repo-relative or tool-returned workspace paths, never guessed /tmp/workspace paths.
 - Read only listed or discovered files. Optional context files may not exist.
+- Do not read guessed files directly. If a file was not explicitly created in the current step or returned by another tool, list or search first and then read the exact discovered path.
 - Use file_edit only after reading the current file and only when old_text still matches exactly.
 - If you are replacing most of a file or an exact edit fails, re-read and use file_write or a new exact match instead of repeating the same edit.
 - If file_edit fails with old_text not found, treat that as stale file state: re-read immediately and either patch the fresh exact text or rewrite the file cleanly. Do not repeat the same stale edit payload.
 - shell_exec timeout is in seconds and MUST stay within tool limits.
 - Use sh-compatible shell_exec commands. When passing JSON or multiline content, prefer a temp file or quoted heredoc instead of fragile inline quoting or bash-only constructs unless you explicitly invoke bash yourself.
+- Do not assume bash exists. If a command or script requires bash, verify bash first or install it before use, or run a sh-compatible alternative instead.
+- Before executing a script path directly, verify it exists and is executable. If it is not executable, invoke it through the correct interpreter instead of assuming chmod or shebang behavior.
 - Before commands, confirm the runtime exists or install it.
 - Treat next_expected_actor and next_expected_action as authoritative routing state.
 - Do not infer routing or review policy from role, stage, or playbook names.
@@ -104,6 +108,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - Workflow-scoped orchestrator activations often have no current work_item_id. Do not call continuity or handoff read tools with an empty work_item_id.
 - If you need continuity or handoff state and the activation is not explicitly scoped to one work item, list_work_items first, pick the exact target work_item_id, and then pass it explicitly.
 - Never treat a workflow-scoped activation as implicitly bound to the most recent work item. Discover the target work item first and then pass its exact id into continuity or handoff reads.
+- Do not use read_latest_handoff, read_handoff_chain, or read_work_item_continuity as speculative probes on workflow-scoped activations. Choose the target work item first.
 - When you create successor work for a planned workflow, complete the predecessor work item if its deliverable is accepted.
 - Create successor work items and tasks in the successor stage, not the stage that just finished.
 - request_gate_approval targets the human-gate stage, never the predecessor stage.
@@ -131,6 +136,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 
 ## Guided Recovery
 - If a workflow mutation returns recoverable_not_applied, treat it as platform guidance: inspect current state, follow suggested_next_actions, and do not loop the same stale mutation again in the same state.
+- If complete_workflow returns recoverable_not_applied because the workflow lifecycle is not closable yet, stop retrying completion in that state, record any needed callouts, and wait for the next actionable event or continue the ongoing workflow cycle.
 - Follow a fallback ladder: retry transient failures, inspect canonical state, reroute or reassign, rerun missing predecessor work with a corrected brief, waive preferred steps explicitly, close with callouts if legal, and escalate only when closure is impossible without external input.
 
 ## Memory Discipline

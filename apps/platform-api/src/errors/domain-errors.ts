@@ -59,8 +59,46 @@ export class InvalidStateTransitionError extends DomainError {
 
 export class SchemaValidationFailedError extends DomainError {
   constructor(message: string, details?: Record<string, unknown>) {
-    super('SCHEMA_VALIDATION_FAILED', 422, message, details);
+    const summarizedMessage = summarizeSchemaValidationMessage(message, details);
+    super('SCHEMA_VALIDATION_FAILED', 422, summarizedMessage, details);
   }
+}
+
+function summarizeSchemaValidationMessage(
+  message: string,
+  details?: Record<string, unknown>,
+): string {
+  const issues = details?.issues;
+  if (!issues || typeof issues !== 'object') {
+    return message;
+  }
+
+  const fieldErrors = readStringArrayRecord((issues as Record<string, unknown>).fieldErrors);
+  const formErrors = readStringArray((issues as Record<string, unknown>).formErrors);
+  const firstDetail = [...formErrors, ...Object.values(fieldErrors).flat()].find(
+    (value) => value.trim().length > 0,
+  );
+  if (!firstDetail) {
+    return message;
+  }
+
+  return `${message}: ${firstDetail}`;
+}
+
+function readStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((entry): entry is string => typeof entry === 'string');
+}
+
+function readStringArrayRecord(value: unknown): Record<string, string[]> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(value).map(([key, entry]) => [key, readStringArray(entry)]),
+  );
 }
 
 export class RateLimitedError extends DomainError {
