@@ -13,6 +13,10 @@ function readSource() {
     .join('\n');
 }
 
+function readLibrarySource() {
+  return readFileSync(resolve(import.meta.dirname, './playbook-list-page.library.tsx'), 'utf8');
+}
+
 describe('playbook list page source', () => {
   it('uses a full-page authoring workspace instead of a long modal', () => {
     const source = readSource();
@@ -71,5 +75,21 @@ describe('playbook list page source', () => {
     expect(source).not.toContain('dashboardApi.listRoleDefinitions');
     expect(source).not.toContain('activeRoleNames');
     expect(source).not.toContain('roles: activeRoleNames.map');
+  });
+
+  it('uses approved lifecycle badge colors, shows process before outcome, and keeps actions visually aligned', () => {
+    const source = readLibrarySource();
+    expect(source).toContain("from '../../lib/dashboard-badge-palette.js'");
+    expect(source).toContain('DASHBOARD_BADGE_TOKENS.success.className');
+    expect(source).toContain('DASHBOARD_BADGE_TOKENS.informationNeutral.className');
+    expect(source).not.toContain('variant="secondary">{describePlaybookLifecycle');
+    expect(source).not.toContain('<Button asChild size="sm" variant="outline"');
+
+    const processIndex = source.indexOf('<div className="font-medium">Process</div>');
+    const outcomeIndex = source.indexOf('<div className="font-medium">Outcome</div>');
+
+    expect(processIndex).toBeGreaterThan(-1);
+    expect(outcomeIndex).toBeGreaterThan(-1);
+    expect(processIndex).toBeLessThan(outcomeIndex);
   });
 });

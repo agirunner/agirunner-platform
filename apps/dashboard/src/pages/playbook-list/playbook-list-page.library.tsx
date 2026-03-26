@@ -13,6 +13,7 @@ import {
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
+import { DASHBOARD_BADGE_TOKENS } from '../../lib/dashboard-badge-palette.js';
 import {
   Select,
   SelectContent,
@@ -37,6 +38,12 @@ import {
 
 function describePlaybookLifecycle(lifecycle: 'planned' | 'ongoing'): string {
   return lifecycle === 'planned' ? 'Planned' : 'Ongoing';
+}
+
+function lifecycleBadgeClassName(lifecycle: 'planned' | 'ongoing'): string {
+  return lifecycle === 'ongoing'
+    ? DASHBOARD_BADGE_TOKENS.success.className
+    : DASHBOARD_BADGE_TOKENS.informationNeutral.className;
 }
 
 export function PlaybookLibraryToolbar(props: {
@@ -190,7 +197,9 @@ function PlaybookFamilyRow(props: {
           </div>
         </TableCell>
         <TableCell>
-          <Badge variant="secondary">{describePlaybookLifecycle(family.lifecycle)}</Badge>
+          <Badge variant="outline" className={lifecycleBadgeClassName(family.lifecycle)}>
+            {describePlaybookLifecycle(family.lifecycle)}
+          </Badge>
         </TableCell>
         <TableCell className="text-sm text-muted">
           {family.process.roleCount} roles · {family.process.inputCount} inputs
@@ -203,8 +212,8 @@ function PlaybookFamilyRow(props: {
         </TableCell>
         <TableCell className="text-right">
           <div className="flex justify-end gap-2">
-            <Button asChild size="sm" variant="outline" onClick={(event) => event.stopPropagation()}>
-              <Link className="hover:underline" to={`/design/playbooks/${playbook.id}`}>
+            <Button asChild size="sm" onClick={(event) => event.stopPropagation()}>
+              <Link to={`/design/playbooks/${playbook.id}`}>
                 <Settings2 className="h-4 w-4" />
                 Manage
               </Link>
@@ -234,12 +243,12 @@ function PlaybookFamilyRow(props: {
               </div>
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr),minmax(0,1.2fr)]">
                 <div className="rounded-lg border border-border/70 bg-background/80 p-3 text-sm">
-                  <div className="font-medium">Outcome</div>
-                  <div className="mt-2 text-muted">{family.outcome}</div>
-                </div>
-                <div className="rounded-lg border border-border/70 bg-background/80 p-3 text-sm">
                   <div className="font-medium">Process</div>
                   <div className="mt-2 text-muted">{processSummary}</div>
+                </div>
+                <div className="rounded-lg border border-border/70 bg-background/80 p-3 text-sm">
+                  <div className="font-medium">Outcome</div>
+                  <div className="mt-2 text-muted">{family.outcome}</div>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2 text-xs text-muted">
