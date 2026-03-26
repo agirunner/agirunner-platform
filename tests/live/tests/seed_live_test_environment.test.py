@@ -366,6 +366,33 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
         self.assertEqual("env-debian", create_call[2]["executionEnvironmentId"])
         self.assertEqual("env-debian", roles[0]["execution_environment_id"])
 
+    def test_sync_roles_uses_selection_seed_for_catalog_execution_environment_assignment(self) -> None:
+        client = FakeClient()
+
+        with patch.object(
+            seed_live_test_environment,
+            "load_fixture",
+            return_value=[
+                {
+                    "name": "release-assessor",
+                    "allowedTools": ["shell_exec"],
+                }
+            ],
+        ):
+            roles = seed_live_test_environment.sync_roles(
+                client,
+                "ignored.json",
+                default_execution_environment_candidates=[
+                    {"id": "env-debian", "name": "Debian Base"},
+                    {"id": "env-ubuntu", "name": "Ubuntu LTS Base"},
+                ],
+                execution_environment_selection_seed="seed-b",
+            )
+
+        create_call = next(call for call in client.calls if call[0] == "POST" and call[1] == "/api/v1/config/roles")
+        self.assertEqual("env-ubuntu", create_call[2]["executionEnvironmentId"])
+        self.assertEqual("env-ubuntu", roles[0]["execution_environment_id"])
+
     def test_sync_roles_preserves_default_execution_environment_opt_in_without_explicit_assignment(self) -> None:
         client = FakeClient()
 

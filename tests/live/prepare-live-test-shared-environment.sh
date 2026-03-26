@@ -22,7 +22,6 @@ LIVE_TEST_DEFAULT_BRANCH="${LIVE_TEST_DEFAULT_BRANCH:-main}"
 RUNTIME_REPO_PATH="${RUNTIME_REPO_PATH:-${REPO_ROOT}/../agirunner-runtime}"
 FIXTURES_REPO_PATH="${FIXTURES_REPO_PATH:-${REPO_ROOT}/../agirunner-test-fixtures}"
 RUNTIME_IMAGE="${RUNTIME_IMAGE:-agirunner-runtime:local}"
-EXECUTION_IMAGE="${EXECUTION_IMAGE:-agirunner-runtime-execution:local}"
 LIVE_TEST_PROVIDER_AUTH_MODE="${LIVE_TEST_PROVIDER_AUTH_MODE:-oauth}"
 LIVE_TEST_PROVIDER_TYPE="${LIVE_TEST_PROVIDER_TYPE:-openai}"
 LIVE_TEST_PROVIDER_NAME="${LIVE_TEST_PROVIDER_NAME:-OpenAI (Subscription)}"
@@ -38,13 +37,13 @@ LIVE_TEST_ORCHESTRATOR_REPLICAS="${LIVE_TEST_ORCHESTRATOR_REPLICAS:-2}"
 LIVE_TEST_SPECIALIST_MODEL_ID="${LIVE_TEST_SPECIALIST_MODEL_ID:-gpt-5.4-mini}"
 LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE="${LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE:-${LIVE_TEST_MODEL_ENDPOINT_TYPE}}"
 LIVE_TEST_SPECIALIST_REASONING_EFFORT="${LIVE_TEST_SPECIALIST_REASONING_EFFORT:-medium}"
+LIVE_TEST_EXECUTION_ENVIRONMENT_SELECTION_SEED="${LIVE_TEST_EXECUTION_ENVIRONMENT_SELECTION_SEED:-$(date +%s%N)}"
 LIVE_TEST_RUN_SCRIPT="${LIVE_TEST_RUN_SCRIPT:-${LIVE_TEST_PLATFORM_ROOT}/tests/live/lib/seed_live_test_shared_environment.py}"
 
 require_live_test_dir "${RUNTIME_REPO_PATH}" "runtime repo"
 require_live_test_dir "${LIVE_TEST_PLATFORM_ROOT}/apps/platform-api" "platform api app"
 require_live_test_file "${LIVE_TEST_COMPOSE_FILE}" "platform docker compose file"
 require_live_test_dir "${LIVE_TEST_LIBRARY_ROOT}" "live test library"
-require_live_test_file "${RUNTIME_REPO_PATH}/Dockerfile.execution" "execution Dockerfile"
 require_live_test_file "${LIVE_TEST_RUN_SCRIPT}" "shared live test seed script"
 require_live_test_value "DEFAULT_ADMIN_API_KEY" "${DEFAULT_ADMIN_API_KEY:-}"
 require_live_test_value "JWT_SECRET" "${JWT_SECRET:-}"
@@ -77,9 +76,6 @@ mkdir -p "${LIVE_TEST_BOOTSTRAP_DIR}" "${LIVE_TEST_TRACE_DIR}"
 
 log_live_test "building runtime image ${RUNTIME_IMAGE}"
 docker build -t "${RUNTIME_IMAGE}" "${RUNTIME_REPO_PATH}"
-
-log_live_test "building execution image ${EXECUTION_IMAGE}"
-docker build -f "${RUNTIME_REPO_PATH}/Dockerfile.execution" -t "${EXECUTION_IMAGE}" "${RUNTIME_REPO_PATH}"
 
 refresh_live_test_remote_branch "${FIXTURES_REPO_PATH}" "${LIVE_TEST_DEFAULT_BRANCH}"
 git -C "${FIXTURES_REPO_PATH}" checkout "${LIVE_TEST_DEFAULT_BRANCH}"
@@ -119,6 +115,7 @@ export LIVE_TEST_ORCHESTRATOR_REPLICAS
 export LIVE_TEST_SPECIALIST_MODEL_ID
 export LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE
 export LIVE_TEST_SPECIALIST_REASONING_EFFORT
+export LIVE_TEST_EXECUTION_ENVIRONMENT_SELECTION_SEED
 python3 "${LIVE_TEST_RUN_SCRIPT}" >"${LIVE_TEST_SHARED_CONTEXT_FILE}"
 
 log_live_test "shared bootstrap context written to ${LIVE_TEST_SHARED_CONTEXT_FILE}"

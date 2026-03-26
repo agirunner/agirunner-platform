@@ -297,6 +297,7 @@ def _assign_catalog_execution_environment(
     payload: dict[str, Any],
     *,
     default_execution_environment_candidates: list[dict[str, Any]] | None,
+    selection_seed: str | None = None,
 ) -> dict[str, Any]:
     next_payload = dict(payload)
     if "executionEnvironmentId" in next_payload:
@@ -307,7 +308,8 @@ def _assign_catalog_execution_environment(
     role_name = str(next_payload.get("name") or "").strip()
     if role_name == "":
         raise RuntimeError("role name is required before assigning an execution environment")
-    index = int.from_bytes(sha256(role_name.encode("utf-8")).digest()[:8], "big") % len(candidates)
+    selection_key = role_name if not selection_seed else f"{selection_seed}:{role_name}"
+    index = int.from_bytes(sha256(selection_key.encode("utf-8")).digest()[:8], "big") % len(candidates)
     candidate = candidates[index]
     environment_id = str(candidate.get("id") or "").strip()
     if environment_id == "":
@@ -324,6 +326,7 @@ def sync_roles(
     resolved_model_id: str | None = None,
     execution_environment_aliases: dict[str, dict[str, Any]] | None = None,
     default_execution_environment_candidates: list[dict[str, Any]] | None = None,
+    execution_environment_selection_seed: str | None = None,
 ) -> list[dict[str, Any]]:
     existing_roles = extract_data(
         client.request("GET", "/api/v1/config/roles", expected=(200,), label="roles.list")
@@ -351,6 +354,7 @@ def sync_roles(
             synced_payload = _assign_catalog_execution_environment(
                 synced_payload,
                 default_execution_environment_candidates=default_execution_environment_candidates,
+                selection_seed=execution_environment_selection_seed,
             )
         existing = existing_by_name.get(synced_payload["name"])
         if existing is None:
@@ -418,6 +422,7 @@ def sync_library_profiles(
     resolved_model_id: str | None = None,
     execution_environment_aliases: dict[str, dict[str, Any]] | None = None,
     default_execution_environment_candidates: list[dict[str, Any]] | None = None,
+    execution_environment_selection_seed: str | None = None,
 ) -> dict[str, dict[str, Any]]:
     registry: dict[str, dict[str, Any]] = {}
     library_path = Path(library_root)
@@ -434,6 +439,7 @@ def sync_library_profiles(
             resolved_model_id=resolved_model_id,
             execution_environment_aliases=execution_environment_aliases,
             default_execution_environment_candidates=default_execution_environment_candidates,
+            execution_environment_selection_seed=execution_environment_selection_seed,
         )
         fixture_roles = load_fixture(str(roles_fixture))
         fixture_roles_by_name = {

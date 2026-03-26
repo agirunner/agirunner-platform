@@ -60,6 +60,7 @@ def main() -> None:
     orchestrator_replicas = int(env("LIVE_TEST_ORCHESTRATOR_REPLICAS", "2"))
     runtime_image = env("RUNTIME_IMAGE", "agirunner-runtime:local")
     library_root = env("LIVE_TEST_LIBRARY_ROOT", required=True)
+    execution_environment_selection_seed = env("LIVE_TEST_EXECUTION_ENVIRONMENT_SELECTION_SEED") or None
 
     trace = TraceRecorder(trace_dir)
     public_client = ApiClient(base_url, trace)
@@ -78,6 +79,7 @@ def main() -> None:
         resolved_model_id=specialist_model_id,
         execution_environment_aliases=execution_environments["aliases"],
         default_execution_environment_candidates=execution_environments["default_candidates"],
+        execution_environment_selection_seed=execution_environment_selection_seed,
     )
     roles = [{"name": role_name} for profile in profiles.values() for role_name in profile["role_names"]]
 
@@ -121,6 +123,7 @@ def main() -> None:
             "specialist_model_name": specialist_model["model_id"],
             "specialist_reasoning": specialist_reasoning_effort,
             "execution_environments": execution_environments,
+            "execution_environment_selection_seed": execution_environment_selection_seed,
             "profiles": profiles,
         }
     )
