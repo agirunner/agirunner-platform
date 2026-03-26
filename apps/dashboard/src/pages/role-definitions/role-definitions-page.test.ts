@@ -88,9 +88,11 @@ describe('role definitions page source', () => {
     expect(source).toContain('Select the specialist execution environment for this role.');
     expect(source).toContain('value={draft.runtimeImage}');
     expect(source).not.toContain('orchestrator-runtime-image-suggestions');
+    expect(source).not.toContain('Use the same standard image ref format as Roles and Specialist agent defaults.');
     expect(source).toContain('This image is different from the environment where your specialists execute their');
     expect(source).toContain('tasks. This small alpine-based image is optimized for running the orchestrator');
     expect(source).toContain('loop, not for executing complex tasks.');
+    expect(source).not.toContain('rounded-lg border border-border/70 bg-muted/10 px-3 py-3');
     expect(source).toContain('max-h-[90vh] max-w-4xl overflow-y-auto');
     expect(source).not.toContain('Specialist Execution container override');
     expect(source).toContain('placeholder="2"');

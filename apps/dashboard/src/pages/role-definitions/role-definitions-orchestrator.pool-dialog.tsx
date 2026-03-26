@@ -144,14 +144,11 @@ export function OrchestratorPoolDialog(props: {
               {validationErrors.runtimeImage ? (
                 <p className="text-xs text-red-600">{validationErrors.runtimeImage}</p>
               ) : null}
-              <p className="text-xs text-muted">
-                Use the same standard image ref format as Roles and Specialist agent defaults.
-              </p>
-              <div className="rounded-lg border border-border/70 bg-muted/10 px-3 py-3 text-xs leading-5 text-muted">
+              <p className="text-xs leading-5 text-muted">
                 This image is different from the environment where your specialists execute their
                 tasks. This small alpine-based image is optimized for running the orchestrator
                 loop, not for executing complex tasks.
-              </div>
+              </p>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">CPU</label>
