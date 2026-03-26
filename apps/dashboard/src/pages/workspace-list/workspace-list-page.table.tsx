@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronRight, FolderOpen } from 'lucide-react';
+import { ChevronDown, ChevronRight, FolderOpen, Pencil } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import type { DashboardWorkspaceRecord } from '../../lib/api.js';
@@ -161,7 +161,7 @@ function WorkspaceTableRow(props: {
             onClick={(event) => event.stopPropagation()}
           >
             <Link to={`/design/workspaces/${props.workspace.id}`} state={workspaceLinkState}>
-              <FolderOpen className="h-4 w-4" />
+              <Pencil className="h-4 w-4" />
             </Link>
           </Button>
         </TableCell>

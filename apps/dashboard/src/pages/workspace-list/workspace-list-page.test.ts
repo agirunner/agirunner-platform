@@ -51,6 +51,7 @@ describe('workspace list page source', () => {
     expect(source).toContain('to={`/design/workspaces/${props.workspace.id}`}');
     expect(source).toContain('state={workspaceLinkState}');
     expect(source).toContain('aria-label={`Toggle ${props.workspace.name} active`}');
+    expect(source).toContain('Pencil className="h-4 w-4"');
     expect(source).toContain('className="font-medium text-foreground underline-offset-4 transition hover:underline"');
     expect(source).toContain('<TableCell className="text-sm text-foreground">{workspaceMetrics}</TableCell>');
     expect(source).toContain('<TableCell className="text-sm text-foreground">{activityLabel}</TableCell>');

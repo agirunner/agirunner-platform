@@ -31,6 +31,7 @@ describe('playbook list page source', () => {
     expect(source).toContain('buildPlaybookDefinition(');
     expect(source).toContain('aria-label={`Open ${family.name}`}');
     expect(source).toContain('aria-label={`Toggle ${family.name} active`}');
+    expect(source).toContain('Pencil className="h-4 w-4"');
     expect(source).toContain('variant="ghost"');
     expect(source).toContain('className="h-8 w-8"');
     expect(source).toContain('aria-label={`Launch ${family.name}`}');
@@ -73,6 +74,7 @@ describe('playbook list page source', () => {
     expect(source).not.toContain('dashboardApi.deletePlaybook');
     expect(source).not.toContain('Delete Playbook Revision');
     expect(source).not.toContain('PlaybookFamilyCard');
+    expect(source).not.toContain('Settings2 className="h-4 w-4"');
   });
 
   it('keeps fresh playbook drafts blank instead of backfilling active roles', () => {

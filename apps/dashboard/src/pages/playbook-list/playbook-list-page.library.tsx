@@ -3,9 +3,9 @@ import { Link } from 'react-router-dom';
 import {
   ChevronDown,
   ChevronRight,
+  Pencil,
   Rocket,
   Search,
-  Settings2,
 } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
@@ -244,7 +244,7 @@ function PlaybookFamilyRow(props: {
               onClick={(event) => event.stopPropagation()}
             >
               <Link to={`/design/playbooks/${playbook.id}`}>
-                <Settings2 className="h-4 w-4" />
+                <Pencil className="h-4 w-4" />
               </Link>
             </Button>
             {isArchivedFamily ? (
