@@ -20,6 +20,7 @@ const MIGRATION_FILES = [
   resolve(process.cwd(), 'src/db/migrations/0001_init.sql'),
   resolve(process.cwd(), 'src/db/migrations/0007_execution_log_workflow_context.sql'),
   resolve(process.cwd(), 'src/db/migrations/0050_execution_log_filter_indexes.sql'),
+  resolve(process.cwd(), 'src/db/migrations/0057_log_filter_performance_indexes.sql'),
 ];
 
 function collectExecutionLogIncludeViolations(sql: string) {
@@ -71,6 +72,8 @@ describe('execution_logs covering indexes', () => {
     expect(sql).toContain('idx_exlogs_tenant_workflow_operation_time');
     expect(sql).toContain('idx_exlogs_tenant_workflow_role_time');
     expect(sql).toContain('idx_exlogs_tenant_workflow_actor_time');
+    expect(sql).toContain('idx_exlogs_tenant_actor_kind_time');
+    expect(sql).toContain('idx_tasks_execution_environment_search');
   });
 
   it('uses an immutable search-document expression in migrations', () => {

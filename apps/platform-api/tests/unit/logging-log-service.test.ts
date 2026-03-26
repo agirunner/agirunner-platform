@@ -888,8 +888,12 @@ describe('LogService', () => {
 
       const [sql, params] = pool.query.mock.calls[0];
       expect(sql).toContain('execution_environment_snapshot');
-      expect(sql).toContain('ILIKE');
-      expect(sql).toContain('task_ctx.execution_environment_snapshot');
+      expect(sql).toContain('LOWER(');
+      expect(sql).toContain('LIKE $');
+      expect(sql).not.toContain('ILIKE');
+      expect(sql).toContain("task_ctx.execution_environment_snapshot->>'name'");
+      expect(sql).toContain("task_ctx.execution_environment_snapshot->>'image'");
+      expect(sql).toContain("task_ctx.execution_environment_snapshot->>'resolved_image'");
       expect(params).toContain('%debian%');
     });
 

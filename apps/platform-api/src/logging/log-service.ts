@@ -266,6 +266,14 @@ const SEARCH_DOCUMENT_SQL = `to_tsvector('simple', ${SEARCH_DOCUMENT_PARTS.map((
   " || ' ' ||\n  ",
 )})`;
 
+const EXECUTION_ENVIRONMENT_SEARCH_SQL = `LOWER(
+  COALESCE(task_ctx.execution_environment_snapshot->>'name', '') || ' ' ||
+  COALESCE(task_ctx.execution_environment_snapshot->>'image', '') || ' ' ||
+  COALESCE(task_ctx.execution_environment_snapshot->>'resolved_image', '') || ' ' ||
+  COALESCE(task_ctx.execution_environment_snapshot->'verified_metadata'->>'distro', '') || ' ' ||
+  COALESCE(task_ctx.execution_environment_snapshot->'verified_metadata'->>'package_manager', '')
+)`;
+
 const LOG_SELECT_COLUMNS = `l.id, l.tenant_id, l.trace_id, l.span_id, l.parent_span_id,
             l.source, l.category, l.level, l.operation, l.status, l.duration_ms,
             l.payload, l.error,
@@ -835,14 +843,8 @@ export class LogService {
       conditions.push(`l.actor_id = ANY($${values.length}::text[])`);
     }
     if (filters.executionEnvironment) {
-      values.push(`%${filters.executionEnvironment.trim()}%`);
-      conditions.push(`(
-        task_ctx.execution_environment_snapshot->>'name' ILIKE $${values.length}
-        OR task_ctx.execution_environment_snapshot->>'image' ILIKE $${values.length}
-        OR task_ctx.execution_environment_snapshot->>'resolved_image' ILIKE $${values.length}
-        OR task_ctx.execution_environment_snapshot->'verified_metadata'->>'distro' ILIKE $${values.length}
-        OR task_ctx.execution_environment_snapshot->'verified_metadata'->>'package_manager' ILIKE $${values.length}
-      )`);
+      values.push(`%${filters.executionEnvironment.trim().toLowerCase()}%`);
+      conditions.push(`${EXECUTION_ENVIRONMENT_SEARCH_SQL} LIKE $${values.length}`);
     }
     if (filters.search) {
       const term = filters.search.trim();
