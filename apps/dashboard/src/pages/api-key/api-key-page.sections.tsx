@@ -1,6 +1,7 @@
 import { Key, Plus, ShieldAlert, ShieldCheck, TimerReset } from 'lucide-react';
 
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
@@ -157,12 +158,11 @@ function ApiKeyTableSection(props: {
   kind: 'operator' | 'system';
 }): JSX.Element {
   return (
-    <Card className="border-border/70 shadow-sm">
-      <CardHeader>
-        <CardTitle>{props.title}</CardTitle>
-        <CardDescription>{props.description}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <DashboardSectionCard
+      title={props.title}
+      description={props.description}
+      bodyClassName="space-y-4"
+    >
         {props.apiKeys.length === 0 ? <p className="text-sm text-muted">{props.emptyMessage}</p> : null}
         {props.apiKeys.length > 0 ? (
           <>
@@ -237,8 +237,7 @@ function ApiKeyTableSection(props: {
             </div>
           </>
         ) : null}
-      </CardContent>
-    </Card>
+    </DashboardSectionCard>
   );
 }
 

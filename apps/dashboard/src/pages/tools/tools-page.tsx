@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2, Wrench } from 'lucide-react';
 
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import {
   Card,
   CardContent,
@@ -79,14 +80,11 @@ export function ToolsPage(): JSX.Element {
           </CardContent>
         </Card>
       ) : (
-        <Card className="border-border/70 shadow-sm">
-          <CardHeader>
-            <CardTitle>Tool catalog</CardTitle>
-            <CardDescription>
-              {data.length} built-in tools across {new Set(data.map((t) => t.category).filter(Boolean)).size} categories.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="overflow-x-auto">
+        <DashboardSectionCard
+          title="Tool catalog"
+          description={`${data.length} built-in tools across ${new Set(data.map((t) => t.category).filter(Boolean)).size} categories.`}
+          bodyClassName="overflow-x-auto"
+        >
             <Table>
               <TableHeader>
                 <TableRow>
@@ -123,8 +121,7 @@ export function ToolsPage(): JSX.Element {
                 })}
               </TableBody>
             </Table>
-          </CardContent>
-        </Card>
+        </DashboardSectionCard>
       )}
     </div>
   );

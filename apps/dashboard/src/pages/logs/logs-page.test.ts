@@ -131,7 +131,9 @@ describe('logs page source', () => {
     const source = readPage();
     expect(source).toContain("{selectedView === 'raw' ? (");
     expect(source).toContain("{selectedView === 'summary' ? (");
-    expect(source).toContain("{selectedView === 'raw' ? (\n          <TabsContent value=\"raw\"");
-    expect(source).toContain("{selectedView === 'summary' ? (\n          <TabsContent value=\"summary\"");
+    const rawGuardIndex = source.indexOf("{selectedView === 'raw' ? (");
+    const summaryGuardIndex = source.indexOf("{selectedView === 'summary' ? (");
+    expect(source.indexOf('<TabsContent value="raw"', rawGuardIndex)).toBeGreaterThan(rawGuardIndex);
+    expect(source.indexOf('<TabsContent value="summary"', summaryGuardIndex)).toBeGreaterThan(summaryGuardIndex);
   });
 });

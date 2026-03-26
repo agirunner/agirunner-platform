@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Switch } from '../../components/ui/switch.js';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 
 export function SectionCard(props: {
   id?: string;
@@ -10,13 +10,14 @@ export function SectionCard(props: {
   children: ReactNode;
 }): JSX.Element {
   return (
-    <Card id={props.id} className="scroll-mt-24 border-border/70 bg-card/80 shadow-sm">
-      <CardHeader className="space-y-1 pb-4">
-        <CardTitle className="text-base">{props.title}</CardTitle>
-        <p className="text-sm text-muted">{props.description}</p>
-      </CardHeader>
-      <CardContent>{props.children}</CardContent>
-    </Card>
+    <DashboardSectionCard
+      id={props.id}
+      className="scroll-mt-24"
+      title={props.title}
+      description={props.description}
+    >
+      {props.children}
+    </DashboardSectionCard>
   );
 }
 

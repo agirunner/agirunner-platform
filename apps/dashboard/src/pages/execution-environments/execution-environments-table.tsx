@@ -1,13 +1,7 @@
 import { Archive, Copy, Pencil, RotateCcw, SearchCheck, Star } from 'lucide-react';
 
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Badge } from '../../components/ui/badge.js';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../../components/ui/card.js';
 import { IconActionButton } from '../../components/ui/icon-action-button.js';
 import {
   Table,
@@ -30,14 +24,11 @@ export function ExecutionEnvironmentTable(props: {
   onRestore: (environment: DashboardExecutionEnvironmentRecord) => void;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Configured environments</CardTitle>
-        <CardDescription>
-          Manage the execution environments available to Specialist roles.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="overflow-x-auto">
+    <DashboardSectionCard
+      title="Configured environments"
+      description="Manage the execution environments available to Specialist roles."
+      bodyClassName="overflow-x-auto"
+    >
         <Table>
           <TableHeader>
             <TableRow>
@@ -156,8 +147,7 @@ export function ExecutionEnvironmentTable(props: {
             ))}
           </TableBody>
         </Table>
-      </CardContent>
-    </Card>
+    </DashboardSectionCard>
   );
 }
 

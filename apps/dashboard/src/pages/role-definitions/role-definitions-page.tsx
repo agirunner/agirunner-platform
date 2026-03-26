@@ -8,15 +8,9 @@ import {
   paginateListItems,
 } from '../../components/list-pagination.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
 import { Switch } from '../../components/ui/switch.js';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../../components/ui/card.js';
 import {
   Table,
   TableBody,
@@ -162,12 +156,13 @@ export function RoleDefinitionsPage(): JSX.Element {
           </Button>
         </div>
       ) : (
-        <Card id="specialist-role-definitions">
-          <CardHeader>
-            <CardTitle>Specialist definitions</CardTitle>
-            <CardDescription>Review specialists at a glance, then expand any row for the full prompt and tool details.</CardDescription>
-          </CardHeader>
-          <CardContent className="overflow-x-auto pb-0">
+        <DashboardSectionCard
+          id="specialist-role-definitions"
+          title="Specialist definitions"
+          description="Review specialists at a glance, then expand any row for the full prompt and tool details."
+          bodyClassName="space-y-0 p-0"
+        >
+          <div className="overflow-x-auto px-6 pb-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -198,7 +193,7 @@ export function RoleDefinitionsPage(): JSX.Element {
                 ))}
               </TableBody>
             </Table>
-          </CardContent>
+          </div>
           <ListPagination
             page={pagination.page}
             pageSize={pageSize}
@@ -213,7 +208,7 @@ export function RoleDefinitionsPage(): JSX.Element {
               setPage(1);
             }}
           />
-        </Card>
+        </DashboardSectionCard>
       )}
 
       {isCreating ? <RoleDialog {...dialogProps} duplicateFrom={duplicateFrom} onClose={() => { setIsCreating(false); setDuplicateFrom(null); }} /> : null}

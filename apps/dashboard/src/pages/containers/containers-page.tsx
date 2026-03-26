@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { dashboardApi, type DashboardLiveContainerRecord } from '../../lib/api.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { ContainersTable } from './containers-table.js';
 import {
   advanceSessionContainerRows,
@@ -87,31 +88,25 @@ export function ContainersPage(): JSX.Element {
         </div>
       ) : null}
 
-      <section className="space-y-3">
-        <div className="space-y-1">
-          <h2 className="text-base font-semibold text-foreground">Orchestrator agent</h2>
-          <p className="text-sm text-muted-foreground">
-            Orchestrator agents and orchestrator-side executions.
-          </p>
-        </div>
+      <DashboardSectionCard
+        title="Orchestrator agent"
+        description="Orchestrator agents and orchestrator-side executions."
+      >
         <ContainersTable
           rows={groupedRows.orchestrator}
           emptyMessage="No orchestrator agents were reported in this session."
         />
-      </section>
+      </DashboardSectionCard>
 
-      <section className="space-y-3">
-        <div className="space-y-1">
-          <h2 className="text-base font-semibold text-foreground">Specialists</h2>
-          <p className="text-sm text-muted-foreground">
-            Specialist agents and non-orchestrator specialist executions.
-          </p>
-        </div>
+      <DashboardSectionCard
+        title="Specialists"
+        description="Specialist agents and non-orchestrator specialist executions."
+      >
         <ContainersTable
           rows={groupedRows.specialists}
           emptyMessage="No specialist agents or specialist executions were reported in this session."
         />
-      </section>
+      </DashboardSectionCard>
     </div>
   );
 }

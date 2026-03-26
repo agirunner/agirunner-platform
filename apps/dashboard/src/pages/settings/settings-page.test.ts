@@ -14,8 +14,8 @@ describe('settings page source', () => {
     expect(source).toContain("queryKey: ['retention-policy']");
     expect(source).toContain('dashboardApi.getLoggingConfig()');
     expect(source).toContain('dashboardApi.getRetentionPolicy()');
-    expect(source).toContain('Logging</h2>');
-    expect(source).toContain('Retention</h2>');
+    expect(source).toContain('title="Logging"');
+    expect(source).toContain('title="Retention"');
   });
 
   it('saves retention changes from the settings page', () => {
@@ -31,14 +31,13 @@ describe('settings page source', () => {
     const source = readSettingsPageSource();
 
     expect(source).toContain('DashboardPageHeader');
+    expect(source).toContain('DashboardSectionCard');
     expect(source).toContain('navHref="/admin/general-settings"');
     expect(source).toContain('handleSubmit');
     expect(source).toContain('const isDirty =');
     expect(source).toContain('const isSaving =');
-    expect(source).toContain('Logging</h2>');
-    expect(source).toContain('Retention</h2>');
-    expect(source).toContain('border-t border-border/70 pt-6');
-    expect(source).not.toContain('<Card>\n        <CardHeader>');
+    expect(source).toContain('title="Logging"');
+    expect(source).toContain('title="Retention"');
     expect(source).not.toContain('CardFooter');
     expect(source).not.toContain('handleLoggingSubmit');
     expect(source).not.toContain('handleRetentionSubmit');

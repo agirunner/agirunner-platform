@@ -4,14 +4,10 @@ import type {
   DashboardPlatformInstructionRecord,
   DashboardPlatformInstructionVersionRecord,
 } from '../../lib/api.js';
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '../../components/ui/card.js';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import {
   Dialog,
   DialogContent,
@@ -68,14 +64,11 @@ export function PlatformInstructionOverviewCards(props: {
 
   return (
     <div className="grid gap-4 xl:grid-cols-[1.2fr_1fr]">
-      <Card>
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-base">Current Baseline</CardTitle>
-          <p className="text-sm text-muted">
-            The active system prompt scaffold applied across the platform.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <DashboardSectionCard
+        title="Current Baseline"
+        description="The active system prompt scaffold applied across the platform."
+        bodyClassName="space-y-3"
+      >
           <div className="flex flex-wrap gap-2">
             <Badge variant="outline">Version {currentInstruction.version}</Badge>
             <Badge variant="outline">
@@ -91,21 +84,18 @@ export function PlatformInstructionOverviewCards(props: {
           <p className="text-sm text-muted">
             Keep task-defining behavior here, not in ad hoc agent or role-level hidden fields.
           </p>
-        </CardContent>
-      </Card>
+      </DashboardSectionCard>
 
-      <Card>
-        <CardHeader className="space-y-1">
-          <CardTitle className="flex items-center gap-2 text-base">
+      <DashboardSectionCard
+        title={
+          <span className="flex items-center gap-2">
             <History className="h-4 w-4" />
             Version History
-          </CardTitle>
-          <p className="text-sm text-muted">
-            Compare the current draft against any saved version, then restore it as the next
-            version if needed.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
+          </span>
+        }
+        description="Compare the current draft against any saved version, then restore it as the next version if needed."
+        bodyClassName="space-y-4"
+      >
           <label className="grid gap-2 text-sm">
             <span className="font-medium">Compare Against</span>
             <Select value={props.selectedVersion} onValueChange={props.onSelectedVersionChange}>
@@ -141,8 +131,7 @@ export function PlatformInstructionOverviewCards(props: {
               Restoring writes a new version instead of mutating history in place.
             </span>
           </div>
-        </CardContent>
-      </Card>
+      </DashboardSectionCard>
     </div>
   );
 }
@@ -161,14 +150,12 @@ export function PlatformInstructionDraftControls(props: {
   onRestore(): void;
 }): JSX.Element {
   return (
-    <Card className="xl:sticky xl:top-6">
-      <CardHeader>
-        <CardTitle>Draft controls</CardTitle>
-        <p className="text-sm text-muted">
-          Keep save, restore, and clear actions visible while you review long instructions.
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <DashboardSectionCard
+      title="Draft controls"
+      description="Keep save, restore, and clear actions visible while you review long instructions."
+      className="xl:sticky xl:top-6"
+      bodyClassName="space-y-4"
+    >
         <div
           className={
             props.status.tone === 'warning'
@@ -215,8 +202,7 @@ export function PlatformInstructionDraftControls(props: {
             Clear Current
           </Button>
         </div>
-      </CardContent>
-    </Card>
+    </DashboardSectionCard>
   );
 }
 

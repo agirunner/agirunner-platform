@@ -1,5 +1,5 @@
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 
 export function ConfigPlaceholderPage(props: {
   navHref: string;
@@ -8,14 +8,12 @@ export function ConfigPlaceholderPage(props: {
   return (
     <div className="space-y-6 p-6">
       <DashboardPageHeader navHref={props.navHref} description={props.description} />
-      <Card className="border-border/70 shadow-sm">
-        <CardHeader>
-          <CardTitle>Coming soon</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm leading-6 text-muted">Coming in the next iteration, stay tuned.</p>
-        </CardContent>
-      </Card>
+      <DashboardSectionCard
+        title="Coming soon"
+        bodyClassName="space-y-0"
+      >
+        <p className="text-sm leading-6 text-muted">Coming in the next iteration, stay tuned.</p>
+      </DashboardSectionCard>
     </div>
   );
 }

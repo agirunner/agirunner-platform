@@ -3,14 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Save } from 'lucide-react';
 
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../../components/ui/card.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
@@ -86,14 +80,11 @@ export function PlatformInstructionsPage(): JSX.Element {
         }
       />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Instructions</CardTitle>
-          <CardDescription>
-            These instructions are prepended to every agent&apos;s system prompt across all roles, and are meant to provide high-level baseline instruction.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <DashboardSectionCard
+        title="Instructions"
+        description="These instructions are prepended to every agent's system prompt across all roles, and are meant to provide high-level baseline instruction."
+        bodyClassName="space-y-3"
+      >
           <Textarea
             value={content}
             onChange={(event) => {
@@ -107,8 +98,7 @@ export function PlatformInstructionsPage(): JSX.Element {
             <p>{hasUnsavedChanges ? 'Unsaved changes' : 'Up to date'}</p>
             <p>{content.trim().length} characters</p>
           </div>
-        </CardContent>
-      </Card>
+      </DashboardSectionCard>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import {
   paginateListItems,
 } from '../../components/list-pagination.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import {
@@ -96,118 +97,126 @@ export function WorkspaceListPage(): JSX.Element {
         actions={<CreateWorkspaceDialog />}
       />
 
-      <div className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
-          <div className="min-w-0 flex-1 space-y-3">
-            <p className="text-sm text-muted">
-              {workspaces.length} workspace{workspaces.length === 1 ? '' : 's'} · {activeCount} active · {inactiveCount} inactive
-            </p>
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,180px)_minmax(0,200px)_auto]">
-              <label className="grid gap-2 text-sm">
-                <span className="text-xs font-medium uppercase tracking-wide text-muted">
-                  Search
-                </span>
-                <Input
-                  aria-label="Search workspaces"
-                  value={search}
-                  onChange={(event) => {
-                    setSearch(event.target.value);
-                    setPage(1);
-                  }}
-                  placeholder="Search workspaces"
-                />
-              </label>
-              <label className="grid gap-2 text-sm">
-                <span className="text-xs font-medium uppercase tracking-wide text-muted">
-                  Status
-                </span>
-                <Select
-                  value={status}
-                  onValueChange={(value) => {
-                    setStatus(value as WorkspaceListStatusFilter);
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger aria-label="Workspace status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="inactive">Inactive</SelectItem>
-                  </SelectContent>
-                </Select>
-              </label>
-              <label className="grid gap-2 text-sm">
-                <span className="text-xs font-medium uppercase tracking-wide text-muted">
-                  Sort
-                </span>
-                <Select
-                  value={sort.key}
-                  onValueChange={(value) => {
-                    setSort((current) => ({
-                      ...current,
-                      key: value as WorkspaceListSortState['key'],
-                    }));
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger aria-label="Sort workspaces">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="recent_activity">Recent activity</SelectItem>
-                    <SelectItem value="workspace_name">Workspace name</SelectItem>
-                    <SelectItem value="workflow_volume">Workflow volume</SelectItem>
-                  </SelectContent>
-                </Select>
-              </label>
-              <div className="grid gap-2 text-sm lg:self-end">
-                <span className="text-xs font-medium uppercase tracking-wide text-muted">
-                  Order
-                </span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setSort((current) => ({
-                      ...current,
-                      direction: current.direction === 'asc' ? 'desc' : 'asc',
-                    }));
-                    setPage(1);
-                  }}
-                >
-                  {buildWorkspaceSortDirectionLabel(sort.key, sort.direction)}
-                </Button>
+      <DashboardSectionCard
+        title="Workspace Library"
+        description="Search, filter, and review workspace posture before opening the detailed workspace editor."
+        bodyClassName="space-y-4 p-0"
+      >
+        <div className="px-6">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+            <div className="min-w-0 flex-1 space-y-3">
+              <p className="text-sm text-muted">
+                {workspaces.length} workspace{workspaces.length === 1 ? '' : 's'} · {activeCount} active · {inactiveCount} inactive
+              </p>
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,180px)_minmax(0,200px)_auto]">
+                <label className="grid gap-2 text-sm">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted">
+                    Search
+                  </span>
+                  <Input
+                    aria-label="Search workspaces"
+                    value={search}
+                    onChange={(event) => {
+                      setSearch(event.target.value);
+                      setPage(1);
+                    }}
+                    placeholder="Search workspaces"
+                  />
+                </label>
+                <label className="grid gap-2 text-sm">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted">
+                    Status
+                  </span>
+                  <Select
+                    value={status}
+                    onValueChange={(value) => {
+                      setStatus(value as WorkspaceListStatusFilter);
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger aria-label="Workspace status">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </label>
+                <label className="grid gap-2 text-sm">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted">
+                    Sort
+                  </span>
+                  <Select
+                    value={sort.key}
+                    onValueChange={(value) => {
+                      setSort((current) => ({
+                        ...current,
+                        key: value as WorkspaceListSortState['key'],
+                      }));
+                      setPage(1);
+                    }}
+                  >
+                    <SelectTrigger aria-label="Sort workspaces">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="recent_activity">Recent activity</SelectItem>
+                      <SelectItem value="workspace_name">Workspace name</SelectItem>
+                      <SelectItem value="workflow_volume">Workflow volume</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </label>
+                <div className="grid gap-2 text-sm lg:self-end">
+                  <span className="text-xs font-medium uppercase tracking-wide text-muted">
+                    Order
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSort((current) => ({
+                        ...current,
+                        direction: current.direction === 'asc' ? 'desc' : 'asc',
+                      }));
+                      setPage(1);
+                    }}
+                  >
+                    {buildWorkspaceSortDirectionLabel(sort.key, sort.direction)}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {workspaces.length === 0 ? (
-        <WorkspaceListEmptyState />
-      ) : filteredWorkspaces.length === 0 ? (
-        <WorkspaceListFilteredEmptyState
-          onResetFilters={() => {
-            setSearch('');
-            setStatus('all');
-            setPage(1);
-          }}
-        />
-      ) : (
-        <>
-          <WorkspaceListTable
-            workspaces={pagination.items}
-            sortKey={sort.key}
-            togglingWorkspaceId={
-              toggleActiveMutation.isPending
-                ? ((toggleActiveMutation.variables as { id: string } | undefined)?.id ?? null)
-                : null
-            }
-            onToggleActive={(workspace) => toggleActiveMutation.mutate(workspace)}
-          />
-          <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm">
+        {workspaces.length === 0 ? (
+          <div className="px-6 pb-6">
+            <WorkspaceListEmptyState />
+          </div>
+        ) : filteredWorkspaces.length === 0 ? (
+          <div className="px-6 pb-6">
+            <WorkspaceListFilteredEmptyState
+              onResetFilters={() => {
+                setSearch('');
+                setStatus('all');
+                setPage(1);
+              }}
+            />
+          </div>
+        ) : (
+          <>
+            <WorkspaceListTable
+              workspaces={pagination.items}
+              sortKey={sort.key}
+              togglingWorkspaceId={
+                toggleActiveMutation.isPending
+                  ? ((toggleActiveMutation.variables as { id: string } | undefined)?.id ?? null)
+                  : null
+              }
+              onToggleActive={(workspace) => toggleActiveMutation.mutate(workspace)}
+            />
             <ListPagination
               page={pagination.page}
               pageSize={pageSize}
@@ -222,9 +231,9 @@ export function WorkspaceListPage(): JSX.Element {
                 setPage(1);
               }}
             />
-          </div>
-        </>
-      )}
+          </>
+        )}
+      </DashboardSectionCard>
 
       {filteredWorkspaces.length > 0 && hasFilters ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted">

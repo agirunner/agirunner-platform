@@ -1,10 +1,4 @@
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../../components/ui/card.js';
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Input } from '../../components/ui/input.js';
 import {
   Select,
@@ -41,14 +35,12 @@ export function RuntimeDefaultsSection({
   onChange: (key: string, value: string) => void;
 }): JSX.Element {
   return (
-    <Card className="h-full">
-      <CardHeader className="space-y-2">
-        <CardTitle className="text-base">{title}</CardTitle>
-        <CardDescription className="text-sm leading-6">
-          {description} {buildSectionStatus(configuredCount, fieldCount, errorCount)}
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-4">
+    <DashboardSectionCard
+      className="h-full"
+      title={title}
+      description={`${description} ${buildSectionStatus(configuredCount, fieldCount, errorCount)}`.trim()}
+      bodyClassName="grid gap-4"
+    >
         {fields.map((field) => (
           <RuntimeField
             key={field.key}
@@ -58,8 +50,7 @@ export function RuntimeDefaultsSection({
             onChange={(nextValue) => onChange(field.key, nextValue)}
           />
         ))}
-      </CardContent>
-    </Card>
+    </DashboardSectionCard>
   );
 }
 

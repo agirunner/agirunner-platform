@@ -6,13 +6,7 @@ import type {
 } from '../../lib/api.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '../../components/ui/card.js';
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import {
   OrchestratorModelDialog,
   OrchestratorPromptDialog,
@@ -69,24 +63,17 @@ export function OrchestratorControlPlane(props: {
 
   return (
     <>
-      <Card className="border-border/70 shadow-sm">
-        <CardHeader className="space-y-3">
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-2">
-              <CardTitle>Orchestrator</CardTitle>
-              <CardDescription>
-                Configure the orchestrator prompt, model, and agent pool.
-              </CardDescription>
-            </div>
-          </div>
+      <DashboardSectionCard
+        title="Orchestrator"
+        description="Configure the orchestrator prompt, model, and agent pool."
+        bodyClassName="space-y-4"
+      >
           {props.hasError ? (
             <InlineWarning>
               Some orchestrator posture data could not be refreshed. Quick-edit actions still use
               the live configuration routes and will refresh the page state after save.
             </InlineWarning>
           ) : null}
-        </CardHeader>
-        <CardContent className="space-y-4">
           <ReadinessBanner readiness={props.readiness} />
           <div className="grid gap-4 xl:grid-cols-3">
             <EditableControlPacket
@@ -132,8 +119,7 @@ export function OrchestratorControlPlane(props: {
               onEdit={() => setIsPoolOpen(true)}
             />
           </div>
-        </CardContent>
-      </Card>
+      </DashboardSectionCard>
 
       <OrchestratorPromptDialog
         orchestratorConfig={props.orchestratorConfig}

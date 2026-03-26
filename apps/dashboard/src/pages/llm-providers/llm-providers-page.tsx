@@ -23,6 +23,7 @@ import {
   paginateListItems,
 } from '../../components/list-pagination.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Input } from '../../components/ui/input.js';
 import {
@@ -1271,8 +1272,12 @@ function RoleAssignmentsSection({
         : null;
 
   return (
-    <div id="llm-model-assignments" className="space-y-6">
-      <h2 className="text-lg font-semibold">Model Assignments</h2>
+    <DashboardSectionCard
+      id="llm-model-assignments"
+      title="Model Assignments"
+      description="Set the shared system default, review assignment coverage, and override the orchestrator or specialist roles only where needed."
+      bodyClassName="space-y-6"
+    >
       <div className="grid gap-3 md:grid-cols-3">
         {assignmentSurface.cards.map((card) => (
           <Card key={card.label} className={ELEVATED_SURFACE_CLASS_NAME}>
@@ -1320,14 +1325,12 @@ function RoleAssignmentsSection({
         </div>
       ) : null}
 
-      {/* ── System Default ────────────────────────────────────────────── */}
-      <div className="space-y-3">
-        <div>
-          <h3 className="text-sm font-semibold">System Default</h3>
-          <p className="text-xs text-muted">
-            The default model and reasoning level used for all roles unless overridden below.
-          </p>
-        </div>
+      <DashboardSectionCard
+        title="System Default"
+        description="The default model and reasoning level used for all roles unless overridden below."
+        className="bg-background/60 shadow-none"
+        bodyClassName="space-y-3"
+      >
         <div className="flex items-center gap-4">
           <Select value={defaultModelId} onValueChange={(v) => { setDefaultModelId(v); setDefaultReasoning(null); }}>
             <SelectTrigger
@@ -1363,48 +1366,44 @@ function RoleAssignmentsSection({
             Specialists may inherit this model when they do not need an explicit override.
           </p>
         )}
-      </div>
+      </DashboardSectionCard>
 
-      {/* ── Role Overrides ────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-md border">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/50"
-          onClick={() => setIsOverridesExpanded((open) => !open)}
-          aria-expanded={isOverridesExpanded}
-        >
-          <div className="min-w-0 space-y-2">
-            <div className="flex items-center gap-2">
-              {isOverridesExpanded ? (
-                <ChevronDown className="h-4 w-4 text-muted" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-muted" />
-              )}
-              <h3 className="text-sm font-semibold">Orchestrator and specialist agent model overrides</h3>
-            </div>
-            <p className="text-xs text-muted">
-              Use the shared system default unless the orchestrator or a specific role needs a
-              different model or reasoning policy.
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              {renderOverridesSummaryChip(`${activeRoleCount} active roles`)}
-              {renderOverridesSummaryChip(`${explicitOverrideCount} explicit overrides`)}
-              {staleRoleCount > 0 ? (
-                renderOverridesSummaryChip(
-                  summarizeStaleRoleBadgeLabel({
-                    missingAssignmentCount,
-                  }),
-                  'warning',
-                )
-              ) : null}
-            </div>
-          </div>
-          <span className="shrink-0 text-xs font-medium text-muted">
+      <DashboardSectionCard
+        className="bg-background/60 shadow-none"
+        title="Orchestrator and specialist agent model overrides"
+        description="Use the shared system default unless the orchestrator or a specific role needs a different model or reasoning policy."
+        headerAction={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setIsOverridesExpanded((open) => !open)}
+            aria-expanded={isOverridesExpanded}
+          >
+            {isOverridesExpanded ? (
+              <ChevronDown className="h-4 w-4 text-muted" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted" />
+            )}
             {isOverridesExpanded ? 'Hide overrides' : 'Show overrides'}
-          </span>
-        </button>
+          </Button>
+        }
+        bodyClassName="space-y-4"
+      >
+        <div className="flex flex-wrap items-center gap-2">
+          {renderOverridesSummaryChip(`${activeRoleCount} active roles`)}
+          {renderOverridesSummaryChip(`${explicitOverrideCount} explicit overrides`)}
+          {staleRoleCount > 0 ? (
+            renderOverridesSummaryChip(
+              summarizeStaleRoleBadgeLabel({
+                missingAssignmentCount,
+              }),
+              'warning',
+            )
+          ) : null}
+        </div>
         {isOverridesExpanded ? (
-          <div className="space-y-4 border-t px-4 py-4">
+          <div className="space-y-4 border-t border-border/70 pt-4">
             <p className="text-xs text-muted">
               Choose explicit models only where the default is not enough.
             </p>
@@ -1503,7 +1502,7 @@ function RoleAssignmentsSection({
             />
           </div>
         ) : null}
-      </div>
+      </DashboardSectionCard>
 
       {/* ── Save ──────────────────────────────────────────────────────── */}
       <div className="flex justify-end">
@@ -1515,7 +1514,7 @@ function RoleAssignmentsSection({
           Save All
         </Button>
       </div>
-    </div>
+    </DashboardSectionCard>
   );
 }
 
@@ -1534,12 +1533,15 @@ function ModelCatalog({
 
   if (models.length === 0) {
     return (
-      <div>
-        <h2 className="text-lg font-semibold mb-4">Model Catalog</h2>
+      <DashboardSectionCard
+        id="llm-model-catalog"
+        title="Model Catalog"
+        description="No models registered. Models appear when providers are configured and discovery is run."
+      >
         <p className="text-sm text-muted">
-          No models registered. Models appear when providers are configured and discovery is run.
+          Add a provider and run discovery to populate the catalog.
         </p>
-      </div>
+      </DashboardSectionCard>
     );
   }
 
@@ -1636,16 +1638,17 @@ function ModelCatalog({
   }
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-lg font-semibold mb-4">
-          Model Catalog
-          {apiKeyGroups.length > 0 && (
-            <span className="ml-2 text-sm font-normal text-muted">
-              ({apiKeyGroups.reduce((sum, [, g]) => sum + g.models.length, 0)} models)
-            </span>
-          )}
-        </h2>
+    <div className="space-y-6">
+      <DashboardSectionCard
+        id="llm-model-catalog"
+        title="Model Catalog"
+        description={
+          apiKeyGroups.length > 0
+            ? `${apiKeyGroups.reduce((sum, [, g]) => sum + g.models.length, 0)} discovered API-key models.`
+            : 'No API-key provider models. Add a provider and run discovery.'
+        }
+        bodyClassName="space-y-2"
+      >
         {apiKeyGroups.length === 0 ? (
           <p className="text-sm text-muted">
             No API-key provider models. Add a provider and run discovery.
@@ -1655,20 +1658,18 @@ function ModelCatalog({
             {apiKeyGroups.map(([pid, group]) => renderProviderGroup(pid, group))}
           </div>
         )}
-      </div>
+      </DashboardSectionCard>
 
       {subscriptionGroups.length > 0 && (
-        <div>
-          <h2 className="text-lg font-semibold mb-4">
-            Subscription Models
-            <span className="ml-2 text-sm font-normal text-muted">
-              ({subscriptionGroups.reduce((sum, [, g]) => sum + g.models.length, 0)} models)
-            </span>
-          </h2>
+        <DashboardSectionCard
+          title="Subscription Models"
+          description={`${subscriptionGroups.reduce((sum, [, g]) => sum + g.models.length, 0)} subscription-backed models.`}
+          bodyClassName="space-y-2"
+        >
           <div className="space-y-2">
             {subscriptionGroups.map(([pid, group]) => renderProviderGroup(pid, group))}
           </div>
-        </div>
+        </DashboardSectionCard>
       )}
     </div>
   );
@@ -1822,19 +1823,22 @@ export function LlmProvidersPage(): JSX.Element {
 
   return (
     <div className="p-6 space-y-8">
-      {/* ── Providers Section ──────────────────────────────────────────── */}
-      <section id="llm-providers-library" className="space-y-4">
-        <DashboardPageHeader
-          navHref="/platform/routing"
-          description="Manage model providers, the model catalog, and specialist model assignments."
-          actions={
-            <>
-              <ConnectOAuthDialog />
-              <AddProviderDialog existingNames={providers.map((provider) => provider.name)} />
-            </>
-          }
-        />
+      <DashboardPageHeader
+        navHref="/platform/routing"
+        description="Manage model providers, the model catalog, and specialist model assignments."
+        actions={
+          <>
+            <ConnectOAuthDialog />
+            <AddProviderDialog existingNames={providers.map((provider) => provider.name)} />
+          </>
+        }
+      />
 
+      <DashboardSectionCard
+        id="llm-providers-library"
+        title="Providers"
+        description="Manage provider connectivity and refresh the discovered model catalog from each source."
+      >
         {providers.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-muted">
             <BrainCog className="mb-4 h-12 w-12" />
@@ -1868,20 +1872,16 @@ export function LlmProvidersPage(): JSX.Element {
             )}
           </div>
         )}
-      </section>
+      </DashboardSectionCard>
 
-      {/* ── Model Catalog Section ──────────────────────────────────────── */}
-      <section id="llm-model-catalog">
-        <ModelCatalog
-          models={models}
-          providers={providers}
-          onToggleEnabled={(modelId, isEnabled) =>
-            toggleModelEnabled.mutate({ modelId, isEnabled })
-          }
-        />
-      </section>
+      <ModelCatalog
+        models={models}
+        providers={providers}
+        onToggleEnabled={(modelId, isEnabled) =>
+          toggleModelEnabled.mutate({ modelId, isEnabled })
+        }
+      />
 
-      {/* ── Model Assignments Section ──────────────────────────────────── */}
       <RoleAssignmentsSection
         enabledModels={enabledModels}
         assignments={assignments}

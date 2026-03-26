@@ -4,6 +4,7 @@ import { Loader2, Save } from 'lucide-react';
 import { dashboardApi, type DashboardGovernanceRetentionPolicy } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import {
@@ -138,15 +139,11 @@ export function SettingsPage(): JSX.Element {
         }
       />
 
-      <section className="space-y-4">
-        <div className="space-y-1">
-          <h2 className="text-base font-semibold text-foreground">Logging</h2>
-          <p className="text-sm leading-6 text-muted">
-            Control the minimum log level stored for your tenant. Entries below this level are
-            discarded at ingest time.
-          </p>
-        </div>
-        <div className="grid gap-4">
+      <DashboardSectionCard
+        title="Logging"
+        description="Control the minimum log level stored for your tenant. Entries below this level are discarded at ingest time."
+        bodyClassName="grid gap-4"
+      >
           <div className="space-y-2">
             <label htmlFor="log-level" className="text-sm font-medium">
               Minimum Log Level
@@ -165,18 +162,13 @@ export function SettingsPage(): JSX.Element {
             </Select>
             <p className="text-xs text-muted-foreground">{LOG_LEVEL_DESCRIPTIONS[level]}</p>
           </div>
-        </div>
-      </section>
+      </DashboardSectionCard>
 
-      <section className="space-y-4 border-t border-border/70 pt-6">
-        <div className="space-y-1">
-          <h2 className="text-base font-semibold text-foreground">Retention</h2>
-          <p className="text-sm leading-6 text-muted">
-            Set clear retention rules for ongoing workflow task pruning, terminal workflow cleanup,
-            and logs.
-          </p>
-        </div>
-        <div className="grid gap-4">
+      <DashboardSectionCard
+        title="Retention"
+        description="Set clear retention rules for ongoing workflow task pruning, terminal workflow cleanup, and logs."
+        bodyClassName="grid gap-4"
+      >
           <div className="space-y-3 rounded-lg border border-border/70 bg-card/60 p-4">
             <div className="space-y-1">
               <h3 className="text-sm font-semibold text-foreground">Task Pruning</h3>
@@ -254,8 +246,7 @@ export function SettingsPage(): JSX.Element {
           {saveMutation.isError ? (
             <p className="text-sm text-red-600">Failed to save settings.</p>
           ) : null}
-        </div>
-      </section>
+      </DashboardSectionCard>
     </form>
   );
 }

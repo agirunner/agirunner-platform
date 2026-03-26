@@ -3,13 +3,9 @@ import type { ComponentType } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import { FileText } from 'lucide-react';
 
+import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { DiffViewer } from '../../components/diff-viewer/diff-viewer.js';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '../../components/ui/card.js';
+import { Card, CardContent } from '../../components/ui/card.js';
 
 const Editor = MonacoEditor as unknown as ComponentType<{
   height: string;
@@ -48,15 +44,11 @@ export function PlatformInstructionEditorCard(props: {
   onChange(value: string): void;
 }): JSX.Element {
   return (
-    <Card id="platform-instructions-editor">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-base">Instructions Editor</CardTitle>
-        <p className="text-sm text-muted">
-          Edit the live draft directly. Unsaved changes are diffed against the selected saved
-          version below.
-        </p>
-      </CardHeader>
-      <CardContent>
+    <DashboardSectionCard
+      id="platform-instructions-editor"
+      title="Instructions Editor"
+      description="Edit the live draft directly. Unsaved changes are diffed against the selected saved version below."
+    >
         <div className="overflow-hidden rounded-lg border border-border">
           <Editor
             height="55vh"
@@ -77,8 +69,7 @@ export function PlatformInstructionEditorCard(props: {
         {props.hasUnsavedChanges ? (
           <p className="mt-3 text-xs text-amber-600">You have unsaved changes in the current draft.</p>
         ) : null}
-      </CardContent>
-    </Card>
+    </DashboardSectionCard>
   );
 }
 
@@ -89,22 +80,17 @@ export function PlatformInstructionDiffCard(props: {
   newLabel: string;
 }): JSX.Element {
   return (
-    <Card id="platform-instructions-diff">
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-base">Saved Version Diff</CardTitle>
-        <p className="text-sm text-muted">
-          Review how the selected saved version differs from the current editor state before saving
-          or restoring.
-        </p>
-      </CardHeader>
-      <CardContent>
+    <DashboardSectionCard
+      id="platform-instructions-diff"
+      title="Saved Version Diff"
+      description="Review how the selected saved version differs from the current editor state before saving or restoring."
+    >
         <DiffViewer
           oldText={props.oldText}
           newText={props.newText}
           oldLabel={props.oldLabel}
           newLabel={props.newLabel}
         />
-      </CardContent>
-    </Card>
+    </DashboardSectionCard>
   );
 }

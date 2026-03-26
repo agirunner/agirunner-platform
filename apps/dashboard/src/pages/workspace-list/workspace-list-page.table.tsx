@@ -33,7 +33,7 @@ export function WorkspaceListTable(props: {
   onToggleActive?(workspace: DashboardWorkspaceRecord): void;
 }): JSX.Element {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm">
+    <div className="overflow-x-auto border-y border-border/70">
       <Table>
         <TableHeader>
           <TableRow>

@@ -22,8 +22,8 @@ describe('platform instructions page source', () => {
 
   it('describes the editor as role-wide system-prompt prepended instructions', () => {
     const source = readSource();
-    expect(source).toContain("These instructions are prepended to every agent&apos;s system prompt across all roles, and are meant to provide high-level baseline instruction.");
-    expect(source).not.toContain("These instructions are prepended to every agent&apos;s system prompt across all workflows and workspaces.");
+    expect(source).toContain("These instructions are prepended to every agent's system prompt across all roles, and are meant to provide high-level baseline instruction.");
+    expect(source).not.toContain("These instructions are prepended to every agent's system prompt across all workflows and workspaces.");
   });
 
   it('guards against unsaved changes', () => {

@@ -9,7 +9,6 @@ import { DashboardPageHeader } from '../../components/layout/dashboard-page-head
 import { Button } from '../../components/ui/button.js';
 import {
   DEFAULT_LIST_PAGE_SIZE,
-  ListPagination,
   paginateListItems,
 } from '../../components/list-pagination.js';
 import { Input } from '../../components/ui/input.js';
@@ -41,8 +40,7 @@ import {
   type PlaybookStatusFilter,
 } from './playbook-list-page.support.js';
 import {
-  PlaybookLibraryTable,
-  PlaybookLibraryToolbar,
+  PlaybookLibrarySection,
 } from './playbook-list-page.library.js';
 
 const DEFAULT_LIFECYCLE = 'ongoing';
@@ -417,7 +415,7 @@ export function PlaybookListPage(): JSX.Element {
         }
       />
 
-      <PlaybookLibraryToolbar
+      <PlaybookLibrarySection
         search={search}
         statusFilter={statusFilter}
         lifecycleFilter={lifecycleFilter}
@@ -425,6 +423,16 @@ export function PlaybookListPage(): JSX.Element {
         familyCount={libraryCounts.familyCount}
         activeFamilyCount={libraryCounts.activeFamilyCount}
         archivedFamilyCount={libraryCounts.archivedFamilyCount}
+        pagination={pagination}
+        pageSize={pageSize}
+        hasLoading={playbooksQuery.isLoading}
+        hasError={Boolean(playbooksQuery.error)}
+        families={filteredFamilies}
+        togglingFamilySlug={
+          toggleActiveMutation.isPending
+            ? (toggleActiveMutation.variables as PlaybookFamilyRecord | undefined)?.slug ?? null
+            : null
+        }
         onSearchChange={(value) => {
           setSearch(value);
           setPage(1);
@@ -441,50 +449,13 @@ export function PlaybookListPage(): JSX.Element {
           setSort(value);
           setPage(1);
         }}
+        onPageChange={setPage}
+        onPageSizeChange={(value) => {
+          setPageSize(value);
+          setPage(1);
+        }}
+        onToggleActive={(family) => toggleActiveMutation.mutate(family)}
       />
-
-      {playbooksQuery.isLoading ? <p className="text-sm text-muted">Loading playbooks...</p> : null}
-      {playbooksQuery.error ? (
-        <p className="text-sm text-red-600 dark:text-red-400">Failed to load playbooks.</p>
-      ) : null}
-
-      {!playbooksQuery.isLoading && filteredFamilies.length === 0 ? (
-        <Card>
-          <CardContent className="p-6 text-sm text-muted">
-            No playbooks match the current search.
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {filteredFamilies.length > 0 ? (
-        <>
-          <PlaybookLibraryTable
-            families={pagination.items}
-            togglingFamilySlug={
-              toggleActiveMutation.isPending
-                ? (toggleActiveMutation.variables as PlaybookFamilyRecord | undefined)?.slug ?? null
-                : null
-            }
-            onToggleActive={(family) => toggleActiveMutation.mutate(family)}
-          />
-          <div className="overflow-hidden rounded-2xl border border-border/70 bg-card/80 shadow-sm">
-            <ListPagination
-              page={pagination.page}
-              pageSize={pageSize}
-              totalItems={pagination.totalItems}
-              totalPages={pagination.totalPages}
-              start={pagination.start}
-              end={pagination.end}
-              itemLabel="playbook families"
-              onPageChange={setPage}
-              onPageSizeChange={(value) => {
-                setPageSize(value);
-                setPage(1);
-              }}
-            />
-          </div>
-        </>
-      ) : null}
     </div>
   );
 }
