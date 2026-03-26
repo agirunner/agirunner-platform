@@ -222,16 +222,16 @@ export function App(): JSX.Element {
             {/* Platform */}
             <Route path="/platform/orchestrator" element={<OrchestratorPage />} />
             <Route path="/platform/routing" element={<LlmProvidersPage />} />
-            <Route path="/platform/runtimes" element={<Navigate to="/admin/agent-settings" replace />} />
+            <Route path="/platform/runtimes" element={<Navigate to="/admin/agentic-settings" replace />} />
             <Route path="/platform/environments" element={<ExecutionEnvironmentsPage />} />
             <Route path="/platform/operations" element={<Navigate to="/admin/platform-settings" replace />} />
             <Route path="/platform/instructions" element={<PlatformInstructionsPage />} />
             <Route path="/platform/tools" element={<ToolsPage />} />
             <Route path="/config/orchestrator" element={<Navigate to="/platform/orchestrator" replace />} />
             <Route path="/config/llm" element={<Navigate to="/platform/routing" replace />} />
-            <Route path="/config/runtimes" element={<Navigate to="/admin/agent-settings" replace />} />
+            <Route path="/config/runtimes" element={<Navigate to="/admin/agentic-settings" replace />} />
             <Route path="/config/instructions" element={<Navigate to="/platform/instructions" replace />} />
-            <Route path="/config/runtime-defaults" element={<Navigate to="/admin/agent-settings" replace />} />
+            <Route path="/config/runtime-defaults" element={<Navigate to="/admin/agentic-settings" replace />} />
             <Route path="/config/tools" element={<Navigate to="/platform/tools" replace />} />
             <Route path="/config/assistant" element={<AiConfigAssistantPage />} />
 
@@ -253,14 +253,16 @@ export function App(): JSX.Element {
             <Route path="/fleet/containers" element={<LegacyLiveContainersRedirect />} />
 
             {/* Admin */}
-            <Route path="/admin/settings" element={<SettingsPage />} />
+            <Route path="/admin/general-settings" element={<SettingsPage />} />
+            <Route path="/admin/settings" element={<Navigate to="/admin/general-settings" replace />} />
             <Route path="/admin/api-keys" element={<ApiKeyPage />} />
-            <Route path="/admin/agent-settings" element={<RuntimesPage />} />
+            <Route path="/admin/agentic-settings" element={<RuntimesPage />} />
+            <Route path="/admin/agent-settings" element={<Navigate to="/admin/agentic-settings" replace />} />
             <Route path="/admin/platform-settings" element={<OperationsPage />} />
-            <Route path="/governance/settings" element={<Navigate to="/admin/settings" replace />} />
+            <Route path="/governance/settings" element={<Navigate to="/admin/general-settings" replace />} />
             <Route path="/governance/api-keys" element={<Navigate to="/admin/api-keys" replace />} />
             <Route path="/governance/users" element={<UserManagementPage />} />
-            <Route path="/governance/retention" element={<Navigate to="/admin/settings" replace />} />
+            <Route path="/governance/retention" element={<Navigate to="/admin/general-settings" replace />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/mission-control" replace />} />

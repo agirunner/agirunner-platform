@@ -47,6 +47,7 @@ describe('LlmProvidersPage renders three sections', () => {
 
   it('renders the Providers section with heading and Add Provider button', () => {
     expect(source).toContain('Models');
+    expect(source).toContain('Manage model providers, the model catalog, and specialist model assignments.');
     expect(source).not.toContain('<h1 className="text-2xl font-semibold">Routing</h1>');
     expect(source).toContain('Add Provider');
     expect(source).toContain('ProviderCard');
@@ -90,6 +91,7 @@ describe('LlmProvidersPage renders three sections', () => {
 
   it('renders the Model Assignments section', () => {
     expect(source).toContain('Model Assignments');
+    expect(source).toContain('Specialists may inherit this model when they do not need an explicit override.');
     expect(source).toContain('RoleAssignmentsSection');
     expect(source).toContain('listRoleDefinitions');
     expect(source).toContain('buildAssignmentRoleRows');

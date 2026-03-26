@@ -74,7 +74,7 @@ export function PlatformInstructionsPage(): JSX.Element {
             <h1 className="text-2xl font-semibold">Instructions</h1>
           </div>
           <p className="max-w-3xl text-sm text-muted">
-            Org-wide baseline instructions applied to all agents — orchestrator and specialists.
+            General instructions applied to all agents — orchestrator and specialists.
           </p>
         </div>
         <Button
@@ -94,7 +94,7 @@ export function PlatformInstructionsPage(): JSX.Element {
         <CardHeader>
           <CardTitle>Instructions</CardTitle>
           <CardDescription>
-            These instructions are prepended to every agent&apos;s system prompt across all roles.
+            These instructions are prepended to every agent&apos;s system prompt across all roles, and are meant to provide high-level baseline instruction.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

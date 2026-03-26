@@ -11,7 +11,7 @@ import {
 describe('ai config assistant support', () => {
   it('provides bounded quick-start prompts for common operator audits', () => {
     expect(ASSISTANT_STARTER_PROMPTS.map((prompt) => prompt.label)).toEqual([
-      'Audit advanced agent settings',
+      'Audit agentic settings',
       'Provider posture',
       'Playbook review',
       'Integration hygiene',
@@ -62,8 +62,8 @@ describe('ai config assistant support', () => {
 
   it('maps known suggestion paths back to concrete config destinations', () => {
     expect(resolveSuggestionDestination('runtime.default_runtime_image')).toEqual({
-      href: '/admin/agent-settings',
-      label: 'Open advanced agent settings',
+      href: '/admin/agentic-settings',
+      label: 'Open agentic settings',
     });
     expect(resolveSuggestionDestination('provider.openai.base_url')).toEqual({
       href: '/platform/routing',
@@ -110,7 +110,7 @@ describe('ai config assistant support', () => {
       badge: 'Empty session',
       title: 'Start with a bounded operator audit',
       detail:
-        'Ask one concrete question about advanced agent settings, providers, playbooks, integrations, or work items so the assistant can return a reviewable packet instead of vague advice.',
+        'Ask one concrete question about agentic settings, providers, playbooks, integrations, or work items so the assistant can return a reviewable packet instead of vague advice.',
       nextAction: 'Run a quick audit or choose one of the preset asks to start the handoff.',
     });
 
@@ -177,10 +177,10 @@ describe('ai config assistant support', () => {
         detail: '1 suggestion still needs review on this surface.',
       },
       {
-        key: '/admin/agent-settings',
-        label: 'Open advanced agent settings',
-        href: '/admin/agent-settings',
-        actionLabel: 'Open advanced agent settings',
+        key: '/admin/agentic-settings',
+        label: 'Open agentic settings',
+        href: '/admin/agentic-settings',
+        actionLabel: 'Open agentic settings',
         pendingCount: 0,
         reviewedCount: 1,
         detail: 'Everything grouped under this surface has been reviewed in the current session.',

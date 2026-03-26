@@ -96,10 +96,10 @@ export function SettingsPage(): JSX.Element {
         queryClient.invalidateQueries({ queryKey: ['governance-logging-config'] }),
         queryClient.invalidateQueries({ queryKey: ['retention-policy'] }),
       ]);
-      toast.success('Settings saved.');
+      toast.success('General Settings saved.');
     },
     onError: () => {
-      toast.error('Failed to save settings.');
+      toast.error('Failed to save general settings.');
     },
   });
 
@@ -126,7 +126,7 @@ export function SettingsPage(): JSX.Element {
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Settings2 className="h-5 w-5 text-muted" />
-            <h1 className="text-2xl font-semibold">Settings</h1>
+            <h1 className="text-2xl font-semibold">General Settings</h1>
           </div>
           <p className="text-sm leading-6 text-muted">
             Configure general operational settings in one place.

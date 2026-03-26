@@ -132,7 +132,7 @@ describe('workspace detail support', () => {
 
     expect(headerState.mode).toBe('compact');
     expect(headerState.activeTab.label).toBe('Settings');
-    expect(headerState.description).toContain('storage configuration');
+    expect(headerState.description).toBe('Adjust workspace basics and storage configuration.');
     expect(headerState.contextPills).toEqual([]);
     expect(headerState.quickActions).toEqual([]);
   });

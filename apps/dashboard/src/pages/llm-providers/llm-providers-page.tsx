@@ -1351,7 +1351,7 @@ function RoleAssignmentsSection({
           </p>
         ) : (
           <p className="text-xs text-muted">
-            Roles may inherit this model when they do not need an explicit override.
+            Specialists may inherit this model when they do not need an explicit override.
           </p>
         )}
       </div>
@@ -1806,7 +1806,7 @@ export function LlmProvidersPage(): JSX.Element {
           <div>
             <h1 className="text-2xl font-semibold">Models</h1>
             <p className="text-sm text-muted">
-              Manage language model providers, the model catalog, and role assignments.
+              Manage model providers, the model catalog, and specialist model assignments.
             </p>
           </div>
           <div className="flex gap-2">

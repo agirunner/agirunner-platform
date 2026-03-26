@@ -11,7 +11,7 @@ export const WORKSPACE_DETAIL_TAB_OPTIONS = [
     value: 'settings',
     label: 'Settings',
     description:
-      'Adjust workspace basics, storage configuration, and lifecycle posture.',
+      'Adjust workspace basics and storage configuration.',
   },
   {
     value: 'knowledge',

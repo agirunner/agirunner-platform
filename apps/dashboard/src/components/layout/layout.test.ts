@@ -35,10 +35,21 @@ describe('layout breadcrumbs', () => {
     ]);
   });
 
-  it('labels the advanced platform settings page in breadcrumbs', () => {
+  it('labels the platform settings page in breadcrumbs', () => {
     expect(buildBreadcrumbs('/admin/platform-settings')).toEqual([
       { label: 'Admin' },
-      { label: 'Advanced platform settings' },
+      { label: 'Platform settings' },
+    ]);
+  });
+
+  it('labels the renamed general and agentic settings pages in breadcrumbs', () => {
+    expect(buildBreadcrumbs('/admin/general-settings')).toEqual([
+      { label: 'Admin' },
+      { label: 'General Settings' },
+    ]);
+    expect(buildBreadcrumbs('/admin/agentic-settings')).toEqual([
+      { label: 'Admin' },
+      { label: 'Agentic Settings' },
     ]);
   });
 
@@ -62,6 +73,11 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("href: '/integrations/triggers'");
   });
 
+  it('keeps playbooks above workspaces in the Work Design nav group', () => {
+    const source = readLayoutSource();
+    expect(source.indexOf("label: 'Playbooks'")).toBeLessThan(source.indexOf("label: 'Workspaces'"));
+  });
+
   it('keeps advanced settings under admin and leaves platform focused on regular operator surfaces', () => {
     const source = readLayoutSource();
     expect(source).toContain("label: 'Platform'");
@@ -70,10 +86,12 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("label: 'Diagnostics'");
     expect(source).toContain("label: 'Live Containers'");
     expect(source).toContain("href: '/diagnostics/live-containers'");
-    expect(source).toContain("label: 'Advanced agent settings'");
-    expect(source).toContain("href: '/admin/agent-settings'");
-    expect(source).toContain("label: 'Advanced platform settings'");
+    expect(source).toContain("label: 'Agentic Settings'");
+    expect(source).toContain("href: '/admin/agentic-settings'");
+    expect(source).toContain("label: 'Platform settings'");
     expect(source).toContain("href: '/admin/platform-settings'");
+    expect(source).toContain("label: 'General Settings'");
+    expect(source).toContain("href: '/admin/general-settings'");
     expect(source).not.toContain("href: '/platform/runtimes'");
     expect(source).not.toContain("href: '/platform/operations'");
     expect(source).not.toContain("label: 'Fleet'");
@@ -91,7 +109,7 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("href: '/design/specialists'");
   });
 
-  it('uses distinct icons for playbooks, environments, live diagnostics, webhooks, and advanced agent settings', () => {
+  it('uses distinct icons for playbooks, environments, live diagnostics, webhooks, and agentic settings', () => {
     const source = readLayoutSource();
     expect(source).toContain("{ label: 'Playbooks', href: '/design/playbooks', icon: FileText }");
     expect(source).toContain("label: 'Environments'");
@@ -103,7 +121,7 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("label: 'Live Logs'");
     expect(source).toContain("href: '/integrations/webhooks'");
     expect(source).toContain('icon: Send');
-    expect(source).toContain("href: '/admin/agent-settings',");
+    expect(source).toContain("href: '/admin/agentic-settings',");
     expect(source).toContain('icon: Server');
   });
 
@@ -117,8 +135,8 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("label: 'Admin'");
     expect(source).toContain("label: 'API Keys'");
     expect(source).toContain("href: '/admin/api-keys'");
-    expect(source).toContain("href: '/admin/settings'");
-    expect(source.indexOf("href: '/admin/api-keys'")).toBeLessThan(source.indexOf("href: '/admin/settings'"));
+    expect(source).toContain("href: '/admin/general-settings'");
+    expect(source.indexOf("href: '/admin/api-keys'")).toBeLessThan(source.indexOf("href: '/admin/general-settings'"));
     expect(source).not.toContain("label: 'Retention Policy'");
     expect(source).not.toContain("label: 'User Management'");
   });

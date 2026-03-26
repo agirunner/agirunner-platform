@@ -337,9 +337,11 @@ describe('FR-RT-1620..1625: guided runtime customization flow', () => {
 
   it('layout exposes runtime configuration navigation in the sidebar', () => {
     const source = readComponent('components/layout/layout.tsx');
-    expect(source).toContain('/admin/agent-settings');
+    expect(source).toContain('/admin/agentic-settings');
     expect(source).toContain('/platform/environments');
-    expect(source).toContain('Advanced agent settings');
+    expect(source).toContain('Agentic Settings');
+    expect(source).toContain('General Settings');
+    expect(source).toContain('Platform settings');
     expect(source).toContain('Environments');
   });
 });
@@ -361,7 +363,8 @@ describe('FR-427: dashboard navigation and layout', () => {
     expect(source).toContain('Workspaces');
     expect(source).toContain('Diagnostics');
     expect(source).toContain('Admin');
-    expect(source).toContain("href: '/admin/agent-settings'");
+    expect(source).toContain("href: '/admin/agentic-settings'");
+    expect(source).toContain("href: '/admin/general-settings'");
     expect(source).toContain("href: '/admin/platform-settings'");
     expect(source).toContain("href: '/platform/environments'");
     expect(source).toContain("href: '/diagnostics/live-containers'");

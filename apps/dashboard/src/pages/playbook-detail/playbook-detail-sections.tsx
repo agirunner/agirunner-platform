@@ -119,8 +119,8 @@ export function PlaybookControlCenterCard(
             icon={<Cpu className="h-4 w-4" />}
             title="Specialist defaults"
             description="Global specialist agent and specialist execution defaults live outside the playbook."
-            value="Inspect advanced agent settings"
-            href="/admin/agent-settings"
+            value="Inspect agentic settings"
+            href="/admin/agentic-settings"
           />
         </div>
       </CardContent>

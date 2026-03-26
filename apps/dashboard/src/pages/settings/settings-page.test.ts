@@ -30,7 +30,7 @@ describe('settings page source', () => {
   it('uses the runtimes-style shell with one top save action and section content below', () => {
     const source = readSettingsPageSource();
 
-    expect(source).toContain('<h1 className="text-2xl font-semibold">Settings</h1>');
+    expect(source).toContain('<h1 className="text-2xl font-semibold">General Settings</h1>');
     expect(source).toContain('flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between');
     expect(source).toContain('handleSubmit');
     expect(source).toContain('const isDirty =');
@@ -48,6 +48,7 @@ describe('settings page source', () => {
     const source = readSettingsPageSource();
 
     expect(source).toContain('Configure general operational settings in one place.');
+    expect(source).toContain("toast.success('General Settings saved.')");
     expect(source).toContain('Task Pruning</h3>');
     expect(source).toContain('Workflow Retention</h3>');
     expect(source).toContain('Log Retention (days)');

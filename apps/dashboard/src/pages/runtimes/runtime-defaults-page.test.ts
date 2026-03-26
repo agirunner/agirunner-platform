@@ -86,7 +86,8 @@ describe('runtime defaults page source', () => {
     const editorSource = readSource('./runtime-defaults-editor-page.tsx');
     const fieldsSource = readSource('./runtime-defaults-fields.tsx');
     expect(pageSource).toContain('RuntimeDefaultsEditorPage');
-    expect(pageSource).toContain('title="Advanced agent settings"');
+    expect(pageSource).toContain('title="Agentic Settings"');
+    expect(pageSource).toContain('successMessage="Agentic Settings saved."');
     expect(pageSource).toContain('PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS');
     expect(pageSource).toContain('RUNTIME_INLINE_SECTION_COLUMNS');
     expect(editorSource).toContain('RuntimeDefaultsSection');

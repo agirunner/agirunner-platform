@@ -11,16 +11,16 @@ import { RuntimeDefaultsEditorPage } from './runtime-defaults-editor-page.js';
 export function RuntimeDefaultsPage(): JSX.Element {
   return (
     <RuntimeDefaultsEditorPage
-      title="Advanced agent settings"
-      description="Configure advanced defaults for specialist agent runtime behavior, safeguards, and execution posture. Specialist execution environments are managed on Platform > Environments."
+      title="Agentic Settings"
+      description="Configure defaults for specialist agent runtime behavior, safeguards, and execution posture. Specialist execution environments are managed on Platform > Environments."
       icon={Server}
       fieldDefinitions={FIELD_DEFINITIONS}
       sectionDefinitions={SECTION_DEFINITIONS}
       primarySectionKeys={PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS}
       inlineSectionColumns={RUNTIME_INLINE_SECTION_COLUMNS}
       sectionIdPrefix="runtime-defaults"
-      successMessage="Advanced agent settings saved."
-      errorLabel="advanced agent settings"
+      successMessage="Agentic Settings saved."
+      errorLabel="agentic settings"
     />
   );
 }

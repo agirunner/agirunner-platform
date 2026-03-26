@@ -97,8 +97,8 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Work Design',
     icon: FolderOpen,
     items: [
-      { label: 'Workspaces', href: '/design/workspaces', icon: FolderOpen },
       { label: 'Playbooks', href: '/design/playbooks', icon: FileText },
+      { label: 'Workspaces', href: '/design/workspaces', icon: FolderOpen },
       { label: 'Specialists', href: '/design/specialists', icon: Users, keywords: ['specialist', 'agent roles', 'role definitions'] },
     ],
   },
@@ -140,15 +140,15 @@ const NAV_SECTIONS: NavSection[] = [
     icon: Shield,
     items: [
       { label: 'API Keys', href: '/admin/api-keys', icon: Key },
-      { label: 'Settings', href: '/admin/settings', icon: Settings2 },
+      { label: 'General Settings', href: '/admin/general-settings', icon: Settings2 },
       {
-        label: 'Advanced agent settings',
-        href: '/admin/agent-settings',
+        label: 'Agentic Settings',
+        href: '/admin/agentic-settings',
         icon: Server,
         keywords: ['specialist agent', 'specialist agents', 'runtime', 'runtimes'],
       },
       {
-        label: 'Advanced platform settings',
+        label: 'Platform settings',
         href: '/admin/platform-settings',
         icon: Settings2,
         keywords: ['operations', 'timing', 'supervision', 'fleet', 'activation'],

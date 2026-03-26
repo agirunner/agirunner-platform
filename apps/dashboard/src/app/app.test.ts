@@ -42,16 +42,20 @@ describe('app trigger routes source', () => {
     expect(source).toContain("replace('/work/workflows', '/mission-control/workflows')");
   });
 
-  it('uses admin-owned advanced settings routes and redirects the legacy platform paths', () => {
+  it('uses admin-owned general, agentic, and platform settings routes and redirects the legacy platform paths', () => {
     const source = readSource();
-    expect(source).toContain('path="/admin/agent-settings"');
+    expect(source).toContain('path="/admin/agentic-settings"');
     expect(source).toContain('path="/admin/platform-settings"');
+    expect(source).toContain('path="/admin/general-settings"');
+    expect(source).toContain('path="/admin/settings"');
+    expect(source).toContain('path="/admin/agent-settings"');
     expect(source).toContain('path="/config/runtimes"');
     expect(source).toContain('path="/config/runtime-defaults"');
     expect(source).toContain('path="/platform/runtimes"');
     expect(source).toContain('path="/platform/operations"');
-    expect(source).toContain('Navigate to="/admin/agent-settings" replace');
+    expect(source).toContain('Navigate to="/admin/agentic-settings" replace');
     expect(source).toContain('Navigate to="/admin/platform-settings" replace');
+    expect(source).toContain('Navigate to="/admin/general-settings" replace');
   });
 
   it('uses specialists and live diagnostics as the canonical work-design and diagnostics routes', () => {
