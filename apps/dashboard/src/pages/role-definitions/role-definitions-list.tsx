@@ -137,6 +137,7 @@ export function RoleRow(props: {
                 {[
                   detailSummary.model,
                   detailSummary.tools,
+                  detailSummary.skills,
                   detailSummary.executionEnvironment,
                 ].map((item) => (
                   <div key={item.title} className="rounded-lg border border-border/70 bg-background/80 p-3">

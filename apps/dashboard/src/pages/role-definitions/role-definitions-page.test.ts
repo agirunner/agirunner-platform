@@ -100,7 +100,7 @@ describe('role definitions page source', () => {
     expect(source).toContain('Choose a unique specialist name.');
     expect(source).toContain('Remote MCP servers');
     expect(source).toContain('Skills');
-    expect(source).toContain('add existing skills to this specialist');
+    expect(source).toContain('Select shared skills to add to this specialist.');
     expect(source).toContain('Move up');
     expect(source).toContain('Move down');
     expect(source).toContain('Remove skill');
@@ -281,6 +281,10 @@ describe('role definitions page source', () => {
     expect(source).not.toContain('variant="ghost"');
     expect(source).not.toContain('className="h-8 w-8"');
     expect(source).toContain('line-clamp-3');
+    expect(source).toContain('title: \'Skills\'');
+    expect(source).toContain('detailSummary.skills');
+    expect(source.indexOf('detailSummary.tools')).toBeLessThan(source.indexOf('detailSummary.skills'));
+    expect(source.indexOf('detailSummary.skills')).toBeLessThan(source.indexOf('detailSummary.executionEnvironment'));
     expect(source).not.toContain('Verification and escalation');
     expect(source).not.toContain('Capabilities');
     expect(source).not.toContain('Metadata');
