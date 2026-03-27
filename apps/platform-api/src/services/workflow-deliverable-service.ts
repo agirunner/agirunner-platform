@@ -67,8 +67,32 @@ export interface UpsertWorkflowDeliverableInput {
   sourceBriefId?: string;
 }
 
+export interface ListWorkflowDeliverablesInput {
+  workItemId?: string;
+  limit?: number;
+}
+
 export class WorkflowDeliverableService {
   constructor(private readonly pool: DatabaseQueryable) {}
+
+  async listDeliverables(
+    tenantId: string,
+    workflowId: string,
+    input: ListWorkflowDeliverablesInput = {},
+  ): Promise<WorkflowDeliverableRecord[]> {
+    await this.assertWorkflow(tenantId, workflowId);
+    const result = await this.pool.query<WorkflowDeliverableRow>(
+      `SELECT *
+         FROM workflow_output_descriptors
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND ($3::uuid IS NULL OR work_item_id = $3)
+        ORDER BY updated_at DESC, created_at DESC
+        LIMIT $4`,
+      [tenantId, workflowId, input.workItemId ?? null, input.limit ?? 50],
+    );
+    return result.rows.map(toWorkflowDeliverableRecord);
+  }
 
   async upsertDeliverable(
     identity: ApiKeyIdentity,

@@ -4,6 +4,11 @@ import type { WorkflowDeliverablesService } from './workflow-deliverables-servic
 import type { WorkflowHistoryService } from './workflow-history-service.js';
 import type { WorkflowLiveConsoleService } from './workflow-live-console-service.js';
 import type { WorkflowRailService } from './workflow-rail-service.js';
+import type { WorkflowInterventionService } from '../workflow-intervention-service.js';
+import type {
+  WorkflowSteeringSessionRecord,
+  WorkflowSteeringSessionService,
+} from '../workflow-steering-session-service.js';
 import type {
   WorkflowBottomTabsPacket,
   WorkflowNeedsActionItem,
@@ -29,6 +34,11 @@ export class WorkflowWorkspaceService {
     private readonly liveConsoleService: Pick<WorkflowLiveConsoleService, 'getLiveConsole'>,
     private readonly historyService: Pick<WorkflowHistoryService, 'getHistory'>,
     private readonly deliverablesService: Pick<WorkflowDeliverablesService, 'getDeliverables'>,
+    private readonly interventionService: Pick<WorkflowInterventionService, 'listWorkflowInterventions'>,
+    private readonly steeringSessionService: Pick<
+      WorkflowSteeringSessionService,
+      'listSessions' | 'listMessages'
+    >,
   ) {}
 
   async getWorkspace(
@@ -36,38 +46,49 @@ export class WorkflowWorkspaceService {
     workflowId: string,
     input: WorkflowWorkspaceQuery = {},
   ): Promise<WorkflowWorkspacePacket> {
-    const [workflow, board, workflowCard, liveConsole, history, deliverables] = await Promise.all([
-      this.workflowService.getWorkflow(tenantId, workflowId),
-      this.workflowService.getWorkflowBoard(tenantId, workflowId),
-      this.railService.getWorkflowCard(tenantId, workflowId),
-      this.liveConsoleService.getLiveConsole(tenantId, workflowId, { limit: input.historyLimit }),
-      this.historyService.getHistory(tenantId, workflowId, { limit: input.historyLimit }),
-      this.deliverablesService.getDeliverables(tenantId, workflowId, {
-        limit: input.deliverablesLimit,
-      }),
-    ]);
+    const [workflow, board, workflowCard, liveConsole, history, deliverables, interventions, sessions] =
+      await Promise.all([
+        this.workflowService.getWorkflow(tenantId, workflowId),
+        this.workflowService.getWorkflowBoard(tenantId, workflowId),
+        this.railService.getWorkflowCard(tenantId, workflowId),
+        this.liveConsoleService.getLiveConsole(tenantId, workflowId, {
+          limit: input.historyLimit,
+          workItemId: input.workItemId,
+        }),
+        this.historyService.getHistory(tenantId, workflowId, {
+          limit: input.historyLimit,
+          workItemId: input.workItemId,
+        }),
+        this.deliverablesService.getDeliverables(tenantId, workflowId, {
+          limit: input.deliverablesLimit,
+          workItemId: input.workItemId,
+        }),
+        this.interventionService.listWorkflowInterventions(tenantId, workflowId),
+        this.steeringSessionService.listSessions(tenantId, workflowId),
+      ]);
 
     const needsActionItems = buildNeedsActionItems(workflowId, workflowCard?.availableActions ?? []);
     const allDeliverables = deliverables.all_deliverables ?? [
       ...deliverables.final_deliverables,
       ...deliverables.in_progress_deliverables,
     ];
+    const activeSession = sessions[0] ?? null;
+    const sessionMessages = activeSession
+      ? await this.steeringSessionService.listMessages(tenantId, workflowId, activeSession.id)
+      : [];
     const bottomTabs = buildBottomTabs(
       needsActionItems.length,
+      activeSession ? 1 : 0,
       liveConsole.items.length,
       history.items.length,
       allDeliverables.length,
       input,
     );
-    const generatedAt = history.generated_at;
-    const latestEventId = history.latest_event_id;
-    const latestOutput = allDeliverables[0] ?? null;
-    const legacyPackets = history.legacy_packets ?? [];
 
     return {
       workflow_id: workflowId,
-      generated_at: generatedAt,
-      latest_event_id: latestEventId,
+      generated_at: history.generated_at,
+      latest_event_id: history.latest_event_id,
       snapshot_version: history.snapshot_version,
       sticky_strip: workflowCard ? buildStickyStrip(workflowCard) : null,
       board: board as Record<string, unknown>,
@@ -79,27 +100,27 @@ export class WorkflowWorkspaceService {
         quick_actions: workflowCard?.availableActions ?? [],
         decision_actions: [],
         steering_state: {
-          mode: 'workflow_scoped',
+          mode: input.workItemId ? 'selected_work_item' : 'workflow_scoped',
           can_accept_request: true,
-          active_session_id: null,
+          active_session_id: activeSession ? String(activeSession.id) : null,
           last_summary: workflowCard?.pulse.summary ?? null,
         },
-        recent_interventions: [],
+        recent_interventions: interventions.slice(0, 10),
         session: {
-          session_id: null,
-          status: 'idle',
-          messages: [],
+          session_id: activeSession ? String(activeSession.id) : null,
+          status: readSessionStatus(activeSession),
+          messages: sessionMessages,
         },
       },
       live_console: liveConsole,
       history_timeline: history,
       deliverables_panel: deliverables,
-      redrive_lineage: null,
+      redrive_lineage: readRedriveLineage(workflow),
       workflow: workflowCard as unknown as Record<string, unknown> | null,
       overview: workflowCard
         ? {
             currentOperatorAsk: workflowCard.pulse.summary,
-            latestOutput,
+            latestOutput: allDeliverables[0] ?? null,
             inputSummary: {
               parameterCount: Object.keys(asRecord(workflow.parameters)).length,
               parameterKeys: Object.keys(asRecord(workflow.parameters)).slice(0, 10),
@@ -116,16 +137,16 @@ export class WorkflowWorkspaceService {
         : null,
       outputs: {
         deliverables: allDeliverables,
-        feed: legacyPackets.filter((packet) => packet.category === 'output'),
+        feed: liveConsole.items.filter((item) => item.item_kind === 'milestone_brief'),
       },
       steering: {
         availableActions: workflowCard?.availableActions ?? [],
-        interventionHistory: legacyPackets.filter(
-          (packet) => packet.category === 'decision' || packet.category === 'intervention',
-        ),
+        interventionHistory: interventions,
+        session: activeSession,
+        messages: sessionMessages,
       },
       history: {
-        packets: legacyPackets,
+        packets: history.items,
       },
     };
   }
@@ -148,6 +169,7 @@ function buildStickyStrip(workflowCard: MissionControlWorkflowCard) {
 
 function buildBottomTabs(
   needsActionCount: number,
+  steeringCount: number,
   liveConsoleCount: number,
   historyCount: number,
   deliverablesCount: number,
@@ -159,7 +181,7 @@ function buildBottomTabs(
     current_work_item_id: input.workItemId ?? null,
     counts: {
       needs_action: needsActionCount,
-      steering: 0,
+      steering: steeringCount,
       live_console: liveConsoleCount,
       history: historyCount,
       deliverables: deliverablesCount,
@@ -189,6 +211,37 @@ function humanizeActionKind(actionKind: string): string {
     .split('_')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function readSessionStatus(session: WorkflowSteeringSessionRecord | null): string {
+  if (!session) {
+    return 'idle';
+  }
+  return session.status.trim().length > 0 ? session.status : 'open';
+}
+
+function readRedriveLineage(workflow: Record<string, unknown>): Record<string, unknown> | null {
+  const rootWorkflowId = readOptionalString(workflow.root_workflow_id);
+  const previousAttemptWorkflowId = readOptionalString(workflow.previous_attempt_workflow_id);
+  const attemptNumber = workflow.attempt_number;
+  const attemptKind = readOptionalString(workflow.attempt_kind);
+  if (!rootWorkflowId && !previousAttemptWorkflowId && attemptNumber == null && !attemptKind) {
+    return null;
+  }
+  return {
+    root_workflow_id: rootWorkflowId,
+    previous_attempt_workflow_id: previousAttemptWorkflowId,
+    attempt_number: attemptNumber ?? null,
+    attempt_kind: attemptKind,
+  };
+}
+
+function readOptionalString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

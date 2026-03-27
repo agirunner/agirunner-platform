@@ -218,34 +218,6 @@ export async function buildApp() {
   const modelCatalogService = new ModelCatalogService(pool);
   const agenticSettingsService = new AgenticSettingsService(pool);
   const oauthService = new OAuthService(pool);
-  const workflowOperationsLiveService = new MissionControlLiveService(pool);
-  const workflowOperationsRecentService = new MissionControlRecentService(pool, workflowOperationsLiveService);
-  const workflowOperationsHistoryService = new MissionControlHistoryService(pool, workflowOperationsLiveService);
-  const workflowOperationsRailService = new WorkflowRailService(
-    workflowOperationsLiveService,
-    workflowOperationsRecentService,
-    workflowOperationsHistoryService,
-  );
-  const workflowOperationsHistoryPacketService = new WorkflowHistoryService(
-    workflowOperationsHistoryService,
-  );
-  const workflowOperationsLiveConsoleService = new WorkflowLiveConsoleService(
-    workflowOperationsHistoryService,
-  );
-  const workflowOperationsDeliverablesService = new WorkflowDeliverablesService(
-    workflowOperationsLiveService,
-  );
-  const workflowOperationsWorkspaceService = new WorkflowWorkspaceService(
-    workflowService,
-    workflowOperationsRailService,
-    workflowOperationsLiveConsoleService,
-    workflowOperationsHistoryPacketService,
-    workflowOperationsDeliverablesService,
-  );
-  const workflowOperationsStreamService = new WorkflowOperationsStreamService(
-    workflowOperationsRailService,
-    workflowOperationsWorkspaceService,
-  );
   const workflowInputPacketService = new WorkflowInputPacketService(
     pool,
     artifactStorage,
@@ -269,6 +241,45 @@ export async function buildApp() {
   );
   const workflowSettingsService = new WorkflowSettingsService(pool);
   const workflowSteeringSessionService = new WorkflowSteeringSessionService(pool);
+  const workflowOperationsLiveService = new MissionControlLiveService(pool);
+  const workflowOperationsRecentService = new MissionControlRecentService(pool, workflowOperationsLiveService);
+  const workflowOperationsHistoryService = new MissionControlHistoryService(pool, workflowOperationsLiveService);
+  const workflowOperationsRailService = new WorkflowRailService(
+    workflowOperationsLiveService,
+    workflowOperationsRecentService,
+    workflowOperationsHistoryService,
+  );
+  const workflowOperationsHistoryPacketService = new WorkflowHistoryService(
+    workflowOperationsHistoryService,
+    workflowOperatorBriefService,
+    workflowInterventionService,
+    workflowInputPacketService,
+    workflowDeliverableService,
+  );
+  const workflowOperationsLiveConsoleService = new WorkflowLiveConsoleService(
+    workflowOperationsHistoryService,
+    workflowOperatorBriefService,
+    workflowOperatorUpdateService,
+  );
+  const workflowOperationsDeliverablesService = new WorkflowDeliverablesService(
+    workflowDeliverableService,
+    workflowOperatorBriefService,
+    workflowInputPacketService,
+    workflowInterventionService,
+  );
+  const workflowOperationsWorkspaceService = new WorkflowWorkspaceService(
+    workflowService,
+    workflowOperationsRailService,
+    workflowOperationsLiveConsoleService,
+    workflowOperationsHistoryPacketService,
+    workflowOperationsDeliverablesService,
+    workflowInterventionService,
+    workflowSteeringSessionService,
+  );
+  const workflowOperationsStreamService = new WorkflowOperationsStreamService(
+    workflowOperationsRailService,
+    workflowOperationsWorkspaceService,
+  );
   const remoteMcpOAuthClientProfileService = new RemoteMcpOAuthClientProfileService(pool);
   const remoteMcpServerService = new RemoteMcpServerService(pool);
   const remoteMcpVerifier = new RemoteMcpHttpVerifier();

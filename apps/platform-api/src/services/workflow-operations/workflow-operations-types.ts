@@ -93,12 +93,12 @@ export interface WorkflowHistoryPacket extends WorkflowOperationsSnapshot {
 export interface WorkflowDeliverablesPacket {
   final_deliverables: unknown[];
   in_progress_deliverables: unknown[];
-  working_handoffs: Array<Record<string, unknown>>;
+  working_handoffs: unknown[];
   inputs_and_provenance: {
-    launch_packet: Record<string, unknown> | null;
-    supplemental_packets: Array<Record<string, unknown>>;
-    intervention_attachments: Array<Record<string, unknown>>;
-    redrive_packet: Record<string, unknown> | null;
+    launch_packet: unknown | null;
+    supplemental_packets: unknown[];
+    intervention_attachments: unknown[];
+    redrive_packet: unknown | null;
   };
   next_cursor: string | null;
 }
