@@ -76,6 +76,19 @@ describe('config validation', () => {
     expect('WEBHOOK_RETRY_BASE_DELAY_MS' in env).toBe(false);
   });
 
+  it('does not surface the removed execute compatibility route env knob', () => {
+    const env = loadEnv({
+      NODE_ENV: 'test',
+      PORT: '9999',
+      DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
+      JWT_SECRET: 'a'.repeat(32),
+      WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
+      EXECUTE_ROUTE_MODE: 'test-simulated',
+    });
+
+    expect('EXECUTE_ROUTE_MODE' in env).toBe(false);
+  });
+
   it('rejects invalid configuration', () => {
     expect(() =>
       loadEnv({

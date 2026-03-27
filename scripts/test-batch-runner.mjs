@@ -302,7 +302,6 @@ export async function buildStages(defaults, options, runId, reportDir, probes = 
       dockerStageIndex += 1;
 
       const explicitAgentApiUrl = process.env.AGENT_API_URL?.trim();
-      const defaultAgentApiUrl = `http://127.0.0.1:${ports.platformApi}/execute`;
 
       stage.ports = ports;
       stage.composeProjectName = `${slug(defaults.compose.projectPrefix)}-${slug(runId)}-${safeStageId}`;
@@ -316,12 +315,9 @@ export async function buildStages(defaults, options, runId, reportDir, probes = 
         LIVE_DASHBOARD_BASE_URL: `http://127.0.0.1:${ports.dashboard}`,
         LIVE_POSTGRES_URL: `postgresql://agirunner:agirunner@127.0.0.1:${ports.postgres}/agirunner`,
         VITE_PLATFORM_API_URL: `http://127.0.0.1:${ports.platformApi}`,
-        AGENT_API_URL: explicitAgentApiUrl || defaultAgentApiUrl,
         RATE_LIMIT_MAX_PER_MINUTE: process.env.RATE_LIMIT_MAX_PER_MINUTE || '1000',
         LIVE_COMPOSE_MIN_FREE_GB: process.env.LIVE_COMPOSE_MIN_FREE_GB || '3',
-        ...(stage.lane === 'live'
-          ? { EXECUTE_ROUTE_MODE: process.env.EXECUTE_ROUTE_MODE || 'execution-backed' }
-          : {}),
+        ...(explicitAgentApiUrl ? { AGENT_API_URL: explicitAgentApiUrl } : {}),
         ...(process.env.RUNTIME_API_KEY
           ? { RUNTIME_API_KEY: process.env.RUNTIME_API_KEY }
           : {}),

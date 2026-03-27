@@ -67,20 +67,9 @@ For v1.1–v1.2 scope, `runtime_internal` is not marked `internal: true`, so run
 
 Security defaults in compose/runtime profile:
 - default stack uses the real Go runtime from `../agirunner-runtime`
-- `/execute` is disabled by default (`EXECUTE_ROUTE_MODE=disabled`)
 - `*_FILE` secret bindings mounted from `./.secrets` to `/run/secrets`
 - `RUNTIME_API_KEY_FILE` required (runtime startup fails when missing/too short)
 - task containers default to `${AGIRUNNER_TASK_IMAGE:-alpine/git:2.47.2}` so repository clone/push tooling is present before workspace setup runs
-
-### Test-only compat bridge
-
-`runtime-compat` and `platform-api /execute` are now test-only. To enable the compatibility path explicitly, start compose with the override file:
-
-```bash
-docker compose -f docker-compose.yml -f docker-compose.test.yml up -d
-```
-
-That override rebinds the role runtime services back to `apps/runtime-compat` and enables `/execute` in `test-simulated` mode by default. Use `EXECUTE_ROUTE_MODE=test-execution-backed` only for harness lanes that intentionally exercise the bridge.
 
 ### Prebuilt Runtime Images
 

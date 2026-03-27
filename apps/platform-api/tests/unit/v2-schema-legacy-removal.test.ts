@@ -20,6 +20,16 @@ const workflowStageGatesMigrationPath =
   '/home/mark/codex/agirunner-platform/apps/platform-api/src/db/migrations/0013_workflow_stage_gates.sql';
 const droppedTemplateMigrationPath =
   '/home/mark/codex/agirunner-platform/apps/platform-api/src/db/migrations/0010_drop_templates.sql';
+const bootstrapRoutesPath =
+  '/home/mark/codex/agirunner-platform/apps/platform-api/src/bootstrap/routes.ts';
+const executeRoutesPath =
+  '/home/mark/codex/agirunner-platform/apps/platform-api/src/api/routes/execute.routes.ts';
+const readmePath =
+  '/home/mark/codex/agirunner-platform/README.md';
+const batchRunnerPath =
+  '/home/mark/codex/agirunner-platform/scripts/test-batch-runner.mjs';
+const batchRunnerDocPath =
+  '/home/mark/codex/agirunner-platform/docs/testing/batch-runner.md';
 
 describe('v2 schema legacy removal', () => {
   it('removes template entity values from the canonical schema enum', () => {
@@ -74,5 +84,20 @@ describe('v2 schema legacy removal', () => {
     expect(webhookWorkItemMigration).not.toContain('webhook_task_trigger_invocations');
     expect(webhookWorkItemMigration).toContain('CREATE TABLE IF NOT EXISTS webhook_work_item_triggers');
     expect(existsSync(droppedTemplateMigrationPath)).toBe(false);
+  });
+
+  it('removes the test-only execute compatibility route from the product surface', () => {
+    const bootstrapSource = readFileSync(bootstrapRoutesPath, 'utf8');
+    const readmeSource = readFileSync(readmePath, 'utf8');
+    const batchRunnerSource = readFileSync(batchRunnerPath, 'utf8');
+    const batchRunnerDocSource = readFileSync(batchRunnerDocPath, 'utf8');
+
+    expect(existsSync(executeRoutesPath)).toBe(false);
+    expect(bootstrapSource).not.toContain('executeRoutes');
+    expect(readmeSource).not.toContain('/execute');
+    expect(readmeSource).not.toContain('EXECUTE_ROUTE_MODE');
+    expect(batchRunnerSource).not.toContain('/execute');
+    expect(batchRunnerSource).not.toContain('EXECUTE_ROUTE_MODE');
+    expect(batchRunnerDocSource).not.toContain('/execute');
   });
 });

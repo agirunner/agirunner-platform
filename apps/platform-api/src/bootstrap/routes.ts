@@ -7,7 +7,6 @@ import { approvalQueueRoutes } from '../api/routes/approval-queue.routes.js';
 import { apiKeyRoutes } from '../api/routes/api-keys.routes.js';
 import { authRoutes } from '../api/routes/auth.routes.js';
 import { eventRoutes } from '../api/routes/events.routes.js';
-import { executeRoutes } from '../api/routes/execute.routes.js';
 import { executionEnvironmentRoutes } from '../api/routes/execution-environments.routes.js';
 import { governanceRoutes } from '../api/routes/governance.routes.js';
 import { healthRoutes } from '../api/routes/health.routes.js';
@@ -56,7 +55,6 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(taskPlatformRoutes);
   await app.register(taskStreamRoutes);
   await app.register(toolRoutes);
-  await app.register(executeRoutes);
   await app.register(agentRoutes);
   await app.register(workerRoutes);
   await app.register(eventRoutes);
