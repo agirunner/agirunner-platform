@@ -11,6 +11,15 @@ const IDENTITY = {
   keyPrefix: 'admin',
 } as const;
 
+const SYSTEM_IDENTITY = {
+  id: 'key-system-1',
+  tenantId: 'tenant-1',
+  scope: 'admin',
+  ownerType: 'system',
+  ownerId: null,
+  keyPrefix: 'admin-system',
+} as const;
+
 function createPool() {
   return {
     query: vi.fn(),
@@ -127,5 +136,70 @@ describe('WorkflowSteeringSessionService', () => {
         structured_proposal: { recommended_action: 'request_replan' },
       }),
     ]);
+  });
+
+  it('fallsBackToKeyPrefixWhenPersistingSystemOwnedSteeringSessionsAndMessages', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows') && sql.includes('SELECT id')) {
+        return {
+          rowCount: 1,
+          rows: [{ id: 'workflow-1' }],
+        };
+      }
+      if (sql.includes('INSERT INTO workflow_steering_sessions')) {
+        expect(params?.[6]).toBe('admin-system');
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'session-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            title: null,
+            status: 'active',
+            created_by_type: 'system',
+            created_by_id: 'admin-system',
+            created_at: new Date('2026-03-27T10:00:00.000Z'),
+            updated_at: new Date('2026-03-27T10:00:00.000Z'),
+          }],
+        };
+      }
+      if (sql.includes('FROM workflow_steering_sessions')) {
+        return {
+          rowCount: 1,
+          rows: [{ id: 'session-1' }],
+        };
+      }
+      if (sql.includes('INSERT INTO workflow_steering_messages')) {
+        expect(params?.[9]).toBe('admin-system');
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'message-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            steering_session_id: 'session-1',
+            role: 'operator',
+            content: 'Continue with the attached packet.',
+            structured_proposal: { recommended_action: 'continue' },
+            intervention_id: null,
+            created_by_type: 'system',
+            created_by_id: 'admin-system',
+            created_at: new Date('2026-03-27T10:05:00.000Z'),
+          }],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const session = await service.createSession(SYSTEM_IDENTITY as never, 'workflow-1');
+    const message = await service.appendMessage(SYSTEM_IDENTITY as never, 'workflow-1', session.id, {
+      role: 'operator',
+      content: 'Continue with the attached packet.',
+      structuredProposal: { recommended_action: 'continue' },
+    });
+
+    expect(session.created_by_type).toBe('system');
+    expect(session.created_by_id).toBe('admin-system');
+    expect(message.created_by_id).toBe('admin-system');
   });
 });

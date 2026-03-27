@@ -13,6 +13,7 @@ import {
   sanitizeWorkflowOperatorFileName,
   type WorkflowOperatorFileUploadInput,
 } from './workflow-operator-file-support.js';
+import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
 
 interface WorkflowInterventionRow {
   id: string;
@@ -132,7 +133,7 @@ export class WorkflowInterventionService {
         sanitizeRecord(input.structuredAction),
         sanitizeRecord(input.metadata),
         identity.ownerType,
-        identity.ownerId,
+        resolveOperatorRecordActorId(identity),
       ],
     );
     const row = result.rows[0];

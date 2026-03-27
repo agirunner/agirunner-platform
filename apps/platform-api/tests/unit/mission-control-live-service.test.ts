@@ -137,6 +137,7 @@ describe('MissionControlLiveService', () => {
             workflow_id: 'workflow-1',
             document_id: 'document-1',
             logical_name: 'release-brief',
+            title: 'Release brief',
             source: 'artifact',
             location: 'deliverables/release-brief.md',
             artifact_id: 'artifact-1',
@@ -161,6 +162,7 @@ describe('MissionControlLiveService', () => {
             outputDescriptors: [
               expect.objectContaining({
                 id: 'document:document-1',
+                title: 'Release brief',
               }),
             ],
           }),

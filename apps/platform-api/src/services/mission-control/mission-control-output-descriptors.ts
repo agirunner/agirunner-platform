@@ -94,7 +94,7 @@ export function composeMissionControlOutputDescriptor(
     taskId: input.taskId ?? null,
     stageName: input.stageName ?? null,
     primaryLocation,
-    secondaryLocations: [],
+    secondaryLocations: composeSecondaryLocations(input),
   };
 }
 
@@ -163,4 +163,18 @@ function readDescriptorTitle(input: MissionControlOutputDescriptorInput): string
     return input.url;
   }
   return input.repository;
+}
+
+function composeSecondaryLocations(
+  input: MissionControlOutputDescriptorInput,
+): MissionControlOutputLocation[] {
+  if (input.kind === 'workflow_document' && input.source === 'external') {
+    return [
+      {
+        kind: 'external_url',
+        url: input.location,
+      },
+    ];
+  }
+  return [];
 }

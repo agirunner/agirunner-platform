@@ -47,10 +47,35 @@ describe('mission control routes', () => {
     await app.register(missionControlRoutes);
 
     const headers = { authorization: 'Bearer test' };
-    expect((await app.inject({ method: 'GET', url: '/api/v1/mission-control/live?page=2&per_page=25', headers })).statusCode).toBe(200);
-    expect((await app.inject({ method: 'GET', url: '/api/v1/mission-control/recent?limit=15', headers })).statusCode).toBe(200);
-    expect((await app.inject({ method: 'GET', url: '/api/v1/mission-control/history?workflow_id=workflow-1&limit=30', headers })).statusCode).toBe(200);
-    expect((await app.inject({ method: 'GET', url: '/api/v1/mission-control/workflows/workflow-1/workspace?history_limit=11&output_limit=7', headers })).statusCode).toBe(200);
+    const liveResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/mission-control/live?page=2&per_page=25',
+      headers,
+    });
+    const recentResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/mission-control/recent?limit=15',
+      headers,
+    });
+    const historyResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/mission-control/history?workflow_id=workflow-1&limit=30',
+      headers,
+    });
+    const workspaceResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/mission-control/workflows/workflow-1/workspace?history_limit=11&output_limit=7',
+      headers,
+    });
+
+    expect(liveResponse.statusCode).toBe(200);
+    expect(recentResponse.statusCode).toBe(200);
+    expect(historyResponse.statusCode).toBe(200);
+    expect(workspaceResponse.statusCode).toBe(200);
+    expect(liveResponse.json()).toEqual({ data: { sections: [], attentionItems: [] } });
+    expect(recentResponse.json()).toEqual({ data: { packets: [] } });
+    expect(historyResponse.json()).toEqual({ data: { packets: [] } });
+    expect(workspaceResponse.json()).toEqual({ data: { workflow: null } });
 
     expect(missionControlLiveService.getLive).toHaveBeenCalledWith('tenant-1', { page: 2, perPage: 25 });
     expect(missionControlRecentService.getRecent).toHaveBeenCalledWith('tenant-1', { limit: 15 });

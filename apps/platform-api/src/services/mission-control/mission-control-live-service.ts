@@ -50,6 +50,7 @@ interface DocumentOutputRow {
   workflow_id: string;
   document_id: string;
   logical_name: string;
+  title: string | null;
   source: 'repository' | 'artifact' | 'external';
   location: string;
   artifact_id: string | null;
@@ -128,11 +129,12 @@ export class MissionControlLiveService {
         [tenantId, workflowIds, limitPerWorkflow],
       ),
       this.pool.query<DocumentOutputRow>(
-        `SELECT workflow_id, document_id, logical_name, source, location, artifact_id
+        `SELECT workflow_id, document_id, logical_name, title, source, location, artifact_id
            FROM (
              SELECT workflow_id,
                     id AS document_id,
                     logical_name,
+                    title,
                     source,
                     location,
                     artifact_id,
@@ -165,6 +167,7 @@ export class MissionControlLiveService {
         workflowId: row.workflow_id,
         documentId: row.document_id,
         logicalName: row.logical_name,
+        title: row.title,
         source: row.source,
         location: row.location,
         artifactId: row.artifact_id,

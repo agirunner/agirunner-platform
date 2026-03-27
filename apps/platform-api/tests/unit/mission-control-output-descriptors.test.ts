@@ -73,6 +73,7 @@ describe('mission control output descriptors', () => {
       workflowId: 'workflow-1',
       documentId: 'document-1',
       logicalName: 'design-brief',
+      title: 'Design brief',
       source: 'artifact',
       location: 'deliverables/design-brief.md',
       artifactId: 'artifact-2',
@@ -95,9 +96,32 @@ describe('mission control output descriptors', () => {
       location: 'deliverables/design-brief.md',
       artifactId: 'artifact-2',
     });
+    expect(documentDescriptor.title).toBe('Design brief');
     expect(linkDescriptor.primaryLocation).toEqual({
       kind: 'external_url',
       url: 'https://example.test/releases/42',
     });
+  });
+
+  it('keeps external document origins reachable as secondary output locations', () => {
+    const descriptor = composeMissionControlOutputDescriptor({
+      kind: 'workflow_document',
+      id: 'output-6',
+      workflowId: 'workflow-1',
+      documentId: 'document-2',
+      logicalName: 'release-brief',
+      title: 'Release brief',
+      source: 'external',
+      location: 'https://example.test/release-brief',
+      artifactId: null,
+      status: 'approved',
+    });
+
+    expect(descriptor.secondaryLocations).toEqual([
+      {
+        kind: 'external_url',
+        url: 'https://example.test/release-brief',
+      },
+    ]);
   });
 });

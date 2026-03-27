@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
+import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
 
 interface WorkflowSteeringSessionRow {
   id: string;
@@ -75,7 +76,7 @@ export class WorkflowSteeringSessionService {
         sanitizeOptionalText(input.title),
         'active',
         identity.ownerType,
-        identity.ownerId,
+        resolveOperatorRecordActorId(identity),
       ],
     );
     return toWorkflowSteeringSessionRecord(result.rows[0]);
@@ -121,7 +122,7 @@ export class WorkflowSteeringSessionService {
         sanitizeRecord(input.structuredProposal),
         input.interventionId ?? null,
         identity.ownerType,
-        identity.ownerId,
+        resolveOperatorRecordActorId(identity),
       ],
     );
     return toWorkflowSteeringMessageRecord(result.rows[0]);

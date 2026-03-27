@@ -12,6 +12,15 @@ const IDENTITY = {
   keyPrefix: 'admin',
 } as const;
 
+const SYSTEM_IDENTITY = {
+  id: 'key-system-1',
+  tenantId: 'tenant-1',
+  scope: 'admin',
+  ownerType: 'system',
+  ownerId: null,
+  keyPrefix: 'admin-system',
+} as const;
+
 function createPool() {
   return {
     query: vi.fn(),
@@ -171,5 +180,51 @@ describe('WorkflowInterventionService', () => {
         files: [],
       }),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('fallsBackToKeyPrefixWhenPersistingSystemOwnedInterventionAuthorship', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows') && sql.includes('SELECT id')) {
+        return {
+          rowCount: 1,
+          rows: [{ id: 'workflow-1' }],
+        };
+      }
+      if (sql.includes('INSERT INTO workflow_interventions')) {
+        expect(params?.[13]).toBe('admin-system');
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'intervention-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: null,
+            task_id: null,
+            kind: 'workflow_action',
+            origin: 'operator',
+            status: 'applied',
+            summary: 'Pause workflow',
+            note: null,
+            structured_action: { kind: 'pause_workflow' },
+            metadata: {},
+            created_by_type: 'system',
+            created_by_id: 'admin-system',
+            created_at: new Date('2026-03-27T10:00:00.000Z'),
+            updated_at: new Date('2026-03-27T10:00:00.000Z'),
+          }],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const result = await service.recordIntervention(SYSTEM_IDENTITY as never, 'workflow-1', {
+      kind: 'workflow_action',
+      summary: 'Pause workflow',
+      structuredAction: { kind: 'pause_workflow' },
+      files: [],
+    });
+
+    expect(result.created_by_type).toBe('system');
+    expect(result.created_by_id).toBe('admin-system');
   });
 });

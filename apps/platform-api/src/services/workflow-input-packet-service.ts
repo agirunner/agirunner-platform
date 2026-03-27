@@ -13,6 +13,7 @@ import {
   sanitizeWorkflowOperatorFileName,
   type WorkflowOperatorFileUploadInput,
 } from './workflow-operator-file-support.js';
+import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
 
 interface WorkflowPacketRow {
   id: string;
@@ -117,7 +118,7 @@ export class WorkflowInputPacketService {
         sanitizeRecord(input.structuredInputs),
         sanitizeRecord(input.metadata),
         identity.ownerType,
-        identity.ownerId,
+        resolveOperatorRecordActorId(identity),
       ],
     );
     const packetRow = packetResult.rows[0];
