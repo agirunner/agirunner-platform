@@ -265,6 +265,7 @@ describe('mcp page source', () => {
     expect(source).toContain('Create first OAuth client profile');
     expect(source).toContain('<ShieldCheck className="h-12 w-12 text-muted" />');
     expect(source).toContain('onCreate(): void;');
+    expect(source).toContain('<Button variant="outline" onClick={props.onCreate} className="w-full sm:w-auto">');
     expect(source).toContain(
       'Create a shared profile only when a remote MCP server requires host-managed OAuth',
     );

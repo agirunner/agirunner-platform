@@ -65,7 +65,7 @@ export function McpPageOAuthClientProfilesSection(props: {
                   credentials or endpoint defaults beyond automatic discovery.
                 </p>
               </div>
-              <Button onClick={props.onCreate} className="w-full sm:w-auto">
+              <Button variant="outline" onClick={props.onCreate} className="w-full sm:w-auto">
                 <Plus className="h-4 w-4" />
                 Create first OAuth client profile
               </Button>
