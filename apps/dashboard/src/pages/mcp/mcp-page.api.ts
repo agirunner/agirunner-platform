@@ -37,12 +37,5 @@ export const reverifyRemoteMcpServer = (
 ): Promise<DashboardRemoteMcpServerRecord> =>
   dashboardApi.reverifyRemoteMcpServer(serverId);
 
-export const archiveRemoteMcpServer = (
-  serverId: string,
-): Promise<DashboardRemoteMcpServerRecord> =>
-  dashboardApi.archiveRemoteMcpServer(serverId);
-
-export const unarchiveRemoteMcpServer = (
-  serverId: string,
-): Promise<DashboardRemoteMcpServerRecord> =>
-  dashboardApi.unarchiveRemoteMcpServer(serverId);
+export const deleteRemoteMcpServer = (serverId: string): Promise<void> =>
+  dashboardApi.deleteRemoteMcpServer(serverId);

@@ -40,7 +40,7 @@ describe('remote mcp server routes', () => {
     app.decorate('remoteMcpServerService', {
       listServers: vi.fn().mockResolvedValue([{ id: 'server-1', name: 'Docs MCP' }]),
       getServer: vi.fn(),
-      setArchived: vi.fn(),
+      deleteServer: vi.fn(),
     });
     app.decorate('remoteMcpVerificationService', {
       createServer: vi.fn(),
@@ -73,7 +73,7 @@ describe('remote mcp server routes', () => {
     app.decorate('remoteMcpServerService', {
       listServers: vi.fn(),
       getServer: vi.fn(),
-      setArchived: vi.fn(),
+      deleteServer: vi.fn(),
     });
     app.decorate('remoteMcpVerificationService', {
       createServer: vi.fn().mockResolvedValue({ id: 'server-1', name: 'Docs MCP' }),
@@ -117,7 +117,7 @@ describe('remote mcp server routes', () => {
     app.decorate('remoteMcpServerService', {
       listServers: vi.fn(),
       getServer: vi.fn(),
-      setArchived: vi.fn(),
+      deleteServer: vi.fn(),
     });
     app.decorate('remoteMcpVerificationService', {
       createServer: vi.fn(),
@@ -174,7 +174,7 @@ describe('remote mcp server routes', () => {
     app.decorate('remoteMcpServerService', {
       listServers: vi.fn(),
       getServer: vi.fn(),
-      setArchived: vi.fn(),
+      deleteServer: vi.fn(),
     });
     app.decorate('remoteMcpVerificationService', {
       createServer: vi.fn(),
@@ -220,7 +220,7 @@ describe('remote mcp server routes', () => {
     app.decorate('remoteMcpServerService', {
       listServers: vi.fn(),
       getServer: vi.fn(),
-      setArchived: vi.fn(),
+      deleteServer: vi.fn(),
     });
     app.decorate('remoteMcpVerificationService', {
       createServer: vi.fn(),
@@ -243,5 +243,38 @@ describe('remote mcp server routes', () => {
 
     expect(response.statusCode).toBe(204);
     expect(app.remoteMcpOAuthService.disconnectServer).toHaveBeenCalledWith('tenant-1', 'server-1');
+  });
+
+  it('deletes a remote MCP server', async () => {
+    const { remoteMcpServerRoutes } = await import('../../src/api/routes/remote-mcp-servers.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('remoteMcpServerService', {
+      listServers: vi.fn(),
+      getServer: vi.fn(),
+      deleteServer: vi.fn().mockResolvedValue(undefined),
+    });
+    app.decorate('remoteMcpVerificationService', {
+      createServer: vi.fn(),
+      updateServer: vi.fn(),
+      reverifyServer: vi.fn(),
+    });
+    app.decorate('remoteMcpOAuthService', {
+      initiateDraftAuthorization: vi.fn(),
+      reconnectServer: vi.fn(),
+      disconnectServer: vi.fn(),
+    });
+
+    await app.register(remoteMcpServerRoutes);
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/remote-mcp-servers/server-1',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(app.remoteMcpServerService.deleteServer).toHaveBeenCalledWith('tenant-1', 'server-1');
   });
 });

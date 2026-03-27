@@ -147,17 +147,21 @@ describe('RemoteMcpServerService', () => {
     ).toBe(true);
   });
 
-  it('archives remote MCP servers', async () => {
+  it('deletes remote MCP servers and relies on fk cleanup for assignments and parameters', async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [buildServerRow()], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [{ id: SERVER_ID }], rowCount: 1 })
-      .mockResolvedValueOnce({
-        rows: [buildServerRow({ is_archived: true })],
-        rowCount: 1,
-      });
+      .mockResolvedValueOnce({ rows: [{ id: SERVER_ID }], rowCount: 1 });
 
-    const result = await service.setArchived(TENANT_ID, SERVER_ID, true);
+    await service.deleteServer(TENANT_ID, SERVER_ID);
 
-    expect(result.is_archived).toBe(true);
+    expect(
+      pool.query.mock.calls.some(
+        ([sql]) =>
+          typeof sql === 'string'
+          && sql.includes('DELETE FROM remote_mcp_servers')
+          && sql.includes('WHERE tenant_id = $1')
+          && sql.includes('AND id = $2'),
+      ),
+    ).toBe(true);
   });
 });

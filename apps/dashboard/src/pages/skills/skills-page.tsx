@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 
 import {
   DEFAULT_LIST_PAGE_SIZE,
@@ -10,6 +10,7 @@ import {
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
+import { IconActionButton } from '../../components/ui/icon-action-button.js';
 import {
   Dialog,
   DialogContent,
@@ -181,23 +182,18 @@ export function SkillsPage(): JSX.Element {
                       <TableCell>{skill.summary || 'No summary provided.'}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
+                          <IconActionButton
+                            label={`Edit ${skill.name}`}
                             onClick={() => {
                               setDialogState({ mode: 'edit', skill });
                               setForm(createSkillFormState(skill));
                             }}
                           >
-                            Edit Skill
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => setDeletingSkill(skill)}
-                          >
-                            Delete Skill
-                          </Button>
+                            <Pencil className="h-4 w-4" />
+                          </IconActionButton>
+                          <IconActionButton label={`Delete ${skill.name}`} onClick={() => setDeletingSkill(skill)}>
+                            <Trash2 className="h-4 w-4" />
+                          </IconActionButton>
                         </div>
                       </TableCell>
                     </TableRow>

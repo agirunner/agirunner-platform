@@ -45,12 +45,20 @@ describe('skills page source', () => {
   it('supports create, edit, and delete without archive or restore actions', () => {
     const source = readCombinedSource();
 
-    expect(source).toContain('Edit Skill');
-    expect(source).toContain('Delete Skill');
+    expect(source).toContain('IconActionButton');
+    expect(source).toContain('label={`Edit ');
+    expect(source).toContain('label={`Delete ');
     expect(source).toContain('Save Skill');
     expect(source).not.toContain('Archive skill');
     expect(source).not.toContain('Restore skill');
     expect(source).not.toContain('archiveSpecialistSkill');
     expect(source).not.toContain('unarchiveSpecialistSkill');
+  });
+
+  it('uses the larger orchestrator-sized modal footprint for skill editing', () => {
+    const source = readSource('./skills-page.dialog.tsx');
+
+    expect(source).toContain('max-h-[92vh] max-w-[84rem] overflow-y-auto');
+    expect(source).toContain('min-h-[640px] sm:min-h-[720px]');
   });
 });

@@ -1,11 +1,10 @@
 import {
-  Archive,
   Pencil,
   Plug,
   RotateCcw,
   ShieldCheck,
+  Trash2,
   Unplug,
-  Undo2,
   Wrench,
 } from 'lucide-react';
 
@@ -33,16 +32,16 @@ export function McpPageTable(props: {
   onReverify(server: DashboardRemoteMcpServerRecord): void;
   onConnectOAuth(server: DashboardRemoteMcpServerRecord): void;
   onDisconnectOAuth(server: DashboardRemoteMcpServerRecord): void;
-  onArchive(server: DashboardRemoteMcpServerRecord): void;
-  onRestore(server: DashboardRemoteMcpServerRecord): void;
+  onDelete(server: DashboardRemoteMcpServerRecord): void;
 }) {
   return (
     <Table>
       <TableHeader>
         <TableRow>
           <TableHead>Server</TableHead>
-          <TableHead>Auth</TableHead>
-          <TableHead>Status</TableHead>
+          <TableHead className="w-[220px]">Auth</TableHead>
+          <TableHead className="w-[150px]">Status</TableHead>
+          <TableHead className="w-[190px]">Transport</TableHead>
           <TableHead>Specialists</TableHead>
           <TableHead className="w-[220px] text-right">Actions</TableHead>
         </TableRow>
@@ -61,7 +60,6 @@ export function McpPageTable(props: {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-foreground">{server.name}</span>
                     <Badge variant="outline">{server.auth_mode}</Badge>
-                    {server.is_archived ? <Badge variant="outline">Archived</Badge> : null}
                   </div>
                   <div className="text-xs text-muted">{server.description || 'No description provided.'}</div>
                   <div className="text-xs text-foreground">{server.endpoint_url}</div>
@@ -95,9 +93,6 @@ export function McpPageTable(props: {
                 <div className="space-y-1 text-sm">
                   <div className="flex items-center gap-2">
                     <StatusBadge server={server} />
-                    <span className="text-xs text-muted">
-                      {formatRemoteMcpTransport(server.verified_transport)}
-                    </span>
                   </div>
                   {server.verification_error ? (
                     <div className="text-xs text-red-600 dark:text-red-400">
@@ -105,6 +100,11 @@ export function McpPageTable(props: {
                     </div>
                   ) : null}
                 </div>
+              </TableCell>
+              <TableCell className="align-top text-sm text-foreground">
+                <span className="whitespace-nowrap">
+                  {formatRemoteMcpTransport(server.verified_transport)}
+                </span>
               </TableCell>
               <TableCell className="align-top text-sm text-foreground">
                 {server.assigned_specialist_count}
@@ -127,7 +127,7 @@ export function McpPageTable(props: {
                   </IconActionButton>
                   <IconActionButton
                     label="Reverify"
-                    disabled={isBusy || server.is_archived}
+                    disabled={isBusy}
                     onClick={() => props.onReverify(server)}
                   >
                     <RotateCcw className="h-4 w-4" />
@@ -135,7 +135,7 @@ export function McpPageTable(props: {
                   {isOauth ? (
                     <IconActionButton
                       label={connectLabel}
-                      disabled={isBusy || server.is_archived}
+                      disabled={isBusy}
                       onClick={() => props.onConnectOAuth(server)}
                     >
                       <Plug className="h-4 w-4" />
@@ -144,29 +144,19 @@ export function McpPageTable(props: {
                   {isOauth && server.oauth_connected ? (
                     <IconActionButton
                       label="Disconnect OAuth"
-                      disabled={isBusy || server.is_archived}
+                      disabled={isBusy}
                       onClick={() => props.onDisconnectOAuth(server)}
                     >
                       <Unplug className="h-4 w-4" />
                     </IconActionButton>
                   ) : null}
-                  {server.is_archived ? (
-                    <IconActionButton
-                      label="Restore"
-                      disabled={isBusy}
-                      onClick={() => props.onRestore(server)}
-                    >
-                      <Undo2 className="h-4 w-4" />
-                    </IconActionButton>
-                  ) : (
-                    <IconActionButton
-                      label="Archive"
-                      disabled={isBusy}
-                      onClick={() => props.onArchive(server)}
-                    >
-                      <Archive className="h-4 w-4" />
-                    </IconActionButton>
-                  )}
+                  <IconActionButton
+                    label="Delete"
+                    disabled={isBusy}
+                    onClick={() => props.onDelete(server)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </IconActionButton>
                 </div>
               </TableCell>
             </TableRow>
@@ -179,12 +169,12 @@ export function McpPageTable(props: {
 
 function buildAuthLabel(server: DashboardRemoteMcpServerRecord): string {
   if (server.auth_mode === 'oauth') {
-    return 'OAuth-backed remote server';
+    return 'OAuth';
   }
-  if (server.auth_mode === 'parameterized') {
-    return 'Parameterized remote server';
+  if (server.auth_mode === 'parameterized' || server.parameters.length > 0) {
+    return 'Connection parameters';
   }
-  return 'Unauthenticated remote server';
+  return 'No additional auth';
 }
 
 function StatusBadge(props: { server: DashboardRemoteMcpServerRecord }) {

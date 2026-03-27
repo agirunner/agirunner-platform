@@ -1954,8 +1954,7 @@ export interface DashboardApi {
   reconnectRemoteMcpOAuth(serverId: string): Promise<DashboardRemoteMcpAuthorizeResult>;
   disconnectRemoteMcpOAuth(serverId: string): Promise<void>;
   reverifyRemoteMcpServer(serverId: string): Promise<DashboardRemoteMcpServerRecord>;
-  archiveRemoteMcpServer(serverId: string): Promise<DashboardRemoteMcpServerRecord>;
-  unarchiveRemoteMcpServer(serverId: string): Promise<DashboardRemoteMcpServerRecord>;
+  deleteRemoteMcpServer(serverId: string): Promise<void>;
   listSpecialistSkills(): Promise<DashboardSpecialistSkillRecord[]>;
   getSpecialistSkill(skillId: string): Promise<DashboardSpecialistSkillRecord>;
   createSpecialistSkill(
@@ -3377,21 +3376,13 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           },
         ),
       ),
-    archiveRemoteMcpServer: (serverId) =>
+    deleteRemoteMcpServer: (serverId) =>
       withRefresh(() =>
-        requestData<DashboardRemoteMcpServerRecord>(
-          `/api/v1/remote-mcp-servers/${serverId}/archive`,
+        requestData<void>(
+          `/api/v1/remote-mcp-servers/${serverId}`,
           {
-            body: {},
-          },
-        ),
-      ),
-    unarchiveRemoteMcpServer: (serverId) =>
-      withRefresh(() =>
-        requestData<DashboardRemoteMcpServerRecord>(
-          `/api/v1/remote-mcp-servers/${serverId}/unarchive`,
-          {
-            body: {},
+            method: 'DELETE',
+            allowNoContent: true,
           },
         ),
       ),

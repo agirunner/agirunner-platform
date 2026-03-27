@@ -31,7 +31,6 @@ export interface RemoteMcpServerFormState {
 
 export interface RemoteMcpServerStats {
   total: number;
-  verified: number;
   oauthConnected: number;
 }
 
@@ -98,14 +97,12 @@ export function buildRemoteMcpServerStats(
   return servers.reduce(
     (summary, server) => ({
       total: summary.total + 1,
-      verified: summary.verified + (server.verification_status === 'verified' ? 1 : 0),
       oauthConnected:
         summary.oauthConnected
         + (server.auth_mode === 'oauth' && server.oauth_connected ? 1 : 0),
     }),
     {
       total: 0,
-      verified: 0,
       oauthConnected: 0,
     },
   );
@@ -114,12 +111,7 @@ export function buildRemoteMcpServerStats(
 export function sortRemoteMcpServers(
   servers: DashboardRemoteMcpServerRecord[],
 ): DashboardRemoteMcpServerRecord[] {
-  return [...servers].sort((left, right) => {
-    if (left.is_archived !== right.is_archived) {
-      return left.is_archived ? 1 : -1;
-    }
-    return left.name.localeCompare(right.name);
-  });
+  return [...servers].sort((left, right) => left.name.localeCompare(right.name));
 }
 
 export function summarizeDiscoveredToolNames(

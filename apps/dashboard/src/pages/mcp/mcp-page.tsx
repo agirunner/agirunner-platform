@@ -15,14 +15,13 @@ import { toast } from '../../lib/toast.js';
 import type { DashboardRemoteMcpServerRecord } from '../../lib/api.js';
 import { MetricCard } from '../role-definitions/role-definitions-list.js';
 import {
-  archiveRemoteMcpServer,
   createRemoteMcpServer,
+  deleteRemoteMcpServer,
   disconnectRemoteMcpOAuth,
   fetchRemoteMcpServers,
   initiateRemoteMcpOAuthAuthorization,
   reconnectRemoteMcpOAuth,
   reverifyRemoteMcpServer,
-  unarchiveRemoteMcpServer,
   updateRemoteMcpServer,
 } from './mcp-page.api.js';
 import { McpPageDialog } from './mcp-page.dialog.js';
@@ -172,35 +171,20 @@ export function McpPage(): JSX.Element {
     },
   });
 
-  const archiveMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: async (server: DashboardRemoteMcpServerRecord) => {
       setBusyServerId(server.id);
-      return archiveRemoteMcpServer(server.id);
+      await deleteRemoteMcpServer(server.id);
+      return server;
     },
     onSuccess: async (server) => {
       setBusyServerId(null);
       await refreshRemoteMcpQueries(queryClient);
-      toast.success(`Archived remote MCP server ${server.name}.`);
+      toast.success(`Deleted remote MCP server ${server.name}.`);
     },
     onError: (error) => {
       setBusyServerId(null);
-      toast.error(error instanceof Error ? error.message : 'Failed to archive remote MCP server.');
-    },
-  });
-
-  const restoreMutation = useMutation({
-    mutationFn: async (server: DashboardRemoteMcpServerRecord) => {
-      setBusyServerId(server.id);
-      return unarchiveRemoteMcpServer(server.id);
-    },
-    onSuccess: async (server) => {
-      setBusyServerId(null);
-      await refreshRemoteMcpQueries(queryClient);
-      toast.success(`Restored remote MCP server ${server.name}.`);
-    },
-    onError: (error) => {
-      setBusyServerId(null);
-      toast.error(error instanceof Error ? error.message : 'Failed to restore remote MCP server.');
+      toast.error(error instanceof Error ? error.message : 'Failed to delete remote MCP server.');
     },
   });
 
@@ -247,9 +231,8 @@ export function McpPage(): JSX.Element {
         }
       />
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <MetricCard label="Configured servers" value={stats.total} />
-        <MetricCard label="Verified" value={stats.verified} tone="success" />
         <MetricCard label="OAuth connected" value={stats.oauthConnected} />
       </div>
 
@@ -270,8 +253,7 @@ export function McpPage(): JSX.Element {
             onReverify={(server) => reverifyMutation.mutate(server)}
             onConnectOAuth={(server) => connectOauthMutation.mutate(server)}
             onDisconnectOAuth={(server) => disconnectOauthMutation.mutate(server)}
-            onArchive={(server) => archiveMutation.mutate(server)}
-            onRestore={(server) => restoreMutation.mutate(server)}
+            onDelete={(server) => deleteMutation.mutate(server)}
           />
         </div>
         <ListPagination

@@ -137,7 +137,10 @@ export class RemoteMcpServerService {
   constructor(private readonly pool: DatabaseQueryable) {}
 
   async listServers(tenantId: string): Promise<RemoteMcpServerRecord[]> {
-    const result = await this.pool.query<RemoteMcpServerRow>(listServersSql(), [tenantId]);
+    const result = await this.pool.query<RemoteMcpServerRow>(
+      `${listServersSql()} AND s.is_archived = false`,
+      [tenantId],
+    );
     return result.rows.map((row) => toRemoteMcpServerRecord(row, false));
   }
 
@@ -304,17 +307,18 @@ export class RemoteMcpServerService {
     return this.getServer(tenantId, id);
   }
 
-  async setArchived(tenantId: string, id: string, archived: boolean): Promise<RemoteMcpServerRecord> {
+  async deleteServer(tenantId: string, id: string): Promise<void> {
     await this.getServer(tenantId, id);
-    await this.pool.query(
-      `UPDATE remote_mcp_servers
-          SET is_archived = $3,
-              updated_at = now()
+    const result = await this.pool.query(
+      `DELETE FROM remote_mcp_servers
         WHERE tenant_id = $1
-          AND id = $2`,
-      [tenantId, id, archived],
+          AND id = $2
+        RETURNING id`,
+      [tenantId, id],
     );
-    return this.getServer(tenantId, id);
+    if (!result.rowCount) {
+      throw new NotFoundError('Remote MCP server not found');
+    }
   }
 
   private async replaceParameters(serverId: string, parameters: ParameterInput[]): Promise<void> {

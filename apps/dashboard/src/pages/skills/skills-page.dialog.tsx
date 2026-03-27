@@ -37,7 +37,7 @@ export function SkillsPageDialog(props: {
 }) {
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+      <DialogContent className="max-h-[92vh] max-w-[84rem] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{props.title}</DialogTitle>
           <DialogDescription>
@@ -72,7 +72,7 @@ export function SkillsPageDialog(props: {
           <label className="grid gap-2 text-sm">
             <span className="font-medium">Content</span>
             <Textarea
-              rows={12}
+              className="min-h-[640px] sm:min-h-[720px]"
               value={props.form.content}
               onChange={(event) => {
                 props.onFormChange({ ...props.form, content: event.target.value });

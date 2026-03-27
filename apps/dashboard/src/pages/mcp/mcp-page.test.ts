@@ -51,11 +51,23 @@ describe('mcp page source', () => {
     expect(source).toContain('Connect OAuth');
     expect(source).toContain('Reconnect OAuth');
     expect(source).toContain('Disconnect OAuth');
-    expect(source).toContain('Archive');
-    expect(source).toContain('Restore');
+    expect(source).toContain('Delete');
+    expect(source).not.toContain('Archive');
+    expect(source).not.toContain('Restore');
     expect(source).toContain('openAuthorizeUrl(result.result.authorizeUrl);');
     expect(source).toContain('openAuthorizeUrl(result.authorizeUrl);');
     expect(source).toContain("window.open(authorizeUrl, '_blank', 'noopener,noreferrer')");
+  });
+
+  it('shows only configured and oauth-connected cards, with transport separated from status', () => {
+    const source = readCombinedSource();
+
+    expect(source).toContain('Configured servers');
+    expect(source).toContain('OAuth connected');
+    expect(source).not.toContain('MetricCard label="Verified"');
+    expect(source).toContain('<TableHead className="w-[190px]">Transport</TableHead>');
+    expect(source).toContain('Connection parameters');
+    expect(source).toContain('No additional auth');
   });
 
   it('authors endpoint, auth, defaults, and parameter rows in the dialog', () => {

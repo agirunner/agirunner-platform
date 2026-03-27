@@ -192,7 +192,6 @@ describe('remote mcp page support', () => {
       ]),
     ).toEqual({
       total: 2,
-      verified: 2,
       oauthConnected: 1,
     });
   });

@@ -98,21 +98,13 @@ export const remoteMcpServerRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  app.post(
-    '/api/v1/remote-mcp-servers/:id/archive',
+  app.delete(
+    '/api/v1/remote-mcp-servers/:id',
     { preHandler: [authenticateApiKey, withScope('admin')] },
-    async (request) => {
+    async (request, reply) => {
       const params = request.params as { id: string };
-      return { data: await app.remoteMcpServerService.setArchived(request.auth!.tenantId, params.id, true) };
-    },
-  );
-
-  app.post(
-    '/api/v1/remote-mcp-servers/:id/unarchive',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
-    async (request) => {
-      const params = request.params as { id: string };
-      return { data: await app.remoteMcpServerService.setArchived(request.auth!.tenantId, params.id, false) };
+      await app.remoteMcpServerService.deleteServer(request.auth!.tenantId, params.id);
+      reply.status(204);
     },
   );
 };
