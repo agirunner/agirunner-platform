@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog.js';
 import { dashboardApi } from '../../lib/api.js';
+import type { DashboardMissionControlActionAvailability } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { cn } from '../../lib/utils.js';
 import { invalidateWorkflowQueries } from './workflow-detail-query.js';
@@ -24,6 +25,7 @@ interface WorkflowControlActionsProps {
   size?: ButtonProps['size'];
   className?: string;
   additionalQueryKeys?: ReadonlyArray<QueryKey>;
+  availableActions?: DashboardMissionControlActionAvailability[];
 }
 
 async function invalidateWorkflowControlQueries(
@@ -51,7 +53,10 @@ function readWorkflowControlError(error: unknown, fallback: string) {
 
 export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.Element | null {
   const queryClient = useQueryClient();
-  const availability = getWorkflowControlAvailability({ state: props.workflowState });
+  const availability = getWorkflowControlAvailability({
+    state: props.workflowState,
+    availableActions: props.availableActions,
+  });
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 
   const pauseMutation = useMutation({

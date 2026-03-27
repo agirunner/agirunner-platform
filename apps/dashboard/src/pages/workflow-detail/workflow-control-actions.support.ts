@@ -1,5 +1,9 @@
 interface WorkflowControlStateInput {
   state?: string | null;
+  availableActions?: Array<{
+    kind: string;
+    enabled: boolean;
+  }>;
 }
 
 export interface WorkflowControlAvailability {
@@ -11,10 +15,29 @@ export interface WorkflowControlAvailability {
 export function getWorkflowControlAvailability(
   input: WorkflowControlStateInput,
 ): WorkflowControlAvailability {
+  const actionAvailability = readWorkflowActionAvailability(input.availableActions);
+  if (actionAvailability) {
+    return actionAvailability;
+  }
+
   const state = input.state?.trim().toLowerCase() ?? '';
   return {
     canPause: state === 'pending' || state === 'active',
     canResume: state === 'paused',
     canCancel: state === 'pending' || state === 'active' || state === 'paused',
+  };
+}
+
+function readWorkflowActionAvailability(
+  availableActions: WorkflowControlStateInput['availableActions'],
+): WorkflowControlAvailability | null {
+  if (!availableActions || availableActions.length === 0) {
+    return null;
+  }
+  const actionMap = new Map(availableActions.map((entry) => [entry.kind, entry.enabled]));
+  return {
+    canPause: actionMap.get('pause_workflow') ?? false,
+    canResume: actionMap.get('resume_workflow') ?? false,
+    canCancel: actionMap.get('cancel_workflow') ?? false,
   };
 }

@@ -53,4 +53,62 @@ describe('MissionControlRecentService', () => {
       }),
     ]);
   });
+
+  it('suppresses heartbeat activation noise from recent review packets', async () => {
+    const pool = {
+      query: vi.fn(async () => ({
+        rows: [
+          {
+            id: 12,
+            type: 'workflow.activation.started',
+            entity_type: 'workflow',
+            entity_id: 'workflow-1',
+            actor_type: 'system',
+            actor_id: null,
+            data: {
+              workflow_id: 'workflow-1',
+              reason: 'heartbeat',
+            },
+            created_at: '2026-03-27T04:05:00.000Z',
+          },
+          {
+            id: 13,
+            type: 'workflow.output.published',
+            entity_type: 'workflow',
+            entity_id: 'workflow-1',
+            actor_type: 'system',
+            actor_id: null,
+            data: {
+              workflow_id: 'workflow-1',
+              summary: 'Release packet published',
+            },
+            created_at: '2026-03-27T04:06:00.000Z',
+          },
+        ],
+        rowCount: 2,
+      })),
+    };
+    const liveService = {
+      getLatestEventId: vi.fn(async () => 21),
+      listWorkflowCards: vi.fn(async () => [
+        {
+          id: 'workflow-1',
+          name: 'Release Workflow',
+          posture: 'progressing',
+          outputDescriptors: [],
+        },
+      ]),
+    };
+
+    const service = new MissionControlRecentService(pool as never, liveService as never);
+    const response = await service.getRecent('tenant-1', { limit: 10 });
+
+    expect(response.packets).toHaveLength(1);
+    expect(response.packets[0]).toEqual(
+      expect.objectContaining({
+        title: 'Workflow Output Published',
+        summary: 'Release packet published',
+      }),
+    );
+  });
 });

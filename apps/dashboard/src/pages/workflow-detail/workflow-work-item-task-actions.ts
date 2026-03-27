@@ -1,3 +1,5 @@
+import { buildWorkflowDetailPermalink } from './workflow-detail-permalinks.js';
+
 export interface WorkItemTaskLinkAction {
   label: string;
   href: string;
@@ -19,7 +21,7 @@ export function buildWorkItemTaskLinkActions(input: {
   if (workflowId && workItemId) {
     actions.push({
       label: 'Open work-item flow',
-      href: `/mission-control/workflows/${encodeURIComponent(workflowId)}?work_item=${encodeURIComponent(workItemId)}#work-item-${encodeURIComponent(workItemId)}`,
+      href: buildWorkflowDetailPermalink(workflowId, { workItemId }),
       isPrimary: true,
     });
   }

@@ -6,6 +6,10 @@ import { Badge } from '../../components/ui/badge.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import type { DashboardMissionControlWorkspaceResponse } from '../../lib/api.js';
+import {
+  buildMissionControlShellHref,
+  buildWorkflowDiagnosticsHref,
+} from './mission-control-page.support.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
 import { WorkflowControlActions } from '../workflow-detail/workflow-control-actions.js';
 import { formatRelativeTimestamp } from '../workflow-detail/workflow-detail-presentation.js';
@@ -92,7 +96,10 @@ export function MissionControlWorkspacePane(props: {
 
   const workflow = props.response.workflow;
   const posture = describeMissionControlPosture(workflow.posture);
-  const inspectorHref = `/mission-control/workflows/${workflow.id}/inspector`;
+  const inspectorHref = buildWorkflowDiagnosticsHref({
+    workflowId: workflow.id,
+    view: 'summary',
+  });
 
   return (
     <Card className="h-full">
@@ -123,10 +130,15 @@ export function MissionControlWorkspacePane(props: {
             workflowState={workflow.state}
             workspaceId={workflow.workspaceId}
             additionalQueryKeys={[['mission-control']]}
+            availableActions={workflow.availableActions}
           />
           <Link
             className="text-sm font-medium text-accent underline-offset-4 hover:underline"
-            to={buildWorkflowDetailPermalink(workflow.id, {})}
+            to={buildMissionControlShellHref({
+              rail: 'workflow',
+              workflowId: workflow.id,
+              tab,
+            })}
           >
             Open full workflow
           </Link>

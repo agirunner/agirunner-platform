@@ -44,6 +44,12 @@ export function MissionControlWorkspaceSteering(props: {
   const [note, setNote] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [optimisticInterventions, setOptimisticInterventions] = useState<
+    Array<Pick<DashboardWorkflowInterventionRecord, 'id' | 'summary' | 'note' | 'kind' | 'created_at'>>
+  >([]);
+  const [optimisticMessages, setOptimisticMessages] = useState<
+    Array<Pick<DashboardWorkflowSteeringMessageRecord, 'id' | 'role' | 'content' | 'created_at'>>
+  >([]);
 
   const actionByKind = useMemo(
     () => new Map(props.availableActions.map((entry) => [entry.kind, entry])),
@@ -67,12 +73,32 @@ export function MissionControlWorkspaceSteering(props: {
         ?? (await dashboardApi.createWorkflowSteeringSession(props.workflowId, {
           title: `${props.workflowName} steering`,
         })).id;
-      await dashboardApi.appendWorkflowSteeringMessage(props.workflowId, sessionId, {
+      const message = await dashboardApi.appendWorkflowSteeringMessage(props.workflowId, sessionId, {
         content: trimmed,
         intervention_id: intervention.id,
       });
+      return { intervention, message };
     },
-    onSuccess: async () => {
+    onSuccess: async ({ intervention, message }) => {
+      setOptimisticInterventions((current) => [
+        {
+          id: intervention.id,
+          summary: intervention.summary,
+          note: intervention.note,
+          kind: intervention.kind,
+          created_at: intervention.created_at,
+        },
+        ...current.filter((entry) => entry.id !== intervention.id),
+      ]);
+      setOptimisticMessages((current) => [
+        {
+          id: message.id,
+          role: message.role,
+          content: message.content,
+          created_at: message.created_at,
+        },
+        ...current.filter((entry) => entry.id !== message.id),
+      ]);
       await invalidateMissionControlQueries(queryClient, props.workflowId, props.workspaceId ?? undefined);
       toast.success('Steering instruction recorded');
       setNote('');
@@ -83,6 +109,15 @@ export function MissionControlWorkspaceSteering(props: {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to record steering instruction.');
     },
   });
+
+  const interventionHistory = useMemo(
+    () => dedupeById([...optimisticInterventions, ...props.interventions]),
+    [optimisticInterventions, props.interventions],
+  );
+  const steeringHistory = useMemo(
+    () => dedupeById([...optimisticMessages, ...props.steeringMessages]),
+    [optimisticMessages, props.steeringMessages],
+  );
 
   return (
     <>
@@ -98,6 +133,7 @@ export function MissionControlWorkspaceSteering(props: {
               workflowState={props.workflowState}
               workspaceId={props.workspaceId}
               additionalQueryKeys={[['mission-control']]}
+              availableActions={props.availableActions}
             />
             <div className="flex flex-wrap gap-2">
               <ActionButton action={actionByKind.get('add_work_item')} label="Add work" onClick={() => setIsAddWorkDialogOpen(true)} />
@@ -167,7 +203,7 @@ export function MissionControlWorkspaceSteering(props: {
               <p className="text-sm text-muted-foreground">No steering interventions have been recorded yet.</p>
             ) : (
               <>
-                {props.interventions.map((entry) => (
+                {interventionHistory.map((entry) => (
                   <article key={entry.id} className="grid gap-2 rounded-xl border border-border/70 bg-border/10 p-4">
                     <div className="flex flex-wrap items-center gap-2">
                       <strong>{entry.summary}</strong>
@@ -177,7 +213,7 @@ export function MissionControlWorkspaceSteering(props: {
                     <span className="text-xs text-muted-foreground">{formatRelativeTimestamp(entry.created_at)}</span>
                   </article>
                 ))}
-                {props.steeringMessages.map((message) => (
+                {steeringHistory.map((message) => (
                   <article key={message.id} className="grid gap-1 rounded-xl border border-border/70 bg-border/10 p-4">
                     <strong>{message.role === 'operator' ? 'Operator note' : humanizeToken(message.role)}</strong>
                     <p className="text-sm text-muted-foreground">{message.content}</p>
@@ -243,4 +279,15 @@ function summarizeIntervention(value: string): string {
 
 function humanizeToken(value: string): string {
   return value.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function dedupeById<T extends { id: string }>(entries: T[]): T[] {
+  const seen = new Set<string>();
+  return entries.filter((entry) => {
+    if (seen.has(entry.id)) {
+      return false;
+    }
+    seen.add(entry.id);
+    return true;
+  });
 }

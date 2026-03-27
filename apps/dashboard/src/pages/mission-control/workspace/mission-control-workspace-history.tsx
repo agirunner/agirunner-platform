@@ -46,7 +46,7 @@ export function MissionControlWorkspaceHistory(props: {
                   className="text-sm font-medium text-accent underline-offset-4 hover:underline"
                   to={buildWorkflowDetailPermalink(props.workflowId, {})}
                 >
-                  Open full workflow
+                  Open workflow context
                 </Link>
               </article>
             );

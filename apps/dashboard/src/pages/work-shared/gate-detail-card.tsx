@@ -261,7 +261,7 @@ export function GateDetailCard(props: {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <Link
-                  to={permalink ?? `/mission-control/workflows/${workflowId}`}
+                  to={permalink ?? buildWorkflowDetailPermalink(workflowId, {})}
                   className="text-sm font-semibold text-accent hover:underline"
                 >
                   {gate.workflow_name ?? workflowId}

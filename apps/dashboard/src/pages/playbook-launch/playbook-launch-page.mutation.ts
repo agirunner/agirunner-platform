@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import type { NavigateFunction } from 'react-router-dom';
 
 import { dashboardApi, type DashboardWorkflowBudgetInput } from '../../lib/api.js';
+import { buildMissionControlShellHref } from '../mission-control/mission-control-page.support.js';
 import {
   buildModelOverrides,
   buildParametersFromDrafts,
@@ -62,7 +63,12 @@ export function usePlaybookLaunchMutation(input: UsePlaybookLaunchMutationInput)
       });
     },
     onSuccess: (workflow) => {
-      input.navigate(`/mission-control/workflows/${workflow.id}`);
+      input.navigate(
+        buildMissionControlShellHref({
+          rail: 'workflow',
+          workflowId: workflow.id,
+        }),
+      );
     },
     onError: (mutationError) => {
       input.setError(

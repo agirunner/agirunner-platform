@@ -1,4 +1,5 @@
 import type { ArtifactPreviewReturnSource } from '../../lib/artifact-navigation.js';
+import { buildWorkflowDetailPermalink } from '../../pages/workflow-detail/workflow-detail-permalinks.js';
 import { buildWorkflowOperatorPermalink } from '../../pages/work-shared/task-operator-flow.js';
 
 import { MAX_INLINE_ARTIFACT_PREVIEW_BYTES } from './artifact-preview-support.js';
@@ -99,7 +100,7 @@ export function buildArtifactPreviewOperatorNavigation(input: {
 
   if (workflowScope.workflow_id) {
     return {
-      primaryHref: `/mission-control/workflows/${encodeURIComponent(workflowScope.workflow_id)}`,
+      primaryHref: buildWorkflowDetailPermalink(workflowScope.workflow_id, {}),
       primaryLabel: 'Back to board context',
       primaryHelper:
         'Return to the board context first, then open step diagnostics only if you need lower-level execution detail.',

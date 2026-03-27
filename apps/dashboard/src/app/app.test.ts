@@ -136,4 +136,16 @@ describe('app trigger routes source', () => {
     expect(source).not.toContain('path="/mission-control/workflows" element={<WorkflowListPage />}');
     expect(source).not.toContain('path="/mission-control/action-queue" element={<AlertsApprovalsPage />}');
   });
+
+  it('redirects legacy workflow detail and inspector routes instead of mounting deprecated pages', () => {
+    const source = readSource();
+    expect(source).toContain('function LegacyMissionControlWorkflowRedirect()');
+    expect(source).toContain('function LegacyMissionControlWorkflowInspectorRedirect()');
+    expect(source).toContain('path="/mission-control/workflows/:id"');
+    expect(source).toContain('element={<LegacyMissionControlWorkflowRedirect />}');
+    expect(source).toContain('path="/mission-control/workflows/:id/inspector"');
+    expect(source).toContain('element={<LegacyMissionControlWorkflowInspectorRedirect />}');
+    expect(source).not.toContain('element={<WorkflowDetailPage />}');
+    expect(source).not.toContain('element={<WorkflowInspectorPage />}');
+  });
 });

@@ -1,4 +1,6 @@
 import type { DashboardWorkspaceTimelineEntry } from '../../lib/api.js';
+import { buildWorkflowDiagnosticsHref } from '../mission-control/mission-control-page.support.js';
+import { buildWorkflowDetailPermalink } from './workflow-detail-permalinks.js';
 
 export interface WorkflowWorkspaceTimelineMetric {
   label: string;
@@ -59,8 +61,11 @@ export function buildWorkflowWorkspaceTimelinePacket(
   return {
     workflowId: entry.workflow_id,
     workflowName: entry.name,
-    workflowHref: entry.link || `/mission-control/workflows/${entry.workflow_id}`,
-    inspectorHref: `/mission-control/workflows/${entry.workflow_id}/inspector`,
+    workflowHref: buildWorkflowDetailPermalink(entry.workflow_id, {}),
+    inspectorHref: buildWorkflowDiagnosticsHref({
+      workflowId: entry.workflow_id,
+      view: 'summary',
+    }),
     stateLabel: humanizeState(entry.state),
     summary: describePacketSummary(entry),
     nextAction: describeNextAction(entry),

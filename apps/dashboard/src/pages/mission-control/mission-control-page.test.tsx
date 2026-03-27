@@ -32,5 +32,8 @@ describe('mission control page source', () => {
     expect(source).toContain('hidden xl:block');
     expect(source).toContain('readMissionControlShellState');
     expect(source).toContain('buildMissionControlShellHref');
+    expect(source).toContain("queryKey: ['tasks', 'mission-control', shellState.mode]");
+    expect(source).toContain('lens={shellState.lens}');
+    expect(source).toContain('taskLensResponse={taskLensResponse}');
   });
 });

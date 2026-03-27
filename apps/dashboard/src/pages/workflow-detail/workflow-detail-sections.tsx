@@ -15,6 +15,7 @@ import type {
 } from '../../lib/api.js';
 import { dashboardApi } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
+import { buildWorkflowDiagnosticsHref } from '../mission-control/mission-control-page.support.js';
 import {
   describeTaskGraphPacket,
   type DashboardWorkflowTaskRow,
@@ -1119,7 +1120,11 @@ export function WorkflowActivationsCard(props: {
                 </Button>
                 <CopyableIdBadge value={activation.activation_id ?? activation.id} label="Activation" />
                 <Link
-                  to={`/mission-control/workflows/${activation.workflow_id}/inspector?activation=${activation.activation_id ?? activation.id}&view=summary`}
+                  to={buildWorkflowDiagnosticsHref({
+                    workflowId: activation.workflow_id,
+                    taskId: activation.redispatched_task_id ?? null,
+                    view: 'summary',
+                  })}
                   className="text-sm text-muted underline-offset-4 hover:underline"
                 >
                   Open inspector

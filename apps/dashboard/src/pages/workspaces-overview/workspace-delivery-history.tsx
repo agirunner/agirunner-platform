@@ -74,7 +74,7 @@ export function WorkspaceDeliveryHistory({ workspaceId }: { workspaceId: string 
             <div className="flex flex-wrap gap-2">
               <Button asChild>
                 <Link to={overview.nextActionHref}>
-                  {overview.nextActionHref.includes('/inspector') ? 'Open inspector' : 'Open board'}
+                  {isDiagnosticsHref(overview.nextActionHref) ? 'Open inspector' : 'Open board'}
                 </Link>
               </Button>
             </div>
@@ -119,7 +119,7 @@ function DeliveryRunCard({
   packet: ReturnType<typeof buildWorkspaceDeliveryPacket>;
   attentionState: ReturnType<typeof buildWorkspaceDeliveryAttentionState>;
 }): JSX.Element {
-  const actionLabel = attentionState.primaryActionHref.includes('/inspector')
+  const actionLabel = isDiagnosticsHref(attentionState.primaryActionHref)
     ? 'Open inspector'
     : 'Open board';
 
@@ -165,6 +165,10 @@ function DeliveryRunCard({
       </CardContent>
     </Card>
   );
+}
+
+function isDiagnosticsHref(value: string): boolean {
+  return value.includes('/diagnostics/live-logs');
 }
 
 function DeliveryEmptyCard({

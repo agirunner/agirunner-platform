@@ -5,6 +5,7 @@ import { Link2, Loader2 } from 'lucide-react';
 
 import { dashboardApi } from '../../lib/api.js';
 import type { DashboardPlaybookRecord } from '../../lib/api.js';
+import { buildMissionControlShellHref } from '../../pages/mission-control/mission-control-page.support.js';
 import {
   buildParametersFromDrafts,
   readLaunchDefinition,
@@ -107,7 +108,12 @@ export function ChainWorkflowDialog(props: ChainWorkflowDialogProps): JSX.Elemen
       setErrorMessage(null);
       const created = extractId(data);
       if (created) {
-        navigate(`/mission-control/workflows/${created}`);
+        navigate(
+          buildMissionControlShellHref({
+            rail: 'workflow',
+            workflowId: created,
+          }),
+        );
       }
     },
     onError: (error) => {

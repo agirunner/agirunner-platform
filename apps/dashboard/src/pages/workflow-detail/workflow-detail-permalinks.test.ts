@@ -1,38 +1,35 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildWorkflowDetailHash,
   buildWorkflowDetailPermalink,
-  isWorkflowDetailTargetHighlighted,
 } from './workflow-detail-permalinks.js';
 
 describe('workflow detail permalinks', () => {
-  it('builds stable work item, activation, child workflow, and gate permalinks', () => {
+  it('maps workflow operator links into unified mission control shell state', () => {
+    expect(buildWorkflowDetailPermalink('workflow-1', {})).toBe(
+      '/mission-control?rail=workflow&workflow=workflow-1',
+    );
     expect(
-      buildWorkflowDetailPermalink('workflow-1', { workItemId: 'work-item-1' }),
-    ).toBe('/mission-control/workflows/workflow-1?work_item=work-item-1#work-item-work-item-1');
+      buildWorkflowDetailPermalink('workflow-1', {
+        workItemId: 'work-item-9',
+      }),
+    ).toBe(
+      '/mission-control?rail=workflow&workflow=workflow-1&tab=board#work-item-work-item-9',
+    );
     expect(
-      buildWorkflowDetailPermalink('workflow-1', { activationId: 'activation-1' }),
-    ).toBe('/mission-control/workflows/workflow-1?activation=activation-1#activation-activation-1');
-    expect(
-      buildWorkflowDetailPermalink('workflow-1', { childWorkflowId: 'workflow-2' }),
-    ).toBe('/mission-control/workflows/workflow-1?child=workflow-2#child-workflow-workflow-2');
-    expect(
-      buildWorkflowDetailPermalink('workflow-1', { gateStageName: 'review' }),
-    ).toBe('/mission-control/workflows/workflow-1?gate=review#gate-review');
+      buildWorkflowDetailPermalink('workflow-1', {
+        activationId: 'activation-4',
+      }),
+    ).toBe(
+      '/mission-control?rail=workflow&workflow=workflow-1&tab=history#activation-activation-4',
+    );
   });
 
-  it('matches highlighted workflow detail targets from query or hash', () => {
-    expect(
-      isWorkflowDetailTargetHighlighted('?work_item=work-item-1', '', 'work_item', 'work-item-1'),
-    ).toBe(true);
-    expect(
-      isWorkflowDetailTargetHighlighted('', '#activation-activation-1', 'activation', 'activation-1'),
-    ).toBe(true);
-    expect(
-      isWorkflowDetailTargetHighlighted('?child=workflow-2', '', 'child', 'workflow-1'),
-    ).toBe(false);
-    expect(
-      isWorkflowDetailTargetHighlighted('', '#gate-review', 'gate', 'review'),
-    ).toBe(true);
+  it('keeps legacy hash generation stable for focus targets', () => {
+    expect(buildWorkflowDetailHash({ gateStageName: 'review' })).toBe('#gate-review');
+    expect(buildWorkflowDetailHash({ childWorkflowId: 'child-2' })).toBe(
+      '#child-workflow-child-2',
+    );
   });
 });

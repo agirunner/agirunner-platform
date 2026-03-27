@@ -27,7 +27,9 @@ import {
   useMissionControlRealtime,
 } from './mission-control-realtime.js';
 import { MissionControlLaunchDialog } from './mission-control-launch-dialog.js';
+import { MissionControlTaskLensView } from './mission-control-task-lens-view.js';
 import { MissionControlWorkspacePane } from './mission-control-workspace-pane.js';
+import { normalizeTaskListRecords } from '../task-list/task-list-page.support.js';
 
 const SAVED_VIEW_OPTIONS = [
   { label: 'All active', value: 'all-active' },
@@ -90,6 +92,15 @@ export function MissionControlPage(): JSX.Element {
     queryFn: () => dashboardApi.getMissionControlWorkflowWorkspace(shellState.workflowId as string),
     enabled: Boolean(shellState.workflowId),
   });
+  const tasksQuery = useQuery({
+    queryKey: ['tasks', 'mission-control', shellState.mode],
+    queryFn: () => dashboardApi.listTasks({ per_page: '100' }),
+    enabled: shellState.lens === 'tasks',
+  });
+  const taskLensResponse = useMemo(
+    () => normalizeTaskListRecords(tasksQuery.data),
+    [tasksQuery.data],
+  );
 
   useMissionControlRealtime(queryClient);
   const isMobileWorkflowTakeover = shellState.rail === 'workflow' && Boolean(shellState.workflowId);
@@ -107,6 +118,7 @@ export function MissionControlPage(): JSX.Element {
       mode: filters.mode as MissionControlMode | undefined,
       rail: filters.rail as MissionControlRail | undefined,
       lens: filters.lens === 'tasks' ? 'tasks' : 'workflows',
+      tab: shellState.tab,
       savedView: filters.view ?? shellState.savedView,
       scope: filters.scope ?? shellState.scope,
       workflowId: filters.workflow ?? null,
@@ -130,6 +142,7 @@ export function MissionControlPage(): JSX.Element {
                   mode: 'live',
                   rail: 'attention',
                   lens: 'workflows',
+                  tab: 'overview',
                   savedView: 'all-active',
                   scope: 'entire-tenant',
                   workflowId: null,
@@ -198,7 +211,13 @@ export function MissionControlPage(): JSX.Element {
               onClick={() => patchShellState({ lens: 'tasks' })}
             />
           </div>
-          {shellState.mode === 'live' ? (
+          {shellState.lens === 'tasks' ? (
+            <MissionControlTaskLensView
+              mode={shellState.mode}
+              tasks={taskLensResponse}
+              isLoading={tasksQuery.isLoading}
+            />
+          ) : shellState.mode === 'live' ? (
             <MissionControlLiveView
               response={liveQuery.data ?? null}
               isLoading={liveQuery.isLoading}
@@ -208,6 +227,7 @@ export function MissionControlPage(): JSX.Element {
                 patchShellState({
                   rail: 'workflow',
                   workflowId,
+                  tab: 'overview',
                 })
               }
             />
@@ -215,11 +235,15 @@ export function MissionControlPage(): JSX.Element {
             <MissionControlRecentView
               response={recentQuery.data ?? null}
               isLoading={recentQuery.isLoading}
+              lens={shellState.lens}
+              taskLensResponse={taskLensResponse}
             />
           ) : (
             <MissionControlHistoryView
               response={historyQuery.data ?? null}
               isLoading={historyQuery.isLoading}
+              lens={shellState.lens}
+              taskLensResponse={taskLensResponse}
             />
           )}
         </section>
@@ -249,6 +273,7 @@ export function MissionControlPage(): JSX.Element {
               workflowId={shellState.workflowId}
               response={workspaceQuery.data ?? null}
               isLoading={workspaceQuery.isLoading}
+              initialTab={shellState.tab}
               isMobileTakeover={isMobileWorkflowTakeover}
             />
           )}
@@ -261,6 +286,7 @@ export function MissionControlPage(): JSX.Element {
           patchShellState({
             rail: 'workflow',
             workflowId,
+            tab: 'overview',
           })
         }
       />

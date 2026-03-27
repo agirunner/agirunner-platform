@@ -1,3 +1,8 @@
+import {
+  buildMissionControlShellHref,
+  type MissionControlWorkspaceTab,
+} from '../mission-control/mission-control-page.support.js';
+
 export interface WorkflowDetailTarget {
   workItemId?: string | null;
   activationId?: string | null;
@@ -9,24 +14,13 @@ export function buildWorkflowDetailPermalink(
   workflowId: string,
   target: WorkflowDetailTarget,
 ): string {
-  const params = new URLSearchParams();
-
-  if (target.workItemId) {
-    params.set('work_item', target.workItemId);
-  }
-  if (target.activationId) {
-    params.set('activation', target.activationId);
-  }
-  if (target.childWorkflowId) {
-    params.set('child', target.childWorkflowId);
-  }
-  if (target.gateStageName) {
-    params.set('gate', target.gateStageName);
-  }
-
-  const query = params.toString();
   const hash = buildWorkflowDetailHash(target);
-  return `/mission-control/workflows/${workflowId}${query ? `?${query}` : ''}${hash}`;
+  const href = buildMissionControlShellHref({
+    rail: 'workflow',
+    workflowId,
+    tab: deriveMissionControlTab(target),
+  });
+  return `${href}${hash}`;
 }
 
 export function buildWorkflowDetailHash(target: WorkflowDetailTarget): string {
@@ -64,4 +58,14 @@ export function isWorkflowDetailTargetHighlighted(
           ? `#child-workflow-${value}`
           : `#gate-${value}`;
   return hash === expectedHash;
+}
+
+function deriveMissionControlTab(target: WorkflowDetailTarget): MissionControlWorkspaceTab {
+  if (target.workItemId || target.gateStageName) {
+    return 'board';
+  }
+  if (target.activationId || target.childWorkflowId) {
+    return 'history';
+  }
+  return 'overview';
 }

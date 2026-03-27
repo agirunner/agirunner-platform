@@ -5,11 +5,25 @@ import { Badge } from '../../components/ui/badge.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Skeleton } from '../../components/ui/skeleton.js';
 import { buildMissionControlShellHref } from './mission-control-page.support.js';
+import { MissionControlTaskLensView } from './mission-control-task-lens-view.js';
+import type { TaskListRecord } from '../task-list/task-list-page.support.js';
 
 export function MissionControlHistoryView(props: {
   response: DashboardMissionControlHistoryResponse | null;
   isLoading: boolean;
+  lens: 'workflows' | 'tasks';
+  taskLensResponse: TaskListRecord[];
 }): JSX.Element {
+  if (props.lens === 'tasks') {
+    return (
+      <MissionControlTaskLensView
+        mode="history"
+        tasks={props.taskLensResponse}
+        isLoading={props.isLoading}
+      />
+    );
+  }
+
   if (props.isLoading && !props.response) {
     return (
       <Card>
@@ -45,16 +59,20 @@ export function MissionControlHistoryView(props: {
             <Badge variant="outline">{describeCategory(packet.category)}</Badge>
           </CardHeader>
           <CardContent>
-            <Link
-              className="text-sm font-medium text-accent hover:underline"
-              to={buildMissionControlShellHref({
-                mode: 'history',
-                rail: 'workflow',
-                workflowId: packet.workflowId,
-              })}
-            >
-              Open workflow
-            </Link>
+            {packet.workflowId ? (
+              <Link
+                className="text-sm font-medium text-accent hover:underline"
+                to={buildMissionControlShellHref({
+                  mode: 'history',
+                  rail: 'workflow',
+                  workflowId: packet.workflowId,
+                })}
+              >
+                Open workflow
+              </Link>
+            ) : (
+              <span className="text-sm text-muted-foreground">Workflow context unavailable</span>
+            )}
           </CardContent>
         </Card>
       ))}

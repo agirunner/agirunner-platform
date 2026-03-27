@@ -40,6 +40,7 @@ import {
   usesWorkItemOperatorFlow,
   usesWorkflowOperatorFlow,
 } from '../work-shared/task-operator-flow.js';
+import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
 import { TaskDetailArtifactsPanel } from './task-detail-artifacts-panel.js';
 import { TaskDetailContextSection } from './task-detail-context-section.js';
 import {
@@ -663,13 +664,13 @@ function summarizeId(value?: string | null): string {
 function RelatedLinks({ task }: { task: Task }): JSX.Element {
   const workItemPermalink =
     task.workflow_id && task.work_item_id
-      ? `/mission-control/workflows/${task.workflow_id}?work_item=${encodeURIComponent(task.work_item_id)}#work-item-${encodeURIComponent(task.work_item_id)}`
+      ? buildWorkflowDetailPermalink(task.workflow_id, { workItemId: task.work_item_id })
       : null;
 
   return (
     <div className="flex flex-wrap gap-2 text-sm">
       {task.workflow_id ? (
-        <Link to={`/mission-control/workflows/${task.workflow_id}`} className="text-accent hover:underline">
+        <Link to={buildWorkflowDetailPermalink(task.workflow_id, {})} className="text-accent hover:underline">
           Open board
         </Link>
       ) : null}
@@ -680,7 +681,7 @@ function RelatedLinks({ task }: { task: Task }): JSX.Element {
       ) : null}
       {task.activation_id && task.workflow_id ? (
         <Link
-          to={`/mission-control/workflows/${task.workflow_id}#activation-${encodeURIComponent(task.activation_id)}`}
+          to={buildWorkflowDetailPermalink(task.workflow_id, { activationId: task.activation_id })}
           className="text-accent hover:underline"
         >
           Open activation

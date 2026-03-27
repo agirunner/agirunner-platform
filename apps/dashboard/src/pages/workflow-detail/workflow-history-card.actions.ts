@@ -1,3 +1,5 @@
+import { buildWorkflowDetailPermalink } from './workflow-detail-permalinks.js';
+
 export interface TimelineEntryAction {
   label: string;
   href: string;
@@ -17,21 +19,25 @@ export function buildTimelineEntryActions(input: {
   if (input.workItemId) {
     actions.push({
       label: 'Open work item flow',
-      href: `/mission-control/workflows/${input.workflowId}?work_item=${encodeURIComponent(input.workItemId)}`,
+      href: buildWorkflowDetailPermalink(input.workflowId, { workItemId: input.workItemId }),
     });
   }
 
   if (input.gateStageName) {
     actions.push({
       label: 'Open gate focus',
-      href: `/mission-control/workflows/${input.workflowId}?gate=${encodeURIComponent(input.gateStageName)}#gate-${encodeURIComponent(input.gateStageName)}`,
+      href: buildWorkflowDetailPermalink(input.workflowId, {
+        gateStageName: input.gateStageName,
+      }),
     });
   }
 
   if (input.activationId) {
     actions.push({
       label: 'Open activation packet',
-      href: `/mission-control/workflows/${input.workflowId}?activation=${encodeURIComponent(input.activationId)}#activation-${encodeURIComponent(input.activationId)}`,
+      href: buildWorkflowDetailPermalink(input.workflowId, {
+        activationId: input.activationId,
+      }),
     });
   }
 
@@ -40,7 +46,9 @@ export function buildTimelineEntryActions(input: {
       label: 'Open child board',
       href:
         input.childWorkflowHref ??
-        `/mission-control/workflows/${input.workflowId}?child=${encodeURIComponent(input.childWorkflowId ?? '')}#child-workflow-${encodeURIComponent(input.childWorkflowId ?? '')}`,
+        buildWorkflowDetailPermalink(input.workflowId, {
+          childWorkflowId: input.childWorkflowId,
+        }),
     });
   }
 

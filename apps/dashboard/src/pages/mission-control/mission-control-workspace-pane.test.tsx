@@ -53,6 +53,46 @@ describe('mission control workspace pane', () => {
     expect(markup).toContain('Cancel');
   });
 
+  it('hides workflow quick actions when Mission Control marks them unavailable', () => {
+    const client = new QueryClient();
+    const response = buildWorkspaceResponse();
+    response.workflow.state = 'completed';
+    response.workflow.availableActions = [
+      {
+        kind: 'pause_workflow',
+        scope: 'workflow',
+        enabled: false,
+        confirmationLevel: 'immediate',
+        stale: false,
+        disabledReason: 'Action is not available in the current workflow state.',
+      },
+      {
+        kind: 'cancel_workflow',
+        scope: 'workflow',
+        enabled: false,
+        confirmationLevel: 'high_impact_confirm',
+        stale: false,
+        disabledReason: 'Action is not available in the current workflow state.',
+      },
+    ];
+
+    const markup = renderToStaticMarkup(
+      <QueryClientProvider client={client}>
+        <MemoryRouter initialEntries={['/mission-control']}>
+          <MissionControlWorkspacePane
+            workflowId="workflow-1"
+            response={response}
+            isLoading={false}
+            initialTab="overview"
+          />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(markup).not.toContain('Pause');
+    expect(markup).not.toContain('Cancel');
+  });
+
   it('shows a loading shell before workflow workspace data arrives', () => {
     const client = new QueryClient();
     const markup = renderToStaticMarkup(

@@ -18,7 +18,11 @@ import {
   resolveAuthCallbackRedirect,
 } from '../lib/auth-session.js';
 import { clearSession, readSession } from '../lib/session.js';
-import { buildMissionControlShellHref } from '../pages/mission-control/mission-control-page.support.js';
+import {
+  buildMissionControlShellHref,
+  buildWorkflowDiagnosticsHref,
+} from '../pages/mission-control/mission-control-page.support.js';
+import { buildWorkflowDetailPermalink } from '../pages/workflow-detail/workflow-detail-permalinks.js';
 
 import { applyTheme, readTheme } from './theme.js';
 
@@ -76,16 +80,6 @@ const CostDashboardPage = lazyWithRetry(() =>
   })),
 );
 
-const WorkflowDetailPage = lazyWithRetry(() =>
-  import('../pages/workflow-detail/workflow-detail-page.js').then((m) => ({
-    default: m.WorkflowDetailPage,
-  })),
-);
-const WorkflowInspectorPage = lazyWithRetry(() =>
-  import('../pages/workflow-inspector/workflow-inspector-page.js').then((m) => ({
-    default: m.WorkflowInspectorPage,
-  })),
-);
 const TaskDetailPage = lazyWithRetry(() =>
   import('../pages/task-detail/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })),
 );
@@ -287,10 +281,13 @@ export function App(): JSX.Element {
                 path="/mission-control/workflows"
                 element={<LegacyMissionControlShellRedirect section="workflows" />}
               />
-              <Route path="/mission-control/workflows/:id" element={<WorkflowDetailPage />} />
+              <Route
+                path="/mission-control/workflows/:id"
+                element={<LegacyMissionControlWorkflowRedirect />}
+              />
               <Route
                 path="/mission-control/workflows/:id/inspector"
-                element={<WorkflowInspectorPage />}
+                element={<LegacyMissionControlWorkflowInspectorRedirect />}
               />
               <Route
                 path="/mission-control/tasks"
@@ -502,6 +499,41 @@ function LegacyMissionControlShellRedirect({
         ? buildMissionControlShellHref({ lens: 'tasks' })
         : buildMissionControlShellHref({ rail: 'attention' });
   return <Navigate to={`${target}${location.hash}`} replace />;
+}
+
+function LegacyMissionControlWorkflowRedirect(): JSX.Element {
+  const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+
+  if (!id) {
+    return <Navigate to="/mission-control" replace />;
+  }
+
+  const searchParams = new URLSearchParams(location.search);
+  const target = buildWorkflowDetailPermalink(id, {
+    workItemId: searchParams.get('work_item'),
+    activationId: searchParams.get('activation'),
+    childWorkflowId: searchParams.get('child'),
+    gateStageName: searchParams.get('gate'),
+  });
+  return <Navigate to={target} replace />;
+}
+
+function LegacyMissionControlWorkflowInspectorRedirect(): JSX.Element {
+  const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+
+  if (!id) {
+    return <Navigate to="/diagnostics/live-logs" replace />;
+  }
+
+  const searchParams = new URLSearchParams(location.search);
+  const target = buildWorkflowDiagnosticsHref({
+    workflowId: id,
+    taskId: searchParams.get('task'),
+    view: searchParams.get('view') === 'summary' ? 'summary' : 'raw',
+  });
+  return <Navigate to={target} replace />;
 }
 
 function LegacyTaskRedirect(): JSX.Element {

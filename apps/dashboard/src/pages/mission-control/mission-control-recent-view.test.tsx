@@ -15,6 +15,8 @@ describe('mission control recent view', () => {
         createElement(MissionControlRecentView, {
           response: buildResponse(),
           isLoading: false,
+          lens: 'workflows',
+          taskLensResponse: [],
         }),
       ),
     );
@@ -23,6 +25,36 @@ describe('mission control recent view', () => {
     expect(markup).toContain('Release workflow completed with final artifacts');
     expect(markup).toContain('Carryover');
     expect(markup).toContain('Open workflow');
+  });
+
+  it('renders the task lens when recent mode switches away from workflows', () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        MemoryRouter,
+        undefined,
+        createElement(MissionControlRecentView, {
+          response: buildResponse(),
+          isLoading: false,
+          lens: 'tasks',
+          taskLensResponse: [
+            {
+              id: 'task-1',
+              workflow_id: 'workflow-1',
+              workflow_name: 'Release workflow',
+              state: 'completed',
+              status: 'completed',
+              title: 'Review output packet',
+              role: 'reviewer',
+              created_at: '2026-03-27T16:18:00.000Z',
+              completed_at: '2026-03-27T16:19:00.000Z',
+            },
+          ],
+        }),
+      ),
+    );
+
+    expect(markup).toContain('Recent task lens');
+    expect(markup).toContain('Open workflow context');
   });
 });
 

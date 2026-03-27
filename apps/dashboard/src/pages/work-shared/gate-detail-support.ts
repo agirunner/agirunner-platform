@@ -1,3 +1,5 @@
+import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
+
 export interface GateIdentityShape {
   id?: string | null;
   gate_id?: string | null;
@@ -95,7 +97,7 @@ export function readGateId(gate: GateIdentityShape): string | null {
 }
 
 export function buildWorkflowGatePermalink(workflowId: string, stageName: string): string {
-  return `/mission-control/workflows/${workflowId}?gate=${encodeURIComponent(stageName)}#gate-${encodeURIComponent(stageName)}`;
+  return buildWorkflowDetailPermalink(workflowId, { gateStageName: stageName });
 }
 
 export function buildApprovalQueueGatePermalink(gateId: string): string {

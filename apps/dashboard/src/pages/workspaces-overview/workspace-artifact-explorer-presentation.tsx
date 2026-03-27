@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Skeleton } from '../../components/ui/skeleton.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import { cn } from '../../lib/utils.js';
+import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
 import {
   formatArtifactFileSize,
   type WorkspaceArtifactEntry,
@@ -193,7 +194,7 @@ export function WorkspaceArtifactQuickInspector(props: {
               </Button>
               {props.artifact.workflowId ? (
                 <Button asChild variant="outline" size="sm">
-                  <Link to={`/mission-control/workflows/${props.artifact.workflowId}`}>Open Workflow</Link>
+                  <Link to={buildWorkflowDetailPermalink(props.artifact.workflowId, {})}>Open Workflow</Link>
                 </Button>
               ) : null}
               <Button asChild size="sm">

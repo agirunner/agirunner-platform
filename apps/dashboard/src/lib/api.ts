@@ -4699,7 +4699,7 @@ export function buildSearchResults(
     id: item.id,
     label: item.name ?? item.id,
     subtitle: item.state ?? 'workflow',
-    href: `/mission-control/workflows/${item.id}`,
+    href: `/mission-control?rail=workflow&workflow=${encodeURIComponent(item.id)}`,
   }));
 
   const taskMatches = filterRecords(collections.tasks, normalizedQuery).map((item) => ({

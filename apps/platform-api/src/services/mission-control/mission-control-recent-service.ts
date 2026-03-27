@@ -27,11 +27,14 @@ export class MissionControlRecentService {
       tenantId,
       limit: input.limit ?? 50,
     });
-    const workflows = await this.loadWorkflowCardsForEvents(tenantId, events.data.map((row) => row as never));
+    const relevantEvents = events.data.filter((event) => shouldIncludeRecentEvent(event as never));
+    const workflows = await this.loadWorkflowCardsForEvents(tenantId, relevantEvents.map((row) => row as never));
     const workflowMap = buildWorkflowMap(workflows);
     return {
       version,
-      packets: events.data.map((event) => buildMissionControlPacket(event as never, workflowMap.get(resolveWorkflowId(event)))),
+      packets: relevantEvents.map((event) =>
+        buildMissionControlPacket(event as never, workflowMap.get(resolveWorkflowId(event))),
+      ),
     };
   }
 
@@ -51,4 +54,14 @@ function resolveWorkflowId(event: { entity_type: string; entity_id: string; data
     : event.entity_type === 'workflow'
       ? event.entity_id
       : '';
+}
+
+function shouldIncludeRecentEvent(event: {
+  type: string;
+  data: Record<string, unknown> | null;
+}): boolean {
+  if (event.type !== 'workflow.activation.started') {
+    return true;
+  }
+  return event.data?.reason !== 'heartbeat';
 }

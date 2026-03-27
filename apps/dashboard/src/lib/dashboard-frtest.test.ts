@@ -103,15 +103,18 @@ describe('FR-030: modern SPA structure', () => {
 // FR-031a: Live workflow execution view
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-031a: live workflow execution view', () => {
-  it('workflow-detail-page fetches workflow data with a reactive query', () => {
-    const source = readComponent('pages/workflow-detail/workflow-detail-page.tsx');
+  it('mission-control workspace fetches selected workflow data with a reactive query', () => {
+    const source = readComponent('pages/mission-control/mission-control-page.tsx');
     expect(source).toContain('useQuery');
-    expect(source).toContain('getWorkflow');
+    expect(source).toContain('getMissionControlWorkflowWorkspace');
   });
 
-  it('workflow-detail-page shows workflow state in the view', () => {
-    const source = readComponent('pages/workflow-detail/workflow-detail-page.tsx');
-    expect(source).toContain('.state');
+  it('mission-control workspace frames workflow posture and selected tabs in the view', () => {
+    const source = readComponent('pages/mission-control/mission-control-workspace-pane.tsx');
+    expect(source).toContain('workflow.state');
+    expect(source).toContain('Overview');
+    expect(source).toContain('Board');
+    expect(source).toContain('Outputs');
   });
 });
 
@@ -207,39 +210,35 @@ describe('FR-033 / FR-034 / FR-035 / FR-035a / FR-036 / FR-213: task detail page
 // FR-717: Dashboard renders playbook-oriented workflow detail
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () => {
-  it('workflow-detail-page exports WorkflowDetailPage component', () => {
-    const source = readComponent('pages/workflow-detail/workflow-detail-page.tsx');
-    expect(source).toContain('export function WorkflowDetailPage');
+  it('mission-control workspace exposes overview, board, outputs, steering, and history tabs', () => {
+    const source = readComponent('pages/mission-control/mission-control-workspace-pane.tsx');
+    expect(source).toContain('MissionControlWorkspaceOverview');
+    expect(source).toContain('MissionControlWorkspaceBoard');
+    expect(source).toContain('MissionControlWorkspaceOutputs');
+    expect(source).toContain('MissionControlWorkspaceSteering');
+    expect(source).toContain('MissionControlWorkspaceHistory');
   });
 
-  it('workflow-detail-page renders task dependency graph as a list', () => {
-    const source = `${readComponent('pages/workflow-detail/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail/workflow-detail-sections.tsx')}`;
-    expect(source).toContain('Execution Steps');
-    expect(source).toContain('WorkflowWorkItemDetailPanel');
+  it('mission-control board renders work-item-first grouped workflow work', () => {
+    const source = readComponent('pages/mission-control/workspace/mission-control-workspace-board.tsx');
+    expect(source).toContain('groupWorkflowWorkItems');
+    expect(source).toContain('Open workflow context');
   });
 
-  it('workflow-detail-page renders task state column for live status tracking', () => {
-    const source = `${readComponent('pages/workflow-detail/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail/workflow-detail-sections.tsx')}`;
-    expect(source).toContain('.state');
+  it('mission-control outputs and history keep produced value and review packets visible', () => {
+    const source = [
+      readComponent('pages/mission-control/workspace/mission-control-workspace-outputs.tsx'),
+      readComponent('pages/mission-control/workspace/mission-control-workspace-history.tsx'),
+    ].join('\n');
+    expect(source).toContain('Deliverables');
+    expect(source).toContain('Narrative workflow packet history');
   });
 
-  it('workflow-detail-page exposes playbook board state, resolved config, and workspace timeline', () => {
-    const source = `${readComponent('pages/workflow-detail/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail/workflow-detail-sections.tsx')}`;
-    expect(source).toContain('Create Work Item');
-    expect(source).toContain('deriveWorkflowStageDisplay');
-    expect(source).toContain('Orchestrator Activations');
-    expect(source).toContain('Resolved Config');
-    expect(source).toContain('Workspace Timeline');
-    expect(source).not.toContain('Manual Rework');
-    expect(source).not.toContain('readWorkflowPhases');
-  });
-
-  it('workflow-detail-page exposes workflow documents and workspace memory controls', () => {
-    const source = `${readComponent('pages/workflow-detail/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail/workflow-detail-sections.tsx')}\n${readComponent('pages/workflow-detail/workflow-detail-content.tsx')}`;
-    expect(source).toContain('Workflow Documents');
-    expect(source).toContain('Workspace Memory');
-    expect(source).toContain('listWorkflowDocuments');
-    expect(source).toContain('patchWorkspaceMemory');
+  it('mission-control steering exposes workflow interventions and add-work or redrive actions', () => {
+    const source = readComponent('pages/mission-control/workspace/mission-control-workspace-steering.tsx');
+    expect(source).toContain('createWorkflowIntervention');
+    expect(source).toContain('MissionControlWorkspaceAddWorkDialog');
+    expect(source).toContain('MissionControlWorkspaceRedriveDialog');
   });
 });
 

@@ -32,7 +32,7 @@ export function buildWorkflowOperatorPermalink(
       gateStageName: task.stage_name,
     });
   }
-  return `/mission-control/workflows/${task.workflow_id}`;
+  return buildWorkflowDetailPermalink(task.workflow_id, {});
 }
 
 export function readWorkflowOperatorFlowLabel(

@@ -6,6 +6,7 @@ import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
 import { TableCell, TableRow } from '../../components/ui/table.js';
+import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
 import { formatContentRelativeTimestamp } from './workspace-content-browser-support.js';
 
 export function DocumentCard(props: {
@@ -44,7 +45,7 @@ export function DocumentCard(props: {
           ) : null}
           <Link
             className="text-sm text-accent hover:underline"
-            to={`/mission-control/workflows/${props.workflowId}`}
+            to={buildWorkflowDetailPermalink(props.workflowId, {})}
           >
             Open workflow
           </Link>
@@ -99,7 +100,7 @@ export function DocumentDesktopRow(props: {
           ) : null}
           <Link
             className="text-sm text-accent hover:underline"
-            to={`/mission-control/workflows/${props.workflowId}`}
+            to={buildWorkflowDetailPermalink(props.workflowId, {})}
           >
             Open workflow
           </Link>

@@ -18,6 +18,7 @@ import {
 import { useLogFilters } from '../../components/log-viewer/hooks/use-log-filters.js';
 import { applyLogScope, type LogScope } from '../../components/log-viewer/log-scope.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
+import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
 import { readLogsSurfaceView } from './logs-page-view.js';
 
 interface LogsPageProps {
@@ -134,7 +135,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
             <div className="text-sm">
               <Link
                 className="underline-offset-4 hover:underline"
-                to={`/mission-control/workflows/${scopedWorkflowId}`}
+                to={buildWorkflowDetailPermalink(scopedWorkflowId, {})}
               >
                 Back to Workflow
               </Link>

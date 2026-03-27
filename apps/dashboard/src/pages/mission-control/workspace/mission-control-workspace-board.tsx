@@ -67,7 +67,7 @@ export function MissionControlWorkspaceBoard(props: {
                     className="font-medium text-accent underline-offset-4 hover:underline"
                     to={buildWorkflowDetailPermalink(props.workflowId, { workItemId: workItem.id })}
                   >
-                    Open full workflow
+                    Open workflow context
                   </Link>
                 </div>
               </article>

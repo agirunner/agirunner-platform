@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 
 import type { DashboardWorkflowBudgetRecord } from '../../lib/api.js';
+import { buildWorkflowDiagnosticsHref } from '../../pages/mission-control/mission-control-page.support.js';
+import { buildWorkflowDetailPermalink } from '../../pages/workflow-detail/workflow-detail-permalinks.js';
 import { Badge } from '../ui/badge.js';
 import { Button } from '../ui/button.js';
 import {
@@ -107,11 +109,11 @@ export function WorkflowBudgetCard(props: WorkflowBudgetCardProps): JSX.Element 
             <div className="flex flex-wrap gap-2">
               {props.context === 'inspector' ? (
                 <Button variant="outline" asChild>
-                  <Link to={`/mission-control/workflows/${props.workflowId}`}>Back to board controls</Link>
+                  <Link to={buildWorkflowDetailPermalink(props.workflowId, {})}>Back to board controls</Link>
                 </Button>
               ) : (
                 <Button variant="outline" asChild>
-                  <Link to={`/mission-control/workflows/${props.workflowId}/inspector`}>
+                  <Link to={buildWorkflowDiagnosticsHref({ workflowId: props.workflowId, view: 'summary' })}>
                     Inspect budget context
                   </Link>
                 </Button>

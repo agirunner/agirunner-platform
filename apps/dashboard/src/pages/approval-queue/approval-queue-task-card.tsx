@@ -38,6 +38,7 @@ import {
 import { QueueInfoTile } from './approval-queue-layout.js';
 import { OperatorBreadcrumbTrail } from '../work-shared/operator-breadcrumb-trail.js';
 import { invalidateWorkflowQueries } from '../workflow-detail/workflow-detail-query.js';
+import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
 import {
   buildWorkflowOperatorPermalink,
   usesWorkItemOperatorFlow,
@@ -117,7 +118,7 @@ export function TaskApprovalCard(props: {
   const operatorFlowLabel = readTaskOperatorFlowLabel(task);
   const workflowContextLink =
     buildWorkflowOperatorPermalink(task) ??
-    (task.workflow_id ? `/mission-control/workflows/${task.workflow_id}` : null);
+    (task.workflow_id ? buildWorkflowDetailPermalink(task.workflow_id, {}) : null);
   const primaryFlowLabel = workItemFlow ? 'Open Work Item Flow' : 'Open Workflow Operator Flow';
   const diagnosticsLabel = workflowOperatorFlow ? 'Open Step Diagnostics' : 'Open Step Record';
   const stepReferenceLabel = workflowOperatorFlow ? 'Step diagnostics' : 'Step record';
@@ -172,7 +173,7 @@ export function TaskApprovalCard(props: {
                 </div>
                 {task.workflow_name && task.workflow_id ? (
                   <Link
-                    to={workflowContextLink ?? `/mission-control/workflows/${task.workflow_id}`}
+                    to={workflowContextLink ?? buildWorkflowDetailPermalink(task.workflow_id, {})}
                     className="font-medium text-accent hover:underline"
                   >
                     Open board context

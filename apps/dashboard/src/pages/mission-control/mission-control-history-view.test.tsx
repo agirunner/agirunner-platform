@@ -15,6 +15,8 @@ describe('mission control history view', () => {
         createElement(MissionControlHistoryView, {
           response: buildResponse(),
           isLoading: false,
+          lens: 'workflows',
+          taskLensResponse: [],
         }),
       ),
     );
@@ -23,6 +25,35 @@ describe('mission control history view', () => {
     expect(markup).toContain('Operator attached rollback guide and requested replan');
     expect(markup).toContain('Intervention');
     expect(markup).toContain('href="/mission-control?mode=history&amp;rail=workflow&amp;workflow=workflow-9"');
+  });
+
+  it('renders the task lens when history switches away from workflow packets', () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        MemoryRouter,
+        undefined,
+        createElement(MissionControlHistoryView, {
+          response: buildResponse(),
+          isLoading: false,
+          lens: 'tasks',
+          taskLensResponse: [
+            {
+              id: 'task-9',
+              workflow_id: 'workflow-9',
+              workflow_name: 'Payments rollout',
+              state: 'failed',
+              status: 'failed',
+              title: 'Validate rollback path',
+              role: 'reviewer',
+              created_at: '2026-03-27T16:18:00.000Z',
+            },
+          ],
+        }),
+      ),
+    );
+
+    expect(markup).toContain('Task history lens');
+    expect(markup).toContain('Open workflow context');
   });
 });
 
