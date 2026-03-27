@@ -10,6 +10,7 @@ import {
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
+import { Card, CardContent } from '../../components/ui/card.js';
 import { toast } from '../../lib/toast.js';
 import type { DashboardExecutionEnvironmentRecord } from '../../lib/api.js';
 import { MetricCard } from '../role-definitions/role-definitions-list.js';
@@ -209,18 +210,20 @@ export function ExecutionEnvironmentsPage(): JSX.Element {
         <MetricCard label="Custom images" value={stats.custom} />
       </div>
 
-      <div className="rounded-xl border border-border/70 bg-muted/10 px-4 py-4 text-sm">
-        <p className="font-medium text-foreground">
-          {defaultEnvironment
-            ? `Default environment: ${defaultEnvironment.name}`
-            : 'No default environment is configured.'}
-        </p>
-        <p className="mt-1 text-muted">
-          {defaultEnvironment
-            ? `${defaultEnvironment.image} | CPU ${defaultEnvironment.cpu} | Memory ${defaultEnvironment.memory} | Pull ${defaultEnvironment.pull_policy}`
-            : 'Set one of the verified environments as default before assigning roles to inherit the default environment.'}
-        </p>
-      </div>
+      <Card>
+        <CardContent className="px-4 py-4 text-sm">
+          <p className="font-medium text-foreground">
+            {defaultEnvironment
+              ? `Default environment: ${defaultEnvironment.name}`
+              : 'No default environment is configured.'}
+          </p>
+          <p className="mt-1 text-muted">
+            {defaultEnvironment
+              ? `${defaultEnvironment.image} | CPU ${defaultEnvironment.cpu} | Memory ${defaultEnvironment.memory} | Pull ${defaultEnvironment.pull_policy}`
+              : 'Set one of the verified environments as default before assigning roles to inherit the default environment.'}
+          </p>
+        </CardContent>
+      </Card>
 
       <DashboardSectionCard
         title="Configured environments"
@@ -264,7 +267,13 @@ export function ExecutionEnvironmentsPage(): JSX.Element {
       {dialogState ? (
         <ExecutionEnvironmentDialog
           open
-          title={dialogState.mode === 'edit' ? 'Edit Environment' : dialogState.mode === 'copy' ? 'Copy Environment' : 'Create Custom Environment'}
+          title={
+            dialogState.mode === 'edit'
+              ? 'Edit Environment'
+              : dialogState.mode === 'copy'
+                ? 'Copy Environment'
+                : 'Create Custom Environment'
+          }
           description={
             dialogState.mode === 'edit'
               ? 'Update the execution environment. Saving automatically re-verifies it before roles can use it.'

@@ -61,7 +61,9 @@ describe('execution environments page source', () => {
     expect(markup).toContain('title="Archive environment"');
     expect(markup).toContain('class="text-xs text-foreground">Curated Debian baseline</div>');
     expect(markup).toContain('class="text-xs text-foreground">OS debian | Pkg apt</div>');
-    expect(markup).toContain('class="text-xs text-foreground">Pull if-not-present | Used by 1 role</div>');
+    expect(markup).toContain(
+      'class="text-xs text-foreground">Pull if-not-present | Used by 1 role</div>',
+    );
     expect(markup).not.toContain('>Copy<');
     expect(markup).not.toContain('>Edit<');
     expect(markup).not.toContain('>Verify<');
@@ -69,7 +71,9 @@ describe('execution environments page source', () => {
     expect(markup).not.toContain('>Archive<');
     expect(markup).not.toContain('class="text-xs text-muted">Curated Debian baseline</div>');
     expect(markup).not.toContain('class="text-xs text-muted">OS debian | Pkg apt</div>');
-    expect(markup).not.toContain('class="text-xs text-muted">Pull if-not-present | Used by 1 role</div>');
+    expect(markup).not.toContain(
+      'class="text-xs text-muted">Pull if-not-present | Used by 1 role</div>',
+    );
   });
 
   it('uses a copy mode that reopens the create dialog with a cleared name', () => {
@@ -77,8 +81,12 @@ describe('execution environments page source', () => {
 
     expect(pageSource).toContain("mode: 'copy'");
     expect(pageSource).toContain('createCopiedExecutionEnvironmentForm');
-    expect(pageSource).toContain("title={dialogState.mode === 'edit' ? 'Edit Environment' : dialogState.mode === 'copy' ? 'Copy Environment' : 'Create Custom Environment'}");
-    expect(pageSource).toContain("submitLabel={dialogState.mode === 'edit' ? 'Save Environment' : 'Create Environment'}");
+    expect(pageSource).toContain('title={');
+    expect(pageSource).toContain("dialogState.mode === 'copy'");
+    expect(pageSource).toContain("'Copy Environment'");
+    expect(pageSource).toContain(
+      "submitLabel={dialogState.mode === 'edit' ? 'Save Environment' : 'Create Environment'}",
+    );
   });
 
   it('keeps environment image editing as a plain text field instead of a suggestion-backed picker', () => {
@@ -113,5 +121,16 @@ describe('execution environments page source', () => {
     expect(pageSource).toContain('onPageChange={setPage}');
     expect(pageSource).toContain('setPageSize(value);');
     expect(pageSource).toContain('setPage(1);');
+  });
+
+  it('renders the default environment summary with the same shared card surface as the overview cards', () => {
+    const pageSource = readSource('./execution-environments-page.tsx');
+
+    expect(pageSource).toContain(
+      "import { Card, CardContent } from '../../components/ui/card.js';",
+    );
+    expect(pageSource).toContain('<Card>');
+    expect(pageSource).toContain('<CardContent className="px-4 py-4 text-sm">');
+    expect(pageSource).not.toContain('bg-muted/10');
   });
 });
