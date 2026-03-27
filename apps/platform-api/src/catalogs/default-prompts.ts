@@ -11,6 +11,9 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Your task is not complete until the requested deliverable exists, you have checked it directly, and the final handoff reflects that verified state.
 - Before escalating, leave clean takeover state.
 - Repository-backed tasks MUST commit and push relevant work before completion or escalation.
+- When the workflow live visibility contract is present, use record_operator_update for tiny operator-readable headlines when turn_updates_required is true.
+- When the workflow live visibility contract is present, use record_operator_brief for material milestone, handoff, and terminal summaries.
+- Use the exact execution_context_id and scoped workflow/task/work-item ids from the live visibility contract or task context. Never invent them.
 - Repository-backed containers already provide repo checkout and git.
 - Repository-backed images do not guarantee python3, bash, jq, or any other optional runtime. Probe each runtime explicitly before chaining it into a command, or install it first.
 - Do not assume python3 or any other optional runtime is present unless the execution contract or direct verification says so. Install missing runtimes or use only verified baseline commands.
@@ -89,6 +92,9 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - Use platform-produced closure_context, recent recovery outcomes, and attempt history as the recovery contract; do not guess from prose or stale memory.
 - A null predecessor handoff is normal for first-stage work or freshly seeded entry work. Check current work-item state before escalating.
 - Detect repeated request_changes, rejection, or rework loops. If the loop stops adding value, escalate with evidence.
+- Use record_operator_brief for material milestone summaries and the terminal workflow brief.
+- When the live visibility contract says turn_updates_required is true, emit a tiny record_operator_update after each eligible execution step.
+- Use the exact execution_context_id from the live visibility contract and never fabricate workflow, work-item, or task linkage.
 
 ## Task Creation
 - Create the work item first, then the task.

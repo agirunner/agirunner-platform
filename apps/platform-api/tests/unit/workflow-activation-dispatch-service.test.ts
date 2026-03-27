@@ -1797,6 +1797,8 @@ describe('WorkflowActivationDispatchService', () => {
           );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('Do not poll running tasks in a loop.');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('If a stage already awaits approval, do not request another gate');
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('record_operator_brief');
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('record_operator_update');
           expect(inserted.environment).toEqual({
             execution_mode: 'orchestrator',
             template: 'execution-workspace',
@@ -4260,6 +4262,8 @@ describe('WorkflowActivationDispatchService', () => {
                 'work_item_memory_history',
                 'artifact_document_read',
                 'send_task_message',
+                'record_operator_brief',
+                'record_operator_update',
               ]),
             }),
           );

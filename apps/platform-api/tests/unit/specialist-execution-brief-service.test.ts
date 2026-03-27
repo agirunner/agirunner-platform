@@ -8,6 +8,15 @@ describe('buildSpecialistExecutionBrief', () => {
       role: 'reviewer',
       workflow: {
         lifecycle: 'planned',
+        live_visibility: {
+          mode: 'enhanced',
+          execution_context_id: 'task-review-1',
+          source_kind: 'specialist',
+          record_operator_brief_tool: 'record_operator_brief',
+          record_operator_update_tool: 'record_operator_update',
+          turn_updates_required: true,
+          milestone_briefs_required: true,
+        },
         variables: {
           goal: 'Ship the authentication refresh-token fix.',
           release_target: 'v2.4.0',
@@ -190,6 +199,11 @@ describe('buildSpecialistExecutionBrief', () => {
     ]);
     expect(brief?.rendered_markdown).toContain('## Workflow Brief');
     expect(brief?.rendered_markdown).toContain('## Completion Expectations');
+    expect(brief?.rendered_markdown).toContain('## Operator Visibility');
+    expect(brief?.rendered_markdown).toContain('Live visibility mode: enhanced');
+    expect(brief?.rendered_markdown).toContain('Execution context id: task-review-1');
+    expect(brief?.rendered_markdown).toContain('record_operator_update');
+    expect(brief?.rendered_markdown).toContain('record_operator_brief');
     expect(brief?.rendered_markdown).toContain(
       'Submitting your handoff does not itself close the work item or workflow.',
     );

@@ -1166,6 +1166,8 @@ describe('TaskClaimService', () => {
     expect(task?.tool_owners).toEqual({
       memory_read: 'runtime',
       artifact_read: 'runtime',
+      record_operator_brief: 'runtime',
+      record_operator_update: 'runtime',
       shell_exec: 'task',
       web_fetch: 'task',
       grep: 'task',
@@ -1391,7 +1393,7 @@ describe('TaskClaimService', () => {
 
     expect(task?.role_config).toEqual(
       expect.objectContaining({
-        tools: ['file_read', 'native_search'],
+        tools: ['file_read', 'native_search', 'record_operator_brief', 'record_operator_update'],
       }),
     );
   });
@@ -1522,7 +1524,13 @@ describe('TaskClaimService', () => {
     );
     expect(task?.role_config).toEqual(
       expect.objectContaining({
-        tools: ['file_read', 'file_write', 'submit_handoff'],
+        tools: [
+          'file_read',
+          'file_write',
+          'submit_handoff',
+          'record_operator_brief',
+          'record_operator_update',
+        ],
       }),
     );
   });

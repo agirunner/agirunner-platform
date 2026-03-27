@@ -1,7 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
+import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fastify-auth-hook.js';
 import { applyArtifactPreviewHeaders } from '../../bootstrap/plugins.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
 
@@ -114,7 +114,7 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     '/api/v1/workflows/:id/operator-briefs',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker', 'agent'])] },
     async (request, reply) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(workflowOperatorBriefCreateSchema.safeParse(request.body ?? {}));
@@ -156,7 +156,7 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
 
   app.post(
     '/api/v1/workflows/:id/operator-updates',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker', 'agent'])] },
     async (request, reply) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(workflowOperatorUpdateCreateSchema.safeParse(request.body ?? {}));

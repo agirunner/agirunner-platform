@@ -21,6 +21,16 @@ interface ArtifactRef extends ExecutionBriefRef {
   title: string | null;
 }
 
+interface OperatorVisibilityContract {
+  mode: string | null;
+  execution_context_id: string | null;
+  source_kind: string | null;
+  record_operator_brief_tool: string | null;
+  record_operator_update_tool: string | null;
+  turn_updates_required: boolean;
+  milestone_briefs_required: boolean;
+}
+
 export interface SpecialistExecutionBrief {
   refresh_key: string;
   workflow_brief: {
@@ -74,6 +84,7 @@ export interface SpecialistExecutionBrief {
     verified_baseline_commands: string[];
     agent_hint: string | null;
   } | null;
+  operator_visibility: OperatorVisibilityContract | null;
   rendered_markdown: string;
 }
 
@@ -114,6 +125,7 @@ export function buildSpecialistExecutionBrief(
   const roleConfig = asRecord(input.roleConfig);
   const specialistCapabilities = input.specialistCapabilities ?? null;
   const executionEnvironmentSnapshot = asRecord(input.executionEnvironmentSnapshot);
+  const operatorVisibility = operatorVisibilityFrom(workflow);
   const stageName = readString(workItem.stage_name) ?? readString(workflow.current_stage);
   const stage = definition.stages.find((entry) => entry.name === stageName) ?? null;
   const boardColumn = definition.board.columns.find((entry) => entry.id === readString(workItem.column_id)) ?? null;
@@ -177,6 +189,7 @@ export function buildSpecialistExecutionBrief(
     relevant_artifact_refs: relevantArtifactRefs,
     remote_mcp_servers: summarizeRemoteMcpServers(specialistCapabilities),
     execution_environment_contract: executionEnvironmentContractFrom(executionEnvironmentSnapshot),
+    operator_visibility: operatorVisibility,
     rendered_markdown: '',
   };
   brief.refresh_key = hashCanonicalJson(refreshInputsFrom(brief, workItem, predecessorHandoff));
@@ -247,6 +260,25 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
   if (brief.assessment_output_expectations.length > 0) {
     lines.push('', '## Completion Expectations');
     lines.push(...brief.assessment_output_expectations.map((line) => `- ${line}`));
+  }
+  if (brief.operator_visibility) {
+    lines.push('', '## Operator Visibility');
+    if (brief.operator_visibility.mode) {
+      lines.push(`Live visibility mode: ${brief.operator_visibility.mode}`);
+    }
+    if (brief.operator_visibility.execution_context_id) {
+      lines.push(`Execution context id: ${brief.operator_visibility.execution_context_id}`);
+    }
+    if (brief.operator_visibility.turn_updates_required && brief.operator_visibility.record_operator_update_tool) {
+      lines.push(
+        `Use ${brief.operator_visibility.record_operator_update_tool} for one tiny operator-readable headline after each eligible execution step.`,
+      );
+    }
+    if (brief.operator_visibility.milestone_briefs_required && brief.operator_visibility.record_operator_brief_tool) {
+      lines.push(
+        `Use ${brief.operator_visibility.record_operator_brief_tool} for material handoff or milestone summaries when the platform requests them.`,
+      );
+    }
   }
   lines.push('', '## Path Discipline');
   lines.push(pathDisciplineGuidance(brief.repo_status_summary.startsWith('Repository-backed task.')));
@@ -337,6 +369,23 @@ function refreshInputsFrom(
     relevant_memory_refs: brief.relevant_memory_refs.map((entry) => entry.key),
     relevant_artifact_refs: brief.relevant_artifact_refs.map((entry) => entry.artifact_id),
     remote_mcp_servers: brief.remote_mcp_servers,
+    operator_visibility: brief.operator_visibility,
+  };
+}
+
+function operatorVisibilityFrom(workflow: Record<string, unknown>): OperatorVisibilityContract | null {
+  const liveVisibility = asRecord(workflow.live_visibility);
+  if (Object.keys(liveVisibility).length === 0) {
+    return null;
+  }
+  return {
+    mode: readString(liveVisibility.mode),
+    execution_context_id: readString(liveVisibility.execution_context_id),
+    source_kind: readString(liveVisibility.source_kind),
+    record_operator_brief_tool: readString(liveVisibility.record_operator_brief_tool),
+    record_operator_update_tool: readString(liveVisibility.record_operator_update_tool),
+    turn_updates_required: Boolean(liveVisibility.turn_updates_required),
+    milestone_briefs_required: Boolean(liveVisibility.milestone_briefs_required),
   };
 }
 

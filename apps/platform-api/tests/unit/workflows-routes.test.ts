@@ -1,5 +1,5 @@
 import fastify from 'fastify';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   createWorkflowDocument,
@@ -8,6 +8,9 @@ import {
 } from '../../src/services/document-reference-service.js';
 import { registerErrorHandler } from '../../src/errors/error-handler.js';
 import { workflowRoutes } from '../../src/api/routes/workflows.routes.js';
+
+const mockWithAllowedScopes = vi.fn((_scopes: string[]) => async () => {});
+const mockWithScope = vi.fn((_scope: string) => async () => {});
 
 vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
@@ -20,8 +23,8 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
       keyPrefix: 'agent-1',
     };
   },
-  withAllowedScopes: () => async () => {},
-  withScope: () => async () => {},
+  withAllowedScopes: (scopes: string[]) => mockWithAllowedScopes(scopes),
+  withScope: (scope: string) => mockWithScope(scope),
 }));
 
 vi.mock('../../src/services/document-reference-service.js', () => ({
@@ -243,6 +246,12 @@ function createWorkflowRoutesApp(overrides?: {
 
 describe('workflow routes', () => {
   let app: ReturnType<typeof fastify> | undefined;
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockWithAllowedScopes.mockImplementation(() => async () => {});
+    mockWithScope.mockImplementation(() => async () => {});
+  });
 
   afterEach(async () => {
     if (app) {
@@ -476,6 +485,13 @@ describe('workflow routes', () => {
         briefKind: 'milestone',
       }),
     );
+  });
+
+  it('registers operator record writes with both admin and agent scopes', async () => {
+    app = createWorkflowRoutesApp();
+    await app.register(workflowRoutes);
+
+    expect(mockWithAllowedScopes).toHaveBeenCalledWith(['admin', 'worker', 'agent']);
   });
 
   it('lists and records workflow operator updates through workflow-owned routes', async () => {

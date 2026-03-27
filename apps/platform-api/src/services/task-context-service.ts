@@ -73,6 +73,8 @@ export async function buildTaskContext(
       ? db.query(
           `SELECT p.id, p.name, p.context, p.git_branch, p.parameters, p.resolved_config, p.instruction_config,
                   p.metadata,
+                  p.live_visibility_mode_override,
+                  p.live_visibility_revision,
                   p.playbook_id, p.lifecycle,
                   p.workspace_spec_version,
                   pb.name AS playbook_name, pb.outcome AS playbook_outcome, pb.definition AS playbook_definition
@@ -138,6 +140,9 @@ export async function buildTaskContext(
   const workflowInputPackets = workflowRow
     ? await loadWorkflowInputPackets(db, tenantId, String(workflowRow.id))
     : [];
+  const workflowLiveVisibility = workflowRow
+    ? await loadWorkflowLiveVisibilityContext(db, tenantId, task, workflowRow)
+    : null;
   const workflowContext = workflowRow
     ? continuousWorkflowRow
       ? buildContinuousWorkflowContext({
@@ -156,6 +161,9 @@ export async function buildTaskContext(
           inputPackets: workflowInputPackets,
         })
     : null;
+  if (workflowContext && workflowLiveVisibility) {
+    workflowContext.live_visibility = workflowLiveVisibility;
+  }
   const instructionLayers = buildInstructionLayers({
     platformInstructions,
     orchestratorPrompt,
@@ -362,6 +370,57 @@ async function buildStandardWorkflowContext(params: {
   const context = buildWorkflowContextBase(params);
   context.current_stage = params.currentStage;
   return context;
+}
+
+async function loadWorkflowLiveVisibilityContext(
+  db: DatabaseQueryable,
+  tenantId: string,
+  task: Record<string, unknown>,
+  workflowRow: Record<string, unknown>,
+): Promise<Record<string, unknown> | null> {
+  const executionContextId = resolveOperatorExecutionContextId(task);
+  if (!executionContextId) {
+    return null;
+  }
+  const tenantMode = await readTenantLiveVisibilityMode(db, tenantId);
+  const override = readLiveVisibilityMode(workflowRow.live_visibility_mode_override);
+  const mode = override ?? tenantMode;
+  return {
+    mode,
+    source: override ? 'workflow_override' : 'agentic_settings',
+    revision: asOptionalNumber(workflowRow.live_visibility_revision) ?? 0,
+    execution_context_id: executionContextId,
+    source_kind: task.is_orchestrator_task === true ? 'orchestrator' : 'specialist',
+    record_operator_brief_tool: 'record_operator_brief',
+    record_operator_update_tool: 'record_operator_update',
+    turn_updates_required: mode === 'enhanced',
+    milestone_briefs_required: true,
+    terminal_briefs_required: task.is_orchestrator_task === true,
+  };
+}
+
+async function readTenantLiveVisibilityMode(
+  db: DatabaseQueryable,
+  tenantId: string,
+): Promise<'standard' | 'enhanced'> {
+  const result = await db.query<{ live_visibility_mode_default: string }>(
+    `SELECT live_visibility_mode_default
+       FROM agentic_settings
+      WHERE tenant_id = $1`,
+    [tenantId],
+  );
+  return readLiveVisibilityMode(result.rows[0]?.live_visibility_mode_default) ?? 'enhanced';
+}
+
+function readLiveVisibilityMode(value: unknown): 'standard' | 'enhanced' | null {
+  return value === 'standard' || value === 'enhanced' ? value : null;
+}
+
+function resolveOperatorExecutionContextId(task: Record<string, unknown>): string | null {
+  if (task.is_orchestrator_task === true) {
+    return asOptionalString(task.activation_id) ?? asOptionalString(task.id) ?? null;
+  }
+  return asOptionalString(task.id) ?? null;
 }
 
 function isContinuousWorkflowRow(

@@ -88,6 +88,7 @@ const gitSSHKnownHostsCredentialKeys = [
   'ssh_known_hosts_ref',
   'known_hosts_ref',
 ];
+const operatorRecordToolIds = ['record_operator_brief', 'record_operator_update'] as const;
 type ClaimCredentialKind = 'llm_api_key' | 'llm_extra_headers' | 'mcp_parameter' | 'mcp_oauth';
 interface ClaimCredentialPayload {
   task_id?: string;
@@ -1544,9 +1545,19 @@ function sanitizeClaimRoleTools(task: Record<string, unknown>): Record<string, u
     ...task,
     role_config: {
       ...roleConfig,
-      tools,
+      tools: appendOperatorRecordTools(tools),
     },
   };
+}
+
+function appendOperatorRecordTools(tools: string[]): string[] {
+  const merged = [...tools];
+  for (const toolId of operatorRecordToolIds) {
+    if (!merged.includes(toolId)) {
+      merged.push(toolId);
+    }
+  }
+  return merged;
 }
 
 function compactRecord<T extends Record<string, unknown>>(value: T): T {
