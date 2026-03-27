@@ -9,6 +9,14 @@ import {
 } from './mcp-page.support.js';
 
 describe('remote mcp page support', () => {
+  it('starts new remote MCP forms without a forced blank parameter row', () => {
+    const form = createRemoteMcpServerForm();
+
+    expect(form.parameters).toEqual([]);
+    expect(form.oauth.grantType).toBe('authorization_code');
+    expect(form.oauth.clientStrategy).toBe('auto');
+  });
+
   it('builds trimmed create payloads for parameterized servers', () => {
     expect(
       buildRemoteMcpCreatePayload({
@@ -221,6 +229,57 @@ describe('remote mcp page support', () => {
         },
       ],
     });
+  });
+
+  it('keeps existing servers with no parameters empty instead of creating a synthetic row', () => {
+    const form = createRemoteMcpServerForm({
+      id: 'server-2',
+      name: 'OAuth MCP',
+      slug: 'oauth-mcp',
+      description: 'Search docs',
+      endpoint_url: 'https://mcp.example.test/oauth',
+      transport_preference: 'auto',
+      call_timeout_seconds: 300,
+      auth_mode: 'oauth',
+      enabled_by_default_for_new_specialists: false,
+      is_archived: false,
+      verification_status: 'verified',
+      verification_error: null,
+      verified_transport: 'streamable_http',
+      verified_at: '2026-03-26T00:00:00.000Z',
+      verification_contract_version: 'remote-mcp-v1',
+      verified_capability_summary: {
+        tool_count: 1,
+        resource_count: 0,
+        prompt_count: 0,
+      },
+      discovered_tools_snapshot: [{ original_name: 'search' }],
+      discovered_resources_snapshot: [],
+      discovered_prompts_snapshot: [],
+      discovered_tool_count: 1,
+      discovered_resource_count: 0,
+      discovered_prompt_count: 0,
+      assigned_specialist_count: 0,
+      oauth_definition: {
+        grantType: 'authorization_code',
+        clientStrategy: 'auto',
+        callbackMode: 'loopback',
+        tokenEndpointAuthMethod: 'none',
+        scopes: [],
+        resourceIndicators: [],
+        audiences: [],
+        parMode: 'disabled',
+        jarMode: 'disabled',
+      },
+      oauth_connected: true,
+      oauth_authorized_at: '2026-03-26T00:00:00.000Z',
+      oauth_needs_reauth: false,
+      created_at: '2026-03-26T00:00:00.000Z',
+      updated_at: '2026-03-26T00:00:00.000Z',
+      parameters: [],
+    });
+
+    expect(form.parameters).toEqual([]);
   });
 
   it('summarizes discovered tools and page-level stats', () => {

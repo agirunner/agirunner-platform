@@ -38,6 +38,11 @@ export function McpPageParametersSection(props: {
       </div>
 
       <div className="space-y-3">
+        {props.parameters.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-border/70 bg-muted/5 px-4 py-4 text-sm text-muted">
+            {buildEmptyStateMessage(props.authMode)}
+          </div>
+        ) : null}
         {props.parameters.map((parameter, index) => (
           <div
             key={parameter.id}
@@ -174,4 +179,14 @@ function buildValuePlaceholder(parameter: RemoteMcpParameterFormState): string {
   return parameter.hasStoredSecret
     ? 'Leave blank to preserve the stored secret'
     : 'Enter secret value';
+}
+
+function buildEmptyStateMessage(authMode: RemoteMcpServerFormState['authMode']): string {
+  if (authMode === 'oauth') {
+    return 'No additional connection parameters are configured. Add one only if the remote MCP server requires path templating, cookies, or extra authorize, device, or token request values.';
+  }
+  if (authMode === 'none') {
+    return 'No connection parameters are configured. Add one only if this server requires static path, query, header, cookie, or initialize values.';
+  }
+  return 'No connection parameters are configured. Add one only if this server requires structured path, query, header, cookie, or initialize values.';
 }

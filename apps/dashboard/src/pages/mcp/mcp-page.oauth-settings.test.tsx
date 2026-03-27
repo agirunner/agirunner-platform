@@ -40,10 +40,10 @@ describe('mcp page oauth settings', () => {
     );
 
     expect(markup).toContain('OAuth setup');
-    expect(markup).toContain('Setup mode');
-    expect(markup).toContain('Automatic discovery');
     expect(markup).toContain('Advanced OAuth settings');
     expect(markup).toContain('Open this section for manual client details');
+    expect(markup).not.toContain('Grant type');
+    expect(markup).not.toContain('Setup mode');
     expect(markup).not.toContain('Protected resource metadata URL override');
     expect(markup).not.toContain('Authorization server metadata URL override');
     expect(markup).not.toContain('PAR mode');
@@ -53,7 +53,7 @@ describe('mcp page oauth settings', () => {
     expect(markup).not.toContain('Client secret');
   });
 
-  it('shows the required manual client fields when manual oauth setup is selected', () => {
+  it('explains that manual client details live under advanced settings', () => {
     const markup = renderToStaticMarkup(
       <McpPageOauthSettings
         value={createOauthState({
@@ -63,11 +63,29 @@ describe('mcp page oauth settings', () => {
       />,
     );
 
-    expect(markup).toContain('Manual client details');
-    expect(markup).toContain('Client ID');
-    expect(markup).toContain('Client secret');
-    expect(markup).toContain('Authorization endpoint');
-    expect(markup).toContain('Token endpoint');
-    expect(markup).toContain('Token auth method');
+    expect(markup).toContain('Manual client setup requires the OAuth client and endpoint values supplied by the remote authorization server operator. Those fields live under Advanced OAuth settings.');
+    expect(markup).toContain('Advanced OAuth settings');
+    expect(markup).not.toContain('Grant type');
+    expect(markup).not.toContain('Setup mode');
+    expect(markup).not.toContain('Client ID');
+    expect(markup).not.toContain('Client secret');
+  });
+
+  it('keeps advanced oauth collapsed on first render even for existing manual-client values', () => {
+    const markup = renderToStaticMarkup(
+      <McpPageOauthSettings
+        value={createOauthState({
+          clientStrategy: 'manual_client',
+          clientId: 'existing-client-id',
+          tokenEndpointOverride: 'https://auth.example.test/oauth/token',
+        })}
+        onChange={() => undefined}
+      />,
+    );
+
+    expect(markup).toContain('Advanced OAuth settings');
+    expect(markup).not.toContain('Manual client details');
+    expect(markup).not.toContain('Client ID');
+    expect(markup).not.toContain('Token endpoint');
   });
 });

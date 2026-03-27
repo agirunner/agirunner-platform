@@ -65,13 +65,16 @@ export function McpPageTable(props: {
                   <div className="text-xs text-muted">{server.description || 'No description provided.'}</div>
                   <div className="text-xs text-foreground">{server.endpoint_url}</div>
                   <div className="text-xs text-muted">Call timeout: {server.call_timeout_seconds}s</div>
-                  <div className="text-xs text-muted">
-                    Capabilities: {formatDiscoveredCapabilitySummary(server)}
-                  </div>
-                  <div className="text-xs text-muted">
-                    {toolNames.length > 0
-                      ? `${toolNames.length} tool${toolNames.length === 1 ? '' : 's'} discovered: ${toolNames.join(', ')}`
-                      : 'No discovered tools snapshot.'}
+                  <div className="rounded-md border border-border/70 bg-muted/5 px-3 py-2 text-xs">
+                    <div className="font-medium text-foreground">Capabilities</div>
+                    <div className="mt-1 text-muted">
+                      {formatDiscoveredCapabilitySummary(server)}
+                    </div>
+                    <div className="mt-1 text-muted">
+                      {toolNames.length > 0
+                        ? `${toolNames.length} tool${toolNames.length === 1 ? '' : 's'} discovered: ${toolNames.join(', ')}`
+                        : 'No discovered tools snapshot.'}
+                    </div>
                   </div>
                 </div>
               </TableCell>

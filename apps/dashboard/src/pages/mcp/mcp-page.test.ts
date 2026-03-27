@@ -79,6 +79,14 @@ describe('mcp page source', () => {
     expect(source).toContain('No additional auth');
   });
 
+  it('wraps discovered capabilities in a bordered summary block that matches the environments table style', () => {
+    const source = readSource('./mcp-page.table.tsx');
+
+    expect(source).toContain('rounded-md border border-border/70 bg-muted/5 px-3 py-2 text-xs');
+    expect(source).toContain('<div className="font-medium text-foreground">Capabilities</div>');
+    expect(source).toContain('No discovered tools snapshot.');
+  });
+
   it('authors endpoint, auth, defaults, and parameter rows in the dialog', () => {
     const source = readCombinedSource();
 
@@ -93,6 +101,9 @@ describe('mcp page source', () => {
     expect(source).toContain('lg:grid-cols-2');
     expect(source).not.toContain('xl:grid-cols-[minmax(0,1fr)_24rem]');
     expect(source).not.toContain('<aside className="space-y-5">');
+    expect(source).toContain('<span className="font-medium">Name</span>');
+    expect(source).toContain('<span className="font-medium">Authentication</span>');
+    expect(source).toContain('<span className="font-medium">Transport preference</span>');
     expect(source).toContain('Enabled by default for new specialists');
     expect(source).toContain('Grant to all existing specialists');
     expect(source).toContain('Call timeout (seconds)');
@@ -118,16 +129,34 @@ describe('mcp page source', () => {
     expect(source).toContain('normalizeParametersForAuthMode');
   });
 
+  it('keeps the connection summary driven by the current form auth mode', () => {
+    const source = readSource('./mcp-page.dialog.tsx');
+
+    expect(source).toContain("props.form.authMode === 'oauth' && props.server?.auth_mode === 'oauth'");
+  });
+
+  it('lets the parameter section render as an explicit empty state when no rows exist', () => {
+    const source = readSource('./mcp-page.parameters-section.tsx');
+
+    expect(source).toContain("props.parameters.length === 0");
+    expect(source).toContain('No additional connection parameters are configured.');
+    expect(source).toContain('No connection parameters are configured.');
+  });
+
   it('keeps manual client and advanced oauth settings inside one advanced block', () => {
     const settingsSource = readSource('./mcp-page.oauth-settings.tsx');
     const advancedSource = readSource('./mcp-page.oauth-settings.advanced.tsx');
 
     expect(settingsSource).toContain('Open this section for manual client details');
     expect(settingsSource).toContain('border-t border-border/70 px-4 py-4');
+    expect(settingsSource).not.toContain('label="Grant type"');
+    expect(settingsSource).not.toContain('label="Setup mode"');
     expect(settingsSource).not.toContain('Client ID');
     expect(settingsSource).not.toContain('Client secret');
     expect(settingsSource).not.toContain('Token auth method');
     expect(advancedSource).toContain('Manual client details');
+    expect(advancedSource).toContain('label="Grant type"');
+    expect(advancedSource).toContain('label="Setup mode"');
     expect(advancedSource).toContain('Client ID');
     expect(advancedSource).toContain('Client secret');
     expect(advancedSource).toContain('Token auth method');
@@ -151,6 +180,8 @@ describe('mcp page source', () => {
     expect(source).toContain('Setup mode');
     expect(source).toContain('Advanced OAuth settings');
     expect(source).toContain('showAdvanced');
+    expect(source).toContain("if (value === 'manual_client')");
+    expect(source).toContain('setShowAdvanced(true)');
     expect(source).toContain('Manual client');
     expect(source).toContain('Manual client setup requires the OAuth client and endpoint values supplied by the remote authorization server operator. Those fields live under Advanced OAuth settings.');
   });

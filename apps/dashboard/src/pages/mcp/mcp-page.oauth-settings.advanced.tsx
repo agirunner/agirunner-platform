@@ -9,14 +9,51 @@ import {
 export function McpPageOauthAdvancedSettings(props: {
   value: RemoteMcpOauthFormState;
   onChange(next: RemoteMcpOauthFormState): void;
+  onManualClientSelected(): void;
 }) {
   const update = <K extends keyof RemoteMcpOauthFormState>(
     key: K,
     value: RemoteMcpOauthFormState[K],
   ) => props.onChange({ ...props.value, [key]: value });
 
+  const updateClientStrategy = (value: RemoteMcpOauthFormState['clientStrategy']) => {
+    update('clientStrategy', value);
+    if (value === 'manual_client') {
+      props.onManualClientSelected();
+    }
+  };
+
   return (
     <div className="grid gap-5">
+      <div className="grid gap-4 md:grid-cols-2">
+        <SelectField
+          label="Grant type"
+          value={props.value.grantType}
+          onValueChange={(value) =>
+            update('grantType', value as RemoteMcpOauthFormState['grantType'])
+          }
+          items={[
+            ['authorization_code', 'Authorization code'],
+            ['device_authorization', 'Device authorization'],
+            ['client_credentials', 'Client credentials'],
+            ['enterprise_managed_authorization', 'Enterprise managed authorization'],
+          ]}
+        />
+        <SelectField
+          label="Setup mode"
+          value={props.value.clientStrategy}
+          onValueChange={(value) =>
+            updateClientStrategy(value as RemoteMcpOauthFormState['clientStrategy'])
+          }
+          items={[
+            ['auto', 'Automatic discovery'],
+            ['dynamic_registration', 'Dynamic registration'],
+            ['client_metadata_document', 'Client metadata document'],
+            ['manual_client', 'Manual client'],
+          ]}
+        />
+      </div>
+
       {props.value.clientStrategy === 'manual_client' ? (
         <section className="grid gap-4">
           <div>

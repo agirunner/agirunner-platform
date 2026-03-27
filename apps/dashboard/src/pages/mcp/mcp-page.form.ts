@@ -17,6 +17,7 @@ import {
 export function createRemoteMcpServerForm(
   server?: DashboardRemoteMcpServerRecord | null,
 ): RemoteMcpServerFormState {
+  const parameters = server?.parameters?.map(createParameterFormFromRecord) ?? [];
   return {
     name: server?.name ?? '',
     description: server?.description ?? '',
@@ -28,8 +29,7 @@ export function createRemoteMcpServerForm(
       server?.enabled_by_default_for_new_specialists ?? false,
     grantToAllExistingSpecialists: false,
     oauth: createRemoteMcpOauthForm(server?.oauth_definition ?? null),
-    parameters:
-      server?.parameters.map(createParameterFormFromRecord) ?? [createRemoteMcpParameterForm()],
+    parameters,
   };
 }
 

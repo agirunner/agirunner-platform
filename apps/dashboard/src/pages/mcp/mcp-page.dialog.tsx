@@ -95,30 +95,6 @@ export function McpPageDialog(props: {
                     </Select>
                   </label>
                   <label className="grid gap-2 text-sm">
-                    <span className="font-medium">Call timeout (seconds)</span>
-                    <Input
-                      inputMode="numeric"
-                      value={props.form.callTimeoutSeconds}
-                      onChange={(event) =>
-                        props.onFormChange({
-                          ...props.form,
-                          callTimeoutSeconds: event.target.value,
-                        })
-                      }
-                      placeholder="300"
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm xl:col-span-2">
-                    <span className="font-medium">Endpoint URL</span>
-                    <Input
-                      value={props.form.endpointUrl}
-                      onChange={(event) =>
-                        props.onFormChange({ ...props.form, endpointUrl: event.target.value })
-                      }
-                      placeholder="https://mcp.example.test/server"
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm">
                     <span className="font-medium">Transport preference</span>
                     <Select
                       value={props.form.transportPreference}
@@ -138,6 +114,30 @@ export function McpPageDialog(props: {
                         <SelectItem value="http_sse_compat">HTTP + SSE compatibility only</SelectItem>
                       </SelectContent>
                     </Select>
+                  </label>
+                  <label className="grid gap-2 text-sm xl:col-span-2">
+                    <span className="font-medium">Endpoint URL</span>
+                    <Input
+                      value={props.form.endpointUrl}
+                      onChange={(event) =>
+                        props.onFormChange({ ...props.form, endpointUrl: event.target.value })
+                      }
+                      placeholder="https://mcp.example.test/server"
+                    />
+                  </label>
+                  <label className="grid gap-2 text-sm">
+                    <span className="font-medium">Call timeout (seconds)</span>
+                    <Input
+                      inputMode="numeric"
+                      value={props.form.callTimeoutSeconds}
+                      onChange={(event) =>
+                        props.onFormChange({
+                          ...props.form,
+                          callTimeoutSeconds: event.target.value,
+                        })
+                      }
+                      placeholder="300"
+                    />
                   </label>
                   <label className="grid gap-2 text-sm xl:col-span-3">
                     <span className="font-medium">Description</span>
@@ -189,7 +189,7 @@ export function McpPageDialog(props: {
                     <p>Transport preference: {formatRemoteMcpTransportPreference(props.form.transportPreference)}</p>
                     <p>{buildAuthSummary(props.form)}</p>
                     <p>Tool calls from this server time out after {props.form.callTimeoutSeconds.trim() || '300'} seconds.</p>
-                    {props.server?.auth_mode === 'oauth' ? (
+                    {props.form.authMode === 'oauth' && props.server?.auth_mode === 'oauth' ? (
                       <p>
                         {props.server.oauth_connected
                           ? props.server.oauth_needs_reauth
@@ -280,8 +280,7 @@ function ensureParametersAfterRemoval(
   parameters: RemoteMcpServerFormState['parameters'],
   parameterId: string,
 ): RemoteMcpServerFormState['parameters'] {
-  const nextParameters = parameters.filter((entry) => entry.id !== parameterId);
-  return nextParameters.length > 0 ? nextParameters : [createRemoteMcpParameterForm()];
+  return parameters.filter((entry) => entry.id !== parameterId);
 }
 
 function buildAuthSummary(form: RemoteMcpServerFormState): string {
