@@ -2442,6 +2442,7 @@ def evaluate_expectations(
     capability_proof: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     failures: list[str] = []
+    required_failures: list[str] = []
     checks: list[dict[str, Any]] = []
     evidence_payload = {} if evidence is None else evidence
 
@@ -2800,6 +2801,7 @@ def evaluate_expectations(
             }
         )
         failures.extend(capability_result["failures"])
+        required_failures.extend(capability_result["failures"])
 
     fleet_expectations = expectations.get("fleet", {})
     if isinstance(fleet_expectations, dict):
@@ -3220,11 +3222,16 @@ def evaluate_expectations(
             evidence=evidence_payload,
             execution_logs=execution_logs,
         )
+        required_failure_set = set(required_failures)
         return {
-            "passed": len(outcome_failures) == 0,
-            "failures": outcome_failures,
+            "passed": len(outcome_failures) == 0 and len(required_failures) == 0,
+            "failures": [*outcome_failures, *required_failures],
             "checks": [*checks, *outcome_checks],
-            "advisories": failures,
+            "advisories": [
+                failure
+                for failure in failures
+                if failure not in required_failure_set
+            ],
             "approval_actions": approval_actions,
         }
 

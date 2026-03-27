@@ -10,6 +10,7 @@ REMOTE_MCP_SECTION_HEADER = "## Remote MCP Servers Available"
 
 def build_capability_proof(*, workflow: dict[str, Any], logs: Any) -> dict[str, Any]:
     prompt_fragments: set[str] = set()
+    prompt_text_parts: list[str] = []
     successful_mcp_tool_names: list[str] = []
     prompt_task_count = 0
     has_skill_prompt_section = False
@@ -27,6 +28,7 @@ def build_capability_proof(*, workflow: dict[str, Any], logs: Any) -> dict[str, 
             content = collect_system_prompt_content(row.get("payload"))
             if content:
                 prompt_task_count += 1
+                prompt_text_parts.append(content)
                 if SKILL_SECTION_HEADER in content:
                     has_skill_prompt_section = True
                 if REMOTE_MCP_SECTION_HEADER in content:
@@ -44,6 +46,7 @@ def build_capability_proof(*, workflow: dict[str, Any], logs: Any) -> dict[str, 
         "has_skill_prompt_section": has_skill_prompt_section,
         "has_remote_mcp_prompt_section": has_remote_mcp_prompt_section,
         "prompt_fragments": sorted(prompt_fragments),
+        "prompt_text": "\n".join(prompt_text_parts),
         "successful_mcp_tool_names": successful_mcp_tool_names,
         "workflow_text": collect_nested_text(workflow),
     }
@@ -73,9 +76,10 @@ def evaluate_skill_expectations(
     if not isinstance(expectations, dict) or not expectations:
         return
     assigned_skill_slugs = assigned_role_slugs(setup, "skill_slugs")
+    prompt_text = proof.get("prompt_text", proof.get("prompt_fragments"))
     require_setup_slugs(expectations.get("required_skill_slugs"), assigned_skill_slugs, "skill", failures)
     require_prompt_section(expectations.get("require_prompt_section"), proof.get("has_skill_prompt_section"), "skills", failures)
-    require_prompt_fragments(expectations.get("required_prompt_fragments"), proof.get("prompt_fragments"), "skills", failures)
+    require_prompt_fragments(expectations.get("required_prompt_fragments"), prompt_text, "skills", failures)
     require_output_fragments(expectations.get("required_output_fragments"), proof.get("workflow_text"), "skills", failures)
     forbid_prompt_section(expectations.get("forbid_remote_mcp_prompt_section"), proof.get("has_remote_mcp_prompt_section"), "remote MCP", failures)
 
@@ -89,9 +93,10 @@ def evaluate_remote_mcp_expectations(
     if not isinstance(expectations, dict) or not expectations:
         return
     assigned_server_slugs = assigned_role_slugs(setup, "mcp_server_slugs")
+    prompt_text = proof.get("prompt_text", proof.get("prompt_fragments"))
     require_setup_slugs(expectations.get("required_server_slugs"), assigned_server_slugs, "remote MCP server", failures)
     require_prompt_section(expectations.get("require_prompt_section"), proof.get("has_remote_mcp_prompt_section"), "remote MCP", failures)
-    require_prompt_fragments(expectations.get("required_prompt_fragments"), proof.get("prompt_fragments"), "remote MCP", failures)
+    require_prompt_fragments(expectations.get("required_prompt_fragments"), prompt_text, "remote MCP", failures)
     require_output_fragments(expectations.get("required_output_fragments"), proof.get("workflow_text"), "remote MCP", failures)
     forbid_prompt_section(expectations.get("forbid_skill_prompt_section"), proof.get("has_skill_prompt_section"), "skills", failures)
     require_mcp_tool_calls(expectations, proof, failures)
@@ -134,10 +139,18 @@ def forbid_prompt_section(expected: Any, actual: Any, label: str, failures: list
 def require_prompt_fragments(required: Any, actual: Any, label: str, failures: list[str]) -> None:
     if not isinstance(required, list):
         return
-    actual_text = " ".join(fragment for fragment in actual or [] if isinstance(fragment, str))
+    actual_text = prompt_text_for_matching(actual)
     for fragment in required:
         if isinstance(fragment, str) and fragment.strip() and fragment.strip() not in actual_text:
             failures.append(f"expected {label} prompt fragment {fragment.strip()!r}")
+
+
+def prompt_text_for_matching(value: Any) -> str:
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return " ".join(fragment for fragment in value if isinstance(fragment, str))
+    return ""
 
 
 def require_output_fragments(required: Any, actual: Any, label: str, failures: list[str]) -> None:
@@ -168,16 +181,30 @@ def require_mcp_tool_calls(expectations: dict[str, Any], proof: dict[str, Any], 
 def collect_system_prompt_content(payload: Any) -> str:
     if not isinstance(payload, dict):
         return ""
-    messages = payload.get("messages", [])
-    if not isinstance(messages, list):
-        return ""
     content: list[str] = []
+    collect_message_prompt_content(payload.get("messages"), content)
+    collect_direct_prompt_content(payload.get("system_prompt"), content)
+    collect_direct_prompt_content(payload.get("system_prompts"), content)
+    return "\n".join(content)
+
+
+def collect_message_prompt_content(messages: Any, content: list[str]) -> None:
+    if not isinstance(messages, list):
+        return
     for message in messages:
         if isinstance(message, dict) and message.get("role") == "system":
-            text = message.get("content")
-            if isinstance(text, str) and text.strip():
-                content.append(text)
-    return "\n".join(content)
+            collect_direct_prompt_content(message.get("content"), content)
+
+
+def collect_direct_prompt_content(value: Any, content: list[str]) -> None:
+    if isinstance(value, str):
+        text = value.strip()
+        if text:
+            content.append(text)
+        return
+    if isinstance(value, list):
+        for entry in value:
+            collect_direct_prompt_content(entry, content)
 
 
 def execution_log_rows(logs: Any) -> list[dict[str, Any]]:

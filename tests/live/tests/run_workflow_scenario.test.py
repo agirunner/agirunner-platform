@@ -107,6 +107,72 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             )
         )
 
+    def test_outcome_driven_verification_keeps_explicit_capability_failures_fatal(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "state": "completed",
+                "outcome_envelope": {
+                    "allowed_states": ["completed"],
+                    "require_output_artifacts": False,
+                    "require_completed_non_orchestrator_tasks": False,
+                    "require_terminal_work_items": False,
+                    "require_db_state": False,
+                    "require_runtime_cleanup": False,
+                    "require_fatal_log_free": False,
+                },
+            },
+            workflow={
+                "id": "wf-1",
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-1",
+                        "role": "skill-sentinel-specialist",
+                        "is_orchestrator_task": False,
+                        "state": "completed",
+                    }
+                ],
+            },
+            board={"data": {"data": {"columns": [{"id": "done", "is_terminal": True}], "work_items": []}}},
+            work_items={"data": {"data": []}},
+            stage_gates={"data": []},
+            workspace={},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            execution_logs={"data": []},
+            verification_mode=run_workflow_scenario.OUTCOME_DRIVEN_VERIFICATION_MODE,
+            capability_expectations={
+                "skills": {
+                    "required_skill_slugs": ["skill-sentinel"],
+                    "require_prompt_section": True,
+                    "required_prompt_fragments": ["SKILL-SENTINEL: basalt-lantern-20260326"],
+                }
+            },
+            capability_setup={
+                "roles": [
+                    {
+                        "name": "skill-sentinel-specialist",
+                        "skill_slugs": ["skill-sentinel"],
+                    }
+                ]
+            },
+            capability_proof={
+                "prompt_task_count": 0,
+                "has_skill_prompt_section": False,
+                "has_remote_mcp_prompt_section": False,
+                "prompt_fragments": [],
+                "successful_mcp_tool_names": [],
+                "workflow_text": "",
+            },
+        )
+
+        self.assertFalse(verification["passed"])
+        self.assertIn(
+            "expected skills prompt section to appear in specialist prompts",
+            verification["failures"],
+        )
+        self.assertEqual([], verification["advisories"])
+
     def test_progress_verification_cannot_finish_while_tasks_are_active(self) -> None:
         self.assertFalse(
             run_workflow_scenario.progress_verification_can_end_run(

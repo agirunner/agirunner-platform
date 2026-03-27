@@ -96,6 +96,63 @@ class SpecialistCapabilityProofTests(unittest.TestCase):
         self.assertTrue(result["passed"])
         self.assertEqual([], result["failures"])
 
+    def test_build_capability_proof_reads_live_system_prompt_fields(self) -> None:
+        workflow = {
+            "tasks": [
+                {"id": "task-1", "role": "researcher", "is_orchestrator_task": False},
+            ],
+            "output": {"summary": "SKILL-SENTINEL final answer"},
+        }
+        logs = {
+            "data": [
+                {
+                    "operation": "llm.chat_stream",
+                    "status": "started",
+                    "task_id": "task-1",
+                    "payload": {
+                        "system_prompt": (
+                            "## Specialist Skills\n"
+                            "### Skill Sentinel\n"
+                            "SKILL-SENTINEL: basalt-lantern-20260326\n"
+                        ),
+                        "system_prompts": [
+                            "## Specialist Skills\n### Skill Sentinel\nSKILL-SENTINEL: basalt-lantern-20260326\n",
+                        ],
+                    },
+                },
+            ]
+        }
+
+        proof = specialist_capability_proof.build_capability_proof(workflow=workflow, logs=logs)
+
+        self.assertEqual(1, proof["prompt_task_count"])
+        self.assertTrue(proof["has_skill_prompt_section"])
+        self.assertIn("SKILL-SENTINEL:", proof["prompt_fragments"])
+        self.assertIn("basalt-lantern-20260326", proof["prompt_fragments"])
+        self.assertIn("SKILL-SENTINEL: basalt-lantern-20260326", proof["prompt_text"])
+
+    def test_evaluate_capability_expectations_matches_contiguous_prompt_fragments(self) -> None:
+        result = specialist_capability_proof.evaluate_capability_expectations(
+            expectations={
+                "skills": {
+                    "required_prompt_fragments": ["SKILL-SENTINEL: basalt-lantern-20260326"],
+                }
+            },
+            setup={"roles": []},
+            proof={
+                "prompt_task_count": 1,
+                "has_skill_prompt_section": True,
+                "has_remote_mcp_prompt_section": False,
+                "prompt_fragments": ["SKILL-SENTINEL:", "basalt-lantern-20260326"],
+                "prompt_text": "## Specialist Skills\nSKILL-SENTINEL: basalt-lantern-20260326\n",
+                "successful_mcp_tool_names": [],
+                "workflow_text": "",
+            },
+        )
+
+        self.assertTrue(result["passed"])
+        self.assertEqual([], result["failures"])
+
 
 if __name__ == "__main__":
     unittest.main()
