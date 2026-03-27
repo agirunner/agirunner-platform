@@ -29,6 +29,11 @@ export const reconnectRemoteMcpOAuth = (
 ): Promise<DashboardRemoteMcpAuthorizeResult> =>
   dashboardApi.reconnectRemoteMcpOAuth(serverId);
 
+export const pollRemoteMcpOAuthDeviceAuthorization = (
+  deviceFlowId: string,
+): Promise<DashboardRemoteMcpAuthorizeResult> =>
+  dashboardApi.pollRemoteMcpOAuthDeviceAuthorization(deviceFlowId);
+
 export const disconnectRemoteMcpOAuth = (serverId: string): Promise<void> =>
   dashboardApi.disconnectRemoteMcpOAuth(serverId);
 

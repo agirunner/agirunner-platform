@@ -8,9 +8,12 @@ function readSource(fileName: string) {
 
 function readCombinedSource() {
   return [
+    '../../lib/api.ts',
     './mcp-page.tsx',
     './mcp-page.api.ts',
+    './mcp-page.device-authorization-dialog.tsx',
     './mcp-page.support.ts',
+    './mcp-page.oauth-flow.ts',
     './mcp-page.table.tsx',
     './mcp-page.dialog.tsx',
     './mcp-page.oauth-settings.tsx',
@@ -56,8 +59,10 @@ describe('mcp page source', () => {
     expect(source).toContain('Delete');
     expect(source).not.toContain('Archive');
     expect(source).not.toContain('Restore');
-    expect(source).toContain('openAuthorizeUrl(result.result.authorizeUrl);');
-    expect(source).toContain('openAuthorizeUrl(result.authorizeUrl);');
+    expect(source).toContain('handleRemoteMcpOauthStartResult(');
+    expect(source).toContain('pollRemoteMcpOAuthDeviceAuthorization');
+    expect(source).toContain('deviceFlowId');
+    expect(source).toContain('verificationUri');
     expect(source).toContain("window.open(authorizeUrl, '_blank', 'noopener,noreferrer')");
   });
 
@@ -93,6 +98,11 @@ describe('mcp page source', () => {
     expect(source).toContain('JAR mode');
     expect(source).toContain('Cookie');
     expect(source).toContain('Authorize request query');
+    expect(source).toContain('Device request query');
+    expect(source).toContain('Device request header');
+    expect(source).toContain('Device request body (form)');
+    expect(source).toContain('Device request body (JSON)');
+    expect(source).toContain('Token request query');
     expect(source).toContain('Token request header');
     expect(source).toContain('Token request body (form)');
     expect(source).toContain('Token request body (JSON)');
@@ -101,5 +111,15 @@ describe('mcp page source', () => {
     expect(source).toContain('Add parameter');
     expect(source).toContain("authMode !== 'none'");
     expect(source).toContain('normalizeParametersForAuthMode');
+  });
+
+  it('models a discriminated oauth result contract for browser, device, and completed flows', () => {
+    const source = readSource('../../lib/api.ts');
+
+    expect(source).toContain("kind: 'browser'");
+    expect(source).toContain("kind: 'device'");
+    expect(source).toContain("kind: 'completed'");
+    expect(source).toContain('verificationUriComplete');
+    expect(source).toContain('pollRemoteMcpOAuthDeviceAuthorization');
   });
 });

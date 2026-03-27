@@ -243,7 +243,7 @@ export function McpPageDialog(props: {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted">
                 {props.form.authMode === 'oauth'
-                  ? 'OAuth-backed servers authorize in a separate browser window and save only after the callback verifies successfully.'
+                  ? 'OAuth-backed servers complete through the configured provider flow and save only after the verified connection contract is established.'
                   : 'Saving verifies the remote server before specialists can use it.'}
               </p>
               <div className="flex flex-wrap justify-end gap-2">

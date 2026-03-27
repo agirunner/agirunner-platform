@@ -69,6 +69,81 @@ describe('remote mcp page support', () => {
     });
   });
 
+  it('preserves oauth-specific query and device placements in create payloads', () => {
+    expect(
+      buildRemoteMcpCreatePayload({
+        name: ' Remote MCP ',
+        description: '',
+        endpointUrl: ' https://mcp.example.test/server ',
+        transportPreference: 'auto',
+        callTimeoutSeconds: ' 300 ',
+        authMode: 'oauth',
+        enabledByDefaultForNewSpecialists: false,
+        grantToAllExistingSpecialists: false,
+        oauth: createRemoteMcpServerForm().oauth,
+        parameters: [
+          {
+            id: 'param-1',
+            placement: 'device_request_query',
+            key: ' audience ',
+            valueKind: 'static',
+            value: ' docs ',
+            hasStoredSecret: false,
+          },
+          {
+            id: 'param-2',
+            placement: 'token_request_query',
+            key: ' resource ',
+            valueKind: 'secret',
+            value: ' secret-resource ',
+            hasStoredSecret: false,
+          },
+          {
+            id: 'param-3',
+            placement: 'device_request_body_json',
+            key: ' tenant ',
+            valueKind: 'static',
+            value: ' engineering ',
+            hasStoredSecret: false,
+          },
+        ],
+      }),
+    ).toEqual({
+      name: 'Remote MCP',
+      description: '',
+      endpointUrl: 'https://mcp.example.test/server',
+      transportPreference: 'auto',
+      callTimeoutSeconds: 300,
+      authMode: 'oauth',
+      enabledByDefaultForNewSpecialists: false,
+      grantToAllExistingSpecialists: false,
+      oauthDefinition: expect.any(Object),
+      parameters: [
+        {
+          id: 'param-1',
+          placement: 'device_request_query',
+          key: 'audience',
+          valueKind: 'static',
+          value: 'docs',
+        },
+        {
+          id: 'param-2',
+          placement: 'token_request_query',
+          key: 'resource',
+          valueKind: 'secret',
+          value: 'secret-resource',
+        },
+        {
+          id: 'param-3',
+          placement: 'device_request_body_json',
+          key: 'tenant',
+          valueKind: 'static',
+          value: 'engineering',
+        },
+      ],
+    });
+  });
+
   it('hydrates stored secret parameters without exposing their plaintext and preserves them on update', () => {
     const form = createRemoteMcpServerForm({
       id: 'server-1',

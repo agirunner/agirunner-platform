@@ -407,6 +407,11 @@ export type DashboardRemoteMcpParameterPlacement =
   | 'cookie'
   | 'initialize_param'
   | 'authorize_request_query'
+  | 'device_request_query'
+  | 'device_request_header'
+  | 'device_request_body_form'
+  | 'device_request_body_json'
+  | 'token_request_query'
   | 'token_request_header'
   | 'token_request_body_form'
   | 'token_request_body_json';
@@ -529,11 +534,27 @@ export interface DashboardRemoteMcpServerUpdateInput {
   parameters?: DashboardRemoteMcpServerParameterInput[];
 }
 
-export interface DashboardRemoteMcpAuthorizeResult {
-  draftId?: string;
-  serverId?: string;
-  authorizeUrl: string;
-}
+export type DashboardRemoteMcpAuthorizeResult =
+  | {
+      kind: 'browser';
+      draftId: string;
+      authorizeUrl: string;
+    }
+  | {
+      kind: 'device';
+      draftId: string;
+      deviceFlowId: string;
+      userCode: string;
+      verificationUri: string;
+      verificationUriComplete: string | null;
+      expiresInSeconds: number;
+      intervalSeconds: number;
+    }
+  | {
+      kind: 'completed';
+      serverId: string;
+      serverName: string;
+    };
 
 export interface DashboardSpecialistSkillRecord {
   id: string;
@@ -2016,6 +2037,7 @@ export interface DashboardApi {
     payload: DashboardRemoteMcpServerCreateInput,
   ): Promise<DashboardRemoteMcpAuthorizeResult>;
   reconnectRemoteMcpOAuth(serverId: string): Promise<DashboardRemoteMcpAuthorizeResult>;
+  pollRemoteMcpOAuthDeviceAuthorization(deviceFlowId: string): Promise<DashboardRemoteMcpAuthorizeResult>;
   disconnectRemoteMcpOAuth(serverId: string): Promise<void>;
   reverifyRemoteMcpServer(serverId: string): Promise<DashboardRemoteMcpServerRecord>;
   deleteRemoteMcpServer(serverId: string): Promise<void>;
@@ -3419,6 +3441,15 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() =>
         requestData<DashboardRemoteMcpAuthorizeResult>(
           `/api/v1/remote-mcp-servers/${serverId}/oauth/reconnect`,
+          {
+            body: {},
+          },
+        ),
+      ),
+    pollRemoteMcpOAuthDeviceAuthorization: (deviceFlowId) =>
+      withRefresh(() =>
+        requestData<DashboardRemoteMcpAuthorizeResult>(
+          `/api/v1/remote-mcp-servers/oauth/device/${deviceFlowId}/poll`,
           {
             body: {},
           },

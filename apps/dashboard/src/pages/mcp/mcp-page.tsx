@@ -12,7 +12,10 @@ import { DashboardPageHeader } from '../../components/layout/dashboard-page-head
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
 import { toast } from '../../lib/toast.js';
-import type { DashboardRemoteMcpServerRecord } from '../../lib/api.js';
+import type {
+  DashboardRemoteMcpAuthorizeResult,
+  DashboardRemoteMcpServerRecord,
+} from '../../lib/api.js';
 import { MetricCard } from '../role-definitions/role-definitions-list.js';
 import {
   createRemoteMcpServer,
@@ -20,11 +23,18 @@ import {
   disconnectRemoteMcpOAuth,
   fetchRemoteMcpServers,
   initiateRemoteMcpOAuthAuthorization,
+  pollRemoteMcpOAuthDeviceAuthorization,
   reconnectRemoteMcpOAuth,
   reverifyRemoteMcpServer,
   updateRemoteMcpServer,
 } from './mcp-page.api.js';
+import { McpPageDeviceAuthorizationDialog } from './mcp-page.device-authorization-dialog.js';
 import { McpPageDialog } from './mcp-page.dialog.js';
+import {
+  resolveDeviceAuthorizationUrl,
+  toDeviceAuthorizationState,
+  type RemoteMcpDeviceAuthorizationState,
+} from './mcp-page.oauth-flow.js';
 import {
   buildRemoteMcpCreatePayload,
   buildRemoteMcpServerStats,
@@ -48,6 +58,7 @@ export function McpPage(): JSX.Element {
   const [dialogForm, setDialogForm] = useState<RemoteMcpServerFormState>(
     createRemoteMcpServerForm(),
   );
+  const [deviceAuthorization, setDeviceAuthorization] = useState<RemoteMcpDeviceAuthorizationState | null>(null);
   const [toolsServer, setToolsServer] = useState<DashboardRemoteMcpServerRecord | null>(null);
   const [busyServerId, setBusyServerId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
@@ -62,10 +73,12 @@ export function McpPage(): JSX.Element {
       const message = remoteMcpServerName
         ? `OAuth connected successfully for ${remoteMcpServerName}.`
         : 'OAuth connected successfully.';
+      setDeviceAuthorization(null);
       toast.success(message);
       queryClient.invalidateQueries({ queryKey: ['remote-mcp-servers'] });
       setSearchParams({}, { replace: true });
     } else if (oauthError) {
+      setDeviceAuthorization(null);
       toast.error(`OAuth failed: ${oauthError}`);
       setSearchParams({}, { replace: true });
     }
@@ -106,8 +119,10 @@ export function McpPage(): JSX.Element {
       setDialogState(null);
       setDialogForm(createRemoteMcpServerForm());
       if (result.kind === 'oauth') {
-        openAuthorizeUrl(result.result.authorizeUrl);
-        toast.success('OAuth authorization started in a new window.');
+        await handleRemoteMcpOauthStartResult(result.result, {
+          queryClient,
+          setDeviceAuthorization,
+        });
         return;
       }
       await refreshRemoteMcpQueries(queryClient);
@@ -143,10 +158,12 @@ export function McpPage(): JSX.Element {
       setBusyServerId(server.id);
       return reconnectRemoteMcpOAuth(server.id);
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       setBusyServerId(null);
-      openAuthorizeUrl(result.authorizeUrl);
-      toast.success('OAuth authorization started in a new window.');
+      await handleRemoteMcpOauthStartResult(result, {
+        queryClient,
+        setDeviceAuthorization,
+      });
     },
     onError: (error) => {
       setBusyServerId(null);
@@ -168,6 +185,20 @@ export function McpPage(): JSX.Element {
     onError: (error) => {
       setBusyServerId(null);
       toast.error(error instanceof Error ? error.message : 'Failed to disconnect OAuth.');
+    },
+  });
+
+  const pollDeviceAuthorizationMutation = useMutation({
+    mutationFn: async (state: RemoteMcpDeviceAuthorizationState) =>
+      pollRemoteMcpOAuthDeviceAuthorization(state.deviceFlowId),
+    onSuccess: async (result) => {
+      await handleRemoteMcpOauthStartResult(result, {
+        queryClient,
+        setDeviceAuthorization,
+      });
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : 'Failed to check device authorization status.');
     },
   });
 
@@ -280,7 +311,7 @@ export function McpPage(): JSX.Element {
           form={dialogForm}
           isPending={saveMutation.isPending}
           error={saveMutation.error instanceof Error ? saveMutation.error.message : null}
-          submitLabel={buildSubmitLabel(dialogState.mode, dialogForm.authMode)}
+          submitLabel={buildSubmitLabel(dialogState.mode, dialogForm.authMode, dialogForm.oauth.grantType)}
           onFormChange={setDialogForm}
           onClose={() => {
             if (!saveMutation.isPending) {
@@ -299,12 +330,44 @@ export function McpPage(): JSX.Element {
           }
         }}
       />
+
+      <McpPageDeviceAuthorizationDialog
+        open={deviceAuthorization !== null}
+        state={deviceAuthorization}
+        isPolling={pollDeviceAuthorizationMutation.isPending}
+        error={pollDeviceAuthorizationMutation.error instanceof Error ? pollDeviceAuthorizationMutation.error.message : null}
+        onOpenVerificationPage={() => {
+          if (deviceAuthorization) {
+            openAuthorizeUrl(resolveDeviceAuthorizationUrl(deviceAuthorization));
+          }
+        }}
+        onCheckStatus={() => {
+          if (deviceAuthorization) {
+            pollDeviceAuthorizationMutation.mutate(deviceAuthorization);
+          }
+        }}
+        onClose={() => {
+          if (!pollDeviceAuthorizationMutation.isPending) {
+            setDeviceAuthorization(null);
+          }
+        }}
+      />
     </div>
   );
 }
 
-function buildSubmitLabel(mode: 'create' | 'edit', authMode: RemoteMcpServerFormState['authMode']): string {
+function buildSubmitLabel(
+  mode: 'create' | 'edit',
+  authMode: RemoteMcpServerFormState['authMode'],
+  grantType?: RemoteMcpServerFormState['oauth']['grantType'],
+): string {
   if (mode === 'create' && authMode === 'oauth') {
+    if (grantType === 'device_authorization') {
+      return 'Start device authorization';
+    }
+    if (grantType === 'client_credentials') {
+      return 'Verify and Save';
+    }
     return 'Authorize and Save';
   }
   if (mode === 'edit') {
@@ -321,4 +384,26 @@ function openAuthorizeUrl(authorizeUrl: string) {
 
 async function refreshRemoteMcpQueries(queryClient: ReturnType<typeof useQueryClient>) {
   await queryClient.invalidateQueries({ queryKey: ['remote-mcp-servers'] });
+}
+
+async function handleRemoteMcpOauthStartResult(
+  result: DashboardRemoteMcpAuthorizeResult,
+  options: {
+    queryClient: ReturnType<typeof useQueryClient>;
+    setDeviceAuthorization(next: RemoteMcpDeviceAuthorizationState | null): void;
+  },
+) {
+  if (result.kind === 'browser') {
+    openAuthorizeUrl(result.authorizeUrl);
+    toast.success('OAuth authorization started in a new window.');
+    return;
+  }
+  if (result.kind === 'device') {
+    options.setDeviceAuthorization(toDeviceAuthorizationState(result));
+    toast.success('Device authorization started. Complete it in the verification page, then check the status here.');
+    return;
+  }
+  options.setDeviceAuthorization(null);
+  await refreshRemoteMcpQueries(options.queryClient);
+  toast.success(`OAuth connected successfully for ${result.serverName}.`);
 }

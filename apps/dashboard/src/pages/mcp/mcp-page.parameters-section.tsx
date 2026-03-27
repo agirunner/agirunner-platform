@@ -142,6 +142,11 @@ function buildPlacementOptions(
   return [
     ...common,
     ['authorize_request_query', 'Authorize request query'],
+    ['device_request_query', 'Device request query'],
+    ['device_request_header', 'Device request header'],
+    ['device_request_body_form', 'Device request body (form)'],
+    ['device_request_body_json', 'Device request body (JSON)'],
+    ['token_request_query', 'Token request query'],
     ['token_request_header', 'Token request header'],
     ['token_request_body_form', 'Token request body (form)'],
     ['token_request_body_json', 'Token request body (JSON)'],
@@ -154,7 +159,7 @@ function buildParameterSectionTitle(authMode: RemoteMcpServerFormState['authMode
 
 function buildParameterSectionDescription(authMode: RemoteMcpServerFormState['authMode']): string {
   if (authMode === 'oauth') {
-    return 'OAuth provides authorization automatically. Use these parameters for path templating, cookies, or extra authorize and token request values.';
+    return 'OAuth provides authorization automatically. Use these parameters for path templating, cookies, and additional authorize, device, or token request values.';
   }
   if (authMode === 'none') {
     return 'Use path, query, header, cookie, or initialize parameters for static non-auth connection data.';

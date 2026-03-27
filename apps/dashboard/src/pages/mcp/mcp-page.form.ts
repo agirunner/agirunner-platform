@@ -208,6 +208,11 @@ function normalizePlacementForAuthMode(
     return placement;
   }
   return placement === 'authorize_request_query'
+    || placement === 'device_request_query'
+    || placement === 'device_request_header'
+    || placement === 'device_request_body_form'
+    || placement === 'device_request_body_json'
+    || placement === 'token_request_query'
     || placement === 'token_request_header'
     || placement === 'token_request_body_form'
     || placement === 'token_request_body_json'
