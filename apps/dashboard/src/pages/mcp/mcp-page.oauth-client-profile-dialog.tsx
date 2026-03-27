@@ -49,56 +49,14 @@ export function McpPageOAuthClientProfileDialog(props: {
           }}
         >
           <section className="grid gap-4 rounded-lg border border-border/70 bg-surface px-5 py-5">
-            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_14rem_16rem]">
+            <div className="grid gap-4 lg:grid-cols-2">
               <LabeledField label="Name">
                 <Input
                   value={props.form.name}
                   onChange={(event) => updateField(props, 'name', event.target.value)}
                 />
               </LabeledField>
-              <LabeledField label="Callback mode">
-                <Select
-                  value={props.form.callbackMode}
-                  onValueChange={(value) =>
-                    updateField(
-                      props,
-                      'callbackMode',
-                      value as RemoteMcpOAuthClientProfileFormState['callbackMode'],
-                    )
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="loopback">Loopback callback</SelectItem>
-                    <SelectItem value="hosted_https">Hosted HTTPS callback</SelectItem>
-                  </SelectContent>
-                </Select>
-              </LabeledField>
-              <LabeledField label="Token auth method">
-                <Select
-                  value={props.form.tokenEndpointAuthMethod}
-                  onValueChange={(value) =>
-                    updateField(
-                      props,
-                      'tokenEndpointAuthMethod',
-                      value as RemoteMcpOAuthClientProfileFormState['tokenEndpointAuthMethod'],
-                    )
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">No client auth</SelectItem>
-                    <SelectItem value="client_secret_post">Client secret POST</SelectItem>
-                    <SelectItem value="client_secret_basic">Client secret basic</SelectItem>
-                    <SelectItem value="private_key_jwt">Private key JWT</SelectItem>
-                  </SelectContent>
-                </Select>
-              </LabeledField>
-              <LabeledField label="Client ID" className="xl:col-span-2">
+              <LabeledField label="Client ID">
                 <Input
                   value={props.form.clientId}
                   onChange={(event) => updateField(props, 'clientId', event.target.value)}
@@ -123,7 +81,51 @@ export function McpPageOAuthClientProfileDialog(props: {
                   }
                 />
               </LabeledField>
-              <LabeledField label="Description" className="xl:col-span-3">
+              <div className="grid gap-4 md:grid-cols-2 lg:col-span-2">
+                <LabeledField label="Callback mode">
+                  <Select
+                    value={props.form.callbackMode}
+                    onValueChange={(value) =>
+                      updateField(
+                        props,
+                        'callbackMode',
+                        value as RemoteMcpOAuthClientProfileFormState['callbackMode'],
+                      )
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="loopback">Loopback callback</SelectItem>
+                      <SelectItem value="hosted_https">Hosted HTTPS callback</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </LabeledField>
+                <LabeledField label="Token auth method">
+                  <Select
+                    value={props.form.tokenEndpointAuthMethod}
+                    onValueChange={(value) =>
+                      updateField(
+                        props,
+                        'tokenEndpointAuthMethod',
+                        value as RemoteMcpOAuthClientProfileFormState['tokenEndpointAuthMethod'],
+                      )
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No client auth</SelectItem>
+                      <SelectItem value="client_secret_post">Client secret POST</SelectItem>
+                      <SelectItem value="client_secret_basic">Client secret basic</SelectItem>
+                      <SelectItem value="private_key_jwt">Private key JWT</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </LabeledField>
+              </div>
+              <LabeledField label="Description" className="lg:col-span-2">
                 <Textarea
                   rows={3}
                   value={props.form.description}

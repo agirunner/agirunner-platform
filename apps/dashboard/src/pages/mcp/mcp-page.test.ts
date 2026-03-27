@@ -221,10 +221,23 @@ describe('mcp page source', () => {
 
     expect(source).toContain('Manage shared host-managed OAuth client credentials and endpoint defaults');
     expect(source).toContain('Linked MCP servers');
+    expect(source).toContain('whitespace-nowrap');
     expect(source).toContain('Delete OAuth Client Profile');
     expect(source).toContain('Create OAuth Client Profile');
     expect(source).toContain('Edit OAuth Client Profile');
     expect(source).toContain('Define reusable host-managed OAuth client credentials');
+    expect(source).not.toContain('No profile description.');
+  });
+
+  it('lays out the oauth client profile dialog with balanced half-width identity fields', () => {
+    const source = readSource('./mcp-page.oauth-client-profile-dialog.tsx');
+
+    expect(source).toContain('grid gap-4 lg:grid-cols-2');
+    expect(source).toContain('label="Client ID"');
+    expect(source).toContain('label="Client secret"');
+    expect(source).toContain('grid gap-4 md:grid-cols-2 lg:col-span-2');
+    expect(source).not.toContain('xl:grid-cols-[minmax(0,1fr)_14rem_16rem]');
+    expect(source).not.toContain('className="xl:col-span-2"');
   });
 
   it('teaches the dashboard api about remote mcp oauth client profile routes', () => {

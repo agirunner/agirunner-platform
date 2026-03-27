@@ -67,7 +67,7 @@ export function McpPageOAuthClientProfilesSection(props: {
                   <TableHead>Profile</TableHead>
                   <TableHead>Client</TableHead>
                   <TableHead>Token endpoint</TableHead>
-                  <TableHead className="w-[112px] text-center">Linked MCP servers</TableHead>
+                  <TableHead className="w-[132px] whitespace-nowrap text-center">Linked MCP servers</TableHead>
                   <TableHead className="w-[120px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -78,9 +78,6 @@ export function McpPageOAuthClientProfilesSection(props: {
                       <div className="space-y-1">
                         <p className="font-medium text-foreground">{profile.name}</p>
                         <p className="font-mono text-xs text-muted">{profile.slug}</p>
-                        <p className="text-sm text-muted">
-                          {profile.description || 'No profile description.'}
-                        </p>
                       </div>
                     </TableCell>
                     <TableCell>
