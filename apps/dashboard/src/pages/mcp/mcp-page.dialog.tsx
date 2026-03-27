@@ -16,7 +16,10 @@ import {
 } from '../../components/ui/select.js';
 import { Switch } from '../../components/ui/switch.js';
 import { Textarea } from '../../components/ui/textarea.js';
-import type { DashboardRemoteMcpServerRecord } from '../../lib/api.js';
+import type {
+  DashboardRemoteMcpOAuthClientProfileRecord,
+  DashboardRemoteMcpServerRecord,
+} from '../../lib/api.js';
 import { McpPageOauthSettings } from './mcp-page.oauth-settings.js';
 import { McpPageParametersSection } from './mcp-page.parameters-section.js';
 import {
@@ -31,6 +34,7 @@ export function McpPageDialog(props: {
   mode: 'create' | 'edit';
   form: RemoteMcpServerFormState;
   server?: DashboardRemoteMcpServerRecord | null;
+  oauthClientProfiles: DashboardRemoteMcpOAuthClientProfileRecord[];
   isPending: boolean;
   error: string | null;
   submitLabel: string;
@@ -38,6 +42,11 @@ export function McpPageDialog(props: {
   onClose(): void;
   onSubmit(): void;
 }) {
+  const selectedOauthClientProfile =
+    props.form.authMode === 'oauth'
+      ? props.oauthClientProfiles.find((profile) => profile.id === props.form.oauthClientProfileId) ?? null
+      : null;
+
   return (
     <Dialog open={props.open} onOpenChange={(open) => !open && props.onClose()}>
       <DialogContent className="flex max-h-[92vh] max-w-[92rem] flex-col overflow-hidden p-0">
@@ -59,7 +68,7 @@ export function McpPageDialog(props: {
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             <div className="space-y-5">
               <section className="grid gap-4 rounded-lg border border-border/70 bg-surface px-5 py-5">
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_16rem_12rem]">
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_14rem_14rem]">
                   <label className="grid gap-2 text-sm">
                     <span className="font-medium">Name</span>
                     <Input
@@ -187,11 +196,11 @@ export function McpPageDialog(props: {
                   <p className="font-medium text-foreground">Connection summary</p>
                   <div className="mt-3 space-y-2 text-sm text-muted">
                     <p>Transport preference: {formatRemoteMcpTransportPreference(props.form.transportPreference)}</p>
-                    <p>{buildAuthSummary(props.form)}</p>
+                    <p>{buildAuthSummary(props.form, selectedOauthClientProfile?.name ?? null)}</p>
                     <p>Tool calls from this server time out after {props.form.callTimeoutSeconds.trim() || '300'} seconds.</p>
-                    {props.form.authMode === 'oauth' && props.server?.auth_mode === 'oauth' ? (
+                    {props.form.authMode === 'oauth' ? (
                       <p>
-                        {props.server.oauth_connected
+                        {props.server?.oauth_connected
                           ? props.server.oauth_needs_reauth
                             ? 'OAuth credentials are stored but must be reconnected before the server can be claimed.'
                             : 'OAuth credentials are connected for this server.'
@@ -205,6 +214,11 @@ export function McpPageDialog(props: {
               {props.form.authMode === 'oauth' ? (
                 <McpPageOauthSettings
                   value={props.form.oauth}
+                  oauthClientProfileId={props.form.oauthClientProfileId}
+                  oauthClientProfiles={props.oauthClientProfiles}
+                  onOauthClientProfileIdChange={(oauthClientProfileId) =>
+                    props.onFormChange({ ...props.form, oauthClientProfileId })
+                  }
                   onChange={(oauth) => props.onFormChange({ ...props.form, oauth })}
                 />
               ) : null}
@@ -283,9 +297,15 @@ function ensureParametersAfterRemoval(
   return parameters.filter((entry) => entry.id !== parameterId);
 }
 
-function buildAuthSummary(form: RemoteMcpServerFormState): string {
+function buildAuthSummary(
+  form: RemoteMcpServerFormState,
+  oauthClientProfileName: string | null,
+): string {
   if (form.authMode === 'oauth') {
-    return `OAuth uses ${form.oauth.grantType.replaceAll('_', ' ')} with ${form.oauth.clientStrategy.replaceAll('_', ' ')} setup. Advanced settings stay collapsed until you need them.`;
+    if (oauthClientProfileName) {
+      return `OAuth uses the shared client profile ${oauthClientProfileName}. Automatic discovery still applies unless you open Advanced OAuth settings for server-specific overrides.`;
+    }
+    return 'OAuth uses automatic discovery by default. Open Advanced OAuth settings only when the server needs a manual client contract or request overrides.';
   }
   if (form.authMode === 'parameterized') {
     return 'Parameterized mode uses structured path, query, header, cookie, and initialize parameters, including secret-backed values.';

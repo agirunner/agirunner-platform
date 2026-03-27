@@ -5,7 +5,7 @@ import type {
   DashboardRemoteMcpOauthJarMode,
   DashboardRemoteMcpOauthParMode,
   DashboardRemoteMcpOauthTokenEndpointAuthMethod,
-  DashboardRemoteMcpParameterInput,
+  DashboardRemoteMcpServerParameterInput,
   DashboardRemoteMcpServerCreateInput,
   DashboardRemoteMcpTransportPreference,
 } from '../../lib/api.js';
@@ -15,9 +15,9 @@ export const DEFAULT_REMOTE_MCP_CALL_TIMEOUT_SECONDS = 300;
 
 export interface RemoteMcpParameterFormState {
   id: string;
-  placement: DashboardRemoteMcpParameterInput['placement'];
+  placement: DashboardRemoteMcpServerParameterInput['placement'];
   key: string;
-  valueKind: DashboardRemoteMcpParameterInput['valueKind'];
+  valueKind: DashboardRemoteMcpServerParameterInput['valueKind'];
   value: string;
   hasStoredSecret: boolean;
 }
@@ -55,6 +55,7 @@ export interface RemoteMcpServerFormState {
   authMode: DashboardRemoteMcpServerCreateInput['authMode'];
   enabledByDefaultForNewSpecialists: boolean;
   grantToAllExistingSpecialists: boolean;
+  oauthClientProfileId: string;
   oauth: RemoteMcpOauthFormState;
   parameters: RemoteMcpParameterFormState[];
 }

@@ -2,26 +2,70 @@ import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select.js';
+import type { DashboardRemoteMcpOAuthClientProfileRecord } from '../../lib/api.js';
 import type { RemoteMcpOauthFormState } from './mcp-page.support.js';
 import { McpPageOauthAdvancedSettings } from './mcp-page.oauth-settings.advanced.js';
 
 export function McpPageOauthSettings(props: {
   value: RemoteMcpOauthFormState;
+  oauthClientProfileId: string;
+  oauthClientProfiles: DashboardRemoteMcpOAuthClientProfileRecord[];
+  onOauthClientProfileIdChange(next: string): void;
   onChange(next: RemoteMcpOauthFormState): void;
 }) {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const selectedOauthClientProfile =
+    props.oauthClientProfiles.find((profile) => profile.id === props.oauthClientProfileId) ?? null;
 
   return (
     <section className="grid gap-4 rounded-lg border border-border/70 bg-surface px-5 py-5">
       <div>
         <p className="font-medium text-foreground">OAuth setup</p>
         <p className="text-sm text-muted">
-          Use automatic discovery for standard remote MCP OAuth servers. Switch to a manual client only when the server requires explicit client credentials or endpoint overrides.
+          Use automatic discovery for standard remote MCP OAuth servers. Select a shared OAuth
+          client profile only when the server needs host-managed client credentials or endpoint
+          defaults.
         </p>
       </div>
 
+      <label className="grid gap-2 text-sm">
+        <span className="font-medium">OAuth client profile</span>
+        <Select
+          value={props.oauthClientProfileId || '__none__'}
+          onValueChange={(value) =>
+            props.onOauthClientProfileIdChange(value === '__none__' ? '' : value)
+          }
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Use automatic discovery only" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Use automatic discovery only</SelectItem>
+            {props.oauthClientProfiles.map((profile) => (
+              <SelectItem key={profile.id} value={profile.id}>
+                {profile.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-muted">
+          {selectedOauthClientProfile
+            ? `Using ${selectedOauthClientProfile.name} for reusable client credentials and endpoint defaults.`
+            : props.oauthClientProfiles.length > 0
+              ? 'Leave this blank unless the remote server requires a host-managed OAuth client profile.'
+              : 'No shared OAuth client profiles exist yet. Use automatic discovery here, or create a profile below on the MCP Servers page if this provider requires one.'}
+        </span>
+      </label>
+
       <div className="rounded-lg border border-border/70 bg-muted/10 px-4 py-3 text-sm text-muted">
-        {readOauthSetupDescription(props.value)}
+        {readOauthSetupDescription(props.value, selectedOauthClientProfile?.name ?? null)}
       </div>
 
       <div className="rounded-lg border border-border/70 bg-muted/10">
@@ -54,7 +98,13 @@ export function McpPageOauthSettings(props: {
   );
 }
 
-function readOauthSetupDescription(value: RemoteMcpOauthFormState): string {
+function readOauthSetupDescription(
+  value: RemoteMcpOauthFormState,
+  oauthClientProfileName: string | null,
+): string {
+  if (oauthClientProfileName) {
+    return `Shared OAuth client profile ${oauthClientProfileName} will supply reusable client credentials and endpoint defaults. Leave Advanced OAuth settings collapsed unless this server needs extra request overrides or a different grant posture.`;
+  }
   if (value.clientStrategy === 'manual_client') {
     return 'Manual client setup requires the OAuth client and endpoint values supplied by the remote authorization server operator. Those fields live under Advanced OAuth settings.';
   }

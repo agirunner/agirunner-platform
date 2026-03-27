@@ -13,6 +13,7 @@ describe('remote mcp page support', () => {
     const form = createRemoteMcpServerForm();
 
     expect(form.parameters).toEqual([]);
+    expect(form.oauthClientProfileId).toBe('');
     expect(form.oauth.grantType).toBe('authorization_code');
     expect(form.oauth.clientStrategy).toBe('auto');
   });
@@ -25,11 +26,12 @@ describe('remote mcp page support', () => {
         endpointUrl: ' https://mcp.example.test/search ',
         transportPreference: 'auto',
         callTimeoutSeconds: ' 300 ',
-        authMode: 'parameterized',
-        enabledByDefaultForNewSpecialists: true,
-        grantToAllExistingSpecialists: true,
-        oauth: createRemoteMcpServerForm().oauth,
-        parameters: [
+      authMode: 'parameterized',
+      enabledByDefaultForNewSpecialists: true,
+      grantToAllExistingSpecialists: true,
+      oauthClientProfileId: '',
+      oauth: createRemoteMcpServerForm().oauth,
+      parameters: [
           {
             id: 'param-1',
             placement: 'query',
@@ -57,6 +59,7 @@ describe('remote mcp page support', () => {
       authMode: 'parameterized',
       enabledByDefaultForNewSpecialists: true,
       grantToAllExistingSpecialists: true,
+      oauthClientProfileId: null,
       oauthDefinition: null,
       parameters: [
         {
@@ -85,11 +88,12 @@ describe('remote mcp page support', () => {
         endpointUrl: ' https://mcp.example.test/server ',
         transportPreference: 'auto',
         callTimeoutSeconds: ' 300 ',
-        authMode: 'oauth',
-        enabledByDefaultForNewSpecialists: false,
-        grantToAllExistingSpecialists: false,
-        oauth: createRemoteMcpServerForm().oauth,
-        parameters: [
+      authMode: 'oauth',
+      enabledByDefaultForNewSpecialists: false,
+      grantToAllExistingSpecialists: false,
+      oauthClientProfileId: 'profile-1',
+      oauth: createRemoteMcpServerForm().oauth,
+      parameters: [
           {
             id: 'param-1',
             placement: 'device_request_query',
@@ -125,6 +129,7 @@ describe('remote mcp page support', () => {
       authMode: 'oauth',
       enabledByDefaultForNewSpecialists: false,
       grantToAllExistingSpecialists: false,
+      oauthClientProfileId: 'profile-1',
       oauthDefinition: expect.any(Object),
       parameters: [
         {
@@ -182,6 +187,8 @@ describe('remote mcp page support', () => {
       discovered_prompt_count: 0,
       assigned_specialist_count: 0,
       oauth_definition: null,
+      oauth_client_profile_id: null,
+      oauth_client_profile_name: null,
       oauth_connected: false,
       oauth_authorized_at: null,
       oauth_needs_reauth: false,
@@ -218,6 +225,7 @@ describe('remote mcp page support', () => {
       callTimeoutSeconds: 300,
       authMode: 'parameterized',
       enabledByDefaultForNewSpecialists: false,
+      oauthClientProfileId: null,
       oauthDefinition: null,
       parameters: [
         {
@@ -271,6 +279,8 @@ describe('remote mcp page support', () => {
         parMode: 'disabled',
         jarMode: 'disabled',
       },
+      oauth_client_profile_id: 'profile-7',
+      oauth_client_profile_name: 'Shared OAuth client',
       oauth_connected: true,
       oauth_authorized_at: '2026-03-26T00:00:00.000Z',
       oauth_needs_reauth: false,
@@ -280,6 +290,7 @@ describe('remote mcp page support', () => {
     });
 
     expect(form.parameters).toEqual([]);
+    expect(form.oauthClientProfileId).toBe('profile-7');
   });
 
   it('summarizes discovered tools and page-level stats', () => {
@@ -323,6 +334,8 @@ describe('remote mcp page support', () => {
           assigned_specialist_count: 3,
           parameters: [],
           oauth_definition: null,
+          oauth_client_profile_id: null,
+          oauth_client_profile_name: null,
           oauth_connected: false,
           oauth_authorized_at: null,
           oauth_needs_reauth: false,
@@ -359,6 +372,8 @@ describe('remote mcp page support', () => {
           assigned_specialist_count: 1,
           parameters: [],
           oauth_definition: null,
+          oauth_client_profile_id: 'profile-2',
+          oauth_client_profile_name: 'Shared profile',
           oauth_connected: true,
           oauth_authorized_at: '2026-03-26T00:00:00.000Z',
           oauth_needs_reauth: false,

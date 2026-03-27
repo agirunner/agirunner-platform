@@ -11,25 +11,45 @@ import {
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog.js';
 import { toast } from '../../lib/toast.js';
 import type {
   DashboardRemoteMcpAuthorizeResult,
+  DashboardRemoteMcpOAuthClientProfileRecord,
   DashboardRemoteMcpServerRecord,
 } from '../../lib/api.js';
 import { MetricCard } from '../role-definitions/role-definitions-list.js';
 import {
+  createRemoteMcpOAuthClientProfile,
   createRemoteMcpServer,
+  deleteRemoteMcpOAuthClientProfile,
   deleteRemoteMcpServer,
   disconnectRemoteMcpOAuth,
+  fetchRemoteMcpOAuthClientProfiles,
   fetchRemoteMcpServers,
   initiateRemoteMcpOAuthAuthorization,
   pollRemoteMcpOAuthDeviceAuthorization,
   reconnectRemoteMcpOAuth,
   reverifyRemoteMcpServer,
+  updateRemoteMcpOAuthClientProfile,
   updateRemoteMcpServer,
 } from './mcp-page.api.js';
 import { McpPageDeviceAuthorizationDialog } from './mcp-page.device-authorization-dialog.js';
 import { McpPageDialog } from './mcp-page.dialog.js';
+import {
+  buildRemoteMcpOAuthClientProfileCreatePayload,
+  buildRemoteMcpOAuthClientProfileUpdatePayload,
+  createRemoteMcpOAuthClientProfileForm,
+  type RemoteMcpOAuthClientProfileFormState,
+} from './mcp-page.oauth-client-profile-form.js';
+import { McpPageOAuthClientProfileDialog } from './mcp-page.oauth-client-profile-dialog.js';
+import { McpPageOAuthClientProfilesSection } from './mcp-page.oauth-client-profiles-section.js';
 import {
   resolveDeviceAuthorizationUrl,
   toDeviceAuthorizationState,
@@ -51,6 +71,11 @@ interface DialogState {
   serverId: string | null;
 }
 
+interface OAuthClientProfileDialogState {
+  mode: 'create' | 'edit';
+  profile: DashboardRemoteMcpOAuthClientProfileRecord | null;
+}
+
 export function McpPage(): JSX.Element {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -58,6 +83,12 @@ export function McpPage(): JSX.Element {
   const [dialogForm, setDialogForm] = useState<RemoteMcpServerFormState>(
     createRemoteMcpServerForm(),
   );
+  const [oauthClientProfileDialogState, setOauthClientProfileDialogState] =
+    useState<OAuthClientProfileDialogState | null>(null);
+  const [oauthClientProfileForm, setOauthClientProfileForm] =
+    useState<RemoteMcpOAuthClientProfileFormState>(createRemoteMcpOAuthClientProfileForm());
+  const [deletingOauthClientProfile, setDeletingOauthClientProfile] =
+    useState<DashboardRemoteMcpOAuthClientProfileRecord | null>(null);
   const [deviceAuthorization, setDeviceAuthorization] = useState<RemoteMcpDeviceAuthorizationState | null>(null);
   const [toolsServer, setToolsServer] = useState<DashboardRemoteMcpServerRecord | null>(null);
   const [busyServerId, setBusyServerId] = useState<string | null>(null);
@@ -87,6 +118,10 @@ export function McpPage(): JSX.Element {
   const serversQuery = useQuery({
     queryKey: ['remote-mcp-servers'],
     queryFn: fetchRemoteMcpServers,
+  });
+  const oauthClientProfilesQuery = useQuery({
+    queryKey: ['remote-mcp-oauth-client-profiles'],
+    queryFn: fetchRemoteMcpOAuthClientProfiles,
   });
 
   const saveMutation = useMutation({
@@ -134,6 +169,58 @@ export function McpPage(): JSX.Element {
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : 'Failed to save remote MCP server.');
+    },
+  });
+
+  const saveOauthClientProfileMutation = useMutation({
+    mutationFn: async () => {
+      if (!oauthClientProfileDialogState) {
+        throw new Error('Open the OAuth client profile dialog before saving.');
+      }
+      if (oauthClientProfileDialogState.mode === 'create') {
+        return createRemoteMcpOAuthClientProfile(
+          buildRemoteMcpOAuthClientProfileCreatePayload(oauthClientProfileForm),
+        );
+      }
+      return updateRemoteMcpOAuthClientProfile(
+        oauthClientProfileDialogState.profile?.id ?? '',
+        buildRemoteMcpOAuthClientProfileUpdatePayload(oauthClientProfileForm),
+      );
+    },
+    onSuccess: async (profile) => {
+      await refreshRemoteMcpQueries(queryClient);
+      setOauthClientProfileDialogState(null);
+      setOauthClientProfileForm(createRemoteMcpOAuthClientProfileForm());
+      toast.success(
+        oauthClientProfileDialogState?.mode === 'edit'
+          ? `Updated OAuth client profile ${profile.name}.`
+          : `Created OAuth client profile ${profile.name}.`,
+      );
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to save OAuth client profile.',
+      );
+    },
+  });
+
+  const deleteOauthClientProfileMutation = useMutation({
+    mutationFn: async () => {
+      if (!deletingOauthClientProfile) {
+        throw new Error('Choose an OAuth client profile to delete.');
+      }
+      await deleteRemoteMcpOAuthClientProfile(deletingOauthClientProfile.id);
+    },
+    onSuccess: async () => {
+      const deletedProfileName = deletingOauthClientProfile?.name ?? 'OAuth client profile';
+      await refreshRemoteMcpQueries(queryClient);
+      setDeletingOauthClientProfile(null);
+      toast.success(`Deleted OAuth client profile ${deletedProfileName}.`);
+    },
+    onError: (error) => {
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to delete OAuth client profile.',
+      );
     },
   });
 
@@ -250,15 +337,27 @@ export function McpPage(): JSX.Element {
         navHref="/integrations/mcp-servers"
         description="Register remote MCP servers, verify connectivity, and inspect discovered tools."
         actions={
-          <Button
-            onClick={() => {
-              setDialogState({ mode: 'create', serverId: null });
-              setDialogForm(createRemoteMcpServerForm());
-            }}
-          >
-            <Plus className="h-4 w-4" />
-            Create Remote MCP Server
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setOauthClientProfileDialogState({ mode: 'create', profile: null });
+                setOauthClientProfileForm(createRemoteMcpOAuthClientProfileForm());
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              Create OAuth Client Profile
+            </Button>
+            <Button
+              onClick={() => {
+                setDialogState({ mode: 'create', serverId: null });
+                setDialogForm(createRemoteMcpServerForm());
+              }}
+            >
+              <Plus className="h-4 w-4" />
+              Create Remote MCP Server
+            </Button>
+          </div>
         }
       />
 
@@ -303,12 +402,26 @@ export function McpPage(): JSX.Element {
         />
       </DashboardSectionCard>
 
+      <McpPageOAuthClientProfilesSection
+        profiles={oauthClientProfilesQuery.data ?? []}
+        isLoading={oauthClientProfilesQuery.isLoading}
+        error={oauthClientProfilesQuery.error}
+        deletingProfileId={deletingOauthClientProfile?.id ?? null}
+        onEdit={(profile) => {
+          setOauthClientProfileDialogState({ mode: 'edit', profile });
+          setOauthClientProfileForm(createRemoteMcpOAuthClientProfileForm(profile));
+        }}
+        onDelete={setDeletingOauthClientProfile}
+      />
+
       {dialogState ? (
         <McpPageDialog
+          key={`${dialogState.mode}:${dialogState.serverId ?? 'create'}`}
           open
           mode={dialogState.mode}
           server={servers.find((server) => server.id === dialogState.serverId) ?? null}
           form={dialogForm}
+          oauthClientProfiles={oauthClientProfilesQuery.data ?? []}
           isPending={saveMutation.isPending}
           error={saveMutation.error instanceof Error ? saveMutation.error.message : null}
           submitLabel={buildSubmitLabel(dialogState.mode, dialogForm.authMode, dialogForm.oauth.grantType)}
@@ -321,6 +434,26 @@ export function McpPage(): JSX.Element {
           onSubmit={() => saveMutation.mutate()}
         />
       ) : null}
+
+      <McpPageOAuthClientProfileDialog
+        open={oauthClientProfileDialogState !== null}
+        mode={oauthClientProfileDialogState?.mode ?? 'create'}
+        form={oauthClientProfileForm}
+        isPending={saveOauthClientProfileMutation.isPending}
+        error={
+          saveOauthClientProfileMutation.error instanceof Error
+            ? saveOauthClientProfileMutation.error.message
+            : null
+        }
+        onOpenChange={(open) => {
+          if (!open) {
+            setOauthClientProfileDialogState(null);
+            setOauthClientProfileForm(createRemoteMcpOAuthClientProfileForm());
+          }
+        }}
+        onFormChange={setOauthClientProfileForm}
+        onSubmit={() => saveOauthClientProfileMutation.mutate()}
+      />
 
       <McpPageToolsSheet
         server={toolsServer}
@@ -352,6 +485,50 @@ export function McpPage(): JSX.Element {
           }
         }}
       />
+
+      <Dialog
+        open={deletingOauthClientProfile !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleteOauthClientProfileMutation.isPending) {
+            setDeletingOauthClientProfile(null);
+          }
+        }}
+      >
+        <DialogContent showCloseButton={!deleteOauthClientProfileMutation.isPending}>
+          <DialogHeader>
+            <DialogTitle>Delete OAuth Client Profile</DialogTitle>
+            <DialogDescription>
+              Delete this shared OAuth client profile.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted">
+              This permanently removes{' '}
+              <span className="font-medium text-foreground">
+                {deletingOauthClientProfile?.name}
+              </span>{' '}
+              from the shared OAuth client profile library.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={deleteOauthClientProfileMutation.isPending}
+                onClick={() => setDeletingOauthClientProfile(null)}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={deleteOauthClientProfileMutation.isPending}
+                onClick={() => deleteOauthClientProfileMutation.mutate()}
+              >
+                Delete Profile
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -384,6 +561,7 @@ function openAuthorizeUrl(authorizeUrl: string) {
 
 async function refreshRemoteMcpQueries(queryClient: ReturnType<typeof useQueryClient>) {
   await queryClient.invalidateQueries({ queryKey: ['remote-mcp-servers'] });
+  await queryClient.invalidateQueries({ queryKey: ['remote-mcp-oauth-client-profiles'] });
 }
 
 async function handleRemoteMcpOauthStartResult(

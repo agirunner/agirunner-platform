@@ -1,10 +1,31 @@
 import { dashboardApi } from '../../lib/api.js';
 import type {
   DashboardRemoteMcpAuthorizeResult,
+  DashboardRemoteMcpOAuthClientProfileCreateInput,
+  DashboardRemoteMcpOAuthClientProfileRecord,
+  DashboardRemoteMcpOAuthClientProfileUpdateInput,
   DashboardRemoteMcpServerCreateInput,
   DashboardRemoteMcpServerRecord,
   DashboardRemoteMcpServerUpdateInput,
 } from '../../lib/api.js';
+
+export const fetchRemoteMcpOAuthClientProfiles = (): Promise<
+  DashboardRemoteMcpOAuthClientProfileRecord[]
+> => dashboardApi.listRemoteMcpOAuthClientProfiles();
+
+export const createRemoteMcpOAuthClientProfile = (
+  payload: DashboardRemoteMcpOAuthClientProfileCreateInput,
+): Promise<DashboardRemoteMcpOAuthClientProfileRecord> =>
+  dashboardApi.createRemoteMcpOAuthClientProfile(payload);
+
+export const updateRemoteMcpOAuthClientProfile = (
+  profileId: string,
+  payload: DashboardRemoteMcpOAuthClientProfileUpdateInput,
+): Promise<DashboardRemoteMcpOAuthClientProfileRecord> =>
+  dashboardApi.updateRemoteMcpOAuthClientProfile(profileId, payload);
+
+export const deleteRemoteMcpOAuthClientProfile = (profileId: string): Promise<void> =>
+  dashboardApi.deleteRemoteMcpOAuthClientProfile(profileId);
 
 export const fetchRemoteMcpServers = (): Promise<DashboardRemoteMcpServerRecord[]> =>
   dashboardApi.listRemoteMcpServers();

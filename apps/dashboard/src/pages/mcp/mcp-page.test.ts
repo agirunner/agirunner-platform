@@ -17,6 +17,9 @@ function readCombinedSource() {
     './mcp-page.table.tsx',
     './mcp-page.dialog.tsx',
     './mcp-page.oauth-fields.tsx',
+    './mcp-page.oauth-client-profile-form.ts',
+    './mcp-page.oauth-client-profile-dialog.tsx',
+    './mcp-page.oauth-client-profiles-section.tsx',
     './mcp-page.oauth-settings.tsx',
     './mcp-page.oauth-settings.advanced.tsx',
     './mcp-page.parameters-section.tsx',
@@ -34,8 +37,13 @@ describe('mcp page source', () => {
     expect(source).toContain('navHref="/integrations/mcp-servers"');
     expect(source).toContain('Register remote MCP servers, verify connectivity, and inspect discovered tools.');
     expect(source).toContain('Create Remote MCP Server');
+    expect(source).toContain('OAuth client profiles');
+    expect(source).toContain('Create OAuth Client Profile');
+    expect(source).toContain('variant="outline"');
     expect(source).toContain("queryKey: ['remote-mcp-servers']");
+    expect(source).toContain("queryKey: ['remote-mcp-oauth-client-profiles']");
     expect(source).toContain('fetchRemoteMcpServers');
+    expect(source).toContain('fetchRemoteMcpOAuthClientProfiles');
     expect(source).not.toContain('ConfigPlaceholderPage');
   });
 
@@ -115,7 +123,7 @@ describe('mcp page source', () => {
     expect(source).toContain('Endpoint URL');
     expect(source).toContain('Authentication');
     expect(source).toContain('Transport preference');
-    expect(source).toContain('xl:grid-cols-[minmax(0,1fr)_16rem_12rem]');
+    expect(source).toContain('xl:grid-cols-[minmax(0,1fr)_14rem_14rem]');
     expect(source).toContain('xl:col-span-3');
     expect(source).toContain('lg:grid-cols-2');
     expect(source).not.toContain('xl:grid-cols-[minmax(0,1fr)_24rem]');
@@ -129,7 +137,8 @@ describe('mcp page source', () => {
     expect(source).toContain('Connection parameters');
     expect(source).toContain('Additional connection parameters');
     expect(source).toContain('OAuth setup');
-    expect(source).toContain('Setup mode');
+    expect(source).toContain('OAuth client profile');
+    expect(source).toContain('Use automatic discovery only');
     expect(source).toContain('Advanced OAuth settings');
     expect(source).toContain('Cookie');
     expect(source).toContain('Authorize request query');
@@ -151,7 +160,8 @@ describe('mcp page source', () => {
   it('keeps the connection summary driven by the current form auth mode', () => {
     const source = readSource('./mcp-page.dialog.tsx');
 
-    expect(source).toContain("props.form.authMode === 'oauth' && props.server?.auth_mode === 'oauth'");
+    expect(source).toContain("props.form.authMode === 'oauth' ? (");
+    expect(source).not.toContain("props.form.authMode === 'oauth' && props.server?.auth_mode === 'oauth'");
   });
 
   it('lets the parameter section render as an explicit empty state when no rows exist', () => {
@@ -167,9 +177,10 @@ describe('mcp page source', () => {
     const advancedSource = readSource('./mcp-page.oauth-settings.advanced.tsx');
 
     expect(settingsSource).toContain('Open this section for manual client details');
-    expect(settingsSource).toContain('border-t border-border/70 px-4 py-4');
+    expect(settingsSource).toContain('OAuth client profile');
     expect(settingsSource).not.toContain('label="Grant type"');
     expect(settingsSource).not.toContain('label="Setup mode"');
+    expect(settingsSource).toContain('border-t border-border/70 px-4 py-4');
     expect(settingsSource).not.toContain('Client ID');
     expect(settingsSource).not.toContain('Client secret');
     expect(settingsSource).not.toContain('Token auth method');
@@ -196,13 +207,35 @@ describe('mcp page source', () => {
     const source = readCombinedSource();
 
     expect(source).toContain('OAuth setup');
-    expect(source).toContain('Setup mode');
+    expect(source).toContain('OAuth client profile');
     expect(source).toContain('Advanced OAuth settings');
     expect(source).toContain('showAdvanced');
     expect(source).toContain("if (value === 'manual_client')");
     expect(source).toContain('setShowAdvanced(true)');
     expect(source).toContain('Manual client');
     expect(source).toContain('Manual client setup requires the OAuth client and endpoint values supplied by the remote authorization server operator. Those fields live under Advanced OAuth settings.');
+  });
+
+  it('adds a shared oauth client profile management section and dialog', () => {
+    const source = readCombinedSource();
+
+    expect(source).toContain('Manage shared host-managed OAuth client credentials and endpoint defaults');
+    expect(source).toContain('Linked MCP servers');
+    expect(source).toContain('Delete OAuth Client Profile');
+    expect(source).toContain('Create OAuth Client Profile');
+    expect(source).toContain('Edit OAuth Client Profile');
+    expect(source).toContain('Define reusable host-managed OAuth client credentials');
+  });
+
+  it('teaches the dashboard api about remote mcp oauth client profile routes', () => {
+    const source = readSource('../../lib/api.ts');
+
+    expect(source).toContain('DashboardRemoteMcpOAuthClientProfileRecord');
+    expect(source).toContain('listRemoteMcpOAuthClientProfiles');
+    expect(source).toContain('createRemoteMcpOAuthClientProfile');
+    expect(source).toContain('updateRemoteMcpOAuthClientProfile');
+    expect(source).toContain('deleteRemoteMcpOAuthClientProfile');
+    expect(source).toContain('/api/v1/remote-mcp-oauth-client-profiles');
   });
 
   it('keeps the mcp action buttons on one row', () => {

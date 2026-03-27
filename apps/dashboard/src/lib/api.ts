@@ -434,6 +434,64 @@ export type DashboardRemoteMcpOauthTokenEndpointAuthMethod =
 export type DashboardRemoteMcpOauthParMode = 'disabled' | 'enabled' | 'required';
 export type DashboardRemoteMcpOauthJarMode = 'disabled' | 'request_parameter' | 'request_uri';
 
+export interface DashboardRemoteMcpOAuthClientProfileRecord {
+  id: string;
+  tenant_id?: string;
+  name: string;
+  slug: string;
+  description: string;
+  issuer: string | null;
+  authorization_endpoint: string | null;
+  token_endpoint: string;
+  registration_endpoint: string | null;
+  device_authorization_endpoint: string | null;
+  callback_mode: DashboardRemoteMcpOauthCallbackMode;
+  token_endpoint_auth_method: DashboardRemoteMcpOauthTokenEndpointAuthMethod;
+  client_id: string;
+  client_secret: string | null;
+  has_stored_client_secret: boolean;
+  default_scopes: string[];
+  default_resource_indicators: string[];
+  default_audiences: string[];
+  linked_server_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DashboardRemoteMcpOAuthClientProfileCreateInput {
+  name: string;
+  description?: string;
+  issuer?: string | null;
+  authorizationEndpoint?: string | null;
+  tokenEndpoint: string;
+  registrationEndpoint?: string | null;
+  deviceAuthorizationEndpoint?: string | null;
+  callbackMode?: DashboardRemoteMcpOauthCallbackMode;
+  tokenEndpointAuthMethod?: DashboardRemoteMcpOauthTokenEndpointAuthMethod;
+  clientId: string;
+  clientSecret?: string | null;
+  defaultScopes?: string[];
+  defaultResourceIndicators?: string[];
+  defaultAudiences?: string[];
+}
+
+export interface DashboardRemoteMcpOAuthClientProfileUpdateInput {
+  name?: string;
+  description?: string;
+  issuer?: string | null;
+  authorizationEndpoint?: string | null;
+  tokenEndpoint?: string;
+  registrationEndpoint?: string | null;
+  deviceAuthorizationEndpoint?: string | null;
+  callbackMode?: DashboardRemoteMcpOauthCallbackMode;
+  tokenEndpointAuthMethod?: DashboardRemoteMcpOauthTokenEndpointAuthMethod;
+  clientId?: string;
+  clientSecret?: string | null;
+  defaultScopes?: string[];
+  defaultResourceIndicators?: string[];
+  defaultAudiences?: string[];
+}
+
 export interface DashboardRemoteMcpOauthDefinition {
   grantType?: DashboardRemoteMcpOauthGrantType;
   clientStrategy?: DashboardRemoteMcpOauthClientStrategy;
@@ -494,6 +552,8 @@ export interface DashboardRemoteMcpServerRecord {
   assigned_specialist_count: number;
   parameters: DashboardRemoteMcpServerParameterRecord[];
   oauth_definition?: DashboardRemoteMcpOauthDefinition | null;
+  oauth_client_profile_id?: string | null;
+  oauth_client_profile_name?: string | null;
   oauth_connected: boolean;
   oauth_authorized_at: string | null;
   oauth_needs_reauth: boolean;
@@ -518,6 +578,7 @@ export interface DashboardRemoteMcpServerCreateInput {
   authMode: DashboardRemoteMcpAuthMode;
   enabledByDefaultForNewSpecialists: boolean;
   grantToAllExistingSpecialists: boolean;
+  oauthClientProfileId?: string | null;
   oauthDefinition?: DashboardRemoteMcpOauthDefinition | null;
   parameters: DashboardRemoteMcpServerParameterInput[];
 }
@@ -530,6 +591,7 @@ export interface DashboardRemoteMcpServerUpdateInput {
   callTimeoutSeconds?: number;
   authMode?: DashboardRemoteMcpAuthMode;
   enabledByDefaultForNewSpecialists?: boolean;
+  oauthClientProfileId?: string | null;
   oauthDefinition?: DashboardRemoteMcpOauthDefinition | null;
   parameters?: DashboardRemoteMcpServerParameterInput[];
 }
@@ -2024,6 +2086,16 @@ export interface DashboardApi {
   ): Promise<DashboardExecutionEnvironmentRecord>;
   archiveExecutionEnvironment(environmentId: string): Promise<DashboardExecutionEnvironmentRecord>;
   restoreExecutionEnvironment(environmentId: string): Promise<DashboardExecutionEnvironmentRecord>;
+  listRemoteMcpOAuthClientProfiles(): Promise<DashboardRemoteMcpOAuthClientProfileRecord[]>;
+  getRemoteMcpOAuthClientProfile(profileId: string): Promise<DashboardRemoteMcpOAuthClientProfileRecord>;
+  createRemoteMcpOAuthClientProfile(
+    payload: DashboardRemoteMcpOAuthClientProfileCreateInput,
+  ): Promise<DashboardRemoteMcpOAuthClientProfileRecord>;
+  updateRemoteMcpOAuthClientProfile(
+    profileId: string,
+    payload: DashboardRemoteMcpOAuthClientProfileUpdateInput,
+  ): Promise<DashboardRemoteMcpOAuthClientProfileRecord>;
+  deleteRemoteMcpOAuthClientProfile(profileId: string): Promise<void>;
   listRemoteMcpServers(): Promise<DashboardRemoteMcpServerRecord[]>;
   getRemoteMcpServer(serverId: string): Promise<DashboardRemoteMcpServerRecord>;
   createRemoteMcpServer(
@@ -3404,6 +3476,53 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           `/api/v1/execution-environments/${environmentId}/unarchive`,
           {
             body: {},
+          },
+        ),
+      ),
+    listRemoteMcpOAuthClientProfiles: () =>
+      withRefresh(() =>
+        requestData<DashboardRemoteMcpOAuthClientProfileRecord[]>(
+          '/api/v1/remote-mcp-oauth-client-profiles',
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    getRemoteMcpOAuthClientProfile: (profileId) =>
+      withRefresh(() =>
+        requestData<DashboardRemoteMcpOAuthClientProfileRecord>(
+          `/api/v1/remote-mcp-oauth-client-profiles/${profileId}`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    createRemoteMcpOAuthClientProfile: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardRemoteMcpOAuthClientProfileRecord>(
+          '/api/v1/remote-mcp-oauth-client-profiles',
+          {
+            body: payload as unknown as Record<string, unknown>,
+          },
+        ),
+      ),
+    updateRemoteMcpOAuthClientProfile: (profileId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardRemoteMcpOAuthClientProfileRecord>(
+          `/api/v1/remote-mcp-oauth-client-profiles/${profileId}`,
+          {
+            method: 'PUT',
+            body: payload as unknown as Record<string, unknown>,
+          },
+        ),
+      ),
+    deleteRemoteMcpOAuthClientProfile: (profileId) =>
+      withRefresh(() =>
+        requestData<void>(
+          `/api/v1/remote-mcp-oauth-client-profiles/${profileId}`,
+          {
+            method: 'DELETE',
+            allowNoContent: true,
           },
         ),
       ),

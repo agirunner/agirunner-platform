@@ -1,6 +1,6 @@
 import type {
   DashboardRemoteMcpOauthDefinition,
-  DashboardRemoteMcpParameterInput,
+  DashboardRemoteMcpServerParameterInput,
   DashboardRemoteMcpServerCreateInput,
   DashboardRemoteMcpServerParameterRecord,
   DashboardRemoteMcpServerRecord,
@@ -28,6 +28,7 @@ export function createRemoteMcpServerForm(
     enabledByDefaultForNewSpecialists:
       server?.enabled_by_default_for_new_specialists ?? false,
     grantToAllExistingSpecialists: false,
+    oauthClientProfileId: server?.oauth_client_profile_id ?? '',
     oauth: createRemoteMcpOauthForm(server?.oauth_definition ?? null),
     parameters,
   };
@@ -56,6 +57,7 @@ export function buildRemoteMcpCreatePayload(
     authMode: form.authMode,
     enabledByDefaultForNewSpecialists: form.enabledByDefaultForNewSpecialists,
     grantToAllExistingSpecialists: form.grantToAllExistingSpecialists,
+    oauthClientProfileId: buildOauthClientProfileId(form),
     oauthDefinition: buildOauthDefinition(form),
     parameters: buildRemoteMcpParameters(form.parameters),
   };
@@ -72,6 +74,7 @@ export function buildRemoteMcpUpdatePayload(
     callTimeoutSeconds: parseCallTimeoutSeconds(form.callTimeoutSeconds),
     authMode: form.authMode,
     enabledByDefaultForNewSpecialists: form.enabledByDefaultForNewSpecialists,
+    oauthClientProfileId: buildOauthClientProfileId(form),
     oauthDefinition: buildOauthDefinition(form),
     parameters: buildRemoteMcpParameters(form.parameters),
   };
@@ -167,9 +170,19 @@ function buildOauthDefinition(
   });
 }
 
+function buildOauthClientProfileId(
+  form: RemoteMcpServerFormState,
+): string | null | undefined {
+  if (form.authMode !== 'oauth') {
+    return null;
+  }
+  const normalized = form.oauthClientProfileId.trim();
+  return normalized.length > 0 ? normalized : null;
+}
+
 function buildRemoteMcpParameters(
   parameters: RemoteMcpParameterFormState[],
-): DashboardRemoteMcpParameterInput[] {
+): DashboardRemoteMcpServerParameterInput[] {
   return parameters.flatMap((parameter) => {
     const key = parameter.key.trim();
     if (!key) {
@@ -239,7 +252,7 @@ function normalizeOptionalText(value: string): string | null {
 function normalizeStoredSecretField(
   value: string,
   hasStoredSecret: boolean,
-): string | undefined {
+): string | null | undefined {
   const normalized = value.trim();
   if (normalized.length > 0) {
     return normalized;
@@ -271,7 +284,7 @@ function isStoredSecretValue(value: string | null | undefined): boolean {
   return value === REMOTE_MCP_STORED_SECRET_VALUE;
 }
 
-function compactRecord<T extends Record<string, unknown>>(value: T): T {
+function compactRecord<T extends object>(value: T): T {
   return Object.fromEntries(
     Object.entries(value).filter(([, entry]) => entry !== undefined),
   ) as T;
