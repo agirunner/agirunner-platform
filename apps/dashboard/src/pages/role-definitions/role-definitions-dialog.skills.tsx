@@ -42,8 +42,7 @@ export function RoleSkillsSection(props: {
           <Badge variant="outline">{props.form.skillIds.length}</Badge>
         </div>
         <CardDescription>
-          Select shared skills to add existing skills to this specialist and control their execution
-          order.
+          Select shared skills to add to this specialist.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">

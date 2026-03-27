@@ -41,7 +41,7 @@ export function SkillsPageDialog(props: {
         <DialogHeader>
           <DialogTitle>{props.title}</DialogTitle>
           <DialogDescription>
-            Maintain reusable skill content that can be assigned to specialists in explicit order.
+            Maintain reusable skill content that can be assigned to specialists.
           </DialogDescription>
         </DialogHeader>
         <form
