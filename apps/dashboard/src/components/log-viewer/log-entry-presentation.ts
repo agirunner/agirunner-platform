@@ -213,7 +213,7 @@ function readMCPToolLabel(payload: Record<string, unknown> | null | undefined): 
     return null;
   }
 
-  const serverLabel = serverName ? humanizeSentence(serverName) : null;
+  const serverLabel = serverName ? describeMCPServerLabel(serverName) : null;
   const toolLabel = toolName ? humanizeSentence(stripMCPServerTokens(toolName, serverName)) : null;
   if (serverLabel && toolLabel) {
     return `MCP ${serverLabel} ${lowercaseFirst(toolLabel)}`;
@@ -225,6 +225,14 @@ function readMCPToolLabel(payload: Record<string, unknown> | null | undefined): 
     return `MCP ${toolLabel}`;
   }
   return null;
+}
+
+function describeMCPServerLabel(serverName: string): string {
+  const normalized = tokenizeLabel(serverName);
+  if (normalized.length === 0) {
+    return humanizeSentence(serverName);
+  }
+  return humanizeSentence(normalized.join('_'));
 }
 
 function stripMCPServerTokens(toolName: string, serverName: string | null): string {

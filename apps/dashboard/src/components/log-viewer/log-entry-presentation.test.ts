@@ -137,6 +137,25 @@ describe('log entry presentation', () => {
     expect(describeLogActivityDetail(entry)).toBe('MCP Tavily search(capital of British Columbia officia…)');
   });
 
+  it('drops a trailing MCP suffix from the server label when formatting MCP activity', () => {
+    const entry = makeEntry({
+      category: 'task_lifecycle',
+      operation: 'tool_call',
+      payload: {
+        tool: 'mcp_tavily_mcp_tavily_search',
+        mcp_server_name: 'Tavily MCP',
+        mcp_tool_name: 'tavily_search',
+        input: {
+          query: 'capital of British Columbia official source',
+        },
+      },
+    });
+
+    expect(describeLogActivityTitle(entry)).toBe('MCP Tavily search');
+    expect(describeLogToolDisplay(entry)).toBe('MCP Tavily search(capital of British Columbia officia…)');
+    expect(describeLogActivityDetail(entry)).toBe('MCP Tavily search(capital of British Columbia officia…)');
+  });
+
   it('surfaces tool intent from llm response tool-call payloads', () => {
     const entry = makeEntry({
       category: 'agent_loop',
