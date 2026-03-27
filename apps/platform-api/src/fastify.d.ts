@@ -14,6 +14,10 @@ import type { ExecutionEnvironmentVerificationService } from './services/executi
 import type { FleetService } from './services/fleet-service.js';
 import type { GovernanceService } from './services/governance-service.js';
 import type { ModelCatalogService } from './services/model-catalog-service.js';
+import type { MissionControlHistoryService } from './services/mission-control/mission-control-history-service.js';
+import type { MissionControlLiveService } from './services/mission-control/mission-control-live-service.js';
+import type { MissionControlRecentService } from './services/mission-control/mission-control-recent-service.js';
+import type { MissionControlWorkspaceService } from './services/mission-control/mission-control-workspace-service.js';
 import type { ContainerInventoryService } from './services/container-inventory-service.js';
 import type { WorkspaceService } from './services/workspace-service.js';
 import type { WorkspaceArtifactFileService } from './services/workspace-artifact-file-service.js';
@@ -67,6 +71,10 @@ declare module 'fastify' {
     executionEnvironmentVerificationService: ExecutionEnvironmentVerificationService;
     fleetService: FleetService;
     modelCatalogService: ModelCatalogService;
+    missionControlLiveService: MissionControlLiveService;
+    missionControlRecentService: MissionControlRecentService;
+    missionControlHistoryService: MissionControlHistoryService;
+    missionControlWorkspaceService: MissionControlWorkspaceService;
     oauthService: OAuthService;
     remoteMcpOAuthClientProfileService: RemoteMcpOAuthClientProfileService;
     remoteMcpServerService: RemoteMcpServerService;

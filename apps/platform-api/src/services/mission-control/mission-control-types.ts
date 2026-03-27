@@ -142,3 +142,111 @@ export interface MissionControlOutputDescriptor {
   primaryLocation: MissionControlOutputLocation;
   secondaryLocations: MissionControlOutputLocation[];
 }
+
+export interface MissionControlWorkflowMetrics {
+  activeTaskCount: number;
+  activeWorkItemCount: number;
+  blockedWorkItemCount: number;
+  openEscalationCount: number;
+  waitingForDecisionCount: number;
+  failedTaskCount: number;
+  recoverableIssueCount: number;
+  lastChangedAt: string | null;
+}
+
+export interface MissionControlWorkflowCard {
+  id: string;
+  name: string;
+  state: string;
+  lifecycle: string | null;
+  currentStage: string | null;
+  workspaceId: string | null;
+  workspaceName: string | null;
+  playbookId: string | null;
+  playbookName: string | null;
+  posture: MissionControlWorkflowPosture;
+  attentionLane: MissionControlAttentionLane;
+  pulse: MissionControlPulse;
+  outputDescriptors: MissionControlOutputDescriptor[];
+  availableActions: MissionControlActionAvailability[];
+  metrics: MissionControlWorkflowMetrics;
+  version: MissionControlReadModelVersion;
+}
+
+export interface MissionControlLiveSection {
+  id: 'needs_action' | 'at_risk' | 'progressing' | 'waiting' | 'recently_changed';
+  title: string;
+  count: number;
+  workflows: MissionControlWorkflowCard[];
+}
+
+export interface MissionControlLiveResponse {
+  version: MissionControlReadModelVersion;
+  sections: MissionControlLiveSection[];
+  attentionItems: MissionControlAttentionItem[];
+}
+
+export type MissionControlPacketCategory =
+  | 'decision'
+  | 'intervention'
+  | 'progress'
+  | 'output'
+  | 'system';
+
+export interface MissionControlPacket {
+  id: string;
+  workflowId: string;
+  workflowName: string | null;
+  posture: MissionControlWorkflowPosture | null;
+  category: MissionControlPacketCategory;
+  title: string;
+  summary: string;
+  changedAt: string;
+  carryover: boolean;
+  outputDescriptors: MissionControlOutputDescriptor[];
+}
+
+export interface MissionControlRecentResponse {
+  version: MissionControlReadModelVersion;
+  packets: MissionControlPacket[];
+}
+
+export interface MissionControlHistoryResponse {
+  version: MissionControlReadModelVersion;
+  packets: MissionControlPacket[];
+}
+
+export interface MissionControlWorkspaceOverview {
+  currentOperatorAsk: string | null;
+  latestOutput: MissionControlOutputDescriptor | null;
+  inputSummary: {
+    parameterCount: number;
+    parameterKeys: string[];
+    contextKeys: string[];
+  };
+  relationSummary: Record<string, unknown>;
+  riskSummary: {
+    blockedWorkItemCount: number;
+    openEscalationCount: number;
+    failedTaskCount: number;
+    recoverableIssueCount: number;
+  };
+}
+
+export interface MissionControlWorkspaceResponse {
+  version: MissionControlReadModelVersion;
+  workflow: MissionControlWorkflowCard | null;
+  overview: MissionControlWorkspaceOverview | null;
+  board: Record<string, unknown> | null;
+  outputs: {
+    deliverables: MissionControlOutputDescriptor[];
+    feed: MissionControlPacket[];
+  };
+  steering: {
+    availableActions: MissionControlActionAvailability[];
+    interventionHistory: MissionControlPacket[];
+  };
+  history: {
+    packets: MissionControlPacket[];
+  };
+}

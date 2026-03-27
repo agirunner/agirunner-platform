@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { deriveMissionControlPosture } from '../../src/services/mission-control/mission-control-posture.js';
+import { MissionControlLiveService } from '../../src/services/mission-control/mission-control-live-service.js';
 
 describe('mission control posture', () => {
   it('classifies approval waits as needs_decision ahead of coarse active state', () => {
@@ -89,3 +90,97 @@ describe('mission control posture', () => {
     );
   });
 });
+
+describe('MissionControlLiveService', () => {
+  it('composes workflow cards, sections, and attention items from workflow and signal rows', async () => {
+    const pool = createSequencedPool([
+      { rows: [{ latest_event_id: 42 }], rowCount: 1 },
+      {
+        rows: [
+          {
+            id: 'workflow-1',
+            name: 'Release Workflow',
+            state: 'active',
+            lifecycle: 'planned',
+            current_stage: 'implementation',
+            workspace_id: 'workspace-1',
+            workspace_name: 'Core Product',
+            playbook_id: 'playbook-1',
+            playbook_name: 'Release',
+            parameters: {},
+            context: {},
+            updated_at: '2026-03-27T04:00:00.000Z',
+          },
+        ],
+        rowCount: 1,
+      },
+      {
+        rows: [
+          {
+            workflow_id: 'workflow-1',
+            waiting_for_decision_count: 1,
+            open_escalation_count: 0,
+            blocked_work_item_count: 0,
+            failed_task_count: 0,
+            active_task_count: 1,
+            active_work_item_count: 1,
+            pending_work_item_count: 1,
+            recoverable_issue_count: 0,
+          },
+        ],
+        rowCount: 1,
+      },
+      { rows: [], rowCount: 0 },
+      {
+        rows: [
+          {
+            workflow_id: 'workflow-1',
+            document_id: 'document-1',
+            logical_name: 'release-brief',
+            source: 'artifact',
+            location: 'deliverables/release-brief.md',
+            artifact_id: 'artifact-1',
+          },
+        ],
+        rowCount: 1,
+      },
+    ]);
+
+    const service = new MissionControlLiveService(pool as never);
+    const response = await service.getLive('tenant-1');
+
+    expect(response.version.latestEventId).toBe(42);
+    expect(response.sections).toEqual([
+      expect.objectContaining({
+        id: 'needs_action',
+        count: 1,
+        workflows: [
+          expect.objectContaining({
+            id: 'workflow-1',
+            posture: 'needs_decision',
+            outputDescriptors: [
+              expect.objectContaining({
+                id: 'document:document-1',
+              }),
+            ],
+          }),
+        ],
+      }),
+    ]);
+    expect(response.attentionItems).toEqual([
+      {
+        id: 'attention:workflow-1',
+        lane: 'needs_decision',
+        title: 'Decision required',
+        workflowId: 'workflow-1',
+        summary: 'Waiting on operator decisions',
+      },
+    ]);
+  });
+});
+
+function createSequencedPool(responses: Array<{ rows: unknown[]; rowCount: number }>) {
+  return {
+    query: vi.fn(async () => responses.shift() ?? { rows: [], rowCount: 0 }),
+  };
+}
