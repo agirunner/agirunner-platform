@@ -68,14 +68,14 @@ const workflowOperatorUpdateCreateSchema = z.object({
   promoted_brief_id: z.string().uuid().optional(),
 });
 
-const workflowSteeringSessionCreateSchema = z.object({
-  title: z.string().max(255).optional(),
-});
-
-const workflowSteeringMessageCreateSchema = z.object({
-  content: z.string().min(1).max(8000),
-  structured_proposal: z.record(z.unknown()).optional(),
-  intervention_id: z.string().uuid().optional(),
+const workflowSteeringRequestCreateSchema = z.object({
+  request_id: z.string().min(1).max(255),
+  base_snapshot_version: z.string().min(1).max(255).optional(),
+  request: z.string().min(1).max(8000),
+  work_item_id: z.string().uuid().optional(),
+  task_id: z.string().uuid().optional(),
+  linked_input_packet_ids: z.array(z.string().uuid()).default([]),
+  session_id: z.string().uuid().optional(),
 });
 
 const workflowRedriveCreateSchema = z.object({
@@ -294,19 +294,6 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  app.post(
-    '/api/v1/workflows/:id/steering-sessions',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
-    async (request, reply) => {
-      const params = request.params as { id: string };
-      const body = parseOrThrow(workflowSteeringSessionCreateSchema.safeParse(request.body ?? {}));
-      const session = await app.workflowSteeringSessionService.createSession(request.auth!, params.id, {
-        title: body.title,
-      });
-      return reply.status(201).send({ data: session });
-    },
-  );
-
   app.get(
     '/api/v1/workflows/:id/steering-sessions/:sessionId/messages',
     { preHandler: [authenticateApiKey, withScope('agent')] },
@@ -323,23 +310,21 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    '/api/v1/workflows/:id/steering-sessions/:sessionId/messages',
+    '/api/v1/workflows/:id/steering-requests',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request, reply) => {
-      const params = request.params as { id: string; sessionId: string };
-      const body = parseOrThrow(workflowSteeringMessageCreateSchema.safeParse(request.body ?? {}));
-      const message = await app.workflowSteeringSessionService.appendMessage(
-        request.auth!,
-        params.id,
-        params.sessionId,
-        {
-          role: 'operator',
-          content: body.content,
-          structuredProposal: body.structured_proposal,
-          interventionId: body.intervention_id,
-        },
-      );
-      return reply.status(201).send({ data: message });
+      const params = request.params as { id: string };
+      const body = parseOrThrow(workflowSteeringRequestCreateSchema.safeParse(request.body ?? {}));
+      const result = await app.workflowSteeringSessionService.recordSteeringRequest(request.auth!, params.id, {
+        requestId: body.request_id,
+        baseSnapshotVersion: body.base_snapshot_version,
+        request: body.request,
+        workItemId: body.work_item_id,
+        taskId: body.task_id,
+        linkedInputPacketIds: body.linked_input_packet_ids,
+        sessionId: body.session_id,
+      });
+      return reply.status(201).send({ data: result });
     },
   );
 

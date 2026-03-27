@@ -210,6 +210,7 @@ function createWorkflowRoutesApp(overrides?: {
       createSession: async () => ({}),
       listMessages: async () => [],
       appendMessage: async () => ({}),
+      recordSteeringRequest: async () => ({}),
       ...(overrides?.workflowSteeringSessionService ?? {}),
     } as never,
   );
@@ -554,71 +555,122 @@ describe('workflow routes', () => {
     );
   });
 
-  it('creates steering sessions and persists operator messages through workflow-owned routes', async () => {
-    const createSession = vi.fn().mockResolvedValue({
-      id: 'session-1',
+  it('records steering requests through the canonical workflow-owned route and preserves session history reads', async () => {
+    const listSessions = vi.fn().mockResolvedValue([
+      {
+        id: 'session-1',
+        workflow_id: 'workflow-1',
+        work_item_id: '11111111-1111-4111-8111-111111111111',
+        title: 'Recovery session',
+        status: 'open',
+        created_by_type: 'user',
+        created_by_id: 'user-1',
+        created_at: '2026-03-27T10:00:00.000Z',
+        updated_at: '2026-03-27T10:10:00.000Z',
+        last_message_at: '2026-03-27T10:10:00.000Z',
+      },
+    ]);
+    const listMessages = vi.fn().mockResolvedValue([
+      {
+        id: 'message-1',
+        workflow_id: 'workflow-1',
+        work_item_id: '11111111-1111-4111-8111-111111111111',
+        steering_session_id: 'session-1',
+        source_kind: 'operator',
+        message_kind: 'operator_request',
+        headline: 'Focus on getting this workflow unblocked today.',
+        body: null,
+        linked_intervention_id: null,
+        linked_input_packet_id: null,
+        linked_operator_update_id: null,
+        created_by_type: 'user',
+        created_by_id: 'user-1',
+        created_at: '2026-03-27T10:10:00.000Z',
+      },
+      {
+        id: 'message-2',
+        workflow_id: 'workflow-1',
+        work_item_id: '11111111-1111-4111-8111-111111111111',
+        steering_session_id: 'session-1',
+        source_kind: 'platform',
+        message_kind: 'steering_response',
+        headline: 'Steering request recorded',
+        body: 'The workflow steering history now includes this request.',
+        linked_intervention_id: null,
+        linked_input_packet_id: '22222222-2222-4222-8222-222222222222',
+        linked_operator_update_id: null,
+        created_by_type: 'system',
+        created_by_id: 'platform',
+        created_at: '2026-03-27T10:10:01.000Z',
+      },
+    ]);
+    const recordSteeringRequest = vi.fn().mockResolvedValue({
+      outcome: 'applied',
+      result_kind: 'steering_request_recorded',
+      source_workflow_id: 'workflow-1',
       workflow_id: 'workflow-1',
-      title: 'Recovery session',
-      status: 'active',
-      created_by_type: 'user',
-      created_by_id: 'user-1',
-      created_at: '2026-03-27T10:00:00.000Z',
-      updated_at: '2026-03-27T10:00:00.000Z',
-    });
-    const appendMessage = vi.fn().mockResolvedValue({
-      id: 'message-1',
-      workflow_id: 'workflow-1',
-      steering_session_id: 'session-1',
-      role: 'operator',
-      content: 'Focus on getting this workflow unblocked today.',
-      structured_proposal: {},
+      resulting_work_item_id: '11111111-1111-4111-8111-111111111111',
+      input_packet_id: null,
       intervention_id: null,
-      created_by_type: 'user',
-      created_by_id: 'user-1',
-      created_at: '2026-03-27T10:10:00.000Z',
+      snapshot_version: null,
+      settings_revision: null,
+      message: 'Steering request recorded.',
+      redrive_lineage: null,
+      steering_session_id: 'session-1',
+      request_message_id: 'message-1',
+      response_message_id: 'message-2',
+      linked_intervention_ids: [],
+      linked_input_packet_ids: ['22222222-2222-4222-8222-222222222222'],
     });
 
     app = createWorkflowRoutesApp({
       workflowSteeringSessionService: {
-        createSession,
-        appendMessage,
+        listSessions,
+        listMessages,
+        recordSteeringRequest,
       },
     });
     await app.register(workflowRoutes);
 
-    const createResponse = await app.inject({
+    const requestResponse = await app.inject({
       method: 'POST',
-      url: '/api/v1/workflows/workflow-1/steering-sessions',
-      headers: { authorization: 'Bearer test' },
-      payload: { title: 'Recovery session' },
-    });
-
-    expect(createResponse.statusCode).toBe(201);
-    expect(createSession).toHaveBeenCalledWith(
-      expect.objectContaining({ tenantId: 'tenant-1' }),
-      'workflow-1',
-      expect.objectContaining({ title: 'Recovery session' }),
-    );
-
-    const messageResponse = await app.inject({
-      method: 'POST',
-      url: '/api/v1/workflows/workflow-1/steering-sessions/session-1/messages',
+      url: '/api/v1/workflows/workflow-1/steering-requests',
       headers: { authorization: 'Bearer test' },
       payload: {
-        content: 'Focus on getting this workflow unblocked today.',
+        request_id: 'request-3',
+        request: 'Focus on getting this workflow unblocked today.',
+        work_item_id: '11111111-1111-4111-8111-111111111111',
+        linked_input_packet_ids: ['22222222-2222-4222-8222-222222222222'],
       },
     });
 
-    expect(messageResponse.statusCode).toBe(201);
-    expect(appendMessage).toHaveBeenCalledWith(
+    expect(requestResponse.statusCode).toBe(201);
+    expect(recordSteeringRequest).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
       'workflow-1',
-      'session-1',
       expect.objectContaining({
-        role: 'operator',
-        content: 'Focus on getting this workflow unblocked today.',
+        requestId: 'request-3',
+        request: 'Focus on getting this workflow unblocked today.',
+        workItemId: '11111111-1111-4111-8111-111111111111',
+        linkedInputPacketIds: ['22222222-2222-4222-8222-222222222222'],
       }),
     );
+
+    const sessionsResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/workflows/workflow-1/steering-sessions',
+      headers: { authorization: 'Bearer test' },
+    });
+    const messagesResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/workflows/workflow-1/steering-sessions/session-1/messages',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(sessionsResponse.statusCode).toBe(200);
+    expect(messagesResponse.statusCode).toBe(200);
+    expect(listSessions).toHaveBeenCalledWith('tenant-1', 'workflow-1');
+    expect(listMessages).toHaveBeenCalledWith('tenant-1', 'workflow-1', 'session-1');
   });
 
   it('creates linked workflow attempts through the redrive route', async () => {
