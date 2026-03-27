@@ -336,10 +336,17 @@ async function fetchWithTimeout(
   }
 }
 
-class StreamableTransportError extends Error {
+class StreamableTransportError extends ValidationError {
   constructor(readonly status: number) {
-    super(`Remote MCP streamable HTTP verification failed with status ${status}`);
+    super(readStreamableTransportFailureMessage(status));
   }
+}
+
+function readStreamableTransportFailureMessage(status: number): string {
+  if (status === 401 || status === 403) {
+    return `Remote MCP authentication failed with status ${status}. Check the configured authentication parameters and secret values.`;
+  }
+  return `Remote MCP streamable HTTP verification failed with status ${status}`;
 }
 
 class SseEventReader {

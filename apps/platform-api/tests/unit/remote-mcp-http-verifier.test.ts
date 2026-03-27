@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ValidationError } from '../../src/errors/domain-errors.js';
 import { RemoteMcpHttpVerifier } from '../../src/services/remote-mcp-http-verifier.js';
 
 describe('RemoteMcpHttpVerifier', () => {
@@ -251,5 +252,31 @@ describe('RemoteMcpHttpVerifier', () => {
         prompt_count: 1,
       }),
     );
+  });
+
+  it('surfaces upstream authorization failures as validation errors', async () => {
+    const fetchMock = vi.fn(async () => new Response('Unauthorized', { status: 401 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const verifier = new RemoteMcpHttpVerifier();
+
+    await expect(() =>
+      verifier.verify({
+        endpointUrl: 'https://mcp.example.test/mcp',
+        callTimeoutSeconds: 300,
+        authMode: 'parameterized',
+        parameters: [
+          {
+            placement: 'header',
+            key: 'Authorization',
+            valueKind: 'secret',
+            value: 'Bearer bad-token',
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: 'Remote MCP authentication failed with status 401. Check the configured authentication parameters and secret values.',
+    });
   });
 });
