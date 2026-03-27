@@ -43,6 +43,7 @@ import type { WorkflowService } from './services/workflow-service.js';
 import type { WorkflowActivationService } from './services/workflow-activation-service.js';
 import type { WorkflowInputPacketService } from './services/workflow-input-packet-service.js';
 import type { WorkflowInterventionService } from './services/workflow-intervention-service.js';
+import type { WorkflowRedriveService } from './services/workflow-redrive-service.js';
 import type { WorkflowSteeringSessionService } from './services/workflow-steering-session-service.js';
 import type { PlatformTransportTimingDefaults } from './services/platform-timing-defaults.js';
 
@@ -66,6 +67,7 @@ declare module 'fastify' {
     workflowActivationService: WorkflowActivationService;
     workflowInputPacketService: WorkflowInputPacketService;
     workflowInterventionService: WorkflowInterventionService;
+    workflowRedriveService: WorkflowRedriveService;
     workflowSteeringSessionService: WorkflowSteeringSessionService;
     taskService: TaskService;
     userService: UserService;

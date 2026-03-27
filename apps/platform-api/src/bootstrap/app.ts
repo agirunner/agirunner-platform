@@ -60,6 +60,7 @@ import { WorkflowActivationService } from '../services/workflow-activation-servi
 import { WorkflowActivationDispatchService } from '../services/workflow-activation-dispatch-service.js';
 import { WorkflowInputPacketService } from '../services/workflow-input-packet-service.js';
 import { WorkflowInterventionService } from '../services/workflow-intervention-service.js';
+import { WorkflowRedriveService } from '../services/workflow-redrive-service.js';
 import { WorkflowSteeringSessionService } from '../services/workflow-steering-session-service.js';
 import { seedConfigTables } from './seed.js';
 import { registerPlugins } from './plugins.js';
@@ -226,6 +227,12 @@ export async function buildApp() {
     appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_FILES,
     appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_BYTES,
   );
+  const workflowRedriveService = new WorkflowRedriveService(
+    pool,
+    workflowService,
+    workflowInputPacketService,
+    eventService,
+  );
   const workflowSteeringSessionService = new WorkflowSteeringSessionService(pool);
   const remoteMcpOAuthClientProfileService = new RemoteMcpOAuthClientProfileService(pool);
   const remoteMcpServerService = new RemoteMcpServerService(pool);
@@ -280,6 +287,10 @@ export async function buildApp() {
   app.decorate(
     'workflowInterventionService',
     createLoggedService(workflowInterventionService, 'WorkflowInterventionService', logService),
+  );
+  app.decorate(
+    'workflowRedriveService',
+    createLoggedService(workflowRedriveService, 'WorkflowRedriveService', logService),
   );
   app.decorate(
     'workflowSteeringSessionService',

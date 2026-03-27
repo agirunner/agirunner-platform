@@ -24,12 +24,21 @@ export interface WorkflowBudgetSnapshot {
   warning_threshold_ratio: number;
 }
 
+export interface WorkflowAttemptInput {
+  root_workflow_id?: string;
+  previous_attempt_workflow_id?: string;
+  attempt_number?: number;
+  attempt_kind?: string;
+}
+
 export interface CreateWorkflowInput {
   playbook_id: string;
   workspace_id?: string;
   name: string;
   parameters?: Record<string, string>;
+  context?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+  attempt?: WorkflowAttemptInput;
   config_overrides?: Record<string, unknown>;
   instruction_config?: Record<string, unknown>;
   budget?: WorkflowBudgetInput;

@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { boolean, check, index, integer, jsonb, numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, check, index, integer, jsonb, numeric, pgTable, text, timestamp, uuid, type AnyPgColumn } from 'drizzle-orm/pg-core';
 
 import { workspaces } from './workspaces.js';
 import { playbooks } from './playbooks.js';
@@ -36,6 +36,10 @@ export const workflows = pgTable(
     legalHold: boolean('legal_hold').notNull().default(false),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     metadata: jsonb('metadata').notNull().default({}),
+    rootWorkflowId: uuid('root_workflow_id').references((): AnyPgColumn => workflows.id),
+    previousAttemptWorkflowId: uuid('previous_attempt_workflow_id').references((): AnyPgColumn => workflows.id),
+    attemptNumber: integer('attempt_number').notNull().default(1),
+    attemptKind: text('attempt_kind').notNull().default('initial'),
     completionCallouts: jsonb('completion_callouts').notNull().default({}),
     startedAt: timestamp('started_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
@@ -47,6 +51,8 @@ export const workflows = pgTable(
     index('idx_workflows_workspace').on(table.workspaceId),
     index('idx_workflows_state').on(table.tenantId, table.state),
     index('idx_workflows_playbook').on(table.playbookId),
+    index('idx_workflows_attempt_root').on(table.tenantId, table.rootWorkflowId, table.attemptNumber),
+    index('idx_workflows_previous_attempt').on(table.tenantId, table.previousAttemptWorkflowId),
     check(
       'workflows_lifecycle_check',
       sql`${table.lifecycle} IS NULL OR ${table.lifecycle} IN ('planned', 'ongoing')`,
@@ -54,6 +60,11 @@ export const workflows = pgTable(
     check(
       'chk_workflows_ongoing_current_stage_null',
       sql`(${table.lifecycle} IS DISTINCT FROM 'ongoing' OR ${table.currentStage} IS NULL)`,
+    ),
+    check('workflows_attempt_number_positive', sql`${table.attemptNumber} > 0`),
+    check(
+      'workflows_attempt_kind_check',
+      sql`${table.attemptKind} IN ('initial', 'redrive')`,
     ),
   ],
 );

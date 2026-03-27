@@ -45,6 +45,16 @@ const workflowSteeringMessageCreateSchema = z.object({
   intervention_id: z.string().uuid().optional(),
 });
 
+const workflowRedriveCreateSchema = z.object({
+  request_id: z.string().min(1).max(255),
+  name: z.string().min(1).max(255).optional(),
+  summary: z.string().max(4000).optional(),
+  steering_instruction: z.string().max(4000).optional(),
+  parameters: z.record(z.string()).optional(),
+  structured_inputs: z.record(z.unknown()).optional(),
+  files: z.array(workflowOperatorFileUploadSchema).default([]),
+});
+
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
     return result.data;
@@ -215,6 +225,30 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
         },
       );
       return reply.status(201).send({ data: message });
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/redrives',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(workflowRedriveCreateSchema.safeParse(request.body ?? {}));
+      const redrive = await app.workflowRedriveService.redriveWorkflow(request.auth!, params.id, {
+        requestId: body.request_id,
+        name: body.name,
+        summary: body.summary,
+        steeringInstruction: body.steering_instruction,
+        parameters: body.parameters,
+        structuredInputs: body.structured_inputs,
+        files: body.files.map((entry) => ({
+          fileName: entry.file_name,
+          description: entry.description,
+          contentBase64: entry.content_base64,
+          contentType: entry.content_type,
+        })),
+      });
+      return reply.status(201).send({ data: redrive });
     },
   );
 };

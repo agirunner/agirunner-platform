@@ -15,6 +15,7 @@ import type { ModelCatalogService } from './model-catalog-service.js';
 import { currentStageNameFromStages, WorkflowStageService } from './workflow-stage-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 import { readWorkspaceSettingsExtras } from './workspace-settings.js';
+import type { WorkflowAttemptInput } from './workflow-service.types.js';
 
 interface WorkflowCreationDeps {
   pool: DatabasePool;
@@ -41,6 +42,8 @@ type PersistedWorkflowRow = Record<string, unknown> & {
   current_stage: string | null;
   lifecycle: string | null;
 };
+
+const DEFAULT_WORKFLOW_CONTEXT_MAX_BYTES = 5 * 1024 * 1024;
 
 export class WorkflowCreationService {
   constructor(private readonly deps: WorkflowCreationDeps) {}
@@ -85,13 +88,16 @@ export class WorkflowCreationService {
         input.config_overrides ?? {},
       );
       const workflowParameters = validateWorkflowParameters(definition, input.parameters);
+      const workflowContext = normalizeWorkflowContext(input.context);
+      const workflowAttempt = normalizeWorkflowAttempt(input.attempt);
       const initialStageName = initialWorkflowStageName(definition);
       const workflowResult = await client.query(
         `INSERT INTO workflows (
            tenant_id, workspace_id, playbook_id, playbook_version, name, state, lifecycle,
            current_stage, parameters, metadata, resolved_config, config_layers,
-           instruction_config, token_budget, cost_cap_usd, max_duration_minutes, orchestration_state
-         ) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, '{}'::jsonb)
+           instruction_config, token_budget, cost_cap_usd, max_duration_minutes, orchestration_state,
+           context, context_size_bytes, root_workflow_id, previous_attempt_workflow_id, attempt_number, attempt_kind
+         ) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, '{}'::jsonb, $16, $17, $18, $19, $20, $21)
          RETURNING *`,
         [
           identity.tenantId,
@@ -109,6 +115,12 @@ export class WorkflowCreationService {
           input.budget?.token_budget ?? null,
           input.budget?.cost_cap_usd ?? null,
           input.budget?.max_duration_minutes ?? null,
+          workflowContext,
+          byteLengthJson(workflowContext),
+          workflowAttempt.root_workflow_id,
+          workflowAttempt.previous_attempt_workflow_id,
+          workflowAttempt.attempt_number,
+          workflowAttempt.attempt_kind,
         ],
       );
       const workflow = workflowResult.rows[0] as PersistedWorkflowRow;
@@ -257,4 +269,48 @@ function validateWorkflowParameters(
   }
 
   return normalized;
+}
+
+function normalizeWorkflowContext(value: Record<string, unknown> | undefined): Record<string, unknown> {
+  if (!value || Array.isArray(value)) {
+    return {};
+  }
+
+  const sizeBytes = byteLengthJson(value);
+  if (sizeBytes > DEFAULT_WORKFLOW_CONTEXT_MAX_BYTES) {
+    throw new ValidationError('Workflow context exceeds the maximum supported size.');
+  }
+
+  return value;
+}
+
+function normalizeWorkflowAttempt(value: WorkflowAttemptInput | undefined) {
+  const attemptNumber = value?.attempt_number ?? 1;
+  if (!Number.isInteger(attemptNumber) || attemptNumber <= 0) {
+    throw new ValidationError('Workflow attempt_number must be a positive integer.');
+  }
+
+  const attemptKind = value?.attempt_kind?.trim() || 'initial';
+  if (attemptKind !== 'initial' && attemptKind !== 'redrive') {
+    throw new ValidationError('Workflow attempt_kind must be initial or redrive.');
+  }
+
+  return {
+    root_workflow_id: sanitizeOptionalIdentifier(value?.root_workflow_id),
+    previous_attempt_workflow_id: sanitizeOptionalIdentifier(value?.previous_attempt_workflow_id),
+    attempt_number: attemptNumber,
+    attempt_kind: attemptKind,
+  };
+}
+
+function sanitizeOptionalIdentifier(value?: string): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function byteLengthJson(value: Record<string, unknown>): number {
+  return Buffer.byteLength(JSON.stringify(value), 'utf8');
 }

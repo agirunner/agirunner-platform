@@ -112,6 +112,7 @@ function createWorkflowRoutesApp(overrides?: {
   workflowInputPacketService?: Record<string, unknown>;
   workflowInterventionService?: Record<string, unknown>;
   workflowSteeringSessionService?: Record<string, unknown>;
+  workflowRedriveService?: Record<string, unknown>;
   pgPool?: Record<string, unknown>;
 }) {
   const routeApp = fastify();
@@ -191,6 +192,13 @@ function createWorkflowRoutesApp(overrides?: {
       listMessages: async () => [],
       appendMessage: async () => ({}),
       ...(overrides?.workflowSteeringSessionService ?? {}),
+    } as never,
+  );
+  routeApp.decorate(
+    'workflowRedriveService',
+    {
+      redriveWorkflow: async () => ({}),
+      ...(overrides?.workflowRedriveService ?? {}),
     } as never,
   );
   routeApp.decorate(
@@ -419,6 +427,49 @@ describe('workflow routes', () => {
       expect.objectContaining({
         role: 'operator',
         content: 'Focus on getting this workflow unblocked today.',
+      }),
+    );
+  });
+
+  it('creates linked workflow attempts through the redrive route', async () => {
+    const redriveWorkflow = vi.fn().mockResolvedValue({
+      source_workflow_id: 'workflow-1',
+      attempt_number: 2,
+      workflow: {
+        id: 'workflow-2',
+        name: 'Release workflow retry',
+      },
+      input_packet: null,
+    });
+
+    app = createWorkflowRoutesApp({
+      workflowRedriveService: { redriveWorkflow },
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/redrives',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'request-1',
+        name: 'Release workflow retry',
+        summary: 'Retry with corrected deployment inputs',
+        steering_instruction: 'Focus on the verification path first.',
+        parameters: { target: 'staging' },
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(redriveWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({
+        requestId: 'request-1',
+        name: 'Release workflow retry',
+        summary: 'Retry with corrected deployment inputs',
+        steeringInstruction: 'Focus on the verification path first.',
+        parameters: { target: 'staging' },
       }),
     );
   });
