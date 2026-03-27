@@ -1,4 +1,8 @@
 import { ValidationError } from '../errors/domain-errors.js';
+import {
+  hasRemoteMcpCapabilities,
+  type RemoteMcpCapabilitySummary,
+} from './remote-mcp-capability-snapshot.js';
 import type {
   CreateVerifiedRemoteMcpServerInput,
   RemoteMcpOAuthConfigRecord,
@@ -25,8 +29,28 @@ export interface RemoteMcpVerifier {
     verified_transport: 'streamable_http' | 'http_sse_compat' | null;
     verification_contract_version: string;
     discovered_tools_snapshot: Array<Record<string, unknown>>;
+    discovered_resources_snapshot: Array<Record<string, unknown>>;
+    discovered_prompts_snapshot: Array<Record<string, unknown>>;
+    verified_capability_summary: RemoteMcpCapabilitySummary;
+    verified_discovery_strategy: string | null;
+    verified_oauth_strategy: string | null;
   }>;
 }
+
+type VerificationManagedFields =
+  | 'verificationStatus'
+  | 'verificationError'
+  | 'verifiedTransport'
+  | 'verifiedDiscoveryStrategy'
+  | 'verifiedOAuthStrategy'
+  | 'verificationContractVersion'
+  | 'verifiedCapabilitySummary'
+  | 'discoveredToolsSnapshot'
+  | 'discoveredResourcesSnapshot'
+  | 'discoveredPromptsSnapshot';
+
+type CreateRemoteMcpVerificationInput = Omit<CreateVerifiedRemoteMcpServerInput, VerificationManagedFields>;
+type UpdateRemoteMcpVerificationInput = Omit<UpdateVerifiedRemoteMcpServerInput, VerificationManagedFields>;
 
 export class RemoteMcpVerificationService {
   constructor(
@@ -50,14 +74,7 @@ export class RemoteMcpVerificationService {
 
   async createServer(
     tenantId: string,
-    input: Omit<
-      CreateVerifiedRemoteMcpServerInput,
-      | 'verificationStatus'
-      | 'verificationError'
-      | 'verifiedTransport'
-      | 'verificationContractVersion'
-      | 'discoveredToolsSnapshot'
-    >,
+    input: CreateRemoteMcpVerificationInput,
   ) {
     const verification = await this.verifyOrThrow(
       input.endpointUrl,
@@ -72,20 +89,18 @@ export class RemoteMcpVerificationService {
       verifiedTransport: verification.verified_transport,
       verificationContractVersion: verification.verification_contract_version,
       discoveredToolsSnapshot: verification.discovered_tools_snapshot,
+      discoveredResourcesSnapshot: verification.discovered_resources_snapshot,
+      discoveredPromptsSnapshot: verification.discovered_prompts_snapshot,
+      verifiedCapabilitySummary: verification.verified_capability_summary,
+      verifiedDiscoveryStrategy: verification.verified_discovery_strategy,
+      verifiedOAuthStrategy: verification.verified_oauth_strategy,
     });
   }
 
   async updateServer(
     tenantId: string,
     id: string,
-    input: Omit<
-      UpdateVerifiedRemoteMcpServerInput,
-      | 'verificationStatus'
-      | 'verificationError'
-      | 'verifiedTransport'
-      | 'verificationContractVersion'
-      | 'discoveredToolsSnapshot'
-    >,
+    input: UpdateRemoteMcpVerificationInput,
   ) {
     const current = await this.serverService.getStoredServer(tenantId, id);
     const connectivityChanged =
@@ -122,6 +137,11 @@ export class RemoteMcpVerificationService {
       verifiedTransport: verification.verified_transport,
       verificationContractVersion: verification.verification_contract_version,
       discoveredToolsSnapshot: verification.discovered_tools_snapshot,
+      discoveredResourcesSnapshot: verification.discovered_resources_snapshot,
+      discoveredPromptsSnapshot: verification.discovered_prompts_snapshot,
+      verifiedCapabilitySummary: verification.verified_capability_summary,
+      verifiedDiscoveryStrategy: verification.verified_discovery_strategy,
+      verifiedOAuthStrategy: verification.verified_oauth_strategy,
     });
   }
 
@@ -149,6 +169,11 @@ export class RemoteMcpVerificationService {
       verifiedTransport: verification.verified_transport,
       verificationContractVersion: verification.verification_contract_version,
       discoveredToolsSnapshot: verification.discovered_tools_snapshot,
+      discoveredResourcesSnapshot: verification.discovered_resources_snapshot,
+      discoveredPromptsSnapshot: verification.discovered_prompts_snapshot,
+      verifiedCapabilitySummary: verification.verified_capability_summary,
+      verifiedDiscoveryStrategy: verification.verified_discovery_strategy,
+      verifiedOAuthStrategy: verification.verified_oauth_strategy,
     });
   }
 
@@ -169,8 +194,12 @@ export class RemoteMcpVerificationService {
       authMode,
       parameters,
     });
-    if (!Array.isArray(verification.discovered_tools_snapshot) || verification.discovered_tools_snapshot.length === 0) {
-      throw new ValidationError('Remote MCP verification discovered zero tools');
+    if (!hasRemoteMcpCapabilities(
+      Array.isArray(verification.discovered_tools_snapshot) ? verification.discovered_tools_snapshot : [],
+      Array.isArray(verification.discovered_resources_snapshot) ? verification.discovered_resources_snapshot : [],
+      Array.isArray(verification.discovered_prompts_snapshot) ? verification.discovered_prompts_snapshot : [],
+    )) {
+      throw new ValidationError('Remote MCP verification discovered zero tools, resources, and prompts');
     }
     return verification;
   }

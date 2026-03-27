@@ -15,6 +15,7 @@ import type { RemoteMcpVerifier } from './remote-mcp-verification-service.js';
 
 const CALLBACK_REDIRECT_URI = 'http://localhost:1455/auth/callback';
 const CLIENT_METADATA_PATH = '/.well-known/oauth/mcp-client.json';
+const HOSTED_CALLBACK_PATH = '/api/v1/oauth/callback';
 const ACCESS_TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 
 const connectionParameterSchema = z.object({
@@ -123,6 +124,7 @@ export class RemoteMcpOAuthService {
     private readonly verifier: RemoteMcpVerifier,
     private readonly options: {
       platformPublicBaseUrl?: string;
+      remoteMcpHostedCallbackBaseUrl?: string;
     },
   ) {}
 
@@ -225,8 +227,13 @@ export class RemoteMcpOAuthService {
         verificationStatus: verification.verification_status,
         verificationError: verification.verification_error,
         verifiedTransport: verification.verified_transport,
+        verifiedDiscoveryStrategy: verification.verified_discovery_strategy,
+        verifiedOAuthStrategy: verification.verified_oauth_strategy,
         verificationContractVersion: verification.verification_contract_version,
+        verifiedCapabilitySummary: verification.verified_capability_summary,
         discoveredToolsSnapshot: verification.discovered_tools_snapshot,
+        discoveredResourcesSnapshot: verification.discovered_resources_snapshot,
+        discoveredPromptsSnapshot: verification.discovered_prompts_snapshot,
         parameters: parseDraftParameters(draft.parameters),
         oauthConfig: persistableOauthConfig(payload.oauth_config),
         oauthCredentials,
@@ -249,8 +256,13 @@ export class RemoteMcpOAuthService {
         verificationStatus: verification.verification_status,
         verificationError: verification.verification_error,
         verifiedTransport: verification.verified_transport,
+        verifiedDiscoveryStrategy: verification.verified_discovery_strategy,
+        verifiedOAuthStrategy: verification.verified_oauth_strategy,
         verificationContractVersion: verification.verification_contract_version,
+        verifiedCapabilitySummary: verification.verified_capability_summary,
         discoveredToolsSnapshot: verification.discovered_tools_snapshot,
+        discoveredResourcesSnapshot: verification.discovered_resources_snapshot,
+        discoveredPromptsSnapshot: verification.discovered_prompts_snapshot,
         oauthConfig: persistableOauthConfig(payload.oauth_config),
         oauthCredentials,
       },
@@ -302,14 +314,17 @@ export class RemoteMcpOAuthService {
   private async prepareAuthorization(endpointUrl: string): Promise<PreparedOAuthFlow> {
     assertOAuthEndpointUrl(endpointUrl);
     const resourceMetadata = await this.discoverResourceMetadata(endpointUrl);
-    const authMetadata = await this.discoverAuthorizationServerMetadata(resourceMetadata.authorizationServers[0]);
-    const clientConfig = await this.buildClientConfig(authMetadata, resourceMetadata.resource);
+    const authMetadata = resourceMetadata.authorizationServers[0]
+      ? await this.discoverAuthorizationServerMetadata(resourceMetadata.authorizationServers[0])
+      : await this.discoverEndpointAuthorizationServerMetadata(endpointUrl);
+    const redirectUri = buildRemoteMcpRedirectUri(this.options.remoteMcpHostedCallbackBaseUrl);
+    const clientConfig = await this.buildClientConfig(authMetadata, resourceMetadata.resource, redirectUri);
     const codeVerifier = generateCodeVerifier();
     const state = generateState();
     const codeChallenge = generateCodeChallenge(codeVerifier);
     const authorizeUrl = buildAuthorizeUrl(authMetadata.authorizationEndpoint, {
       clientId: clientConfig.clientId,
-      redirectUri: CALLBACK_REDIRECT_URI,
+      redirectUri,
       scopes: clientConfig.scopes,
       state,
       codeChallenge,
@@ -505,9 +520,6 @@ export class RemoteMcpOAuthService {
       : typeof payload.authorization_server === 'string' && payload.authorization_server.trim().length > 0
         ? [payload.authorization_server.trim()]
         : [];
-    if (authorizationServers.length === 0) {
-      throw new ValidationError('Remote MCP OAuth discovery did not return an authorization server');
-    }
     return {
       resource: typeof payload.resource === 'string' && payload.resource.trim().length > 0
         ? payload.resource.trim()
@@ -548,9 +560,42 @@ export class RemoteMcpOAuthService {
     throw new ValidationError(`Remote MCP authorization metadata discovery failed${lastStatus ? ` with status ${lastStatus}` : ''}`);
   }
 
+  private async discoverEndpointAuthorizationServerMetadata(endpointUrl: string): Promise<AuthorizationServerMetadata> {
+    const candidates = buildEndpointAuthorizationServerMetadataCandidates(endpointUrl);
+    let lastStatus: number | null = null;
+    for (const candidate of candidates) {
+      const response = await fetch(candidate, {
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+      if (!response.ok) {
+        lastStatus = response.status;
+        continue;
+      }
+      const payload = await response.json() as Record<string, unknown>;
+      const authorizationEndpoint = readString(payload.authorization_endpoint);
+      const tokenEndpoint = readString(payload.token_endpoint);
+      if (!authorizationEndpoint || !tokenEndpoint) {
+        throw new ValidationError('Remote MCP authorization server metadata is missing required endpoints');
+      }
+      return {
+        issuer: readString(payload.issuer),
+        authorizationEndpoint,
+        tokenEndpoint,
+        registrationEndpoint: readString(payload.registration_endpoint),
+        tokenEndpointAuthMethodsSupported: readStringArray(payload.token_endpoint_auth_methods_supported),
+        codeChallengeMethodsSupported: readStringArray(payload.code_challenge_methods_supported),
+        clientIdMetadataDocumentSupported: payload.client_id_metadata_document_supported === true,
+      };
+    }
+    throw new ValidationError(`Remote MCP authorization metadata discovery failed${lastStatus ? ` with status ${lastStatus}` : ''}`);
+  }
+
   private async buildClientConfig(
     metadata: AuthorizationServerMetadata,
     resource: string,
+    redirectUri: string,
   ): Promise<RemoteMcpOAuthConfigRecord> {
     const scopes = selectScopes();
     const platformPublicBaseUrl = requirePlatformPublicBaseUrl(this.options.platformPublicBaseUrl);
@@ -564,7 +609,7 @@ export class RemoteMcpOAuthService {
         clientSecret: null,
         tokenEndpointAuthMethod: 'none',
         clientIdMetadataDocumentUrl: buildClientMetadataUrl(platformPublicBaseUrl),
-        redirectUri: CALLBACK_REDIRECT_URI,
+        redirectUri,
         scopes,
         resource,
       };
@@ -582,7 +627,7 @@ export class RemoteMcpOAuthService {
       clientSecret: registration.clientSecret,
       tokenEndpointAuthMethod: registration.tokenEndpointAuthMethod,
       clientIdMetadataDocumentUrl: null,
-      redirectUri: CALLBACK_REDIRECT_URI,
+      redirectUri,
       scopes,
       resource,
     };
@@ -730,8 +775,29 @@ function buildAuthorizationServerMetadataCandidates(authorizationServerUrl: stri
   return Array.from(new Set([...pathScopedCandidates, ...rootCandidates]));
 }
 
+function buildEndpointAuthorizationServerMetadataCandidates(endpointUrl: string): string[] {
+  const endpoint = new URL(endpointUrl);
+  const normalizedPath = endpoint.pathname.replace(/\/+$/, '');
+  const pathScopedCandidates = normalizedPath
+    ? [
+        new URL(`${normalizedPath}/.well-known/oauth-authorization-server`, endpoint.origin).toString(),
+      ]
+    : [];
+  const rootCandidates = [
+    new URL('/.well-known/oauth-authorization-server', endpoint.origin).toString(),
+  ];
+  return Array.from(new Set([...pathScopedCandidates, ...rootCandidates]));
+}
+
 function buildClientMetadataUrl(platformPublicBaseUrl: string): string {
   return new URL(CLIENT_METADATA_PATH, platformPublicBaseUrl).toString();
+}
+
+function buildRemoteMcpRedirectUri(hostedCallbackBaseUrl: string | undefined): string {
+  if (!hostedCallbackBaseUrl || hostedCallbackBaseUrl.trim().length === 0) {
+    return CALLBACK_REDIRECT_URI;
+  }
+  return new URL(HOSTED_CALLBACK_PATH, hostedCallbackBaseUrl.trim()).toString();
 }
 
 function requirePlatformPublicBaseUrl(value: string | undefined): string {

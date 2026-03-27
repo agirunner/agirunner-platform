@@ -48,6 +48,11 @@ describe('SpecialistCapabilityService', () => {
             auth_mode: 'parameterized',
             verified_transport: 'streamable_http',
             verification_contract_version: 'remote-mcp-v1',
+            verified_capability_summary: {
+              tool_count: 2,
+              resource_count: 1,
+              prompt_count: 1,
+            },
             discovered_tools_snapshot: [
               {
                 original_name: 'search',
@@ -56,6 +61,17 @@ describe('SpecialistCapabilityService', () => {
               {
                 original_name: 'research',
                 description: 'Research deeply',
+              },
+            ],
+            discovered_resources_snapshot: [
+              {
+                uri: 'docs://guides/getting-started',
+                name: 'Getting Started',
+              },
+            ],
+            discovered_prompts_snapshot: [
+              {
+                name: 'summarize_docs',
               },
             ],
             parameters: [
@@ -101,6 +117,11 @@ describe('SpecialistCapabilityService', () => {
           authMode: 'parameterized',
           verifiedTransport: 'streamable_http',
           verificationContractVersion: 'remote-mcp-v1',
+          verifiedCapabilitySummary: {
+            tool_count: 2,
+            resource_count: 1,
+            prompt_count: 1,
+          },
           discoveredToolsSnapshot: [
             {
               original_name: 'search',
@@ -109,6 +130,17 @@ describe('SpecialistCapabilityService', () => {
             {
               original_name: 'research',
               description: 'Research deeply',
+            },
+          ],
+          discoveredResourcesSnapshot: [
+            {
+              uri: 'docs://guides/getting-started',
+              name: 'Getting Started',
+            },
+          ],
+          discoveredPromptsSnapshot: [
+            {
+              name: 'summarize_docs',
             },
           ],
           oauthConfig: null,

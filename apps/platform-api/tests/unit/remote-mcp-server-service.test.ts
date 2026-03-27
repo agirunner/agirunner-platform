@@ -28,13 +28,31 @@ function buildServerRow(overrides: Partial<Record<string, unknown>> = {}) {
     verification_status: 'verified',
     verification_error: null,
     verified_transport: 'streamable_http',
+    verified_discovery_strategy: 'direct_endpoint',
+    verified_oauth_strategy: null,
     verified_at: new Date(),
     verification_contract_version: 'remote-mcp-v1',
+    verified_capability_summary: {
+      tool_count: 1,
+      resource_count: 1,
+      prompt_count: 1,
+    },
     discovered_tools_snapshot: [
       {
         original_name: 'search',
         runtime_tool_name_preview: 'mcp_tavily_search',
         description: 'Search the web',
+      },
+    ],
+    discovered_resources_snapshot: [
+      {
+        uri: 'docs://guides/getting-started',
+        name: 'Getting Started',
+      },
+    ],
+    discovered_prompts_snapshot: [
+      {
+        name: 'summarize_docs',
       },
     ],
     created_at: new Date(),
@@ -77,7 +95,14 @@ describe('RemoteMcpServerService', () => {
         call_timeout_seconds: 300,
         verification_status: 'verified',
         discovered_tool_count: 1,
+        discovered_resource_count: 1,
+        discovered_prompt_count: 1,
         assigned_specialist_count: 2,
+        verified_capability_summary: {
+          tool_count: 1,
+          resource_count: 1,
+          prompt_count: 1,
+        },
       }),
     );
     expect(result[0]?.parameters[0]).toEqual(
@@ -120,7 +145,14 @@ describe('RemoteMcpServerService', () => {
       verificationStatus: 'verified',
       verificationError: null,
       verifiedTransport: 'streamable_http',
+      verifiedDiscoveryStrategy: 'direct_endpoint',
+      verifiedOAuthStrategy: null,
       verificationContractVersion: 'remote-mcp-v1',
+      verifiedCapabilitySummary: {
+        tool_count: 1,
+        resource_count: 0,
+        prompt_count: 0,
+      },
       discoveredToolsSnapshot: [
         {
           original_name: 'search',
@@ -128,6 +160,8 @@ describe('RemoteMcpServerService', () => {
           description: 'Search the web',
         },
       ],
+      discoveredResourcesSnapshot: [],
+      discoveredPromptsSnapshot: [],
       parameters: [
         {
           placement: 'query',

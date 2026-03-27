@@ -3428,9 +3428,18 @@ describe('TaskClaimService', () => {
                   auth_mode: 'parameterized',
                   verified_transport: 'streamable_http',
                   verification_contract_version: 'remote-mcp-v1',
+                  verified_capability_summary: {
+                    tool_count: 1,
+                    resource_count: 1,
+                    prompt_count: 0,
+                  },
                   discovered_tools_snapshot: [
                     { original_name: 'search', description: 'Search the web' },
                   ],
+                  discovered_resources_snapshot: [
+                    { uri: 'docs://guides/getting-started', name: 'Getting Started' },
+                  ],
+                  discovered_prompts_snapshot: [],
                   parameters: [
                     {
                       id: 'param-1',
@@ -3483,6 +3492,15 @@ describe('TaskClaimService', () => {
         timeout_seconds: 300,
         transport: 'streamable_http',
         url: 'https://mcp.tavily.com/mcp/{tenant}',
+        verified_capability_summary: {
+          tool_count: 1,
+          resource_count: 1,
+          prompt_count: 0,
+        },
+        discovered_resources_snapshot: [
+          { uri: 'docs://guides/getting-started', name: 'Getting Started' },
+        ],
+        discovered_prompts_snapshot: [],
       }),
     );
     expect(mcpServers[0].parameters).toEqual([

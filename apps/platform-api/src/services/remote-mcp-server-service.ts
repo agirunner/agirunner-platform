@@ -50,8 +50,13 @@ const createVerifiedServerSchema = z.object({
   verificationStatus: z.enum(['unknown', 'verified', 'failed']),
   verificationError: z.string().nullable(),
   verifiedTransport: z.enum(['streamable_http', 'http_sse_compat']).nullable(),
+  verifiedDiscoveryStrategy: z.string().nullable().default(null),
+  verifiedOAuthStrategy: z.string().nullable().default(null),
   verificationContractVersion: z.string().min(1),
+  verifiedCapabilitySummary: z.record(z.unknown()).default({}),
   discoveredToolsSnapshot: z.array(z.record(z.unknown())).default([]),
+  discoveredResourcesSnapshot: z.array(z.record(z.unknown())).default([]),
+  discoveredPromptsSnapshot: z.array(z.record(z.unknown())).default([]),
   parameters: z.array(parameterSchema).default([]),
   oauthConfig: oauthConfigSchema.nullable().optional(),
   oauthCredentials: oauthCredentialsSchema.nullable().optional(),
@@ -81,9 +86,14 @@ interface RemoteMcpServerRow {
   verification_status: string;
   verification_error: string | null;
   verified_transport: string | null;
+  verified_discovery_strategy: string | null;
+  verified_oauth_strategy: string | null;
   verified_at: Date | null;
   verification_contract_version: string;
+  verified_capability_summary: unknown;
   discovered_tools_snapshot: unknown;
+  discovered_resources_snapshot: unknown;
+  discovered_prompts_snapshot: unknown;
   oauth_config: unknown;
   oauth_credentials: unknown;
   created_at: Date;
@@ -115,10 +125,17 @@ export interface RemoteMcpServerRecord {
   verification_status: 'unknown' | 'verified' | 'failed';
   verification_error: string | null;
   verified_transport: 'streamable_http' | 'http_sse_compat' | null;
+  verified_discovery_strategy: string | null;
+  verified_oauth_strategy: string | null;
   verified_at: Date | null;
   verification_contract_version: string;
+  verified_capability_summary: Record<string, unknown>;
   discovered_tools_snapshot: Record<string, unknown>[];
+  discovered_resources_snapshot: Record<string, unknown>[];
+  discovered_prompts_snapshot: Record<string, unknown>[];
   discovered_tool_count: number;
+  discovered_resource_count: number;
+  discovered_prompt_count: number;
   assigned_specialist_count: number;
   parameters: RemoteMcpServerParameterRecord[];
   oauth_connected: boolean;
@@ -176,11 +193,13 @@ export class RemoteMcpServerService {
     assertValidEndpointUrl(validated.endpointUrl);
     await this.assertUniqueSlug(tenantId, normalizeSlug(validated.name));
     const insert = await this.pool.query<{ id: string }>(
-      `INSERT INTO remote_mcp_servers (
+        `INSERT INTO remote_mcp_servers (
          tenant_id, name, slug, description, endpoint_url, call_timeout_seconds, auth_mode,
          enabled_by_default_for_new_specialists, verification_status, verification_error,
-         verified_transport, verified_at, verification_contract_version, discovered_tools_snapshot
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb)
+         verified_transport, verified_discovery_strategy, verified_oauth_strategy, verified_at,
+         verification_contract_version, verified_capability_summary, discovered_tools_snapshot,
+         discovered_resources_snapshot, discovered_prompts_snapshot
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb)
        RETURNING id`,
       [
         tenantId,
@@ -194,9 +213,14 @@ export class RemoteMcpServerService {
         validated.verificationStatus,
         validated.verificationError,
         validated.verifiedTransport,
+        validated.verifiedDiscoveryStrategy,
+        validated.verifiedOAuthStrategy,
         validated.verificationStatus === 'verified' ? new Date() : null,
         validated.verificationContractVersion,
+        JSON.stringify(validated.verifiedCapabilitySummary),
         JSON.stringify(validated.discoveredToolsSnapshot),
+        JSON.stringify(validated.discoveredResourcesSnapshot),
+        JSON.stringify(validated.discoveredPromptsSnapshot),
       ],
     ).catch(handleRemoteMcpWriteError);
     const serverId = insert.rows[0].id;
@@ -234,11 +258,16 @@ export class RemoteMcpServerService {
               verification_status = $10,
               verification_error = $11,
               verified_transport = $12,
-              verified_at = $13,
-              verification_contract_version = $14,
-              discovered_tools_snapshot = $15::jsonb,
-              oauth_config = $16::jsonb,
-              oauth_credentials = $17::jsonb,
+              verified_discovery_strategy = $13,
+              verified_oauth_strategy = $14,
+              verified_at = $15,
+              verification_contract_version = $16,
+              verified_capability_summary = $17::jsonb,
+              discovered_tools_snapshot = $18::jsonb,
+              discovered_resources_snapshot = $19::jsonb,
+              discovered_prompts_snapshot = $20::jsonb,
+              oauth_config = $21::jsonb,
+              oauth_credentials = $22::jsonb,
               updated_at = now()
         WHERE tenant_id = $1
           AND id = $2`,
@@ -255,9 +284,14 @@ export class RemoteMcpServerService {
         validated.verificationStatus ?? current.verification_status,
         validated.verificationError ?? current.verification_error,
         validated.verifiedTransport ?? current.verified_transport,
+        validated.verifiedDiscoveryStrategy ?? current.verified_discovery_strategy,
+        validated.verifiedOAuthStrategy ?? current.verified_oauth_strategy,
         (validated.verificationStatus ?? current.verification_status) === 'verified' ? new Date() : null,
         validated.verificationContractVersion ?? current.verification_contract_version,
+        JSON.stringify(validated.verifiedCapabilitySummary ?? current.verified_capability_summary),
         JSON.stringify(validated.discoveredToolsSnapshot ?? current.discovered_tools_snapshot),
+        JSON.stringify(validated.discoveredResourcesSnapshot ?? current.discovered_resources_snapshot),
+        JSON.stringify(validated.discoveredPromptsSnapshot ?? current.discovered_prompts_snapshot),
         JSON.stringify(validated.oauthConfig ?? current.oauth_config),
         JSON.stringify(validated.oauthCredentials ?? current.oauth_credentials),
       ],
@@ -289,20 +323,39 @@ export class RemoteMcpServerService {
   async updateVerificationResult(
     tenantId: string,
     id: string,
-    input: Pick<CreateVerifiedRemoteMcpServerInput, 'verificationStatus' | 'verificationError' | 'verifiedTransport' | 'verificationContractVersion' | 'discoveredToolsSnapshot'>,
+    input: Pick<CreateVerifiedRemoteMcpServerInput, 'verificationStatus' | 'verificationError' | 'verifiedTransport' | 'verifiedDiscoveryStrategy' | 'verifiedOAuthStrategy' | 'verificationContractVersion' | 'verifiedCapabilitySummary' | 'discoveredToolsSnapshot' | 'discoveredResourcesSnapshot' | 'discoveredPromptsSnapshot'>,
   ): Promise<RemoteMcpServerRecord> {
     await this.pool.query(
       `UPDATE remote_mcp_servers
           SET verification_status = $3,
               verification_error = $4,
               verified_transport = $5,
-              verified_at = $6,
-              verification_contract_version = $7,
-              discovered_tools_snapshot = $8::jsonb,
+              verified_discovery_strategy = $6,
+              verified_oauth_strategy = $7,
+              verified_at = $8,
+              verification_contract_version = $9,
+              verified_capability_summary = $10::jsonb,
+              discovered_tools_snapshot = $11::jsonb,
+              discovered_resources_snapshot = $12::jsonb,
+              discovered_prompts_snapshot = $13::jsonb,
               updated_at = now()
         WHERE tenant_id = $1
           AND id = $2`,
-      [tenantId, id, input.verificationStatus, input.verificationError, input.verifiedTransport, input.verificationStatus === 'verified' ? new Date() : null, input.verificationContractVersion, JSON.stringify(input.discoveredToolsSnapshot)],
+      [
+        tenantId,
+        id,
+        input.verificationStatus,
+        input.verificationError,
+        input.verifiedTransport,
+        input.verifiedDiscoveryStrategy,
+        input.verifiedOAuthStrategy,
+        input.verificationStatus === 'verified' ? new Date() : null,
+        input.verificationContractVersion,
+        JSON.stringify(input.verifiedCapabilitySummary),
+        JSON.stringify(input.discoveredToolsSnapshot),
+        JSON.stringify(input.discoveredResourcesSnapshot),
+        JSON.stringify(input.discoveredPromptsSnapshot),
+      ],
     );
     return this.getServer(tenantId, id);
   }
@@ -403,6 +456,9 @@ function listServersSql(): string {
 
 function toRemoteMcpServerRecord(row: RemoteMcpServerRow, exposeSecretValues: boolean): RemoteMcpServerRecord {
   const snapshot = Array.isArray(row.discovered_tools_snapshot) ? row.discovered_tools_snapshot as Record<string, unknown>[] : [];
+  const resourcesSnapshot = Array.isArray(row.discovered_resources_snapshot) ? row.discovered_resources_snapshot as Record<string, unknown>[] : [];
+  const promptsSnapshot = Array.isArray(row.discovered_prompts_snapshot) ? row.discovered_prompts_snapshot as Record<string, unknown>[] : [];
+  const capabilitySummary = isRecord(row.verified_capability_summary) ? row.verified_capability_summary : {};
   const parameterRows = Array.isArray(row.parameter_rows) ? row.parameter_rows as Array<Record<string, unknown>> : [];
   const parameters = parameterRows.map((parameter) => {
     const valueKind = parameter.value_kind === 'secret' ? 'secret' : 'static';
@@ -439,10 +495,17 @@ function toRemoteMcpServerRecord(row: RemoteMcpServerRow, exposeSecretValues: bo
     verification_status: row.verification_status as RemoteMcpServerRecord['verification_status'],
     verification_error: row.verification_error,
     verified_transport: row.verified_transport as RemoteMcpServerRecord['verified_transport'],
+    verified_discovery_strategy: typeof row.verified_discovery_strategy === 'string' ? row.verified_discovery_strategy : null,
+    verified_oauth_strategy: typeof row.verified_oauth_strategy === 'string' ? row.verified_oauth_strategy : null,
     verified_at: row.verified_at,
     verification_contract_version: row.verification_contract_version,
+    verified_capability_summary: capabilitySummary,
     discovered_tools_snapshot: snapshot,
+    discovered_resources_snapshot: resourcesSnapshot,
+    discovered_prompts_snapshot: promptsSnapshot,
     discovered_tool_count: snapshot.length,
+    discovered_resource_count: resourcesSnapshot.length,
+    discovered_prompt_count: promptsSnapshot.length,
     assigned_specialist_count: row.assigned_specialist_count ?? 0,
     parameters,
     oauth_connected: oauthCredentials !== null && !oauthCredentials.needsReauth,
@@ -489,4 +552,8 @@ function handleRemoteMcpWriteError(error: unknown): never {
     throw new ConflictError('Remote MCP server name already exists');
   }
   throw error;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

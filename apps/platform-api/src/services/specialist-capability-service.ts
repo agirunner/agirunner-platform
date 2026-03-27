@@ -28,7 +28,10 @@ export interface SpecialistRemoteMcpServerCapability {
   authMode: 'none' | 'parameterized' | 'oauth';
   verifiedTransport: 'streamable_http' | 'http_sse_compat' | null;
   verificationContractVersion: string;
+  verifiedCapabilitySummary: Record<string, unknown>;
   discoveredToolsSnapshot: Array<Record<string, unknown>>;
+  discoveredResourcesSnapshot: Array<Record<string, unknown>>;
+  discoveredPromptsSnapshot: Array<Record<string, unknown>>;
   parameters: SpecialistMcpParameterCapability[];
   oauthConfig: SpecialistRemoteMcpOAuthConfigCapability | null;
   oauthCredentials: SpecialistRemoteMcpOAuthCredentialsCapability | null;
@@ -125,7 +128,10 @@ export async function readSpecialistRoleCapabilities(
            'auth_mode', s.auth_mode,
            'verified_transport', s.verified_transport,
            'verification_contract_version', s.verification_contract_version,
+           'verified_capability_summary', s.verified_capability_summary,
            'discovered_tools_snapshot', s.discovered_tools_snapshot,
+           'discovered_resources_snapshot', s.discovered_resources_snapshot,
+           'discovered_prompts_snapshot', s.discovered_prompts_snapshot,
            'oauth_config', s.oauth_config,
            'oauth_credentials', s.oauth_credentials,
            'parameters', COALESCE((
@@ -194,9 +200,8 @@ export function buildRemoteMcpAvailabilitySection(
   }
   const lines = ['## Remote MCP Servers Available'];
   for (const server of servers) {
-    const toolNames = summarizeRemoteMcpToolNames(server.discoveredToolsSnapshot);
-    const summary = toolNames.length > 0 ? `Tools: ${toolNames.join(', ')}` : 'Tools discovered at runtime.';
-    lines.push(`- ${server.name}: ${server.description || 'Remote MCP server.'} ${summary}`);
+    const capabilitySummary = formatRemoteMcpCapabilitySummary(server.verifiedCapabilitySummary);
+    lines.push(`- ${server.name}: ${server.description || 'Remote MCP server.'} ${capabilitySummary}`);
   }
   return lines.join('\n');
 }
@@ -273,7 +278,10 @@ function normalizeRemoteMcpServers(value: unknown): SpecialistRemoteMcpServerCap
       authMode: readAuthMode(entry.auth_mode),
       verifiedTransport: readTransport(entry.verified_transport),
       verificationContractVersion,
+      verifiedCapabilitySummary: normalizeCapabilitySummary(entry.verified_capability_summary),
       discoveredToolsSnapshot: normalizeToolSnapshot(entry.discovered_tools_snapshot),
+      discoveredResourcesSnapshot: normalizeSnapshot(entry.discovered_resources_snapshot),
+      discoveredPromptsSnapshot: normalizeSnapshot(entry.discovered_prompts_snapshot),
       parameters: normalizeRemoteMcpParameters(entry.parameters),
       oauthConfig: normalizeRemoteMcpOauthConfig(entry.oauth_config),
       oauthCredentials: normalizeRemoteMcpOauthCredentials(entry.oauth_credentials),
@@ -307,9 +315,29 @@ function normalizeRemoteMcpParameters(value: unknown): SpecialistMcpParameterCap
 }
 
 function normalizeToolSnapshot(value: unknown): Array<Record<string, unknown>> {
+  return normalizeSnapshot(value);
+}
+
+function normalizeSnapshot(value: unknown): Array<Record<string, unknown>> {
   return Array.isArray(value)
     ? value.flatMap((entry) => (isRecord(entry) ? [entry] : []))
     : [];
+}
+
+function normalizeCapabilitySummary(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function formatRemoteMcpCapabilitySummary(value: Record<string, unknown>): string {
+  const toolCount = readNonNegativeInteger(value.tool_count);
+  const resourceCount = readNonNegativeInteger(value.resource_count);
+  const promptCount = readNonNegativeInteger(value.prompt_count);
+  const parts = [
+    `${toolCount} tool${toolCount === 1 ? '' : 's'}`,
+    `${resourceCount} resource${resourceCount === 1 ? '' : 's'}`,
+    `${promptCount} prompt${promptCount === 1 ? '' : 's'}`,
+  ];
+  return `Verified capabilities: ${parts.join(', ')}.`;
 }
 
 function normalizeRemoteMcpOauthConfig(value: unknown): SpecialistRemoteMcpOAuthConfigCapability | null {
@@ -406,6 +434,10 @@ function readNumber(value: unknown): number | null {
 
 function readPositiveInteger(value: unknown): number | null {
   return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
+}
+
+function readNonNegativeInteger(value: unknown): number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : 0;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

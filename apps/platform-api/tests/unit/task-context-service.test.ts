@@ -218,10 +218,19 @@ describe('buildTaskContext active stage semantics', () => {
                   auth_mode: 'parameterized',
                   verified_transport: 'streamable_http',
                   verification_contract_version: 'remote-mcp-v1',
+                  verified_capability_summary: {
+                    tool_count: 2,
+                    resource_count: 1,
+                    prompt_count: 0,
+                  },
                   discovered_tools_snapshot: [
                     { original_name: 'search', description: 'Search the web' },
                     { original_name: 'research', description: 'Research deeply' },
                   ],
+                  discovered_resources_snapshot: [
+                    { uri: 'docs://guides/getting-started', name: 'Getting Started' },
+                  ],
+                  discovered_prompts_snapshot: [],
                   parameters: [],
                 },
               ],
@@ -253,7 +262,7 @@ describe('buildTaskContext active stage semantics', () => {
     );
     expect(roleLayer.content).toContain('## Remote MCP Servers Available');
     expect(roleLayer.content).toContain('Tavily Search');
-    expect(roleLayer.content).toContain('search, research');
+    expect(roleLayer.content).toContain('Verified capabilities: 2 tools, 1 resource, 0 prompts.');
   });
 
   it('derives standard workflow current stage from open work items instead of stale stored stage status', async () => {

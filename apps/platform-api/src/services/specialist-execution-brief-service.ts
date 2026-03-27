@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import {
-  summarizeRemoteMcpToolNames,
   type SpecialistRoleCapabilities,
 } from './specialist-capability-service.js';
 import { roleConfigOwnsRepositorySurface } from './tool-tag-service.js';
@@ -61,7 +60,11 @@ export interface SpecialistExecutionBrief {
   remote_mcp_servers: Array<{
     name: string;
     description: string;
-    tool_names: string[];
+    capability_summary: {
+      tool_count: number;
+      resource_count: number;
+      prompt_count: number;
+    };
   }>;
   execution_environment_contract: {
     name: string | null;
@@ -258,7 +261,7 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
     lines.push('', '## Remote MCP Servers');
     lines.push(
       ...brief.remote_mcp_servers.map((server) =>
-        `- ${server.name}: ${server.description} Tools: ${server.tool_names.join(', ')}`.trim(),
+        `- ${server.name}: ${server.description} Verified capabilities: ${formatCapabilityCounts(server.capability_summary)}.`.trim(),
       ),
     );
   }
@@ -344,7 +347,11 @@ function summarizeRemoteMcpServers(capabilities: SpecialistRoleCapabilities | nu
   return capabilities.remoteMcpServers.map((server) => ({
     name: server.name,
     description: server.description,
-    tool_names: summarizeRemoteMcpToolNames(server.discoveredToolsSnapshot),
+    capability_summary: {
+      tool_count: readNonNegativeInteger(server.verifiedCapabilitySummary.tool_count),
+      resource_count: readNonNegativeInteger(server.verifiedCapabilitySummary.resource_count),
+      prompt_count: readNonNegativeInteger(server.verifiedCapabilitySummary.prompt_count),
+    },
   }));
 }
 
@@ -417,6 +424,26 @@ function compactWorkflowBriefVariables(variables: Record<string, unknown>) {
     launch_inputs: nonGoalEntries.slice(0, 8),
     omitted_input_count: Math.max(nonGoalEntries.length - 8, 0),
   };
+}
+
+function readNonNegativeInteger(value: unknown): number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : 0;
+}
+
+function formatCapabilityCounts(value: {
+  tool_count: number;
+  resource_count: number;
+  prompt_count: number;
+}): string {
+  return [
+    pluralizeCapability(value.tool_count, 'tool'),
+    pluralizeCapability(value.resource_count, 'resource'),
+    pluralizeCapability(value.prompt_count, 'prompt'),
+  ].join(', ');
+}
+
+function pluralizeCapability(count: number, singular: string): string {
+  return `${count} ${singular}${count === 1 ? '' : 's'}`;
 }
 
 function readGateField(workItem: Record<string, unknown>, key: string) {

@@ -40,13 +40,68 @@ describe('RemoteMcpVerificationService', () => {
     );
   });
 
-  it('rejects verification when discovery returns zero tools', async () => {
+  it('accepts verification when discovery returns resources or prompts even if tools are empty', async () => {
     verifier.verify.mockResolvedValueOnce({
       verification_status: 'verified',
       verification_error: null,
       verified_transport: 'streamable_http',
       verification_contract_version: 'remote-mcp-v1',
       discovered_tools_snapshot: [],
+      discovered_resources_snapshot: [{ uri: 'docs://guides/getting-started' }],
+      discovered_prompts_snapshot: [],
+      verified_capability_summary: {
+        tool_count: 0,
+        resource_count: 1,
+        prompt_count: 0,
+      },
+      verified_discovery_strategy: 'direct_endpoint',
+      verified_oauth_strategy: null,
+    });
+    serverService.createVerifiedServer.mockResolvedValueOnce({ id: SERVER_ID });
+
+    await service.createServer(TENANT_ID, {
+      name: 'Resource MCP',
+      description: '',
+      endpointUrl: 'https://mcp.example.test/server',
+      callTimeoutSeconds: 300,
+      authMode: 'none',
+      enabledByDefaultForNewSpecialists: false,
+      grantToAllExistingSpecialists: false,
+      parameters: [],
+    });
+
+    expect(serverService.createVerifiedServer).toHaveBeenCalledWith(
+      TENANT_ID,
+      expect.objectContaining({
+        discoveredToolsSnapshot: [],
+        discoveredResourcesSnapshot: [{ uri: 'docs://guides/getting-started' }],
+        discoveredPromptsSnapshot: [],
+        verifiedCapabilitySummary: {
+          tool_count: 0,
+          resource_count: 1,
+          prompt_count: 0,
+        },
+        verifiedDiscoveryStrategy: 'direct_endpoint',
+      }),
+    );
+  });
+
+  it('rejects verification when tools, resources, and prompts are all empty', async () => {
+    verifier.verify.mockResolvedValueOnce({
+      verification_status: 'verified',
+      verification_error: null,
+      verified_transport: 'streamable_http',
+      verification_contract_version: 'remote-mcp-v1',
+      discovered_tools_snapshot: [],
+      discovered_resources_snapshot: [],
+      discovered_prompts_snapshot: [],
+      verified_capability_summary: {
+        tool_count: 0,
+        resource_count: 0,
+        prompt_count: 0,
+      },
+      verified_discovery_strategy: 'direct_endpoint',
+      verified_oauth_strategy: null,
     });
 
     await expect(
@@ -60,8 +115,7 @@ describe('RemoteMcpVerificationService', () => {
         grantToAllExistingSpecialists: false,
         parameters: [],
       }),
-    ).rejects.toThrow('zero tools');
-    expect(serverService.createVerifiedServer).not.toHaveBeenCalled();
+    ).rejects.toThrow('zero tools, resources, and prompts');
   });
 
   it('persists verified transport snapshots on create', async () => {
@@ -73,6 +127,15 @@ describe('RemoteMcpVerificationService', () => {
       discovered_tools_snapshot: [
         { original_name: 'search', runtime_tool_name_preview: 'mcp_docs_search' },
       ],
+      discovered_resources_snapshot: [],
+      discovered_prompts_snapshot: [],
+      verified_capability_summary: {
+        tool_count: 1,
+        resource_count: 0,
+        prompt_count: 0,
+      },
+      verified_discovery_strategy: 'direct_endpoint',
+      verified_oauth_strategy: null,
     });
     serverService.createVerifiedServer.mockResolvedValueOnce({ id: SERVER_ID });
 
@@ -93,6 +156,15 @@ describe('RemoteMcpVerificationService', () => {
         callTimeoutSeconds: 300,
         verifiedTransport: 'http_sse_compat',
         verificationContractVersion: 'remote-mcp-v1',
+        discoveredResourcesSnapshot: [],
+        discoveredPromptsSnapshot: [],
+        verifiedCapabilitySummary: {
+          tool_count: 1,
+          resource_count: 0,
+          prompt_count: 0,
+        },
+        verifiedDiscoveryStrategy: 'direct_endpoint',
+        verifiedOAuthStrategy: null,
       }),
     );
   });
@@ -137,6 +209,15 @@ describe('RemoteMcpVerificationService', () => {
       verified_transport: 'streamable_http',
       verification_contract_version: 'remote-mcp-v1',
       discovered_tools_snapshot: [{ original_name: 'search' }],
+      discovered_resources_snapshot: [],
+      discovered_prompts_snapshot: [],
+      verified_capability_summary: {
+        tool_count: 1,
+        resource_count: 0,
+        prompt_count: 0,
+      },
+      verified_discovery_strategy: 'oauth_discovery',
+      verified_oauth_strategy: 'authorization_code_loopback_callback',
     });
     serverService.updateVerificationResult.mockResolvedValueOnce({ id: SERVER_ID });
 

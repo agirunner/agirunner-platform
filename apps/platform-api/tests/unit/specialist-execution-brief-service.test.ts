@@ -132,10 +132,19 @@ describe('buildSpecialistExecutionBrief', () => {
             authMode: 'parameterized' as const,
             verifiedTransport: 'streamable_http' as const,
             verificationContractVersion: 'remote-mcp-v1',
+            verifiedCapabilitySummary: {
+              tool_count: 2,
+              resource_count: 1,
+              prompt_count: 0,
+            },
             discoveredToolsSnapshot: [
               { original_name: 'search', description: 'Search the web' },
               { original_name: 'research', description: 'Research deeply' },
             ],
+            discoveredResourcesSnapshot: [
+              { uri: 'docs://guides/getting-started', name: 'Getting Started' },
+            ],
+            discoveredPromptsSnapshot: [],
             oauthConfig: null,
             oauthCredentials: null,
             parameters: [],
@@ -210,7 +219,9 @@ describe('buildSpecialistExecutionBrief', () => {
     );
     expect(brief?.rendered_markdown).toContain('## Remote MCP Servers');
     expect(brief?.rendered_markdown).toContain('Tavily Search');
-    expect(brief?.rendered_markdown).toContain('search, research');
+    expect(brief?.rendered_markdown).toContain(
+      'Verified capabilities: 2 tools, 1 resource, 0 prompts.',
+    );
     expect(brief?.rendered_markdown).not.toContain('git_token_secret_ref');
     expect(brief?.rendered_markdown).not.toContain('secret:GITHUB_TOKEN');
   });

@@ -374,6 +374,142 @@ describe('RemoteMcpOAuthService', () => {
     expect(requestedUrls).not.toContain('https://github.com/.well-known/openid-configuration');
   });
 
+  it('falls back to root authorization-server metadata when resource metadata does not advertise authorization servers', async () => {
+    vi.mocked(globalThis.fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === 'https://mcp.example.test/.well-known/oauth-protected-resource/server') {
+        return mockJsonResponse({
+          resource: 'https://mcp.example.test/server',
+        });
+      }
+      if (url === 'https://mcp.example.test/server/.well-known/oauth-protected-resource') {
+        return mockJsonResponse({
+          resource: 'https://mcp.example.test/server',
+        });
+      }
+      if (url === 'https://mcp.example.test/server/.well-known/oauth-authorization-server') {
+        return mockJsonResponse({}, 404);
+      }
+      if (url === 'https://mcp.example.test/.well-known/oauth-authorization-server') {
+        return mockJsonResponse({
+          issuer: 'https://auth.example.test',
+          authorization_endpoint: 'https://auth.example.test/oauth/authorize',
+          token_endpoint: 'https://auth.example.test/oauth/token',
+          registration_endpoint: 'https://auth.example.test/oauth/register',
+          token_endpoint_auth_methods_supported: ['none'],
+          code_challenge_methods_supported: ['S256'],
+          client_id_metadata_document_supported: true,
+        });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO remote_mcp_registration_drafts')) {
+          return { rowCount: 1, rows: [{ id: 'draft-1' }] };
+        }
+        if (sql.includes('INSERT INTO oauth_states')) {
+          return { rowCount: 1, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new RemoteMcpOAuthService(
+      pool as never,
+      {
+        getStoredServer: vi.fn(),
+        createVerifiedServer: vi.fn(),
+        updateVerifiedServer: vi.fn(),
+      } as never,
+      {
+        verify: vi.fn(),
+      } as never,
+      {
+        platformPublicBaseUrl: 'https://platform.example.test',
+      },
+    );
+
+    const result = await service.initiateDraftAuthorization('tenant-1', 'user-1', {
+      name: 'Root Metadata MCP',
+      description: '',
+      endpointUrl: 'https://mcp.example.test/server',
+      callTimeoutSeconds: 300,
+      authMode: 'oauth',
+      enabledByDefaultForNewSpecialists: false,
+      grantToAllExistingSpecialists: false,
+      parameters: [],
+    });
+
+    expect(result.authorizeUrl).toContain('https://auth.example.test/oauth/authorize?');
+  });
+
+  it('uses the configured hosted callback base when building oauth authorize urls', async () => {
+    vi.mocked(globalThis.fetch)
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          authorization_servers: ['https://auth.example.test'],
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          issuer: 'https://auth.example.test',
+          authorization_endpoint: 'https://auth.example.test/oauth/authorize',
+          token_endpoint: 'https://auth.example.test/oauth/token',
+          response_types_supported: ['code'],
+          grant_types_supported: ['authorization_code', 'refresh_token'],
+          code_challenge_methods_supported: ['S256'],
+          token_endpoint_auth_methods_supported: ['none'],
+          client_id_metadata_document_supported: true,
+        }),
+      );
+
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO remote_mcp_registration_drafts')) {
+          return { rowCount: 1, rows: [{ id: 'draft-1' }] };
+        }
+        if (sql.includes('INSERT INTO oauth_states')) {
+          return { rowCount: 1, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new RemoteMcpOAuthService(
+      pool as never,
+      {
+        getStoredServer: vi.fn(),
+        createVerifiedServer: vi.fn(),
+        updateVerifiedServer: vi.fn(),
+      } as never,
+      {
+        verify: vi.fn(),
+      } as never,
+      {
+        platformPublicBaseUrl: 'https://platform.example.test',
+        remoteMcpHostedCallbackBaseUrl: 'https://oauth.example.test',
+      } as never,
+    );
+
+    const result = await service.initiateDraftAuthorization('tenant-1', 'user-1', {
+      name: 'Hosted Callback MCP',
+      description: '',
+      endpointUrl: 'https://mcp.example.test/server',
+      callTimeoutSeconds: 300,
+      authMode: 'oauth',
+      enabledByDefaultForNewSpecialists: false,
+      grantToAllExistingSpecialists: false,
+      parameters: [],
+    });
+
+    expect(result.authorizeUrl).toContain(
+      encodeURIComponent('https://oauth.example.test/api/v1/oauth/callback'),
+    );
+    expect(result.authorizeUrl).not.toContain(
+      encodeURIComponent('http://localhost:1455/auth/callback'),
+    );
+  });
+
   it('disconnects persisted oauth credentials and marks the server unverified', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

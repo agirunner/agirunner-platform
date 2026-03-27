@@ -146,7 +146,15 @@ export const SERVICE_REGISTRY: Record<string, ServiceLogConfig> = {
     entityType: 'remote_mcp_server',
     category: 'config',
     nameField: 'name',
-    ignoreFields: ['created_at', 'updated_at', 'parameters', 'discovered_tools_snapshot'],
+    ignoreFields: [
+      'created_at',
+      'updated_at',
+      'parameters',
+      'discovered_tools_snapshot',
+      'discovered_resources_snapshot',
+      'discovered_prompts_snapshot',
+      'verified_capability_summary',
+    ],
     ignoreMethods: ['listServers', 'getServer', 'getStoredServer'],
   },
   RemoteMcpOAuthService: {

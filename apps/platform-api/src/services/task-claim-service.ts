@@ -1783,7 +1783,10 @@ async function buildRemoteMcpServerContract(
     timeout_seconds: server.callTimeoutSeconds,
     auth_mode: server.authMode,
     verification_contract_version: server.verificationContractVersion,
+    verified_capability_summary: server.verifiedCapabilitySummary,
     discovered_tools_snapshot: server.discoveredToolsSnapshot,
+    discovered_resources_snapshot: server.discoveredResourcesSnapshot,
+    discovered_prompts_snapshot: server.discoveredPromptsSnapshot,
     parameters: oauthParameter ? [...parameters, oauthParameter] : parameters,
   });
 }

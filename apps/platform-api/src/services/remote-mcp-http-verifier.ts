@@ -1,4 +1,10 @@
 import { ValidationError } from '../errors/domain-errors.js';
+import {
+  buildRemoteMcpCapabilitySummary,
+  normalizeRemoteMcpPromptSnapshot,
+  normalizeRemoteMcpResourceSnapshot,
+  normalizeRemoteMcpToolSnapshot,
+} from './remote-mcp-capability-snapshot.js';
 import type { RemoteMcpVerifier } from './remote-mcp-verification-service.js';
 
 const MCP_PROTOCOL_VERSION = '2025-03-26';
@@ -35,6 +41,12 @@ interface ResolvedConnection {
   initializeParams: Record<string, string>;
 }
 
+interface CapabilityFlags {
+  tools: boolean;
+  resources: boolean;
+  prompts: boolean;
+}
+
 export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
   async verify(input: VerifyRequest) {
     const connection = resolveConnection(input);
@@ -59,6 +71,7 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
       null,
     );
     const sessionId = initialize.sessionId;
+    const capabilityFlags = readCapabilityFlags(initialize.result.capabilities);
     await this.postNotification(
       connection.endpointUrl,
       connection.headers,
@@ -67,7 +80,7 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
       {},
       sessionId,
     );
-    const tools = await this.postJsonRpc(
+    const tools = await this.postOptionalJsonRpc(
       connection.endpointUrl,
       connection.headers,
       timeoutSeconds,
@@ -75,13 +88,49 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
       'tools/list',
       {},
       sessionId,
+      capabilityFlags.tools,
     );
+    const resources = await this.postOptionalJsonRpc(
+      connection.endpointUrl,
+      connection.headers,
+      timeoutSeconds,
+      3,
+      'resources/list',
+      {},
+      sessionId,
+      capabilityFlags.resources,
+    );
+    const prompts = await this.postOptionalJsonRpc(
+      connection.endpointUrl,
+      connection.headers,
+      timeoutSeconds,
+      4,
+      'prompts/list',
+      {},
+      sessionId,
+      capabilityFlags.prompts,
+    );
+    const toolsResult = isRecord(tools.result) ? tools.result : {};
+    const resourcesResult = isRecord(resources.result) ? resources.result : {};
+    const promptsResult = isRecord(prompts.result) ? prompts.result : {};
+    const discoveredTools = normalizeRemoteMcpToolSnapshot(toolsResult.tools ?? []);
+    const discoveredResources = normalizeRemoteMcpResourceSnapshot(resourcesResult.resources ?? []);
+    const discoveredPrompts = normalizeRemoteMcpPromptSnapshot(promptsResult.prompts ?? []);
     return {
       verification_status: 'verified' as const,
       verification_error: null,
       verified_transport: 'streamable_http' as const,
       verification_contract_version: VERIFY_CONTRACT_VERSION,
-      discovered_tools_snapshot: normalizeToolSnapshot(tools.result.tools),
+      discovered_tools_snapshot: discoveredTools,
+      discovered_resources_snapshot: discoveredResources,
+      discovered_prompts_snapshot: discoveredPrompts,
+      verified_capability_summary: buildRemoteMcpCapabilitySummary(
+        discoveredTools,
+        discoveredResources,
+        discoveredPrompts,
+      ),
+      verified_discovery_strategy: 'direct_endpoint',
+      verified_oauth_strategy: null,
     };
   }
 
@@ -115,6 +164,7 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
       );
       const initialize = await reader.nextJsonRpcMessage(1);
       const sessionId = initialize.sessionId;
+      const capabilityFlags = readCapabilityFlags(initialize.result.capabilities);
       await this.postNotification(
         messageEndpoint,
         connection.headers,
@@ -123,14 +173,36 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
         {},
         sessionId,
       );
-      await this.postLegacyJsonRpc(messageEndpoint, connection.headers, timeoutSeconds, 2, 'tools/list', {});
-      const tools = await reader.nextJsonRpcMessage(2);
+      if (capabilityFlags.tools) {
+        await this.postLegacyJsonRpc(messageEndpoint, connection.headers, timeoutSeconds, 2, 'tools/list', {});
+      }
+      const tools = capabilityFlags.tools ? await reader.nextJsonRpcMessage(2) : { result: { tools: [] as unknown[] } };
+      if (capabilityFlags.resources) {
+        await this.postLegacyJsonRpc(messageEndpoint, connection.headers, timeoutSeconds, 3, 'resources/list', {});
+      }
+      const resources = capabilityFlags.resources ? await reader.nextJsonRpcMessage(3) : { result: { resources: [] as unknown[] } };
+      if (capabilityFlags.prompts) {
+        await this.postLegacyJsonRpc(messageEndpoint, connection.headers, timeoutSeconds, 4, 'prompts/list', {});
+      }
+      const prompts = capabilityFlags.prompts ? await reader.nextJsonRpcMessage(4) : { result: { prompts: [] as unknown[] } };
+      const discoveredTools = normalizeRemoteMcpToolSnapshot(tools.result.tools ?? []);
+      const discoveredResources = normalizeRemoteMcpResourceSnapshot(resources.result.resources ?? []);
+      const discoveredPrompts = normalizeRemoteMcpPromptSnapshot(prompts.result.prompts ?? []);
       return {
         verification_status: 'verified' as const,
         verification_error: null,
         verified_transport: 'http_sse_compat' as const,
         verification_contract_version: VERIFY_CONTRACT_VERSION,
-        discovered_tools_snapshot: normalizeToolSnapshot(tools.result.tools),
+        discovered_tools_snapshot: discoveredTools,
+        discovered_resources_snapshot: discoveredResources,
+        discovered_prompts_snapshot: discoveredPrompts,
+        verified_capability_summary: buildRemoteMcpCapabilitySummary(
+          discoveredTools,
+          discoveredResources,
+          discoveredPrompts,
+        ),
+        verified_discovery_strategy: 'direct_endpoint',
+        verified_oauth_strategy: null,
       };
     } finally {
       await reader.close();
@@ -160,6 +232,29 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
       throw new StreamableTransportError(response.status);
     }
     return readJsonRpcResponse(response, id);
+  }
+
+  private async postOptionalJsonRpc(
+    endpointUrl: string,
+    headers: Record<string, string>,
+    timeoutSeconds: number,
+    id: number,
+    method: string,
+    params: Record<string, unknown>,
+    sessionId: string | null,
+    supported: boolean,
+  ) {
+    if (!supported) {
+      return { result: {} };
+    }
+    try {
+      return await this.postJsonRpc(endpointUrl, headers, timeoutSeconds, id, method, params, sessionId);
+    } catch (error) {
+      if (isOptionalListFailure(error)) {
+        return { result: {} };
+      }
+      throw error;
+    }
   }
 
   private async postLegacyJsonRpc(
@@ -428,30 +523,6 @@ function parseSseEvent(raw: string) {
   return { event, data, sessionId };
 }
 
-function normalizeToolSnapshot(value: unknown) {
-  if (!Array.isArray(value)) {
-    throw new ValidationError('Remote MCP tools/list response did not include a tools array');
-  }
-  return value.flatMap((entry) => {
-    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
-      return [];
-    }
-    const tool = entry as Record<string, unknown>;
-    const name = readString(tool.name);
-    if (!name) {
-      return [];
-    }
-    return [{
-      original_name: name,
-      description: readString(tool.description),
-      input_schema:
-        tool.inputSchema && typeof tool.inputSchema === 'object' && !Array.isArray(tool.inputSchema)
-          ? tool.inputSchema
-          : {},
-    }];
-  });
-}
-
 function readString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }
@@ -459,4 +530,27 @@ function readString(value: unknown): string | null {
 function isLegacyFallbackCandidate(error: unknown) {
   return error instanceof StreamableTransportError
     && [400, 404, 405].includes(error.status);
+}
+
+function readCapabilityFlags(value: unknown): CapabilityFlags {
+  const capabilities = isRecord(value) ? value : {};
+  return {
+    tools: capabilities.tools === undefined ? true : capabilities.tools !== null && capabilities.tools !== false,
+    resources: capabilities.resources !== undefined && capabilities.resources !== null && capabilities.resources !== false,
+    prompts: capabilities.prompts !== undefined && capabilities.prompts !== null && capabilities.prompts !== false,
+  };
+}
+
+function isOptionalListFailure(error: unknown): boolean {
+  if (!(error instanceof ValidationError)) {
+    return false;
+  }
+  const normalized = error.message.toLowerCase();
+  return normalized.includes('method not found')
+    || normalized.includes('not supported')
+    || normalized.includes('unsupported');
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
