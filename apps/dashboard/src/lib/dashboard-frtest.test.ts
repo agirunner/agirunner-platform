@@ -116,35 +116,37 @@ describe('FR-031a: live workflow execution view', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FR-032: Board view + list view with filtering
+// FR-032: Unified Mission Control shell
 // ─────────────────────────────────────────────────────────────────────────────
-describe('FR-032: workflow list view', () => {
-  it('workflow-list-page exports WorkflowListPage component', () => {
-    const source = readComponent('pages/workflow-list/workflow-list-page.tsx');
-    expect(source).toContain('export function WorkflowListPage');
+describe('FR-032: mission control shell', () => {
+  it('mission-control-page exports MissionControlPage component', () => {
+    const source = readComponent('pages/mission-control/mission-control-page.tsx');
+    expect(source).toContain('export function MissionControlPage');
   });
 
-  it('workflow-list-page uses board posture and operator summaries', () => {
-    const source = readComponent('pages/workflow-list/workflow-list-page.tsx');
-    expect(source).toContain('All Postures');
+  it('mission-control-page uses live, recent, history, and saved views', () => {
+    const source = readComponent('pages/mission-control/mission-control-page.tsx');
     expect(source).toContain('SavedViews');
+    expect(source).toContain('Live');
+    expect(source).toContain('Recent');
+    expect(source).toContain('History');
+    expect(source).toContain('Workflow canvas');
   });
 
-  it('workflow-list-page includes V2 launch controls', () => {
-    const source = readComponent('pages/workflow-list/workflow-list-page.tsx');
-    expect(source).toContain('Launch Playbook');
+  it('mission-control-page includes launch and selected-workflow workspace controls', () => {
+    const source = readComponent('pages/mission-control/mission-control-page.tsx');
+    expect(source).toContain('Launch workflow');
+    expect(source).toContain('MissionControlWorkspacePane');
     expect(source).toContain('SavedViews');
-    expect(source).toContain('normalizeWorkflows');
+    expect(source).toContain('MissionControlLaunchDialog');
   });
 });
 
 describe('FR-035: workflow-level controls', () => {
   it('exposes workflow pause, resume, and cancel controls on summary surfaces', () => {
     const source = [
+      readComponent('pages/mission-control/mission-control-workspace-pane.tsx'),
       readComponent('pages/workflow-detail/workflow-detail-sections.tsx'),
-      readComponent('pages/workflow-list/workflow-list-layouts.tsx'),
-      readComponent('pages/workflow-list/workflow-list-board-view.tsx'),
-      readComponent('pages/live-board/live-board-page.tsx'),
       readComponent('pages/workflow-detail/workflow-control-actions.tsx'),
     ].join('\n');
     expect(source).toContain('WorkflowControlActions');
@@ -404,13 +406,16 @@ describe('operator information architecture', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FR-429: Workflow list view with filters
+// FR-429: Mission Control live canvas with filters
 // ─────────────────────────────────────────────────────────────────────────────
-describe('FR-429: workflow list view with filters', () => {
-  it('workflow-list-page renders the workflow table with board posture filtering capability', () => {
-    const source = readComponent('pages/workflow-list/workflow-list-page.tsx');
-    expect(source).toContain('WorkflowListPage');
-    expect(source).toContain('All Postures');
+describe('FR-429: mission control live canvas with filters', () => {
+  it('mission-control-page renders the unified shell with scope, saved views, and workflow lens controls', () => {
+    const source = readComponent('pages/mission-control/mission-control-page.tsx');
+    expect(source).toContain('Mission Control');
+    expect(source).toContain('Saved view');
+    expect(source).toContain('Scope');
+    expect(source).toContain('Workflow canvas');
+    expect(source).toContain('Task lens');
   });
 
   it('listTasks API supports workflow_id filter for scoped task view', () => {
@@ -419,10 +424,10 @@ describe('FR-429: workflow list view with filters', () => {
     expect(source).toContain('filters');
   });
 
-  it('workflow-list-page subscribes to SSE to refresh list on workflow events', () => {
-    const source = readComponent('pages/workflow-list/workflow-list-page.tsx');
-    expect(source).toContain('queryKey: [\'workflows\']');
-    expect(source).toContain('dashboardApi.listWorkflows');
+  it('mission-control-page subscribes to realtime mission-control updates', () => {
+    const source = readComponent('pages/mission-control/mission-control-page.tsx');
+    expect(source).toContain('useMissionControlRealtime');
+    expect(source).toContain('buildMissionControlLiveQueryKey');
   });
 });
 
