@@ -135,6 +135,9 @@ export async function buildTaskContext(
       : await readSpecialistRoleCapabilities(db, tenantId, String(task.role));
   const flatInstructions = readFlatInstructions(asRecord(task.role_config), agent?.metadata);
   const orchestratorContext = await buildOrchestratorTaskContext(db, tenantId, task);
+  const workflowInputPackets = workflowRow
+    ? await loadWorkflowInputPackets(db, tenantId, String(workflowRow.id))
+    : [];
   const workflowContext = workflowRow
     ? continuousWorkflowRow
       ? buildContinuousWorkflowContext({
@@ -142,6 +145,7 @@ export async function buildTaskContext(
           activeStages,
           workflowRelations,
           parentWorkflowContext,
+          inputPackets: workflowInputPackets,
         })
       : await buildStandardWorkflowContext({
           workflowRow,
@@ -149,6 +153,7 @@ export async function buildTaskContext(
           currentStage: stageProjection?.currentStage ?? null,
           workflowRelations,
           parentWorkflowContext,
+          inputPackets: workflowInputPackets,
         })
     : null;
   const instructionLayers = buildInstructionLayers({
@@ -302,6 +307,7 @@ function buildWorkflowContextBase(params: {
   activeStages: string[];
   workflowRelations: Record<string, unknown> | null;
   parentWorkflowContext: Record<string, unknown> | null;
+  inputPackets: Record<string, unknown>[];
 }) {
   const context: Record<string, unknown> = {
     id: params.workflowRow.id,
@@ -328,6 +334,7 @@ function buildWorkflowContextBase(params: {
       : null,
     relations: params.workflowRelations,
     parent_workflow: params.parentWorkflowContext,
+    input_packets: params.inputPackets,
   };
   return context;
 }
@@ -339,6 +346,7 @@ function buildContinuousWorkflowContext(params: {
   activeStages: string[];
   workflowRelations: Record<string, unknown> | null;
   parentWorkflowContext: Record<string, unknown> | null;
+  inputPackets: Record<string, unknown>[];
 }) {
   return buildWorkflowContextBase(params);
 }
@@ -349,6 +357,7 @@ async function buildStandardWorkflowContext(params: {
   currentStage: string | null;
   workflowRelations: Record<string, unknown> | null;
   parentWorkflowContext: Record<string, unknown> | null;
+  inputPackets: Record<string, unknown>[];
 }) {
   const context = buildWorkflowContextBase(params);
   context.current_stage = params.currentStage;
@@ -604,6 +613,65 @@ async function loadParentWorkflowContext(
     completed_at: row.completed_at ?? null,
     run_summary: asRecord(metadata.run_summary),
   };
+}
+
+async function loadWorkflowInputPackets(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+): Promise<Record<string, unknown>[]> {
+  const packetResult = await db.query(
+    `SELECT id, work_item_id, packet_kind, source, summary, structured_inputs, metadata, created_at
+       FROM workflow_input_packets
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+      ORDER BY created_at DESC
+      LIMIT 20`,
+    [tenantId, workflowId],
+  );
+  if (packetResult.rows.length === 0) {
+    return [];
+  }
+
+  const fileResult = await db.query(
+    `SELECT id, packet_id, file_name, description, content_type, size_bytes, created_at
+       FROM workflow_input_packet_files
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+      ORDER BY created_at ASC`,
+    [tenantId, workflowId],
+  );
+
+  const filesByPacket = new Map<string, Record<string, unknown>[]>();
+  for (const row of fileResult.rows as Record<string, unknown>[]) {
+    const packetId = asOptionalString(row.packet_id);
+    if (!packetId) {
+      continue;
+    }
+    const files = filesByPacket.get(packetId) ?? [];
+    files.push({
+      id: row.id,
+      file_name: row.file_name,
+      description: asOptionalString(row.description),
+      content_type: asOptionalString(row.content_type),
+      size_bytes: asOptionalNumber(row.size_bytes),
+      created_at: formatDateValue(row.created_at),
+      download_url: `/api/v1/workflows/${workflowId}/input-packets/${packetId}/files/${String(row.id)}/content`,
+    });
+    filesByPacket.set(packetId, files);
+  }
+
+  return (packetResult.rows as Record<string, unknown>[]).map((row) => ({
+    id: row.id,
+    work_item_id: asOptionalString(row.work_item_id),
+    packet_kind: asOptionalString(row.packet_kind),
+    source: asOptionalString(row.source),
+    summary: asOptionalString(row.summary),
+    structured_inputs: asRecord(row.structured_inputs),
+    metadata: asRecord(row.metadata),
+    created_at: formatDateValue(row.created_at),
+    files: filesByPacket.get(String(row.id)) ?? [],
+  }));
 }
 
 async function loadOrchestratorPrompt(db: DatabaseQueryable, tenantId: string): Promise<string | undefined> {
@@ -971,6 +1039,16 @@ function toWorkflowRelationRef(workflowId: string, row?: Record<string, unknown>
 
 function asOptionalNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function formatDateValue(value: unknown): string | null {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value;
+  }
+  return null;
 }
 
 function buildInstructionLayerHashes(layers: Record<string, unknown>): Record<string, string> {

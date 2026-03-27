@@ -109,6 +109,9 @@ function createTransactionalWorkflowReplayPool(
 
 function createWorkflowRoutesApp(overrides?: {
   workflowService?: Record<string, unknown>;
+  workflowInputPacketService?: Record<string, unknown>;
+  workflowInterventionService?: Record<string, unknown>;
+  workflowSteeringSessionService?: Record<string, unknown>;
   pgPool?: Record<string, unknown>;
 }) {
   const routeApp = fastify();
@@ -154,6 +157,42 @@ function createWorkflowRoutesApp(overrides?: {
   routeApp.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
   routeApp.decorate('eventService', { emit: async () => undefined } as never);
   routeApp.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) } as never);
+  routeApp.decorate(
+    'workflowInputPacketService',
+    {
+      listWorkflowInputPackets: async () => [],
+      createWorkflowInputPacket: async () => ({}),
+      downloadWorkflowInputPacketFile: async () => ({
+        file: { file_name: 'file.txt' },
+        contentType: 'text/plain',
+        data: Buffer.from('file'),
+      }),
+      ...(overrides?.workflowInputPacketService ?? {}),
+    } as never,
+  );
+  routeApp.decorate(
+    'workflowInterventionService',
+    {
+      listWorkflowInterventions: async () => [],
+      recordIntervention: async () => ({}),
+      downloadWorkflowInterventionFile: async () => ({
+        file: { file_name: 'file.txt' },
+        contentType: 'text/plain',
+        data: Buffer.from('file'),
+      }),
+      ...(overrides?.workflowInterventionService ?? {}),
+    } as never,
+  );
+  routeApp.decorate(
+    'workflowSteeringSessionService',
+    {
+      listSessions: async () => [],
+      createSession: async () => ({}),
+      listMessages: async () => [],
+      appendMessage: async () => ({}),
+      ...(overrides?.workflowSteeringSessionService ?? {}),
+    } as never,
+  );
   routeApp.decorate(
     'modelCatalogService',
     {
@@ -217,6 +256,171 @@ describe('workflow routes', () => {
     expect(routes).not.toContain('/api/v1/workflows/:id/manual-rework');
     expect(routes).toContain('├── tasks (GET, HEAD)');
     expect(routes).toContain('├── events (GET, HEAD)');
+  });
+
+  it('lists workflow input packets through workflow-owned routes', async () => {
+    const listWorkflowInputPackets = vi.fn().mockResolvedValue([
+      {
+        id: 'packet-1',
+        workflow_id: 'workflow-1',
+        work_item_id: null,
+        packet_kind: 'supplemental',
+        source: 'operator',
+        summary: 'Added a deployment checklist',
+        structured_inputs: { environment: 'staging' },
+        metadata: {},
+        created_by_type: 'user',
+        created_by_id: 'user-1',
+        created_at: '2026-03-27T10:00:00.000Z',
+        updated_at: '2026-03-27T10:00:00.000Z',
+        files: [],
+      },
+    ]);
+
+    app = createWorkflowRoutesApp({
+      workflowInputPacketService: { listWorkflowInputPackets },
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/workflows/workflow-1/input-packets',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(listWorkflowInputPackets).toHaveBeenCalledWith('tenant-1', 'workflow-1');
+    expect(response.json().data[0]).toEqual(
+      expect.objectContaining({
+        id: 'packet-1',
+        packet_kind: 'supplemental',
+      }),
+    );
+  });
+
+  it('records workflow interventions with attachments through workflow-owned routes', async () => {
+    const recordIntervention = vi.fn().mockResolvedValue({
+      id: 'intervention-1',
+      workflow_id: 'workflow-1',
+      work_item_id: '00000000-0000-0000-0000-000000000201',
+      task_id: '00000000-0000-0000-0000-000000000301',
+      kind: 'task_action',
+      origin: 'operator',
+      status: 'applied',
+      summary: 'Retry the failed verification task',
+      note: 'Use the attached checklist first.',
+      structured_action: { kind: 'retry_task', task_id: 'task-1' },
+      metadata: {},
+      created_by_type: 'user',
+      created_by_id: 'user-1',
+      created_at: '2026-03-27T10:05:00.000Z',
+      updated_at: '2026-03-27T10:05:00.000Z',
+      files: [],
+    });
+
+    app = createWorkflowRoutesApp({
+      workflowInterventionService: { recordIntervention },
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/interventions',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        kind: 'task_action',
+        summary: 'Retry the failed verification task',
+        note: 'Use the attached checklist first.',
+        work_item_id: '00000000-0000-0000-0000-000000000201',
+        task_id: '00000000-0000-0000-0000-000000000301',
+        structured_action: { kind: 'retry_task', task_id: '00000000-0000-0000-0000-000000000301' },
+        files: [
+          {
+            file_name: 'checklist.txt',
+            content_base64: Buffer.from('checklist').toString('base64'),
+            content_type: 'text/plain',
+          },
+        ],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(recordIntervention).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({
+        kind: 'task_action',
+        workItemId: '00000000-0000-0000-0000-000000000201',
+        taskId: '00000000-0000-0000-0000-000000000301',
+      }),
+    );
+  });
+
+  it('creates steering sessions and persists operator messages through workflow-owned routes', async () => {
+    const createSession = vi.fn().mockResolvedValue({
+      id: 'session-1',
+      workflow_id: 'workflow-1',
+      title: 'Recovery session',
+      status: 'active',
+      created_by_type: 'user',
+      created_by_id: 'user-1',
+      created_at: '2026-03-27T10:00:00.000Z',
+      updated_at: '2026-03-27T10:00:00.000Z',
+    });
+    const appendMessage = vi.fn().mockResolvedValue({
+      id: 'message-1',
+      workflow_id: 'workflow-1',
+      steering_session_id: 'session-1',
+      role: 'operator',
+      content: 'Focus on getting this workflow unblocked today.',
+      structured_proposal: {},
+      intervention_id: null,
+      created_by_type: 'user',
+      created_by_id: 'user-1',
+      created_at: '2026-03-27T10:10:00.000Z',
+    });
+
+    app = createWorkflowRoutesApp({
+      workflowSteeringSessionService: {
+        createSession,
+        appendMessage,
+      },
+    });
+    await app.register(workflowRoutes);
+
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/steering-sessions',
+      headers: { authorization: 'Bearer test' },
+      payload: { title: 'Recovery session' },
+    });
+
+    expect(createResponse.statusCode).toBe(201);
+    expect(createSession).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({ title: 'Recovery session' }),
+    );
+
+    const messageResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/steering-sessions/session-1/messages',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        content: 'Focus on getting this workflow unblocked today.',
+      },
+    });
+
+    expect(messageResponse.statusCode).toBe(201);
+    expect(appendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      'session-1',
+      expect.objectContaining({
+        role: 'operator',
+        content: 'Focus on getting this workflow unblocked today.',
+      }),
+    );
   });
 
   it('exposes workflow-scoped event browsing with workflow entity fallback filtering', async () => {

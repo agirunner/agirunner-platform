@@ -28,6 +28,7 @@ import { WorkflowActivationService } from '../../services/workflow-activation-se
 import { WorkflowStateService } from '../../services/workflow-state-service.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 import { runIdempotentWorkflowBackedTaskAction } from './task-route-idempotency.js';
+import { workflowOperatorRecordRoutes } from './workflow-operator-record-routes.js';
 
 const roleModelOverrideSchema = z.object({
   provider: z.string().min(1).max(120),
@@ -269,6 +270,8 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     authenticateApiKey,
     withAllowedScopes(['admin', 'worker']),
   ];
+
+  await app.register(workflowOperatorRecordRoutes);
 
   app.post(
     '/api/v1/workflows',

@@ -41,6 +41,9 @@ import type { SpecialistSkillService } from './services/specialist-skill-service
 import type { ToolTagService } from './services/tool-tag-service.js';
 import type { WorkflowService } from './services/workflow-service.js';
 import type { WorkflowActivationService } from './services/workflow-activation-service.js';
+import type { WorkflowInputPacketService } from './services/workflow-input-packet-service.js';
+import type { WorkflowInterventionService } from './services/workflow-intervention-service.js';
+import type { WorkflowSteeringSessionService } from './services/workflow-steering-session-service.js';
 import type { PlatformTransportTimingDefaults } from './services/platform-timing-defaults.js';
 
 declare module 'fastify' {
@@ -61,6 +64,9 @@ declare module 'fastify' {
     playbookService: PlaybookService;
     workflowService: WorkflowService;
     workflowActivationService: WorkflowActivationService;
+    workflowInputPacketService: WorkflowInputPacketService;
+    workflowInterventionService: WorkflowInterventionService;
+    workflowSteeringSessionService: WorkflowSteeringSessionService;
     taskService: TaskService;
     userService: UserService;
     apiKeyService: ApiKeyService;

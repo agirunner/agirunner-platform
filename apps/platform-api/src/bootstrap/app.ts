@@ -58,6 +58,9 @@ import { WorkerService } from '../services/worker-service.js';
 import { WorkflowService } from '../services/workflow-service.js';
 import { WorkflowActivationService } from '../services/workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from '../services/workflow-activation-dispatch-service.js';
+import { WorkflowInputPacketService } from '../services/workflow-input-packet-service.js';
+import { WorkflowInterventionService } from '../services/workflow-intervention-service.js';
+import { WorkflowSteeringSessionService } from '../services/workflow-steering-session-service.js';
 import { seedConfigTables } from './seed.js';
 import { registerPlugins } from './plugins.js';
 import { registerRoutes } from './routes.js';
@@ -211,6 +214,19 @@ export async function buildApp() {
     missionControlLiveService,
     missionControlHistoryService,
   );
+  const workflowInputPacketService = new WorkflowInputPacketService(
+    pool,
+    artifactStorage,
+    appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_FILES,
+    appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_BYTES,
+  );
+  const workflowInterventionService = new WorkflowInterventionService(
+    pool,
+    artifactStorage,
+    appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_FILES,
+    appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_BYTES,
+  );
+  const workflowSteeringSessionService = new WorkflowSteeringSessionService(pool);
   const remoteMcpOAuthClientProfileService = new RemoteMcpOAuthClientProfileService(pool);
   const remoteMcpServerService = new RemoteMcpServerService(pool);
   const remoteMcpVerifier = new RemoteMcpHttpVerifier();
@@ -257,6 +273,18 @@ export async function buildApp() {
   app.decorate('playbookService', createLoggedService(playbookService, 'PlaybookService', logService));
   app.decorate('workflowService', createLoggedService(workflowService, 'WorkflowService', logService));
   app.decorate('workflowActivationService', createLoggedService(workflowActivationService, 'WorkflowActivationService', logService));
+  app.decorate(
+    'workflowInputPacketService',
+    createLoggedService(workflowInputPacketService, 'WorkflowInputPacketService', logService),
+  );
+  app.decorate(
+    'workflowInterventionService',
+    createLoggedService(workflowInterventionService, 'WorkflowInterventionService', logService),
+  );
+  app.decorate(
+    'workflowSteeringSessionService',
+    createLoggedService(workflowSteeringSessionService, 'WorkflowSteeringSessionService', logService),
+  );
   app.decorate('taskService', createLoggedService(taskService, 'TaskService', logService));
   app.decorate('userService', createLoggedService(userService, 'UserService', logService));
   app.decorate('apiKeyService', createLoggedService(apiKeyService, 'ApiKeyService', logService));
