@@ -266,7 +266,7 @@ export class WorkflowStateService {
   }
 }
 
-interface WorkflowPostureBase {
+export interface WorkflowPostureBase {
   lifecycle: string;
   stages: Array<{ status: string; gate_status: string }>;
   hasActiveOrchestratorTask: boolean;
@@ -275,17 +275,17 @@ interface WorkflowPostureBase {
 
 type WorkflowPostureShape = Omit<WorkflowPostureBase, 'lifecycle'>;
 
-interface StandardWorkflowPosture extends WorkflowPostureBase {
+export interface StandardWorkflowPosture extends WorkflowPostureBase {
   lifecycle: 'planned';
 }
 
-interface ContinuousWorkflowPosture extends WorkflowPostureBase {
+export interface ContinuousWorkflowPosture extends WorkflowPostureBase {
   lifecycle: 'ongoing';
 }
 
-type WorkflowPosture = StandardWorkflowPosture | ContinuousWorkflowPosture;
+export type WorkflowPosture = StandardWorkflowPosture | ContinuousWorkflowPosture;
 
-function buildWorkflowPosture(
+export function buildWorkflowPosture(
   lifecycle: string,
   stages: Array<{ status: string; gate_status: string }>,
   hasActiveOrchestratorTask: boolean,
@@ -344,11 +344,11 @@ function hasWorkflowPauseMarker(metadata: Record<string, unknown>) {
   return readOptionalString(metadata.pause_requested_at) !== null;
 }
 
-function isTerminalWorkflowState(state: string) {
+export function isTerminalWorkflowState(state: string) {
   return state === 'completed' || state === 'failed' || state === 'cancelled';
 }
 
-function isAttentionGateStatus(status: string) {
+export function isAttentionGateStatus(status: string) {
   return status === 'awaiting_approval' || status === 'rejected' || status === 'changes_requested';
 }
 
