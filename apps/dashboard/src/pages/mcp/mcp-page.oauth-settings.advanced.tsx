@@ -16,26 +16,80 @@ export function McpPageOauthAdvancedSettings(props: {
   ) => props.onChange({ ...props.value, [key]: value });
 
   return (
-    <div className="grid gap-4 rounded-lg border border-border/70 bg-muted/10 p-4">
-      <div>
-        <p className="font-medium text-foreground">Advanced OAuth settings</p>
-        <p className="text-sm text-muted">
-          Use these fields only when the server requires non-default callback handling,
-          metadata overrides, or advanced request contracts.
-        </p>
-      </div>
+    <div className="grid gap-5">
+      {props.value.clientStrategy === 'manual_client' ? (
+        <section className="grid gap-4">
+          <div>
+            <p className="font-medium text-foreground">Manual client details</p>
+            <p className="text-sm text-muted">
+              Supply the client credentials and endpoint contract provided by the remote authorization server operator.
+            </p>
+          </div>
+          <div className="grid gap-4 xl:grid-cols-3">
+            <TextField
+              label="Client ID"
+              value={props.value.clientId}
+              onChange={(value) => update('clientId', value)}
+              placeholder="client-id"
+            />
+            <SecretField
+              label="Client secret"
+              value={props.value.clientSecret}
+              hasStoredSecret={props.value.hasStoredClientSecret}
+              onChange={(value) => update('clientSecret', value)}
+            />
+            <SelectField
+              label="Token auth method"
+              value={props.value.tokenEndpointAuthMethod}
+              onValueChange={(value) =>
+                update('tokenEndpointAuthMethod', value as RemoteMcpOauthFormState['tokenEndpointAuthMethod'])
+              }
+              items={[
+                ['none', 'None'],
+                ['client_secret_post', 'Client secret POST'],
+                ['client_secret_basic', 'Client secret basic'],
+                ['private_key_jwt', 'Private key JWT'],
+              ]}
+            />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            {requiresAuthorizationEndpoint(props.value) ? (
+              <TextField
+                label="Authorization endpoint"
+                value={props.value.authorizationEndpointOverride}
+                onChange={(value) => update('authorizationEndpointOverride', value)}
+                placeholder="https://auth.example.test/oauth/authorize"
+              />
+            ) : null}
+            <TextField
+              label="Token endpoint"
+              value={props.value.tokenEndpointOverride}
+              onChange={(value) => update('tokenEndpointOverride', value)}
+              placeholder="https://auth.example.test/oauth/token"
+            />
+            {props.value.grantType === 'device_authorization' ? (
+              <TextField
+                label="Device authorization endpoint"
+                value={props.value.deviceAuthorizationEndpointOverride}
+                onChange={(value) => update('deviceAuthorizationEndpointOverride', value)}
+                placeholder="https://auth.example.test/oauth/device"
+              />
+            ) : null}
+          </div>
+        </section>
+      ) : null}
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
-        <SelectField
-          label="Callback mode"
-          value={props.value.callbackMode}
-          onValueChange={(value) => update('callbackMode', value as RemoteMcpOauthFormState['callbackMode'])}
-          items={[
-            ['loopback', 'Loopback'],
-            ['hosted_https', 'Hosted HTTPS'],
-          ]}
-        />
-        <div className="grid gap-4 md:grid-cols-2">
+      <section className="grid gap-4">
+        <div className="grid gap-4 md:grid-cols-3">
+          <SelectField
+            label="Callback mode"
+            value={props.value.callbackMode}
+            onValueChange={(value) => update('callbackMode', value as RemoteMcpOauthFormState['callbackMode'])}
+            items={[
+              ['loopback', 'Loopback'],
+              ['hosted_https', 'Hosted HTTPS'],
+            ]}
+          />
           <SelectField
             label="PAR mode"
             value={props.value.parMode}
@@ -56,78 +110,93 @@ export function McpPageOauthAdvancedSettings(props: {
               ['request_uri', 'Request URI'],
             ]}
           />
-          <div className="md:col-span-2">
-            <SecretField
-              label="Private key PEM"
-              value={props.value.privateKeyPem}
-              hasStoredSecret={props.value.hasStoredPrivateKeyPem}
-              onChange={(value) => update('privateKeyPem', value)}
-              multiline
-            />
-          </div>
         </div>
-      </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <TextField
-          label="Registration endpoint override"
-          value={props.value.registrationEndpointOverride}
-          onChange={(value) => update('registrationEndpointOverride', value)}
-          placeholder="https://auth.example.test/oauth/register"
-        />
-        <TextField
-          label="Protected resource metadata URL override"
-          value={props.value.protectedResourceMetadataUrlOverride}
-          onChange={(value) => update('protectedResourceMetadataUrlOverride', value)}
-          placeholder="https://mcp.example.test/.well-known/oauth-protected-resource/server"
-        />
-        <TextField
-          label="Authorization server metadata URL override"
-          value={props.value.authorizationServerMetadataUrlOverride}
-          onChange={(value) => update('authorizationServerMetadataUrlOverride', value)}
-          placeholder="https://auth.example.test/.well-known/oauth-authorization-server"
-        />
-        <TextField
-          label="Device authorization endpoint override"
-          value={props.value.deviceAuthorizationEndpointOverride}
-          onChange={(value) => update('deviceAuthorizationEndpointOverride', value)}
-          placeholder="https://auth.example.test/oauth/device"
-        />
-      </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <TextField
+            label="Registration endpoint override"
+            value={props.value.registrationEndpointOverride}
+            onChange={(value) => update('registrationEndpointOverride', value)}
+            placeholder="https://auth.example.test/oauth/register"
+          />
+          <TextField
+            label="Protected resource metadata URL override"
+            value={props.value.protectedResourceMetadataUrlOverride}
+            onChange={(value) => update('protectedResourceMetadataUrlOverride', value)}
+            placeholder="https://mcp.example.test/.well-known/oauth-protected-resource/server"
+          />
+          <TextField
+            label="Authorization server metadata URL override"
+            value={props.value.authorizationServerMetadataUrlOverride}
+            onChange={(value) => update('authorizationServerMetadataUrlOverride', value)}
+            placeholder="https://auth.example.test/.well-known/oauth-authorization-server"
+          />
+          {props.value.clientStrategy !== 'manual_client'
+            && props.value.grantType === 'device_authorization' ? (
+              <TextField
+                label="Device authorization endpoint override"
+                value={props.value.deviceAuthorizationEndpointOverride}
+                onChange={(value) => update('deviceAuthorizationEndpointOverride', value)}
+                placeholder="https://auth.example.test/oauth/device"
+              />
+            ) : null}
+        </div>
 
-      <div className="grid gap-4 xl:grid-cols-3">
-        <TextareaField
-          label="Scopes"
-          value={props.value.scopesText}
-          onChange={(value) => update('scopesText', value)}
-          description="One scope per line or comma-separated."
-          placeholder={'repo\nread:org'}
-        />
-        <TextareaField
-          label="Resource indicators"
-          value={props.value.resourceIndicatorsText}
-          onChange={(value) => update('resourceIndicatorsText', value)}
-          description="One resource per line or comma-separated."
-          placeholder="https://mcp.example.test/server"
-        />
-        <TextareaField
-          label="Audiences"
-          value={props.value.audiencesText}
-          onChange={(value) => update('audiencesText', value)}
-          description="One audience per line or comma-separated."
-          placeholder="https://auth.example.test"
-        />
-      </div>
+        <div className="grid gap-4 xl:grid-cols-3">
+          <TextareaField
+            label="Scopes"
+            value={props.value.scopesText}
+            onChange={(value) => update('scopesText', value)}
+            description="One scope per line or comma-separated."
+            placeholder={'repo\nread:org'}
+          />
+          <TextareaField
+            label="Resource indicators"
+            value={props.value.resourceIndicatorsText}
+            onChange={(value) => update('resourceIndicatorsText', value)}
+            description="One resource per line or comma-separated."
+            placeholder="https://mcp.example.test/server"
+          />
+          <TextareaField
+            label="Audiences"
+            value={props.value.audiencesText}
+            onChange={(value) => update('audiencesText', value)}
+            description="One audience per line or comma-separated."
+            placeholder="https://auth.example.test"
+          />
+        </div>
 
-      {props.value.grantType === 'enterprise_managed_authorization' ? (
-        <TextareaField
-          label="Enterprise authorization profile"
-          value={props.value.enterpriseProfileText}
-          onChange={(value) => update('enterpriseProfileText', value)}
-          description="JSON object for enterprise-managed authorization broker settings."
-          placeholder={'{\n  "issuer": "https://enterprise.example.test"\n}'}
-        />
-      ) : null}
+        {showsPrivateKeyField(props.value) ? (
+          <SecretField
+            label="Private key PEM"
+            value={props.value.privateKeyPem}
+            hasStoredSecret={props.value.hasStoredPrivateKeyPem}
+            onChange={(value) => update('privateKeyPem', value)}
+            multiline
+          />
+        ) : null}
+
+        {props.value.grantType === 'enterprise_managed_authorization' ? (
+          <TextareaField
+            label="Enterprise authorization profile"
+            value={props.value.enterpriseProfileText}
+            onChange={(value) => update('enterpriseProfileText', value)}
+            description="JSON object for enterprise-managed authorization broker settings."
+            placeholder={'{\n  "issuer": "https://enterprise.example.test"\n}'}
+          />
+        ) : null}
+      </section>
     </div>
   );
+}
+
+function requiresAuthorizationEndpoint(value: RemoteMcpOauthFormState): boolean {
+  return value.grantType === 'authorization_code'
+    || value.grantType === 'enterprise_managed_authorization';
+}
+
+function showsPrivateKeyField(value: RemoteMcpOauthFormState): boolean {
+  return value.tokenEndpointAuthMethod === 'private_key_jwt'
+    || value.privateKeyPem.trim().length > 0
+    || value.hasStoredPrivateKeyPem;
 }

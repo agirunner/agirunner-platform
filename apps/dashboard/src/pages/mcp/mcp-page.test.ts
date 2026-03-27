@@ -88,9 +88,11 @@ describe('mcp page source', () => {
     expect(source).toContain('Endpoint URL');
     expect(source).toContain('Authentication');
     expect(source).toContain('Transport preference');
-    expect(source).toContain('xl:grid-cols-[minmax(0,1fr)_14rem]');
-    expect(source).toContain('xl:row-span-2');
-    expect(source).toContain('xl:col-span-2');
+    expect(source).toContain('xl:grid-cols-[minmax(0,1fr)_16rem_12rem]');
+    expect(source).toContain('xl:col-span-3');
+    expect(source).toContain('lg:grid-cols-2');
+    expect(source).not.toContain('xl:grid-cols-[minmax(0,1fr)_24rem]');
+    expect(source).not.toContain('<aside className="space-y-5">');
     expect(source).toContain('Enabled by default for new specialists');
     expect(source).toContain('Grant to all existing specialists');
     expect(source).toContain('Call timeout (seconds)');
@@ -116,14 +118,29 @@ describe('mcp page source', () => {
     expect(source).toContain('normalizeParametersForAuthMode');
   });
 
-  it('aligns advanced oauth PAR and JAR fields with the private key group', () => {
+  it('keeps manual client and advanced oauth settings inside one advanced block', () => {
+    const settingsSource = readSource('./mcp-page.oauth-settings.tsx');
+    const advancedSource = readSource('./mcp-page.oauth-settings.advanced.tsx');
+
+    expect(settingsSource).toContain('Open this section for manual client details');
+    expect(settingsSource).toContain('border-t border-border/70 px-4 py-4');
+    expect(settingsSource).not.toContain('Client ID');
+    expect(settingsSource).not.toContain('Client secret');
+    expect(settingsSource).not.toContain('Token auth method');
+    expect(advancedSource).toContain('Manual client details');
+    expect(advancedSource).toContain('Client ID');
+    expect(advancedSource).toContain('Client secret');
+    expect(advancedSource).toContain('Token auth method');
+  });
+
+  it('lays out advanced oauth fields in balanced grouped rows', () => {
     const source = readCombinedSource();
 
-    expect(source).toContain('xl:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]');
+    expect(source).toContain('className="grid gap-4 md:grid-cols-3"');
     expect(source).toContain('label="PAR mode"');
     expect(source).toContain('label="JAR mode"');
+    expect(source).toContain('label="Callback mode"');
     expect(source).toContain('className="grid gap-4 md:grid-cols-2"');
-    expect(source).toContain('className="md:col-span-2"');
     expect(source).toContain('label="Private key PEM"');
   });
 
@@ -135,6 +152,7 @@ describe('mcp page source', () => {
     expect(source).toContain('Advanced OAuth settings');
     expect(source).toContain('showAdvanced');
     expect(source).toContain('Manual client');
+    expect(source).toContain('Manual client setup requires the OAuth client and endpoint values supplied by the remote authorization server operator. Those fields live under Advanced OAuth settings.');
   });
 
   it('keeps the mcp action buttons on one row', () => {

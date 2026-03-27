@@ -57,135 +57,102 @@ export function McpPageDialog(props: {
           }}
         >
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
-              <div className="space-y-5">
-                <section className="grid gap-4 rounded-lg border border-border/70 bg-surface px-5 py-5">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <label className="grid gap-2 text-sm xl:col-span-2">
-                      <span className="font-medium">Name</span>
-                      <Input
-                        value={props.form.name}
-                        onChange={(event) =>
-                          props.onFormChange({ ...props.form, name: event.target.value })
-                        }
-                      />
-                    </label>
-                    <label className="grid gap-2 text-sm">
-                      <span className="font-medium">Authentication</span>
-                      <Select
-                        value={props.form.authMode}
-                        onValueChange={(value) =>
-                          props.onFormChange({
-                            ...props.form,
-                            authMode: value as RemoteMcpServerFormState['authMode'],
-                            parameters: normalizeParametersForAuthMode(
-                              props.form.parameters,
-                              value as RemoteMcpServerFormState['authMode'],
-                            ),
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select authentication mode" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">No authentication</SelectItem>
-                          <SelectItem value="parameterized">Parameterized</SelectItem>
-                          <SelectItem value="oauth">OAuth</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </label>
-                  </div>
-                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_14rem]">
-                    <label className="grid gap-2 text-sm xl:row-span-2">
-                      <span className="font-medium">Endpoint URL</span>
-                      <Input
-                        value={props.form.endpointUrl}
-                        onChange={(event) =>
-                          props.onFormChange({ ...props.form, endpointUrl: event.target.value })
-                        }
-                        placeholder="https://mcp.example.test/server"
-                      />
-                    </label>
-                    <label className="grid gap-2 text-sm">
-                      <span className="font-medium">Transport preference</span>
-                      <Select
-                        value={props.form.transportPreference}
-                        onValueChange={(value) =>
-                          props.onFormChange({
-                            ...props.form,
-                            transportPreference: value as RemoteMcpServerFormState['transportPreference'],
-                          })
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select transport preference" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="auto">Automatic negotiation</SelectItem>
-                          <SelectItem value="streamable_http">Streamable HTTP only</SelectItem>
-                          <SelectItem value="http_sse_compat">HTTP + SSE compatibility only</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </label>
-                    <label className="grid gap-2 text-sm">
-                      <span className="font-medium">Call timeout (seconds)</span>
-                      <Input
-                        inputMode="numeric"
-                        value={props.form.callTimeoutSeconds}
-                        onChange={(event) =>
-                          props.onFormChange({
-                            ...props.form,
-                            callTimeoutSeconds: event.target.value,
-                          })
-                        }
-                        placeholder="300"
-                      />
-                    </label>
-                    <label className="grid gap-2 text-sm xl:col-span-2">
-                      <span className="font-medium">Description</span>
-                      <Textarea
-                        value={props.form.description}
-                        onChange={(event) =>
-                          props.onFormChange({ ...props.form, description: event.target.value })
-                        }
-                        rows={4}
-                      />
-                    </label>
-                  </div>
-                </section>
-                {props.form.authMode === 'oauth' ? (
-                  <McpPageOauthSettings
-                    value={props.form.oauth}
-                    onChange={(oauth) => props.onFormChange({ ...props.form, oauth })}
-                  />
-                ) : null}
-                <McpPageParametersSection
-                  authMode={props.form.authMode}
-                  parameters={props.form.parameters}
-                  onAdd={() =>
-                    props.onFormChange({
-                      ...props.form,
-                      parameters: [...props.form.parameters, createRemoteMcpParameterForm()],
-                    })
-                  }
-                  onChange={(parameterId, nextParameter) =>
-                    props.onFormChange({
-                      ...props.form,
-                      parameters: props.form.parameters.map((entry) =>
-                        entry.id === parameterId ? nextParameter : entry,
-                      ),
-                    })
-                  }
-                  onRemove={(parameterId) =>
-                    props.onFormChange({
-                      ...props.form,
-                      parameters: ensureParametersAfterRemoval(props.form.parameters, parameterId),
-                    })
-                  }
-                />
-              </div>
-              <aside className="space-y-5">
+            <div className="space-y-5">
+              <section className="grid gap-4 rounded-lg border border-border/70 bg-surface px-5 py-5">
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_16rem_12rem]">
+                  <label className="grid gap-2 text-sm">
+                    <span className="font-medium">Name</span>
+                    <Input
+                      value={props.form.name}
+                      onChange={(event) =>
+                        props.onFormChange({ ...props.form, name: event.target.value })
+                      }
+                    />
+                  </label>
+                  <label className="grid gap-2 text-sm">
+                    <span className="font-medium">Authentication</span>
+                    <Select
+                      value={props.form.authMode}
+                      onValueChange={(value) =>
+                        props.onFormChange({
+                          ...props.form,
+                          authMode: value as RemoteMcpServerFormState['authMode'],
+                          parameters: normalizeParametersForAuthMode(
+                            props.form.parameters,
+                            value as RemoteMcpServerFormState['authMode'],
+                          ),
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select authentication mode" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">No authentication</SelectItem>
+                        <SelectItem value="parameterized">Parameterized</SelectItem>
+                        <SelectItem value="oauth">OAuth</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </label>
+                  <label className="grid gap-2 text-sm">
+                    <span className="font-medium">Call timeout (seconds)</span>
+                    <Input
+                      inputMode="numeric"
+                      value={props.form.callTimeoutSeconds}
+                      onChange={(event) =>
+                        props.onFormChange({
+                          ...props.form,
+                          callTimeoutSeconds: event.target.value,
+                        })
+                      }
+                      placeholder="300"
+                    />
+                  </label>
+                  <label className="grid gap-2 text-sm xl:col-span-2">
+                    <span className="font-medium">Endpoint URL</span>
+                    <Input
+                      value={props.form.endpointUrl}
+                      onChange={(event) =>
+                        props.onFormChange({ ...props.form, endpointUrl: event.target.value })
+                      }
+                      placeholder="https://mcp.example.test/server"
+                    />
+                  </label>
+                  <label className="grid gap-2 text-sm">
+                    <span className="font-medium">Transport preference</span>
+                    <Select
+                      value={props.form.transportPreference}
+                      onValueChange={(value) =>
+                        props.onFormChange({
+                          ...props.form,
+                          transportPreference: value as RemoteMcpServerFormState['transportPreference'],
+                        })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select transport preference" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="auto">Automatic negotiation</SelectItem>
+                        <SelectItem value="streamable_http">Streamable HTTP only</SelectItem>
+                        <SelectItem value="http_sse_compat">HTTP + SSE compatibility only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </label>
+                  <label className="grid gap-2 text-sm xl:col-span-3">
+                    <span className="font-medium">Description</span>
+                    <Textarea
+                      value={props.form.description}
+                      onChange={(event) =>
+                        props.onFormChange({ ...props.form, description: event.target.value })
+                      }
+                      rows={4}
+                    />
+                  </label>
+                </div>
+              </section>
+
+              <div className="grid gap-5 lg:grid-cols-2">
                 <section className="rounded-lg border border-border/70 bg-muted/10 px-5 py-5">
                   <p className="font-medium text-foreground">Grant posture</p>
                   <div className="mt-4 space-y-4">
@@ -233,7 +200,38 @@ export function McpPageDialog(props: {
                     ) : null}
                   </div>
                 </section>
-              </aside>
+              </div>
+
+              {props.form.authMode === 'oauth' ? (
+                <McpPageOauthSettings
+                  value={props.form.oauth}
+                  onChange={(oauth) => props.onFormChange({ ...props.form, oauth })}
+                />
+              ) : null}
+              <McpPageParametersSection
+                authMode={props.form.authMode}
+                parameters={props.form.parameters}
+                onAdd={() =>
+                  props.onFormChange({
+                    ...props.form,
+                    parameters: [...props.form.parameters, createRemoteMcpParameterForm()],
+                  })
+                }
+                onChange={(parameterId, nextParameter) =>
+                  props.onFormChange({
+                    ...props.form,
+                    parameters: props.form.parameters.map((entry) =>
+                      entry.id === parameterId ? nextParameter : entry,
+                    ),
+                  })
+                }
+                onRemove={(parameterId) =>
+                  props.onFormChange({
+                    ...props.form,
+                    parameters: ensureParametersAfterRemoval(props.form.parameters, parameterId),
+                  })
+                }
+              />
             </div>
           </div>
           <div className="border-t border-border/70 bg-surface/95 px-6 py-4 backdrop-blur">

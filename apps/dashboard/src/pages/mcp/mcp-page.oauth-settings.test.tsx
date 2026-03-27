@@ -43,11 +43,14 @@ describe('mcp page oauth settings', () => {
     expect(markup).toContain('Setup mode');
     expect(markup).toContain('Automatic discovery');
     expect(markup).toContain('Advanced OAuth settings');
+    expect(markup).toContain('Open this section for manual client details');
     expect(markup).not.toContain('Protected resource metadata URL override');
     expect(markup).not.toContain('Authorization server metadata URL override');
     expect(markup).not.toContain('PAR mode');
     expect(markup).not.toContain('JAR mode');
     expect(markup).not.toContain('Enterprise authorization profile');
+    expect(markup).not.toContain('Client ID');
+    expect(markup).not.toContain('Client secret');
   });
 
   it('shows the required manual client fields when manual oauth setup is selected', () => {
@@ -60,6 +63,7 @@ describe('mcp page oauth settings', () => {
       />,
     );
 
+    expect(markup).toContain('Manual client details');
     expect(markup).toContain('Client ID');
     expect(markup).toContain('Client secret');
     expect(markup).toContain('Authorization endpoint');

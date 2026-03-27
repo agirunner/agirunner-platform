@@ -4,9 +4,7 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import { Button } from '../../components/ui/button.js';
 import type { RemoteMcpOauthFormState } from './mcp-page.support.js';
 import {
-  SecretField,
   SelectField,
-  TextField,
 } from './mcp-page.oauth-fields.js';
 import { McpPageOauthAdvancedSettings } from './mcp-page.oauth-settings.advanced.js';
 
@@ -14,10 +12,10 @@ export function McpPageOauthSettings(props: {
   value: RemoteMcpOauthFormState;
   onChange(next: RemoteMcpOauthFormState): void;
 }) {
-  const [showAdvanced, setShowAdvanced] = useState(hasAdvancedConfiguration(props.value));
+  const [showAdvanced, setShowAdvanced] = useState(shouldShowAdvancedByDefault(props.value));
 
   useEffect(() => {
-    if (hasAdvancedConfiguration(props.value)) {
+    if (shouldShowAdvancedByDefault(props.value)) {
       setShowAdvanced(true);
     }
   }, [props.value]);
@@ -65,88 +63,35 @@ export function McpPageOauthSettings(props: {
         {readOauthSetupDescription(props.value)}
       </div>
 
-      {showsManualClientFields(props.value) ? (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          <TextField
-            label="Client ID"
-            value={props.value.clientId}
-            onChange={(value) => update('clientId', value)}
-            placeholder="client-id"
-          />
-          <SecretField
-            label="Client secret"
-            value={props.value.clientSecret}
-            hasStoredSecret={props.value.hasStoredClientSecret}
-            onChange={(value) => update('clientSecret', value)}
-          />
-          <SelectField
-            label="Token auth method"
-            value={props.value.tokenEndpointAuthMethod}
-            onValueChange={(value) =>
-              update('tokenEndpointAuthMethod', value as RemoteMcpOauthFormState['tokenEndpointAuthMethod'])
-            }
-            items={[
-              ['none', 'None'],
-              ['client_secret_post', 'Client secret POST'],
-              ['client_secret_basic', 'Client secret basic'],
-              ['private_key_jwt', 'Private key JWT'],
-            ]}
-          />
-          {requiresAuthorizationEndpoint(props.value) ? (
-            <TextField
-              label="Authorization endpoint"
-              value={props.value.authorizationEndpointOverride}
-              onChange={(value) => update('authorizationEndpointOverride', value)}
-              placeholder="https://auth.example.test/oauth/authorize"
-            />
-          ) : null}
-          <TextField
-            label="Token endpoint"
-            value={props.value.tokenEndpointOverride}
-            onChange={(value) => update('tokenEndpointOverride', value)}
-            placeholder="https://auth.example.test/oauth/token"
-          />
-          {props.value.grantType === 'device_authorization' ? (
-            <TextField
-              label="Device authorization endpoint"
-              value={props.value.deviceAuthorizationEndpointOverride}
-              onChange={(value) => update('deviceAuthorizationEndpointOverride', value)}
-              placeholder="https://auth.example.test/oauth/device"
-            />
-          ) : null}
-        </div>
-      ) : null}
-
-      <div className="flex justify-start">
+      <div className="rounded-lg border border-border/70 bg-muted/10">
         <Button
           type="button"
-          variant="outline"
-          size="sm"
+          variant="ghost"
+          className="flex h-auto w-full items-start justify-between rounded-lg px-4 py-4 text-left"
           onClick={() => setShowAdvanced((current) => !current)}
         >
-          {showAdvanced ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          Advanced OAuth settings
+          <div className="space-y-1">
+            <p className="font-medium text-foreground">Advanced OAuth settings</p>
+            <p className="text-sm text-muted">
+              Open this section for manual client details, callback handling, request contract overrides, and advanced OAuth metadata.
+            </p>
+          </div>
+          {showAdvanced ? <ChevronDown className="mt-0.5 h-4 w-4" /> : <ChevronRight className="mt-0.5 h-4 w-4" />}
         </Button>
-      </div>
 
-      {showAdvanced ? (
-        <McpPageOauthAdvancedSettings value={props.value} onChange={props.onChange} />
-      ) : null}
+        {showAdvanced ? (
+          <div className="border-t border-border/70 px-4 py-4">
+            <McpPageOauthAdvancedSettings value={props.value} onChange={props.onChange} />
+          </div>
+        ) : null}
+      </div>
     </section>
   );
 }
 
-function showsManualClientFields(value: RemoteMcpOauthFormState): boolean {
-  return value.clientStrategy === 'manual_client';
-}
-
-function requiresAuthorizationEndpoint(value: RemoteMcpOauthFormState): boolean {
-  return value.grantType === 'authorization_code'
-    || value.grantType === 'enterprise_managed_authorization';
-}
-
-function hasAdvancedConfiguration(value: RemoteMcpOauthFormState): boolean {
-  return value.callbackMode !== 'loopback'
+function shouldShowAdvancedByDefault(value: RemoteMcpOauthFormState): boolean {
+  return value.clientStrategy === 'manual_client'
+    || value.callbackMode !== 'loopback'
     || value.registrationEndpointOverride.trim().length > 0
     || value.protectedResourceMetadataUrlOverride.trim().length > 0
     || value.authorizationServerMetadataUrlOverride.trim().length > 0
@@ -162,7 +107,7 @@ function hasAdvancedConfiguration(value: RemoteMcpOauthFormState): boolean {
 
 function readOauthSetupDescription(value: RemoteMcpOauthFormState): string {
   if (value.clientStrategy === 'manual_client') {
-    return 'Manual client setup requires the OAuth client and endpoint values supplied by the remote authorization server operator.';
+    return 'Manual client setup requires the OAuth client and endpoint values supplied by the remote authorization server operator. Those fields live under Advanced OAuth settings.';
   }
   if (value.clientStrategy === 'dynamic_registration') {
     return 'Dynamic registration uses the discovered registration endpoint to create a client before the browser flow starts.';
