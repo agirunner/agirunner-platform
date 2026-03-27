@@ -169,8 +169,6 @@ const SUBDUED_SURFACE_CLASS_NAME = 'rounded-xl border border-border/70 bg-surfac
 const INSET_PANEL_CLASS_NAME = 'rounded-xl border border-border/70 bg-background/60 p-4';
 const DIALOG_ALERT_CLASS_NAME = 'rounded-xl border px-4 py-3 text-sm shadow-sm';
 const FIELD_ERROR_CLASS_NAME = 'text-xs font-medium';
-const WARNING_ROLE_CHIP_CLASS_NAME =
-  'inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium';
 const OVERRIDES_CHIP_CLASS_NAME = DASHBOARD_BADGE_BASE_CLASS_NAME;
 const OVERRIDES_NEUTRAL_CHIP_CLASS_NAME =
   DASHBOARD_BADGE_TOKENS.informationPrimary.className;
@@ -191,11 +189,6 @@ const WARNING_PANEL_STYLE = {
 const ERROR_PANEL_STYLE = {
   borderColor: 'color-mix(in srgb, var(--color-destructive) 38%, var(--color-border))',
   backgroundColor: 'color-mix(in srgb, var(--color-surface) 90%, var(--color-destructive) 10%)',
-  color: 'var(--color-foreground)',
-};
-const WARNING_CHIP_STYLE = {
-  borderColor: 'color-mix(in srgb, var(--color-warning) 42%, var(--color-border))',
-  backgroundColor: 'color-mix(in srgb, var(--color-surface) 82%, var(--color-warning) 18%)',
   color: 'var(--color-foreground)',
 };
 const ERROR_TEXT_STYLE = { color: 'var(--color-destructive)' };
@@ -1330,20 +1323,6 @@ function RoleAssignmentsSection({
         >
           <div className="font-medium">{assignmentGuidance.headline}</div>
           <p className="mt-1">{assignmentGuidance.detail}</p>
-          {assignmentValidation.missingRoleNames.length > 0 ? (
-            <div className="mt-3 space-y-2">
-              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-current/80">
-                Affected roles
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {assignmentValidation.missingRoleNames.map((roleName) => (
-                  <span key={roleName} className={WARNING_ROLE_CHIP_CLASS_NAME} style={WARNING_CHIP_STYLE}>
-                    {roleName}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ) : null}
           <div className="mt-3 flex flex-wrap gap-2">
             <Button asChild size="sm" variant="outline">
               <a href="#llm-providers-library">Review providers</a>

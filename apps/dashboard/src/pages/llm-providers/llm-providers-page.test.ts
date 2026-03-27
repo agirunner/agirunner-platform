@@ -121,8 +121,8 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('Orchestrator and specialist agent model overrides');
     expect(source).not.toContain('1 orchestrator');
     expect(source).toContain('Add a shared default or choose explicit models for the affected roles below.');
-    expect(source).toContain('Affected roles');
-    expect(source).toContain('assignmentValidation.missingRoleNames.map((roleName) => (');
+    expect(source).not.toContain('Affected roles');
+    expect(source).not.toContain('assignmentValidation.missingRoleNames.map((roleName) => (');
     expect(source).not.toContain('No system default is configured. Assign explicit models below or restore a default model before saving.');
     expect(source).not.toContain('Select a model for this role or restore a system default.');
     expect(source).not.toContain('Needs model source');
