@@ -1024,11 +1024,12 @@ function mergeOauthDefinitionWithClientProfile(
 ): RemoteMcpOauthDefinition {
   return {
     ...oauthDefinition,
-    callbackMode: oauthDefinition?.callbackMode ?? profile.callback_mode,
+    callbackMode: readEnumOverride(oauthDefinition?.callbackMode, 'loopback') ?? profile.callback_mode,
     clientId: oauthDefinition?.clientId ?? profile.client_id,
     clientSecret: oauthDefinition?.clientSecret ?? profile.client_secret,
     tokenEndpointAuthMethod:
-      oauthDefinition?.tokenEndpointAuthMethod ?? profile.token_endpoint_auth_method,
+      readEnumOverride(oauthDefinition?.tokenEndpointAuthMethod, 'none')
+      ?? profile.token_endpoint_auth_method,
     authorizationEndpointOverride:
       oauthDefinition?.authorizationEndpointOverride ?? profile.authorization_endpoint,
     tokenEndpointOverride:
@@ -1050,6 +1051,10 @@ function mergeOauthDefinitionWithClientProfile(
         ? oauthDefinition.audiences
         : profile.default_audiences,
   };
+}
+
+function readEnumOverride<T extends string>(value: T | undefined, neutralValue: T): T | undefined {
+  return value && value !== neutralValue ? value : undefined;
 }
 
 function persistableOauthConfig(

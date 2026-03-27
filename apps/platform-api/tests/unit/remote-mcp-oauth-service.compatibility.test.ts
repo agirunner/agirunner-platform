@@ -292,6 +292,84 @@ describe('RemoteMcpOAuthService compatibility flows', () => {
     });
   });
 
+  it('rejects manual client browser oauth when a stored client secret has no token auth method', async () => {
+    vi.mocked(globalThis.fetch)
+      .mockResolvedValueOnce(
+        mockJsonResponse({}, 401),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          authorization_servers: ['https://github.com/login/oauth'],
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          issuer: 'https://github.com/login/oauth',
+          authorization_endpoint: 'https://github.com/login/oauth/authorize',
+          token_endpoint: 'https://github.com/login/oauth/access_token',
+          response_types_supported: ['code'],
+          grant_types_supported: ['authorization_code', 'refresh_token'],
+          code_challenge_methods_supported: ['S256'],
+          token_endpoint_auth_methods_supported: ['client_secret_post'],
+          client_id_metadata_document_supported: false,
+        }),
+      );
+
+    const service = new RemoteMcpOAuthService(
+      {
+        query: vi.fn(async (sql: string) => {
+          if (sql.includes('INSERT INTO remote_mcp_registration_drafts')) {
+            return { rowCount: 1, rows: [{ id: 'draft-1' }] };
+          }
+          if (sql.includes('INSERT INTO oauth_states')) {
+            return { rowCount: 1, rows: [] };
+          }
+          throw new Error(`unexpected query: ${sql}`);
+        }),
+      } as never,
+      {
+        getStoredServer: vi.fn(),
+        createVerifiedServer: vi.fn(),
+        updateVerifiedServer: vi.fn(),
+      } as never,
+      {
+        verify: vi.fn(),
+      } as never,
+      {
+        platformPublicBaseUrl: 'https://platform.example.test',
+      },
+      {
+        getStoredProfile: vi.fn().mockResolvedValue({
+          id: '00000000-0000-0000-0000-000000000901',
+          client_id: 'client-id',
+          client_secret: 'secret-123',
+          token_endpoint_auth_method: 'none',
+          callback_mode: 'loopback',
+          authorization_endpoint: 'https://github.com/login/oauth/authorize',
+          token_endpoint: 'https://github.com/login/oauth/access_token',
+          registration_endpoint: null,
+          device_authorization_endpoint: null,
+          default_scopes: [],
+          default_resource_indicators: [],
+          default_audiences: [],
+        }),
+      } as never,
+    );
+
+    await expect(service.initiateDraftAuthorization('tenant-1', 'user-1', {
+      name: 'GitHub MCP',
+      description: '',
+      endpointUrl: 'https://api.githubcopilot.com/mcp/',
+      callTimeoutSeconds: 300,
+      authMode: 'oauth',
+      enabledByDefaultForNewSpecialists: false,
+      grantToAllExistingSpecialists: false,
+      oauthClientProfileId: '00000000-0000-0000-0000-000000000901',
+      oauthDefinition: {},
+      parameters: [],
+    })).rejects.toThrow('client secret must use client_secret_post, client_secret_basic, or private_key_jwt');
+  });
+
   it('returns an actionable error when automatic oauth discovery does not expose usable endpoints', async () => {
     vi.mocked(globalThis.fetch)
       .mockResolvedValueOnce(

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { configureProviderSecretEncryptionKey, storeProviderSecret } from '../../src/lib/oauth-crypto.js';
-import { ConflictError } from '../../src/errors/domain-errors.js';
+import { ConflictError, ValidationError } from '../../src/errors/domain-errors.js';
 import { RemoteMcpOAuthClientProfileService } from '../../src/services/remote-mcp-oauth-client-profile-service.js';
 
 function createMockPool() {
@@ -101,5 +101,17 @@ describe('RemoteMcpOAuthClientProfileService', () => {
     pool.query.mockResolvedValueOnce({ rows: [buildProfileRow()], rowCount: 1 });
 
     await expect(service.deleteProfile(TENANT_ID, PROFILE_ID)).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it('rejects storing a client secret with token auth method none', async () => {
+    await expect(service.createProfile(TENANT_ID, {
+      name: 'GitHub OAuth Client',
+      description: '',
+      tokenEndpoint: 'https://github.com/login/oauth/access_token',
+      callbackMode: 'loopback',
+      tokenEndpointAuthMethod: 'none',
+      clientId: 'client-123',
+      clientSecret: 'secret-123',
+    })).rejects.toBeInstanceOf(ValidationError);
   });
 });

@@ -1,4 +1,5 @@
 import { ValidationError } from '../errors/domain-errors.js';
+import { assertClientSecretAuthMethod } from './remote-mcp-oauth-client-auth.js';
 import type {
   RemoteMcpOAuthConfigRecord,
   RemoteMcpOauthDefinition,
@@ -43,6 +44,11 @@ export async function buildOauthClientConfig(input: {
     if (!clientId) {
       throw new ValidationError('Remote MCP OAuth manual client strategy requires a client id');
     }
+    const tokenEndpointAuthMethod = input.oauthDefinition?.tokenEndpointAuthMethod ?? 'none';
+    assertClientSecretAuthMethod({
+      clientSecret: input.oauthDefinition?.clientSecret ?? null,
+      tokenEndpointAuthMethod,
+    });
     return {
       issuer: input.metadata.issuer,
       authorizationEndpoint,
@@ -51,7 +57,7 @@ export async function buildOauthClientConfig(input: {
       deviceAuthorizationEndpoint,
       clientId,
       clientSecret: encryptOptionalSecret(input.oauthDefinition?.clientSecret),
-      tokenEndpointAuthMethod: input.oauthDefinition?.tokenEndpointAuthMethod ?? 'none',
+      tokenEndpointAuthMethod,
       clientIdMetadataDocumentUrl: null,
       redirectUri: input.redirectUri,
       scopes,

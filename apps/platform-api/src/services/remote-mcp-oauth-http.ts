@@ -4,6 +4,11 @@ import {
   type RemoteMcpParameterInput,
 } from './remote-mcp-model.js';
 import { decryptRemoteMcpSecret } from './remote-mcp-secret-crypto.js';
+import {
+  parseDeviceAuthorizationResponse,
+  parseTokenResponse,
+  readOAuthResponseBody,
+} from './remote-mcp-oauth-http-response.js';
 import type {
   DeviceAuthorizationPollResult,
   DeviceAuthorizationResponse,
@@ -81,6 +86,7 @@ export async function requestDeviceAuthorization(
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
+        accept: 'application/json',
         'content-type': 'application/json',
         ...headers,
       },
@@ -93,6 +99,7 @@ export async function requestDeviceAuthorization(
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: {
+      accept: 'application/json',
       'content-type': 'application/x-www-form-urlencoded',
       ...headers,
     },
@@ -121,6 +128,7 @@ export async function pollDeviceAuthorizationToken(
     [],
   );
   const headers: Record<string, string> = {
+    accept: 'application/json',
     'content-type': 'application/x-www-form-urlencoded',
     ...toHeaderMap(selectParameters(parameters, 'token_request_header')),
   };
@@ -133,10 +141,10 @@ export async function pollDeviceAuthorizationToken(
   if (response.ok) {
     return {
       kind: 'completed',
-      token: await response.json() as TokenResponse,
+      token: await parseTokenResponse(response),
     };
   }
-  const payload = await readJsonObject(response);
+  const { payload, rawText } = await readOAuthResponseBody(response);
   const errorCode = typeof payload?.error === 'string' ? payload.error.trim() : '';
   if (errorCode === 'authorization_pending') {
     return {
@@ -152,7 +160,7 @@ export async function pollDeviceAuthorizationToken(
   }
   const detail = typeof payload?.error_description === 'string'
     ? payload.error_description.trim()
-    : await response.text().catch(() => '');
+    : rawText;
   throw new ValidationError(
     `Remote MCP device authorization token exchange failed with status ${response.status}${detail ? `: ${detail}` : ''}`,
   );
@@ -176,6 +184,7 @@ async function postTokenRequest(
   if (bodyKind === 'json') {
     const payload = buildTokenJsonPayload(baseValues, parameters, resources, audiences);
     const headers: Record<string, string> = {
+      accept: 'application/json',
       'content-type': 'application/json',
       ...toHeaderMap(selectParameters(parameters, 'token_request_header')),
     };
@@ -190,6 +199,7 @@ async function postTokenRequest(
 
   const body = buildTokenFormPayload(baseValues, parameters, resources, audiences);
   const headers: Record<string, string> = {
+    accept: 'application/json',
     'content-type': 'application/x-www-form-urlencoded',
     ...toHeaderMap(selectParameters(parameters, 'token_request_header')),
   };
@@ -356,31 +366,4 @@ function toHeaderMap(parameters: RemoteMcpParameterInput[]): Record<string, stri
       .map((parameter) => [parameter.key, parameter.value.trim()] as const)
       .filter(([, value]) => value.length > 0),
   );
-}
-
-async function parseTokenResponse(response: Response): Promise<TokenResponse> {
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '');
-    throw new ValidationError(`Remote MCP OAuth token exchange failed with status ${response.status}${detail ? `: ${detail}` : ''}`);
-  }
-  return response.json() as Promise<TokenResponse>;
-}
-
-async function parseDeviceAuthorizationResponse(response: Response): Promise<DeviceAuthorizationResponse> {
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '');
-    throw new ValidationError(`Remote MCP device authorization failed with status ${response.status}${detail ? `: ${detail}` : ''}`);
-  }
-  return response.json() as Promise<DeviceAuthorizationResponse>;
-}
-
-async function readJsonObject(response: Response): Promise<Record<string, unknown> | null> {
-  try {
-    const payload = await response.json() as unknown;
-    return payload && typeof payload === 'object' && !Array.isArray(payload)
-      ? payload as Record<string, unknown>
-      : null;
-  } catch {
-    return null;
-  }
 }

@@ -1,5 +1,6 @@
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import type { DatabaseQueryable } from '../db/database.js';
+import { assertClientSecretAuthMethod } from './remote-mcp-oauth-client-auth.js';
 import {
   decryptRemoteMcpSecret,
   encryptRemoteMcpSecret,
@@ -89,6 +90,10 @@ export class RemoteMcpOAuthClientProfileService {
     input: RemoteMcpOAuthClientProfileCreateInput,
   ): Promise<RemoteMcpOAuthClientProfileRecord> {
     const validated = remoteMcpOAuthClientProfileCreateSchema.parse(input);
+    assertClientSecretAuthMethod({
+      clientSecret: validated.clientSecret ?? null,
+      tokenEndpointAuthMethod: validated.tokenEndpointAuthMethod,
+    });
     const slug = normalizeSlug(validated.name);
     await this.assertUniqueSlug(tenantId, slug);
     const insert = await this.pool.query<{ id: string }>(
@@ -151,6 +156,10 @@ export class RemoteMcpOAuthClientProfileService {
       defaultResourceIndicators: validated.defaultResourceIndicators ?? current.default_resource_indicators,
       defaultAudiences: validated.defaultAudiences ?? current.default_audiences,
     };
+    assertClientSecretAuthMethod({
+      clientSecret: next.clientSecret,
+      tokenEndpointAuthMethod: next.tokenEndpointAuthMethod,
+    });
     await this.pool.query(
       `UPDATE remote_mcp_oauth_client_profiles
           SET name = $3,
