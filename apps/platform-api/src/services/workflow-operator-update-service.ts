@@ -89,8 +89,32 @@ export interface RecordWorkflowOperatorUpdateInput {
   promotedBriefId?: string;
 }
 
+export interface ListWorkflowOperatorUpdatesInput {
+  workItemId?: string;
+  limit?: number;
+}
+
 export class WorkflowOperatorUpdateService {
   constructor(private readonly pool: DatabaseQueryable) {}
+
+  async listUpdates(
+    tenantId: string,
+    workflowId: string,
+    input: ListWorkflowOperatorUpdatesInput = {},
+  ): Promise<WorkflowOperatorUpdateRecord[]> {
+    await this.readWorkflowLiveVisibilityModeOverride(tenantId, workflowId);
+    const result = await this.pool.query<WorkflowOperatorUpdateRow>(
+      `SELECT *
+         FROM workflow_operator_updates
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND ($3::uuid IS NULL OR work_item_id = $3)
+        ORDER BY sequence_number DESC
+        LIMIT $4`,
+      [tenantId, workflowId, input.workItemId ?? null, input.limit ?? 50],
+    );
+    return result.rows.map(toWorkflowOperatorUpdateRecord);
+  }
 
   async recordUpdate(
     identity: ApiKeyIdentity,

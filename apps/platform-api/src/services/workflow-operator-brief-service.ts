@@ -81,8 +81,32 @@ export interface RecordWorkflowOperatorBriefInput {
   canonicalWorkflowBriefId?: string;
 }
 
+export interface ListWorkflowOperatorBriefsInput {
+  workItemId?: string;
+  limit?: number;
+}
+
 export class WorkflowOperatorBriefService {
   constructor(private readonly pool: DatabaseQueryable) {}
+
+  async listBriefs(
+    tenantId: string,
+    workflowId: string,
+    input: ListWorkflowOperatorBriefsInput = {},
+  ): Promise<WorkflowOperatorBriefRecord[]> {
+    await this.assertWorkflow(tenantId, workflowId);
+    const result = await this.pool.query<WorkflowOperatorBriefRow>(
+      `SELECT *
+         FROM workflow_operator_briefs
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND ($3::uuid IS NULL OR work_item_id = $3)
+        ORDER BY sequence_number DESC
+        LIMIT $4`,
+      [tenantId, workflowId, input.workItemId ?? null, input.limit ?? 50],
+    );
+    return result.rows.map(toWorkflowOperatorBriefRecord);
+  }
 
   async recordBrief(
     identity: ApiKeyIdentity,

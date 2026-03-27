@@ -47,8 +47,11 @@ import type { SpecialistSkillService } from './services/specialist-skill-service
 import type { ToolTagService } from './services/tool-tag-service.js';
 import type { WorkflowService } from './services/workflow-service.js';
 import type { WorkflowActivationService } from './services/workflow-activation-service.js';
+import type { WorkflowDeliverableService } from './services/workflow-deliverable-service.js';
 import type { WorkflowInputPacketService } from './services/workflow-input-packet-service.js';
 import type { WorkflowInterventionService } from './services/workflow-intervention-service.js';
+import type { WorkflowOperatorBriefService } from './services/workflow-operator-brief-service.js';
+import type { WorkflowOperatorUpdateService } from './services/workflow-operator-update-service.js';
 import type { WorkflowRedriveService } from './services/workflow-redrive-service.js';
 import type { WorkflowSettingsService } from './services/workflow-settings-service.js';
 import type { WorkflowSteeringSessionService } from './services/workflow-steering-session-service.js';
@@ -73,6 +76,9 @@ declare module 'fastify' {
     workflowService: WorkflowService;
     workflowActivationService: WorkflowActivationService;
     workflowInputPacketService: WorkflowInputPacketService;
+    workflowOperatorBriefService: WorkflowOperatorBriefService;
+    workflowOperatorUpdateService: WorkflowOperatorUpdateService;
+    workflowDeliverableService: WorkflowDeliverableService;
     workflowInterventionService: WorkflowInterventionService;
     workflowRedriveService: WorkflowRedriveService;
     workflowSettingsService: WorkflowSettingsService;

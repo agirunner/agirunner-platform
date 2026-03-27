@@ -110,6 +110,8 @@ function createTransactionalWorkflowReplayPool(
 function createWorkflowRoutesApp(overrides?: {
   workflowService?: Record<string, unknown>;
   workflowInputPacketService?: Record<string, unknown>;
+  workflowOperatorBriefService?: Record<string, unknown>;
+  workflowOperatorUpdateService?: Record<string, unknown>;
   workflowInterventionService?: Record<string, unknown>;
   workflowSteeringSessionService?: Record<string, unknown>;
   workflowRedriveService?: Record<string, unknown>;
@@ -170,6 +172,22 @@ function createWorkflowRoutesApp(overrides?: {
         data: Buffer.from('file'),
       }),
       ...(overrides?.workflowInputPacketService ?? {}),
+    } as never,
+  );
+  routeApp.decorate(
+    'workflowOperatorBriefService',
+    {
+      listBriefs: async () => [],
+      recordBrief: async () => ({}),
+      ...(overrides?.workflowOperatorBriefService ?? {}),
+    } as never,
+  );
+  routeApp.decorate(
+    'workflowOperatorUpdateService',
+    {
+      listUpdates: async () => [],
+      recordUpdate: async () => ({}),
+      ...(overrides?.workflowOperatorUpdateService ?? {}),
     } as never,
   );
   routeApp.decorate(
@@ -369,6 +387,169 @@ describe('workflow routes', () => {
         kind: 'task_action',
         workItemId: '00000000-0000-0000-0000-000000000201',
         taskId: '00000000-0000-0000-0000-000000000301',
+      }),
+    );
+  });
+
+  it('lists and records workflow operator briefs through workflow-owned routes', async () => {
+    const listBriefs = vi.fn().mockResolvedValue([
+      {
+        id: 'brief-1',
+        workflow_id: 'workflow-1',
+        work_item_id: null,
+        task_id: null,
+        request_id: 'request-1',
+        execution_context_id: 'execution-1',
+        brief_kind: 'milestone',
+        brief_scope: 'workflow_timeline',
+        source_kind: 'orchestrator',
+        source_role_name: 'Orchestrator',
+        status_kind: 'in_progress',
+        short_brief: { headline: 'Release package is ready for approval.' },
+        detailed_brief_json: { headline: 'Release package is ready for approval.' },
+        sequence_number: 4,
+        related_artifact_ids: [],
+        related_output_descriptor_ids: [],
+        related_intervention_ids: [],
+        canonical_workflow_brief_id: null,
+        created_by_type: 'user',
+        created_by_id: 'user-1',
+        created_at: '2026-03-27T10:00:00.000Z',
+        updated_at: '2026-03-27T10:00:00.000Z',
+      },
+    ]);
+    const recordBrief = vi.fn().mockResolvedValue({
+      id: 'brief-2',
+      workflow_id: 'workflow-1',
+      short_brief: { headline: 'Verification completed.' },
+    });
+
+    app = createWorkflowRoutesApp({
+      workflowOperatorBriefService: {
+        listBriefs,
+        recordBrief,
+      },
+    });
+    await app.register(workflowRoutes);
+
+    const headers = { authorization: 'Bearer test' };
+    const listResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/workflows/workflow-1/operator-briefs?limit=10',
+      headers,
+    });
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/operator-briefs',
+      headers,
+      payload: {
+        request_id: 'request-2',
+        execution_context_id: 'execution-2',
+        brief_kind: 'milestone',
+        brief_scope: 'workflow_timeline',
+        source_kind: 'orchestrator',
+        source_role_name: 'Orchestrator',
+        status_kind: 'in_progress',
+        short_brief: {
+          headline: 'Verification completed.',
+        },
+        detailed_brief_json: {
+          headline: 'Verification completed.',
+          status_kind: 'in_progress',
+        },
+      },
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(createResponse.statusCode).toBe(201);
+    expect(listBriefs).toHaveBeenCalledWith('tenant-1', 'workflow-1', {
+      workItemId: undefined,
+      limit: 10,
+    });
+    expect(recordBrief).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({
+        requestId: 'request-2',
+        executionContextId: 'execution-2',
+        briefKind: 'milestone',
+      }),
+    );
+  });
+
+  it('lists and records workflow operator updates through workflow-owned routes', async () => {
+    const listUpdates = vi.fn().mockResolvedValue([
+      {
+        id: 'update-1',
+        workflow_id: 'workflow-1',
+        work_item_id: null,
+        task_id: null,
+        request_id: 'request-1',
+        execution_context_id: 'execution-1',
+        source_kind: 'orchestrator',
+        source_role_name: 'Orchestrator',
+        update_kind: 'turn_update',
+        headline: 'Implementation is running validation.',
+        summary: 'Verification started.',
+        linked_target_ids: [],
+        visibility_mode: 'enhanced',
+        promoted_brief_id: null,
+        sequence_number: 9,
+        created_by_type: 'user',
+        created_by_id: 'user-1',
+        created_at: '2026-03-27T10:05:00.000Z',
+      },
+    ]);
+    const recordUpdate = vi.fn().mockResolvedValue({
+      id: 'update-2',
+      workflow_id: 'workflow-1',
+      headline: 'Verification is reviewing rollback handling.',
+    });
+
+    app = createWorkflowRoutesApp({
+      workflowOperatorUpdateService: {
+        listUpdates,
+        recordUpdate,
+      },
+    });
+    await app.register(workflowRoutes);
+
+    const headers = { authorization: 'Bearer test' };
+    const listResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/workflows/workflow-1/operator-updates?limit=5',
+      headers,
+    });
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/operator-updates',
+      headers,
+      payload: {
+        request_id: 'request-2',
+        execution_context_id: 'execution-2',
+        source_kind: 'specialist',
+        source_role_name: 'Verifier',
+        update_kind: 'turn_update',
+        headline: 'Verification is reviewing rollback handling.',
+        summary: 'Verification is in progress.',
+        visibility_mode: 'enhanced',
+      },
+    });
+
+    expect(listResponse.statusCode).toBe(200);
+    expect(createResponse.statusCode).toBe(201);
+    expect(listUpdates).toHaveBeenCalledWith('tenant-1', 'workflow-1', {
+      workItemId: undefined,
+      limit: 5,
+    });
+    expect(recordUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({
+        requestId: 'request-2',
+        executionContextId: 'execution-2',
+        updateKind: 'turn_update',
+        visibilityMode: 'enhanced',
       }),
     );
   });

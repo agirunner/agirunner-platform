@@ -64,8 +64,11 @@ import { WorkerService } from '../services/worker-service.js';
 import { WorkflowService } from '../services/workflow-service.js';
 import { WorkflowActivationService } from '../services/workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from '../services/workflow-activation-dispatch-service.js';
+import { WorkflowDeliverableService } from '../services/workflow-deliverable-service.js';
 import { WorkflowInputPacketService } from '../services/workflow-input-packet-service.js';
 import { WorkflowInterventionService } from '../services/workflow-intervention-service.js';
+import { WorkflowOperatorBriefService } from '../services/workflow-operator-brief-service.js';
+import { WorkflowOperatorUpdateService } from '../services/workflow-operator-update-service.js';
 import { WorkflowRedriveService } from '../services/workflow-redrive-service.js';
 import { WorkflowSettingsService } from '../services/workflow-settings-service.js';
 import { WorkflowSteeringSessionService } from '../services/workflow-steering-session-service.js';
@@ -249,6 +252,9 @@ export async function buildApp() {
     appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_FILES,
     appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_BYTES,
   );
+  const workflowOperatorBriefService = new WorkflowOperatorBriefService(pool);
+  const workflowOperatorUpdateService = new WorkflowOperatorUpdateService(pool);
+  const workflowDeliverableService = new WorkflowDeliverableService(pool);
   const workflowInterventionService = new WorkflowInterventionService(
     pool,
     artifactStorage,
@@ -312,6 +318,18 @@ export async function buildApp() {
   app.decorate(
     'workflowInputPacketService',
     createLoggedService(workflowInputPacketService, 'WorkflowInputPacketService', logService),
+  );
+  app.decorate(
+    'workflowOperatorBriefService',
+    createLoggedService(workflowOperatorBriefService, 'WorkflowOperatorBriefService', logService),
+  );
+  app.decorate(
+    'workflowOperatorUpdateService',
+    createLoggedService(workflowOperatorUpdateService, 'WorkflowOperatorUpdateService', logService),
+  );
+  app.decorate(
+    'workflowDeliverableService',
+    createLoggedService(workflowDeliverableService, 'WorkflowDeliverableService', logService),
   );
   app.decorate(
     'workflowInterventionService',

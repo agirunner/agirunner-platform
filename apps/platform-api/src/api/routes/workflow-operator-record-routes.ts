@@ -35,6 +35,39 @@ const workflowInterventionCreateSchema = z.object({
   files: z.array(workflowOperatorFileUploadSchema).default([]),
 });
 
+const workflowOperatorBriefCreateSchema = z.object({
+  request_id: z.string().min(1).max(255),
+  execution_context_id: z.string().min(1).max(255),
+  work_item_id: z.string().uuid().optional(),
+  task_id: z.string().uuid().optional(),
+  brief_kind: z.string().min(1).max(120),
+  brief_scope: z.string().min(1).max(120),
+  source_kind: z.string().min(1).max(120),
+  source_role_name: z.string().max(255).optional(),
+  status_kind: z.string().min(1).max(120),
+  short_brief: z.record(z.unknown()),
+  detailed_brief_json: z.record(z.unknown()),
+  related_artifact_ids: z.array(z.string().min(1).max(255)).optional(),
+  related_output_descriptor_ids: z.array(z.string().min(1).max(255)).optional(),
+  related_intervention_ids: z.array(z.string().min(1).max(255)).optional(),
+  canonical_workflow_brief_id: z.string().uuid().optional(),
+});
+
+const workflowOperatorUpdateCreateSchema = z.object({
+  request_id: z.string().min(1).max(255),
+  execution_context_id: z.string().min(1).max(255),
+  work_item_id: z.string().uuid().optional(),
+  task_id: z.string().uuid().optional(),
+  source_kind: z.string().min(1).max(120),
+  source_role_name: z.string().max(255).optional(),
+  update_kind: z.string().min(1).max(120),
+  headline: z.string().min(1).max(4000),
+  summary: z.string().max(4000).optional(),
+  linked_target_ids: z.array(z.string().min(1).max(255)).optional(),
+  visibility_mode: z.enum(['standard', 'enhanced']),
+  promoted_brief_id: z.string().uuid().optional(),
+});
+
 const workflowSteeringSessionCreateSchema = z.object({
   title: z.string().max(255).optional(),
 });
@@ -64,6 +97,87 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
+  app.get(
+    '/api/v1/workflows/:id/operator-briefs',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const query = request.query as { work_item_id?: string; limit?: string };
+      return {
+        data: await app.workflowOperatorBriefService.listBriefs(request.auth!.tenantId, params.id, {
+          workItemId: query.work_item_id,
+          limit: query.limit ? Number(query.limit) : undefined,
+        }),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/operator-briefs',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(workflowOperatorBriefCreateSchema.safeParse(request.body ?? {}));
+      const brief = await app.workflowOperatorBriefService.recordBrief(request.auth!, params.id, {
+        requestId: body.request_id,
+        executionContextId: body.execution_context_id,
+        workItemId: body.work_item_id,
+        taskId: body.task_id,
+        briefKind: body.brief_kind,
+        briefScope: body.brief_scope,
+        sourceKind: body.source_kind,
+        sourceRoleName: body.source_role_name,
+        statusKind: body.status_kind,
+        shortBrief: body.short_brief,
+        detailedBriefJson: body.detailed_brief_json,
+        relatedArtifactIds: body.related_artifact_ids,
+        relatedOutputDescriptorIds: body.related_output_descriptor_ids,
+        relatedInterventionIds: body.related_intervention_ids,
+        canonicalWorkflowBriefId: body.canonical_workflow_brief_id,
+      });
+      return reply.status(201).send({ data: brief });
+    },
+  );
+
+  app.get(
+    '/api/v1/workflows/:id/operator-updates',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const query = request.query as { work_item_id?: string; limit?: string };
+      return {
+        data: await app.workflowOperatorUpdateService.listUpdates(request.auth!.tenantId, params.id, {
+          workItemId: query.work_item_id,
+          limit: query.limit ? Number(query.limit) : undefined,
+        }),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/operator-updates',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(workflowOperatorUpdateCreateSchema.safeParse(request.body ?? {}));
+      const update = await app.workflowOperatorUpdateService.recordUpdate(request.auth!, params.id, {
+        requestId: body.request_id,
+        executionContextId: body.execution_context_id,
+        workItemId: body.work_item_id,
+        taskId: body.task_id,
+        sourceKind: body.source_kind,
+        sourceRoleName: body.source_role_name,
+        updateKind: body.update_kind,
+        headline: body.headline,
+        summary: body.summary,
+        linkedTargetIds: body.linked_target_ids,
+        visibilityMode: body.visibility_mode,
+        promotedBriefId: body.promoted_brief_id,
+      });
+      return reply.status(201).send({ data: update });
+    },
+  );
+
   app.get(
     '/api/v1/workflows/:id/input-packets',
     { preHandler: [authenticateApiKey, withScope('agent')] },
