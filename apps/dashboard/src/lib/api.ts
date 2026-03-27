@@ -253,6 +253,256 @@ export interface DashboardWorkflowBudgetRecord {
   warning_threshold_ratio: number;
 }
 
+export type DashboardMissionControlWorkflowPosture =
+  | 'needs_decision'
+  | 'needs_intervention'
+  | 'recoverable_needs_steering'
+  | 'progressing'
+  | 'waiting_by_design'
+  | 'paused'
+  | 'terminal_failed'
+  | 'completed'
+  | 'cancelled';
+
+export type DashboardMissionControlAttentionLane =
+  | 'needs_decision'
+  | 'needs_intervention'
+  | 'watchlist';
+
+export type DashboardMissionControlPulseTone =
+  | 'progressing'
+  | 'waiting'
+  | 'warning'
+  | 'critical'
+  | 'settled';
+
+export interface DashboardMissionControlReadModelVersion {
+  generatedAt: string;
+  latestEventId: number | null;
+  token: string | null;
+}
+
+export interface DashboardMissionControlPulse {
+  summary: string;
+  tone: DashboardMissionControlPulseTone;
+  updatedAt: string | null;
+}
+
+export interface DashboardMissionControlAttentionItem {
+  id: string;
+  lane: DashboardMissionControlAttentionLane;
+  title: string;
+  workflowId: string;
+  summary: string;
+}
+
+export type DashboardMissionControlActionKind =
+  | 'pause_workflow'
+  | 'resume_workflow'
+  | 'cancel_workflow'
+  | 'add_work_item'
+  | 'request_replan'
+  | 'spawn_child_workflow'
+  | 'redrive_workflow'
+  | 'approve_task'
+  | 'reject_task'
+  | 'request_changes_task'
+  | 'retry_task'
+  | 'skip_task'
+  | 'reassign_task'
+  | 'resolve_escalation';
+
+export type DashboardMissionControlActionScope = 'workflow' | 'work_item' | 'task';
+
+export type DashboardMissionControlConfirmationLevel =
+  | 'immediate'
+  | 'standard_confirm'
+  | 'high_impact_confirm';
+
+export interface DashboardMissionControlActionAvailability {
+  kind: DashboardMissionControlActionKind;
+  scope: DashboardMissionControlActionScope;
+  enabled: boolean;
+  confirmationLevel: DashboardMissionControlConfirmationLevel;
+  stale: boolean;
+  disabledReason: string | null;
+}
+
+export type DashboardMissionControlOutputStatus =
+  | 'draft'
+  | 'under_review'
+  | 'approved'
+  | 'superseded'
+  | 'final';
+
+export interface DashboardMissionControlArtifactLocation {
+  kind: 'artifact';
+  artifactId: string;
+  taskId: string;
+  logicalPath: string;
+  previewPath: string | null;
+  downloadPath: string;
+  contentType: string | null;
+}
+
+export interface DashboardMissionControlRepositoryLocation {
+  kind: 'repository';
+  repository: string;
+  branch: string | null;
+  branchUrl: string | null;
+  commitSha: string | null;
+  commitUrl: string | null;
+  pullRequestUrl: string | null;
+}
+
+export interface DashboardMissionControlHostDirectoryLocation {
+  kind: 'host_directory';
+  path: string;
+}
+
+export interface DashboardMissionControlWorkflowDocumentLocation {
+  kind: 'workflow_document';
+  workflowId: string;
+  documentId: string;
+  logicalName: string;
+  source: 'repository' | 'artifact' | 'external';
+  location: string;
+  artifactId: string | null;
+}
+
+export interface DashboardMissionControlExternalUrlLocation {
+  kind: 'external_url';
+  url: string;
+}
+
+export type DashboardMissionControlOutputLocation =
+  | DashboardMissionControlArtifactLocation
+  | DashboardMissionControlRepositoryLocation
+  | DashboardMissionControlHostDirectoryLocation
+  | DashboardMissionControlWorkflowDocumentLocation
+  | DashboardMissionControlExternalUrlLocation;
+
+export interface DashboardMissionControlOutputDescriptor {
+  id: string;
+  title: string;
+  summary: string | null;
+  status: DashboardMissionControlOutputStatus;
+  producedByRole: string | null;
+  workItemId: string | null;
+  taskId: string | null;
+  stageName: string | null;
+  primaryLocation: DashboardMissionControlOutputLocation;
+  secondaryLocations: DashboardMissionControlOutputLocation[];
+}
+
+export interface DashboardMissionControlWorkflowMetrics {
+  activeTaskCount: number;
+  activeWorkItemCount: number;
+  blockedWorkItemCount: number;
+  openEscalationCount: number;
+  waitingForDecisionCount: number;
+  failedTaskCount: number;
+  recoverableIssueCount: number;
+  lastChangedAt: string | null;
+}
+
+export interface DashboardMissionControlWorkflowCard {
+  id: string;
+  name: string;
+  state: string;
+  lifecycle: string | null;
+  currentStage: string | null;
+  workspaceId: string | null;
+  workspaceName: string | null;
+  playbookId: string | null;
+  playbookName: string | null;
+  posture: DashboardMissionControlWorkflowPosture;
+  attentionLane: DashboardMissionControlAttentionLane;
+  pulse: DashboardMissionControlPulse;
+  outputDescriptors: DashboardMissionControlOutputDescriptor[];
+  availableActions: DashboardMissionControlActionAvailability[];
+  metrics: DashboardMissionControlWorkflowMetrics;
+  version: DashboardMissionControlReadModelVersion;
+}
+
+export interface DashboardMissionControlLiveSection {
+  id: 'needs_action' | 'at_risk' | 'progressing' | 'waiting' | 'recently_changed';
+  title: string;
+  count: number;
+  workflows: DashboardMissionControlWorkflowCard[];
+}
+
+export interface DashboardMissionControlLiveResponse {
+  version: DashboardMissionControlReadModelVersion;
+  sections: DashboardMissionControlLiveSection[];
+  attentionItems: DashboardMissionControlAttentionItem[];
+}
+
+export type DashboardMissionControlPacketCategory =
+  | 'decision'
+  | 'intervention'
+  | 'progress'
+  | 'output'
+  | 'system';
+
+export interface DashboardMissionControlPacket {
+  id: string;
+  workflowId: string;
+  workflowName: string | null;
+  posture: DashboardMissionControlWorkflowPosture | null;
+  category: DashboardMissionControlPacketCategory;
+  title: string;
+  summary: string;
+  changedAt: string;
+  carryover: boolean;
+  outputDescriptors: DashboardMissionControlOutputDescriptor[];
+}
+
+export interface DashboardMissionControlRecentResponse {
+  version: DashboardMissionControlReadModelVersion;
+  packets: DashboardMissionControlPacket[];
+}
+
+export interface DashboardMissionControlHistoryResponse {
+  version: DashboardMissionControlReadModelVersion;
+  packets: DashboardMissionControlPacket[];
+}
+
+export interface DashboardMissionControlWorkspaceOverview {
+  currentOperatorAsk: string | null;
+  latestOutput: DashboardMissionControlOutputDescriptor | null;
+  inputSummary: {
+    parameterCount: number;
+    parameterKeys: string[];
+    contextKeys: string[];
+  };
+  relationSummary: Record<string, unknown>;
+  riskSummary: {
+    blockedWorkItemCount: number;
+    openEscalationCount: number;
+    failedTaskCount: number;
+    recoverableIssueCount: number;
+  };
+}
+
+export interface DashboardMissionControlWorkspaceResponse {
+  version: DashboardMissionControlReadModelVersion;
+  workflow: DashboardMissionControlWorkflowCard | null;
+  overview: DashboardMissionControlWorkspaceOverview | null;
+  board: Record<string, unknown> | null;
+  outputs: {
+    deliverables: DashboardMissionControlOutputDescriptor[];
+    feed: DashboardMissionControlPacket[];
+  };
+  steering: {
+    availableActions: DashboardMissionControlActionAvailability[];
+    interventionHistory: DashboardMissionControlPacket[];
+  };
+  history: {
+    packets: DashboardMissionControlPacket[];
+  };
+}
+
 export interface DashboardLlmProviderRecord {
   id: string;
   name: string;
@@ -1973,6 +2223,24 @@ export interface DashboardApi {
     payload: { provider: string; secret: string },
   ): Promise<Record<string, unknown>>;
   getWorkflow(id: string): Promise<DashboardWorkflowRecord>;
+  getMissionControlLive(input?: {
+    page?: number;
+    perPage?: number;
+  }): Promise<DashboardMissionControlLiveResponse>;
+  getMissionControlRecent(input?: {
+    limit?: number;
+  }): Promise<DashboardMissionControlRecentResponse>;
+  getMissionControlHistory(input?: {
+    workflowId?: string;
+    limit?: number;
+  }): Promise<DashboardMissionControlHistoryResponse>;
+  getMissionControlWorkflowWorkspace(
+    workflowId: string,
+    input?: {
+      historyLimit?: number;
+      outputLimit?: number;
+    },
+  ): Promise<DashboardMissionControlWorkspaceResponse>;
   getWorkflowBudget(workflowId: string): Promise<DashboardWorkflowBudgetRecord>;
   getWorkflowModelOverrides(workflowId: string): Promise<DashboardWorkflowModelOverridesResponse>;
   getResolvedWorkflowModels(
@@ -2882,6 +3150,53 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         }),
       ),
     getWorkflow: (id) => withRefresh(() => client.getWorkflow(id)),
+    getMissionControlLive: (input) =>
+      withRefresh(() =>
+        requestData<DashboardMissionControlLiveResponse>(
+          `/api/v1/mission-control/live${buildMissionControlQuery({
+            page: input?.page,
+            per_page: input?.perPage,
+          })}`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    getMissionControlRecent: (input) =>
+      withRefresh(() =>
+        requestData<DashboardMissionControlRecentResponse>(
+          `/api/v1/mission-control/recent${buildMissionControlQuery({
+            limit: input?.limit,
+          })}`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    getMissionControlHistory: (input) =>
+      withRefresh(() =>
+        requestData<DashboardMissionControlHistoryResponse>(
+          `/api/v1/mission-control/history${buildMissionControlQuery({
+            workflow_id: input?.workflowId,
+            limit: input?.limit,
+          })}`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    getMissionControlWorkflowWorkspace: (workflowId, input) =>
+      withRefresh(() =>
+        requestData<DashboardMissionControlWorkspaceResponse>(
+          `/api/v1/mission-control/workflows/${workflowId}/workspace${buildMissionControlQuery({
+            history_limit: input?.historyLimit,
+            output_limit: input?.outputLimit,
+          })}`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
     getWorkflowBudget: (workflowId) =>
       withRefresh(() =>
         requestData<DashboardWorkflowBudgetRecord>(`/api/v1/workflows/${workflowId}/budget`, {
@@ -4083,6 +4398,25 @@ function buildQueryString(filters?: Record<string, string>): string {
     if (value) {
       params.set(key, value);
     }
+  });
+
+  const rendered = params.toString();
+  return rendered.length > 0 ? `?${rendered}` : '';
+}
+
+function buildMissionControlQuery(
+  values?: Record<string, string | number | undefined>,
+): string {
+  if (!values) {
+    return '';
+  }
+
+  const params = new URLSearchParams();
+  Object.entries(values).forEach(([key, value]) => {
+    if (value === undefined || value === null || value === '') {
+      return;
+    }
+    params.set(key, String(value));
   });
 
   const rendered = params.toString();

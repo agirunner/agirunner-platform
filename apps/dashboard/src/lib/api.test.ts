@@ -193,6 +193,35 @@ describe('dashboard api auth/session behavior', () => {
     expect(liveContainerBlock).toContain('execution_environment_package_manager?: string | null;');
   });
 
+  it('exposes typed mission control read models and read methods in the dashboard api contract', () => {
+    const source = readApiSource();
+    const apiBlock = readExportBlock(source, 'DashboardApi');
+    const liveBlock = readExportBlock(source, 'DashboardMissionControlLiveResponse');
+    const sectionBlock = readExportBlock(source, 'DashboardMissionControlLiveSection');
+    const cardBlock = readExportBlock(source, 'DashboardMissionControlWorkflowCard');
+    const packetBlock = readExportBlock(source, 'DashboardMissionControlPacket');
+    const workspaceBlock = readExportBlock(source, 'DashboardMissionControlWorkspaceResponse');
+    const actionBlock = readExportBlock(source, 'DashboardMissionControlActionAvailability');
+    const outputBlock = readExportBlock(source, 'DashboardMissionControlOutputDescriptor');
+
+    expect(apiBlock).toContain('getMissionControlLive(');
+    expect(apiBlock).toContain('getMissionControlRecent(');
+    expect(apiBlock).toContain('getMissionControlHistory(');
+    expect(apiBlock).toContain('getMissionControlWorkflowWorkspace(');
+    expect(liveBlock).toContain('sections: DashboardMissionControlLiveSection[];');
+    expect(liveBlock).toContain('attentionItems: DashboardMissionControlAttentionItem[];');
+    expect(sectionBlock).toContain("id: 'needs_action' | 'at_risk' | 'progressing' | 'waiting' | 'recently_changed';");
+    expect(cardBlock).toContain('posture: DashboardMissionControlWorkflowPosture;');
+    expect(cardBlock).toContain('outputDescriptors: DashboardMissionControlOutputDescriptor[];');
+    expect(cardBlock).toContain('availableActions: DashboardMissionControlActionAvailability[];');
+    expect(packetBlock).toContain('carryover: boolean;');
+    expect(workspaceBlock).toContain('workflow: DashboardMissionControlWorkflowCard | null;');
+    expect(workspaceBlock).toContain('overview: DashboardMissionControlWorkspaceOverview | null;');
+    expect(workspaceBlock).toContain('interventionHistory: DashboardMissionControlPacket[];');
+    expect(actionBlock).toContain('confirmationLevel: DashboardMissionControlConfirmationLevel;');
+    expect(outputBlock).toContain('primaryLocation: DashboardMissionControlOutputLocation;');
+  });
+
   it('refreshes token and retries request when access token is expired', async () => {
     writeSession({ accessToken: 'expired-token', tenantId: 'tenant-1' });
 
@@ -228,6 +257,137 @@ describe('dashboard api auth/session behavior', () => {
       tenantId: 'tenant-1',
       persistentSession: false,
     });
+  });
+
+  it('requests mission control live, recent, history, and workflow workspace read models from the platform api', async () => {
+    writeSession({ accessToken: 'mc-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn() as unknown as typeof fetch;
+    vi.mocked(fetcher)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              version: {
+                generatedAt: '2026-03-27T18:00:00.000Z',
+                latestEventId: 10,
+                token: 'live-token',
+              },
+              sections: [],
+              attentionItems: [],
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              version: {
+                generatedAt: '2026-03-27T18:01:00.000Z',
+                latestEventId: 11,
+                token: 'recent-token',
+              },
+              packets: [],
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              version: {
+                generatedAt: '2026-03-27T18:02:00.000Z',
+                latestEventId: 12,
+                token: 'history-token',
+              },
+              packets: [],
+            },
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: {
+              version: {
+                generatedAt: '2026-03-27T18:03:00.000Z',
+                latestEventId: 13,
+                token: 'workspace-token',
+              },
+              workflow: null,
+              overview: null,
+              board: null,
+              outputs: {
+                deliverables: [],
+                feed: [],
+              },
+              steering: {
+                availableActions: [],
+                interventionHistory: [],
+              },
+              history: {
+                packets: [],
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      );
+
+    const api = createDashboardApi({
+      client: {} as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await api.getMissionControlLive({ page: 2, perPage: 25 });
+    await api.getMissionControlRecent({ limit: 15 });
+    await api.getMissionControlHistory({ workflowId: 'workflow-1', limit: 20 });
+    await api.getMissionControlWorkflowWorkspace('workflow-1', {
+      historyLimit: 12,
+      outputLimit: 4,
+    });
+
+    expect(fetcher).toHaveBeenNthCalledWith(
+      1,
+      'http://localhost:8080/api/v1/mission-control/live?page=2&per_page=25',
+      expect.objectContaining({
+        method: 'GET',
+        credentials: 'include',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer mc-token',
+        }),
+      }),
+    );
+    expect(fetcher).toHaveBeenNthCalledWith(
+      2,
+      'http://localhost:8080/api/v1/mission-control/recent?limit=15',
+      expect.objectContaining({
+        method: 'GET',
+        credentials: 'include',
+      }),
+    );
+    expect(fetcher).toHaveBeenNthCalledWith(
+      3,
+      'http://localhost:8080/api/v1/mission-control/history?workflow_id=workflow-1&limit=20',
+      expect.objectContaining({
+        method: 'GET',
+        credentials: 'include',
+      }),
+    );
+    expect(fetcher).toHaveBeenNthCalledWith(
+      4,
+      'http://localhost:8080/api/v1/mission-control/workflows/workflow-1/workspace?history_limit=12&output_limit=4',
+      expect.objectContaining({
+        method: 'GET',
+        credentials: 'include',
+      }),
+    );
   });
 
   it('clears session and redirects to login when refresh token is expired', async () => {
