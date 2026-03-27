@@ -308,6 +308,72 @@ describe('RemoteMcpOAuthService', () => {
     });
   });
 
+  it('preserves authorization-server paths when discovering oauth metadata', async () => {
+    vi.mocked(globalThis.fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === 'https://mcp.example.test/.well-known/oauth-protected-resource/server') {
+        return mockJsonResponse({
+          authorization_servers: ['https://github.com/login/oauth'],
+        });
+      }
+      if (url === 'https://github.com/login/oauth/.well-known/openid-configuration') {
+        return mockJsonResponse({
+          issuer: 'https://github.com',
+          authorization_endpoint: 'https://github.com/login/oauth/authorize',
+          token_endpoint: 'https://github.com/login/oauth/access_token',
+          response_types_supported: ['code'],
+          grant_types_supported: ['authorization_code', 'refresh_token'],
+          code_challenge_methods_supported: ['S256'],
+          token_endpoint_auth_methods_supported: ['none'],
+          client_id_metadata_document_supported: true,
+        });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO remote_mcp_registration_drafts')) {
+          return { rowCount: 1, rows: [{ id: 'draft-1' }] };
+        }
+        if (sql.includes('INSERT INTO oauth_states')) {
+          return { rowCount: 1, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new RemoteMcpOAuthService(
+      pool as never,
+      {
+        getStoredServer: vi.fn(),
+        createVerifiedServer: vi.fn(),
+        updateVerifiedServer: vi.fn(),
+      } as never,
+      {
+        verify: vi.fn(),
+      } as never,
+      {
+        platformPublicBaseUrl: 'https://platform.example.test',
+      },
+    );
+
+    const result = await service.initiateDraftAuthorization('tenant-1', 'user-1', {
+      name: 'GitHub MCP',
+      description: '',
+      endpointUrl: 'https://mcp.example.test/server',
+      callTimeoutSeconds: 300,
+      authMode: 'oauth',
+      enabledByDefaultForNewSpecialists: false,
+      grantToAllExistingSpecialists: false,
+      parameters: [],
+    });
+
+    expect(result.authorizeUrl).toContain('https://github.com/login/oauth/authorize?');
+    const requestedUrls = vi.mocked(globalThis.fetch).mock.calls.map(([input]) => String(input));
+    expect(requestedUrls).toContain('https://github.com/login/oauth/.well-known/openid-configuration');
+    expect(requestedUrls).not.toContain('https://github.com/.well-known/openid-configuration');
+  });
+
   it('disconnects persisted oauth credentials and marks the server unverified', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

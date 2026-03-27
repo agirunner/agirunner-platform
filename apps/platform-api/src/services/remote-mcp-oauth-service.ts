@@ -517,10 +517,7 @@ export class RemoteMcpOAuthService {
   }
 
   private async discoverAuthorizationServerMetadata(authorizationServerUrl: string): Promise<AuthorizationServerMetadata> {
-    const candidates = [
-      new URL('/.well-known/openid-configuration', authorizationServerUrl).toString(),
-      new URL('/.well-known/oauth-authorization-server', authorizationServerUrl).toString(),
-    ];
+    const candidates = buildAuthorizationServerMetadataCandidates(authorizationServerUrl);
     let lastStatus: number | null = null;
     for (const candidate of candidates) {
       const response = await fetch(candidate, {
@@ -715,6 +712,22 @@ function buildProtectedResourceMetadataUrl(endpointUrl: string): string {
   const endpoint = new URL(endpointUrl);
   const normalizedPath = endpoint.pathname.replace(/\/+$/, '');
   return new URL(`/.well-known/oauth-protected-resource${normalizedPath}`, endpoint.origin).toString();
+}
+
+function buildAuthorizationServerMetadataCandidates(authorizationServerUrl: string): string[] {
+  const authorizationServer = new URL(authorizationServerUrl);
+  const normalizedPath = authorizationServer.pathname.replace(/\/+$/, '');
+  const pathScopedCandidates = normalizedPath
+    ? [
+        new URL(`${normalizedPath}/.well-known/openid-configuration`, authorizationServer.origin).toString(),
+        new URL(`${normalizedPath}/.well-known/oauth-authorization-server`, authorizationServer.origin).toString(),
+      ]
+    : [];
+  const rootCandidates = [
+    new URL('/.well-known/openid-configuration', authorizationServer.origin).toString(),
+    new URL('/.well-known/oauth-authorization-server', authorizationServer.origin).toString(),
+  ];
+  return Array.from(new Set([...pathScopedCandidates, ...rootCandidates]));
 }
 
 function buildClientMetadataUrl(platformPublicBaseUrl: string): string {
