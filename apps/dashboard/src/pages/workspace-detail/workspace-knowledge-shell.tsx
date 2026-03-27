@@ -94,7 +94,7 @@ function StaticKnowledgeSection(props: {
           <p className="max-w-3xl text-sm leading-5 text-muted">{props.summary}</p>
         </div>
       </div>
-      <CardContent className="space-y-3 border-t border-border/70 px-4 py-4">
+      <CardContent className="space-y-3 px-4 pb-4 pt-0">
         {props.children}
       </CardContent>
     </Card>

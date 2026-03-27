@@ -56,6 +56,8 @@ describe('workspace knowledge surface source', () => {
     expect(source).not.toContain('{props.description}');
     expect(source).not.toContain('guidance:');
     expect(source).not.toContain('formatSectionSummary');
+    expect(source).toContain('CardContent className="space-y-3 px-4 pb-4 pt-0"');
+    expect(source).not.toContain('CardContent className="space-y-3 border-t border-border/70');
   });
 
   it('accepts local memory summary overrides so the shell reflects unsaved page edits immediately', () => {
