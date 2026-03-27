@@ -68,8 +68,8 @@ export function McpPageDialog(props: {
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
             <div className="space-y-5">
               <section className="grid gap-4 rounded-lg border border-border/70 bg-surface px-5 py-5">
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_14rem_14rem]">
-                  <label className="grid gap-2 text-sm">
+                <div className="grid gap-4 xl:grid-cols-4">
+                  <label className="grid gap-2 text-sm xl:col-span-2">
                     <span className="font-medium">Name</span>
                     <Input
                       value={props.form.name}
@@ -134,7 +134,7 @@ export function McpPageDialog(props: {
                       placeholder="https://mcp.example.test/server"
                     />
                   </label>
-                  <label className="grid gap-2 text-sm">
+                  <label className="grid gap-2 text-sm xl:col-span-2">
                     <span className="font-medium">Call timeout (seconds)</span>
                     <Input
                       inputMode="numeric"

@@ -50,6 +50,7 @@ import {
 } from './mcp-page.oauth-client-profile-form.js';
 import { McpPageOAuthClientProfileDialog } from './mcp-page.oauth-client-profile-dialog.js';
 import { McpPageOAuthClientProfilesSection } from './mcp-page.oauth-client-profiles-section.js';
+import { formatMcpErrorMessage, normalizeMcpErrorText } from './mcp-page.errors.js';
 import {
   resolveDeviceAuthorizationUrl,
   toDeviceAuthorizationState,
@@ -110,7 +111,7 @@ export function McpPage(): JSX.Element {
       setSearchParams({}, { replace: true });
     } else if (oauthError) {
       setDeviceAuthorization(null);
-      toast.error(`OAuth failed: ${oauthError}`);
+      toast.error(normalizeMcpErrorText(oauthError, 'OAuth authorization failed.'));
       setSearchParams({}, { replace: true });
     }
   }, [queryClient, searchParams, setSearchParams]);
@@ -168,7 +169,7 @@ export function McpPage(): JSX.Element {
       );
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to save remote MCP server.');
+      toast.error(formatMcpErrorMessage(error, 'Failed to save remote MCP server.'));
     },
   });
 
@@ -198,9 +199,7 @@ export function McpPage(): JSX.Element {
       );
     },
     onError: (error) => {
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to save OAuth client profile.',
-      );
+      toast.error(formatMcpErrorMessage(error, 'Failed to save OAuth client profile.'));
     },
   });
 
@@ -218,9 +217,7 @@ export function McpPage(): JSX.Element {
       toast.success(`Deleted OAuth client profile ${deletedProfileName}.`);
     },
     onError: (error) => {
-      toast.error(
-        error instanceof Error ? error.message : 'Failed to delete OAuth client profile.',
-      );
+      toast.error(formatMcpErrorMessage(error, 'Failed to delete OAuth client profile.'));
     },
   });
 
@@ -236,7 +233,7 @@ export function McpPage(): JSX.Element {
     },
     onError: (error) => {
       setBusyServerId(null);
-      toast.error(error instanceof Error ? error.message : 'Failed to reverify remote MCP server.');
+      toast.error(formatMcpErrorMessage(error, 'Failed to reverify remote MCP server.'));
     },
   });
 
@@ -254,7 +251,7 @@ export function McpPage(): JSX.Element {
     },
     onError: (error) => {
       setBusyServerId(null);
-      toast.error(error instanceof Error ? error.message : 'Failed to start OAuth authorization.');
+      toast.error(formatMcpErrorMessage(error, 'Failed to start OAuth authorization.'));
     },
   });
 
@@ -271,7 +268,7 @@ export function McpPage(): JSX.Element {
     },
     onError: (error) => {
       setBusyServerId(null);
-      toast.error(error instanceof Error ? error.message : 'Failed to disconnect OAuth.');
+      toast.error(formatMcpErrorMessage(error, 'Failed to disconnect OAuth.'));
     },
   });
 
@@ -285,7 +282,7 @@ export function McpPage(): JSX.Element {
       });
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : 'Failed to check device authorization status.');
+      toast.error(formatMcpErrorMessage(error, 'Failed to check device authorization status.'));
     },
   });
 
@@ -302,7 +299,7 @@ export function McpPage(): JSX.Element {
     },
     onError: (error) => {
       setBusyServerId(null);
-      toast.error(error instanceof Error ? error.message : 'Failed to delete remote MCP server.');
+      toast.error(formatMcpErrorMessage(error, 'Failed to delete remote MCP server.'));
     },
   });
 
@@ -325,7 +322,7 @@ export function McpPage(): JSX.Element {
     return (
       <div className="p-6">
         <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-          Failed to load remote MCP servers: {String(serversQuery.error)}
+          Failed to load remote MCP servers: {formatMcpErrorMessage(serversQuery.error, 'Unable to load remote MCP servers.')}
         </div>
       </div>
     );
@@ -405,7 +402,14 @@ export function McpPage(): JSX.Element {
       <McpPageOAuthClientProfilesSection
         profiles={oauthClientProfilesQuery.data ?? []}
         isLoading={oauthClientProfilesQuery.isLoading}
-        error={oauthClientProfilesQuery.error}
+        error={
+          oauthClientProfilesQuery.error
+            ? formatMcpErrorMessage(
+              oauthClientProfilesQuery.error,
+              'Unable to load OAuth client profiles.',
+            )
+            : null
+        }
         deletingProfileId={deletingOauthClientProfile?.id ?? null}
         onEdit={(profile) => {
           setOauthClientProfileDialogState({ mode: 'edit', profile });
@@ -423,7 +427,11 @@ export function McpPage(): JSX.Element {
           form={dialogForm}
           oauthClientProfiles={oauthClientProfilesQuery.data ?? []}
           isPending={saveMutation.isPending}
-          error={saveMutation.error instanceof Error ? saveMutation.error.message : null}
+          error={
+            saveMutation.error
+              ? formatMcpErrorMessage(saveMutation.error, 'Failed to save remote MCP server.')
+              : null
+          }
           submitLabel={buildSubmitLabel(dialogState.mode, dialogForm.authMode, dialogForm.oauth.grantType)}
           onFormChange={setDialogForm}
           onClose={() => {
@@ -441,8 +449,11 @@ export function McpPage(): JSX.Element {
         form={oauthClientProfileForm}
         isPending={saveOauthClientProfileMutation.isPending}
         error={
-          saveOauthClientProfileMutation.error instanceof Error
-            ? saveOauthClientProfileMutation.error.message
+          saveOauthClientProfileMutation.error
+            ? formatMcpErrorMessage(
+              saveOauthClientProfileMutation.error,
+              'Failed to save OAuth client profile.',
+            )
             : null
         }
         onOpenChange={(open) => {
@@ -468,7 +479,14 @@ export function McpPage(): JSX.Element {
         open={deviceAuthorization !== null}
         state={deviceAuthorization}
         isPolling={pollDeviceAuthorizationMutation.isPending}
-        error={pollDeviceAuthorizationMutation.error instanceof Error ? pollDeviceAuthorizationMutation.error.message : null}
+        error={
+          pollDeviceAuthorizationMutation.error
+            ? formatMcpErrorMessage(
+              pollDeviceAuthorizationMutation.error,
+              'Failed to check device authorization status.',
+            )
+            : null
+        }
         onOpenVerificationPage={() => {
           if (deviceAuthorization) {
             openAuthorizeUrl(resolveDeviceAuthorizationUrl(deviceAuthorization));

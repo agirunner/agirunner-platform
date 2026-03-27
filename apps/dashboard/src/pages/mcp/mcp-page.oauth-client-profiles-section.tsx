@@ -21,7 +21,7 @@ import type { DashboardRemoteMcpOAuthClientProfileRecord } from '../../lib/api.j
 export function McpPageOAuthClientProfilesSection(props: {
   profiles: DashboardRemoteMcpOAuthClientProfileRecord[];
   isLoading: boolean;
-  error: unknown;
+  error: string | null;
   deletingProfileId: string | null;
   onEdit(profile: DashboardRemoteMcpOAuthClientProfileRecord): void;
   onDelete(profile: DashboardRemoteMcpOAuthClientProfileRecord): void;
@@ -47,7 +47,7 @@ export function McpPageOAuthClientProfilesSection(props: {
       ) : props.error ? (
         <div className="px-6 py-6">
           <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-            Failed to load OAuth client profiles: {String(props.error)}
+            Failed to load OAuth client profiles: {props.error}
           </div>
         </div>
       ) : profiles.length === 0 ? (

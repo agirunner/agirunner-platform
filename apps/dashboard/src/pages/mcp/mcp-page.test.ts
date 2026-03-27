@@ -10,6 +10,7 @@ function readCombinedSource() {
   return [
     '../../lib/api.ts',
     './mcp-page.tsx',
+    './mcp-page.errors.ts',
     './mcp-page.api.ts',
     './mcp-page.device-authorization-dialog.tsx',
     './mcp-page.support.ts',
@@ -54,7 +55,7 @@ describe('mcp page source', () => {
     expect(source).toContain("const oauthError = searchParams.get('oauth_error');");
     expect(source).toContain("const remoteMcpServerName = searchParams.get('remote_mcp_server_name');");
     expect(source).toContain('OAuth connected successfully');
-    expect(source).toContain("toast.error(`OAuth failed: ${oauthError}`)");
+    expect(source).toContain("toast.error(normalizeMcpErrorText(oauthError, 'OAuth authorization failed.'))");
     expect(source).toContain("queryClient.invalidateQueries({ queryKey: ['remote-mcp-servers'] })");
   });
 
@@ -116,6 +117,7 @@ describe('mcp page source', () => {
 
   it('authors endpoint, auth, defaults, and parameter rows in the dialog', () => {
     const source = readCombinedSource();
+    const dialogSource = readSource('./mcp-page.dialog.tsx');
 
     expect(source).toContain('max-w-[92rem]');
     expect(source).not.toContain('top-[5vh]');
@@ -123,7 +125,9 @@ describe('mcp page source', () => {
     expect(source).toContain('Endpoint URL');
     expect(source).toContain('Authentication');
     expect(source).toContain('Transport preference');
-    expect(source).toContain('xl:grid-cols-[minmax(0,1fr)_14rem_14rem]');
+    expect(dialogSource).toContain('xl:grid-cols-4');
+    expect(dialogSource).not.toContain('xl:grid-cols-[minmax(0,1fr)_14rem_14rem]');
+    expect(dialogSource).toContain('<label className="grid gap-2 text-sm xl:col-span-2">');
     expect(source).toContain('xl:col-span-3');
     expect(source).toContain('lg:grid-cols-2');
     expect(source).not.toContain('xl:grid-cols-[minmax(0,1fr)_24rem]');
@@ -155,6 +159,17 @@ describe('mcp page source', () => {
     expect(source).toContain('Add parameter');
     expect(source).toContain("authMode !== 'none'");
     expect(source).toContain('normalizeParametersForAuthMode');
+  });
+
+  it('formats MCP dashboard errors without raw HTTP prefixes', () => {
+    const source = readCombinedSource();
+
+    expect(source).toContain('formatMcpErrorMessage');
+    expect(source).toContain('normalizeMcpErrorText');
+    expect(source).toContain("trimmed.match(/^HTTP\\s+\\d+\\s*:\\s*(.+)$/i)");
+    expect(source).toContain("toast.error(formatMcpErrorMessage(error, 'Failed to save remote MCP server.'))");
+    expect(source).toContain("toast.error(normalizeMcpErrorText(oauthError, 'OAuth authorization failed.'))");
+    expect(source).not.toContain("toast.error(error instanceof Error ? error.message : 'Failed to save remote MCP server.')");
   });
 
   it('keeps the connection summary driven by the current form auth mode', () => {
@@ -232,12 +247,12 @@ describe('mcp page source', () => {
   it('lays out the oauth client profile dialog with balanced half-width identity fields', () => {
     const source = readSource('./mcp-page.oauth-client-profile-dialog.tsx');
 
-    expect(source).toContain('grid gap-4 lg:grid-cols-2');
+    expect(source).toContain('grid gap-4 xl:grid-cols-4');
     expect(source).toContain('label="Client ID"');
     expect(source).toContain('label="Client secret"');
-    expect(source).toContain('grid gap-4 md:grid-cols-2 lg:col-span-2');
-    expect(source).not.toContain('xl:grid-cols-[minmax(0,1fr)_14rem_16rem]');
-    expect(source).not.toContain('className="xl:col-span-2"');
+    expect(source).toContain('className="xl:col-span-2"');
+    expect(source).toContain('className="xl:col-span-4"');
+    expect(source).not.toContain('Client secret" className="lg:col-span-2"');
   });
 
   it('teaches the dashboard api about remote mcp oauth client profile routes', () => {
