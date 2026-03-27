@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, type QueryKey } from '@tanstack/react-query';
 import { Loader2, Pause, Play, XCircle } from 'lucide-react';
 
 import type { ButtonProps } from '../../components/ui/button.js';
@@ -23,12 +23,14 @@ interface WorkflowControlActionsProps {
   workspaceId?: string | null;
   size?: ButtonProps['size'];
   className?: string;
+  additionalQueryKeys?: ReadonlyArray<QueryKey>;
 }
 
 async function invalidateWorkflowControlQueries(
   queryClient: ReturnType<typeof useQueryClient>,
   workflowId: string,
   workspaceId?: string | null,
+  additionalQueryKeys: ReadonlyArray<QueryKey> = [],
 ) {
   await Promise.all([
     invalidateWorkflowQueries(queryClient, workflowId, workspaceId ?? undefined),
@@ -36,6 +38,7 @@ async function invalidateWorkflowControlQueries(
     queryClient.invalidateQueries({ queryKey: ['tasks'] }),
     queryClient.invalidateQueries({ queryKey: ['approval-queue'] }),
     queryClient.invalidateQueries({ queryKey: ['events-recent'] }),
+    ...additionalQueryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
   ]);
 }
 
@@ -54,7 +57,12 @@ export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.
   const pauseMutation = useMutation({
     mutationFn: () => dashboardApi.pauseWorkflow(props.workflowId),
     onSuccess: async () => {
-      await invalidateWorkflowControlQueries(queryClient, props.workflowId, props.workspaceId);
+      await invalidateWorkflowControlQueries(
+        queryClient,
+        props.workflowId,
+        props.workspaceId,
+        props.additionalQueryKeys,
+      );
       toast.success('Workflow paused');
     },
     onError: (error) => {
@@ -64,7 +72,12 @@ export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.
   const resumeMutation = useMutation({
     mutationFn: () => dashboardApi.resumeWorkflow(props.workflowId),
     onSuccess: async () => {
-      await invalidateWorkflowControlQueries(queryClient, props.workflowId, props.workspaceId);
+      await invalidateWorkflowControlQueries(
+        queryClient,
+        props.workflowId,
+        props.workspaceId,
+        props.additionalQueryKeys,
+      );
       toast.success('Workflow resumed');
     },
     onError: (error) => {
@@ -75,7 +88,12 @@ export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.
     mutationFn: () => dashboardApi.cancelWorkflow(props.workflowId),
     onSuccess: async () => {
       setIsCancelDialogOpen(false);
-      await invalidateWorkflowControlQueries(queryClient, props.workflowId, props.workspaceId);
+      await invalidateWorkflowControlQueries(
+        queryClient,
+        props.workflowId,
+        props.workspaceId,
+        props.additionalQueryKeys,
+      );
       toast.success('Workflow cancellation requested');
     },
     onError: (error) => {

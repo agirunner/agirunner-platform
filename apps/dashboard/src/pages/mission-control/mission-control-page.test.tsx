@@ -24,7 +24,10 @@ describe('mission control page source', () => {
     expect(source).toContain('Attention');
     expect(source).toContain('Workflow');
     expect(source).toContain('Workflow canvas');
-    expect(source).toContain('Selected workflow');
+    expect(source).toContain('MissionControlWorkspacePane');
+    expect(source).toContain('getMissionControlWorkflowWorkspace');
+    expect(source).toContain('buildMissionControlWorkspaceQueryKey');
+    expect(source).toContain('hidden xl:block');
     expect(source).toContain('readMissionControlShellState');
     expect(source).toContain('buildMissionControlShellHref');
   });

@@ -40,6 +40,7 @@ import {
 import { WorkflowSurfaceRecoveryState } from './workflow-surface-recovery-state.js';
 
 export { buildTimelineContext, describeTimelineEvent } from './workflow-history-card.narrative.js';
+export type WorkflowHistoryTone = 'default' | 'warning' | 'destructive';
 
 export function WorkflowInteractionTimelineCard(props: {
   context: TimelineLookupContext;
@@ -319,6 +320,14 @@ function countArrayEntries(value: unknown, label: string): string | null {
 
 function timelineEntryClassName(
   tone: TimelineDescriptor['emphasisTone'],
+): string {
+  return workflowHistoryToneClassName(
+    tone === 'destructive' || tone === 'warning' ? tone : 'default',
+  );
+}
+
+export function workflowHistoryToneClassName(
+  tone: WorkflowHistoryTone,
 ): string {
   if (tone === 'destructive') {
     return 'grid gap-3 rounded-xl border border-red-200 bg-red-50/70 p-4 shadow-sm dark:border-red-900/70 dark:bg-red-950/20';
