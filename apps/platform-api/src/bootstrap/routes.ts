@@ -39,6 +39,7 @@ import { oauthRoutes } from '../api/routes/oauth.routes.js';
 import { playbookRoutes } from '../api/routes/playbooks.routes.js';
 import { orchestratorControlRoutes } from '../api/routes/orchestrator-control.routes.js';
 import { remoteMcpServerRoutes } from '../api/routes/remote-mcp-servers.routes.js';
+import { remoteMcpOAuthClientProfileRoutes } from '../api/routes/remote-mcp-oauth-client-profiles.routes.js';
 import { specialistSkillRoutes } from '../api/routes/specialist-skills.routes.js';
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
@@ -79,6 +80,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(circuitBreakerRoutes);
   await app.register(containerRoutes);
   await app.register(oauthRoutes);
+  await app.register(remoteMcpOAuthClientProfileRoutes);
   await app.register(remoteMcpServerRoutes);
   await app.register(specialistSkillRoutes);
   await app.register(executionLogRoutes);

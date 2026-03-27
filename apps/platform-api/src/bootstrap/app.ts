@@ -35,6 +35,7 @@ import { OrchestratorConfigService } from '../services/orchestrator-config-servi
 import { OrchestratorGrantService } from '../services/orchestrator-grant-service.js';
 import { ToolTagService } from '../services/tool-tag-service.js';
 import { ModelCatalogService } from '../services/model-catalog-service.js';
+import { RemoteMcpOAuthClientProfileService } from '../services/remote-mcp-oauth-client-profile-service.js';
 import { RemoteMcpServerService } from '../services/remote-mcp-server-service.js';
 import { RemoteMcpHttpVerifier } from '../services/remote-mcp-http-verifier.js';
 import { RemoteMcpOAuthService } from '../services/remote-mcp-oauth-service.js';
@@ -198,6 +199,7 @@ export async function buildApp() {
   );
   const modelCatalogService = new ModelCatalogService(pool);
   const oauthService = new OAuthService(pool);
+  const remoteMcpOAuthClientProfileService = new RemoteMcpOAuthClientProfileService(pool);
   const remoteMcpServerService = new RemoteMcpServerService(pool);
   const remoteMcpVerifier = new RemoteMcpHttpVerifier();
   const remoteMcpOAuthService = new RemoteMcpOAuthService(
@@ -208,6 +210,7 @@ export async function buildApp() {
       platformPublicBaseUrl: appConfig.PLATFORM_PUBLIC_BASE_URL,
       remoteMcpHostedCallbackBaseUrl: appConfig.REMOTE_MCP_HOSTED_CALLBACK_BASE_URL,
     },
+    remoteMcpOAuthClientProfileService,
   );
   const remoteMcpVerificationService = new RemoteMcpVerificationService(
     remoteMcpServerService,
@@ -271,6 +274,7 @@ export async function buildApp() {
   app.decorate('fleetService', createLoggedService(fleetService, 'FleetService', logService));
   app.decorate('modelCatalogService', createLoggedService(modelCatalogService, 'ModelCatalogService', logService));
   app.decorate('oauthService', createLoggedService(oauthService, 'OAuthService', logService));
+  app.decorate('remoteMcpOAuthClientProfileService', createLoggedService(remoteMcpOAuthClientProfileService, 'RemoteMcpOAuthClientProfileService', logService));
   app.decorate('remoteMcpServerService', createLoggedService(remoteMcpServerService, 'RemoteMcpServerService', logService));
   app.decorate('remoteMcpOAuthService', createLoggedService(remoteMcpOAuthService, 'RemoteMcpOAuthService', logService));
   app.decorate('remoteMcpVerificationService', createLoggedService(remoteMcpVerificationService, 'RemoteMcpVerificationService', logService));

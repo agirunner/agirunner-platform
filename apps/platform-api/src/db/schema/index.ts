@@ -40,6 +40,7 @@ export * from './user-identities.js';
 export * from './runtime-heartbeats.js';
 export * from './fleet-events.js';
 export * from './oauth-states.js';
+export * from './remote-mcp-oauth-client-profiles.js';
 export * from './remote-mcp-servers.js';
 export * from './remote-mcp-server-parameters.js';
 export * from './remote-mcp-registration-drafts.js';

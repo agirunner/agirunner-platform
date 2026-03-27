@@ -55,6 +55,7 @@ import {
   type TokenResponse,
 } from './remote-mcp-oauth-types.js';
 import type { RemoteMcpVerifier } from './remote-mcp-verification-service.js';
+import type { RemoteMcpOAuthClientProfileRecord } from './remote-mcp-oauth-client-profile-service.js';
 
 const ACCESS_TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 
@@ -67,6 +68,7 @@ const draftInputSchema = z.object({
   authMode: z.literal('oauth'),
   enabledByDefaultForNewSpecialists: z.boolean().default(false),
   grantToAllExistingSpecialists: z.boolean().default(false),
+  oauthClientProfileId: z.string().uuid().nullable().optional(),
   oauthDefinition: remoteMcpOauthDefinitionSchema.nullable().optional(),
   parameters: z.array(remoteMcpParameterSchema).default([]),
 }).strict();
@@ -91,6 +93,7 @@ interface DraftRow {
   auth_mode: 'oauth';
   enabled_by_default_for_new_specialists: boolean;
   grant_to_all_existing_specialists: boolean;
+  oauth_client_profile_id: string | null;
   oauth_definition: unknown;
   parameters: unknown;
 }
@@ -122,6 +125,9 @@ export class RemoteMcpOAuthService {
       platformPublicBaseUrl?: string;
       remoteMcpHostedCallbackBaseUrl?: string;
     },
+    private readonly oauthClientProfileService?: {
+      getStoredProfile(tenantId: string, id: string): Promise<RemoteMcpOAuthClientProfileRecord>;
+    },
   ) {}
 
   async initiateDraftAuthorization(
@@ -139,8 +145,8 @@ export class RemoteMcpOAuthService {
       `INSERT INTO remote_mcp_registration_drafts (
          tenant_id, user_id, name, description, endpoint_url, auth_mode,
          transport_preference, call_timeout_seconds, enabled_by_default_for_new_specialists,
-         grant_to_all_existing_specialists, oauth_definition, parameters
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb)
+         grant_to_all_existing_specialists, oauth_client_profile_id, oauth_definition, parameters
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12::jsonb, $13::jsonb)
        RETURNING id`,
       [
         tenantId,
@@ -153,6 +159,7 @@ export class RemoteMcpOAuthService {
         validated.callTimeoutSeconds,
         validated.enabledByDefaultForNewSpecialists,
         validated.grantToAllExistingSpecialists,
+        validated.oauthClientProfileId ?? null,
         JSON.stringify(persistableOauthDefinition(validated.oauthDefinition ?? null)),
         JSON.stringify(validated.parameters),
       ],
@@ -164,7 +171,9 @@ export class RemoteMcpOAuthService {
 
     if (effectiveGrantType === 'device_authorization') {
       const flow = await this.prepareDeviceAuthorization({
+        tenantId,
         endpointUrl: validated.endpointUrl.trim(),
+        oauthClientProfileId: validated.oauthClientProfileId ?? null,
         oauthDefinition: validated.oauthDefinition ?? null,
         parameters: validated.parameters,
       });
@@ -200,7 +209,9 @@ export class RemoteMcpOAuthService {
     }
 
     const flow = await this.prepareBrowserAuthorization({
+      tenantId,
       endpointUrl: validated.endpointUrl.trim(),
+      oauthClientProfileId: validated.oauthClientProfileId ?? null,
       oauthDefinition: validated.oauthDefinition ?? null,
       parameters: validated.parameters,
     });
@@ -237,7 +248,9 @@ export class RemoteMcpOAuthService {
     }
     if (effectiveGrantType === 'device_authorization') {
       const flow = await this.prepareDeviceAuthorization({
+        tenantId,
         endpointUrl: current.endpoint_url,
+        oauthClientProfileId: current.oauth_client_profile_id,
         oauthDefinition: current.oauth_definition,
         parameters: current.parameters.map((parameter) => ({
           placement: parameter.placement,
@@ -277,7 +290,9 @@ export class RemoteMcpOAuthService {
       };
     }
     const flow = await this.prepareBrowserAuthorization({
+      tenantId,
       endpointUrl: current.endpoint_url,
+      oauthClientProfileId: current.oauth_client_profile_id,
       oauthDefinition: current.oauth_definition,
       parameters: current.parameters.map((parameter) => ({
         placement: parameter.placement,
@@ -329,6 +344,7 @@ export class RemoteMcpOAuthService {
         authMode: 'oauth',
         enabledByDefaultForNewSpecialists: draft.enabled_by_default_for_new_specialists,
         grantToAllExistingSpecialists: draft.grant_to_all_existing_specialists,
+        oauthClientProfileId: draft.oauth_client_profile_id,
         oauthDefinition: parseDraftOauthDefinition(draft.oauth_definition),
         verificationStatus: verification.verification_status,
         verificationError: verification.verification_error,
@@ -370,6 +386,7 @@ export class RemoteMcpOAuthService {
         discoveredToolsSnapshot: verification.discovered_tools_snapshot,
         discoveredResourcesSnapshot: verification.discovered_resources_snapshot,
         discoveredPromptsSnapshot: verification.discovered_prompts_snapshot,
+        oauthClientProfileId: draft.oauth_client_profile_id,
         oauthDefinition: parseDraftOauthDefinition(draft.oauth_definition),
         oauthConfig: persistableOauthConfig(payload.oauth_config),
         oauthCredentials,
@@ -427,6 +444,7 @@ export class RemoteMcpOAuthService {
         authMode: 'oauth',
         enabledByDefaultForNewSpecialists: draft.enabled_by_default_for_new_specialists,
         grantToAllExistingSpecialists: draft.grant_to_all_existing_specialists,
+        oauthClientProfileId: draft.oauth_client_profile_id,
         oauthDefinition: parseDraftOauthDefinition(draft.oauth_definition),
         verificationStatus: verification.verification_status,
         verificationError: verification.verification_error,
@@ -469,6 +487,7 @@ export class RemoteMcpOAuthService {
         discoveredToolsSnapshot: verification.discovered_tools_snapshot,
         discoveredResourcesSnapshot: verification.discovered_resources_snapshot,
         discoveredPromptsSnapshot: verification.discovered_prompts_snapshot,
+        oauthClientProfileId: draft.oauth_client_profile_id,
         oauthDefinition: parseDraftOauthDefinition(draft.oauth_definition),
         oauthConfig: persistableOauthConfig(payload.oauth_config),
         oauthCredentials,
@@ -520,22 +539,29 @@ export class RemoteMcpOAuthService {
   }
 
   private async prepareBrowserAuthorization(input: {
+    tenantId: string;
     endpointUrl: string;
+    oauthClientProfileId: string | null;
     oauthDefinition: RemoteMcpOauthDefinition | null;
     parameters: RemoteMcpParameterInput[];
   }): Promise<PreparedOAuthFlow> {
+    const oauthDefinition = await this.resolveEffectiveOauthDefinition(
+      input.tenantId,
+      input.oauthClientProfileId,
+      input.oauthDefinition,
+    );
     assertOAuthEndpointUrl(input.endpointUrl);
     const resourceDiscovery = await discoverResourceMetadata({
       endpointUrl: input.endpointUrl,
-      oauthDefinition: input.oauthDefinition,
+      oauthDefinition,
     });
     const authDiscovery = await discoverAuthorizationServerMetadata({
       endpointUrl: input.endpointUrl,
       resourceDiscovery,
-      oauthDefinition: input.oauthDefinition,
+      oauthDefinition,
     });
     const callbackMode = resolveRemoteMcpCallbackMode(
-      input.oauthDefinition?.callbackMode,
+      oauthDefinition?.callbackMode,
       this.options.remoteMcpHostedCallbackBaseUrl,
     );
     const redirectUri = buildRemoteMcpRedirectUri(
@@ -546,11 +572,11 @@ export class RemoteMcpOAuthService {
       metadata: authDiscovery.metadata,
       resource: resourceDiscovery.metadata.resource,
       redirectUri,
-      oauthDefinition: input.oauthDefinition,
+      oauthDefinition,
       platformPublicBaseUrl: requirePlatformPublicBaseUrl(this.options.platformPublicBaseUrl),
     });
     if (!clientConfig.authorizationEndpoint) {
-      throw new ValidationError(readMissingAuthorizationEndpointMessage(input.oauthDefinition));
+      throw new ValidationError(readMissingAuthorizationEndpointMessage(oauthDefinition));
     }
     const codeVerifier = generateCodeVerifier();
     const state = generateState();
@@ -572,38 +598,45 @@ export class RemoteMcpOAuthService {
       codeVerifier,
       state,
       discoveryStrategy: `${resourceDiscovery.strategy}+${authDiscovery.strategy}`,
-      oauthStrategy: resolveEffectiveGrantType(input.oauthDefinition),
+      oauthStrategy: resolveEffectiveGrantType(oauthDefinition),
     };
   }
 
   private async prepareDeviceAuthorization(input: {
+    tenantId: string;
     endpointUrl: string;
+    oauthClientProfileId: string | null;
     oauthDefinition: RemoteMcpOauthDefinition | null;
     parameters: RemoteMcpParameterInput[];
   }): Promise<DeviceAuthorizationFlow> {
+    const oauthDefinition = await this.resolveEffectiveOauthDefinition(
+      input.tenantId,
+      input.oauthClientProfileId,
+      input.oauthDefinition,
+    );
     assertOAuthEndpointUrl(input.endpointUrl);
     const resourceDiscovery = await discoverResourceMetadata({
       endpointUrl: input.endpointUrl,
-      oauthDefinition: input.oauthDefinition,
+      oauthDefinition,
     });
     const authDiscovery = await discoverAuthorizationServerMetadata({
       endpointUrl: input.endpointUrl,
       resourceDiscovery,
-      oauthDefinition: input.oauthDefinition,
+      oauthDefinition,
     });
     const redirectUri = buildRemoteMcpRedirectUri(
-      resolveRemoteMcpCallbackMode(input.oauthDefinition?.callbackMode, this.options.remoteMcpHostedCallbackBaseUrl),
+      resolveRemoteMcpCallbackMode(oauthDefinition?.callbackMode, this.options.remoteMcpHostedCallbackBaseUrl),
       this.options.remoteMcpHostedCallbackBaseUrl,
     );
     const clientConfig = await buildOauthClientConfig({
       metadata: authDiscovery.metadata,
       resource: resourceDiscovery.metadata.resource,
       redirectUri,
-      oauthDefinition: input.oauthDefinition,
+      oauthDefinition,
       platformPublicBaseUrl: requirePlatformPublicBaseUrl(this.options.platformPublicBaseUrl),
     });
     if (!clientConfig.deviceAuthorizationEndpoint) {
-      throw new ValidationError(readMissingDeviceAuthorizationEndpointMessage(input.oauthDefinition));
+      throw new ValidationError(readMissingDeviceAuthorizationEndpointMessage(oauthDefinition));
     }
     const deviceResponse = await requestDeviceAuthorization(clientConfig, input.parameters);
     return {
@@ -617,7 +650,7 @@ export class RemoteMcpOAuthService {
       expiresInSeconds: deviceResponse.expires_in,
       intervalSeconds: deviceResponse.interval ?? 5,
       discoveryStrategy: `${resourceDiscovery.strategy}+${authDiscovery.strategy}`,
-      oauthStrategy: resolveEffectiveGrantType(input.oauthDefinition),
+      oauthStrategy: resolveEffectiveGrantType(oauthDefinition),
     };
   }
 
@@ -627,7 +660,9 @@ export class RemoteMcpOAuthService {
     draft: z.infer<typeof draftInputSchema>,
   ): Promise<RemoteMcpOAuthStartResult> {
     const token = await this.requestClientCredentialsToken(
+      tenantId,
       draft.endpointUrl.trim(),
+      draft.oauthClientProfileId ?? null,
       draft.oauthDefinition ?? null,
       draft.parameters,
     );
@@ -655,6 +690,7 @@ export class RemoteMcpOAuthService {
       authMode: 'oauth',
       enabledByDefaultForNewSpecialists: draft.enabledByDefaultForNewSpecialists,
       grantToAllExistingSpecialists: draft.grantToAllExistingSpecialists,
+      oauthClientProfileId: draft.oauthClientProfileId ?? null,
       oauthDefinition: draft.oauthDefinition ?? null,
       verificationStatus: verification.verification_status,
       verificationError: verification.verification_error,
@@ -684,7 +720,9 @@ export class RemoteMcpOAuthService {
   ): Promise<RemoteMcpOAuthStartResult> {
     const draft = await this.loadServerAsDraft(tenantId, current.id);
     const token = await this.requestClientCredentialsToken(
+      tenantId,
       draft.endpoint_url,
+      draft.oauth_client_profile_id,
       current.oauth_definition,
       parseDraftParameters(draft.parameters),
     );
@@ -799,6 +837,7 @@ export class RemoteMcpOAuthService {
       transport_preference: current.transport_preference,
       call_timeout_seconds: current.call_timeout_seconds,
       auth_mode: 'oauth',
+      oauth_client_profile_id: current.oauth_client_profile_id,
       enabled_by_default_for_new_specialists: current.enabled_by_default_for_new_specialists,
       grant_to_all_existing_specialists: false,
       oauth_definition: current.oauth_definition,
@@ -831,7 +870,9 @@ export class RemoteMcpOAuthService {
   }
 
   private async requestClientCredentialsToken(
+    tenantId: string,
     endpointUrl: string,
+    oauthClientProfileId: string | null,
     oauthDefinition: RemoteMcpOauthDefinition | null,
     parameters: RemoteMcpParameterInput[],
   ): Promise<{
@@ -840,25 +881,30 @@ export class RemoteMcpOAuthService {
     discoveryStrategy: string;
     oauthStrategy: string;
   }> {
+    const effectiveOauthDefinition = await this.resolveEffectiveOauthDefinition(
+      tenantId,
+      oauthClientProfileId,
+      oauthDefinition,
+    );
     assertOAuthEndpointUrl(endpointUrl);
     const resourceDiscovery = await discoverResourceMetadata({
       endpointUrl,
-      oauthDefinition,
+      oauthDefinition: effectiveOauthDefinition,
     });
     const authDiscovery = await discoverAuthorizationServerMetadata({
       endpointUrl,
       resourceDiscovery,
-      oauthDefinition,
+      oauthDefinition: effectiveOauthDefinition,
     });
     const redirectUri = buildRemoteMcpRedirectUri(
-      resolveRemoteMcpCallbackMode(oauthDefinition?.callbackMode, this.options.remoteMcpHostedCallbackBaseUrl),
+      resolveRemoteMcpCallbackMode(effectiveOauthDefinition?.callbackMode, this.options.remoteMcpHostedCallbackBaseUrl),
       this.options.remoteMcpHostedCallbackBaseUrl,
     );
     const oauthConfig = await buildOauthClientConfig({
       metadata: authDiscovery.metadata,
       resource: resourceDiscovery.metadata.resource,
       redirectUri,
-      oauthDefinition,
+      oauthDefinition: effectiveOauthDefinition,
       platformPublicBaseUrl: requirePlatformPublicBaseUrl(this.options.platformPublicBaseUrl),
     });
     const token = await exchangeClientCredentialsToken(oauthConfig, parameters);
@@ -866,7 +912,7 @@ export class RemoteMcpOAuthService {
       oauthConfig,
       token,
       discoveryStrategy: `${resourceDiscovery.strategy}+${authDiscovery.strategy}`,
-      oauthStrategy: resolveEffectiveGrantType(oauthDefinition),
+      oauthStrategy: resolveEffectiveGrantType(effectiveOauthDefinition),
     };
   }
 
@@ -914,6 +960,21 @@ export class RemoteMcpOAuthService {
       [serverId, JSON.stringify(oauthCredentials)],
     );
   }
+
+  private async resolveEffectiveOauthDefinition(
+    tenantId: string,
+    oauthClientProfileId: string | null,
+    oauthDefinition: RemoteMcpOauthDefinition | null,
+  ): Promise<RemoteMcpOauthDefinition | null> {
+    if (!oauthClientProfileId) {
+      return oauthDefinition;
+    }
+    if (!this.oauthClientProfileService) {
+      throw new ValidationError('Remote MCP OAuth client profile support is not configured');
+    }
+    const profile = await this.oauthClientProfileService.getStoredProfile(tenantId, oauthClientProfileId);
+    return mergeOauthDefinitionWithClientProfile(oauthDefinition, profile);
+  }
 }
 
 function requirePlatformPublicBaseUrl(value: string | undefined): string {
@@ -954,6 +1015,40 @@ function persistableOauthDefinition(
     ...value,
     clientSecret: value.clientSecret ? encryptRemoteMcpSecret(value.clientSecret) : null,
     privateKeyPem: value.privateKeyPem ? encryptRemoteMcpSecret(value.privateKeyPem) : null,
+  };
+}
+
+function mergeOauthDefinitionWithClientProfile(
+  oauthDefinition: RemoteMcpOauthDefinition | null,
+  profile: RemoteMcpOAuthClientProfileRecord,
+): RemoteMcpOauthDefinition {
+  return {
+    ...oauthDefinition,
+    callbackMode: oauthDefinition?.callbackMode ?? profile.callback_mode,
+    clientId: oauthDefinition?.clientId ?? profile.client_id,
+    clientSecret: oauthDefinition?.clientSecret ?? profile.client_secret,
+    tokenEndpointAuthMethod:
+      oauthDefinition?.tokenEndpointAuthMethod ?? profile.token_endpoint_auth_method,
+    authorizationEndpointOverride:
+      oauthDefinition?.authorizationEndpointOverride ?? profile.authorization_endpoint,
+    tokenEndpointOverride:
+      oauthDefinition?.tokenEndpointOverride ?? profile.token_endpoint,
+    registrationEndpointOverride:
+      oauthDefinition?.registrationEndpointOverride ?? profile.registration_endpoint,
+    deviceAuthorizationEndpointOverride:
+      oauthDefinition?.deviceAuthorizationEndpointOverride ?? profile.device_authorization_endpoint,
+    scopes:
+      oauthDefinition?.scopes && oauthDefinition.scopes.length > 0
+        ? oauthDefinition.scopes
+        : profile.default_scopes,
+    resourceIndicators:
+      oauthDefinition?.resourceIndicators && oauthDefinition.resourceIndicators.length > 0
+        ? oauthDefinition.resourceIndicators
+        : profile.default_resource_indicators,
+    audiences:
+      oauthDefinition?.audiences && oauthDefinition.audiences.length > 0
+        ? oauthDefinition.audiences
+        : profile.default_audiences,
   };
 }
 

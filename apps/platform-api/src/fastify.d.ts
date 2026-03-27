@@ -29,6 +29,7 @@ import type { AgentService } from './services/agent-service.js';
 import type { OAuthService } from './services/oauth-service.js';
 import type { OrchestratorConfigService } from './services/orchestrator-config-service.js';
 import type { OrchestratorGrantService } from './services/orchestrator-grant-service.js';
+import type { RemoteMcpOAuthClientProfileService } from './services/remote-mcp-oauth-client-profile-service.js';
 import type { RemoteMcpServerService } from './services/remote-mcp-server-service.js';
 import type { RemoteMcpOAuthService } from './services/remote-mcp-oauth-service.js';
 import type { RemoteMcpVerificationService } from './services/remote-mcp-verification-service.js';
@@ -67,6 +68,7 @@ declare module 'fastify' {
     fleetService: FleetService;
     modelCatalogService: ModelCatalogService;
     oauthService: OAuthService;
+    remoteMcpOAuthClientProfileService: RemoteMcpOAuthClientProfileService;
     remoteMcpServerService: RemoteMcpServerService;
     remoteMcpOAuthService: RemoteMcpOAuthService;
     remoteMcpVerificationService: RemoteMcpVerificationService;

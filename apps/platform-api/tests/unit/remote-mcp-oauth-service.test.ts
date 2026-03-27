@@ -111,6 +111,92 @@ describe('RemoteMcpOAuthService', () => {
     expect(browserResult.authorizeUrl).toContain(encodeURIComponent('https://mcp.example.test/server'));
   });
 
+  it('uses the selected oauth client profile for browser authorization', async () => {
+    vi.mocked(globalThis.fetch)
+      .mockResolvedValueOnce(
+        mockJsonResponse({}, 401),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          authorization_servers: ['https://auth.example.test'],
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          issuer: 'https://auth.example.test',
+          authorization_endpoint: 'https://auth.example.test/oauth/authorize',
+          token_endpoint: 'https://auth.example.test/oauth/token',
+          response_types_supported: ['code'],
+          grant_types_supported: ['authorization_code', 'refresh_token'],
+          code_challenge_methods_supported: ['S256'],
+          token_endpoint_auth_methods_supported: ['client_secret_post'],
+          client_id_metadata_document_supported: false,
+        }),
+      );
+
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO remote_mcp_registration_drafts')) {
+          return { rowCount: 1, rows: [{ id: 'draft-1' }] };
+        }
+        if (sql.includes('INSERT INTO oauth_states')) {
+          return { rowCount: 1, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new RemoteMcpOAuthService(
+      pool as never,
+      {
+        getStoredServer: vi.fn(),
+        createVerifiedServer: vi.fn(),
+        updateVerifiedServer: vi.fn(),
+      } as never,
+      {
+        verify: vi.fn(),
+      } as never,
+      {
+        platformPublicBaseUrl: 'https://platform.example.test',
+      },
+      {
+        getStoredProfile: vi.fn().mockResolvedValue({
+          id: '00000000-0000-0000-0000-000000000901',
+          client_id: 'profile-client-id',
+          client_secret: 'profile-client-secret',
+          token_endpoint_auth_method: 'client_secret_post',
+          callback_mode: 'loopback',
+          authorization_endpoint: 'https://auth.example.test/oauth/authorize',
+          token_endpoint: 'https://auth.example.test/oauth/token',
+          registration_endpoint: null,
+          device_authorization_endpoint: null,
+          default_scopes: ['openid', 'profile'],
+          default_resource_indicators: [],
+          default_audiences: [],
+        }),
+      } as never,
+    );
+
+    const result = await service.initiateDraftAuthorization('tenant-1', 'user-1', {
+      name: 'Docs MCP',
+      description: '',
+      endpointUrl: 'https://mcp.example.test/server',
+      callTimeoutSeconds: 300,
+      authMode: 'oauth',
+      enabledByDefaultForNewSpecialists: false,
+      grantToAllExistingSpecialists: false,
+      oauthClientProfileId: '00000000-0000-0000-0000-000000000901',
+      oauthDefinition: {},
+      parameters: [],
+    });
+
+    const browserResult = expectBrowserAuthorizationResult(result, 'draft-1');
+    expect(browserResult.authorizeUrl).toContain('client_id=profile-client-id');
+    expect(browserResult.authorizeUrl).toContain('scope=openid+profile');
+    expect(browserResult.authorizeUrl).not.toContain(
+      encodeURIComponent('https://platform.example.test/.well-known/oauth/mcp-client.json'),
+    );
+  });
+
   it('completes a draft callback by verifying first and only then creating the remote MCP server', async () => {
     vi.mocked(globalThis.fetch).mockResolvedValueOnce(
       mockJsonResponse({

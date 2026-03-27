@@ -32,6 +32,7 @@ const createVerifiedServerSchema = z.object({
   authMode: z.enum(['none', 'parameterized', 'oauth']),
   enabledByDefaultForNewSpecialists: z.boolean().default(false),
   grantToAllExistingSpecialists: z.boolean().default(false),
+  oauthClientProfileId: z.string().uuid().nullable().optional(),
   verificationStatus: z.enum(['unknown', 'verified', 'failed']),
   verificationError: z.string().nullable(),
   verifiedTransport: z.enum(['streamable_http', 'http_sse_compat']).nullable(),
@@ -79,6 +80,8 @@ interface RemoteMcpServerRow {
   discovered_resources_snapshot: unknown;
   discovered_prompts_snapshot: unknown;
   oauth_definition: unknown;
+  oauth_client_profile_id: string | null;
+  oauth_client_profile_name?: string | null;
   oauth_config: unknown;
   oauth_credentials: unknown;
   created_at: Date;
@@ -125,6 +128,8 @@ export interface RemoteMcpServerRecord {
   assigned_specialist_count: number;
   parameters: RemoteMcpServerParameterRecord[];
   oauth_definition: RemoteMcpOauthDefinition | null;
+  oauth_client_profile_id: string | null;
+  oauth_client_profile_name: string | null;
   oauth_connected: boolean;
   oauth_authorized_at: string | null;
   oauth_needs_reauth: boolean;
@@ -180,14 +185,15 @@ export class RemoteMcpServerService {
     const validated = createVerifiedServerSchema.parse(input);
     assertValidEndpointUrl(validated.endpointUrl);
     await this.assertUniqueSlug(tenantId, normalizeSlug(validated.name));
+    await this.assertOauthClientProfileExists(tenantId, validated.oauthClientProfileId ?? null);
     const insert = await this.pool.query<{ id: string }>(
         `INSERT INTO remote_mcp_servers (
          tenant_id, name, slug, description, endpoint_url, transport_preference, call_timeout_seconds, auth_mode,
-         enabled_by_default_for_new_specialists, verification_status, verification_error,
+         enabled_by_default_for_new_specialists, oauth_client_profile_id, verification_status, verification_error,
          verified_transport, verified_discovery_strategy, verified_oauth_strategy, verified_at,
          verification_contract_version, verified_capability_summary, discovered_tools_snapshot,
          discovered_resources_snapshot, discovered_prompts_snapshot, oauth_definition
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb, $18::jsonb, $19::jsonb, $20::jsonb, $21::jsonb)
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18::jsonb, $19::jsonb, $20::jsonb, $21::jsonb, $22::jsonb)
        RETURNING id`,
       [
         tenantId,
@@ -199,6 +205,7 @@ export class RemoteMcpServerService {
         validated.callTimeoutSeconds,
         validated.authMode,
         validated.enabledByDefaultForNewSpecialists,
+        validated.oauthClientProfileId ?? null,
         validated.verificationStatus,
         validated.verificationError,
         validated.verifiedTransport,
@@ -236,6 +243,11 @@ export class RemoteMcpServerService {
     }
     const endpointUrl = validated.endpointUrl?.trim() ?? current.endpoint_url;
     assertValidEndpointUrl(endpointUrl);
+    const oauthClientProfileId =
+      validated.oauthClientProfileId === undefined
+        ? current.oauth_client_profile_id
+        : validated.oauthClientProfileId;
+    await this.assertOauthClientProfileExists(tenantId, oauthClientProfileId ?? null);
     await this.pool.query(
       `UPDATE remote_mcp_servers
           SET name = $3,
@@ -246,20 +258,21 @@ export class RemoteMcpServerService {
               call_timeout_seconds = $8,
               auth_mode = $9,
               enabled_by_default_for_new_specialists = $10,
-              verification_status = $11,
-              verification_error = $12,
-              verified_transport = $13,
-              verified_discovery_strategy = $14,
-              verified_oauth_strategy = $15,
-              verified_at = $16,
-              verification_contract_version = $17,
-              verified_capability_summary = $18::jsonb,
-              discovered_tools_snapshot = $19::jsonb,
-              discovered_resources_snapshot = $20::jsonb,
-              discovered_prompts_snapshot = $21::jsonb,
-              oauth_definition = $22::jsonb,
-              oauth_config = $23::jsonb,
-              oauth_credentials = $24::jsonb,
+              oauth_client_profile_id = $11,
+              verification_status = $12,
+              verification_error = $13,
+              verified_transport = $14,
+              verified_discovery_strategy = $15,
+              verified_oauth_strategy = $16,
+              verified_at = $17,
+              verification_contract_version = $18,
+              verified_capability_summary = $19::jsonb,
+              discovered_tools_snapshot = $20::jsonb,
+              discovered_resources_snapshot = $21::jsonb,
+              discovered_prompts_snapshot = $22::jsonb,
+              oauth_definition = $23::jsonb,
+              oauth_config = $24::jsonb,
+              oauth_credentials = $25::jsonb,
               updated_at = now()
         WHERE tenant_id = $1
           AND id = $2`,
@@ -274,6 +287,7 @@ export class RemoteMcpServerService {
         validated.callTimeoutSeconds ?? current.call_timeout_seconds,
         validated.authMode ?? current.auth_mode,
         validated.enabledByDefaultForNewSpecialists ?? current.enabled_by_default_for_new_specialists,
+        oauthClientProfileId,
         validated.verificationStatus ?? current.verification_status,
         validated.verificationError ?? current.verification_error,
         validated.verifiedTransport ?? current.verified_transport,
@@ -454,6 +468,19 @@ export class RemoteMcpServerService {
       throw new ConflictError(`Remote MCP server name already exists`);
     }
   }
+
+  private async assertOauthClientProfileExists(tenantId: string, profileId: string | null): Promise<void> {
+    if (!profileId) {
+      return;
+    }
+    const result = await this.pool.query<{ id: string }>(
+      `SELECT id FROM remote_mcp_oauth_client_profiles WHERE tenant_id = $1 AND id = $2 LIMIT 1`,
+      [tenantId, profileId],
+    );
+    if (!result.rows[0]) {
+      throw new ValidationError('Remote MCP OAuth client profile not found');
+    }
+  }
 }
 
 function listServersSql(): string {
@@ -471,8 +498,11 @@ function listServersSql(): string {
       FROM remote_mcp_server_parameters p
       WHERE p.remote_mcp_server_id = s.id
     ), '[]'::jsonb) AS parameter_rows,
+    cp.name AS oauth_client_profile_name,
     COALESCE((SELECT COUNT(*)::integer FROM specialist_mcp_server_grants g WHERE g.remote_mcp_server_id = s.id), 0) AS assigned_specialist_count
   FROM remote_mcp_servers s
+  LEFT JOIN remote_mcp_oauth_client_profiles cp
+    ON cp.id = s.oauth_client_profile_id
   WHERE s.tenant_id = $1`;
 }
 
@@ -532,6 +562,8 @@ function toRemoteMcpServerRecord(row: RemoteMcpServerRow, exposeSecretValues: bo
     assigned_specialist_count: row.assigned_specialist_count ?? 0,
     parameters,
     oauth_definition: normalizeOauthDefinition(row.oauth_definition, exposeSecretValues),
+    oauth_client_profile_id: row.oauth_client_profile_id ?? null,
+    oauth_client_profile_name: typeof row.oauth_client_profile_name === 'string' ? row.oauth_client_profile_name : null,
     oauth_connected: oauthCredentials !== null && !oauthCredentials.needsReauth,
     oauth_authorized_at: oauthCredentials?.authorizedAt ?? null,
     oauth_needs_reauth: oauthCredentials?.needsReauth ?? false,

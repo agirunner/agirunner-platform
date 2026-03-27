@@ -1,6 +1,7 @@
 import { boolean, index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { tenants } from './tenants.js';
+import { remoteMcpOAuthClientProfiles } from './remote-mcp-oauth-client-profiles.js';
 
 export const remoteMcpRegistrationDrafts = pgTable(
   'remote_mcp_registration_drafts',
@@ -14,6 +15,7 @@ export const remoteMcpRegistrationDrafts = pgTable(
     transportPreference: text('transport_preference').notNull().default('auto'),
     callTimeoutSeconds: integer('call_timeout_seconds').notNull().default(300),
     authMode: text('auth_mode').notNull(),
+    oauthClientProfileId: uuid('oauth_client_profile_id').references(() => remoteMcpOAuthClientProfiles.id),
     enabledByDefaultForNewSpecialists: boolean('enabled_by_default_for_new_specialists').notNull().default(false),
     grantToAllExistingSpecialists: boolean('grant_to_all_existing_specialists').notNull().default(false),
     oauthDefinition: jsonb('oauth_definition'),
