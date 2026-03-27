@@ -120,6 +120,7 @@ describe('playbook list page source', () => {
   it('renders a first-run playbook empty state with an icon and create action', () => {
     const source = readLibrarySource();
 
+    expect(source).toContain("import { Card, CardContent } from '../../components/ui/card.js';");
     expect(source).toContain('No playbooks yet');
     expect(source).toContain('Create first playbook');
     expect(source).toContain(

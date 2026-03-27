@@ -16,6 +16,7 @@ import {
 } from '../../components/list-pagination.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
+import { Card, CardContent } from '../../components/ui/card.js';
 import { IconActionButton } from '../../components/ui/icon-action-button.js';
 import { Input } from '../../components/ui/input.js';
 import { DASHBOARD_BADGE_TOKENS } from '../../lib/dashboard-badge-palette.js';
