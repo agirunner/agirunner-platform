@@ -238,12 +238,13 @@ export function App(): JSX.Element {
             {/* Integrations */}
             <Route path="/integrations/webhooks" element={<WebhooksPage />} />
             <Route path="/integrations/triggers" element={<WorkItemTriggersPage />} />
-            <Route path="/integrations/mcp" element={<McpPage />} />
+            <Route path="/integrations/mcp-servers" element={<McpPage />} />
             <Route path="/integrations/acp" element={<AcpPage />} />
-            <Route path="/integrations/agent-protocols" element={<Navigate to="/integrations/mcp" replace />} />
+            <Route path="/integrations/mcp" element={<Navigate to="/integrations/mcp-servers" replace />} />
+            <Route path="/integrations/agent-protocols" element={<Navigate to="/integrations/mcp-servers" replace />} />
             <Route path="/config/webhooks" element={<Navigate to="/integrations/webhooks" replace />} />
             <Route path="/config/triggers" element={<Navigate to="/integrations/triggers" replace />} />
-            <Route path="/config/agent-protocols" element={<Navigate to="/integrations/mcp" replace />} />
+            <Route path="/config/agent-protocols" element={<Navigate to="/integrations/mcp-servers" replace />} />
             <Route path="/config/work-item-triggers" element={<Navigate to="/integrations/triggers" replace />} />
 
             {/* Diagnostics */}

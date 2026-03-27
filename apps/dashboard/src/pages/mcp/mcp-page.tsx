@@ -232,7 +232,7 @@ export function McpPage(): JSX.Element {
   return (
     <div className="space-y-6 p-6">
       <DashboardPageHeader
-        navHref="/integrations/mcp"
+        navHref="/integrations/mcp-servers"
         description="Register remote MCP servers, verify connectivity, and inspect discovered tools."
         actions={
           <Button

@@ -24,7 +24,7 @@ describe('mcp page source', () => {
     const source = readCombinedSource();
 
     expect(source).toContain('DashboardPageHeader');
-    expect(source).toContain('navHref="/integrations/mcp"');
+    expect(source).toContain('navHref="/integrations/mcp-servers"');
     expect(source).toContain('Register remote MCP servers, verify connectivity, and inspect discovered tools.');
     expect(source).toContain('Create Remote MCP Server');
     expect(source).toContain("queryKey: ['remote-mcp-servers']");
