@@ -21,12 +21,12 @@ describe('role dialog support', () => {
 
     expect(result.isValid).toBe(false);
     expect(result.fieldErrors).toMatchObject({
-      name: 'Choose a unique role name.',
+      name: 'Choose a unique specialist name.',
     });
     expect(result.advisoryIssues).toEqual(
       expect.arrayContaining([
-        'Add a system prompt so the orchestrator understands how the role should behave.',
-        'Enable at least one tool or confirm that this role should be read-only.',
+        'Add a system prompt so the orchestrator understands how the specialist should behave.',
+        'Enable at least one tool or confirm that this specialist should be read-only.',
       ]),
     );
   });

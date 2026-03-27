@@ -26,18 +26,18 @@ export function RoleToolGrantsSection(props: {
       <CardHeader>
         <CardTitle>Tool grants</CardTitle>
         <CardDescription>
-          Select which specialist agent tools and specialist execution tools this role can use. Orchestrator-only tools are managed on the orchestrator surface.
+          Select which specialist agent tools and specialist execution tools this specialist can use. Orchestrator-only tools are managed on the orchestrator surface.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="rounded-md border border-border/70 bg-surface px-3 py-3 text-xs text-muted">
           {enabledToolCount > 0
             ? `${enabledToolCount} of ${props.tools.length} tool${props.tools.length === 1 ? '' : 's'} enabled.`
-            : 'No tools enabled. Toggle tools on to grant the role access.'}
+            : 'No tools enabled. Toggle tools on to grant the specialist access.'}
         </div>
         <ToolGrantGroup
           title="Specialist agent tools"
-          description="Run directly in the specialist agent loop and are safe to grant to specialist roles."
+          description="Run directly in the specialist agent loop and are safe to grant to specialists."
           tools={runtimeTools}
           allowedTools={props.form.allowedTools}
           toggleTool={props.toggleTool}

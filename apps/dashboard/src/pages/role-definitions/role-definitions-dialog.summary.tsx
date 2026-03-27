@@ -23,7 +23,7 @@ export function RoleReadinessCard(props: {
       <CardHeader>
         <CardTitle>Save readiness</CardTitle>
         <CardDescription>
-          See blocking issues, recommendations, and live role posture before you save.
+          See blocking issues, recommendations, and live specialist posture before you save.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -43,8 +43,8 @@ export function RoleReadinessCard(props: {
           <div>
             <p className="font-medium">
               {props.validation.isValid
-                ? 'Ready to save this role.'
-                : 'Resolve these role setup issues before saving.'}
+                ? 'Ready to save this specialist.'
+                : 'Resolve these specialist setup issues before saving.'}
             </p>
             {!props.validation.isValid ? (
               <ul className="mt-2 space-y-1">
@@ -91,7 +91,7 @@ export function RoleDialogFooter(props: {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted">
           {props.validation.isValid
-            ? 'All required fields are ready. Save keeps role definitions and orchestration posture in sync.'
+            ? 'All required fields are ready. Save keeps specialist definitions and orchestration posture in sync.'
             : `${props.validation.blockingIssues.length} save blocker${props.validation.blockingIssues.length === 1 ? '' : 's'} remaining.`}
         </p>
         <div className="flex flex-wrap justify-end gap-2">

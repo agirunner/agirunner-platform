@@ -58,9 +58,9 @@ function buildFieldErrors(
   const errors: RoleDialogValidation['fieldErrors'] = {};
   const trimmedName = form.name.trim();
   if (!trimmedName) {
-    errors.name = 'Enter a role name.';
+    errors.name = 'Enter a specialist name.';
   } else if (hasDuplicateRoleName(trimmedName, roles, currentRole)) {
-    errors.name = 'Choose a unique role name.';
+    errors.name = 'Choose a unique specialist name.';
   }
   return errors;
 }
@@ -68,10 +68,10 @@ function buildFieldErrors(
 function buildAdvisoryIssues(form: RoleFormState): string[] {
   const issues: string[] = [];
   if (!form.systemPrompt.trim()) {
-    issues.push('Add a system prompt so the orchestrator understands how the role should behave.');
+    issues.push('Add a system prompt so the orchestrator understands how the specialist should behave.');
   }
   if (form.allowedTools.length === 0) {
-    issues.push('Enable at least one tool or confirm that this role should be read-only.');
+    issues.push('Enable at least one tool or confirm that this specialist should be read-only.');
   }
   return issues;
 }

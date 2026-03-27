@@ -40,9 +40,9 @@ export function RoleBasicsSection(props: {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
-          <CardTitle>Role basics</CardTitle>
+          <CardTitle>Specialist basics</CardTitle>
           <CardDescription>
-            Set the role identity, prompt, and lifecycle state.
+            Set the specialist identity, prompt, and lifecycle state.
           </CardDescription>
         </div>
         <div className="flex items-center gap-3">
@@ -53,7 +53,7 @@ export function RoleBasicsSection(props: {
               onCheckedChange={(checked) =>
                 props.setForm((current) => ({ ...current, isActive: checked }))
               }
-              aria-label="Active role"
+              aria-label="Active specialist"
             />
           </div>
         </div>
@@ -79,7 +79,7 @@ export function RoleBasicsSection(props: {
             onChange={(event) =>
               props.setForm((current) => ({ ...current, description: event.target.value }))
             }
-            placeholder="What this role is responsible for."
+            placeholder="What this specialist is responsible for."
           />
         </label>
         <label className="grid gap-2 text-sm">
@@ -122,7 +122,7 @@ export function RoleModelAssignmentSection(props: {
       <CardHeader>
         <CardTitle>Model assignment</CardTitle>
         <CardDescription>
-          Assign a model to this role. This is the same assignment shown on the Models page.
+          Assign a model to this specialist. This is the same assignment shown on the Models page.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -190,7 +190,7 @@ export function RoleExecutionEnvironmentSection(props: {
       <CardHeader>
         <CardTitle>Execution environment</CardTitle>
         <CardDescription>
-          Select the specialist execution environment for this role. Default inherits the environment marked default on Platform &gt; Environments.
+          Select the specialist execution environment for this specialist. Default inherits the environment marked default on Platform &gt; Environments.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
@@ -234,7 +234,7 @@ function ExecutionEnvironmentDetails(props: {
   if (!props.environment) {
     return (
       <div className="rounded-lg border border-border/70 bg-muted/10 px-4 py-3 text-sm text-muted">
-        Roles without an override inherit the default environment, including its image, CPU, memory, and pull policy.
+        Specialists without an override inherit the default environment, including its image, CPU, memory, and pull policy.
       </div>
     );
   }

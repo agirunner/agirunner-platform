@@ -77,10 +77,10 @@ describe('role definitions page source', () => {
   it('exposes structured model and active-state controls in the dialog', () => {
     const source = readCombinedSource();
     expect(source).toContain('Model assignment');
-    expect(source).toContain('Active role');
+    expect(source).toContain('Active specialist');
     expect(source).toContain('Save readiness');
-    expect(source).toContain('Resolve these role setup issues before saving.');
-    expect(source).toContain('Choose a unique role name.');
+    expect(source).toContain('Resolve these specialist setup issues before saving.');
+    expect(source).toContain('Choose a unique specialist name.');
     expect(source).toContain('Remote MCP servers');
     expect(source).toContain('Skills');
     expect(source).toContain('Create skill');
@@ -99,7 +99,7 @@ describe('role definitions page source', () => {
     const source = readCombinedSource();
     expect(source).not.toContain('ImageReferenceField');
     expect(source).toContain('Execution environment');
-    expect(source).toContain('Select the specialist execution environment for this role.');
+    expect(source).toContain('Select the specialist execution environment for this specialist.');
     expect(source).toContain('value={draft.runtimeImage}');
     expect(source).not.toContain('orchestrator-runtime-image-suggestions');
     expect(source).not.toContain('Use the same standard image ref format as Roles and Specialist agent defaults.');
