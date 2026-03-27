@@ -5,7 +5,7 @@ Live workflow tests no longer run from `scripts/`.
 Use the canonical path under `tests/live/` instead:
 
 ```bash
-bash tests/live/scenarios/run-live-scenario.sh sdlc-assessment-approve
+bash tests/live/run.sh --scenario sdlc-assessment-approve
 ```
 
 See [tests/live/README.md](../tests/live/README.md) for the supported live-test flow.

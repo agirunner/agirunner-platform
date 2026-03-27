@@ -5,8 +5,7 @@
 This README is procedure-first. It explains:
 
 - what to configure
-- how to rebuild and reseed the shared live-test stack
-- how to run one scenario or a batch
+- how to use the one supported live-test command
 - what artifacts to inspect
 - when to reuse bootstrap state versus when to reseed from scratch
 
@@ -16,7 +15,7 @@ This README is procedure-first. It explains:
 - Do not seed live-test state through direct database mutation.
 - Shared bootstrap MUST seed runtime-facing state through platform APIs.
 - Live tests MUST use the env-provided OAuth session snapshot. Do not source OAuth session state from the live database.
-- `tests/live/export-current-oauth-session.sh` only normalizes the env-provided OAuth snapshot; it is not a DB export path.
+- OAuth snapshot normalization now runs through `tests/live/run.sh --normalize-oauth-session`; it is not a DB export path.
 - Scenario verdicts are outcome-driven:
   - runner exit code `0`
   - final output artifact exists
@@ -29,14 +28,8 @@ This README is procedure-first. It explains:
 
 - [env/local.env.example](/home/mark/codex/agirunner-platform/tests/live/env/local.env.example)
   - local secret/config template
-- [prepare-live-test-shared-environment.sh](/home/mark/codex/agirunner-platform/tests/live/prepare-live-test-shared-environment.sh)
-  - full rebuild + reseed for the shared stack
-- [prepare-live-test-run.sh](/home/mark/codex/agirunner-platform/tests/live/prepare-live-test-run.sh)
-  - per-scenario workspace/run-context bootstrap
-- [scenarios/run-live-scenario.sh](/home/mark/codex/agirunner-platform/tests/live/scenarios/run-live-scenario.sh)
-  - canonical single-scenario runner
-- [scenarios/run-live-scenario-batch.sh](/home/mark/codex/agirunner-platform/tests/live/scenarios/run-live-scenario-batch.sh)
-  - canonical batch runner
+- [run.sh](/home/mark/codex/agirunner-platform/tests/live/run.sh)
+  - the only supported public entrypoint for live-test setup and execution
 - [live_test_tracker.json](/home/mark/codex/agirunner-platform/tests/live/live_test_tracker.json)
   - authoritative supported-scenario order
 - [library](/home/mark/codex/agirunner-platform/tests/live/library)
@@ -45,6 +38,14 @@ This README is procedure-first. It explains:
   - shared Python helpers for API bootstrap and scenario execution
 - [tests](/home/mark/codex/agirunner-platform/tests/live/tests)
   - harness-level regression tests
+
+Internal harness implementation files remain under:
+
+- `prepare-live-test-shared-environment.sh`
+- `prepare-live-test-run.sh`
+- `scenarios/run-live-scenario.sh`
+- `scenarios/run-live-scenario-batch.sh`
+- `scenarios/run-multi-orchestrator-concurrent-assessment-workflows-live-test.sh`
 
 ## Prerequisites
 
@@ -114,19 +115,55 @@ If you need to normalize the env-provided OAuth JSON shape:
 
 ```bash
 cd /home/mark/codex/agirunner-platform
-bash tests/live/export-current-oauth-session.sh
+bash tests/live/run.sh --normalize-oauth-session
 ```
 
-That script rewrites the env snapshot format only. It does not read the live DB.
+That command rewrites the env snapshot format only. It does not read the live DB.
 
-## Shared Bootstrap And Reseed
+## Supported Commands
 
-Use this when you want a clean shared baseline for the corpus:
+Full tracker batch with automatic bootstrap/reuse:
 
 ```bash
 cd /home/mark/codex/agirunner-platform
-bash tests/live/prepare-live-test-shared-environment.sh
+bash tests/live/run.sh
 ```
+
+Single scenario:
+
+```bash
+bash tests/live/run.sh --scenario sdlc-assessment-approve
+```
+
+Rerun only failed scenarios:
+
+```bash
+bash tests/live/run.sh --failed-only
+```
+
+Batch with explicit concurrency:
+
+```bash
+bash tests/live/run.sh --concurrency 5
+```
+
+Shared bootstrap only:
+
+```bash
+bash tests/live/run.sh --bootstrap-only
+```
+
+Per-scenario preparation only:
+
+```bash
+bash tests/live/run.sh --prepare-only --scenario sdlc-assessment-approve
+```
+
+Shared bootstrap and scenario execution still use the internal scripts below. `run.sh` is the supported public command surface that chooses the right internal path for you.
+
+## Shared Bootstrap And Reseed
+
+`bash tests/live/run.sh --bootstrap-only` performs the full rebuild/reseed for the shared stack.
 
 What it does:
 
@@ -155,15 +192,12 @@ This is the full rebuild/reseed path. Use it when:
 
 Canonical command:
 
-```bash
-cd /home/mark/codex/agirunner-platform
-bash tests/live/scenarios/run-live-scenario.sh sdlc-assessment-approve
-```
+`bash tests/live/run.sh --scenario sdlc-assessment-approve` is the canonical single-scenario command.
 
 You can also pass a scenario JSON path instead of a scenario name:
 
 ```bash
-bash tests/live/scenarios/run-live-scenario.sh tests/live/scenarios/sdlc-assessment-approve.json
+bash tests/live/run.sh --scenario tests/live/scenarios/sdlc-assessment-approve.json
 ```
 
 What the runner does:
@@ -190,7 +224,7 @@ If you want to inspect or debug the per-scenario setup separately from the actua
 
 ```bash
 cd /home/mark/codex/agirunner-platform
-bash tests/live/prepare-live-test-run.sh sdlc-assessment-approve
+bash tests/live/run.sh --prepare-only --scenario sdlc-assessment-approve
 ```
 
 That creates:
@@ -206,21 +240,18 @@ This step reuses the already-seeded shared bootstrap. It does not rebuild the wh
 
 Run the full supported corpus in tracker order:
 
-```bash
-cd /home/mark/codex/agirunner-platform
-bash tests/live/scenarios/run-live-scenario-batch.sh
-```
+`bash tests/live/run.sh` runs the full supported corpus in tracker order.
 
 Run with explicit concurrency:
 
 ```bash
-bash tests/live/scenarios/run-live-scenario-batch.sh 5
+bash tests/live/run.sh --concurrency 5
 ```
 
 Rerun only scenarios that currently have failing artifacts:
 
 ```bash
-bash tests/live/scenarios/run-live-scenario-batch.sh --failed-only
+bash tests/live/run.sh --failed-only
 ```
 
 The batch runner:
@@ -408,6 +439,7 @@ python3 tests/live/tests/seed_live_test_run.test.py
 python3 tests/live/tests/run_workflow_scenario.test.py
 bash tests/live/tests/prepare-live-test-shared-environment.test.sh
 bash tests/live/tests/prepare-live-test-run.test.sh
+bash tests/live/tests/run.test.sh
 bash tests/live/tests/run-live-scenario.test.sh
 bash tests/live/tests/run-live-scenario-batch.test.sh
 ```

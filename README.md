@@ -113,7 +113,7 @@ pnpm build      # TypeScript compilation
 
 ```bash
 pnpm test:v2-contract                            # Deterministic contract lane
-bash tests/live/scenarios/run-live-scenario.sh sdlc-assessment-approve
+bash tests/live/run.sh --scenario sdlc-assessment-approve
 ```
 
 See `tests/live/README.md` for the supported live workflow test path.
