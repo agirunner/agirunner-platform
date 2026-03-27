@@ -7,6 +7,7 @@ import type {
 } from '../../lib/api.js';
 
 export const REMOTE_MCP_STORED_SECRET_VALUE = 'redacted://remote-mcp-secret';
+export const DEFAULT_REMOTE_MCP_CALL_TIMEOUT_SECONDS = 300;
 
 export interface RemoteMcpParameterFormState {
   id: string;
@@ -21,6 +22,7 @@ export interface RemoteMcpServerFormState {
   name: string;
   description: string;
   endpointUrl: string;
+  callTimeoutSeconds: string;
   authMode: DashboardRemoteMcpServerCreateInput['authMode'];
   enabledByDefaultForNewSpecialists: boolean;
   grantToAllExistingSpecialists: boolean;
@@ -40,6 +42,7 @@ export function createRemoteMcpServerForm(
     name: server?.name ?? '',
     description: server?.description ?? '',
     endpointUrl: server?.endpoint_url ?? '',
+    callTimeoutSeconds: String(server?.call_timeout_seconds ?? DEFAULT_REMOTE_MCP_CALL_TIMEOUT_SECONDS),
     authMode: server?.auth_mode ?? 'none',
     enabledByDefaultForNewSpecialists:
       server?.enabled_by_default_for_new_specialists ?? false,
@@ -67,6 +70,7 @@ export function buildRemoteMcpCreatePayload(
     name: form.name.trim(),
     description: form.description.trim(),
     endpointUrl: form.endpointUrl.trim(),
+    callTimeoutSeconds: parseCallTimeoutSeconds(form.callTimeoutSeconds),
     authMode: form.authMode,
     enabledByDefaultForNewSpecialists: form.enabledByDefaultForNewSpecialists,
     grantToAllExistingSpecialists: form.grantToAllExistingSpecialists,
@@ -81,6 +85,7 @@ export function buildRemoteMcpUpdatePayload(
     name: form.name.trim(),
     description: form.description.trim(),
     endpointUrl: form.endpointUrl.trim(),
+    callTimeoutSeconds: parseCallTimeoutSeconds(form.callTimeoutSeconds),
     authMode: form.authMode,
     enabledByDefaultForNewSpecialists: form.enabledByDefaultForNewSpecialists,
     parameters: buildRemoteMcpParameters(form.parameters),
@@ -196,4 +201,13 @@ function normalizeParameterValue(parameter: RemoteMcpParameterFormState): string
 
 function readString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function parseCallTimeoutSeconds(value: string): number {
+  const normalized = value.trim();
+  const parsed = Number.parseInt(normalized, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error('Call timeout must be a positive whole number of seconds.');
+  }
+  return parsed;
 }

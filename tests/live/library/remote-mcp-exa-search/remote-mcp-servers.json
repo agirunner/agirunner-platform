@@ -3,6 +3,7 @@
     "name": "Exa MCP",
     "description": "Remote Exa MCP server for search and crawling.",
     "endpointUrl": "https://mcp.exa.ai/mcp",
+    "callTimeoutSeconds": 300,
     "authMode": "parameterized",
     "enabledByDefaultForNewSpecialists": false,
     "grantToAllExistingSpecialists": false,

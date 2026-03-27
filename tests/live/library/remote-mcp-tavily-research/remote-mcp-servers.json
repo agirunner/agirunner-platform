@@ -3,6 +3,7 @@
     "name": "Tavily MCP",
     "description": "Remote Tavily MCP server for web search and research.",
     "endpointUrl": "https://mcp.tavily.com/mcp/",
+    "callTimeoutSeconds": 300,
     "authMode": "parameterized",
     "enabledByDefaultForNewSpecialists": false,
     "grantToAllExistingSpecialists": false,

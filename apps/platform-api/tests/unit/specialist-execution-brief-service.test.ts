@@ -128,6 +128,7 @@ describe('buildSpecialistExecutionBrief', () => {
             slug: 'tavily-search',
             description: 'Web search and lightweight research.',
             endpointUrl: 'https://mcp.tavily.com/mcp/{tenant}',
+            callTimeoutSeconds: 300,
             authMode: 'parameterized' as const,
             verifiedTransport: 'streamable_http' as const,
             verificationContractVersion: 'remote-mcp-v1',

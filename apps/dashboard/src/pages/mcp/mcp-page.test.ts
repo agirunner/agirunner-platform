@@ -65,6 +65,7 @@ describe('mcp page source', () => {
     expect(source).toContain('Authentication');
     expect(source).toContain('Enabled by default for new specialists');
     expect(source).toContain('Grant to all existing specialists');
+    expect(source).toContain('Call timeout (seconds)');
     expect(source).toContain('Connection parameters');
     expect(source).toContain('Initialize parameter');
     expect(source).toContain('Stored secret configured');

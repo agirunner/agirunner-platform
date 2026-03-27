@@ -78,6 +78,7 @@ describe('RemoteMcpOAuthService', () => {
       name: 'Docs MCP',
       description: '',
       endpointUrl: 'https://mcp.example.test/server',
+      callTimeoutSeconds: 300,
       authMode: 'oauth',
       enabledByDefaultForNewSpecialists: false,
       grantToAllExistingSpecialists: true,
@@ -152,6 +153,7 @@ describe('RemoteMcpOAuthService', () => {
               name: 'Docs MCP',
               description: '',
               endpoint_url: 'https://mcp.example.test/server',
+              call_timeout_seconds: 300,
               auth_mode: 'oauth',
               enabled_by_default_for_new_specialists: false,
               grant_to_all_existing_specialists: true,
@@ -207,6 +209,7 @@ describe('RemoteMcpOAuthService', () => {
     });
     expect(verifier.verify).toHaveBeenCalledWith({
       endpointUrl: 'https://mcp.example.test/server',
+      callTimeoutSeconds: 300,
       authMode: 'oauth',
       parameters: [
         {
@@ -228,6 +231,7 @@ describe('RemoteMcpOAuthService', () => {
       expect.objectContaining({
         name: 'Docs MCP',
         authMode: 'oauth',
+        callTimeoutSeconds: 300,
         verificationStatus: 'verified',
         oauthConfig: expect.objectContaining({
           authorizationEndpoint: 'https://auth.example.test/oauth/authorize',
@@ -277,6 +281,7 @@ describe('RemoteMcpOAuthService', () => {
         name: 'Docs MCP',
         description: '',
         endpoint_url: 'https://mcp.example.test/server',
+        call_timeout_seconds: 300,
         auth_mode: 'oauth',
         enabled_by_default_for_new_specialists: false,
         parameters: [],

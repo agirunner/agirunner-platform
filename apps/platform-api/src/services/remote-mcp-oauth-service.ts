@@ -28,6 +28,7 @@ const draftInputSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(1000).default(''),
   endpointUrl: z.string().min(1).max(2000),
+  callTimeoutSeconds: z.number().int().min(1).max(86400).default(300),
   authMode: z.literal('oauth'),
   enabledByDefaultForNewSpecialists: z.boolean().default(false),
   grantToAllExistingSpecialists: z.boolean().default(false),
@@ -49,6 +50,7 @@ interface DraftRow {
   name: string;
   description: string;
   endpoint_url: string;
+  call_timeout_seconds: number;
   auth_mode: 'oauth';
   enabled_by_default_for_new_specialists: boolean;
   grant_to_all_existing_specialists: boolean;
@@ -133,8 +135,9 @@ export class RemoteMcpOAuthService {
     const draftInsert = await this.pool.query<{ id: string }>(
       `INSERT INTO remote_mcp_registration_drafts (
          tenant_id, user_id, name, description, endpoint_url, auth_mode,
-         enabled_by_default_for_new_specialists, grant_to_all_existing_specialists, parameters
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9::jsonb)
+         call_timeout_seconds, enabled_by_default_for_new_specialists,
+         grant_to_all_existing_specialists, parameters
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
        RETURNING id`,
       [
         tenantId,
@@ -143,6 +146,7 @@ export class RemoteMcpOAuthService {
         validated.description.trim(),
         validated.endpointUrl.trim(),
         'oauth',
+        validated.callTimeoutSeconds,
         validated.enabledByDefaultForNewSpecialists,
         validated.grantToAllExistingSpecialists,
         JSON.stringify(validated.parameters),
@@ -203,20 +207,18 @@ export class RemoteMcpOAuthService {
     }
     const payload = remoteMcpOAuthStatePayloadSchema.parse(stateRow.flow_payload);
     const token = await this.exchangeAuthorizationCode(code, stateRow.code_verifier, payload.oauth_config);
-    const verification = await this.verifyConnectedServer(
-      payload.mode === 'draft'
-        ? await this.loadDraft(stateRow.tenant_id, payload.draft_id ?? '')
-        : await this.loadServerAsDraft(stateRow.tenant_id, payload.server_id ?? ''),
-      token.access_token,
-    );
+    const draft = payload.mode === 'draft'
+      ? await this.loadDraft(stateRow.tenant_id, payload.draft_id ?? '')
+      : await this.loadServerAsDraft(stateRow.tenant_id, payload.server_id ?? '');
+    const verification = await this.verifyConnectedServer(draft, token.access_token);
     const oauthCredentials = buildStoredOauthCredentials(token, stateRow.user_id);
 
     if (payload.mode === 'draft') {
-      const draft = await this.loadDraft(stateRow.tenant_id, payload.draft_id ?? '');
       const created = await this.serverService.createVerifiedServer(stateRow.tenant_id, {
         name: draft.name,
         description: draft.description,
         endpointUrl: draft.endpoint_url,
+        callTimeoutSeconds: draft.call_timeout_seconds,
         authMode: 'oauth',
         enabledByDefaultForNewSpecialists: draft.enabled_by_default_for_new_specialists,
         grantToAllExistingSpecialists: draft.grant_to_all_existing_specialists,
@@ -243,6 +245,7 @@ export class RemoteMcpOAuthService {
       stateRow.tenant_id,
       payload.server_id ?? '',
       {
+        callTimeoutSeconds: draft.call_timeout_seconds,
         verificationStatus: verification.verification_status,
         verificationError: verification.verification_error,
         verifiedTransport: verification.verified_transport,
@@ -383,6 +386,7 @@ export class RemoteMcpOAuthService {
       name: current.name,
       description: current.description,
       endpoint_url: current.endpoint_url,
+      call_timeout_seconds: current.call_timeout_seconds,
       auth_mode: 'oauth',
       enabled_by_default_for_new_specialists: current.enabled_by_default_for_new_specialists,
       grant_to_all_existing_specialists: false,
@@ -399,6 +403,7 @@ export class RemoteMcpOAuthService {
     const parameters = parseDraftParameters(draft.parameters);
     return this.verifier.verify({
       endpointUrl: draft.endpoint_url,
+      callTimeoutSeconds: draft.call_timeout_seconds,
       authMode: 'oauth',
       parameters: [
         ...parameters,

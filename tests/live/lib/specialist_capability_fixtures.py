@@ -180,6 +180,7 @@ def normalize_remote_mcp_fixture(entry: dict[str, Any]) -> dict[str, Any]:
         "name": read_required_string(entry.get("name"), "remote-mcp.name"),
         "description": read_optional_string(entry.get("description")) or "",
         "endpointUrl": resolve_scalar_value(entry.get("endpointUrl"), "remote-mcp.endpointUrl"),
+        "callTimeoutSeconds": read_positive_int(entry.get("callTimeoutSeconds"), "remote-mcp.callTimeoutSeconds", default=300),
         "authMode": auth_mode,
         "enabledByDefaultForNewSpecialists": bool(entry.get("enabledByDefaultForNewSpecialists", False)),
         "grantToAllExistingSpecialists": bool(entry.get("grantToAllExistingSpecialists", False)),
@@ -263,6 +264,14 @@ def read_env_value(name: str, field_name: str) -> str:
     value = os.environ.get(name, "").strip()
     if value == "":
         raise RuntimeError(f"{field_name} requires environment variable {name}")
+    return value
+
+
+def read_positive_int(value: Any, field_name: str, *, default: int) -> int:
+    if value is None:
+        return default
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise RuntimeError(f"{field_name} must be a positive integer")
     return value
 
 

@@ -1780,6 +1780,7 @@ async function buildRemoteMcpServerContract(
     description: server.description,
     transport: server.verifiedTransport ?? 'streamable_http',
     url: server.endpointUrl,
+    timeout_seconds: server.callTimeoutSeconds,
     auth_mode: server.authMode,
     verification_contract_version: server.verificationContractVersion,
     discovered_tools_snapshot: server.discoveredToolsSnapshot,

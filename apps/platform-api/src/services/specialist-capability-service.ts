@@ -24,6 +24,7 @@ export interface SpecialistRemoteMcpServerCapability {
   slug: string;
   description: string;
   endpointUrl: string;
+  callTimeoutSeconds: number;
   authMode: 'none' | 'parameterized' | 'oauth';
   verifiedTransport: 'streamable_http' | 'http_sse_compat' | null;
   verificationContractVersion: string;
@@ -120,6 +121,7 @@ export async function readSpecialistRoleCapabilities(
            'slug', s.slug,
            'description', s.description,
            'endpoint_url', s.endpoint_url,
+           'call_timeout_seconds', s.call_timeout_seconds,
            'auth_mode', s.auth_mode,
            'verified_transport', s.verified_transport,
            'verification_contract_version', s.verification_contract_version,
@@ -267,6 +269,7 @@ function normalizeRemoteMcpServers(value: unknown): SpecialistRemoteMcpServerCap
       slug,
       description: readString(entry.description) ?? '',
       endpointUrl,
+      callTimeoutSeconds: readPositiveInteger(entry.call_timeout_seconds) ?? 300,
       authMode: readAuthMode(entry.auth_mode),
       verifiedTransport: readTransport(entry.verified_transport),
       verificationContractVersion,
@@ -399,6 +402,10 @@ function readString(value: unknown): string | null {
 
 function readNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function readPositiveInteger(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

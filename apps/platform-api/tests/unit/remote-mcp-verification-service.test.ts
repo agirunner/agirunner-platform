@@ -54,6 +54,7 @@ describe('RemoteMcpVerificationService', () => {
         name: 'Empty MCP',
         description: '',
         endpointUrl: 'https://mcp.example.test/server',
+        callTimeoutSeconds: 300,
         authMode: 'none',
         enabledByDefaultForNewSpecialists: false,
         grantToAllExistingSpecialists: false,
@@ -79,6 +80,7 @@ describe('RemoteMcpVerificationService', () => {
       name: 'Docs MCP',
       description: '',
       endpointUrl: 'https://mcp.example.test/server',
+      callTimeoutSeconds: 300,
       authMode: 'none',
       enabledByDefaultForNewSpecialists: false,
       grantToAllExistingSpecialists: false,
@@ -88,6 +90,7 @@ describe('RemoteMcpVerificationService', () => {
     expect(serverService.createVerifiedServer).toHaveBeenCalledWith(
       TENANT_ID,
       expect.objectContaining({
+        callTimeoutSeconds: 300,
         verifiedTransport: 'http_sse_compat',
         verificationContractVersion: 'remote-mcp-v1',
       }),
@@ -98,6 +101,7 @@ describe('RemoteMcpVerificationService', () => {
     serverService.getStoredServer.mockResolvedValueOnce({
       id: SERVER_ID,
       endpoint_url: 'https://mcp.example.test/server',
+      call_timeout_seconds: 300,
       auth_mode: 'oauth',
       oauth_config: {
         authorizationEndpoint: 'https://auth.example.test/authorize',
@@ -143,6 +147,7 @@ describe('RemoteMcpVerificationService', () => {
     );
     expect(verifier.verify).toHaveBeenCalledWith(
       expect.objectContaining({
+        callTimeoutSeconds: 300,
         authMode: 'oauth',
         parameters: [
           {

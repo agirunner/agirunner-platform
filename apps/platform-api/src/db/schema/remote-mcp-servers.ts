@@ -1,4 +1,4 @@
-import { boolean, index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { tenants } from './tenants.js';
 
@@ -11,6 +11,7 @@ export const remoteMcpServers = pgTable(
     slug: text('slug').notNull(),
     description: text('description').notNull().default(''),
     endpointUrl: text('endpoint_url').notNull(),
+    callTimeoutSeconds: integer('call_timeout_seconds').notNull().default(300),
     authMode: text('auth_mode').notNull(),
     enabledByDefaultForNewSpecialists: boolean('enabled_by_default_for_new_specialists').notNull().default(false),
     isArchived: boolean('is_archived').notNull().default(false),

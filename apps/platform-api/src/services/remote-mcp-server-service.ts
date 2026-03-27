@@ -43,6 +43,7 @@ const createVerifiedServerSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(1000).default(''),
   endpointUrl: z.string().min(1).max(2000),
+  callTimeoutSeconds: z.number().int().min(1).max(86400).default(300),
   authMode: z.enum(['none', 'parameterized', 'oauth']),
   enabledByDefaultForNewSpecialists: z.boolean().default(false),
   grantToAllExistingSpecialists: z.boolean().default(false),
@@ -73,6 +74,7 @@ interface RemoteMcpServerRow {
   slug: string;
   description: string;
   endpoint_url: string;
+  call_timeout_seconds: number;
   auth_mode: string;
   enabled_by_default_for_new_specialists: boolean;
   is_archived: boolean;
@@ -106,6 +108,7 @@ export interface RemoteMcpServerRecord {
   slug: string;
   description: string;
   endpoint_url: string;
+  call_timeout_seconds: number;
   auth_mode: 'none' | 'parameterized' | 'oauth';
   enabled_by_default_for_new_specialists: boolean;
   is_archived: boolean;
@@ -171,10 +174,10 @@ export class RemoteMcpServerService {
     await this.assertUniqueSlug(tenantId, normalizeSlug(validated.name));
     const insert = await this.pool.query<{ id: string }>(
       `INSERT INTO remote_mcp_servers (
-         tenant_id, name, slug, description, endpoint_url, auth_mode,
+         tenant_id, name, slug, description, endpoint_url, call_timeout_seconds, auth_mode,
          enabled_by_default_for_new_specialists, verification_status, verification_error,
          verified_transport, verified_at, verification_contract_version, discovered_tools_snapshot
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb)
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb)
        RETURNING id`,
       [
         tenantId,
@@ -182,6 +185,7 @@ export class RemoteMcpServerService {
         normalizeSlug(validated.name),
         validated.description.trim(),
         validated.endpointUrl.trim(),
+        validated.callTimeoutSeconds,
         validated.authMode,
         validated.enabledByDefaultForNewSpecialists,
         validated.verificationStatus,
@@ -221,16 +225,17 @@ export class RemoteMcpServerService {
               slug = $4,
               description = $5,
               endpoint_url = $6,
-              auth_mode = $7,
-              enabled_by_default_for_new_specialists = $8,
-              verification_status = $9,
-              verification_error = $10,
-              verified_transport = $11,
-              verified_at = $12,
-              verification_contract_version = $13,
-              discovered_tools_snapshot = $14::jsonb,
-              oauth_config = $15::jsonb,
-              oauth_credentials = $16::jsonb,
+              call_timeout_seconds = $7,
+              auth_mode = $8,
+              enabled_by_default_for_new_specialists = $9,
+              verification_status = $10,
+              verification_error = $11,
+              verified_transport = $12,
+              verified_at = $13,
+              verification_contract_version = $14,
+              discovered_tools_snapshot = $15::jsonb,
+              oauth_config = $16::jsonb,
+              oauth_credentials = $17::jsonb,
               updated_at = now()
         WHERE tenant_id = $1
           AND id = $2`,
@@ -241,6 +246,7 @@ export class RemoteMcpServerService {
         slug,
         validated.description?.trim() ?? current.description,
         endpointUrl,
+        validated.callTimeoutSeconds ?? current.call_timeout_seconds,
         validated.authMode ?? current.auth_mode,
         validated.enabledByDefaultForNewSpecialists ?? current.enabled_by_default_for_new_specialists,
         validated.verificationStatus ?? current.verification_status,
@@ -422,6 +428,7 @@ function toRemoteMcpServerRecord(row: RemoteMcpServerRow, exposeSecretValues: bo
     slug: row.slug,
     description: row.description,
     endpoint_url: row.endpoint_url,
+    call_timeout_seconds: row.call_timeout_seconds,
     auth_mode: row.auth_mode as RemoteMcpServerRecord['auth_mode'],
     enabled_by_default_for_new_specialists: row.enabled_by_default_for_new_specialists,
     is_archived: row.is_archived,

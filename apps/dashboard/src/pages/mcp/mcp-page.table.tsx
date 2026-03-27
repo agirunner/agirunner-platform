@@ -65,6 +65,7 @@ export function McpPageTable(props: {
                   </div>
                   <div className="text-xs text-muted">{server.description || 'No description provided.'}</div>
                   <div className="text-xs text-foreground">{server.endpoint_url}</div>
+                  <div className="text-xs text-muted">Call timeout: {server.call_timeout_seconds}s</div>
                   <div className="text-xs text-muted">
                     {toolNames.length > 0
                       ? `${toolNames.length} tool${toolNames.length === 1 ? '' : 's'} discovered: ${toolNames.join(', ')}`

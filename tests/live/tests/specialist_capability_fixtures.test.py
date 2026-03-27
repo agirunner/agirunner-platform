@@ -72,6 +72,7 @@ class FakeClient:
                 "slug": str(payload["name"]).strip().lower().replace(" ", "-"),
                 "description": payload.get("description", ""),
                 "endpoint_url": payload["endpointUrl"],
+                "call_timeout_seconds": payload.get("callTimeoutSeconds", 300),
                 "auth_mode": payload["authMode"],
                 "enabled_by_default_for_new_specialists": payload.get("enabledByDefaultForNewSpecialists", False),
                 "verification_status": "verified",
@@ -106,6 +107,7 @@ class FakeClient:
                 "slug": str(payload["name"]).strip().lower().replace(" ", "-"),
                 "description": payload.get("description", ""),
                 "endpoint_url": payload["endpointUrl"],
+                "call_timeout_seconds": payload.get("callTimeoutSeconds", 300),
                 "auth_mode": payload["authMode"],
                 "enabled_by_default_for_new_specialists": payload.get("enabledByDefaultForNewSpecialists", False),
                 "verification_status": "verified",
@@ -161,6 +163,7 @@ class SpecialistCapabilityFixturesTests(unittest.TestCase):
                             "name": "Tavily Search",
                             "description": "Search the web.",
                             "endpointUrl": {"env": "LIVE_TEST_MCP_ENDPOINT"},
+                            "callTimeoutSeconds": 420,
                             "authMode": "parameterized",
                             "parameters": [
                                 {
@@ -205,6 +208,7 @@ class SpecialistCapabilityFixturesTests(unittest.TestCase):
         )
         server_call = next(call for call in client.calls if call[1] == "/api/v1/remote-mcp-servers" and call[0] == "POST")
         self.assertEqual("https://mcp.example.test/endpoint", server_call[2]["endpointUrl"])
+        self.assertEqual(420, server_call[2]["callTimeoutSeconds"])
         self.assertEqual("Bearer secret-token", server_call[2]["parameters"][0]["value"])
         self.assertEqual((200, 201), server_call[3])
 

@@ -3424,6 +3424,7 @@ describe('TaskClaimService', () => {
                   slug: 'tavily-search',
                   description: 'Web search and research.',
                   endpoint_url: 'https://mcp.tavily.com/mcp/{tenant}',
+                  call_timeout_seconds: 300,
                   auth_mode: 'parameterized',
                   verified_transport: 'streamable_http',
                   verification_contract_version: 'remote-mcp-v1',
@@ -3479,6 +3480,7 @@ describe('TaskClaimService', () => {
         id: 'mcp-1',
         name: 'tavily-search',
         display_name: 'Tavily Search',
+        timeout_seconds: 300,
         transport: 'streamable_http',
         url: 'https://mcp.tavily.com/mcp/{tenant}',
       }),
@@ -3576,6 +3578,7 @@ describe('TaskClaimService', () => {
                   slug: 'remote-research',
                   description: 'OAuth-backed research MCP.',
                   endpoint_url: 'https://mcp.example.test/server',
+                  call_timeout_seconds: 300,
                   auth_mode: 'oauth',
                   verified_transport: 'streamable_http',
                   verification_contract_version: 'remote-mcp-v1',
@@ -3646,6 +3649,7 @@ describe('TaskClaimService', () => {
         claim_handle: expect.stringMatching(/^claim:v1:/),
       }),
     ]);
+    expect(mcpServers[0].timeout_seconds).toBe(300);
     expect(JSON.stringify(task)).not.toContain('mcp-oauth-access-token');
 
     const resolved = await service.resolveClaimCredentials(identity, 'task-mcp-oauth', {

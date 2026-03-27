@@ -68,6 +68,7 @@ describe('RemoteMcpHttpVerifier', () => {
     const verifier = new RemoteMcpHttpVerifier();
     const result = await verifier.verify({
       endpointUrl: 'https://mcp.example.test/mcp',
+      callTimeoutSeconds: 300,
       authMode: 'none',
       parameters: [],
     });
@@ -115,6 +116,7 @@ describe('RemoteMcpHttpVerifier', () => {
     const verifier = new RemoteMcpHttpVerifier();
     const result = await verifier.verify({
       endpointUrl: 'https://mcp.example.test/mcp',
+      callTimeoutSeconds: 300,
       authMode: 'none',
       parameters: [],
     });

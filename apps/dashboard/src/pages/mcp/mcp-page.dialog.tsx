@@ -100,6 +100,20 @@ export function McpPageDialog(props: {
                       placeholder="https://mcp.example.test/server"
                     />
                   </label>
+                  <label className="grid gap-2 text-sm md:max-w-[14rem]">
+                    <span className="font-medium">Call timeout (seconds)</span>
+                    <Input
+                      inputMode="numeric"
+                      value={props.form.callTimeoutSeconds}
+                      onChange={(event) =>
+                        props.onFormChange({
+                          ...props.form,
+                          callTimeoutSeconds: event.target.value,
+                        })
+                      }
+                      placeholder="300"
+                    />
+                  </label>
                   <label className="grid gap-2 text-sm">
                     <span className="font-medium">Description</span>
                     <Textarea
@@ -215,6 +229,9 @@ export function McpPageDialog(props: {
                   <p className="font-medium text-foreground">Authentication summary</p>
                   <p className="mt-2 text-sm text-muted">
                     {buildAuthSummary(props.form.authMode)}
+                  </p>
+                  <p className="mt-3 text-xs text-muted">
+                    Tool calls from this server time out after {props.form.callTimeoutSeconds.trim() || '300'} seconds.
                   </p>
                   {props.server?.auth_mode === 'oauth' ? (
                     <p className="mt-3 text-xs text-muted">

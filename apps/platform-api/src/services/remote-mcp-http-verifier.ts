@@ -9,6 +9,7 @@ const CLIENT_VERSION = '1';
 
 interface VerifyRequest {
   endpointUrl: string;
+  callTimeoutSeconds: number;
   authMode: 'none' | 'parameterized' | 'oauth';
   parameters: Array<{
     placement: 'path' | 'query' | 'header' | 'initialize_param';
@@ -38,19 +39,20 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
   async verify(input: VerifyRequest) {
     const connection = resolveConnection(input);
     try {
-      return await this.verifyStreamableHttp(connection);
+      return await this.verifyStreamableHttp(connection, input.callTimeoutSeconds);
     } catch (error) {
       if (!isLegacyFallbackCandidate(error)) {
         throw error;
       }
-      return this.verifyLegacyHttpSse(connection);
+      return this.verifyLegacyHttpSse(connection, input.callTimeoutSeconds);
     }
   }
 
-  private async verifyStreamableHttp(connection: ResolvedConnection) {
+  private async verifyStreamableHttp(connection: ResolvedConnection, timeoutSeconds: number) {
     const initialize = await this.postJsonRpc(
       connection.endpointUrl,
       connection.headers,
+      timeoutSeconds,
       1,
       'initialize',
       buildInitializeParams(connection.initializeParams),
@@ -60,6 +62,7 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
     await this.postNotification(
       connection.endpointUrl,
       connection.headers,
+      timeoutSeconds,
       'notifications/initialized',
       {},
       sessionId,
@@ -67,6 +70,7 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
     const tools = await this.postJsonRpc(
       connection.endpointUrl,
       connection.headers,
+      timeoutSeconds,
       2,
       'tools/list',
       {},
@@ -81,8 +85,8 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
     };
   }
 
-  private async verifyLegacyHttpSse(connection: ResolvedConnection) {
-    const streamResponse = await fetch(connection.endpointUrl, {
+  private async verifyLegacyHttpSse(connection: ResolvedConnection, timeoutSeconds: number) {
+    const streamResponse = await fetchWithTimeout(connection.endpointUrl, timeoutSeconds, {
       method: 'GET',
       headers: {
         Accept: 'text/event-stream',
@@ -104,6 +108,7 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
       await this.postLegacyJsonRpc(
         messageEndpoint,
         connection.headers,
+        timeoutSeconds,
         1,
         'initialize',
         buildInitializeParams(connection.initializeParams),
@@ -113,11 +118,12 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
       await this.postNotification(
         messageEndpoint,
         connection.headers,
+        timeoutSeconds,
         'notifications/initialized',
         {},
         sessionId,
       );
-      await this.postLegacyJsonRpc(messageEndpoint, connection.headers, 2, 'tools/list', {});
+      await this.postLegacyJsonRpc(messageEndpoint, connection.headers, timeoutSeconds, 2, 'tools/list', {});
       const tools = await reader.nextJsonRpcMessage(2);
       return {
         verification_status: 'verified' as const,
@@ -134,12 +140,13 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
   private async postJsonRpc(
     endpointUrl: string,
     headers: Record<string, string>,
+    timeoutSeconds: number,
     id: number,
     method: string,
     params: Record<string, unknown>,
     sessionId: string | null,
   ) {
-    const response = await fetch(endpointUrl, {
+    const response = await fetchWithTimeout(endpointUrl, timeoutSeconds, {
       method: 'POST',
       headers: buildRequestHeaders(headers, sessionId),
       body: JSON.stringify({
@@ -158,11 +165,12 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
   private async postLegacyJsonRpc(
     endpointUrl: string,
     headers: Record<string, string>,
+    timeoutSeconds: number,
     id: number,
     method: string,
     params: Record<string, unknown>,
   ) {
-    const response = await fetch(endpointUrl, {
+    const response = await fetchWithTimeout(endpointUrl, timeoutSeconds, {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -183,11 +191,12 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
   private async postNotification(
     endpointUrl: string,
     headers: Record<string, string>,
+    timeoutSeconds: number,
     method: string,
     params: Record<string, unknown>,
     sessionId: string | null,
   ) {
-    const response = await fetch(endpointUrl, {
+    const response = await fetchWithTimeout(endpointUrl, timeoutSeconds, {
       method: 'POST',
       headers: buildRequestHeaders(headers, sessionId),
       body: JSON.stringify({
@@ -199,6 +208,29 @@ export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
     if (!response.ok && response.status !== 202) {
       throw new ValidationError(`Remote MCP notification failed with status ${response.status}`);
     }
+  }
+}
+
+async function fetchWithTimeout(
+  input: string,
+  timeoutSeconds: number,
+  init: RequestInit,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutMs = Math.max(timeoutSeconds, 1) * 1000;
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new ValidationError(`Remote MCP verification timed out after ${timeoutSeconds} seconds`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
   }
 }
 

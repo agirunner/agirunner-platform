@@ -21,6 +21,7 @@ function buildServerRow(overrides: Partial<Record<string, unknown>> = {}) {
     slug: 'tavily-search',
     description: 'Tenant search MCP',
     endpoint_url: 'https://mcp.tavily.com/mcp/{tenant}',
+    call_timeout_seconds: 300,
     auth_mode: 'parameterized',
     enabled_by_default_for_new_specialists: true,
     is_archived: false,
@@ -73,6 +74,7 @@ describe('RemoteMcpServerService', () => {
     expect(result[0]).toEqual(
       expect.objectContaining({
         id: SERVER_ID,
+        call_timeout_seconds: 300,
         verification_status: 'verified',
         discovered_tool_count: 1,
         assigned_specialist_count: 2,
@@ -114,6 +116,7 @@ describe('RemoteMcpServerService', () => {
       authMode: 'parameterized',
       enabledByDefaultForNewSpecialists: true,
       grantToAllExistingSpecialists: true,
+      callTimeoutSeconds: 300,
       verificationStatus: 'verified',
       verificationError: null,
       verifiedTransport: 'streamable_http',

@@ -418,6 +418,7 @@ export interface DashboardRemoteMcpServerRecord {
   slug: string;
   description: string;
   endpoint_url: string;
+  call_timeout_seconds: number;
   auth_mode: DashboardRemoteMcpAuthMode;
   enabled_by_default_for_new_specialists: boolean;
   is_archived: boolean;
@@ -448,6 +449,7 @@ export interface DashboardRemoteMcpServerCreateInput {
   name: string;
   description?: string;
   endpointUrl: string;
+  callTimeoutSeconds: number;
   authMode: DashboardRemoteMcpAuthMode;
   enabledByDefaultForNewSpecialists: boolean;
   grantToAllExistingSpecialists: boolean;
@@ -458,6 +460,7 @@ export interface DashboardRemoteMcpServerUpdateInput {
   name?: string;
   description?: string;
   endpointUrl?: string;
+  callTimeoutSeconds?: number;
   authMode?: DashboardRemoteMcpAuthMode;
   enabledByDefaultForNewSpecialists?: boolean;
   parameters?: DashboardRemoteMcpServerParameterInput[];

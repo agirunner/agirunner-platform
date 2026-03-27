@@ -11,6 +11,7 @@ import type {
 export interface RemoteMcpVerifier {
   verify(input: {
     endpointUrl: string;
+    callTimeoutSeconds: number;
     authMode: 'none' | 'parameterized' | 'oauth';
     parameters: Array<{
       placement: 'path' | 'query' | 'header' | 'initialize_param';
@@ -58,7 +59,12 @@ export class RemoteMcpVerificationService {
       | 'discoveredToolsSnapshot'
     >,
   ) {
-    const verification = await this.verifyOrThrow(input.endpointUrl, input.authMode, input.parameters);
+    const verification = await this.verifyOrThrow(
+      input.endpointUrl,
+      input.callTimeoutSeconds,
+      input.authMode,
+      input.parameters,
+    );
     return this.serverService.createVerifiedServer(tenantId, {
       ...input,
       verificationStatus: verification.verification_status,
@@ -84,6 +90,7 @@ export class RemoteMcpVerificationService {
     const current = await this.serverService.getStoredServer(tenantId, id);
     const connectivityChanged =
       (input.endpointUrl !== undefined && input.endpointUrl !== current.endpoint_url)
+      || (input.callTimeoutSeconds !== undefined && input.callTimeoutSeconds !== current.call_timeout_seconds)
       || (input.authMode !== undefined && input.authMode !== current.auth_mode)
       || input.parameters !== undefined;
     if (!connectivityChanged) {
@@ -104,6 +111,7 @@ export class RemoteMcpVerificationService {
     );
     const verification = await this.verifyOrThrow(
       input.endpointUrl ?? current.endpoint_url,
+      input.callTimeoutSeconds ?? current.call_timeout_seconds,
       input.authMode ?? current.auth_mode,
       parameters,
     );
@@ -131,6 +139,7 @@ export class RemoteMcpVerificationService {
     );
     const verification = await this.verifyOrThrow(
       current.endpoint_url,
+      current.call_timeout_seconds,
       current.auth_mode,
       parameters,
     );
@@ -145,6 +154,7 @@ export class RemoteMcpVerificationService {
 
   private async verifyOrThrow(
     endpointUrl: string,
+    callTimeoutSeconds: number,
     authMode: 'none' | 'parameterized' | 'oauth',
     parameters: Array<{
       placement: 'path' | 'query' | 'header' | 'initialize_param';
@@ -153,7 +163,12 @@ export class RemoteMcpVerificationService {
       value: string;
     }>,
   ) {
-    const verification = await this.verifier.verify({ endpointUrl, authMode, parameters });
+    const verification = await this.verifier.verify({
+      endpointUrl,
+      callTimeoutSeconds,
+      authMode,
+      parameters,
+    });
     if (!Array.isArray(verification.discovered_tools_snapshot) || verification.discovered_tools_snapshot.length === 0) {
       throw new ValidationError('Remote MCP verification discovered zero tools');
     }
