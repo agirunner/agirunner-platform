@@ -31,7 +31,7 @@ class SpecialistCapabilityProofTests(unittest.TestCase):
                         "messages": [
                             {
                                 "role": "system",
-                                "content": "## Specialist Skills\n### Structured Summary\nSKILL_EVIDENCE\n## Remote MCP Servers Available\n- Tavily Search: Search the web. Tools: search",
+                                "content": "## Specialist Skills\n### Structured Summary\nSKILL_EVIDENCE\n## Remote MCP Servers Available\n- Fixture Search: Search the fixture docs. Tools: search",
                             }
                         ]
                     },
@@ -40,7 +40,7 @@ class SpecialistCapabilityProofTests(unittest.TestCase):
                     "operation": "tool.execute",
                     "status": "completed",
                     "task_id": "task-1",
-                    "payload": {"tool_name": "mcp_tavily_search"},
+                    "payload": {"tool_name": "mcp_fixture_search"},
                 },
             ]
         }
@@ -50,7 +50,7 @@ class SpecialistCapabilityProofTests(unittest.TestCase):
         self.assertEqual(1, proof["prompt_task_count"])
         self.assertTrue(proof["has_skill_prompt_section"])
         self.assertTrue(proof["has_remote_mcp_prompt_section"])
-        self.assertEqual(["mcp_tavily_search"], proof["successful_mcp_tool_names"])
+        self.assertEqual(["mcp_fixture_search"], proof["successful_mcp_tool_names"])
         self.assertIn("SKILL_EVIDENCE", proof["prompt_fragments"])
         self.assertIn("SKILL_EVIDENCE", proof["workflow_text"])
 
@@ -59,8 +59,8 @@ class SpecialistCapabilityProofTests(unittest.TestCase):
             "prompt_task_count": 1,
             "has_skill_prompt_section": True,
             "has_remote_mcp_prompt_section": True,
-            "prompt_fragments": ["SKILL_EVIDENCE", "Tavily Search", "search"],
-            "successful_mcp_tool_names": ["mcp_tavily_search"],
+            "prompt_fragments": ["SKILL_EVIDENCE", "Fixture Search", "search"],
+            "successful_mcp_tool_names": ["mcp_fixture_search"],
             "workflow_text": "SKILL_EVIDENCE final answer",
         }
         setup = {
@@ -68,7 +68,7 @@ class SpecialistCapabilityProofTests(unittest.TestCase):
                 {
                     "name": "researcher",
                     "skill_slugs": ["structured-summary"],
-                    "mcp_server_slugs": ["tavily-search"],
+                    "mcp_server_slugs": ["fixture-search"],
                 }
             ]
         }
@@ -80,10 +80,10 @@ class SpecialistCapabilityProofTests(unittest.TestCase):
                 "required_output_fragments": ["SKILL_EVIDENCE final answer"],
             },
             "remote_mcp": {
-                "required_server_slugs": ["tavily-search"],
+                "required_server_slugs": ["fixture-search"],
                 "require_prompt_section": True,
                 "require_successful_tool_calls": True,
-                "required_tool_name_fragments": ["tavily", "search"],
+                "required_tool_name_fragments": ["fixture", "search"],
             },
         }
 

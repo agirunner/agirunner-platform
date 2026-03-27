@@ -8,7 +8,7 @@ from live_test_api import read_json
 from scenario_config import load_scenario
 
 
-EXPECTED_SCENARIOS = {
+SUPPORTED_BATCH_SCENARIOS = {
     "architect-breakdown-task-breakout",
     "artifact-memory-publishing-approval",
     "artifact-only-human-review",
@@ -38,11 +38,6 @@ EXPECTED_SCENARIOS = {
     "one-orchestrator-many-workflows-assessment",
     "ongoing-intake-assessment-rework",
     "publishing-approval-before-assessment",
-    "remote-mcp-exa-search",
-    "remote-mcp-github-token-read",
-    "remote-mcp-oauth-client-credentials",
-    "remote-mcp-tavily-research",
-    "remote-mcp-tavily-search",
     "requirements-human-review-approve",
     "requirements-human-review-blocked",
     "requirements-human-review-reject",
@@ -68,6 +63,13 @@ EXPECTED_SCENARIOS = {
     "sdlc-rework-invalidates-prior-assessments",
     "sdlc-sequential-assessors-all-approve",
 }
+
+EXPLICIT_ONLY_SCENARIOS = {
+    "remote-mcp-oauth-client-credentials",
+    "remote-mcp-parameterized-fixture",
+}
+
+EXPECTED_SCENARIOS = SUPPORTED_BATCH_SCENARIOS | EXPLICIT_ONLY_SCENARIOS
 
 
 REQUIRED_COVERAGE = {

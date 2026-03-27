@@ -31,21 +31,21 @@ This README is procedure-first. It explains:
 - [run.sh](/home/mark/codex/agirunner-platform/tests/live/run.sh)
   - the only supported public entrypoint for live-test setup and execution
 - [live_test_tracker.json](/home/mark/codex/agirunner-platform/tests/live/live_test_tracker.json)
-  - authoritative supported-scenario order
+  - authoritative default-batch scenario order plus explicit-only scenarios
 - [library](/home/mark/codex/agirunner-platform/tests/live/library)
   - test-owned playbooks, roles, repo seeds, host seeds, skills, remote MCP fixtures
 - [lib](/home/mark/codex/agirunner-platform/tests/live/lib)
   - shared Python helpers for API bootstrap and scenario execution
 - [tests](/home/mark/codex/agirunner-platform/tests/live/tests)
-  - harness-level regression tests
+  - focused helper tests for fixture parsing, catalog integrity, and capability-proof logic
 
 Internal harness implementation files remain under:
 
-- `prepare-live-test-shared-environment.sh`
-- `prepare-live-test-run.sh`
-- `scenarios/run-live-scenario.sh`
-- `scenarios/run-live-scenario-batch.sh`
-- `scenarios/run-multi-orchestrator-concurrent-assessment-workflows-live-test.sh`
+- `scripts/prepare-live-test-shared-environment.sh`
+- `scripts/prepare-live-test-run.sh`
+- `scripts/run-live-scenario.sh`
+- `scripts/run-live-scenario-batch.sh`
+- `scripts/run-multi-orchestrator-concurrent-assessment-workflows-live-test.sh`
 
 ## Prerequisites
 
@@ -54,7 +54,7 @@ Internal harness implementation files remain under:
 - Docker and Docker Compose must be available.
 - The sibling repos expected by the harness must exist:
   - `/home/mark/codex/agirunner-runtime`
-  - `/home/mark/codex/agirunner-test-fixtures`
+  - a local fixtures clone, defaulting to `../agirunner-test-fixtures` unless `FIXTURES_REPO_PATH` overrides it
 - The local stack ports used by the harness must be free:
   - platform API default `8080`
   - postgres default `5432`
@@ -74,7 +74,7 @@ OAuth MUST be the default live-test path.
 Provider and auth configuration MUST stay externalized.
 The same scenario corpus MUST run against any supported provider/auth combination.
 
-Minimum required values:
+Minimum required values for the common OAuth path:
 
 - `DEFAULT_ADMIN_API_KEY`
 - `JWT_SECRET`
@@ -88,27 +88,26 @@ Minimum required values:
 - `LIVE_TEST_PROVIDER_NAME`
 - `LIVE_TEST_PROVIDER_BASE_URL`
 - `LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID`
-- `LIVE_TEST_PROVIDER_OAUTH_SESSION_SOURCE=env`
 - `LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON`
 - `LIVE_TEST_MODEL_ID`
 - `LIVE_TEST_SYSTEM_REASONING_EFFORT`
 - `LIVE_TEST_ORCHESTRATOR_MODEL_ID`
 - `LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT`
-- `LIVE_TEST_ORCHESTRATOR_REPLICAS`
 - `LIVE_TEST_SPECIALIST_MODEL_ID`
-- `LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE`
 - `LIVE_TEST_SPECIALIST_REASONING_EFFORT`
-- `LIVE_TEST_GITHUB_TOKEN`
+- `LIVE_TEST_GIT_TOKEN`
+- `LIVE_TEST_GIT_USER_NAME`
+- `LIVE_TEST_GIT_USER_EMAIL`
 
-Optional keys used only by scenarios that need them:
+If you switch to `LIVE_TEST_PROVIDER_AUTH_MODE=api_key`, add:
 
-- `LIVE_TEST_TAVILY_API_KEY`
-- `LIVE_TEST_EXA_API_KEY`
+- `LIVE_TEST_PROVIDER_API_KEY`
 
 Important notes:
 
 - Keep the OAuth session in `tests/live/env/local.env`.
 - Do not pull OAuth state from the DB.
+- OpenAI, Anthropic, and Gemini all use the same generic provider fields; only the values differ.
 - Shared bootstrap verifies that the running `platform-api` container has the same `DEFAULT_ADMIN_API_KEY`, `JWT_SECRET`, and `WEBHOOK_ENCRYPTION_KEY` values as `tests/live/env/local.env`.
 
 If you need to normalize the env-provided OAuth JSON shape:
@@ -128,6 +127,9 @@ Full tracker batch with automatic bootstrap/reuse:
 cd /home/mark/codex/agirunner-platform
 bash tests/live/run.sh
 ```
+
+That default batch path runs serially unless you opt into higher concurrency.
+It does not include the two local remote-MCP scenarios; those are explicit-only by design.
 
 Single scenario:
 
@@ -176,8 +178,9 @@ What it does:
 7. verifies the live container secrets match `tests/live/env/local.env`
 8. seeds provider defaults, model assignments, roles, playbooks, capability fixtures, and execution-environment registry through platform APIs
 9. writes shared bootstrap output to:
-   - [bootstrap/context.json](/home/mark/codex/agirunner-platform/.tmp/live-tests/bootstrap/context.json)
-   - [bootstrap/api-trace/api.ndjson](/home/mark/codex/agirunner-platform/.tmp/live-tests/bootstrap/api-trace/api.ndjson)
+   - [bootstrap/context.json](/home/mark/codex/agirunner-platform/tests/live/results/bootstrap/context.json)
+   - [bootstrap/api-trace/api.ndjson](/home/mark/codex/agirunner-platform/tests/live/results/bootstrap/api-trace/api.ndjson)
+10. records the runtime-calculated shared bootstrap fingerprint in `bootstrap/context.json`
 
 This is the full rebuild/reseed path. Use it when:
 
@@ -203,20 +206,22 @@ bash tests/live/run.sh --scenario tests/live/scenarios/sdlc-assessment-approve.j
 What the runner does:
 
 1. loads `tests/live/env/local.env`
-2. checks whether the shared bootstrap can be reused
-3. if reuse is not valid, runs `prepare-live-test-shared-environment.sh`
-4. runs `prepare-live-test-run.sh <scenario>`
-5. starts the workflow through [lib/run_workflow_scenario.py](/home/mark/codex/agirunner-platform/tests/live/lib/run_workflow_scenario.py)
-6. writes final scenario output to:
-   - `.tmp/live-tests/<scenario>/workflow-run.json`
+2. calculates the current shared bootstrap fingerprint from the active env values, shared seed inputs, local MCP fixture inputs, and rebuild-dependent source trees
+3. checks whether the shared bootstrap can be reused
+4. if reuse is not valid, runs `scripts/prepare-live-test-shared-environment.sh`
+5. runs `scripts/prepare-live-test-run.sh <scenario>`
+6. starts the workflow through [lib/run_workflow_scenario.py](/home/mark/codex/agirunner-platform/tests/live/lib/run_workflow_scenario.py)
+7. writes final scenario output to:
+   - `tests/live/results/<scenario>/workflow-run.json`
 
 The shared bootstrap is automatically rebuilt if any of these are true:
 
 - bootstrap context file is missing
 - platform health probe fails
-- requested provider/model/auth config does not match the existing bootstrap context
-- requested profile is missing from bootstrap context
-- bootstrap context does not contain seeded execution environments
+- the local remote MCP fixture health probe fails
+- the runtime-calculated shared bootstrap fingerprint does not match the fingerprint stored in `bootstrap/context.json`
+
+The fingerprint is calculated on every `run.sh` invocation and then persisted into the shared bootstrap context after a successful reseed. Batch coordinators calculate it once and child scenario runners only consume the already-chosen shared bootstrap contract.
 
 ## Per-Scenario Bootstrap Only
 
@@ -230,7 +235,7 @@ bash tests/live/run.sh --prepare-only --scenario sdlc-assessment-approve
 That creates:
 
 - run context:
-  - `.tmp/live-tests/<scenario>/run-context.json`
+  - `tests/live/results/<scenario>/run-context.json`
 - a unique git branch for `git_remote` scenarios
 - or a unique host workspace for `host_directory` scenarios
 
@@ -241,6 +246,8 @@ This step reuses the already-seeded shared bootstrap. It does not rebuild the wh
 Run the full supported corpus in tracker order:
 
 `bash tests/live/run.sh` runs the full supported corpus in tracker order.
+That default corpus excludes `remote-mcp-oauth-client-credentials` and `remote-mcp-parameterized-fixture`.
+Run those only with explicit `--scenario` invocations.
 
 Run with explicit concurrency:
 
@@ -258,20 +265,22 @@ The batch runner:
 
 - uses [live_test_tracker.json](/home/mark/codex/agirunner-platform/tests/live/live_test_tracker.json) order when no explicit scenario names are provided
 - performs one shared bootstrap first
-- runs scenarios concurrently
+- runs serially by default and concurrently only when you opt into a higher `--concurrency`
+- logs `START <scenario>` when a scenario launches
+- logs `PASS <scenario>` or `FAIL <scenario>` when a scenario finishes
 - writes per-scenario logs under:
-  - `.tmp/live-tests/batch/`
+  - `tests/live/results/batch/`
 
 ## Artifacts
 
 Default artifact root:
 
-- [/.tmp/live-tests](/home/mark/codex/agirunner-platform/.tmp/live-tests)
+- [/tests/live/results](/home/mark/codex/agirunner-platform/tests/live/results)
 
 Shared bootstrap artifacts:
 
-- [bootstrap/context.json](/home/mark/codex/agirunner-platform/.tmp/live-tests/bootstrap/context.json)
-- [bootstrap/api-trace/api.ndjson](/home/mark/codex/agirunner-platform/.tmp/live-tests/bootstrap/api-trace/api.ndjson)
+- [bootstrap/context.json](/home/mark/codex/agirunner-platform/tests/live/results/bootstrap/context.json)
+- [bootstrap/api-trace/api.ndjson](/home/mark/codex/agirunner-platform/tests/live/results/bootstrap/api-trace/api.ndjson)
 
 Per-scenario artifacts:
 
@@ -280,6 +289,7 @@ Per-scenario artifacts:
 - `<scenario>/trace/api.ndjson`
 - `<scenario>/evidence/db-state.json`
 - `<scenario>/evidence/capability-proof.json`
+- `<scenario>/evidence/remote-mcp-fixture.json`
 - `<scenario>/evidence/log-anomalies.json`
 - `<scenario>/evidence/http-status-summary.json`
 - `<scenario>/evidence/live-containers.json`
@@ -296,6 +306,8 @@ Most useful files during triage:
   - workflow, task, work-item, and transition settlement
 - `log-anomalies.json`
   - warning/error anomalies from execution logs
+- `remote-mcp-fixture.json`
+  - local MCP fixture-side proof of tool calls for local remote-MCP scenarios
 - `http-status-summary.json`
   - persisted `4xx`/`5xx` summary
 - `runtime-cleanup.json`
@@ -426,22 +438,30 @@ Role fixtures can refer to capabilities by slug:
 
 Shared bootstrap resolves those into fresh tenant-owned records for the run.
 
-## Harness Regression Tests
+## Focused Helper Tests
 
-Run the harness tests with:
+`tests/live/tests/` contains actual helper-library tests, not runner scripts, so it stays under `tests/`.
+Runnable harness entrypoints stay under `tests/live/`, `tests/live/scripts/`, and `tests/live/scenarios/`.
+
+The kept helper tests are:
 
 ```bash
 cd /home/mark/codex/agirunner-platform
+python3 tests/live/tests/live_test_api.test.py
 python3 tests/live/tests/live_test_catalog.test.py
 python3 tests/live/tests/scenario_config.test.py
-python3 tests/live/tests/seed_live_test_environment.test.py
-python3 tests/live/tests/seed_live_test_run.test.py
-python3 tests/live/tests/run_workflow_scenario.test.py
-bash tests/live/tests/prepare-live-test-shared-environment.test.sh
-bash tests/live/tests/prepare-live-test-run.test.sh
-bash tests/live/tests/run.test.sh
-bash tests/live/tests/run-live-scenario.test.sh
-bash tests/live/tests/run-live-scenario-batch.test.sh
+bash tests/live/tests/common_helpers.test.sh
+python3 tests/live/tests/remote_mcp_configuration_matrix.test.py
+python3 tests/live/tests/remote_mcp_fixture_sync.test.py
+python3 tests/live/tests/specialist_capability_fixtures.test.py
+python3 tests/live/tests/specialist_capability_proof.test.py
+```
+
+Verify supported remote MCP behavior through the real harness:
+
+```bash
+bash tests/live/run.sh --scenario remote-mcp-oauth-client-credentials
+bash tests/live/run.sh --scenario remote-mcp-parameterized-fixture
 ```
 
 ## Specialist Capability Proof
@@ -456,3 +476,4 @@ Capability scenarios are split into two lanes:
   - seeds `remote-mcp-servers.json`
   - assigns specialists through `mcpServerSlugs`
   - proves prompt availability and successful `mcp_*` tool calls
+  - when the endpoint is the local fixture, also proves the fixture server itself observed the tool calls

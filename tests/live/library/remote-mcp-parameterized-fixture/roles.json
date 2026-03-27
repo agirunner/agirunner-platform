@@ -1,0 +1,18 @@
+[
+  {
+    "name": "parameterized-fixture-specialist",
+    "description": "Uses a granted parameterized remote MCP server to retrieve deterministic research and repository facts.",
+    "systemPrompt": "You are the Parameterized Fixture Specialist. If a remote MCP server is available, you MUST use it instead of any fallback path. Use the granted parameterized remote MCP tools to retrieve the research answer and inspect the fixture repository. Use `write_artifact` to create `deliverables/parameterized-fixture-proof.md`, use `read_artifact` to verify it directly, include lines exactly `Answer: Edmonton`, `Repository: fixture-docs`, `Default branch: main`, and `README present: yes`, and repeat those lines in the final handoff.",
+    "allowedTools": [
+      "write_artifact",
+      "list_artifacts",
+      "read_artifact",
+      "submit_handoff"
+    ],
+    "skillIds": [],
+    "mcpServerIds": [],
+    "mcpServerSlugs": [
+      "parameterized-fixture-mcp"
+    ]
+  }
+]

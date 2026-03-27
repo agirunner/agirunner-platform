@@ -1,9 +1,9 @@
 {
-  "name": "remote-mcp-github-token-read",
-  "profile": "remote-mcp-github-token-read",
+  "name": "remote-mcp-parameterized-fixture",
+  "profile": "remote-mcp-parameterized-fixture",
   "workflow": {
-    "name": "Remote MCP GitHub Token Read",
-    "goal": "Use the remote GitHub MCP server to inspect the `agirunner/agirunner-test-fixtures` repository and include the exact lines `Repository: agirunner-test-fixtures`, `Default branch: main`, and `README present: yes`.",
+    "name": "Remote MCP Parameterized Fixture",
+    "goal": "Use the local parameterized remote MCP server to retrieve the deterministic research answer and repository facts. Include the exact lines `Answer: Edmonton`, `Repository: fixture-docs`, `Default branch: main`, and `README present: yes`.",
     "parameters": {}
   },
   "workspace": {
@@ -20,7 +20,7 @@
     "state": "completed",
     "artifacts": [
       {
-        "logical_path_pattern": "github-repo-proof\\.md",
+        "logical_path_pattern": "parameterized-fixture-proof\\.md",
         "min_count": 1
       }
     ],
@@ -42,20 +42,31 @@
   "capabilities": {
     "remote_mcp": {
       "required_server_slugs": [
-        "github-repo-mcp"
+        "parameterized-fixture-mcp"
       ],
       "require_prompt_section": true,
       "required_prompt_fragments": [
-        "GitHub Repo MCP"
+        "Parameterized Fixture MCP"
       ],
       "required_output_fragments": [
-        "Repository: agirunner-test-fixtures",
+        "Answer: Edmonton",
+        "Repository: fixture-docs",
         "Default branch: main",
         "README present: yes"
       ],
       "forbid_skill_prompt_section": true,
       "require_successful_tool_calls": true,
-      "minimum_successful_tool_calls": 1
+      "minimum_successful_tool_calls": 2,
+      "required_tool_name_fragments": [
+        "lookup_parameterized_research_answer",
+        "inspect_fixture_repository"
+      ],
+      "require_fixture_tool_calls": true,
+      "minimum_fixture_tool_calls": 2,
+      "required_fixture_tool_name_fragments": [
+        "lookup_parameterized_research_answer",
+        "inspect_fixture_repository"
+      ]
     }
   },
   "coverage": {
@@ -71,6 +82,7 @@
       "zero"
     ],
     "specialist_capabilities": [
+      "remote_mcp_research",
       "remote_mcp_repository_read"
     ],
     "remote_mcp_auth": [

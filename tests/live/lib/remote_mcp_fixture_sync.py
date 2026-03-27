@@ -245,6 +245,7 @@ def summarize_remote_mcp_server(saved: dict[str, Any]) -> dict[str, Any]:
         "name": saved["name"],
         "slug": saved["slug"],
         "auth_mode": saved["auth_mode"],
+        "endpoint_url": saved.get("endpoint_url"),
         "verified_transport": saved["verified_transport"],
         "oauth_connected": bool(saved.get("oauth_connected")),
         "discovered_tool_names": summarize_tool_names(saved.get("discovered_tools_snapshot")),

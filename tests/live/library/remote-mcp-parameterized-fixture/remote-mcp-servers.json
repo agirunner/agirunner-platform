@@ -1,0 +1,21 @@
+[
+  {
+    "name": "Parameterized Fixture MCP",
+    "description": "Deterministic live-test remote MCP server protected by a parameterized header secret.",
+    "endpointUrl": "http://live-test-remote-mcp-fixture:18080/mcp/parameterized",
+    "callTimeoutSeconds": 300,
+    "authMode": "parameterized",
+    "enabledByDefaultForNewSpecialists": false,
+    "grantToAllExistingSpecialists": false,
+    "parameters": [
+      {
+        "placement": "header",
+        "key": "X-Fixture-Key",
+        "valueKind": "secret",
+        "value": {
+          "env": "LIVE_TEST_REMOTE_MCP_FIXTURE_PARAMETERIZED_SECRET"
+        }
+      }
+    ]
+  }
+]

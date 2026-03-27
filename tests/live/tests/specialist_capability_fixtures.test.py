@@ -160,8 +160,8 @@ class SpecialistCapabilityFixturesTests(unittest.TestCase):
                 json.dumps(
                     [
                         {
-                            "name": "Tavily Search",
-                            "description": "Search the web.",
+                            "name": "Fixture Search",
+                            "description": "Search fixture docs.",
                             "endpointUrl": {"env": "LIVE_TEST_MCP_ENDPOINT"},
                             "callTimeoutSeconds": 420,
                             "authMode": "parameterized",
@@ -197,9 +197,10 @@ class SpecialistCapabilityFixturesTests(unittest.TestCase):
             [
                 {
                     "id": "mcp-1",
-                    "name": "Tavily Search",
-                    "slug": "tavily-search",
+                    "name": "Fixture Search",
+                    "slug": "fixture-search",
                     "auth_mode": "parameterized",
+                    "endpoint_url": "https://mcp.example.test/endpoint",
                     "verified_transport": "streamable_http",
                     "oauth_connected": False,
                     "discovered_tool_names": ["search"],
@@ -239,11 +240,11 @@ class SpecialistCapabilityFixturesTests(unittest.TestCase):
         payload = {
             "name": "research-specialist",
             "skillSlugs": ["structured-summary"],
-            "mcpServerSlugs": ["tavily-search"],
+            "mcpServerSlugs": ["fixture-search"],
         }
         registry = {
             "skills_by_slug": {"structured-summary": {"id": "skill-1", "slug": "structured-summary"}},
-            "remote_mcp_servers_by_slug": {"tavily-search": {"id": "mcp-1", "slug": "tavily-search"}},
+            "remote_mcp_servers_by_slug": {"fixture-search": {"id": "mcp-1", "slug": "fixture-search"}},
         }
 
         resolved_payload, summary = specialist_capability_fixtures.resolve_role_capability_refs(
@@ -258,7 +259,7 @@ class SpecialistCapabilityFixturesTests(unittest.TestCase):
         self.assertEqual(
             {
                 "skill_slugs": ["structured-summary"],
-                "mcp_server_slugs": ["tavily-search"],
+                "mcp_server_slugs": ["fixture-search"],
             },
             summary,
         )

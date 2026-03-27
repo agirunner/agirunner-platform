@@ -124,7 +124,7 @@ class ScenarioConfigTests(unittest.TestCase):
                         "require_prompt_section": True,
                     },
                     "remote_mcp": {
-                        "required_server_slugs": ["tavily-search"],
+                        "required_server_slugs": ["fixture-search"],
                         "require_successful_tool_calls": True,
                     },
                 },
@@ -142,7 +142,7 @@ class ScenarioConfigTests(unittest.TestCase):
         )
         self.assertEqual(
             {
-                "required_server_slugs": ["tavily-search"],
+                "required_server_slugs": ["fixture-search"],
                 "require_successful_tool_calls": True,
             },
             scenario["capabilities"]["remote_mcp"],

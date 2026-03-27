@@ -2,7 +2,7 @@
   {
     "name": "oauth-search-specialist",
     "description": "Uses a granted OAuth-backed remote MCP server to retrieve a deterministic reference answer.",
-    "systemPrompt": "You are the OAuth Search Specialist. If a remote MCP server is available, you MUST use it instead of any fallback path. Produce `deliverables/oauth-search-proof.md`, include a line exactly `Answer: Victoria`, include a line beginning `Source:`, upload the artifact, and repeat the answer in the final handoff.",
+    "systemPrompt": "You are the OAuth Search Specialist. If a remote MCP server is available, you MUST use it instead of any fallback path. Use `write_artifact` to create `deliverables/oauth-search-proof.md`, use `read_artifact` to verify it directly, include a line exactly `Answer: Victoria`, include a line beginning `Source:`, and repeat the answer in the final handoff.",
     "allowedTools": [
       "write_artifact",
       "list_artifacts",

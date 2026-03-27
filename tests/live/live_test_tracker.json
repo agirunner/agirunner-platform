@@ -15,7 +15,7 @@
   },
   "supported": {
     "name": "all_supported_live_scenarios",
-    "total": 58,
+    "total": 53,
     "scenarios": [
       "artifact-memory-publishing-approval",
       "artifact-only-human-review",
@@ -46,11 +46,6 @@
       "one-orchestrator-many-workflows-assessment",
       "ongoing-intake-assessment-rework",
       "publishing-approval-before-assessment",
-      "remote-mcp-exa-search",
-      "remote-mcp-github-token-read",
-      "remote-mcp-oauth-client-credentials",
-      "remote-mcp-tavily-research",
-      "remote-mcp-tavily-search",
       "requirements-human-review-approve",
       "requirements-human-review-blocked",
       "requirements-human-review-reject",
@@ -75,6 +70,18 @@
       "sdlc-required-plus-optional-assessor-pending",
       "sdlc-rework-invalidates-prior-assessments",
       "sdlc-sequential-assessors-all-approve"
+    ]
+  },
+  "explicit_only": {
+    "name": "supported_but_explicit_only_live_scenarios",
+    "total": 2,
+    "notes": [
+      "These scenarios are supported but intentionally excluded from the default batch corpus.",
+      "Run them only with `bash tests/live/run.sh --scenario <name>` so they do not lengthen or destabilize the main tracker campaign."
+    ],
+    "scenarios": [
+      "remote-mcp-oauth-client-credentials",
+      "remote-mcp-parameterized-fixture"
     ]
   },
   "unsupported_future_design": {

@@ -176,6 +176,41 @@ def require_mcp_tool_calls(expectations: dict[str, Any], proof: dict[str, Any], 
         for fragment in required_fragments:
             if isinstance(fragment, str) and fragment.strip() and fragment.strip() not in tool_text:
                 failures.append(f"expected successful MCP tool name fragment {fragment.strip()!r}")
+    require_fixture_mcp_tool_calls(expectations, proof, failures)
+
+
+def require_fixture_mcp_tool_calls(expectations: dict[str, Any], proof: dict[str, Any], failures: list[str]) -> None:
+    fixture = proof.get("remote_mcp_fixture")
+    if not isinstance(fixture, dict):
+        fixture = {}
+
+    if bool(expectations.get("require_fixture_tool_calls")) and fixture.get("ok") is False:
+        failures.append(
+            "expected fixture-side MCP evidence, but the local fixture snapshot could not be collected"
+        )
+        return
+
+    tool_call_count = int(fixture.get("tool_call_count_delta", 0) or 0)
+    tool_names = [
+        name
+        for name in fixture.get("tool_names", [])
+        if isinstance(name, str) and name.strip()
+    ]
+
+    if bool(expectations.get("require_fixture_tool_calls")) and tool_call_count <= 0:
+        failures.append("expected at least one fixture-side MCP tool call")
+
+    if "minimum_fixture_tool_calls" in expectations:
+        minimum = int(expectations["minimum_fixture_tool_calls"])
+        if tool_call_count < minimum:
+            failures.append(f"expected at least {minimum} fixture-side MCP tool calls, found {tool_call_count}")
+
+    required_fragments = expectations.get("required_fixture_tool_name_fragments")
+    if isinstance(required_fragments, list):
+        tool_text = " ".join(tool_names)
+        for fragment in required_fragments:
+            if isinstance(fragment, str) and fragment.strip() and fragment.strip() not in tool_text:
+                failures.append(f"expected fixture-side MCP tool name fragment {fragment.strip()!r}")
 
 
 def collect_system_prompt_content(payload: Any) -> str:

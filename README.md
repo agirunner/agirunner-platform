@@ -121,4 +121,4 @@ See `tests/live/README.md` for the supported live workflow test path.
 - Deterministic contract verification remains under package scripts.
 - Live workflow verification now runs only from `tests/live/`.
 - Live tests must bootstrap state through platform APIs, not DB mutation.
-- Live test artifacts default to `.tmp/live-tests/` and are intentionally untracked.
+- Live test artifacts default to `tests/live/results/` and are intentionally untracked via the local results `.gitignore`.

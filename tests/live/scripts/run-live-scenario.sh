@@ -51,115 +51,30 @@ finalize_live_test_result() {
 EOF
 }
 
-probe_live_test_http() {
-  local url="$1"
-  if command -v curl >/dev/null 2>&1; then
-    curl --fail --silent --show-error "${url}" >/dev/null
-    return $?
+require_live_test_shared_bootstrap() {
+  local shared_bootstrap_script="$1"
+  local shared_context_file="$2"
+  local platform_api_base_url="$3"
+  local remote_mcp_fixture_url="$4"
+  local runtime_repo_root="${RUNTIME_REPO_PATH:-${REPO_ROOT}/../agirunner-runtime}"
+
+  if [[ -z "${LIVE_TEST_SHARED_BOOTSTRAP_KEY:-}" ]]; then
+    ensure_live_test_shared_bootstrap \
+      "${shared_bootstrap_script}" \
+      "${shared_context_file}" \
+      "${platform_api_base_url}" \
+      "${remote_mcp_fixture_url}" \
+      "${LIVE_TEST_ROOT}" \
+      "${REPO_ROOT}" \
+      "${runtime_repo_root}"
+    return 0
   fi
-  if command -v wget >/dev/null 2>&1; then
-    wget -qO- "${url}" >/dev/null
-    return $?
+
+  require_live_test_file "${shared_context_file}" "shared live test context file"
+  if ! shared_live_test_context_has_bootstrap_key "${shared_context_file}" "${LIVE_TEST_SHARED_BOOTSTRAP_KEY}"; then
+    echo "[tests/live] shared live test context key does not match the requested bootstrap key" >&2
+    exit 1
   fi
-  return 1
-}
-
-shared_bootstrap_matches_requested_config() {
-  local context_file="$1"
-
-  python3 - "${context_file}" <<'PY'
-import json
-import os
-import sys
-from pathlib import Path
-
-context_path = Path(sys.argv[1])
-if not context_path.exists():
-    raise SystemExit(1)
-
-try:
-    context = json.loads(context_path.read_text(encoding="utf-8"))
-except Exception:
-    raise SystemExit(1)
-
-expected = {
-    "provider_auth_mode": os.environ.get("LIVE_TEST_PROVIDER_AUTH_MODE", "oauth").strip() or "oauth",
-    "provider_name": os.environ.get("LIVE_TEST_PROVIDER_NAME", "OpenAI (Subscription)").strip() or "OpenAI (Subscription)",
-    "provider_type": os.environ.get("LIVE_TEST_PROVIDER_TYPE", "openai").strip() or "openai",
-    "model_name": os.environ.get("LIVE_TEST_MODEL_ID", "gpt-5.4-mini").strip() or "gpt-5.4-mini",
-    "system_reasoning": os.environ.get("LIVE_TEST_SYSTEM_REASONING_EFFORT", "medium").strip() or "medium",
-    "orchestrator_model_name": os.environ.get("LIVE_TEST_ORCHESTRATOR_MODEL_ID", "gpt-5.4").strip() or "gpt-5.4",
-    "orchestrator_reasoning": os.environ.get("LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT", "low").strip() or "low",
-    "specialist_model_name": os.environ.get("LIVE_TEST_SPECIALIST_MODEL_ID", "gpt-5.4-mini").strip() or "gpt-5.4-mini",
-    "specialist_reasoning": os.environ.get("LIVE_TEST_SPECIALIST_REASONING_EFFORT", "medium").strip() or "medium",
-}
-
-actual = {key: context.get(key) for key in expected}
-raise SystemExit(0 if actual == expected else 1)
-PY
-}
-
-shared_bootstrap_contains_requested_profile() {
-  local context_file="$1"
-  local profile_name="$2"
-
-  python3 - "${context_file}" "${profile_name}" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-context_path = Path(sys.argv[1])
-profile_name = sys.argv[2].strip()
-if not context_path.exists() or not profile_name:
-    raise SystemExit(1)
-
-try:
-    context = json.loads(context_path.read_text(encoding="utf-8"))
-except Exception:
-    raise SystemExit(1)
-
-profiles = context.get("profiles")
-if not isinstance(profiles, dict):
-    raise SystemExit(1)
-
-profile = profiles.get(profile_name)
-raise SystemExit(0 if isinstance(profile, dict) else 1)
-PY
-}
-
-shared_bootstrap_contains_execution_environments() {
-  local context_file="$1"
-
-  python3 - "${context_file}" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-context_path = Path(sys.argv[1])
-if not context_path.exists():
-    raise SystemExit(1)
-
-try:
-    context = json.loads(context_path.read_text(encoding="utf-8"))
-except Exception:
-    raise SystemExit(1)
-
-execution_environments = context.get("execution_environments")
-if not isinstance(execution_environments, dict):
-    raise SystemExit(1)
-
-default_candidates = execution_environments.get("default_candidates")
-if not isinstance(default_candidates, list) or not default_candidates:
-    raise SystemExit(1)
-
-for candidate in default_candidates:
-    if not isinstance(candidate, dict):
-        raise SystemExit(1)
-    if str(candidate.get("id") or "").strip() == "":
-        raise SystemExit(1)
-
-raise SystemExit(0)
-PY
 }
 
 SCENARIO_INPUT="${1:-${LIVE_TEST_SCENARIO_NAME:-}}"
@@ -175,6 +90,13 @@ else
 fi
 
 require_live_test_file "${LIVE_TEST_SCENARIO_FILE}" "live test scenario file"
+
+log_scenario_status() {
+  if [[ "${LIVE_TEST_QUIET_STATUS:-false}" == "true" ]]; then
+    return 0
+  fi
+  log_live_test "$@"
+}
 
 LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE:-${LIVE_TEST_ROOT}/env/local.env}"
 LIVE_TEST_SCENARIO_NAME="${LIVE_TEST_SCENARIO_NAME:-$(basename "${LIVE_TEST_SCENARIO_FILE}" .json)}"
@@ -195,15 +117,15 @@ PY
 fi
 LIVE_TEST_PROFILE="${LIVE_TEST_PROFILE:-${LIVE_TEST_SCENARIO_METADATA[0]}}"
 LIVE_TEST_WORKSPACE_STORAGE_TYPE="${LIVE_TEST_WORKSPACE_STORAGE_TYPE:-${LIVE_TEST_SCENARIO_METADATA[1]}}"
-LIVE_TEST_ARTIFACTS_DIR="${LIVE_TEST_ARTIFACTS_DIR:-${REPO_ROOT}/.tmp/live-tests}"
+LIVE_TEST_ARTIFACTS_DIR="${LIVE_TEST_ARTIFACTS_DIR:-$(default_live_test_artifacts_dir)}"
 LIVE_TEST_SHARED_CONTEXT_FILE="${LIVE_TEST_SHARED_CONTEXT_FILE:-${LIVE_TEST_ARTIFACTS_DIR}/bootstrap/context.json}"
 LIVE_TEST_SCENARIO_DIR="${LIVE_TEST_SCENARIO_DIR:-${LIVE_TEST_ARTIFACTS_DIR}/${LIVE_TEST_SCENARIO_NAME}}"
 LIVE_TEST_SCENARIO_TRACE_DIR="${LIVE_TEST_SCENARIO_TRACE_DIR:-${LIVE_TEST_SCENARIO_DIR}/trace}"
 LIVE_TEST_RUN_CONTEXT_FILE="${LIVE_TEST_RUN_CONTEXT_FILE:-${LIVE_TEST_SCENARIO_DIR}/run-context.json}"
 LIVE_TEST_SCENARIO_RUN_FILE="${LIVE_TEST_SCENARIO_RUN_FILE:-${LIVE_TEST_SCENARIO_DIR}/workflow-run.json}"
 LIVE_TEST_BOOTSTRAP_CONTEXT_FILE="${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE:-${LIVE_TEST_RUN_CONTEXT_FILE}}"
-LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/prepare-live-test-shared-environment.sh}"
-LIVE_TEST_BOOTSTRAP_SCRIPT="${LIVE_TEST_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/prepare-live-test-run.sh}"
+LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/scripts/prepare-live-test-shared-environment.sh}"
+LIVE_TEST_BOOTSTRAP_SCRIPT="${LIVE_TEST_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/scripts/prepare-live-test-run.sh}"
 LIVE_TEST_START_WORKFLOW_SCRIPT="${LIVE_TEST_START_WORKFLOW_SCRIPT:-${LIVE_TEST_ROOT}/lib/run_workflow_scenario.py}"
 LIVE_TEST_SCENARIO_RUN_TMP_FILE="${LIVE_TEST_SCENARIO_RUN_TMP_FILE:-${LIVE_TEST_SCENARIO_RUN_FILE}.tmp}"
 LIVE_TEST_SCENARIO_RUN_STDOUT_FILE="${LIVE_TEST_SCENARIO_RUN_STDOUT_FILE:-${LIVE_TEST_SCENARIO_RUN_TMP_FILE}.stdout}"
@@ -213,7 +135,9 @@ trap 'status=$?; trap - EXIT; finalize_live_test_result "${status}"; exit "${sta
 
 load_live_test_env "${LIVE_TEST_ENV_FILE}"
 PLATFORM_API_BASE_URL="${PLATFORM_API_BASE_URL:-http://127.0.0.1:${PLATFORM_API_PORT:-8080}}"
+LIVE_TEST_REMOTE_MCP_FIXTURE_URL="${LIVE_TEST_REMOTE_MCP_FIXTURE_URL:-http://127.0.0.1:${LIVE_TEST_REMOTE_MCP_FIXTURE_PORT:-18080}/health}"
 require_live_test_value "DEFAULT_ADMIN_API_KEY" "${DEFAULT_ADMIN_API_KEY:-}"
+log_scenario_status "START ${LIVE_TEST_SCENARIO_NAME}"
 
 mkdir -p "${LIVE_TEST_SCENARIO_DIR}" "${LIVE_TEST_SCENARIO_TRACE_DIR}"
 rm -rf "${LIVE_TEST_SCENARIO_TRACE_DIR}"
@@ -224,13 +148,11 @@ export LIVE_TEST_PROFILE
 export LIVE_TEST_WORKSPACE_STORAGE_TYPE
 export LIVE_TEST_SCENARIO_FILE
 export LIVE_TEST_SCENARIO_NAME
-if [[ ! -f "${LIVE_TEST_SHARED_CONTEXT_FILE}" ]] \
-  || ! probe_live_test_http "${PLATFORM_API_BASE_URL}/health" \
-  || ! shared_bootstrap_matches_requested_config "${LIVE_TEST_SHARED_CONTEXT_FILE}" \
-  || ! shared_bootstrap_contains_requested_profile "${LIVE_TEST_SHARED_CONTEXT_FILE}" "${LIVE_TEST_PROFILE}" \
-  || ! shared_bootstrap_contains_execution_environments "${LIVE_TEST_SHARED_CONTEXT_FILE}"; then
-  "${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT}"
-fi
+require_live_test_shared_bootstrap \
+  "${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT}" \
+  "${LIVE_TEST_SHARED_CONTEXT_FILE}" \
+  "${PLATFORM_API_BASE_URL}" \
+  "${LIVE_TEST_REMOTE_MCP_FIXTURE_URL}"
 
 export LIVE_TEST_RUN_CONTEXT_FILE
 export LIVE_TEST_BOOTSTRAP_CONTEXT_FILE
@@ -263,7 +185,9 @@ fi
 
 LIVE_TEST_RUN_PHASE="complete"
 if (( runner_status != 0 )); then
+  log_scenario_status "FAIL ${LIVE_TEST_SCENARIO_NAME}"
   exit "${runner_status}"
 fi
 
-log_live_test "scenario result written to ${LIVE_TEST_SCENARIO_RUN_FILE}"
+log_scenario_status "PASS ${LIVE_TEST_SCENARIO_NAME}"
+log_scenario_status "scenario result written to ${LIVE_TEST_SCENARIO_RUN_FILE}"

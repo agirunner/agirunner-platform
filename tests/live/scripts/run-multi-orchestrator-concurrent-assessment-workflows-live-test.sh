@@ -11,16 +11,18 @@ SCENARIO_NAME="multi-orchestrator-concurrent-assessment-workflows"
 LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE:-${LIVE_TEST_ROOT}/env/local.env}"
 load_live_test_env "${LIVE_TEST_ENV_FILE}"
 
-ARTIFACTS_DIR="${LIVE_TEST_ARTIFACTS_DIR:-${REPO_ROOT}/.tmp/live-tests}"
+ARTIFACTS_DIR="${LIVE_TEST_ARTIFACTS_DIR:-$(default_live_test_artifacts_dir)}"
 SCENARIO_DIR="${ARTIFACTS_DIR}/${SCENARIO_NAME}"
 EVIDENCE_DIR="${SCENARIO_DIR}/evidence"
 WORKFLOW_RUN_FILE="${SCENARIO_DIR}/workflow-run.json"
 SHARED_CONTEXT_FILE="${LIVE_TEST_SHARED_CONTEXT_FILE:-${ARTIFACTS_DIR}/bootstrap/context.json}"
-SHARED_BOOTSTRAP_SCRIPT="${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/prepare-live-test-shared-environment.sh}"
-SCENARIO_RUNNER="${LIVE_TEST_MULTI_ORCH_SCENARIO_RUNNER:-${LIVE_TEST_ROOT}/scenarios/run-live-scenario.sh}"
-SCENARIO_BOOTSTRAP_SCRIPT="${LIVE_TEST_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/prepare-live-test-run.sh}"
+SHARED_BOOTSTRAP_SCRIPT="${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/scripts/prepare-live-test-shared-environment.sh}"
+SCENARIO_RUNNER="${LIVE_TEST_MULTI_ORCH_SCENARIO_RUNNER:-${LIVE_TEST_ROOT}/scripts/run-live-scenario.sh}"
+SCENARIO_BOOTSTRAP_SCRIPT="${LIVE_TEST_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/scripts/prepare-live-test-run.sh}"
 WORKFLOW_COUNT="${LIVE_TEST_MULTI_ORCH_WORKFLOW_COUNT:-6}"
 INNER_CONCURRENCY="${LIVE_TEST_MULTI_ORCH_CONCURRENCY:-${WORKFLOW_COUNT}}"
+PLATFORM_API_BASE_URL="${PLATFORM_API_BASE_URL:-http://127.0.0.1:${PLATFORM_API_PORT:-8080}}"
+LIVE_TEST_REMOTE_MCP_FIXTURE_URL="${LIVE_TEST_REMOTE_MCP_FIXTURE_URL:-http://127.0.0.1:${LIVE_TEST_REMOTE_MCP_FIXTURE_PORT:-18080}/health}"
 
 require_live_test_file "${SHARED_BOOTSTRAP_SCRIPT}" "shared live test bootstrap script"
 require_live_test_file "${SCENARIO_RUNNER}" "live test scenario runner"
@@ -115,7 +117,13 @@ PY
 )
 
 log_live_test "Running live scenarios with concurrency=${INNER_CONCURRENCY}"
-bash "${SHARED_BOOTSTRAP_SCRIPT}"
+ensure_live_test_shared_bootstrap \
+  "${SHARED_BOOTSTRAP_SCRIPT}" \
+  "${SHARED_CONTEXT_FILE}" \
+  "${PLATFORM_API_BASE_URL}" \
+  "${LIVE_TEST_REMOTE_MCP_FIXTURE_URL}" \
+  "${LIVE_TEST_ROOT}" \
+  "${REPO_ROOT}"
 rm -rf "${SCENARIO_DIR}"
 mkdir -p "${SCENARIO_DIR}" "${EVIDENCE_DIR}" "${batch_logs_dir}"
 
@@ -138,7 +146,9 @@ launch_scenario() {
       LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE}" \
       LIVE_TEST_ARTIFACTS_DIR="${ARTIFACTS_DIR}" \
       LIVE_TEST_SHARED_CONTEXT_FILE="${SHARED_CONTEXT_FILE}" \
+      LIVE_TEST_SHARED_BOOTSTRAP_KEY="${LIVE_TEST_SHARED_BOOTSTRAP_KEY}" \
       LIVE_TEST_BOOTSTRAP_SCRIPT="${SCENARIO_BOOTSTRAP_SCRIPT}" \
+      LIVE_TEST_QUIET_STATUS=true \
       "${SCENARIO_RUNNER}" "${scenario_path}"
   ) >"${log_file}" 2>&1 &
   local pid=$!

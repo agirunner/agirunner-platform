@@ -954,11 +954,14 @@ def main() -> None:
     specialist_reasoning_effort = env("LIVE_TEST_SPECIALIST_REASONING_EFFORT", "medium")
     workspace_name = env("LIVE_TEST_WORKSPACE_NAME", "SDLC Proof Workspace")
     workspace_slug = env("LIVE_TEST_WORKSPACE_SLUG", "sdlc-proof-workspace")
-    repository_url = env("LIVE_TEST_REPOSITORY_URL", "https://github.com/agirunner/agirunner-test-fixtures.git")
+    repository_url = env("LIVE_TEST_REPOSITORY_URL")
     default_branch = env("LIVE_TEST_DEFAULT_BRANCH", "main")
-    git_user_name = env("LIVE_TEST_GIT_USER_NAME", "sirmarkz")
-    git_user_email = env("LIVE_TEST_GIT_USER_EMAIL", "250921129+sirmarkz@users.noreply.github.com")
-    git_token = env("LIVE_TEST_GITHUB_TOKEN", required=workspace_storage["type"] == "git_remote")
+    git_user_name = env("LIVE_TEST_GIT_USER_NAME")
+    git_user_email = env("LIVE_TEST_GIT_USER_EMAIL")
+    git_token = env("LIVE_TEST_GIT_TOKEN") or env(
+        "LIVE_TEST_GITHUB_TOKEN",
+        required=workspace_storage["type"] == "git_remote",
+    )
     host_workspace_path = env("LIVE_TEST_HOST_WORKSPACE_PATH") or None
     worker_name = env("ORCHESTRATOR_WORKER_NAME", "orchestrator-primary")
     orchestrator_replicas = int(env("LIVE_TEST_ORCHESTRATOR_REPLICAS", "2"))
@@ -967,6 +970,13 @@ def main() -> None:
     library_profile = env("LIVE_TEST_PROFILE", "sdlc-baseline")
     if scenario is not None:
         library_profile = scenario["profile"]
+    if workspace_storage["type"] == "git_remote":
+        if repository_url == "":
+            raise RuntimeError("LIVE_TEST_REPOSITORY_URL is required for git_remote scenarios")
+        if git_user_name == "":
+            raise RuntimeError("LIVE_TEST_GIT_USER_NAME is required for git_remote scenarios")
+        if git_user_email == "":
+            raise RuntimeError("LIVE_TEST_GIT_USER_EMAIL is required for git_remote scenarios")
     roles_fixture_path = env(
         "LIVE_TEST_ROLE_FIXTURE_FILE",
         str(Path(library_root) / library_profile / "roles.json"),

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 LIVE_TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${LIVE_TEST_ROOT}/../.." && pwd)"
 
 # shellcheck disable=SC1091
 source "${LIVE_TEST_ROOT}/lib/common.sh"
@@ -60,11 +61,15 @@ PY
 }
 
 LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE:-${LIVE_TEST_ROOT}/env/local.env}"
-LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/prepare-live-test-shared-environment.sh}"
-LIVE_TEST_BOOTSTRAP_SCRIPT="${LIVE_TEST_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/prepare-live-test-run.sh}"
-LIVE_TEST_SCENARIO_RUNNER="${LIVE_TEST_SCENARIO_RUNNER:-${LIVE_TEST_ROOT}/scenarios/run-live-scenario.sh}"
-LIVE_TEST_BATCH_RUNNER="${LIVE_TEST_BATCH_RUNNER:-${LIVE_TEST_ROOT}/scenarios/run-live-scenario-batch.sh}"
-LIVE_TEST_MULTI_ORCHESTRATOR_RUNNER="${LIVE_TEST_MULTI_ORCHESTRATOR_RUNNER:-${LIVE_TEST_ROOT}/scenarios/run-multi-orchestrator-concurrent-assessment-workflows-live-test.sh}"
+LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/scripts/prepare-live-test-shared-environment.sh}"
+LIVE_TEST_BOOTSTRAP_SCRIPT="${LIVE_TEST_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/scripts/prepare-live-test-run.sh}"
+LIVE_TEST_SCENARIO_RUNNER="${LIVE_TEST_SCENARIO_RUNNER:-${LIVE_TEST_ROOT}/scripts/run-live-scenario.sh}"
+LIVE_TEST_BATCH_RUNNER="${LIVE_TEST_BATCH_RUNNER:-${LIVE_TEST_ROOT}/scripts/run-live-scenario-batch.sh}"
+LIVE_TEST_MULTI_ORCHESTRATOR_RUNNER="${LIVE_TEST_MULTI_ORCHESTRATOR_RUNNER:-${LIVE_TEST_ROOT}/scripts/run-multi-orchestrator-concurrent-assessment-workflows-live-test.sh}"
+LIVE_TEST_ARTIFACTS_DIR="${LIVE_TEST_ARTIFACTS_DIR:-$(default_live_test_artifacts_dir)}"
+LIVE_TEST_SHARED_CONTEXT_FILE="${LIVE_TEST_SHARED_CONTEXT_FILE:-${LIVE_TEST_ARTIFACTS_DIR}/bootstrap/context.json}"
+PLATFORM_API_BASE_URL="${PLATFORM_API_BASE_URL:-http://127.0.0.1:${PLATFORM_API_PORT:-8080}}"
+LIVE_TEST_REMOTE_MCP_FIXTURE_URL="${LIVE_TEST_REMOTE_MCP_FIXTURE_URL:-http://127.0.0.1:${LIVE_TEST_REMOTE_MCP_FIXTURE_PORT:-18080}/health}"
 
 scenario_arg=""
 oauth_session_out=""
@@ -168,11 +173,19 @@ fi
 
 if [[ "${bootstrap_only}" == "true" ]]; then
   require_live_test_file "${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT}" "shared live test bootstrap script"
+  resolve_live_test_shared_bootstrap_key "${LIVE_TEST_ROOT}" "${REPO_ROOT}" >/dev/null
   exec "${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT}"
 fi
 
 if [[ "${prepare_only}" == "true" ]]; then
   require_live_test_file "${LIVE_TEST_BOOTSTRAP_SCRIPT}" "live test bootstrap script"
+  ensure_live_test_shared_bootstrap \
+    "${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT}" \
+    "${LIVE_TEST_SHARED_CONTEXT_FILE}" \
+    "${PLATFORM_API_BASE_URL}" \
+    "${LIVE_TEST_REMOTE_MCP_FIXTURE_URL}" \
+    "${LIVE_TEST_ROOT}" \
+    "${REPO_ROOT}"
   exec "${LIVE_TEST_BOOTSTRAP_SCRIPT}" "${scenario_arg}"
 fi
 
@@ -182,6 +195,13 @@ if [[ -n "${scenario_arg}" ]]; then
     exec "${LIVE_TEST_MULTI_ORCHESTRATOR_RUNNER}"
   fi
   require_live_test_file "${LIVE_TEST_SCENARIO_RUNNER}" "live test scenario runner"
+  ensure_live_test_shared_bootstrap \
+    "${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT}" \
+    "${LIVE_TEST_SHARED_CONTEXT_FILE}" \
+    "${PLATFORM_API_BASE_URL}" \
+    "${LIVE_TEST_REMOTE_MCP_FIXTURE_URL}" \
+    "${LIVE_TEST_ROOT}" \
+    "${REPO_ROOT}"
   exec "${LIVE_TEST_SCENARIO_RUNNER}" "${scenario_arg}"
 fi
 

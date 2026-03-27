@@ -42,6 +42,16 @@ def resolve_profile_context(shared_context: dict[str, Any], *, profile_name: str
     return profile
 
 
+def scenario_uses_git_remote_storage(scenario: dict[str, Any]) -> bool:
+    workspace = scenario.get("workspace")
+    if not isinstance(workspace, dict):
+        return False
+    storage = workspace.get("storage")
+    if not isinstance(storage, dict):
+        return False
+    return str(storage.get("type") or "").strip() == "git_remote"
+
+
 def resolve_default_execution_environment_candidates(shared_context: dict[str, Any]) -> list[dict[str, Any]]:
     execution_environments = shared_context.get("execution_environments")
     if not isinstance(execution_environments, dict):
@@ -65,6 +75,16 @@ def select_default_execution_environment(
     selection_key = f"{scenario_name}:{run_token}".encode("utf-8")
     index = int.from_bytes(sha256(selection_key).digest()[:8], "big") % len(candidates)
     return candidates[index]
+
+
+def profile_uses_default_execution_environment(profile_context: dict[str, Any]) -> bool:
+    roles = profile_context.get("roles")
+    if not isinstance(roles, list):
+        return False
+    return any(
+        isinstance(role, dict) and bool(role.get("use_default_execution_environment"))
+        for role in roles
+    )
 
 
 def set_default_execution_environment(client: ApiClient, *, environment_id: str) -> None:
@@ -104,21 +124,24 @@ def create_run_context(
     host_workspace_path: str | None,
 ) -> dict[str, Any]:
     profile_context = resolve_profile_context(shared_context, profile_name=scenario["profile"])
-    default_execution_environment = select_default_execution_environment(
-        shared_context,
-        scenario_name=scenario["name"],
-        run_token=run_token,
-    )
-    default_execution_environment_id = str(default_execution_environment.get("id") or "").strip()
-    if default_execution_environment_id == "":
-        raise RuntimeError("selected default execution environment is missing an id")
-    set_default_execution_environment(client, environment_id=default_execution_environment_id)
-    tenant_default_execution_environment = resolve_tenant_default_execution_environment(client)
-    tenant_default_execution_environment_id = str(tenant_default_execution_environment.get("id") or "").strip()
-    if tenant_default_execution_environment_id != default_execution_environment_id:
-        raise RuntimeError(
-            "selected default execution environment was not persisted as the current tenant default"
+    default_execution_environment: dict[str, Any] | None = None
+    tenant_default_execution_environment: dict[str, Any] | None = None
+    if profile_uses_default_execution_environment(profile_context):
+        default_execution_environment = select_default_execution_environment(
+            shared_context,
+            scenario_name=scenario["name"],
+            run_token=run_token,
         )
+        default_execution_environment_id = str(default_execution_environment.get("id") or "").strip()
+        if default_execution_environment_id == "":
+            raise RuntimeError("selected default execution environment is missing an id")
+        set_default_execution_environment(client, environment_id=default_execution_environment_id)
+        tenant_default_execution_environment = resolve_tenant_default_execution_environment(client)
+        tenant_default_execution_environment_id = str(tenant_default_execution_environment.get("id") or "").strip()
+        if tenant_default_execution_environment_id != default_execution_environment_id:
+            raise RuntimeError(
+                "selected default execution environment was not persisted as the current tenant default"
+            )
     workspace_slug = build_workspace_slug(scenario_name=scenario["name"], run_token=run_token)
     workspace_name = f"{workspace_name_prefix} {run_token}"
 
@@ -180,11 +203,7 @@ def main() -> None:
     scenario_file = env("LIVE_TEST_SCENARIO_FILE", required=True)
     shared_context_file = env("LIVE_TEST_SHARED_CONTEXT_FILE", required=True)
     run_token = env("LIVE_TEST_RUN_TOKEN", required=True)
-    repository_url = env("LIVE_TEST_REPOSITORY_URL", "https://github.com/agirunner/agirunner-test-fixtures.git")
-    default_branch = env("LIVE_TEST_DEFAULT_BRANCH", "main")
-    git_user_name = env("LIVE_TEST_GIT_USER_NAME", "sirmarkz")
-    git_user_email = env("LIVE_TEST_GIT_USER_EMAIL", "250921129+sirmarkz@users.noreply.github.com")
-    git_token = env("LIVE_TEST_GITHUB_TOKEN")
+    git_token = env("LIVE_TEST_GIT_TOKEN") or env("LIVE_TEST_GITHUB_TOKEN")
     host_workspace_path = env("LIVE_TEST_HOST_WORKSPACE_PATH") or None
     workspace_name_prefix = env("LIVE_TEST_WORKSPACE_NAME_PREFIX", "Live Test Workspace")
     workspace_description = env(
@@ -193,7 +212,19 @@ def main() -> None:
     )
 
     scenario = load_scenario(scenario_file)
+    uses_git_remote_storage = scenario_uses_git_remote_storage(scenario)
     shared_context = read_json(shared_context_file)
+    repository_url = env("LIVE_TEST_REPOSITORY_URL")
+    default_branch = env("LIVE_TEST_DEFAULT_BRANCH", "main")
+    git_user_name = env("LIVE_TEST_GIT_USER_NAME")
+    git_user_email = env("LIVE_TEST_GIT_USER_EMAIL")
+    if uses_git_remote_storage:
+        if repository_url == "":
+            raise RuntimeError("LIVE_TEST_REPOSITORY_URL is required for git_remote scenarios")
+        if git_user_name == "":
+            raise RuntimeError("LIVE_TEST_GIT_USER_NAME is required for git_remote scenarios")
+        if git_user_email == "":
+            raise RuntimeError("LIVE_TEST_GIT_USER_EMAIL is required for git_remote scenarios")
     trace = TraceRecorder(trace_dir)
     public_client = ApiClient(base_url, trace)
     auth_token = login(public_client, admin_api_key)

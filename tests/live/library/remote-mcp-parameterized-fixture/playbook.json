@@ -1,0 +1,63 @@
+{
+  "name": "Remote MCP Parameterized Fixture",
+  "slug": "live-test-remote-mcp-parameterized-fixture-v1",
+  "description": "Single-stage workflow that proves a specialist can use a parameterized local remote MCP server for deterministic research and repository reads.",
+  "outcome": "A single specialist uses the parameterized remote MCP fixture to retrieve a deterministic answer and repository facts, then publishes proof.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "Run the workflow through the authored stage `parameterized-fixture`. Treat that stage as the only workflow checkpoint: `parameterized-fixture` exists to prove that a specialist can use a granted parameterized remote MCP server, perform more than one MCP call, and still close the workflow cleanly. Use this role deliberately: `parameterized-fixture-specialist` owns the entire work item. The orchestrator only needs to route that specialist, then close the work when the specialist has produced the proof artifact and a structured handoff.\nHappy path: dispatch `parameterized-fixture-specialist`, require the specialist to use the granted parameterized remote MCP tools, use `write_artifact` to create `deliverables/parameterized-fixture-proof.md`, use `read_artifact` to verify it directly, and submit one structured handoff that repeats the final result. The proof MUST include the exact lines `Answer: Edmonton`, `Repository: fixture-docs`, `Default branch: main`, and `README present: yes`.\nIf the specialist cannot reach the parameterized remote MCP server, cannot complete the research and repository-read tool calls, or tries to bypass the remote MCP capability, require a corrective retry or escalate with a precise reason. Do not silently substitute another tool path, do not invent reviews or approvals, and do not close the workflow without proof that the remote MCP tools were actually used. Do not keep the workflow open for non-blocking formatting noise once the parameterized remote MCP result and proof artifact exist; record that as a callout instead.\nCompletion rules: finish only after `parameterized-fixture-specialist` has produced the proof artifact, repeated the final lines in the handoff, and left a usable proof packet. Guided closure rule: treat the authored flow as best-intent process guidance. Preferred use of the granted parameterized remote MCP server must be followed, but the orchestrator may waive a weaker preferred detail with a recorded reason when the legal MCP-backed answer already exists. Smaller deviations must be recorded as callouts instead of preventing closure.",
+    "parameters": [
+      {
+        "slug": "goal",
+        "title": "Goal",
+        "required": true
+      }
+    ],
+    "roles": [
+      "parameterized-fixture-specialist"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "parameterized-fixture",
+        "goal": "Deterministic parameterized remote MCP research and repository facts are delivered with proof.",
+        "involves": [
+          "parameterized-fixture-specialist"
+        ]
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 2,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    }
+  }
+}

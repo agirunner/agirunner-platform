@@ -10,7 +10,7 @@ source "${LIVE_TEST_ROOT}/lib/common.sh"
 LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE:-${LIVE_TEST_ROOT}/env/local.env}"
 load_live_test_env "${LIVE_TEST_ENV_FILE}"
 
-DEFAULT_CONCURRENCY=5
+DEFAULT_CONCURRENCY=1
 concurrency="${LIVE_TEST_MAX_CONCURRENT_SCENARIOS:-${DEFAULT_CONCURRENCY}}"
 failed_only="${LIVE_TEST_FAILED_ONLY_RERUNS:-false}"
 
@@ -40,12 +40,14 @@ elif [[ "${scenario_root}" == "${LIVE_TEST_ROOT}/scenarios" ]]; then
 else
   tracker_file=""
 fi
-shared_bootstrap_script="${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/prepare-live-test-shared-environment.sh}"
-scenario_runner="${LIVE_TEST_SCENARIO_RUNNER:-${LIVE_TEST_ROOT}/scenarios/run-live-scenario.sh}"
-scenario_bootstrap_script="${LIVE_TEST_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/prepare-live-test-run.sh}"
-artifacts_dir="${LIVE_TEST_ARTIFACTS_DIR:-${REPO_ROOT}/.tmp/live-tests}"
+shared_bootstrap_script="${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/scripts/prepare-live-test-shared-environment.sh}"
+scenario_runner="${LIVE_TEST_SCENARIO_RUNNER:-${LIVE_TEST_ROOT}/scripts/run-live-scenario.sh}"
+scenario_bootstrap_script="${LIVE_TEST_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/scripts/prepare-live-test-run.sh}"
+artifacts_dir="${LIVE_TEST_ARTIFACTS_DIR:-$(default_live_test_artifacts_dir)}"
 shared_context_file="${LIVE_TEST_SHARED_CONTEXT_FILE:-${artifacts_dir}/bootstrap/context.json}"
 batch_artifacts_dir="${artifacts_dir}/batch"
+platform_api_base_url="${PLATFORM_API_BASE_URL:-http://127.0.0.1:${PLATFORM_API_PORT:-8080}}"
+remote_mcp_fixture_url="${LIVE_TEST_REMOTE_MCP_FIXTURE_URL:-http://127.0.0.1:${LIVE_TEST_REMOTE_MCP_FIXTURE_PORT:-18080}/health}"
 
 mkdir -p "${batch_artifacts_dir}"
 require_live_test_dir "${scenario_root}" "live test scenario directory"
@@ -78,7 +80,13 @@ if (( ${#scenarios[@]} == 0 )); then
 fi
 
 log_live_test "Running live scenarios with concurrency=${concurrency}"
-bash "${shared_bootstrap_script}"
+ensure_live_test_shared_bootstrap \
+  "${shared_bootstrap_script}" \
+  "${shared_context_file}" \
+  "${platform_api_base_url}" \
+  "${remote_mcp_fixture_url}" \
+  "${LIVE_TEST_ROOT}" \
+  "${REPO_ROOT}"
 
 declare -A pid_to_scenario=()
 declare -A pid_to_log=()
@@ -100,12 +108,15 @@ launch_scenario() {
     scenario_arg="${scenario_root}/${scenario}.json"
   fi
   rm -f "${log_file}"
+  log_live_test "START ${scenario_label}"
   (
     env -u LIVE_TEST_SCENARIO_DIR \
       LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE}" \
       LIVE_TEST_ARTIFACTS_DIR="${artifacts_dir}" \
       LIVE_TEST_SHARED_CONTEXT_FILE="${shared_context_file}" \
+      LIVE_TEST_SHARED_BOOTSTRAP_KEY="${LIVE_TEST_SHARED_BOOTSTRAP_KEY}" \
       LIVE_TEST_BOOTSTRAP_SCRIPT="${scenario_bootstrap_script}" \
+      LIVE_TEST_QUIET_STATUS=true \
       "${scenario_runner}" "${scenario_arg}"
   ) >"${log_file}" 2>&1 &
   local pid=$!
@@ -171,7 +182,7 @@ done
 
 log_live_test "Completed ${completed} scenario(s): ${passed} passed, ${failed} failed"
 IFS=$'\t' read -r matrix_passed matrix_remaining matrix_total < <(
-  count_live_test_matrix_status "${scenario_root}" "${artifacts_dir}"
+  count_live_test_matrix_status "${scenario_root}" "${artifacts_dir}" "${tracker_file}"
 )
 log_live_test "Matrix status: ${matrix_passed} passed, ${matrix_remaining} remaining, ${matrix_total} total"
 if (( failed > 0 )); then

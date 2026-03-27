@@ -61,6 +61,7 @@ def main() -> None:
     runtime_image = env("RUNTIME_IMAGE", "agirunner-runtime:local")
     library_root = env("LIVE_TEST_LIBRARY_ROOT", required=True)
     execution_environment_selection_seed = env("LIVE_TEST_EXECUTION_ENVIRONMENT_SELECTION_SEED") or None
+    shared_bootstrap_key = env("LIVE_TEST_SHARED_BOOTSTRAP_KEY") or None
 
     trace = TraceRecorder(trace_dir)
     public_client = ApiClient(base_url, trace)
@@ -124,6 +125,7 @@ def main() -> None:
             "specialist_reasoning": specialist_reasoning_effort,
             "execution_environments": execution_environments,
             "execution_environment_selection_seed": execution_environment_selection_seed,
+            "shared_bootstrap_key": shared_bootstrap_key,
             "profiles": profiles,
         }
     )

@@ -21,16 +21,36 @@ import scenario_config  # noqa: E402
 
 
 class LiveTestCatalogTests(unittest.TestCase):
-    def test_tracker_supported_catalog_matches_expected_scenarios(self) -> None:
+    def test_tracker_catalog_sections_match_expected_scenarios(self) -> None:
         tracker = json.loads(TRACKER_FILE.read_text())
         supported = tracker["supported"]["scenarios"]
-        self.assertEqual(sorted(live_test_catalog.EXPECTED_SCENARIOS), sorted(supported))
+        explicit_only = tracker["explicit_only"]["scenarios"]
+
+        self.assertEqual(sorted(live_test_catalog.SUPPORTED_BATCH_SCENARIOS), sorted(supported))
         self.assertEqual(len(supported), tracker["supported"]["total"])
+        self.assertEqual(sorted(live_test_catalog.EXPLICIT_ONLY_SCENARIOS), sorted(explicit_only))
+        self.assertEqual(len(explicit_only), tracker["explicit_only"]["total"])
+        self.assertEqual(
+            sorted(live_test_catalog.EXPECTED_SCENARIOS),
+            sorted(set(supported) | set(explicit_only)),
+        )
 
     def test_tracker_starts_with_artifact_memory_publishing(self) -> None:
         tracker = json.loads(TRACKER_FILE.read_text())
         supported = tracker["supported"]["scenarios"]
         self.assertEqual("artifact-memory-publishing-approval", supported[0])
+
+    def test_tracker_marks_remote_mcp_scenarios_as_explicit_only(self) -> None:
+        tracker = json.loads(TRACKER_FILE.read_text())
+        supported = set(tracker["supported"]["scenarios"])
+        explicit_only = set(tracker["explicit_only"]["scenarios"])
+
+        self.assertNotIn("remote-mcp-oauth-client-credentials", supported)
+        self.assertNotIn("remote-mcp-parameterized-fixture", supported)
+        self.assertEqual(
+            {"remote-mcp-oauth-client-credentials", "remote-mcp-parameterized-fixture"},
+            explicit_only,
+        )
 
     def test_tracker_places_spawn_agent_scenario_after_content_assessment_blocked(self) -> None:
         tracker = json.loads(TRACKER_FILE.read_text())
