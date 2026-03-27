@@ -241,6 +241,42 @@ describe('worker registration service', () => {
   });
 
   it('deletes worker-owned agent keys when a worker is removed', async () => {
+    const transactionalQueries: string[] = [];
+    let clearedWorkerSignals = false;
+    let clearedMessageReferences = false;
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        transactionalQueries.push(sql);
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: null, rows: [] };
+        }
+        if (sql.includes('DELETE FROM api_keys')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('UPDATE agents SET worker_id = NULL')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks SET assigned_worker_id = NULL')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('DELETE FROM worker_signals')) {
+          clearedWorkerSignals = true;
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('UPDATE orchestrator_task_messages')) {
+          clearedMessageReferences = true;
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('DELETE FROM workers')) {
+          if (!clearedWorkerSignals || !clearedMessageReferences) {
+            throw new Error('worker references were not cleared before delete');
+          }
+          return { rowCount: 1, rows: [] };
+        }
+        throw new Error(`Unexpected transactional SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
     const pool = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM workers')) {
@@ -249,11 +285,9 @@ describe('worker registration service', () => {
             rows: [{ id: 'worker-1', name: 'my-runtime', metadata: {}, host_info: {} }],
           };
         }
-        return {
-          rowCount: 1,
-          rows: [],
-        };
+        throw new Error(`Unexpected pool SQL: ${sql}`);
       }),
+      connect: vi.fn(async () => client),
     };
 
     const context = {
@@ -272,12 +306,24 @@ describe('worker registration service', () => {
 
     await deleteWorker(context as never, identity as never, 'worker-1');
 
-    const apiKeyDeleteSql = pool.query.mock.calls
+    const apiKeyDeleteSql = client.query.mock.calls
       .map(([sql]) => String(sql))
       .find((sql) => sql.includes('DELETE FROM api_keys'));
+    const workerSignalDeleteSql = client.query.mock.calls
+      .map(([sql]) => String(sql))
+      .find((sql) => sql.includes('DELETE FROM worker_signals'));
+    const messageCleanupSql = client.query.mock.calls
+      .map(([sql]) => String(sql))
+      .find((sql) => sql.includes('UPDATE orchestrator_task_messages'));
 
     expect(apiKeyDeleteSql).toContain('DELETE FROM api_keys');
     expect(apiKeyDeleteSql).toContain('FROM agents');
+    expect(workerSignalDeleteSql).toContain('DELETE FROM worker_signals');
+    expect(messageCleanupSql).toContain('UPDATE orchestrator_task_messages');
+    expect(messageCleanupSql).toContain("worker_unassigned");
+    expect(messageCleanupSql).toContain("task_not_in_progress");
+    expect(transactionalQueries.at(-2)).toContain('DELETE FROM workers');
     expect(context.connectionHub.unregisterWorker).toHaveBeenCalledWith('worker-1');
+    expect(client.release).toHaveBeenCalledTimes(1);
   });
 });

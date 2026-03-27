@@ -1,4 +1,5 @@
 import { createApiKey, type ApiKeyIdentity } from '../auth/api-key.js';
+import type { DatabaseClient, DatabaseQueryable } from '../db/database.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 import type { WorkerServiceContext, RegisterWorkerInput } from './worker-service.js';
@@ -147,14 +148,7 @@ export async function listWorkers(context: WorkerServiceContext, tenantId: strin
 }
 
 export async function getWorker(context: WorkerServiceContext, tenantId: string, workerId: string) {
-  const res = await context.pool.query(
-    `SELECT id, name, status, connection_mode, runtime_type, routing_tags, current_task_id,
-            heartbeat_interval_seconds, last_heartbeat_at, connected_at, metadata, host_info,
-            created_at, updated_at
-     FROM workers
-     WHERE tenant_id = $1 AND id = $2`,
-    [tenantId, workerId],
-  );
+  const res = await queryWorkerRecord(context.pool, tenantId, workerId);
   if (!res.rowCount) {
     throw new NotFoundError('Specialist Agent not found');
   }
@@ -163,8 +157,49 @@ export async function getWorker(context: WorkerServiceContext, tenantId: string,
 
 export async function deleteWorker(context: WorkerServiceContext, identity: ApiKeyIdentity, workerId: string): Promise<void> {
   const worker = await getWorker(context, identity.tenantId, workerId);
+  const client = await context.pool.connect();
+  try {
+    await client.query('BEGIN');
+    await deleteWorkerApiKeys(client, identity.tenantId, workerId);
+    await detachWorkerAgents(client, identity.tenantId, workerId);
+    await detachWorkerTasks(client, identity.tenantId, workerId);
+    await deleteWorkerSignals(client, identity.tenantId, workerId);
+    await detachOrchestratorTaskMessages(client, identity.tenantId, workerId);
+    await client.query('DELETE FROM workers WHERE tenant_id = $1 AND id = $2', [identity.tenantId, workerId]);
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
 
-  await context.pool.query(
+  context.connectionHub.unregisterWorker(workerId);
+
+  await context.eventService.emit({
+    tenantId: identity.tenantId,
+    type: 'worker.deregistered',
+    entityType: 'worker',
+    entityId: workerId,
+    actorType: identity.scope,
+    actorId: identity.keyPrefix,
+    data: { name: worker.name },
+  });
+}
+
+function queryWorkerRecord(queryable: DatabaseQueryable, tenantId: string, workerId: string) {
+  return queryable.query(
+    `SELECT id, name, status, connection_mode, runtime_type, routing_tags, current_task_id,
+            heartbeat_interval_seconds, last_heartbeat_at, connected_at, metadata, host_info,
+            created_at, updated_at
+     FROM workers
+     WHERE tenant_id = $1 AND id = $2`,
+    [tenantId, workerId],
+  );
+}
+
+function deleteWorkerApiKeys(client: DatabaseClient, tenantId: string, workerId: string) {
+  return client.query(
     `DELETE FROM api_keys
      WHERE tenant_id = $1
        AND (
@@ -178,35 +213,47 @@ export async function deleteWorker(context: WorkerServiceContext, identity: ApiK
            )
          )
        )`,
-    [identity.tenantId, workerId],
+    [tenantId, workerId],
   );
+}
 
-  // Keep agent identities, but detach them from this worker before deletion
-  // to satisfy FK constraints on agents.worker_id.
-  await context.pool.query('UPDATE agents SET worker_id = NULL WHERE tenant_id = $1 AND worker_id = $2', [
-    identity.tenantId,
+function detachWorkerAgents(client: DatabaseClient, tenantId: string, workerId: string) {
+  return client.query('UPDATE agents SET worker_id = NULL WHERE tenant_id = $1 AND worker_id = $2', [
+    tenantId,
     workerId,
   ]);
+}
 
-  // Tasks keep historical assignment metadata, so we null the live FK before deleting
-  // the worker row to avoid tasks.assigned_worker_id FK violations.
-  await context.pool.query('UPDATE tasks SET assigned_worker_id = NULL WHERE tenant_id = $1 AND assigned_worker_id = $2', [
-    identity.tenantId,
+function detachWorkerTasks(client: DatabaseClient, tenantId: string, workerId: string) {
+  return client.query('UPDATE tasks SET assigned_worker_id = NULL WHERE tenant_id = $1 AND assigned_worker_id = $2', [
+    tenantId,
     workerId,
   ]);
+}
 
-  await context.pool.query('DELETE FROM workers WHERE tenant_id = $1 AND id = $2', [identity.tenantId, workerId]);
-  context.connectionHub.unregisterWorker(workerId);
+function deleteWorkerSignals(client: DatabaseClient, tenantId: string, workerId: string) {
+  return client.query('DELETE FROM worker_signals WHERE tenant_id = $1 AND worker_id = $2', [tenantId, workerId]);
+}
 
-  await context.eventService.emit({
-    tenantId: identity.tenantId,
-    type: 'worker.deregistered',
-    entityType: 'worker',
-    entityId: workerId,
-    actorType: identity.scope,
-    actorId: identity.keyPrefix,
-    data: { name: worker.name },
-  });
+function detachOrchestratorTaskMessages(client: DatabaseClient, tenantId: string, workerId: string) {
+  return client.query(
+    `UPDATE orchestrator_task_messages AS messages
+        SET worker_id = NULL,
+            delivery_state = CASE
+              WHEN messages.delivery_state IN ('pending_delivery', 'delivery_in_progress', 'worker_unavailable', 'worker_unassigned')
+                THEN CASE
+                  WHEN tasks.state = 'in_progress' THEN 'worker_unassigned'
+                  ELSE 'task_not_in_progress'
+                END
+              ELSE messages.delivery_state
+            END
+       FROM tasks
+      WHERE messages.tenant_id = $1
+        AND messages.worker_id = $2
+        AND tasks.tenant_id = messages.tenant_id
+        AND tasks.id = messages.task_id`,
+    [tenantId, workerId],
+  );
 }
 
 function sanitizeWorkerRow<T extends Record<string, unknown>>(row: T): T {

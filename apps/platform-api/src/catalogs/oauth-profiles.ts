@@ -39,7 +39,7 @@ export interface OAuthProviderProfile {
 export const OPENAI_CODEX_PROFILE: OAuthProviderProfile = {
   profileId: 'openai-codex',
   displayName: 'OpenAI (Subscription)',
-  description: 'Use your ChatGPT Plus/Pro/Team subscription to access GPT-5, Codex, and o-series models.',
+  description: 'Use your ChatGPT subscription to access OpenAI models.',
   providerType: 'openai',
   authorizeUrl: 'https://auth.openai.com/oauth/authorize',
   tokenUrl: 'https://auth.openai.com/oauth/token',

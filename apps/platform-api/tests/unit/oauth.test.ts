@@ -147,6 +147,7 @@ describe('OAuth profiles', () => {
     const profile = getOAuthProfile('openai-codex');
     expect(profile.profileId).toBe('openai-codex');
     expect(profile.displayName).toBe('OpenAI (Subscription)');
+    expect(profile.description).toBe('Use your ChatGPT subscription to access OpenAI models.');
     expect(profile.tokenLifetime).toBe('short');
     expect(profile.costModel).toBe('subscription');
     expect(profile.authorizeUrl).toContain('auth.openai.com');
