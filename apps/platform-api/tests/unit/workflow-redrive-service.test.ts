@@ -65,6 +65,7 @@ describe('WorkflowRedriveService', () => {
         previous_attempt_workflow_id: null,
         attempt_number: 1,
         attempt_kind: 'initial',
+        live_visibility_mode_override: 'standard',
       }],
     });
 
@@ -116,6 +117,7 @@ describe('WorkflowRedriveService', () => {
         metadata: expect.objectContaining({
           model_overrides: { developer: { provider: 'openai', model: 'gpt-5.4' } },
         }),
+        live_visibility_mode: 'standard',
       }),
     );
     expect(inputPacketService.createWorkflowInputPacket).toHaveBeenCalledWith(

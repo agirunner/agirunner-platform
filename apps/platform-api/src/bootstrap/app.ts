@@ -19,6 +19,7 @@ import { buildArtifactStorageConfig } from '../content/storage-config.js';
 import { createArtifactStorage } from '../content/storage-factory.js';
 import { AcpSessionService } from '../services/acp-session-service.js';
 import { AgentService } from '../services/agent-service.js';
+import { AgenticSettingsService } from '../services/agentic-settings-service.js';
 import { ApiKeyService } from '../services/api-key-service.js';
 import { ContainerInventoryService } from '../services/container-inventory-service.js';
 import { DestructiveDeleteService } from '../services/destructive-delete-service.js';
@@ -66,6 +67,7 @@ import { WorkflowActivationDispatchService } from '../services/workflow-activati
 import { WorkflowInputPacketService } from '../services/workflow-input-packet-service.js';
 import { WorkflowInterventionService } from '../services/workflow-intervention-service.js';
 import { WorkflowRedriveService } from '../services/workflow-redrive-service.js';
+import { WorkflowSettingsService } from '../services/workflow-settings-service.js';
 import { WorkflowSteeringSessionService } from '../services/workflow-steering-session-service.js';
 import { seedConfigTables } from './seed.js';
 import { registerPlugins } from './plugins.js';
@@ -211,6 +213,7 @@ export async function buildApp() {
     executionEnvironmentVerifier,
   );
   const modelCatalogService = new ModelCatalogService(pool);
+  const agenticSettingsService = new AgenticSettingsService(pool);
   const oauthService = new OAuthService(pool);
   const workflowOperationsLiveService = new MissionControlLiveService(pool);
   const workflowOperationsRecentService = new MissionControlRecentService(pool, workflowOperationsLiveService);
@@ -258,6 +261,7 @@ export async function buildApp() {
     workflowInputPacketService,
     eventService,
   );
+  const workflowSettingsService = new WorkflowSettingsService(pool);
   const workflowSteeringSessionService = new WorkflowSteeringSessionService(pool);
   const remoteMcpOAuthClientProfileService = new RemoteMcpOAuthClientProfileService(pool);
   const remoteMcpServerService = new RemoteMcpServerService(pool);
@@ -318,6 +322,10 @@ export async function buildApp() {
     createLoggedService(workflowRedriveService, 'WorkflowRedriveService', logService),
   );
   app.decorate(
+    'workflowSettingsService',
+    createLoggedService(workflowSettingsService, 'WorkflowSettingsService', logService),
+  );
+  app.decorate(
     'workflowSteeringSessionService',
     createLoggedService(workflowSteeringSessionService, 'WorkflowSteeringSessionService', logService),
   );
@@ -349,6 +357,10 @@ export async function buildApp() {
   );
   app.decorate('fleetService', createLoggedService(fleetService, 'FleetService', logService));
   app.decorate('modelCatalogService', createLoggedService(modelCatalogService, 'ModelCatalogService', logService));
+  app.decorate(
+    'agenticSettingsService',
+    createLoggedService(agenticSettingsService, 'AgenticSettingsService', logService),
+  );
   app.decorate(
     'workflowOperationsLiveService',
     createLoggedService(workflowOperationsLiveService, 'MissionControlLiveService', logService),

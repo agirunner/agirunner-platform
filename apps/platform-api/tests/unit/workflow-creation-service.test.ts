@@ -25,11 +25,14 @@ describe('WorkflowCreationService', () => {
           };
         }
         if (sql.includes('INSERT INTO workflows')) {
-          expect(params?.[15]).toEqual({
+          expect(params?.[15]).toBe('enhanced');
+          expect(params?.[16]).toBe(1);
+          expect(params?.[17]).toBe('tenant-1');
+          expect(params?.[18]).toEqual({
             launch: { trigger: 'mission_control' },
             redrive: { source_workflow_id: 'workflow-1' },
           });
-          expect(params?.[16]).toBe(
+          expect(params?.[19]).toBe(
             Buffer.byteLength(
               JSON.stringify({
                 launch: { trigger: 'mission_control' },
@@ -38,10 +41,10 @@ describe('WorkflowCreationService', () => {
               'utf8',
             ),
           );
-          expect(params?.[17]).toBe('workflow-1');
-          expect(params?.[18]).toBe('workflow-1');
-          expect(params?.[19]).toBe(2);
-          expect(params?.[20]).toBe('redrive');
+          expect(params?.[20]).toBe('workflow-1');
+          expect(params?.[21]).toBe('workflow-1');
+          expect(params?.[22]).toBe(2);
+          expect(params?.[23]).toBe('redrive');
           return {
             rowCount: 1,
             rows: [{
@@ -49,11 +52,12 @@ describe('WorkflowCreationService', () => {
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               current_stage: 'implementation',
-              context: params?.[15],
-              root_workflow_id: params?.[17],
-              previous_attempt_workflow_id: params?.[18],
-              attempt_number: params?.[19],
-              attempt_kind: params?.[20],
+              context: params?.[18],
+              live_visibility_mode_override: params?.[15],
+              root_workflow_id: params?.[20],
+              previous_attempt_workflow_id: params?.[21],
+              attempt_number: params?.[22],
+              attempt_kind: params?.[23],
             }],
           };
         }
@@ -94,6 +98,7 @@ describe('WorkflowCreationService', () => {
           attempt_number: 2,
           attempt_kind: 'redrive',
         },
+        live_visibility_mode: 'enhanced',
       },
     );
 
@@ -108,6 +113,7 @@ describe('WorkflowCreationService', () => {
         previous_attempt_workflow_id: 'workflow-1',
         attempt_number: 2,
         attempt_kind: 'redrive',
+        live_visibility_mode_override: 'enhanced',
       }),
     );
   });

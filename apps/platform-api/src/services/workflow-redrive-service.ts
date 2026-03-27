@@ -25,6 +25,7 @@ interface SourceWorkflowRow {
   previous_attempt_workflow_id: string | null;
   attempt_number: number | null;
   attempt_kind: string | null;
+  live_visibility_mode_override: 'standard' | 'enhanced' | null;
 }
 
 interface WorkflowAttemptRecord extends WorkflowAttemptInput {
@@ -41,6 +42,7 @@ export interface RedriveWorkflowInput {
   steeringInstruction?: string;
   parameters?: Record<string, string>;
   structuredInputs?: Record<string, unknown>;
+  liveVisibilityMode?: 'standard' | 'enhanced';
   files?: CreateWorkflowInputPacketInput['files'];
 }
 
@@ -137,7 +139,8 @@ export class WorkflowRedriveService {
               root_workflow_id,
               previous_attempt_workflow_id,
               attempt_number,
-              attempt_kind
+              attempt_kind,
+              live_visibility_mode_override
          FROM workflows
         WHERE tenant_id = $1
           AND id = $2`,
@@ -191,6 +194,7 @@ function buildWorkflowCreateInput(
       ...(input.requestId?.trim() ? { redrive_request_id: input.requestId.trim() } : {}),
     },
     attempt,
+    live_visibility_mode: input.liveVisibilityMode ?? sourceWorkflow.live_visibility_mode_override ?? undefined,
   };
 }
 

@@ -12,6 +12,8 @@ import { WorkflowActivationDispatchService } from './workflow-activation-dispatc
 import type { CreateWorkflowInput } from './workflow-service.types.js';
 import { EventService } from './event-service.js';
 import type { ModelCatalogService } from './model-catalog-service.js';
+import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
+import { sanitizeOptionalWorkflowLiveVisibilityMode } from './workflow-operator-record-sanitization.js';
 import { currentStageNameFromStages, WorkflowStageService } from './workflow-stage-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 import { readWorkspaceSettingsExtras } from './workspace-settings.js';
@@ -90,14 +92,19 @@ export class WorkflowCreationService {
       const workflowParameters = validateWorkflowParameters(definition, input.parameters);
       const workflowContext = normalizeWorkflowContext(input.context);
       const workflowAttempt = normalizeWorkflowAttempt(input.attempt);
+      const workflowLiveVisibility = normalizeWorkflowLiveVisibility(
+        input.live_visibility_mode,
+        resolveOperatorRecordActorId(identity),
+      );
       const initialStageName = initialWorkflowStageName(definition);
       const workflowResult = await client.query(
         `INSERT INTO workflows (
            tenant_id, workspace_id, playbook_id, playbook_version, name, state, lifecycle,
            current_stage, parameters, metadata, resolved_config, config_layers,
            instruction_config, token_budget, cost_cap_usd, max_duration_minutes, orchestration_state,
+           live_visibility_mode_override, live_visibility_revision, live_visibility_updated_by_operator_id,
            context, context_size_bytes, root_workflow_id, previous_attempt_workflow_id, attempt_number, attempt_kind
-         ) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, '{}'::jsonb, $16, $17, $18, $19, $20, $21)
+         ) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, '{}'::jsonb, $16, $17, $18, $19, $20, $21, $22, $23, $24)
          RETURNING *`,
         [
           identity.tenantId,
@@ -115,6 +122,9 @@ export class WorkflowCreationService {
           input.budget?.token_budget ?? null,
           input.budget?.cost_cap_usd ?? null,
           input.budget?.max_duration_minutes ?? null,
+          workflowLiveVisibility.mode,
+          workflowLiveVisibility.revision,
+          workflowLiveVisibility.updatedByOperatorId,
           workflowContext,
           byteLengthJson(workflowContext),
           workflowAttempt.root_workflow_id,
@@ -300,6 +310,22 @@ function normalizeWorkflowAttempt(value: WorkflowAttemptInput | undefined) {
     previous_attempt_workflow_id: sanitizeOptionalIdentifier(value?.previous_attempt_workflow_id),
     attempt_number: attemptNumber,
     attempt_kind: attemptKind,
+  };
+}
+
+function normalizeWorkflowLiveVisibility(value: CreateWorkflowInput['live_visibility_mode'], updatedByOperatorId: string) {
+  const mode = sanitizeOptionalWorkflowLiveVisibilityMode(value);
+  if (!mode) {
+    return {
+      mode: null,
+      revision: 0,
+      updatedByOperatorId: null,
+    };
+  }
+  return {
+    mode,
+    revision: 1,
+    updatedByOperatorId,
   };
 }
 

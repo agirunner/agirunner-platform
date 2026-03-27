@@ -113,6 +113,7 @@ function createWorkflowRoutesApp(overrides?: {
   workflowInterventionService?: Record<string, unknown>;
   workflowSteeringSessionService?: Record<string, unknown>;
   workflowRedriveService?: Record<string, unknown>;
+  workflowSettingsService?: Record<string, unknown>;
   pgPool?: Record<string, unknown>;
 }) {
   const routeApp = fastify();
@@ -199,6 +200,14 @@ function createWorkflowRoutesApp(overrides?: {
     {
       redriveWorkflow: async () => ({}),
       ...(overrides?.workflowRedriveService ?? {}),
+    } as never,
+  );
+  routeApp.decorate(
+    'workflowSettingsService',
+    {
+      getWorkflowSettings: async () => ({}),
+      updateWorkflowSettings: async () => ({}),
+      ...(overrides?.workflowSettingsService ?? {}),
     } as never,
   );
   routeApp.decorate(
@@ -471,6 +480,97 @@ describe('workflow routes', () => {
         steeringInstruction: 'Focus on the verification path first.',
         parameters: { target: 'staging' },
       }),
+    );
+  });
+
+  it('passes live visibility mode through workflow creation routes', async () => {
+    const createWorkflow = vi.fn().mockResolvedValue({
+      id: 'workflow-1',
+      name: 'Release workflow',
+      live_visibility_mode_override: 'enhanced',
+    });
+
+    app = createWorkflowRoutesApp({
+      workflowService: { createWorkflow },
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        playbook_id: '00000000-0000-4000-8000-000000000002',
+        name: 'Release workflow',
+        live_visibility_mode: 'enhanced',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(createWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      expect.objectContaining({
+        playbook_id: '00000000-0000-4000-8000-000000000002',
+        name: 'Release workflow',
+        live_visibility_mode: 'enhanced',
+      }),
+    );
+  });
+
+  it('reads and updates workflow live visibility settings through workflow-owned routes', async () => {
+    const getWorkflowSettings = vi.fn().mockResolvedValue({
+      workflow_id: 'workflow-1',
+      effective_live_visibility_mode: 'enhanced',
+      workflow_live_visibility_mode_override: null,
+      source: 'agentic_settings',
+      revision: 2,
+      updated_by_operator_id: 'user-1',
+      updated_at: '2026-03-27T23:00:00.000Z',
+    });
+    const updateWorkflowSettings = vi.fn().mockResolvedValue({
+      workflow_id: 'workflow-1',
+      effective_live_visibility_mode: 'standard',
+      workflow_live_visibility_mode_override: 'standard',
+      source: 'workflow_override',
+      revision: 3,
+      updated_by_operator_id: 'user-1',
+      updated_at: '2026-03-27T23:10:00.000Z',
+    });
+
+    app = createWorkflowRoutesApp({
+      workflowSettingsService: {
+        getWorkflowSettings,
+        updateWorkflowSettings,
+      },
+    });
+    await app.register(workflowRoutes);
+
+    const headers = { authorization: 'Bearer test' };
+    const getResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/workflows/workflow-1/settings',
+      headers,
+    });
+    const patchResponse = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/workflows/workflow-1/settings',
+      headers,
+      payload: {
+        live_visibility_mode: 'standard',
+        settings_revision: 2,
+      },
+    });
+
+    expect(getResponse.statusCode).toBe(200);
+    expect(patchResponse.statusCode).toBe(200);
+    expect(getWorkflowSettings).toHaveBeenCalledWith('tenant-1', 'workflow-1');
+    expect(updateWorkflowSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      {
+        liveVisibilityMode: 'standard',
+        settingsRevision: 2,
+      },
     );
   });
 

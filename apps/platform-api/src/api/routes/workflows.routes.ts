@@ -54,6 +54,12 @@ const workflowCreateSchema = z.object({
   instruction_config: z.record(z.unknown()).optional(),
   budget: workflowBudgetSchema.optional(),
   model_overrides: modelOverridesSchema.optional(),
+  live_visibility_mode: z.enum(['standard', 'enhanced']).optional(),
+});
+
+const workflowSettingsPatchSchema = z.object({
+  live_visibility_mode: z.enum(['standard', 'enhanced']).nullable(),
+  settings_revision: z.number().int().min(0),
 });
 
 const requestIdSchema = z.string().min(1).max(255);
@@ -281,8 +287,35 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
       const workflow = await workflowService.createWorkflow(request.auth!, {
         ...body,
         metadata: mergeWorkflowMetadata(body.metadata, body.model_overrides),
+        live_visibility_mode: body.live_visibility_mode,
       });
       return reply.status(201).send({ data: workflow });
+    },
+  );
+
+  app.get(
+    '/api/v1/workflows/:id/settings',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      return {
+        data: await app.workflowSettingsService.getWorkflowSettings(request.auth!.tenantId, params.id),
+      };
+    },
+  );
+
+  app.patch(
+    '/api/v1/workflows/:id/settings',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(workflowSettingsPatchSchema.safeParse(request.body ?? {}));
+      return {
+        data: await app.workflowSettingsService.updateWorkflowSettings(request.auth!, params.id, {
+          liveVisibilityMode: body.live_visibility_mode,
+          settingsRevision: body.settings_revision,
+        }),
+      };
     },
   );
 

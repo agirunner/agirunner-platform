@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 
 import { agentRoutes } from '../api/routes/agents.routes.js';
+import { agenticSettingsRoutes } from '../api/routes/agentic-settings.routes.js';
 import { a2aRoutes } from '../api/routes/a2a.routes.js';
 import { acpRoutes } from '../api/routes/acp.routes.js';
 import { approvalQueueRoutes } from '../api/routes/approval-queue.routes.js';
@@ -58,6 +59,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(taskStreamRoutes);
   await app.register(toolRoutes);
   await app.register(agentRoutes);
+  await app.register(agenticSettingsRoutes);
   await app.register(workerRoutes);
   await app.register(eventRoutes);
   await app.register(webhookRoutes);

@@ -6,6 +6,7 @@ import type { LogLevelCache } from './logging/log-level-cache.js';
 import type { LogService } from './logging/log-service.js';
 import type { LogStreamService } from './logging/log-stream-service.js';
 import type { ApiKeyService } from './services/api-key-service.js';
+import type { AgenticSettingsService } from './services/agentic-settings-service.js';
 import type { EventStreamService } from './services/event-stream-service.js';
 import type { EventService } from './services/event-service.js';
 import type { ExecutionEnvironmentCatalogService } from './services/execution-environment-catalog-service.js';
@@ -49,6 +50,7 @@ import type { WorkflowActivationService } from './services/workflow-activation-s
 import type { WorkflowInputPacketService } from './services/workflow-input-packet-service.js';
 import type { WorkflowInterventionService } from './services/workflow-intervention-service.js';
 import type { WorkflowRedriveService } from './services/workflow-redrive-service.js';
+import type { WorkflowSettingsService } from './services/workflow-settings-service.js';
 import type { WorkflowSteeringSessionService } from './services/workflow-steering-session-service.js';
 import type { PlatformTransportTimingDefaults } from './services/platform-timing-defaults.js';
 
@@ -73,6 +75,7 @@ declare module 'fastify' {
     workflowInputPacketService: WorkflowInputPacketService;
     workflowInterventionService: WorkflowInterventionService;
     workflowRedriveService: WorkflowRedriveService;
+    workflowSettingsService: WorkflowSettingsService;
     workflowSteeringSessionService: WorkflowSteeringSessionService;
     taskService: TaskService;
     userService: UserService;
@@ -84,6 +87,7 @@ declare module 'fastify' {
     executionEnvironmentVerificationService: ExecutionEnvironmentVerificationService;
     fleetService: FleetService;
     modelCatalogService: ModelCatalogService;
+    agenticSettingsService: AgenticSettingsService;
     workflowOperationsLiveService: MissionControlLiveService;
     workflowOperationsRecentService: MissionControlRecentService;
     workflowOperationsHistoryService: MissionControlHistoryService;

@@ -39,6 +39,7 @@ export interface CreateWorkflowInput {
   context?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
   attempt?: WorkflowAttemptInput;
+  live_visibility_mode?: 'standard' | 'enhanced';
   config_overrides?: Record<string, unknown>;
   instruction_config?: Record<string, unknown>;
   budget?: WorkflowBudgetInput;

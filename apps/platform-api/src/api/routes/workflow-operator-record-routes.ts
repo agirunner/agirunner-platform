@@ -52,6 +52,7 @@ const workflowRedriveCreateSchema = z.object({
   steering_instruction: z.string().max(4000).optional(),
   parameters: z.record(z.string()).optional(),
   structured_inputs: z.record(z.unknown()).optional(),
+  live_visibility_mode: z.enum(['standard', 'enhanced']).optional(),
   files: z.array(workflowOperatorFileUploadSchema).default([]),
 });
 
@@ -241,6 +242,7 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
         steeringInstruction: body.steering_instruction,
         parameters: body.parameters,
         structuredInputs: body.structured_inputs,
+        liveVisibilityMode: body.live_visibility_mode,
         files: body.files.map((entry) => ({
           fileName: entry.file_name,
           description: entry.description,
