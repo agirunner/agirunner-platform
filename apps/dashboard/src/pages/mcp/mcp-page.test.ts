@@ -75,24 +75,30 @@ describe('mcp page source', () => {
     expect(source).toContain('OAuth connected');
     expect(source).not.toContain('MetricCard label="Verified"');
     expect(source).toContain('<TableHead className="w-[190px]">Transport</TableHead>');
+    expect(source).toContain('<TableHead className="w-[96px] text-center">Specialists</TableHead>');
     expect(source).toContain('Connection parameters');
     expect(source).toContain('No additional auth');
   });
 
-  it('renders discovered capabilities in a dedicated spanning highlight row', () => {
+  it('renders discovered capabilities behind a chevron-driven spanning detail row', () => {
     const source = readSource('./mcp-page.table.tsx');
 
+    expect(source).toContain('useState(false)');
+    expect(source).toContain('ChevronDown');
+    expect(source).toContain('ChevronRight');
+    expect(source).toContain('onClick={() => setIsExpanded((value) => !value)}');
     expect(source).toContain('<TableCell colSpan={6} className="bg-border/10">');
     expect(source).toContain('Capabilities summary');
     expect(source).toContain('rounded-lg border border-border/70 bg-background/80 p-3');
     expect(source).toContain('No discovered tools snapshot.');
   });
 
-  it('centers the primary registered-server row content vertically', () => {
+  it('centers the primary registered-server row content vertically and constrains the specialists count column', () => {
     const source = readSource('./mcp-page.table.tsx');
 
     expect(source).toContain('TableCell className="align-middle"');
     expect(source).not.toContain('TableCell className="align-top"');
+    expect(source).toContain('TableCell className="w-[96px] align-middle text-center text-sm text-foreground"');
   });
 
   it('authors endpoint, auth, defaults, and parameter rows in the dialog', () => {
