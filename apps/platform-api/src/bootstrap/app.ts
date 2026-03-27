@@ -206,6 +206,7 @@ export async function buildApp() {
     remoteMcpVerifier,
     {
       platformPublicBaseUrl: appConfig.PLATFORM_PUBLIC_BASE_URL,
+      remoteMcpHostedCallbackBaseUrl: appConfig.REMOTE_MCP_HOSTED_CALLBACK_BASE_URL,
     },
   );
   const remoteMcpVerificationService = new RemoteMcpVerificationService(

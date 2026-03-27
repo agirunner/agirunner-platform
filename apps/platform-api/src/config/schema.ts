@@ -59,6 +59,7 @@ export const envSchema = z
     WORKER_DEGRADED_THRESHOLD_MULTIPLIER: z.coerce.number().min(1).default(1),
     WORKER_OFFLINE_GRACE_PERIOD_MS: z.coerce.number().int().min(0).default(300000),
     PLATFORM_PUBLIC_BASE_URL: z.string().url().default('http://localhost:8080'),
+    REMOTE_MCP_HOSTED_CALLBACK_BASE_URL: optionalUrl,
     WORKSPACE_GIT_VERIFY_TIMEOUT_SECONDS: z.coerce.number().int().min(1).default(15),
     WORKSPACE_GIT_VERIFY_USERNAME: z.string().min(1).default('token'),
     INTEGRATION_ACTION_TTL_SECONDS: z.coerce.number().int().min(60).default(86400),

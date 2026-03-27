@@ -10,8 +10,9 @@ import type { ImportOAuthSessionInput } from '../../services/oauth-service.js';
 const OAUTH_CALLBACK_PORT = 1455;
 const GENERIC_OAUTH_ERROR = 'OAuth callback failed. Retry the connection or reconnect the provider.';
 const DASHBOARD_AUTH_CALLBACK_PATH = '/auth/callback';
+const HOSTED_REMOTE_MCP_CALLBACK_PATH = '/api/v1/oauth/callback';
 const OAUTH_PROVIDER_RETURN_PATH = '/config/llm';
-const REMOTE_MCP_RETURN_PATH = '/integrations/mcp';
+const REMOTE_MCP_RETURN_PATH = '/integrations/mcp-servers';
 const DASHBOARD_REDIRECT_PARAM = 'redirect_to';
 
 export const oauthRoutes: FastifyPluginAsync = async (app) => {
@@ -76,9 +77,30 @@ export const oauthRoutes: FastifyPluginAsync = async (app) => {
     grant_types: ['authorization_code', 'refresh_token'],
     response_types: ['code'],
     application_type: 'native',
-    redirect_uris: ['http://localhost:1455/auth/callback'],
+    redirect_uris: buildRemoteMcpRedirectUris(app.config.REMOTE_MCP_HOSTED_CALLBACK_BASE_URL),
     token_endpoint_auth_method: 'none',
   }));
+
+  app.get(HOSTED_REMOTE_MCP_CALLBACK_PATH, async (request, reply) => {
+    const query = request.query as {
+      code?: string;
+      state?: string;
+      error?: string;
+    };
+    const location = await resolveOAuthCallbackRedirect(
+      {
+        code: query.code,
+        state: query.state,
+        error: query.error,
+      },
+      {
+        dashboardUrl,
+        oauthService: app.oauthService,
+        remoteMcpOAuthService: app.remoteMcpOAuthService,
+      },
+    );
+    return reply.redirect(location);
+  });
 
   app.get(
     '/api/v1/config/oauth/providers/:id/status',
@@ -110,66 +132,20 @@ export const oauthRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const url = new URL(req.url, 'http://localhost');
-    const code = url.searchParams.get('code');
-    const state = url.searchParams.get('state');
-    const error = url.searchParams.get('error');
-
-    if (error) {
-      const flowKind = state ? await app.oauthService.peekFlowKind(state).catch(() => 'llm_provider') : 'llm_provider';
-      res.writeHead(302, {
-        Location: buildDashboardRedirect(dashboardUrl, {
-          oauth_error: sanitizeOAuthRedirectMessage(error),
-        }, flowKind === 'remote_mcp' ? REMOTE_MCP_RETURN_PATH : OAUTH_PROVIDER_RETURN_PATH),
-      });
-      res.end();
-      return;
-    }
-
-    if (!code || !state) {
-      res.writeHead(302, {
-        Location: buildDashboardRedirect(dashboardUrl, {
-          oauth_error: 'Missing code or state',
-        }),
-      });
-      res.end();
-      return;
-    }
-
-    const flowKind = await app.oauthService.peekFlowKind(state);
-
-    try {
-      if (flowKind === 'remote_mcp') {
-        const result = await app.remoteMcpOAuthService.handleCallback(code, state);
-        const query: Record<string, string> = {
-          oauth_success: 'true',
-          remote_mcp_server_id: result.serverId,
-          remote_mcp_server_name: result.serverName,
-        };
-        res.writeHead(302, {
-          Location: buildDashboardRedirect(dashboardUrl, query, REMOTE_MCP_RETURN_PATH),
-        });
-        res.end();
-        return;
-      }
-      const result = await service.handleCallback(code, state);
-      const query: Record<string, string> = {
-        oauth_success: 'true',
-        provider_id: result.providerId,
-      };
-      if (result.email) {
-        query.oauth_email = result.email;
-      }
-      res.writeHead(302, { Location: buildDashboardRedirect(dashboardUrl, query) });
-      res.end();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : GENERIC_OAUTH_ERROR;
-      res.writeHead(302, {
-        Location: buildDashboardRedirect(dashboardUrl, {
-          oauth_error: sanitizeOAuthRedirectMessage(message),
-        }, flowKind === 'remote_mcp' ? REMOTE_MCP_RETURN_PATH : OAUTH_PROVIDER_RETURN_PATH),
-      });
-      res.end();
-    }
+    const location = await resolveOAuthCallbackRedirect(
+      {
+        code: url.searchParams.get('code') ?? undefined,
+        state: url.searchParams.get('state') ?? undefined,
+        error: url.searchParams.get('error') ?? undefined,
+      },
+      {
+        dashboardUrl,
+        oauthService: app.oauthService,
+        remoteMcpOAuthService: app.remoteMcpOAuthService,
+      },
+    );
+    res.writeHead(302, { Location: location });
+    res.end();
   });
 
   callbackServer.listen(OAUTH_CALLBACK_PORT, '0.0.0.0', () => {
@@ -189,6 +165,74 @@ export const oauthRoutes: FastifyPluginAsync = async (app) => {
     callbackServer.close();
   });
 };
+
+async function resolveOAuthCallbackRedirect(
+  input: { code?: string; state?: string; error?: string },
+  deps: {
+    dashboardUrl: string;
+    oauthService: {
+      peekFlowKind(state: string): Promise<string>;
+      handleCallback(code: string, state: string): Promise<{ providerId: string; email?: string | null }>;
+    };
+    remoteMcpOAuthService: {
+      handleCallback(code: string, state: string): Promise<{ serverId: string; serverName: string }>;
+    };
+  },
+): Promise<string> {
+  if (input.error) {
+    const flowKind = input.state
+      ? await deps.oauthService.peekFlowKind(input.state).catch(() => 'llm_provider' as const)
+      : 'llm_provider';
+    return buildDashboardRedirect(
+      deps.dashboardUrl,
+      {
+        oauth_error: sanitizeOAuthRedirectMessage(input.error),
+      },
+      flowKind === 'remote_mcp' ? REMOTE_MCP_RETURN_PATH : OAUTH_PROVIDER_RETURN_PATH,
+    );
+  }
+
+  if (!input.code || !input.state) {
+    return buildDashboardRedirect(deps.dashboardUrl, {
+      oauth_error: 'Missing code or state',
+    });
+  }
+
+  const flowKind = await deps.oauthService.peekFlowKind(input.state);
+  try {
+    if (flowKind === 'remote_mcp') {
+      const result = await deps.remoteMcpOAuthService.handleCallback(input.code, input.state);
+      return buildDashboardRedirect(
+        deps.dashboardUrl,
+        {
+          oauth_success: 'true',
+          remote_mcp_server_id: result.serverId,
+          remote_mcp_server_name: result.serverName,
+        },
+        REMOTE_MCP_RETURN_PATH,
+      );
+    }
+
+    const result = await deps.oauthService.handleCallback(input.code, input.state);
+    const query: Record<string, string> = {
+      oauth_success: 'true',
+      provider_id: result.providerId,
+    };
+    if (result.email) {
+      query.oauth_email = result.email;
+    }
+    return buildDashboardRedirect(deps.dashboardUrl, query);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : GENERIC_OAUTH_ERROR;
+    return buildDashboardRedirect(
+      deps.dashboardUrl,
+      {
+        oauth_error: sanitizeOAuthRedirectMessage(message),
+      },
+      flowKind === 'remote_mcp' ? REMOTE_MCP_RETURN_PATH : OAUTH_PROVIDER_RETURN_PATH,
+    );
+  }
+}
 
 function buildDashboardRedirect(
   dashboardUrl: string,
@@ -211,6 +255,14 @@ function buildProviderReturnPath(query: Record<string, string>, returnPath: stri
   }
 
   return `${returnPath}?${queryString}`;
+}
+
+function buildRemoteMcpRedirectUris(hostedCallbackBaseUrl: string | undefined): string[] {
+  const redirectUris = ['http://localhost:1455/auth/callback'];
+  if (hostedCallbackBaseUrl && hostedCallbackBaseUrl.trim().length > 0) {
+    redirectUris.push(new URL(HOSTED_REMOTE_MCP_CALLBACK_PATH, hostedCallbackBaseUrl.trim()).toString());
+  }
+  return redirectUris;
 }
 
 function sanitizeOAuthRedirectMessage(value: string): string {
