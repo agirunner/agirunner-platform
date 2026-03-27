@@ -123,9 +123,9 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Integrations',
     icon: Link2,
     items: [
-      { label: 'Webhooks (soon)', href: '/integrations/webhooks', icon: Send },
-      { label: 'Triggers (soon)', href: '/integrations/triggers', icon: Zap },
       { label: 'MCP Servers', href: '/integrations/mcp-servers', icon: Link2 },
+      { label: 'Triggers (soon)', href: '/integrations/triggers', icon: Zap },
+      { label: 'Webhooks (soon)', href: '/integrations/webhooks', icon: Send },
     ],
   },
   {

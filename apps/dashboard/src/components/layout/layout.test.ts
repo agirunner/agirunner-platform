@@ -69,6 +69,8 @@ describe('layout breadcrumbs', () => {
   it('points integrations navigation at the triggers route', () => {
     const source = readLayoutSource();
     expect(source).toContain("label: 'Integrations'");
+    expect(source.indexOf("label: 'MCP Servers'")).toBeLessThan(source.indexOf("label: 'Triggers (soon)'"));
+    expect(source.indexOf("label: 'Triggers (soon)'")).toBeLessThan(source.indexOf("label: 'Webhooks (soon)'"));
     expect(source).toContain("label: 'Triggers (soon)'");
     expect(source).toContain("href: '/integrations/triggers'");
     expect(source).toContain("label: 'MCP Servers'");
