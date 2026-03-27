@@ -477,12 +477,25 @@ describe('orchestratorControlRoutes', () => {
       expect.objectContaining({
         mutation_outcome: 'recoverable_not_applied',
         recovery_class: 'work_item_tasks_not_ready',
-        noop: true,
-        ready: false,
         reason_code: 'work_item_tasks_not_ready',
-        work_item_id: 'work-item-1',
+        state_snapshot: expect.objectContaining({
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          current_stage: 'review',
+          task_id: 'task-orchestrator',
+        }),
+        suggested_target_ids: expect.objectContaining({
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: 'task-orchestrator',
+        }),
+        suggested_next_actions: expect.any(Array),
       }),
     );
+    expect(response.json().data).not.toHaveProperty('noop');
+    expect(response.json().data).not.toHaveProperty('ready');
+    expect(response.json().data).not.toHaveProperty('message');
+    expect(response.json().data).not.toHaveProperty('blocked_on');
 
     completeWorkItemSpy.mockRestore();
     loadTaskScopeSpy.mockRestore();
@@ -1588,13 +1601,27 @@ describe('orchestratorControlRoutes', () => {
       expect.objectContaining({
         mutation_outcome: 'recoverable_not_applied',
         recovery_class: 'predecessor_not_ready',
-        noop: true,
-        ready: false,
         reason_code: 'predecessor_not_ready',
-        stage_name: 'technical-review',
-        work_item_id: null,
+        state_snapshot: expect.objectContaining({
+          workflow_id: 'workflow-1',
+          work_item_id: '11111111-1111-4111-8111-111111111111',
+          current_stage: 'requirements',
+          task_id: 'task-not-ready',
+        }),
+        suggested_target_ids: expect.objectContaining({
+          workflow_id: 'workflow-1',
+          work_item_id: '11111111-1111-4111-8111-111111111111',
+          task_id: 'task-not-ready',
+        }),
+        suggested_next_actions: expect.any(Array),
       }),
     );
+    expect(response.json().data).not.toHaveProperty('noop');
+    expect(response.json().data).not.toHaveProperty('ready');
+    expect(response.json().data).not.toHaveProperty('message');
+    expect(response.json().data).not.toHaveProperty('blocked_on');
+    expect(response.json().data).not.toHaveProperty('stage_name');
+    expect(response.json().data).not.toHaveProperty('work_item_id');
   });
 
   it('rejects orchestrator continuity writes with non-allowlisted fields', async () => {
@@ -3926,16 +3953,27 @@ describe('orchestratorControlRoutes', () => {
       expect.objectContaining({
         mutation_outcome: 'recoverable_not_applied',
         recovery_class: 'subject_task_not_ready',
-        noop: true,
-        ready: false,
         reason_code: 'subject_task_not_ready',
-        work_item_id: verificationWorkItemId,
-        stage_name: 'verification',
-        subject_task_id: 'task-developer',
-        subject_task_revision: 1,
-        subject_task_state: 'output_pending_assessment',
+        state_snapshot: expect.objectContaining({
+          workflow_id: 'workflow-1',
+          work_item_id: verificationWorkItemId,
+          current_stage: 'verification',
+        }),
+        suggested_target_ids: expect.objectContaining({
+          workflow_id: 'workflow-1',
+          work_item_id: verificationWorkItemId,
+          task_id: 'task-developer',
+        }),
+        suggested_next_actions: expect.any(Array),
       }),
     );
+    expect(response.json().data).not.toHaveProperty('noop');
+    expect(response.json().data).not.toHaveProperty('ready');
+    expect(response.json().data).not.toHaveProperty('message');
+    expect(response.json().data).not.toHaveProperty('blocked_on');
+    expect(response.json().data).not.toHaveProperty('subject_task_id');
+    expect(response.json().data).not.toHaveProperty('subject_task_revision');
+    expect(response.json().data).not.toHaveProperty('subject_task_state');
   });
 
   it('returns a structured no-op when an assessment request was already applied to the triggering task', async () => {
@@ -4114,18 +4152,29 @@ describe('orchestratorControlRoutes', () => {
       expect.objectContaining({
         mutation_outcome: 'recoverable_not_applied',
         recovery_class: 'assessment_request_already_applied',
-        noop: true,
-        ready: false,
         reason_code: 'assessment_request_already_applied',
-        work_item_id: verificationWorkItemId,
-        stage_name: 'verification',
-        subject_task_id: 'task-developer',
-        subject_task_stage_name: 'implementation',
-        assessment_request_task_id: 'task-qa',
-        assessment_request_work_item_id: verificationWorkItemId,
-        assessment_request_stage_name: 'verification',
+        state_snapshot: expect.objectContaining({
+          workflow_id: 'workflow-1',
+          work_item_id: verificationWorkItemId,
+          current_stage: 'verification',
+        }),
+        suggested_target_ids: expect.objectContaining({
+          workflow_id: 'workflow-1',
+          work_item_id: verificationWorkItemId,
+          task_id: 'task-developer',
+        }),
+        suggested_next_actions: expect.any(Array),
       }),
     );
+    expect(response.json().data).not.toHaveProperty('noop');
+    expect(response.json().data).not.toHaveProperty('ready');
+    expect(response.json().data).not.toHaveProperty('message');
+    expect(response.json().data).not.toHaveProperty('blocked_on');
+    expect(response.json().data).not.toHaveProperty('subject_task_id');
+    expect(response.json().data).not.toHaveProperty('subject_task_stage_name');
+    expect(response.json().data).not.toHaveProperty('assessment_request_task_id');
+    expect(response.json().data).not.toHaveProperty('assessment_request_work_item_id');
+    expect(response.json().data).not.toHaveProperty('assessment_request_stage_name');
   });
 
   it('rebinds create_task to the unique child work item in the requested stage for planned workflows', async () => {
@@ -5578,12 +5627,25 @@ describe('orchestratorControlRoutes', () => {
     expect(response.json().data).toMatchObject({
       mutation_outcome: 'recoverable_not_applied',
       recovery_class: 'task_not_awaiting_approval',
-      noop: true,
-      ready: false,
       reason_code: 'task_not_awaiting_approval',
-      task_id: '22222222-2222-4222-8222-222222222222',
-      task_state: 'output_pending_assessment',
+      state_snapshot: expect.objectContaining({
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        task_id: '22222222-2222-4222-8222-222222222222',
+        current_stage: 'implementation',
+      }),
+      suggested_target_ids: expect.objectContaining({
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        task_id: '22222222-2222-4222-8222-222222222222',
+      }),
+      suggested_next_actions: expect.any(Array),
     });
+    expect(response.json().data).not.toHaveProperty('noop');
+    expect(response.json().data).not.toHaveProperty('ready');
+    expect(response.json().data).not.toHaveProperty('message');
+    expect(response.json().data).not.toHaveProperty('blocked_on');
+    expect(response.json().data).not.toHaveProperty('task_state');
   });
 
   it('escalates a specialist task to human review through the replay-safe orchestrator bridge', async () => {

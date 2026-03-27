@@ -95,9 +95,9 @@ const entries: SafetynetEntry[] = [
     disposition: 'keep',
     trigger: 'mutation is not yet legal but can be represented as a benign structured no-op',
     nominal_contract: 'platform returns machine-readable readiness instead of failing callers into ad hoc retry logic',
-    intervention: 'platform returns a structured noop payload with readiness details',
+    intervention: 'platform returns a structured recoverable guidance payload with readiness details',
     risk_if_triggered: 'low; preserves legality while preventing noisy mutation failures',
-    operator_visibility: 'noop payloads should carry the safetynet id when returned',
+    operator_visibility: 'recoverable guidance payloads should carry the safetynet id when returned',
     owner_module: 'src/api/routes/orchestrator-control.routes.ts',
     test_requirements: ['positive trigger', 'non-trigger path', 'observability emission'],
     metrics_key:

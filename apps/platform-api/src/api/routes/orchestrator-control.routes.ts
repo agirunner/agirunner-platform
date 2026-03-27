@@ -317,17 +317,9 @@ function buildRecoverableApproveTaskNoop(
     return null;
   }
 
-  return buildLegacyCompatibleRecoverableNoop({
-    taskScope,
+  return buildRecoverableGuidedNoop({
     reasonCode: 'task_not_awaiting_approval',
-    message: `Cannot approve task '${readString(managedTask.id) ?? 'unknown'}' because it is currently '${taskState}', not 'awaiting_approval'. Re-read the task state before mutating further.`,
-    legacyFields: {
-      blocked_on: [`task_state:${taskState}`],
-      task_id: readString(managedTask.id),
-      task_state: taskState,
-      work_item_id: readString(managedTask.work_item_id),
-      stage_name: readString(managedTask.stage_name),
-    },
+    safetynetBehaviorId: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
     stateSnapshot: {
       workflow_id: taskScope.workflow_id,
       work_item_id: readString(managedTask.work_item_id) ?? taskScope.work_item_id ?? null,
@@ -360,11 +352,9 @@ function buildRecoverableApproveTaskNoop(
   });
 }
 
-function buildLegacyCompatibleRecoverableNoop(input: {
-  taskScope: ActiveOrchestratorTaskScope;
+function buildRecoverableGuidedNoop(input: {
   reasonCode: string;
-  message: string;
-  legacyFields: Record<string, unknown>;
+  safetynetBehaviorId?: string;
   stateSnapshot: GuidedClosureStateSnapshot;
   suggestedNextActions: Array<{
     action_code: string;
@@ -379,22 +369,22 @@ function buildLegacyCompatibleRecoverableNoop(input: {
     task_id?: string | null;
   };
 }) {
-  return {
-    ...buildRecoverableMutationResult({
-      recovery_class: input.reasonCode,
-      blocking: false,
-      reason_code: input.reasonCode,
-      state_snapshot: input.stateSnapshot,
-      suggested_next_actions: input.suggestedNextActions,
-      suggested_target_ids: input.suggestedTargetIds,
-      callout_recommendations: [],
-      closure_still_possible: true,
-    }),
-    noop: true,
-    ready: false,
+  const response = buildRecoverableMutationResult({
+    recovery_class: input.reasonCode,
+    blocking: false,
     reason_code: input.reasonCode,
-    message: input.message,
-    ...input.legacyFields,
+    state_snapshot: input.stateSnapshot,
+    suggested_next_actions: input.suggestedNextActions,
+    suggested_target_ids: input.suggestedTargetIds,
+    callout_recommendations: [],
+    closure_still_possible: true,
+  });
+  if (!input.safetynetBehaviorId) {
+    return response;
+  }
+  return {
+    ...response,
+    safetynet_behavior_id: input.safetynetBehaviorId,
   };
 }
 
@@ -529,7 +519,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
             client,
           ),
       );
-      return reply.status(workItem.noop === true ? 200 : 201).send({ data: workItem });
+      return reply.status(isRecoverableNotAppliedResult(workItem) ? 200 : 201).send({ data: workItem });
     },
   );
 
@@ -1209,7 +1199,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
           );
         },
       );
-      return reply.status(task.noop === true ? 200 : 201).send({ data: task });
+      return reply.status(isRecoverableNotAppliedResult(task) ? 200 : 201).send({ data: task });
     },
   );
 
@@ -1965,17 +1955,9 @@ function buildRecoverableCreateWorkItemNoop(
     { stage_name: input.stage_name, reason_code: reasonCode },
   );
 
-  return buildLegacyCompatibleRecoverableNoop({
-    taskScope,
+  return buildRecoverableGuidedNoop({
     reasonCode,
-    message,
-    legacyFields: {
-      safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
-      blocked_on: [message],
-      stage_name: input.stage_name,
-      parent_work_item_id: input.parent_work_item_id ?? null,
-      work_item_id: null,
-    },
+    safetynetBehaviorId: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
     stateSnapshot: {
       workflow_id: taskScope.workflow_id,
       work_item_id: taskScope.work_item_id ?? input.parent_work_item_id ?? null,
@@ -2065,17 +2047,9 @@ function buildRecoverableCompleteWorkflowNoopIfNotReady(input: {
     'recoverable complete_workflow noop returned',
     { workflow_id: input.taskScope.workflow_id, reason_code: reasonCode },
   );
-  return buildLegacyCompatibleRecoverableNoop({
-    taskScope: input.taskScope,
+  return buildRecoverableGuidedNoop({
     reasonCode,
-    message: input.error.message,
-    legacyFields: {
-      safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
-      blocked_on: [input.error.message],
-      work_item_id: input.taskScope.work_item_id ?? null,
-      stage_name: input.taskScope.stage_name ?? null,
-      workflow_id: input.taskScope.workflow_id,
-    },
+    safetynetBehaviorId: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
     stateSnapshot: {
       workflow_id: input.taskScope.workflow_id,
       work_item_id: input.taskScope.work_item_id ?? null,
@@ -2157,16 +2131,9 @@ function buildRecoverableCompleteWorkItemNoopIfNotReady(input: {
     'recoverable complete_work_item noop returned',
     { work_item_id: input.workItemId, reason_code: reasonCode },
   );
-  return buildLegacyCompatibleRecoverableNoop({
-    taskScope: input.taskScope,
+  return buildRecoverableGuidedNoop({
     reasonCode,
-    message: input.error.message,
-    legacyFields: {
-      safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
-      blocked_on: [input.error.message],
-      work_item_id: input.workItemId,
-      stage_name: input.taskScope.stage_name ?? null,
-    },
+    safetynetBehaviorId: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
     stateSnapshot: {
       workflow_id: input.taskScope.workflow_id,
       work_item_id: input.workItemId,
@@ -2751,21 +2718,9 @@ async function buildRecoverableCreateTaskNoopIfNotReady(
     { workflow_id: workflowId, subject_task_id: subjectTask.id ?? subjectTaskId },
   );
 
-  return buildLegacyCompatibleRecoverableNoop({
-    taskScope,
+  return buildRecoverableGuidedNoop({
     reasonCode: 'subject_task_not_ready',
-    message: `Cannot create a follow-up task that depends on subject output while subject task '${subjectTaskId}' is still '${subjectTask.state ?? 'unknown'}'. Wait for the current assessment/rework cycle to resolve before dispatching the follow-up task.`,
-    legacyFields: {
-      safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
-      blocked_on: [
-        `subject_task_state:${subjectTask.state ?? 'unknown'}`,
-      ],
-      work_item_id: body.work_item_id,
-      stage_name: body.stage_name,
-      subject_task_id: subjectTask.id ?? subjectTaskId,
-      subject_task_revision: subjectTask.rework_count ?? 0,
-      subject_task_state: subjectTask.state ?? null,
-    },
+    safetynetBehaviorId: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
     stateSnapshot: {
       workflow_id: taskScope.workflow_id,
       work_item_id: body.work_item_id,
@@ -2864,23 +2819,9 @@ async function buildRecoverableCreateTaskNoopIfAssessmentRequestAlreadyApplied(
     { workflow_id: workflowId, work_item_id: body.work_item_id },
   );
 
-  return buildLegacyCompatibleRecoverableNoop({
-    taskScope,
+  return buildRecoverableGuidedNoop({
     reasonCode: 'assessment_request_already_applied',
-    message: `Cannot create '${body.role}' task on work item '${body.work_item_id}' because assessment request '${assessmentRequestTask.id}' was already applied to reopened task '${activationTask.id}'. Continue routing from the reopened task instead of spawning a sibling rework task.`,
-    legacyFields: {
-      safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
-      blocked_on: [
-        `assessment_request_already_applied:${assessmentRequestTask.id}`,
-      ],
-      work_item_id: body.work_item_id,
-      stage_name: body.stage_name,
-      subject_task_id: activationTask.id,
-      subject_task_stage_name: activationTask.stage_name,
-      assessment_request_task_id: assessmentRequestTask.id,
-      assessment_request_work_item_id: assessmentRequestTask.work_item_id,
-      assessment_request_stage_name: assessmentRequestTask.stage_name,
-    },
+    safetynetBehaviorId: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
     stateSnapshot: {
       workflow_id: taskScope.workflow_id,
       work_item_id: body.work_item_id,
@@ -2911,6 +2852,10 @@ async function buildRecoverableCreateTaskNoopIfAssessmentRequestAlreadyApplied(
       task_id: activationTask.id,
     },
   });
+}
+
+function isRecoverableNotAppliedResult(value: Record<string, unknown>): boolean {
+  return value.mutation_outcome === 'recoverable_not_applied';
 }
 
 async function loadExistingReworkTaskForAssessmentRequest(
