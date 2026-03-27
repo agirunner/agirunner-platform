@@ -212,6 +212,61 @@ describe('remote mcp server routes', () => {
     );
   });
 
+  it('polls a device-authorization flow for an oauth-backed remote MCP server', async () => {
+    const { remoteMcpServerRoutes } = await import('../../src/api/routes/remote-mcp-servers.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('remoteMcpServerService', {
+      listServers: vi.fn(),
+      getServer: vi.fn(),
+      deleteServer: vi.fn(),
+    });
+    app.decorate('remoteMcpVerificationService', {
+      createServer: vi.fn(),
+      updateServer: vi.fn(),
+      reverifyServer: vi.fn(),
+    });
+    app.decorate('remoteMcpOAuthService', {
+      initiateDraftAuthorization: vi.fn(),
+      reconnectServer: vi.fn(),
+      pollDeviceAuthorization: vi.fn().mockResolvedValue({
+        kind: 'device',
+        draftId: 'draft-1',
+        deviceFlowId: 'flow-1',
+        userCode: 'ABCD-EFGH',
+        verificationUri: 'https://auth.example.test/activate',
+        verificationUriComplete: 'https://auth.example.test/activate?user_code=ABCD-EFGH',
+        expiresInSeconds: 900,
+        intervalSeconds: 5,
+      }),
+      disconnectServer: vi.fn(),
+    });
+
+    await app.register(remoteMcpServerRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/remote-mcp-servers/oauth/device/flow-1/poll',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: {
+        kind: 'device',
+        draftId: 'draft-1',
+        deviceFlowId: 'flow-1',
+        userCode: 'ABCD-EFGH',
+        verificationUri: 'https://auth.example.test/activate',
+        verificationUriComplete: 'https://auth.example.test/activate?user_code=ABCD-EFGH',
+        expiresInSeconds: 900,
+        intervalSeconds: 5,
+      },
+    });
+    expect(app.remoteMcpOAuthService.pollDeviceAuthorization).toHaveBeenCalledWith('flow-1');
+  });
+
   it('disconnects oauth credentials from an existing remote MCP server', async () => {
     const { remoteMcpServerRoutes } = await import('../../src/api/routes/remote-mcp-servers.routes.js');
 

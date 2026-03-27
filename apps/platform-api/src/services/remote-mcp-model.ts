@@ -16,6 +16,11 @@ export const remoteMcpParameterPlacementSchema = z.enum([
   'cookie',
   'initialize_param',
   'authorize_request_query',
+  'device_request_query',
+  'device_request_header',
+  'device_request_body_form',
+  'device_request_body_json',
+  'token_request_query',
   'token_request_header',
   'token_request_body_form',
   'token_request_body_json',
@@ -91,7 +96,7 @@ export const remoteMcpOauthDefinitionSchema = z.object({
 
 export const remoteMcpOauthConfigSchema = z.object({
   issuer: z.string().min(1).nullable().optional(),
-  authorizationEndpoint: z.string().min(1),
+  authorizationEndpoint: z.string().min(1).nullable(),
   tokenEndpoint: z.string().min(1),
   registrationEndpoint: z.string().min(1).nullable().optional(),
   deviceAuthorizationEndpoint: z.string().min(1).nullable().optional(),

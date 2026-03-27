@@ -1767,9 +1767,11 @@ async function buildRemoteMcpServerContract(
   claimHandleSecret: string,
   oauthService: RemoteMcpOAuthService,
 ): Promise<Record<string, unknown>> {
-  const parameters = server.parameters.map((parameter) =>
-    buildRemoteMcpParameterContract(taskId, parameter, claimHandleSecret),
-  );
+  const parameters = server.parameters
+    .filter((parameter) => isRuntimeRemoteMcpParameterPlacement(parameter.placement))
+    .map((parameter) =>
+      buildRemoteMcpParameterContract(taskId, parameter, claimHandleSecret),
+    );
   const oauthParameter = server.authMode === 'oauth'
     ? await buildRemoteMcpOauthParameterContract(taskId, tenantId, server, claimHandleSecret, oauthService)
     : null;
@@ -1814,6 +1816,14 @@ async function buildRemoteMcpOauthParameterContract(
       claimHandleSecret,
     ),
   };
+}
+
+function isRuntimeRemoteMcpParameterPlacement(placement: string): boolean {
+  return placement === 'path'
+    || placement === 'query'
+    || placement === 'header'
+    || placement === 'cookie'
+    || placement === 'initialize_param';
 }
 
 function buildRemoteMcpParameterContract(

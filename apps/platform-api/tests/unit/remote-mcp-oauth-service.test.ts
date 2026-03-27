@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureProviderSecretEncryptionKey } from '../../src/lib/oauth-crypto.js';
 import { decryptRemoteMcpSecret, encryptRemoteMcpSecret } from '../../src/services/remote-mcp-secret-crypto.js';
 import { RemoteMcpOAuthService } from '../../src/services/remote-mcp-oauth-service.js';
+import type { RemoteMcpOAuthStartResult } from '../../src/services/remote-mcp-oauth-types.js';
 
 function mockJsonResponse(body: unknown, status = 200): Response {
   return {
@@ -14,6 +15,18 @@ function mockJsonResponse(body: unknown, status = 200): Response {
       'content-type': 'application/json',
     }),
   } as Response;
+}
+
+function expectBrowserAuthorizationResult(
+  result: RemoteMcpOAuthStartResult,
+  draftId: string,
+): Extract<RemoteMcpOAuthStartResult, { kind: 'browser' }> {
+  expect(result.kind).toBe('browser');
+  if (result.kind !== 'browser') {
+    throw new Error(`Expected browser OAuth result, received ${result.kind}`);
+  }
+  expect(result.draftId).toBe(draftId);
+  return result;
 }
 
 describe('RemoteMcpOAuthService', () => {
@@ -30,6 +43,9 @@ describe('RemoteMcpOAuthService', () => {
 
   it('creates an unsaved oauth registration draft and returns an authorize url', async () => {
     vi.mocked(globalThis.fetch)
+      .mockResolvedValueOnce(
+        mockJsonResponse({}, 401),
+      )
       .mockResolvedValueOnce(
         mockJsonResponse({
           authorization_servers: ['https://auth.example.test'],
@@ -85,17 +101,14 @@ describe('RemoteMcpOAuthService', () => {
       parameters: [],
     });
 
-    expect(result).toEqual({
-      draftId: 'draft-1',
-      authorizeUrl: expect.stringContaining('https://auth.example.test/oauth/authorize?'),
-    });
-    expect(result.authorizeUrl).toContain(
+    const browserResult = expectBrowserAuthorizationResult(result, 'draft-1');
+    expect(browserResult.authorizeUrl).toContain(
       encodeURIComponent('https://platform.example.test/.well-known/oauth/mcp-client.json'),
     );
-    expect(result.authorizeUrl).toContain(
+    expect(browserResult.authorizeUrl).toContain(
       encodeURIComponent('http://localhost:1455/auth/callback'),
     );
-    expect(result.authorizeUrl).toContain(encodeURIComponent('https://mcp.example.test/server'));
+    expect(browserResult.authorizeUrl).toContain(encodeURIComponent('https://mcp.example.test/server'));
   });
 
   it('completes a draft callback by verifying first and only then creating the remote MCP server', async () => {
@@ -125,6 +138,8 @@ describe('RemoteMcpOAuthService', () => {
               flow_payload: {
                 mode: 'draft',
                 draft_id: 'draft-1',
+                discovery_strategy: 'resource_metadata+authorization_server_metadata',
+                oauth_strategy: 'authorization_code',
                 resource_metadata: {
                   resource: 'https://mcp.example.test/server',
                 },
@@ -253,6 +268,9 @@ describe('RemoteMcpOAuthService', () => {
   it('starts a reconnect oauth flow for an existing remote MCP server', async () => {
     vi.mocked(globalThis.fetch)
       .mockResolvedValueOnce(
+        mockJsonResponse({}, 401),
+      )
+      .mockResolvedValueOnce(
         mockJsonResponse({
           authorization_servers: ['https://auth.example.test'],
         }),
@@ -306,15 +324,16 @@ describe('RemoteMcpOAuthService', () => {
 
     const result = await service.reconnectServer('tenant-1', 'user-1', 'server-1');
 
-    expect(result).toEqual({
-      serverId: 'server-1',
-      authorizeUrl: expect.stringContaining('https://auth.example.test/oauth/authorize?'),
-    });
+    const browserResult = expectBrowserAuthorizationResult(result, 'server-1');
+    expect(browserResult.authorizeUrl).toContain('https://auth.example.test/oauth/authorize?');
   });
 
   it('preserves authorization-server paths when discovering oauth metadata', async () => {
     vi.mocked(globalThis.fetch).mockImplementation(async (input) => {
       const url = String(input);
+      if (url === 'https://mcp.example.test/server') {
+        return mockJsonResponse({}, 401);
+      }
       if (url === 'https://mcp.example.test/.well-known/oauth-protected-resource/server') {
         return mockJsonResponse({
           authorization_servers: ['https://github.com/login/oauth'],
@@ -372,7 +391,8 @@ describe('RemoteMcpOAuthService', () => {
       parameters: [],
     });
 
-    expect(result.authorizeUrl).toContain('https://github.com/login/oauth/authorize?');
+    const browserResult = expectBrowserAuthorizationResult(result, 'draft-1');
+    expect(browserResult.authorizeUrl).toContain('https://github.com/login/oauth/authorize?');
     const requestedUrls = vi.mocked(globalThis.fetch).mock.calls.map(([input]) => String(input));
     expect(requestedUrls).toContain('https://github.com/login/oauth/.well-known/openid-configuration');
     expect(requestedUrls).not.toContain('https://github.com/.well-known/openid-configuration');
@@ -381,6 +401,9 @@ describe('RemoteMcpOAuthService', () => {
   it('falls back to root authorization-server metadata when resource metadata does not advertise authorization servers', async () => {
     vi.mocked(globalThis.fetch).mockImplementation(async (input) => {
       const url = String(input);
+      if (url === 'https://mcp.example.test/server') {
+        return mockJsonResponse({}, 401);
+      }
       if (url === 'https://mcp.example.test/.well-known/oauth-protected-resource/server') {
         return mockJsonResponse({
           resource: 'https://mcp.example.test/server',
@@ -445,11 +468,15 @@ describe('RemoteMcpOAuthService', () => {
       parameters: [],
     });
 
-    expect(result.authorizeUrl).toContain('https://auth.example.test/oauth/authorize?');
+    const browserResult = expectBrowserAuthorizationResult(result, 'draft-1');
+    expect(browserResult.authorizeUrl).toContain('https://auth.example.test/oauth/authorize?');
   });
 
   it('uses the configured hosted callback base when building oauth authorize urls', async () => {
     vi.mocked(globalThis.fetch)
+      .mockResolvedValueOnce(
+        mockJsonResponse({}, 401),
+      )
       .mockResolvedValueOnce(
         mockJsonResponse({
           authorization_servers: ['https://auth.example.test'],
@@ -506,10 +533,11 @@ describe('RemoteMcpOAuthService', () => {
       parameters: [],
     });
 
-    expect(result.authorizeUrl).toContain(
+    const browserResult = expectBrowserAuthorizationResult(result, 'draft-1');
+    expect(browserResult.authorizeUrl).toContain(
       encodeURIComponent('https://oauth.example.test/api/v1/oauth/callback'),
     );
-    expect(result.authorizeUrl).not.toContain(
+    expect(browserResult.authorizeUrl).not.toContain(
       encodeURIComponent('http://localhost:1455/auth/callback'),
     );
   });
@@ -517,7 +545,13 @@ describe('RemoteMcpOAuthService', () => {
   it('uses manual oauth client settings and extra authorize params for oauth drafts', async () => {
     vi.mocked(globalThis.fetch).mockImplementation(async (input) => {
       const url = String(input);
-      if (url === 'https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp/') {
+      if (url === 'https://api.githubcopilot.com/mcp/') {
+        return mockJsonResponse({}, 401);
+      }
+      if (
+        url === 'https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp/'
+        || url === 'https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp'
+      ) {
         return mockJsonResponse({
           resource: 'https://api.githubcopilot.com/mcp/',
           authorization_servers: ['https://github.com/login/oauth'],
@@ -595,16 +629,17 @@ describe('RemoteMcpOAuthService', () => {
       ],
     });
 
-    expect(result.authorizeUrl).toContain('https://github.com/login/oauth/authorize?');
-    expect(result.authorizeUrl).toContain(encodeURIComponent('github-client-id'));
-    expect(result.authorizeUrl).toContain(
+    const browserResult = expectBrowserAuthorizationResult(result, 'draft-1');
+    expect(browserResult.authorizeUrl).toContain('https://github.com/login/oauth/authorize?');
+    expect(browserResult.authorizeUrl).toContain(encodeURIComponent('github-client-id'));
+    expect(browserResult.authorizeUrl).toContain(
       encodeURIComponent('https://oauth.example.test/api/v1/oauth/callback'),
     );
-    expect(result.authorizeUrl).toContain('scope=repo+read%3Aorg');
-    expect(result.authorizeUrl).toContain(encodeURIComponent('https://api.githubcopilot.com/mcp/'));
-    expect(result.authorizeUrl).toContain(encodeURIComponent('https://github.com'));
-    expect(result.authorizeUrl).toContain('prompt=consent');
-    expect(vi.mocked(globalThis.fetch).mock.calls).toHaveLength(2);
+    expect(browserResult.authorizeUrl).toContain('scope=repo+read%3Aorg');
+    expect(browserResult.authorizeUrl).toContain(encodeURIComponent('https://api.githubcopilot.com/mcp/'));
+    expect(browserResult.authorizeUrl).toContain(encodeURIComponent('https://github.com'));
+    expect(browserResult.authorizeUrl).toContain('prompt=consent');
+    expect(vi.mocked(globalThis.fetch).mock.calls).toHaveLength(3);
   });
 
   it('disconnects persisted oauth credentials and marks the server unverified', async () => {

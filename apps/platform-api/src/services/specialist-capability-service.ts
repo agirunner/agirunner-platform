@@ -18,6 +18,11 @@ export interface SpecialistMcpParameterCapability {
     | 'cookie'
     | 'initialize_param'
     | 'authorize_request_query'
+    | 'device_request_query'
+    | 'device_request_header'
+    | 'device_request_body_form'
+    | 'device_request_body_json'
+    | 'token_request_query'
     | 'token_request_header'
     | 'token_request_body_form'
     | 'token_request_body_json';
@@ -48,7 +53,7 @@ export interface SpecialistRemoteMcpServerCapability {
 
 export interface SpecialistRemoteMcpOAuthConfigCapability {
   issuer: string | null;
-  authorizationEndpoint: string;
+  authorizationEndpoint: string | null;
   tokenEndpoint: string;
   registrationEndpoint: string | null;
   deviceAuthorizationEndpoint: string | null;
@@ -361,7 +366,7 @@ function normalizeRemoteMcpOauthConfig(value: unknown): SpecialistRemoteMcpOAuth
   const clientId = readString(value.clientId);
   const redirectUri = readString(value.redirectUri);
   const resource = readString(value.resource);
-  if (!authorizationEndpoint || !tokenEndpoint || !clientId || !redirectUri || !resource) {
+  if (!tokenEndpoint || !clientId || !redirectUri || !resource) {
     return null;
   }
     return {
@@ -439,6 +444,11 @@ function readPlacement(
     || value === 'cookie'
     || value === 'initialize_param'
     || value === 'authorize_request_query'
+    || value === 'device_request_query'
+    || value === 'device_request_header'
+    || value === 'device_request_body_form'
+    || value === 'device_request_body_json'
+    || value === 'token_request_query'
     || value === 'token_request_header'
     || value === 'token_request_body_form'
     || value === 'token_request_body_json'

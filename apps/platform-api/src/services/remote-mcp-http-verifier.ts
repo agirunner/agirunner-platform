@@ -418,6 +418,11 @@ function resolveConnection(input: VerifyRequest): ResolvedConnection {
       continue;
     }
     if (parameter.placement === 'authorize_request_query'
+      || parameter.placement === 'device_request_query'
+      || parameter.placement === 'device_request_header'
+      || parameter.placement === 'device_request_body_form'
+      || parameter.placement === 'device_request_body_json'
+      || parameter.placement === 'token_request_query'
       || parameter.placement === 'token_request_header'
       || parameter.placement === 'token_request_body_form'
       || parameter.placement === 'token_request_body_json') {

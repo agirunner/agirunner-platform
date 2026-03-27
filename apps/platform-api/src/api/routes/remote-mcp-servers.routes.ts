@@ -80,6 +80,17 @@ export const remoteMcpServerRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
+    '/api/v1/remote-mcp-servers/oauth/device/:id/poll',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      return {
+        data: await app.remoteMcpOAuthService.pollDeviceAuthorization(params.id),
+      };
+    },
+  );
+
+  app.post(
     '/api/v1/remote-mcp-servers/:id/oauth/disconnect',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request, reply) => {
