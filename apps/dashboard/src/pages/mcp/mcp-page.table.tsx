@@ -20,6 +20,7 @@ import {
 } from '../../components/ui/table.js';
 import type { DashboardRemoteMcpServerRecord } from '../../lib/api.js';
 import {
+  formatDiscoveredCapabilitySummary,
   formatRemoteMcpTransport,
   summarizeDiscoveredToolNames,
 } from './mcp-page.support.js';
@@ -64,6 +65,9 @@ export function McpPageTable(props: {
                   <div className="text-xs text-muted">{server.description || 'No description provided.'}</div>
                   <div className="text-xs text-foreground">{server.endpoint_url}</div>
                   <div className="text-xs text-muted">Call timeout: {server.call_timeout_seconds}s</div>
+                  <div className="text-xs text-muted">
+                    Capabilities: {formatDiscoveredCapabilitySummary(server)}
+                  </div>
                   <div className="text-xs text-muted">
                     {toolNames.length > 0
                       ? `${toolNames.length} tool${toolNames.length === 1 ? '' : 's'} discovered: ${toolNames.join(', ')}`
@@ -112,7 +116,7 @@ export function McpPageTable(props: {
               <TableCell className="align-top">
                 <div className="flex flex-wrap justify-end gap-2">
                   <IconActionButton
-                    label="View tools"
+                    label="View capabilities"
                     disabled={isBusy}
                     onClick={() => props.onViewTools(server)}
                   >

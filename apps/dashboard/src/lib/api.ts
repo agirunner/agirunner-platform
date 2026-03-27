@@ -398,8 +398,58 @@ export interface DashboardExecutionEnvironmentUpdateInput {
 }
 
 export type DashboardRemoteMcpAuthMode = 'none' | 'parameterized' | 'oauth';
+export type DashboardRemoteMcpTransportPreference = 'auto' | 'streamable_http' | 'http_sse_compat';
 export type DashboardRemoteMcpTransport = 'streamable_http' | 'http_sse_compat';
-export type DashboardRemoteMcpParameterPlacement = 'path' | 'query' | 'header' | 'initialize_param';
+export type DashboardRemoteMcpParameterPlacement =
+  | 'path'
+  | 'query'
+  | 'header'
+  | 'cookie'
+  | 'initialize_param'
+  | 'authorize_request_query'
+  | 'token_request_header'
+  | 'token_request_body_form'
+  | 'token_request_body_json';
+export type DashboardRemoteMcpOauthGrantType =
+  | 'authorization_code'
+  | 'device_authorization'
+  | 'client_credentials'
+  | 'enterprise_managed_authorization';
+export type DashboardRemoteMcpOauthClientStrategy =
+  | 'auto'
+  | 'dynamic_registration'
+  | 'client_metadata_document'
+  | 'manual_client';
+export type DashboardRemoteMcpOauthCallbackMode = 'loopback' | 'hosted_https';
+export type DashboardRemoteMcpOauthTokenEndpointAuthMethod =
+  | 'none'
+  | 'client_secret_post'
+  | 'client_secret_basic'
+  | 'private_key_jwt';
+export type DashboardRemoteMcpOauthParMode = 'disabled' | 'enabled' | 'required';
+export type DashboardRemoteMcpOauthJarMode = 'disabled' | 'request_parameter' | 'request_uri';
+
+export interface DashboardRemoteMcpOauthDefinition {
+  grantType?: DashboardRemoteMcpOauthGrantType;
+  clientStrategy?: DashboardRemoteMcpOauthClientStrategy;
+  callbackMode?: DashboardRemoteMcpOauthCallbackMode;
+  clientId?: string | null;
+  clientSecret?: string | null;
+  tokenEndpointAuthMethod?: DashboardRemoteMcpOauthTokenEndpointAuthMethod;
+  authorizationEndpointOverride?: string | null;
+  tokenEndpointOverride?: string | null;
+  registrationEndpointOverride?: string | null;
+  deviceAuthorizationEndpointOverride?: string | null;
+  protectedResourceMetadataUrlOverride?: string | null;
+  authorizationServerMetadataUrlOverride?: string | null;
+  scopes?: string[];
+  resourceIndicators?: string[];
+  audiences?: string[];
+  enterpriseProfile?: Record<string, unknown> | null;
+  parMode?: DashboardRemoteMcpOauthParMode;
+  jarMode?: DashboardRemoteMcpOauthJarMode;
+  privateKeyPem?: string | null;
+}
 
 export interface DashboardRemoteMcpServerParameterRecord {
   id: string;
@@ -417,6 +467,7 @@ export interface DashboardRemoteMcpServerRecord {
   slug: string;
   description: string;
   endpoint_url: string;
+  transport_preference?: DashboardRemoteMcpTransportPreference;
   call_timeout_seconds: number;
   auth_mode: DashboardRemoteMcpAuthMode;
   enabled_by_default_for_new_specialists: boolean;
@@ -424,12 +475,20 @@ export interface DashboardRemoteMcpServerRecord {
   verification_status: 'unknown' | 'verified' | 'failed';
   verification_error: string | null;
   verified_transport: DashboardRemoteMcpTransport | null;
+  verified_discovery_strategy?: string | null;
+  verified_oauth_strategy?: string | null;
   verified_at: string | null;
   verification_contract_version: string;
+  verified_capability_summary?: Record<string, unknown>;
   discovered_tools_snapshot: Record<string, unknown>[];
+  discovered_resources_snapshot?: Record<string, unknown>[];
+  discovered_prompts_snapshot?: Record<string, unknown>[];
   discovered_tool_count: number;
+  discovered_resource_count?: number;
+  discovered_prompt_count?: number;
   assigned_specialist_count: number;
   parameters: DashboardRemoteMcpServerParameterRecord[];
+  oauth_definition?: DashboardRemoteMcpOauthDefinition | null;
   oauth_connected: boolean;
   oauth_authorized_at: string | null;
   oauth_needs_reauth: boolean;
@@ -438,6 +497,7 @@ export interface DashboardRemoteMcpServerRecord {
 }
 
 export interface DashboardRemoteMcpServerParameterInput {
+  id?: string;
   placement: DashboardRemoteMcpParameterPlacement;
   key: string;
   valueKind: 'static' | 'secret';
@@ -448,10 +508,12 @@ export interface DashboardRemoteMcpServerCreateInput {
   name: string;
   description?: string;
   endpointUrl: string;
+  transportPreference?: DashboardRemoteMcpTransportPreference;
   callTimeoutSeconds: number;
   authMode: DashboardRemoteMcpAuthMode;
   enabledByDefaultForNewSpecialists: boolean;
   grantToAllExistingSpecialists: boolean;
+  oauthDefinition?: DashboardRemoteMcpOauthDefinition | null;
   parameters: DashboardRemoteMcpServerParameterInput[];
 }
 
@@ -459,9 +521,11 @@ export interface DashboardRemoteMcpServerUpdateInput {
   name?: string;
   description?: string;
   endpointUrl?: string;
+  transportPreference?: DashboardRemoteMcpTransportPreference;
   callTimeoutSeconds?: number;
   authMode?: DashboardRemoteMcpAuthMode;
   enabledByDefaultForNewSpecialists?: boolean;
+  oauthDefinition?: DashboardRemoteMcpOauthDefinition | null;
   parameters?: DashboardRemoteMcpServerParameterInput[];
 }
 

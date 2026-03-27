@@ -13,6 +13,8 @@ function readCombinedSource() {
     './mcp-page.support.ts',
     './mcp-page.table.tsx',
     './mcp-page.dialog.tsx',
+    './mcp-page.oauth-settings.tsx',
+    './mcp-page.parameters-section.tsx',
     './mcp-page.tools-sheet.tsx',
   ]
     .map(readSource)
@@ -46,7 +48,7 @@ describe('mcp page source', () => {
   it('includes operator actions for tools, verification, oauth connection, and archive state', () => {
     const source = readCombinedSource();
 
-    expect(source).toContain('View tools');
+    expect(source).toContain('View capabilities');
     expect(source).toContain('Reverify');
     expect(source).toContain('Connect OAuth');
     expect(source).toContain('Reconnect OAuth');
@@ -73,16 +75,27 @@ describe('mcp page source', () => {
   it('authors endpoint, auth, defaults, and parameter rows in the dialog', () => {
     const source = readCombinedSource();
 
-    expect(source).toContain('max-w-[84rem]');
+    expect(source).toContain('max-w-[92rem]');
     expect(source).not.toContain('top-[5vh]');
     expect(source).not.toContain('translate-y-0');
     expect(source).toContain('Endpoint URL');
     expect(source).toContain('Authentication');
+    expect(source).toContain('Transport preference');
     expect(source).toContain('Enabled by default for new specialists');
     expect(source).toContain('Grant to all existing specialists');
     expect(source).toContain('Call timeout (seconds)');
     expect(source).toContain('Connection parameters');
     expect(source).toContain('Additional connection parameters');
+    expect(source).toContain('OAuth settings');
+    expect(source).toContain('Client strategy');
+    expect(source).toContain('Callback mode');
+    expect(source).toContain('PAR mode');
+    expect(source).toContain('JAR mode');
+    expect(source).toContain('Cookie');
+    expect(source).toContain('Authorize request query');
+    expect(source).toContain('Token request header');
+    expect(source).toContain('Token request body (form)');
+    expect(source).toContain('Token request body (JSON)');
     expect(source).toContain('Initialize parameter');
     expect(source).not.toContain('Stored secret configured');
     expect(source).toContain('Add parameter');

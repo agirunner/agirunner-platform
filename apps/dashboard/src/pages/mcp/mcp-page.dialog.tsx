@@ -1,5 +1,3 @@
-import { Plus, Trash2 } from 'lucide-react';
-
 import {
   Dialog,
   DialogContent,
@@ -19,9 +17,13 @@ import {
 import { Switch } from '../../components/ui/switch.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import type { DashboardRemoteMcpServerRecord } from '../../lib/api.js';
-import type {
-  RemoteMcpParameterFormState,
-  RemoteMcpServerFormState,
+import { McpPageOauthSettings } from './mcp-page.oauth-settings.js';
+import { McpPageParametersSection } from './mcp-page.parameters-section.js';
+import {
+  createRemoteMcpParameterForm,
+  formatRemoteMcpTransportPreference,
+  normalizeParametersForAuthMode,
+  type RemoteMcpServerFormState,
 } from './mcp-page.support.js';
 
 export function McpPageDialog(props: {
@@ -38,13 +40,13 @@ export function McpPageDialog(props: {
 }) {
   return (
     <Dialog open={props.open} onOpenChange={(open) => !open && props.onClose()}>
-      <DialogContent className="flex max-h-[90vh] max-w-[84rem] flex-col overflow-hidden p-0">
+      <DialogContent className="flex max-h-[92vh] max-w-[92rem] flex-col overflow-hidden p-0">
         <DialogHeader className="border-b border-border/70 px-6 py-5">
           <DialogTitle>
             {props.mode === 'edit' ? `Edit Remote MCP Server: ${props.server?.name ?? ''}` : 'Create Remote MCP Server'}
           </DialogTitle>
           <DialogDescription>
-            Register a remote MCP endpoint, define its auth-bearing connection parameters, and verify it before specialists can use it.
+            Register a remote MCP server, define its transport and auth contract, and verify it before specialists can use it.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -55,11 +57,11 @@ export function McpPageDialog(props: {
           }}
         >
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_22rem]">
+            <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
               <div className="space-y-5">
                 <section className="grid gap-4 rounded-lg border border-border/70 bg-surface px-5 py-5">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <label className="grid gap-2 text-sm">
+                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <label className="grid gap-2 text-sm xl:col-span-2">
                       <span className="font-medium">Name</span>
                       <Input
                         value={props.form.name}
@@ -93,6 +95,27 @@ export function McpPageDialog(props: {
                         </SelectContent>
                       </Select>
                     </label>
+                    <label className="grid gap-2 text-sm">
+                      <span className="font-medium">Transport preference</span>
+                      <Select
+                        value={props.form.transportPreference}
+                        onValueChange={(value) =>
+                          props.onFormChange({
+                            ...props.form,
+                            transportPreference: value as RemoteMcpServerFormState['transportPreference'],
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select transport preference" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="auto">Automatic negotiation</SelectItem>
+                          <SelectItem value="streamable_http">Streamable HTTP only</SelectItem>
+                          <SelectItem value="http_sse_compat">HTTP + SSE compatibility only</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </label>
                   </div>
                   <label className="grid gap-2 text-sm">
                     <span className="font-medium">Endpoint URL</span>
@@ -104,152 +127,115 @@ export function McpPageDialog(props: {
                       placeholder="https://mcp.example.test/server"
                     />
                   </label>
-                  <label className="grid gap-2 text-sm md:max-w-[14rem]">
-                    <span className="font-medium">Call timeout (seconds)</span>
-                    <Input
-                      inputMode="numeric"
-                      value={props.form.callTimeoutSeconds}
-                      onChange={(event) =>
-                        props.onFormChange({
-                          ...props.form,
-                          callTimeoutSeconds: event.target.value,
-                        })
-                      }
-                      placeholder="300"
-                    />
-                  </label>
-                  <label className="grid gap-2 text-sm">
-                    <span className="font-medium">Description</span>
-                    <Textarea
-                      value={props.form.description}
-                      onChange={(event) =>
-                        props.onFormChange({ ...props.form, description: event.target.value })
-                      }
-                      rows={4}
-                    />
-                  </label>
-                </section>
-
-                <section className="grid gap-4 rounded-lg border border-border/70 bg-surface px-5 py-5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-foreground">{buildParameterSectionTitle(props.form.authMode)}</p>
-                      <p className="text-sm text-muted">{buildParameterSectionDescription(props.form.authMode)}</p>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        props.onFormChange({
-                          ...props.form,
-                          parameters: [...props.form.parameters, createBlankParameter()],
-                        })
-                      }
-                    >
-                      <Plus className="h-4 w-4" />
-                      Add parameter
-                    </Button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {props.form.parameters.map((parameter, index) => (
-                      <ParameterRow
-                        key={parameter.id}
-                        authMode={props.form.authMode}
-                        parameter={parameter}
-                        index={index}
-                        onChange={(nextParameter) => {
-                          const parameters = props.form.parameters.map((entry) =>
-                            entry.id === parameter.id ? nextParameter : entry,
-                          );
-                          props.onFormChange({ ...props.form, parameters });
-                        }}
-                        onRemove={() => {
-                          const nextParameters = props.form.parameters.filter(
-                            (entry) => entry.id !== parameter.id,
-                          );
+                  <div className="grid gap-4 md:grid-cols-[14rem_minmax(0,1fr)]">
+                    <label className="grid gap-2 text-sm">
+                      <span className="font-medium">Call timeout (seconds)</span>
+                      <Input
+                        inputMode="numeric"
+                        value={props.form.callTimeoutSeconds}
+                        onChange={(event) =>
                           props.onFormChange({
                             ...props.form,
-                            parameters: nextParameters.length > 0 ? nextParameters : [createBlankParameter()],
-                          });
-                        }}
+                            callTimeoutSeconds: event.target.value,
+                          })
+                        }
+                        placeholder="300"
                       />
-                    ))}
+                    </label>
+                    <label className="grid gap-2 text-sm">
+                      <span className="font-medium">Description</span>
+                      <Textarea
+                        value={props.form.description}
+                        onChange={(event) =>
+                          props.onFormChange({ ...props.form, description: event.target.value })
+                        }
+                        rows={4}
+                      />
+                    </label>
                   </div>
                 </section>
+                {props.form.authMode === 'oauth' ? (
+                  <McpPageOauthSettings
+                    value={props.form.oauth}
+                    onChange={(oauth) => props.onFormChange({ ...props.form, oauth })}
+                  />
+                ) : null}
+                <McpPageParametersSection
+                  authMode={props.form.authMode}
+                  parameters={props.form.parameters}
+                  onAdd={() =>
+                    props.onFormChange({
+                      ...props.form,
+                      parameters: [...props.form.parameters, createRemoteMcpParameterForm()],
+                    })
+                  }
+                  onChange={(parameterId, nextParameter) =>
+                    props.onFormChange({
+                      ...props.form,
+                      parameters: props.form.parameters.map((entry) =>
+                        entry.id === parameterId ? nextParameter : entry,
+                      ),
+                    })
+                  }
+                  onRemove={(parameterId) =>
+                    props.onFormChange({
+                      ...props.form,
+                      parameters: ensureParametersAfterRemoval(props.form.parameters, parameterId),
+                    })
+                  }
+                />
               </div>
-
               <aside className="space-y-5">
                 <section className="rounded-lg border border-border/70 bg-muted/10 px-5 py-5">
                   <p className="font-medium text-foreground">Grant posture</p>
                   <div className="mt-4 space-y-4">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-sm font-medium text-foreground">
-                          Enabled by default for new specialists
-                        </p>
-                        <p className="text-xs text-muted">
-                          New specialists start with this server selected.
-                        </p>
-                      </div>
-                      <Switch
-                        checked={props.form.enabledByDefaultForNewSpecialists}
+                    <ToggleRow
+                      label="Enabled by default for new specialists"
+                      description="New specialists start with this server selected."
+                      checked={props.form.enabledByDefaultForNewSpecialists}
+                      onCheckedChange={(checked) =>
+                        props.onFormChange({
+                          ...props.form,
+                          enabledByDefaultForNewSpecialists: checked,
+                        })
+                      }
+                    />
+                    {props.mode === 'create' ? (
+                      <ToggleRow
+                        label="Grant to all existing specialists"
+                        description="Apply this server to every active specialist immediately."
+                        checked={props.form.grantToAllExistingSpecialists}
                         onCheckedChange={(checked) =>
                           props.onFormChange({
                             ...props.form,
-                            enabledByDefaultForNewSpecialists: checked,
+                            grantToAllExistingSpecialists: checked,
                           })
                         }
-                        aria-label="Enabled by default for new specialists"
                       />
-                    </div>
-                    {props.mode === 'create' ? (
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">
-                            Grant to all existing specialists
-                          </p>
-                          <p className="text-xs text-muted">
-                            Apply this server to every active specialist immediately.
-                          </p>
-                        </div>
-                        <Switch
-                          checked={props.form.grantToAllExistingSpecialists}
-                          onCheckedChange={(checked) =>
-                            props.onFormChange({
-                              ...props.form,
-                              grantToAllExistingSpecialists: checked,
-                            })
-                          }
-                          aria-label="Grant to all existing specialists"
-                        />
-                      </div>
                     ) : null}
                   </div>
                 </section>
 
                 <section className="rounded-lg border border-border/70 bg-muted/10 px-5 py-5">
-                  <p className="font-medium text-foreground">Authentication summary</p>
-                  <p className="mt-2 text-sm text-muted">
-                    {buildAuthSummary(props.form.authMode)}
-                  </p>
-                  <p className="mt-3 text-xs text-muted">
-                    Tool calls from this server time out after {props.form.callTimeoutSeconds.trim() || '300'} seconds.
-                  </p>
-                  {props.server?.auth_mode === 'oauth' ? (
-                    <p className="mt-3 text-xs text-muted">
-                      {props.server.oauth_connected
-                        ? props.server.oauth_needs_reauth
-                          ? 'OAuth credentials are stored but must be reconnected before the server can be claimed.'
-                          : 'OAuth credentials are connected for this server.'
-                        : 'OAuth credentials are not connected for this server yet.'}
-                    </p>
-                  ) : null}
+                  <p className="font-medium text-foreground">Connection summary</p>
+                  <div className="mt-3 space-y-2 text-sm text-muted">
+                    <p>Transport preference: {formatRemoteMcpTransportPreference(props.form.transportPreference)}</p>
+                    <p>{buildAuthSummary(props.form)}</p>
+                    <p>Tool calls from this server time out after {props.form.callTimeoutSeconds.trim() || '300'} seconds.</p>
+                    {props.server?.auth_mode === 'oauth' ? (
+                      <p>
+                        {props.server.oauth_connected
+                          ? props.server.oauth_needs_reauth
+                            ? 'OAuth credentials are stored but must be reconnected before the server can be claimed.'
+                            : 'OAuth credentials are connected for this server.'
+                          : 'OAuth credentials are not connected for this server yet.'}
+                      </p>
+                    ) : null}
+                  </div>
                 </section>
               </aside>
             </div>
           </div>
-
           <div className="border-t border-border/70 bg-surface/95 px-6 py-4 backdrop-blur">
             {props.error ? (
               <p className="mb-3 text-sm text-red-600 dark:text-red-400">{props.error}</p>
@@ -275,148 +261,37 @@ export function McpPageDialog(props: {
     </Dialog>
   );
 }
-
-function ParameterRow(props: {
-  authMode: RemoteMcpServerFormState['authMode'];
-  parameter: RemoteMcpParameterFormState;
-  index: number;
-  onChange(nextParameter: RemoteMcpParameterFormState): void;
-  onRemove(): void;
+function ToggleRow(props: {
+  label: string;
+  description: string;
+  checked: boolean;
+  onCheckedChange(checked: boolean): void;
 }) {
-  const allowSecretValues = props.authMode !== 'none';
   return (
-    <div className="rounded-lg border border-border/70 bg-muted/10 px-4 py-4">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_minmax(0,11rem)_minmax(0,1.35fr)_auto]">
-        <label className="grid gap-2 text-sm">
-          <span className="font-medium">Parameter placement</span>
-          <Select
-            value={props.parameter.placement}
-            onValueChange={(value) =>
-              props.onChange({
-                ...props.parameter,
-                placement: value as RemoteMcpParameterFormState['placement'],
-              })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Placement" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="path">Path</SelectItem>
-              <SelectItem value="query">Query</SelectItem>
-              <SelectItem value="header">Header</SelectItem>
-              <SelectItem value="initialize_param">Initialize parameter</SelectItem>
-            </SelectContent>
-          </Select>
-        </label>
-        <label className="grid gap-2 text-sm">
-          <span className="font-medium">Key</span>
-          <Input
-            value={props.parameter.key}
-            onChange={(event) =>
-              props.onChange({ ...props.parameter, key: event.target.value })
-            }
-            placeholder={`parameter-${props.index + 1}`}
-          />
-        </label>
-        <label className="grid gap-2 text-sm">
-          <span className="font-medium">Value type</span>
-          <Select
-            value={props.parameter.valueKind}
-            onValueChange={(value) =>
-              props.onChange({
-                ...props.parameter,
-                valueKind: value as RemoteMcpParameterFormState['valueKind'],
-                value: '',
-                hasStoredSecret:
-                  props.parameter.valueKind === 'secret'
-                  && value === 'secret'
-                  && props.parameter.hasStoredSecret,
-              })
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Value type" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="static">Static value</SelectItem>
-              {allowSecretValues ? <SelectItem value="secret">Secret value</SelectItem> : null}
-            </SelectContent>
-          </Select>
-        </label>
-        <label className="grid gap-2 text-sm">
-          <span className="font-medium">Value</span>
-          <Input
-            value={props.parameter.value}
-            onChange={(event) =>
-              props.onChange({ ...props.parameter, value: event.target.value })
-            }
-            placeholder={
-              props.parameter.valueKind === 'secret'
-                ? props.parameter.hasStoredSecret
-                  ? 'Leave blank to preserve the stored secret'
-                  : 'Enter secret value'
-                : 'Enter static value'
-            }
-          />
-        </label>
-        <div className="flex items-end">
-          <Button type="button" variant="outline" onClick={props.onRemove}>
-            <Trash2 className="h-4 w-4" />
-            Remove
-          </Button>
-        </div>
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <p className="text-sm font-medium text-foreground">{props.label}</p>
+        <p className="text-xs text-muted">{props.description}</p>
       </div>
+      <Switch checked={props.checked} onCheckedChange={props.onCheckedChange} aria-label={props.label} />
     </div>
   );
 }
 
-function buildAuthSummary(authMode: RemoteMcpServerFormState['authMode']): string {
-  if (authMode === 'oauth') {
-    return 'OAuth discovers authorization metadata, opens the provider authorization flow, and saves only after callback verification succeeds.';
+function ensureParametersAfterRemoval(
+  parameters: RemoteMcpServerFormState['parameters'],
+  parameterId: string,
+): RemoteMcpServerFormState['parameters'] {
+  const nextParameters = parameters.filter((entry) => entry.id !== parameterId);
+  return nextParameters.length > 0 ? nextParameters : [createRemoteMcpParameterForm()];
+}
+
+function buildAuthSummary(form: RemoteMcpServerFormState): string {
+  if (form.authMode === 'oauth') {
+    return `OAuth uses ${form.oauth.grantType.replaceAll('_', ' ')} with ${form.oauth.clientStrategy.replaceAll('_', ' ')} and ${form.oauth.callbackMode === 'hosted_https' ? 'hosted HTTPS' : 'loopback'} callback mode.`;
   }
-  if (authMode === 'parameterized') {
-    return 'Parameterized mode uses structured path, query, header, and initialize parameters, including secret-backed values.';
+  if (form.authMode === 'parameterized') {
+    return 'Parameterized mode uses structured path, query, header, cookie, and initialize parameters, including secret-backed values.';
   }
   return 'No-auth mode only uses the endpoint URL and any non-secret static parameters you add.';
-}
-
-function buildParameterSectionTitle(authMode: RemoteMcpServerFormState['authMode']): string {
-  return authMode === 'oauth' ? 'Additional connection parameters' : 'Connection parameters';
-}
-
-function buildParameterSectionDescription(authMode: RemoteMcpServerFormState['authMode']): string {
-  if (authMode === 'oauth') {
-    return 'OAuth provides authorization automatically. Use structured path, query, header, or initialize parameters only for additional non-OAuth connection data.';
-  }
-  if (authMode === 'none') {
-    return 'Use structured path, query, header, or initialize parameters for static non-auth connection data.';
-  }
-  return 'Use structured path, query, header, or initialize parameters for connection data, including secret-backed values when needed.';
-}
-
-function normalizeParametersForAuthMode(
-  parameters: RemoteMcpParameterFormState[],
-  authMode: RemoteMcpServerFormState['authMode'],
-): RemoteMcpParameterFormState[] {
-  if (authMode !== 'none') {
-    return parameters;
-  }
-  return parameters.map((parameter) => ({
-    ...parameter,
-    valueKind: 'static',
-    value: parameter.valueKind === 'secret' ? '' : parameter.value,
-    hasStoredSecret: false,
-  }));
-}
-
-function createBlankParameter(): RemoteMcpParameterFormState {
-  return {
-    id: crypto.randomUUID(),
-    placement: 'query',
-    key: '',
-    valueKind: 'static',
-    value: '',
-    hasStoredSecret: false,
-  };
 }
