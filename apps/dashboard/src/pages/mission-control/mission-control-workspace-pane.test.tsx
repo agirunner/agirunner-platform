@@ -40,6 +40,7 @@ describe('mission control workspace pane', () => {
     expect(markup).toContain('Waiting on launch approval');
     expect(markup).toContain('Overview');
     expect(markup).toContain('Board');
+    expect(markup).toContain('Outputs');
     expect(markup).toContain('History');
     expect(markup).toContain('Return to live shell');
     expect(markup).toContain('Open full workflow');

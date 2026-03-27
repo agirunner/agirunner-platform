@@ -489,7 +489,7 @@ export interface DashboardMissionControlWorkspaceResponse {
   version: DashboardMissionControlReadModelVersion;
   workflow: DashboardMissionControlWorkflowCard | null;
   overview: DashboardMissionControlWorkspaceOverview | null;
-  board: Record<string, unknown> | null;
+  board: DashboardWorkflowBoardResponse | null;
   outputs: {
     deliverables: DashboardMissionControlOutputDescriptor[];
     feed: DashboardMissionControlPacket[];

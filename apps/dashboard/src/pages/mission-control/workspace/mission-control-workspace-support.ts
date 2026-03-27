@@ -1,25 +1,9 @@
 import type {
   DashboardMissionControlPacket,
   DashboardMissionControlWorkflowCard,
-  DashboardWorkflowBoardResponse,
 } from '../../../lib/api.js';
 import type { BadgeProps } from '../../../components/ui/badge.js';
 import type { WorkflowHistoryTone } from '../../workflow-detail/workflow-history-card.js';
-
-export function coerceMissionControlBoard(
-  value: Record<string, unknown> | null,
-): DashboardWorkflowBoardResponse | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null;
-  }
-
-  const candidate = value as Partial<DashboardWorkflowBoardResponse>;
-  if (!Array.isArray(candidate.columns) || !Array.isArray(candidate.work_items)) {
-    return null;
-  }
-
-  return candidate as DashboardWorkflowBoardResponse;
-}
 
 export function describeMissionControlPosture(
   posture: DashboardMissionControlWorkflowCard['posture'],

@@ -8,12 +8,13 @@ import type { DashboardMissionControlWorkspaceResponse } from '../../lib/api.js'
 import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
 import { WorkflowControlActions } from '../workflow-detail/workflow-control-actions.js';
 import { formatRelativeTimestamp } from '../workflow-detail/workflow-detail-presentation.js';
-import { coerceMissionControlBoard, describeMissionControlPosture } from './workspace/mission-control-workspace-support.js';
+import { describeMissionControlPosture } from './workspace/mission-control-workspace-support.js';
 import { MissionControlWorkspaceBoard } from './workspace/mission-control-workspace-board.js';
 import { MissionControlWorkspaceHistory } from './workspace/mission-control-workspace-history.js';
 import { MissionControlWorkspaceOverview } from './workspace/mission-control-workspace-overview.js';
+import { MissionControlWorkspaceOutputs } from './workspace/mission-control-workspace-outputs.js';
 
-type MissionControlWorkspaceTab = 'overview' | 'board' | 'history';
+type MissionControlWorkspaceTab = 'overview' | 'board' | 'outputs' | 'history';
 
 export function MissionControlWorkspacePane(props: {
   workflowId: string | null;
@@ -62,7 +63,6 @@ export function MissionControlWorkspacePane(props: {
   }
 
   const workflow = props.response.workflow;
-  const board = coerceMissionControlBoard(props.response.board);
   const posture = describeMissionControlPosture(workflow.posture);
   const inspectorHref = `/mission-control/workflows/${workflow.id}/inspector`;
 
@@ -115,13 +115,20 @@ export function MissionControlWorkspacePane(props: {
           <TabsList>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="board">Board</TabsTrigger>
+            <TabsTrigger value="outputs">Outputs</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
           <TabsContent value="overview">
             <MissionControlWorkspaceOverview workflow={workflow} overview={props.response.overview} />
           </TabsContent>
           <TabsContent value="board">
-            <MissionControlWorkspaceBoard workflowId={workflow.id} board={board} />
+            <MissionControlWorkspaceBoard workflowId={workflow.id} board={props.response.board} />
+          </TabsContent>
+          <TabsContent value="outputs">
+            <MissionControlWorkspaceOutputs
+              deliverables={props.response.outputs.deliverables}
+              feed={props.response.outputs.feed}
+            />
           </TabsContent>
           <TabsContent value="history">
             <MissionControlWorkspaceHistory workflowId={workflow.id} packets={props.response.history.packets} />
