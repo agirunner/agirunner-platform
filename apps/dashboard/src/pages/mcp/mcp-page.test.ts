@@ -79,12 +79,20 @@ describe('mcp page source', () => {
     expect(source).toContain('No additional auth');
   });
 
-  it('wraps discovered capabilities in a bordered summary block that matches the environments table style', () => {
+  it('renders discovered capabilities in a dedicated spanning highlight row', () => {
     const source = readSource('./mcp-page.table.tsx');
 
-    expect(source).toContain('rounded-md border border-border/70 bg-muted/5 px-3 py-2 text-xs');
-    expect(source).toContain('<div className="font-medium text-foreground">Capabilities</div>');
+    expect(source).toContain('<TableCell colSpan={6} className="bg-border/10">');
+    expect(source).toContain('Capabilities summary');
+    expect(source).toContain('rounded-lg border border-border/70 bg-background/80 p-3');
     expect(source).toContain('No discovered tools snapshot.');
+  });
+
+  it('centers the primary registered-server row content vertically', () => {
+    const source = readSource('./mcp-page.table.tsx');
+
+    expect(source).toContain('TableCell className="align-middle"');
+    expect(source).not.toContain('TableCell className="align-top"');
   });
 
   it('authors endpoint, auth, defaults, and parameter rows in the dialog', () => {

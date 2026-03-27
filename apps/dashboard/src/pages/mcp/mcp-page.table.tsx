@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import {
   Pencil,
   Plug,
@@ -55,118 +56,128 @@ export function McpPageTable(props: {
           const connectLabel = server.oauth_connected ? 'Reconnect OAuth' : 'Connect OAuth';
 
           return (
-            <TableRow key={server.id}>
-              <TableCell className="align-top">
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-foreground">{server.name}</span>
-                    <Badge variant="outline">{server.auth_mode}</Badge>
-                  </div>
-                  <div className="text-xs text-muted">{server.description || 'No description provided.'}</div>
-                  <div className="text-xs text-foreground">{server.endpoint_url}</div>
-                  <div className="text-xs text-muted">Call timeout: {server.call_timeout_seconds}s</div>
-                  <div className="rounded-md border border-border/70 bg-muted/5 px-3 py-2 text-xs">
-                    <div className="font-medium text-foreground">Capabilities</div>
-                    <div className="mt-1 text-muted">
-                      {formatDiscoveredCapabilitySummary(server)}
+            <Fragment key={server.id}>
+              <TableRow>
+                <TableCell className="align-middle">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium text-foreground">{server.name}</span>
+                      <Badge variant="outline">{server.auth_mode}</Badge>
                     </div>
-                    <div className="mt-1 text-muted">
-                      {toolNames.length > 0
-                        ? `${toolNames.length} tool${toolNames.length === 1 ? '' : 's'} discovered: ${toolNames.join(', ')}`
-                        : 'No discovered tools snapshot.'}
-                    </div>
+                    <div className="text-xs text-muted">{server.description || 'No description provided.'}</div>
+                    <div className="text-xs text-foreground">{server.endpoint_url}</div>
+                    <div className="text-xs text-muted">Call timeout: {server.call_timeout_seconds}s</div>
                   </div>
-                </div>
-              </TableCell>
-              <TableCell className="align-top">
-                <div className="space-y-1 text-sm">
-                  <div className="font-medium text-foreground">{buildAuthLabel(server)}</div>
-                  <div className="text-xs text-muted">
-                    Default on new specialists:{' '}
-                    {server.enabled_by_default_for_new_specialists ? 'On' : 'Off'}
-                  </div>
-                  {isOauth ? (
+                </TableCell>
+                <TableCell className="align-middle">
+                  <div className="space-y-1 text-sm">
+                    <div className="font-medium text-foreground">{buildAuthLabel(server)}</div>
                     <div className="text-xs text-muted">
-                      {server.oauth_connected
-                        ? server.oauth_needs_reauth
-                          ? 'OAuth needs reconnect'
-                          : 'OAuth connected'
-                        : 'OAuth not connected'}
+                      Default on new specialists:{' '}
+                      {server.enabled_by_default_for_new_specialists ? 'On' : 'Off'}
                     </div>
-                  ) : null}
-                </div>
-              </TableCell>
-              <TableCell className="align-top">
-                <div className="space-y-1 text-sm">
-                  <div className="flex items-center gap-2">
-                    <StatusBadge server={server} />
+                    {isOauth ? (
+                      <div className="text-xs text-muted">
+                        {server.oauth_connected
+                          ? server.oauth_needs_reauth
+                            ? 'OAuth needs reconnect'
+                            : 'OAuth connected'
+                          : 'OAuth not connected'}
+                      </div>
+                    ) : null}
                   </div>
-                  {server.verification_error ? (
-                    <div className="text-xs text-red-600 dark:text-red-400">
-                      {server.verification_error}
+                </TableCell>
+                <TableCell className="align-middle">
+                  <div className="space-y-1 text-sm">
+                    <div className="flex items-center gap-2">
+                      <StatusBadge server={server} />
                     </div>
-                  ) : null}
-                </div>
-              </TableCell>
-              <TableCell className="align-top text-sm text-foreground">
-                <span className="whitespace-nowrap">
-                  {formatRemoteMcpTransport(server.verified_transport)}
-                </span>
-              </TableCell>
-              <TableCell className="align-top text-sm text-foreground">
-                {server.assigned_specialist_count}
-              </TableCell>
-              <TableCell className="align-top">
-                <div className="flex flex-nowrap justify-end gap-2 whitespace-nowrap">
-                  <IconActionButton
-                    label="View capabilities"
-                    disabled={isBusy}
-                    onClick={() => props.onViewTools(server)}
-                  >
-                    <Wrench className="h-4 w-4" />
-                  </IconActionButton>
-                  <IconActionButton
-                    label="Edit"
-                    disabled={isBusy}
-                    onClick={() => props.onEdit(server)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </IconActionButton>
-                  <IconActionButton
-                    label="Reverify"
-                    disabled={isBusy}
-                    onClick={() => props.onReverify(server)}
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                  </IconActionButton>
-                  {isOauth ? (
+                    {server.verification_error ? (
+                      <div className="text-xs text-red-600 dark:text-red-400">
+                        {server.verification_error}
+                      </div>
+                    ) : null}
+                  </div>
+                </TableCell>
+                <TableCell className="align-middle text-sm text-foreground">
+                  <span className="whitespace-nowrap">
+                    {formatRemoteMcpTransport(server.verified_transport)}
+                  </span>
+                </TableCell>
+                <TableCell className="align-middle text-sm text-foreground">
+                  {server.assigned_specialist_count}
+                </TableCell>
+                <TableCell className="align-middle">
+                  <div className="flex flex-nowrap justify-end gap-2 whitespace-nowrap">
                     <IconActionButton
-                      label={connectLabel}
+                      label="View capabilities"
                       disabled={isBusy}
-                      onClick={() => props.onConnectOAuth(server)}
+                      onClick={() => props.onViewTools(server)}
                     >
-                      <Plug className="h-4 w-4" />
+                      <Wrench className="h-4 w-4" />
                     </IconActionButton>
-                  ) : null}
-                  {isOauth && server.oauth_connected ? (
                     <IconActionButton
-                      label="Disconnect OAuth"
+                      label="Edit"
                       disabled={isBusy}
-                      onClick={() => props.onDisconnectOAuth(server)}
+                      onClick={() => props.onEdit(server)}
                     >
-                      <Unplug className="h-4 w-4" />
+                      <Pencil className="h-4 w-4" />
                     </IconActionButton>
-                  ) : null}
-                  <IconActionButton
-                    label="Delete"
-                    disabled={isBusy}
-                    onClick={() => props.onDelete(server)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </IconActionButton>
-                </div>
-              </TableCell>
-            </TableRow>
+                    <IconActionButton
+                      label="Reverify"
+                      disabled={isBusy}
+                      onClick={() => props.onReverify(server)}
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                    </IconActionButton>
+                    {isOauth ? (
+                      <IconActionButton
+                        label={connectLabel}
+                        disabled={isBusy}
+                        onClick={() => props.onConnectOAuth(server)}
+                      >
+                        <Plug className="h-4 w-4" />
+                      </IconActionButton>
+                    ) : null}
+                    {isOauth && server.oauth_connected ? (
+                      <IconActionButton
+                        label="Disconnect OAuth"
+                        disabled={isBusy}
+                        onClick={() => props.onDisconnectOAuth(server)}
+                      >
+                        <Unplug className="h-4 w-4" />
+                      </IconActionButton>
+                    ) : null}
+                    <IconActionButton
+                      label="Delete"
+                      disabled={isBusy}
+                      onClick={() => props.onDelete(server)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </IconActionButton>
+                  </div>
+                </TableCell>
+              </TableRow>
+              <TableRow>
+                <TableCell colSpan={6} className="bg-border/10">
+                  <div className="space-y-2 py-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                      Capabilities summary
+                    </div>
+                    <div className="rounded-lg border border-border/70 bg-background/80 p-3 text-sm">
+                      <div className="text-muted">
+                        {formatDiscoveredCapabilitySummary(server)}
+                      </div>
+                      <div className="mt-2 text-muted">
+                        {toolNames.length > 0
+                          ? `${toolNames.length} tool${toolNames.length === 1 ? '' : 's'} discovered: ${toolNames.join(', ')}`
+                          : 'No discovered tools snapshot.'}
+                      </div>
+                    </div>
+                  </div>
+                </TableCell>
+              </TableRow>
+            </Fragment>
           );
         })}
       </TableBody>
