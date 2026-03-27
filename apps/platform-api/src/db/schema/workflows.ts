@@ -41,6 +41,10 @@ export const workflows = pgTable(
     attemptNumber: integer('attempt_number').notNull().default(1),
     attemptKind: text('attempt_kind').notNull().default('initial'),
     completionCallouts: jsonb('completion_callouts').notNull().default({}),
+    liveVisibilityModeOverride: text('live_visibility_mode_override'),
+    liveVisibilityRevision: integer('live_visibility_revision').notNull().default(0),
+    liveVisibilityUpdatedByOperatorId: text('live_visibility_updated_by_operator_id'),
+    liveVisibilityUpdatedAt: timestamp('live_visibility_updated_at', { withTimezone: true }),
     startedAt: timestamp('started_at', { withTimezone: true }),
     completedAt: timestamp('completed_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -65,6 +69,10 @@ export const workflows = pgTable(
     check(
       'workflows_attempt_kind_check',
       sql`${table.attemptKind} IN ('initial', 'redrive')`,
+    ),
+    check(
+      'workflows_live_visibility_mode_override_check',
+      sql`${table.liveVisibilityModeOverride} IS NULL OR ${table.liveVisibilityModeOverride} IN ('standard', 'enhanced')`,
     ),
   ],
 );
