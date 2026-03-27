@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { BrainCircuit, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 
 import {
   DEFAULT_LIST_PAGE_SIZE,
@@ -150,6 +150,7 @@ export function SkillsPage(): JSX.Element {
       >
         {skills.length === 0 ? (
           <div className="flex flex-col items-center gap-3 px-6 py-12 text-center text-muted">
+            <BrainCircuit className="h-12 w-12 text-muted" />
             <p className="font-medium text-foreground">No shared skills defined</p>
             <p className="text-sm">Create the first reusable skill for specialist assignments.</p>
             <Button

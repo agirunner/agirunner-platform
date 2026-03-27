@@ -61,4 +61,15 @@ describe('skills page source', () => {
     expect(source).toContain('max-h-[92vh] max-w-[84rem] overflow-y-auto');
     expect(source).toContain('min-h-[640px] sm:min-h-[720px]');
   });
+
+  it('keeps the shared-skill empty state aligned with the richer dashboard empty-state treatment', () => {
+    const source = readSource('./skills-page.tsx');
+
+    expect(source).toContain(
+      "import { BrainCircuit, Loader2, Pencil, Plus, Trash2 } from 'lucide-react';",
+    );
+    expect(source).toContain('<BrainCircuit className="h-12 w-12 text-muted" />');
+    expect(source).toContain('No shared skills defined');
+    expect(source).toContain('Create the first reusable skill for specialist assignments.');
+  });
 });

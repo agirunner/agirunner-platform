@@ -428,6 +428,7 @@ export function PlaybookListPage(): JSX.Element {
         hasLoading={playbooksQuery.isLoading}
         hasError={Boolean(playbooksQuery.error)}
         families={filteredFamilies}
+        onCreatePlaybook={openCreateWorkspace}
         togglingFamilySlug={
           toggleActiveMutation.isPending
             ? (toggleActiveMutation.variables as PlaybookFamilyRecord | undefined)?.slug ?? null

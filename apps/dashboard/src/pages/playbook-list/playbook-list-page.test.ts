@@ -116,4 +116,18 @@ describe('playbook list page source', () => {
     expect(processIndex).toBeLessThan(outcomeIndex);
     expect(source).not.toContain('Manage');
   });
+
+  it('renders a first-run playbook empty state with an icon and create action', () => {
+    const source = readLibrarySource();
+
+    expect(source).toContain('No playbooks yet');
+    expect(source).toContain('Create first playbook');
+    expect(source).toContain(
+      'Create the first playbook, then shape workflow guidance, specialist coordination, and',
+    );
+    expect(source).toContain('launch behavior from one place.');
+    expect(source).toContain('<Rocket className="h-12 w-12 text-muted" />');
+    expect(source).toContain('props.familyCount === 0');
+    expect(source).toContain('onCreatePlaybook(): void;');
+  });
 });

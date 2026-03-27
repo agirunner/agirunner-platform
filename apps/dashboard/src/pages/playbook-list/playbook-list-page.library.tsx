@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronRight,
   Pencil,
+  Plus,
   Rocket,
   Search,
 } from 'lucide-react';
@@ -161,6 +162,7 @@ export function PlaybookLibrarySection(props: {
   onSortChange(value: PlaybookSortOption): void;
   onPageChange(value: number): void;
   onPageSizeChange(value: number): void;
+  onCreatePlaybook(): void;
   onToggleActive?(family: PlaybookFamilyRecord): void;
 }): JSX.Element {
   return (
@@ -188,7 +190,11 @@ export function PlaybookLibrarySection(props: {
       {props.hasError ? (
         <p className="px-6 text-sm text-red-600 dark:text-red-400">Failed to load playbooks.</p>
       ) : null}
-      {props.families.length === 0 ? (
+      {props.familyCount === 0 ? (
+        <div className="px-6 pb-6">
+          <PlaybookLibraryEmptyState onCreatePlaybook={props.onCreatePlaybook} />
+        </div>
+      ) : props.families.length === 0 ? (
         <div className="px-6 pb-6">
           <DashboardSectionCard className="border-dashed bg-card/40 shadow-none">
             <p className="text-sm text-muted">No playbooks match the current search.</p>
@@ -215,6 +221,27 @@ export function PlaybookLibrarySection(props: {
         </>
       )}
     </DashboardSectionCard>
+  );
+}
+
+function PlaybookLibraryEmptyState(props: { onCreatePlaybook(): void }): JSX.Element {
+  return (
+    <Card className="border-border/70 bg-card/80 shadow-none">
+      <CardContent className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+        <Rocket className="h-12 w-12 text-muted" />
+        <div className="space-y-1">
+          <p className="font-medium text-foreground">No playbooks yet</p>
+          <p className="max-w-2xl text-sm leading-6 text-muted">
+            Create the first playbook, then shape workflow guidance, specialist coordination, and
+            launch behavior from one place.
+          </p>
+        </div>
+        <Button onClick={props.onCreatePlaybook} className="w-full sm:w-auto">
+          <Plus className="h-4 w-4" />
+          Create first playbook
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 
