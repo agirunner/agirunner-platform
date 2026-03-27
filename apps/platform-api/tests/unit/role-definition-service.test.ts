@@ -116,6 +116,16 @@ describe('RoleDefinitionService', () => {
 
       expect(result).toBeNull();
     });
+
+    it('does not select legacy fallback_model from role_definitions', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [buildRoleRow()], rowCount: 1 });
+
+      await service.getRoleByName(TENANT_ID, 'developer');
+
+      const sql = pool.query.mock.calls[0][0] as string;
+      expect(sql).not.toContain('rd.*');
+      expect(sql).not.toContain('fallback_model');
+    });
   });
 
   describe('getRoleById', () => {
@@ -597,14 +607,6 @@ describe('RoleDefinitionService', () => {
       expect(result.updated_at).toEqual(now);
     });
 
-    it('does not expose legacy fallback_model in sanitized role responses', async () => {
-      const roleWithFallback = buildRoleRow({ fallback_model: 'gpt-4.1' });
-      pool.query.mockResolvedValueOnce({ rows: [roleWithFallback], rowCount: 1 });
-
-      const result = await service.getRoleById(TENANT_ID, ROLE_ID);
-
-      expect(result).not.toHaveProperty('fallback_model');
-    });
   });
 
   describe('deleteRole', () => {

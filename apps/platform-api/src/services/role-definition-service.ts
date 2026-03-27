@@ -38,7 +38,6 @@ interface RoleDefinitionDbRow {
   system_prompt: string | null;
   allowed_tools: string[];
   model_preference: string | null;
-  fallback_model?: string | null;
   verification_strategy: string | null;
   execution_environment_id: string | null;
   escalation_target: string | null;
@@ -470,7 +469,21 @@ export class RoleDefinitionService {
 
 function roleDefinitionSelectSql(): string {
   return `SELECT
-    rd.*,
+    rd.id,
+    rd.tenant_id,
+    rd.name,
+    rd.description,
+    rd.system_prompt,
+    rd.allowed_tools,
+    rd.model_preference,
+    rd.verification_strategy,
+    rd.execution_environment_id,
+    rd.escalation_target,
+    rd.max_escalation_depth,
+    rd.is_active,
+    rd.version,
+    rd.created_at,
+    rd.updated_at,
     ee.id AS ee_id,
     ee.name AS ee_name,
     ee.source_kind AS ee_source_kind,
@@ -569,7 +582,6 @@ function sanitizeRoleDefinitionRow(row: RoleDefinitionQueryRow): RoleDefinitionR
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
-  delete sanitized.fallback_model;
   return sanitized;
 }
 

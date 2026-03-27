@@ -15,7 +15,6 @@ export const roleDefinitions = pgTable(
     systemPrompt: text('system_prompt'),
     allowedTools: text('allowed_tools').array().default([]),
     modelPreference: text('model_preference'),
-    fallbackModel: text('fallback_model'),
     verificationStrategy: text('verification_strategy'),
     executionEnvironmentId: uuid('execution_environment_id').references(
       () => executionEnvironments.id,
