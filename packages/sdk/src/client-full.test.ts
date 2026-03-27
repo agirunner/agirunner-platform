@@ -92,7 +92,7 @@ describe('sdk full client coverage', () => {
       fetcher,
     });
 
-    const claimed = await client.claimTask({ agent_id: 'agent-1', capabilities: ['ts'] });
+    const claimed = await client.claimTask({ agent_id: 'agent-1' });
     const completed = await client.completeTask('task-1', { ok: true });
 
     expect(claimed?.id).toBe('task-1');

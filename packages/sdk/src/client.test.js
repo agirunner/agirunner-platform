@@ -33,6 +33,15 @@ describe('PlatformApiClient', () => {
         expect(workflowBlock).not.toContain('phases');
         expect(clientSource).not.toContain('actOnStageGate(');
     });
+    it('keeps the sdk client and exported task surfaces free of legacy capability-era fields', () => {
+        const typesSource = readSdkSource('types.ts');
+        const clientSource = readSdkSource('client.ts');
+        const taskBlock = readInterfaceBlock(typesSource, 'Task');
+        const createTaskInputBlock = readInterfaceBlock(typesSource, 'CreateTaskInput');
+        expect(taskBlock).not.toContain('capabilities_required');
+        expect(createTaskInputBlock).not.toContain('capabilities_required');
+        expect(clientSource).not.toContain('capabilities?: string[];');
+    });
     it('returns null when claim endpoint responds with 204', async () => {
         const fetcher = vi.fn().mockResolvedValue(new Response(undefined, {
             status: 204,
@@ -44,7 +53,6 @@ describe('PlatformApiClient', () => {
         });
         const task = await client.claimTask({
             agent_id: 'agent-id',
-            capabilities: [],
         });
         expect(task).toBeNull();
     });
@@ -149,6 +157,28 @@ describe('PlatformApiClient', () => {
         finally {
             globalThis.fetch = originalFetch;
         }
+    });
+    it('sends the persistent session preference during api key exchange', async () => {
+        const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({
+            data: {
+                token: 'token',
+                tenant_id: 'tenant',
+                scope: 'admin',
+            },
+        }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+        }));
+        const client = new PlatformApiClient({
+            baseUrl: 'http://localhost:8080',
+            fetcher,
+        });
+        await client.exchangeApiKey('ar_admin_defintegrationlane0000000000001', false);
+        const [, options] = vi.mocked(fetcher).mock.calls[0];
+        expect(options?.body).toBe(JSON.stringify({
+            api_key: 'ar_admin_defintegrationlane0000000000001',
+            persistent_session: false,
+        }));
     });
     it('builds grouped workflow work-item query strings for list and detail reads', async () => {
         const fetcher = vi

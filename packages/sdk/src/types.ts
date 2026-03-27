@@ -43,31 +43,34 @@ export interface AuthTokenResponse {
 
 export interface Agent {
   id: string;
-  tenant_id: string;
+  tenant_id?: string;
   worker_id: string | null;
   name: string;
   status: string;
-  capabilities: string[];
-  profile: Record<string, unknown>;
   current_task_id: string | null;
   heartbeat_interval_seconds: number;
   last_heartbeat_at: string;
+  metadata?: Record<string, unknown>;
+  routing_tags?: string[];
+  registered_at?: string | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface Worker {
   id: string;
-  tenant_id: string;
+  tenant_id?: string;
   name: string;
   runtime_type: string;
   connection_mode: string;
   status: string;
-  capabilities: string[];
+  routing_tags: string[];
+  current_task_id?: string | null;
   host_info: Record<string, unknown>;
   metadata: Record<string, unknown>;
   heartbeat_interval_seconds: number;
   last_heartbeat_at: string;
+  connected_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -454,7 +457,6 @@ export interface Task {
   priority: TaskPriority;
   execution_backend: 'runtime_only' | 'runtime_plus_task';
   used_task_sandbox: boolean;
-  capabilities_required: string[];
   role: string | null;
   role_config: Record<string, unknown>;
   environment: Record<string, unknown>;
@@ -499,7 +501,6 @@ export interface CreateTaskInput {
   role?: string;
   input?: Record<string, unknown>;
   depends_on?: string[];
-  capabilities_required?: string[];
   role_config?: Record<string, unknown>;
   environment?: Record<string, unknown>;
   resource_bindings?: unknown[];

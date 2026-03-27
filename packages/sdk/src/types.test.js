@@ -71,4 +71,11 @@ describe('sdk shared state contracts', () => {
         const approvalTaskBlock = readInterfaceBlock(source, 'ApprovalTaskRecord');
         expect(approvalTaskBlock).toContain('state: TaskState;');
     });
+    it('keeps worker and agent dto surfaces free of legacy capability arrays', () => {
+        const source = readTypesSource();
+        const agentBlock = readInterfaceBlock(source, 'Agent');
+        const workerBlock = readInterfaceBlock(source, 'Worker');
+        expect(agentBlock).not.toContain('capabilities:');
+        expect(workerBlock).not.toContain('capabilities:');
+    });
 });

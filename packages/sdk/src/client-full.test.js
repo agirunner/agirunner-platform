@@ -2,6 +2,19 @@ import { describe, expect, it, vi } from 'vitest';
 import { PlatformApiClient } from './client.js';
 describe('sdk full client coverage', () => {
     it('covers FR-041 typed client methods for task/workflow/agent/worker APIs', async () => {
+        const typedStage = {
+            id: 'stage-typed',
+            workflow_id: 'wf-typed',
+            name: 'build',
+            position: 1,
+            goal: 'Build',
+            status: 'active',
+            is_active: true,
+            gate_status: 'none',
+            iteration_count: 0,
+            open_work_item_count: 0,
+            total_work_item_count: 0,
+        };
         const fetcher = vi
             .fn()
             .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 't1' }], pagination: { total_pages: 1 } }), {
@@ -26,6 +39,7 @@ describe('sdk full client coverage', () => {
         expect(workflow.id).toBe('p1');
         expect(workers[0].id).toBe('w1');
         expect(agents[0].id).toBe('a1');
+        expect(typedStage.name).toBe('build');
     });
     it('covers FR-042 background-friendly pagination helper iteration semantics', async () => {
         const client = new PlatformApiClient({
@@ -54,7 +68,7 @@ describe('sdk full client coverage', () => {
             accessToken: 'token',
             fetcher,
         });
-        const claimed = await client.claimTask({ agent_id: 'agent-1', capabilities: ['ts'] });
+        const claimed = await client.claimTask({ agent_id: 'agent-1' });
         const completed = await client.completeTask('task-1', { ok: true });
         expect(claimed?.id).toBe('task-1');
         expect(completed.state).toBe('completed');
@@ -177,7 +191,6 @@ describe('sdk full client coverage', () => {
                     name: 'build',
                     position: 1,
                     goal: 'Build',
-                    human_gate: false,
                     status: 'active',
                     gate_status: 'none',
                     iteration_count: 0,

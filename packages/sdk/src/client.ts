@@ -110,8 +110,9 @@ export class PlatformApiClient {
   async claimTask(payload: {
     agent_id: string;
     worker_id?: string;
-    capabilities?: string[];
+    routing_tags?: string[];
     workflow_id?: string;
+    playbook_id?: string;
     include_context?: boolean;
   }): Promise<Task | null> {
     const response = await this.request<Response | ApiDataResponse<Task>>('/api/v1/tasks/claim', {

@@ -41,6 +41,17 @@ describe('PlatformApiClient', () => {
     expect(clientSource).not.toContain('actOnStageGate(');
   });
 
+  it('keeps the sdk client and exported task surfaces free of legacy capability-era fields', () => {
+    const typesSource = readSdkSource('types.ts');
+    const clientSource = readSdkSource('client.ts');
+    const taskBlock = readInterfaceBlock(typesSource, 'Task');
+    const createTaskInputBlock = readInterfaceBlock(typesSource, 'CreateTaskInput');
+
+    expect(taskBlock).not.toContain('capabilities_required');
+    expect(createTaskInputBlock).not.toContain('capabilities_required');
+    expect(clientSource).not.toContain('capabilities?: string[];');
+  });
+
   it('returns null when claim endpoint responds with 204', async () => {
     const fetcher = vi.fn().mockResolvedValue(
       new Response(undefined, {
@@ -56,7 +67,6 @@ describe('PlatformApiClient', () => {
 
     const task = await client.claimTask({
       agent_id: 'agent-id',
-      capabilities: [],
     });
 
     expect(task).toBeNull();
