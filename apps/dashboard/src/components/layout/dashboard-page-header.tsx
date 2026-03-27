@@ -5,6 +5,7 @@ import { findNavigationItemByHref } from './layout.js';
 
 interface DashboardPageHeaderProps {
   navHref: string;
+  title?: string;
   description: string;
   descriptionClassName?: string;
   actions?: ReactNode;
@@ -19,6 +20,7 @@ export function DashboardPageHeader(props: DashboardPageHeaderProps): JSX.Elemen
   }
 
   const Icon = navItem.icon;
+  const title = props.title ?? navItem.label;
 
   return (
     <div
@@ -31,7 +33,7 @@ export function DashboardPageHeader(props: DashboardPageHeaderProps): JSX.Elemen
         {props.eyebrow ? <div>{props.eyebrow}</div> : null}
         <div className="flex items-center gap-2">
           <Icon className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-2xl font-semibold tracking-tight">{navItem.label}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
         </div>
         <p
           className={cn(

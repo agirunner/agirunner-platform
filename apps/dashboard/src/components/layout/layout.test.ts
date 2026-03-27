@@ -68,13 +68,15 @@ describe('layout breadcrumbs', () => {
 
   it('points integrations navigation at the triggers route', () => {
     const source = readLayoutSource();
-    expect(source).toContain("label: 'Integrations (soon)'");
-    expect(source).toContain("label: 'Triggers'");
+    expect(source).toContain("label: 'Integrations'");
+    expect(source).toContain("label: 'Triggers (soon)'");
     expect(source).toContain("href: '/integrations/triggers'");
     expect(source).toContain("label: 'MCP Servers'");
     expect(source).toContain("href: '/integrations/mcp-servers'");
-    expect(source).toContain("label: 'ACP'");
-    expect(source).toContain("href: '/integrations/acp'");
+    expect(source).toContain("label: 'Webhooks (soon)'");
+    expect(source).toContain("href: '/integrations/webhooks'");
+    expect(source).not.toContain("label: 'ACP'");
+    expect(source).not.toContain("href: '/integrations/acp'");
     expect(source).not.toContain("label: 'Agent Protocols'");
   });
 

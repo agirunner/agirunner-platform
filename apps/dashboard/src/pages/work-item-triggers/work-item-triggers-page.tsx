@@ -4,6 +4,7 @@ export function WorkItemTriggersPage(): JSX.Element {
   return (
     <ConfigPlaceholderPage
       navHref="/integrations/triggers"
+      title="Triggers"
       description="Configure triggers that turn events into work."
     />
   );

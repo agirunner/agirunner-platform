@@ -15,15 +15,16 @@ describe('app trigger routes source', () => {
     expect(source).toContain('Navigate to="/integrations/triggers" replace');
   });
 
-  it('registers separate MCP and ACP integration routes and redirects the legacy agent protocols path', () => {
+  it('keeps MCP as the only shipped integration management route and redirects the legacy agent protocols path', () => {
     const source = readSource();
     expect(source).toContain('path="/integrations/mcp-servers"');
-    expect(source).toContain('path="/integrations/acp"');
     expect(source).toContain('path="/integrations/mcp"');
     expect(source).toContain('path="/integrations/agent-protocols"');
     expect(source).toContain('path="/config/agent-protocols"');
     expect(source).toContain('Navigate to="/integrations/mcp-servers" replace');
+    expect(source).not.toContain('path="/integrations/acp"');
     expect(source).not.toContain('AgentProtocolsPage');
+    expect(source).not.toContain('AcpPage');
   });
 
   it('keeps the browser auth callback free of token query parsing', () => {

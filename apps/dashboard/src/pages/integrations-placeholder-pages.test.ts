@@ -23,9 +23,11 @@ describe('integration placeholder page copy', () => {
     expect(source).not.toContain('ConfigPlaceholderPage');
   });
 
-  it('describes ACP as Agent Communication Protocol integration management', () => {
-    const source = readPageSource('./acp/acp-page.tsx');
-    expect(source).toContain('Configure Agent Communication Protocol integrations.');
+  it('keeps the webhooks and triggers page titles free of nav-only soon labels', () => {
+    const webhooksSource = readPageSource('./webhooks/webhooks-page.tsx');
+    const triggersSource = readPageSource('./work-item-triggers/work-item-triggers-page.tsx');
+    expect(webhooksSource).toContain('title="Webhooks"');
+    expect(triggersSource).toContain('title="Triggers"');
   });
 
   it('uses the shared next-iteration placeholder copy', () => {

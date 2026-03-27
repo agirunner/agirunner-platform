@@ -12,7 +12,7 @@ describe('dashboard page header consistency', () => {
     const source = readSource('./dashboard-page-header.tsx');
     expect(source).toContain('findNavigationItemByHref');
     expect(source).toContain('text-muted-foreground');
-    expect(source).toContain('navItem.label');
+    expect(source).toContain('props.title ?? navItem.label');
   });
 
   it('allows pages to opt into custom description wrapping classes', () => {
@@ -47,6 +47,18 @@ describe('dashboard page header consistency', () => {
       expect(source).toContain('DashboardPageHeader');
       expect(source).toContain(expectedNavHref);
     }
+  });
+
+  it('allows placeholder pages to override the visible page title without changing nav routing', () => {
+    const headerSource = readSource('./dashboard-page-header.tsx');
+    const placeholderSource = readSource('../../pages/config-placeholder/config-placeholder-page.tsx');
+    const webhooksSource = readSource('../../pages/webhooks/webhooks-page.tsx');
+    const triggersSource = readSource('../../pages/work-item-triggers/work-item-triggers-page.tsx');
+
+    expect(headerSource).toContain('title?: string;');
+    expect(placeholderSource).toContain('title={props.title}');
+    expect(webhooksSource).toContain('title="Webhooks"');
+    expect(triggersSource).toContain('title="Triggers"');
   });
 
   it('does not leave mission-control page titles drifting away from the nav label', () => {

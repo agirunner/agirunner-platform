@@ -3,11 +3,12 @@ import { DashboardSectionCard } from '../../components/layout/dashboard-section-
 
 export function ConfigPlaceholderPage(props: {
   navHref: string;
+  title?: string;
   description: string;
 }): JSX.Element {
   return (
     <div className="space-y-6 p-6">
-      <DashboardPageHeader navHref={props.navHref} description={props.description} />
+      <DashboardPageHeader navHref={props.navHref} title={props.title} description={props.description} />
       <DashboardSectionCard
         title="Coming soon"
         bodyClassName="space-y-0"

@@ -83,7 +83,6 @@ const ToolsPage = lazyWithRetry(() => import('../pages/tools/tools-page.js').the
 const WebhooksPage = lazyWithRetry(() => import('../pages/webhooks/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })));
 const WorkItemTriggersPage = lazyWithRetry(() => import('../pages/work-item-triggers/work-item-triggers-page.js').then((m) => ({ default: m.WorkItemTriggersPage })));
 const McpPage = lazyWithRetry(() => import('../pages/mcp/mcp-page.js').then((m) => ({ default: m.McpPage })));
-const AcpPage = lazyWithRetry(() => import('../pages/acp/acp-page.js').then((m) => ({ default: m.AcpPage })));
 
 const ContainersPage = lazyWithRetry(() => import('../pages/containers/containers-page.js').then((m) => ({ default: m.ContainersPage })));
 
@@ -239,7 +238,6 @@ export function App(): JSX.Element {
             <Route path="/integrations/webhooks" element={<WebhooksPage />} />
             <Route path="/integrations/triggers" element={<WorkItemTriggersPage />} />
             <Route path="/integrations/mcp-servers" element={<McpPage />} />
-            <Route path="/integrations/acp" element={<AcpPage />} />
             <Route path="/integrations/mcp" element={<Navigate to="/integrations/mcp-servers" replace />} />
             <Route path="/integrations/agent-protocols" element={<Navigate to="/integrations/mcp-servers" replace />} />
             <Route path="/config/webhooks" element={<Navigate to="/integrations/webhooks" replace />} />

@@ -100,6 +100,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Playbooks', href: '/design/playbooks', icon: FileText },
       { label: 'Workspaces', href: '/design/workspaces', icon: FolderOpen },
       { label: 'Specialists', href: '/design/specialists', icon: Users, keywords: ['specialist', 'agent roles', 'role definitions'] },
+      { label: 'Skills', href: '/design/specialists/skills', icon: ScrollText, keywords: ['specialist skills', 'shared skills', 'skill library'] },
     ],
   },
   {
@@ -119,13 +120,12 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: 'Integrations (soon)',
+    label: 'Integrations',
     icon: Link2,
     items: [
-      { label: 'Webhooks', href: '/integrations/webhooks', icon: Send },
-      { label: 'Triggers', href: '/integrations/triggers', icon: Zap },
+      { label: 'Webhooks (soon)', href: '/integrations/webhooks', icon: Send },
+      { label: 'Triggers (soon)', href: '/integrations/triggers', icon: Zap },
       { label: 'MCP Servers', href: '/integrations/mcp-servers', icon: Link2 },
-      { label: 'ACP', href: '/integrations/acp', icon: Bot },
     ],
   },
   {
