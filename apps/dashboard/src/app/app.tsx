@@ -21,7 +21,7 @@ import { clearSession, readSession } from '../lib/session.js';
 import {
   buildMissionControlShellHref,
   buildWorkflowDiagnosticsHref,
-} from '../pages/mission-control/mission-control-page.support.js';
+} from '../pages/workflows/mission-control-page.support.js';
 import { buildWorkflowDetailPermalink } from '../pages/workflow-detail/workflow-detail-permalinks.js';
 
 import { applyTheme, readTheme } from './theme.js';
@@ -70,7 +70,7 @@ const LoginPage = lazyWithRetry(() =>
 );
 
 const MissionControlPage = lazyWithRetry(() =>
-  import('../pages/mission-control/mission-control-page.js').then((m) => ({
+  import('../pages/workflows/mission-control-page.js').then((m) => ({
     default: m.MissionControlPage,
   })),
 );

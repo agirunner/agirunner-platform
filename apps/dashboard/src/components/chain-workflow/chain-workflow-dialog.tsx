@@ -5,7 +5,7 @@ import { Link2, Loader2 } from 'lucide-react';
 
 import { dashboardApi } from '../../lib/api.js';
 import type { DashboardPlaybookRecord } from '../../lib/api.js';
-import { buildMissionControlShellHref } from '../../pages/mission-control/mission-control-page.support.js';
+import { buildMissionControlShellHref } from '../../pages/workflows/mission-control-page.support.js';
 import {
   buildParametersFromDrafts,
   readLaunchDefinition,

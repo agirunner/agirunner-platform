@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { MissionControlHistoryService } from '../../src/services/mission-control/mission-control-history-service.js';
+import { MissionControlHistoryService } from '../../src/services/workflow-operations/mission-control-history-service.js';
 
 describe('MissionControlHistoryService', () => {
   it('returns workflow-scoped history packets from the event query service', async () => {

@@ -355,7 +355,7 @@ describe('dashboard api auth/session behavior', () => {
 
     expect(fetcher).toHaveBeenNthCalledWith(
       1,
-      'http://localhost:8080/api/v1/mission-control/live?page=2&per_page=25',
+      'http://localhost:8080/api/v1/operations/workflows?mode=live&page=2&per_page=25',
       expect.objectContaining({
         method: 'GET',
         credentials: 'include',
@@ -366,7 +366,7 @@ describe('dashboard api auth/session behavior', () => {
     );
     expect(fetcher).toHaveBeenNthCalledWith(
       2,
-      'http://localhost:8080/api/v1/mission-control/recent?limit=15',
+      'http://localhost:8080/api/v1/operations/workflows?mode=recent&limit=15',
       expect.objectContaining({
         method: 'GET',
         credentials: 'include',
@@ -374,7 +374,7 @@ describe('dashboard api auth/session behavior', () => {
     );
     expect(fetcher).toHaveBeenNthCalledWith(
       3,
-      'http://localhost:8080/api/v1/mission-control/history?workflow_id=workflow-1&limit=20',
+      'http://localhost:8080/api/v1/operations/workflows?mode=history&workflow_id=workflow-1&limit=20',
       expect.objectContaining({
         method: 'GET',
         credentials: 'include',
@@ -382,7 +382,7 @@ describe('dashboard api auth/session behavior', () => {
     );
     expect(fetcher).toHaveBeenNthCalledWith(
       4,
-      'http://localhost:8080/api/v1/mission-control/workflows/workflow-1/workspace?history_limit=12&output_limit=4',
+      'http://localhost:8080/api/v1/operations/workflows/workflow-1/workspace?history_limit=12&output_limit=4',
       expect.objectContaining({
         method: 'GET',
         credentials: 'include',

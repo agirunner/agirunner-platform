@@ -2,7 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import type { NavigateFunction } from 'react-router-dom';
 
 import { dashboardApi, type DashboardWorkflowBudgetInput } from '../../lib/api.js';
-import { buildMissionControlShellHref } from '../mission-control/mission-control-page.support.js';
+import { buildMissionControlShellHref } from '../workflows/mission-control-page.support.js';
 import {
   buildModelOverrides,
   buildParametersFromDrafts,

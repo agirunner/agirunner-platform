@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { composeMissionControlOutputDescriptor } from '../../src/services/mission-control/mission-control-output-descriptors.js';
+import { composeMissionControlOutputDescriptor } from '../../src/services/workflow-operations/mission-control-output-descriptors.js';
 
 describe('mission control output descriptors', () => {
   it('maps artifacts into explicit artifact locations', () => {

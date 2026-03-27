@@ -123,7 +123,7 @@ describe('app trigger routes source', () => {
 
   it('uses a unified workflows shell and redirects legacy mission control list routes into shell state', () => {
     const source = readSource();
-    expect(source).toContain("../pages/mission-control/mission-control-page.js");
+    expect(source).toContain("../pages/workflows/mission-control-page.js");
     expect(source).toContain('path="/" element={<Navigate to="/workflows" replace />}');
     expect(source).toContain('path="/workflows" element={<MissionControlPage />}');
     expect(source).toContain('path="/mission-control"');
@@ -152,6 +152,6 @@ describe('app trigger routes source', () => {
     expect(source).toContain('element={<LegacyMissionControlWorkflowInspectorRedirect />}');
     expect(source).not.toContain('element={<WorkflowDetailPage />}');
     expect(source).not.toContain('element={<WorkflowInspectorPage />}');
-    expect(source).toContain('return <Navigate to="/workflows" replace />;');
+    expect(source).toContain('const target = buildWorkflowDetailPermalink(id, {');
   });
 });

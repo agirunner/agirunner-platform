@@ -15,7 +15,7 @@ import type {
 } from '../../lib/api.js';
 import { dashboardApi } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
-import { buildWorkflowDiagnosticsHref } from '../mission-control/mission-control-page.support.js';
+import { buildWorkflowDiagnosticsHref } from '../workflows/mission-control-page.support.js';
 import {
   describeTaskGraphPacket,
   type DashboardWorkflowTaskRow,

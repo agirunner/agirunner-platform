@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { deriveMissionControlPosture } from '../../src/services/mission-control/mission-control-posture.js';
-import { MissionControlLiveService } from '../../src/services/mission-control/mission-control-live-service.js';
+import { deriveMissionControlPosture } from '../../src/services/workflow-operations/mission-control-posture.js';
+import { MissionControlLiveService } from '../../src/services/workflow-operations/mission-control-live-service.js';
 
 describe('mission control posture', () => {
   it('classifies approval waits as needs_decision ahead of coarse active state', () => {

@@ -18,7 +18,7 @@ export function LoginPage(): JSX.Element {
 
     try {
       await dashboardApi.login(apiKey, keepSignedIn);
-      navigate('/mission-control');
+      navigate('/workflows');
     } catch {
       setError('Invalid API key or server unavailable');
     } finally {

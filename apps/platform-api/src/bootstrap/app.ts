@@ -30,10 +30,10 @@ import { ExecutionEnvironmentService } from '../services/execution-environment-s
 import { ExecutionEnvironmentVerificationService } from '../services/execution-environment-verification-service.js';
 import { FleetService } from '../services/fleet-service.js';
 import { GovernanceService } from '../services/governance-service.js';
-import { MissionControlHistoryService } from '../services/mission-control/mission-control-history-service.js';
-import { MissionControlLiveService } from '../services/mission-control/mission-control-live-service.js';
-import { MissionControlRecentService } from '../services/mission-control/mission-control-recent-service.js';
-import { MissionControlWorkspaceService } from '../services/mission-control/mission-control-workspace-service.js';
+import { MissionControlHistoryService } from '../services/workflow-operations/mission-control-history-service.js';
+import { MissionControlLiveService } from '../services/workflow-operations/mission-control-live-service.js';
+import { MissionControlRecentService } from '../services/workflow-operations/mission-control-recent-service.js';
+import { MissionControlWorkspaceService } from '../services/workflow-operations/mission-control-workspace-service.js';
 import { OAuthService } from '../services/oauth-service.js';
 import { OrchestratorConfigService } from '../services/orchestrator-config-service.js';
 import { OrchestratorGrantService } from '../services/orchestrator-grant-service.js';
@@ -207,13 +207,13 @@ export async function buildApp() {
   );
   const modelCatalogService = new ModelCatalogService(pool);
   const oauthService = new OAuthService(pool);
-  const missionControlLiveService = new MissionControlLiveService(pool);
-  const missionControlRecentService = new MissionControlRecentService(pool, missionControlLiveService);
-  const missionControlHistoryService = new MissionControlHistoryService(pool, missionControlLiveService);
-  const missionControlWorkspaceService = new MissionControlWorkspaceService(
+  const workflowOperationsLiveService = new MissionControlLiveService(pool);
+  const workflowOperationsRecentService = new MissionControlRecentService(pool, workflowOperationsLiveService);
+  const workflowOperationsHistoryService = new MissionControlHistoryService(pool, workflowOperationsLiveService);
+  const workflowOperationsWorkspaceService = new MissionControlWorkspaceService(
     workflowService,
-    missionControlLiveService,
-    missionControlHistoryService,
+    workflowOperationsLiveService,
+    workflowOperationsHistoryService,
   );
   const workflowInputPacketService = new WorkflowInputPacketService(
     pool,
@@ -325,20 +325,20 @@ export async function buildApp() {
   app.decorate('fleetService', createLoggedService(fleetService, 'FleetService', logService));
   app.decorate('modelCatalogService', createLoggedService(modelCatalogService, 'ModelCatalogService', logService));
   app.decorate(
-    'missionControlLiveService',
-    createLoggedService(missionControlLiveService, 'MissionControlLiveService', logService),
+    'workflowOperationsLiveService',
+    createLoggedService(workflowOperationsLiveService, 'MissionControlLiveService', logService),
   );
   app.decorate(
-    'missionControlRecentService',
-    createLoggedService(missionControlRecentService, 'MissionControlRecentService', logService),
+    'workflowOperationsRecentService',
+    createLoggedService(workflowOperationsRecentService, 'MissionControlRecentService', logService),
   );
   app.decorate(
-    'missionControlHistoryService',
-    createLoggedService(missionControlHistoryService, 'MissionControlHistoryService', logService),
+    'workflowOperationsHistoryService',
+    createLoggedService(workflowOperationsHistoryService, 'MissionControlHistoryService', logService),
   );
   app.decorate(
-    'missionControlWorkspaceService',
-    createLoggedService(missionControlWorkspaceService, 'MissionControlWorkspaceService', logService),
+    'workflowOperationsWorkspaceService',
+    createLoggedService(workflowOperationsWorkspaceService, 'MissionControlWorkspaceService', logService),
   );
   app.decorate('oauthService', createLoggedService(oauthService, 'OAuthService', logService));
   app.decorate('remoteMcpOAuthClientProfileService', createLoggedService(remoteMcpOAuthClientProfileService, 'RemoteMcpOAuthClientProfileService', logService));

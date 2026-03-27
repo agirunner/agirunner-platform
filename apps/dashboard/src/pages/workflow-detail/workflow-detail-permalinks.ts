@@ -1,7 +1,7 @@
 import {
   buildMissionControlShellHref,
   type MissionControlWorkspaceTab,
-} from '../mission-control/mission-control-page.support.js';
+} from '../workflows/mission-control-page.support.js';
 
 export interface WorkflowDetailTarget {
   workItemId?: string | null;

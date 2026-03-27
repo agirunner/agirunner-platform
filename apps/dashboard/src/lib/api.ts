@@ -3317,7 +3317,8 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     getMissionControlLive: (input) =>
       withRefresh(() =>
         requestData<DashboardMissionControlLiveResponse>(
-          `/api/v1/mission-control/live${buildMissionControlQuery({
+          `/api/v1/operations/workflows${buildMissionControlQuery({
+            mode: 'live',
             page: input?.page,
             per_page: input?.perPage,
           })}`,
@@ -3329,7 +3330,8 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     getMissionControlRecent: (input) =>
       withRefresh(() =>
         requestData<DashboardMissionControlRecentResponse>(
-          `/api/v1/mission-control/recent${buildMissionControlQuery({
+          `/api/v1/operations/workflows${buildMissionControlQuery({
+            mode: 'recent',
             limit: input?.limit,
           })}`,
           {
@@ -3340,7 +3342,8 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     getMissionControlHistory: (input) =>
       withRefresh(() =>
         requestData<DashboardMissionControlHistoryResponse>(
-          `/api/v1/mission-control/history${buildMissionControlQuery({
+          `/api/v1/operations/workflows${buildMissionControlQuery({
+            mode: 'history',
             workflow_id: input?.workflowId,
             limit: input?.limit,
           })}`,
@@ -3352,7 +3355,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     getMissionControlWorkflowWorkspace: (workflowId, input) =>
       withRefresh(() =>
         requestData<DashboardMissionControlWorkspaceResponse>(
-          `/api/v1/mission-control/workflows/${workflowId}/workspace${buildMissionControlQuery({
+          `/api/v1/operations/workflows/${workflowId}/workspace${buildMissionControlQuery({
             history_limit: input?.historyLimit,
             output_limit: input?.outputLimit,
           })}`,
