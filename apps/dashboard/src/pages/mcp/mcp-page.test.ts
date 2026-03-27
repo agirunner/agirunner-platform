@@ -73,14 +73,18 @@ describe('mcp page source', () => {
   it('authors endpoint, auth, defaults, and parameter rows in the dialog', () => {
     const source = readCombinedSource();
 
+    expect(source).toContain('max-w-[84rem]');
     expect(source).toContain('Endpoint URL');
     expect(source).toContain('Authentication');
     expect(source).toContain('Enabled by default for new specialists');
     expect(source).toContain('Grant to all existing specialists');
     expect(source).toContain('Call timeout (seconds)');
     expect(source).toContain('Connection parameters');
+    expect(source).toContain('Additional connection parameters');
     expect(source).toContain('Initialize parameter');
-    expect(source).toContain('Stored secret configured');
+    expect(source).toContain('whitespace-nowrap text-muted');
     expect(source).toContain('Add parameter');
+    expect(source).toContain("authMode !== 'none'");
+    expect(source).toContain('normalizeParametersForAuthMode');
   });
 });

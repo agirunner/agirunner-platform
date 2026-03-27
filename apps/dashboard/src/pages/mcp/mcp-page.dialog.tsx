@@ -38,7 +38,7 @@ export function McpPageDialog(props: {
 }) {
   return (
     <Dialog open={props.open} onOpenChange={(open) => !open && props.onClose()}>
-      <DialogContent className="top-[5vh] flex max-h-[90vh] max-w-[74rem] translate-y-0 flex-col overflow-hidden p-0">
+      <DialogContent className="top-[5vh] flex max-h-[90vh] max-w-[84rem] translate-y-0 flex-col overflow-hidden p-0">
         <DialogHeader className="border-b border-border/70 px-6 py-5">
           <DialogTitle>
             {props.mode === 'edit' ? `Edit Remote MCP Server: ${props.server?.name ?? ''}` : 'Create Remote MCP Server'}
@@ -76,6 +76,10 @@ export function McpPageDialog(props: {
                           props.onFormChange({
                             ...props.form,
                             authMode: value as RemoteMcpServerFormState['authMode'],
+                            parameters: normalizeParametersForAuthMode(
+                              props.form.parameters,
+                              value as RemoteMcpServerFormState['authMode'],
+                            ),
                           })
                         }
                       >
@@ -129,10 +133,8 @@ export function McpPageDialog(props: {
                 <section className="grid gap-4 rounded-lg border border-border/70 bg-surface px-5 py-5">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="font-medium text-foreground">Connection parameters</p>
-                      <p className="text-sm text-muted">
-                        Use structured path, query, header, or initialize parameters for all non-OAuth connection data.
-                      </p>
+                      <p className="font-medium text-foreground">{buildParameterSectionTitle(props.form.authMode)}</p>
+                      <p className="text-sm text-muted">{buildParameterSectionDescription(props.form.authMode)}</p>
                     </div>
                     <Button
                       type="button"
@@ -153,6 +155,7 @@ export function McpPageDialog(props: {
                     {props.form.parameters.map((parameter, index) => (
                       <ParameterRow
                         key={parameter.id}
+                        authMode={props.form.authMode}
                         parameter={parameter}
                         index={index}
                         onChange={(nextParameter) => {
@@ -274,14 +277,16 @@ export function McpPageDialog(props: {
 }
 
 function ParameterRow(props: {
+  authMode: RemoteMcpServerFormState['authMode'];
   parameter: RemoteMcpParameterFormState;
   index: number;
   onChange(nextParameter: RemoteMcpParameterFormState): void;
   onRemove(): void;
 }) {
+  const allowSecretValues = props.authMode !== 'none';
   return (
     <div className="rounded-lg border border-border/70 bg-muted/10 px-4 py-4">
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,11rem)_minmax(0,1fr)_minmax(0,10rem)_minmax(0,1fr)_auto]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_minmax(0,11rem)_minmax(0,1.35fr)_auto]">
         <label className="grid gap-2 text-sm">
           <span className="font-medium">Parameter placement</span>
           <Select
@@ -335,7 +340,7 @@ function ParameterRow(props: {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="static">Static value</SelectItem>
-              <SelectItem value="secret">Secret value</SelectItem>
+              {allowSecretValues ? <SelectItem value="secret">Secret value</SelectItem> : null}
             </SelectContent>
           </Select>
         </label>
@@ -355,7 +360,7 @@ function ParameterRow(props: {
             }
           />
           {props.parameter.valueKind === 'secret' && props.parameter.hasStoredSecret ? (
-            <span className="text-xs text-muted">Stored secret configured</span>
+            <span className="text-xs whitespace-nowrap text-muted">Stored secret configured</span>
           ) : null}
         </label>
         <div className="flex items-end">
@@ -377,6 +382,35 @@ function buildAuthSummary(authMode: RemoteMcpServerFormState['authMode']): strin
     return 'Parameterized mode uses structured path, query, header, and initialize parameters, including secret-backed values.';
   }
   return 'No-auth mode only uses the endpoint URL and any non-secret static parameters you add.';
+}
+
+function buildParameterSectionTitle(authMode: RemoteMcpServerFormState['authMode']): string {
+  return authMode === 'oauth' ? 'Additional connection parameters' : 'Connection parameters';
+}
+
+function buildParameterSectionDescription(authMode: RemoteMcpServerFormState['authMode']): string {
+  if (authMode === 'oauth') {
+    return 'OAuth provides authorization automatically. Use structured path, query, header, or initialize parameters only for additional non-OAuth connection data.';
+  }
+  if (authMode === 'none') {
+    return 'Use structured path, query, header, or initialize parameters for static non-auth connection data.';
+  }
+  return 'Use structured path, query, header, or initialize parameters for connection data, including secret-backed values when needed.';
+}
+
+function normalizeParametersForAuthMode(
+  parameters: RemoteMcpParameterFormState[],
+  authMode: RemoteMcpServerFormState['authMode'],
+): RemoteMcpParameterFormState[] {
+  if (authMode !== 'none') {
+    return parameters;
+  }
+  return parameters.map((parameter) => ({
+    ...parameter,
+    valueKind: 'static',
+    value: parameter.valueKind === 'secret' ? '' : parameter.value,
+    hasStoredSecret: false,
+  }));
 }
 
 function createBlankParameter(): RemoteMcpParameterFormState {
