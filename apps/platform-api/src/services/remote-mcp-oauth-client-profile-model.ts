@@ -21,7 +21,7 @@ export const remoteMcpOAuthClientProfileTokenEndpointAuthMethodSchema = z.enum([
 ]);
 
 export const remoteMcpOAuthClientProfileCreateSchema = z.object({
-  name: z.string().min(1).max(120),
+  name: z.string().trim().min(1, 'OAuth client profile name is required').max(120),
   description: z.string().max(1000).default(''),
   issuer: optionalText,
   authorizationEndpoint: optionalUrl,

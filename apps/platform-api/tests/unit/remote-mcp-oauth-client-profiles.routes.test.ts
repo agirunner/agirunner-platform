@@ -2,6 +2,7 @@ import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { registerErrorHandler } from '../../src/errors/error-handler.js';
+import { RemoteMcpOAuthClientProfileService } from '../../src/services/remote-mcp-oauth-client-profile-service.js';
 
 vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
@@ -95,6 +96,58 @@ describe('remote mcp oauth client profile routes', () => {
 
     expect(response.statusCode).toBe(201);
     expect(app.remoteMcpOAuthClientProfileService.createProfile).toHaveBeenCalledWith('tenant-1', payload);
+  });
+
+  it('returns an explicit name validation message for blank oauth client profile names', async () => {
+    const { remoteMcpOAuthClientProfileRoutes } = await import('../../src/api/routes/remote-mcp-oauth-client-profiles.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate(
+      'remoteMcpOAuthClientProfileService',
+      new RemoteMcpOAuthClientProfileService({
+        query: vi.fn(),
+      } as never),
+    );
+
+    await app.register(remoteMcpOAuthClientProfileRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/remote-mcp-oauth-client-profiles',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        name: '   ',
+        description: '',
+        issuer: 'https://auth.example.test',
+        authorizationEndpoint: 'https://auth.example.test/oauth/authorize',
+        tokenEndpoint: 'https://auth.example.test/oauth/token',
+        callbackMode: 'loopback',
+        tokenEndpointAuthMethod: 'client_secret_post',
+        clientId: 'client-123',
+        clientSecret: 'client-secret',
+        defaultScopes: [],
+        defaultResourceIndicators: [],
+        defaultAudiences: [],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+          message: 'Validation failed',
+          details: expect.objectContaining({
+            issues: expect.objectContaining({
+              fieldErrors: expect.objectContaining({
+                name: ['OAuth client profile name is required'],
+              }),
+            }),
+          }),
+        }),
+      }),
+    );
   });
 
   it('deletes oauth client profiles', async () => {
