@@ -23,7 +23,7 @@ describe('mission control page source', () => {
     expect(source).toContain('Scope');
     expect(source).toContain('Attention');
     expect(source).toContain('Workflow');
-    expect(source).toContain('Tenant canvas');
+    expect(source).toContain('Workflow canvas');
     expect(source).toContain('Selected workflow');
     expect(source).toContain('readMissionControlShellState');
     expect(source).toContain('buildMissionControlShellHref');

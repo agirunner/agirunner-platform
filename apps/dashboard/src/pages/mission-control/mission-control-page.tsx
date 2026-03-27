@@ -1,11 +1,21 @@
 import { useMemo } from 'react';
 import type { ReactNode } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 
+import { SavedViews, type SavedViewFilters } from '../../components/saved-views/saved-views.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
+import {
+  dashboardApi,
+  type DashboardMissionControlLiveSection,
+  type DashboardMissionControlWorkflowCard,
+} from '../../lib/api.js';
+import { MissionControlAttentionRail } from './mission-control-attention-rail.js';
+import { MissionControlHistoryView } from './mission-control-history-view.js';
+import { MissionControlLiveView } from './mission-control-live-view.js';
 import {
   buildMissionControlShellHref,
   buildMissionControlShellSearchParams,
@@ -13,6 +23,13 @@ import {
   type MissionControlMode,
   type MissionControlRail,
 } from './mission-control-page.support.js';
+import { MissionControlRecentView } from './mission-control-recent-view.js';
+import {
+  buildMissionControlHistoryQueryKey,
+  buildMissionControlLiveQueryKey,
+  buildMissionControlRecentQueryKey,
+  useMissionControlRealtime,
+} from './mission-control-realtime.js';
 
 const SAVED_VIEW_OPTIONS = [
   { label: 'All active', value: 'all-active' },
@@ -26,18 +43,76 @@ const SCOPE_OPTIONS = [
 ];
 
 export function MissionControlPage(): JSX.Element {
+  const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const shellState = useMemo(() => readMissionControlShellState(searchParams), [searchParams]);
-  const selectedWorkflowHref = buildMissionControlShellHref({
-    rail: 'workflow',
-    workflowId: shellState.workflowId ?? 'workflow-123',
+  const currentFilters = useMemo<SavedViewFilters>(
+    () => ({
+      mode: shellState.mode,
+      rail: shellState.rail,
+      lens: shellState.lens,
+      view: shellState.savedView,
+      scope: shellState.scope,
+      ...(shellState.workflowId ? { workflow: shellState.workflowId } : {}),
+    }),
+    [shellState],
+  );
+
+  const liveQuery = useQuery({
+    queryKey: buildMissionControlLiveQueryKey({
+      scope: shellState.scope,
+      savedView: shellState.savedView,
+    }),
+    queryFn: () => dashboardApi.getMissionControlLive({ page: 1, perPage: 100 }),
   });
+  const recentQuery = useQuery({
+    queryKey: buildMissionControlRecentQueryKey({
+      scope: shellState.scope,
+      savedView: shellState.savedView,
+    }),
+    queryFn: () => dashboardApi.getMissionControlRecent({ limit: 50 }),
+    enabled: shellState.mode === 'recent',
+  });
+  const historyQuery = useQuery({
+    queryKey: buildMissionControlHistoryQueryKey({
+      scope: shellState.scope,
+      savedView: shellState.savedView,
+      workflowId: shellState.workflowId,
+    }),
+    queryFn: () =>
+      dashboardApi.getMissionControlHistory({
+        workflowId: shellState.workflowId ?? undefined,
+        limit: 100,
+      }),
+    enabled: shellState.mode === 'history',
+  });
+
+  useMissionControlRealtime(queryClient);
+
+  const selectedWorkflow = useMemo(
+    () =>
+      flattenWorkflowSections(liveQuery.data?.sections ?? []).find(
+        (workflow) => workflow.id === shellState.workflowId,
+      ) ?? null,
+    [liveQuery.data?.sections, shellState.workflowId],
+  );
 
   function patchShellState(
     patch: Partial<ReturnType<typeof readMissionControlShellState>>,
   ): void {
     setSearchParams((current) => buildMissionControlShellSearchParams(current, patch), {
       replace: true,
+    });
+  }
+
+  function applySavedFilters(filters: SavedViewFilters): void {
+    patchShellState({
+      mode: filters.mode as MissionControlMode | undefined,
+      rail: filters.rail as MissionControlRail | undefined,
+      lens: filters.lens === 'tasks' ? 'tasks' : 'workflows',
+      savedView: filters.view ?? shellState.savedView,
+      scope: filters.scope ?? shellState.scope,
+      workflowId: filters.workflow ?? null,
     });
   }
 
@@ -49,9 +124,21 @@ export function MissionControlPage(): JSX.Element {
         description="Tenant-wide live operations shell for monitoring workflow posture, reviewing recent changes, and drilling into one workflow without losing the wider operational picture."
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm">
-              Saved view
-            </Button>
+            <SavedViews
+              storageKey="mission-control"
+              currentFilters={currentFilters}
+              onApply={applySavedFilters}
+              onReset={() =>
+                patchShellState({
+                  mode: 'live',
+                  rail: 'attention',
+                  lens: 'workflows',
+                  savedView: 'all-active',
+                  scope: 'entire-tenant',
+                  workflowId: null,
+                })
+              }
+            />
             <Button size="sm">Launch workflow</Button>
           </div>
         }
@@ -101,10 +188,7 @@ export function MissionControlPage(): JSX.Element {
       </section>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
-        <MissionControlSurfaceCard
-          title="Tenant canvas"
-          description="Workflow-first live operations view with posture-grouped sections, output snapshots, and fast-path actions."
-        >
+        <section className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <RailToggle
               isActive={shellState.lens === 'workflows'}
@@ -117,14 +201,31 @@ export function MissionControlPage(): JSX.Element {
               onClick={() => patchShellState({ lens: 'tasks' })}
             />
           </div>
-          <p className="text-sm text-muted-foreground">
-            {shellState.mode === 'live'
-              ? 'Live mode will stream tenant posture, output pulses, and cross-work attention here.'
-              : shellState.mode === 'recent'
-                ? 'Recent mode will switch this surface to review packets and carryover from the latest operating window.'
-                : 'History mode will replace the live canvas with deeper packet history and stronger filtering.'}
-          </p>
-        </MissionControlSurfaceCard>
+          {shellState.mode === 'live' ? (
+            <MissionControlLiveView
+              response={liveQuery.data ?? null}
+              isLoading={liveQuery.isLoading}
+              selectedWorkflowId={shellState.workflowId}
+              lens={shellState.lens}
+              onSelectWorkflow={(workflowId) =>
+                patchShellState({
+                  rail: 'workflow',
+                  workflowId,
+                })
+              }
+            />
+          ) : shellState.mode === 'recent' ? (
+            <MissionControlRecentView
+              response={recentQuery.data ?? null}
+              isLoading={recentQuery.isLoading}
+            />
+          ) : (
+            <MissionControlHistoryView
+              response={historyQuery.data ?? null}
+              isLoading={historyQuery.isLoading}
+            />
+          )}
+        </section>
 
         <MissionControlSurfaceCard
           title={shellState.rail === 'attention' ? 'Attention rail' : 'Selected workflow'}
@@ -146,14 +247,11 @@ export function MissionControlPage(): JSX.Element {
               onClick={() => patchShellState({ rail: 'workflow' as MissionControlRail })}
             />
           </div>
-          <p className="text-sm text-muted-foreground">
-            {shellState.rail === 'attention'
-              ? 'Attention rail keeps Needs Decision, Needs Intervention, and Watchlist visible without leaving the shell.'
-              : `Selected workflow workspace will open here.${shellState.workflowId ? ` Active workflow: ${shellState.workflowId}.` : ''}`}
-          </p>
-          <Link className="text-sm font-medium text-accent hover:underline" to={selectedWorkflowHref}>
-            Open selected workflow
-          </Link>
+          {shellState.rail === 'attention' ? (
+            <MissionControlAttentionRail items={liveQuery.data?.attentionItems ?? []} />
+          ) : (
+            <SelectedWorkflowPreview workflow={selectedWorkflow} />
+          )}
         </MissionControlSurfaceCard>
       </div>
     </div>
@@ -186,4 +284,40 @@ function RailToggle(props: {
       {props.label}
     </Button>
   );
+}
+
+function SelectedWorkflowPreview(props: {
+  workflow: DashboardMissionControlWorkflowCard | null;
+}): JSX.Element {
+  if (!props.workflow) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Select a workflow from the tenant canvas or from a recent/history packet to open it here.
+      </p>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border border-border/60 bg-muted/10 p-3">
+        <p className="text-sm font-medium text-foreground">{props.workflow.name}</p>
+        <p className="mt-1 text-xs text-muted-foreground">{props.workflow.pulse.summary}</p>
+      </div>
+      <Link
+        className="text-sm font-medium text-accent hover:underline"
+        to={buildMissionControlShellHref({
+          rail: 'workflow',
+          workflowId: props.workflow.id,
+        })}
+      >
+        Open selected workflow
+      </Link>
+    </div>
+  );
+}
+
+function flattenWorkflowSections(
+  sections: DashboardMissionControlLiveSection[],
+): DashboardMissionControlWorkflowCard[] {
+  return sections.flatMap((section) => section.workflows);
 }
