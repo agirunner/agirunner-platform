@@ -58,6 +58,8 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('Restore recommended endpoint');
     expect(source).toContain('Recommended operator label for this provider type');
     expect(source).toContain('existingNames={providers.map((provider) => provider.name)}');
+    expect(source).toContain('Use your ChatGPT subscription to access OpenAI models.');
+    expect(source).not.toContain('Use your existing subscription (e.g. ChatGPT Plus/Pro) to access LLM models without separate API billing.');
   });
 
   it('uses a confirmed destructive flow for provider deletion and labeled responsive actions', () => {

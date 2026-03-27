@@ -369,7 +369,7 @@ function ConnectOAuthDialog(): JSX.Element {
           <DialogTitle>Connect Subscription Provider</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted mb-4">
-          Use your existing subscription (e.g. ChatGPT Plus/Pro) to access LLM models without separate API billing.
+          Use your ChatGPT subscription to access OpenAI models.
         </p>
         {profilesQuery.isLoading && (
           <div className="flex justify-center py-6">
