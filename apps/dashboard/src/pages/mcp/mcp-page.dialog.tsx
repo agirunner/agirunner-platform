@@ -38,7 +38,7 @@ export function McpPageDialog(props: {
 }) {
   return (
     <Dialog open={props.open} onOpenChange={(open) => !open && props.onClose()}>
-      <DialogContent className="top-[5vh] flex max-h-[90vh] max-w-[84rem] translate-y-0 flex-col overflow-hidden p-0">
+      <DialogContent className="flex max-h-[90vh] max-w-[84rem] flex-col overflow-hidden p-0">
         <DialogHeader className="border-b border-border/70 px-6 py-5">
           <DialogTitle>
             {props.mode === 'edit' ? `Edit Remote MCP Server: ${props.server?.name ?? ''}` : 'Create Remote MCP Server'}
@@ -359,9 +359,6 @@ function ParameterRow(props: {
                 : 'Enter static value'
             }
           />
-          {props.parameter.valueKind === 'secret' && props.parameter.hasStoredSecret ? (
-            <span className="text-xs whitespace-nowrap text-muted">Stored secret configured</span>
-          ) : null}
         </label>
         <div className="flex items-end">
           <Button type="button" variant="outline" onClick={props.onRemove}>

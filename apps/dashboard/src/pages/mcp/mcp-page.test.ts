@@ -74,6 +74,8 @@ describe('mcp page source', () => {
     const source = readCombinedSource();
 
     expect(source).toContain('max-w-[84rem]');
+    expect(source).not.toContain('top-[5vh]');
+    expect(source).not.toContain('translate-y-0');
     expect(source).toContain('Endpoint URL');
     expect(source).toContain('Authentication');
     expect(source).toContain('Enabled by default for new specialists');
@@ -82,7 +84,7 @@ describe('mcp page source', () => {
     expect(source).toContain('Connection parameters');
     expect(source).toContain('Additional connection parameters');
     expect(source).toContain('Initialize parameter');
-    expect(source).toContain('whitespace-nowrap text-muted');
+    expect(source).not.toContain('Stored secret configured');
     expect(source).toContain('Add parameter');
     expect(source).toContain("authMode !== 'none'");
     expect(source).toContain('normalizeParametersForAuthMode');
