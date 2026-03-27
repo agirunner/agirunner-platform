@@ -89,15 +89,13 @@ export function MissionControlWorkspaceAddWorkDialog(props: {
         priority,
         notes: notes.trim() || undefined,
       });
-      if (structuredInputs || files.length > 0) {
-        await dashboardApi.createWorkflowInputPacket(props.workflowId, {
-          packet_kind: 'supplemental_input',
-          work_item_id: workItem.id,
-          summary: `Mission Control inputs for ${workItem.title}`,
-          structured_inputs: structuredInputs,
-          files: await buildFileUploadPayloads(files),
-        });
-      }
+      await dashboardApi.createWorkflowInputPacket(props.workflowId, {
+        packet_kind: 'supplemental_input',
+        work_item_id: workItem.id,
+        summary: `Mission Control inputs for ${workItem.title}`,
+        structured_inputs: structuredInputs,
+        files: await buildFileUploadPayloads(files),
+      });
       return workItem;
     },
     onSuccess: async () => {
@@ -114,7 +112,7 @@ export function MissionControlWorkspaceAddWorkDialog(props: {
 
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Plus className="h-5 w-5" />

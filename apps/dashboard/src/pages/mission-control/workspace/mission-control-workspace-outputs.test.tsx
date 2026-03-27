@@ -26,6 +26,8 @@ describe('mission control workspace outputs', () => {
     expect(markup).toContain('under review');
     expect(markup).toContain('Preview artifact');
     expect(markup).toContain('/artifacts/artifact-1/preview');
+    expect(markup).toContain('Pull request');
+    expect(markup).toContain('https://example.test/pr');
     expect(markup).toContain('Live output feed');
     expect(markup).toContain('Release brief updated');
   });

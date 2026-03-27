@@ -27,6 +27,31 @@ export function MissionControlWorkspacePane(props: {
   isMobileTakeover?: boolean;
 }): JSX.Element {
   const [tab, setTab] = useState<MissionControlWorkspaceTab>(props.initialTab ?? 'overview');
+  const selectedWorkflowId = props.workflowId ?? 'none';
+  const steeringSessionsQuery = useQuery({
+    queryKey: ['mission-control', 'steering-sessions', selectedWorkflowId],
+    queryFn: () => dashboardApi.listWorkflowSteeringSessions(selectedWorkflowId),
+    enabled: Boolean(props.workflowId),
+  });
+  const activeSessionId = useMemo(
+    () => steeringSessionsQuery.data?.[0]?.id ?? null,
+    [steeringSessionsQuery.data],
+  );
+  const steeringMessagesQuery = useQuery({
+    queryKey: ['mission-control', 'steering-messages', selectedWorkflowId, activeSessionId ?? 'none'],
+    queryFn: () => dashboardApi.listWorkflowSteeringMessages(selectedWorkflowId, activeSessionId as string),
+    enabled: Boolean(props.workflowId && activeSessionId),
+  });
+  const inputPacketsQuery = useQuery({
+    queryKey: ['mission-control', 'input-packets', selectedWorkflowId],
+    queryFn: () => dashboardApi.listWorkflowInputPackets(selectedWorkflowId),
+    enabled: Boolean(props.workflowId),
+  });
+  const interventionsQuery = useQuery({
+    queryKey: ['mission-control', 'interventions', selectedWorkflowId],
+    queryFn: () => dashboardApi.listWorkflowInterventions(selectedWorkflowId),
+    enabled: Boolean(props.workflowId),
+  });
 
   useEffect(() => {
     setTab(props.initialTab ?? 'overview');
@@ -68,27 +93,6 @@ export function MissionControlWorkspacePane(props: {
   const workflow = props.response.workflow;
   const posture = describeMissionControlPosture(workflow.posture);
   const inspectorHref = `/mission-control/workflows/${workflow.id}/inspector`;
-  const steeringSessionsQuery = useQuery({
-    queryKey: ['mission-control', 'steering-sessions', workflow.id],
-    queryFn: () => dashboardApi.listWorkflowSteeringSessions(workflow.id),
-  });
-  const activeSessionId = useMemo(
-    () => steeringSessionsQuery.data?.[0]?.id ?? null,
-    [steeringSessionsQuery.data],
-  );
-  const steeringMessagesQuery = useQuery({
-    queryKey: ['mission-control', 'steering-messages', workflow.id, activeSessionId ?? 'none'],
-    queryFn: () => dashboardApi.listWorkflowSteeringMessages(workflow.id, activeSessionId as string),
-    enabled: Boolean(activeSessionId),
-  });
-  const inputPacketsQuery = useQuery({
-    queryKey: ['mission-control', 'input-packets', workflow.id],
-    queryFn: () => dashboardApi.listWorkflowInputPackets(workflow.id),
-  });
-  const interventionsQuery = useQuery({
-    queryKey: ['mission-control', 'interventions', workflow.id],
-    queryFn: () => dashboardApi.listWorkflowInterventions(workflow.id),
-  });
 
   return (
     <Card className="h-full">

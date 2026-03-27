@@ -115,6 +115,7 @@ function WorkflowCanvasCard(props: {
           </span>
           <Link
             className="text-sm font-medium text-accent hover:underline"
+            aria-label={`Open ${workflow.name} workflow`}
             to={buildMissionControlShellHref({ rail: 'workflow', workflowId: workflow.id })}
             onClick={() => props.onSelectWorkflow(workflow.id)}
           >

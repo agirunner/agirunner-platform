@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
@@ -66,6 +69,15 @@ describe('mission control workspace pane', () => {
     );
 
     expect(markup).toContain('Loading workflow workspace');
+  });
+
+  it('declares query hooks before any loading or unavailable early return blocks', () => {
+    const source = readFileSync(resolve(import.meta.dirname, './mission-control-workspace-pane.tsx'), 'utf8');
+    expect(source.indexOf('const steeringSessionsQuery = useQuery')).toBeLessThan(source.indexOf('if (!props.workflowId)'));
+    expect(source.indexOf('const steeringSessionsQuery = useQuery')).toBeLessThan(source.indexOf('if (props.isLoading)'));
+    expect(source.indexOf('const steeringSessionsQuery = useQuery')).toBeLessThan(
+      source.indexOf('if (!props.response?.workflow || !props.response.overview)'),
+    );
   });
 });
 

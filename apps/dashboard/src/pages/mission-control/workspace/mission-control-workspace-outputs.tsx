@@ -90,7 +90,7 @@ function DeliverableCard(props: {
         {props.deliverable.stageName ? <span>{humanizeToken(props.deliverable.stageName)}</span> : null}
       </div>
       <OutputLocationLine label={primaryLocation.label} href={primaryLocation.href} detail={primaryLocation.detail} />
-      {props.detailMode !== 'summary' && props.deliverable.secondaryLocations.length > 0 ? (
+      {props.deliverable.secondaryLocations.length > 0 ? (
         <div className="grid gap-2">
           {props.deliverable.secondaryLocations.map((location, index) => {
             const secondary = describeOutputLocation(location);

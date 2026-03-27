@@ -3678,7 +3678,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     createWorkflowWorkItem: (workflowId, payload) =>
       withRefresh(() =>
         requestData<DashboardWorkflowWorkItemRecord>(`/api/v1/workflows/${workflowId}/work-items`, {
-          body: payload as Record<string, unknown>,
+          body: buildRequestBodyWithRequestId(payload as Record<string, unknown>),
         }),
       ),
     updateWorkflowWorkItem: (workflowId, workItemId, payload) =>
@@ -3687,7 +3687,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           `/api/v1/workflows/${workflowId}/work-items/${workItemId}`,
           {
             method: 'PATCH',
-            body: payload as Record<string, unknown>,
+            body: buildRequestBodyWithRequestId(payload as Record<string, unknown>),
           },
         ),
       ),

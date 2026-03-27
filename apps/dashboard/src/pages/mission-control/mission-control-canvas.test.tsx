@@ -30,6 +30,7 @@ describe('mission control canvas', () => {
     expect(markup).toContain('2 active tasks');
     expect(markup).toContain('1 open escalation');
     expect(markup).toContain('href="/mission-control?rail=workflow&amp;workflow=workflow-1"');
+    expect(markup).toContain('aria-label="Open Release Readiness workflow"');
     expect(markup).toContain('Current focus');
   });
 });
