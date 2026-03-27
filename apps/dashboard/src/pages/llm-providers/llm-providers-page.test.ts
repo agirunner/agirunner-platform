@@ -21,11 +21,7 @@ import {
   getProviderTypeDefaults,
 } from './llm-providers-page.js';
 
-const dashboardSrc = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '..',
-  '..',
-);
+const dashboardSrc = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function readComponent(relPath: string): string {
   return fs.readFileSync(path.join(dashboardSrc, relPath), 'utf-8');
@@ -47,30 +43,47 @@ describe('LlmProvidersPage renders three sections', () => {
 
   it('renders the Providers section with heading and Add Provider button', () => {
     expect(source).toContain('Models');
-    expect(source).toContain('Manage model providers, the model catalog, and specialist model assignments.');
+    expect(source).toContain(
+      'Manage model providers, the model catalog, and specialist model assignments.',
+    );
     expect(source).not.toContain('<h1 className="text-2xl font-semibold">Routing</h1>');
     expect(source).toContain('Add Provider');
     expect(source).toContain('ProviderCard');
     expect(source).toContain('max-h-[85vh] max-w-2xl overflow-y-auto');
     expect(source).toContain('Choose the provider type first.');
     expect(source).toContain('Provider setup');
-    expect(source).toContain('Selecting a provider type auto-fills the recommended name and base URL.');
+    expect(source).toContain(
+      'Selecting a provider type auto-fills the recommended name and base URL.',
+    );
     expect(source).toContain('Restore recommended endpoint');
     expect(source).toContain('Recommended operator label for this provider type');
     expect(source).toContain('existingNames={providers.map((provider) => provider.name)}');
-    expect(source).toContain('Use your existing subscription (e.g. ChatGPT Plus/Pro) to access LLM models without separate API billing.');
+    expect(source).toContain(
+      'Use your existing subscription',
+    );
+    expect(source).toContain('ChatGPT Plus/Pro');
+    expect(source).toContain('separate API billing.');
     expect(source).not.toContain('Use your ChatGPT subscription to access OpenAI models.');
   });
 
   it('keeps oauth disconnect as a no-content-safe action and explains disconnected impact clearly', () => {
     const apiSource = readComponent('lib/api.ts');
 
-    expect(apiSource).toContain("requestJson(`/api/v1/config/oauth/providers/${providerId}/disconnect`, {");
-    expect(apiSource).toContain("allowNoContent: true");
-    expect(source).toContain('OAuth disconnected. Models and specialist assignments stay configured, but this provider cannot serve requests until it is reconnected.');
-    expect(source).toContain('Models and specialist assignments stay configured, but this provider cannot serve requests until OAuth is reconnected.');
+    expect(apiSource).toContain(
+      'requestJson(`/api/v1/config/oauth/providers/${providerId}/disconnect`, {',
+    );
+    expect(apiSource).toContain('allowNoContent: true');
+    expect(source).toContain(
+      'OAuth disconnected. Models and specialist assignments stay configured, but this provider cannot serve',
+    );
+    expect(source).toContain(
+      'Models and specialist assignments stay configured, but this provider cannot serve requests',
+    );
+    expect(source).toContain('until OAuth is reconnected.');
     expect(source).toContain('window.location.assign(result.authorizeUrl)');
-    expect(source).not.toContain("window.open(result.authorizeUrl, '_blank', 'noopener,noreferrer')");
+    expect(source).not.toContain(
+      "window.open(result.authorizeUrl, '_blank', 'noopener,noreferrer')",
+    );
   });
 
   it('uses a confirmed destructive flow for provider deletion and labeled responsive actions', () => {
@@ -80,7 +93,8 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('variant="destructive"');
     expect(source).toContain('requestProviderDelete');
     expect(source).toContain('sm:flex-row sm:flex-wrap sm:justify-end');
-    expect(source).toContain("Deleting this provider removes its {modelCount} discovered {modelCount === 1 ? 'model' : 'models'} from the catalog and clears any saved model assignments that point at them.");
+    expect(source).toContain('Deleting this provider removes its {modelCount} discovered');
+    expect(source).toContain('clears any saved model');
     expect(source).not.toContain('onDelete={(id) => deleteMutation.mutate(id)}');
   });
 
@@ -90,8 +104,12 @@ describe('LlmProvidersPage renders three sections', () => {
   });
 
   it('uses elevated provider surfaces so cards stay legible in dark theme', () => {
-    expect(source).toContain("const ELEVATED_SURFACE_CLASS_NAME = 'border-border/80 bg-surface shadow-sm';");
-    expect(source).toContain("const SUBDUED_SURFACE_CLASS_NAME = 'rounded-xl border border-border/70 bg-surface p-4 shadow-sm';");
+    expect(source).toContain(
+      "const ELEVATED_SURFACE_CLASS_NAME = 'border-border/80 bg-surface shadow-sm';",
+    );
+    expect(source).toContain(
+      "const SUBDUED_SURFACE_CLASS_NAME = 'rounded-xl border border-border/70 bg-surface p-4 shadow-sm';",
+    );
     expect(source).not.toContain('bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/80');
     expect(source).not.toContain('bg-white/95 p-4 dark:border-slate-800 dark:bg-slate-900/80');
   });
@@ -117,7 +135,9 @@ describe('LlmProvidersPage renders three sections', () => {
 
   it('renders the Model Assignments section', () => {
     expect(source).toContain('Model Assignments');
-    expect(source).toContain('Specialists may inherit this model when they do not need an explicit override.');
+    expect(source).toContain(
+      'Specialists may inherit this model when they do not need an explicit override.',
+    );
     expect(source).toContain('RoleAssignmentsSection');
     expect(source).toContain('SubsectionPanel');
     expect(source).toContain('<SubsectionPanel');
@@ -125,7 +145,9 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('paginateListItems');
     expect(source).toContain('ListPagination');
     expect(source).toContain('const [page, setPage] = useState(1);');
-    expect(source).toContain('const [pageSize, setPageSize] = useState<number>(DEFAULT_LIST_PAGE_SIZE);');
+    expect(source).toContain(
+      'const [pageSize, setPageSize] = useState<number>(DEFAULT_LIST_PAGE_SIZE);',
+    );
     expect(source).toContain('const pagination = paginateListItems(roleRows, page, pageSize);');
     expect(source).toContain('listRoleDefinitions');
     expect(source).toContain('buildAssignmentRoleRows');
@@ -133,16 +155,22 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('summarizeAssignmentSurface');
     expect(source).toContain('Orchestrator and specialist agent model overrides');
     expect(source).not.toContain('1 orchestrator');
-    expect(source).toContain('Add a shared default or choose explicit models for the affected roles below.');
+    expect(source).toContain(
+      'Add a shared default or choose explicit models for the affected roles below.',
+    );
     expect(source).not.toContain('Affected roles');
     expect(source).not.toContain('assignmentValidation.missingRoleNames.map((roleName) => (');
-    expect(source).not.toContain('No system default is configured. Assign explicit models below or restore a default model before saving.');
+    expect(source).not.toContain(
+      'No system default is configured. Assign explicit models below or restore a default model before saving.',
+    );
     expect(source).not.toContain('Select a model for this role or restore a system default.');
     expect(source).not.toContain('Needs model source');
     expect(source).toContain('Assignment coverage needs attention');
     expect(source).toContain('Assignments are blocked');
     expect(source).toContain('Unsaved assignment changes');
-    expect(source).toContain('Review the updated default and role overrides, then save when ready.');
+    expect(source).toContain(
+      'Review the updated default and role overrides, then save when ready.',
+    );
     expect(source).toContain('const shouldShowAssignmentGuidance =');
     expect(source).toContain('assignmentValidation.blockingIssues.length > 0 || hasUnsavedChanges');
     expect(source).not.toContain('Assignments are ready to save');
@@ -160,40 +188,65 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('hidden md:block');
     expect(source).toContain('Provider Selection');
     expect(source).toContain('Status');
-    expect(source).toContain('Use the shared system default unless the orchestrator or a specific role needs a');
+    expect(source).toContain(
+      'Use the shared system default unless the orchestrator or a specific role needs a',
+    );
     expect(source).toContain('renderOverridesSummaryChip(');
-    expect(source).toContain("aria-expanded={isOverridesExpanded}");
-    expect(source).toContain("Show overrides");
-    expect(source).toContain("Hide overrides");
+    expect(source).toContain('aria-expanded={isOverridesExpanded}');
+    expect(source).toContain('Show overrides');
+    expect(source).toContain('Hide overrides');
     expect(source).toContain('title="System Default"');
     expect(source).toContain('title="Orchestrator and specialist agent model overrides"');
     expect(source).not.toContain('<DashboardSectionCard\n        title="System Default"');
     expect(source).not.toContain('title="Override Matrix"');
     expect(source).not.toContain('className="space-y-4 border-t px-4 py-4"');
-    expect(source).toContain("() => explicitOverrideCount > 0");
+    expect(source).toContain(
+      'const [isOverridesExpanded, setIsOverridesExpanded] = useState(false);',
+    );
+    expect(source).not.toContain('() => explicitOverrideCount > 0');
     expect(source).toContain('pagination.items.map((role) => {');
     expect(source).toContain('itemLabel="overrides"');
     expect(source).toContain('onPageChange={setPage}');
     expect(source).toContain('setPageSize(value);');
     expect(source).toContain('setPage(1);');
-    expect(source).toContain('disabled={saveMutation.isPending || !assignmentValidation.isValid || !hasUnsavedChanges}');
+    expect(source).toContain(
+      'disabled={saveMutation.isPending || !assignmentValidation.isValid || !hasUnsavedChanges}',
+    );
     expect(source).not.toContain('const ROLE_NAMES');
+  });
+
+  it('places the assignment summary cards between Subscription Models and Model Assignments', () => {
+    const pageSource = readComponent('pages/llm-providers/llm-providers-page.tsx');
+
+    expect(pageSource).toContain('<AssignmentSummaryCards cards={assignmentSurfaceCards} />');
+    expect(pageSource.indexOf('title="Subscription Models"')).toBeLessThan(
+      pageSource.indexOf('<AssignmentSummaryCards cards={assignmentSurfaceCards} />'),
+    );
+    expect(
+      pageSource.indexOf('<AssignmentSummaryCards cards={assignmentSurfaceCards} />'),
+    ).toBeLessThan(pageSource.indexOf('<RoleAssignmentsSection'));
   });
 
   it('uses a truncated description column in the desktop assignment table for scanability', () => {
     expect(source).toContain('const TABLE_ROLE_DESCRIPTION_LIMIT = 56;');
-    expect(source).toContain('function summarizeRoleDescription(role: AssignmentRoleRow): string {');
+    expect(source).toContain(
+      'function summarizeRoleDescription(role: AssignmentRoleRow): string {',
+    );
     expect(source).toContain('function truncateRoleDescription(description: string): string {');
     expect(source).toContain('function summarizeStaleRoleBadgeLabel(input: {');
     expect(source).toContain('<TableHead className="w-1/5">Description</TableHead>');
     expect(source).toContain('<TableCell className="align-middle text-sm text-foreground">');
-    expect(source).toContain('<span className="block truncate" title={summarizeRoleDescription(role)}>');
+    expect(source).toContain(
+      '<span className="block truncate" title={summarizeRoleDescription(role)}>',
+    );
   });
 
   it('does not frame inactive roles as cleanup debt in the summary surfaces', () => {
-    expect(source).toContain("const staleRoleCount = missingAssignmentCount;");
-    expect(source).toContain("return `${input.missingAssignmentCount} missing assignment${input.missingAssignmentCount === 1 ? '' : 's'}`;");
-    expect(source).not.toContain("inactive role still need cleanup");
+    expect(source).toContain('const staleRoleCount = missingAssignmentCount;');
+    expect(source).toContain(
+      "return `${input.missingAssignmentCount} missing assignment${input.missingAssignmentCount === 1 ? '' : 's'}`;",
+    );
+    expect(source).not.toContain('inactive role still need cleanup');
   });
 
   it('renders desktop assignment rows as role, description, status, provider selection, and reasoning columns', () => {
@@ -201,14 +254,20 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('<TableHead className="w-1/5">Role</TableHead>');
     expect(source).toContain('<TableHead className="w-1/5">Description</TableHead>');
     expect(source).toContain('<TableHead className="w-1/5 text-center">Status</TableHead>');
-    expect(source).toContain('<TableHead className="w-1/5 text-center">Provider Selection</TableHead>');
+    expect(source).toContain(
+      '<TableHead className="w-1/5 text-center">Provider Selection</TableHead>',
+    );
     expect(source).toContain('<TableHead className="w-1/5 text-center">Reasoning</TableHead>');
     expect(source).toContain('<TableRow key={role.name} className="align-middle [&>td]:py-4">');
-    expect(source).toContain('<TableCell className="align-middle text-sm font-medium whitespace-nowrap">');
+    expect(source).toContain(
+      '<TableCell className="align-middle text-sm font-medium whitespace-nowrap">',
+    );
     expect(source).toContain('<TableCell className="align-middle whitespace-nowrap">');
     expect(source).toContain('<div className="flex justify-center">');
     expect(source).toContain("const selectClassName = 'h-11 w-full max-w-[180px]';");
-    expect(source).toContain("? 'h-11 w-full max-w-[260px] border-red-300 focus-visible:ring-red-500'");
+    expect(source).toContain(
+      "? 'h-11 w-full max-w-[260px] border-red-300 focus-visible:ring-red-500'",
+    );
     expect(source).toContain("? 'h-11 w-full max-w-[260px]'");
     expect(source).toContain('className="h-11 w-[120px]"');
   });
@@ -220,10 +279,16 @@ describe('LlmProvidersPage renders three sections', () => {
   });
 
   it('uses neutral alert surfaces for provider validation feedback', () => {
-    expect(source).toContain('const DIALOG_ALERT_CLASS_NAME = \'rounded-xl border px-4 py-3 text-sm shadow-sm\';');
-    expect(source).toContain('backgroundColor: \'color-mix(in srgb, var(--color-surface) 90%, var(--color-warning) 10%)\'');
-    expect(source).toContain('backgroundColor: \'color-mix(in srgb, var(--color-surface) 90%, var(--color-destructive) 10%)\'');
-    expect(source).toContain('const FIELD_ERROR_CLASS_NAME = \'text-xs font-medium\';');
+    expect(source).toContain(
+      "const DIALOG_ALERT_CLASS_NAME = 'rounded-xl border px-4 py-3 text-sm shadow-sm';",
+    );
+    expect(source).toContain(
+      "backgroundColor: 'color-mix(in srgb, var(--color-surface) 90%, var(--color-warning) 10%)'",
+    );
+    expect(source).toContain(
+      "backgroundColor: 'color-mix(in srgb, var(--color-surface) 90%, var(--color-destructive) 10%)'",
+    );
+    expect(source).toContain("const FIELD_ERROR_CLASS_NAME = 'text-xs font-medium';");
     expect(source).not.toContain('dark:text-red-300');
     expect(source).not.toContain('dark:bg-slate-950/80');
   });
@@ -247,9 +312,7 @@ describe('getProviderTypeDefaults auto-fill mapping', () => {
   it('returns correct defaults for google', () => {
     const defaults = getProviderTypeDefaults('google');
     expect(defaults.name).toBe('Google');
-    expect(defaults.baseUrl).toBe(
-      'https://generativelanguage.googleapis.com/v1beta',
-    );
+    expect(defaults.baseUrl).toBe('https://generativelanguage.googleapis.com/v1beta');
   });
 });
 

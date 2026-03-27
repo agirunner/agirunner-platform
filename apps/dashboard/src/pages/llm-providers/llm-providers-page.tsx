@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -26,12 +26,7 @@ import { DashboardPageHeader } from '../../components/layout/dashboard-page-head
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Input } from '../../components/ui/input.js';
-import {
-  Card,
-  CardHeader,
-  CardTitle,
-  CardContent,
-} from '../../components/ui/card.js';
+import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card.js';
 import {
   Dialog,
   DialogContent,
@@ -56,6 +51,7 @@ import {
 } from '../../components/ui/table.js';
 import { Switch } from '../../components/ui/switch.js';
 import {
+  type AssignmentSurfaceSummaryCard,
   describeProviderTypeSetup,
   summarizeAssignmentSurface,
   validateAssignmentSetup,
@@ -170,12 +166,9 @@ const INSET_PANEL_CLASS_NAME = 'rounded-xl border border-border/70 bg-background
 const DIALOG_ALERT_CLASS_NAME = 'rounded-xl border px-4 py-3 text-sm shadow-sm';
 const FIELD_ERROR_CLASS_NAME = 'text-xs font-medium';
 const OVERRIDES_CHIP_CLASS_NAME = DASHBOARD_BADGE_BASE_CLASS_NAME;
-const OVERRIDES_NEUTRAL_CHIP_CLASS_NAME =
-  DASHBOARD_BADGE_TOKENS.informationPrimary.className;
-const OVERRIDES_WARNING_CHIP_CLASS_NAME =
-  DASHBOARD_BADGE_TOKENS.warning.className;
-const DELETE_ACTION_CLASS_NAME =
-  'text-destructive hover:bg-destructive/10 hover:text-destructive';
+const OVERRIDES_NEUTRAL_CHIP_CLASS_NAME = DASHBOARD_BADGE_TOKENS.informationPrimary.className;
+const OVERRIDES_WARNING_CHIP_CLASS_NAME = DASHBOARD_BADGE_TOKENS.warning.className;
+const DELETE_ACTION_CLASS_NAME = 'text-destructive hover:bg-destructive/10 hover:text-destructive';
 const SUCCESS_PANEL_STYLE = {
   borderColor: 'color-mix(in srgb, var(--color-success) 38%, var(--color-border))',
   backgroundColor: 'color-mix(in srgb, var(--color-surface) 90%, var(--color-success) 10%)',
@@ -217,11 +210,27 @@ function renderOverridesSummaryChip(
   tone: 'neutral' | 'warning' = 'neutral',
 ): JSX.Element {
   const toneClassName =
-    tone === 'warning'
-      ? OVERRIDES_WARNING_CHIP_CLASS_NAME
-      : OVERRIDES_NEUTRAL_CHIP_CLASS_NAME;
+    tone === 'warning' ? OVERRIDES_WARNING_CHIP_CLASS_NAME : OVERRIDES_NEUTRAL_CHIP_CLASS_NAME;
 
   return <span className={cn(OVERRIDES_CHIP_CLASS_NAME, toneClassName)}>{label}</span>;
+}
+
+function AssignmentSummaryCards(props: { cards: AssignmentSurfaceSummaryCard[] }): JSX.Element {
+  return (
+    <div className="grid gap-3 md:grid-cols-3">
+      {props.cards.map((card) => (
+        <Card key={card.label} className={ELEVATED_SURFACE_CLASS_NAME}>
+          <CardHeader className="space-y-1 pb-3">
+            <p className="text-sm font-medium text-muted">{card.label}</p>
+            <CardTitle className="text-xl">{card.value}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm leading-6 text-muted">{card.detail}</p>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
 }
 
 function SubsectionPanel(props: {
@@ -268,7 +277,9 @@ export function reasoningLabel(config?: ReasoningConfigSchema | null): string {
   return `${config.type} (${config.default})`;
 }
 
-export function reasoningBadgeVariant(config?: ReasoningConfigSchema | null): 'secondary' | 'default' | 'warning' {
+export function reasoningBadgeVariant(
+  config?: ReasoningConfigSchema | null,
+): 'secondary' | 'default' | 'warning' {
   if (!config) return 'secondary';
   return 'default';
 }
@@ -369,7 +380,8 @@ function ConnectOAuthDialog(): JSX.Element {
           <DialogTitle>Connect Subscription Provider</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted mb-4">
-          Use your existing subscription (e.g. ChatGPT Plus/Pro) to access LLM models without separate API billing.
+          Use your existing subscription (e.g. ChatGPT Plus/Pro) to access LLM models without
+          separate API billing.
         </p>
         {profilesQuery.isLoading && (
           <div className="flex justify-center py-6">
@@ -383,12 +395,17 @@ function ConnectOAuthDialog(): JSX.Element {
         )}
         <div className="space-y-3">
           {profiles.map((profile) => (
-            <Card key={profile.profileId} className="cursor-pointer hover:border-primary transition-colors">
+            <Card
+              key={profile.profileId}
+              className="cursor-pointer hover:border-primary transition-colors"
+            >
               <CardContent className="flex items-center justify-between py-4">
                 <div>
                   <p className="font-medium">{profile.displayName}</p>
                   <p className="text-sm text-muted">{profile.description}</p>
-                  <Badge variant="outline" className="mt-1">{profile.costModel === 'subscription' ? 'Subscription' : 'Pay-per-token'}</Badge>
+                  <Badge variant="outline" className="mt-1">
+                    {profile.costModel === 'subscription' ? 'Subscription' : 'Pay-per-token'}
+                  </Badge>
                 </div>
                 <Button
                   size="sm"
@@ -437,7 +454,9 @@ function OAuthProviderCard({
     mutationFn: () => dashboardApi.disconnectOAuthProvider(provider.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['oauth-status', provider.id] });
-      toast.success('OAuth disconnected. Models and specialist assignments stay configured, but this provider cannot serve requests until it is reconnected.');
+      toast.success(
+        'OAuth disconnected. Models and specialist assignments stay configured, but this provider cannot serve requests until it is reconnected.',
+      );
     },
     onError: (error) => {
       toast.error(`Failed to disconnect: ${String(error)}`);
@@ -466,7 +485,9 @@ function OAuthProviderCard({
             <Badge variant="outline">oauth</Badge>
             {status?.connected && <Badge variant="default">Connected</Badge>}
             {status?.needsReauth && <Badge variant="destructive">Needs Reconnect</Badge>}
-            {status && !status.connected && !status.needsReauth && <Badge variant="secondary">Disconnected</Badge>}
+            {status && !status.connected && !status.needsReauth && (
+              <Badge variant="secondary">Disconnected</Badge>
+            )}
           </div>
         </div>
       </CardHeader>
@@ -495,7 +516,8 @@ function OAuthProviderCard({
         </dl>
         {!status?.connected ? (
           <p className="mt-4 text-sm text-muted">
-            Models and specialist assignments stay configured, but this provider cannot serve requests until OAuth is reconnected.
+            Models and specialist assignments stay configured, but this provider cannot serve
+            requests until OAuth is reconnected.
           </p>
         ) : null}
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
@@ -559,9 +581,7 @@ function OAuthProviderCard({
 
 /* ─── Add Provider Dialog ───────────────────────────────────────────────── */
 
-function AddProviderDialog(props: {
-  existingNames: string[];
-}): JSX.Element {
+function AddProviderDialog(props: { existingNames: string[] }): JSX.Element {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [form, setForm] = useState<AddProviderDraft>(INITIAL_FORM);
@@ -570,11 +590,9 @@ function AddProviderDialog(props: {
   });
   const providerSetup = describeProviderTypeSetup(form.providerType);
   const providerDefaults = getProviderTypeDefaults(form.providerType);
-  const canResetRecommendedEndpoint =
-    form.baseUrl.trim() !== providerDefaults.baseUrl.trim();
+  const canResetRecommendedEndpoint = form.baseUrl.trim() !== providerDefaults.baseUrl.trim();
   const showsRecommendedName =
-    providerDefaults.name.trim().length > 0
-    && form.name.trim() !== providerDefaults.name.trim();
+    providerDefaults.name.trim().length > 0 && form.name.trim() !== providerDefaults.name.trim();
 
   function handleProviderTypeChange(providerType: ProviderType) {
     const defaults = PROVIDER_TYPE_DEFAULTS[providerType];
@@ -627,7 +645,8 @@ function AddProviderDialog(props: {
         <DialogHeader>
           <DialogTitle>Add LLM Provider</DialogTitle>
           <DialogDescription>
-            Choose the provider type first. The dialog pre-fills the supported endpoint and shows what still needs operator input.
+            Choose the provider type first. The dialog pre-fills the supported endpoint and shows
+            what still needs operator input.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -665,7 +684,9 @@ function AddProviderDialog(props: {
                 ))}
               </ul>
             ) : (
-              <p className="mt-3 text-sm text-muted">This provider is ready to save with the current settings.</p>
+              <p className="mt-3 text-sm text-muted">
+                This provider is ready to save with the current settings.
+              </p>
             )}
           </section>
 
@@ -699,7 +720,9 @@ function AddProviderDialog(props: {
                 <SelectItem value="openai">OpenAI</SelectItem>
                 <SelectItem value="anthropic">Anthropic</SelectItem>
                 <SelectItem value="google">Google</SelectItem>
-                <SelectItem value="openai-compatible">OpenAI-Compatible (Ollama, vLLM, etc.)</SelectItem>
+                <SelectItem value="openai-compatible">
+                  OpenAI-Compatible (Ollama, vLLM, etc.)
+                </SelectItem>
               </SelectContent>
             </Select>
             <p className="text-xs text-muted">
@@ -711,35 +734,50 @@ function AddProviderDialog(props: {
             <Input
               placeholder="My Provider"
               value={form.name}
-              className={validation.fieldErrors.name ? 'border-red-300 focus-visible:ring-red-500' : undefined}
-              aria-invalid={validation.fieldErrors.name ? true : undefined}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, name: e.target.value }))
+              className={
+                validation.fieldErrors.name
+                  ? 'border-red-300 focus-visible:ring-red-500'
+                  : undefined
               }
+              aria-invalid={validation.fieldErrors.name ? true : undefined}
+              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
             />
             {validation.fieldErrors.name ? (
-              <p className={FIELD_ERROR_CLASS_NAME} style={ERROR_TEXT_STYLE}>{validation.fieldErrors.name}</p>
+              <p className={FIELD_ERROR_CLASS_NAME} style={ERROR_TEXT_STYLE}>
+                {validation.fieldErrors.name}
+              </p>
             ) : showsRecommendedName ? (
               <p className="text-xs text-muted">
                 Recommended operator label for this provider type: {providerDefaults.name}
               </p>
             ) : (
-              <p className="text-xs text-muted">Use a short operator-facing label that will still make sense in assignment and fleet views.</p>
+              <p className="text-xs text-muted">
+                Use a short operator-facing label that will still make sense in assignment and fleet
+                views.
+              </p>
             )}
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Base URL</label>
             <Input
-              placeholder={form.providerType === 'openai-compatible' ? 'http://localhost:11434/v1' : 'https://api.openai.com/v1'}
-              value={form.baseUrl}
-              className={validation.fieldErrors.baseUrl ? 'border-red-300 focus-visible:ring-red-500' : undefined}
-              aria-invalid={validation.fieldErrors.baseUrl ? true : undefined}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, baseUrl: e.target.value }))
+              placeholder={
+                form.providerType === 'openai-compatible'
+                  ? 'http://localhost:11434/v1'
+                  : 'https://api.openai.com/v1'
               }
+              value={form.baseUrl}
+              className={
+                validation.fieldErrors.baseUrl
+                  ? 'border-red-300 focus-visible:ring-red-500'
+                  : undefined
+              }
+              aria-invalid={validation.fieldErrors.baseUrl ? true : undefined}
+              onChange={(e) => setForm((prev) => ({ ...prev, baseUrl: e.target.value }))}
             />
             {validation.fieldErrors.baseUrl ? (
-              <p className={FIELD_ERROR_CLASS_NAME} style={ERROR_TEXT_STYLE}>{validation.fieldErrors.baseUrl}</p>
+              <p className={FIELD_ERROR_CLASS_NAME} style={ERROR_TEXT_STYLE}>
+                {validation.fieldErrors.baseUrl}
+              </p>
             ) : (
               <p className="text-xs text-muted">
                 {form.providerType === 'openai-compatible'
@@ -757,18 +795,28 @@ function AddProviderDialog(props: {
             </label>
             <Input
               type="password"
-              placeholder={form.providerType === 'openai-compatible' ? 'Set API key (optional)' : 'Paste API key'}
-              value={form.apiKey}
-              className={validation.fieldErrors.apiKey ? 'border-red-300 focus-visible:ring-red-500' : undefined}
-              aria-invalid={validation.fieldErrors.apiKey ? true : undefined}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, apiKey: e.target.value }))
+              placeholder={
+                form.providerType === 'openai-compatible'
+                  ? 'Set API key (optional)'
+                  : 'Paste API key'
               }
+              value={form.apiKey}
+              className={
+                validation.fieldErrors.apiKey
+                  ? 'border-red-300 focus-visible:ring-red-500'
+                  : undefined
+              }
+              aria-invalid={validation.fieldErrors.apiKey ? true : undefined}
+              onChange={(e) => setForm((prev) => ({ ...prev, apiKey: e.target.value }))}
             />
             {validation.fieldErrors.apiKey ? (
-              <p className={FIELD_ERROR_CLASS_NAME} style={ERROR_TEXT_STYLE}>{validation.fieldErrors.apiKey}</p>
+              <p className={FIELD_ERROR_CLASS_NAME} style={ERROR_TEXT_STYLE}>
+                {validation.fieldErrors.apiKey}
+              </p>
             ) : (
-              <p className="text-xs text-muted">Stored write-only. Existing keys are never shown again.</p>
+              <p className="text-xs text-muted">
+                Stored write-only. Existing keys are never shown again.
+              </p>
             )}
           </div>
           {mutation.error && (
@@ -777,17 +825,11 @@ function AddProviderDialog(props: {
             </p>
           )}
           <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => handleOpenChange(false)}
-            >
+            <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={mutation.isPending || !validation.isValid}>
-              {mutation.isPending && (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              )}
+              {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               Add Provider
             </Button>
           </div>
@@ -832,16 +874,12 @@ function ProviderCard({
           {provider.base_url && (
             <div className="flex items-center gap-2">
               <Globe className="h-3.5 w-3.5 text-muted" />
-              <span className="text-muted font-mono text-xs truncate">
-                {provider.base_url}
-              </span>
+              <span className="text-muted font-mono text-xs truncate">{provider.base_url}</span>
             </div>
           )}
           <div className="flex items-center justify-between">
             <span className="text-muted">Models</span>
-            <span className="font-medium">
-              {modelCount}
-            </span>
+            <span className="font-medium">{modelCount}</span>
           </div>
         </dl>
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
@@ -895,7 +933,7 @@ function DeleteProviderDialog(props: {
             This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
-      <div className={SUBDUED_SURFACE_CLASS_NAME}>
+        <div className={SUBDUED_SURFACE_CLASS_NAME}>
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-sm font-semibold text-foreground">{provider.name}</p>
@@ -910,7 +948,9 @@ function DeleteProviderDialog(props: {
           </div>
           <div className="rounded-lg border border-border/60 bg-background/80 px-3 py-3">
             <p className="text-sm text-foreground">
-              Deleting this provider removes its {modelCount} discovered {modelCount === 1 ? 'model' : 'models'} from the catalog and clears any saved model assignments that point at them.
+              Deleting this provider removes its {modelCount} discovered{' '}
+              {modelCount === 1 ? 'model' : 'models'} from the catalog and clears any saved model
+              assignments that point at them.
             </p>
           </div>
         </div>
@@ -929,7 +969,11 @@ function DeleteProviderDialog(props: {
             onClick={props.onConfirm}
             disabled={props.isDeleting}
           >
-            {props.isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            {props.isDeleting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Trash2 className="h-4 w-4" />
+            )}
             Delete Provider
           </Button>
         </div>
@@ -990,7 +1034,9 @@ function ReasoningControl({
         <SelectContent>
           <SelectItem value="__default__">Default ({String(schema.default)})</SelectItem>
           {schema.options.map((opt) => (
-            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+            <SelectItem key={opt} value={opt}>
+              {opt}
+            </SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -1063,12 +1109,17 @@ function ModelReasoningSelect({
           <SelectItem value="__none__">None (use system default)</SelectItem>
           {enabledModels.map((m) => (
             <SelectItem key={m.id} value={m.id}>
-              {m.model_id}{m.provider_name ? ` (${m.provider_name})` : ''}
+              {m.model_id}
+              {m.provider_name ? ` (${m.provider_name})` : ''}
             </SelectItem>
           ))}
         </SelectContent>
       </Select>
-      {modelError ? <p className={FIELD_ERROR_CLASS_NAME} style={ERROR_TEXT_STYLE}>{modelError}</p> : null}
+      {modelError ? (
+        <p className={FIELD_ERROR_CLASS_NAME} style={ERROR_TEXT_STYLE}>
+          {modelError}
+        </p>
+      ) : null}
     </div>
   );
   const reasoningField = (
@@ -1135,19 +1186,52 @@ function truncateRoleDescription(description: string): string {
   return `${description.slice(0, TABLE_ROLE_DESCRIPTION_LIMIT - 1).trimEnd()}…`;
 }
 
-function normalizeReasoningConfig(
-  value: Record<string, unknown> | null | undefined,
-): string {
+function normalizeReasoningConfig(value: Record<string, unknown> | null | undefined): string {
   return JSON.stringify(value ?? null);
 }
 
-function summarizeStaleRoleBadgeLabel(input: {
-  missingAssignmentCount: number;
-}): string {
+function summarizeStaleRoleBadgeLabel(input: { missingAssignmentCount: number }): string {
   if (input.missingAssignmentCount > 0) {
     return `${input.missingAssignmentCount} missing assignment${input.missingAssignmentCount === 1 ? '' : 's'}`;
   }
   return '';
+}
+
+function buildAssignmentSummaryCards(input: {
+  enabledModels: LlmModel[];
+  assignments: RoleAssignment[];
+  roleDefinitions: RoleDefinitionSummary[];
+  systemDefault: SystemDefault;
+}): AssignmentSurfaceSummaryCard[] {
+  const roleRows = buildAssignmentRoleRows(input.roleDefinitions, input.assignments);
+  const missingAssignmentCount = roleRows.filter((role) => role.source === 'assignment').length;
+  const inactiveRoleCount = roleRows.filter(
+    (role) => role.source === 'catalog' && role.isActive === false,
+  ).length;
+  const explicitOverrideCount = roleRows.filter((role) => {
+    const assignment = input.assignments.find((entry) => entry.role_name === role.name);
+    return assignment?.primary_model_id != null || assignment?.reasoning_config != null;
+  }).length;
+  const assignmentValidation = validateAssignmentSetup({
+    defaultModelId: input.systemDefault.modelId ?? '__none__',
+    roleAssignments: roleRows.map((role) => ({
+      roleName: role.name,
+      modelId:
+        input.assignments.find((entry) => entry.role_name === role.name)?.primary_model_id ??
+        '__none__',
+    })),
+  });
+
+  return summarizeAssignmentSurface({
+    enabledModelCount: input.enabledModels.length,
+    defaultModelConfigured: input.systemDefault.modelId != null,
+    roleCount: roleRows.length,
+    explicitOverrideCount,
+    staleRoleCount: missingAssignmentCount,
+    inactiveRoleCount,
+    missingAssignmentCount,
+    blockingIssues: assignmentValidation.blockingIssues,
+  }).cards;
 }
 
 function RoleAssignmentsSection({
@@ -1155,11 +1239,13 @@ function RoleAssignmentsSection({
   assignments,
   roleDefinitions,
   systemDefault,
+  onSummaryCardsChange,
 }: {
   enabledModels: LlmModel[];
   assignments: RoleAssignment[];
   roleDefinitions: RoleDefinitionSummary[];
   systemDefault: SystemDefault;
+  onSummaryCardsChange(cards: AssignmentSurfaceSummaryCard[]): void;
 }): JSX.Element {
   const queryClient = useQueryClient();
   const roleRows = buildAssignmentRoleRows(roleDefinitions, assignments);
@@ -1253,9 +1339,7 @@ function RoleAssignmentsSection({
     const state = roleStates[role.name];
     return (state?.modelId ?? '__none__') !== '__none__' || state?.reasoningConfig != null;
   }).length;
-  const [isOverridesExpanded, setIsOverridesExpanded] = useState(
-    () => explicitOverrideCount > 0,
-  );
+  const [isOverridesExpanded, setIsOverridesExpanded] = useState(false);
 
   const assignmentSurface = summarizeAssignmentSurface({
     enabledModelCount: enabledModels.length,
@@ -1271,7 +1355,10 @@ function RoleAssignmentsSection({
     if (defaultModelId !== (systemDefault.modelId ?? '__none__')) {
       return true;
     }
-    if (normalizeReasoningConfig(defaultReasoning) !== normalizeReasoningConfig(systemDefault.reasoningConfig)) {
+    if (
+      normalizeReasoningConfig(defaultReasoning) !==
+      normalizeReasoningConfig(systemDefault.reasoningConfig)
+    ) {
       return true;
     }
 
@@ -1281,8 +1368,9 @@ function RoleAssignmentsSection({
       const persistedModelId = assignment?.primary_model_id ?? '__none__';
       const persistedReasoning = assignment?.reasoning_config ?? null;
       return (
-        currentState.modelId !== persistedModelId
-        || normalizeReasoningConfig(currentState.reasoningConfig) !== normalizeReasoningConfig(persistedReasoning)
+        currentState.modelId !== persistedModelId ||
+        normalizeReasoningConfig(currentState.reasoningConfig) !==
+          normalizeReasoningConfig(persistedReasoning)
       );
     });
   })();
@@ -1298,6 +1386,11 @@ function RoleAssignmentsSection({
             detail: 'Review the updated default and role overrides, then save when ready.',
           }
         : null;
+  const assignmentSummarySnapshot = JSON.stringify(assignmentSurface.cards);
+
+  useEffect(() => {
+    onSummaryCardsChange(assignmentSurface.cards);
+  }, [assignmentSummarySnapshot, onSummaryCardsChange]);
 
   return (
     <DashboardSectionCard
@@ -1306,26 +1399,8 @@ function RoleAssignmentsSection({
       description="Set the shared system default, review assignment coverage, and override the orchestrator or specialist roles only where needed."
       bodyClassName="space-y-6"
     >
-      <div className="grid gap-3 md:grid-cols-3">
-        {assignmentSurface.cards.map((card) => (
-          <Card key={card.label} className={ELEVATED_SURFACE_CLASS_NAME}>
-            <CardHeader className="space-y-1 pb-3">
-              <p className="text-sm font-medium text-muted">{card.label}</p>
-              <CardTitle className="text-xl">{card.value}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm leading-6 text-muted">{card.detail}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
       {shouldShowAssignmentGuidance && assignmentGuidance ? (
-        <div
-          className={
-            DIALOG_ALERT_CLASS_NAME
-          }
-          style={panelToneStyle(assignmentGuidance.tone)}
-        >
+        <div className={DIALOG_ALERT_CLASS_NAME} style={panelToneStyle(assignmentGuidance.tone)}>
           <div className="font-medium">{assignmentGuidance.headline}</div>
           <p className="mt-1">{assignmentGuidance.detail}</p>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -1345,7 +1420,13 @@ function RoleAssignmentsSection({
         contentClassName="space-y-3"
       >
         <div className="flex items-center gap-4">
-          <Select value={defaultModelId} onValueChange={(v) => { setDefaultModelId(v); setDefaultReasoning(null); }}>
+          <Select
+            value={defaultModelId}
+            onValueChange={(v) => {
+              setDefaultModelId(v);
+              setDefaultReasoning(null);
+            }}
+          >
             <SelectTrigger
               className={
                 assignmentValidation.blockingIssues.length > 0
@@ -1359,7 +1440,8 @@ function RoleAssignmentsSection({
               <SelectItem value="__none__">None</SelectItem>
               {enabledModels.map((m) => (
                 <SelectItem key={m.id} value={m.id}>
-                  {m.model_id}{m.provider_name ? ` (${m.provider_name})` : ''}
+                  {m.model_id}
+                  {m.provider_name ? ` (${m.provider_name})` : ''}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1404,14 +1486,14 @@ function RoleAssignmentsSection({
         <div className="flex flex-wrap items-center gap-2">
           {renderOverridesSummaryChip(`${activeRoleCount} active roles`)}
           {renderOverridesSummaryChip(`${explicitOverrideCount} explicit overrides`)}
-          {staleRoleCount > 0 ? (
-            renderOverridesSummaryChip(
-              summarizeStaleRoleBadgeLabel({
-                missingAssignmentCount,
-              }),
-              'warning',
-            )
-          ) : null}
+          {staleRoleCount > 0
+            ? renderOverridesSummaryChip(
+                summarizeStaleRoleBadgeLabel({
+                  missingAssignmentCount,
+                }),
+                'warning',
+              )
+            : null}
         </div>
         {isOverridesExpanded ? (
           <div className="space-y-4 border-t border-border/70 pt-4">
@@ -1445,7 +1527,9 @@ function RoleAssignmentsSection({
                         reasoningConfig={s.reasoningConfig}
                         enabledModels={enabledModels}
                         modelError={undefined}
-                        onModelChange={(id) => updateRole(role.name, { modelId: id, reasoningConfig: null })}
+                        onModelChange={(id) =>
+                          updateRole(role.name, { modelId: id, reasoningConfig: null })
+                        }
                         onReasoningChange={(cfg) => updateRole(role.name, { reasoningConfig: cfg })}
                       />
                     </CardContent>
@@ -1467,7 +1551,10 @@ function RoleAssignmentsSection({
                   </TableHeader>
                   <TableBody>
                     {pagination.items.map((role) => {
-                      const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
+                      const s = roleStates[role.name] ?? {
+                        modelId: '__none__',
+                        reasoningConfig: null,
+                      };
                       const description = truncateRoleDescription(summarizeRoleDescription(role));
                       return (
                         <TableRow key={role.name} className="align-middle [&>td]:py-4">
@@ -1480,17 +1567,19 @@ function RoleAssignmentsSection({
                             </span>
                           </TableCell>
                           <TableCell className="align-middle whitespace-nowrap">
-                            <div className="flex justify-center">
-                              {renderRoleStatusBadge(role)}
-                            </div>
+                            <div className="flex justify-center">{renderRoleStatusBadge(role)}</div>
                           </TableCell>
                           <ModelReasoningSelect
                             modelId={s.modelId}
                             reasoningConfig={s.reasoningConfig}
                             enabledModels={enabledModels}
                             modelError={undefined}
-                            onModelChange={(id) => updateRole(role.name, { modelId: id, reasoningConfig: null })}
-                            onReasoningChange={(cfg) => updateRole(role.name, { reasoningConfig: cfg })}
+                            onModelChange={(id) =>
+                              updateRole(role.name, { modelId: id, reasoningConfig: null })
+                            }
+                            onReasoningChange={(cfg) =>
+                              updateRole(role.name, { reasoningConfig: cfg })
+                            }
                           />
                         </TableRow>
                       );
@@ -1585,7 +1674,10 @@ function ModelCatalog({
     });
   }
 
-  function renderProviderGroup(providerId: string, group: { providerName: string; authMode: string; models: LlmModel[] }) {
+  function renderProviderGroup(
+    providerId: string,
+    group: { providerName: string; authMode: string; models: LlmModel[] },
+  ) {
     const isExpanded = expandedProviders.has(providerId);
     const enabledCount = group.models.filter((m) => m.is_enabled !== false).length;
     return (
@@ -1596,7 +1688,9 @@ function ModelCatalog({
         contentClassName="space-y-0"
         headerAction={
           <div className="flex items-center gap-2">
-            <Badge variant="outline">{enabledCount}/{group.models.length} enabled</Badge>
+            <Badge variant="outline">
+              {enabledCount}/{group.models.length} enabled
+            </Badge>
             <Button
               type="button"
               variant="outline"
@@ -1626,33 +1720,27 @@ function ModelCatalog({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {[...group.models].sort((a, b) => {
-                  const ae = a.is_enabled !== false ? 0 : 1;
-                  const be = b.is_enabled !== false ? 0 : 1;
-                  return ae - be;
-                }).map((model) => (
-                  <TableRow key={model.id ?? model.model_id}>
-                    <TableCell className="font-mono text-sm">
-                      {model.model_id}
-                    </TableCell>
-                    <TableCell>
-                      {formatContextWindow(model.context_window)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {model.endpoint_type ?? '-'}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={model.is_enabled !== false}
-                        onCheckedChange={(checked) =>
-                          onToggleEnabled(model.id, checked)
-                        }
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {[...group.models]
+                  .sort((a, b) => {
+                    const ae = a.is_enabled !== false ? 0 : 1;
+                    const be = b.is_enabled !== false ? 0 : 1;
+                    return ae - be;
+                  })
+                  .map((model) => (
+                    <TableRow key={model.id ?? model.model_id}>
+                      <TableCell className="font-mono text-sm">{model.model_id}</TableCell>
+                      <TableCell>{formatContextWindow(model.context_window)}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{model.endpoint_type ?? '-'}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={model.is_enabled !== false}
+                          onCheckedChange={(checked) => onToggleEnabled(model.id, checked)}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
               </TableBody>
             </Table>
           </div>
@@ -1799,10 +1887,11 @@ export function LlmProvidersPage(): JSX.Element {
     discoverMutation.mutate(providerId);
   }
 
-  const isLoading = providersQuery.isLoading
-    || modelsQuery.isLoading
-    || assignmentsQuery.isLoading
-    || roleDefinitionsQuery.isLoading;
+  const isLoading =
+    providersQuery.isLoading ||
+    modelsQuery.isLoading ||
+    assignmentsQuery.isLoading ||
+    roleDefinitionsQuery.isLoading;
 
   if (isLoading) {
     return (
@@ -1812,18 +1901,24 @@ export function LlmProvidersPage(): JSX.Element {
     );
   }
 
-  const hasError = providersQuery.error
-    || modelsQuery.error
-    || assignmentsQuery.error
-    || roleDefinitionsQuery.error;
+  const hasError =
+    providersQuery.error ||
+    modelsQuery.error ||
+    assignmentsQuery.error ||
+    roleDefinitionsQuery.error;
   if (hasError) {
     return (
-        <div className="p-6">
-          <div className={DIALOG_ALERT_CLASS_NAME} style={ERROR_PANEL_STYLE}>
-            Failed to load LLM configuration:{' '}
-            {String(providersQuery.error ?? modelsQuery.error ?? assignmentsQuery.error ?? roleDefinitionsQuery.error)}
-          </div>
+      <div className="p-6">
+        <div className={DIALOG_ALERT_CLASS_NAME} style={ERROR_PANEL_STYLE}>
+          Failed to load LLM configuration:{' '}
+          {String(
+            providersQuery.error ??
+              modelsQuery.error ??
+              assignmentsQuery.error ??
+              roleDefinitionsQuery.error,
+          )}
         </div>
+      </div>
     );
   }
 
@@ -1832,6 +1927,24 @@ export function LlmProvidersPage(): JSX.Element {
   const assignments = Array.isArray(assignmentsQuery.data) ? assignmentsQuery.data : [];
   const roleDefinitions = Array.isArray(roleDefinitionsQuery.data) ? roleDefinitionsQuery.data : [];
   const enabledModels = models.filter((m) => m.is_enabled !== false);
+  const systemDefault = systemDefaultQuery.data ?? { modelId: null, reasoningConfig: null };
+  const initialAssignmentSummaryCards = useMemo(
+    () =>
+      buildAssignmentSummaryCards({
+        enabledModels,
+        assignments,
+        roleDefinitions,
+        systemDefault,
+      }),
+    [enabledModels, assignments, roleDefinitions, systemDefault],
+  );
+  const [assignmentSurfaceCards, setAssignmentSurfaceCards] = useState<
+    AssignmentSurfaceSummaryCard[]
+  >(initialAssignmentSummaryCards);
+
+  useEffect(() => {
+    setAssignmentSurfaceCards(initialAssignmentSummaryCards);
+  }, [initialAssignmentSummaryCards]);
 
   function requestProviderDelete(providerId: string) {
     const provider = providers.find((entry) => entry.id === providerId);
@@ -1867,9 +1980,7 @@ export function LlmProvidersPage(): JSX.Element {
           <div className="flex flex-col items-center justify-center py-12 text-muted">
             <BrainCog className="mb-4 h-12 w-12" />
             <p className="font-medium">No providers configured</p>
-            <p className="mt-1 text-sm">
-              Add an LLM provider to get started.
-            </p>
+            <p className="mt-1 text-sm">Add an LLM provider to get started.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -1901,16 +2012,17 @@ export function LlmProvidersPage(): JSX.Element {
       <ModelCatalog
         models={models}
         providers={providers}
-        onToggleEnabled={(modelId, isEnabled) =>
-          toggleModelEnabled.mutate({ modelId, isEnabled })
-        }
+        onToggleEnabled={(modelId, isEnabled) => toggleModelEnabled.mutate({ modelId, isEnabled })}
       />
+
+      <AssignmentSummaryCards cards={assignmentSurfaceCards} />
 
       <RoleAssignmentsSection
         enabledModels={enabledModels}
         assignments={assignments}
         roleDefinitions={roleDefinitions}
-        systemDefault={systemDefaultQuery.data ?? { modelId: null, reasoningConfig: null }}
+        systemDefault={systemDefault}
+        onSummaryCardsChange={setAssignmentSurfaceCards}
       />
 
       <DeleteProviderDialog
