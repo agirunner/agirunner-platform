@@ -51,10 +51,10 @@ describe('specialist skill routes', () => {
     registerErrorHandler(app);
     app.decorate('specialistSkillService', {
       listSkills,
-      getSkillById: vi.fn(),
+      getSkill: vi.fn(),
       createSkill: vi.fn(),
       updateSkill: vi.fn(),
-      setArchived: vi.fn(),
+      deleteSkill: vi.fn(),
     });
 
     await app.register(specialistSkillRoutes);
@@ -69,7 +69,7 @@ describe('specialist skill routes', () => {
     expect(listSkills).toHaveBeenCalledWith('tenant-1');
   });
 
-  it('creates and archives specialist skills', async () => {
+  it('creates and deletes specialist skills', async () => {
     const { specialistSkillRoutes } = await import(
       '../../src/api/routes/specialist-skills.routes.js'
     );
@@ -81,23 +81,16 @@ describe('specialist skill routes', () => {
       content: 'Always begin with a plan.',
       is_archived: false,
     }));
-    const setArchived = vi.fn(async () => ({
-      id: 'skill-1',
-      name: 'Structured Search',
-      slug: 'structured-search',
-      summary: 'Search deliberately.',
-      content: 'Always begin with a plan.',
-      is_archived: true,
-    }));
+    const deleteSkill = vi.fn(async () => {});
 
     app = fastify();
     registerErrorHandler(app);
     app.decorate('specialistSkillService', {
       listSkills: vi.fn(),
-      getSkillById: vi.fn(),
+      getSkill: vi.fn(),
       createSkill,
       updateSkill: vi.fn(),
-      setArchived,
+      deleteSkill,
     });
 
     await app.register(specialistSkillRoutes);
@@ -119,12 +112,12 @@ describe('specialist skill routes', () => {
       content: 'Always begin with a plan.',
     });
 
-    const archiveResponse = await app.inject({
-      method: 'POST',
-      url: '/api/v1/specialist-skills/skill-1/archive',
+    const deleteResponse = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/specialist-skills/skill-1',
       headers: { authorization: 'Bearer test' },
     });
-    expect(archiveResponse.statusCode).toBe(200);
-    expect(setArchived).toHaveBeenCalledWith('tenant-1', 'skill-1', true);
+    expect(deleteResponse.statusCode).toBe(204);
+    expect(deleteSkill).toHaveBeenCalledWith('tenant-1', 'skill-1');
   });
 });

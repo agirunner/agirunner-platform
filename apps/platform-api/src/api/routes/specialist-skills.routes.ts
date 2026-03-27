@@ -57,6 +57,17 @@ export const specialistSkillRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  app.delete(
+    '/api/v1/specialist-skills/:id',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      await app.specialistSkillService.deleteSkill(request.auth!.tenantId, params.id);
+      reply.status(204);
+      return null;
+    },
+  );
+
   app.post(
     '/api/v1/specialist-skills/:id/archive',
     { preHandler: [authenticateApiKey, withScope('admin')] },

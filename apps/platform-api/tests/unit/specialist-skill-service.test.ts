@@ -65,25 +65,15 @@ describe('SpecialistSkillService', () => {
     expect(pool.query.mock.calls[1]?.[1]).toContain('git-triage');
   });
 
-  it('archives and unarchives skills', async () => {
+  it('deletes a skill after confirming it exists', async () => {
     pool.query
       .mockResolvedValueOnce({ rows: [buildSkillRow()], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [{ id: SKILL_ID }], rowCount: 1 })
-      .mockResolvedValueOnce({
-        rows: [buildSkillRow({ is_archived: true })],
-        rowCount: 1,
-      })
-      .mockResolvedValueOnce({ rows: [buildSkillRow({ is_archived: true })], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [{ id: SKILL_ID }], rowCount: 1 })
-      .mockResolvedValueOnce({
-        rows: [buildSkillRow({ is_archived: false })],
-        rowCount: 1,
-      });
+      .mockResolvedValueOnce({ rows: [{ id: SKILL_ID }], rowCount: 1 });
 
-    const archived = await service.setArchived(TENANT_ID, SKILL_ID, true);
-    const restored = await service.setArchived(TENANT_ID, SKILL_ID, false);
+    await service.deleteSkill(TENANT_ID, SKILL_ID);
 
-    expect(archived.is_archived).toBe(true);
-    expect(restored.is_archived).toBe(false);
+    expect(pool.query).toHaveBeenCalledTimes(2);
+    expect(pool.query.mock.calls[1]?.[0]).toContain('DELETE FROM specialist_skills');
+    expect(pool.query.mock.calls[1]?.[1]).toEqual([TENANT_ID, SKILL_ID]);
   });
 });

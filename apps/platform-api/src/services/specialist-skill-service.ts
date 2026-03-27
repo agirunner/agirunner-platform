@@ -130,6 +130,20 @@ export class SpecialistSkillService {
     return this.getSkill(tenantId, id);
   }
 
+  async deleteSkill(tenantId: string, id: string): Promise<void> {
+    await this.getSkill(tenantId, id);
+    const result = await this.pool.query(
+      `DELETE FROM specialist_skills
+        WHERE tenant_id = $1
+          AND id = $2
+        RETURNING id`,
+      [tenantId, id],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError('Specialist skill not found');
+    }
+  }
+
   private async assertUniqueSlug(tenantId: string, slug: string, currentId?: string): Promise<void> {
     const result = await this.pool.query<{ id: string }>(
       `SELECT id
