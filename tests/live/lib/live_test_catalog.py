@@ -40,6 +40,7 @@ EXPECTED_SCENARIOS = {
     "publishing-approval-before-assessment",
     "remote-mcp-exa-search",
     "remote-mcp-github-token-read",
+    "remote-mcp-oauth-client-credentials",
     "remote-mcp-tavily-research",
     "remote-mcp-tavily-search",
     "requirements-human-review-approve",
@@ -167,6 +168,10 @@ REQUIRED_COVERAGE = {
         "remote_mcp_search",
         "remote_mcp_research",
         "remote_mcp_repository_read",
+    },
+    "remote_mcp_auth": {
+        "parameterized_secret",
+        "oauth_client_credentials",
     },
 }
 

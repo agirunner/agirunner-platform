@@ -74,6 +74,9 @@
     ],
     "specialist_capabilities": [
       "remote_mcp_research"
+    ],
+    "remote_mcp_auth": [
+      "parameterized_secret"
     ]
   }
 }

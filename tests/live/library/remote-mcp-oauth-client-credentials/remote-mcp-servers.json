@@ -1,0 +1,22 @@
+[
+  {
+    "name": "OAuth Client Credentials MCP",
+    "description": "Deterministic live-test remote MCP server protected by OAuth client credentials.",
+    "endpointUrl": "http://live-test-remote-mcp-fixture:18080/mcp/client-credentials",
+    "callTimeoutSeconds": 300,
+    "authMode": "oauth",
+    "enabledByDefaultForNewSpecialists": false,
+    "grantToAllExistingSpecialists": false,
+    "oauthDefinition": {
+      "grantType": "client_credentials",
+      "clientStrategy": "manual_client",
+      "clientId": "live-test-client",
+      "clientSecret": "live-test-secret",
+      "tokenEndpointAuthMethod": "client_secret_post",
+      "scopes": [
+        "fixture.search.read"
+      ]
+    },
+    "parameters": []
+  }
+]

@@ -1,0 +1,63 @@
+{
+  "name": "Remote MCP OAuth Client Credentials",
+  "slug": "live-test-remote-mcp-oauth-client-credentials-v1",
+  "description": "Single-stage workflow that proves a specialist can use an OAuth client-credentials remote MCP server.",
+  "outcome": "A single specialist retrieves the deterministic reference answer through an OAuth-backed remote MCP server and publishes proof.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "Run the workflow through the authored stage `oauth-search`. Treat that stage as the only workflow checkpoint: `oauth-search` exists to prove that a specialist can use a granted OAuth-backed remote MCP server and still close the workflow cleanly. Use this role deliberately: `oauth-search-specialist` owns the entire work item. The orchestrator only needs to route that specialist, then close the work when the specialist has produced the artifact and a structured handoff.\nHappy path: dispatch `oauth-search-specialist`, require the specialist to use the granted OAuth-backed remote MCP tools, write `deliverables/oauth-search-proof.md`, upload it as an artifact, and submit one structured handoff that repeats the final answer. The answer line MUST read `Answer: Victoria` and the proof MUST include one `Source:` line.\nIf the specialist cannot reach the OAuth-backed remote MCP server, cannot complete token-backed discovery, or tries to bypass the remote MCP capability, require a corrective retry or escalate with a precise reason. Do not silently substitute another tool path, do not invent reviews or approvals, and do not close the workflow without proof that a remote MCP tool was actually used. Do not keep the workflow open for non-blocking formatting noise once the remote MCP result and artifact exist; record that as a callout instead.\nCompletion rules: finish only after `oauth-search-specialist` has produced the artifact, repeated the answer in the final handoff, and left a usable source line. Guided closure rule: treat the authored flow as best-intent process guidance. Preferred use of the granted remote MCP server must be followed, but the orchestrator may waive a weaker preferred detail with a recorded reason when the legal OAuth-backed answer already exists. Smaller deviations must be recorded as callouts instead of preventing closure.",
+    "parameters": [
+      {
+        "slug": "goal",
+        "title": "Goal",
+        "required": true
+      }
+    ],
+    "roles": [
+      "oauth-search-specialist"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "oauth-search",
+        "goal": "A deterministic OAuth-backed remote MCP answer is delivered with proof.",
+        "involves": [
+          "oauth-search-specialist"
+        ]
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 2,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    }
+  }
+}

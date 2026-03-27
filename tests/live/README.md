@@ -69,6 +69,10 @@ cp tests/live/env/local.env.example tests/live/env/local.env
 
 `tests/live/env/local.env` is the source of truth for live-test config.
 
+OAuth MUST be the default live-test path.
+Provider and auth configuration MUST stay externalized.
+The same scenario corpus MUST run against any supported provider/auth combination.
+
 Minimum required values:
 
 - `DEFAULT_ADMIN_API_KEY`

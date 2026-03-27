@@ -201,6 +201,7 @@ class SpecialistCapabilityFixturesTests(unittest.TestCase):
                     "slug": "tavily-search",
                     "auth_mode": "parameterized",
                     "verified_transport": "streamable_http",
+                    "oauth_connected": False,
                     "discovered_tool_names": ["search"],
                 }
             ],

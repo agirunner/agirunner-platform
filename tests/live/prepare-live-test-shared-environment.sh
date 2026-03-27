@@ -17,11 +17,13 @@ LIVE_TEST_TRACE_DIR="${LIVE_TEST_TRACE_DIR:-${LIVE_TEST_BOOTSTRAP_DIR}/api-trace
 LIVE_TEST_PLATFORM_ROOT="${LIVE_TEST_PLATFORM_ROOT:-${REPO_ROOT}}"
 LIVE_TEST_COMPOSE_FILE="${LIVE_TEST_COMPOSE_FILE:-${LIVE_TEST_PLATFORM_ROOT}/docker-compose.yml}"
 LIVE_TEST_COMPOSE_PROJECT_NAME="${LIVE_TEST_COMPOSE_PROJECT_NAME:-agirunner-platform}"
+LIVE_TEST_COMPOSE_PROFILES="${LIVE_TEST_COMPOSE_PROFILES:-live-test}"
 LIVE_TEST_LIBRARY_ROOT="${LIVE_TEST_LIBRARY_ROOT:-${LIVE_TEST_ROOT}/library}"
 LIVE_TEST_DEFAULT_BRANCH="${LIVE_TEST_DEFAULT_BRANCH:-main}"
 RUNTIME_REPO_PATH="${RUNTIME_REPO_PATH:-${REPO_ROOT}/../agirunner-runtime}"
 FIXTURES_REPO_PATH="${FIXTURES_REPO_PATH:-${REPO_ROOT}/../agirunner-test-fixtures}"
 RUNTIME_IMAGE="${RUNTIME_IMAGE:-agirunner-runtime:local}"
+LIVE_TEST_REMOTE_MCP_FIXTURE_PORT="${LIVE_TEST_REMOTE_MCP_FIXTURE_PORT:-18080}"
 LIVE_TEST_PROVIDER_AUTH_MODE="${LIVE_TEST_PROVIDER_AUTH_MODE:-oauth}"
 LIVE_TEST_PROVIDER_TYPE="${LIVE_TEST_PROVIDER_TYPE:-openai}"
 LIVE_TEST_PROVIDER_NAME="${LIVE_TEST_PROVIDER_NAME:-OpenAI (Subscription)}"
@@ -86,6 +88,7 @@ log_live_test "rebuilding standard docker compose stack"
 (
   cd "${LIVE_TEST_PLATFORM_ROOT}"
   export COMPOSE_PROJECT_NAME="${LIVE_TEST_COMPOSE_PROJECT_NAME}"
+  export COMPOSE_PROFILES="${LIVE_TEST_COMPOSE_PROFILES}"
   export DEFAULT_ADMIN_API_KEY JWT_SECRET WEBHOOK_ENCRYPTION_KEY
   docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" -f "${LIVE_TEST_COMPOSE_FILE}" down -v --remove-orphans
   wait_for_live_test_compose_project_down "${LIVE_TEST_COMPOSE_PROJECT_NAME}"
@@ -94,6 +97,7 @@ log_live_test "rebuilding standard docker compose stack"
 
 export PLATFORM_API_BASE_URL="${PLATFORM_API_BASE_URL:-http://127.0.0.1:${PLATFORM_API_PORT:-8080}}"
 wait_for_live_test_http "${PLATFORM_API_BASE_URL}/health" "platform api health"
+wait_for_live_test_http "http://127.0.0.1:${LIVE_TEST_REMOTE_MCP_FIXTURE_PORT}/health" "remote mcp fixture health"
 verify_live_test_stack_secrets
 
 log_live_test "seeding shared platform state through API"
