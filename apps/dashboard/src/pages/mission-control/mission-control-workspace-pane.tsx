@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 
 import { Badge } from '../../components/ui/badge.js';
@@ -13,8 +14,10 @@ import { MissionControlWorkspaceBoard } from './workspace/mission-control-worksp
 import { MissionControlWorkspaceHistory } from './workspace/mission-control-workspace-history.js';
 import { MissionControlWorkspaceOverview } from './workspace/mission-control-workspace-overview.js';
 import { MissionControlWorkspaceOutputs } from './workspace/mission-control-workspace-outputs.js';
+import { MissionControlWorkspaceSteering } from './workspace/mission-control-workspace-steering.js';
+import { dashboardApi } from '../../lib/api.js';
 
-type MissionControlWorkspaceTab = 'overview' | 'board' | 'outputs' | 'history';
+type MissionControlWorkspaceTab = 'overview' | 'board' | 'outputs' | 'steering' | 'history';
 
 export function MissionControlWorkspacePane(props: {
   workflowId: string | null;
@@ -65,6 +68,27 @@ export function MissionControlWorkspacePane(props: {
   const workflow = props.response.workflow;
   const posture = describeMissionControlPosture(workflow.posture);
   const inspectorHref = `/mission-control/workflows/${workflow.id}/inspector`;
+  const steeringSessionsQuery = useQuery({
+    queryKey: ['mission-control', 'steering-sessions', workflow.id],
+    queryFn: () => dashboardApi.listWorkflowSteeringSessions(workflow.id),
+  });
+  const activeSessionId = useMemo(
+    () => steeringSessionsQuery.data?.[0]?.id ?? null,
+    [steeringSessionsQuery.data],
+  );
+  const steeringMessagesQuery = useQuery({
+    queryKey: ['mission-control', 'steering-messages', workflow.id, activeSessionId ?? 'none'],
+    queryFn: () => dashboardApi.listWorkflowSteeringMessages(workflow.id, activeSessionId as string),
+    enabled: Boolean(activeSessionId),
+  });
+  const inputPacketsQuery = useQuery({
+    queryKey: ['mission-control', 'input-packets', workflow.id],
+    queryFn: () => dashboardApi.listWorkflowInputPackets(workflow.id),
+  });
+  const interventionsQuery = useQuery({
+    queryKey: ['mission-control', 'interventions', workflow.id],
+    queryFn: () => dashboardApi.listWorkflowInterventions(workflow.id),
+  });
 
   return (
     <Card className="h-full">
@@ -116,6 +140,7 @@ export function MissionControlWorkspacePane(props: {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="board">Board</TabsTrigger>
             <TabsTrigger value="outputs">Outputs</TabsTrigger>
+            <TabsTrigger value="steering">Steering</TabsTrigger>
             <TabsTrigger value="history">History</TabsTrigger>
           </TabsList>
           <TabsContent value="overview">
@@ -128,6 +153,21 @@ export function MissionControlWorkspacePane(props: {
             <MissionControlWorkspaceOutputs
               deliverables={props.response.outputs.deliverables}
               feed={props.response.outputs.feed}
+            />
+          </TabsContent>
+          <TabsContent value="steering">
+            <MissionControlWorkspaceSteering
+              workflowId={workflow.id}
+              workflowName={workflow.name}
+              workflowState={workflow.state}
+              workspaceId={workflow.workspaceId}
+              board={props.response.board}
+              activeSessionId={activeSessionId}
+              availableActions={props.response.steering.availableActions}
+              interventionPackets={props.response.steering.interventionHistory}
+              inputPackets={inputPacketsQuery.data ?? []}
+              interventions={interventionsQuery.data ?? []}
+              steeringMessages={steeringMessagesQuery.data ?? []}
             />
           </TabsContent>
           <TabsContent value="history">

@@ -503,6 +503,142 @@ export interface DashboardMissionControlWorkspaceResponse {
   };
 }
 
+export interface DashboardWorkflowOperatorFileUploadInput {
+  description?: string;
+  file_name: string;
+  content_base64: string;
+  content_type?: string;
+}
+
+export interface DashboardWorkflowInputPacketFileRecord {
+  id: string;
+  file_name: string;
+  description: string | null;
+  content_type: string;
+  size_bytes: number;
+  created_at: string;
+  download_url: string;
+}
+
+export interface DashboardWorkflowInputPacketRecord {
+  id: string;
+  workflow_id: string;
+  work_item_id: string | null;
+  packet_kind: string;
+  source: string;
+  summary: string | null;
+  structured_inputs: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  created_by_type: string;
+  created_by_id: string;
+  created_at: string;
+  updated_at: string;
+  files: DashboardWorkflowInputPacketFileRecord[];
+}
+
+export interface DashboardWorkflowInputPacketCreateInput {
+  packet_kind: string;
+  source?: string;
+  summary?: string;
+  structured_inputs?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  work_item_id?: string;
+  files?: DashboardWorkflowOperatorFileUploadInput[];
+}
+
+export interface DashboardWorkflowInterventionFileRecord {
+  id: string;
+  file_name: string;
+  description: string | null;
+  content_type: string;
+  size_bytes: number;
+  created_at: string;
+  download_url: string;
+}
+
+export interface DashboardWorkflowInterventionRecord {
+  id: string;
+  workflow_id: string;
+  work_item_id: string | null;
+  task_id: string | null;
+  kind: string;
+  origin: string;
+  status: string;
+  summary: string;
+  note: string | null;
+  structured_action: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  created_by_type: string;
+  created_by_id: string;
+  created_at: string;
+  updated_at: string;
+  files: DashboardWorkflowInterventionFileRecord[];
+}
+
+export interface DashboardWorkflowInterventionCreateInput {
+  kind: string;
+  origin?: string;
+  status?: string;
+  summary: string;
+  note?: string;
+  structured_action?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  work_item_id?: string;
+  task_id?: string;
+  files?: DashboardWorkflowOperatorFileUploadInput[];
+}
+
+export interface DashboardWorkflowSteeringSessionRecord {
+  id: string;
+  workflow_id: string;
+  title: string | null;
+  status: string;
+  created_by_type: string;
+  created_by_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DashboardWorkflowSteeringSessionCreateInput {
+  title?: string;
+}
+
+export interface DashboardWorkflowSteeringMessageRecord {
+  id: string;
+  workflow_id: string;
+  steering_session_id: string;
+  role: string;
+  content: string;
+  structured_proposal: Record<string, unknown>;
+  intervention_id: string | null;
+  created_by_type: string;
+  created_by_id: string;
+  created_at: string;
+}
+
+export interface DashboardWorkflowSteeringMessageCreateInput {
+  content: string;
+  structured_proposal?: Record<string, unknown>;
+  intervention_id?: string;
+}
+
+export interface DashboardWorkflowRedriveInput {
+  request_id: string;
+  name?: string;
+  summary?: string;
+  steering_instruction?: string;
+  parameters?: Record<string, string>;
+  structured_inputs?: Record<string, unknown>;
+  files?: DashboardWorkflowOperatorFileUploadInput[];
+}
+
+export interface DashboardWorkflowRedriveResult {
+  source_workflow_id: string;
+  attempt_number: number;
+  workflow: DashboardWorkflowRecord;
+  input_packet: DashboardWorkflowInputPacketRecord | null;
+}
+
 export interface DashboardLlmProviderRecord {
   id: string;
   name: string;
@@ -2241,6 +2377,34 @@ export interface DashboardApi {
       outputLimit?: number;
     },
   ): Promise<DashboardMissionControlWorkspaceResponse>;
+  listWorkflowInputPackets(workflowId: string): Promise<DashboardWorkflowInputPacketRecord[]>;
+  createWorkflowInputPacket(
+    workflowId: string,
+    payload: DashboardWorkflowInputPacketCreateInput,
+  ): Promise<DashboardWorkflowInputPacketRecord>;
+  listWorkflowInterventions(workflowId: string): Promise<DashboardWorkflowInterventionRecord[]>;
+  createWorkflowIntervention(
+    workflowId: string,
+    payload: DashboardWorkflowInterventionCreateInput,
+  ): Promise<DashboardWorkflowInterventionRecord>;
+  listWorkflowSteeringSessions(workflowId: string): Promise<DashboardWorkflowSteeringSessionRecord[]>;
+  createWorkflowSteeringSession(
+    workflowId: string,
+    payload?: DashboardWorkflowSteeringSessionCreateInput,
+  ): Promise<DashboardWorkflowSteeringSessionRecord>;
+  listWorkflowSteeringMessages(
+    workflowId: string,
+    sessionId: string,
+  ): Promise<DashboardWorkflowSteeringMessageRecord[]>;
+  appendWorkflowSteeringMessage(
+    workflowId: string,
+    sessionId: string,
+    payload: DashboardWorkflowSteeringMessageCreateInput,
+  ): Promise<DashboardWorkflowSteeringMessageRecord>;
+  redriveWorkflow(
+    workflowId: string,
+    payload: DashboardWorkflowRedriveInput,
+  ): Promise<DashboardWorkflowRedriveResult>;
   getWorkflowBudget(workflowId: string): Promise<DashboardWorkflowBudgetRecord>;
   getWorkflowModelOverrides(workflowId: string): Promise<DashboardWorkflowModelOverridesResponse>;
   getResolvedWorkflowModels(
@@ -3011,7 +3175,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           `/api/v1/workspaces/${workspaceId}/verify-git-access`,
           {
             method: 'POST',
-            body: payload as Record<string, unknown>,
+            body: payload as unknown as Record<string, unknown>,
           },
         ),
       ),
@@ -3194,6 +3358,84 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           })}`,
           {
             method: 'GET',
+          },
+        ),
+      ),
+    listWorkflowInputPackets: (workflowId) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowInputPacketRecord[]>(
+          `/api/v1/workflows/${workflowId}/input-packets`,
+          { method: 'GET' },
+        ),
+      ),
+    createWorkflowInputPacket: (workflowId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowInputPacketRecord>(
+          `/api/v1/workflows/${workflowId}/input-packets`,
+          {
+            method: 'POST',
+            body: payload as unknown as Record<string, unknown>,
+          },
+        ),
+      ),
+    listWorkflowInterventions: (workflowId) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowInterventionRecord[]>(
+          `/api/v1/workflows/${workflowId}/interventions`,
+          { method: 'GET' },
+        ),
+      ),
+    createWorkflowIntervention: (workflowId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowInterventionRecord>(
+          `/api/v1/workflows/${workflowId}/interventions`,
+          {
+            method: 'POST',
+            body: payload as unknown as Record<string, unknown>,
+          },
+        ),
+      ),
+    listWorkflowSteeringSessions: (workflowId) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowSteeringSessionRecord[]>(
+          `/api/v1/workflows/${workflowId}/steering-sessions`,
+          { method: 'GET' },
+        ),
+      ),
+    createWorkflowSteeringSession: (workflowId, payload = {}) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowSteeringSessionRecord>(
+          `/api/v1/workflows/${workflowId}/steering-sessions`,
+          {
+            method: 'POST',
+            body: payload as unknown as Record<string, unknown>,
+          },
+        ),
+      ),
+    listWorkflowSteeringMessages: (workflowId, sessionId) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowSteeringMessageRecord[]>(
+          `/api/v1/workflows/${workflowId}/steering-sessions/${sessionId}/messages`,
+          { method: 'GET' },
+        ),
+      ),
+    appendWorkflowSteeringMessage: (workflowId, sessionId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowSteeringMessageRecord>(
+          `/api/v1/workflows/${workflowId}/steering-sessions/${sessionId}/messages`,
+          {
+            method: 'POST',
+            body: payload as unknown as Record<string, unknown>,
+          },
+        ),
+      ),
+    redriveWorkflow: (workflowId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowRedriveResult>(
+          `/api/v1/workflows/${workflowId}/redrives`,
+          {
+            method: 'POST',
+            body: payload as unknown as Record<string, unknown>,
           },
         ),
       ),

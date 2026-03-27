@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Download, FileUp, Trash2 } from 'lucide-react';
 
 import { dashboardApi, type DashboardWorkspaceArtifactFileRecord } from '../../lib/api.js';
+import { fileToBase64 } from '../../lib/file-upload.js';
 import { Button } from '../../components/ui/button.js';
 import { toast } from '../../lib/toast.js';
 
@@ -271,19 +272,6 @@ export async function buildArtifactUploadPayloads(
       };
     }),
   );
-}
-
-async function fileToBase64(file: File): Promise<string> {
-  const bytes = await file.arrayBuffer();
-  return bytesToBase64(new Uint8Array(bytes));
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-  return globalThis.btoa(binary);
 }
 
 function formatFileSize(sizeBytes: number): string {

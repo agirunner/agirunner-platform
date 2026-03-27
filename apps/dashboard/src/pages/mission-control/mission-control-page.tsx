@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
@@ -26,6 +26,7 @@ import {
   buildMissionControlWorkspaceQueryKey,
   useMissionControlRealtime,
 } from './mission-control-realtime.js';
+import { MissionControlLaunchDialog } from './mission-control-launch-dialog.js';
 import { MissionControlWorkspacePane } from './mission-control-workspace-pane.js';
 
 const SAVED_VIEW_OPTIONS = [
@@ -42,6 +43,7 @@ const SCOPE_OPTIONS = [
 export function MissionControlPage(): JSX.Element {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [isLaunchDialogOpen, setIsLaunchDialogOpen] = useState(false);
   const shellState = useMemo(() => readMissionControlShellState(searchParams), [searchParams]);
   const currentFilters = useMemo<SavedViewFilters>(
     () => ({
@@ -134,7 +136,7 @@ export function MissionControlPage(): JSX.Element {
                 })
               }
             />
-            <Button size="sm">Launch workflow</Button>
+            <Button size="sm" onClick={() => setIsLaunchDialogOpen(true)}>Launch workflow</Button>
           </div>
         }
       />
@@ -252,6 +254,16 @@ export function MissionControlPage(): JSX.Element {
           )}
         </section>
       </div>
+      <MissionControlLaunchDialog
+        isOpen={isLaunchDialogOpen}
+        onOpenChange={setIsLaunchDialogOpen}
+        onLaunched={(workflowId) =>
+          patchShellState({
+            rail: 'workflow',
+            workflowId,
+          })
+        }
+      />
     </div>
   );
 }
