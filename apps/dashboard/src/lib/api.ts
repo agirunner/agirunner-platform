@@ -2481,9 +2481,13 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     options: {
       method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
       body?: Record<string, unknown>;
+      allowNoContent?: boolean;
     } = {},
   ): Promise<T> {
     const response = await requestJson<{ data: T }>(path, options);
+    if (response === undefined) {
+      return undefined as T;
+    }
     return response.data;
   }
 

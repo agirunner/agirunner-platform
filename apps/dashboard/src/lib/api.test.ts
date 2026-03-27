@@ -396,6 +396,32 @@ describe('dashboard api auth/session behavior', () => {
     );
   });
 
+  it('treats 204 no-content deletes as success for remote MCP servers', async () => {
+    writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 })) as unknown as typeof fetch;
+
+    const api = createDashboardApi({
+      client: {} as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await expect(api.deleteRemoteMcpServer('mcp-1')).resolves.toBeUndefined();
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/remote-mcp-servers/mcp-1',
+      expect.objectContaining({
+        method: 'DELETE',
+        credentials: 'include',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer api-token',
+        }),
+      }),
+    );
+  });
+
   it('deletes workspace memory entries through the dedicated workspace-memory delete route', async () => {
     writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
 
