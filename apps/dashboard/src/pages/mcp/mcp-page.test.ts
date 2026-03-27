@@ -74,6 +74,7 @@ describe('mcp page source', () => {
     expect(source).toContain('Configured servers');
     expect(source).toContain('OAuth connected');
     expect(source).not.toContain('MetricCard label="Verified"');
+    expect(source).toContain('<div className="overflow-x-auto border-y border-border/70">');
     expect(source).toContain('<TableHead className="w-[190px]">Transport</TableHead>');
     expect(source).toContain('<TableHead className="w-[96px] text-center">Specialists</TableHead>');
     expect(source).toContain('Connection parameters');
@@ -89,7 +90,11 @@ describe('mcp page source', () => {
     expect(source).toContain('onClick={() => setIsExpanded((value) => !value)}');
     expect(source).toContain('<TableCell colSpan={6} className="bg-border/10">');
     expect(source).toContain('Capabilities summary');
+    expect(source).toContain('grid gap-3 md:grid-cols-2');
+    expect(source).toContain('Capability counts');
+    expect(source).toContain('Discovered tools');
     expect(source).toContain('rounded-lg border border-border/70 bg-background/80 p-3');
+    expect(source).toContain('text-sm text-foreground');
     expect(source).toContain('No discovered tools snapshot.');
   });
 

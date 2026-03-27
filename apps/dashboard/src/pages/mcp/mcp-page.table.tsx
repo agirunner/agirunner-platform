@@ -39,33 +39,35 @@ export function McpPageTable(props: {
   onDelete(server: DashboardRemoteMcpServerRecord): void;
 }) {
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Server</TableHead>
-          <TableHead className="w-[220px]">Auth</TableHead>
-          <TableHead className="w-[150px]">Status</TableHead>
-          <TableHead className="w-[190px]">Transport</TableHead>
-          <TableHead className="w-[96px] text-center">Specialists</TableHead>
-          <TableHead className="w-[260px] text-right">Actions</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {props.servers.map((server) => (
-          <McpPageServerRows
-            key={server.id}
-            server={server}
-            isBusy={props.busyServerId === server.id}
-            onViewTools={props.onViewTools}
-            onEdit={props.onEdit}
-            onReverify={props.onReverify}
-            onConnectOAuth={props.onConnectOAuth}
-            onDisconnectOAuth={props.onDisconnectOAuth}
-            onDelete={props.onDelete}
-          />
-        ))}
-      </TableBody>
-    </Table>
+    <div className="overflow-x-auto border-y border-border/70">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Server</TableHead>
+            <TableHead className="w-[220px]">Auth</TableHead>
+            <TableHead className="w-[150px]">Status</TableHead>
+            <TableHead className="w-[190px]">Transport</TableHead>
+            <TableHead className="w-[96px] text-center">Specialists</TableHead>
+            <TableHead className="w-[260px] text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {props.servers.map((server) => (
+            <McpPageServerRows
+              key={server.id}
+              server={server}
+              isBusy={props.busyServerId === server.id}
+              onViewTools={props.onViewTools}
+              onEdit={props.onEdit}
+              onReverify={props.onReverify}
+              onConnectOAuth={props.onConnectOAuth}
+              onDisconnectOAuth={props.onDisconnectOAuth}
+              onDelete={props.onDelete}
+            />
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
@@ -106,11 +108,11 @@ function McpPageServerRows(props: {
                 <span className="font-medium text-foreground">{props.server.name}</span>
                 <Badge variant="outline">{props.server.auth_mode}</Badge>
               </div>
-              <div className="text-xs text-muted">
+              <div className="text-xs text-foreground">
                 {props.server.description || 'No description provided.'}
               </div>
               <div className="text-xs text-foreground">{props.server.endpoint_url}</div>
-              <div className="text-xs text-muted">Call timeout: {props.server.call_timeout_seconds}s</div>
+              <div className="text-xs text-foreground">Call timeout: {props.server.call_timeout_seconds}s</div>
             </div>
           </div>
         </TableCell>
@@ -210,14 +212,24 @@ function McpPageServerRows(props: {
               <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
                 Capabilities summary
               </div>
-              <div className="rounded-lg border border-border/70 bg-background/80 p-3 text-sm">
-                <div className="text-muted">
-                  {formatDiscoveredCapabilitySummary(props.server)}
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-lg border border-border/70 bg-background/80 p-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                    Capability counts
+                  </div>
+                  <div className="mt-2 text-sm text-foreground">
+                    {formatDiscoveredCapabilitySummary(props.server)}
+                  </div>
                 </div>
-                <div className="mt-2 text-muted">
-                  {toolNames.length > 0
-                    ? `${toolNames.length} tool${toolNames.length === 1 ? '' : 's'} discovered: ${toolNames.join(', ')}`
-                    : 'No discovered tools snapshot.'}
+                <div className="rounded-lg border border-border/70 bg-background/80 p-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                    Discovered tools
+                  </div>
+                  <div className="mt-2 text-sm text-foreground">
+                    {toolNames.length > 0
+                      ? `${toolNames.length} tool${toolNames.length === 1 ? '' : 's'} discovered: ${toolNames.join(', ')}`
+                      : 'No discovered tools snapshot.'}
+                  </div>
                 </div>
               </div>
             </div>

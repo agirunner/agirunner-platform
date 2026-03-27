@@ -356,11 +356,11 @@ function PlaybookFamilyRow(props: {
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr),minmax(0,1.2fr)]">
                 <div className="rounded-lg border border-border/70 bg-background/80 p-3 text-sm">
                   <div className="font-medium">Process</div>
-                  <div className="mt-2 text-muted">{processSummary}</div>
+                  <div className="mt-2 text-foreground">{processSummary}</div>
                 </div>
                 <div className="rounded-lg border border-border/70 bg-background/80 p-3 text-sm">
                   <div className="font-medium">Outcome</div>
-                  <div className="mt-2 text-muted">{family.outcome}</div>
+                  <div className="mt-2 text-foreground">{family.outcome}</div>
                 </div>
               </div>
               {isArchivedFamily ? (

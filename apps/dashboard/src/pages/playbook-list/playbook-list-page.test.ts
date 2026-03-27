@@ -97,11 +97,15 @@ describe('playbook list page source', () => {
     expect(source).toContain('DASHBOARD_BADGE_TOKENS.informationSecondary.className');
     expect((source.match(/<TableCell className="text-sm text-foreground">/g) ?? []).length).toBe(3);
     expect(source).toContain('{describePlaybookLifecycle(family.lifecycle)}');
+    expect(source).toContain('<div className="mt-2 text-foreground">{processSummary}</div>');
+    expect(source).toContain('<div className="mt-2 text-foreground">{family.outcome}</div>');
     expect(source).not.toContain('<Button asChild size="sm" variant="outline"');
     expect(source).not.toContain('Users className="h-3.5 w-3.5"');
     expect(source).not.toContain('CheckCheck className="h-3.5 w-3.5"');
     expect(source).not.toContain('inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1');
     expect(source).not.toContain('<p className="text-sm text-muted">{family.slug}</p>');
+    expect(source).not.toContain('<div className="mt-2 text-muted">{processSummary}</div>');
+    expect(source).not.toContain('<div className="mt-2 text-muted">{family.outcome}</div>');
     expect(source).not.toContain('<TableCell className="text-sm text-foreground">{describePlaybookLifecycle(family.lifecycle)}</TableCell>');
 
     const processIndex = source.indexOf('<div className="font-medium">Process</div>');
