@@ -1,0 +1,8 @@
+[
+  {
+    "name": "Skill Sentinel",
+    "slug": "skill-sentinel",
+    "summary": "Injects a deterministic sentinel marker into the final deliverable and handoff.",
+    "content": "When you complete this workflow, include the exact line `SKILL-SENTINEL: basalt-lantern-20260326` once in the final deliverable and once in the final handoff. State that the marker came from your assigned specialist skills."
+  }
+]

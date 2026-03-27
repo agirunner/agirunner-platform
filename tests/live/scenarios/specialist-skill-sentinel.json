@@ -1,0 +1,85 @@
+{
+  "name": "specialist-skill-sentinel",
+  "profile": "specialist-skill-sentinel",
+  "workflow": {
+    "name": "Specialist Skill Sentinel",
+    "goal": "Write a short proof packet that demonstrates what the assigned specialist skills told you to include.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": false,
+    "storage": {
+      "type": "workspace_artifacts"
+    },
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "artifacts": [
+      {
+        "logical_path_pattern": "skill-proof\\.md",
+        "min_count": 1
+      }
+    ],
+    "workflow_tasks": {
+      "min_non_orchestrator_count": 1
+    },
+    "log_row_expectations": [
+      {
+        "match": {
+          "operation": "tool.execute",
+          "status": "completed",
+          "payload": {
+            "tool_name": "artifact_upload"
+          }
+        },
+        "min_count": 1
+      }
+    ],
+    "outcome_envelope": {
+      "allowed_states": [
+        "completed"
+      ],
+      "require_output_artifacts": true,
+      "require_completed_non_orchestrator_tasks": true,
+      "require_terminal_work_items": true,
+      "require_db_state": true,
+      "require_runtime_cleanup": true,
+      "require_fatal_log_free": true
+    }
+  },
+  "capabilities": {
+    "skills": {
+      "required_skill_slugs": [
+        "skill-sentinel"
+      ],
+      "require_prompt_section": true,
+      "required_prompt_fragments": [
+        "SKILL-SENTINEL: basalt-lantern-20260326"
+      ],
+      "required_output_fragments": [
+        "SKILL-SENTINEL: basalt-lantern-20260326"
+      ],
+      "forbid_remote_mcp_prompt_section": true
+    }
+  },
+  "coverage": {
+    "playbook_shapes": [
+      "single_stage",
+      "direct_stage_flow"
+    ],
+    "storage_execution": [
+      "artifact_heavy",
+      "cold_specialists"
+    ],
+    "assessor_cardinality": [
+      "zero"
+    ],
+    "specialist_capabilities": [
+      "skills_prompt_module"
+    ]
+  }
+}

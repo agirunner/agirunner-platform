@@ -15,6 +15,7 @@ EXPECTED_SCENARIOS = {
     "concurrency-assessment-race-matrix",
     "content-assessment-blocked",
     "single-specialist-spawn-agent",
+    "specialist-skill-sentinel",
     "content-block-subject-policy",
     "content-direct-successor-no-assessment",
     "content-escalate-policy",
@@ -37,6 +38,10 @@ EXPECTED_SCENARIOS = {
     "one-orchestrator-many-workflows-assessment",
     "ongoing-intake-assessment-rework",
     "publishing-approval-before-assessment",
+    "remote-mcp-exa-search",
+    "remote-mcp-github-token-read",
+    "remote-mcp-tavily-research",
+    "remote-mcp-tavily-search",
     "requirements-human-review-approve",
     "requirements-human-review-blocked",
     "requirements-human-review-reject",
@@ -156,6 +161,12 @@ REQUIRED_COVERAGE = {
     },
     "delegation": {
         "single_specialist_spawn_agent",
+    },
+    "specialist_capabilities": {
+        "skills_prompt_module",
+        "remote_mcp_search",
+        "remote_mcp_research",
+        "remote_mcp_repository_read",
     },
 }
 

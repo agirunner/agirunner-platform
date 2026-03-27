@@ -1,0 +1,78 @@
+{
+  "name": "remote-mcp-exa-search",
+  "profile": "remote-mcp-exa-search",
+  "workflow": {
+    "name": "Remote MCP Exa Search",
+    "goal": "Use the remote Exa MCP server to answer: what is the capital of Alberta? Return one source and include the exact line `Answer: Edmonton`.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": false,
+    "storage": {
+      "type": "workspace_artifacts"
+    },
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "artifacts": [
+      {
+        "logical_path_pattern": "exa-search-proof\\.md",
+        "min_count": 1
+      }
+    ],
+    "workflow_tasks": {
+      "min_non_orchestrator_count": 1
+    },
+    "outcome_envelope": {
+      "allowed_states": [
+        "completed"
+      ],
+      "require_output_artifacts": true,
+      "require_completed_non_orchestrator_tasks": true,
+      "require_terminal_work_items": true,
+      "require_db_state": true,
+      "require_runtime_cleanup": true,
+      "require_fatal_log_free": true
+    }
+  },
+  "capabilities": {
+    "remote_mcp": {
+      "required_server_slugs": [
+        "exa-mcp"
+      ],
+      "require_prompt_section": true,
+      "required_prompt_fragments": [
+        "Exa MCP"
+      ],
+      "required_output_fragments": [
+        "Answer: Edmonton"
+      ],
+      "forbid_skill_prompt_section": true,
+      "require_successful_tool_calls": true,
+      "minimum_successful_tool_calls": 1,
+      "required_tool_name_fragments": [
+        "web_search_exa"
+      ]
+    }
+  },
+  "coverage": {
+    "playbook_shapes": [
+      "single_stage",
+      "direct_stage_flow"
+    ],
+    "storage_execution": [
+      "artifact_heavy",
+      "cold_specialists"
+    ],
+    "assessor_cardinality": [
+      "zero"
+    ],
+    "specialist_capabilities": [
+      "remote_mcp_search"
+    ]
+  }
+}

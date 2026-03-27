@@ -1,0 +1,20 @@
+[
+  {
+    "name": "GitHub Repo MCP",
+    "description": "Remote GitHub MCP server for repository inspection and metadata reads.",
+    "endpointUrl": "https://api.githubcopilot.com/mcp/",
+    "authMode": "parameterized",
+    "enabledByDefaultForNewSpecialists": false,
+    "grantToAllExistingSpecialists": false,
+    "parameters": [
+      {
+        "placement": "header",
+        "key": "Authorization",
+        "valueKind": "secret",
+        "value": {
+          "template": "Bearer ${LIVE_TEST_GITHUB_TOKEN}"
+        }
+      }
+    ]
+  }
+]

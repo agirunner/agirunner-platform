@@ -1,0 +1,20 @@
+[
+  {
+    "name": "Exa MCP",
+    "description": "Remote Exa MCP server for search and crawling.",
+    "endpointUrl": "https://mcp.exa.ai/mcp",
+    "authMode": "parameterized",
+    "enabledByDefaultForNewSpecialists": false,
+    "grantToAllExistingSpecialists": false,
+    "parameters": [
+      {
+        "placement": "query",
+        "key": "exaApiKey",
+        "valueKind": "secret",
+        "value": {
+          "env": "LIVE_TEST_EXA_API_KEY"
+        }
+      }
+    ]
+  }
+]

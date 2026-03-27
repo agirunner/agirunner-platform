@@ -1,0 +1,26 @@
+[
+  {
+    "name": "skill-sentinel-specialist",
+    "description": "Produces a small proof artifact and final handoff while honoring any assigned specialist skills exactly.",
+    "systemPrompt": "You are the Skill Sentinel Specialist. Produce a short proof packet in `deliverables/skill-proof.md`, upload it as an artifact, and then submit one structured handoff. If specialist skills add instructions, you MUST follow them exactly and repeat any required marker in both the deliverable and the handoff. Keep the result short, explicit, and operator-readable.",
+    "allowedTools": [
+      "file_read",
+      "file_list",
+      "file_write",
+      "shell_exec",
+      "artifact_upload",
+      "artifact_list",
+      "artifact_read",
+      "escalate",
+      "submit_handoff",
+      "read_predecessor_handoff"
+    ],
+    "verificationStrategy": "peer_review",
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isActive": true,
+    "skillSlugs": [
+      "skill-sentinel"
+    ]
+  }
+]

@@ -1,0 +1,63 @@
+{
+  "name": "Specialist Skill Sentinel",
+  "slug": "live-test-specialist-skill-sentinel-v1",
+  "description": "Single-stage workflow that proves specialist skills are injected into specialist prompts and can affect delivered output.",
+  "outcome": "A single specialist writes a deterministic proof packet that includes the skill-provided sentinel marker.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "Run the workflow through the authored stage `skill-proof`. Treat that stage as the only workflow checkpoint: `skill-proof` exists to prove that a specialist-specific skill module changed the final deliverable. Use this role deliberately: `skill-sentinel-specialist` owns the entire work item. The orchestrator only needs to route that specialist, then close the work when the specialist has finished legally and the output is verified through the authored deliverable and handoff.\nHappy path: dispatch `skill-sentinel-specialist`, require the specialist to write `deliverables/skill-proof.md`, upload it as an artifact, and submit one structured handoff that repeats the final answer. The specialist MUST honor any assigned specialist skills exactly, especially any authored sentinel phrase requirements.\nIf the specialist misses the skill-provided marker, sends an incomplete handoff, or forgets the artifact upload, require a corrective retry rather than closing the workflow. Do not invent approvals, assessments, or extra stages just because the preferred path was imperfect. Do not close the workflow until the authored marker is present in the final deliverable and handoff, but record any residual non-blocking deviation as a callout instead of abandoning a legally closable run.\nCompletion rules: finish only after `skill-sentinel-specialist` has uploaded the deliverable, repeated the required sentinel in the final handoff, and left a usable proof packet. Guided closure rule: treat the authored flow as best-intent process guidance. Preferred sequencing should be followed, but the orchestrator may waive a preferred detail with a recorded reason when closure is still legally possible. Only explicit blockers grounded in missing output or missing sentinel proof should keep work open; weaker deviations must be recorded as callouts.",
+    "parameters": [
+      {
+        "slug": "goal",
+        "title": "Goal",
+        "required": true
+      }
+    ],
+    "roles": [
+      "skill-sentinel-specialist"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "skill-proof",
+        "goal": "A deterministic skill marker is delivered in both the artifact and the handoff.",
+        "involves": [
+          "skill-sentinel-specialist"
+        ]
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 2,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    }
+  }
+}

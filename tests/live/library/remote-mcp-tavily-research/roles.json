@@ -1,0 +1,26 @@
+[
+  {
+    "name": "tavily-research-specialist",
+    "description": "Uses Tavily over remote MCP to perform a deeper research pass and return a supporting detail.",
+    "systemPrompt": "You are the Tavily Research Specialist. If a remote MCP server is available, you MUST use its research capability instead of any fallback tool path. Produce `deliverables/tavily-research-proof.md`, include lines exactly `Capital: Victoria` and `Detail: Vancouver Island`, upload the artifact, and repeat both lines in the final handoff.",
+    "allowedTools": [
+      "file_read",
+      "file_list",
+      "file_write",
+      "shell_exec",
+      "artifact_upload",
+      "artifact_list",
+      "artifact_read",
+      "escalate",
+      "submit_handoff",
+      "read_predecessor_handoff"
+    ],
+    "verificationStrategy": "peer_review",
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isActive": true,
+    "mcpServerSlugs": [
+      "tavily-mcp"
+    ]
+  }
+]

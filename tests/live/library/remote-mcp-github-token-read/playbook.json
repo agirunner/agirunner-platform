@@ -1,0 +1,63 @@
+{
+  "name": "Remote MCP GitHub Token Read",
+  "slug": "live-test-remote-mcp-github-token-read-v1",
+  "description": "Single-stage workflow that proves a specialist can use a token-authenticated GitHub remote MCP server to inspect the fixtures repository.",
+  "outcome": "A single specialist uses GitHub MCP with a token-backed header and returns deterministic repository facts.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "Run the workflow through the authored stage `remote-repository-read`. Treat that stage as the only workflow checkpoint: `remote-repository-read` exists to prove that a specialist can use a granted remote MCP server to inspect a repository and close the work with deterministic facts. Use this role deliberately: `github-repo-inspector` owns the entire work item. The orchestrator only needs to route that specialist, then close the work when the specialist has produced the artifact and a structured handoff.\nHappy path: dispatch `github-repo-inspector`, require the specialist to use the granted GitHub MCP tools against the `agirunner/agirunner-test-fixtures` repository, write `deliverables/github-repo-proof.md`, upload it as an artifact, and submit one structured handoff that repeats the final answer. The final result MUST include `Repository: agirunner-test-fixtures`, `Default branch: main`, and `README present: yes`.\nIf the specialist cannot reach the remote MCP server, cannot inspect the repository, or tries to bypass the remote MCP capability, require a corrective retry or escalate with a precise reason. Do not silently substitute another tool path, do not invent reviews or approvals, and do not close the workflow without proof that a remote MCP tool was actually used. Do not keep the workflow open for non-blocking formatting noise once the repository facts and artifact exist; record that as a callout instead.\nCompletion rules: finish only after `github-repo-inspector` has produced the artifact, repeated the repository facts in the final handoff, and left a usable proof packet. Guided closure rule: treat the authored flow as best-intent process guidance. Preferred use of the granted remote MCP server must be followed, but the orchestrator may waive a weaker preferred detail with a recorded reason when the legal remote-MCP-backed answer already exists. Smaller deviations must be recorded as callouts instead of preventing closure.",
+    "parameters": [
+      {
+        "slug": "goal",
+        "title": "Goal",
+        "required": true
+      }
+    ],
+    "roles": [
+      "github-repo-inspector"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "remote-repository-read",
+        "goal": "Deterministic repository facts are delivered through remote MCP.",
+        "involves": [
+          "github-repo-inspector"
+        ]
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 2,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    }
+  }
+}
