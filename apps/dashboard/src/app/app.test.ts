@@ -118,4 +118,22 @@ describe('app trigger routes source', () => {
     expect(source).not.toContain("../pages/governance/orchestrator-grants-page.js");
     expect(source).not.toContain('path="/governance/grants"');
   });
+
+  it('uses a unified mission control shell and redirects legacy mission control list routes into shell state', () => {
+    const source = readSource();
+    expect(source).toContain("../pages/mission-control/mission-control-page.js");
+    expect(source).toContain('path="/mission-control" element={<MissionControlPage />}');
+    expect(source).toContain('function LegacyMissionControlShellRedirect({');
+    expect(source).toContain("path=\"/mission-control/workflows\"");
+    expect(source).toContain("path=\"/mission-control/action-queue\"");
+    expect(source).toContain("path=\"/mission-control/tasks\"");
+    expect(source).toContain('section="workflows"');
+    expect(source).toContain('section="action_queue"');
+    expect(source).toContain('section="tasks"');
+    expect(source).toContain("buildMissionControlShellHref({ rail: 'workflow' })");
+    expect(source).toContain("buildMissionControlShellHref({ rail: 'attention' })");
+    expect(source).toContain("buildMissionControlShellHref({ lens: 'tasks' })");
+    expect(source).not.toContain('path="/mission-control/workflows" element={<WorkflowListPage />}');
+    expect(source).not.toContain('path="/mission-control/action-queue" element={<AlertsApprovalsPage />}');
+  });
 });

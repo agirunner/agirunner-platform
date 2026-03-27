@@ -3,11 +3,9 @@ import type { ElementType, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Bell,
   Bot,
   Package,
   ChevronRight,
-  Clipboard,
   Cog,
   Container,
   FileText,
@@ -27,7 +25,6 @@ import {
   Shield,
   Sun,
   Users,
-  Workflow,
   Wrench,
   X,
   Zap,
@@ -82,15 +79,21 @@ export const NAV_SECTIONS: NavSection[] = [
     label: 'Mission Control',
     icon: Gauge,
     items: [
-      { label: 'Live Board', href: '/mission-control', icon: LayoutDashboard },
       {
-        label: 'Workflows',
-        href: '/mission-control/workflows',
-        icon: Workflow,
-        keywords: ['workflow', 'workflows', 'board', 'boards', 'delivery board', 'board run'],
+        label: 'Mission Control',
+        href: '/mission-control',
+        icon: LayoutDashboard,
+        keywords: [
+          'live operations',
+          'workflow canvas',
+          'attention rail',
+          'action queue',
+          'workflows',
+          'tasks',
+          'recent',
+          'history',
+        ],
       },
-      { label: 'Tasks', href: '/mission-control/tasks', icon: Clipboard },
-      { label: 'Action Queue', href: '/mission-control/action-queue', icon: Bell },
     ],
   },
   {

@@ -240,6 +240,19 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain('keywords: item.keywords');
   });
 
+  it('keeps mission control as a single primary nav item instead of separate live board, workflows, tasks, and action queue links', () => {
+    const source = readLayoutSource();
+    expect(source).toContain("label: 'Mission Control'");
+    expect(source).toContain("href: '/mission-control'");
+    expect(source).toContain("'live operations'");
+    expect(source).toContain("'action queue'");
+    expect(source).toContain("'workflow canvas'");
+    expect(source).toContain("'attention rail'");
+    expect(source).not.toContain("label: 'Live Board'");
+    expect(source).not.toContain("label: 'Workflows'");
+    expect(source).not.toContain("label: 'Action Queue'");
+  });
+
   it('wires keyboard-first command palette navigation and explicit search states', () => {
     const source = readLayoutSource();
     expect(source).toContain("event.key === 'ArrowDown'");

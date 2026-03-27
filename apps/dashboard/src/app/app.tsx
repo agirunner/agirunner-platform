@@ -18,6 +18,7 @@ import {
   resolveAuthCallbackRedirect,
 } from '../lib/auth-session.js';
 import { clearSession, readSession } from '../lib/session.js';
+import { buildMissionControlShellHref } from '../pages/mission-control/mission-control-page.support.js';
 
 import { applyTheme, readTheme } from './theme.js';
 
@@ -64,12 +65,9 @@ const LoginPage = lazyWithRetry(() =>
   import('../pages/login/login-page.js').then((m) => ({ default: m.LoginPage })),
 );
 
-const LiveBoardPage = lazyWithRetry(() =>
-  import('../pages/live-board/live-board-page.js').then((m) => ({ default: m.LiveBoardPage })),
-);
-const AlertsApprovalsPage = lazyWithRetry(() =>
-  import('../pages/alerts-approvals/alerts-approvals-page.js').then((m) => ({
-    default: m.AlertsApprovalsPage,
+const MissionControlPage = lazyWithRetry(() =>
+  import('../pages/mission-control/mission-control-page.js').then((m) => ({
+    default: m.MissionControlPage,
   })),
 );
 const CostDashboardPage = lazyWithRetry(() =>
@@ -78,11 +76,6 @@ const CostDashboardPage = lazyWithRetry(() =>
   })),
 );
 
-const WorkflowListPage = lazyWithRetry(() =>
-  import('../pages/workflow-list/workflow-list-page.js').then((m) => ({
-    default: m.WorkflowListPage,
-  })),
-);
 const WorkflowDetailPage = lazyWithRetry(() =>
   import('../pages/workflow-detail/workflow-detail-page.js').then((m) => ({
     default: m.WorkflowDetailPage,
@@ -92,9 +85,6 @@ const WorkflowInspectorPage = lazyWithRetry(() =>
   import('../pages/workflow-inspector/workflow-inspector-page.js').then((m) => ({
     default: m.WorkflowInspectorPage,
   })),
-);
-const TaskListPage = lazyWithRetry(() =>
-  import('../pages/task-list/task-list-page.js').then((m) => ({ default: m.TaskListPage })),
 );
 const TaskDetailPage = lazyWithRetry(() =>
   import('../pages/task-detail/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })),
@@ -292,20 +282,29 @@ export function App(): JSX.Element {
               <Route path="/" element={<Navigate to="/mission-control" replace />} />
 
               {/* Mission Control */}
-              <Route path="/mission-control" element={<LiveBoardPage />} />
-              <Route path="/mission-control/workflows" element={<WorkflowListPage />} />
+              <Route path="/mission-control" element={<MissionControlPage />} />
+              <Route
+                path="/mission-control/workflows"
+                element={<LegacyMissionControlShellRedirect section="workflows" />}
+              />
               <Route path="/mission-control/workflows/:id" element={<WorkflowDetailPage />} />
               <Route
                 path="/mission-control/workflows/:id/inspector"
                 element={<WorkflowInspectorPage />}
               />
-              <Route path="/mission-control/tasks" element={<TaskListPage />} />
+              <Route
+                path="/mission-control/tasks"
+                element={<LegacyMissionControlShellRedirect section="tasks" />}
+              />
               <Route path="/mission-control/tasks/:id" element={<TaskDetailPage />} />
-              <Route path="/mission-control/action-queue" element={<AlertsApprovalsPage />} />
+              <Route
+                path="/mission-control/action-queue"
+                element={<LegacyMissionControlShellRedirect section="action_queue" />}
+              />
               <Route path="/mission-control/costs" element={<CostDashboardPage />} />
               <Route
                 path="/mission-control/alerts"
-                element={<Navigate to="/mission-control/action-queue" replace />}
+                element={<LegacyMissionControlShellRedirect section="action_queue" />}
               />
               <Route path="/work/boards/*" element={<LegacyWorkflowBoardRedirect />} />
               <Route path="/work/workflows/*" element={<LegacyWorkflowBoardRedirect />} />
@@ -488,6 +487,21 @@ function LegacyWorkflowBoardRedirect(): JSX.Element {
     ? location.pathname.replace('/work/workflows', '/mission-control/workflows')
     : location.pathname.replace('/work/boards', '/mission-control/workflows');
   return <Navigate to={`${nextPath}${location.search}${location.hash}`} replace />;
+}
+
+function LegacyMissionControlShellRedirect({
+  section,
+}: {
+  section: 'workflows' | 'tasks' | 'action_queue';
+}): JSX.Element {
+  const location = useLocation();
+  const target =
+    section === 'workflows'
+      ? buildMissionControlShellHref({ rail: 'workflow' })
+      : section === 'tasks'
+        ? buildMissionControlShellHref({ lens: 'tasks' })
+        : buildMissionControlShellHref({ rail: 'attention' });
+  return <Navigate to={`${target}${location.hash}`} replace />;
 }
 
 function LegacyTaskRedirect(): JSX.Element {
