@@ -29,10 +29,20 @@ describe('workspace settings tab source', () => {
     expect(tabSource).toContain('StaticSettingsSection');
     expect(tabSource).toContain('id="workspace-settings-basics"');
     expect(tabSource).toContain('id="workspace-settings-storage"');
+    expect(tabSource).toContain(
+      'CardContent className="px-4 pb-4 pt-0">{props.children}</CardContent>',
+    );
+    expect(tabSource).not.toContain(
+      'CardContent className="border-t border-border/70 p-4 pt-4">{props.children}</CardContent>',
+    );
     expect(tabSource).toContain("actionLabel={isDangerExpanded ? 'Hide danger' : 'Open danger'}");
     expect(tabSource).toContain('Open danger');
-    expect(tabSource).not.toContain('actionLabel={expandedSection === \'basics\' ? \'Hide basics\' : \'Open basics\'}');
-    expect(tabSource).not.toContain('actionLabel={expandedSection === \'storage\' ? \'Hide storage\' : \'Open storage\'}');
+    expect(tabSource).not.toContain(
+      "actionLabel={expandedSection === 'basics' ? 'Hide basics' : 'Open basics'}",
+    );
+    expect(tabSource).not.toContain(
+      "actionLabel={expandedSection === 'storage' ? 'Hide storage' : 'Open storage'}",
+    );
     expect(tabSource).not.toContain("isExpanded={expandedSection === 'basics'}");
     expect(tabSource).not.toContain("isExpanded={expandedSection === 'storage'}");
     expect(tabSource).toContain('buildWorkspaceSettingsSurfaceSummary');
@@ -81,7 +91,20 @@ describe('workspace settings tab source', () => {
   it('keeps workspace settings limited to operator-facing basics and storage configuration', () => {
     const source = readSource('./workspace-settings-tab.tsx');
 
-    expect(source).toContain('Name and slug.');
+    expect(source).toContain(
+      'Rename the workspace, adjust its URL slug, and control whether it can receive new work.',
+    );
+    expect(source).toContain(
+      'Permanently remove this workspace when it should no longer exist for this tenant.',
+    );
+    expect(source).not.toContain('Name and slug.');
+    expect(source).not.toContain('Slug required');
+    expect(source).not.toContain(
+      'Workspace deletion is destructive. Leave this closed unless you intentionally need to remove the workspace.',
+    );
+    expect(source).not.toContain(
+      'Delete this workspace only when the workspace should be removed permanently for this tenant.',
+    );
     expect(source).not.toContain('summarizeWorkspaceContext');
     expect(source).not.toContain('No workspace context saved yet.');
     expect(source).not.toContain('Workspace Context');
@@ -104,7 +127,9 @@ describe('workspace settings tab source', () => {
     expect(supportSource).toContain('export function requiresWorkspaceGitAccessVerification');
     expect(supportSource).toContain('export function formatWorkspaceGitVerificationErrorMessage');
     expect(supportSource).toContain('export function buildWorkspaceGitAccessVerificationInput');
-    expect(supportSource).toContain('export function buildWorkspaceGitAccessVerificationFingerprint');
+    expect(supportSource).toContain(
+      'export function buildWorkspaceGitAccessVerificationFingerprint',
+    );
   });
 
   it('describes workspace artifacts as built-in platform storage for specialist materials', () => {

@@ -29,7 +29,9 @@ export function WorkspaceArtifactFilesPanel(props: { workspaceId: string }): JSX
     },
     onSuccess: async () => {
       setUploadError(null);
-      await queryClient.invalidateQueries({ queryKey: ['workspace-artifact-files', props.workspaceId] });
+      await queryClient.invalidateQueries({
+        queryKey: ['workspace-artifact-files', props.workspaceId],
+      });
       toast.success('Workspace artifacts uploaded.');
     },
     onError: (error) => {
@@ -38,10 +40,13 @@ export function WorkspaceArtifactFilesPanel(props: { workspaceId: string }): JSX
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (fileId: string) => dashboardApi.deleteWorkspaceArtifactFile(props.workspaceId, fileId),
+    mutationFn: (fileId: string) =>
+      dashboardApi.deleteWorkspaceArtifactFile(props.workspaceId, fileId),
     onSuccess: async () => {
       setDeleteTargetId(null);
-      await queryClient.invalidateQueries({ queryKey: ['workspace-artifact-files', props.workspaceId] });
+      await queryClient.invalidateQueries({
+        queryKey: ['workspace-artifact-files', props.workspaceId],
+      });
       toast.success('Workspace artifact deleted.');
     },
     onError: (error) => {
@@ -61,105 +66,83 @@ export function WorkspaceArtifactFilesPanel(props: { workspaceId: string }): JSX
 
   return (
     <div className="space-y-4">
-      <section className="space-y-3 rounded-xl border border-border/70 bg-card/70 p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="space-y-1">
-            <h3 className="text-base font-semibold text-foreground">Upload workspace artifacts</h3>
-            <p className="text-sm leading-6 text-muted lg:whitespace-nowrap">
-              Upload workspace files here. Keys default from file names, descriptions are optional, and everything stays workspace-scoped.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <input
-              id={fileInputId}
-              type="file"
-              multiple
-              className="sr-only"
-              onChange={(event) => {
-                handleFilesSelected(event.target.files);
-                event.currentTarget.value = '';
+      <input
+        id={fileInputId}
+        type="file"
+        multiple
+        className="sr-only"
+        onChange={(event) => {
+          handleFilesSelected(event.target.files);
+          event.currentTarget.value = '';
+        }}
+      />
+
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button type="button" variant="outline" asChild>
+          <label htmlFor={fileInputId} className="cursor-pointer">
+            <FileUp className="h-4 w-4" />
+            Add files
+          </label>
+        </Button>
+      </div>
+
+      {uploadError ? (
+        <p className="rounded-xl border border-red-300/70 bg-background/70 px-3 py-2 text-sm text-red-700 dark:border-red-800/70 dark:text-red-300">
+          {uploadError}
+        </p>
+      ) : null}
+
+      {uploadMutation.isPending ? (
+        <p className="text-sm text-muted">Uploading workspace artifacts…</p>
+      ) : null}
+
+      {filesQuery.isLoading ? (
+        <p className="text-sm text-muted">Loading workspace artifacts…</p>
+      ) : filesQuery.error ? (
+        <p className="rounded-xl border border-red-300/70 bg-background/70 px-3 py-2 text-sm text-red-700 dark:border-red-800/70 dark:text-red-300">
+          Failed to load workspace artifacts.
+        </p>
+      ) : filesQuery.data && filesQuery.data.length > 0 ? (
+        <div className="space-y-3">
+          {filesQuery.data.map((file) => (
+            <ExistingArtifactRow
+              key={file.id}
+              file={file}
+              isDeleting={deleteMutation.isPending && deleteTargetId === file.id}
+              isDownloading={downloadTargetId === file.id}
+              onDownload={async () => {
+                setDownloadTargetId(file.id);
+                try {
+                  const download = await dashboardApi.downloadWorkspaceArtifactFile(
+                    props.workspaceId,
+                    file.id,
+                  );
+                  const objectUrl = URL.createObjectURL(download.blob);
+                  const link = document.createElement('a');
+                  link.href = objectUrl;
+                  link.download = download.file_name ?? file.file_name;
+                  document.body.append(link);
+                  link.click();
+                  link.remove();
+                  URL.revokeObjectURL(objectUrl);
+                } catch (error) {
+                  toast.error(readErrorMessage(error, 'Failed to download workspace artifact.'));
+                } finally {
+                  setDownloadTargetId(null);
+                }
+              }}
+              onDelete={() => {
+                setDeleteTargetId(file.id);
+                deleteMutation.mutate(file.id);
               }}
             />
-            <Button type="button" variant="outline" asChild>
-              <label htmlFor={fileInputId} className="cursor-pointer">
-                <FileUp className="h-4 w-4" />
-                Add files
-              </label>
-            </Button>
-          </div>
+          ))}
         </div>
-
+      ) : (
         <p className="rounded-xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted">
-          Files upload as soon as you select them. Keys default from file names and can be adjusted later if needed.
+          No workspace artifacts uploaded yet.
         </p>
-
-        {uploadError ? (
-          <p className="rounded-xl border border-red-300/70 bg-background/70 px-3 py-2 text-sm text-red-700 dark:border-red-800/70 dark:text-red-300">
-            {uploadError}
-          </p>
-        ) : null}
-      </section>
-
-      <section className="space-y-3 rounded-xl border border-border/70 bg-card/70 p-4">
-        <div className="space-y-1">
-          <h3 className="text-base font-semibold text-foreground">Workspace artifacts</h3>
-          <p className="text-sm leading-6 text-muted">
-            Curated workspace-owned files stay here. Delete anything that should no longer be available to this workspace.
-          </p>
-        </div>
-
-        {uploadMutation.isPending ? (
-          <p className="text-sm text-muted">Uploading workspace artifacts…</p>
-        ) : null}
-
-        {filesQuery.isLoading ? (
-          <p className="text-sm text-muted">Loading workspace artifacts…</p>
-        ) : filesQuery.error ? (
-          <p className="rounded-xl border border-red-300/70 bg-background/70 px-3 py-2 text-sm text-red-700 dark:border-red-800/70 dark:text-red-300">
-            Failed to load workspace artifacts.
-          </p>
-        ) : filesQuery.data && filesQuery.data.length > 0 ? (
-          <div className="space-y-3">
-            {filesQuery.data.map((file) => (
-              <ExistingArtifactRow
-                key={file.id}
-                file={file}
-                isDeleting={deleteMutation.isPending && deleteTargetId === file.id}
-                isDownloading={downloadTargetId === file.id}
-                onDownload={async () => {
-                  setDownloadTargetId(file.id);
-                  try {
-                    const download = await dashboardApi.downloadWorkspaceArtifactFile(
-                      props.workspaceId,
-                      file.id,
-                    );
-                    const objectUrl = URL.createObjectURL(download.blob);
-                    const link = document.createElement('a');
-                    link.href = objectUrl;
-                    link.download = download.file_name ?? file.file_name;
-                    document.body.append(link);
-                    link.click();
-                    link.remove();
-                    URL.revokeObjectURL(objectUrl);
-                  } catch (error) {
-                    toast.error(readErrorMessage(error, 'Failed to download workspace artifact.'));
-                  } finally {
-                    setDownloadTargetId(null);
-                  }
-                }}
-                onDelete={() => {
-                  setDeleteTargetId(file.id);
-                  deleteMutation.mutate(file.id);
-                }}
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="rounded-xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted">
-            No workspace artifacts uploaded yet.
-          </p>
-        )}
-      </section>
+      )}
     </div>
   );
 }
@@ -184,7 +167,8 @@ function ExistingArtifactRow(props: {
           <p className="text-sm leading-6 text-muted">{props.file.description}</p>
         ) : null}
         <p className="text-xs text-muted">
-          {formatFileSize(props.file.size_bytes)} • {new Date(props.file.created_at).toLocaleString()}
+          {formatFileSize(props.file.size_bytes)} •{' '}
+          {new Date(props.file.created_at).toLocaleString()}
         </p>
       </div>
       <div className="flex items-center gap-2">
@@ -229,10 +213,11 @@ export function snapshotSelectedFiles(fileList: FileList | null): File[] {
 }
 
 function buildUniqueArtifactKey(fileName: string, reservedKeys: Set<string>): string {
-  const baseKey = fileName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'file';
+  const baseKey =
+    fileName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'file';
 
   if (!reservedKeys.has(baseKey)) {
     return baseKey;

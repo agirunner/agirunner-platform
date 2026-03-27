@@ -59,7 +59,9 @@ export function WorkspaceSettingsTab(props: {
   const [showDelete, setShowDelete] = useState(false);
   const [isGitTokenExpanded, setGitTokenExpanded] = useState(false);
   const [isDangerExpanded, setDangerExpanded] = useState(false);
-  const [verifiedGitAccessFingerprint, setVerifiedGitAccessFingerprint] = useState<string | null>(null);
+  const [verifiedGitAccessFingerprint, setVerifiedGitAccessFingerprint] = useState<string | null>(
+    null,
+  );
   const [gitVerificationIssue, setGitVerificationIssue] = useState<{
     fingerprint: string;
     message: string;
@@ -68,9 +70,10 @@ export function WorkspaceSettingsTab(props: {
   const surfaceSummary = buildWorkspaceSettingsSurfaceSummary(props.workspace, draft, validation);
   const verificationRequired = requiresWorkspaceGitAccessVerification(props.workspace, draft);
   const gitVerificationFingerprint = buildWorkspaceGitAccessVerificationFingerprint(draft);
-  const activeGitVerificationIssue = gitVerificationIssue?.fingerprint === gitVerificationFingerprint
-    ? gitVerificationIssue.message
-    : null;
+  const activeGitVerificationIssue =
+    gitVerificationIssue?.fingerprint === gitVerificationFingerprint
+      ? gitVerificationIssue.message
+      : null;
   const blockingIssues = activeGitVerificationIssue
     ? [...validation.blockingIssues, activeGitVerificationIssue]
     : validation.blockingIssues;
@@ -88,7 +91,10 @@ export function WorkspaceSettingsTab(props: {
   });
   const mutation = useMutation({
     mutationFn: () =>
-      dashboardApi.patchWorkspace(props.workspace.id, buildWorkspaceSettingsPatch(props.workspace, draft)),
+      dashboardApi.patchWorkspace(
+        props.workspace.id,
+        buildWorkspaceSettingsPatch(props.workspace, draft),
+      ),
     onSuccess: async (updatedWorkspace) => {
       setDraft(createWorkspaceSettingsDraft(updatedWorkspace));
       setGitTokenExpanded(false);
@@ -103,7 +109,6 @@ export function WorkspaceSettingsTab(props: {
   });
   const isSavePending = mutation.isPending || verifyMutation.isPending;
 
-  const basicsSummary = buildBasicsSummary(draft);
   const storageSummary = buildStorageSummary(draft, surfaceSummary.storageLabel);
 
   async function handleSave() {
@@ -151,8 +156,7 @@ export function WorkspaceSettingsTab(props: {
         <StaticSettingsSection
           id="workspace-settings-basics"
           title="Workspace Basics"
-          description="Name and slug."
-          summary={basicsSummary}
+          description="Rename the workspace, adjust its URL slug, and control whether it can receive new work."
           headerAction={
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-muted">
@@ -189,7 +193,7 @@ export function WorkspaceSettingsTab(props: {
         <StaticSettingsSection
           id="workspace-settings-storage"
           title="Workspace Storage"
-          description="Storage type and settings."
+          description="Choose how specialists access and persist files for this workspace."
           summary={storageSummary}
         >
           <div className="space-y-3">
@@ -224,7 +228,9 @@ export function WorkspaceSettingsTab(props: {
                     label="Repository URL"
                     value={draft.repositoryUrl}
                     error={validation.fieldErrors.repositoryUrl}
-                    onChange={(value) => setDraft((current) => ({ ...current, repositoryUrl: value }))}
+                    onChange={(value) =>
+                      setDraft((current) => ({ ...current, repositoryUrl: value }))
+                    }
                   />
                   <TextField
                     label="Default branch"
@@ -238,13 +244,17 @@ export function WorkspaceSettingsTab(props: {
                   <TextField
                     label="Git user name"
                     value={draft.gitUserName}
-                    onChange={(value) => setDraft((current) => ({ ...current, gitUserName: value }))}
+                    onChange={(value) =>
+                      setDraft((current) => ({ ...current, gitUserName: value }))
+                    }
                   />
                   <TextField
                     label="Git user email"
                     value={draft.gitUserEmail}
                     error={validation.fieldErrors.gitUserEmail}
-                    onChange={(value) => setDraft((current) => ({ ...current, gitUserEmail: value }))}
+                    onChange={(value) =>
+                      setDraft((current) => ({ ...current, gitUserEmail: value }))
+                    }
                   />
                 </div>
                 <div className="space-y-2">
@@ -268,57 +278,53 @@ export function WorkspaceSettingsTab(props: {
               </div>
             ) : null}
 
-          {draft.storageType === 'host_directory' ? (
-            <div className="space-y-3">
-              <TextField
-                label="Host path"
-                value={draft.hostPath}
-                error={validation.fieldErrors.hostPath}
-                onChange={(value) => setDraft((current) => ({ ...current, hostPath: value }))}
-              />
-              <p className="text-sm leading-6 text-muted">
-                The path must already exist. All specialist agents are expected to mount the same
-                path. Writes happen as the specialist execution user, which is currently `root`.
-              </p>
-              <ToggleCard
-                label="Read-only mount"
-                description="Mount this path read-only for task runs."
-                checked={draft.readOnly}
-                checkedLabel="Read-only"
-                uncheckedLabel="Read-write"
-                onCheckedChange={(checked) => setDraft((current) => ({ ...current, readOnly: checked }))}
-              />
-            </div>
-          ) : null}
+            {draft.storageType === 'host_directory' ? (
+              <div className="space-y-3">
+                <TextField
+                  label="Host path"
+                  value={draft.hostPath}
+                  error={validation.fieldErrors.hostPath}
+                  onChange={(value) => setDraft((current) => ({ ...current, hostPath: value }))}
+                />
+                <p className="text-sm leading-6 text-muted">
+                  The path must already exist. All specialist agents are expected to mount the same
+                  path. Writes happen as the specialist execution user, which is currently `root`.
+                </p>
+                <ToggleCard
+                  label="Read-only mount"
+                  description="Mount this path read-only for task runs."
+                  checked={draft.readOnly}
+                  checkedLabel="Read-only"
+                  uncheckedLabel="Read-write"
+                  onCheckedChange={(checked) =>
+                    setDraft((current) => ({ ...current, readOnly: checked }))
+                  }
+                />
+              </div>
+            ) : null}
 
-          {draft.storageType === 'workspace_artifacts' ? (
-            <div className="rounded-xl border border-border/70 bg-muted/30 p-3 text-sm leading-6 text-muted">
-              Workspace artifacts is storage that is built into the platform. You can use the
-              Knowledge tab to upload artifacts that will be accessible to specialists, and
-              specialists wlil be instructed to rely on built-in storage when reading and
-              producing materials.
-            </div>
-          ) : null}
-        </div>
-      </StaticSettingsSection>
-      <SettingsDisclosureSection
-        id="workspace-settings-danger"
-        title="Danger"
-        description="Permanent delete."
-        summary="Workspace deletion is destructive. Leave this closed unless you intentionally need to remove the workspace."
-        actionLabel={isDangerExpanded ? 'Hide danger' : 'Open danger'}
-        isExpanded={isDangerExpanded}
-        onToggle={() => setDangerExpanded((current) => !current)}
-      >
-        <div className="space-y-3">
-          <p className="text-sm leading-6 text-muted">
-            Delete this workspace only when the workspace should be removed permanently for this tenant.
-          </p>
+            {draft.storageType === 'workspace_artifacts' ? (
+              <div className="rounded-xl border border-border/70 bg-muted/30 p-3 text-sm leading-6 text-muted">
+                Workspace artifacts is storage that is built into the platform. You can use the
+                Knowledge tab to upload artifacts that will be accessible to specialists, and
+                specialists wlil be instructed to rely on built-in storage when reading and
+                producing materials.
+              </div>
+            ) : null}
+          </div>
+        </StaticSettingsSection>
+        <SettingsDisclosureSection
+          id="workspace-settings-danger"
+          title="Danger"
+          description="Permanently remove this workspace when it should no longer exist for this tenant."
+          actionLabel={isDangerExpanded ? 'Hide danger' : 'Open danger'}
+          isExpanded={isDangerExpanded}
+          onToggle={() => setDangerExpanded((current) => !current)}
+        >
           <Button variant="destructive" type="button" onClick={() => setShowDelete(true)}>
             Delete workspace
           </Button>
-        </div>
-      </SettingsDisclosureSection>
+        </SettingsDisclosureSection>
       </WorkspaceSettingsShell>
       {showDelete ? (
         <DeleteWorkspaceDialog workspace={props.workspace} onClose={() => setShowDelete(false)} />
@@ -331,7 +337,7 @@ function StaticSettingsSection(props: {
   id: string;
   title: string;
   description: string;
-  summary: string;
+  summary?: string;
   headerAction?: ReactNode;
   children: ReactNode;
 }): JSX.Element {
@@ -342,13 +348,13 @@ function StaticSettingsSection(props: {
           <div className="min-w-0 flex-1 space-y-1">
             <div className="text-base font-semibold text-foreground">{props.title}</div>
             <p className="text-sm leading-6 text-muted">
-              {props.description} {props.summary}
+              {[props.description, props.summary].filter(Boolean).join(' ')}
             </p>
           </div>
           {props.headerAction ? <div className="shrink-0">{props.headerAction}</div> : null}
         </div>
       </div>
-      <CardContent className="border-t border-border/70 p-4 pt-4">{props.children}</CardContent>
+      <CardContent className="px-4 pb-4 pt-0">{props.children}</CardContent>
     </Card>
   );
 }
@@ -357,7 +363,7 @@ function SettingsDisclosureSection(props: {
   id: string;
   title: string;
   description: string;
-  summary: string;
+  summary?: string;
   actionLabel: string;
   isExpanded: boolean;
   onToggle(): void;
@@ -374,7 +380,7 @@ function SettingsDisclosureSection(props: {
         <div className="min-w-0 flex-1 space-y-1">
           <div className="text-base font-semibold text-foreground">{props.title}</div>
           <p className="text-sm leading-6 text-muted">
-            {props.description} {props.summary}
+            {[props.description, props.summary].filter(Boolean).join(' ')}
           </p>
         </div>
         <div className="flex items-center pt-0.5">
@@ -388,7 +394,7 @@ function SettingsDisclosureSection(props: {
         </div>
       </button>
       {props.isExpanded ? (
-        <CardContent className="border-t border-border/70 p-4 pt-4">{props.children}</CardContent>
+        <CardContent className="px-4 pb-4 pt-0">{props.children}</CardContent>
       ) : null}
     </Card>
   );
@@ -523,7 +529,9 @@ function SecretDisclosureRow(props: {
               <FieldMessage message={props.error} />
             </label>
           ) : props.draft.mode === 'clear' ? (
-            <p className="text-xs leading-5 text-muted">Stored value will be cleared when you save.</p>
+            <p className="text-xs leading-5 text-muted">
+              Stored value will be cleared when you save.
+            </p>
           ) : !props.draft.configured ? (
             <p className="text-xs leading-5 text-muted">
               Choose Replace on save when you are ready to add this secret.
@@ -561,15 +569,7 @@ function FieldMessage(props: { message?: string }): JSX.Element | null {
   return <p className="text-xs text-amber-900 dark:text-amber-100">{props.message}</p>;
 }
 
-function buildBasicsSummary(draft: WorkspaceSettingsDraft): string {
-  const slugLabel = draft.slug.trim() ? `Slug ${draft.slug.trim()}` : 'Slug required';
-  return slugLabel;
-}
-
-function buildStorageSummary(
-  draft: WorkspaceSettingsDraft,
-  storageLabel: string,
-): string {
+function buildStorageSummary(draft: WorkspaceSettingsDraft, storageLabel: string): string {
   if (draft.storageType === 'host_directory') {
     if (!draft.hostPath.trim()) {
       return `${storageLabel} • Path required`;

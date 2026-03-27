@@ -34,10 +34,7 @@ const KNOWLEDGE_PANELS: Array<{
 export function WorkspaceKnowledgeShell(props: WorkspaceKnowledgeShellProps): JSX.Element {
   const sectionSummaries: Record<'artifacts' | 'memory', string> = {
     artifacts: props.artifactSummary ?? buildArtifactSummary(props.overview),
-    memory:
-      props.memorySummary
-      ?? (getPacketValue(props.overview, 'Shared memory')
-        || 'Evolving notes and learned state stay here as work progresses.'),
+    memory: props.memorySummary ?? buildMemorySummary(props.overview),
   };
 
   return (
@@ -47,7 +44,9 @@ export function WorkspaceKnowledgeShell(props: WorkspaceKnowledgeShellProps): JS
           <div className="space-y-1">
             <h2 className="text-sm font-semibold text-foreground">Knowledge</h2>
             <p className="max-w-3xl text-sm leading-6 text-muted">
-              Use Knowledge for workspace artifacts and shared memory.
+              Workspace artifacts and seeded memory are available to specialists operating in this
+              workspace. Depending on the workflow, specialists may also add artifacts and memory as
+              work progresses.
             </p>
             {props.headerNotice}
             <p className="sr-only">{props.overview.summary}</p>
@@ -64,7 +63,7 @@ export function WorkspaceKnowledgeShell(props: WorkspaceKnowledgeShellProps): JS
               icon={panel.icon}
             >
               {panel.value === 'artifacts'
-                  ? props.artifactContent
+                ? props.artifactContent
                 : panel.value === 'memory'
                   ? props.memoryContent
                   : null}
@@ -95,15 +94,24 @@ function StaticKnowledgeSection(props: {
           <p className="max-w-3xl text-sm leading-5 text-muted">{props.summary}</p>
         </div>
       </div>
-      <CardContent className="space-y-3 border-t border-border/70 px-4 py-4">{props.children}</CardContent>
+      <CardContent className="space-y-3 border-t border-border/70 px-4 py-4">
+        {props.children}
+      </CardContent>
     </Card>
   );
 }
 
 function buildArtifactSummary(overview: WorkspaceOverview): string {
   return (
-    getPacketValue(overview, 'Workspace artifacts')
-    || 'Workspace-owned files stay here for upload, review, and removal.'
+    getPacketValue(overview, 'Workspace artifacts') ||
+    'Upload and manage files that stay scoped to this workspace.'
+  );
+}
+
+function buildMemorySummary(overview: WorkspaceOverview): string {
+  return (
+    getPacketValue(overview, 'Shared memory') ||
+    'Track shared key/value context the workspace learns over time.'
   );
 }
 

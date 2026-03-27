@@ -22,7 +22,12 @@ describe('workspace knowledge surface source', () => {
     const source = readSource('./workspace-knowledge-shell.tsx');
 
     expect(source).toContain('Knowledge');
-    expect(source).toContain('Use Knowledge for workspace artifacts and shared memory.');
+    expect(source).toContain(
+      'Workspace artifacts and seeded memory are available to specialists operating in this',
+    );
+    expect(source).toContain(
+      'Depending on the workflow, specialists may also add artifacts and memory as',
+    );
     expect(source).toContain('className="sr-only">{props.overview.summary}</p>');
     expect(source).toContain('StaticKnowledgeSection');
     expect(source).not.toContain('useState<KnowledgePanelValue | null>(null)');
@@ -38,7 +43,14 @@ describe('workspace knowledge surface source', () => {
     const source = readSource('./workspace-knowledge-shell.tsx');
 
     expect(source).toContain('buildArtifactSummary');
-    expect(source).toContain("getPacketValue(props.overview, 'Shared memory')");
+    expect(source).toContain('buildMemorySummary');
+    expect(source).toContain("getPacketValue(overview, 'Shared memory')");
+    expect(source).toContain('Upload and manage files that stay scoped to this workspace.');
+    expect(source).toContain('Track shared key/value context the workspace learns over time.');
+    expect(source).not.toContain(
+      'Workspace-owned files stay here for upload, review, and removal.',
+    );
+    expect(source).not.toContain('Evolving notes and learned state stay here as work progresses.');
     expect(source).toContain('max-w-3xl text-sm leading-5 text-muted');
     expect(source).not.toContain('description:');
     expect(source).not.toContain('{props.description}');
@@ -52,7 +64,7 @@ describe('workspace knowledge surface source', () => {
     expect(source).toContain('artifactSummary?: string;');
     expect(source).toContain('memorySummary?: string;');
     expect(source).toContain('props.memorySummary');
-    expect(source).toContain("getPacketValue(props.overview, 'Shared memory')");
+    expect(source).toContain('buildMemorySummary(props.overview)');
     expect(source).not.toContain('workspaceId: string;');
   });
 
@@ -60,6 +72,8 @@ describe('workspace knowledge surface source', () => {
     const memorySource = readSource('./workspace-detail-memory-tab.tsx');
 
     expect(memorySource).toContain('Add memory entry');
-    expect(memorySource).toContain('Memory is for evolving notes and learned state.');
+    expect(memorySource).toContain('Key/Value pairs');
+    expect(memorySource).not.toContain('Workspace Memory');
+    expect(memorySource).not.toContain('Memory is for evolving notes and learned state.');
   });
 });

@@ -96,7 +96,9 @@ describe('workspace detail support', () => {
 
     expect(headerState.mode).toBe('compact');
     expect(headerState.activeTab.label).toBe('Knowledge');
-    expect(headerState.description).toBe('Group workspace artifacts and shared memory in one surface.');
+    expect(headerState.description).toBe(
+      'Workspace artifacts and seeded memory are available to specialists operating in this workspace. Depending on the workflow, specialists may also add artifacts and memory as work progresses.',
+    );
     expect(headerState.quickActions).toEqual([]);
   });
 
@@ -128,34 +130,31 @@ describe('workspace detail support', () => {
   });
 
   it('builds a knowledge overview around workspace artifacts and shared memory', () => {
-    const overview = buildWorkspaceKnowledgeOverview(
-      {
-        id: 'workspace-1',
-        name: 'Release automation',
-        slug: 'release-automation',
-        is_active: true,
-        memory: {
-          last_release: '2026-03-12',
-          rollout: { phase: 'candidate' },
-        },
+    const overview = buildWorkspaceKnowledgeOverview({
+      id: 'workspace-1',
+      name: 'Release automation',
+      slug: 'release-automation',
+      is_active: true,
+      memory: {
+        last_release: '2026-03-12',
+        rollout: { phase: 'candidate' },
       },
-    );
+    });
 
     expect(overview.summary).toContain('workspace-owned artifacts');
     expect(overview.packets).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           label: 'Workspace artifacts',
-          value: 'Workspace-owned files stay here for upload, review, and removal.',
+          value: 'Upload and manage files that stay scoped to this workspace.',
         }),
         expect.objectContaining({
           label: 'Shared memory',
-          value: 'Evolving notes and learned state stay here as work progresses.',
+          value: 'Track shared key/value context the workspace learns over time.',
         }),
       ]),
     );
     expect(overview.packets.map((packet) => packet.label)).not.toContain('Workspace Context');
     expect(overview.packets.map((packet) => packet.label)).not.toContain('Knowledge entries');
   });
-
 });

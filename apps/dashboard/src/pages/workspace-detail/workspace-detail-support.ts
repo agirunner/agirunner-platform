@@ -4,14 +4,13 @@ export const WORKSPACE_DETAIL_TAB_OPTIONS = [
   {
     value: 'settings',
     label: 'Settings',
-    description:
-      'Adjust workspace basics and storage configuration.',
+    description: 'Adjust workspace basics and storage configuration.',
   },
   {
     value: 'knowledge',
     label: 'Knowledge',
     description:
-      'Group workspace artifacts and shared memory in one surface.',
+      'Workspace artifacts and seeded memory are available to specialists operating in this workspace. Depending on the workflow, specialists may also add artifacts and memory as work progresses.',
   },
 ] as const;
 
@@ -55,7 +54,9 @@ export interface StructuredEntryDraft {
 
 let draftCounter = 0;
 
-export function normalizeWorkspaceDetailTab(value: string | null | undefined): WorkspaceDetailTabValue {
+export function normalizeWorkspaceDetailTab(
+  value: string | null | undefined,
+): WorkspaceDetailTabValue {
   const normalized = value?.trim() ?? '';
   return WORKSPACE_DETAIL_TAB_OPTIONS.some((option) => option.value === normalized)
     ? (normalized as WorkspaceDetailTabValue)
@@ -89,7 +90,8 @@ export function buildWorkspaceSettingsOverview(
       {
         label: 'Stored settings',
         value: `${countObjectEntries(settings)} entries`,
-        detail: 'Workspace-scoped settings saved on the record, including storage configuration and lifecycle posture.',
+        detail:
+          'Workspace-scoped settings saved on the record, including storage configuration and lifecycle posture.',
       },
       {
         label: 'Workspace storage',
@@ -111,15 +113,16 @@ export function buildWorkspaceKnowledgeOverview(
     packets: [
       {
         label: 'Workspace artifacts',
-        value: 'Workspace-owned files stay here for upload, review, and removal.',
-        detail: 'Artifact inspection stays nested here instead of taking another top-level tab.',
+        value: 'Upload and manage files that stay scoped to this workspace.',
+        detail:
+          'Upload, review, and remove workspace-scoped files without leaving the Knowledge surface.',
       },
       {
         label: 'Shared memory',
-        value: 'Evolving notes and learned state stay here as work progresses.',
+        value: 'Track shared key/value context the workspace learns over time.',
         detail:
           memoryCount > 0
-            ? 'Working memory holds evolving notes and learned state without leaving the workspace surface.'
+            ? 'Shared workspace memory stays editable here so operators can keep the latest context in one place.'
             : 'No workspace memory entries are saved yet.',
       },
     ],
@@ -276,7 +279,8 @@ function describeWorkspaceStorage(workspace: DashboardWorkspaceRecord): string {
   const storage = asRecord(settings.workspace_storage);
   const storageLabel = readWorkspaceStorageLabel(workspace);
   if (storageLabel === 'Git Remote') {
-    const repositoryUrl = readString(storage.repository_url) || readString(workspace.repository_url);
+    const repositoryUrl =
+      readString(storage.repository_url) || readString(workspace.repository_url);
     return repositoryUrl
       ? `Repository execution is pinned to ${repositoryUrl}.`
       : 'Repository execution is configured on the workspace.';
