@@ -281,6 +281,8 @@ describe('role definitions page source', () => {
     expect(source).not.toContain('variant="ghost"');
     expect(source).not.toContain('className="h-8 w-8"');
     expect(source).toContain('line-clamp-3');
+    expect(source).toContain('md:grid-cols-2 xl:grid-cols-4');
+    expect(source).not.toContain('md:grid-cols-2 xl:grid-cols-3');
     expect(source).toContain('title: \'Skills\'');
     expect(source).toContain('detailSummary.skills');
     expect(source.indexOf('detailSummary.tools')).toBeLessThan(source.indexOf('detailSummary.skills'));

@@ -133,14 +133,17 @@ export function RoleRow(props: {
         <TableRow>
           <TableCell colSpan={4} className="bg-border/10">
             <div className="space-y-3 py-3">
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 {[
                   detailSummary.model,
                   detailSummary.tools,
                   detailSummary.skills,
                   detailSummary.executionEnvironment,
                 ].map((item) => (
-                  <div key={item.title} className="rounded-lg border border-border/70 bg-background/80 p-3">
+                  <div
+                    key={item.title}
+                    className="min-w-0 rounded-lg border border-border/70 bg-background/80 p-3"
+                  >
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
                       {item.title}
                     </div>
