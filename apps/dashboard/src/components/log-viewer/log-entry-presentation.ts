@@ -60,7 +60,7 @@ export function describeLogToolDisplay(entry: LogEntry): string | null {
   if (!invocation) {
     return null;
   }
-  const label = humanizeSentence(invocation.name);
+  const label = describeToolLabel(invocation.name, entry.payload);
   if (!label) {
     return null;
   }
@@ -70,6 +70,10 @@ export function describeLogToolDisplay(entry: LogEntry): string | null {
 }
 
 export function describeLogActivityTitle(entry: LogEntry): string {
+  const mcpLabel = readMCPToolLabel(entry.payload);
+  if (mcpLabel) {
+    return mcpLabel;
+  }
   if (entry.category === 'tool') {
     return readToolLabel(entry.payload) ?? 'Tool call';
   }
@@ -178,17 +182,103 @@ function describeToolOwner(entry: LogEntry): string | null {
 
 function readToolLabel(payload: Record<string, unknown> | null | undefined): string | null {
   const raw = readString(payload?.tool_name) ?? readString(payload?.command_or_path) ?? readString(payload?.command);
-  return raw ? humanizeSentence(raw) : null;
+  return describeToolLabel(raw, payload);
 }
 
 function readActualToolLabel(payload: Record<string, unknown> | null | undefined): string | null {
   const raw = readString(payload?.tool_name);
-  return raw ? humanizeSentence(raw) : null;
+  return describeToolLabel(raw, payload);
 }
 
 function readToolArgumentSummary(payload: Record<string, unknown> | null | undefined): string | null {
   const invocation = readToolInvocation(payload);
   return invocation ? describeToolArgumentSummaryByName(invocation.name, invocation.input, payload ?? {}) : null;
+}
+
+function describeToolLabel(
+  toolName: string | null,
+  payload: Record<string, unknown> | null | undefined,
+): string | null {
+  const mcpLabel = readMCPToolLabel(payload);
+  if (mcpLabel) {
+    return mcpLabel;
+  }
+  return toolName ? humanizeSentence(toolName) : null;
+}
+
+function readMCPToolLabel(payload: Record<string, unknown> | null | undefined): string | null {
+  const serverName = readString(payload?.mcp_server_name) ?? readString(payload?.mcp_server_slug);
+  const toolName = readString(payload?.mcp_tool_name);
+  if (!serverName && !toolName) {
+    return null;
+  }
+
+  const serverLabel = serverName ? humanizeSentence(serverName) : null;
+  const toolLabel = toolName ? humanizeSentence(stripMCPServerTokens(toolName, serverName)) : null;
+  if (serverLabel && toolLabel) {
+    return `MCP ${serverLabel} ${lowercaseFirst(toolLabel)}`;
+  }
+  if (serverLabel) {
+    return `MCP ${serverLabel}`;
+  }
+  if (toolLabel) {
+    return `MCP ${toolLabel}`;
+  }
+  return null;
+}
+
+function stripMCPServerTokens(toolName: string, serverName: string | null): string {
+  const toolTokens = tokenizeLabel(toolName);
+  const serverTokens = tokenizeLabel(serverName);
+  if (toolTokens.length === 0 || serverTokens.length === 0) {
+    return toolName;
+  }
+
+  let start = 0;
+  let end = toolTokens.length;
+  if (startsWithTokens(toolTokens, serverTokens)) {
+    start = serverTokens.length;
+  }
+  const remainingTokens = toolTokens.slice(start, end);
+  if (endsWithTokens(remainingTokens, serverTokens)) {
+    end -= serverTokens.length;
+  }
+
+  const trimmed = toolTokens.slice(start, end);
+  return trimmed.length > 0 ? trimmed.join('_') : toolName;
+}
+
+function tokenizeLabel(value: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+  return value
+    .trim()
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length > 0 && token !== 'mcp');
+}
+
+function startsWithTokens(value: string[], prefix: string[]): boolean {
+  if (prefix.length === 0 || prefix.length > value.length) {
+    return false;
+  }
+  return prefix.every((token, index) => value[index] === token);
+}
+
+function endsWithTokens(value: string[], suffix: string[]): boolean {
+  if (suffix.length === 0 || suffix.length > value.length) {
+    return false;
+  }
+  const startIndex = value.length - suffix.length;
+  return suffix.every((token, index) => value[startIndex + index] === token);
+}
+
+function lowercaseFirst(value: string): string {
+  if (value.length === 0) {
+    return value;
+  }
+  return value.charAt(0).toLowerCase() + value.slice(1);
 }
 
 function describeLlmDetail(payload: Record<string, unknown>): string {
