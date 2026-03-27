@@ -10,6 +10,10 @@ from typing import Any
 
 from live_test_api import ApiClient, TraceRecorder, read_json
 from scenario_config import load_scenario
+from specialist_capability_fixtures import (
+    resolve_role_capability_refs,
+    sync_profile_capabilities,
+)
 
 NATIVE_SEARCH_TOOL = "native_search"
 NATIVE_SEARCH_MODEL_PREFIXES: dict[str, tuple[str, ...]] = {
@@ -327,6 +331,7 @@ def sync_roles(
     execution_environment_aliases: dict[str, dict[str, Any]] | None = None,
     default_execution_environment_candidates: list[dict[str, Any]] | None = None,
     execution_environment_selection_seed: str | None = None,
+    specialist_capability_registry: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
     existing_roles = extract_data(
         client.request("GET", "/api/v1/config/roles", expected=(200,), label="roles.list")
@@ -335,8 +340,12 @@ def sync_roles(
     synced_roles: list[dict[str, Any]] = []
 
     for payload in load_fixture(roles_fixture_path):
-        synced_payload = apply_native_search_default(
+        synced_payload, _ = resolve_role_capability_refs(
             payload,
+            registry={} if specialist_capability_registry is None else specialist_capability_registry,
+        )
+        synced_payload = apply_native_search_default(
+            synced_payload,
             provider_type=provider_type,
             resolved_model_id=resolved_model_id,
         )
@@ -460,6 +469,7 @@ def sync_library_profiles(
         playbook_fixture = profile_dir / "playbook.json"
         if not roles_fixture.is_file() or not playbook_fixture.is_file():
             continue
+        specialist_capability_registry = sync_profile_capabilities(client, profile_dir=profile_dir)
 
         roles = sync_roles(
             client,
@@ -469,6 +479,7 @@ def sync_library_profiles(
             execution_environment_aliases=execution_environment_aliases,
             default_execution_environment_candidates=default_execution_environment_candidates,
             execution_environment_selection_seed=execution_environment_selection_seed,
+            specialist_capability_registry=specialist_capability_registry,
         )
         fixture_roles = load_fixture(str(roles_fixture))
         fixture_roles_by_name = {
@@ -483,6 +494,8 @@ def sync_library_profiles(
             "playbook_slug": playbook["slug"],
             "playbook_launch_inputs": playbook_launch_inputs,
             "role_names": [role["name"] for role in roles],
+            "skills": specialist_capability_registry["skills"],
+            "remote_mcp_servers": specialist_capability_registry["remote_mcp_servers"],
             "roles": [
                 {
                     "name": role["name"],
@@ -491,6 +504,12 @@ def sync_library_profiles(
                         fixture_roles_by_name.get(str(role.get("name") or "").strip(), {}).get(
                             "useDefaultExecutionEnvironment"
                         )
+                    ),
+                    "skill_slugs": list(
+                        fixture_roles_by_name.get(str(role.get("name") or "").strip(), {}).get("skillSlugs", [])
+                    ),
+                    "mcp_server_slugs": list(
+                        fixture_roles_by_name.get(str(role.get("name") or "").strip(), {}).get("mcpServerSlugs", [])
                     ),
                 }
                 for role in roles
@@ -965,11 +984,16 @@ def main() -> None:
     delete_models_and_providers(client)
     clear_assignments(client)
     delete_workspaces(client)
+    specialist_capability_registry = sync_profile_capabilities(
+        client,
+        profile_dir=Path(roles_fixture_path).resolve().parent,
+    )
     roles = sync_roles(
         client,
         roles_fixture_path,
         provider_type=provider_type,
         resolved_model_id=specialist_model_id,
+        specialist_capability_registry=specialist_capability_registry,
     )
 
     provider, model, orchestrator_model, specialist_model = seed_provider_catalog(
@@ -1038,6 +1062,8 @@ def main() -> None:
                 "specialist_model_name": specialist_model["model_id"],
                 "specialist_reasoning": specialist_reasoning_effort,
                 "role_names": [role["name"] for role in roles],
+                "skills": specialist_capability_registry["skills"],
+                "remote_mcp_servers": specialist_capability_registry["remote_mcp_servers"],
                 "playbook_id": playbook["id"],
                 "playbook_slug": playbook["slug"],
                 "orchestrator_worker_id": orchestrator["worker"]["id"],

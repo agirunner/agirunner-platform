@@ -32,6 +32,7 @@
   - local-only secret template for admin key, OAuth session snapshot, optional API-key paths, Git token, and ports
 - `library/`
   - realistic role and playbook fixtures for the assessment abstraction matrix
+  - optional `skills.json` and `remote-mcp-servers.json` profile fixtures for specialist capability setup
 - `lib/`
   - shared API client, catalog, and scenario helpers
 - `live_test_tracker.json`
@@ -48,6 +49,11 @@ Each live scenario is defined by a JSON file under `tests/live/scenarios/`.
 
 - `profile`
   - points to `tests/live/library/<profile>/` for the test-owned playbook, roles, and optional `repo-seed/`
+  - profile directories may also contain:
+    - `skills.json`
+      - specialist skill fixtures seeded through the specialist-skills API
+    - `remote-mcp-servers.json`
+      - remote MCP server fixtures seeded through the remote-MCP API
 - `workflow`
   - declares the workflow name, goal, and launch parameters
 - `workspace`
@@ -56,8 +62,23 @@ Each live scenario is defined by a JSON file under `tests/live/scenarios/`.
   - ordered scripted human decisions using `approve`, `block`, `reject`, or `request_changes`
 - `expect`
   - declarative verification hints evaluated by the runner; generic keys include direct handoff, assessment, approval, work-item field matching, stage-gate field matching, subject revision, ordering, and required-assessment assertions
+- `capabilities`
+  - explicit specialist-capability assertions separated by concern:
+    - `skills`
+      - proves prompt-layer skill setup and output markers
+    - `remote_mcp`
+      - proves runtime MCP setup, prompt availability text, and successful `mcp_*` tool calls
 - `coverage`
   - matrix metadata used by the catalog tests to prove that the scenario corpus covers the supported semantic, concurrency, storage, and playbook-shape variations
+
+Role fixtures may reference specialist capabilities by slug instead of UUID:
+
+- `skillSlugs`
+  - resolved during shared bootstrap into `skillIds`
+- `mcpServerSlugs`
+  - resolved during shared bootstrap into `mcpServerIds`
+
+This keeps the profile fixtures stable while the harness creates fresh tenant-owned records on each bootstrap.
 
 The generic runner is:
 
@@ -107,6 +128,7 @@ Per scenario run:
 - `<scenario>/workflow-run.json`
 - `<scenario>/trace/api.ndjson`
 - `<scenario>/evidence/db-state.json`
+- `<scenario>/evidence/capability-proof.json`
 - `<scenario>/evidence/log-anomalies.json`
 - `<scenario>/evidence/http-status-summary.json`
 - `<scenario>/evidence/live-containers.json`
@@ -139,3 +161,14 @@ No scenario counts as passing until all of these checks agree:
 - container hygiene evidence shows no dangling task containers and no undrained runtimes left behind after the scenario has settled
 
 Detailed authored expectations remain useful diagnostics, but they do not fail a scenario in outcome-driven mode unless the scenario explicitly exists to validate that exact behavior.
+
+## Specialist Capability Proof
+
+Specialist capability tests are separated into two lanes:
+
+- `skills`
+  - setup: seed `skills.json`, assign specialists through `skillSlugs`, keep `mcpServerSlugs` empty
+  - proof: specialist prompt contains `## Specialist Skills`, required authored fragments appear, and the workflow output includes the authored skill marker
+- `remote_mcp`
+  - setup: seed `remote-mcp-servers.json`, assign specialists through `mcpServerSlugs`, keep `skillSlugs` empty
+  - proof: specialist prompt contains `## Remote MCP Servers Available`, the expected server slugs are assigned, and successful `mcp_*` tool calls appear in execution logs

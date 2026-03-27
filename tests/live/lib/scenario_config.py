@@ -119,6 +119,16 @@ def _read_coverage(value: Any) -> dict[str, list[str]]:
     return normalized
 
 
+def _read_capabilities(value: Any) -> dict[str, dict[str, Any]]:
+    capabilities = _read_mapping(value, "capabilities")
+    skills = _read_mapping(capabilities.get("skills"), "capabilities.skills")
+    remote_mcp = _read_mapping(capabilities.get("remote_mcp"), "capabilities.remote_mcp")
+    return {
+        "skills": skills,
+        "remote_mcp": remote_mcp,
+    }
+
+
 def load_scenario(path: str | Path) -> dict[str, Any]:
     scenario_path = Path(path)
     payload = read_json(scenario_path)
@@ -159,6 +169,7 @@ def load_scenario(path: str | Path) -> dict[str, Any]:
         "approvals": _read_list(payload.get("approvals"), "approvals"),
         "actions": _read_list(payload.get("actions"), "actions"),
         "expect": _read_expectations(payload.get("expect")),
+        "capabilities": _read_capabilities(payload.get("capabilities")),
         "coverage": _read_coverage(payload.get("coverage")),
         "timeout_seconds": int(payload.get("timeout_seconds", DEFAULT_TIMEOUT_SECONDS)),
         "poll_interval_seconds": int(payload.get("poll_interval_seconds", DEFAULT_POLL_INTERVAL_SECONDS)),

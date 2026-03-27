@@ -97,6 +97,8 @@ class SeedLiveTestRunTests(unittest.TestCase):
                             "name": "default-image-implementation-engineer",
                             "execution_environment_id": "env-debian",
                             "use_default_execution_environment": False,
+                            "skill_slugs": [],
+                            "mcp_server_slugs": [],
                         }
                     ],
                 }
@@ -150,10 +152,14 @@ class SeedLiveTestRunTests(unittest.TestCase):
                     "name": "default-image-implementation-engineer",
                     "execution_environment_id": "env-debian",
                     "use_default_execution_environment": False,
+                    "skill_slugs": [],
+                    "mcp_server_slugs": [],
                 }
             ],
             context["profile_roles"],
         )
+        self.assertEqual([], context["profile_skills"])
+        self.assertEqual([], context["profile_remote_mcp_servers"])
 
         create_call = client.calls[0]
         self.assertEqual(
@@ -204,6 +210,8 @@ class SeedLiveTestRunTests(unittest.TestCase):
                             "name": "host-directory-writer",
                             "execution_environment_id": None,
                             "use_default_execution_environment": True,
+                            "skill_slugs": [],
+                            "mcp_server_slugs": [],
                         }
                     ],
                 }
@@ -242,6 +250,8 @@ class SeedLiveTestRunTests(unittest.TestCase):
             [{"slug": "goal", "title": "Goal", "required": True}],
             context["playbook_launch_inputs"],
         )
+        self.assertEqual([], context["profile_skills"])
+        self.assertEqual([], context["profile_remote_mcp_servers"])
         create_call = client.calls[2]
         self.assertEqual(
             "/tmp/live-tests/host-directory-content-assessment/run-02",

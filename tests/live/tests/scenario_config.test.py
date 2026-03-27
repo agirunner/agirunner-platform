@@ -101,9 +101,52 @@ class ScenarioConfigTests(unittest.TestCase):
             },
             scenario["expect"],
         )
+        self.assertEqual(
+            {
+                "skills": {},
+                "remote_mcp": {},
+            },
+            scenario["capabilities"],
+        )
         self.assertEqual({}, scenario["coverage"])
         self.assertEqual(1800, scenario["timeout_seconds"])
         self.assertEqual(10, scenario["poll_interval_seconds"])
+
+    def test_load_scenario_preserves_capability_expectations(self) -> None:
+        scenario_path = self.write_scenario(
+            {
+                "workflow": {
+                    "goal": "Exercise specialist capabilities.",
+                },
+                "capabilities": {
+                    "skills": {
+                        "required_skill_slugs": ["structured-summary"],
+                        "require_prompt_section": True,
+                    },
+                    "remote_mcp": {
+                        "required_server_slugs": ["tavily-search"],
+                        "require_successful_tool_calls": True,
+                    },
+                },
+            }
+        )
+
+        scenario = scenario_config.load_scenario(scenario_path)
+
+        self.assertEqual(
+            {
+                "required_skill_slugs": ["structured-summary"],
+                "require_prompt_section": True,
+            },
+            scenario["capabilities"]["skills"],
+        )
+        self.assertEqual(
+            {
+                "required_server_slugs": ["tavily-search"],
+                "require_successful_tool_calls": True,
+            },
+            scenario["capabilities"]["remote_mcp"],
+        )
 
     def test_load_scenario_preserves_workspace_seed_state_and_expectations(self) -> None:
         scenario_path = self.write_scenario(

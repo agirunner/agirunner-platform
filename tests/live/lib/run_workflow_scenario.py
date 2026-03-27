@@ -20,6 +20,10 @@ from live_test_api import (
     write_json,
 )
 from scenario_config import load_scenario
+from specialist_capability_proof import (
+    build_capability_proof,
+    evaluate_capability_expectations,
+)
 from workflow_efficiency import (
     collect_execution_logs,
     evaluate_efficiency_expectations,
@@ -1418,6 +1422,7 @@ def write_evidence_artifacts(trace_dir: str, evidence: dict[str, Any]) -> dict[s
     file_names = {
         "db_state": "db-state.json",
         "execution_environment_usage": "execution-environment-usage.json",
+        "capability_proof": "capability-proof.json",
         "log_anomalies": "log-anomalies.json",
         "http_status_summary": "http-status-summary.json",
         "live_containers": "live-containers.json",
@@ -2432,6 +2437,9 @@ def evaluate_expectations(
     execution_logs: Any | None = None,
     evidence: dict[str, Any] | None = None,
     verification_mode: str = STRICT_VERIFICATION_MODE,
+    capability_expectations: dict[str, Any] | None = None,
+    capability_setup: dict[str, Any] | None = None,
+    capability_proof: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     failures: list[str] = []
     checks: list[dict[str, Any]] = []
@@ -2777,6 +2785,21 @@ def evaluate_expectations(
                 failures.append(
                     f"expected at least {minimum} distinct orchestrator runtime actor(s), found {actual}"
                 )
+
+    capability_result = evaluate_capability_expectations(
+        expectations={} if capability_expectations is None else capability_expectations,
+        setup={} if capability_setup is None else capability_setup,
+        proof={} if capability_proof is None else capability_proof,
+    )
+    if capability_expectations:
+        checks.append(
+            {
+                "name": "capabilities",
+                "passed": capability_result["passed"],
+                "failures": capability_result["failures"],
+            }
+        )
+        failures.extend(capability_result["failures"])
 
     fleet_expectations = expectations.get("fleet", {})
     if isinstance(fleet_expectations, dict):
@@ -3307,8 +3330,11 @@ def evaluate_progress_expectations(
     verification_mode: str,
     trace: TraceRecorder | None,
     execution_environment_expectations: dict[str, Any] | None = None,
+    capability_expectations: dict[str, Any] | None = None,
+    capability_setup: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     workflow_with_tasks = attach_workflow_tasks(workflow, fetch_workflow_tasks(client, workflow_id=workflow_id))
+    progress_capability_proof = build_capability_proof(workflow=workflow_with_tasks, logs=None)
     verification = evaluate_expectations(
         expectations,
         workflow=workflow_with_tasks,
@@ -3326,6 +3352,9 @@ def evaluate_progress_expectations(
         execution_logs=None,
         verification_mode=verification_mode,
         evidence={},
+        capability_expectations=capability_expectations,
+        capability_setup=capability_setup,
+        capability_proof=progress_capability_proof,
     )
     if verification["passed"]:
         return verification
@@ -3359,6 +3388,10 @@ def evaluate_progress_expectations(
         execution_environment_expectations,
         evidence_payload.get("db_state"),
     )
+    evidence_payload["capability_proof"] = build_capability_proof(
+        workflow=workflow_with_tasks,
+        logs=execution_logs_snapshot,
+    )
     efficiency_summary = summarize_efficiency(
         workflow=workflow_with_tasks,
         logs=execution_logs_snapshot,
@@ -3382,6 +3415,9 @@ def evaluate_progress_expectations(
         execution_logs=execution_logs_snapshot,
         evidence=evidence_payload,
         verification_mode=verification_mode,
+        capability_expectations=capability_expectations,
+        capability_setup=capability_setup,
+        capability_proof=evidence_payload["capability_proof"],
     )
 
 
@@ -3763,6 +3799,7 @@ def build_run_result_payload(
     efficiency: dict[str, Any] | None = None,
     evidence: dict[str, Any] | None = None,
     execution_environment: dict[str, Any] | None = None,
+    capability_proof: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     verification_payload = {} if verification is None else verification
     efficiency_payload = {} if efficiency is None else efficiency
@@ -3832,6 +3869,7 @@ def build_run_result_payload(
         ),
         "specialist_teardown_lag_seconds": specialist_teardown.get("max_lag_seconds"),
         "brief_proof": brief_proof,
+        "capability_proof": {} if capability_proof is None else capability_proof,
         "outcome_metrics": outcome_metrics,
     }
 
@@ -3983,6 +4021,11 @@ def main() -> None:
     workspace_id = env("LIVE_TEST_WORKSPACE_ID", bootstrap_context["workspace_id"], required=True)
     playbook_id = env("LIVE_TEST_PLAYBOOK_ID", bootstrap_context["playbook_id"], required=True)
     playbook_launch_inputs = normalize_playbook_launch_inputs(bootstrap_context.get("playbook_launch_inputs"))
+    capability_setup = {
+        "skills": bootstrap_context.get("profile_skills", []),
+        "remote_mcp_servers": bootstrap_context.get("profile_remote_mcp_servers", []),
+        "roles": bootstrap_context.get("profile_roles", []),
+    }
     selected_execution_environment = (
         dict(bootstrap_context["default_execution_environment"])
         if isinstance(bootstrap_context.get("default_execution_environment"), dict)
@@ -4014,6 +4057,7 @@ def main() -> None:
     )
     action_plan = [] if scenario is None else scenario["actions"]
     expectation_plan = {} if scenario is None else scenario["expect"]
+    capability_expectation_plan = {} if scenario is None else scenario["capabilities"]
 
     trace = TraceRecorder(trace_dir)
     public_client = ApiClient(base_url, trace)
@@ -4193,11 +4237,13 @@ def main() -> None:
                 approval_actions=approval_actions,
                 fleet=latest_fleet,
                 playbook_id=playbook_id,
-                fleet_peaks=fleet_peaks,
-                verification_mode=verification_mode,
-                trace=trace,
-                execution_environment_expectations=execution_environment_expectations,
-            )
+            fleet_peaks=fleet_peaks,
+            verification_mode=verification_mode,
+            trace=trace,
+            execution_environment_expectations=execution_environment_expectations,
+            capability_expectations=capability_expectation_plan,
+            capability_setup=capability_setup,
+        )
             if progress_verification_can_end_run(
                 progress_verification,
                 workflow=attach_workflow_tasks(
@@ -4293,6 +4339,8 @@ def main() -> None:
         "runtime_cleanup": runtime_cleanup_evidence,
         "docker_log_rotation": docker_log_rotation_evidence,
     }
+    capability_proof = build_capability_proof(workflow=latest_workflow, logs=execution_logs_snapshot)
+    evidence_payload["capability_proof"] = capability_proof
     final_state = latest_workflow.get("state")
     verification = evaluate_expectations(
         expectation_plan,
@@ -4311,6 +4359,9 @@ def main() -> None:
         execution_logs=execution_logs_snapshot,
         evidence=evidence_payload,
         verification_mode=verification_mode,
+        capability_expectations=capability_expectation_plan,
+        capability_setup=capability_setup,
+        capability_proof=capability_proof,
     )
     evidence_payload["scenario_outcome_metrics"] = build_scenario_outcome_metrics(
         final_state=final_state,
@@ -4351,9 +4402,10 @@ def main() -> None:
             execution_logs=execution_logs_snapshot,
             efficiency=efficiency_summary,
             verification=verification,
-            evidence=evidence_payload,
-            execution_environment=selected_execution_environment,
-        )
+        evidence=evidence_payload,
+        execution_environment=selected_execution_environment,
+        capability_proof=capability_proof,
+    )
     )
     if not verification["passed"]:
         raise SystemExit(1)

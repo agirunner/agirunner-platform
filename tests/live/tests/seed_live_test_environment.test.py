@@ -267,11 +267,15 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
                         }
                     ],
                     "role_names": ["profile-a-role"],
+                    "skills": [],
+                    "remote_mcp_servers": [],
                     "roles": [
                         {
                             "name": "profile-a-role",
                             "execution_environment_id": None,
                             "use_default_execution_environment": False,
+                            "skill_slugs": [],
+                            "mcp_server_slugs": [],
                         }
                     ],
                 },
@@ -286,11 +290,15 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
                         }
                     ],
                     "role_names": ["profile-b-role"],
+                    "skills": [],
+                    "remote_mcp_servers": [],
                     "roles": [
                         {
                             "name": "profile-b-role",
                             "execution_environment_id": None,
                             "use_default_execution_environment": False,
+                            "skill_slugs": [],
+                            "mcp_server_slugs": [],
                         }
                     ],
                 },

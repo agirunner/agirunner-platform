@@ -150,6 +150,8 @@ def create_run_context(
         "playbook_id": profile_context["playbook_id"],
         "playbook_slug": profile_context.get("playbook_slug"),
         "playbook_launch_inputs": profile_context.get("playbook_launch_inputs", []),
+        "profile_skills": profile_context.get("skills", []),
+        "profile_remote_mcp_servers": profile_context.get("remote_mcp_servers", []),
         "provider_auth_mode": shared_context.get("provider_auth_mode"),
         "run_token": run_token,
         "scenario_name": scenario["name"],

@@ -810,6 +810,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                 "specialist_teardown": {"max_lag_seconds": 1.2},
             },
             verification={"passed": True, "failures": [], "checks": []},
+            capability_proof={"has_skill_prompt_section": True},
         )
 
         self.assertEqual("sdlc-lite-approval-request-changes-then-approve", payload["scenario"])
@@ -834,8 +835,47 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertIn("## Workflow Brief", payload["brief_proof"]["tasks"][0]["execution_brief_excerpt"])
         self.assertEqual("env-debian", payload["execution_environment"]["id"])
         self.assertEqual("debian", payload["execution_environment"]["verified_metadata"]["distro"])
+        self.assertEqual({"has_skill_prompt_section": True}, payload["capability_proof"])
         self.assertIn("outcome_metrics", payload)
         self.assertEqual("passed", payload["outcome_metrics"]["status"])
+
+    def test_evaluate_expectations_applies_capability_proof_checks(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {"state": "completed"},
+            workflow={"id": "wf-1", "state": "completed", "tasks": []},
+            board={"ok": True},
+            work_items={"ok": True},
+            workspace={},
+            artifacts={"ok": True},
+            approval_actions=[],
+            execution_logs={"data": []},
+            evidence={},
+            capability_expectations={
+                "skills": {
+                    "required_skill_slugs": ["structured-summary"],
+                    "require_prompt_section": True,
+                }
+            },
+            capability_setup={
+                "roles": [
+                    {
+                        "name": "researcher",
+                        "skill_slugs": ["structured-summary"],
+                        "mcp_server_slugs": [],
+                    }
+                ]
+            },
+            capability_proof={
+                "has_skill_prompt_section": False,
+                "has_remote_mcp_prompt_section": False,
+                "prompt_fragments": [],
+                "successful_mcp_tool_names": [],
+                "workflow_text": "",
+            },
+        )
+
+        self.assertFalse(verification["passed"])
+        self.assertIn("expected skills prompt section to appear in specialist prompts", verification["failures"])
 
     def test_build_brief_proof_prefers_task_started_summary(self) -> None:
         proof = run_workflow_scenario.build_brief_proof(
