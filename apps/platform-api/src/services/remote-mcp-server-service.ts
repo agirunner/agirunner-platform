@@ -4,7 +4,6 @@ import type { DatabaseQueryable } from '../db/database.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import {
   decryptRemoteMcpSecret,
-  normalizeStoredRemoteMcpSecret,
 } from './remote-mcp-secret-crypto.js';
 import {
   remoteMcpOauthConfigSchema,
@@ -18,6 +17,11 @@ import {
   type RemoteMcpParameterInput,
   type RemoteMcpTransportPreference,
 } from './remote-mcp-model.js';
+import {
+  persistOauthDefinitionSecrets,
+  resolvePersistedOauthDefinition,
+  resolvePersistedParameterSecret,
+} from './remote-mcp-server-secrets.js';
 
 const createVerifiedServerSchema = z.object({
   name: z.string().min(1).max(120),
@@ -206,7 +210,7 @@ export class RemoteMcpServerService {
         JSON.stringify(validated.discoveredToolsSnapshot),
         JSON.stringify(validated.discoveredResourcesSnapshot),
         JSON.stringify(validated.discoveredPromptsSnapshot),
-        JSON.stringify(persistableOauthDefinition(validated.oauthDefinition ?? null)),
+        JSON.stringify(persistOauthDefinitionSecrets(validated.oauthDefinition ?? null, null)),
       ],
     ).catch(handleRemoteMcpWriteError);
     const serverId = insert.rows[0].id;
@@ -281,7 +285,7 @@ export class RemoteMcpServerService {
         JSON.stringify(validated.discoveredToolsSnapshot ?? current.discovered_tools_snapshot),
         JSON.stringify(validated.discoveredResourcesSnapshot ?? current.discovered_resources_snapshot),
         JSON.stringify(validated.discoveredPromptsSnapshot ?? current.discovered_prompts_snapshot),
-        JSON.stringify(persistableOauthDefinition(validated.oauthDefinition ?? current.oauth_definition)),
+        JSON.stringify(resolvePersistedOauthDefinition(validated.oauthDefinition, current.oauth_definition)),
         JSON.stringify(validated.oauthConfig ?? current.oauth_config),
         JSON.stringify(validated.oauthCredentials ?? current.oauth_credentials),
       ],
@@ -365,9 +369,10 @@ export class RemoteMcpServerService {
   }
 
   private async replaceParameters(serverId: string, parameters: RemoteMcpParameterInput[]): Promise<void> {
+    const currentSecrets = await this.loadCurrentParameterSecrets(serverId);
     await this.pool.query('DELETE FROM remote_mcp_server_parameters WHERE remote_mcp_server_id = $1', [serverId]);
     for (const [sortOrder, parameter] of parameters.entries()) {
-      const storedSecret = parameter.valueKind === 'secret' ? normalizeStoredRemoteMcpSecret(parameter.value.trim()) : null;
+      const storedSecret = resolvePersistedParameterSecret(parameter, currentSecrets);
       await this.pool.query(
         `INSERT INTO remote_mcp_server_parameters (remote_mcp_server_id, placement, key, value_kind, static_value, encrypted_secret_value, sort_order)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -382,6 +387,25 @@ export class RemoteMcpServerService {
         ],
       );
     }
+  }
+
+  private async loadCurrentParameterSecrets(serverId: string): Promise<Map<string, string>> {
+    const result = await this.pool.query<{
+      id: string;
+      encrypted_secret_value: string | null;
+    }>(
+      `SELECT id, encrypted_secret_value
+         FROM remote_mcp_server_parameters
+        WHERE remote_mcp_server_id = $1`,
+      [serverId],
+    );
+    return new Map(
+      result.rows.flatMap((row) =>
+        typeof row.encrypted_secret_value === 'string' && row.encrypted_secret_value.trim().length > 0
+          ? [[row.id, row.encrypted_secret_value]]
+          : [],
+      ),
+    );
   }
 
   private async writeOAuthState(
@@ -555,19 +579,6 @@ function normalizeOauthDefinition(
     ...parsed,
     clientSecret: parsed.clientSecret ? 'redacted://remote-mcp-secret' : null,
     privateKeyPem: parsed.privateKeyPem ? 'redacted://remote-mcp-secret' : null,
-  };
-}
-
-function persistableOauthDefinition(
-  value: RemoteMcpOauthDefinition | null,
-): RemoteMcpOauthDefinition | null {
-  if (!value) {
-    return null;
-  }
-  return {
-    ...value,
-    clientSecret: value.clientSecret ? normalizeStoredRemoteMcpSecret(value.clientSecret) : null,
-    privateKeyPem: value.privateKeyPem ? normalizeStoredRemoteMcpSecret(value.privateKeyPem) : null,
   };
 }
 

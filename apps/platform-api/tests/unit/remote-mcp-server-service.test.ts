@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { configureProviderSecretEncryptionKey } from '../../src/lib/oauth-crypto.js';
+import { configureProviderSecretEncryptionKey, storeProviderSecret } from '../../src/lib/oauth-crypto.js';
+import { REMOTE_MCP_STORED_SECRET_VALUE } from '../../src/services/remote-mcp-secret-crypto.js';
 import { RemoteMcpServerService } from '../../src/services/remote-mcp-server-service.js';
 
 function createMockPool() {
@@ -197,5 +198,66 @@ describe('RemoteMcpServerService', () => {
           && sql.includes('AND id = $2'),
       ),
     ).toBe(true);
+  });
+
+  it('preserves stored secret parameters on update when the masked value is resubmitted', async () => {
+    const encryptedSecret = storeProviderSecret('preserved-secret');
+    pool.query.mockImplementation(async (sql: unknown, params?: unknown[]) => {
+      if (typeof sql !== 'string') {
+        return { rows: [], rowCount: 1 };
+      }
+      if (sql.includes('FROM remote_mcp_servers s')) {
+        return {
+          rows: [buildServerRow({
+            parameter_rows: [
+              {
+                id: 'param-1',
+                placement: 'query',
+                key: 'tavilyApiKey',
+                value_kind: 'secret',
+                static_value: null,
+                encrypted_secret_value: encryptedSecret,
+              },
+            ],
+          })],
+          rowCount: 1,
+        };
+      }
+      if (sql.includes('SELECT id, encrypted_secret_value')) {
+        return {
+          rows: [
+            {
+              id: 'param-1',
+              encrypted_secret_value: encryptedSecret,
+            },
+          ],
+          rowCount: 1,
+        };
+      }
+      if (sql.includes('DELETE FROM remote_mcp_server_parameters')) {
+        return { rows: [], rowCount: 1 };
+      }
+      if (sql.includes('INSERT INTO remote_mcp_server_parameters')) {
+        expect(params?.[5]).toBe(encryptedSecret);
+        return { rows: [], rowCount: 1 };
+      }
+      if (sql.includes('UPDATE remote_mcp_servers')) {
+        return { rows: [], rowCount: 1 };
+      }
+      return { rows: [], rowCount: 1 };
+    });
+
+    await service.updateVerifiedServer(TENANT_ID, SERVER_ID, {
+      description: 'Updated description',
+      parameters: [
+        {
+          id: 'param-1',
+          placement: 'query',
+          key: 'tavilyApiKey',
+          valueKind: 'secret',
+          value: REMOTE_MCP_STORED_SECRET_VALUE,
+        },
+      ],
+    });
   });
 });

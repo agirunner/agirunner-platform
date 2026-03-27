@@ -1840,13 +1840,9 @@ function buildRemoteMcpParameterContract(
     });
   }
   if (isExternalSecretReference(storedSecret)) {
-    return {
-      id: parameter.id,
-      placement: parameter.placement,
-      key: parameter.key,
-      value_kind: 'secret',
-      secret_ref: storedSecret,
-    };
+    throw new ValidationError(
+      'Remote MCP parameters cannot use external secret references in the claim path.',
+    );
   }
   return {
     id: parameter.id,

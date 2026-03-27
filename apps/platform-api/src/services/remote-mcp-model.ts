@@ -22,6 +22,7 @@ export const remoteMcpParameterPlacementSchema = z.enum([
 ]);
 
 export const remoteMcpParameterSchema = z.object({
+  id: z.string().min(1).optional(),
   placement: remoteMcpParameterPlacementSchema,
   key: z.string().min(1).max(200),
   valueKind: z.enum(['static', 'secret']),
