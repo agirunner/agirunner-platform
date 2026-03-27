@@ -1,5 +1,8 @@
 import { dashboardApi } from '../../lib/api.js';
-import type { RoleAssignmentRecord, SystemDefaultRecord } from './role-definitions-orchestrator.support.js';
+import type {
+  RoleAssignmentRecord,
+  SystemDefaultRecord,
+} from './role-definitions-orchestrator.support.js';
 import type {
   LlmModelRecord,
   LlmProviderRecord,
@@ -10,9 +13,7 @@ import type {
 import { buildRolePayload } from './role-definitions-page.support.js';
 import type {
   DashboardRemoteMcpServerRecord,
-  DashboardSpecialistSkillCreateInput,
   DashboardSpecialistSkillRecord,
-  DashboardSpecialistSkillUpdateInput,
 } from '../../lib/api.js';
 
 export const fetchRoles = (): Promise<RoleDefinition[]> =>
@@ -61,23 +62,4 @@ export function updateAssignment(
   payload: { primaryModelId?: string; reasoningConfig?: Record<string, unknown> | null },
 ) {
   return dashboardApi.updateLlmAssignment(roleName, payload);
-}
-
-export function createSpecialistSkill(payload: DashboardSpecialistSkillCreateInput) {
-  return dashboardApi.createSpecialistSkill(payload);
-}
-
-export function updateSpecialistSkill(
-  skillId: string,
-  payload: DashboardSpecialistSkillUpdateInput,
-) {
-  return dashboardApi.updateSpecialistSkill(skillId, payload);
-}
-
-export function archiveSpecialistSkill(skillId: string) {
-  return dashboardApi.archiveSpecialistSkill(skillId);
-}
-
-export function restoreSpecialistSkill(skillId: string) {
-  return dashboardApi.unarchiveSpecialistSkill(skillId);
 }

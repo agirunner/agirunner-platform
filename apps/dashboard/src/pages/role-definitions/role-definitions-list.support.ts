@@ -1,11 +1,14 @@
 import type { RoleDefinition } from './role-definitions-page.support.js';
 
 export function buildRoleDetailSummary(role: RoleDefinition, modelLabel: string) {
+  const toolCount = role.allowed_tools?.length ?? 0;
+  const mcpServerCount = role.mcp_server_ids?.length ?? 0;
+
   return {
     model: { title: 'Model', label: modelLabel || 'System default' },
     tools: {
-      title: 'Tools',
-      label: `${role.allowed_tools?.length ?? 0} tool${role.allowed_tools?.length === 1 ? '' : 's'} enabled`,
+      title: 'Tools & MCP',
+      label: `${toolCount} tool${toolCount === 1 ? '' : 's'} and ${mcpServerCount} MCP server${mcpServerCount === 1 ? '' : 's'} enabled`,
     },
     executionEnvironment: {
       title: 'Execution Environment',

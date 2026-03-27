@@ -99,17 +99,37 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Playbooks', href: '/design/playbooks', icon: FileText },
       { label: 'Workspaces', href: '/design/workspaces', icon: FolderOpen },
-      { label: 'Specialists', href: '/design/specialists', icon: Users, keywords: ['specialist', 'agent roles', 'role definitions'] },
-      { label: 'Skills', href: '/design/specialists/skills', icon: ScrollText, keywords: ['specialist skills', 'shared skills', 'skill library'] },
+      {
+        label: 'Specialists',
+        href: '/design/specialists',
+        icon: Users,
+        keywords: ['specialist', 'agent roles', 'role definitions'],
+      },
+      {
+        label: 'Skills',
+        href: '/design/specialists/skills',
+        icon: ScrollText,
+        keywords: ['specialist skills', 'shared skills', 'skill library'],
+      },
     ],
   },
   {
     label: 'Platform',
     icon: Cog,
     items: [
-      { label: 'Models', href: '/platform/models', icon: Cog, keywords: ['models', 'routing', 'model routing', 'llm'] },
+      {
+        label: 'Models',
+        href: '/platform/models',
+        icon: Cog,
+        keywords: ['models', 'routing', 'model routing', 'llm'],
+      },
       { label: 'Instructions', href: '/platform/instructions', icon: ScrollText },
-      { label: 'Orchestrator', href: '/platform/orchestrator', icon: Bot, keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture'] },
+      {
+        label: 'Orchestrator',
+        href: '/platform/orchestrator',
+        icon: Bot,
+        keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture'],
+      },
       {
         label: 'Environments',
         href: '/platform/environments',
@@ -232,8 +252,8 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [activePaletteIndex, setActivePaletteIndex] = useState(-1);
-  const [recentPaletteItems, setRecentPaletteItems] = useState<CommandPaletteItem[]>(
-    () => readRecentCommandPaletteItems(),
+  const [recentPaletteItems, setRecentPaletteItems] = useState<CommandPaletteItem[]>(() =>
+    readRecentCommandPaletteItems(),
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const desktopSearchButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -659,8 +679,8 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
               skipMobileMenuRestoreRef.current = false;
               return;
             }
-            restoreFocusToElement(mobileMenuRestoreFocusRef.current)
-              || restoreFocusToElement(mobileMenuTriggerRef.current);
+            restoreFocusToElement(mobileMenuRestoreFocusRef.current) ||
+              restoreFocusToElement(mobileMenuTriggerRef.current);
           }}
         >
           <DialogTitle className="sr-only">Navigation menu</DialogTitle>
@@ -702,9 +722,9 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
           }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            restoreFocusToElement(searchRestoreFocusRef.current)
-              || restoreFocusToElement(mobileSearchButtonRef.current)
-              || restoreFocusToElement(desktopSearchButtonRef.current);
+            restoreFocusToElement(searchRestoreFocusRef.current) ||
+              restoreFocusToElement(mobileSearchButtonRef.current) ||
+              restoreFocusToElement(desktopSearchButtonRef.current);
           }}
         >
           <div className="space-y-3">
@@ -715,7 +735,8 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
                     Search the workspace
                   </DialogTitle>
                   <DialogDescription className="text-xs text-muted">
-                    Workflow boards, tasks, workspaces, playbooks, specialist agents, and specialist executions.
+                    Workflow boards, tasks, workspaces, playbooks, specialist agents, and specialist
+                    executions.
                   </DialogDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -782,9 +803,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
                   <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted">
                     {shouldSearchWorkspace ? 'Commands and results' : 'Actions and shortcuts'}
                   </p>
-                  <p className="text-xs text-muted">
-                    {`${visiblePaletteItems.length} items`}
-                  </p>
+                  <p className="text-xs text-muted">{`${visiblePaletteItems.length} items`}</p>
                 </div>
                 <div
                   id="dashboard-command-palette-results"
@@ -875,10 +894,7 @@ function NavSectionGroup({
       >
         <Icon size={15} />
         <span className="flex-1 text-left">{section.label}</span>
-        <ChevronRight
-          size={14}
-          className={cn('transition-transform', expanded && 'rotate-90')}
-        />
+        <ChevronRight size={14} className={cn('transition-transform', expanded && 'rotate-90')} />
       </button>
       {expanded && (
         <div className={SIDEBAR_SECTION_GROUP_CLASSES}>
@@ -891,9 +907,7 @@ function NavSectionGroup({
                 cn(
                   'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color,box-shadow]',
                   FOCUS_RING_CLASSES,
-                  active
-                    ? SIDEBAR_ACTIVE_ITEM_CLASSES
-                    : SIDEBAR_INACTIVE_ITEM_CLASSES,
+                  active ? SIDEBAR_ACTIVE_ITEM_CLASSES : SIDEBAR_INACTIVE_ITEM_CLASSES,
                 )
               }
             >

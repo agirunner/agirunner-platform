@@ -1,4 +1,4 @@
-import type { DashboardToolTagRecord } from '../../lib/api.js';
+import type { DashboardRemoteMcpServerRecord, DashboardToolTagRecord } from '../../lib/api.js';
 
 export interface RoleExecutionEnvironmentSummary {
   id: string;
@@ -109,13 +109,14 @@ export const NATIVE_SEARCH_TOOL = 'native_search';
 export function createRoleForm(
   role?: RoleDefinition | null,
   defaultToolIds: string[] = [],
+  defaultMcpServerIds: string[] = [],
 ): RoleFormState {
   return {
     name: role?.name ?? '',
     description: role?.description ?? '',
     systemPrompt: role?.system_prompt ?? '',
     allowedTools: role?.allowed_tools ?? [...defaultToolIds],
-    mcpServerIds: normalizeStringList(role?.mcp_server_ids ?? []),
+    mcpServerIds: normalizeStringList(role?.mcp_server_ids ?? defaultMcpServerIds),
     skillIds: normalizeStringList(role?.skill_ids ?? []),
     isActive: role?.is_active ?? true,
     executionEnvironmentId: role?.execution_environment_id ?? '',
@@ -151,8 +152,8 @@ export function listAvailableTools(
 ) {
   const catalogEntries = toolCatalog.filter(
     (tool) =>
-      isSpecialistSelectableTool(tool)
-      && (tool.id !== NATIVE_SEARCH_TOOL || supportsNativeSearch(model)),
+      isSpecialistSelectableTool(tool) &&
+      (tool.id !== NATIVE_SEARCH_TOOL || supportsNativeSearch(model)),
   );
   const storedTools = (role?.allowed_tools ?? []).filter((toolId) => {
     if (toolId === NATIVE_SEARCH_TOOL && !supportsNativeSearch(model)) {
@@ -209,7 +210,10 @@ export function syncNativeSearchGrant(
   const supportsSearch = supportsNativeSearch(model);
   const nextAllowedTools = form.allowedTools.filter((tool) => tool !== NATIVE_SEARCH_TOOL);
 
-  if (supportsSearch && (options.enableByDefault || form.allowedTools.includes(NATIVE_SEARCH_TOOL))) {
+  if (
+    supportsSearch &&
+    (options.enableByDefault || form.allowedTools.includes(NATIVE_SEARCH_TOOL))
+  ) {
     nextAllowedTools.push(NATIVE_SEARCH_TOOL);
   }
 
@@ -229,7 +233,9 @@ export function buildRoleModelOptions(
 
   for (const model of models.filter((item) => item.is_enabled !== false)) {
     const providerName =
-      model.provider_name ?? (model.provider_id ? providerNames.get(model.provider_id) : null) ?? 'Unknown provider';
+      model.provider_name ??
+      (model.provider_id ? providerNames.get(model.provider_id) : null) ??
+      'Unknown provider';
     options.set(model.model_id, {
       value: model.model_id,
       label: `${providerName} / ${model.model_id}`,
@@ -264,13 +270,24 @@ export function countRoleStateSummary(roles: RoleDefinition[]) {
   );
 }
 
+export function listDefaultRoleMcpServerIds(servers: DashboardRemoteMcpServerRecord[]): string[] {
+  return servers
+    .filter(
+      (server) =>
+        !server.is_archived &&
+        server.verification_status === 'verified' &&
+        server.enabled_by_default_for_new_specialists,
+    )
+    .map((server) => server.id);
+}
+
 export function isSelectableExecutionEnvironment(
   environment: RoleExecutionEnvironmentSummary,
 ): boolean {
   return (
-    environment.compatibility_status === 'compatible'
-    && environment.support_status !== 'blocked'
-    && environment.is_archived !== true
+    environment.compatibility_status === 'compatible' &&
+    environment.support_status !== 'blocked' &&
+    environment.is_archived !== true
   );
 }
 
@@ -286,9 +303,9 @@ export function buildRoleExecutionEnvironmentOptions(
   }
 
   const selectedOption =
-    environments.find((environment) => environment.id === normalizedSelectedId)
-    ?? selectedEnvironment
-    ?? null;
+    environments.find((environment) => environment.id === normalizedSelectedId) ??
+    selectedEnvironment ??
+    null;
   if (!selectedOption) {
     return selectableEnvironments;
   }

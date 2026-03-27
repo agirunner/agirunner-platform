@@ -82,14 +82,21 @@ describe('role definitions support helpers', () => {
     expect(createRoleForm().skillIds).toEqual([]);
   });
 
+  it('preselects remote MCP servers enabled by default for new specialists', () => {
+    const form = createRoleForm(null, [], ['server-2', 'server-1']);
+
+    expect(form.mcpServerIds).toEqual(['server-2', 'server-1']);
+    expect(form.skillIds).toEqual([]);
+  });
+
   it('hydrates the current execution environment override into the form', () => {
     const form = createRoleForm({
-        id: 'role-1',
-        name: 'developer',
-        execution_environment_id: 'environment-123',
-        mcp_server_ids: ['server-1'],
-        skill_ids: ['skill-2', 'skill-1'],
-      });
+      id: 'role-1',
+      name: 'developer',
+      execution_environment_id: 'environment-123',
+      mcp_server_ids: ['server-1'],
+      skill_ids: ['skill-2', 'skill-1'],
+    });
 
     expect(form.executionEnvironmentId).toBe('environment-123');
     expect(form.mcpServerIds).toEqual(['server-1']);
@@ -233,10 +240,9 @@ describe('role definitions support helpers', () => {
     ).toEqual(['environment-active', 'environment-archived']);
 
     expect(
-      buildRoleExecutionEnvironmentOptions(
-        [activeEnvironment, archivedEnvironment],
-        '',
-      ).map((environment) => environment.id),
+      buildRoleExecutionEnvironmentOptions([activeEnvironment, archivedEnvironment], '').map(
+        (environment) => environment.id,
+      ),
     ).toEqual(['environment-active']);
   });
 

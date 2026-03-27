@@ -3,12 +3,14 @@ import { z } from 'zod';
 import type { DatabaseQueryable } from '../db/database.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 
-const createSkillSchema = z.object({
-  name: z.string().min(1).max(120),
-  slug: z.string().min(1).max(120).optional(),
-  summary: z.string().min(1).max(500),
-  content: z.string().min(1),
-}).strict();
+const createSkillSchema = z
+  .object({
+    name: z.string().min(1).max(120),
+    slug: z.string().min(1).max(120).optional(),
+    summary: z.string().min(1).max(500),
+    content: z.string().min(1),
+  })
+  .strict();
 
 const updateSkillSchema = createSkillSchema.partial();
 
@@ -31,12 +33,11 @@ export type SpecialistSkillRecord = SpecialistSkillRow;
 export class SpecialistSkillService {
   constructor(private readonly pool: DatabaseQueryable) {}
 
-  async listSkills(tenantId: string, includeArchived = true): Promise<SpecialistSkillRecord[]> {
+  async listSkills(tenantId: string): Promise<SpecialistSkillRecord[]> {
     const result = await this.pool.query<SpecialistSkillRow>(
       `SELECT *
          FROM specialist_skills
         WHERE tenant_id = $1
-          ${includeArchived ? '' : 'AND is_archived = false'}
         ORDER BY name ASC`,
       [tenantId],
     );
@@ -59,16 +60,21 @@ export class SpecialistSkillService {
     return row;
   }
 
-  async createSkill(tenantId: string, input: CreateSpecialistSkillInput): Promise<SpecialistSkillRecord> {
+  async createSkill(
+    tenantId: string,
+    input: CreateSpecialistSkillInput,
+  ): Promise<SpecialistSkillRecord> {
     const validated = createSkillSchema.parse(input);
     const slug = normalizeSlug(validated.slug ?? validated.name);
     await this.assertUniqueSlug(tenantId, slug);
-    const result = await this.pool.query<{ id: string }>(
-      `INSERT INTO specialist_skills (tenant_id, name, slug, summary, content)
+    const result = await this.pool
+      .query<{ id: string }>(
+        `INSERT INTO specialist_skills (tenant_id, name, slug, summary, content)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id`,
-      [tenantId, validated.name.trim(), slug, validated.summary.trim(), validated.content],
-    ).catch(handleSkillWriteError);
+        [tenantId, validated.name.trim(), slug, validated.summary.trim(), validated.content],
+      )
+      .catch(handleSkillWriteError);
     return this.getSkill(tenantId, result.rows[0].id);
   }
 
@@ -88,8 +94,9 @@ export class SpecialistSkillService {
     if (nextSlug !== current.slug) {
       await this.assertUniqueSlug(tenantId, nextSlug, id);
     }
-    const result = await this.pool.query(
-      `UPDATE specialist_skills
+    const result = await this.pool
+      .query(
+        `UPDATE specialist_skills
           SET name = $3,
               slug = $4,
               summary = $5,
@@ -98,32 +105,16 @@ export class SpecialistSkillService {
         WHERE tenant_id = $1
           AND id = $2
         RETURNING id`,
-      [
-        tenantId,
-        id,
-        validated.name?.trim() ?? current.name,
-        nextSlug,
-        validated.summary?.trim() ?? current.summary,
-        validated.content ?? current.content,
-      ],
-    ).catch(handleSkillWriteError);
-    if (!result.rowCount) {
-      throw new NotFoundError('Specialist skill not found');
-    }
-    return this.getSkill(tenantId, id);
-  }
-
-  async setArchived(tenantId: string, id: string, archived: boolean): Promise<SpecialistSkillRecord> {
-    await this.getSkill(tenantId, id);
-    const result = await this.pool.query(
-      `UPDATE specialist_skills
-          SET is_archived = $3,
-              updated_at = now()
-        WHERE tenant_id = $1
-          AND id = $2
-        RETURNING id`,
-      [tenantId, id, archived],
-    );
+        [
+          tenantId,
+          id,
+          validated.name?.trim() ?? current.name,
+          nextSlug,
+          validated.summary?.trim() ?? current.summary,
+          validated.content ?? current.content,
+        ],
+      )
+      .catch(handleSkillWriteError);
     if (!result.rowCount) {
       throw new NotFoundError('Specialist skill not found');
     }
@@ -144,7 +135,11 @@ export class SpecialistSkillService {
     }
   }
 
-  private async assertUniqueSlug(tenantId: string, slug: string, currentId?: string): Promise<void> {
+  private async assertUniqueSlug(
+    tenantId: string,
+    slug: string,
+    currentId?: string,
+  ): Promise<void> {
     const result = await this.pool.query<{ id: string }>(
       `SELECT id
          FROM specialist_skills

@@ -21,10 +21,7 @@ export const specialistSkillRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       return {
-        data: await app.specialistSkillService.getSkill(
-          request.auth!.tenantId,
-          params.id,
-        ),
+        data: await app.specialistSkillService.getSkill(request.auth!.tenantId, params.id),
       };
     },
   );
@@ -65,36 +62,6 @@ export const specialistSkillRoutes: FastifyPluginAsync = async (app) => {
       await app.specialistSkillService.deleteSkill(request.auth!.tenantId, params.id);
       reply.status(204);
       return null;
-    },
-  );
-
-  app.post(
-    '/api/v1/specialist-skills/:id/archive',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
-    async (request) => {
-      const params = request.params as { id: string };
-      return {
-        data: await app.specialistSkillService.setArchived(
-          request.auth!.tenantId,
-          params.id,
-          true,
-        ),
-      };
-    },
-  );
-
-  app.post(
-    '/api/v1/specialist-skills/:id/unarchive',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
-    async (request) => {
-      const params = request.params as { id: string };
-      return {
-        data: await app.specialistSkillService.setArchived(
-          request.auth!.tenantId,
-          params.id,
-          false,
-        ),
-      };
     },
   );
 };

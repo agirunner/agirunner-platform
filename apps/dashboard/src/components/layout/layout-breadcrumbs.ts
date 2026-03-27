@@ -79,12 +79,10 @@ function readWorkspaceLabelFromHistoryState(): string | null {
   if (typeof window === 'undefined') {
     return null;
   }
-  const historyState = window.history.state as
-    | {
-        usr?: { workspaceLabel?: unknown };
-        workspaceLabel?: unknown;
-      }
-    | null;
+  const historyState = window.history.state as {
+    usr?: { workspaceLabel?: unknown };
+    workspaceLabel?: unknown;
+  } | null;
   const candidate = historyState?.usr?.workspaceLabel ?? historyState?.workspaceLabel;
   return typeof candidate === 'string' && candidate.trim().length > 0 ? candidate.trim() : null;
 }
@@ -111,7 +109,10 @@ function readWorkspaceLabelFromStorage(pathname: string): string | null {
   return null;
 }
 
-export function rememberWorkspaceBreadcrumbLabel(workspaceId: string, workspaceLabel: string): void {
+export function rememberWorkspaceBreadcrumbLabel(
+  workspaceId: string,
+  workspaceLabel: string,
+): void {
   if (typeof window === 'undefined') {
     return;
   }
@@ -130,14 +131,19 @@ export function rememberWorkspaceBreadcrumbLabel(workspaceId: string, workspaceL
   }
 }
 
-export function buildBreadcrumbs(pathname: string, options: BreadcrumbBuildOptions = {}): LayoutBreadcrumb[] {
+export function buildBreadcrumbs(
+  pathname: string,
+  options: BreadcrumbBuildOptions = {},
+): LayoutBreadcrumb[] {
   const segments = pathname.split('/').filter(Boolean);
   if (segments.length === 0) return [{ label: 'Home' }];
 
   const crumbs: LayoutBreadcrumb[] = [];
   let currentPath = '';
   const workspaceLabel =
-    options.workspaceLabel?.trim() || readWorkspaceLabelFromHistoryState() || readWorkspaceLabelFromStorage(pathname);
+    options.workspaceLabel?.trim() ||
+    readWorkspaceLabelFromHistoryState() ||
+    readWorkspaceLabelFromStorage(pathname);
 
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i];
@@ -156,8 +162,8 @@ export function buildBreadcrumbs(pathname: string, options: BreadcrumbBuildOptio
 
     crumbs.push({
       label: isWorkspaceIdentitySegment
-        ? workspaceLabel ?? fallbackWorkspaceLabel(segment)
-        : SEGMENT_LABELS[segment] ?? capitalizeSegment(segment),
+        ? (workspaceLabel ?? fallbackWorkspaceLabel(segment))
+        : (SEGMENT_LABELS[segment] ?? capitalizeSegment(segment)),
       ...(href ? { href } : {}),
     });
   }
@@ -167,8 +173,7 @@ export function buildBreadcrumbs(pathname: string, options: BreadcrumbBuildOptio
 
 function extractWorkspaceIdentitySegment(pathname: string): string | null {
   const segments = pathname.split('/').filter(Boolean);
-  const startsWithCanonicalWorkspacePath =
-    segments[0] === 'design' && segments[1] === 'workspaces';
+  const startsWithCanonicalWorkspacePath = segments[0] === 'design' && segments[1] === 'workspaces';
   const startsWithLegacyWorkspacePath = segments[0] === 'workspaces';
   if ((!startsWithCanonicalWorkspacePath && !startsWithLegacyWorkspacePath) || !segments.at(-1)) {
     return null;
@@ -178,7 +183,9 @@ function extractWorkspaceIdentitySegment(pathname: string): string | null {
   if (!workspaceId) {
     return null;
   }
-  return ROUTABLE_PATHS.has(`${workspaceIdentityBasePath(segments)}/${workspaceId}`) ? null : workspaceId;
+  return ROUTABLE_PATHS.has(`${workspaceIdentityBasePath(segments)}/${workspaceId}`)
+    ? null
+    : workspaceId;
 }
 
 function fallbackWorkspaceLabel(segment: string): string {

@@ -314,7 +314,10 @@ export interface DashboardRuntimeDefaultUpsertInput {
 }
 
 export type DashboardExecutionEnvironmentPullPolicy = 'always' | 'if-not-present' | 'never';
-export type DashboardExecutionEnvironmentCompatibilityStatus = 'unknown' | 'compatible' | 'incompatible';
+export type DashboardExecutionEnvironmentCompatibilityStatus =
+  | 'unknown'
+  | 'compatible'
+  | 'incompatible';
 export type DashboardExecutionEnvironmentSupportStatus = 'active' | 'deprecated' | 'blocked';
 
 export interface DashboardExecutionEnvironmentCatalogRecord {
@@ -396,11 +399,7 @@ export interface DashboardExecutionEnvironmentUpdateInput {
 
 export type DashboardRemoteMcpAuthMode = 'none' | 'parameterized' | 'oauth';
 export type DashboardRemoteMcpTransport = 'streamable_http' | 'http_sse_compat';
-export type DashboardRemoteMcpParameterPlacement =
-  | 'path'
-  | 'query'
-  | 'header'
-  | 'initialize_param';
+export type DashboardRemoteMcpParameterPlacement = 'path' | 'query' | 'header' | 'initialize_param';
 
 export interface DashboardRemoteMcpServerParameterRecord {
   id: string;
@@ -1935,7 +1934,9 @@ export interface DashboardApi {
     payload: DashboardExecutionEnvironmentUpdateInput,
   ): Promise<DashboardExecutionEnvironmentRecord>;
   verifyExecutionEnvironment(environmentId: string): Promise<DashboardExecutionEnvironmentRecord>;
-  setDefaultExecutionEnvironment(environmentId: string): Promise<DashboardExecutionEnvironmentRecord>;
+  setDefaultExecutionEnvironment(
+    environmentId: string,
+  ): Promise<DashboardExecutionEnvironmentRecord>;
   archiveExecutionEnvironment(environmentId: string): Promise<DashboardExecutionEnvironmentRecord>;
   restoreExecutionEnvironment(environmentId: string): Promise<DashboardExecutionEnvironmentRecord>;
   listRemoteMcpServers(): Promise<DashboardRemoteMcpServerRecord[]>;
@@ -1964,8 +1965,7 @@ export interface DashboardApi {
     skillId: string,
     payload: DashboardSpecialistSkillUpdateInput,
   ): Promise<DashboardSpecialistSkillRecord>;
-  archiveSpecialistSkill(skillId: string): Promise<DashboardSpecialistSkillRecord>;
-  unarchiveSpecialistSkill(skillId: string): Promise<DashboardSpecialistSkillRecord>;
+  deleteSpecialistSkill(skillId: string): Promise<void>;
   saveRoleDefinition(
     roleId: string | null,
     payload: Record<string, unknown>,
@@ -2281,10 +2281,16 @@ export interface DashboardApi {
   getLogOperations(filters?: Record<string, string>): Promise<{ data: LogOperationRecord[] }>;
   getLogRoles(filters?: Record<string, string>): Promise<{ data: LogRoleRecord[] }>;
   getLogActors(filters?: Record<string, string>): Promise<{ data: LogActorRecord[] }>;
-  getLogOperationValues(filters?: Record<string, string>): Promise<{ data: LogOperationValueRecord[] }>;
+  getLogOperationValues(
+    filters?: Record<string, string>,
+  ): Promise<{ data: LogOperationValueRecord[] }>;
   getLogRoleValues(filters?: Record<string, string>): Promise<{ data: LogRoleValueRecord[] }>;
-  getLogActorKindValues(filters?: Record<string, string>): Promise<{ data: LogActorKindValueRecord[] }>;
-  getLogWorkflowValues(filters?: Record<string, string>): Promise<{ data: LogWorkflowValueRecord[] }>;
+  getLogActorKindValues(
+    filters?: Record<string, string>,
+  ): Promise<{ data: LogActorKindValueRecord[] }>;
+  getLogWorkflowValues(
+    filters?: Record<string, string>,
+  ): Promise<{ data: LogWorkflowValueRecord[] }>;
   exportLogs(filters: Record<string, string>): Promise<Blob>;
   getWorkspaceDeleteImpact(workspaceId: string): Promise<DashboardDeleteImpactSummary>;
   deleteWorkspace(workspaceId: string, options?: { cascade?: boolean }): Promise<void>;
@@ -2912,9 +2918,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() => client.deletePlaybook(playbookId).then(() => undefined)),
     getPlaybookDeleteImpact: (playbookId) =>
       withRefresh(() =>
-        requestData<DashboardPlaybookDeleteImpact>(`/api/v1/playbooks/${playbookId}/delete-impact`, {
-          method: 'GET',
-        }),
+        requestData<DashboardPlaybookDeleteImpact>(
+          `/api/v1/playbooks/${playbookId}/delete-impact`,
+          {
+            method: 'GET',
+          },
+        ),
       ),
     deletePlaybookPermanently: (playbookId) =>
       withRefresh(async () => {
@@ -3411,31 +3420,20 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           body: payload as unknown as Record<string, unknown>,
         }),
       ),
-    archiveSpecialistSkill: (skillId) =>
-      withRefresh(() =>
-        requestData<DashboardSpecialistSkillRecord>(
-          `/api/v1/specialist-skills/${skillId}/archive`,
-          {
-            body: {},
-          },
-        ),
-      ),
-    unarchiveSpecialistSkill: (skillId) =>
-      withRefresh(() =>
-        requestData<DashboardSpecialistSkillRecord>(
-          `/api/v1/specialist-skills/${skillId}/unarchive`,
-          {
-            body: {},
-          },
-        ),
-      ),
+    deleteSpecialistSkill: (skillId) =>
+      withRefresh(async () => {
+        await requestJson(`/api/v1/specialist-skills/${skillId}`, {
+          method: 'DELETE',
+          allowNoContent: true,
+        });
+      }),
     saveRoleDefinition: (roleId, payload) =>
       withRefresh(() =>
         requestData<DashboardRoleDefinitionRecord>(
           roleId ? `/api/v1/config/roles/${roleId}` : '/api/v1/config/roles',
           {
-          method: roleId ? 'PUT' : 'POST',
-          body: payload,
+            method: roleId ? 'PUT' : 'POST',
+            body: payload,
           },
         ),
       ),

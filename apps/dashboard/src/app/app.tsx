@@ -1,6 +1,14 @@
 import { Component, lazy, Suspense, useEffect } from 'react';
 import type { ComponentType, ErrorInfo, ReactNode } from 'react';
-import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
+import {
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  useParams,
+} from 'react-router-dom';
 
 import { DashboardLayout } from '../components/layout/layout.js';
 import { resolveAuthCallbackSession } from '../lib/auth-callback.js';
@@ -52,51 +60,152 @@ function isChunkLoadError(message: string): boolean {
 
 /* ── Lazy page imports ────────────────────────────────────────────────── */
 
-const LoginPage = lazyWithRetry(() => import('../pages/login/login-page.js').then((m) => ({ default: m.LoginPage })));
+const LoginPage = lazyWithRetry(() =>
+  import('../pages/login/login-page.js').then((m) => ({ default: m.LoginPage })),
+);
 
-const LiveBoardPage = lazyWithRetry(() => import('../pages/live-board/live-board-page.js').then((m) => ({ default: m.LiveBoardPage })));
-const AlertsApprovalsPage = lazyWithRetry(() => import('../pages/alerts-approvals/alerts-approvals-page.js').then((m) => ({ default: m.AlertsApprovalsPage })));
-const CostDashboardPage = lazyWithRetry(() => import('../pages/cost-dashboard/cost-dashboard-page.js').then((m) => ({ default: m.CostDashboardPage })));
+const LiveBoardPage = lazyWithRetry(() =>
+  import('../pages/live-board/live-board-page.js').then((m) => ({ default: m.LiveBoardPage })),
+);
+const AlertsApprovalsPage = lazyWithRetry(() =>
+  import('../pages/alerts-approvals/alerts-approvals-page.js').then((m) => ({
+    default: m.AlertsApprovalsPage,
+  })),
+);
+const CostDashboardPage = lazyWithRetry(() =>
+  import('../pages/cost-dashboard/cost-dashboard-page.js').then((m) => ({
+    default: m.CostDashboardPage,
+  })),
+);
 
-const WorkflowListPage = lazyWithRetry(() => import('../pages/workflow-list/workflow-list-page.js').then((m) => ({ default: m.WorkflowListPage })));
-const WorkflowDetailPage = lazyWithRetry(() => import('../pages/workflow-detail/workflow-detail-page.js').then((m) => ({ default: m.WorkflowDetailPage })));
-const WorkflowInspectorPage = lazyWithRetry(() => import('../pages/workflow-inspector/workflow-inspector-page.js').then((m) => ({ default: m.WorkflowInspectorPage })));
-const TaskListPage = lazyWithRetry(() => import('../pages/task-list/task-list-page.js').then((m) => ({ default: m.TaskListPage })));
-const TaskDetailPage = lazyWithRetry(() => import('../pages/task-detail/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })));
-const ArtifactPreviewPage = lazyWithRetry(() => import('../components/artifact-preview/artifact-preview-page.js').then((m) => ({ default: m.ArtifactPreviewPage })));
+const WorkflowListPage = lazyWithRetry(() =>
+  import('../pages/workflow-list/workflow-list-page.js').then((m) => ({
+    default: m.WorkflowListPage,
+  })),
+);
+const WorkflowDetailPage = lazyWithRetry(() =>
+  import('../pages/workflow-detail/workflow-detail-page.js').then((m) => ({
+    default: m.WorkflowDetailPage,
+  })),
+);
+const WorkflowInspectorPage = lazyWithRetry(() =>
+  import('../pages/workflow-inspector/workflow-inspector-page.js').then((m) => ({
+    default: m.WorkflowInspectorPage,
+  })),
+);
+const TaskListPage = lazyWithRetry(() =>
+  import('../pages/task-list/task-list-page.js').then((m) => ({ default: m.TaskListPage })),
+);
+const TaskDetailPage = lazyWithRetry(() =>
+  import('../pages/task-detail/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })),
+);
+const ArtifactPreviewPage = lazyWithRetry(() =>
+  import('../components/artifact-preview/artifact-preview-page.js').then((m) => ({
+    default: m.ArtifactPreviewPage,
+  })),
+);
 
-const WorkspaceListPage = lazyWithRetry(() => import('../pages/workspace-list/workspace-list-page.js').then((m) => ({ default: m.WorkspaceListPage })));
-const WorkspaceDetailPage = lazyWithRetry(() => import('../pages/workspace-detail/workspace-detail-page.js').then((m) => ({ default: m.WorkspaceDetailPage })));
+const WorkspaceListPage = lazyWithRetry(() =>
+  import('../pages/workspace-list/workspace-list-page.js').then((m) => ({
+    default: m.WorkspaceListPage,
+  })),
+);
+const WorkspaceDetailPage = lazyWithRetry(() =>
+  import('../pages/workspace-detail/workspace-detail-page.js').then((m) => ({
+    default: m.WorkspaceDetailPage,
+  })),
+);
 
-const RoleDefinitionsPage = lazyWithRetry(() => import('../pages/role-definitions/role-definitions-page.js').then((m) => ({ default: m.RoleDefinitionsPage })));
-const OrchestratorPage = lazyWithRetry(() => import('../pages/orchestrator/orchestrator-page.js').then((m) => ({ default: m.OrchestratorPage })));
-const LlmProvidersPage = lazyWithRetry(() => import('../pages/llm-providers/llm-providers-page.js').then((m) => ({ default: m.LlmProvidersPage })));
-const RuntimesPage = lazyWithRetry(() => import('../pages/runtimes/runtimes-page.js').then((m) => ({ default: m.RuntimesPage })));
-const ExecutionEnvironmentsPage = lazyWithRetry(() => import('../pages/execution-environments/execution-environments-page.js').then((m) => ({ default: m.ExecutionEnvironmentsPage })));
-const OperationsPage = lazyWithRetry(() => import('../pages/operations/operations-page.js').then((m) => ({ default: m.OperationsPage })));
-const PlatformInstructionsPage = lazyWithRetry(() => import('../pages/platform-instructions/platform-instructions-page.js').then((m) => ({ default: m.PlatformInstructionsPage })));
-const AiConfigAssistantPage = lazyWithRetry(() => import('../pages/ai-config-assistant/ai-config-assistant-page.js').then((m) => ({ default: m.AiConfigAssistantPage })));
-const PlaybookListPage = lazyWithRetry(() => import('../pages/playbook-list/playbook-list-page.js').then((m) => ({ default: m.PlaybookListPage })));
-const PlaybookDetailPage = lazyWithRetry(() => import('../pages/playbook-detail/playbook-detail-page.js').then((m) => ({ default: m.PlaybookDetailPage })));
-const PlaybookLaunchPage = lazyWithRetry(() => import('../pages/playbook-launch/playbook-launch-page.js').then((m) => ({ default: m.PlaybookLaunchPage })));
-const ToolsPage = lazyWithRetry(() => import('../pages/tools/tools-page.js').then((m) => ({ default: m.ToolsPage })));
-const WebhooksPage = lazyWithRetry(() => import('../pages/webhooks/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })));
-const WorkItemTriggersPage = lazyWithRetry(() => import('../pages/work-item-triggers/work-item-triggers-page.js').then((m) => ({ default: m.WorkItemTriggersPage })));
-const McpPage = lazyWithRetry(() => import('../pages/mcp/mcp-page.js').then((m) => ({ default: m.McpPage })));
+const RoleDefinitionsPage = lazyWithRetry(() =>
+  import('../pages/role-definitions/role-definitions-page.js').then((m) => ({
+    default: m.RoleDefinitionsPage,
+  })),
+);
+const SkillsPage = lazyWithRetry(() =>
+  import('../pages/skills/skills-page.js').then((m) => ({ default: m.SkillsPage })),
+);
+const OrchestratorPage = lazyWithRetry(() =>
+  import('../pages/orchestrator/orchestrator-page.js').then((m) => ({
+    default: m.OrchestratorPage,
+  })),
+);
+const LlmProvidersPage = lazyWithRetry(() =>
+  import('../pages/llm-providers/llm-providers-page.js').then((m) => ({
+    default: m.LlmProvidersPage,
+  })),
+);
+const RuntimesPage = lazyWithRetry(() =>
+  import('../pages/runtimes/runtimes-page.js').then((m) => ({ default: m.RuntimesPage })),
+);
+const ExecutionEnvironmentsPage = lazyWithRetry(() =>
+  import('../pages/execution-environments/execution-environments-page.js').then((m) => ({
+    default: m.ExecutionEnvironmentsPage,
+  })),
+);
+const OperationsPage = lazyWithRetry(() =>
+  import('../pages/operations/operations-page.js').then((m) => ({ default: m.OperationsPage })),
+);
+const PlatformInstructionsPage = lazyWithRetry(() =>
+  import('../pages/platform-instructions/platform-instructions-page.js').then((m) => ({
+    default: m.PlatformInstructionsPage,
+  })),
+);
+const AiConfigAssistantPage = lazyWithRetry(() =>
+  import('../pages/ai-config-assistant/ai-config-assistant-page.js').then((m) => ({
+    default: m.AiConfigAssistantPage,
+  })),
+);
+const PlaybookListPage = lazyWithRetry(() =>
+  import('../pages/playbook-list/playbook-list-page.js').then((m) => ({
+    default: m.PlaybookListPage,
+  })),
+);
+const PlaybookDetailPage = lazyWithRetry(() =>
+  import('../pages/playbook-detail/playbook-detail-page.js').then((m) => ({
+    default: m.PlaybookDetailPage,
+  })),
+);
+const PlaybookLaunchPage = lazyWithRetry(() =>
+  import('../pages/playbook-launch/playbook-launch-page.js').then((m) => ({
+    default: m.PlaybookLaunchPage,
+  })),
+);
+const ToolsPage = lazyWithRetry(() =>
+  import('../pages/tools/tools-page.js').then((m) => ({ default: m.ToolsPage })),
+);
+const WebhooksPage = lazyWithRetry(() =>
+  import('../pages/webhooks/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })),
+);
+const WorkItemTriggersPage = lazyWithRetry(() =>
+  import('../pages/work-item-triggers/work-item-triggers-page.js').then((m) => ({
+    default: m.WorkItemTriggersPage,
+  })),
+);
+const McpPage = lazyWithRetry(() =>
+  import('../pages/mcp/mcp-page.js').then((m) => ({ default: m.McpPage })),
+);
 
-const ContainersPage = lazyWithRetry(() => import('../pages/containers/containers-page.js').then((m) => ({ default: m.ContainersPage })));
+const ContainersPage = lazyWithRetry(() =>
+  import('../pages/containers/containers-page.js').then((m) => ({ default: m.ContainersPage })),
+);
 
-const ApiKeyPage = lazyWithRetry(() => import('../pages/api-key/api-key-page.js').then((m) => ({ default: m.ApiKeyPage })));
-const UserManagementPage = lazyWithRetry(() => import('../pages/user-management/user-management-page.js').then((m) => ({ default: m.UserManagementPage })));
-const SettingsPage = lazyWithRetry(() => import('../pages/settings/settings-page.js').then((m) => ({ default: m.SettingsPage })));
-const LogsPage = lazyWithRetry(() => import('../pages/logs/logs-page.js').then((m) => ({ default: m.LogsPage })));
+const ApiKeyPage = lazyWithRetry(() =>
+  import('../pages/api-key/api-key-page.js').then((m) => ({ default: m.ApiKeyPage })),
+);
+const UserManagementPage = lazyWithRetry(() =>
+  import('../pages/user-management/user-management-page.js').then((m) => ({
+    default: m.UserManagementPage,
+  })),
+);
+const SettingsPage = lazyWithRetry(() =>
+  import('../pages/settings/settings-page.js').then((m) => ({ default: m.SettingsPage })),
+);
+const LogsPage = lazyWithRetry(() =>
+  import('../pages/logs/logs-page.js').then((m) => ({ default: m.LogsPage })),
+);
 
 function PageFallback(): JSX.Element {
-  return (
-    <div className="flex items-center justify-center p-12 text-muted">
-      Loading...
-    </div>
-  );
+  return <div className="flex items-center justify-center p-12 text-muted">Loading...</div>;
 }
 
 interface ErrorBoundaryState {
@@ -174,101 +283,183 @@ export function App(): JSX.Element {
 
   return (
     <AppErrorBoundary>
-    <Suspense fallback={<PageFallback />}>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/auth/callback" element={<SSOCallbackPage />} />
-        <Route element={<RequireAuth />}>
-          <Route element={<DashboardLayout onToggleTheme={toggleTheme} />}>
-            <Route path="/" element={<Navigate to="/mission-control" replace />} />
+      <Suspense fallback={<PageFallback />}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/callback" element={<SSOCallbackPage />} />
+          <Route element={<RequireAuth />}>
+            <Route element={<DashboardLayout onToggleTheme={toggleTheme} />}>
+              <Route path="/" element={<Navigate to="/mission-control" replace />} />
 
-            {/* Mission Control */}
-            <Route path="/mission-control" element={<LiveBoardPage />} />
-            <Route path="/mission-control/workflows" element={<WorkflowListPage />} />
-            <Route path="/mission-control/workflows/:id" element={<WorkflowDetailPage />} />
-            <Route path="/mission-control/workflows/:id/inspector" element={<WorkflowInspectorPage />} />
-            <Route path="/mission-control/tasks" element={<TaskListPage />} />
-            <Route path="/mission-control/tasks/:id" element={<TaskDetailPage />} />
-            <Route path="/mission-control/action-queue" element={<AlertsApprovalsPage />} />
-            <Route path="/mission-control/costs" element={<CostDashboardPage />} />
-            <Route path="/mission-control/alerts" element={<Navigate to="/mission-control/action-queue" replace />} />
-            <Route path="/work/boards/*" element={<LegacyWorkflowBoardRedirect />} />
-            <Route path="/work/workflows/*" element={<LegacyWorkflowBoardRedirect />} />
-            <Route path="/work/tasks" element={<Navigate to="/mission-control/tasks" replace />} />
-            <Route path="/work/tasks/:id" element={<LegacyTaskRedirect />} />
-            <Route path="/work/approvals" element={<Navigate to="/mission-control/action-queue" replace />} />
+              {/* Mission Control */}
+              <Route path="/mission-control" element={<LiveBoardPage />} />
+              <Route path="/mission-control/workflows" element={<WorkflowListPage />} />
+              <Route path="/mission-control/workflows/:id" element={<WorkflowDetailPage />} />
+              <Route
+                path="/mission-control/workflows/:id/inspector"
+                element={<WorkflowInspectorPage />}
+              />
+              <Route path="/mission-control/tasks" element={<TaskListPage />} />
+              <Route path="/mission-control/tasks/:id" element={<TaskDetailPage />} />
+              <Route path="/mission-control/action-queue" element={<AlertsApprovalsPage />} />
+              <Route path="/mission-control/costs" element={<CostDashboardPage />} />
+              <Route
+                path="/mission-control/alerts"
+                element={<Navigate to="/mission-control/action-queue" replace />}
+              />
+              <Route path="/work/boards/*" element={<LegacyWorkflowBoardRedirect />} />
+              <Route path="/work/workflows/*" element={<LegacyWorkflowBoardRedirect />} />
+              <Route
+                path="/work/tasks"
+                element={<Navigate to="/mission-control/tasks" replace />}
+              />
+              <Route path="/work/tasks/:id" element={<LegacyTaskRedirect />} />
+              <Route
+                path="/work/approvals"
+                element={<Navigate to="/mission-control/action-queue" replace />}
+              />
 
-            {/* Work Design */}
-            <Route path="/artifacts/tasks/:taskId/:artifactId" element={<ArtifactPreviewPage />} />
-            <Route path="/design/workspaces" element={<WorkspaceListPage />} />
-            <Route path="/design/workspaces/:id" element={<WorkspaceDetailPage />} />
-            <Route path="/design/workspaces/:id/memory" element={<LegacyWorkspaceKnowledgeRedirect />} />
-            <Route path="/design/workspaces/:id/content" element={<LegacyWorkspaceKnowledgeRedirect />} />
-            <Route path="/design/workspaces/:id/artifacts" element={<LegacyWorkspaceKnowledgeRedirect />} />
-            <Route path="/workspaces" element={<Navigate to="/design/workspaces" replace />} />
-            <Route path="/workspaces/memory" element={<Navigate to="/design/workspaces" replace />} />
-            <Route path="/workspaces/content" element={<Navigate to="/design/workspaces" replace />} />
-            <Route path="/workspaces/*" element={<LegacyWorkspaceRouteRedirect />} />
-            <Route path="/design/playbooks" element={<PlaybookListPage />} />
-            <Route path="/design/playbooks/:id" element={<PlaybookDetailPage />} />
-            <Route path="/design/playbooks/:id/launch" element={<PlaybookLaunchPage />} />
-            <Route path="/design/playbooks/launch" element={<PlaybookLaunchPage />} />
-            <Route path="/config/playbooks/*" element={<LegacyPlaybookRouteRedirect />} />
-            <Route path="/design/specialists" element={<RoleDefinitionsPage />} />
-            <Route path="/design/roles" element={<LegacySpecialistsRouteRedirect />} />
-            <Route path="/config/roles" element={<Navigate to="/design/specialists" replace />} />
+              {/* Work Design */}
+              <Route
+                path="/artifacts/tasks/:taskId/:artifactId"
+                element={<ArtifactPreviewPage />}
+              />
+              <Route path="/design/workspaces" element={<WorkspaceListPage />} />
+              <Route path="/design/workspaces/:id" element={<WorkspaceDetailPage />} />
+              <Route
+                path="/design/workspaces/:id/memory"
+                element={<LegacyWorkspaceKnowledgeRedirect />}
+              />
+              <Route
+                path="/design/workspaces/:id/content"
+                element={<LegacyWorkspaceKnowledgeRedirect />}
+              />
+              <Route
+                path="/design/workspaces/:id/artifacts"
+                element={<LegacyWorkspaceKnowledgeRedirect />}
+              />
+              <Route path="/workspaces" element={<Navigate to="/design/workspaces" replace />} />
+              <Route
+                path="/workspaces/memory"
+                element={<Navigate to="/design/workspaces" replace />}
+              />
+              <Route
+                path="/workspaces/content"
+                element={<Navigate to="/design/workspaces" replace />}
+              />
+              <Route path="/workspaces/*" element={<LegacyWorkspaceRouteRedirect />} />
+              <Route path="/design/playbooks" element={<PlaybookListPage />} />
+              <Route path="/design/playbooks/:id" element={<PlaybookDetailPage />} />
+              <Route path="/design/playbooks/:id/launch" element={<PlaybookLaunchPage />} />
+              <Route path="/design/playbooks/launch" element={<PlaybookLaunchPage />} />
+              <Route path="/config/playbooks/*" element={<LegacyPlaybookRouteRedirect />} />
+              <Route path="/design/specialists" element={<RoleDefinitionsPage />} />
+              <Route path="/design/specialists/skills" element={<SkillsPage />} />
+              <Route path="/design/roles" element={<LegacySpecialistsRouteRedirect />} />
+              <Route path="/config/roles" element={<Navigate to="/design/specialists" replace />} />
 
-            {/* Platform */}
-            <Route path="/platform/orchestrator" element={<OrchestratorPage />} />
-            <Route path="/platform/models" element={<LlmProvidersPage />} />
-            <Route path="/platform/runtimes" element={<Navigate to="/admin/agentic-settings" replace />} />
-            <Route path="/platform/environments" element={<ExecutionEnvironmentsPage />} />
-            <Route path="/platform/operations" element={<Navigate to="/admin/platform-settings" replace />} />
-            <Route path="/platform/instructions" element={<PlatformInstructionsPage />} />
-            <Route path="/platform/tools" element={<ToolsPage />} />
-            <Route path="/config/orchestrator" element={<Navigate to="/platform/orchestrator" replace />} />
-            <Route path="/config/llm" element={<Navigate to="/platform/models" replace />} />
-            <Route path="/config/runtimes" element={<Navigate to="/admin/agentic-settings" replace />} />
-            <Route path="/config/instructions" element={<Navigate to="/platform/instructions" replace />} />
-            <Route path="/config/runtime-defaults" element={<Navigate to="/admin/agentic-settings" replace />} />
-            <Route path="/config/tools" element={<Navigate to="/platform/tools" replace />} />
-            <Route path="/config/assistant" element={<AiConfigAssistantPage />} />
+              {/* Platform */}
+              <Route path="/platform/orchestrator" element={<OrchestratorPage />} />
+              <Route path="/platform/models" element={<LlmProvidersPage />} />
+              <Route
+                path="/platform/runtimes"
+                element={<Navigate to="/admin/agentic-settings" replace />}
+              />
+              <Route path="/platform/environments" element={<ExecutionEnvironmentsPage />} />
+              <Route
+                path="/platform/operations"
+                element={<Navigate to="/admin/platform-settings" replace />}
+              />
+              <Route path="/platform/instructions" element={<PlatformInstructionsPage />} />
+              <Route path="/platform/tools" element={<ToolsPage />} />
+              <Route
+                path="/config/orchestrator"
+                element={<Navigate to="/platform/orchestrator" replace />}
+              />
+              <Route path="/config/llm" element={<Navigate to="/platform/models" replace />} />
+              <Route
+                path="/config/runtimes"
+                element={<Navigate to="/admin/agentic-settings" replace />}
+              />
+              <Route
+                path="/config/instructions"
+                element={<Navigate to="/platform/instructions" replace />}
+              />
+              <Route
+                path="/config/runtime-defaults"
+                element={<Navigate to="/admin/agentic-settings" replace />}
+              />
+              <Route path="/config/tools" element={<Navigate to="/platform/tools" replace />} />
+              <Route path="/config/assistant" element={<AiConfigAssistantPage />} />
 
-            {/* Integrations */}
-            <Route path="/integrations/webhooks" element={<WebhooksPage />} />
-            <Route path="/integrations/triggers" element={<WorkItemTriggersPage />} />
-            <Route path="/integrations/mcp-servers" element={<McpPage />} />
-            <Route path="/integrations/mcp" element={<Navigate to="/integrations/mcp-servers" replace />} />
-            <Route path="/integrations/agent-protocols" element={<Navigate to="/integrations/mcp-servers" replace />} />
-            <Route path="/config/webhooks" element={<Navigate to="/integrations/webhooks" replace />} />
-            <Route path="/config/triggers" element={<Navigate to="/integrations/triggers" replace />} />
-            <Route path="/config/agent-protocols" element={<Navigate to="/integrations/mcp-servers" replace />} />
-            <Route path="/config/work-item-triggers" element={<Navigate to="/integrations/triggers" replace />} />
+              {/* Integrations */}
+              <Route path="/integrations/webhooks" element={<WebhooksPage />} />
+              <Route path="/integrations/triggers" element={<WorkItemTriggersPage />} />
+              <Route path="/integrations/mcp-servers" element={<McpPage />} />
+              <Route
+                path="/integrations/mcp"
+                element={<Navigate to="/integrations/mcp-servers" replace />}
+              />
+              <Route
+                path="/integrations/agent-protocols"
+                element={<Navigate to="/integrations/mcp-servers" replace />}
+              />
+              <Route
+                path="/config/webhooks"
+                element={<Navigate to="/integrations/webhooks" replace />}
+              />
+              <Route
+                path="/config/triggers"
+                element={<Navigate to="/integrations/triggers" replace />}
+              />
+              <Route
+                path="/config/agent-protocols"
+                element={<Navigate to="/integrations/mcp-servers" replace />}
+              />
+              <Route
+                path="/config/work-item-triggers"
+                element={<Navigate to="/integrations/triggers" replace />}
+              />
 
-            {/* Diagnostics */}
-            <Route path="/diagnostics/live-logs" element={<LogsPage />} />
-            <Route path="/diagnostics/live-containers" element={<ContainersPage />} />
-            <Route path="/diagnostics/logs" element={<LegacyLiveLogsRedirect />} />
-            <Route path="/diagnostics/containers" element={<LegacyLiveContainersRedirect />} />
-            <Route path="/logs" element={<LegacyLiveLogsRedirect />} />
-            <Route path="/fleet/containers" element={<LegacyLiveContainersRedirect />} />
+              {/* Diagnostics */}
+              <Route path="/diagnostics/live-logs" element={<LogsPage />} />
+              <Route path="/diagnostics/live-containers" element={<ContainersPage />} />
+              <Route path="/diagnostics/logs" element={<LegacyLiveLogsRedirect />} />
+              <Route path="/diagnostics/containers" element={<LegacyLiveContainersRedirect />} />
+              <Route path="/logs" element={<LegacyLiveLogsRedirect />} />
+              <Route path="/fleet/containers" element={<LegacyLiveContainersRedirect />} />
 
-            {/* Admin */}
-            <Route path="/admin/general-settings" element={<SettingsPage />} />
-            <Route path="/admin/settings" element={<Navigate to="/admin/general-settings" replace />} />
-            <Route path="/admin/api-keys" element={<ApiKeyPage />} />
-            <Route path="/admin/agentic-settings" element={<RuntimesPage />} />
-            <Route path="/admin/agent-settings" element={<Navigate to="/admin/agentic-settings" replace />} />
-            <Route path="/admin/platform-settings" element={<OperationsPage />} />
-            <Route path="/governance/settings" element={<Navigate to="/admin/general-settings" replace />} />
-            <Route path="/governance/api-keys" element={<Navigate to="/admin/api-keys" replace />} />
-            <Route path="/governance/users" element={<UserManagementPage />} />
-            <Route path="/governance/retention" element={<Navigate to="/admin/general-settings" replace />} />
+              {/* Admin */}
+              <Route path="/admin/general-settings" element={<SettingsPage />} />
+              <Route
+                path="/admin/settings"
+                element={<Navigate to="/admin/general-settings" replace />}
+              />
+              <Route path="/admin/api-keys" element={<ApiKeyPage />} />
+              <Route path="/admin/agentic-settings" element={<RuntimesPage />} />
+              <Route
+                path="/admin/agent-settings"
+                element={<Navigate to="/admin/agentic-settings" replace />}
+              />
+              <Route path="/admin/platform-settings" element={<OperationsPage />} />
+              <Route
+                path="/governance/settings"
+                element={<Navigate to="/admin/general-settings" replace />}
+              />
+              <Route
+                path="/governance/api-keys"
+                element={<Navigate to="/admin/api-keys" replace />}
+              />
+              <Route path="/governance/users" element={<UserManagementPage />} />
+              <Route
+                path="/governance/retention"
+                element={<Navigate to="/admin/general-settings" replace />}
+              />
+            </Route>
           </Route>
-        </Route>
-        <Route path="*" element={<Navigate to="/mission-control" replace />} />
-      </Routes>
-    </Suspense>
+          <Route path="*" element={<Navigate to="/mission-control" replace />} />
+        </Routes>
+      </Suspense>
     </AppErrorBoundary>
   );
 }
@@ -296,12 +487,7 @@ function LegacyWorkflowBoardRedirect(): JSX.Element {
   const nextPath = location.pathname.startsWith('/work/workflows')
     ? location.pathname.replace('/work/workflows', '/mission-control/workflows')
     : location.pathname.replace('/work/boards', '/mission-control/workflows');
-  return (
-    <Navigate
-      to={`${nextPath}${location.search}${location.hash}`}
-      replace
-    />
-  );
+  return <Navigate to={`${nextPath}${location.search}${location.hash}`} replace />;
 }
 
 function LegacyTaskRedirect(): JSX.Element {
@@ -383,7 +569,7 @@ function SSOCallbackPage(): JSX.Element {
       try {
         const session = await resolveAuthCallbackSession({
           apiBaseUrl: API_BASE_URL,
-          cookieHeader: typeof document === "undefined" ? "" : document.cookie,
+          cookieHeader: typeof document === 'undefined' ? '' : document.cookie,
         });
         const completed = completeSsoBrowserSession(
           new URLSearchParams({ tenant_id: session.tenantId }),
@@ -393,7 +579,7 @@ function SSOCallbackPage(): JSX.Element {
           return;
         }
 
-        navigate(completed ? redirectTo : "/login", { replace: true });
+        navigate(completed ? redirectTo : '/login', { replace: true });
       } catch {
         if (isActive) {
           if (existingSession) {
@@ -402,7 +588,7 @@ function SSOCallbackPage(): JSX.Element {
           }
 
           clearSession();
-          navigate("/login", { replace: true });
+          navigate('/login', { replace: true });
         }
       }
     }

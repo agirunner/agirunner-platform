@@ -1,30 +1,27 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog.js';
 import {
-  summarizeRoleSetup,
-  validateRoleDialog,
-} from './role-definitions-dialog.support.js';
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog.js';
+import { summarizeRoleSetup, validateRoleDialog } from './role-definitions-dialog.support.js';
 import {
   RoleBasicsSection,
   RoleExecutionEnvironmentSection,
   RoleModelAssignmentSection,
 } from './role-definitions-dialog.basics.js';
-import {
-  RoleRemoteMcpSection,
-} from './role-definitions-dialog.mcp.js';
-import {
-  RoleToolGrantsSection,
-} from './role-definitions-dialog.catalog.js';
+import { RoleRemoteMcpSection } from './role-definitions-dialog.mcp.js';
+import { RoleToolGrantsSection } from './role-definitions-dialog.catalog.js';
 import { RoleSkillsSection } from './role-definitions-dialog.skills.js';
-import {
-  RoleDialogFooter,
-  RoleReadinessCard,
-} from './role-definitions-dialog.summary.js';
+import { RoleDialogFooter, RoleReadinessCard } from './role-definitions-dialog.summary.js';
 import {
   buildRoleExecutionEnvironmentOptions,
   createRoleForm,
+  listDefaultRoleMcpServerIds,
   listAvailableTools,
   resolveEffectiveRoleModel,
   syncNativeSearchGrant,
@@ -74,6 +71,7 @@ export function RoleDialog(props: {
     initialSelectedModelId,
     props.systemDefault?.modelId,
   );
+  const defaultRemoteMcpServerIds = listDefaultRoleMcpServerIds(props.remoteMcpServers);
 
   const [form, setForm] = useState<RoleFormState>(() => {
     const defaultToolIds = listAvailableTools(props.tools, null, initialEffectiveModel).map(
@@ -103,14 +101,16 @@ export function RoleDialog(props: {
       duplicated.name = '';
       return duplicated;
     }
-    return syncNativeSearchGrant(createRoleForm(null, defaultToolIds), initialEffectiveModel, {
-      enableByDefault: true,
-    });
+    return syncNativeSearchGrant(
+      createRoleForm(null, defaultToolIds, defaultRemoteMcpServerIds),
+      initialEffectiveModel,
+      {
+        enableByDefault: true,
+      },
+    );
   });
 
-  const [selectedModelId, setSelectedModelId] = useState<string>(
-    initialSelectedModelId,
-  );
+  const [selectedModelId, setSelectedModelId] = useState<string>(initialSelectedModelId);
   const [reasoningConfig, setReasoningConfig] = useState<Record<string, unknown> | null>(
     currentAssignment?.reasoning_config ?? null,
   );
@@ -122,7 +122,9 @@ export function RoleDialog(props: {
       if (savedName) {
         const currentModelId = currentAssignment?.primary_model_id?.trim() ?? '';
         const modelChanged = selectedModelId !== currentModelId;
-        const reasoningChanged = JSON.stringify(reasoningConfig) !== JSON.stringify(currentAssignment?.reasoning_config ?? null);
+        const reasoningChanged =
+          JSON.stringify(reasoningConfig) !==
+          JSON.stringify(currentAssignment?.reasoning_config ?? null);
         if (modelChanged || reasoningChanged) {
           await updateAssignment(savedName, {
             primaryModelId: selectedModelId || undefined,
@@ -149,9 +151,11 @@ export function RoleDialog(props: {
     sourceRole?.execution_environment ?? null,
   );
   const selectedEnvironment =
-    executionEnvironmentOptions.find((environment) => environment.id === form.executionEnvironmentId)
-    ?? sourceRole?.execution_environment
-    ?? null;
+    executionEnvironmentOptions.find(
+      (environment) => environment.id === form.executionEnvironmentId,
+    ) ??
+    sourceRole?.execution_environment ??
+    null;
   const tools = listAvailableTools(props.tools, sourceRole, effectiveModel);
   const validation = validateRoleDialog(form, props.roles, props.role);
   const summary = summarizeRoleSetup(form, selectedEnvironment);
@@ -179,7 +183,9 @@ export function RoleDialog(props: {
     <Dialog open onOpenChange={(open) => !open && props.onClose()}>
       <DialogContent className="top-[5vh] flex max-h-[90vh] max-w-[68rem] translate-y-0 flex-col overflow-hidden p-0">
         <DialogHeader className="border-b border-border/70 px-6 py-5">
-          <DialogTitle>{props.role ? `Edit Specialist: ${props.role.name}` : 'Create Specialist'}</DialogTitle>
+          <DialogTitle>
+            {props.role ? `Edit Specialist: ${props.role.name}` : 'Create Specialist'}
+          </DialogTitle>
           <DialogDescription>
             Define the specialist identity, prompt, model, and tools.
           </DialogDescription>
@@ -225,11 +231,7 @@ export function RoleDialog(props: {
                 }}
                 onReasoningChange={setReasoningConfig}
               />
-              <RoleToolGrantsSection
-                form={form}
-                tools={tools}
-                toggleTool={toggleTool}
-              />
+              <RoleToolGrantsSection form={form} tools={tools} toggleTool={toggleTool} />
               <RoleRemoteMcpSection
                 form={form}
                 setForm={(next) => setForm(next)}

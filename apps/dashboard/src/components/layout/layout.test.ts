@@ -69,8 +69,12 @@ describe('layout breadcrumbs', () => {
   it('points integrations navigation at the triggers route', () => {
     const source = readLayoutSource();
     expect(source).toContain("label: 'Integrations'");
-    expect(source.indexOf("label: 'MCP Servers'")).toBeLessThan(source.indexOf("label: 'Triggers (soon)'"));
-    expect(source.indexOf("label: 'Triggers (soon)'")).toBeLessThan(source.indexOf("label: 'Webhooks (soon)'"));
+    expect(source.indexOf("label: 'MCP Servers'")).toBeLessThan(
+      source.indexOf("label: 'Triggers (soon)'"),
+    );
+    expect(source.indexOf("label: 'Triggers (soon)'")).toBeLessThan(
+      source.indexOf("label: 'Webhooks (soon)'"),
+    );
     expect(source).toContain("label: 'Triggers (soon)'");
     expect(source).toContain("href: '/integrations/triggers'");
     expect(source).toContain("label: 'MCP Servers'");
@@ -84,7 +88,9 @@ describe('layout breadcrumbs', () => {
 
   it('keeps playbooks above workspaces in the Work Design nav group', () => {
     const source = readLayoutSource();
-    expect(source.indexOf("label: 'Playbooks'")).toBeLessThan(source.indexOf("label: 'Workspaces'"));
+    expect(source.indexOf("label: 'Playbooks'")).toBeLessThan(
+      source.indexOf("label: 'Workspaces'"),
+    );
   });
 
   it('keeps advanced settings under admin and leaves platform focused on regular operator surfaces', () => {
@@ -145,7 +151,9 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("label: 'API Keys'");
     expect(source).toContain("href: '/admin/api-keys'");
     expect(source).toContain("href: '/admin/general-settings'");
-    expect(source.indexOf("href: '/admin/api-keys'")).toBeLessThan(source.indexOf("href: '/admin/general-settings'"));
+    expect(source.indexOf("href: '/admin/api-keys'")).toBeLessThan(
+      source.indexOf("href: '/admin/general-settings'"),
+    );
     expect(source).not.toContain("label: 'Retention Policy'");
     expect(source).not.toContain("label: 'User Management'");
   });
@@ -169,14 +177,16 @@ describe('layout breadcrumbs', () => {
 
   it('keeps workspace scoped explorer breadcrumbs clickable without exposing raw UUID labels', () => {
     expect(
-      buildBreadcrumbs(
-        '/design/workspaces/321ddb16-0ac7-4af4-b008-94afe2592ee3/memory',
-        { workspaceLabel: 'Release Automation' },
-      ),
+      buildBreadcrumbs('/design/workspaces/321ddb16-0ac7-4af4-b008-94afe2592ee3/memory', {
+        workspaceLabel: 'Release Automation',
+      }),
     ).toEqual([
       { label: 'Work Design' },
       { label: 'Workspaces', href: '/design/workspaces' },
-      { label: 'Release Automation', href: '/design/workspaces/321ddb16-0ac7-4af4-b008-94afe2592ee3' },
+      {
+        label: 'Release Automation',
+        href: '/design/workspaces/321ddb16-0ac7-4af4-b008-94afe2592ee3',
+      },
       { label: 'Memory' },
     ]);
   });
@@ -196,17 +206,19 @@ describe('layout breadcrumbs', () => {
   });
 
   it('uses cached workspace labels for direct workspace loads when history state is empty', () => {
-    stubBreadcrumbWindow(
-      null,
-      {
-        'agirunner.workspaceLabel.321ddb16-0ac7-4af4-b008-94afe2592ee3': 'Release Automation',
-      },
-    );
+    stubBreadcrumbWindow(null, {
+      'agirunner.workspaceLabel.321ddb16-0ac7-4af4-b008-94afe2592ee3': 'Release Automation',
+    });
 
-    expect(buildBreadcrumbs('/design/workspaces/321ddb16-0ac7-4af4-b008-94afe2592ee3/artifacts')).toEqual([
+    expect(
+      buildBreadcrumbs('/design/workspaces/321ddb16-0ac7-4af4-b008-94afe2592ee3/artifacts'),
+    ).toEqual([
       { label: 'Work Design' },
       { label: 'Workspaces', href: '/design/workspaces' },
-      { label: 'Release Automation', href: '/design/workspaces/321ddb16-0ac7-4af4-b008-94afe2592ee3' },
+      {
+        label: 'Release Automation',
+        href: '/design/workspaces/321ddb16-0ac7-4af4-b008-94afe2592ee3',
+      },
       { label: 'Artifacts' },
     ]);
   });

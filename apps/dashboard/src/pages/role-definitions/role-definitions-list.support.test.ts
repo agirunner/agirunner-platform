@@ -9,6 +9,7 @@ describe('role definitions list support', () => {
         id: 'role-1',
         name: 'developer',
         allowed_tools: ['file_read', 'file_write'],
+        mcp_server_ids: ['server-1'],
         model_preference: null,
         verification_strategy: 'peer-review',
         escalation_target: 'architect',
@@ -41,7 +42,7 @@ describe('role definitions list support', () => {
     );
 
     expect(summary.model.label).toBe('System default');
-    expect(summary.tools.label).toBe('2 tools enabled');
+    expect(summary.tools.label).toBe('2 tools and 1 MCP server enabled');
     expect(summary.executionEnvironment.label).toContain('Ubuntu 24.04 / Go');
     expect(summary.executionEnvironment.label).toContain('ubuntu:24.04');
     expect(summary).not.toHaveProperty('governance');
