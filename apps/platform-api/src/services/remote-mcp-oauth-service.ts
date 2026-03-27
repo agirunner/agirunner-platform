@@ -5,11 +5,20 @@ import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { generateCodeChallenge, generateCodeVerifier, generateState } from '../lib/pkce.js';
 import type {
   CreateVerifiedRemoteMcpServerInput,
-  RemoteMcpOAuthConfigRecord,
-  RemoteMcpOAuthCredentialsRecord,
   StoredRemoteMcpServerRecord,
   UpdateVerifiedRemoteMcpServerInput,
 } from './remote-mcp-server-service.js';
+import {
+  remoteMcpOauthConfigSchema,
+  remoteMcpOauthCredentialsSchema,
+  remoteMcpOauthDefinitionSchema,
+  remoteMcpParameterSchema,
+  remoteMcpTransportPreferenceSchema,
+  type RemoteMcpOAuthConfigRecord,
+  type RemoteMcpOAuthCredentialsRecord,
+  type RemoteMcpOauthDefinition,
+  type RemoteMcpParameterInput,
+} from './remote-mcp-model.js';
 import { decryptRemoteMcpSecret, encryptRemoteMcpSecret } from './remote-mcp-secret-crypto.js';
 import type { RemoteMcpVerifier } from './remote-mcp-verification-service.js';
 
@@ -18,22 +27,17 @@ const CLIENT_METADATA_PATH = '/.well-known/oauth/mcp-client.json';
 const HOSTED_CALLBACK_PATH = '/api/v1/oauth/callback';
 const ACCESS_TOKEN_EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 
-const connectionParameterSchema = z.object({
-  placement: z.enum(['path', 'query', 'header', 'initialize_param']),
-  key: z.string().min(1).max(200),
-  valueKind: z.enum(['static', 'secret']),
-  value: z.string(),
-}).strict();
-
 const draftInputSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(1000).default(''),
   endpointUrl: z.string().min(1).max(2000),
+  transportPreference: remoteMcpTransportPreferenceSchema.default('auto'),
   callTimeoutSeconds: z.number().int().min(1).max(86400).default(300),
   authMode: z.literal('oauth'),
   enabledByDefaultForNewSpecialists: z.boolean().default(false),
   grantToAllExistingSpecialists: z.boolean().default(false),
-  parameters: z.array(connectionParameterSchema).default([]),
+  oauthDefinition: remoteMcpOauthDefinitionSchema.nullable().optional(),
+  parameters: z.array(remoteMcpParameterSchema).default([]),
 }).strict();
 
 interface StateRow {
@@ -51,10 +55,12 @@ interface DraftRow {
   name: string;
   description: string;
   endpoint_url: string;
+  transport_preference: 'auto' | 'streamable_http' | 'http_sse_compat';
   call_timeout_seconds: number;
   auth_mode: 'oauth';
   enabled_by_default_for_new_specialists: boolean;
   grant_to_all_existing_specialists: boolean;
+  oauth_definition: unknown;
   parameters: unknown;
 }
 
@@ -68,6 +74,7 @@ interface AuthorizationServerMetadata {
   authorizationEndpoint: string;
   tokenEndpoint: string;
   registrationEndpoint: string | null;
+  deviceAuthorizationEndpoint: string | null;
   tokenEndpointAuthMethodsSupported: string[];
   codeChallengeMethodsSupported: string[];
   clientIdMetadataDocumentSupported: boolean;
@@ -99,7 +106,7 @@ interface TokenResponse {
   scope?: string;
 }
 
-type DraftInput = z.infer<typeof draftInputSchema>;
+type DraftInput = z.input<typeof draftInputSchema>;
 type AuthorizationSecretInput = {
   id: string;
   oauthConfig: RemoteMcpOAuthConfigRecord | null;
@@ -137,9 +144,9 @@ export class RemoteMcpOAuthService {
     const draftInsert = await this.pool.query<{ id: string }>(
       `INSERT INTO remote_mcp_registration_drafts (
          tenant_id, user_id, name, description, endpoint_url, auth_mode,
-         call_timeout_seconds, enabled_by_default_for_new_specialists,
-         grant_to_all_existing_specialists, parameters
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb)
+         transport_preference, call_timeout_seconds, enabled_by_default_for_new_specialists,
+         grant_to_all_existing_specialists, oauth_definition, parameters
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12::jsonb)
        RETURNING id`,
       [
         tenantId,
@@ -148,9 +155,11 @@ export class RemoteMcpOAuthService {
         validated.description.trim(),
         validated.endpointUrl.trim(),
         'oauth',
+        validated.transportPreference,
         validated.callTimeoutSeconds,
         validated.enabledByDefaultForNewSpecialists,
         validated.grantToAllExistingSpecialists,
+        JSON.stringify(persistableOauthDefinition(validated.oauthDefinition ?? null)),
         JSON.stringify(validated.parameters),
       ],
     );
@@ -159,7 +168,11 @@ export class RemoteMcpOAuthService {
       throw new ValidationError('Unable to create remote MCP OAuth draft');
     }
 
-    const flow = await this.prepareAuthorization(validated.endpointUrl.trim());
+    const flow = await this.prepareAuthorization({
+      endpointUrl: validated.endpointUrl.trim(),
+      oauthDefinition: validated.oauthDefinition ?? null,
+      parameters: validated.parameters,
+    });
     await this.insertOAuthState(tenantId, userId, flow, {
       mode: 'draft',
       draft_id: draftId,
@@ -184,7 +197,16 @@ export class RemoteMcpOAuthService {
     if (current.auth_mode !== 'oauth') {
       throw new ValidationError('Remote MCP server is not configured for OAuth');
     }
-    const flow = await this.prepareAuthorization(current.endpoint_url);
+    const flow = await this.prepareAuthorization({
+      endpointUrl: current.endpoint_url,
+      oauthDefinition: current.oauth_definition,
+      parameters: current.parameters.map((parameter) => ({
+        placement: parameter.placement,
+        key: parameter.key,
+        valueKind: parameter.value_kind,
+        value: parameter.value,
+      })),
+    });
     await this.insertOAuthState(tenantId, userId, flow, {
       mode: 'reconnect',
       server_id: serverId,
@@ -220,10 +242,12 @@ export class RemoteMcpOAuthService {
         name: draft.name,
         description: draft.description,
         endpointUrl: draft.endpoint_url,
+        transportPreference: draft.transport_preference ?? 'auto',
         callTimeoutSeconds: draft.call_timeout_seconds,
         authMode: 'oauth',
         enabledByDefaultForNewSpecialists: draft.enabled_by_default_for_new_specialists,
         grantToAllExistingSpecialists: draft.grant_to_all_existing_specialists,
+        oauthDefinition: parseDraftOauthDefinition(draft.oauth_definition),
         verificationStatus: verification.verification_status,
         verificationError: verification.verification_error,
         verifiedTransport: verification.verified_transport,
@@ -253,6 +277,7 @@ export class RemoteMcpOAuthService {
       payload.server_id ?? '',
       {
         callTimeoutSeconds: draft.call_timeout_seconds,
+        transportPreference: draft.transport_preference ?? 'auto',
         verificationStatus: verification.verification_status,
         verificationError: verification.verification_error,
         verifiedTransport: verification.verified_transport,
@@ -263,6 +288,7 @@ export class RemoteMcpOAuthService {
         discoveredToolsSnapshot: verification.discovered_tools_snapshot,
         discoveredResourcesSnapshot: verification.discovered_resources_snapshot,
         discoveredPromptsSnapshot: verification.discovered_prompts_snapshot,
+        oauthDefinition: parseDraftOauthDefinition(draft.oauth_definition),
         oauthConfig: persistableOauthConfig(payload.oauth_config),
         oauthCredentials,
       },
@@ -311,14 +337,35 @@ export class RemoteMcpOAuthService {
     return `${tokenType} ${accessToken}`;
   }
 
-  private async prepareAuthorization(endpointUrl: string): Promise<PreparedOAuthFlow> {
-    assertOAuthEndpointUrl(endpointUrl);
-    const resourceMetadata = await this.discoverResourceMetadata(endpointUrl);
-    const authMetadata = resourceMetadata.authorizationServers[0]
-      ? await this.discoverAuthorizationServerMetadata(resourceMetadata.authorizationServers[0])
-      : await this.discoverEndpointAuthorizationServerMetadata(endpointUrl);
-    const redirectUri = buildRemoteMcpRedirectUri(this.options.remoteMcpHostedCallbackBaseUrl);
-    const clientConfig = await this.buildClientConfig(authMetadata, resourceMetadata.resource, redirectUri);
+  private async prepareAuthorization(input: {
+    endpointUrl: string;
+    oauthDefinition: RemoteMcpOauthDefinition | null;
+    parameters: RemoteMcpParameterInput[];
+  }): Promise<PreparedOAuthFlow> {
+    assertOAuthEndpointUrl(input.endpointUrl);
+    const resourceMetadata = await this.discoverResourceMetadata(
+      input.endpointUrl,
+      input.oauthDefinition,
+    );
+    const authMetadata = await this.discoverEffectiveAuthorizationServerMetadata(
+      input.endpointUrl,
+      resourceMetadata,
+      input.oauthDefinition,
+    );
+    const callbackMode = resolveRemoteMcpCallbackMode(
+      input.oauthDefinition?.callbackMode,
+      this.options.remoteMcpHostedCallbackBaseUrl,
+    );
+    const redirectUri = buildRemoteMcpRedirectUri(
+      callbackMode,
+      this.options.remoteMcpHostedCallbackBaseUrl,
+    );
+    const clientConfig = await this.buildClientConfig(
+      authMetadata,
+      resourceMetadata.resource,
+      redirectUri,
+      input.oauthDefinition,
+    );
     const codeVerifier = generateCodeVerifier();
     const state = generateState();
     const codeChallenge = generateCodeChallenge(codeVerifier);
@@ -329,6 +376,9 @@ export class RemoteMcpOAuthService {
       state,
       codeChallenge,
       resource: resourceMetadata.resource,
+      resourceIndicators: clientConfig.resourceIndicators,
+      audiences: clientConfig.audiences,
+      extraQueryParameters: selectAuthorizeQueryParameters(input.parameters),
     });
     return {
       authorizeUrl,
@@ -401,10 +451,12 @@ export class RemoteMcpOAuthService {
       name: current.name,
       description: current.description,
       endpoint_url: current.endpoint_url,
+      transport_preference: current.transport_preference,
       call_timeout_seconds: current.call_timeout_seconds,
       auth_mode: 'oauth',
       enabled_by_default_for_new_specialists: current.enabled_by_default_for_new_specialists,
       grant_to_all_existing_specialists: false,
+      oauth_definition: current.oauth_definition,
       parameters: current.parameters.map((parameter) => ({
         placement: parameter.placement,
         key: parameter.key,
@@ -418,6 +470,7 @@ export class RemoteMcpOAuthService {
     const parameters = parseDraftParameters(draft.parameters);
     return this.verifier.verify({
       endpointUrl: draft.endpoint_url,
+      transportPreference: draft.transport_preference ?? 'auto',
       callTimeoutSeconds: draft.call_timeout_seconds,
       authMode: 'oauth',
       parameters: [
@@ -500,36 +553,80 @@ export class RemoteMcpOAuthService {
     return response.json() as Promise<TokenResponse>;
   }
 
-  private async discoverResourceMetadata(endpointUrl: string): Promise<ResourceMetadata> {
-    const metadataUrl = buildProtectedResourceMetadataUrl(endpointUrl);
-    const response = await fetch(metadataUrl, {
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-    if (!response.ok) {
-      throw new ValidationError(`Remote MCP OAuth discovery failed with status ${response.status}`);
+  private async discoverResourceMetadata(
+    endpointUrl: string,
+    oauthDefinition: RemoteMcpOauthDefinition | null,
+  ): Promise<ResourceMetadata> {
+    const candidateUrls = oauthDefinition?.protectedResourceMetadataUrlOverride
+      ? [oauthDefinition.protectedResourceMetadataUrlOverride]
+      : buildProtectedResourceMetadataCandidates(endpointUrl);
+    let lastStatus: number | null = null;
+    for (const metadataUrl of candidateUrls) {
+      const response = await fetch(metadataUrl, {
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+      if (!response.ok) {
+        lastStatus = response.status;
+        continue;
+      }
+      const payload = await response.json() as {
+        resource?: string;
+        authorization_servers?: string[];
+        authorization_server?: string;
+      };
+      const authorizationServers = Array.isArray(payload.authorization_servers)
+        ? payload.authorization_servers.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+        : typeof payload.authorization_server === 'string' && payload.authorization_server.trim().length > 0
+          ? [payload.authorization_server.trim()]
+          : [];
+      return {
+        resource: typeof payload.resource === 'string' && payload.resource.trim().length > 0
+          ? payload.resource.trim()
+          : endpointUrl,
+        authorizationServers,
+      };
     }
-    const payload = await response.json() as {
-      resource?: string;
-      authorization_servers?: string[];
-      authorization_server?: string;
-    };
-    const authorizationServers = Array.isArray(payload.authorization_servers)
-      ? payload.authorization_servers.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
-      : typeof payload.authorization_server === 'string' && payload.authorization_server.trim().length > 0
-        ? [payload.authorization_server.trim()]
-        : [];
-    return {
-      resource: typeof payload.resource === 'string' && payload.resource.trim().length > 0
-        ? payload.resource.trim()
-        : endpointUrl,
-      authorizationServers,
-    };
+    throw new ValidationError(`Remote MCP OAuth discovery failed${lastStatus ? ` with status ${lastStatus}` : ''}`);
   }
 
-  private async discoverAuthorizationServerMetadata(authorizationServerUrl: string): Promise<AuthorizationServerMetadata> {
-    const candidates = buildAuthorizationServerMetadataCandidates(authorizationServerUrl);
+  private async discoverEffectiveAuthorizationServerMetadata(
+    endpointUrl: string,
+    resourceMetadata: ResourceMetadata,
+    oauthDefinition: RemoteMcpOauthDefinition | null,
+  ): Promise<AuthorizationServerMetadata> {
+    if (oauthDefinition?.authorizationEndpointOverride && oauthDefinition?.tokenEndpointOverride) {
+      return {
+        issuer: null,
+        authorizationEndpoint: oauthDefinition.authorizationEndpointOverride,
+        tokenEndpoint: oauthDefinition.tokenEndpointOverride,
+        registrationEndpoint: oauthDefinition.registrationEndpointOverride ?? null,
+        deviceAuthorizationEndpoint: oauthDefinition.deviceAuthorizationEndpointOverride ?? null,
+        tokenEndpointAuthMethodsSupported: [],
+        codeChallengeMethodsSupported: ['S256'],
+        clientIdMetadataDocumentSupported: false,
+      };
+    }
+    if (oauthDefinition?.authorizationServerMetadataUrlOverride) {
+      return this.discoverAuthorizationServerMetadata(
+        oauthDefinition.authorizationServerMetadataUrlOverride,
+        true,
+      );
+    }
+    if (resourceMetadata.authorizationServers[0]) {
+      return this.discoverAuthorizationServerMetadata(resourceMetadata.authorizationServers[0]);
+    }
+    return this.discoverEndpointAuthorizationServerMetadata(endpointUrl);
+  }
+
+  private async discoverAuthorizationServerMetadata(
+    authorizationServerUrl: string,
+    directMetadataUrl = false,
+  ): Promise<AuthorizationServerMetadata> {
+    const candidates = directMetadataUrl
+      ? [authorizationServerUrl]
+      : buildAuthorizationServerMetadataCandidates(authorizationServerUrl);
     let lastStatus: number | null = null;
     for (const candidate of candidates) {
       const response = await fetch(candidate, {
@@ -541,21 +638,7 @@ export class RemoteMcpOAuthService {
         lastStatus = response.status;
         continue;
       }
-      const payload = await response.json() as Record<string, unknown>;
-      const authorizationEndpoint = readString(payload.authorization_endpoint);
-      const tokenEndpoint = readString(payload.token_endpoint);
-      if (!authorizationEndpoint || !tokenEndpoint) {
-        throw new ValidationError('Remote MCP authorization server metadata is missing required endpoints');
-      }
-      return {
-        issuer: readString(payload.issuer),
-        authorizationEndpoint,
-        tokenEndpoint,
-        registrationEndpoint: readString(payload.registration_endpoint),
-        tokenEndpointAuthMethodsSupported: readStringArray(payload.token_endpoint_auth_methods_supported),
-        codeChallengeMethodsSupported: readStringArray(payload.code_challenge_methods_supported),
-        clientIdMetadataDocumentSupported: payload.client_id_metadata_document_supported === true,
-      };
+      return parseAuthorizationServerMetadata(response);
     }
     throw new ValidationError(`Remote MCP authorization metadata discovery failed${lastStatus ? ` with status ${lastStatus}` : ''}`);
   }
@@ -573,21 +656,7 @@ export class RemoteMcpOAuthService {
         lastStatus = response.status;
         continue;
       }
-      const payload = await response.json() as Record<string, unknown>;
-      const authorizationEndpoint = readString(payload.authorization_endpoint);
-      const tokenEndpoint = readString(payload.token_endpoint);
-      if (!authorizationEndpoint || !tokenEndpoint) {
-        throw new ValidationError('Remote MCP authorization server metadata is missing required endpoints');
-      }
-      return {
-        issuer: readString(payload.issuer),
-        authorizationEndpoint,
-        tokenEndpoint,
-        registrationEndpoint: readString(payload.registration_endpoint),
-        tokenEndpointAuthMethodsSupported: readStringArray(payload.token_endpoint_auth_methods_supported),
-        codeChallengeMethodsSupported: readStringArray(payload.code_challenge_methods_supported),
-        clientIdMetadataDocumentSupported: payload.client_id_metadata_document_supported === true,
-      };
+      return parseAuthorizationServerMetadata(response);
     }
     throw new ValidationError(`Remote MCP authorization metadata discovery failed${lastStatus ? ` with status ${lastStatus}` : ''}`);
   }
@@ -596,15 +665,41 @@ export class RemoteMcpOAuthService {
     metadata: AuthorizationServerMetadata,
     resource: string,
     redirectUri: string,
+    oauthDefinition: RemoteMcpOauthDefinition | null,
   ): Promise<RemoteMcpOAuthConfigRecord> {
-    const scopes = selectScopes();
+    const scopes = normalizeStringList(oauthDefinition?.scopes);
+    const resourceIndicators = normalizeStringList(oauthDefinition?.resourceIndicators);
+    const audiences = normalizeStringList(oauthDefinition?.audiences);
     const platformPublicBaseUrl = requirePlatformPublicBaseUrl(this.options.platformPublicBaseUrl);
+    if (oauthDefinition?.clientStrategy === 'manual_client' || readString(oauthDefinition?.clientId) !== null) {
+      const clientId = readString(oauthDefinition?.clientId);
+      if (!clientId) {
+        throw new ValidationError('Remote MCP OAuth manual client strategy requires a client id');
+      }
+      return {
+        issuer: metadata.issuer,
+        authorizationEndpoint: oauthDefinition?.authorizationEndpointOverride ?? metadata.authorizationEndpoint,
+        tokenEndpoint: oauthDefinition?.tokenEndpointOverride ?? metadata.tokenEndpoint,
+        registrationEndpoint: oauthDefinition?.registrationEndpointOverride ?? metadata.registrationEndpoint,
+        deviceAuthorizationEndpoint: oauthDefinition?.deviceAuthorizationEndpointOverride ?? metadata.deviceAuthorizationEndpoint,
+        clientId,
+        clientSecret: readString(oauthDefinition?.clientSecret),
+        tokenEndpointAuthMethod: oauthDefinition?.tokenEndpointAuthMethod ?? 'none',
+        clientIdMetadataDocumentUrl: null,
+        redirectUri,
+        scopes,
+        resource,
+        resourceIndicators,
+        audiences,
+      };
+    }
     if (metadata.clientIdMetadataDocumentSupported) {
       return {
         issuer: metadata.issuer,
         authorizationEndpoint: metadata.authorizationEndpoint,
         tokenEndpoint: metadata.tokenEndpoint,
         registrationEndpoint: metadata.registrationEndpoint,
+        deviceAuthorizationEndpoint: metadata.deviceAuthorizationEndpoint,
         clientId: buildClientMetadataUrl(platformPublicBaseUrl),
         clientSecret: null,
         tokenEndpointAuthMethod: 'none',
@@ -612,17 +707,25 @@ export class RemoteMcpOAuthService {
         redirectUri,
         scopes,
         resource,
+        resourceIndicators,
+        audiences,
       };
     }
     if (!metadata.registrationEndpoint) {
-      throw new ValidationError('Remote MCP authorization server does not support client metadata documents or dynamic client registration');
+      throw new ValidationError('Remote MCP authorization server does not support client metadata documents, dynamic client registration, or a manual client');
     }
-    const registration = await this.registerOAuthClient(metadata.registrationEndpoint, scopes, platformPublicBaseUrl);
+    const registration = await this.registerOAuthClient(
+      metadata.registrationEndpoint,
+      scopes,
+      platformPublicBaseUrl,
+      redirectUri,
+    );
     return {
       issuer: metadata.issuer,
       authorizationEndpoint: metadata.authorizationEndpoint,
       tokenEndpoint: metadata.tokenEndpoint,
       registrationEndpoint: metadata.registrationEndpoint,
+      deviceAuthorizationEndpoint: metadata.deviceAuthorizationEndpoint,
       clientId: registration.clientId,
       clientSecret: registration.clientSecret,
       tokenEndpointAuthMethod: registration.tokenEndpointAuthMethod,
@@ -630,6 +733,8 @@ export class RemoteMcpOAuthService {
       redirectUri,
       scopes,
       resource,
+      resourceIndicators,
+      audiences,
     };
   }
 
@@ -637,6 +742,7 @@ export class RemoteMcpOAuthService {
     registrationEndpoint: string,
     scopes: string[],
     platformPublicBaseUrl: string,
+    redirectUri: string,
   ): Promise<{
     clientId: string;
     clientSecret: string | null;
@@ -650,7 +756,7 @@ export class RemoteMcpOAuthService {
       body: JSON.stringify({
         client_name: 'Agirunner MCP',
         client_uri: platformPublicBaseUrl,
-        redirect_uris: [CALLBACK_REDIRECT_URI],
+        redirect_uris: [redirectUri],
         grant_types: ['authorization_code', 'refresh_token'],
         response_types: ['code'],
         token_endpoint_auth_method: 'none',
@@ -731,19 +837,7 @@ const remoteMcpOAuthStatePayloadSchema = z.object({
   resource_metadata: z.object({
     resource: z.string().min(1),
   }).strict(),
-  oauth_config: z.object({
-    issuer: z.string().min(1).nullable().optional(),
-    authorizationEndpoint: z.string().min(1),
-    tokenEndpoint: z.string().min(1),
-    registrationEndpoint: z.string().min(1).nullable().optional(),
-    clientId: z.string().min(1),
-    clientSecret: z.string().min(1).nullable().optional(),
-    tokenEndpointAuthMethod: z.enum(['none', 'client_secret_post', 'client_secret_basic']),
-    clientIdMetadataDocumentUrl: z.string().min(1).nullable().optional(),
-    redirectUri: z.string().min(1),
-    scopes: z.array(z.string().min(1)).default([]),
-    resource: z.string().min(1),
-  }).strict(),
+  oauth_config: remoteMcpOauthConfigSchema,
 }).strict();
 
 function assertOAuthEndpointUrl(value: string): void {
@@ -757,6 +851,23 @@ function buildProtectedResourceMetadataUrl(endpointUrl: string): string {
   const endpoint = new URL(endpointUrl);
   const normalizedPath = endpoint.pathname.replace(/\/+$/, '');
   return new URL(`/.well-known/oauth-protected-resource${normalizedPath}`, endpoint.origin).toString();
+}
+
+function buildProtectedResourceMetadataCandidates(endpointUrl: string): string[] {
+  const endpoint = new URL(endpointUrl);
+  const rawPath = endpoint.pathname;
+  const normalizedPath = endpoint.pathname.replace(/\/+$/, '');
+  const candidates = [
+    new URL(`/.well-known/oauth-protected-resource${rawPath}`, endpoint.origin).toString(),
+    new URL(`/.well-known/oauth-protected-resource${normalizedPath}`, endpoint.origin).toString(),
+  ];
+  if (rawPath) {
+    candidates.push(new URL(`${rawPath}/.well-known/oauth-protected-resource`, endpoint.origin).toString());
+  }
+  if (normalizedPath) {
+    candidates.push(new URL(`${normalizedPath}/.well-known/oauth-protected-resource`, endpoint.origin).toString());
+  }
+  return Array.from(new Set(candidates));
 }
 
 function buildAuthorizationServerMetadataCandidates(authorizationServerUrl: string): string[] {
@@ -793,11 +904,35 @@ function buildClientMetadataUrl(platformPublicBaseUrl: string): string {
   return new URL(CLIENT_METADATA_PATH, platformPublicBaseUrl).toString();
 }
 
-function buildRemoteMcpRedirectUri(hostedCallbackBaseUrl: string | undefined): string {
+function buildRemoteMcpRedirectUri(
+  callbackMode: 'loopback' | 'hosted_https',
+  hostedCallbackBaseUrl: string | undefined,
+): string {
+  if (callbackMode === 'hosted_https') {
+    if (!hostedCallbackBaseUrl || hostedCallbackBaseUrl.trim().length === 0) {
+      throw new ValidationError('Remote MCP hosted callback mode requires a hosted callback base URL');
+    }
+    return new URL(HOSTED_CALLBACK_PATH, hostedCallbackBaseUrl.trim()).toString();
+  }
   if (!hostedCallbackBaseUrl || hostedCallbackBaseUrl.trim().length === 0) {
     return CALLBACK_REDIRECT_URI;
   }
-  return new URL(HOSTED_CALLBACK_PATH, hostedCallbackBaseUrl.trim()).toString();
+  return CALLBACK_REDIRECT_URI;
+}
+
+function resolveRemoteMcpCallbackMode(
+  requestedMode: 'loopback' | 'hosted_https' | undefined,
+  hostedCallbackBaseUrl: string | undefined,
+): 'loopback' | 'hosted_https' {
+  if (requestedMode === 'hosted_https') {
+    return 'hosted_https';
+  }
+  if (requestedMode === 'loopback') {
+    return 'loopback';
+  }
+  return hostedCallbackBaseUrl && hostedCallbackBaseUrl.trim().length > 0
+    ? 'hosted_https'
+    : 'loopback';
 }
 
 function requirePlatformPublicBaseUrl(value: string | undefined): string {
@@ -816,6 +951,9 @@ function buildAuthorizeUrl(
     state: string;
     codeChallenge: string;
     resource: string;
+    resourceIndicators: string[];
+    audiences: string[];
+    extraQueryParameters: RemoteMcpParameterInput[];
   },
 ): string {
   const params = new URLSearchParams({
@@ -825,43 +963,55 @@ function buildAuthorizeUrl(
     state: input.state,
     code_challenge: input.codeChallenge,
     code_challenge_method: 'S256',
-    resource: input.resource,
   });
   if (input.scopes.length > 0) {
     params.set('scope', input.scopes.join(' '));
   }
+  const resources = input.resourceIndicators.length > 0 ? input.resourceIndicators : [input.resource];
+  for (const resource of resources) {
+    params.append('resource', resource);
+  }
+  for (const audience of input.audiences) {
+    params.append('audience', audience);
+  }
+  for (const parameter of input.extraQueryParameters) {
+    params.append(parameter.key, parameter.value);
+  }
   return `${authorizationEndpoint}?${params.toString()}`;
-}
-
-function selectScopes(): string[] {
-  return [];
 }
 
 function readString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }
 
-function readStringArray(value: unknown): string[] {
+function parseDraftParameters(value: unknown): RemoteMcpParameterInput[] {
   if (!Array.isArray(value)) {
     return [];
   }
   return value.flatMap((entry) => {
-    if (typeof entry !== 'string') {
-      return [];
-    }
-    const trimmed = entry.trim();
-    return trimmed ? [trimmed] : [];
+    const parsed = remoteMcpParameterSchema.safeParse(entry);
+    return parsed.success ? [parsed.data] : [];
   });
 }
 
-function parseDraftParameters(value: unknown): DraftInput['parameters'] {
-  if (!Array.isArray(value)) {
-    return [];
+function parseDraftOauthDefinition(value: unknown): RemoteMcpOauthDefinition | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
   }
-  return value.flatMap((entry) => {
-    const parsed = connectionParameterSchema.safeParse(entry);
-    return parsed.success ? [parsed.data] : [];
-  });
+  return remoteMcpOauthDefinitionSchema.parse(value);
+}
+
+function persistableOauthDefinition(
+  value: RemoteMcpOauthDefinition | null,
+): RemoteMcpOauthDefinition | null {
+  if (!value) {
+    return null;
+  }
+  return {
+    ...value,
+    clientSecret: value.clientSecret ? encryptRemoteMcpSecret(value.clientSecret) : null,
+    privateKeyPem: value.privateKeyPem ? encryptRemoteMcpSecret(value.privateKeyPem) : null,
+  };
 }
 
 function persistableOauthConfig(
@@ -898,4 +1048,41 @@ function isExpired(expiresAt: number | null): boolean {
   return typeof expiresAt === 'number' &&
     Number.isFinite(expiresAt) &&
     expiresAt <= (Date.now() + ACCESS_TOKEN_EXPIRY_BUFFER_MS);
+}
+
+function normalizeStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.flatMap((entry) => {
+    const normalized = readString(entry);
+    return normalized ? [normalized] : [];
+  });
+}
+
+function selectAuthorizeQueryParameters(
+  parameters: RemoteMcpParameterInput[],
+): RemoteMcpParameterInput[] {
+  return parameters.filter((parameter) => parameter.placement === 'authorize_request_query');
+}
+
+async function parseAuthorizationServerMetadata(
+  response: Response,
+): Promise<AuthorizationServerMetadata> {
+  const payload = await response.json() as Record<string, unknown>;
+  const authorizationEndpoint = readString(payload.authorization_endpoint);
+  const tokenEndpoint = readString(payload.token_endpoint);
+  if (!authorizationEndpoint || !tokenEndpoint) {
+    throw new ValidationError('Remote MCP authorization server metadata is missing required endpoints');
+  }
+  return {
+    issuer: readString(payload.issuer),
+    authorizationEndpoint,
+    tokenEndpoint,
+    registrationEndpoint: readString(payload.registration_endpoint),
+    deviceAuthorizationEndpoint: readString(payload.device_authorization_endpoint),
+    tokenEndpointAuthMethodsSupported: normalizeStringList(payload.token_endpoint_auth_methods_supported),
+    codeChallengeMethodsSupported: normalizeStringList(payload.code_challenge_methods_supported),
+    clientIdMetadataDocumentSupported: payload.client_id_metadata_document_supported === true,
+  };
 }

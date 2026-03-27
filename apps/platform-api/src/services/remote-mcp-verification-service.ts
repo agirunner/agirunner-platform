@@ -4,9 +4,13 @@ import {
   type RemoteMcpCapabilitySummary,
 } from './remote-mcp-capability-snapshot.js';
 import type {
-  CreateVerifiedRemoteMcpServerInput,
   RemoteMcpOAuthConfigRecord,
   RemoteMcpOAuthCredentialsRecord,
+  RemoteMcpParameterInput,
+  RemoteMcpTransportPreference,
+} from './remote-mcp-model.js';
+import type {
+  CreateVerifiedRemoteMcpServerInput,
   RemoteMcpServerService,
   StoredRemoteMcpServerRecord,
   UpdateVerifiedRemoteMcpServerInput,
@@ -16,13 +20,9 @@ export interface RemoteMcpVerifier {
   verify(input: {
     endpointUrl: string;
     callTimeoutSeconds: number;
+    transportPreference: RemoteMcpTransportPreference;
     authMode: 'none' | 'parameterized' | 'oauth';
-    parameters: Array<{
-      placement: 'path' | 'query' | 'header' | 'initialize_param';
-      key: string;
-      valueKind: 'static' | 'secret';
-      value: string;
-    }>;
+    parameters: RemoteMcpParameterInput[];
   }): Promise<{
     verification_status: 'unknown' | 'verified' | 'failed';
     verification_error: string | null;
@@ -78,9 +78,10 @@ export class RemoteMcpVerificationService {
   ) {
     const verification = await this.verifyOrThrow(
       input.endpointUrl,
-      input.callTimeoutSeconds,
+      input.callTimeoutSeconds ?? 300,
+      input.transportPreference ?? 'auto',
       input.authMode,
-      input.parameters,
+      input.parameters ?? [],
     );
     return this.serverService.createVerifiedServer(tenantId, {
       ...input,
@@ -105,8 +106,10 @@ export class RemoteMcpVerificationService {
     const current = await this.serverService.getStoredServer(tenantId, id);
     const connectivityChanged =
       (input.endpointUrl !== undefined && input.endpointUrl !== current.endpoint_url)
+      || (input.transportPreference !== undefined && input.transportPreference !== current.transport_preference)
       || (input.callTimeoutSeconds !== undefined && input.callTimeoutSeconds !== current.call_timeout_seconds)
       || (input.authMode !== undefined && input.authMode !== current.auth_mode)
+      || (input.oauthDefinition !== undefined)
       || input.parameters !== undefined;
     if (!connectivityChanged) {
       return this.serverService.updateMetadataOnly(tenantId, id, {
@@ -127,6 +130,7 @@ export class RemoteMcpVerificationService {
     const verification = await this.verifyOrThrow(
       input.endpointUrl ?? current.endpoint_url,
       input.callTimeoutSeconds ?? current.call_timeout_seconds,
+      input.transportPreference ?? current.transport_preference,
       input.authMode ?? current.auth_mode,
       parameters,
     );
@@ -160,6 +164,7 @@ export class RemoteMcpVerificationService {
     const verification = await this.verifyOrThrow(
       current.endpoint_url,
       current.call_timeout_seconds,
+      current.transport_preference,
       current.auth_mode,
       parameters,
     );
@@ -180,17 +185,14 @@ export class RemoteMcpVerificationService {
   private async verifyOrThrow(
     endpointUrl: string,
     callTimeoutSeconds: number,
+    transportPreference: RemoteMcpTransportPreference,
     authMode: 'none' | 'parameterized' | 'oauth',
-    parameters: Array<{
-      placement: 'path' | 'query' | 'header' | 'initialize_param';
-      key: string;
-      valueKind: 'static' | 'secret';
-      value: string;
-    }>,
+    parameters: RemoteMcpParameterInput[],
   ) {
     const verification = await this.verifier.verify({
       endpointUrl,
       callTimeoutSeconds,
+      transportPreference,
       authMode,
       parameters,
     });
@@ -207,12 +209,7 @@ export class RemoteMcpVerificationService {
   private async buildVerificationParameters(
     current: Pick<StoredRemoteMcpServerRecord, 'id' | 'oauth_config' | 'oauth_credentials'>,
     authMode: 'none' | 'parameterized' | 'oauth',
-    parameters: Array<{
-      placement: 'path' | 'query' | 'header' | 'initialize_param';
-      key: string;
-      valueKind: 'static' | 'secret';
-      value: string;
-    }>,
+    parameters: RemoteMcpParameterInput[],
   ) {
     if (authMode !== 'oauth') {
       return parameters;

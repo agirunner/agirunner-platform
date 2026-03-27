@@ -11,7 +11,16 @@ export interface SpecialistSkillCapability {
 
 export interface SpecialistMcpParameterCapability {
   id: string;
-  placement: 'path' | 'query' | 'header' | 'initialize_param';
+  placement:
+    | 'path'
+    | 'query'
+    | 'header'
+    | 'cookie'
+    | 'initialize_param'
+    | 'authorize_request_query'
+    | 'token_request_header'
+    | 'token_request_body_form'
+    | 'token_request_body_json';
   key: string;
   valueKind: 'static' | 'secret';
   staticValue: string | null;
@@ -42,13 +51,16 @@ export interface SpecialistRemoteMcpOAuthConfigCapability {
   authorizationEndpoint: string;
   tokenEndpoint: string;
   registrationEndpoint: string | null;
+  deviceAuthorizationEndpoint: string | null;
   clientId: string;
   clientSecret: string | null;
-  tokenEndpointAuthMethod: 'none' | 'client_secret_post' | 'client_secret_basic';
+  tokenEndpointAuthMethod: 'none' | 'client_secret_post' | 'client_secret_basic' | 'private_key_jwt';
   clientIdMetadataDocumentUrl: string | null;
   redirectUri: string;
   scopes: string[];
   resource: string;
+  resourceIndicators: string[];
+  audiences: string[];
 }
 
 export interface SpecialistRemoteMcpOAuthCredentialsCapability {
@@ -352,20 +364,23 @@ function normalizeRemoteMcpOauthConfig(value: unknown): SpecialistRemoteMcpOAuth
   if (!authorizationEndpoint || !tokenEndpoint || !clientId || !redirectUri || !resource) {
     return null;
   }
-  return {
-    issuer: readString(value.issuer),
-    authorizationEndpoint,
-    tokenEndpoint,
-    registrationEndpoint: readString(value.registrationEndpoint),
-    clientId,
-    clientSecret: readString(value.clientSecret),
-    tokenEndpointAuthMethod: readOauthAuthMethod(value.tokenEndpointAuthMethod),
-    clientIdMetadataDocumentUrl: readString(value.clientIdMetadataDocumentUrl),
-    redirectUri,
-    scopes: normalizeStringArray(value.scopes),
-    resource,
-  };
-}
+    return {
+      issuer: readString(value.issuer),
+      authorizationEndpoint,
+      tokenEndpoint,
+      registrationEndpoint: readString(value.registrationEndpoint),
+      deviceAuthorizationEndpoint: readString(value.deviceAuthorizationEndpoint),
+      clientId,
+      clientSecret: readString(value.clientSecret),
+      tokenEndpointAuthMethod: readOauthAuthMethod(value.tokenEndpointAuthMethod),
+      clientIdMetadataDocumentUrl: readString(value.clientIdMetadataDocumentUrl),
+      redirectUri,
+      scopes: normalizeStringArray(value.scopes),
+      resource,
+      resourceIndicators: normalizeStringArray(value.resourceIndicators),
+      audiences: normalizeStringArray(value.audiences),
+    };
+  }
 
 function normalizeRemoteMcpOauthCredentials(value: unknown): SpecialistRemoteMcpOAuthCredentialsCapability | null {
   if (!isRecord(value)) {
@@ -407,7 +422,11 @@ function readTransport(
 function readOauthAuthMethod(
   value: unknown,
 ): SpecialistRemoteMcpOAuthConfigCapability['tokenEndpointAuthMethod'] {
-  return value === 'client_secret_post' || value === 'client_secret_basic' ? value : 'none';
+  return value === 'client_secret_post'
+    || value === 'client_secret_basic'
+    || value === 'private_key_jwt'
+    ? value
+    : 'none';
 }
 
 function readPlacement(
@@ -417,7 +436,12 @@ function readPlacement(
     value === 'path'
     || value === 'query'
     || value === 'header'
+    || value === 'cookie'
     || value === 'initialize_param'
+    || value === 'authorize_request_query'
+    || value === 'token_request_header'
+    || value === 'token_request_body_form'
+    || value === 'token_request_body_json'
   ) {
     return value;
   }

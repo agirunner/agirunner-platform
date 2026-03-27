@@ -5,6 +5,10 @@ import {
   normalizeRemoteMcpResourceSnapshot,
   normalizeRemoteMcpToolSnapshot,
 } from './remote-mcp-capability-snapshot.js';
+import type {
+  RemoteMcpParameterInput,
+  RemoteMcpTransportPreference,
+} from './remote-mcp-model.js';
 import type { RemoteMcpVerifier } from './remote-mcp-verification-service.js';
 
 const MCP_PROTOCOL_VERSION = '2025-03-26';
@@ -16,13 +20,9 @@ const CLIENT_VERSION = '1';
 interface VerifyRequest {
   endpointUrl: string;
   callTimeoutSeconds: number;
+  transportPreference?: RemoteMcpTransportPreference;
   authMode: 'none' | 'parameterized' | 'oauth';
-  parameters: Array<{
-    placement: 'path' | 'query' | 'header' | 'initialize_param';
-    key: string;
-    valueKind: 'static' | 'secret';
-    value: string;
-  }>;
+  parameters: RemoteMcpParameterInput[];
 }
 
 interface JsonRpcEnvelope {
@@ -50,6 +50,13 @@ interface CapabilityFlags {
 export class RemoteMcpHttpVerifier implements RemoteMcpVerifier {
   async verify(input: VerifyRequest) {
     const connection = resolveConnection(input);
+    const transportPreference = input.transportPreference ?? 'auto';
+    if (transportPreference === 'http_sse_compat') {
+      return this.verifyLegacyHttpSse(connection, input.callTimeoutSeconds);
+    }
+    if (transportPreference === 'streamable_http') {
+      return this.verifyStreamableHttp(connection, input.callTimeoutSeconds);
+    }
     try {
       return await this.verifyStreamableHttp(connection, input.callTimeoutSeconds);
     } catch (error) {
@@ -403,10 +410,17 @@ class SseEventReader {
 function resolveConnection(input: VerifyRequest): ResolvedConnection {
   const endpoint = new URL(input.endpointUrl);
   const headers: Record<string, string> = {};
+  const cookies: string[] = [];
   const initializeParams: Record<string, string> = {};
   for (const parameter of input.parameters) {
     const value = parameter.value.trim();
     if (!value) {
+      continue;
+    }
+    if (parameter.placement === 'authorize_request_query'
+      || parameter.placement === 'token_request_header'
+      || parameter.placement === 'token_request_body_form'
+      || parameter.placement === 'token_request_body_json') {
       continue;
     }
     if (parameter.placement === 'path') {
@@ -424,7 +438,14 @@ function resolveConnection(input: VerifyRequest): ResolvedConnection {
       headers[parameter.key] = value;
       continue;
     }
+    if (parameter.placement === 'cookie') {
+      cookies.push(`${parameter.key}=${value}`);
+      continue;
+    }
     initializeParams[parameter.key] = value;
+  }
+  if (cookies.length > 0) {
+    headers.Cookie = cookies.join('; ');
   }
   return {
     endpointUrl: endpoint.toString(),

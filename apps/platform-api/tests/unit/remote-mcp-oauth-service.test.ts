@@ -138,6 +138,9 @@ describe('RemoteMcpOAuthService', () => {
                   clientIdMetadataDocumentUrl: 'https://platform.example.test/.well-known/oauth/mcp-client.json',
                   scopes: [],
                   resource: 'https://mcp.example.test/server',
+                  resourceIndicators: [],
+                  audiences: [],
+                  deviceAuthorizationEndpoint: null,
                 },
               },
             }],
@@ -210,6 +213,7 @@ describe('RemoteMcpOAuthService', () => {
     expect(verifier.verify).toHaveBeenCalledWith({
       endpointUrl: 'https://mcp.example.test/server',
       callTimeoutSeconds: 300,
+      transportPreference: 'auto',
       authMode: 'oauth',
       parameters: [
         {
@@ -510,6 +514,99 @@ describe('RemoteMcpOAuthService', () => {
     );
   });
 
+  it('uses manual oauth client settings and extra authorize params for oauth drafts', async () => {
+    vi.mocked(globalThis.fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url === 'https://api.githubcopilot.com/.well-known/oauth-protected-resource/mcp/') {
+        return mockJsonResponse({
+          resource: 'https://api.githubcopilot.com/mcp/',
+          authorization_servers: ['https://github.com/login/oauth'],
+        });
+      }
+      if (url === 'https://github.com/login/oauth/.well-known/openid-configuration') {
+        return mockJsonResponse({
+          issuer: 'https://github.com',
+          authorization_endpoint: 'https://github.com/login/oauth/authorize',
+          token_endpoint: 'https://github.com/login/oauth/access_token',
+          response_types_supported: ['code'],
+          grant_types_supported: ['authorization_code', 'refresh_token'],
+          code_challenge_methods_supported: ['S256'],
+          token_endpoint_auth_methods_supported: ['client_secret_basic'],
+          client_id_metadata_document_supported: false,
+        });
+      }
+      throw new Error(`unexpected fetch: ${url}`);
+    });
+
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO remote_mcp_registration_drafts')) {
+          return { rowCount: 1, rows: [{ id: 'draft-1' }] };
+        }
+        if (sql.includes('INSERT INTO oauth_states')) {
+          return { rowCount: 1, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new RemoteMcpOAuthService(
+      pool as never,
+      {
+        getStoredServer: vi.fn(),
+        createVerifiedServer: vi.fn(),
+        updateVerifiedServer: vi.fn(),
+      } as never,
+      {
+        verify: vi.fn(),
+      } as never,
+      {
+        platformPublicBaseUrl: 'https://platform.example.test',
+        remoteMcpHostedCallbackBaseUrl: 'https://oauth.example.test',
+      },
+    );
+
+    const result = await service.initiateDraftAuthorization('tenant-1', 'user-1', {
+      name: 'GitHub Manual Client MCP',
+      description: '',
+      endpointUrl: 'https://api.githubcopilot.com/mcp/',
+      callTimeoutSeconds: 300,
+      authMode: 'oauth',
+      transportPreference: 'streamable_http',
+      enabledByDefaultForNewSpecialists: false,
+      grantToAllExistingSpecialists: false,
+      oauthDefinition: {
+        grantType: 'authorization_code',
+        clientStrategy: 'manual_client',
+        callbackMode: 'hosted_https',
+        clientId: 'github-client-id',
+        clientSecret: 'github-client-secret',
+        tokenEndpointAuthMethod: 'client_secret_basic',
+        scopes: ['repo', 'read:org'],
+        resourceIndicators: ['https://api.githubcopilot.com/mcp/'],
+        audiences: ['https://github.com'],
+      },
+      parameters: [
+        {
+          placement: 'authorize_request_query',
+          key: 'prompt',
+          valueKind: 'static',
+          value: 'consent',
+        },
+      ],
+    });
+
+    expect(result.authorizeUrl).toContain('https://github.com/login/oauth/authorize?');
+    expect(result.authorizeUrl).toContain(encodeURIComponent('github-client-id'));
+    expect(result.authorizeUrl).toContain(
+      encodeURIComponent('https://oauth.example.test/api/v1/oauth/callback'),
+    );
+    expect(result.authorizeUrl).toContain('scope=repo+read%3Aorg');
+    expect(result.authorizeUrl).toContain(encodeURIComponent('https://api.githubcopilot.com/mcp/'));
+    expect(result.authorizeUrl).toContain(encodeURIComponent('https://github.com'));
+    expect(result.authorizeUrl).toContain('prompt=consent');
+    expect(vi.mocked(globalThis.fetch).mock.calls).toHaveLength(2);
+  });
+
   it('disconnects persisted oauth credentials and marks the server unverified', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
@@ -573,6 +670,9 @@ describe('RemoteMcpOAuthService', () => {
         redirectUri: 'http://localhost:1455/auth/callback',
         scopes: [],
         resource: 'https://mcp.example.test/server',
+        resourceIndicators: [],
+        audiences: [],
+        deviceAuthorizationEndpoint: null,
       },
       oauthCredentials: {
         accessToken: encryptRemoteMcpSecret('access-token-1'),
@@ -636,6 +736,9 @@ describe('RemoteMcpOAuthService', () => {
         redirectUri: 'http://localhost:1455/auth/callback',
         scopes: [],
         resource: 'https://mcp.example.test/server',
+        resourceIndicators: [],
+        audiences: [],
+        deviceAuthorizationEndpoint: null,
       },
       oauthCredentials: {
         accessToken: encryptRemoteMcpSecret('expired-access-token'),

@@ -6,43 +6,24 @@ import {
   decryptRemoteMcpSecret,
   normalizeStoredRemoteMcpSecret,
 } from './remote-mcp-secret-crypto.js';
-
-const parameterSchema = z.object({
-  placement: z.enum(['path', 'query', 'header', 'initialize_param']),
-  key: z.string().min(1).max(200),
-  valueKind: z.enum(['static', 'secret']),
-  value: z.string(),
-}).strict();
-
-const oauthConfigSchema = z.object({
-  issuer: z.string().min(1).nullable().optional(),
-  authorizationEndpoint: z.string().min(1),
-  tokenEndpoint: z.string().min(1),
-  registrationEndpoint: z.string().min(1).nullable().optional(),
-  clientId: z.string().min(1),
-  clientSecret: z.string().min(1).nullable().optional(),
-  tokenEndpointAuthMethod: z.enum(['none', 'client_secret_post', 'client_secret_basic']),
-  clientIdMetadataDocumentUrl: z.string().min(1).nullable().optional(),
-  redirectUri: z.string().min(1),
-  scopes: z.array(z.string().min(1)).default([]),
-  resource: z.string().min(1),
-}).strict();
-
-const oauthCredentialsSchema = z.object({
-  accessToken: z.string().min(1),
-  refreshToken: z.string().min(1).nullable().optional(),
-  expiresAt: z.number().int().nullable().optional(),
-  tokenType: z.string().min(1).nullable().optional(),
-  scope: z.string().min(1).nullable().optional(),
-  authorizedAt: z.string().min(1),
-  authorizedByUserId: z.string().min(1),
-  needsReauth: z.boolean().default(false),
-}).strict();
+import {
+  remoteMcpOauthConfigSchema,
+  remoteMcpOauthCredentialsSchema,
+  remoteMcpOauthDefinitionSchema,
+  remoteMcpParameterSchema,
+  remoteMcpTransportPreferenceSchema,
+  type RemoteMcpOAuthConfigRecord,
+  type RemoteMcpOAuthCredentialsRecord,
+  type RemoteMcpOauthDefinition,
+  type RemoteMcpParameterInput,
+  type RemoteMcpTransportPreference,
+} from './remote-mcp-model.js';
 
 const createVerifiedServerSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(1000).default(''),
   endpointUrl: z.string().min(1).max(2000),
+  transportPreference: remoteMcpTransportPreferenceSchema.default('auto'),
   callTimeoutSeconds: z.number().int().min(1).max(86400).default(300),
   authMode: z.enum(['none', 'parameterized', 'oauth']),
   enabledByDefaultForNewSpecialists: z.boolean().default(false),
@@ -57,20 +38,18 @@ const createVerifiedServerSchema = z.object({
   discoveredToolsSnapshot: z.array(z.record(z.unknown())).default([]),
   discoveredResourcesSnapshot: z.array(z.record(z.unknown())).default([]),
   discoveredPromptsSnapshot: z.array(z.record(z.unknown())).default([]),
-  parameters: z.array(parameterSchema).default([]),
-  oauthConfig: oauthConfigSchema.nullable().optional(),
-  oauthCredentials: oauthCredentialsSchema.nullable().optional(),
+  parameters: z.array(remoteMcpParameterSchema).default([]),
+  oauthDefinition: remoteMcpOauthDefinitionSchema.nullable().optional(),
+  oauthConfig: remoteMcpOauthConfigSchema.nullable().optional(),
+  oauthCredentials: remoteMcpOauthCredentialsSchema.nullable().optional(),
 }).strict();
 
 const updateVerifiedServerSchema = createVerifiedServerSchema.partial().extend({
   endpointUrl: z.string().min(1).max(2000).optional(),
 }).strict();
 
-type ParameterInput = z.infer<typeof parameterSchema>;
-export type CreateVerifiedRemoteMcpServerInput = z.infer<typeof createVerifiedServerSchema>;
-export type UpdateVerifiedRemoteMcpServerInput = z.infer<typeof updateVerifiedServerSchema>;
-export type RemoteMcpOAuthConfigRecord = z.infer<typeof oauthConfigSchema>;
-export type RemoteMcpOAuthCredentialsRecord = z.infer<typeof oauthCredentialsSchema>;
+export type CreateVerifiedRemoteMcpServerInput = z.input<typeof createVerifiedServerSchema>;
+export type UpdateVerifiedRemoteMcpServerInput = z.input<typeof updateVerifiedServerSchema>;
 
 interface RemoteMcpServerRow {
   id: string;
@@ -79,6 +58,7 @@ interface RemoteMcpServerRow {
   slug: string;
   description: string;
   endpoint_url: string;
+  transport_preference: string;
   call_timeout_seconds: number;
   auth_mode: string;
   enabled_by_default_for_new_specialists: boolean;
@@ -94,6 +74,7 @@ interface RemoteMcpServerRow {
   discovered_tools_snapshot: unknown;
   discovered_resources_snapshot: unknown;
   discovered_prompts_snapshot: unknown;
+  oauth_definition: unknown;
   oauth_config: unknown;
   oauth_credentials: unknown;
   created_at: Date;
@@ -104,7 +85,7 @@ interface RemoteMcpServerRow {
 
 export interface RemoteMcpServerParameterRecord {
   id: string;
-  placement: 'path' | 'query' | 'header' | 'initialize_param';
+  placement: RemoteMcpParameterInput['placement'];
   key: string;
   value_kind: 'static' | 'secret';
   value: string;
@@ -118,6 +99,7 @@ export interface RemoteMcpServerRecord {
   slug: string;
   description: string;
   endpoint_url: string;
+  transport_preference: RemoteMcpTransportPreference;
   call_timeout_seconds: number;
   auth_mode: 'none' | 'parameterized' | 'oauth';
   enabled_by_default_for_new_specialists: boolean;
@@ -138,6 +120,7 @@ export interface RemoteMcpServerRecord {
   discovered_prompt_count: number;
   assigned_specialist_count: number;
   parameters: RemoteMcpServerParameterRecord[];
+  oauth_definition: RemoteMcpOauthDefinition | null;
   oauth_connected: boolean;
   oauth_authorized_at: string | null;
   oauth_needs_reauth: boolean;
@@ -146,6 +129,7 @@ export interface RemoteMcpServerRecord {
 }
 
 export interface StoredRemoteMcpServerRecord extends RemoteMcpServerRecord {
+  oauth_definition: RemoteMcpOauthDefinition | null;
   oauth_config: RemoteMcpOAuthConfigRecord | null;
   oauth_credentials: RemoteMcpOAuthCredentialsRecord | null;
 }
@@ -194,12 +178,12 @@ export class RemoteMcpServerService {
     await this.assertUniqueSlug(tenantId, normalizeSlug(validated.name));
     const insert = await this.pool.query<{ id: string }>(
         `INSERT INTO remote_mcp_servers (
-         tenant_id, name, slug, description, endpoint_url, call_timeout_seconds, auth_mode,
+         tenant_id, name, slug, description, endpoint_url, transport_preference, call_timeout_seconds, auth_mode,
          enabled_by_default_for_new_specialists, verification_status, verification_error,
          verified_transport, verified_discovery_strategy, verified_oauth_strategy, verified_at,
          verification_contract_version, verified_capability_summary, discovered_tools_snapshot,
-         discovered_resources_snapshot, discovered_prompts_snapshot
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb)
+         discovered_resources_snapshot, discovered_prompts_snapshot, oauth_definition
+       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17::jsonb, $18::jsonb, $19::jsonb, $20::jsonb, $21::jsonb)
        RETURNING id`,
       [
         tenantId,
@@ -207,6 +191,7 @@ export class RemoteMcpServerService {
         normalizeSlug(validated.name),
         validated.description.trim(),
         validated.endpointUrl.trim(),
+        validated.transportPreference,
         validated.callTimeoutSeconds,
         validated.authMode,
         validated.enabledByDefaultForNewSpecialists,
@@ -221,6 +206,7 @@ export class RemoteMcpServerService {
         JSON.stringify(validated.discoveredToolsSnapshot),
         JSON.stringify(validated.discoveredResourcesSnapshot),
         JSON.stringify(validated.discoveredPromptsSnapshot),
+        JSON.stringify(persistableOauthDefinition(validated.oauthDefinition ?? null)),
       ],
     ).catch(handleRemoteMcpWriteError);
     const serverId = insert.rows[0].id;
@@ -252,22 +238,24 @@ export class RemoteMcpServerService {
               slug = $4,
               description = $5,
               endpoint_url = $6,
-              call_timeout_seconds = $7,
-              auth_mode = $8,
-              enabled_by_default_for_new_specialists = $9,
-              verification_status = $10,
-              verification_error = $11,
-              verified_transport = $12,
-              verified_discovery_strategy = $13,
-              verified_oauth_strategy = $14,
-              verified_at = $15,
-              verification_contract_version = $16,
-              verified_capability_summary = $17::jsonb,
-              discovered_tools_snapshot = $18::jsonb,
-              discovered_resources_snapshot = $19::jsonb,
-              discovered_prompts_snapshot = $20::jsonb,
-              oauth_config = $21::jsonb,
-              oauth_credentials = $22::jsonb,
+              transport_preference = $7,
+              call_timeout_seconds = $8,
+              auth_mode = $9,
+              enabled_by_default_for_new_specialists = $10,
+              verification_status = $11,
+              verification_error = $12,
+              verified_transport = $13,
+              verified_discovery_strategy = $14,
+              verified_oauth_strategy = $15,
+              verified_at = $16,
+              verification_contract_version = $17,
+              verified_capability_summary = $18::jsonb,
+              discovered_tools_snapshot = $19::jsonb,
+              discovered_resources_snapshot = $20::jsonb,
+              discovered_prompts_snapshot = $21::jsonb,
+              oauth_definition = $22::jsonb,
+              oauth_config = $23::jsonb,
+              oauth_credentials = $24::jsonb,
               updated_at = now()
         WHERE tenant_id = $1
           AND id = $2`,
@@ -278,6 +266,7 @@ export class RemoteMcpServerService {
         slug,
         validated.description?.trim() ?? current.description,
         endpointUrl,
+        validated.transportPreference ?? current.transport_preference,
         validated.callTimeoutSeconds ?? current.call_timeout_seconds,
         validated.authMode ?? current.auth_mode,
         validated.enabledByDefaultForNewSpecialists ?? current.enabled_by_default_for_new_specialists,
@@ -292,6 +281,7 @@ export class RemoteMcpServerService {
         JSON.stringify(validated.discoveredToolsSnapshot ?? current.discovered_tools_snapshot),
         JSON.stringify(validated.discoveredResourcesSnapshot ?? current.discovered_resources_snapshot),
         JSON.stringify(validated.discoveredPromptsSnapshot ?? current.discovered_prompts_snapshot),
+        JSON.stringify(persistableOauthDefinition(validated.oauthDefinition ?? current.oauth_definition)),
         JSON.stringify(validated.oauthConfig ?? current.oauth_config),
         JSON.stringify(validated.oauthCredentials ?? current.oauth_credentials),
       ],
@@ -374,14 +364,22 @@ export class RemoteMcpServerService {
     }
   }
 
-  private async replaceParameters(serverId: string, parameters: ParameterInput[]): Promise<void> {
+  private async replaceParameters(serverId: string, parameters: RemoteMcpParameterInput[]): Promise<void> {
     await this.pool.query('DELETE FROM remote_mcp_server_parameters WHERE remote_mcp_server_id = $1', [serverId]);
-    for (const parameter of parameters) {
+    for (const [sortOrder, parameter] of parameters.entries()) {
       const storedSecret = parameter.valueKind === 'secret' ? normalizeStoredRemoteMcpSecret(parameter.value.trim()) : null;
       await this.pool.query(
-        `INSERT INTO remote_mcp_server_parameters (remote_mcp_server_id, placement, key, value_kind, static_value, encrypted_secret_value)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [serverId, parameter.placement, parameter.key.trim(), parameter.valueKind, parameter.valueKind === 'static' ? parameter.value : null, storedSecret],
+        `INSERT INTO remote_mcp_server_parameters (remote_mcp_server_id, placement, key, value_kind, static_value, encrypted_secret_value, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          serverId,
+          parameter.placement,
+          parameter.key.trim(),
+          parameter.valueKind,
+          parameter.valueKind === 'static' ? parameter.value : null,
+          storedSecret,
+          sortOrder,
+        ],
       );
     }
   }
@@ -445,7 +443,7 @@ function listServersSql(): string {
         'value_kind', p.value_kind,
         'static_value', p.static_value,
         'encrypted_secret_value', p.encrypted_secret_value
-      ) ORDER BY p.created_at ASC)
+      ) ORDER BY p.sort_order ASC, p.created_at ASC)
       FROM remote_mcp_server_parameters p
       WHERE p.remote_mcp_server_id = s.id
     ), '[]'::jsonb) AS parameter_rows,
@@ -488,6 +486,7 @@ function toRemoteMcpServerRecord(row: RemoteMcpServerRow, exposeSecretValues: bo
     slug: row.slug,
     description: row.description,
     endpoint_url: row.endpoint_url,
+    transport_preference: readTransportPreference(row.transport_preference),
     call_timeout_seconds: row.call_timeout_seconds,
     auth_mode: row.auth_mode as RemoteMcpServerRecord['auth_mode'],
     enabled_by_default_for_new_specialists: row.enabled_by_default_for_new_specialists,
@@ -508,6 +507,7 @@ function toRemoteMcpServerRecord(row: RemoteMcpServerRow, exposeSecretValues: bo
     discovered_prompt_count: promptsSnapshot.length,
     assigned_specialist_count: row.assigned_specialist_count ?? 0,
     parameters,
+    oauth_definition: normalizeOauthDefinition(row.oauth_definition, exposeSecretValues),
     oauth_connected: oauthCredentials !== null && !oauthCredentials.needsReauth,
     oauth_authorized_at: oauthCredentials?.authorizedAt ?? null,
     oauth_needs_reauth: oauthCredentials?.needsReauth ?? false,
@@ -526,14 +526,49 @@ function normalizeOauthConfig(value: unknown): RemoteMcpOAuthConfigRecord | null
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return null;
   }
-  return oauthConfigSchema.parse(value);
+  return remoteMcpOauthConfigSchema.parse(value);
 }
 
 function normalizeOauthCredentials(value: unknown): RemoteMcpOAuthCredentialsRecord | null {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return null;
   }
-  return oauthCredentialsSchema.parse(value);
+  return remoteMcpOauthCredentialsSchema.parse(value);
+}
+
+function normalizeOauthDefinition(
+  value: unknown,
+  exposeSecretValues: boolean,
+): RemoteMcpOauthDefinition | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  const parsed = remoteMcpOauthDefinitionSchema.parse(value);
+  if (exposeSecretValues) {
+    return {
+      ...parsed,
+      clientSecret: parsed.clientSecret ? decryptRemoteMcpSecret(parsed.clientSecret) : null,
+      privateKeyPem: parsed.privateKeyPem ? decryptRemoteMcpSecret(parsed.privateKeyPem) : null,
+    };
+  }
+  return {
+    ...parsed,
+    clientSecret: parsed.clientSecret ? 'redacted://remote-mcp-secret' : null,
+    privateKeyPem: parsed.privateKeyPem ? 'redacted://remote-mcp-secret' : null,
+  };
+}
+
+function persistableOauthDefinition(
+  value: RemoteMcpOauthDefinition | null,
+): RemoteMcpOauthDefinition | null {
+  if (!value) {
+    return null;
+  }
+  return {
+    ...value,
+    clientSecret: value.clientSecret ? normalizeStoredRemoteMcpSecret(value.clientSecret) : null,
+    privateKeyPem: value.privateKeyPem ? normalizeStoredRemoteMcpSecret(value.privateKeyPem) : null,
+  };
 }
 
 function normalizeSlug(value: string): string {
@@ -556,4 +591,11 @@ function handleRemoteMcpWriteError(error: unknown): never {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function readTransportPreference(value: unknown): RemoteMcpTransportPreference {
+  if (value === 'streamable_http' || value === 'http_sse_compat') {
+    return value;
+  }
+  return 'auto';
 }

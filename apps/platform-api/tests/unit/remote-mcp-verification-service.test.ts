@@ -169,6 +169,44 @@ describe('RemoteMcpVerificationService', () => {
     );
   });
 
+  it('passes the selected transport preference into verification', async () => {
+    verifier.verify.mockResolvedValueOnce({
+      verification_status: 'verified',
+      verification_error: null,
+      verified_transport: 'streamable_http',
+      verification_contract_version: 'remote-mcp-v1',
+      discovered_tools_snapshot: [{ original_name: 'search' }],
+      discovered_resources_snapshot: [],
+      discovered_prompts_snapshot: [],
+      verified_capability_summary: {
+        tool_count: 1,
+        resource_count: 0,
+        prompt_count: 0,
+      },
+      verified_discovery_strategy: 'direct_endpoint',
+      verified_oauth_strategy: null,
+    });
+    serverService.createVerifiedServer.mockResolvedValueOnce({ id: SERVER_ID });
+
+    await service.createServer(TENANT_ID, {
+      name: 'Preferred Streamable MCP',
+      description: '',
+      endpointUrl: 'https://mcp.example.test/server',
+      callTimeoutSeconds: 300,
+      transportPreference: 'streamable_http',
+      authMode: 'none',
+      enabledByDefaultForNewSpecialists: false,
+      grantToAllExistingSpecialists: false,
+      parameters: [],
+    });
+
+    expect(verifier.verify).toHaveBeenCalledWith(
+      expect.objectContaining({
+        transportPreference: 'streamable_http',
+      }),
+    );
+  });
+
   it('adds the stored oauth authorization header when reverifying oauth-backed servers', async () => {
     serverService.getStoredServer.mockResolvedValueOnce({
       id: SERVER_ID,

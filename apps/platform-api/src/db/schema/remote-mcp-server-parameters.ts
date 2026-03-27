@@ -1,4 +1,4 @@
-import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { remoteMcpServers } from './remote-mcp-servers.js';
 
@@ -14,6 +14,7 @@ export const remoteMcpServerParameters = pgTable(
     valueKind: text('value_kind').notNull(),
     staticValue: text('static_value'),
     encryptedSecretValue: text('encrypted_secret_value'),
+    sortOrder: integer('sort_order').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
