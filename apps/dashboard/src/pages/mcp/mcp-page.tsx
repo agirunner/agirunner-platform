@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plug, Plus } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 
 import {
@@ -11,6 +11,7 @@ import {
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
+import { Card, CardContent } from '../../components/ui/card.js';
 import {
   Dialog,
   DialogContent,
@@ -368,35 +369,64 @@ export function McpPage(): JSX.Element {
         description="Manage remote MCP registrations, discovered tool snapshots, and specialist-ready connection posture."
         bodyClassName="space-y-0 p-0"
       >
-        <div className="overflow-x-auto px-6 pb-0">
-          <McpPageTable
-            servers={pagination.items}
-            busyServerId={busyServerId}
-            onViewTools={setToolsServer}
-            onEdit={(server) => {
-              setDialogState({ mode: 'edit', serverId: server.id });
-              setDialogForm(createRemoteMcpServerForm(server));
-            }}
-            onReverify={(server) => reverifyMutation.mutate(server)}
-            onConnectOAuth={(server) => connectOauthMutation.mutate(server)}
-            onDisconnectOAuth={(server) => disconnectOauthMutation.mutate(server)}
-            onDelete={(server) => deleteMutation.mutate(server)}
-          />
-        </div>
-        <ListPagination
-          page={pagination.page}
-          pageSize={pageSize}
-          totalItems={pagination.totalItems}
-          totalPages={pagination.totalPages}
-          start={pagination.start}
-          end={pagination.end}
-          itemLabel="servers"
-          onPageChange={setPage}
-          onPageSizeChange={(value) => {
-            setPageSize(value);
-            setPage(1);
-          }}
-        />
+        {servers.length === 0 ? (
+          <div className="px-6 pb-6">
+            <Card className="border-border/70 bg-card/80 shadow-none">
+              <CardContent className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+                <Plug className="h-12 w-12 text-muted" />
+                <div className="space-y-1">
+                  <p className="font-medium text-foreground">No remote MCP servers yet</p>
+                  <p className="max-w-2xl text-sm leading-6 text-muted">
+                    Create the first remote MCP server, then verify connectivity, inspect
+                    discovered tools, and make it available to specialists from one place.
+                  </p>
+                </div>
+                <Button
+                  onClick={() => {
+                    setDialogState({ mode: 'create', serverId: null });
+                    setDialogForm(createRemoteMcpServerForm());
+                  }}
+                  className="w-full sm:w-auto"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create first remote MCP server
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto px-6 pb-0">
+              <McpPageTable
+                servers={pagination.items}
+                busyServerId={busyServerId}
+                onViewTools={setToolsServer}
+                onEdit={(server) => {
+                  setDialogState({ mode: 'edit', serverId: server.id });
+                  setDialogForm(createRemoteMcpServerForm(server));
+                }}
+                onReverify={(server) => reverifyMutation.mutate(server)}
+                onConnectOAuth={(server) => connectOauthMutation.mutate(server)}
+                onDisconnectOAuth={(server) => disconnectOauthMutation.mutate(server)}
+                onDelete={(server) => deleteMutation.mutate(server)}
+              />
+            </div>
+            <ListPagination
+              page={pagination.page}
+              pageSize={pageSize}
+              totalItems={pagination.totalItems}
+              totalPages={pagination.totalPages}
+              start={pagination.start}
+              end={pagination.end}
+              itemLabel="servers"
+              onPageChange={setPage}
+              onPageSizeChange={(value) => {
+                setPageSize(value);
+                setPage(1);
+              }}
+            />
+          </>
+        )}
       </DashboardSectionCard>
 
       <McpPageOAuthClientProfilesSection
@@ -411,6 +441,10 @@ export function McpPage(): JSX.Element {
             : null
         }
         deletingProfileId={deletingOauthClientProfile?.id ?? null}
+        onCreate={() => {
+          setOauthClientProfileDialogState({ mode: 'create', profile: null });
+          setOauthClientProfileForm(createRemoteMcpOAuthClientProfileForm());
+        }}
         onEdit={(profile) => {
           setOauthClientProfileDialogState({ mode: 'edit', profile });
           setOauthClientProfileForm(createRemoteMcpOAuthClientProfileForm(profile));

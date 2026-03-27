@@ -90,6 +90,20 @@ describe('mcp page source', () => {
     expect(source).toContain('No additional auth');
   });
 
+  it('renders a first-run empty state for remote MCP servers with an icon and create action', () => {
+    const source = readSource('./mcp-page.tsx');
+
+    expect(source).toContain('No remote MCP servers yet');
+    expect(source).toContain('Create first remote MCP server');
+    expect(source).toContain(
+      'Create the first remote MCP server, then verify connectivity, inspect',
+    );
+    expect(source).toContain('discovered tools, and make it available to specialists from one place.');
+    expect(source).toContain('make it available to specialists from one place.');
+    expect(source).toContain('<Plug className="h-12 w-12 text-muted" />');
+    expect(source).toContain('servers.length === 0 ? (');
+  });
+
   it('renders discovered capabilities behind a chevron-driven spanning detail row', () => {
     const source = readSource('./mcp-page.table.tsx');
 
@@ -242,6 +256,19 @@ describe('mcp page source', () => {
     expect(source).toContain('Edit OAuth Client Profile');
     expect(source).toContain('Define reusable host-managed OAuth client credentials');
     expect(source).not.toContain('No profile description.');
+  });
+
+  it('renders a first-run empty state for oauth client profiles with an icon and create action', () => {
+    const source = readSource('./mcp-page.oauth-client-profiles-section.tsx');
+
+    expect(source).toContain('No OAuth client profiles yet');
+    expect(source).toContain('Create first OAuth client profile');
+    expect(source).toContain('<ShieldCheck className="h-12 w-12 text-muted" />');
+    expect(source).toContain('onCreate(): void;');
+    expect(source).toContain(
+      'Create a shared profile only when a remote MCP server requires host-managed OAuth',
+    );
+    expect(source).not.toContain('No OAuth client profiles defined');
   });
 
   it('lays out the oauth client profile dialog with balanced half-width identity fields', () => {

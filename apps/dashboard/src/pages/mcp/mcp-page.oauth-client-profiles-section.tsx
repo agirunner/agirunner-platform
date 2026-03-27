@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 
 import {
   DEFAULT_LIST_PAGE_SIZE,
@@ -7,6 +7,8 @@ import {
   paginateListItems,
 } from '../../components/list-pagination.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
+import { Button } from '../../components/ui/button.js';
+import { Card, CardContent } from '../../components/ui/card.js';
 import { IconActionButton } from '../../components/ui/icon-action-button.js';
 import {
   Table,
@@ -23,6 +25,7 @@ export function McpPageOAuthClientProfilesSection(props: {
   isLoading: boolean;
   error: string | null;
   deletingProfileId: string | null;
+  onCreate(): void;
   onEdit(profile: DashboardRemoteMcpOAuthClientProfileRecord): void;
   onDelete(profile: DashboardRemoteMcpOAuthClientProfileRecord): void;
 }) {
@@ -51,12 +54,23 @@ export function McpPageOAuthClientProfilesSection(props: {
           </div>
         </div>
       ) : profiles.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 px-6 py-12 text-center text-muted">
-          <p className="font-medium text-foreground">No OAuth client profiles defined</p>
-          <p className="max-w-2xl text-sm">
-            Create a shared profile only when a remote MCP server requires host-managed OAuth
-            credentials or endpoint defaults beyond automatic discovery.
-          </p>
+        <div className="px-6 pb-6">
+          <Card className="border-border/70 bg-card/80 shadow-none">
+            <CardContent className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+              <ShieldCheck className="h-12 w-12 text-muted" />
+              <div className="space-y-1">
+                <p className="font-medium text-foreground">No OAuth client profiles yet</p>
+                <p className="max-w-2xl text-sm leading-6 text-muted">
+                  Create a shared profile only when a remote MCP server requires host-managed OAuth
+                  credentials or endpoint defaults beyond automatic discovery.
+                </p>
+              </div>
+              <Button onClick={props.onCreate} className="w-full sm:w-auto">
+                <Plus className="h-4 w-4" />
+                Create first OAuth client profile
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       ) : (
         <>
