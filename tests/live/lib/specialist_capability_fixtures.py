@@ -68,6 +68,7 @@ def sync_specialist_skills(client: Any, fixture_path: Path) -> dict[str, Any]:
                 "POST",
                 "/api/v1/specialist-skills",
                 payload=normalized,
+                expected=(200, 201),
                 label=f"specialist-skills.create:{slug}",
             )
         else:
@@ -110,6 +111,7 @@ def sync_remote_mcp_servers(client: Any, fixture_path: Path) -> dict[str, Any]:
                 "POST",
                 "/api/v1/remote-mcp-servers",
                 payload=normalized,
+                expected=(200, 201),
                 label=f"remote-mcp-servers.create:{slug}",
             )
         else:
@@ -139,9 +141,10 @@ def request_data(
     path: str,
     *,
     payload: dict[str, Any] | None = None,
+    expected: tuple[int, ...] = (200,),
     label: str | None = None,
 ) -> Any:
-    response = client.request(method, path, payload=payload, label=label)
+    response = client.request(method, path, payload=payload, expected=expected, label=label)
     if not isinstance(response, dict) or "data" not in response:
         raise RuntimeError(f"unexpected response payload: {response!r}")
     return response["data"]

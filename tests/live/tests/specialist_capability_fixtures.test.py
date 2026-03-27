@@ -19,7 +19,7 @@ class FakeClient:
     def __init__(self) -> None:
         self.skills: list[dict[str, object]] = []
         self.remote_mcp_servers: list[dict[str, object]] = []
-        self.calls: list[tuple[str, str, dict[str, object], str | None]] = []
+        self.calls: list[tuple[str, str, dict[str, object], tuple[int, ...], str | None]] = []
 
     def request(
         self,
@@ -30,9 +30,8 @@ class FakeClient:
         expected: tuple[int, ...] = (200,),
         label: str | None = None,
     ) -> dict[str, object]:
-        del expected
         payload = payload or {}
-        self.calls.append((method, path, payload, label))
+        self.calls.append((method, path, payload, expected, label))
 
         if method == "GET" and path == "/api/v1/specialist-skills":
             return {"data": list(self.skills)}
@@ -207,6 +206,29 @@ class SpecialistCapabilityFixturesTests(unittest.TestCase):
         server_call = next(call for call in client.calls if call[1] == "/api/v1/remote-mcp-servers" and call[0] == "POST")
         self.assertEqual("https://mcp.example.test/endpoint", server_call[2]["endpointUrl"])
         self.assertEqual("Bearer secret-token", server_call[2]["parameters"][0]["value"])
+        self.assertEqual((200, 201), server_call[3])
+
+    def test_sync_profile_capabilities_accepts_created_status_for_skill_create(self) -> None:
+        client = FakeClient()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            profile_dir = Path(temp_dir)
+            (profile_dir / "skills.json").write_text(
+                json.dumps(
+                    [
+                        {
+                            "name": "Structured Summary",
+                            "summary": "Format results as a checklist.",
+                            "content": "Always return bullets.",
+                        }
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            registry = specialist_capability_fixtures.sync_profile_capabilities(client, profile_dir=profile_dir)
+
+        self.assertEqual("structured-summary", registry["skills"][0]["slug"])
+        skill_call = next(call for call in client.calls if call[1] == "/api/v1/specialist-skills" and call[0] == "POST")
+        self.assertEqual((200, 201), skill_call[3])
 
     def test_resolve_role_capability_refs_converts_skill_and_mcp_slugs_to_ids(self) -> None:
         payload = {
