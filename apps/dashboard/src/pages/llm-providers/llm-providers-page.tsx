@@ -1838,6 +1838,29 @@ export function LlmProvidersPage(): JSX.Element {
     queryKey: ['llm-system-default'],
     queryFn: () => dashboardApi.getLlmSystemDefault(),
   });
+  const providers = Array.isArray(providersQuery.data) ? providersQuery.data : [];
+  const models = Array.isArray(modelsQuery.data) ? modelsQuery.data : [];
+  const assignments = Array.isArray(assignmentsQuery.data) ? assignmentsQuery.data : [];
+  const roleDefinitions = Array.isArray(roleDefinitionsQuery.data) ? roleDefinitionsQuery.data : [];
+  const enabledModels = models.filter((m) => m.is_enabled !== false);
+  const systemDefault = systemDefaultQuery.data ?? { modelId: null, reasoningConfig: null };
+  const initialAssignmentSummaryCards = useMemo(
+    () =>
+      buildAssignmentSummaryCards({
+        enabledModels,
+        assignments,
+        roleDefinitions,
+        systemDefault,
+      }),
+    [enabledModels, assignments, roleDefinitions, systemDefault],
+  );
+  const [assignmentSurfaceCards, setAssignmentSurfaceCards] = useState<
+    AssignmentSurfaceSummaryCard[]
+  >(initialAssignmentSummaryCards);
+
+  useEffect(() => {
+    setAssignmentSurfaceCards(initialAssignmentSummaryCards);
+  }, [initialAssignmentSummaryCards]);
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -1921,30 +1944,6 @@ export function LlmProvidersPage(): JSX.Element {
       </div>
     );
   }
-
-  const providers = Array.isArray(providersQuery.data) ? providersQuery.data : [];
-  const models = Array.isArray(modelsQuery.data) ? modelsQuery.data : [];
-  const assignments = Array.isArray(assignmentsQuery.data) ? assignmentsQuery.data : [];
-  const roleDefinitions = Array.isArray(roleDefinitionsQuery.data) ? roleDefinitionsQuery.data : [];
-  const enabledModels = models.filter((m) => m.is_enabled !== false);
-  const systemDefault = systemDefaultQuery.data ?? { modelId: null, reasoningConfig: null };
-  const initialAssignmentSummaryCards = useMemo(
-    () =>
-      buildAssignmentSummaryCards({
-        enabledModels,
-        assignments,
-        roleDefinitions,
-        systemDefault,
-      }),
-    [enabledModels, assignments, roleDefinitions, systemDefault],
-  );
-  const [assignmentSurfaceCards, setAssignmentSurfaceCards] = useState<
-    AssignmentSurfaceSummaryCard[]
-  >(initialAssignmentSummaryCards);
-
-  useEffect(() => {
-    setAssignmentSurfaceCards(initialAssignmentSummaryCards);
-  }, [initialAssignmentSummaryCards]);
 
   function requestProviderDelete(providerId: string) {
     const provider = providers.find((entry) => entry.id === providerId);

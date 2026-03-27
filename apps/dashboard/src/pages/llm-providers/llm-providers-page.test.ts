@@ -227,6 +227,28 @@ describe('LlmProvidersPage renders three sections', () => {
     ).toBeLessThan(pageSource.indexOf('<RoleAssignmentsSection'));
   });
 
+  it('declares assignment summary hooks before the loading and error early returns', () => {
+    const pageSource = readComponent('pages/llm-providers/llm-providers-page.tsx');
+    const loadingIndex = pageSource.indexOf('const isLoading =');
+    const errorIndex = pageSource.indexOf('const hasError =');
+    const summaryMemoIndex = pageSource.indexOf('const initialAssignmentSummaryCards = useMemo');
+    const summaryStateIndex = pageSource.indexOf(
+      'const [assignmentSurfaceCards, setAssignmentSurfaceCards] = useState',
+    );
+    const summarySyncEffectIndex = pageSource.indexOf(
+      'setAssignmentSurfaceCards(initialAssignmentSummaryCards);',
+    );
+
+    expect(loadingIndex).toBeGreaterThan(-1);
+    expect(errorIndex).toBeGreaterThan(loadingIndex);
+    expect(summaryMemoIndex).toBeGreaterThan(-1);
+    expect(summaryStateIndex).toBeGreaterThan(-1);
+    expect(summarySyncEffectIndex).toBeGreaterThan(-1);
+    expect(summaryMemoIndex).toBeLessThan(loadingIndex);
+    expect(summaryStateIndex).toBeLessThan(loadingIndex);
+    expect(summarySyncEffectIndex).toBeLessThan(loadingIndex);
+  });
+
   it('uses a truncated description column in the desktop assignment table for scanability', () => {
     expect(source).toContain('const TABLE_ROLE_DESCRIPTION_LIMIT = 56;');
     expect(source).toContain(
