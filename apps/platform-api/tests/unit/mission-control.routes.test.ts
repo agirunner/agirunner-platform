@@ -83,9 +83,14 @@ describe('workflow operations routes', () => {
       workflowId: 'workflow-1',
       limit: 30,
     });
-    expect(workflowOperationsWorkspaceService.getWorkspace).toHaveBeenCalledWith('tenant-1', 'workflow-1', {
-      historyLimit: 11,
-      outputLimit: 7,
-    });
+    expect(workflowOperationsWorkspaceService.getWorkspace).toHaveBeenCalledWith(
+      'tenant-1',
+      'workflow-1',
+      expect.objectContaining({
+        historyLimit: 11,
+        deliverablesLimit: 7,
+        tabScope: 'workflow',
+      }),
+    );
   });
 });

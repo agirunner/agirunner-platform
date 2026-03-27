@@ -33,7 +33,12 @@ import { GovernanceService } from '../services/governance-service.js';
 import { MissionControlHistoryService } from '../services/workflow-operations/mission-control-history-service.js';
 import { MissionControlLiveService } from '../services/workflow-operations/mission-control-live-service.js';
 import { MissionControlRecentService } from '../services/workflow-operations/mission-control-recent-service.js';
-import { MissionControlWorkspaceService } from '../services/workflow-operations/mission-control-workspace-service.js';
+import { WorkflowDeliverablesService } from '../services/workflow-operations/workflow-deliverables-service.js';
+import { WorkflowHistoryService } from '../services/workflow-operations/workflow-history-service.js';
+import { WorkflowLiveConsoleService } from '../services/workflow-operations/workflow-live-console-service.js';
+import { WorkflowOperationsStreamService } from '../services/workflow-operations/workflow-operations-stream-service.js';
+import { WorkflowRailService } from '../services/workflow-operations/workflow-rail-service.js';
+import { WorkflowWorkspaceService } from '../services/workflow-operations/workflow-workspace-service.js';
 import { OAuthService } from '../services/oauth-service.js';
 import { OrchestratorConfigService } from '../services/orchestrator-config-service.js';
 import { OrchestratorGrantService } from '../services/orchestrator-grant-service.js';
@@ -210,10 +215,30 @@ export async function buildApp() {
   const workflowOperationsLiveService = new MissionControlLiveService(pool);
   const workflowOperationsRecentService = new MissionControlRecentService(pool, workflowOperationsLiveService);
   const workflowOperationsHistoryService = new MissionControlHistoryService(pool, workflowOperationsLiveService);
-  const workflowOperationsWorkspaceService = new MissionControlWorkspaceService(
-    workflowService,
+  const workflowOperationsRailService = new WorkflowRailService(
     workflowOperationsLiveService,
+    workflowOperationsRecentService,
     workflowOperationsHistoryService,
+  );
+  const workflowOperationsHistoryPacketService = new WorkflowHistoryService(
+    workflowOperationsHistoryService,
+  );
+  const workflowOperationsLiveConsoleService = new WorkflowLiveConsoleService(
+    workflowOperationsHistoryService,
+  );
+  const workflowOperationsDeliverablesService = new WorkflowDeliverablesService(
+    workflowOperationsLiveService,
+  );
+  const workflowOperationsWorkspaceService = new WorkflowWorkspaceService(
+    workflowService,
+    workflowOperationsRailService,
+    workflowOperationsLiveConsoleService,
+    workflowOperationsHistoryPacketService,
+    workflowOperationsDeliverablesService,
+  );
+  const workflowOperationsStreamService = new WorkflowOperationsStreamService(
+    workflowOperationsRailService,
+    workflowOperationsWorkspaceService,
   );
   const workflowInputPacketService = new WorkflowInputPacketService(
     pool,
@@ -338,7 +363,27 @@ export async function buildApp() {
   );
   app.decorate(
     'workflowOperationsWorkspaceService',
-    createLoggedService(workflowOperationsWorkspaceService, 'MissionControlWorkspaceService', logService),
+    createLoggedService(workflowOperationsWorkspaceService, 'WorkflowWorkspaceService', logService),
+  );
+  app.decorate(
+    'workflowOperationsRailService',
+    createLoggedService(workflowOperationsRailService, 'WorkflowRailService', logService),
+  );
+  app.decorate(
+    'workflowOperationsLiveConsoleService',
+    createLoggedService(workflowOperationsLiveConsoleService, 'WorkflowLiveConsoleService', logService),
+  );
+  app.decorate(
+    'workflowOperationsHistoryPacketService',
+    createLoggedService(workflowOperationsHistoryPacketService, 'WorkflowHistoryService', logService),
+  );
+  app.decorate(
+    'workflowOperationsDeliverablesService',
+    createLoggedService(workflowOperationsDeliverablesService, 'WorkflowDeliverablesService', logService),
+  );
+  app.decorate(
+    'workflowOperationsStreamService',
+    createLoggedService(workflowOperationsStreamService, 'WorkflowOperationsStreamService', logService),
   );
   app.decorate('oauthService', createLoggedService(oauthService, 'OAuthService', logService));
   app.decorate('remoteMcpOAuthClientProfileService', createLoggedService(remoteMcpOAuthClientProfileService, 'RemoteMcpOAuthClientProfileService', logService));
