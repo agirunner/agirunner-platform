@@ -21,8 +21,6 @@ const SECRET_RUNTIME_DEFAULT_SEGMENTS = new Set([
   'webhook_url',
 ]);
 const INTEGER_DEFAULT_RULES = new Map([
-  ['default_idle_timeout_seconds', { min: 0 }],
-  ['default_grace_period', { min: 1 }],
   ['global_max_specialists', { min: 1 }],
   ['specialist_runtime_bootstrap_claim_timeout_seconds', { min: 1 }],
   ['specialist_runtime_drain_grace_seconds', { min: 1 }],
@@ -145,7 +143,6 @@ const DECIMAL_DEFAULT_RULES = new Map([
   ['platform.agent_heartbeat_threshold_multiplier', { min: 1 }],
 ]);
 const ENUM_DEFAULT_RULES = new Map<string, readonly string[]>([
-  ['default_pull_policy', ['always', 'if-not-present', 'never']],
   ['specialist_runtime_default_pull_policy', ['always', 'if-not-present', 'never']],
   ['log.level', ['debug', 'info', 'warn', 'error']],
   ['agent.specialist_context_strategy', ['auto', 'semantic_local', 'deterministic', 'provider_native', 'off']],
@@ -172,6 +169,9 @@ const REMOVED_RUNTIME_DEFAULT_KEYS = new Set([
   'workspace.inject_context_rename_timeout_seconds',
   'platform.webhook_max_attempts',
   'platform.webhook_retry_base_delay_ms',
+  'default_pull_policy',
+  'default_idle_timeout_seconds',
+  'default_grace_period',
 ]);
 const NON_DELETABLE_RUNTIME_DEFAULT_KEYS = new Set([
   'global_max_specialists',

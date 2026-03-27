@@ -313,6 +313,32 @@ describe('RuntimeDefaultsService', () => {
       ).rejects.toThrow('containerd.connect_timeout_seconds has been removed');
     });
 
+    it('rejects deprecated legacy specialist runtime target defaults', async () => {
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'default_idle_timeout_seconds',
+          configValue: '300',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('default_idle_timeout_seconds has been removed');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'default_grace_period',
+          configValue: '30',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('default_grace_period has been removed');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'default_pull_policy',
+          configValue: 'if-not-present',
+          configType: 'string',
+        }),
+      ).rejects.toThrow('default_pull_policy has been removed');
+    });
+
     it('rejects out-of-range runtime compaction defaults', async () => {
       await expect(
         service.createDefault(TENANT_ID, {
@@ -827,6 +853,18 @@ describe('RuntimeDefaultsService', () => {
 
       expect(fleetService.drainAllRuntimesForTenant).not.toHaveBeenCalled();
       expect(eventService.emit).not.toHaveBeenCalled();
+    });
+
+    it('rejects upserts for deprecated legacy specialist runtime target defaults', async () => {
+      await expect(
+        service.upsertDefault(TENANT_ID, {
+          configKey: 'default_pull_policy',
+          configValue: 'always',
+          configType: 'string',
+        }),
+      ).rejects.toThrow('default_pull_policy has been removed');
+
+      expect(pool.query).not.toHaveBeenCalled();
     });
   });
 

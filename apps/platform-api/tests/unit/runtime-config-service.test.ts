@@ -308,4 +308,41 @@ describe('RuntimeConfigService', () => {
       { key: 'max_rework_attempts', value: '3', type: 'number' },
     ]);
   });
+
+  it('filters deprecated legacy specialist runtime target defaults out of worker config responses', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [sampleWorker], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 })
+      .mockResolvedValueOnce({
+        rows: [
+          sampleDefault,
+          {
+            config_key: 'default_idle_timeout_seconds',
+            config_value: '300',
+            config_type: 'number',
+            updated_at: new Date(),
+          },
+          {
+            config_key: 'default_grace_period',
+            config_value: '30',
+            config_type: 'number',
+            updated_at: new Date(),
+          },
+          {
+            config_key: 'default_pull_policy',
+            config_value: 'if-not-present',
+            config_type: 'string',
+            updated_at: new Date(),
+          },
+        ],
+        rowCount: 4,
+      });
+
+    const result = await service.getConfigForWorker(TENANT_ID, 'built-in-worker');
+
+    expect(result.defaults).toEqual([
+      { key: 'max_rework_attempts', value: '3', type: 'number' },
+    ]);
+  });
 });

@@ -17,6 +17,9 @@ const LEGACY_REMOVED_RUNTIME_DEFAULT_KEYS = new Set([
   'tools.web_search_base_url',
   'tools.web_search_api_key_secret_ref',
   'tools.web_search_timeout_seconds',
+  'default_pull_policy',
+  'default_idle_timeout_seconds',
+  'default_grace_period',
 ]);
 const DEAD_RUNTIME_DEFAULT_KEYS = new Set([
   'docker.checker_timeout_ms',
