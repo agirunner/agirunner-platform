@@ -378,7 +378,7 @@ function buildSubmitLabel(
 
 function openAuthorizeUrl(authorizeUrl: string) {
   if (typeof window !== 'undefined') {
-    window.open(authorizeUrl, '_blank', 'noopener,noreferrer');
+    window.location.assign(authorizeUrl);
   }
 }
 
@@ -395,7 +395,6 @@ async function handleRemoteMcpOauthStartResult(
 ) {
   if (result.kind === 'browser') {
     openAuthorizeUrl(result.authorizeUrl);
-    toast.success('OAuth authorization started in a new window.');
     return;
   }
   if (result.kind === 'device') {

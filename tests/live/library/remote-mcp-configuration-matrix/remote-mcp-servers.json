@@ -1,0 +1,152 @@
+[
+  {
+    "name": "Config Matrix No Auth Auto",
+    "description": "Static connection data across standard placements.",
+    "endpointUrl": "https://mcp.example.test/no-auth",
+    "transportPreference": "auto",
+    "callTimeoutSeconds": 180,
+    "authMode": "none",
+    "enabledByDefaultForNewSpecialists": false,
+    "grantToAllExistingSpecialists": false,
+    "parameters": [
+      { "placement": "path", "key": "workspaceId", "valueKind": "static", "value": "docs" },
+      { "placement": "query", "key": "mode", "valueKind": "static", "value": "preview" },
+      { "placement": "header", "key": "X-Tenant", "valueKind": "static", "value": "engineering" },
+      { "placement": "cookie", "key": "session_hint", "valueKind": "static", "value": "baseline" },
+      { "placement": "initialize_param", "key": "client_name", "valueKind": "static", "value": "Agirunner" }
+    ]
+  },
+  {
+    "name": "Config Matrix Parameterized Streamable",
+    "description": "Secret-backed parameterized server with explicit Streamable HTTP preference.",
+    "endpointUrl": "https://mcp.example.test/parameterized",
+    "transportPreference": "streamable_http",
+    "callTimeoutSeconds": 240,
+    "authMode": "parameterized",
+    "enabledByDefaultForNewSpecialists": true,
+    "grantToAllExistingSpecialists": true,
+    "parameters": [
+      { "placement": "query", "key": "apiKey", "valueKind": "secret", "value": "env://REMOTE_MCP_PARAM_KEY" },
+      { "placement": "header", "key": "X-Workspace", "valueKind": "static", "value": "platform" }
+    ]
+  },
+  {
+    "name": "Config Matrix OAuth Auto Loopback",
+    "description": "Authorization code flow with automatic discovery defaults.",
+    "endpointUrl": "https://mcp.example.test/oauth-auto",
+    "transportPreference": "auto",
+    "callTimeoutSeconds": 300,
+    "authMode": "oauth",
+    "oauthDefinition": {
+      "grantType": "authorization_code",
+      "clientStrategy": "auto",
+      "callbackMode": "loopback",
+      "tokenEndpointAuthMethod": "none",
+      "parMode": "disabled",
+      "jarMode": "disabled"
+    },
+    "parameters": [
+      { "placement": "authorize_request_query", "key": "prompt", "valueKind": "static", "value": "consent" }
+    ]
+  },
+  {
+    "name": "Config Matrix OAuth Device Dynamic",
+    "description": "Device authorization with metadata and device or token request parameter coverage.",
+    "endpointUrl": "https://mcp.example.test/oauth-device",
+    "transportPreference": "auto",
+    "callTimeoutSeconds": 360,
+    "authMode": "oauth",
+    "enabledByDefaultForNewSpecialists": true,
+    "grantToAllExistingSpecialists": false,
+    "oauthDefinition": {
+      "grantType": "device_authorization",
+      "clientStrategy": "dynamic_registration",
+      "callbackMode": "hosted_https",
+      "tokenEndpointAuthMethod": "client_secret_post",
+      "authorizationServerMetadataUrlOverride": "https://auth.example.test/.well-known/oauth-authorization-server",
+      "parMode": "enabled",
+      "jarMode": "disabled",
+      "scopes": ["search:read"]
+    },
+    "parameters": [
+      { "placement": "device_request_query", "key": "audience", "valueKind": "static", "value": "docs" },
+      { "placement": "device_request_header", "key": "X-Device-Mode", "valueKind": "static", "value": "fast" },
+      { "placement": "device_request_body_form", "key": "tenant", "valueKind": "static", "value": "platform" },
+      { "placement": "device_request_body_json", "key": "region", "valueKind": "static", "value": "ca-west" },
+      { "placement": "token_request_query", "key": "resource", "valueKind": "static", "value": "docs" },
+      { "placement": "token_request_header", "key": "X-Token-Attempt", "valueKind": "static", "value": "1" },
+      { "placement": "token_request_body_form", "key": "tenant", "valueKind": "static", "value": "platform" },
+      { "placement": "token_request_body_json", "key": "deviceProfile", "valueKind": "static", "value": "standard" }
+    ]
+  },
+  {
+    "name": "Config Matrix OAuth Manual Basic",
+    "description": "Manual authorization-code client using client secret basic auth.",
+    "endpointUrl": "https://mcp.example.test/oauth-manual-basic",
+    "transportPreference": "http_sse_compat",
+    "callTimeoutSeconds": 420,
+    "authMode": "oauth",
+    "enabledByDefaultForNewSpecialists": false,
+    "grantToAllExistingSpecialists": true,
+    "oauthDefinition": {
+      "grantType": "authorization_code",
+      "clientStrategy": "manual_client",
+      "callbackMode": "hosted_https",
+      "clientId": "manual-basic-client-id",
+      "clientSecret": "manual-basic-client-secret",
+      "tokenEndpointAuthMethod": "client_secret_basic",
+      "authorizationEndpointOverride": "https://auth.example.test/oauth/authorize",
+      "tokenEndpointOverride": "https://auth.example.test/oauth/token",
+      "protectedResourceMetadataUrlOverride": "https://mcp.example.test/.well-known/oauth-protected-resource/oauth-manual-basic",
+      "parMode": "required",
+      "jarMode": "request_uri",
+      "scopes": ["repo:read"]
+    }
+  },
+  {
+    "name": "Config Matrix OAuth Manual JWT",
+    "description": "Manual client credentials coverage for private key JWT and request parameter JAR.",
+    "endpointUrl": "https://mcp.example.test/oauth-manual-jwt",
+    "transportPreference": "streamable_http",
+    "callTimeoutSeconds": 480,
+    "authMode": "oauth",
+    "oauthDefinition": {
+      "grantType": "client_credentials",
+      "clientStrategy": "manual_client",
+      "callbackMode": "loopback",
+      "clientId": "manual-jwt-client-id",
+      "clientSecret": "manual-jwt-client-secret",
+      "tokenEndpointAuthMethod": "private_key_jwt",
+      "tokenEndpointOverride": "https://auth.example.test/oauth/token",
+      "registrationEndpointOverride": "https://auth.example.test/oauth/register",
+      "protectedResourceMetadataUrlOverride": "https://mcp.example.test/.well-known/oauth-protected-resource/oauth-manual-jwt",
+      "resourceIndicators": ["https://mcp.example.test/oauth-manual-jwt"],
+      "audiences": ["https://auth.example.test"],
+      "parMode": "disabled",
+      "jarMode": "request_parameter",
+      "privateKeyPem": "-----BEGIN PRIVATE KEY-----\\nfixture\\n-----END PRIVATE KEY-----"
+    }
+  },
+  {
+    "name": "Config Matrix OAuth Enterprise Metadata",
+    "description": "Enterprise-managed authorization profile coverage.",
+    "endpointUrl": "https://mcp.example.test/oauth-enterprise",
+    "transportPreference": "auto",
+    "callTimeoutSeconds": 540,
+    "authMode": "oauth",
+    "oauthDefinition": {
+      "grantType": "enterprise_managed_authorization",
+      "clientStrategy": "client_metadata_document",
+      "callbackMode": "hosted_https",
+      "tokenEndpointAuthMethod": "none",
+      "authorizationEndpointOverride": "https://auth.example.test/oauth/authorize",
+      "tokenEndpointOverride": "https://auth.example.test/oauth/token",
+      "parMode": "enabled",
+      "jarMode": "disabled",
+      "enterpriseProfile": {
+        "issuer": "https://enterprise.example.test",
+        "broker": "corp-sso"
+      }
+    }
+  }
+]

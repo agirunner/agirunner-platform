@@ -44,7 +44,7 @@ export function McpPageTable(props: {
           <TableHead className="w-[150px]">Status</TableHead>
           <TableHead className="w-[190px]">Transport</TableHead>
           <TableHead>Specialists</TableHead>
-          <TableHead className="w-[220px] text-right">Actions</TableHead>
+          <TableHead className="w-[260px] text-right">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -114,7 +114,7 @@ export function McpPageTable(props: {
                 {server.assigned_specialist_count}
               </TableCell>
               <TableCell className="align-top">
-                <div className="flex flex-wrap justify-end gap-2">
+                <div className="flex flex-nowrap justify-end gap-2 whitespace-nowrap">
                   <IconActionButton
                     label="View capabilities"
                     disabled={isBusy}

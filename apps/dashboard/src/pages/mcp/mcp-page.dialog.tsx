@@ -60,7 +60,7 @@ export function McpPageDialog(props: {
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem]">
               <div className="space-y-5">
                 <section className="grid gap-4 rounded-lg border border-border/70 bg-surface px-5 py-5">
-                  <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                  <div className="grid gap-4 md:grid-cols-2">
                     <label className="grid gap-2 text-sm xl:col-span-2">
                       <span className="font-medium">Name</span>
                       <Input
@@ -95,6 +95,18 @@ export function McpPageDialog(props: {
                         </SelectContent>
                       </Select>
                     </label>
+                  </div>
+                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_14rem]">
+                    <label className="grid gap-2 text-sm xl:row-span-2">
+                      <span className="font-medium">Endpoint URL</span>
+                      <Input
+                        value={props.form.endpointUrl}
+                        onChange={(event) =>
+                          props.onFormChange({ ...props.form, endpointUrl: event.target.value })
+                        }
+                        placeholder="https://mcp.example.test/server"
+                      />
+                    </label>
                     <label className="grid gap-2 text-sm">
                       <span className="font-medium">Transport preference</span>
                       <Select
@@ -116,18 +128,6 @@ export function McpPageDialog(props: {
                         </SelectContent>
                       </Select>
                     </label>
-                  </div>
-                  <label className="grid gap-2 text-sm">
-                    <span className="font-medium">Endpoint URL</span>
-                    <Input
-                      value={props.form.endpointUrl}
-                      onChange={(event) =>
-                        props.onFormChange({ ...props.form, endpointUrl: event.target.value })
-                      }
-                      placeholder="https://mcp.example.test/server"
-                    />
-                  </label>
-                  <div className="grid gap-4 md:grid-cols-[14rem_minmax(0,1fr)]">
                     <label className="grid gap-2 text-sm">
                       <span className="font-medium">Call timeout (seconds)</span>
                       <Input
@@ -142,7 +142,7 @@ export function McpPageDialog(props: {
                         placeholder="300"
                       />
                     </label>
-                    <label className="grid gap-2 text-sm">
+                    <label className="grid gap-2 text-sm xl:col-span-2">
                       <span className="font-medium">Description</span>
                       <Textarea
                         value={props.form.description}
@@ -288,7 +288,7 @@ function ensureParametersAfterRemoval(
 
 function buildAuthSummary(form: RemoteMcpServerFormState): string {
   if (form.authMode === 'oauth') {
-    return `OAuth uses ${form.oauth.grantType.replaceAll('_', ' ')} with ${form.oauth.clientStrategy.replaceAll('_', ' ')} and ${form.oauth.callbackMode === 'hosted_https' ? 'hosted HTTPS' : 'loopback'} callback mode.`;
+    return `OAuth uses ${form.oauth.grantType.replaceAll('_', ' ')} with ${form.oauth.clientStrategy.replaceAll('_', ' ')} setup. Advanced settings stay collapsed until you need them.`;
   }
   if (form.authMode === 'parameterized') {
     return 'Parameterized mode uses structured path, query, header, cookie, and initialize parameters, including secret-backed values.';

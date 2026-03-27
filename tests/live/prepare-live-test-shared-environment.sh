@@ -16,6 +16,7 @@ LIVE_TEST_SHARED_CONTEXT_FILE="${LIVE_TEST_SHARED_CONTEXT_FILE:-${LIVE_TEST_BOOT
 LIVE_TEST_TRACE_DIR="${LIVE_TEST_TRACE_DIR:-${LIVE_TEST_BOOTSTRAP_DIR}/api-trace}"
 LIVE_TEST_PLATFORM_ROOT="${LIVE_TEST_PLATFORM_ROOT:-${REPO_ROOT}}"
 LIVE_TEST_COMPOSE_FILE="${LIVE_TEST_COMPOSE_FILE:-${LIVE_TEST_PLATFORM_ROOT}/docker-compose.yml}"
+LIVE_TEST_COMPOSE_LIVE_TEST_FILE="${LIVE_TEST_COMPOSE_LIVE_TEST_FILE:-${LIVE_TEST_PLATFORM_ROOT}/tests/live/docker-compose.live-test.yml}"
 LIVE_TEST_COMPOSE_PROJECT_NAME="${LIVE_TEST_COMPOSE_PROJECT_NAME:-agirunner-platform}"
 LIVE_TEST_COMPOSE_PROFILES="${LIVE_TEST_COMPOSE_PROFILES:-live-test}"
 LIVE_TEST_LIBRARY_ROOT="${LIVE_TEST_LIBRARY_ROOT:-${LIVE_TEST_ROOT}/library}"
@@ -45,6 +46,7 @@ LIVE_TEST_RUN_SCRIPT="${LIVE_TEST_RUN_SCRIPT:-${LIVE_TEST_PLATFORM_ROOT}/tests/l
 require_live_test_dir "${RUNTIME_REPO_PATH}" "runtime repo"
 require_live_test_dir "${LIVE_TEST_PLATFORM_ROOT}/apps/platform-api" "platform api app"
 require_live_test_file "${LIVE_TEST_COMPOSE_FILE}" "platform docker compose file"
+require_live_test_file "${LIVE_TEST_COMPOSE_LIVE_TEST_FILE}" "live test compose override file"
 require_live_test_dir "${LIVE_TEST_LIBRARY_ROOT}" "live test library"
 require_live_test_file "${LIVE_TEST_RUN_SCRIPT}" "shared live test seed script"
 require_live_test_value "DEFAULT_ADMIN_API_KEY" "${DEFAULT_ADMIN_API_KEY:-}"
@@ -57,7 +59,10 @@ verify_live_test_stack_secrets() {
   platform_env="$(
     cd "${LIVE_TEST_PLATFORM_ROOT}"
     export COMPOSE_PROJECT_NAME="${LIVE_TEST_COMPOSE_PROJECT_NAME}"
-    docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" -f "${LIVE_TEST_COMPOSE_FILE}" exec -T platform-api env
+    docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" \
+      -f "${LIVE_TEST_COMPOSE_FILE}" \
+      -f "${LIVE_TEST_COMPOSE_LIVE_TEST_FILE}" \
+      exec -T platform-api env
   )"
 
   if ! grep -Fqx "JWT_SECRET=${JWT_SECRET}" <<<"${platform_env}"; then
@@ -90,9 +95,15 @@ log_live_test "rebuilding standard docker compose stack"
   export COMPOSE_PROJECT_NAME="${LIVE_TEST_COMPOSE_PROJECT_NAME}"
   export COMPOSE_PROFILES="${LIVE_TEST_COMPOSE_PROFILES}"
   export DEFAULT_ADMIN_API_KEY JWT_SECRET WEBHOOK_ENCRYPTION_KEY
-  docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" -f "${LIVE_TEST_COMPOSE_FILE}" down -v --remove-orphans
+  docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" \
+    -f "${LIVE_TEST_COMPOSE_FILE}" \
+    -f "${LIVE_TEST_COMPOSE_LIVE_TEST_FILE}" \
+    down -v --remove-orphans
   wait_for_live_test_compose_project_down "${LIVE_TEST_COMPOSE_PROJECT_NAME}"
-  docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" -f "${LIVE_TEST_COMPOSE_FILE}" up -d --build
+  docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" \
+    -f "${LIVE_TEST_COMPOSE_FILE}" \
+    -f "${LIVE_TEST_COMPOSE_LIVE_TEST_FILE}" \
+    up -d --build
 )
 
 export PLATFORM_API_BASE_URL="${PLATFORM_API_BASE_URL:-http://127.0.0.1:${PLATFORM_API_PORT:-8080}}"

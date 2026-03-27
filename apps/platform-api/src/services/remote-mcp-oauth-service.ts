@@ -30,6 +30,10 @@ import {
 } from './remote-mcp-oauth-discovery.js';
 import { buildOauthClientConfig } from './remote-mcp-oauth-client.js';
 import {
+  readMissingAuthorizationEndpointMessage,
+  readMissingDeviceAuthorizationEndpointMessage,
+} from './remote-mcp-oauth-errors.js';
+import {
   exchangeAuthorizationCodeToken,
   exchangeClientCredentialsToken,
   pollDeviceAuthorizationToken,
@@ -530,10 +534,6 @@ export class RemoteMcpOAuthService {
       resourceDiscovery,
       oauthDefinition: input.oauthDefinition,
     });
-    const authorizationEndpoint = authDiscovery.metadata.authorizationEndpoint;
-    if (!authorizationEndpoint) {
-      throw new ValidationError('Remote MCP authorization server metadata is missing required endpoints');
-    }
     const callbackMode = resolveRemoteMcpCallbackMode(
       input.oauthDefinition?.callbackMode,
       this.options.remoteMcpHostedCallbackBaseUrl,
@@ -549,11 +549,14 @@ export class RemoteMcpOAuthService {
       oauthDefinition: input.oauthDefinition,
       platformPublicBaseUrl: requirePlatformPublicBaseUrl(this.options.platformPublicBaseUrl),
     });
+    if (!clientConfig.authorizationEndpoint) {
+      throw new ValidationError(readMissingAuthorizationEndpointMessage(input.oauthDefinition));
+    }
     const codeVerifier = generateCodeVerifier();
     const state = generateState();
     const codeChallenge = generateCodeChallenge(codeVerifier);
     return {
-      authorizeUrl: buildAuthorizeUrl(authorizationEndpoint, {
+      authorizeUrl: buildAuthorizeUrl(clientConfig.authorizationEndpoint, {
         clientId: clientConfig.clientId,
         redirectUri,
         scopes: clientConfig.scopes,
@@ -599,6 +602,9 @@ export class RemoteMcpOAuthService {
       oauthDefinition: input.oauthDefinition,
       platformPublicBaseUrl: requirePlatformPublicBaseUrl(this.options.platformPublicBaseUrl),
     });
+    if (!clientConfig.deviceAuthorizationEndpoint) {
+      throw new ValidationError(readMissingDeviceAuthorizationEndpointMessage(input.oauthDefinition));
+    }
     const deviceResponse = await requestDeviceAuthorization(clientConfig, input.parameters);
     return {
       resourceMetadata: resourceDiscovery.metadata,

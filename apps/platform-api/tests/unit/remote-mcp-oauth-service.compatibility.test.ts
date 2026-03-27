@@ -220,6 +220,140 @@ describe('RemoteMcpOAuthService compatibility flows', () => {
     expect(serverService.createVerifiedServer).toHaveBeenCalled();
   });
 
+  it('allows manual client browser oauth when discovered authorization metadata is partial', async () => {
+    vi.mocked(globalThis.fetch)
+      .mockResolvedValueOnce(
+        mockTextResponse(401, {
+          'www-authenticate': 'Bearer realm="mcp", resource_metadata="https://mcp.example.test/.well-known/oauth-protected-resource/server"',
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          resource: 'https://mcp.example.test/server',
+          authorization_servers: ['https://auth.example.test/oauth'],
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          issuer: 'https://auth.example.test',
+          scopes_supported: ['docs.read'],
+        }),
+      );
+
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO remote_mcp_registration_drafts')) {
+          return { rowCount: 1, rows: [{ id: 'draft-1' }] };
+        }
+        if (sql.includes('INSERT INTO oauth_states')) {
+          return { rowCount: 1, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new RemoteMcpOAuthService(
+      pool as never,
+      {
+        getStoredServer: vi.fn(),
+        createVerifiedServer: vi.fn(),
+        updateVerifiedServer: vi.fn(),
+      } as never,
+      {
+        verify: vi.fn(),
+      } as never,
+      {
+        platformPublicBaseUrl: 'https://platform.example.test',
+      },
+    );
+
+    const result = await service.initiateDraftAuthorization('tenant-1', 'user-1', {
+      name: 'Manual Docs MCP',
+      description: '',
+      endpointUrl: 'https://mcp.example.test/server',
+      callTimeoutSeconds: 300,
+      authMode: 'oauth',
+      enabledByDefaultForNewSpecialists: false,
+      grantToAllExistingSpecialists: false,
+      oauthDefinition: {
+        grantType: 'authorization_code',
+        clientStrategy: 'manual_client',
+        clientId: 'client-id-1',
+        clientSecret: 'client-secret-1',
+        tokenEndpointAuthMethod: 'client_secret_basic',
+        authorizationEndpointOverride: 'https://auth.example.test/oauth/authorize',
+        tokenEndpointOverride: 'https://auth.example.test/oauth/token',
+      },
+      parameters: [],
+    });
+
+    expect(result).toMatchObject({
+      kind: 'browser',
+      draftId: 'draft-1',
+    });
+  });
+
+  it('returns an actionable error when automatic oauth discovery does not expose usable endpoints', async () => {
+    vi.mocked(globalThis.fetch)
+      .mockResolvedValueOnce(
+        mockTextResponse(401, {
+          'www-authenticate': 'Bearer realm="mcp", resource_metadata="https://mcp.example.test/.well-known/oauth-protected-resource/server"',
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          resource: 'https://mcp.example.test/server',
+          authorization_servers: ['https://auth.example.test/oauth'],
+        }),
+      )
+      .mockResolvedValueOnce(
+        mockJsonResponse({
+          issuer: 'https://auth.example.test',
+        }),
+      );
+
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('INSERT INTO remote_mcp_registration_drafts')) {
+          return { rowCount: 1, rows: [{ id: 'draft-1' }] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new RemoteMcpOAuthService(
+      pool as never,
+      {
+        getStoredServer: vi.fn(),
+        createVerifiedServer: vi.fn(),
+        updateVerifiedServer: vi.fn(),
+      } as never,
+      {
+        verify: vi.fn(),
+      } as never,
+      {
+        platformPublicBaseUrl: 'https://platform.example.test',
+      },
+    );
+
+    await expect(
+      service.initiateDraftAuthorization('tenant-1', 'user-1', {
+        name: 'Auto Docs MCP',
+        description: '',
+        endpointUrl: 'https://mcp.example.test/server',
+        callTimeoutSeconds: 300,
+        authMode: 'oauth',
+        enabledByDefaultForNewSpecialists: false,
+        grantToAllExistingSpecialists: false,
+        oauthDefinition: {
+          grantType: 'authorization_code',
+          clientStrategy: 'auto',
+        },
+        parameters: [],
+      }),
+    ).rejects.toThrow(
+      'Automatic OAuth discovery did not provide usable authorization and token endpoints. Configure a manual OAuth client and endpoint overrides for this server.',
+    );
+  });
+
   it('starts a device-authorization flow and returns the user code details instead of an authorize url', async () => {
     vi.mocked(globalThis.fetch)
       .mockResolvedValueOnce(

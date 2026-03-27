@@ -3605,6 +3605,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(async () => {
         await requestJson(`/api/v1/config/oauth/providers/${providerId}/disconnect`, {
           method: 'POST',
+          allowNoContent: true,
         });
       }),
     getCostSummary: () =>

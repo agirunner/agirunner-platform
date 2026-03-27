@@ -4,6 +4,7 @@ import type {
   RemoteMcpOauthDefinition,
 } from './remote-mcp-model.js';
 import type { AuthorizationServerMetadata } from './remote-mcp-oauth-discovery.js';
+import { readMissingTokenEndpointMessage } from './remote-mcp-oauth-errors.js';
 import { buildClientMetadataUrl } from './remote-mcp-oauth-discovery.js';
 import { encryptRemoteMcpSecret } from './remote-mcp-secret-crypto.js';
 
@@ -31,6 +32,10 @@ export async function buildOauthClientConfig(input: {
   const deviceAuthorizationEndpoint =
     input.oauthDefinition?.deviceAuthorizationEndpointOverride
     ?? input.metadata.deviceAuthorizationEndpoint;
+
+  if (!tokenEndpoint) {
+    throw new ValidationError(readMissingTokenEndpointMessage(input.oauthDefinition));
+  }
 
   if (input.oauthDefinition?.clientStrategy === 'manual_client'
     || readString(input.oauthDefinition?.clientId) !== null) {

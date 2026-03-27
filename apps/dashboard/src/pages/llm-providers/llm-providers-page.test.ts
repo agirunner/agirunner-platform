@@ -62,6 +62,17 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).not.toContain('Use your ChatGPT subscription to access OpenAI models.');
   });
 
+  it('keeps oauth disconnect as a no-content-safe action and explains disconnected impact clearly', () => {
+    const apiSource = readComponent('lib/api.ts');
+
+    expect(apiSource).toContain("requestJson(`/api/v1/config/oauth/providers/${providerId}/disconnect`, {");
+    expect(apiSource).toContain("allowNoContent: true");
+    expect(source).toContain('OAuth disconnected. Models and specialist assignments stay configured, but this provider cannot serve requests until it is reconnected.');
+    expect(source).toContain('Models and specialist assignments stay configured, but this provider cannot serve requests until OAuth is reconnected.');
+    expect(source).toContain('window.location.assign(result.authorizeUrl)');
+    expect(source).not.toContain("window.open(result.authorizeUrl, '_blank', 'noopener,noreferrer')");
+  });
+
   it('uses a confirmed destructive flow for provider deletion and labeled responsive actions', () => {
     expect(source).toContain('DeleteProviderDialog');
     expect(source).toContain('Delete provider?');

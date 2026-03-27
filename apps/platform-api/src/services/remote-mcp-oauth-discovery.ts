@@ -18,7 +18,7 @@ export interface ResourceDiscoveryResult {
 export interface AuthorizationServerMetadata {
   issuer: string | null;
   authorizationEndpoint: string | null;
-  tokenEndpoint: string;
+  tokenEndpoint: string | null;
   registrationEndpoint: string | null;
   deviceAuthorizationEndpoint: string | null;
   pushedAuthorizationRequestEndpoint: string | null;
@@ -300,14 +300,10 @@ async function parseAuthorizationServerMetadata(
   response: Response,
 ): Promise<AuthorizationServerMetadata> {
   const payload = await response.json() as Record<string, unknown>;
-  const tokenEndpoint = readString(payload.token_endpoint);
-  if (!tokenEndpoint) {
-    throw new ValidationError('Remote MCP authorization server metadata is missing required endpoints');
-  }
   return {
     issuer: readString(payload.issuer),
     authorizationEndpoint: readString(payload.authorization_endpoint),
-    tokenEndpoint,
+    tokenEndpoint: readString(payload.token_endpoint),
     registrationEndpoint: readString(payload.registration_endpoint),
     deviceAuthorizationEndpoint: readString(payload.device_authorization_endpoint),
     pushedAuthorizationRequestEndpoint: readString(payload.pushed_authorization_request_endpoint),

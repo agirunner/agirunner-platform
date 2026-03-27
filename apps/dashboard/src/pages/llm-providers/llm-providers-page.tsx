@@ -349,7 +349,7 @@ function ConnectOAuthDialog(): JSX.Element {
   const connectMutation = useMutation({
     mutationFn: async (profileId: string) => {
       const result = await dashboardApi.initiateOAuthFlow(profileId);
-      window.open(result.authorizeUrl, '_blank', 'noopener,noreferrer');
+      window.location.assign(result.authorizeUrl);
     },
     onError: (error) => {
       toast.error(`Failed to start OAuth flow: ${String(error)}`);
@@ -437,7 +437,7 @@ function OAuthProviderCard({
     mutationFn: () => dashboardApi.disconnectOAuthProvider(provider.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['oauth-status', provider.id] });
-      toast.success('OAuth disconnected.');
+      toast.success('OAuth disconnected. Models and specialist assignments stay configured, but this provider cannot serve requests until it is reconnected.');
     },
     onError: (error) => {
       toast.error(`Failed to disconnect: ${String(error)}`);
@@ -448,7 +448,7 @@ function OAuthProviderCard({
     mutationFn: async () => {
       const profileId = 'openai-codex';
       const result = await dashboardApi.initiateOAuthFlow(profileId);
-      window.open(result.authorizeUrl, '_blank', 'noopener,noreferrer');
+      window.location.assign(result.authorizeUrl);
     },
     onError: (error) => {
       toast.error(`Failed to start reconnection: ${String(error)}`);
@@ -493,6 +493,11 @@ function OAuthProviderCard({
             <Badge variant="outline">Subscription</Badge>
           </div>
         </dl>
+        {!status?.connected ? (
+          <p className="mt-4 text-sm text-muted">
+            Models and specialist assignments stay configured, but this provider cannot serve requests until OAuth is reconnected.
+          </p>
+        ) : null}
         <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
           <Button
             variant="outline"

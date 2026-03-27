@@ -16,7 +16,9 @@ function readCombinedSource() {
     './mcp-page.oauth-flow.ts',
     './mcp-page.table.tsx',
     './mcp-page.dialog.tsx',
+    './mcp-page.oauth-fields.tsx',
     './mcp-page.oauth-settings.tsx',
+    './mcp-page.oauth-settings.advanced.tsx',
     './mcp-page.parameters-section.tsx',
     './mcp-page.tools-sheet.tsx',
   ]
@@ -63,7 +65,7 @@ describe('mcp page source', () => {
     expect(source).toContain('pollRemoteMcpOAuthDeviceAuthorization');
     expect(source).toContain('deviceFlowId');
     expect(source).toContain('verificationUri');
-    expect(source).toContain("window.open(authorizeUrl, '_blank', 'noopener,noreferrer')");
+    expect(source).toContain('window.location.assign(authorizeUrl)');
   });
 
   it('shows only configured and oauth-connected cards, with transport separated from status', () => {
@@ -86,16 +88,17 @@ describe('mcp page source', () => {
     expect(source).toContain('Endpoint URL');
     expect(source).toContain('Authentication');
     expect(source).toContain('Transport preference');
+    expect(source).toContain('xl:grid-cols-[minmax(0,1fr)_14rem]');
+    expect(source).toContain('xl:row-span-2');
+    expect(source).toContain('xl:col-span-2');
     expect(source).toContain('Enabled by default for new specialists');
     expect(source).toContain('Grant to all existing specialists');
     expect(source).toContain('Call timeout (seconds)');
     expect(source).toContain('Connection parameters');
     expect(source).toContain('Additional connection parameters');
-    expect(source).toContain('OAuth settings');
-    expect(source).toContain('Client strategy');
-    expect(source).toContain('Callback mode');
-    expect(source).toContain('PAR mode');
-    expect(source).toContain('JAR mode');
+    expect(source).toContain('OAuth setup');
+    expect(source).toContain('Setup mode');
+    expect(source).toContain('Advanced OAuth settings');
     expect(source).toContain('Cookie');
     expect(source).toContain('Authorize request query');
     expect(source).toContain('Device request query');
@@ -111,6 +114,34 @@ describe('mcp page source', () => {
     expect(source).toContain('Add parameter');
     expect(source).toContain("authMode !== 'none'");
     expect(source).toContain('normalizeParametersForAuthMode');
+  });
+
+  it('aligns advanced oauth PAR and JAR fields with the private key group', () => {
+    const source = readCombinedSource();
+
+    expect(source).toContain('xl:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]');
+    expect(source).toContain('label="PAR mode"');
+    expect(source).toContain('label="JAR mode"');
+    expect(source).toContain('className="grid gap-4 md:grid-cols-2"');
+    expect(source).toContain('className="md:col-span-2"');
+    expect(source).toContain('label="Private key PEM"');
+  });
+
+  it('uses a guided oauth dialog that does not render the full advanced surface by default', () => {
+    const source = readCombinedSource();
+
+    expect(source).toContain('OAuth setup');
+    expect(source).toContain('Setup mode');
+    expect(source).toContain('Advanced OAuth settings');
+    expect(source).toContain('showAdvanced');
+    expect(source).toContain('Manual client');
+  });
+
+  it('keeps the mcp action buttons on one row', () => {
+    const source = readSource('./mcp-page.table.tsx');
+
+    expect(source).toContain('className="w-[260px] text-right"');
+    expect(source).toContain('className="flex flex-nowrap justify-end gap-2 whitespace-nowrap"');
   });
 
   it('models a discriminated oauth result contract for browser, device, and completed flows', () => {
