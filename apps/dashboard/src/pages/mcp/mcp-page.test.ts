@@ -128,7 +128,7 @@ describe('mcp page source', () => {
     expect(dialogSource).toContain('xl:grid-cols-4');
     expect(dialogSource).not.toContain('xl:grid-cols-[minmax(0,1fr)_14rem_14rem]');
     expect(dialogSource).toContain('<label className="grid gap-2 text-sm xl:col-span-2">');
-    expect(source).toContain('xl:col-span-3');
+    expect(dialogSource).toContain('<label className="grid gap-2 text-sm xl:col-span-4">');
     expect(source).toContain('lg:grid-cols-2');
     expect(source).not.toContain('xl:grid-cols-[minmax(0,1fr)_24rem]');
     expect(source).not.toContain('<aside className="space-y-5">');

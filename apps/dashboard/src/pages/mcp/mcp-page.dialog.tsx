@@ -148,7 +148,7 @@ export function McpPageDialog(props: {
                       placeholder="300"
                     />
                   </label>
-                  <label className="grid gap-2 text-sm xl:col-span-3">
+                  <label className="grid gap-2 text-sm xl:col-span-4">
                     <span className="font-medium">Description</span>
                     <Textarea
                       value={props.form.description}
