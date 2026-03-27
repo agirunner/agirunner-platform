@@ -5,7 +5,6 @@ export interface SecretBinding {
   fileEnvName?: string;
   required?: boolean;
   minLength?: number;
-  requireFileInProduction?: boolean;
 }
 
 function formatSourceHint(binding: SecretBinding): string {
@@ -34,8 +33,6 @@ export function resolveSecretEnv(
   bindings: SecretBinding[],
   target: NodeJS.ProcessEnv = source,
 ): NodeJS.ProcessEnv {
-  const nodeEnv = source.NODE_ENV ?? target.NODE_ENV ?? 'development';
-
   for (const binding of bindings) {
     const fileEnvName = binding.fileEnvName ?? `${binding.envName}_FILE`;
     const inlineValue = source[binding.envName]?.trim();
@@ -55,9 +52,6 @@ export function resolveSecretEnv(
     } else {
       delete target[binding.envName];
     }
-
-    // requireFileInProduction is deprecated — direct env vars are now the standard.
-    // Kept for backward compatibility but no longer enforced.
 
     if (binding.required && !resolvedValue) {
       throw new Error(`Missing required secret ${formatSourceHint(binding)}.`);
