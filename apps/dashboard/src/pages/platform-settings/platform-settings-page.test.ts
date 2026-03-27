@@ -6,9 +6,9 @@ function readSource(fileName: string) {
   return readFileSync(resolve(import.meta.dirname, fileName), 'utf8');
 }
 
-describe('operations page source', () => {
+describe('platform settings page source', () => {
   it('reuses the shared runtime defaults editor and renders every operations group inline', () => {
-    const source = readSource('./operations-page.tsx');
+    const source = readSource('./platform-settings-page.tsx');
     expect(source).toContain('RuntimeDefaultsEditorPage');
     expect(source).toContain('navHref="/admin/platform-settings"');
     expect(source).toContain("successMessage=\"Platform settings saved.\"");

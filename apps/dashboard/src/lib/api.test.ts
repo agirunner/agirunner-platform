@@ -3064,8 +3064,8 @@ describe('dashboard global search', () => {
       'playbook',
       'agent',
     ]);
-    expect(results[0].href).toBe('/mission-control?rail=workflow&workflow=workflow-1');
-    expect(results[1].href).toBe('/mission-control/tasks/task-1');
+    expect(results[0].href).toBe('/workflows?rail=workflow&workflow=workflow-1');
+    expect(results[1].href).toBe('/work/tasks/task-1');
     expect(results[2].href).toBe('/design/workspaces/workspace-1');
     expect(results[3].href).toBe('/design/playbooks/playbook-1');
     expect(results[4].href).toBe('/diagnostics/live-containers');

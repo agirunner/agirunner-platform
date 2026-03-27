@@ -80,7 +80,7 @@ export function TaskListPage(): JSX.Element {
   return (
     <div className="space-y-6 p-6">
       <DashboardPageHeader
-        navHref="/mission-control/tasks"
+        navHref="/work/tasks"
         description="Operator view of specialist steps, reviews, escalations, and orchestrator turns. Lead with the next action, then open the step or board only when you need deeper context."
       />
       <TaskListFilters

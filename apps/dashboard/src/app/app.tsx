@@ -126,8 +126,10 @@ const ExecutionEnvironmentsPage = lazyWithRetry(() =>
     default: m.ExecutionEnvironmentsPage,
   })),
 );
-const OperationsPage = lazyWithRetry(() =>
-  import('../pages/operations/operations-page.js').then((m) => ({ default: m.OperationsPage })),
+const PlatformSettingsPage = lazyWithRetry(() =>
+  import('../pages/platform-settings/platform-settings-page.js').then((m) => ({
+    default: m.PlatformSettingsPage,
+  })),
 );
 const PlatformInstructionsPage = lazyWithRetry(() =>
   import('../pages/platform-instructions/platform-instructions-page.js').then((m) => ({
@@ -273,10 +275,11 @@ export function App(): JSX.Element {
           <Route path="/auth/callback" element={<SSOCallbackPage />} />
           <Route element={<RequireAuth />}>
             <Route element={<DashboardLayout onToggleTheme={toggleTheme} />}>
-              <Route path="/" element={<Navigate to="/mission-control" replace />} />
+              <Route path="/" element={<Navigate to="/workflows" replace />} />
 
-              {/* Mission Control */}
-              <Route path="/mission-control" element={<MissionControlPage />} />
+              {/* Workflows */}
+              <Route path="/workflows" element={<MissionControlPage />} />
+              <Route path="/mission-control" element={<LegacyMissionControlRootRedirect />} />
               <Route
                 path="/mission-control/workflows"
                 element={<LegacyMissionControlShellRedirect section="workflows" />}
@@ -293,7 +296,7 @@ export function App(): JSX.Element {
                 path="/mission-control/tasks"
                 element={<LegacyMissionControlShellRedirect section="tasks" />}
               />
-              <Route path="/mission-control/tasks/:id" element={<TaskDetailPage />} />
+              <Route path="/mission-control/tasks/:id" element={<LegacyTaskRedirect />} />
               <Route
                 path="/mission-control/action-queue"
                 element={<LegacyMissionControlShellRedirect section="action_queue" />}
@@ -307,12 +310,12 @@ export function App(): JSX.Element {
               <Route path="/work/workflows/*" element={<LegacyWorkflowBoardRedirect />} />
               <Route
                 path="/work/tasks"
-                element={<Navigate to="/mission-control/tasks" replace />}
+                element={<Navigate to="/workflows?lens=tasks" replace />}
               />
-              <Route path="/work/tasks/:id" element={<LegacyTaskRedirect />} />
+              <Route path="/work/tasks/:id" element={<TaskDetailPage />} />
               <Route
                 path="/work/approvals"
-                element={<Navigate to="/mission-control/action-queue" replace />}
+                element={<Navigate to="/workflows?rail=attention" replace />}
               />
 
               {/* Work Design */}
@@ -437,7 +440,7 @@ export function App(): JSX.Element {
                 path="/admin/agent-settings"
                 element={<Navigate to="/admin/agentic-settings" replace />}
               />
-              <Route path="/admin/platform-settings" element={<OperationsPage />} />
+              <Route path="/admin/platform-settings" element={<PlatformSettingsPage />} />
               <Route
                 path="/governance/settings"
                 element={<Navigate to="/admin/general-settings" replace />}
@@ -453,7 +456,7 @@ export function App(): JSX.Element {
               />
             </Route>
           </Route>
-          <Route path="*" element={<Navigate to="/mission-control" replace />} />
+          <Route path="*" element={<Navigate to="/workflows" replace />} />
         </Routes>
       </Suspense>
     </AppErrorBoundary>
@@ -481,9 +484,14 @@ function RequireAuth(): JSX.Element {
 function LegacyWorkflowBoardRedirect(): JSX.Element {
   const location = useLocation();
   const nextPath = location.pathname.startsWith('/work/workflows')
-    ? location.pathname.replace('/work/workflows', '/mission-control/workflows')
-    : location.pathname.replace('/work/boards', '/mission-control/workflows');
+    ? location.pathname.replace('/work/workflows', '/workflows')
+    : location.pathname.replace('/work/boards', '/workflows');
   return <Navigate to={`${nextPath}${location.search}${location.hash}`} replace />;
+}
+
+function LegacyMissionControlRootRedirect(): JSX.Element {
+  const location = useLocation();
+  return <Navigate to={`/workflows${location.search}${location.hash}`} replace />;
 }
 
 function LegacyMissionControlShellRedirect({
@@ -506,7 +514,7 @@ function LegacyMissionControlWorkflowRedirect(): JSX.Element {
   const location = useLocation();
 
   if (!id) {
-    return <Navigate to="/mission-control" replace />;
+    return <Navigate to="/workflows" replace />;
   }
 
   const searchParams = new URLSearchParams(location.search);
@@ -540,7 +548,7 @@ function LegacyTaskRedirect(): JSX.Element {
   const location = useLocation();
   return (
     <Navigate
-      to={`${location.pathname.replace('/work/tasks', '/mission-control/tasks')}${location.search}${location.hash}`}
+      to={`${location.pathname.replace('/mission-control/tasks', '/work/tasks')}${location.search}${location.hash}`}
       replace
     />
   );

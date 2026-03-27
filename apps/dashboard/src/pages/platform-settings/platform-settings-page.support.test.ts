@@ -7,8 +7,8 @@ import {
   fieldsForSection,
 } from '../runtimes/runtime-defaults.schema.js';
 
-describe('operations page support', () => {
-  it('moves platform-owned timing and supervision settings onto the operations surface', () => {
+describe('platform settings page support', () => {
+  it('moves platform-owned timing and supervision settings onto the platform settings surface', () => {
     expect(OPERATIONS_SECTION_DEFINITIONS.map((section) => section.key)).toEqual([
       'task_timeouts',
       'connected_platform',
@@ -86,7 +86,7 @@ describe('operations page support', () => {
     });
   });
 
-  it('surfaces the scale-oriented default placeholders for operations tuning', () => {
+  it('surfaces the scale-oriented default placeholders for platform settings tuning', () => {
     const taskTimeoutField = OPERATIONS_FIELD_DEFINITIONS.find(
       (field) => field.key === 'tasks.default_timeout_minutes',
     );
@@ -182,7 +182,7 @@ describe('operations page support', () => {
     expect(hungStopField).toMatchObject({ placeholder: '60' });
   });
 
-  it('keeps dead timeout and webhook defaults off the operations surface', () => {
+  it('keeps dead timeout and webhook defaults off the platform settings surface', () => {
     expect(OPERATIONS_FIELD_DEFINITIONS.map((field) => field.key)).not.toEqual(
       expect.arrayContaining([
         'docker.checker_timeout_ms',

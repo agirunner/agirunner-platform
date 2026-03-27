@@ -51,11 +51,13 @@ describe('app trigger routes source', () => {
     expect(source).toContain('Navigate to={`/design/workspaces/${id}?tab=knowledge&panel=${panel}`} replace');
     expect(source).toContain('path="/mission-control/workflows/:id/inspector"');
     expect(source).toContain('path="/work/workflows/*"');
-    expect(source).toContain("replace('/work/workflows', '/mission-control/workflows')");
+    expect(source).toContain("replace('/work/workflows', '/workflows')");
   });
 
   it('uses admin-owned general, agentic, and platform settings routes and redirects the legacy platform paths', () => {
     const source = readSource();
+    expect(source).toContain("../pages/platform-settings/platform-settings-page.js");
+    expect(source).not.toContain("../pages/operations/operations-page.js");
     expect(source).toContain('path="/admin/agentic-settings"');
     expect(source).toContain('path="/admin/platform-settings"');
     expect(source).toContain('path="/admin/general-settings"');
@@ -119,10 +121,13 @@ describe('app trigger routes source', () => {
     expect(source).not.toContain('path="/governance/grants"');
   });
 
-  it('uses a unified mission control shell and redirects legacy mission control list routes into shell state', () => {
+  it('uses a unified workflows shell and redirects legacy mission control list routes into shell state', () => {
     const source = readSource();
     expect(source).toContain("../pages/mission-control/mission-control-page.js");
-    expect(source).toContain('path="/mission-control" element={<MissionControlPage />}');
+    expect(source).toContain('path="/" element={<Navigate to="/workflows" replace />}');
+    expect(source).toContain('path="/workflows" element={<MissionControlPage />}');
+    expect(source).toContain('path="/mission-control"');
+    expect(source).toContain('Navigate to="/workflows" replace');
     expect(source).toContain('function LegacyMissionControlShellRedirect({');
     expect(source).toContain("path=\"/mission-control/workflows\"");
     expect(source).toContain("path=\"/mission-control/action-queue\"");
@@ -137,7 +142,7 @@ describe('app trigger routes source', () => {
     expect(source).not.toContain('path="/mission-control/action-queue" element={<AlertsApprovalsPage />}');
   });
 
-  it('redirects legacy workflow detail and inspector routes instead of mounting deprecated pages', () => {
+  it('redirects legacy workflow detail and inspector routes into the workflows shell instead of mounting deprecated pages', () => {
     const source = readSource();
     expect(source).toContain('function LegacyMissionControlWorkflowRedirect()');
     expect(source).toContain('function LegacyMissionControlWorkflowInspectorRedirect()');
@@ -147,5 +152,6 @@ describe('app trigger routes source', () => {
     expect(source).toContain('element={<LegacyMissionControlWorkflowInspectorRedirect />}');
     expect(source).not.toContain('element={<WorkflowDetailPage />}');
     expect(source).not.toContain('element={<WorkflowInspectorPage />}');
+    expect(source).toContain('return <Navigate to="/workflows" replace />;');
   });
 });

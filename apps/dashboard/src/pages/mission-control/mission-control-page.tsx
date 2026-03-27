@@ -128,9 +128,9 @@ export function MissionControlPage(): JSX.Element {
   return (
     <div className="space-y-6">
       <DashboardPageHeader
-        navHref="/mission-control"
-        title="Mission Control"
-        description="Tenant-wide live operations shell for monitoring workflow posture, reviewing recent changes, and drilling into one workflow without losing the wider operational picture."
+        navHref="/workflows"
+        title="Workflows"
+        description="Workflow-selected live operations shell for monitoring workflow posture, reviewing recent changes, and drilling into one workflow without losing the wider operational picture."
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <SavedViews

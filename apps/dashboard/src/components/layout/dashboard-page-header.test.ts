@@ -23,8 +23,8 @@ describe('dashboard page header consistency', () => {
 
   it('uses the shared nav-backed header for top-level dashboard pages', () => {
     const expectations: Array<[string, string]> = [
-      ['../../pages/mission-control/mission-control-page.tsx', 'navHref="/mission-control"'],
-      ['../../pages/task-list/task-list-page.tsx', 'navHref="/mission-control/tasks"'],
+      ['../../pages/mission-control/mission-control-page.tsx', 'navHref="/workflows"'],
+      ['../../pages/task-list/task-list-page.tsx', 'navHref="/work/tasks"'],
       ['../../pages/workspace-list/workspace-list-page.tsx', 'navHref="/design/workspaces"'],
       ['../../pages/playbook-list/playbook-list-page.tsx', 'navHref="/design/playbooks"'],
       ['../../pages/role-definitions/role-definitions-page.tsx', 'navHref="/design/specialists"'],
@@ -59,11 +59,11 @@ describe('dashboard page header consistency', () => {
     expect(triggersSource).toContain('title="Triggers"');
   });
 
-  it('does not leave mission-control page titles drifting away from the nav label', () => {
+  it('does not leave the workflows page title drifting away from the nav label', () => {
     const missionControlSource = readSource('../../pages/mission-control/mission-control-page.tsx');
 
     expect(missionControlSource).toContain('DashboardPageHeader');
-    expect(missionControlSource).toContain('navHref="/mission-control"');
-    expect(missionControlSource).toContain('title="Mission Control"');
+    expect(missionControlSource).toContain('navHref="/workflows"');
+    expect(missionControlSource).toContain('title="Workflows"');
   });
 });

@@ -54,16 +54,15 @@ describe('layout breadcrumbs', () => {
   });
 
   it('handles nested paths with id segments', () => {
-    const crumbs = buildBreadcrumbs('/mission-control/workflows/12345678-aaaa');
-    expect(crumbs).toHaveLength(3);
-    expect(crumbs[0]).toEqual({ label: 'Mission Control', href: '/mission-control' });
-    expect(crumbs[1]).toEqual({ label: 'Workflows', href: '/mission-control/workflows' });
-    expect(crumbs[2].href).toBeUndefined();
+    const crumbs = buildBreadcrumbs('/workflows/12345678-aaaa');
+    expect(crumbs).toHaveLength(2);
+    expect(crumbs[0]).toEqual({ label: 'Workflows', href: '/workflows' });
+    expect(crumbs[1].href).toBeUndefined();
   });
 
   it('capitalizes and de-hyphenates segment labels', () => {
-    const crumbs = buildBreadcrumbs('/mission-control');
-    expect(crumbs[0].label).toBe('Mission Control');
+    const crumbs = buildBreadcrumbs('/workflows');
+    expect(crumbs[0].label).toBe('Workflows');
   });
 
   it('points integrations navigation at the triggers route', () => {
@@ -240,16 +239,18 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain('keywords: item.keywords');
   });
 
-  it('keeps mission control as a single primary nav item instead of separate live board, workflows, tasks, and action queue links', () => {
+  it('keeps Workflows as a single primary nav item instead of separate live board, workflows, tasks, and action queue links', () => {
     const source = readLayoutSource();
-    expect(source).toContain("label: 'Mission Control'");
-    expect(source).toContain("href: '/mission-control'");
+    expect(source).toContain("label: 'Workflows'");
+    expect(source).toContain('WORKFLOWS_NAV_HREF');
+    expect(source).toContain("const WORKFLOWS_NAV_HREF = '/workflows'");
+    expect(source).toContain('SIDEBAR_WORKFLOWS_ACTIVE_CLASSES');
+    expect(source).toContain('SIDEBAR_WORKFLOWS_INACTIVE_CLASSES');
     expect(source).toContain("'live operations'");
     expect(source).toContain("'action queue'");
     expect(source).toContain("'workflow canvas'");
     expect(source).toContain("'attention rail'");
     expect(source).not.toContain("label: 'Live Board'");
-    expect(source).not.toContain("label: 'Workflows'");
     expect(source).not.toContain("label: 'Action Queue'");
   });
 

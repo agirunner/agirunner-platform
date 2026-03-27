@@ -6,7 +6,7 @@ import {
 } from '../runtimes/runtime-defaults.schema.js';
 import { RuntimeDefaultsEditorPage } from '../runtimes/runtime-defaults-editor-page.js';
 
-export function OperationsPage(): JSX.Element {
+export function PlatformSettingsPage(): JSX.Element {
   return (
     <RuntimeDefaultsEditorPage
       navHref="/admin/platform-settings"

@@ -77,7 +77,7 @@ export function buildMissionControlShellHref(
 ): string {
   const searchParams = buildMissionControlShellSearchParams(new URLSearchParams(), patch);
   const rendered = searchParams.toString();
-  return rendered.length > 0 ? `/mission-control?${rendered}` : '/mission-control';
+  return rendered.length > 0 ? `/workflows?${rendered}` : '/workflows';
 }
 
 export function buildWorkflowDiagnosticsHref(input: {

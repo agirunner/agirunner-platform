@@ -40,6 +40,7 @@ const SEGMENT_LABELS: Record<string, string> = {
  * prefixes but have no dedicated page are intentionally omitted.
  */
 const ROUTABLE_PATHS: ReadonlySet<string> = new Set([
+  '/workflows',
   '/mission-control',
   '/mission-control/workflows',
   '/mission-control/tasks',

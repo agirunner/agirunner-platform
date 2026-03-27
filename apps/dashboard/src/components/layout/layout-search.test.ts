@@ -16,17 +16,17 @@ import {
 
 const QUICK_LINKS: CommandPaletteItem[] = [
   {
-    id: 'nav:/mission-control',
-    href: '/mission-control',
-    label: 'Live Board',
-    meta: 'Mission Control',
+    id: 'nav:/workflows',
+    href: '/workflows',
+    label: 'Workflows',
+    meta: 'Workflows',
     kind: 'navigation',
   },
   {
-    id: 'nav:/mission-control/workflows',
-    href: '/mission-control/workflows',
-    label: 'Workflows',
-    meta: 'Mission Control',
+    id: 'nav:/work/tasks',
+    href: '/work/tasks',
+    label: 'Tasks',
+    meta: 'Workflows',
     kind: 'navigation',
   },
   {
@@ -67,6 +67,7 @@ describe('command palette helpers', () => {
       QUICK_LINKS[2],
     ]);
     expect(filterCommandPaletteQuickLinks(QUICK_LINKS, 'workflow')).toEqual([
+      QUICK_LINKS[0],
       QUICK_LINKS[1],
     ]);
   });
@@ -115,14 +116,14 @@ describe('command palette helpers', () => {
         type: 'workflow',
         label: 'Auth Workflow',
         subtitle: 'running',
-        href: '/mission-control/workflows/workflow-1',
+        href: '/workflows?rail=workflow&workflow=workflow-1',
       },
     ]);
 
     expect(items).toEqual([
       {
         id: 'workflow:workflow-1',
-        href: '/mission-control/workflows/workflow-1',
+        href: '/workflows?rail=workflow&workflow=workflow-1',
         label: 'Auth Workflow',
         meta: 'running',
         kind: 'workflow',
@@ -146,7 +147,7 @@ describe('command palette helpers', () => {
       recentItems: [
         {
           id: 'workflow:recent-auth',
-          href: '/mission-control/workflows/recent-auth',
+          href: '/workflows?rail=workflow&workflow=recent-auth',
           label: 'Recent Auth Workflow',
           meta: 'Workflows',
           kind: 'workflow',
@@ -159,14 +160,14 @@ describe('command palette helpers', () => {
           type: 'workflow',
           label: 'Auth Workflow',
           subtitle: 'review stage',
-          href: '/mission-control/workflows/workflow-1',
+          href: '/workflows?rail=workflow&workflow=workflow-1',
         },
         {
           id: 'task-1',
           type: 'task',
           label: 'Auth Review Task',
           subtitle: 'in progress',
-          href: '/mission-control/tasks/task-1',
+          href: '/work/tasks/task-1',
         },
       ],
     });
@@ -182,7 +183,7 @@ describe('command palette helpers', () => {
     const storage = createStorageStub();
     const recentWorkflow: CommandPaletteItem = {
       id: 'workflow:recent-auth',
-      href: '/mission-control/workflows/recent-auth',
+      href: '/workflows?rail=workflow&workflow=recent-auth',
       label: 'Recent Auth Workflow',
       meta: 'Workflows',
       kind: 'workflow',
