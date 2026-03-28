@@ -77,58 +77,6 @@ describe('WorkflowLiveConsoleService', () => {
           effective_live_visibility_mode: 'enhanced',
         })),
       } as never,
-      {
-        query: vi.fn(async (_tenantId, filters) => {
-          expect(filters.workflowId).toBe('workflow-1');
-          expect(filters.workItemId).toBe('work-item-1');
-          expect(filters.taskId).toBe('task-1');
-          expect(filters.category).toEqual(['agent_loop']);
-          return {
-            data: [
-              {
-                id: 'log-1',
-                tenant_id: 'tenant-1',
-                trace_id: 'trace-1',
-                span_id: 'span-1',
-                parent_span_id: null,
-                source: 'runtime',
-                category: 'agent_loop',
-                level: 'info',
-                operation: 'agent.observe',
-                status: 'completed',
-                duration_ms: 100,
-                payload: { summary: 'Observed that verification completed successfully.' },
-                error: null,
-                workspace_id: 'workspace-1',
-                workflow_id: 'workflow-1',
-                workflow_name: 'Workflow',
-                workspace_name: 'Workspace',
-                task_id: 'task-1',
-                work_item_id: 'work-item-1',
-                stage_name: 'review',
-                activation_id: 'activation-1',
-                is_orchestrator_task: false,
-                execution_backend: 'runtime_plus_task',
-                tool_owner: 'task',
-                task_title: 'Verify rollback handling',
-                role: 'verifier',
-                actor_type: 'agent',
-                actor_id: 'agent-2',
-                actor_name: 'Verifier',
-                resource_type: null,
-                resource_id: null,
-                resource_name: null,
-                execution_environment_id: null,
-                execution_environment_name: null,
-                execution_environment_image: null,
-                execution_environment_distro: null,
-                execution_environment_package_manager: null,
-                created_at: '2026-03-28T08:00:00.000Z',
-              },
-            ],
-          };
-        }),
-      } as never,
     );
 
     const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
@@ -159,7 +107,7 @@ describe('WorkflowLiveConsoleService', () => {
     );
   });
 
-  it('uses a safe generic fallback when no operator updates exist', async () => {
+  it('stays empty until operator headlines or briefs exist', async () => {
     const service = new WorkflowLiveConsoleService(
       {
         getHistory: vi.fn(async () => ({
@@ -182,52 +130,6 @@ describe('WorkflowLiveConsoleService', () => {
           effective_live_visibility_mode: 'enhanced',
         })),
       } as never,
-      {
-        query: vi.fn(async () => ({
-          data: [
-            {
-              id: 'log-1',
-              tenant_id: 'tenant-1',
-              trace_id: 'trace-1',
-              span_id: 'span-1',
-              parent_span_id: null,
-              source: 'runtime',
-              category: 'agent_loop',
-              level: 'info',
-              operation: 'agent.act',
-              status: 'completed',
-              duration_ms: 100,
-              payload: { tool: 'file_read' },
-              error: null,
-              workspace_id: 'workspace-1',
-              workflow_id: 'workflow-1',
-              workflow_name: 'Workflow',
-              workspace_name: 'Workspace',
-              task_id: 'task-1',
-              work_item_id: 'work-item-1',
-              stage_name: 'review',
-              activation_id: 'activation-1',
-              is_orchestrator_task: false,
-              execution_backend: 'runtime_plus_task',
-              tool_owner: 'task',
-              task_title: 'Verify rollback handling',
-              role: 'verifier',
-              actor_type: 'agent',
-              actor_id: 'agent-2',
-              actor_name: 'Verifier',
-              resource_type: null,
-              resource_id: null,
-              resource_name: null,
-              execution_environment_id: null,
-              execution_environment_name: null,
-              execution_environment_image: null,
-              execution_environment_distro: null,
-              execution_environment_package_manager: null,
-              created_at: '2026-03-28T08:00:00.000Z',
-            },
-          ],
-        })),
-      } as never,
     );
 
     const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
@@ -236,14 +138,6 @@ describe('WorkflowLiveConsoleService', () => {
       limit: 10,
     });
 
-    expect(result.items).toEqual([
-      expect.objectContaining({
-        item_id: 'execution-log:log-1',
-        item_kind: 'execution_turn',
-        headline: 'Working through Verify rollback handling',
-        summary: 'Working through the next step for Verify rollback handling.',
-        source_label: 'Verifier',
-      }),
-    ]);
+    expect(result.items).toEqual([]);
   });
 });

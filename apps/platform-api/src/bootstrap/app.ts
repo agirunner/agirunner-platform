@@ -265,7 +265,6 @@ export async function buildApp() {
     workflowOperatorBriefService,
     workflowOperatorUpdateService,
     workflowSettingsService,
-    logService,
   );
   const workflowOperationsDeliverablesService = new WorkflowDeliverablesService(
     workflowDeliverableService,

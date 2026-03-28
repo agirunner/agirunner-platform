@@ -263,6 +263,7 @@ export class MissionControlLiveService {
              FROM tasks
             WHERE tenant_id = w.tenant_id
               AND workflow_id = w.id
+              AND is_orchestrator_task = FALSE
          ) task_summary ON true
          LEFT JOIN LATERAL (
            SELECT COUNT(*) FILTER (WHERE completed_at IS NULL AND escalation_status = 'open')::int AS open_escalation_count,
