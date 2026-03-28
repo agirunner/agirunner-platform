@@ -1,5 +1,4 @@
 import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
-import { buildWorkflowsPageHref } from '../workflows/workflows-page.support.js';
 
 export interface GateIdentityShape {
   id?: string | null;
@@ -101,21 +100,6 @@ export function buildWorkflowGatePermalink(workflowId: string, stageName: string
   return buildWorkflowDetailPermalink(workflowId, { gateStageName: stageName });
 }
 
-export function buildApprovalQueueGatePermalink(gateId: string): string {
-  return `${buildWorkflowsPageHref({ tab: 'needs_action' })}#gate-${encodeURIComponent(gateId)}`;
-}
-
-export function isGateHighlighted(search: string, hash: string, gateId: string | null): boolean {
-  if (!gateId) {
-    return false;
-  }
-  const params = new URLSearchParams(search);
-  if (params.get('gate') === gateId) {
-    return true;
-  }
-  return hash === `#gate-${gateId}`;
-}
-
 export function buildGateBreadcrumbs(gate: GateIdentityShape): string[] {
   const breadcrumbs = [
     `Board: ${readNonEmpty(gate.workflow_name) ?? readNonEmpty(gate.workflow_id) ?? 'Workflow'}`,
@@ -203,7 +187,7 @@ export function buildGateRecoveryPacket(gate: GateIdentityShape): GateRecoveryPa
       tone: 'warning',
       title: 'Decision recorded; follow-up not visible yet',
       summary:
-        'Refresh the board gate or approval queue first. If the gate stays stalled, inspect the linked activation flow before recording another decision.',
+        'Refresh the board gate first. If the gate stays stalled, inspect the linked activation flow before recording another decision.',
     };
   }
 

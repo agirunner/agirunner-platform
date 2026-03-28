@@ -70,7 +70,7 @@ describe('WorkflowBudgetCard', () => {
     expect(html).toContain('Exceeded');
     expect(html).toContain('Exceeded: tokens, cost, duration');
     expect(html).toContain('Back to board controls');
-    expect(html).toContain('href="/workflows?workflow=workflow-2"');
+    expect(html).toContain('href="/workflows/workflow-2"');
     expect(html).toContain('Orchestrator activations');
     expect(html).toContain('9');
     expect(html).toContain('5');

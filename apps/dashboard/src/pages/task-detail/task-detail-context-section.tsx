@@ -33,6 +33,7 @@ interface TaskDetailContextTask {
   stage_name?: string | null;
   work_item_id?: string | null;
   activation_id?: string | null;
+  is_orchestrator_task?: boolean | null;
   execution_backend?: 'runtime_only' | 'runtime_plus_task' | null;
   used_task_sandbox?: boolean;
   type?: string;

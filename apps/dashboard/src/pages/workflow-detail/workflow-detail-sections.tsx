@@ -112,9 +112,9 @@ export function MissionControlCard(props: {
       <CardHeader className="gap-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
-            <CardTitle>Mission Control</CardTitle>
+            <CardTitle>Workflow Workspace</CardTitle>
             <CardDescription>
-              Operator controls and live board health for this board run.
+              Workflow state, operator controls, and live board health for this run.
             </CardDescription>
           </div>
           <WorkflowControlActions
@@ -856,7 +856,7 @@ export function WorkflowStagesCard(props: {
             </div>
             {gatesByStageName.get(stage.name) ? (
               <div className="pt-2">
-                <GateDetailCard gate={gatesByStageName.get(stage.name) as DashboardGateDetailRecord} source="workflow-detail" />
+                <GateDetailCard gate={gatesByStageName.get(stage.name) as DashboardGateDetailRecord} />
               </div>
             ) : null}
           </article>

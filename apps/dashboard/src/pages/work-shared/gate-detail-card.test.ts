@@ -48,12 +48,10 @@ describe('gate detail card source', () => {
     expect(source).toContain('StructuredRecordView');
     expect(source).not.toContain('JSON.stringify(resume.error)');
     expect(source).toContain('actOnGate(');
-    expect(source).toContain('buildApprovalQueueGatePermalink');
   });
 
   it('uses stage-name highlighting inside workflow detail to match workflow permalinks', () => {
     const source = readSource();
-    expect(source).toContain("props.source === 'workflow-detail'");
     expect(source).toContain('location.hash === `#gate-${props.gate.stage_name}`');
   });
 

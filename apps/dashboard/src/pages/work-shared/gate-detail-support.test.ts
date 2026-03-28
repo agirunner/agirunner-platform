@@ -3,9 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildGateRecoveryPacket,
   buildGateBreadcrumbs,
-  buildApprovalQueueGatePermalink,
   buildWorkflowGatePermalink,
-  isGateHighlighted,
   readGateDecisionSummary,
   readGatePacketSummary,
   readGateRequestSourceSummary,
@@ -21,19 +19,10 @@ describe('gate detail support', () => {
     expect(readGateId({})).toBeNull();
   });
 
-  it('builds stable workflow and approval queue permalinks', () => {
+  it('builds stable workflow gate permalinks', () => {
     expect(buildWorkflowGatePermalink('workflow-1', 'review')).toBe(
-      '/workflows?workflow=workflow-1&tab=needs_action#gate-review',
+      '/workflows/workflow-1?tab=needs_action#gate-review',
     );
-    expect(buildApprovalQueueGatePermalink('gate-1')).toBe(
-      '/workflows?tab=needs_action#gate-gate-1',
-    );
-  });
-
-  it('matches highlighted gate from query string or hash anchor', () => {
-    expect(isGateHighlighted('?gate=gate-1', '', 'gate-1')).toBe(true);
-    expect(isGateHighlighted('', '#gate-gate-1', 'gate-1')).toBe(true);
-    expect(isGateHighlighted('?gate=gate-2', '#gate-gate-2', 'gate-1')).toBe(false);
   });
 
   it('builds operator breadcrumbs and packet summaries', () => {
@@ -160,7 +149,7 @@ describe('gate detail support', () => {
       tone: 'warning',
       title: 'Decision recorded; follow-up not visible yet',
       summary:
-        'Refresh the board gate or approval queue first. If the gate stays stalled, inspect the linked activation flow before recording another decision.',
+        'Refresh the board gate first. If the gate stays stalled, inspect the linked activation flow before recording another decision.',
     });
 
     expect(

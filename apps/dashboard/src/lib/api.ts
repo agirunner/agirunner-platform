@@ -1681,127 +1681,6 @@ export type DashboardWorkflowRecord =
       current_stage?: string | null;
     });
 
-export interface DashboardApprovalTaskRecord {
-  id: string;
-  title: string;
-  state: DashboardTaskState;
-  workflow_id?: string | null;
-  workflow_name?: string | null;
-  work_item_id?: string | null;
-  work_item_title?: string | null;
-  stage_name?: string | null;
-  next_expected_actor?: string | null;
-  next_expected_action?: string | null;
-  role?: string | null;
-  activation_id?: string | null;
-  rework_count?: number;
-  handoff_count?: number;
-  latest_handoff?: {
-    role?: string | null;
-    stage_name?: string | null;
-    summary?: string | null;
-    completion?: string | null;
-    successor_context?: string | null;
-    created_at?: string | null;
-  } | null;
-  created_at: string;
-  output?: unknown;
-}
-
-export interface DashboardApprovalStageGateRecord {
-  id: string;
-  gate_id: string;
-  workflow_id: string;
-  workflow_name: string;
-  stage_id?: string | null;
-  stage_name: string;
-  stage_goal: string;
-  status?: string;
-  gate_status: string;
-  closure_effect?: 'blocking' | 'advisory' | null;
-  summary?: string | null;
-  recommendation?: string | null;
-  concerns: string[];
-  key_artifacts: Array<Record<string, unknown>>;
-  requested_by_type?: string | null;
-  requested_by_id?: string | null;
-  decided_by_type?: string | null;
-  decided_by_id?: string | null;
-  decision_feedback?: string | null;
-  human_decision?: {
-    action?: 'approve' | 'reject' | 'request_changes' | 'blocked' | null;
-    decided_by_type?: string | null;
-    decided_by_id?: string | null;
-    feedback?: string | null;
-    decided_at?: string | null;
-  } | null;
-  decision_history?: Array<{
-    action?: string | null;
-    actor_type?: string | null;
-    actor_id?: string | null;
-    feedback?: string | null;
-    created_at?: string | null;
-  }>;
-  superseded_at?: string | null;
-  superseded_by_revision?: number | null;
-  is_superseded?: boolean;
-  requested_by_task?: {
-    id: string;
-    title?: string | null;
-    role?: string | null;
-    work_item_id?: string | null;
-    work_item_title?: string | null;
-  } | null;
-  orchestrator_resume?: {
-    activation_id: string;
-    state?: string | null;
-    event_type?: string | null;
-    reason?: string | null;
-    queued_at?: string | null;
-    started_at?: string | null;
-    completed_at?: string | null;
-    summary?: string | null;
-    error?: Record<string, unknown> | null;
-    latest_event_at?: string | null;
-    event_count?: number;
-    task?: {
-      id: string;
-      title?: string | null;
-      state?: string | null;
-      started_at?: string | null;
-      completed_at?: string | null;
-    } | null;
-  } | null;
-  orchestrator_resume_history?: Array<{
-    activation_id: string;
-    state?: string | null;
-    event_type?: string | null;
-    reason?: string | null;
-    queued_at?: string | null;
-    started_at?: string | null;
-    completed_at?: string | null;
-    summary?: string | null;
-    error?: Record<string, unknown> | null;
-    latest_event_at?: string | null;
-    event_count?: number;
-    task?: {
-      id: string;
-      title?: string | null;
-      state?: string | null;
-      started_at?: string | null;
-      completed_at?: string | null;
-    } | null;
-  }>;
-  requested_at?: string;
-  decided_at?: string | null;
-  updated_at: string;
-}
-
-export interface DashboardApprovalQueueResponse {
-  task_approvals: DashboardApprovalTaskRecord[];
-  stage_gates: DashboardApprovalStageGateRecord[];
-}
-
 export interface DashboardWorkspaceTimelineEntry {
   kind?: string;
   workflow_id: string;
@@ -3060,7 +2939,6 @@ export interface DashboardApi {
   deleteTaskArtifact(taskId: string, artifactId: string): Promise<void>;
   listWorkers(): Promise<unknown>;
   listAgents(): Promise<DashboardAgentRecord[]>;
-  getApprovalQueue(): Promise<DashboardApprovalQueueResponse>;
   approveTask(taskId: string): Promise<unknown>;
   approveTaskOutput(taskId: string): Promise<unknown>;
   retryTask(
@@ -4212,12 +4090,6 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       ),
     listWorkers: () => withRefresh(() => client.listWorkers()),
     listAgents: () => withRefresh(() => client.listAgents() as Promise<DashboardAgentRecord[]>),
-    getApprovalQueue: () =>
-      withRefresh(() =>
-        requestData<DashboardApprovalQueueResponse>('/api/v1/approvals', {
-          method: 'GET',
-        }),
-      ),
     approveTask: (taskId) => withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/approve`)),
     approveTaskOutput: (taskId) =>
       withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/approve-output`)),

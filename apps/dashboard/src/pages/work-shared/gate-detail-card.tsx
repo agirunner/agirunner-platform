@@ -12,7 +12,6 @@ import {
   XCircle,
 } from 'lucide-react';
 
-import type { DashboardApprovalStageGateRecord } from '../../lib/api.js';
 import { StructuredRecordView } from '../../components/structured-data/structured-data.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -28,13 +27,10 @@ import {
 import { actOnGate, getGateDetail, type DashboardGateDetailRecord } from './gate-api.js';
 import { GateHandoffTrail } from './gate-handoff-trail.js';
 import { OperatorBreadcrumbTrail } from './operator-breadcrumb-trail.js';
-import { computeWaitingTime } from '../approval-queue/approval-queue-support.js';
 import {
   buildGateRecoveryPacket,
   buildGateBreadcrumbs,
-  buildApprovalQueueGatePermalink,
   buildWorkflowGatePermalink,
-  isGateHighlighted,
   readGateDecisionSummary,
   readGateDecisionHistory,
   readGatePacketSummary,
@@ -75,11 +71,8 @@ function readDecisionLabel(action: string | null | undefined): string {
   return action.replaceAll('_', ' ');
 }
 
-type GateSourceRecord = DashboardApprovalStageGateRecord | DashboardGateDetailRecord;
-
 export function GateDetailCard(props: {
-  gate: GateSourceRecord;
-  source: 'approval-queue' | 'workflow-detail';
+  gate: DashboardGateDetailRecord;
 }) {
   const queryClient = useQueryClient();
   const location = useLocation();
@@ -88,14 +81,10 @@ export function GateDetailCard(props: {
   const gateId = readGateId(props.gate as unknown as Record<string, unknown>);
   const workflowId = props.gate.workflow_id;
   const permalink = buildWorkflowGatePermalink(workflowId, props.gate.stage_name);
-  const queuePermalink = gateId ? buildApprovalQueueGatePermalink(gateId) : null;
   const workflowDetailHighlight =
     new URLSearchParams(location.search).get('gate') === props.gate.stage_name ||
     location.hash === `#gate-${props.gate.stage_name}`;
-  const highlighted =
-    props.source === 'workflow-detail'
-      ? workflowDetailHighlight
-      : isGateHighlighted(location.search, location.hash, gateId);
+  const highlighted = workflowDetailHighlight;
 
   const detailQuery = useQuery({
     queryKey: ['workflow-gate', gateId],
@@ -110,7 +99,6 @@ export function GateDetailCard(props: {
 
   const invalidateGateQueries = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: ['approval-queue'] }),
       queryClient.invalidateQueries({ queryKey: ['workflow', workflowId] }),
       queryClient.invalidateQueries({ queryKey: ['workflow-stages', workflowId] }),
       queryClient.invalidateQueries({ queryKey: ['workflows'] }),
@@ -202,7 +190,6 @@ export function GateDetailCard(props: {
   return (
     <>
       <Card
-        id={props.source === 'approval-queue' && gateId ? `gate-${gateId}` : undefined}
         data-highlighted={highlighted ? 'true' : 'false'}
         className={highlighted ? 'ring-2 ring-accent/50' : undefined}
       >
@@ -273,11 +260,6 @@ export function GateDetailCard(props: {
                       <Link2 className="h-3.5 w-3.5" />
                       Permalink
                     </Link>
-                  </Button>
-                ) : null}
-                {props.source === 'workflow-detail' && queuePermalink ? (
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link to={queuePermalink}>Open in approvals</Link>
                   </Button>
                 ) : null}
                 {requestedWorkItemPermalink ? (
@@ -658,6 +640,20 @@ export function GateDetailCard(props: {
       </Dialog>
     </>
   );
+}
+
+function computeWaitingTime(createdAt: string): string {
+  const diffMs = Date.now() - new Date(createdAt).getTime();
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return `${hours}h ${minutes % 60}m`;
+  }
+  const days = Math.floor(hours / 24);
+  return `${days}d ${hours % 24}h`;
 }
 
 function GatePanel(props: {

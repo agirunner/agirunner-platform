@@ -1,3 +1,7 @@
+import {
+  buildWorkflowsPageHref,
+  readWorkflowsPageState,
+} from '../workflows/workflows-page.support.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
 
 export function buildTaskDetailHref(taskId: string): string {
@@ -18,7 +22,7 @@ export function normalizeWorkflowBoardHref(input: {
     return null;
   }
   if (href.startsWith('/workflows')) {
-    return href;
+    return normalizeCanonicalWorkflowHref(href);
   }
 
   const derivedWorkflowId = readWorkflowIdFromHref(href);
@@ -37,4 +41,12 @@ function readWorkflowIdFromHref(href: string): string | null {
     return null;
   }
   return decodeURIComponent(segments[workflowsIndex + 1]);
+}
+
+function normalizeCanonicalWorkflowHref(href: string): string {
+  const [pathAndSearch, hashFragment = ''] = href.split('#', 2);
+  const [pathname, rawSearch = ''] = pathAndSearch.split('?', 2);
+  const state = readWorkflowsPageState(pathname, new URLSearchParams(rawSearch));
+  const canonicalHref = buildWorkflowsPageHref({}, state);
+  return hashFragment.length > 0 ? `${canonicalHref}#${hashFragment}` : canonicalHref;
 }

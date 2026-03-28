@@ -17,19 +17,19 @@ describe('workflow history timeline actions', () => {
     ).toEqual([
       {
         label: 'Open work item flow',
-        href: '/workflows?workflow=workflow-1&work_item=work-item-7#work-item-work-item-7',
+        href: '/workflows/workflow-1?work_item_id=work-item-7#work-item-work-item-7',
       },
       {
         label: 'Open gate focus',
-        href: '/workflows?workflow=workflow-1&tab=needs_action#gate-design',
+        href: '/workflows/workflow-1?tab=needs_action#gate-design',
       },
       {
         label: 'Open activation packet',
-        href: '/workflows?workflow=workflow-1&tab=history#activation-activation-3',
+        href: '/workflows/workflow-1?tab=history#activation-activation-3',
       },
       {
         label: 'Open child board',
-        href: '/workflows?workflow=workflow-child-2',
+        href: '/workflows/workflow-child-2',
       },
       {
         label: 'Open step diagnostics',

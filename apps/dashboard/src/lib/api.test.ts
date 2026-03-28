@@ -99,18 +99,17 @@ describe('dashboard api auth/session behavior', () => {
     const source = readApiSource();
     const workflowBaseBlock = readInterfaceBlock(source, 'DashboardWorkflowRecordBase');
     const workflowBlock = readExportBlock(source, 'DashboardWorkflowRecord');
-    const approvalTaskBlock = readInterfaceBlock(source, 'DashboardApprovalTaskRecord');
 
     expect(source).toContain('export type DashboardTaskState = TaskState;');
     expect(source).toContain('export type DashboardWorkflowState = WorkflowState;');
+    expect(source).toContain('export interface DashboardTaskRecord extends Task {');
     expect(workflowBaseBlock).toContain('state: DashboardWorkflowState;');
     expect(workflowBlock).toContain("lifecycle: 'ongoing';");
     expect(workflowBlock).toContain('current_stage?: never;');
     expect(workflowBlock).toContain("lifecycle?: 'planned' | null;");
     expect(workflowBlock).toContain('current_stage?: string | null;');
-    expect(approvalTaskBlock).toContain('state: DashboardTaskState;');
     expect(workflowBlock).not.toContain('current_checkpoint');
-    expect(approvalTaskBlock).not.toContain('current_checkpoint');
+    expect(source).not.toContain('DashboardApprovalTaskRecord');
     expect(source).not.toContain('DashboardWorkflowWorkItemCheckpointCompatibility');
     expect(source).not.toContain('DashboardWorkflowWorkItemCheckpointKey');
     expect(source).not.toContain('actOnStageGate(');

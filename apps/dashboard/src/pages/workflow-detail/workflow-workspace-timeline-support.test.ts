@@ -46,7 +46,7 @@ describe('workflow workspace timeline support', () => {
     expect(packet).toEqual({
       workflowId: 'workflow-1',
       workflowName: 'Release candidate',
-      workflowHref: '/workflows?workflow=workflow-1',
+      workflowHref: '/workflows/workflow-1',
       inspectorHref: '/diagnostics/live-logs?workflow=workflow-1&view=summary',
       stateLabel: 'active',
       summary:

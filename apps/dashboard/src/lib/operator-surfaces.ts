@@ -1,16 +1,17 @@
 export interface OperatorSurfaceContext {
   isOrchestratorTask?: boolean | null;
+  is_orchestrator_task?: boolean | null;
 }
 
 export type ExecutionBackend = 'runtime_only' | 'runtime_plus_task' | null | undefined;
 export type ToolOwner = 'runtime' | 'task' | null | undefined;
 
 export function describeAgentSurface(context: OperatorSurfaceContext = {}): string {
-  return context.isOrchestratorTask ? 'Orchestrator agent' : 'Specialist Agent';
+  return isOrchestratorTask(context) ? 'Orchestrator agent' : 'Specialist Agent';
 }
 
 export function describeExecutionSurface(context: OperatorSurfaceContext = {}): string {
-  return context.isOrchestratorTask ? 'Orchestrator execution' : 'Specialist Execution';
+  return isOrchestratorTask(context) ? 'Orchestrator execution' : 'Specialist Execution';
 }
 
 export function describeExecutionBackendSurface(
@@ -51,4 +52,8 @@ export function describeGenericToolOwnerSurface(owner: ToolOwner): string | null
     return 'Specialist Execution';
   }
   return null;
+}
+
+function isOrchestratorTask(context: OperatorSurfaceContext): boolean {
+  return context.isOrchestratorTask === true || context.is_orchestrator_task === true;
 }

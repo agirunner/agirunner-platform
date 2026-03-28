@@ -19,7 +19,7 @@ describe('task operator flow routing', () => {
     expect(usesWorkflowOperatorFlow(task)).toBe(true);
     expect(readWorkflowOperatorFlowLabel(task)).toBe('Grouped work-item operator flow');
     expect(buildWorkflowOperatorPermalink(task)).toBe(
-      '/workflows?workflow=wf-1&work_item=wi-1&tab=history#work-item-wi-1',
+      '/workflows/wf-1?work_item_id=wi-1&tab=history#work-item-wi-1',
     );
   });
 
@@ -34,7 +34,7 @@ describe('task operator flow routing', () => {
     expect(usesWorkflowOperatorFlow(task)).toBe(true);
     expect(readWorkflowOperatorFlowLabel(task)).toBe('Workflow-linked step context');
     expect(buildWorkflowOperatorPermalink(task)).toBe(
-      '/workflows?workflow=wf-2&tab=needs_action#gate-qa-review',
+      '/workflows/wf-2?tab=needs_action#gate-qa-review',
     );
   });
 

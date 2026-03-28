@@ -78,7 +78,6 @@ describe('FR-030: modern SPA structure', () => {
   it('app includes route definitions covering all major pages', () => {
     const source = readComponent('app/app.tsx');
     expect(source).toContain('/workflows');
-    expect(source).toContain('/mission-control');
     expect(source).toContain('/artifacts/tasks/:taskId/:artifactId');
     expect(source).toContain('/design/workspaces');
     expect(source).toContain('/design/playbooks');

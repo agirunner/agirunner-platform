@@ -3,6 +3,7 @@ import {
   describeExecutionBackendSurface,
   describeExecutionSurface,
   describeExecutionUsageSurface,
+  type OperatorSurfaceContext,
 } from '../../lib/operator-surfaces.js';
 
 export interface TaskListRecord {
@@ -122,15 +123,19 @@ export function describeTaskScope(task: TaskListRecord): string {
 }
 
 export function describeExecutionBackend(task: TaskListRecord): string {
-  return describeExecutionBackendSurface(task.execution_backend, task);
+  return describeExecutionBackendSurface(task.execution_backend, toOperatorSurfaceContext(task));
 }
 
 export function describeSandboxUsage(task: TaskListRecord): string {
-  return describeExecutionUsageSurface(task.execution_backend, task.used_task_sandbox, task);
+  return describeExecutionUsageSurface(
+    task.execution_backend,
+    task.used_task_sandbox,
+    toOperatorSurfaceContext(task),
+  );
 }
 
 export function describeExecutionSurfaceLabel(task: TaskListRecord): string {
-  return describeExecutionSurface(task);
+  return describeExecutionSurface(toOperatorSurfaceContext(task));
 }
 
 export function describeTaskNextAction(task: TaskListRecord): string {
@@ -286,6 +291,12 @@ export function buildTaskSearchText(task: TaskListRecord): string {
 
 function compactIdentifier(value: string): string {
   return value.length > 12 ? `${value.slice(0, 8)}…${value.slice(-4)}` : value;
+}
+
+function toOperatorSurfaceContext(task: TaskListRecord): OperatorSurfaceContext {
+  return {
+    isOrchestratorTask: task.is_orchestrator_task ?? null,
+  };
 }
 
 function formatDurationSeconds(seconds: number): string {

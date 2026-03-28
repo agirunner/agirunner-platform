@@ -4,6 +4,9 @@ import {
   STATUS_FILTERS,
   TASK_LIST_PAGE_SIZE,
   buildTaskSearchText,
+  describeExecutionBackend,
+  describeExecutionSurfaceLabel,
+  describeSandboxUsage,
   describeTaskKind,
   describeTaskNextAction,
   describeTaskScope,
@@ -43,7 +46,7 @@ describe('task list page support', () => {
     );
     expect(buildTaskPrimaryOperatorAction(approvalTask)).toEqual({
       href:
-        '/workflows?workflow=workflow-1&work_item=work-item-12345678&tab=history#work-item-work-item-12345678',
+        '/workflows/workflow-1?work_item_id=work-item-12345678&tab=history#work-item-work-item-12345678',
       label: 'Open work-item flow',
       helper: 'Review this step from the grouped work-item flow so board context stays aligned.',
       showsDiagnosticLink: true,
@@ -65,7 +68,7 @@ describe('task list page support', () => {
         created_at: '2026-03-12T12:00:00.000Z',
       }),
     ).toEqual({
-      href: '/workflows?workflow=workflow-1&tab=needs_action#gate-review',
+      href: '/workflows/workflow-1?tab=needs_action#gate-review',
       label: 'Open workflow context',
       helper:
         'Review this step in its workflow stage context. Step diagnostics are available separately when you need execution details.',
@@ -93,7 +96,7 @@ describe('task list page support', () => {
         created_at: '2026-03-12T12:00:00.000Z',
       }),
     ).toEqual({
-      href: '/workflows?workflow=workflow-2',
+      href: '/workflows/workflow-2',
       label: 'Open workflow board',
       helper:
         'This step is linked to a workflow. Use the board for operator decisions so workflow state stays aligned.',
@@ -243,6 +246,23 @@ describe('task list page support', () => {
     ).toBe(
       'Watch this orchestrator turn for new work items, gates, or retries before leaving the queue.',
     );
+  });
+
+  it('maps orchestrator task records into the shared operator execution surface labels', () => {
+    const orchestratorTask = {
+      id: 'task-orchestrator',
+      status: 'in_progress',
+      execution_backend: 'runtime_plus_task' as const,
+      used_task_sandbox: false,
+      is_orchestrator_task: true,
+      created_at: '2026-03-12T12:00:00.000Z',
+    };
+
+    expect(describeExecutionBackend(orchestratorTask)).toBe(
+      'Orchestrator agent + Orchestrator execution',
+    );
+    expect(describeExecutionSurfaceLabel(orchestratorTask)).toBe('Orchestrator execution');
+    expect(describeSandboxUsage(orchestratorTask)).toBe('No Orchestrator execution used');
   });
 
   it('exports the shared page constants and task normalization helpers', () => {

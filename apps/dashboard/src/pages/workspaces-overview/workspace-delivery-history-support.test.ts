@@ -49,7 +49,7 @@ describe('workspace delivery history support', () => {
     expect(packet).toEqual({
       workflowId: 'workflow-1',
       workflowName: 'Release candidate',
-      workflowHref: '/workflows?workflow=workflow-1',
+      workflowHref: '/workflows/workflow-1',
       inspectorHref: '/diagnostics/live-logs?workflow=workflow-1&view=summary',
       stateLabel: 'active',
       stateVariant: 'default',
@@ -123,7 +123,7 @@ describe('workspace delivery history support', () => {
       state: 'paused',
       created_at: '2026-03-12T18:30:00Z',
       stage_metrics: [],
-      link: '/mission-control/workflows/workflow-3',
+      link: '/workflows/workflow-3',
     } as never);
 
     expect(failedState).toEqual({
@@ -136,7 +136,7 @@ describe('workspace delivery history support', () => {
       statusLabel: 'Paused',
       attentionLabel: 'Review blocked progress',
       nextAction: 'Open board: resolve the blocked gate or work item before resuming.',
-      primaryActionHref: '/workflows?workflow=workflow-3',
+      primaryActionHref: '/workflows/workflow-3',
     });
   });
 });

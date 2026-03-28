@@ -38,7 +38,6 @@ async function invalidateWorkflowControlQueries(
     invalidateWorkflowQueries(queryClient, workflowId, workspaceId ?? undefined),
     queryClient.invalidateQueries({ queryKey: ['workflows'] }),
     queryClient.invalidateQueries({ queryKey: ['tasks'] }),
-    queryClient.invalidateQueries({ queryKey: ['approval-queue'] }),
     queryClient.invalidateQueries({ queryKey: ['events-recent'] }),
     ...additionalQueryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
   ]);

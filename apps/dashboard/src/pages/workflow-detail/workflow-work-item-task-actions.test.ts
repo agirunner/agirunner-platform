@@ -14,7 +14,7 @@ describe('workflow work-item task actions', () => {
     ).toEqual([
       {
         label: 'Open work-item flow',
-        href: '/workflows?workflow=workflow-1&work_item=work-item-1#work-item-work-item-1',
+        href: '/workflows/workflow-1?work_item_id=work-item-1#work-item-work-item-1',
         isPrimary: true,
       },
       {

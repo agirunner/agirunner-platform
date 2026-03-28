@@ -17,18 +17,18 @@ describe('work href support', () => {
         href: '/mission-control/workflows/workflow-child-2',
         workflowId: null,
       }),
-    ).toBe('/workflows?workflow=workflow-child-2');
+    ).toBe('/workflows/workflow-child-2');
     expect(
       normalizeWorkflowBoardHref({
         href: '/workflows?workflow=workflow-child-2',
         workflowId: null,
       }),
-    ).toBe('/workflows?workflow=workflow-child-2');
+    ).toBe('/workflows/workflow-child-2');
     expect(
       normalizeWorkflowBoardHref({
         href: null,
         workflowId: 'workflow-child-3',
       }),
-    ).toBe('/workflows?workflow=workflow-child-3');
+    ).toBe('/workflows/workflow-child-3');
   });
 });

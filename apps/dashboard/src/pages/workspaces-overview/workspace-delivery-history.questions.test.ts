@@ -67,7 +67,7 @@ describe('workspace delivery history question-driven support', () => {
       state: 'failed',
       created_at: '2026-03-12T19:30:00Z',
       stage_metrics: [],
-      link: '/mission-control/workflows/workflow-2',
+      link: '/workflows/workflow-2',
     } as never);
 
     expect(state.statusLabel).toBe('Failed');
