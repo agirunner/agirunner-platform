@@ -94,6 +94,7 @@ interface ClaimCredentialPayload {
   task_id?: string;
   kind?: string;
   stored_secret?: string;
+  provider_id?: string;
 }
 
 interface TaskClaimDependencies {
@@ -224,6 +225,23 @@ function buildExecutionContractLogPayload(input: {
     llm_output_cost_per_million_usd: input.llmResolution.resolved.model.outputCostPerMillionUsd,
     ...gitContract,
   };
+}
+
+function buildClaimCredentialResolutionError(providerId?: string): ValidationError {
+  return new ValidationError(
+    'OAuth session expired. An admin must reconnect on the LLM Providers page.',
+    {
+      category: 'provider_reauth_required',
+      retryable: false,
+      recoverable: false,
+      recovery_hint: 'reconnect_oauth_provider',
+      recovery: {
+        status: 'operator_action_required',
+        reason: 'provider_reauth_required',
+        provider_id: providerId ?? null,
+      },
+    },
+  );
 }
 
 function buildClaimLLMFields(
@@ -780,22 +798,32 @@ export class TaskClaimService {
 
     const credentials: Record<string, unknown> = {};
     if (payload.llm_api_key_claim_handle) {
-      const storedSecret = parseClaimCredentialHandle(
+      const claim = parseClaimCredentialHandlePayload(
         payload.llm_api_key_claim_handle,
         taskId,
         'llm_api_key',
         this.deps.claimHandleSecret,
       );
-      credentials.llm_api_key = readOAuthToken(storedSecret);
+      try {
+        credentials.llm_api_key = readOAuthToken(claim.stored_secret);
+      } catch {
+        await this.handleClaimCredentialResolutionFailure(claim.provider_id);
+        throw buildClaimCredentialResolutionError(claim.provider_id);
+      }
     }
     if (payload.llm_extra_headers_claim_handle) {
-      const storedSecret = parseClaimCredentialHandle(
+      const claim = parseClaimCredentialHandlePayload(
         payload.llm_extra_headers_claim_handle,
         taskId,
         'llm_extra_headers',
         this.deps.claimHandleSecret,
       );
-      credentials.llm_extra_headers = parseExtraHeadersSecret(storedSecret);
+      try {
+        credentials.llm_extra_headers = parseExtraHeadersSecret(claim.stored_secret);
+      } catch {
+        await this.handleClaimCredentialResolutionFailure(claim.provider_id);
+        throw buildClaimCredentialResolutionError(claim.provider_id);
+      }
     }
     if (Array.isArray(payload.mcp_claim_handles) && payload.mcp_claim_handles.length > 0) {
       credentials.mcp_claim_values = Object.fromEntries(
@@ -812,6 +840,13 @@ export class TaskClaimService {
       );
     }
     return credentials;
+  }
+
+  private async handleClaimCredentialResolutionFailure(providerId?: string): Promise<void> {
+    if (!providerId) {
+      return;
+    }
+    await new OAuthService(this.deps.pool).markProviderNeedsReauth(providerId).catch(() => undefined);
   }
 
   private async enrichWithLLMCredentials(
@@ -1029,6 +1064,7 @@ export class TaskClaimService {
         'llm_api_key_secret_ref',
         oauthToken.accessTokenSecret,
         this.deps.claimHandleSecret,
+        { providerId: resolved.provider.providerId! },
       ),
       ...toClaimObjectCredential(
         taskId,
@@ -1037,6 +1073,7 @@ export class TaskClaimService {
         'llm_extra_headers_secret_ref',
         oauthToken.extraHeadersSecret,
         this.deps.claimHandleSecret,
+        { providerId: resolved.provider.providerId! },
       ),
     };
   }
@@ -1886,6 +1923,7 @@ function toClaimStringCredential(
   secretRefKey: string,
   stored: string | null | undefined,
   claimHandleSecret: string,
+  options?: { providerId?: string },
 ): Record<string, unknown> {
   const normalized = typeof stored === 'string' ? stored.trim() : '';
   if (!normalized) {
@@ -1894,7 +1932,15 @@ function toClaimStringCredential(
   if (isExternalSecretReference(normalized)) {
     return { [secretRefKey]: normalized };
   }
-  return { [handleKey]: createClaimCredentialHandle(taskId, kind, normalized, claimHandleSecret) };
+  return {
+    [handleKey]: createClaimCredentialHandle(
+      taskId,
+      kind,
+      normalized,
+      claimHandleSecret,
+      options,
+    ),
+  };
 }
 
 function toClaimObjectCredential(
@@ -1904,6 +1950,7 @@ function toClaimObjectCredential(
   secretRefKey: string,
   stored: string | null | undefined,
   claimHandleSecret: string,
+  options?: { providerId?: string },
 ): Record<string, unknown> {
   const normalized = typeof stored === 'string' ? stored.trim() : '';
   if (!normalized) {
@@ -1912,7 +1959,15 @@ function toClaimObjectCredential(
   if (isExternalSecretReference(normalized)) {
     return { [secretRefKey]: normalized };
   }
-  return { [handleKey]: createClaimCredentialHandle(taskId, kind, normalized, claimHandleSecret) };
+  return {
+    [handleKey]: createClaimCredentialHandle(
+      taskId,
+      kind,
+      normalized,
+      claimHandleSecret,
+      options,
+    ),
+  };
 }
 
 function parseExtraHeadersSecret(secret: string): Record<string, string> {
@@ -1929,6 +1984,7 @@ function createClaimCredentialHandle(
   kind: ClaimCredentialKind,
   storedSecret: string,
   claimHandleSecret: string,
+  options?: { providerId?: string },
 ): string {
   const iv = randomBytes(CLAIM_CREDENTIAL_HANDLE_IV_LENGTH_BYTES);
   const cipher = createCipheriv(
@@ -1942,6 +1998,7 @@ function createClaimCredentialHandle(
         task_id: taskId,
         kind,
         stored_secret: storedSecret,
+        provider_id: options?.providerId ?? undefined,
       }),
       'utf8',
     ),
@@ -1957,6 +2014,20 @@ function parseClaimCredentialHandle(
   expectedKind: ClaimCredentialKind,
   claimHandleSecret: string,
 ): string {
+  return parseClaimCredentialHandlePayload(
+    handle,
+    expectedTaskId,
+    expectedKind,
+    claimHandleSecret,
+  ).stored_secret;
+}
+
+function parseClaimCredentialHandlePayload(
+  handle: string,
+  expectedTaskId: string,
+  expectedKind: ClaimCredentialKind,
+  claimHandleSecret: string,
+): ClaimCredentialPayload & { stored_secret: string } {
   const prefix = `claim:${CLAIM_CREDENTIAL_HANDLE_VERSION}:`;
   if (!handle.startsWith(prefix)) {
     throw new ValidationError('Invalid claim credential handle.');
@@ -1970,7 +2041,7 @@ function parseClaimCredentialHandle(
   ) {
     throw new ValidationError('Invalid claim credential handle.');
   }
-  return decoded.stored_secret;
+  return decoded as ClaimCredentialPayload & { stored_secret: string };
 }
 
 function parseMcpClaimCredentialHandle(

@@ -322,6 +322,23 @@ export class OAuthService {
     if (!result.rowCount) throw new NotFoundError('OAuth provider not found');
   }
 
+  async markProviderNeedsReauth(providerId: string): Promise<void> {
+    const result = await this.pool.query(
+      `UPDATE llm_providers
+       SET oauth_credentials = jsonb_set(
+             COALESCE(oauth_credentials, '{}'::jsonb),
+             '{needs_reauth}', 'true'
+           ),
+           updated_at = NOW()
+       WHERE id = $1
+         AND auth_mode = 'oauth'`,
+      [providerId],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError('OAuth provider not found');
+    }
+  }
+
   async getStatus(providerId: string): Promise<OAuthStatus> {
     const provider = await this.getProviderById(providerId);
     if (provider.auth_mode !== 'oauth') {

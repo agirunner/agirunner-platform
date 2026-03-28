@@ -3880,6 +3880,75 @@ describe('TaskClaimService', () => {
     });
   });
 
+  it('marks oauth providers for reauth when claim credential resolution cannot decrypt the stored secret', async () => {
+    const restoreProviderSecretKey = () => {
+      process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
+      configureProviderSecretEncryptionKey('test-encryption-key');
+    };
+    try {
+      process.env.WEBHOOK_ENCRYPTION_KEY = 'claim-credential-good-key';
+      configureProviderSecretEncryptionKey('claim-credential-good-key');
+      const encryptedApiKey = storeOAuthToken('provider-api-key');
+      const client = {
+        query: vi.fn(async (sql: string, params?: unknown[]) => {
+          if (sql.includes('SELECT assigned_agent_id')) {
+            return {
+              rowCount: 1,
+              rows: [{ assigned_agent_id: 'agent-1' }],
+            };
+          }
+          if (sql.includes('UPDATE llm_providers') && sql.includes("'{needs_reauth}'")) {
+            expect(params).toEqual(['provider-oauth']);
+            return { rowCount: 1, rows: [] };
+          }
+          throw new Error(`unexpected query: ${sql} :: ${JSON.stringify(params ?? [])}`);
+        }),
+        release: vi.fn(),
+      };
+
+      const service = new TaskClaimService({
+        pool: { connect: vi.fn(async () => client), query: client.query } as never,
+        eventService: { emit: vi.fn() } as never,
+        toTaskResponse: (task) => task,
+        getTaskContext: vi.fn(async () => ({})),
+        claimHandleSecret: 'test-claim-handle-secret',
+      });
+
+      const handlePayload = {
+        task_id: 'task-1',
+        kind: 'llm_api_key',
+        stored_secret: encryptedApiKey,
+        provider_id: 'provider-oauth',
+      };
+      const handle = 'claim:v1:' + Buffer.from(JSON.stringify(handlePayload), 'utf8').toString('base64url')
+        + '.' + createSignature('test-claim-handle-secret', handlePayload);
+
+      process.env.WEBHOOK_ENCRYPTION_KEY = 'claim-credential-bad-key';
+      configureProviderSecretEncryptionKey('claim-credential-bad-key');
+
+      await expect(
+        service.resolveClaimCredentials(
+          { ...identity, ownerId: 'agent-1' },
+          'task-1',
+          { llm_api_key_claim_handle: handle },
+        ),
+      ).rejects.toMatchObject({
+        code: 'VALIDATION_ERROR',
+        details: expect.objectContaining({
+          category: 'provider_reauth_required',
+          recovery_hint: 'reconnect_oauth_provider',
+          recovery: expect.objectContaining({
+            status: 'operator_action_required',
+            reason: 'provider_reauth_required',
+            provider_id: 'provider-oauth',
+          }),
+        }),
+      });
+    } finally {
+      restoreProviderSecretKey();
+    }
+  });
+
   it('allows worker identities to resolve claim credentials for their assigned tasks', async () => {
     process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
     const encryptedApiKey = storeProviderSecret('provider-api-key');

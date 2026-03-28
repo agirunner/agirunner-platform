@@ -35,6 +35,7 @@ const ACTIVE_SPECIALIST_HEARTBEAT_SKIP_STATES = [
   'awaiting_approval',
   'output_pending_assessment',
 ] as const;
+const BLOCKED_ACTIVATION_RECOVERY_STATUS = 'operator_action_required';
 const IMMEDIATE_QUEUE_DISPATCH_EVENT_TYPES = [
   'workflow.created',
   'work_item.created',
@@ -292,6 +293,7 @@ export class WorkflowActivationDispatchService {
         WHERE wa.state = 'queued'
           AND wa.consumed_at IS NULL
           AND wa.activation_id IS NULL
+          AND COALESCE(wa.error->'recovery'->>'status', '') <> '${BLOCKED_ACTIVATION_RECOVERY_STATUS}'
           AND w.state IN ('pending', 'active')
           AND (
             ${dispatchEligibilityCondition}
@@ -431,7 +433,10 @@ export class WorkflowActivationDispatchService {
     }
 
     const summary = buildActivationSummary(task, status);
-    const error = status === 'failed' ? task.error ?? { message: 'Orchestrator activation failed' } : null;
+    const error = status === 'failed'
+      ? normalizeFailedActivationError(task.error)
+      : null;
+    const blockedFailure = status === 'failed' && isBlockedFailedActivation(error);
     const activationResult = await client.query<QueuedActivationRow>(
       status !== 'failed'
         ? `UPDATE workflow_activations
@@ -495,7 +500,9 @@ export class WorkflowActivationDispatchService {
       client,
     );
 
-    await this.dispatchNextQueuedActivation(tenantId, String(task.workflow_id), client);
+    if (!blockedFailure) {
+      await this.dispatchNextQueuedActivation(tenantId, String(task.workflow_id), client);
+    }
   }
 
   async dispatchActivation(
@@ -852,6 +859,7 @@ export class WorkflowActivationDispatchService {
           AND consumed_at IS NULL
           AND activation_id IS NULL
           AND state = 'queued'
+          AND COALESCE(error->'recovery'->>'status', '') <> '${BLOCKED_ACTIVATION_RECOVERY_STATUS}'
         FOR UPDATE SKIP LOCKED`,
       [tenantId, activationId],
     );
@@ -1908,6 +1916,24 @@ function buildActivationSummary(
 
   const resultSummary = typeof task.title === 'string' ? String(task.title).trim() : '';
   return resultSummary || null;
+}
+
+function normalizeFailedActivationError(value: unknown): Record<string, unknown> {
+  const error = asRecord(value);
+  return Object.keys(error).length > 0
+    ? error
+    : { message: 'Orchestrator activation failed' };
+}
+
+function isBlockedFailedActivation(error: Record<string, unknown> | null): boolean {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const recovery = asRecord(error.recovery);
+  if (Object.keys(recovery).length === 0) {
+    return false;
+  }
+  return recovery.status === BLOCKED_ACTIVATION_RECOVERY_STATUS;
 }
 
 function findActivationAnchor(
