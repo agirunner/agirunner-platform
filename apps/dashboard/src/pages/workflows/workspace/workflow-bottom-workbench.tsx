@@ -57,8 +57,8 @@ export function WorkflowBottomWorkbench(props: {
   const counts = props.packet.bottom_tabs.counts;
 
   return (
-    <section className="flex h-full min-h-0 flex-col gap-2">
-      <div className="flex flex-wrap items-start justify-between gap-3 px-1">
+    <section className="flex h-full min-h-0 min-w-0 flex-col gap-2">
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3 px-1">
         <div className="grid gap-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Current scope
@@ -82,7 +82,7 @@ export function WorkflowBottomWorkbench(props: {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex min-w-0 flex-wrap gap-2">
         <WorkbenchTabButton
           label="Details"
           count={counts.details}
@@ -121,7 +121,7 @@ export function WorkflowBottomWorkbench(props: {
         />
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="min-h-0 min-w-0 flex-1 overflow-auto">
         {props.activeTab === 'details' && props.workflow ? (
           <WorkflowDetails
             workflow={props.workflow}

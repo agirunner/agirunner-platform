@@ -39,6 +39,7 @@ import { useWorkflowRailRealtime, useWorkflowWorkspaceRealtime } from './workflo
 import { WorkflowBoard } from './workflow-board.js';
 import { WorkflowLaunchDialog } from './workflow-launch-dialog.js';
 import {
+  buildWorkflowWorkspaceSplitClassName,
   buildWorkflowWorkspaceSplitStyle,
   buildWorkflowsShellClassName,
   buildWorkflowsShellStyle,
@@ -337,7 +338,7 @@ export function WorkflowsPage(): JSX.Element {
         style={buildWorkflowsShellStyle(isRailHidden, railWidthPx)}
       >
         {!isRailHidden ? (
-          <div className="overflow-hidden rounded-2xl border border-border/70 bg-stone-50/90 lg:min-h-0 dark:bg-slate-950/70">
+          <div className="overflow-visible rounded-2xl border border-border/70 bg-stone-50/90 lg:min-h-0 lg:overflow-hidden dark:bg-slate-950/70">
             <WorkflowsRail
               mode={pageState.mode}
               search={pageState.search}
@@ -406,7 +407,7 @@ export function WorkflowsPage(): JSX.Element {
           </div>
 
           {workflow && workspacePacket ? (
-            <div className="grid min-h-0 gap-2 lg:grid-rows-[auto_minmax(0,1fr)]">
+            <div className="grid min-h-0 min-w-0 gap-2 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
               <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm">
                 <WorkflowStateStrip
                   workflow={workflow}
@@ -434,10 +435,10 @@ export function WorkflowsPage(): JSX.Element {
               </div>
               <div
                 ref={workspaceSplitRef}
-                className="grid min-h-0 gap-2 lg:h-full lg:gap-0 lg:overflow-hidden"
+                className={buildWorkflowWorkspaceSplitClassName()}
                 style={buildWorkflowWorkspaceSplitStyle(workbenchFraction)}
               >
-                <div className="min-h-0 overflow-hidden">
+                <div className="min-h-0 min-w-0 overflow-visible lg:overflow-hidden">
                   <WorkflowBoard
                     workflowId={workflow.id}
                     board={board}
@@ -488,7 +489,7 @@ export function WorkflowsPage(): JSX.Element {
                     }}
                   />
                 </div>
-                <div className="min-h-0 overflow-hidden">
+                <div className="min-h-0 min-w-0 overflow-visible lg:overflow-hidden">
                   <WorkflowBottomWorkbench
                     workflowId={workflow.id}
                     workflow={workflow}

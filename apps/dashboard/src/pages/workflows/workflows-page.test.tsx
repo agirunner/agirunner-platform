@@ -37,9 +37,13 @@ describe('workflows page source', () => {
     expect(source).toContain('writeStoredWorkflowRailWidth');
     expect(source).toContain('writeStoredWorkflowWorkbenchFraction');
     expect(source).toContain('buildWorkflowsShellStyle');
+    expect(source).toContain('buildWorkflowWorkspaceSplitClassName');
     expect(source).toContain('buildWorkflowWorkspaceSplitStyle');
     expect(source).toContain('cursor-col-resize');
     expect(source).toContain('cursor-row-resize');
+    expect(source).toContain('overflow-visible rounded-2xl border border-border/70 bg-stone-50/90 lg:min-h-0 lg:overflow-hidden');
+    expect(source).toContain('lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden');
+    expect(source).toContain('min-h-0 min-w-0 overflow-visible lg:overflow-hidden');
     expect(source).not.toContain('MissionControlPage');
     expect(source).not.toContain('MissionControlWorkspacePane');
     expect(source).not.toContain('SavedViews');

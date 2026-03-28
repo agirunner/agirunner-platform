@@ -37,9 +37,22 @@ export function buildWorkflowWorkspaceSplitStyle(
   const boardWeight = trimGridWeight(1 - clampedFraction);
   const footerWeight = trimGridWeight(clampedFraction);
   return {
-    gridTemplateRows:
-      `minmax(${WORKFLOW_BOARD_MIN_HEIGHT_REM}rem, ${boardWeight}fr) ${WORKFLOW_SPLIT_GUTTER_REM}rem minmax(${WORKFLOW_WORKBENCH_MIN_HEIGHT_REM}rem, ${footerWeight}fr)`,
-  };
+    '--workflow-board-track': `${boardWeight}fr`,
+    '--workflow-workbench-track': `${footerWeight}fr`,
+  } as CSSProperties;
+}
+
+export function buildWorkflowWorkspaceSplitClassName(): string {
+  return [
+    'grid',
+    'min-h-0',
+    'min-w-0',
+    'gap-2',
+    'lg:h-full',
+    'lg:gap-0',
+    'lg:overflow-hidden',
+    `lg:grid-rows-[minmax(${WORKFLOW_BOARD_MIN_HEIGHT_REM}rem,var(--workflow-board-track))_${WORKFLOW_SPLIT_GUTTER_REM}rem_minmax(${WORKFLOW_WORKBENCH_MIN_HEIGHT_REM}rem,var(--workflow-workbench-track))]`,
+  ].join(' ');
 }
 
 export function clampWorkflowRailWidthPx(widthPx: number): number {

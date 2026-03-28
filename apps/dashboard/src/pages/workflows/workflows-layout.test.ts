@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildWorkflowWorkspaceSplitClassName,
   buildWorkflowWorkspaceSplitStyle,
   buildWorkflowsShellClassName,
   buildWorkflowsShellStyle,
@@ -36,8 +37,12 @@ describe('buildWorkflowsShellClassName', () => {
   });
 
   it('builds a stable board/workbench split that keeps the board large enough for stacked work-item cards', () => {
+    expect(buildWorkflowWorkspaceSplitClassName()).toContain(
+      'lg:grid-rows-[minmax(24rem,var(--workflow-board-track))_0.5rem_minmax(22rem,var(--workflow-workbench-track))]',
+    );
     expect(buildWorkflowWorkspaceSplitStyle(0.5)).toEqual({
-      gridTemplateRows: 'minmax(24rem, 1fr) 0.5rem minmax(22rem, 1fr)',
+      '--workflow-board-track': '1fr',
+      '--workflow-workbench-track': '1fr',
     });
   });
 });

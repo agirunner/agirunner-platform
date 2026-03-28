@@ -8,7 +8,7 @@ import { WorkflowBoard } from './workflow-board.js';
 import type { WorkflowTaskPreviewSummary } from './workflow-board-task-preview.js';
 
 describe('WorkflowBoard', () => {
-  it('keeps board controls in one header row and removes noisy workflow-level board copy', () => {
+  it('wraps board controls on smaller screens instead of hiding them behind horizontal overflow', () => {
     const html = renderToStaticMarkup(
       createElement(
         QueryClientProvider,
@@ -31,7 +31,8 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Workflow board');
     expect(html).toContain('All stages');
     expect(html).toContain('All lanes');
-    expect(html).toContain('overflow-x-auto pb-1');
+    expect(html).toContain('flex min-w-0 flex-wrap items-center gap-2 pb-1');
+    expect(html).toContain('min-h-0 flex-1 overflow-x-auto pb-1');
     expect(html).not.toContain('flex flex-wrap items-center justify-between gap-3');
     expect(html).not.toContain('Lanes show the actual workflow flow while tasks stay subordinate');
     expect(html).not.toContain('Active stage:');

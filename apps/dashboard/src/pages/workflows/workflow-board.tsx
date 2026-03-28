@@ -107,7 +107,7 @@ export function WorkflowBoard(props: {
             {props.workflowState === 'paused' ? <Badge variant="warning">Workflow paused</Badge> : null}
           </div>
         </div>
-        <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 pb-1">
           <ModeButton
             isActive={props.boardLens === 'work_items'}
             label="Work items"
