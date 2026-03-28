@@ -253,9 +253,9 @@ describe('buildWorkflowInstructionLayer', () => {
           record_operator_update_tool: 'record_operator_update',
           record_operator_brief_tool: 'record_operator_brief',
           turn_updates_required: true,
-          turn_update_scope: 'per_eligible_turn',
+          turn_update_scope: 'per_llm_turn',
           eligible_turn_guidance:
-            'Emit one operator update after every eligible turn that inspects workflow state and then routes work, requests review or approval, reports waiting progress, or finishes with a concrete noop or next-step decision.',
+            'Emit one operator update on every actual llm turn before that turn closes so the live console stays in parity with the execution log turn count. Include the current llm_turn_count on each operator update.',
           operator_update_request_id_prefix: 'operator-update:activation-1:',
           operator_brief_request_id_prefix: 'operator-brief:activation-1:',
           milestone_briefs_required: true,
@@ -295,7 +295,10 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('Work item id: work-item-1');
     expect(layer!.content).toContain('Execution context id: activation-1');
     expect(layer!.content).toContain(
-      'Enhanced live visibility requires one record_operator_update on every eligible turn.',
+      'Enhanced live visibility requires exactly one record_operator_update on every llm turn before that turn can close.',
+    );
+    expect(layer!.content).toContain(
+      'Treat record_operator_update as the required turn-close step before a turn ends with a handoff, wait, or concrete next-step decision.',
     );
     expect(layer!.content).toContain(
       'Use operator-update:activation-1: as the stable request_id prefix for record_operator_update writes in this execution context.',

@@ -782,6 +782,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       ),
     ).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
+      message: expect.stringContaining('every actual llm turn before completion'),
       details: {
         reason_code: 'required_operator_turn_update',
         recoverable: true,

@@ -403,9 +403,9 @@ async function loadWorkflowLiveVisibilityContext(
     record_operator_brief_tool: 'record_operator_brief',
     record_operator_update_tool: 'record_operator_update',
     turn_updates_required: mode === 'enhanced',
-    turn_update_scope: 'per_eligible_turn',
+    turn_update_scope: 'per_llm_turn',
     eligible_turn_guidance:
-      'Emit one operator update after every eligible turn that inspects workflow state and then routes work, requests review or approval, reports waiting progress, or finishes with a concrete noop or next-step decision.',
+      'Emit one operator update on every actual llm turn before that turn closes so the live console stays in parity with the execution log turn count. Include the current llm_turn_count on each operator update.',
     operator_update_request_id_prefix: `operator-update:${executionContextId}:`,
     operator_brief_request_id_prefix: `operator-brief:${executionContextId}:`,
     milestone_briefs_required: true,

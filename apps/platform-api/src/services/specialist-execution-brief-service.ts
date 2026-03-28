@@ -107,8 +107,8 @@ interface SpecialistExecutionBriefInput {
   executionEnvironmentSnapshot?: Record<string, unknown> | null;
 }
 
-const DEFAULT_ELIGIBLE_TURN_GUIDANCE =
-  'Emit one operator update after every eligible turn that inspects workflow state and then routes work, requests review or approval, reports waiting progress, or finishes with a concrete noop or next-step decision.';
+const DEFAULT_PER_TURN_GUIDANCE =
+  'Emit one operator update on every actual llm turn before that turn closes so the live console stays in parity with the execution log turn count. Include the current llm_turn_count on each operator update.';
 
 export function buildSpecialistExecutionBrief(
   input: SpecialistExecutionBriefInput,
@@ -300,7 +300,10 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
       );
     }
     if (brief.operator_visibility.turn_updates_required && brief.operator_visibility.record_operator_update_tool) {
-      if (brief.operator_visibility.turn_update_scope === 'per_eligible_turn') {
+      if (
+        brief.operator_visibility.turn_update_scope === 'per_eligible_turn'
+        || brief.operator_visibility.turn_update_scope === 'per_llm_turn'
+      ) {
         lines.push(
           `Enhanced live visibility requires exactly one ${brief.operator_visibility.record_operator_update_tool} on every llm turn before that turn can close.`,
         );
@@ -315,6 +318,9 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
       }
       lines.push(
         `Use ${brief.operator_visibility.record_operator_update_tool} for one tiny operator-readable headline on every llm turn.`,
+      );
+      lines.push(
+        `Treat ${brief.operator_visibility.record_operator_update_tool} as the required turn-close step before a turn ends with a handoff, wait, or concrete next-step decision.`,
       );
       lines.push(
         `If you forget the required ${brief.operator_visibility.record_operator_update_tool}, the execution contract will automatically send you back to emit it before progress can continue.`,
@@ -473,10 +479,10 @@ function operatorVisibilityFrom(workflow: Record<string, unknown>): OperatorVisi
     record_operator_update_tool: readString(liveVisibility.record_operator_update_tool),
     turn_updates_required: turnUpdatesRequired,
     turn_update_scope:
-      readString(liveVisibility.turn_update_scope) ?? (turnUpdatesRequired ? 'per_eligible_turn' : null),
+      readString(liveVisibility.turn_update_scope) ?? (turnUpdatesRequired ? 'per_llm_turn' : null),
     eligible_turn_guidance:
       readString(liveVisibility.eligible_turn_guidance) ??
-      (turnUpdatesRequired ? DEFAULT_ELIGIBLE_TURN_GUIDANCE : null),
+      (turnUpdatesRequired ? DEFAULT_PER_TURN_GUIDANCE : null),
     operator_update_request_id_prefix:
       readString(liveVisibility.operator_update_request_id_prefix) ??
       (executionContextId ? `operator-update:${executionContextId}:` : null),

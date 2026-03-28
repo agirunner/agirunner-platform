@@ -1800,18 +1800,18 @@ describe('WorkflowActivationDispatchService', () => {
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('record_operator_brief');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('record_operator_update');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
-            'In enhanced live visibility mode, every eligible activation turn must emit at least one record_operator_update before you finish the turn.',
+            'In enhanced live visibility mode, every actual activation llm turn must persist one visible record_operator_update tied to that llm_turn_count before you finish the turn.',
           );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
-            'Eligible turns include routing work, requesting approval or assessment, reporting that active work is still progressing, and finishing an activation with a concrete wait/noop decision.',
+            'Keep live-console parity with the real turn stream: the persisted workflow_operator_updates for this activation must cover every actual llm_turn_count, including routing, waiting, noop, and completion turns.',
           );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
-            'Use request_id values with the pattern operator-update:<execution_context_id>:<step-slug> and keep the same request_id only when retrying that exact write.',
+            'Use request_id values with the pattern operator-update:<execution_context_id>:turn-<llm_turn_count>:<step-slug> and keep the same request_id only when retrying that exact write.',
           );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('payload.short_brief and payload.detailed_brief_json objects');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('detailed_brief_json must include headline and status_kind');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
-            'record_operator_update example shape: { request_id: "operator-update:<execution_context_id>:route-reviewer", execution_context_id: "<execution_context_id>", work_item_id: "<work_item_id if present>", source_kind: "orchestrator", payload: { headline: "Orchestrator is routing the next specialist task." } }.',
+            'record_operator_update example shape: { request_id: "operator-update:<execution_context_id>:turn-3:route-reviewer", execution_context_id: "<execution_context_id>", work_item_id: "<work_item_id if present>", llm_turn_count: 3, source_kind: "orchestrator", payload: { headline: "Orchestrator is routing the next specialist task." } }.',
           );
           expect(inserted.environment).toEqual({
             execution_mode: 'orchestrator',

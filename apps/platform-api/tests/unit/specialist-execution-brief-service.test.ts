@@ -218,7 +218,10 @@ describe('buildSpecialistExecutionBrief', () => {
       'Use request_id values with the pattern handoff:task-review-1:<handoff-slug> for submit_handoff writes on this task.',
     );
     expect(brief?.rendered_markdown).toContain(
-      'Enhanced live visibility requires one record_operator_update on every eligible turn',
+      'Enhanced live visibility requires exactly one record_operator_update on every llm turn before that turn can close.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Treat record_operator_update as the required turn-close step before a turn ends with a handoff, wait, or concrete next-step decision.',
     );
     expect(brief?.rendered_markdown).toContain(
       'Use operator-update:task-review-1: as the stable request_id prefix for record_operator_update writes in this execution context.',

@@ -31,6 +31,12 @@ describe('prompt catalogs', () => {
       'use record_operator_update for tiny live-console headlines',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'every actual llm turn MUST emit exactly one concise record_operator_update before that turn can close.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Treat that operator update as the required turn-close step before handoff, wait, or completion.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Operator updates and briefs are console text, not audit logs',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(

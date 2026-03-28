@@ -43,7 +43,10 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
       created_at: '2026-03-28T20:20:00.000Z',
     });
 
-    const promotionInput = deliverableService.upsertSystemDeliverable.mock.calls[0]?.[2];
+    const promotionCalls = deliverableService.upsertSystemDeliverable.mock.calls as unknown as Array<
+      [string, string, { primaryTarget?: Record<string, unknown> }]
+    >;
+    const promotionInput = promotionCalls[0]?.[2];
     expect(deliverableService.upsertSystemDeliverable).toHaveBeenCalledWith(
       'tenant-1',
       'workflow-1',

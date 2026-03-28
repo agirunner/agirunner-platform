@@ -398,7 +398,10 @@ function formatOperatorVisibilitySection(liveVisibility: Record<string, unknown>
   );
 
   if (liveVisibility.turn_updates_required === true && recordOperatorUpdateTool) {
-    if (liveVisibility.turn_update_scope === 'per_eligible_turn') {
+    if (
+      liveVisibility.turn_update_scope === 'per_eligible_turn'
+      || liveVisibility.turn_update_scope === 'per_llm_turn'
+    ) {
       lines.push(`Enhanced live visibility requires exactly one ${recordOperatorUpdateTool} on every llm turn before that turn can close.`);
     }
     const eligibleTurnGuidance = readString(liveVisibility.eligible_turn_guidance);
@@ -412,6 +415,9 @@ function formatOperatorVisibilitySection(liveVisibility: Record<string, unknown>
     }
     lines.push(
       `Use ${recordOperatorUpdateTool} for one tiny operator-readable headline on every llm turn.`,
+    );
+    lines.push(
+      `Treat ${recordOperatorUpdateTool} as the required turn-close step before a turn ends with a handoff, wait, or concrete next-step decision.`,
     );
     lines.push(
       `If you forget the required ${recordOperatorUpdateTool}, the execution contract will send you back automatically to emit it before progress can continue.`,

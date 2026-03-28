@@ -12,7 +12,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Before escalating, leave clean takeover state.
 - Repository-backed tasks MUST commit and push relevant work before completion or escalation.
 - When live visibility is present, use record_operator_update for tiny live-console headlines when turn_updates_required is true and record_operator_brief for milestone or terminal summaries.
-- In enhanced live visibility mode, every llm turn MUST emit exactly one concise record_operator_update before that turn can close. If you forget it, the system will automatically send you back to emit it before the run can progress.
+- In enhanced live visibility mode, every actual llm turn MUST emit exactly one concise record_operator_update before that turn can close. Treat that operator update as the required turn-close step before handoff, wait, or completion. If you forget it, the system will automatically send you back to emit it before the run can progress.
 - Operator updates and briefs are console text, not audit logs: use titles and roles when available, and never dump tool chatter, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".
 - record_operator_brief requires payload.short_brief.headline plus payload.detailed_brief_json.{headline,status_kind}; never send only linked_target_ids or an empty brief shell.
 - record_operator_brief and record_operator_update never replace submit_handoff.
@@ -99,6 +99,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - A null predecessor handoff is normal for first-stage work or freshly seeded entry work. Check current work-item state before escalating.
 - Use record_operator_brief for material milestone summaries and the terminal workflow brief.
 - When the live visibility contract says turn_updates_required is true, emit exactly one tiny record_operator_update on every llm turn before that turn can close.
+- Treat record_operator_update as the required turn-close step before a turn ends with a handoff, wait, or concrete next-step decision.
 - If you reach a meaningful completion, handoff, approval, or output checkpoint and milestone briefs are required, emit record_operator_brief before attempting completion.
 - Operator updates and briefs are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".
 - record_operator_brief inputs must include short_brief.headline plus detailed_brief_json.{headline,status_kind}; never send only linked_target_ids or an empty brief shell.
