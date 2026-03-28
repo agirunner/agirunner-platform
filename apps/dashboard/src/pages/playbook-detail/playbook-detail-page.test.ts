@@ -39,7 +39,7 @@ describe('playbook detail page source', () => {
     expect(source).toContain('Compare every saved playbook setting against an earlier revision.');
     expect(source).toContain('SelectTrigger aria-label="Playbook lifecycle"');
     expect(source).toContain('rounded-xl border border-red-300 bg-red-50/80');
-    expect(source).toContain('Resolve these authoring blockers before saving.');
+    expect(source).not.toContain('Resolve these authoring blockers before saving.');
     expect(source).toContain('rounded-xl border border-emerald-300 bg-emerald-50/80');
     expect(source).toContain('reconcileValidationIssues(currentIssues, nextIssues)');
     expect(source).toContain('Save Playbook');

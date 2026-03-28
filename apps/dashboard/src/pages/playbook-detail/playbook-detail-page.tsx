@@ -364,16 +364,6 @@ export function PlaybookDetailPage(): JSX.Element {
         }
       />
 
-      {authoringValidationIssues.length > 0 ? (
-        <div className="rounded-xl border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-          <div className="font-medium">Resolve these authoring blockers before saving.</div>
-          <ul className="mt-2 list-disc space-y-1 pl-5">
-            {authoringValidationIssues.map((issue) => (
-              <li key={issue}>{issue}</li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
       <details
         id="playbook-revision-history"
         className="rounded-2xl border border-border/70 bg-card/80 p-5 shadow-sm"
