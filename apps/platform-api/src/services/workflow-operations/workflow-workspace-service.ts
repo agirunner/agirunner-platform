@@ -30,7 +30,8 @@ interface WorkflowWorkspaceQuery {
   boardMode?: string;
   boardFilters?: string;
   workItemId?: string;
-  tabScope?: 'workflow' | 'selected_work_item';
+  taskId?: string;
+  tabScope?: 'workflow' | 'selected_work_item' | 'selected_task';
   liveConsoleLimit?: number;
   historyLimit?: number;
   deliverablesLimit?: number;
@@ -59,8 +60,12 @@ export class WorkflowWorkspaceService {
     input: WorkflowWorkspaceQuery = {},
   ): Promise<WorkflowWorkspacePacket> {
     const selectedScope = resolveSelectedScope(input);
-    const scopedWorkItemId = selectedScope.scope_kind === 'selected_work_item'
-      ? selectedScope.work_item_id
+    const scopedWorkItemId =
+      selectedScope.scope_kind === 'selected_work_item' || selectedScope.scope_kind === 'selected_task'
+        ? selectedScope.work_item_id
+        : undefined;
+    const scopedTaskId = selectedScope.scope_kind === 'selected_task'
+      ? selectedScope.task_id
       : undefined;
     const [workflow, board, workflowCard, liveConsole, history, deliverables, interventions, sessions] =
       await Promise.all([
@@ -70,11 +75,13 @@ export class WorkflowWorkspaceService {
         this.liveConsoleService.getLiveConsole(tenantId, workflowId, {
           limit: input.liveConsoleLimit,
           workItemId: scopedWorkItemId ?? undefined,
+          taskId: scopedTaskId ?? undefined,
           after: input.liveConsoleAfter,
         }),
         this.historyService.getHistory(tenantId, workflowId, {
           limit: input.historyLimit,
           workItemId: scopedWorkItemId ?? undefined,
+          taskId: scopedTaskId ?? undefined,
           after: input.historyAfter,
         }),
         this.deliverablesService.getDeliverables(tenantId, workflowId, {
@@ -103,18 +110,8 @@ export class WorkflowWorkspaceService {
       ...hydratedDeliverables.final_deliverables,
       ...hydratedDeliverables.in_progress_deliverables,
     ];
-    const effectiveLiveConsole = synthesizeLiveConsoleItems(
-      liveConsole,
-      selectedScope.work_item_id,
-      board as Record<string, unknown>,
-      workflowCard?.pulse.summary ?? null,
-    );
-    const effectiveHistory = synthesizeHistoryItems(
-      history,
-      selectedScope.work_item_id,
-      board as Record<string, unknown>,
-      allDeliverables as WorkflowDeliverableRecord[],
-    );
+    const effectiveLiveConsole = liveConsole;
+    const effectiveHistory = history;
     const activeSession = sessions[0] ?? null;
     const sessionMessages = activeSession
       ? await this.steeringSessionService.listMessages(tenantId, workflowId, activeSession.id)
@@ -147,7 +144,12 @@ export class WorkflowWorkspaceService {
         quick_actions: workflowCard?.availableActions ?? [],
         decision_actions: [],
         steering_state: {
-          mode: selectedScope.scope_kind === 'selected_work_item' ? 'selected_work_item' : 'workflow_scoped',
+          mode:
+            selectedScope.scope_kind === 'selected_task'
+              ? 'selected_task'
+              : selectedScope.scope_kind === 'selected_work_item'
+                ? 'selected_work_item'
+                : 'workflow_scoped',
           can_accept_request: true,
           active_session_id: activeSession ? String(activeSession.id) : null,
           last_summary: workflowCard?.pulse.summary ?? null,
@@ -168,15 +170,24 @@ export class WorkflowWorkspaceService {
 }
 
 function resolveSelectedScope(input: WorkflowWorkspaceQuery): WorkflowWorkspacePacket['selected_scope'] {
+  if (input.tabScope === 'selected_task' && input.workItemId && input.taskId) {
+    return {
+      scope_kind: 'selected_task',
+      work_item_id: input.workItemId,
+      task_id: input.taskId,
+    };
+  }
   if (input.tabScope === 'selected_work_item' && input.workItemId) {
     return {
       scope_kind: 'selected_work_item',
       work_item_id: input.workItemId,
+      task_id: null,
     };
   }
   return {
     scope_kind: 'workflow',
     work_item_id: null,
+    task_id: null,
   };
 }
 
@@ -204,11 +215,20 @@ function buildBottomTabs(
   input: WorkflowWorkspaceQuery,
 ): WorkflowBottomTabsPacket {
   return {
-    default_tab: needsActionCount > 0 ? 'needs_action' : 'live_console',
-    current_scope_kind: input.tabScope === 'selected_work_item' && input.workItemId ? 'selected_work_item' : 'workflow',
+    default_tab: needsActionCount > 0 ? 'needs_action' : 'details',
+    current_scope_kind:
+      input.tabScope === 'selected_task' && input.workItemId && input.taskId
+        ? 'selected_task'
+        : input.tabScope === 'selected_work_item' && input.workItemId
+          ? 'selected_work_item'
+          : 'workflow',
     current_work_item_id:
-      input.tabScope === 'selected_work_item' ? input.workItemId ?? null : null,
+      input.tabScope === 'selected_work_item' || input.tabScope === 'selected_task'
+        ? input.workItemId ?? null
+        : null,
+    current_task_id: input.tabScope === 'selected_task' ? input.taskId ?? null : null,
     counts: {
+      details: 1,
       needs_action: needsActionCount,
       steering: steeringCount,
       live_console_activity: liveConsoleCount,
@@ -562,181 +582,6 @@ function mergeOutputDescriptorDeliverables(
     in_progress_deliverables: inProgressDeliverables,
     all_deliverables: allDeliverables,
   };
-}
-
-function synthesizeLiveConsoleItems(
-  packet: Awaited<ReturnType<WorkflowLiveConsoleService['getLiveConsole']>>,
-  selectedWorkItemId: string | null,
-  board: Record<string, unknown>,
-  workflowSummary: string | null,
-) {
-  if (packet.items.length > 0) {
-    return packet;
-  }
-
-  const syntheticItem = selectedWorkItemId
-    ? buildWorkItemStateNotice(selectedWorkItemId, board)
-    : buildWorkflowStateNotice(workflowSummary, packet.generated_at);
-  if (!syntheticItem) {
-    return packet;
-  }
-
-  return {
-    ...packet,
-    items: [syntheticItem],
-  };
-}
-
-function synthesizeHistoryItems(
-  packet: Awaited<ReturnType<WorkflowHistoryService['getHistory']>>,
-  selectedWorkItemId: string | null,
-  board: Record<string, unknown>,
-  allDeliverables: WorkflowDeliverableRecord[],
-) {
-  if (packet.items.length > 0) {
-    return packet;
-  }
-
-  const syntheticItems: WorkflowHistoryItem[] = [];
-  const workItemNotice = selectedWorkItemId
-    ? buildWorkItemStateNotice(selectedWorkItemId, board)
-    : null;
-  if (workItemNotice) {
-    syntheticItems.push(toHistoryNotice(workItemNotice));
-  }
-  for (const deliverable of allDeliverables) {
-    syntheticItems.push(toSyntheticDeliverableHistoryItem(deliverable));
-  }
-
-  if (syntheticItems.length === 0) {
-    return packet;
-  }
-
-  const sorted = [...syntheticItems].sort((left, right) => right.created_at.localeCompare(left.created_at));
-  return {
-    ...packet,
-    groups: buildSyntheticHistoryGroups(sorted),
-    items: sorted,
-  };
-}
-
-function buildWorkItemStateNotice(
-  workItemId: string,
-  board: Record<string, unknown>,
-): WorkflowLiveConsoleItem | null {
-  const workItems = Array.isArray(board.work_items) ? board.work_items : [];
-  for (const workItem of workItems) {
-    if (!workItem || typeof workItem !== 'object' || Array.isArray(workItem)) {
-      continue;
-    }
-    const record = workItem as Record<string, unknown>;
-    if (readOptionalString(record.id) !== workItemId) {
-      continue;
-    }
-    const title = readOptionalString(record.title) ?? 'Work item';
-    const blockedReason =
-      readOptionalString(record.blocked_reason) ?? readOptionalString(record.gate_decision_feedback);
-    const updatedAt =
-      readOptionalString(record.updated_at) ?? readOptionalString(record.created_at) ?? new Date().toISOString();
-    if (readOptionalString(record.blocked_state) === 'blocked' || readOptionalString(record.gate_status) === 'blocked') {
-      return {
-        item_id: `work-item-notice:${workItemId}:blocked`,
-        item_kind: 'platform_notice',
-        source_kind: 'platform',
-        source_label: 'Platform',
-        headline: `${title} is blocked`,
-        summary: blockedReason ?? `${title} is blocked and needs operator action.`,
-        created_at: updatedAt,
-        linked_target_ids: [workItemId],
-      };
-    }
-    const stageName = readOptionalString(record.stage_name);
-    return {
-      item_id: `work-item-notice:${workItemId}:state`,
-      item_kind: 'platform_notice',
-      source_kind: 'platform',
-      source_label: 'Platform',
-      headline: stageName ? `${title} is in ${stageName}` : `${title} is selected`,
-      summary: blockedReason ?? `${title} is the active work item scope.`,
-      created_at: updatedAt,
-      linked_target_ids: [workItemId],
-    };
-  }
-  return null;
-}
-
-function buildWorkflowStateNotice(
-  workflowSummary: string | null,
-  createdAt: string,
-): WorkflowLiveConsoleItem | null {
-  if (!workflowSummary) {
-    return null;
-  }
-  return {
-    item_id: 'workflow-notice:summary',
-    item_kind: 'platform_notice',
-    source_kind: 'platform',
-    source_label: 'Platform',
-    headline: workflowSummary,
-    summary: workflowSummary,
-    created_at: createdAt,
-    linked_target_ids: [],
-  };
-}
-
-function toHistoryNotice(item: WorkflowLiveConsoleItem): WorkflowHistoryItem {
-  return {
-    item_id: item.item_id,
-    item_kind: 'platform_notice',
-    source_kind: item.source_kind,
-    source_label: item.source_label,
-    headline: item.headline,
-    summary: item.summary,
-    created_at: item.created_at,
-    linked_target_ids: item.linked_target_ids,
-  };
-}
-
-function toSyntheticDeliverableHistoryItem(
-  deliverable: WorkflowDeliverableRecord,
-): WorkflowHistoryItem {
-  const descriptorId =
-    readOptionalString(deliverable.descriptor_id)
-    ?? `deliverable:${readOptionalString(deliverable.title) ?? 'workflow-deliverable'}`;
-  const title = readOptionalString(deliverable.title) ?? 'Workflow deliverable';
-  const summary = readOptionalString(deliverable.summary_brief) ?? title;
-  const createdAt =
-    readOptionalString(deliverable.updated_at) ?? readOptionalString(deliverable.created_at) ?? new Date().toISOString();
-  const linkedTargetIds = [
-    readOptionalString(deliverable.workflow_id),
-    readOptionalString(deliverable.work_item_id),
-  ].filter((value): value is string => typeof value === 'string' && value.length > 0);
-  return {
-    item_id: descriptorId,
-    item_kind: 'deliverable',
-    source_kind: 'deliverable',
-    source_label: 'Deliverable',
-    headline: title,
-    summary,
-    created_at: createdAt,
-    linked_target_ids: linkedTargetIds,
-  };
-}
-
-function buildSyntheticHistoryGroups(items: WorkflowHistoryItem[]) {
-  const groups = new Map<string, string[]>();
-  for (const item of items) {
-    const groupId = item.created_at.slice(0, 10);
-    const existing = groups.get(groupId) ?? [];
-    existing.push(item.item_id);
-    groups.set(groupId, existing);
-  }
-  return Array.from(groups.entries()).map(([groupId, itemIds]) => ({
-    group_id: groupId,
-    label: groupId,
-    anchor_at: `${groupId}T00:00:00.000Z`,
-    item_ids: itemIds,
-  }));
 }
 
 function mapOutputDescriptorDeliverable(

@@ -1,8 +1,14 @@
 import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
-import type { DashboardWorkflowWorkspacePacket } from '../../../lib/api.js';
+import type {
+  DashboardTaskRecord,
+  DashboardWorkflowInputPacketRecord,
+  DashboardWorkflowWorkspacePacket,
+  DashboardWorkflowWorkItemRecord,
+} from '../../../lib/api.js';
 import type { WorkflowWorkbenchTab } from '../workflows-page.support.js';
 import { WorkflowDeliverables } from './workflow-deliverables.js';
+import { WorkflowDetails } from './workflow-details.js';
 import { WorkflowHistory } from './workflow-history.js';
 import { WorkflowLiveConsole } from './workflow-live-console.js';
 import { WorkflowNeedsAction } from './workflow-needs-action.js';
@@ -10,16 +16,24 @@ import { WorkflowSteering } from './workflow-steering.js';
 
 export function WorkflowBottomWorkbench(props: {
   workflowId: string;
+  workflow: DashboardWorkflowWorkspacePacket['workflow'];
+  stickyStrip: DashboardWorkflowWorkspacePacket['sticky_strip'];
+  board: DashboardWorkflowWorkspacePacket['board'];
   workflowName: string;
-  workflowState: string | null | undefined;
-  workspaceId: string | null | undefined;
   packet: DashboardWorkflowWorkspacePacket;
   activeTab: WorkflowWorkbenchTab;
   selectedWorkItemId: string | null;
   scopedWorkItemId: string | null;
   selectedWorkItemTitle: string | null;
+  selectedTaskId: string | null;
+  selectedTaskTitle: string | null;
+  selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
+  selectedTask: DashboardTaskRecord | null;
+  selectedWorkItemTasks: Record<string, unknown>[];
+  inputPackets: DashboardWorkflowInputPacketRecord[];
   onTabChange(tab: WorkflowWorkbenchTab): void;
   onClearWorkItemScope(): void;
+  onClearTaskScope(): void;
   onOpenAddWork(): void;
   onOpenRedrive(): void;
   onLoadMoreActivity(): void;
@@ -32,8 +46,20 @@ export function WorkflowBottomWorkbench(props: {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="grid gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-foreground">Workflow Details</p>
-            {props.scopedWorkItemId ? (
+            <p className="text-sm font-semibold text-foreground">Workspace</p>
+            {props.selectedTaskId ? (
+              <>
+                <Badge variant="secondary">
+                  Task: {props.selectedTaskTitle ?? props.selectedTaskId}
+                </Badge>
+                <Button type="button" size="sm" variant="outline" onClick={props.onClearTaskScope}>
+                  Back to work item
+                </Button>
+                <Button type="button" size="sm" variant="outline" onClick={props.onClearWorkItemScope}>
+                  Back to workflow
+                </Button>
+              </>
+            ) : props.scopedWorkItemId ? (
               <>
                 <Badge variant="secondary">
                   Work item: {props.selectedWorkItemTitle ?? props.scopedWorkItemId}
@@ -51,12 +77,18 @@ export function WorkflowBottomWorkbench(props: {
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            Respond, steer, inspect the live console, review history, and read deliverables without leaving this workflow.
+            Details, actions, steering, live updates, history, and deliverables stay in one place.
           </p>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
+        <WorkbenchTabButton
+          label="Details"
+          count={counts.details}
+          isActive={props.activeTab === 'details'}
+          onClick={() => props.onTabChange('details')}
+        />
         <WorkbenchTabButton
           label="Needs Action"
           count={counts.needs_action}
@@ -76,7 +108,7 @@ export function WorkflowBottomWorkbench(props: {
           onClick={() => props.onTabChange('live_console')}
         />
         <WorkbenchTabButton
-          label="History"
+          label="Briefs"
           count={counts.history}
           isActive={props.activeTab === 'history'}
           onClick={() => props.onTabChange('history')}
@@ -90,6 +122,17 @@ export function WorkflowBottomWorkbench(props: {
       </div>
 
       <div className="min-h-[20rem]">
+        {props.activeTab === 'details' && props.workflow ? (
+          <WorkflowDetails
+            workflow={props.workflow}
+            stickyStrip={props.stickyStrip}
+            board={props.board}
+            selectedWorkItem={props.selectedWorkItem}
+            selectedTask={props.selectedTask}
+            selectedWorkItemTasks={props.selectedWorkItemTasks}
+            inputPackets={props.inputPackets}
+          />
+        ) : null}
         {props.activeTab === 'needs_action' ? (
           <WorkflowNeedsAction
             packet={props.packet.needs_action}
@@ -102,17 +145,11 @@ export function WorkflowBottomWorkbench(props: {
           <WorkflowSteering
             workflowId={props.workflowId}
             workflowName={props.workflowName}
-            workflowState={props.workflowState}
-            workspaceId={props.workspaceId}
             selectedWorkItemId={props.scopedWorkItemId}
-            quickActions={props.packet.steering.quick_actions}
-            decisionActions={props.packet.steering.decision_actions}
             interventions={props.packet.steering.recent_interventions}
             messages={props.packet.steering.session.messages}
             sessionId={props.packet.steering.session.session_id}
             canAcceptRequest={props.packet.steering.steering_state.can_accept_request}
-            onOpenAddWork={props.onOpenAddWork}
-            onOpenRedrive={props.onOpenRedrive}
           />
         ) : null}
         {props.activeTab === 'live_console' ? (
@@ -158,7 +195,7 @@ function WorkbenchTabButton(props: {
       onClick={props.onClick}
     >
       <span>{props.label}</span>
-      <Badge variant={props.isActive ? 'secondary' : 'outline'}>{props.count}</Badge>
+      {props.count > 0 ? <Badge variant={props.isActive ? 'secondary' : 'outline'}>{props.count}</Badge> : null}
     </button>
   );
 }

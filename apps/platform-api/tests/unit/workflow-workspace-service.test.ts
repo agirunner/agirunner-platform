@@ -144,6 +144,7 @@ describe('WorkflowWorkspaceService', () => {
     expect(result.selected_scope).toEqual({
       scope_kind: 'workflow',
       work_item_id: null,
+      task_id: null,
     });
     expect(result.bottom_tabs).toEqual(
       expect.objectContaining({
@@ -394,7 +395,7 @@ describe('WorkflowWorkspaceService', () => {
 
     expect(result.needs_action.total_count).toBe(0);
     expect(result.needs_action.items).toEqual([]);
-    expect(result.bottom_tabs.default_tab).toBe('live_console');
+    expect(result.bottom_tabs.default_tab).toBe('details');
   });
 
   it('surfaces workflow-scoped stage-gate attention when the board has no actionable work items', async () => {
@@ -637,14 +638,9 @@ describe('WorkflowWorkspaceService', () => {
         title: 'artifact:workflow/release-packet.md',
       }),
     ]);
-    expect(result.history.items).toEqual([
-      expect.objectContaining({
-        item_kind: 'deliverable',
-        headline: 'artifact:workflow/release-packet.md',
-      }),
-    ]);
+    expect(result.history.items).toEqual([]);
     expect(result.bottom_tabs.counts.deliverables).toBe(1);
-    expect(result.bottom_tabs.counts.history).toBe(1);
+    expect(result.bottom_tabs.counts.history).toBe(0);
   });
 
   it('synthesizes scoped live-console and history items for a selected blocked work item with no direct records', async () => {
@@ -752,21 +748,9 @@ describe('WorkflowWorkspaceService', () => {
       tabScope: 'selected_work_item',
     });
 
-    expect(result.live_console.items).toEqual([
-      expect.objectContaining({
-        item_kind: 'platform_notice',
-        headline: 'Record human approval decision for blocked workflow brief is blocked',
-        summary: 'Blocked by the live test operator flow.',
-      }),
-    ]);
-    expect(result.history.items).toEqual([
-      expect.objectContaining({
-        item_kind: 'platform_notice',
-        headline: 'Record human approval decision for blocked workflow brief is blocked',
-        summary: 'Blocked by the live test operator flow.',
-      }),
-    ]);
-    expect(result.bottom_tabs.counts.live_console_activity).toBe(1);
-    expect(result.bottom_tabs.counts.history).toBe(1);
+    expect(result.live_console.items).toEqual([]);
+    expect(result.history.items).toEqual([]);
+    expect(result.bottom_tabs.counts.live_console_activity).toBe(0);
+    expect(result.bottom_tabs.counts.history).toBe(0);
   });
 });

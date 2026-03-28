@@ -15,9 +15,9 @@ export function WorkflowHistory(props: {
   return (
     <div className="grid gap-4">
       <div className="grid gap-1">
-        <p className="text-sm font-semibold text-foreground">History</p>
+        <p className="text-sm font-semibold text-foreground">Briefs</p>
         <p className="text-sm text-muted-foreground">
-          Detailed milestone briefs, interventions, inputs, deliverables, and redrive lineage ordered newest first.
+          Durable milestone briefs, steering outcomes, and input lineage ordered newest first.
         </p>
       </div>
 
@@ -55,7 +55,7 @@ export function WorkflowHistory(props: {
       {props.packet.items.length > 0 ? (
         <div className="flex justify-end">
           <Button type="button" size="sm" variant="outline" onClick={props.onLoadMore}>
-            Load older history
+            Load older briefs
           </Button>
         </div>
       ) : null}

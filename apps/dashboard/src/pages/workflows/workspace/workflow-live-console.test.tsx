@@ -32,7 +32,7 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('Load older headlines');
   });
 
-  it('renders milestone briefs distinctly from execution turns', () => {
+  it('renders updates and briefs as single-line terminal entries', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowLiveConsole, {
         packet: createPacket([
@@ -45,11 +45,11 @@ describe('WorkflowLiveConsole', () => {
             created_at: '2026-03-27T04:05:00.000Z',
           },
           {
-            item_id: 'turn-1',
-            item_kind: 'execution_turn',
+            item_id: 'update-1',
+            item_kind: 'operator_update',
             source_label: 'Implementation Engineer',
-            headline: 'Ran apply patch',
-            summary: 'turn 3 · Updated retry handling.',
+            headline: 'Updated retry handling.',
+            summary: 'Implementation is preparing the next validation handoff.',
             created_at: '2026-03-27T04:04:00.000Z',
           },
         ]),
@@ -58,10 +58,15 @@ describe('WorkflowLiveConsole', () => {
       }),
     );
 
-    expect(html).toContain('Milestone Brief');
-    expect(html).toContain('Execution Turn');
-    expect(html).toContain('border-emerald-500/20');
-    expect(html).toContain('border-sky-500/20');
+    expect(html).toContain('&gt;');
+    expect(html).toContain('Implementation Engineer:');
+    expect(html).toContain('Updated retry handling.');
+    expect(html).not.toContain('Implementation is preparing the next validation handoff.');
+    expect(html).toContain('Orchestrator:');
+    expect(html).toContain('Workflow reached approval milestone');
+    expect(html).not.toContain('A structured brief was published.');
+    expect(html).not.toContain('[brief]');
+    expect(html).not.toContain('border-sky-500/20');
   });
 });
 

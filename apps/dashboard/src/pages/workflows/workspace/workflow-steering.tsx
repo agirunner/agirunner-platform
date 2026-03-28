@@ -5,7 +5,6 @@ import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import { Textarea } from '../../../components/ui/textarea.js';
 import type {
-  DashboardMissionControlActionAvailability,
   DashboardWorkflowInterventionRecord,
   DashboardWorkflowSteeringMessageRecord,
 } from '../../../lib/api.js';
@@ -13,24 +12,17 @@ import { dashboardApi } from '../../../lib/api.js';
 import { buildFileUploadPayloads } from '../../../lib/file-upload.js';
 import { toast } from '../../../lib/toast.js';
 import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
-import { WorkflowControlActions } from '../../workflow-detail/workflow-control-actions.js';
 import { WorkflowFileInput } from '../workflow-file-input.js';
 import { invalidateWorkflowsQueries } from '../workflows-query.js';
 
 export function WorkflowSteering(props: {
   workflowId: string;
   workflowName: string;
-  workflowState: string | null | undefined;
-  workspaceId: string | null | undefined;
   selectedWorkItemId: string | null;
-  quickActions: DashboardMissionControlActionAvailability[];
-  decisionActions: DashboardMissionControlActionAvailability[];
   interventions: DashboardWorkflowInterventionRecord[];
   messages: DashboardWorkflowSteeringMessageRecord[];
   sessionId: string | null;
   canAcceptRequest: boolean;
-  onOpenAddWork(): void;
-  onOpenRedrive(): void;
 }): JSX.Element {
   const queryClient = useQueryClient();
   const [request, setRequest] = useState('');
@@ -61,7 +53,7 @@ export function WorkflowSteering(props: {
       });
     },
     onSuccess: async () => {
-      await invalidateWorkflowsQueries(queryClient, props.workflowId, props.workspaceId ?? undefined);
+      await invalidateWorkflowsQueries(queryClient, props.workflowId);
       toast.success('Steering request recorded');
       setRequest('');
       setFiles([]);
@@ -82,31 +74,14 @@ export function WorkflowSteering(props: {
       <section className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold text-foreground">Structured actions</p>
+            <p className="text-sm font-semibold text-foreground">Steering scope</p>
             <p className="text-sm text-muted-foreground">
-              Steering can direct workflow, work item, or task actions without changing system configuration.
+              Steering records workflow, work item, and task guidance without duplicating the main workflow controls.
             </p>
           </div>
         </div>
-        <WorkflowControlActions
-          workflowId={props.workflowId}
-          workflowState={props.workflowState}
-          workspaceId={props.workspaceId}
-          additionalQueryKeys={[['workflows']]}
-          availableActions={props.quickActions}
-        />
-        <div className="flex flex-wrap gap-2">
-          <Button type="button" size="sm" onClick={props.onOpenAddWork}>
-            Add / Modify Work
-          </Button>
-          <Button type="button" size="sm" variant="outline" onClick={props.onOpenRedrive}>
-            Redrive Workflow
-          </Button>
-          {props.decisionActions.map((action) => (
-            <Badge key={action.kind} variant="secondary">
-              {humanizeToken(action.kind)}
-            </Badge>
-          ))}
+        <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
+          Use the top-right workflow controls for pause, cancel, redrive, and add/modify work. Use this tab for steering requests, responses, and steering history only.
         </div>
       </section>
 

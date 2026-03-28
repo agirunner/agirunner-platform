@@ -1,17 +1,13 @@
 import type { MissionControlHistoryResponse } from './mission-control-types.js';
-import type { KeysetPage, LogFilters, LogRow } from '../../logging/log-service.js';
-import type { WorkflowDeliverableRecord } from '../workflow-deliverable-service.js';
 import type { WorkflowInputPacketRecord } from '../workflow-input-packet-service.js';
 import type { WorkflowInterventionRecord } from '../workflow-intervention-service.js';
 import type { WorkflowOperatorBriefRecord } from '../workflow-operator-brief-service.js';
-import type { WorkflowOperatorUpdateRecord } from '../workflow-operator-update-service.js';
 import {
   buildWorkflowOperationsSnapshotVersion,
   type WorkflowHistoryGroup,
   type WorkflowHistoryItem,
   type WorkflowHistoryPacket,
 } from './workflow-operations-types.js';
-import { buildLifecycleHistoryItems } from './workflow-execution-log-composer.js';
 import {
   compareCursorTargets,
   paginateOrderedItems,
@@ -29,7 +25,7 @@ interface BriefSource {
   listBriefs(
     tenantId: string,
     workflowId: string,
-    input?: { workItemId?: string; limit?: number },
+    input?: { workItemId?: string; taskId?: string; limit?: number },
   ): Promise<WorkflowOperatorBriefRecord[]>;
 }
 
@@ -37,8 +33,8 @@ interface UpdateSource {
   listUpdates(
     tenantId: string,
     workflowId: string,
-    input?: { workItemId?: string; limit?: number },
-  ): Promise<WorkflowOperatorUpdateRecord[]>;
+    input?: { workItemId?: string; taskId?: string; limit?: number },
+  ): Promise<unknown>;
 }
 
 interface InterventionSource {
@@ -54,11 +50,7 @@ interface DeliverableSource {
     tenantId: string,
     workflowId: string,
     input?: { workItemId?: string; limit?: number },
-  ): Promise<WorkflowDeliverableRecord[]>;
-}
-
-interface LogSource {
-  listLogs(tenantId: string, filters: LogFilters): Promise<KeysetPage<LogRow>>;
+  ): Promise<unknown>;
 }
 
 export class WorkflowHistoryService {
@@ -69,57 +61,33 @@ export class WorkflowHistoryService {
     private readonly interventionSource: InterventionSource,
     private readonly inputPacketSource: InputPacketSource,
     private readonly deliverableSource: DeliverableSource,
-    private readonly logSource: LogSource,
   ) {}
 
   async getHistory(
     tenantId: string,
     workflowId: string,
-    input: { limit?: number; workItemId?: string; after?: string } = {},
+    input: { limit?: number; workItemId?: string; taskId?: string; after?: string } = {},
   ): Promise<WorkflowHistoryPacket> {
     const limit = input.limit ?? 100;
     const fetchWindow = resolveFetchWindow(limit);
-    const [version, briefs, updates, interventions, inputPackets, deliverables, lifecycleLogs] = await Promise.all([
+    const [version, briefs, interventions, inputPackets] = await Promise.all([
       this.versionSource.getHistory(tenantId, {
         workflowId,
         limit: 1,
       }),
       this.briefSource.listBriefs(tenantId, workflowId, {
         workItemId: input.workItemId,
-        limit: fetchWindow,
-      }),
-      this.updateSource.listUpdates(tenantId, workflowId, {
-        workItemId: input.workItemId,
+        taskId: input.taskId,
         limit: fetchWindow,
       }),
       this.interventionSource.listWorkflowInterventions(tenantId, workflowId),
       this.inputPacketSource.listWorkflowInputPackets(tenantId, workflowId),
-      this.deliverableSource.listDeliverables(tenantId, workflowId, {
-        workItemId: input.workItemId,
-        limit: fetchWindow,
-      }),
-      this.logSource.listLogs(tenantId, {
-        workflowId,
-        workItemId: input.workItemId,
-        category: ['task_lifecycle'],
-        operation: [
-          'task_lifecycle.workflow.state_changed',
-          'task_lifecycle.task.claimed',
-          'task_lifecycle.task.started',
-          'task_lifecycle.task.completed',
-        ],
-        order: 'desc',
-        perPage: fetchWindow,
-      }),
     ]);
 
     const items = [
-      ...updates.filter(isHistoryUpdate).map(toUpdateHistoryItem),
       ...briefs.map(toBriefHistoryItem),
       ...filterByWorkItem(interventions, input.workItemId).map(toInterventionHistoryItem),
       ...filterInputPackets(inputPackets, input.workItemId).map(toInputHistoryItem),
-      ...deliverables.map(toDeliverableHistoryItem),
-      ...buildLifecycleHistoryItems(lifecycleLogs.data),
     ]
       .sort(sortNewestFirst)
     const page = paginateOrderedItems(items, limit, input.after, (item) => ({
@@ -134,37 +102,12 @@ export class WorkflowHistoryService {
       groups: buildGroups(page.items),
       items: page.items,
       filters: {
-        available: ['updates', 'briefs', 'interventions', 'inputs', 'deliverables', 'redrives'],
+        available: ['briefs', 'interventions', 'inputs', 'redrives'],
         active: [],
       },
       next_cursor: page.nextCursor,
     };
   }
-}
-
-function isHistoryUpdate(update: WorkflowOperatorUpdateRecord): boolean {
-  const updateKind = readOptionalString(update.update_kind);
-  if (updateKind === 'platform_notice') {
-    return true;
-  }
-  if (updateKind !== 'turn_update') {
-    return true;
-  }
-  return readOptionalString(update.promoted_brief_id) !== null;
-}
-
-function toUpdateHistoryItem(update: WorkflowOperatorUpdateRecord): WorkflowHistoryItem {
-  return {
-    item_id: update.id,
-    item_kind: update.update_kind === 'platform_notice' ? 'platform_notice' : 'operator_update',
-    source_kind: update.source_kind,
-    source_label: readSourceLabel(update.source_role_name, update.source_kind),
-    headline: readRequiredString(update.headline, 'Workflow update'),
-    summary:
-      readOptionalString(update.summary) ?? readRequiredString(update.headline, 'Workflow update'),
-    created_at: update.created_at,
-    linked_target_ids: buildLinkedTargetIds(update),
-  };
 }
 
 function filterByWorkItem<T extends { work_item_id: string | null }>(records: T[], workItemId?: string): T[] {
@@ -242,26 +185,11 @@ function toInputHistoryItem(packet: WorkflowInputPacketRecord): WorkflowHistoryI
   };
 }
 
-function toDeliverableHistoryItem(deliverable: WorkflowDeliverableRecord): WorkflowHistoryItem {
-  return {
-    item_id: deliverable.descriptor_id,
-    item_kind: 'deliverable',
-    source_kind: 'deliverable',
-    source_label: 'Deliverable',
-    headline: readRequiredString(deliverable.title, 'Workflow deliverable'),
-    summary: readOptionalString(deliverable.summary_brief) ?? readRequiredString(deliverable.title, 'Workflow deliverable'),
-    created_at: deliverable.updated_at ?? deliverable.created_at,
-    linked_target_ids: buildLinkedTargetIds(deliverable),
-  };
-}
-
 function buildLinkedTargetIds(
   record:
     | WorkflowOperatorBriefRecord
-    | WorkflowOperatorUpdateRecord
     | WorkflowInterventionRecord
-    | WorkflowInputPacketRecord
-    | WorkflowDeliverableRecord,
+    | WorkflowInputPacketRecord,
 ): string[] {
   const targets = [
     record.workflow_id,

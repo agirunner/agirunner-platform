@@ -7,7 +7,7 @@ import type { DashboardWorkflowHistoryPacket } from '../../../lib/api.js';
 import { WorkflowHistory } from './workflow-history.js';
 
 describe('WorkflowHistory', () => {
-  it('keeps history links inside the Workflows shell instead of legacy workflow-detail routes', () => {
+  it('keeps briefs links inside the Workflows shell instead of legacy workflow-detail routes', () => {
     const html = renderToStaticMarkup(
       createElement(
         MemoryRouter,
@@ -26,7 +26,7 @@ describe('WorkflowHistory', () => {
     expect(html).not.toContain('/workflow-detail/');
   });
 
-  it('renders lifecycle events as distinct history packets', () => {
+  it('renders milestone briefs as the primary briefs packets', () => {
     const html = renderToStaticMarkup(
       createElement(
         MemoryRouter,
@@ -38,11 +38,11 @@ describe('WorkflowHistory', () => {
             items: [
               {
                 item_id: 'history-1',
-                item_kind: 'lifecycle_event',
-                source_kind: 'implementation_engineer',
-                source_label: 'Implementation Engineer',
-                headline: 'Implementation Engineer started Implement change',
-                summary: 'action Task Started · via workflow_runner',
+                item_kind: 'milestone_brief',
+                source_kind: 'specialist',
+                source_label: 'Policy Assessor',
+                headline: 'Policy assessment settled revision 3',
+                summary: 'Revision 3 is internally consistent and ready for the next workflow action.',
                 created_at: '2026-03-27T04:04:00.000Z',
                 linked_target_ids: ['workflow-1', 'work-item-1'],
               },
@@ -54,8 +54,10 @@ describe('WorkflowHistory', () => {
       ),
     );
 
-    expect(html).toContain('Lifecycle Event');
-    expect(html).toContain('Implementation Engineer started Implement change');
+    expect(html).toContain('Milestone Brief');
+    expect(html).toContain('Briefs');
+    expect(html).toContain('Policy assessment settled revision 3');
+    expect(html).not.toContain('Lifecycle Event');
   });
 });
 

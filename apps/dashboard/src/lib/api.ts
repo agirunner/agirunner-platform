@@ -259,6 +259,7 @@ export type DashboardMissionControlWorkflowPosture =
   | 'recoverable_needs_steering'
   | 'progressing'
   | 'waiting_by_design'
+  | 'cancelling'
   | 'paused'
   | 'terminal_failed'
   | 'completed'
@@ -657,6 +658,7 @@ export interface DashboardWorkflowOperatorBriefRecord {
   status_kind: string;
   short_brief: Record<string, unknown>;
   detailed_brief_json: Record<string, unknown>;
+  linked_target_ids: string[];
   sequence_number: number;
   related_artifact_ids: string[];
   related_output_descriptor_ids: string[];
@@ -695,10 +697,12 @@ export interface DashboardWorkflowStickyStrip {
 }
 
 export interface DashboardWorkflowBottomTabsPacket {
-  default_tab: 'needs_action' | 'steering' | 'live_console' | 'history' | 'deliverables';
-  current_scope_kind: 'workflow' | 'selected_work_item';
+  default_tab: 'details' | 'needs_action' | 'steering' | 'live_console' | 'history' | 'deliverables';
+  current_scope_kind: 'workflow' | 'selected_work_item' | 'selected_task';
   current_work_item_id: string | null;
+  current_task_id: string | null;
   counts: {
+    details: number;
     needs_action: number;
     steering: number;
     live_console_activity: number;
@@ -711,8 +715,9 @@ export interface DashboardWorkflowWorkspacePacket extends DashboardWorkflowOpera
   workflow_id: string;
   workflow: DashboardMissionControlWorkflowCard | null;
   selected_scope: {
-    scope_kind: 'workflow' | 'selected_work_item';
+    scope_kind: 'workflow' | 'selected_work_item' | 'selected_task';
     work_item_id: string | null;
+    task_id: string | null;
   };
   sticky_strip: DashboardWorkflowStickyStrip | null;
   board: DashboardWorkflowBoardResponse | null;
@@ -722,7 +727,7 @@ export interface DashboardWorkflowWorkspacePacket extends DashboardWorkflowOpera
     quick_actions: DashboardMissionControlActionAvailability[];
     decision_actions: DashboardMissionControlActionAvailability[];
     steering_state: {
-      mode: 'workflow_scoped' | 'selected_work_item';
+      mode: 'workflow_scoped' | 'selected_work_item' | 'selected_task';
       can_accept_request: boolean;
       active_session_id: string | null;
       last_summary: string | null;
@@ -2568,7 +2573,8 @@ export interface DashboardApi {
     workflowId: string,
     input?: {
       workItemId?: string;
-      tabScope?: 'workflow' | 'selected_work_item';
+      taskId?: string;
+      tabScope?: 'workflow' | 'selected_work_item' | 'selected_task';
       historyLimit?: number;
       deliverablesLimit?: number;
       boardMode?: string;
@@ -3567,6 +3573,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         requestData<DashboardWorkflowWorkspacePacket>(
           `/api/v1/operations/workflows/${workflowId}/workspace${buildMissionControlQuery({
             work_item_id: input?.workItemId,
+            task_id: input?.taskId,
             tab_scope: input?.tabScope,
             history_limit: input?.historyLimit,
             deliverables_limit: input?.deliverablesLimit,

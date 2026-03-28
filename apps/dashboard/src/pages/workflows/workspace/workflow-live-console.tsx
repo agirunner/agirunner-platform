@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import type { DashboardWorkflowLiveConsolePacket } from '../../../lib/api.js';
-import { cn } from '../../../lib/utils.js';
 import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
 
 const LIVE_EDGE_THRESHOLD_PX = 48;
@@ -87,38 +86,14 @@ export function WorkflowLiveConsole(props: {
           }
         }}
       >
-        <div className="grid gap-3">
+        <div className="grid gap-2">
           {sortedItems.length === 0 ? (
             <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-4 text-slate-300">
               No live headlines have been recorded for this workflow yet.
             </div>
           ) : (
             sortedItems.map((item) => (
-              <article
-                key={item.item_id}
-                className={cn(
-                  'grid gap-2 rounded-xl border p-3',
-                  item.item_kind === 'platform_notice'
-                    ? 'border-amber-500/30 bg-amber-500/10'
-                    : item.item_kind === 'milestone_brief'
-                      ? 'border-emerald-500/20 bg-emerald-500/10'
-                      : item.item_kind === 'execution_turn'
-                        ? 'border-sky-500/20 bg-sky-500/10'
-                      : 'border-slate-700 bg-slate-950/50',
-                )}
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className="border-current text-[10px] uppercase tracking-[0.2em]">
-                    {humanizeToken(item.item_kind)}
-                  </Badge>
-                  <Badge variant="secondary">{item.source_label}</Badge>
-                  <span className="text-xs text-slate-400">
-                    {formatRelativeTimestamp(item.created_at)}
-                  </span>
-                </div>
-                <p className="text-sm font-semibold text-slate-50">{item.headline}</p>
-                <p className="text-sm leading-6 text-slate-300">{item.summary}</p>
-              </article>
+              <LiveConsoleEntry key={item.item_id} item={item} />
             ))
           )}
         </div>
@@ -135,6 +110,32 @@ export function WorkflowLiveConsole(props: {
   );
 }
 
-function humanizeToken(value: string): string {
-  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+function LiveConsoleEntry(props: {
+  item: DashboardWorkflowLiveConsolePacket['items'][number];
+}): JSX.Element {
+  const { item } = props;
+  const accentClass = item.item_kind === 'platform_notice'
+    ? 'text-amber-300'
+    : item.item_kind === 'milestone_brief'
+      ? 'text-emerald-300'
+      : 'text-emerald-300';
+  const sourceClass = item.item_kind === 'platform_notice'
+    ? 'text-amber-200'
+    : item.item_kind === 'milestone_brief'
+      ? 'text-emerald-200'
+      : 'text-emerald-200';
+  const message = buildConsoleMessage(item.headline, item.summary);
+  return (
+    <article className="flex flex-wrap items-center gap-2 text-sm text-slate-100">
+      <span className={accentClass}>&gt;</span>
+      <span className={`font-semibold ${sourceClass}`}>{item.source_label}:</span>
+      <span className="text-slate-100">{message}</span>
+      <span className="text-xs text-slate-500">{formatRelativeTimestamp(item.created_at)}</span>
+    </article>
+  );
+}
+
+function buildConsoleMessage(headline: string, summary: string): string {
+  void summary;
+  return headline;
 }
