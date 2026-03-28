@@ -19,6 +19,14 @@ export interface RequestedWorkspaceScope {
   taskId: string | null;
 }
 
+export interface WorkflowWorkbenchScopeDescriptor {
+  scopeKind: WorkflowTabScope;
+  title: 'Workflow' | 'Work item' | 'Task';
+  subject: 'workflow' | 'work item' | 'task';
+  name: string;
+  banner: string;
+}
+
 export interface WorkflowsPageState {
   mode: WorkflowPageMode;
   workflowId: string | null;
@@ -126,20 +134,67 @@ export function buildWorkflowsPageHref(
 }
 
 export function resolveWorkflowTabScope(
-  activeTab: WorkflowWorkbenchTab | null,
+  _activeTab: WorkflowWorkbenchTab | null,
   workItemId: string | null,
   taskId: string | null,
 ): WorkflowTabScope {
-  if (!workItemId) {
-    return 'workflow';
-  }
-  if (activeTab === 'needs_action') {
-    return 'workflow';
-  }
   if (taskId) {
     return 'selected_task';
   }
-  return 'selected_work_item';
+  if (workItemId) {
+    return 'selected_work_item';
+  }
+  return 'workflow';
+}
+
+export function describeWorkflowWorkbenchScope(input: {
+  scopeKind: WorkflowTabScope;
+  workflowName: string | null;
+  workItemId: string | null;
+  workItemTitle: string | null;
+  taskId: string | null;
+  taskTitle: string | null;
+}): WorkflowWorkbenchScopeDescriptor {
+  if (input.scopeKind === 'selected_task') {
+    const name = input.taskTitle ?? input.taskId ?? 'Selected task';
+    return {
+      scopeKind: input.scopeKind,
+      title: 'Task',
+      subject: 'task',
+      name,
+      banner: `Task: ${name}`,
+    };
+  }
+  if (input.scopeKind === 'selected_work_item') {
+    const name = input.workItemTitle ?? input.workItemId ?? 'Selected work item';
+    return {
+      scopeKind: input.scopeKind,
+      title: 'Work item',
+      subject: 'work item',
+      name,
+      banner: `Work item: ${name}`,
+    };
+  }
+  const name = input.workflowName ?? 'Workflow';
+  return {
+    scopeKind: 'workflow',
+    title: 'Workflow',
+    subject: 'workflow',
+    name,
+    banner: `Workflow: ${name}`,
+  };
+}
+
+export function capitalizeWorkflowWorkbenchScopeSubject(
+  subject: WorkflowWorkbenchScopeDescriptor['subject'],
+): WorkflowWorkbenchScopeDescriptor['title'] {
+  if (subject === 'task') {
+    return 'Task';
+  }
+  if (subject === 'work item') {
+    return 'Work item';
+  }
+  return 'Workflow';
 }
 
 export function resolveSelectedWorkflowId(input: {

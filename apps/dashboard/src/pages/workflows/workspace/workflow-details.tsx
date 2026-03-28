@@ -9,6 +9,7 @@ import type {
   DashboardWorkflowStickyStrip,
   DashboardWorkflowWorkItemRecord,
 } from '../../../lib/api.js';
+import type { WorkflowWorkbenchScopeDescriptor } from '../workflows-page.support.js';
 
 export function WorkflowDetails(props: {
   workflow: DashboardMissionControlWorkflowCard;
@@ -23,19 +24,25 @@ export function WorkflowDetails(props: {
   selectedWorkItemTasks: Record<string, unknown>[];
   inputPackets: DashboardWorkflowInputPacketRecord[];
   workflowParameters: Record<string, unknown> | null;
+  scope: WorkflowWorkbenchScopeDescriptor;
 }): JSX.Element {
   const selectedWorkItemId = props.selectedWorkItem?.id ?? props.selectedWorkItemId ?? null;
-  const workflowPackets = props.inputPackets.filter((packet) => packet.work_item_id === null);
-  const workItemPackets = selectedWorkItemId
+  const isWorkflowScope = props.scope.scopeKind === 'workflow';
+  const isWorkItemScope = props.scope.scopeKind === 'selected_work_item';
+  const isTaskScope = props.scope.scopeKind === 'selected_task';
+  const workflowPackets = isWorkflowScope
+    ? props.inputPackets.filter((packet) => packet.work_item_id === null)
+    : [];
+  const workItemPackets = isWorkItemScope && selectedWorkItemId
     ? props.inputPackets.filter((packet) => packet.work_item_id === selectedWorkItemId)
     : [];
   const scope = buildDetailsScope(props);
-  const hasTaskInput = hasStructuredContent(props.selectedTask?.input);
+  const hasTaskInput = isTaskScope && hasStructuredContent(props.selectedTask?.input);
   const hasInputs =
     workflowPackets.length > 0
     || workItemPackets.length > 0
     || hasTaskInput
-    || hasStructuredContent(props.workflowParameters);
+    || (isWorkflowScope && hasStructuredContent(props.workflowParameters));
 
   return (
     <section className="grid gap-3">
@@ -58,7 +65,7 @@ export function WorkflowDetails(props: {
 
       {hasInputs ? (
         <DetailSection title="Inputs">
-          {hasStructuredContent(props.workflowParameters) ? (
+          {isWorkflowScope && hasStructuredContent(props.workflowParameters) ? (
             <StructuredBlock label="Workflow parameters" value={props.workflowParameters} />
           ) : null}
           {workflowPackets.length > 0 ? (
@@ -197,12 +204,13 @@ function buildDetailsScope(props: {
   selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
   selectedTask: DashboardTaskRecord | null;
   selectedWorkItemTasks: Record<string, unknown>[];
+  scope: WorkflowWorkbenchScopeDescriptor;
 }): {
   title: string;
   latest_status: string;
   task_summary: string | null;
 } {
-  if (props.selectedTask || props.selectedTaskId) {
+  if (props.scope.scopeKind === 'selected_task') {
     return {
       title:
         props.selectedTask?.title
@@ -214,7 +222,7 @@ function buildDetailsScope(props: {
     };
   }
 
-  if (props.selectedWorkItem || props.selectedWorkItemId) {
+  if (props.scope.scopeKind === 'selected_work_item') {
     return {
       title:
         props.selectedWorkItem?.title

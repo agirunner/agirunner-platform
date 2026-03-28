@@ -6,7 +6,10 @@ import type {
   DashboardWorkflowWorkspacePacket,
   DashboardWorkflowWorkItemRecord,
 } from '../../../lib/api.js';
-import type { WorkflowWorkbenchTab } from '../workflows-page.support.js';
+import type {
+  WorkflowWorkbenchScopeDescriptor,
+  WorkflowWorkbenchTab,
+} from '../workflows-page.support.js';
 import { WorkflowDeliverables } from './workflow-deliverables.js';
 import { WorkflowDetails } from './workflow-details.js';
 import { WorkflowHistory } from './workflow-history.js';
@@ -32,6 +35,7 @@ export function WorkflowBottomWorkbench(props: {
   selectedWorkItemTasks: Record<string, unknown>[];
   inputPackets: DashboardWorkflowInputPacketRecord[];
   workflowParameters: Record<string, unknown> | null;
+  scope: WorkflowWorkbenchScopeDescriptor;
   onTabChange(tab: WorkflowWorkbenchTab): void;
   onClearWorkItemScope(): void;
   onClearTaskScope(): void;
@@ -44,36 +48,25 @@ export function WorkflowBottomWorkbench(props: {
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        {props.selectedTaskId ? (
-          <>
-            <Button type="button" size="sm" variant="ghost" onClick={props.onClearWorkItemScope}>
-              Workflow
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background/70 p-3">
+        <div className="grid gap-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Workbench Scope
+          </p>
+          <p className="text-sm font-semibold text-foreground">{props.scope.banner}</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {props.scope.scopeKind === 'selected_task' ? (
+            <Button type="button" size="sm" variant="ghost" onClick={props.onClearTaskScope}>
+              Show work item
             </Button>
-            {props.scopedWorkItemId ? (
-              <>
-                <span className="text-xs text-muted-foreground">/</span>
-                <Button type="button" size="sm" variant="ghost" onClick={props.onClearTaskScope}>
-                  {props.selectedWorkItemTitle ?? props.scopedWorkItemId}
-                </Button>
-              </>
-            ) : null}
-            <span className="text-xs text-muted-foreground">/</span>
-            <Badge variant="secondary">Task: {props.selectedTaskTitle ?? props.selectedTaskId}</Badge>
-          </>
-        ) : props.scopedWorkItemId ? (
-          <>
+          ) : null}
+          {props.scope.scopeKind !== 'workflow' ? (
             <Button type="button" size="sm" variant="ghost" onClick={props.onClearWorkItemScope}>
-              Workflow
+              Show workflow
             </Button>
-            <span className="text-xs text-muted-foreground">/</span>
-            <Badge variant="secondary">
-              Work item: {props.selectedWorkItemTitle ?? props.scopedWorkItemId}
-            </Badge>
-          </>
-        ) : (
-          <Badge variant="outline">Workflow</Badge>
-        )}
+          ) : null}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -130,6 +123,7 @@ export function WorkflowBottomWorkbench(props: {
             selectedWorkItemTasks={props.selectedWorkItemTasks}
             inputPackets={props.inputPackets}
             workflowParameters={props.workflowParameters}
+            scope={props.scope}
           />
         ) : null}
         {props.activeTab === 'needs_action' && props.workflow ? (
@@ -137,6 +131,7 @@ export function WorkflowBottomWorkbench(props: {
             workflowId={props.workflowId}
             workspaceId={props.workflow.workspaceId}
             packet={props.packet.needs_action}
+            scopeSubject={props.scope.subject}
             onOpenAddWork={(workItemId) => props.onOpenAddWork(workItemId)}
           />
         ) : null}
@@ -145,6 +140,7 @@ export function WorkflowBottomWorkbench(props: {
             workflowId={props.workflowId}
             workflowName={props.workflowName}
             selectedWorkItemId={props.scopedWorkItemId}
+            scope={props.scope}
             interventions={props.packet.steering.recent_interventions}
             messages={props.packet.steering.session.messages}
             sessionId={props.packet.steering.session.session_id}
@@ -156,6 +152,7 @@ export function WorkflowBottomWorkbench(props: {
             packet={props.packet.live_console}
             selectedWorkItemId={props.scopedWorkItemId}
             selectedTaskId={props.selectedTaskId}
+            scopeSubject={props.scope.subject}
             onLoadMore={props.onLoadMoreActivity}
           />
         ) : null}
@@ -165,6 +162,7 @@ export function WorkflowBottomWorkbench(props: {
             packet={props.packet.history}
             selectedWorkItemId={props.scopedWorkItemId}
             selectedTaskId={props.selectedTaskId}
+            scopeSubject={props.scope.subject}
             onLoadMore={props.onLoadMoreActivity}
           />
         ) : null}
@@ -173,6 +171,7 @@ export function WorkflowBottomWorkbench(props: {
             packet={props.packet.deliverables}
             selectedTask={props.selectedTask}
             selectedWorkItemTitle={props.selectedWorkItemTitle}
+            scope={props.scope}
             onLoadMore={props.onLoadMoreDeliverables}
           />
         ) : null}

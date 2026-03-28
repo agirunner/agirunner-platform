@@ -25,6 +25,7 @@ describe('WorkflowLiveConsole', () => {
         ]),
         selectedWorkItemId: null,
         selectedTaskId: null,
+        scopeSubject: 'workflow',
         onLoadMore: vi.fn(),
       }),
     );
@@ -56,6 +57,7 @@ describe('WorkflowLiveConsole', () => {
         ]),
         selectedWorkItemId: null,
         selectedTaskId: null,
+        scopeSubject: 'workflow',
         onLoadMore: vi.fn(),
       }),
     );
@@ -79,12 +81,15 @@ describe('WorkflowLiveConsole', () => {
         packet: createPacket([]),
         selectedWorkItemId: 'work-item-1',
         selectedTaskId: 'task-1',
+        scopeSubject: 'task',
         onLoadMore: vi.fn(),
       }),
     );
 
     expect(html).toContain('Scoped to selected task');
     expect(html).not.toContain('Scoped to selected work item');
+    expect(html).toContain('No live headlines have been recorded for this task yet.');
+    expect(html).not.toContain('this workflow yet');
   });
 
   it('hides the older-headlines control when no more backfill cursor is available', () => {
@@ -96,6 +101,7 @@ describe('WorkflowLiveConsole', () => {
         },
         selectedWorkItemId: null,
         selectedTaskId: null,
+        scopeSubject: 'workflow',
         onLoadMore: vi.fn(),
       }),
     );

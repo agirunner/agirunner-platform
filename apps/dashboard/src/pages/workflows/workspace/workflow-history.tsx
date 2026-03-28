@@ -11,14 +11,16 @@ export function WorkflowHistory(props: {
   packet: DashboardWorkflowHistoryPacket;
   selectedWorkItemId?: string | null;
   selectedTaskId?: string | null;
+  scopeSubject?: 'workflow' | 'work item' | 'task';
   onLoadMore(): void;
 }): JSX.Element {
+  const scopeSubject = props.scopeSubject ?? 'workflow';
   return (
     <div className="grid gap-4">
       <div className="grid gap-1">
         <p className="text-sm font-semibold text-foreground">Briefs</p>
         <p className="text-sm text-muted-foreground">
-          Milestone briefs, steering outcomes, and durable workflow updates ordered newest first.
+          Milestone briefs, steering outcomes, and durable updates for this {scopeSubject}, ordered newest first.
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -31,7 +33,7 @@ export function WorkflowHistory(props: {
 
       {props.packet.groups.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
-          No historical workflow packets have been published yet.
+          No historical briefs have been published for this {scopeSubject} yet.
         </div>
       ) : (
         <div className="grid gap-4">

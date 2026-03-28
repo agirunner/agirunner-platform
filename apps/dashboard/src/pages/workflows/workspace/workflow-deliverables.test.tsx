@@ -12,6 +12,13 @@ describe('WorkflowDeliverables', () => {
         packet: createPacket(),
         selectedTask: null,
         selectedWorkItemTitle: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
         onLoadMore: vi.fn(),
       }),
     );
@@ -27,6 +34,13 @@ describe('WorkflowDeliverables', () => {
         packet: createPacket(),
         selectedTask: null,
         selectedWorkItemTitle: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
         onLoadMore: vi.fn(),
       }),
     );
@@ -47,32 +61,50 @@ describe('WorkflowDeliverables', () => {
         packet: createBriefOnlyPacket(),
         selectedTask: null,
         selectedWorkItemTitle: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
         onLoadMore: vi.fn(),
       }),
     );
 
     expect(html).toContain('Brief-backed outputs (1)');
-    expect(html).toContain('Material output is currently available only as workflow briefs.');
+    expect(html).toContain('Material output is currently available only as briefs for this workflow.');
     expect(html).toContain('No final deliverables are available yet.');
     expect(html).not.toContain('Briefs (1)');
   });
 
-  it('shows task evidence above parent deliverables when a task is selected', () => {
+  it('keeps task scope limited to task evidence plus parent work-item deliverables', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
-        packet: createPacket(),
+        packet: {
+          ...createPacket(),
+          final_deliverables: [],
+        },
         selectedTask: createTask(),
         selectedWorkItemTitle: 'Prepare release bundle',
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Generate release bundle',
+          banner: 'Task: Generate release bundle',
+        },
         onLoadMore: vi.fn(),
       }),
     );
 
-    expect(html).toContain('Selected Task Evidence');
+    expect(html).toContain('Task Evidence');
     expect(html).toContain('Generate release bundle');
-    expect(html).toContain('Parent work item: Prepare release bundle');
     expect(html).toContain('Work Item Deliverables');
-    expect(html).toContain('Workflow Deliverables');
     expect(html).toContain('artifact-1');
+    expect(html).not.toContain('Parent work item');
+    expect(html).not.toContain('Workflow Deliverables');
+    expect(html).not.toContain('Workflow Deliverables remain available when you return to workflow scope.');
   });
 });
 

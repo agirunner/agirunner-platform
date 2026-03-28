@@ -16,9 +16,11 @@ import { invalidateWorkflowsQueries } from '../workflows-query.js';
 export function WorkflowNeedsAction(props: {
   workflowId: string;
   workspaceId?: string | null;
+  scopeSubject?: 'workflow' | 'work item' | 'task';
   packet: DashboardWorkflowNeedsActionPacket;
   onOpenAddWork?(workItemId: string | null): void;
 }): JSX.Element {
+  const scopeSubject = props.scopeSubject ?? 'workflow';
   const queryClient = useQueryClient();
   const [promptAction, setPromptAction] = useState<DashboardWorkflowNeedsActionResponseAction | null>(null);
   const [promptValue, setPromptValue] = useState('');
@@ -70,14 +72,14 @@ export function WorkflowNeedsAction(props: {
         <div>
           <p className="text-sm font-semibold text-foreground">Needs Action</p>
           <p className="text-sm text-muted-foreground">
-            Prioritized workflow actions that currently require an operator response.
+            Prioritized actions for this {scopeSubject} that currently require an operator response.
           </p>
         </div>
       </div>
 
       {props.packet.items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
-          Nothing in this workflow requires operator action right now.
+          Nothing in this {scopeSubject} requires operator action right now.
         </div>
       ) : (
         <div className="grid gap-3">

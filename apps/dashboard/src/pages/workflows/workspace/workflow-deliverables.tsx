@@ -8,6 +8,7 @@ import type {
   DashboardWorkflowInterventionRecord,
   DashboardWorkflowOperatorBriefRecord,
 } from '../../../lib/api.js';
+import type { WorkflowWorkbenchScopeDescriptor } from '../workflows-page.support.js';
 import { WorkflowDeliverableTargetLink } from './workflow-deliverable-target-link.js';
 import { WorkflowBriefRenderer } from './workflow-brief-renderer.js';
 
@@ -15,6 +16,7 @@ export function WorkflowDeliverables(props: {
   packet: DashboardWorkflowDeliverablesPacket;
   selectedTask: DashboardTaskRecord | null;
   selectedWorkItemTitle: string | null;
+  scope: WorkflowWorkbenchScopeDescriptor;
   onLoadMore(): void;
 }): JSX.Element {
   const outcomeBrief = pickOutcomeBrief(
@@ -31,10 +33,12 @@ export function WorkflowDeliverables(props: {
     && props.packet.final_deliverables.length === 0
     && props.packet.in_progress_deliverables.length === 0
     && props.packet.working_handoffs.length > 0;
-  const taskEvidence = buildTaskEvidence(props.selectedTask);
-  const parentDeliverablesLabel = props.selectedTask && props.selectedWorkItemTitle
+  const taskEvidence = props.scope.scopeKind === 'selected_task'
+    ? buildTaskEvidence(props.selectedTask)
+    : null;
+  const parentDeliverablesLabel = props.scope.scopeKind === 'selected_task'
     ? 'Work Item Deliverables'
-    : 'Workflow Deliverables';
+    : `${props.scope.title} Deliverables`;
   const inProgressTitle = briefBackedOutputs ? 'Brief-backed outputs' : 'In Progress Deliverables';
   const inProgressCount = briefBackedOutputs
     ? props.packet.working_handoffs.length
@@ -63,25 +67,15 @@ export function WorkflowDeliverables(props: {
       {taskEvidence ? (
         <section className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">Selected Task Evidence</Badge>
+            <Badge variant="outline">Task Evidence</Badge>
             <Badge variant="secondary">{props.selectedTask?.title ?? 'Selected task'}</Badge>
           </div>
-          {props.selectedWorkItemTitle ? (
-            <p className="text-sm text-muted-foreground">
-              Parent work item: {props.selectedWorkItemTitle}
-            </p>
-          ) : null}
           <StructuredValuePreview value={taskEvidence} />
         </section>
       ) : null}
 
       <div className="grid gap-1">
         <p className="text-sm text-muted-foreground">{parentDeliverablesLabel}</p>
-        {props.selectedTask ? (
-          <p className="text-xs text-muted-foreground">
-            Workflow Deliverables remain available when you return to workflow scope.
-          </p>
-        ) : null}
       </div>
 
       <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open>
@@ -107,7 +101,7 @@ export function WorkflowDeliverables(props: {
           {briefBackedOutputs ? (
             <>
               <p className="text-sm text-muted-foreground">
-                Material output is currently available only as workflow briefs.
+                Material output is currently available only as briefs for this {props.scope.subject}.
               </p>
               {props.packet.working_handoffs.map((brief) => (
                 <article key={brief.id} className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
@@ -117,7 +111,7 @@ export function WorkflowDeliverables(props: {
               ))}
             </>
           ) : props.packet.in_progress_deliverables.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No in-progress deliverables are attached to this workflow.</p>
+            <p className="text-sm text-muted-foreground">No in-progress deliverables are attached to this {props.scope.subject}.</p>
           ) : (
             props.packet.in_progress_deliverables.map((deliverable) => (
               <DeliverableCard key={deliverable.descriptor_id} deliverable={deliverable} />
@@ -155,7 +149,7 @@ export function WorkflowDeliverables(props: {
         <div className="mt-4 grid gap-4">
           {inputEntries.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No workflow inputs or intervention files are attached.
+              No inputs or intervention files are attached to this {props.scope.subject}.
             </p>
           ) : (
             inputEntries.map((entry) => (

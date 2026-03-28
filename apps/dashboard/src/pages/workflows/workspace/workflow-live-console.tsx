@@ -11,8 +11,10 @@ export function WorkflowLiveConsole(props: {
   packet: DashboardWorkflowLiveConsolePacket;
   selectedWorkItemId: string | null;
   selectedTaskId: string | null;
+  scopeSubject?: 'workflow' | 'work item' | 'task';
   onLoadMore(): void;
 }): JSX.Element {
+  const scopeSubject = props.scopeSubject ?? 'workflow';
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isPinnedToLiveEdge, setIsPinnedToLiveEdge] = useState(true);
   const [hasQueuedUpdates, setHasQueuedUpdates] = useState(false);
@@ -45,7 +47,7 @@ export function WorkflowLiveConsole(props: {
         <div>
           <p className="text-sm font-semibold text-foreground">Live Console</p>
           <p className="text-sm text-muted-foreground">
-            Turn updates and milestone briefs for the current workflow.
+            Turn updates and milestone briefs for this {scopeSubject}.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -89,7 +91,7 @@ export function WorkflowLiveConsole(props: {
         <div className="grid gap-2">
           {props.packet.items.length === 0 ? (
             <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-4 text-slate-300">
-              No live headlines have been recorded for this workflow yet.
+              No live headlines have been recorded for this {scopeSubject} yet.
             </div>
           ) : (
             props.packet.items.map((item) => (

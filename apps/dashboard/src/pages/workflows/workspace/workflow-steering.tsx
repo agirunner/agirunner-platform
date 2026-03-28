@@ -14,11 +14,13 @@ import { toast } from '../../../lib/toast.js';
 import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
 import { WorkflowFileInput } from '../workflow-file-input.js';
 import { invalidateWorkflowsQueries } from '../workflows-query.js';
+import type { WorkflowWorkbenchScopeDescriptor } from '../workflows-page.support.js';
 
 export function WorkflowSteering(props: {
   workflowId: string;
   workflowName: string;
   selectedWorkItemId: string | null;
+  scope: WorkflowWorkbenchScopeDescriptor;
   interventions: DashboardWorkflowInterventionRecord[];
   messages: DashboardWorkflowSteeringMessageRecord[];
   sessionId: string | null;
@@ -73,28 +75,26 @@ export function WorkflowSteering(props: {
     <div className="grid gap-4">
       <section className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">
-            {props.selectedWorkItemId ? 'Work item scope' : 'Workflow scope'}
-          </Badge>
+          <Badge variant="outline">{props.scope.banner}</Badge>
           {props.sessionId ? <Badge variant="secondary">Open session</Badge> : null}
         </div>
         <div className="grid gap-1">
           <p className="text-sm font-semibold text-foreground">Steering request</p>
           <p className="text-sm text-muted-foreground">
-            Record durable requests, responses, and attachments for the current steering scope.
+            Record durable requests, responses, and attachments for this {props.scope.subject}.
           </p>
         </div>
         <Textarea
           value={request}
           onChange={(event) => setRequest(event.target.value)}
           className="min-h-[144px]"
-          placeholder={`Guide ${props.workflowName} toward the next legal action.`}
+          placeholder={`Guide ${props.scope.name} toward the next legal action.`}
         />
         <WorkflowFileInput
           files={files}
           onChange={setFiles}
           label="Steering attachments"
-          description="Attach workflow-scoped files that should be referenced by the steering request."
+          description={`Attach files for this ${props.scope.subject} that should be referenced by the steering request.`}
         />
         {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
         <div className="flex justify-end">
@@ -116,12 +116,12 @@ export function WorkflowSteering(props: {
         <div className="grid gap-1">
           <p className="text-sm font-semibold text-foreground">Steering history</p>
           <p className="text-sm text-muted-foreground">
-            Review prior steering requests, responses, and interventions for this workflow scope.
+            Review prior steering requests, responses, and interventions for this {props.scope.subject}.
           </p>
         </div>
         {historyEntries.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
-            No steering history exists for this workflow yet.
+            No steering history exists for this {props.scope.subject} yet.
           </div>
         ) : (
           <div className="grid gap-3">

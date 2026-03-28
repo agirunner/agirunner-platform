@@ -249,6 +249,28 @@ describe('WorkflowNeedsAction', () => {
     expect(html).toContain('Request changes');
   });
 
+  it('renders the empty state for the exact current scope instead of defaulting to workflow copy', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowNeedsAction, {
+          workflowId: 'workflow-1',
+          workspaceId: 'workspace-1',
+          scopeSubject: 'task',
+          packet: {
+            items: [],
+            total_count: 0,
+            default_sort: 'priority_desc',
+          },
+        }),
+      ),
+    );
+
+    expect(html).toContain('Nothing in this task requires operator action right now.');
+    expect(html).not.toContain('Nothing in this workflow requires operator action right now.');
+  });
+
   it('renders approval context details inline for approval cards', () => {
     const html = renderToStaticMarkup(
       createElement(

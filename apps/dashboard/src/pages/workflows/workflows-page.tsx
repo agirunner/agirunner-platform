@@ -14,6 +14,7 @@ import { WorkflowsRail } from './workflows-rail.js';
 import {
   buildWorkflowsPageSearchParams,
   buildWorkflowsPageHref,
+  describeWorkflowWorkbenchScope,
   readWorkflowsPageState,
   resolveSelectedWorkflowId,
   resolveWorkspacePlaceholderData,
@@ -258,6 +259,29 @@ export function WorkflowsPage(): JSX.Element {
     : scopedWorkItemId
       ? workItemTitle ?? scopedWorkItemId
       : null;
+  const workbenchScope = useMemo(
+    () =>
+      describeWorkflowWorkbenchScope({
+        scopeKind: workspacePacket?.bottom_tabs.current_scope_kind ?? requestedWorkspaceScope.scopeKind,
+        workflowName: workflow?.name ?? pageState.workflowId,
+        workItemId: workspacePacket?.bottom_tabs.current_work_item_id ?? requestedWorkspaceScope.workItemId,
+        workItemTitle,
+        taskId: workspacePacket?.bottom_tabs.current_task_id ?? requestedWorkspaceScope.taskId,
+        taskTitle,
+      }),
+    [
+      pageState.workflowId,
+      requestedWorkspaceScope.scopeKind,
+      requestedWorkspaceScope.taskId,
+      requestedWorkspaceScope.workItemId,
+      taskTitle,
+      workItemTitle,
+      workflow?.name,
+      workspacePacket?.bottom_tabs.current_scope_kind,
+      workspacePacket?.bottom_tabs.current_task_id,
+      workspacePacket?.bottom_tabs.current_work_item_id,
+    ],
+  );
   const hasMoreRailRows = Boolean(railPacket?.next_cursor) || (railPacket?.rows.length ?? 0) >= railLimit;
 
   useEffect(() => {
@@ -462,6 +486,7 @@ export function WorkflowsPage(): JSX.Element {
                   selectedWorkItemTasks={selectedWorkItemTasksQuery.data ?? []}
                   inputPackets={inputPacketsQuery.data ?? []}
                   workflowParameters={(workflowDetailQuery.data?.parameters as Record<string, unknown> | null | undefined) ?? null}
+                  scope={workbenchScope}
                   onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
                   onClearWorkItemScope={() =>
                     patchPageState(navigate, pageState, { workItemId: null, taskId: null })

@@ -16,6 +16,7 @@ describe('WorkflowHistory', () => {
           workflowId: 'workflow-1',
           packet: createPacket(),
           selectedWorkItemId: 'work-item-1',
+          scopeSubject: 'work item',
           onLoadMore: vi.fn(),
         }),
       ),
@@ -51,6 +52,7 @@ describe('WorkflowHistory', () => {
             ],
           },
           selectedWorkItemId: 'work-item-1',
+          scopeSubject: 'work item',
           onLoadMore: vi.fn(),
         }),
       ),
@@ -90,6 +92,7 @@ describe('WorkflowHistory', () => {
             ],
           },
           selectedTaskId: 'task-4',
+          scopeSubject: 'task',
           onLoadMore: vi.fn(),
         }),
       ),
@@ -108,13 +111,18 @@ describe('WorkflowHistory', () => {
           packet: {
             ...createPacket(),
             next_cursor: null,
+            groups: [],
+            items: [],
           },
+          scopeSubject: 'work item',
           onLoadMore: vi.fn(),
         }),
       ),
     );
 
     expect(html).not.toContain('Load older briefs');
+    expect(html).toContain('No historical briefs have been published for this work item yet.');
+    expect(html).not.toContain('workflow packets');
   });
 });
 
