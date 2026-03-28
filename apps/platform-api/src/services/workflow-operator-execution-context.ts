@@ -20,7 +20,16 @@ interface ActivationExecutionContextRow {
   consumed_at: Date | null;
 }
 
-const ACTIVE_TASK_STATES = ['claimed', 'in_progress', 'output_pending_assessment', 'awaiting_approval'] as const;
+const OPERATOR_RECORD_TASK_STATES = [
+  'claimed',
+  'in_progress',
+  'output_pending_assessment',
+  'awaiting_approval',
+  'completed',
+  'failed',
+  'cancelled',
+  'escalated',
+] as const;
 
 export interface WorkflowOperatorExecutionContextInput {
   executionContextId: string;
@@ -74,7 +83,7 @@ export async function resolveWorkflowOperatorExecutionContext(
     return resolveActivationExecutionContext(input, executionContextId);
   }
 
-  throw new ValidationError('Workflow operator record execution context must match an active workflow task or activation');
+  throw new ValidationError('Workflow operator record execution context must match a workflow task or activation');
 }
 
 function isPlatformWrite(identity: ApiKeyIdentity, sourceKind: string | null): boolean {
@@ -94,7 +103,7 @@ async function readTaskExecutionContext(
         AND workflow_id = $2
         AND id = $3
         AND state = ANY($4::task_state[])`,
-    [tenantId, workflowId, executionContextId, ACTIVE_TASK_STATES],
+    [tenantId, workflowId, executionContextId, OPERATOR_RECORD_TASK_STATES],
   );
   return result.rows[0] ?? null;
 }
@@ -111,7 +120,6 @@ async function readActivationExecutionContext(
       WHERE tenant_id = $1
         AND workflow_id = $2
         AND (id = $3 OR activation_id = $3)
-        AND consumed_at IS NULL
       LIMIT 1`,
     [tenantId, workflowId, executionContextId],
   );

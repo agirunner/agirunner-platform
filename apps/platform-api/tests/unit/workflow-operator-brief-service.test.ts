@@ -36,7 +36,7 @@ describe('WorkflowOperatorBriefService', () => {
         return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
       }
       if (sql.includes('FROM workflow_operator_briefs')) {
-        expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 2]);
+        expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1', null, 2]);
         return {
           rowCount: 2,
           rows: [
@@ -119,7 +119,16 @@ describe('WorkflowOperatorBriefService', () => {
           'tenant-1',
           'workflow-1',
           'task-1',
-          ['claimed', 'in_progress', 'output_pending_assessment', 'awaiting_approval'],
+          [
+            'claimed',
+            'in_progress',
+            'output_pending_assessment',
+            'awaiting_approval',
+            'completed',
+            'failed',
+            'cancelled',
+            'escalated',
+          ],
         ]);
         return {
           rowCount: 1,
@@ -352,7 +361,16 @@ describe('WorkflowOperatorBriefService', () => {
           'tenant-1',
           'workflow-1',
           'task-1',
-          ['claimed', 'in_progress', 'output_pending_assessment', 'awaiting_approval'],
+          [
+            'claimed',
+            'in_progress',
+            'output_pending_assessment',
+            'awaiting_approval',
+            'completed',
+            'failed',
+            'cancelled',
+            'escalated',
+          ],
         ]);
         return {
           rowCount: 1,
