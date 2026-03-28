@@ -175,10 +175,10 @@ export function TaskDetailContextSection({
               emptyMessage="No execution metrics."
             />
             <ProgressiveDataBlock
-              title="Agent context"
-              disclosureTitle="View agent context"
+              title="Runtime context"
+              disclosureTitle="View runtime context"
               data={runtimeContext}
-              emptyMessage="No agent context."
+              emptyMessage="No runtime context."
             />
           </div>
         </TaskPacketCard>

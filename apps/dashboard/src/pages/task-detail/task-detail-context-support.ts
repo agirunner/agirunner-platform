@@ -109,12 +109,12 @@ export function buildExecutionPacket({
   return {
     summary:
       verificationCount > 0 || metricCount > 0 || runtimeContextCount > 0
-        ? `${formatCount(verificationCount, 'verification field')}, ${formatCount(metricCount, 'execution metric')}, and ${formatCount(runtimeContextCount, 'agent context field')} are available for deeper review.`
-        : 'No verification fields, execution metrics, or agent context are recorded for this step yet.',
+        ? `${formatCount(verificationCount, 'verification field')}, ${formatCount(metricCount, 'execution metric')}, and ${formatCount(runtimeContextCount, 'runtime context field')} are available for deeper review.`
+        : 'No verification fields, execution metrics, or runtime context are recorded for this step yet.',
     facts: [
       { label: 'Verification fields', value: String(verificationCount) },
       { label: 'Execution metrics', value: String(metricCount) },
-      { label: 'Agent context fields', value: String(runtimeContextCount) },
+      { label: 'Runtime context fields', value: String(runtimeContextCount) },
       {
         label: 'Most detailed source',
         value: selectMostDetailedSource(verificationCount, metricCount, runtimeContextCount),
@@ -230,7 +230,7 @@ function selectMostDetailedSource(
   if (metricCount >= runtimeContextCount) {
     return 'Execution metrics';
   }
-  return 'Agent context';
+  return 'Runtime context';
 }
 
 function humanizeKey(value: string) {

@@ -15,7 +15,7 @@ describe('execution inspector filter bar source', () => {
 
     expect(source).toContain('Focus the current log results');
     expect(source).toContain(
-      'Narrow the inspector by workflow, specialist step, role, or runtime emitter.',
+      'Narrow the inspector by workflow, specialist step, role, or agent emitter.',
     );
     expect(source).toContain('placeholder="operation, workflow, step, error, or payload text"');
     expect(source).toContain('label="Workflow ID"');

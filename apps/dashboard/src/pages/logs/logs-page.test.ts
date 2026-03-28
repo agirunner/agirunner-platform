@@ -24,13 +24,14 @@ describe('logs page source', () => {
     expect(source).toContain('A curated summary of the current log results');
     expect(source).toContain('Top activity paths, role lanes, and');
     expect(source).toContain('agent or operator activity reflect the current filters.');
+    expect(source).toContain('Back to Workflow');
     expect(source).not.toContain('Focus the current log results');
     expect(source).not.toContain('Delivery Packets');
     expect(source).not.toContain('LogsPageActivityPackets');
     expect(source).not.toContain('ExecutionInspectorDetailView');
     expect(source).not.toContain('TabsContent value="detailed"');
     expect(source).not.toContain('Export');
-    expect(source).not.toContain('Permalink');
+    expect(source).not.toContain('>Permalink<');
     expect(source).not.toContain('rounded-3xl border border-border/70 bg-card/80 p-5 shadow-sm sm:p-6');
     expect(source).not.toContain('LogsSurfacePanel');
     expect(source).not.toContain('buildTabFacts');

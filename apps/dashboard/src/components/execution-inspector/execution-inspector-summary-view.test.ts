@@ -19,7 +19,7 @@ describe('execution inspector summary view source', () => {
     expect(source).toContain('Role lanes');
     expect(source).toContain('Active agents and operators');
     expect(source).toContain('title="Activity coverage"');
-    expect(source).toContain('title="Captured runtime"');
+    expect(source).toContain('title="Captured execution time"');
     expect(source).not.toContain('Activity families');
     expect(source).not.toContain('Review posture');
     expect(source).not.toContain('Attention');

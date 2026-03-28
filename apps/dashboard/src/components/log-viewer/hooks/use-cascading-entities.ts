@@ -65,6 +65,9 @@ export function useCascadingEntities(
       return res.data;
     },
     staleTime: 300_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
     enabled: !useWorkspaceOverride && shouldLoadWorkspaces,
   });
 
@@ -77,6 +80,9 @@ export function useCascadingEntities(
       return res.data;
     },
     staleTime: 300_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
     enabled: !useWorkflowOverride && shouldLoadWorkflows,
   });
 
@@ -89,6 +95,9 @@ export function useCascadingEntities(
       return extractList<TaskRecord>(res);
     },
     staleTime: 300_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
     enabled: !useTaskOverride && shouldLoadTasks,
   });
 
