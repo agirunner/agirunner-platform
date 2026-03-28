@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
-import type { DashboardWorkflowDeliverablesPacket } from '../../../lib/api.js';
+import type { DashboardTaskRecord, DashboardWorkflowDeliverablesPacket } from '../../../lib/api.js';
 import { WorkflowDeliverables } from './workflow-deliverables.js';
 
 describe('WorkflowDeliverables', () => {
@@ -10,6 +10,8 @@ describe('WorkflowDeliverables', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createPacket(),
+        selectedTask: null,
+        selectedWorkItemTitle: null,
         onLoadMore: vi.fn(),
       }),
     );
@@ -23,6 +25,8 @@ describe('WorkflowDeliverables', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createPacket(),
+        selectedTask: null,
+        selectedWorkItemTitle: null,
         onLoadMore: vi.fn(),
       }),
     );
@@ -37,12 +41,31 @@ describe('WorkflowDeliverables', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createBriefOnlyPacket(),
+        selectedTask: null,
+        selectedWorkItemTitle: null,
         onLoadMore: vi.fn(),
       }),
     );
 
     expect(html).toContain('Briefs (1)');
-    expect(html).toContain('<details class="rounded-2xl border border-border/70 bg-background/80 p-4" open="">');
+    expect(html).toContain('Brief-backed output');
+    expect(html).toContain('No final deliverables are available yet.');
+  });
+
+  it('shows task evidence above parent deliverables when a task is selected', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: createPacket(),
+        selectedTask: createTask(),
+        selectedWorkItemTitle: 'Prepare release bundle',
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Task Output / Evidence');
+    expect(html).toContain('Generate release bundle');
+    expect(html).toContain('Parent work item: Prepare release bundle');
+    expect(html).toContain('artifact-1');
   });
 });
 
@@ -131,5 +154,58 @@ function createBriefOnlyPacket(): DashboardWorkflowDeliverablesPacket {
       redrive_packet: null,
     },
     next_cursor: null,
+  };
+}
+
+function createTask(): DashboardTaskRecord {
+  return {
+    id: 'task-1',
+    tenant_id: 'tenant-1',
+    workflow_id: 'workflow-1',
+    workspace_id: 'workspace-1',
+    parent_id: null,
+    title: 'Generate release bundle',
+    description: null,
+    state: 'completed',
+    priority: 'high',
+    execution_backend: 'runtime_plus_task',
+    used_task_sandbox: true,
+    role: 'builder',
+    role_config: {},
+    environment: {},
+    resource_bindings: [],
+    input: null,
+    output: {
+      artifact_id: 'artifact-1',
+      path: 'artifacts/release-bundle.zip',
+      summary: 'Generated the release archive for operator review.',
+    },
+    metadata: {},
+    assigned_agent_id: null,
+    assigned_worker_id: null,
+    depends_on: [],
+    timeout_minutes: 30,
+    auto_retry: false,
+    max_retries: 0,
+    retry_count: 0,
+    claimed_at: null,
+    started_at: '2026-03-27T06:00:00.000Z',
+    completed_at: '2026-03-27T06:10:00.000Z',
+    failed_at: null,
+    cancelled_at: null,
+    created_at: '2026-03-27T05:55:00.000Z',
+    updated_at: '2026-03-27T06:10:00.000Z',
+    workflow: {
+      id: 'workflow-1',
+      name: 'Workflow 1',
+      workspace_id: 'workspace-1',
+    },
+    workflow_name: 'Workflow 1',
+    workspace_name: 'Workspace',
+    work_item_id: 'work-item-1',
+    work_item_title: 'Prepare release bundle',
+    stage_name: 'release',
+    activation_id: 'activation-1',
+    execution_environment: null,
   };
 }

@@ -1,5 +1,6 @@
 import { Badge } from '../../../components/ui/badge.js';
 import type {
+  DashboardTaskRecord,
   DashboardWorkflowDeliverableRecord,
   DashboardWorkflowDeliverablesPacket,
   DashboardWorkflowInputPacketFileRecord,
@@ -12,6 +13,8 @@ import { WorkflowBriefRenderer } from './workflow-brief-renderer.js';
 
 export function WorkflowDeliverables(props: {
   packet: DashboardWorkflowDeliverablesPacket;
+  selectedTask: DashboardTaskRecord | null;
+  selectedWorkItemTitle: string | null;
   onLoadMore(): void;
 }): JSX.Element {
   const outcomeBrief = pickOutcomeBrief(
@@ -19,6 +22,11 @@ export function WorkflowDeliverables(props: {
     props.packet.working_handoffs,
   );
   const openInProgressByDefault = props.packet.final_deliverables.length === 0;
+  const openBriefsByDefault =
+    props.packet.final_deliverables.length === 0
+    && props.packet.in_progress_deliverables.length === 0
+    && props.packet.working_handoffs.length > 0;
+  const taskEvidence = buildTaskEvidence(props.selectedTask);
 
   return (
     <div className="grid gap-4">
@@ -36,6 +44,21 @@ export function WorkflowDeliverables(props: {
             <Badge variant="outline">{humanizeToken(outcomeBrief.status_kind)}</Badge>
           </div>
           <WorkflowBriefRenderer brief={outcomeBrief} />
+        </section>
+      ) : null}
+
+      {taskEvidence ? (
+        <section className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">Task Output / Evidence</Badge>
+            <Badge variant="secondary">{props.selectedTask?.title ?? 'Selected task'}</Badge>
+          </div>
+          {props.selectedWorkItemTitle ? (
+            <p className="text-sm text-muted-foreground">
+              Parent work item: {props.selectedWorkItemTitle}
+            </p>
+          ) : null}
+          <StructuredValuePreview value={taskEvidence} />
         </section>
       ) : null}
 
@@ -69,7 +92,10 @@ export function WorkflowDeliverables(props: {
         </div>
       </details>
 
-      <details className="rounded-2xl border border-border/70 bg-background/80 p-4">
+      <details
+        className="rounded-2xl border border-border/70 bg-background/80 p-4"
+        open={openBriefsByDefault}
+      >
         <summary className="cursor-pointer text-sm font-semibold text-foreground">
           Briefs ({props.packet.working_handoffs.length})
         </summary>
@@ -78,7 +104,10 @@ export function WorkflowDeliverables(props: {
             <p className="text-sm text-muted-foreground">No milestone briefs have been published yet.</p>
           ) : (
             props.packet.working_handoffs.map((brief) => (
-              <article key={brief.id} className="rounded-2xl border border-border/70 bg-muted/10 p-4">
+              <article key={brief.id} className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
+                {(props.packet.final_deliverables.length === 0 && props.packet.in_progress_deliverables.length === 0) ? (
+                  <Badge variant="outline">Brief-backed output</Badge>
+                ) : null}
                 <WorkflowBriefRenderer brief={brief} compact />
               </article>
             ))
@@ -244,6 +273,42 @@ function InputPacketCard(props: {
   );
 }
 
+function StructuredValuePreview(props: {
+  value: unknown;
+}): JSX.Element | null {
+  const structuredEntries = readStructuredEntries(props.value);
+  const structuredPreview = structuredEntries.length === 0
+    ? readStructuredPreview(props.value)
+    : null;
+  if (structuredEntries.length === 0 && !structuredPreview) {
+    return null;
+  }
+
+  if (structuredEntries.length > 0) {
+    return (
+      <dl className="divide-y divide-border/60 rounded-xl border border-border/70 bg-background/80">
+        {structuredEntries.map(([label, value]) => (
+          <div
+            key={label}
+            className="grid gap-1 px-3 py-2 sm:grid-cols-[10rem_minmax(0,1fr)] sm:items-start sm:gap-3"
+          >
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              {label}
+            </dt>
+            <dd className="text-sm text-foreground">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    );
+  }
+
+  return (
+    <pre className="overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-foreground">
+      {structuredPreview}
+    </pre>
+  );
+}
+
 function InterventionAttachmentSection(props: {
   interventions: DashboardWorkflowInterventionRecord[];
 }): JSX.Element {
@@ -324,6 +389,17 @@ function readPreviewText(deliverable: DashboardWorkflowDeliverableRecord): strin
     readText(preview.summary) ??
     readText(preview.snippet)
   );
+}
+
+function buildTaskEvidence(task: DashboardTaskRecord | null): unknown {
+  if (!task) {
+    return null;
+  }
+  const output = task.output;
+  if (output && typeof output === 'object' && !Array.isArray(output)) {
+    return output;
+  }
+  return readText(output);
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

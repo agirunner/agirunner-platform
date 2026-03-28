@@ -165,6 +165,8 @@ export function WorkflowBottomWorkbench(props: {
         {props.activeTab === 'deliverables' ? (
           <WorkflowDeliverables
             packet={props.packet.deliverables}
+            selectedTask={props.selectedTask}
+            selectedWorkItemTitle={props.selectedWorkItemTitle}
             onLoadMore={props.onLoadMoreDeliverables}
           />
         ) : null}
