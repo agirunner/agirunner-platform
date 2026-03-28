@@ -55,6 +55,18 @@ describe('skills page source', () => {
     expect(source).not.toContain('unarchiveSpecialistSkill');
   });
 
+  it('requires name and content before a skill can be saved', () => {
+    const source = readCombinedSource();
+
+    expect(source).toContain('validateSkillForm');
+    expect(source).toContain("fieldErrors.name = 'Enter a skill name.';");
+    expect(source).toContain("fieldErrors.content = 'Add the reusable skill content.';");
+    expect(source).toContain('validation={validation}');
+    expect(source).toContain('aria-invalid={Boolean(props.validation.fieldErrors.name)}');
+    expect(source).toContain('aria-invalid={Boolean(props.validation.fieldErrors.content)}');
+    expect(source).toContain('disabled={props.isPending || !props.validation.isValid}');
+  });
+
   it('uses the larger orchestrator-sized modal footprint for skill editing', () => {
     const source = readSource('./skills-page.dialog.tsx');
 

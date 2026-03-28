@@ -38,6 +38,7 @@ import {
   createSkillFormState,
   SkillsPageDialog,
   type SkillFormState,
+  validateSkillForm,
 } from './skills-page.dialog.js';
 
 interface DialogState {
@@ -56,13 +57,17 @@ export function SkillsPage(): JSX.Element {
     queryKey: ['specialist-skills'],
     queryFn: fetchSpecialistSkills,
   });
+  const validation = useMemo(() => validateSkillForm(form), [form]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = buildSkillPayload(form);
       if (!dialogState) {
         throw new Error('Open the skill dialog before saving.');
       }
+      if (!validation.isValid) {
+        throw new Error('Complete the required skill fields before saving.');
+      }
+      const payload = buildSkillPayload(form);
       if (dialogState.mode === 'create') {
         return createSpecialistSkill(payload);
       }
@@ -225,6 +230,7 @@ export function SkillsPage(): JSX.Element {
         title={dialogState?.mode === 'edit' ? 'Edit Skill' : 'Create Skill'}
         submitLabel={dialogState?.mode === 'edit' ? 'Save Skill' : 'Create Skill'}
         form={form}
+        validation={validation}
         isPending={saveMutation.isPending}
         onOpenChange={(open) => {
           if (!open) {

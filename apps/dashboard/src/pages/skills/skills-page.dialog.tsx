@@ -15,6 +15,14 @@ export interface SkillFormState {
   content: string;
 }
 
+export interface SkillFormValidation {
+  isValid: boolean;
+  fieldErrors: {
+    name?: string;
+    content?: string;
+  };
+}
+
 export function createSkillFormState(
   skill?: { name: string; summary: string | null; content: string } | null,
 ): SkillFormState {
@@ -25,11 +33,29 @@ export function createSkillFormState(
   };
 }
 
+export function validateSkillForm(form: SkillFormState): SkillFormValidation {
+  const fieldErrors: SkillFormValidation['fieldErrors'] = {};
+
+  if (!form.name.trim()) {
+    fieldErrors.name = 'Enter a skill name.';
+  }
+
+  if (!form.content.trim()) {
+    fieldErrors.content = 'Add the reusable skill content.';
+  }
+
+  return {
+    isValid: Object.keys(fieldErrors).length === 0,
+    fieldErrors,
+  };
+}
+
 export function SkillsPageDialog(props: {
   open: boolean;
   title: 'Create Skill' | 'Edit Skill';
   submitLabel: 'Create Skill' | 'Save Skill';
   form: SkillFormState;
+  validation: SkillFormValidation;
   isPending: boolean;
   onOpenChange(open: boolean): void;
   onFormChange(next: SkillFormState): void;
@@ -58,7 +84,13 @@ export function SkillsPageDialog(props: {
               onChange={(event) => {
                 props.onFormChange({ ...props.form, name: event.target.value });
               }}
+              aria-invalid={Boolean(props.validation.fieldErrors.name)}
             />
+            {props.validation.fieldErrors.name ? (
+              <span className="text-xs text-red-600 dark:text-red-400">
+                {props.validation.fieldErrors.name}
+              </span>
+            ) : null}
           </label>
           <label className="grid gap-2 text-sm">
             <span className="font-medium">Summary</span>
@@ -77,13 +109,19 @@ export function SkillsPageDialog(props: {
               onChange={(event) => {
                 props.onFormChange({ ...props.form, content: event.target.value });
               }}
+              aria-invalid={Boolean(props.validation.fieldErrors.content)}
             />
+            {props.validation.fieldErrors.content ? (
+              <span className="text-xs text-red-600 dark:text-red-400">
+                {props.validation.fieldErrors.content}
+              </span>
+            ) : null}
           </label>
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={props.isPending}>
+            <Button type="submit" disabled={props.isPending || !props.validation.isValid}>
               {props.submitLabel}
             </Button>
           </div>
