@@ -156,7 +156,7 @@ export class HandoffService {
         LIMIT 1`,
       [tenantId, taskId, taskReworkCount],
     );
-    if (result.rowCount > 0) {
+    if ((result.rowCount ?? 0) > 0) {
       return;
     }
 

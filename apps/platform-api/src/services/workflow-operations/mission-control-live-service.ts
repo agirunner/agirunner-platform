@@ -277,29 +277,33 @@ export class MissionControlLiveService {
               AND is_orchestrator_task = FALSE
          ) task_summary ON true
          LEFT JOIN LATERAL (
-           SELECT COUNT(*) FILTER (WHERE completed_at IS NULL AND escalation_status = 'open')::int AS open_escalation_count,
+           SELECT COUNT(*) FILTER (WHERE wi.completed_at IS NULL AND wi.escalation_status = 'open')::int AS open_escalation_count,
                   COUNT(*) FILTER (
-                    WHERE completed_at IS NULL
+                    WHERE wi.completed_at IS NULL
                       AND (
-                        blocked_state = 'blocked'
-                        OR gate_status IN ('blocked', 'request_changes', 'changes_requested', 'rejected')
+                        wi.blocked_state = 'blocked'
+                        OR COALESCE(ws.gate_status, 'not_requested') IN ('blocked', 'request_changes', 'changes_requested', 'rejected')
                       )
                   )::int AS blocked_work_item_count,
                   COUNT(*) FILTER (
-                    WHERE completed_at IS NULL
+                    WHERE wi.completed_at IS NULL
                       AND board_config.entry_column_id IS NOT NULL
                       AND wi.column_id <> board_config.entry_column_id
                   )::int AS active_work_item_count,
                   COUNT(*) FILTER (
-                    WHERE completed_at IS NULL
+                    WHERE wi.completed_at IS NULL
                       AND (
                         board_config.entry_column_id IS NULL
                         OR wi.column_id = board_config.entry_column_id
                       )
                   )::int AS pending_work_item_count
-             FROM workflow_work_items wi
-            WHERE tenant_id = w.tenant_id
-              AND workflow_id = w.id
+            FROM workflow_work_items wi
+             LEFT JOIN workflow_stages ws
+               ON ws.tenant_id = wi.tenant_id
+              AND ws.workflow_id = wi.workflow_id
+              AND ws.name = wi.stage_name
+            WHERE wi.tenant_id = w.tenant_id
+              AND wi.workflow_id = w.id
          ) work_item_summary ON true
          LEFT JOIN LATERAL (
            SELECT COUNT(*) FILTER (WHERE gate_status = 'awaiting_approval')::int AS waiting_for_decision_count,

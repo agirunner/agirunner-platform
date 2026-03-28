@@ -532,7 +532,12 @@ describe('MissionControlLiveService', () => {
 
     expect(pool.query).toHaveBeenNthCalledWith(
       3,
-      expect.stringContaining("gate_status IN ('blocked', 'request_changes', 'changes_requested', 'rejected')"),
+      expect.stringContaining("COALESCE(ws.gate_status, 'not_requested') IN ('blocked', 'request_changes', 'changes_requested', 'rejected')"),
+      expect.any(Array),
+    );
+    expect(pool.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('LEFT JOIN workflow_stages ws'),
       expect.any(Array),
     );
     expect(response.sections).toEqual([
