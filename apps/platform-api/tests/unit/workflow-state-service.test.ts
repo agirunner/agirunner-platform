@@ -182,6 +182,59 @@ describe('WorkflowStateService', () => {
     );
   });
 
+  it('preserves orchestrator ownership on workflow lifecycle events and logs for agent-scoped callers', async () => {
+    const pool = createPool([
+      workflowRow({ state: 'pending' }),
+      rowSet([{ lifecycle: 'ongoing' }]),
+      rowSet([]),
+      rowSet([{ exists: 1 }]),
+      rowSet([{ open_work_item_count: 0 }]),
+      rowSet([]),
+    ]);
+    const eventService = { emit: vi.fn() };
+    const logService = { insert: vi.fn().mockResolvedValue(undefined) };
+    const service = new WorkflowStateService(
+      pool as never,
+      eventService as never,
+      undefined,
+      undefined,
+      logService as never,
+    );
+
+    const result = await service.recomputeWorkflowState('tenant-1', 'workflow-1', undefined, {
+      actorType: 'agent',
+      actorId: 'agent-1',
+    });
+
+    expect(result).toBe('active');
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.state_changed',
+        actorType: 'agent',
+        actorId: 'agent-1',
+        data: {
+          from_state: 'pending',
+          to_state: 'active',
+          role: 'orchestrator',
+          is_orchestrator_task: true,
+        },
+      }),
+      undefined,
+    );
+    await vi.waitFor(() =>
+      expect(logService.insert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          category: 'task_lifecycle',
+          operation: 'task_lifecycle.workflow.state_changed',
+          actorType: 'agent',
+          actorId: 'agent-1',
+          role: 'orchestrator',
+          isOrchestratorTask: true,
+        }),
+      ),
+    );
+  });
+
   it('returns pending for continuous workflows when only a stale stage status remains', async () => {
     const pool = createPool([
       workflowRow({ state: 'active' }),

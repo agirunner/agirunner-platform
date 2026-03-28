@@ -193,6 +193,29 @@ describe('workflow interaction timeline', () => {
     expect(descriptor.scopeSummary).toContain('Step Implement OAuth callback flow');
   });
 
+  it('treats orchestrator-owned agent lifecycle events as orchestrator activity', () => {
+    const descriptor = describeTimelineEvent(
+      buildEvent({
+        type: 'workflow.state_changed',
+        actor_type: 'agent',
+        actor_id: 'agent-1',
+        data: {
+          from_state: 'pending',
+          to_state: 'active',
+          role: 'orchestrator',
+          is_orchestrator_task: true,
+          stage_name: 'implementation',
+        },
+      }),
+      context,
+    );
+
+    expect(descriptor.actorLabel).toBe('Orchestrator');
+    expect(descriptor.narrativeHeadline).toContain('Orchestrator');
+    expect(descriptor.scopeSummary).toContain('Actor Orchestrator');
+    expect(descriptor.stageName).toBe('implementation');
+  });
+
   it('renders timeline entries as actor-lane packets with reviewed payload drill-down', () => {
     const source = readFileSync(
       resolve(import.meta.dirname, './workflow-history-card.tsx'),

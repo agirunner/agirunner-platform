@@ -77,6 +77,7 @@ export class WorkflowStateService {
     }
 
     if (previousState !== derivedState) {
+      const lifecycleActor = deriveWorkflowLifecycleActor(actor);
       await this.eventService.emit(
         {
           tenantId,
@@ -85,7 +86,14 @@ export class WorkflowStateService {
           entityId: workflowId,
           actorType: actor.actorType,
           actorId: actor.actorId ?? null,
-          data: { from_state: previousState, to_state: derivedState },
+          data: {
+            from_state: previousState,
+            to_state: derivedState,
+            ...(lifecycleActor.role ? { role: lifecycleActor.role } : {}),
+            ...(lifecycleActor.isOrchestratorTask
+              ? { is_orchestrator_task: lifecycleActor.isOrchestratorTask }
+              : {}),
+          },
         },
         client,
       );
@@ -127,6 +135,8 @@ export class WorkflowStateService {
         workflowName: workflowRow.name as string,
         actorType: actor.actorType,
         actorId: actor.actorId,
+        role: lifecycleActor.role,
+        isOrchestratorTask: lifecycleActor.isOrchestratorTask,
         resourceType: 'workflow',
         resourceId: workflowId,
         resourceName: workflowRow.name as string,
@@ -270,6 +280,19 @@ export class WorkflowStateService {
     );
     return { taskCount: result.rows[0]?.task_count ?? 0, failedTaskCount: result.rows[0]?.failed_task_count ?? 0 };
   }
+}
+
+function deriveWorkflowLifecycleActor(actor: { actorType: string; actorId?: string }) {
+  if (actor.actorType === 'agent' || actor.actorType === 'worker') {
+    return {
+      role: 'orchestrator',
+      isOrchestratorTask: true,
+    };
+  }
+  return {
+    role: null,
+    isOrchestratorTask: false,
+  };
 }
 
 export interface WorkflowPostureBase {

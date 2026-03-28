@@ -182,6 +182,7 @@ function describeActorLabel(
   if (event.actor_type === 'orchestrator') return 'Orchestrator';
   if (event.actor_type === 'operator') return 'Operator';
   if (event.actor_type === 'system') return 'System';
+  if (isOrchestratorOwnedEvent(event, task)) return 'Orchestrator';
   if (event.actor_type === 'task') {
     const role = readString(task?.role) ?? readString(event.data?.role) ?? readString(event.data?.assigned_role);
     return role ? `${capitalizeToken(role)} specialist` : 'Specialist';
@@ -189,6 +190,20 @@ function describeActorLabel(
   const actorType = capitalizeToken(event.actor_type);
   const actorId = readString(event.actor_id);
   return actorId ? `${actorType} ${actorId}` : actorType;
+}
+
+function isOrchestratorOwnedEvent(
+  event: DashboardEventRecord,
+  task: DashboardWorkflowTaskRow | null,
+): boolean {
+  if (readString(task?.role) === 'orchestrator') {
+    return true;
+  }
+  const role = readString(event.data?.role) ?? readString(event.data?.assigned_role);
+  if (role === 'orchestrator') {
+    return true;
+  }
+  return event.data?.is_orchestrator_task === true;
 }
 
 function describeObjectLabel(
