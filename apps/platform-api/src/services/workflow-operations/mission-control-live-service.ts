@@ -420,6 +420,9 @@ function emptySignals(workflowId: string): WorkflowSignalRow {
 
 function readActivitySummary(workflow: WorkflowRow, signals: WorkflowSignalRow): string | null {
   if (workflow.current_stage) return `Active work in ${workflow.current_stage}`;
+  if (signals.active_work_item_count === 0 && signals.active_task_count > 0) {
+    return 'Orchestrator working';
+  }
   if (signals.active_task_count > 0) return `${signals.active_task_count} tasks in flight`;
   if (signals.active_work_item_count > 0) return `${signals.active_work_item_count} work items in flight`;
   return null;

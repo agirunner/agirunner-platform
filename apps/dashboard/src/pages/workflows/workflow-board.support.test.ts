@@ -113,7 +113,7 @@ describe('buildWorkflowBoardView', () => {
         id: 'needs-action-item',
         column_id: 'planned',
         stage_name: 'delivery',
-        gate_status: 'request_changes',
+        gate_status: 'changes_requested',
       }),
     ]);
 
@@ -130,6 +130,30 @@ describe('buildWorkflowBoardView', () => {
       'needs-action-item',
     ]);
     expect(view.lanes.find((lane) => lane.column.id === 'planned')?.activeItems).toEqual([]);
+  });
+
+  it('treats rejected gate work as needs-action work for blocked-lane projection', () => {
+    const board = createBoard([
+      createWorkItem({
+        id: 'rejected-item',
+        column_id: 'planned',
+        stage_name: 'delivery',
+        gate_status: 'rejected',
+      }),
+    ]);
+
+    const view = buildWorkflowBoardView(board, {
+      boardMode: 'all',
+      stageFilter: '__all__',
+      laneFilter: '__all__',
+      blockedOnly: false,
+      escalatedOnly: false,
+      needsActionOnly: false,
+    });
+
+    expect(view.lanes.find((lane) => lane.column.id === 'blocked')?.activeItems.map((item) => item.id)).toEqual([
+      'rejected-item',
+    ]);
   });
 });
 

@@ -105,6 +105,9 @@ export function isNeedsActionWorkItem(workItem: DashboardWorkflowWorkItemRecord)
     || workItem.escalation_status === 'open'
     || workItem.gate_status === 'awaiting_approval'
     || workItem.gate_status === 'request_changes'
+    || workItem.gate_status === 'changes_requested'
+    || workItem.gate_status === 'rejected'
+    || workItem.gate_status === 'blocked'
   );
 }
 

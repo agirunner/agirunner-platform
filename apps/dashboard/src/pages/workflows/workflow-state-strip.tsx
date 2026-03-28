@@ -31,6 +31,11 @@ export function WorkflowStateStrip(props: {
   );
   const postureLabel = humanizePosture(sticky?.posture ?? props.workflow.posture);
   const isOngoingWorkflow = props.workflow.lifecycle === 'ongoing';
+  const workloadFooter = readWorkloadFooter(
+    sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount,
+    props.workflow.metrics.failedTaskCount,
+    workload.activeWorkItemCount,
+  );
 
   return (
     <section className="space-y-3 rounded-3xl border border-border/70 bg-background/90 p-4">
@@ -64,6 +69,26 @@ export function WorkflowStateStrip(props: {
           <Button size="sm" onClick={props.onAddWork}>
             Add / Modify Work
           </Button>
+          <label className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">Live visibility</span>
+            <select
+              className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+              value={visibilityValue}
+              onChange={(event) =>
+                props.onVisibilityModeChange(
+                  event.target.value === '__inherit__'
+                    ? null
+                    : (event.target.value as 'standard' | 'enhanced'),
+                )
+              }
+            >
+              <option value="__inherit__">
+                Inherit ({props.workflowSettings?.effective_live_visibility_mode ?? 'enhanced'})
+              </option>
+              <option value="standard">Standard</option>
+              <option value="enhanced">Enhanced</option>
+            </select>
+          </label>
         </div>
       </div>
 
@@ -85,36 +110,14 @@ export function WorkflowStateStrip(props: {
         <StateCard
           title="Workload"
           value={`${workload.activeWorkItemCount} active • ${workload.completedWorkItemCount} completed`}
-          footer={`${sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount} active tasks • ${props.workflow.metrics.failedTaskCount} failed tasks`}
+          footer={workloadFooter}
         />
-        <div className="grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-3">
-          <ShortcutCard
-            title="Steering"
-            value={sticky?.steering_available ? 'Open' : 'Idle'}
-            detail="Requests, responses, and safe workflow intervention."
-            onClick={() => props.onTabChange('steering')}
-          />
-          <label className="flex items-center justify-between gap-3 text-sm">
-            <span className="font-medium text-foreground">Live visibility</span>
-            <select
-              className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
-              value={visibilityValue}
-              onChange={(event) =>
-                props.onVisibilityModeChange(
-                  event.target.value === '__inherit__'
-                    ? null
-                    : (event.target.value as 'standard' | 'enhanced'),
-                )
-              }
-            >
-              <option value="__inherit__">
-                Inherit tenant default ({props.workflowSettings?.effective_live_visibility_mode ?? 'enhanced'})
-              </option>
-              <option value="standard">Standard</option>
-              <option value="enhanced">Enhanced</option>
-            </select>
-          </label>
-        </div>
+        <ShortcutCard
+          title="Steering"
+          value={sticky?.steering_available ? 'Open' : 'Idle'}
+          detail="Requests, responses, and safe workflow intervention."
+          onClick={() => props.onTabChange('steering')}
+        />
       </div>
     </section>
   );
@@ -187,4 +190,15 @@ function summarizeWorkload(
     activeWorkItemCount: board.work_items.filter((workItem) => !isCompletedWorkItem(board.columns, workItem)).length,
     completedWorkItemCount: board.work_items.filter((workItem) => isCompletedWorkItem(board.columns, workItem)).length,
   };
+}
+
+function readWorkloadFooter(
+  activeTaskCount: number,
+  failedTaskCount: number,
+  activeWorkItemCount: number,
+): string {
+  if (activeWorkItemCount === 0 && activeTaskCount > 0) {
+    return `Orchestrator working • ${failedTaskCount} failed tasks`;
+  }
+  return `${activeTaskCount} active tasks • ${failedTaskCount} failed tasks`;
 }

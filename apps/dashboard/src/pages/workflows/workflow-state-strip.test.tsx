@@ -64,7 +64,9 @@ describe('WorkflowStateStrip', () => {
     expect(html).toContain('Ongoing');
     expect(html).not.toContain('Waiting By Design');
     expect((html.match(/text-lg font-semibold text-foreground/g) ?? [])).toHaveLength(4);
-    expect(html).not.toContain('grid gap-2 rounded-2xl border border-border/70 bg-muted/10 p-3');
+    expect(html).toContain('Live visibility');
+    expect((html.match(/text-left transition-colors hover:bg-muted\/20/g) ?? [])).toHaveLength(2);
+    expect(html).not.toContain('justify-between gap-3 text-sm');
   });
 });
 

@@ -31,7 +31,7 @@ describe('WorkflowBoard', () => {
     expect(html).not.toContain('Lanes show the actual workflow flow while tasks stay subordinate');
     expect(html).not.toContain('Active stage:');
     expect(html).not.toContain('visible items');
-    expect(html).toContain('min-h-[10rem]');
+    expect(html).not.toContain('items-center justify-center text-center');
   });
 
   it('keeps stage context on work items and hides meaningless default priority badges', () => {
@@ -79,6 +79,8 @@ describe('WorkflowBoard', () => {
 
     expect(html).toContain('Recent completions');
     expect(html).not.toContain('<details class="rounded-2xl border border-border/70 bg-background/70 p-3" open="">');
+    expect(html).not.toContain('>3 tasks<');
+    expect(html).not.toContain('No active work is currently visible in this lane.</div>');
   });
 });
 

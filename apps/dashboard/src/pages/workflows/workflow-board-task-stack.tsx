@@ -1,5 +1,3 @@
-import { Badge } from '../../components/ui/badge.js';
-
 export interface WorkflowTaskPreview {
   id: string;
   title: string;
@@ -21,7 +19,6 @@ export function WorkflowBoardTaskStack(props: {
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Task stack
         </p>
-        <Badge variant="outline">{props.tasks.length} tasks</Badge>
       </summary>
       <div className="mt-3">
         {props.tasks.length === 0 ? (
