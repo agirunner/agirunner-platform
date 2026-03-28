@@ -10,8 +10,8 @@ import {
   resolveFormFeedbackMessage,
 } from '../../components/forms/form-feedback.js';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog.js';
-import { Input } from '../../components/ui/input.js';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select.js';
+import { Textarea } from '../../components/ui/textarea.js';
 import { dashboardApi } from '../../lib/api.js';
 import { buildFileUploadPayloads } from '../../lib/file-upload.js';
 import { toast } from '../../lib/toast.js';
@@ -208,9 +208,11 @@ export function WorkflowLaunchDialog(props: {
 
           <label className="grid gap-2 text-sm">
             <span className="font-medium">Workflow name</span>
-            <Input
+            <Textarea
               value={workflowName}
               onChange={(event) => setWorkflowName(event.target.value)}
+              rows={2}
+              className="min-h-[64px]"
               placeholder="Release readiness"
               aria-invalid={Boolean(workflowNameError)}
             />

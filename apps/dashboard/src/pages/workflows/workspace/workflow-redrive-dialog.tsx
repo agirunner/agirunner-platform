@@ -26,8 +26,7 @@ export function WorkflowRedriveDialog(props: {
   onRedriven?(workflowId: string): void;
 }): JSX.Element {
   const queryClient = useQueryClient();
-  const [summary, setSummary] = useState('');
-  const [steeringInstruction, setSteeringInstruction] = useState('');
+  const [brief, setBrief] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
@@ -36,31 +35,31 @@ export function WorkflowRedriveDialog(props: {
     if (props.isOpen) {
       return;
     }
-    setSummary('');
-    setSteeringInstruction('');
+    setBrief('');
     setFiles([]);
     setErrorMessage(null);
     setHasAttemptedSubmit(false);
   }, [props.isOpen]);
 
-  const summaryError =
-    hasAttemptedSubmit && !summary.trim() ? 'Enter a redrive summary.' : undefined;
+  const briefError =
+    hasAttemptedSubmit && !brief.trim() ? 'Enter a redrive brief.' : undefined;
   const formFeedbackMessage = resolveFormFeedbackMessage({
     serverError: errorMessage,
     showValidation: hasAttemptedSubmit,
-    isValid: Boolean(summary.trim()),
+    isValid: Boolean(brief.trim()),
     validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
   });
 
   const mutation = useMutation({
-    mutationFn: async () =>
-      dashboardApi.redriveWorkflow(props.workflowId, {
+    mutationFn: async () => {
+      const trimmedBrief = brief.trim();
+      return dashboardApi.redriveWorkflow(props.workflowId, {
         request_id: crypto.randomUUID(),
-        name: `${props.workflowName} redrive`,
-        summary: summary.trim() || undefined,
-        steering_instruction: steeringInstruction.trim() || undefined,
+        summary: trimmedBrief || undefined,
+        steering_instruction: trimmedBrief || undefined,
         files: await buildFileUploadPayloads(files),
-      }),
+      });
+    },
     onSuccess: async (result) => {
       await invalidateWorkflowsQueries(
         queryClient,
@@ -85,24 +84,22 @@ export function WorkflowRedriveDialog(props: {
             Redrive workflow
           </DialogTitle>
           <DialogDescription>
-            Create a linked new attempt with corrected inputs, steering guidance, and inherited context.
+            Start a fresh attempt for {props.workflowName} with one concise operator brief and any corrected files.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4">
           <label className="grid gap-2 text-sm">
-            <span className="font-medium">Redrive summary</span>
+            <span className="font-medium">Redrive brief</span>
             <Textarea
-              value={summary}
-              onChange={(event) => setSummary(event.target.value)}
+              value={brief}
+              onChange={(event) => setBrief(event.target.value)}
+              rows={4}
               className="min-h-[96px]"
-              aria-invalid={Boolean(summaryError)}
+              placeholder="Explain what should change in the next attempt."
+              aria-invalid={Boolean(briefError)}
             />
-            <FieldErrorText message={summaryError} />
-          </label>
-          <label className="grid gap-2 text-sm">
-            <span className="font-medium">Steering instruction</span>
-            <Textarea value={steeringInstruction} onChange={(event) => setSteeringInstruction(event.target.value)} className="min-h-[96px]" />
+            <FieldErrorText message={briefError} />
           </label>
 
           <WorkflowFileInput
@@ -122,7 +119,7 @@ export function WorkflowRedriveDialog(props: {
               type="button"
               disabled={mutation.isPending}
               onClick={() => {
-                if (!summary.trim()) {
+                if (!brief.trim()) {
                   setHasAttemptedSubmit(true);
                   return;
                 }

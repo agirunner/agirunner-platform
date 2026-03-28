@@ -1,15 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '../../../components/ui/dialog.js';
 import { Textarea } from '../../../components/ui/textarea.js';
 import type {
   DashboardWorkflowNeedsActionItem,
@@ -46,8 +39,6 @@ export function WorkflowNeedsAction(props: {
     },
   });
 
-  const promptMeta = useMemo(() => buildPromptMeta(promptAction), [promptAction]);
-
   function handleAction(action: DashboardWorkflowNeedsActionResponseAction): void {
     if (action.kind === 'add_work_item') {
       props.onOpenAddWork?.(action.target.target_kind === 'work_item' ? action.target.target_id : null);
@@ -74,92 +65,63 @@ export function WorkflowNeedsAction(props: {
   }
 
   return (
-    <>
-      <div className="grid gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Needs Action</p>
-            <p className="text-sm text-muted-foreground">
-              Prioritized workflow actions that currently require an operator response.
-            </p>
-          </div>
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-foreground">Needs Action</p>
+          <p className="text-sm text-muted-foreground">
+            Prioritized workflow actions that currently require an operator response.
+          </p>
         </div>
-
-        {props.packet.items.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
-            Nothing in this workflow requires operator action right now.
-          </div>
-        ) : (
-          <div className="grid gap-3">
-            {props.packet.items.map((item) => (
-              <NeedsActionCard
-                key={item.action_id}
-                item={item}
-                isPending={mutation.isPending}
-                onAction={handleAction}
-              />
-            ))}
-          </div>
-        )}
       </div>
 
-      <Dialog
-        open={promptAction !== null}
-        onOpenChange={(nextOpen) => {
-          if (mutation.isPending) {
-            return;
-          }
-          if (!nextOpen) {
-            setPromptAction(null);
-            setPromptValue('');
-            setPromptError(null);
-          }
-        }}
-      >
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{promptMeta.title}</DialogTitle>
-            <DialogDescription>{promptMeta.description}</DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <Textarea
-              value={promptValue}
-              onChange={(event) => setPromptValue(event.target.value)}
-              rows={5}
-              placeholder={promptMeta.placeholder}
-              aria-invalid={Boolean(promptError)}
+      {props.packet.items.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
+          Nothing in this workflow requires operator action right now.
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {props.packet.items.map((item) => (
+            <NeedsActionCard
+              key={item.action_id}
+              item={item}
+              activePromptActionId={promptAction?.action_id ?? null}
+              promptValue={promptValue}
+              promptError={promptError}
+              isPending={mutation.isPending}
+              onAction={handleAction}
+              onPromptChange={setPromptValue}
+              onPromptCancel={() => {
+                if (mutation.isPending) {
+                  return;
+                }
+                setPromptAction(null);
+                setPromptValue('');
+                setPromptError(null);
+              }}
+              onPromptSubmit={handlePromptSubmit}
             />
-            {promptError ? <p className="text-sm text-destructive">{promptError}</p> : null}
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setPromptAction(null);
-                  setPromptValue('');
-                  setPromptError(null);
-                }}
-                disabled={mutation.isPending}
-              >
-                Cancel
-              </Button>
-              <Button type="button" onClick={handlePromptSubmit} disabled={mutation.isPending}>
-                {promptMeta.confirmLabel}
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    </>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
 function NeedsActionCard(props: {
   item: DashboardWorkflowNeedsActionItem;
+  activePromptActionId: string | null;
+  promptValue: string;
+  promptError: string | null;
   isPending: boolean;
   onAction(action: DashboardWorkflowNeedsActionResponseAction): void;
+  onPromptChange(value: string): void;
+  onPromptCancel(): void;
+  onPromptSubmit(): void;
 }): JSX.Element {
   const responses = props.item.responses.filter(isSupportedNeedsActionResponse);
+  const activePromptAction = responses.find((action) => action.action_id === props.activePromptActionId) ?? null;
+  const promptMeta = buildPromptMeta(activePromptAction);
 
   return (
     <article className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
@@ -174,6 +136,10 @@ function NeedsActionCard(props: {
           Why it needs action
         </p>
         <p className="text-sm text-muted-foreground">{props.item.summary}</p>
+        <p className="text-xs text-muted-foreground">
+          Scope: {humanizeToken(props.item.target.target_kind)}
+          {props.item.requires_confirmation ? ' • Requires confirmation' : ''}
+        </p>
       </div>
       <div className="flex flex-wrap gap-2">
         {responses.map((action) => (
@@ -181,7 +147,13 @@ function NeedsActionCard(props: {
             key={action.action_id}
             type="button"
             size="sm"
-            variant={action.kind === 'reject_task' ? 'destructive' : action.kind === 'request_changes_task' ? 'outline' : 'default'}
+            variant={
+              action.kind === 'reject_task' || action.kind === 'reject_gate'
+                ? 'destructive'
+                : action.kind === 'request_changes_task' || action.kind === 'request_changes_gate'
+                  ? 'outline'
+                  : 'default'
+            }
             disabled={props.isPending}
             onClick={() => props.onAction(action)}
           >
@@ -189,6 +161,32 @@ function NeedsActionCard(props: {
           </Button>
         ))}
       </div>
+      {activePromptAction ? (
+        <div className="grid gap-3 rounded-xl border border-amber-300/60 bg-amber-100/60 p-3 dark:border-amber-500/40 dark:bg-amber-500/10">
+          <div className="grid gap-1">
+            <p className="text-sm font-semibold text-foreground">{promptMeta.title}</p>
+            {promptMeta.description ? (
+              <p className="text-sm text-muted-foreground">{promptMeta.description}</p>
+            ) : null}
+          </div>
+          <Textarea
+            value={props.promptValue}
+            onChange={(event) => props.onPromptChange(event.target.value)}
+            rows={4}
+            placeholder={promptMeta.placeholder}
+            aria-invalid={Boolean(props.promptError)}
+          />
+          {props.promptError ? <p className="text-sm text-destructive">{props.promptError}</p> : null}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={props.onPromptCancel} disabled={props.isPending}>
+              Cancel
+            </Button>
+            <Button type="button" onClick={props.onPromptSubmit} disabled={props.isPending}>
+              {promptMeta.confirmLabel}
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </article>
   );
 }

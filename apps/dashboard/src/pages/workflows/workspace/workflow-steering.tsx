@@ -72,24 +72,16 @@ export function WorkflowSteering(props: {
   return (
     <div className="grid gap-4">
       <section className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-foreground">Steering scope</p>
-            <p className="text-sm text-muted-foreground">
-              Steering records workflow, work item, and task guidance without duplicating the main workflow controls.
-            </p>
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline">
+            {props.selectedWorkItemId ? 'Work item scope' : 'Workflow scope'}
+          </Badge>
+          {props.sessionId ? <Badge variant="secondary">Open session</Badge> : null}
         </div>
-        <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
-          Use the top-right workflow controls for pause, cancel, redrive, and add/modify work. Use this tab for steering requests, responses, and steering history only.
-        </div>
-      </section>
-
-      <section className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4">
         <div className="grid gap-1">
           <p className="text-sm font-semibold text-foreground">Steering request</p>
           <p className="text-sm text-muted-foreground">
-            Requests become durable steering request and steering response records before the orchestrator acts on them.
+            Record durable requests, responses, and attachments for the current steering scope.
           </p>
         </div>
         <Textarea
@@ -124,7 +116,7 @@ export function WorkflowSteering(props: {
         <div className="grid gap-1">
           <p className="text-sm font-semibold text-foreground">Steering history</p>
           <p className="text-sm text-muted-foreground">
-            Session history stays inside the workflow and never mutates global system settings.
+            Review prior steering requests, responses, and interventions for this workflow scope.
           </p>
         </div>
         {historyEntries.length === 0 ? (

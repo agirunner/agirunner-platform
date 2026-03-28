@@ -22,6 +22,14 @@ describe('WorkflowAddWorkDialog source', () => {
     expect(source).toContain('Work item title');
   });
 
+  it('clarifies how workflow-scope add or modify work attaches new operator inputs', () => {
+    const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('workflow-scoped input packet');
+    expect(source).toContain('If you opened this from task scope');
+    expect(source).toContain('parent work item');
+  });
+
   it('creates new work with an embedded initial input packet instead of a second follow-up packet mutation', () => {
     const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
     const newWorkBranch = source.slice(

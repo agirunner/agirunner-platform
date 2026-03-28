@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -246,5 +247,12 @@ describe('WorkflowNeedsAction', () => {
     expect(html).toContain('Approval required');
     expect(html).toContain('Approve');
     expect(html).toContain('Request changes');
+  });
+
+  it('keeps prompt-based responses inside the needs-action surface instead of opening a dialog', () => {
+    const source = readFileSync(new URL('./workflow-needs-action.tsx', import.meta.url), 'utf8');
+
+    expect(source).not.toContain('DialogContent');
+    expect(source).not.toContain('DialogTitle');
   });
 });

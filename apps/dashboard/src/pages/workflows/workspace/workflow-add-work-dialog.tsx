@@ -142,6 +142,9 @@ export function WorkflowAddWorkDialog(props: {
     : props.lifecycle === 'ongoing'
       ? 'Add new incoming work, files, and typed inputs into this ongoing workflow.'
       : 'Add another planned work item with the inputs and files the orchestrator should use next.';
+  const scopeNote = isModifyMode
+    ? 'New inputs and files create a workflow-scoped input packet linked to this work item. If you opened this from task scope, changes still attach to the parent work item.'
+    : 'New inputs and files create a workflow-scoped input packet linked to the new work item.';
 
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
@@ -155,6 +158,11 @@ export function WorkflowAddWorkDialog(props: {
         </DialogHeader>
 
         <div className="grid gap-4">
+          <section className="grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-4 text-sm">
+            <strong className="text-foreground">How this attaches</strong>
+            <p className="text-muted-foreground">{scopeNote}</p>
+          </section>
+
           {isModifyMode ? (
             <section className="grid gap-2 rounded-2xl border border-border/70 bg-muted/10 p-4 text-sm">
               <strong className="text-foreground">{selectedWorkItem.title}</strong>
@@ -182,8 +190,8 @@ export function WorkflowAddWorkDialog(props: {
               <strong className="text-sm">{isModifyMode ? 'Editable inputs' : 'Typed inputs'}</strong>
               <p className="text-sm text-muted-foreground">
                 {isModifyMode
-                  ? 'These values become a durable input packet linked to the selected work item.'
-                  : 'These values become a durable workflow input packet linked to the new work item.'}
+                  ? 'These values become a durable workflow-scoped input packet linked to the selected work item.'
+                  : 'These values become a durable workflow-scoped input packet linked to the new work item.'}
               </p>
             </div>
             <ChainStructuredEntryEditor drafts={structuredDrafts} onChange={setStructuredDrafts} addLabel="Add structured input" />
@@ -205,7 +213,11 @@ export function WorkflowAddWorkDialog(props: {
             files={files}
             onChange={setFiles}
             label="Input files"
-            description="Attach immutable workflow-scoped files for this work item."
+            description={
+              isModifyMode
+                ? 'Attach immutable workflow-scoped files linked to the selected work item.'
+                : 'Attach immutable workflow-scoped files linked to the new work item.'
+            }
           />
 
           <FieldErrorText message={modifyWorkError} />

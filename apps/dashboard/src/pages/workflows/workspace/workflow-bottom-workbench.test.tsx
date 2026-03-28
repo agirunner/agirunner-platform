@@ -1,5 +1,6 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { DashboardWorkflowWorkspacePacket } from '../../../lib/api.js';
@@ -37,7 +38,9 @@ describe('WorkflowBottomWorkbench', () => {
     );
 
     expect(html).toContain('Workflow');
+    expect(html).toContain('Briefs');
     expect(html).not.toContain('Details, actions, steering, live updates, history, and deliverables stay in one place.');
+    expect(html).not.toContain('History');
     expect(html).not.toContain('Workspace</p>');
   });
 
@@ -79,6 +82,68 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).not.toContain('Back to work item');
     expect(html).not.toContain('Back to workflow');
     expect(html).not.toContain('Workflow 1</h3>');
+  });
+
+  it('keeps steering focused on requests and history instead of header-control reminders', () => {
+    const packet = createPacket();
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBottomWorkbench, {
+          workflowId: 'workflow-1',
+          workflow: packet.workflow,
+          stickyStrip: packet.sticky_strip,
+          board: packet.board,
+          workflowName: 'Workflow 1',
+          packet: {
+            ...packet,
+            steering: {
+              ...packet.steering,
+              session: {
+                session_id: 'session-1',
+                status: 'active',
+                messages: [
+                  {
+                    id: 'message-1',
+                    workflow_id: 'workflow-1',
+                    steering_session_id: 'session-1',
+                    content: 'Tighten the approval brief before re-running the review.',
+                    body: 'Tighten the approval brief before re-running the review.',
+                    created_by_type: 'user',
+                    created_by_id: 'user-1',
+                    created_at: '2026-03-28T03:01:00.000Z',
+                  },
+                ],
+              },
+            },
+          },
+          activeTab: 'steering',
+          selectedWorkItemId: null,
+          scopedWorkItemId: null,
+          selectedWorkItemTitle: null,
+          selectedTaskId: null,
+          selectedTaskTitle: null,
+          selectedWorkItem: null,
+          selectedTask: null,
+          selectedWorkItemTasks: [],
+          inputPackets: [],
+          workflowParameters: null,
+          onTabChange: vi.fn(),
+          onClearWorkItemScope: vi.fn(),
+          onClearTaskScope: vi.fn(),
+          onOpenAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onLoadMoreActivity: vi.fn(),
+          onLoadMoreDeliverables: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Steering request');
+    expect(html).toContain('Steering history');
+    expect(html).not.toContain('Use the top-right workflow controls');
+    expect(html).not.toContain('Steering scope');
   });
 });
 

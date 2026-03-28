@@ -41,8 +41,9 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain('Task');
     expect(html).toContain('Verify deliverable');
+    expect(html).toContain('Latest status');
+    expect(html).toContain('In Progress');
     expect(html).toContain('Workflow parameters');
     expect(html).toContain('Workflow inputs');
     expect(html).toContain('Work item inputs');
@@ -50,11 +51,11 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Rollback guide');
     expect(html).toContain('release/2026.03');
     expect(html).toContain('Inputs');
-    expect(html).toContain('Related tasks');
     expect(html).toContain('Launch • Operator');
     expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/80 p-4');
     expect(html).not.toContain('Workflow, work-item, and task inputs used for the current selection.');
     expect(html).not.toContain('Fields');
+    expect(html).not.toContain('Current scope');
     expect(html).not.toContain('Owner role');
     expect(html).not.toContain('Next expected actor');
     expect(html).not.toContain('Next expected action');
@@ -63,8 +64,44 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Updated');
     expect(html).not.toContain('Workflow details');
     expect(html).not.toContain('Work item details');
-    expect(html).not.toContain('1 tasks');
+    expect(html).not.toContain('Playbook');
+    expect(html).not.toContain('Workspace');
+    expect(html).not.toContain('Stage');
+    expect(html).not.toContain('Lane');
+    expect(html).not.toContain('Related tasks');
     expect(html).not.toContain('rounded-lg border border-border/70 bg-muted/5 px-3 py-2');
+  });
+
+  it('shows one compact task summary line for work-item scope instead of a full related-task list', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: createWorkItem(),
+        selectedTask: null,
+        selectedWorkItemTasks: [
+          { id: 'task-1', title: 'Verify deliverable', state: 'in_progress' },
+          { id: 'task-2', title: 'Rollback validation', state: 'blocked' },
+          { id: 'task-3', title: 'Archive release notes', state: 'completed' },
+        ],
+        inputPackets: createPackets(),
+        workflowParameters: null,
+      }),
+    );
+
+    expect(html).toContain('Task summary');
+    expect(html).toContain('1 active');
+    expect(html).toContain('1 blocked');
+    expect(html).toContain('1 completed');
+    expect(html).not.toContain('Verify deliverable</span>');
+    expect(html).not.toContain('Rollback validation</span>');
+    expect(html).not.toContain('Archive release notes</span>');
+    expect(html).not.toContain('Related tasks');
   });
 
   it('keeps scoped work-item packets visible before the selected work-item record finishes loading', () => {
@@ -87,6 +124,31 @@ describe('WorkflowDetails', () => {
 
     expect(html).toContain('Work item inputs');
     expect(html).toContain('Rollback guide');
+  });
+
+  it('omits the inputs section when the current scope has no operator-facing inputs yet', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [],
+        inputPackets: [],
+        workflowParameters: null,
+      }),
+    );
+
+    expect(html).toContain('Workflow');
+    expect(html).not.toContain('Inputs');
+    expect(html).not.toContain('Workflow parameters');
+    expect(html).not.toContain('Work item inputs');
+    expect(html).not.toContain('Task input');
   });
 });
 

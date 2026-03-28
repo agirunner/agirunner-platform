@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 
-import { Badge } from '../../../components/ui/badge.js';
 import type {
   DashboardMissionControlWorkflowCard,
   DashboardTaskRecord,
@@ -39,40 +38,22 @@ export function WorkflowDetails(props: {
     || hasStructuredContent(props.workflowParameters);
 
   return (
-    <section className="grid gap-4">
-      <header className="grid gap-3 border-b border-border/70 pb-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">{scope.scope_label}</Badge>
-            {scope.badges.map((badge) => (
-              <Badge key={`${scope.scope_label}:${badge}`} variant="secondary">
-                {badge}
-              </Badge>
-            ))}
-          </div>
-
-          <div className="grid gap-1">
-            <h3 className="text-base font-semibold text-foreground">{scope.title}</h3>
-            {scope.summary ? <p className="text-sm text-muted-foreground">{scope.summary}</p> : null}
-          </div>
-
-          {scope.callout ? (
-            <p className="text-sm font-medium text-amber-950 dark:text-amber-100">
-              {scope.callout}
-            </p>
-          ) : null}
-
-          {scope.rows.length > 0 ? (
-            <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
-              {scope.rows.map(([label, value]) => (
-                <div key={label} className="grid gap-0.5">
-                  <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                    {label}
-                  </dt>
-                  <dd className="text-sm text-foreground">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          ) : null}
+    <section className="grid gap-3">
+      <header className="grid gap-2">
+        <h3 className="text-base font-semibold text-foreground">{scope.title}</h3>
+        <div className="grid gap-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Latest status
+          </p>
+          <p className="text-sm text-muted-foreground">{scope.latest_status}</p>
+        </div>
+        {scope.task_summary ? (
+          <p className="text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">Task summary</span>
+            {' '}
+            {scope.task_summary}
+          </p>
+        ) : null}
       </header>
 
       {hasInputs ? (
@@ -91,27 +72,6 @@ export function WorkflowDetails(props: {
           ) : null}
         </DetailSection>
       ) : null}
-
-      {scope.related_tasks.length > 0 ? (
-        <DetailSection title="Related tasks">
-          <div className="grid gap-2">
-            {scope.related_tasks.map((task) => (
-              <div
-                key={task.id}
-                className={
-                  task.is_selected
-                    ? 'flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-100/90 px-3 py-2 text-sm dark:border-amber-500/60 dark:bg-amber-500/10'
-                    : 'flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-background/70 px-3 py-2 text-sm'
-                }
-              >
-                <span className="font-medium text-foreground">{task.title}</span>
-                {task.role ? <Badge variant="outline">{humanizeToken(task.role)}</Badge> : null}
-                {task.state ? <Badge variant="secondary">{humanizeToken(task.state)}</Badge> : null}
-              </div>
-            ))}
-          </div>
-        </DetailSection>
-      ) : null}
     </section>
   );
 }
@@ -122,7 +82,9 @@ function DetailSection(props: {
 }): JSX.Element {
   return (
     <section className="grid gap-3">
-      <p className="text-sm font-semibold text-foreground">{props.title}</p>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        {props.title}
+      </p>
       <div className="grid gap-3">{props.children}</div>
     </section>
   );
@@ -236,127 +198,96 @@ function buildDetailsScope(props: {
   selectedTask: DashboardTaskRecord | null;
   selectedWorkItemTasks: Record<string, unknown>[];
 }): {
-  scope_label: string;
   title: string;
-  summary: string | null;
-  badges: string[];
-  callout: string | null;
-  rows: Array<[string, string]>;
-  related_tasks: Array<{ id: string; title: string; role: string | null; state: string | null; is_selected: boolean }>;
+  latest_status: string;
+  task_summary: string | null;
 } {
   if (props.selectedTask || props.selectedTaskId) {
     return {
-      scope_label: 'Task',
       title:
         props.selectedTask?.title
         ?? props.selectedTaskTitle
         ?? props.selectedTaskId
         ?? 'Selected task',
-      summary: readOptionalText(props.selectedTask?.description),
-      badges: [
-        props.selectedTask?.role ? humanizeToken(props.selectedTask.role) : null,
-        humanizeToken(props.selectedTask?.state ?? ''),
-      ].filter((value): value is string => Boolean(value)),
-      callout: null,
-      rows: compactRows([
-        [
-          'Work item',
-          props.selectedTask?.work_item_title
-          ?? props.selectedWorkItemTitle
-          ?? props.selectedTask?.work_item_id
-          ?? props.selectedWorkItemId,
-        ],
-        ['Stage', props.selectedTask?.stage_name ? humanizeToken(props.selectedTask.stage_name) : null],
-      ]),
-      related_tasks: buildRelatedTasks(
-        props.selectedWorkItemTasks,
-        props.selectedTask?.id ?? props.selectedTaskId,
-      ),
+      latest_status: buildTaskLatestStatus(props.selectedTask),
+      task_summary: null,
     };
   }
 
   if (props.selectedWorkItem || props.selectedWorkItemId) {
     return {
-      scope_label: 'Work item',
       title:
         props.selectedWorkItem?.title
         ?? props.selectedWorkItemTitle
         ?? props.selectedWorkItemId
         ?? 'Selected work item',
-      summary:
-        readOptionalText(props.selectedWorkItem?.acceptance_criteria) ??
-        readOptionalText(props.selectedWorkItem?.goal) ??
-        readOptionalText(props.selectedWorkItem?.notes),
-      badges: [
-        props.selectedWorkItem?.stage_name ? humanizeToken(props.selectedWorkItem.stage_name) : null,
-        readColumnLabel(props.board, props.selectedWorkItem?.column_id),
-        shouldShowPriorityBadge(props.selectedWorkItem?.priority)
-          ? humanizeToken(props.selectedWorkItem?.priority ?? '')
-          : null,
-      ].filter((value): value is string => Boolean(value)),
-      callout:
-        readOptionalText(props.selectedWorkItem?.blocked_reason) ??
-        readOptionalText(props.selectedWorkItem?.gate_decision_feedback),
-      rows: compactRows([
-        ['Workflow', props.workflow.name],
-        ['Stage', props.selectedWorkItem?.stage_name ? humanizeToken(props.selectedWorkItem.stage_name) : null],
-        ['Lane', readColumnLabel(props.board, props.selectedWorkItem?.column_id)],
-      ]),
-      related_tasks: buildRelatedTasks(props.selectedWorkItemTasks, null),
+      latest_status: buildWorkItemLatestStatus(props.selectedWorkItem, props.selectedWorkItemTasks),
+      task_summary: buildTaskSummary(props.selectedWorkItemTasks),
     };
   }
 
   return {
-    scope_label: 'Workflow',
     title: props.workflow.name,
-    summary: readOptionalText(props.stickyStrip?.summary) ?? readOptionalText(props.workflow.pulse.summary),
-    badges: [
-      props.workflow.lifecycle ? humanizeToken(props.workflow.lifecycle) : null,
-      props.workflow.posture ? humanizeToken(props.workflow.posture) : null,
-    ].filter((value): value is string => Boolean(value)),
-    callout: null,
-    rows: compactRows([
-      ['Playbook', props.workflow.playbookName],
-      ['Workspace', props.workflow.workspaceName],
-    ]),
-    related_tasks: [],
+    latest_status:
+      readOptionalText(props.stickyStrip?.summary)
+      ?? readOptionalText(props.workflow.pulse.summary)
+      ?? 'Workflow is active.',
+    task_summary: null,
   };
 }
 
-function buildRelatedTasks(
-  tasks: Record<string, unknown>[],
-  selectedTaskId: string | null,
-): Array<{ id: string; title: string; role: string | null; state: string | null; is_selected: boolean }> {
-  return tasks.map((task) => ({
-    id: typeof task.id === 'string' ? task.id : 'unknown-task',
-    title: typeof task.title === 'string' ? task.title : 'Untitled task',
-    role: typeof task.role === 'string' ? task.role : null,
-    state: typeof task.state === 'string' ? task.state : null,
-    is_selected: typeof task.id === 'string' && task.id === selectedTaskId,
-  }));
-}
-
-function compactRows(rows: Array<[string, string | null | undefined]>): Array<[string, string]> {
-  const compacted: Array<[string, string]> = [];
-  for (const [label, value] of rows) {
-    if (typeof value !== 'string') {
-      continue;
-    }
-    const trimmed = value.trim();
-    if (trimmed.length === 0) {
-      continue;
-    }
-    compacted.push([label, trimmed]);
+function buildTaskLatestStatus(task: DashboardTaskRecord | null): string {
+  if (!task) {
+    return 'Task details are loading.';
   }
-  return compacted;
+  const parts = [humanizeToken(task.state)];
+  const role = readOptionalText(task.role);
+  if (role) {
+    parts.push(`for ${humanizeToken(role)}`);
+  }
+  return parts.join(' ');
 }
 
-function readColumnLabel(board: DashboardWorkflowBoardResponse | null, columnId: string | null | undefined): string | null {
-  if (!columnId) {
+function buildWorkItemLatestStatus(
+  workItem: DashboardWorkflowWorkItemRecord | null,
+  tasks: Record<string, unknown>[],
+): string {
+  const blockedReason =
+    readOptionalText(workItem?.blocked_reason) ?? readOptionalText(workItem?.gate_decision_feedback);
+  if (blockedReason) {
+    return blockedReason;
+  }
+  const summary = buildTaskSummary(tasks);
+  return summary ? `Current task load: ${summary}.` : 'Work item details are loading.';
+}
+
+function buildTaskSummary(tasks: Record<string, unknown>[]): string | null {
+  if (tasks.length === 0) {
     return null;
   }
-  const column = board?.columns.find((entry) => entry.id === columnId);
-  return column?.label ?? humanizeToken(columnId);
+  let activeCount = 0;
+  let blockedCount = 0;
+  let completedCount = 0;
+
+  for (const task of tasks) {
+    const state = typeof task.state === 'string' ? task.state.trim().toLowerCase() : '';
+    if (isCompletedState(state)) {
+      completedCount += 1;
+      continue;
+    }
+    if (isBlockedState(state)) {
+      blockedCount += 1;
+      continue;
+    }
+    activeCount += 1;
+  }
+
+  const segments = [
+    `${activeCount} active`,
+    `${blockedCount} blocked`,
+    `${completedCount} completed`,
+  ];
+  return segments.join(' • ');
 }
 
 function hasStructuredContent(value: unknown): boolean {
@@ -416,10 +347,10 @@ function humanizeToken(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-function shouldShowPriorityBadge(priority: string | null | undefined): boolean {
-  if (!priority) {
-    return false;
-  }
-  const normalized = priority.trim().toLowerCase();
-  return normalized !== 'medium' && normalized !== 'normal';
+function isBlockedState(state: string): boolean {
+  return state === 'blocked' || state === 'waiting' || state === 'needs_attention';
+}
+
+function isCompletedState(state: string): boolean {
+  return state === 'completed' || state === 'done' || state === 'succeeded';
 }
