@@ -291,6 +291,11 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
     lines.push(
       'Every operator record write must include a unique request_id. Reuse a request_id only for an intentional retry of the same write.',
     );
+    if (brief.operator_visibility.task_id) {
+      lines.push(
+        `Use request_id values with the pattern handoff:${brief.operator_visibility.task_id}:<handoff-slug> for submit_handoff writes on this task. Reuse the same request_id only for an intentional retry of that exact same handoff payload.`,
+      );
+    }
     if (brief.operator_visibility.turn_updates_required && brief.operator_visibility.record_operator_update_tool) {
       if (brief.operator_visibility.turn_update_scope === 'per_eligible_turn') {
         lines.push(

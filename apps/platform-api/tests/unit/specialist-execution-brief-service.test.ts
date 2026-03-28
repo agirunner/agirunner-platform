@@ -212,6 +212,9 @@ describe('buildSpecialistExecutionBrief', () => {
       'Every operator record write must include a unique request_id.',
     );
     expect(brief?.rendered_markdown).toContain(
+      'Use request_id values with the pattern handoff:task-review-1:<handoff-slug> for submit_handoff writes on this task.',
+    );
+    expect(brief?.rendered_markdown).toContain(
       'Enhanced live visibility requires one record_operator_update on every eligible turn',
     );
     expect(brief?.rendered_markdown).toContain(
