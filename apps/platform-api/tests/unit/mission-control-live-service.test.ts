@@ -275,6 +275,86 @@ describe('MissionControlLiveService', () => {
     expect(response.sections[0]?.workflows[0]?.pulse.summary).toBe('Orchestrator working');
   });
 
+  it('treats entry-lane work as pending rather than active in the live signal query', async () => {
+    const pool = createSequencedPool([
+      { rows: [{ latest_event_id: 11 }], rowCount: 1 },
+      {
+        rows: [
+          {
+            id: 'workflow-queued',
+            name: 'Queued Workflow',
+            state: 'pending',
+            lifecycle: 'planned',
+            current_stage: null,
+            workspace_id: 'workspace-1',
+            workspace_name: 'Core Product',
+            playbook_id: 'playbook-1',
+            playbook_name: 'Release',
+            parameters: {},
+            context: {},
+            updated_at: '2026-03-27T04:00:00.000Z',
+          },
+        ],
+        rowCount: 1,
+      },
+      {
+        rows: [
+          {
+            workflow_id: 'workflow-queued',
+            waiting_for_decision_count: 0,
+            open_escalation_count: 0,
+            blocked_work_item_count: 0,
+            failed_task_count: 0,
+            active_task_count: 0,
+            active_work_item_count: 0,
+            pending_work_item_count: 1,
+            recoverable_issue_count: 0,
+          },
+        ],
+        rowCount: 1,
+      },
+      { rows: [], rowCount: 0 },
+      { rows: [], rowCount: 0 },
+    ]);
+
+    const service = new MissionControlLiveService(pool as never);
+    const response = await service.getLive('tenant-1');
+
+    expect(pool.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining("w.playbook_id IS NOT NULL"),
+      expect.any(Array),
+    );
+    expect(pool.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining("wi.column_id <> board_config.entry_column_id"),
+      expect.any(Array),
+    );
+    expect(pool.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining("wi.column_id = board_config.entry_column_id"),
+      expect.any(Array),
+    );
+    expect(response.sections).toEqual([
+      expect.objectContaining({
+        id: 'waiting',
+        workflows: [
+          expect.objectContaining({
+            id: 'workflow-queued',
+            posture: 'waiting_by_design',
+            pulse: expect.objectContaining({
+              summary: 'Workflow is queued for the next workflow event',
+            }),
+            metrics: expect.objectContaining({
+              activeTaskCount: 0,
+              activeWorkItemCount: 0,
+            }),
+          }),
+        ],
+      }),
+    ]);
+  });
+
   it('excludes orchestrator tasks from active task counts in workflow signals', async () => {
     const pool = createSequencedPool([
       { rows: [{ latest_event_id: 10 }], rowCount: 1 },

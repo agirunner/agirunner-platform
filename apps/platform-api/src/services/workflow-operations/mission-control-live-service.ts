@@ -257,6 +257,17 @@ export class MissionControlLiveService {
               COALESCE(recovery_summary.recoverable_issue_count, 0)::int AS recoverable_issue_count
          FROM workflows w
          LEFT JOIN LATERAL (
+           SELECT COALESCE(
+                    NULLIF(pb.definition->'board'->>'entry_column_id', ''),
+                    pb.definition->'board'->'columns'->0->>'id'
+                  ) AS entry_column_id
+             FROM playbooks pb
+            WHERE pb.tenant_id = w.tenant_id
+              AND pb.id = w.playbook_id
+              AND w.playbook_id IS NOT NULL
+            LIMIT 1
+         ) board_config ON true
+         LEFT JOIN LATERAL (
            SELECT COUNT(*) FILTER (WHERE state IN ('awaiting_approval', 'output_pending_assessment'))::int AS waiting_for_decision_count,
                   COUNT(*) FILTER (WHERE state = 'failed')::int AS failed_task_count,
                   COUNT(*) FILTER (WHERE state IN ('ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment'))::int AS active_task_count
@@ -274,9 +285,19 @@ export class MissionControlLiveService {
                         OR gate_status IN ('blocked', 'request_changes', 'changes_requested', 'rejected')
                       )
                   )::int AS blocked_work_item_count,
-                  COUNT(*) FILTER (WHERE completed_at IS NULL)::int AS active_work_item_count,
-                  COUNT(*) FILTER (WHERE completed_at IS NULL)::int AS pending_work_item_count
-             FROM workflow_work_items
+                  COUNT(*) FILTER (
+                    WHERE completed_at IS NULL
+                      AND board_config.entry_column_id IS NOT NULL
+                      AND wi.column_id <> board_config.entry_column_id
+                  )::int AS active_work_item_count,
+                  COUNT(*) FILTER (
+                    WHERE completed_at IS NULL
+                      AND (
+                        board_config.entry_column_id IS NULL
+                        OR wi.column_id = board_config.entry_column_id
+                      )
+                  )::int AS pending_work_item_count
+             FROM workflow_work_items wi
             WHERE tenant_id = w.tenant_id
               AND workflow_id = w.id
          ) work_item_summary ON true

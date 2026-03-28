@@ -50,6 +50,10 @@ describe('mission control action availability', () => {
           kind: 'add_work_item',
           enabled: false,
         }),
+        expect.objectContaining({
+          kind: 'request_replan',
+          enabled: false,
+        }),
       ]),
     );
   });
@@ -95,6 +99,24 @@ describe('mission control action availability', () => {
         expect.objectContaining({ kind: 'resume_workflow', enabled: false }),
         expect.objectContaining({ kind: 'cancel_workflow', enabled: false }),
         expect.objectContaining({ kind: 'add_work_item', enabled: false }),
+      ]),
+    );
+  });
+
+  it('only exposes resume and cancel lifecycle controls while a workflow is paused', () => {
+    const actions = deriveWorkflowActionAvailability({
+      workflowState: 'paused',
+      posture: 'paused',
+    });
+
+    expect(actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'pause_workflow', enabled: false }),
+        expect.objectContaining({ kind: 'resume_workflow', enabled: true }),
+        expect.objectContaining({ kind: 'cancel_workflow', enabled: true }),
+        expect.objectContaining({ kind: 'add_work_item', enabled: false }),
+        expect.objectContaining({ kind: 'request_replan', enabled: false }),
+        expect.objectContaining({ kind: 'spawn_child_workflow', enabled: false }),
       ]),
     );
   });

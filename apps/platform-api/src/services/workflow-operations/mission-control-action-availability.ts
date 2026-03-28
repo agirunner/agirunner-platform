@@ -52,19 +52,19 @@ export function deriveWorkflowActionAvailability(
     ),
     buildWorkflowAction(
       'add_work_item',
-      canAddWork(input.posture),
+      canAddWork(input.workflowState, input.posture, hasCancelRequest),
       'standard_confirm',
       stale,
     ),
     buildWorkflowAction(
       'request_replan',
-      canReplan(input.posture),
+      canReplan(input.workflowState, input.posture, hasCancelRequest),
       'standard_confirm',
       stale,
     ),
     buildWorkflowAction(
       'spawn_child_workflow',
-      canSpawnChildWorkflow(input.posture),
+      canSpawnChildWorkflow(input.workflowState, input.posture, hasCancelRequest),
       'high_impact_confirm',
       stale,
     ),
@@ -97,7 +97,11 @@ function canPause(
   posture: MissionControlWorkflowPosture,
   hasCancelRequest: boolean,
 ): boolean {
-  return workflowState !== 'paused' && !isTerminalState(workflowState) && posture !== 'paused' && !hasCancelRequest;
+  return (
+    (workflowState === 'pending' || workflowState === 'active')
+    && posture !== 'paused'
+    && !hasCancelRequest
+  );
 }
 
 function canResume(
@@ -109,19 +113,33 @@ function canResume(
 }
 
 function canCancel(workflowState: string, hasCancelRequest: boolean): boolean {
-  return !isTerminalState(workflowState) && !hasCancelRequest;
+  return !isTerminalState(workflowState)
+    && workflowState !== 'cancelling'
+    && !hasCancelRequest;
 }
 
-function canAddWork(posture: MissionControlWorkflowPosture): boolean {
-  return posture !== 'terminal_failed' && posture !== 'completed' && posture !== 'cancelled' && posture !== 'cancelling';
+function canAddWork(
+  workflowState: string,
+  posture: MissionControlWorkflowPosture,
+  hasCancelRequest: boolean,
+): boolean {
+  return canSteerWorkflow(workflowState, posture, hasCancelRequest);
 }
 
-function canReplan(posture: MissionControlWorkflowPosture): boolean {
-  return posture !== 'completed' && posture !== 'cancelled' && posture !== 'cancelling';
+function canReplan(
+  workflowState: string,
+  posture: MissionControlWorkflowPosture,
+  hasCancelRequest: boolean,
+): boolean {
+  return canSteerWorkflow(workflowState, posture, hasCancelRequest);
 }
 
-function canSpawnChildWorkflow(posture: MissionControlWorkflowPosture): boolean {
-  return posture !== 'completed' && posture !== 'cancelled' && posture !== 'terminal_failed' && posture !== 'cancelling';
+function canSpawnChildWorkflow(
+  workflowState: string,
+  posture: MissionControlWorkflowPosture,
+  hasCancelRequest: boolean,
+): boolean {
+  return canSteerWorkflow(workflowState, posture, hasCancelRequest);
 }
 
 function canRetryTask(taskState: string, posture: MissionControlWorkflowPosture): boolean {
@@ -144,6 +162,18 @@ function isStale(version: VersionSnapshot | undefined): boolean {
 
 function isTerminalState(workflowState: string): boolean {
   return workflowState === 'completed' || workflowState === 'cancelled' || workflowState === 'failed';
+}
+
+function canSteerWorkflow(
+  workflowState: string,
+  posture: MissionControlWorkflowPosture,
+  hasCancelRequest: boolean,
+): boolean {
+  return !isTerminalState(workflowState)
+    && workflowState !== 'paused'
+    && posture !== 'paused'
+    && posture !== 'cancelling'
+    && !hasCancelRequest;
 }
 
 function buildWorkflowAction(
