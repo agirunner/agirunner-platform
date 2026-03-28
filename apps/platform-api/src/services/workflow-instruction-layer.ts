@@ -12,6 +12,7 @@ interface WorkflowContextLike {
   lifecycle?: unknown;
   active_stages?: unknown;
   current_stage?: unknown;
+  live_visibility?: unknown;
   variables?: unknown;
   playbook?: unknown;
   playbook_definition?: unknown;
