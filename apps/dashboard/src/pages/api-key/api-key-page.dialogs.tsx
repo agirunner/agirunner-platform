@@ -39,6 +39,7 @@ export function CreateApiKeyDialog(props: {
   const [label, setLabel] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
   const [hasNoExpiry, setHasNoExpiry] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
 
@@ -64,6 +65,7 @@ export function CreateApiKeyDialog(props: {
     setLabel('');
     setExpiryDate('');
     setHasNoExpiry(false);
+    setHasAttemptedSubmit(false);
     setCreatedKey(null);
     setHasCopied(false);
     props.onClose();
@@ -72,6 +74,7 @@ export function CreateApiKeyDialog(props: {
   function handleSubmit(event: React.FormEvent): void {
     event.preventDefault();
     if (!hasNoExpiry && !expiryDate) {
+      setHasAttemptedSubmit(true);
       return;
     }
 
@@ -160,6 +163,7 @@ export function CreateApiKeyDialog(props: {
                   min={new Date().toISOString().slice(0, 10)}
                   disabled={hasNoExpiry}
                   onChange={(event) => setExpiryDate(event.target.value)}
+                  aria-invalid={Boolean(hasAttemptedSubmit && !hasNoExpiry && !expiryDate)}
                 />
                 <label className="flex items-center gap-2 text-sm text-muted">
                   <input
@@ -169,6 +173,11 @@ export function CreateApiKeyDialog(props: {
                   />
                   <span>No expiry</span>
                 </label>
+                {hasAttemptedSubmit && !hasNoExpiry && !expiryDate ? (
+                  <p className="text-xs text-red-600 dark:text-red-400">
+                    Select an expiry date or choose no expiry.
+                  </p>
+                ) : null}
               </div>
             </div>
             <div className="space-y-2">
@@ -195,7 +204,7 @@ export function CreateApiKeyDialog(props: {
               <Button type="button" variant="outline" onClick={resetAndClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={mutation.isPending || (!hasNoExpiry && !expiryDate)}>
+              <Button type="submit" disabled={mutation.isPending}>
                 {mutation.isPending ? 'Creating...' : 'Create API key'}
               </Button>
             </div>

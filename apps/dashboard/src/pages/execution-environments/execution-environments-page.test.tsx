@@ -133,4 +133,15 @@ describe('execution environments page source', () => {
     expect(pageSource).toContain('<CardContent className="px-4 py-4 text-sm">');
     expect(pageSource).not.toContain('bg-muted/10');
   });
+
+  it('keeps the create and edit dialog submit enabled while surfacing validation only after save is attempted', () => {
+    const dialogSource = readSource('./execution-environments-dialog.tsx');
+
+    expect(dialogSource).toContain('const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);');
+    expect(dialogSource).toContain('setHasAttemptedSubmit(true);');
+    expect(dialogSource).toContain(
+      'aria-invalid={Boolean(hasAttemptedSubmit && validationErrors.name)}',
+    );
+    expect(dialogSource).toContain('type="submit" disabled={props.isPending}');
+  });
 });

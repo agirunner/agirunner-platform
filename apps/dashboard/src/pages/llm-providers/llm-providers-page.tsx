@@ -585,6 +585,7 @@ function AddProviderDialog(props: { existingNames: string[] }): JSX.Element {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [form, setForm] = useState<AddProviderDraft>(INITIAL_FORM);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const validation = validateAddProviderDraft(form, {
     existingNames: props.existingNames,
   });
@@ -608,6 +609,7 @@ function AddProviderDialog(props: { existingNames: string[] }): JSX.Element {
     setIsOpen(nextOpen);
     if (!nextOpen) {
       setForm(INITIAL_FORM);
+      setHasAttemptedSubmit(false);
       mutation.reset();
     }
   }
@@ -654,19 +656,13 @@ function AddProviderDialog(props: { existingNames: string[] }): JSX.Element {
           onSubmit={(e) => {
             e.preventDefault();
             if (!validation.isValid) {
+              setHasAttemptedSubmit(true);
               return;
             }
             mutation.mutate();
           }}
         >
-          <section
-            className={
-              validation.isValid
-                ? `${DIALOG_ALERT_CLASS_NAME} p-4`
-                : `${DIALOG_ALERT_CLASS_NAME} p-4`
-            }
-            style={validation.isValid ? SUCCESS_PANEL_STYLE : WARNING_PANEL_STYLE}
-          >
+          <section className="space-y-3 rounded-xl border border-border/70 bg-border/10 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-1">
                 <h3 className="text-sm font-semibold">Provider setup</h3>
@@ -677,17 +673,9 @@ function AddProviderDialog(props: { existingNames: string[] }): JSX.Element {
                 <Badge variant="outline">{providerSetup.authLabel}</Badge>
               </div>
             </div>
-            {!validation.isValid ? (
-              <ul className="mt-3 space-y-1">
-                {validation.issues.map((issue) => (
-                  <li key={issue}>• {issue}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-3 text-sm text-muted">
-                This provider is ready to save with the current settings.
-              </p>
-            )}
+            <p className="text-xs text-muted">
+              Required provider details are highlighted under each field after you try to save.
+            </p>
           </section>
 
           <div className="space-y-2">
@@ -735,14 +723,14 @@ function AddProviderDialog(props: { existingNames: string[] }): JSX.Element {
               placeholder="My Provider"
               value={form.name}
               className={
-                validation.fieldErrors.name
+                hasAttemptedSubmit && validation.fieldErrors.name
                   ? 'border-red-300 focus-visible:ring-red-500'
                   : undefined
               }
-              aria-invalid={validation.fieldErrors.name ? true : undefined}
+              aria-invalid={hasAttemptedSubmit && validation.fieldErrors.name ? true : undefined}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
             />
-            {validation.fieldErrors.name ? (
+            {hasAttemptedSubmit && validation.fieldErrors.name ? (
               <p className={FIELD_ERROR_CLASS_NAME} style={ERROR_TEXT_STYLE}>
                 {validation.fieldErrors.name}
               </p>
@@ -767,14 +755,14 @@ function AddProviderDialog(props: { existingNames: string[] }): JSX.Element {
               }
               value={form.baseUrl}
               className={
-                validation.fieldErrors.baseUrl
+                hasAttemptedSubmit && validation.fieldErrors.baseUrl
                   ? 'border-red-300 focus-visible:ring-red-500'
                   : undefined
               }
-              aria-invalid={validation.fieldErrors.baseUrl ? true : undefined}
+              aria-invalid={hasAttemptedSubmit && validation.fieldErrors.baseUrl ? true : undefined}
               onChange={(e) => setForm((prev) => ({ ...prev, baseUrl: e.target.value }))}
             />
-            {validation.fieldErrors.baseUrl ? (
+            {hasAttemptedSubmit && validation.fieldErrors.baseUrl ? (
               <p className={FIELD_ERROR_CLASS_NAME} style={ERROR_TEXT_STYLE}>
                 {validation.fieldErrors.baseUrl}
               </p>
@@ -802,14 +790,14 @@ function AddProviderDialog(props: { existingNames: string[] }): JSX.Element {
               }
               value={form.apiKey}
               className={
-                validation.fieldErrors.apiKey
+                hasAttemptedSubmit && validation.fieldErrors.apiKey
                   ? 'border-red-300 focus-visible:ring-red-500'
                   : undefined
               }
-              aria-invalid={validation.fieldErrors.apiKey ? true : undefined}
+              aria-invalid={hasAttemptedSubmit && validation.fieldErrors.apiKey ? true : undefined}
               onChange={(e) => setForm((prev) => ({ ...prev, apiKey: e.target.value }))}
             />
-            {validation.fieldErrors.apiKey ? (
+            {hasAttemptedSubmit && validation.fieldErrors.apiKey ? (
               <p className={FIELD_ERROR_CLASS_NAME} style={ERROR_TEXT_STYLE}>
                 {validation.fieldErrors.apiKey}
               </p>
@@ -828,7 +816,7 @@ function AddProviderDialog(props: { existingNames: string[] }): JSX.Element {
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending || !validation.isValid}>
+            <Button type="submit" disabled={mutation.isPending}>
               {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
               Add Provider
             </Button>

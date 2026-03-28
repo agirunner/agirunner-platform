@@ -56,6 +56,7 @@ export function SkillsPageDialog(props: {
   submitLabel: 'Create Skill' | 'Save Skill';
   form: SkillFormState;
   validation: SkillFormValidation;
+  showValidationErrors: boolean;
   isPending: boolean;
   onOpenChange(open: boolean): void;
   onFormChange(next: SkillFormState): void;
@@ -84,9 +85,9 @@ export function SkillsPageDialog(props: {
               onChange={(event) => {
                 props.onFormChange({ ...props.form, name: event.target.value });
               }}
-              aria-invalid={Boolean(props.validation.fieldErrors.name)}
+              aria-invalid={Boolean(props.showValidationErrors && props.validation.fieldErrors.name)}
             />
-            {props.validation.fieldErrors.name ? (
+            {props.showValidationErrors && props.validation.fieldErrors.name ? (
               <span className="text-xs text-red-600 dark:text-red-400">
                 {props.validation.fieldErrors.name}
               </span>
@@ -109,9 +110,9 @@ export function SkillsPageDialog(props: {
               onChange={(event) => {
                 props.onFormChange({ ...props.form, content: event.target.value });
               }}
-              aria-invalid={Boolean(props.validation.fieldErrors.content)}
+              aria-invalid={Boolean(props.showValidationErrors && props.validation.fieldErrors.content)}
             />
-            {props.validation.fieldErrors.content ? (
+            {props.showValidationErrors && props.validation.fieldErrors.content ? (
               <span className="text-xs text-red-600 dark:text-red-400">
                 {props.validation.fieldErrors.content}
               </span>
@@ -121,7 +122,7 @@ export function SkillsPageDialog(props: {
             <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={props.isPending || !props.validation.isValid}>
+            <Button type="submit" disabled={props.isPending}>
               {props.submitLabel}
             </Button>
           </div>

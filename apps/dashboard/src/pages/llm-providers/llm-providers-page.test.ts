@@ -314,6 +314,13 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).not.toContain('dark:text-red-300');
     expect(source).not.toContain('dark:bg-slate-950/80');
   });
+
+  it('keeps add-provider submit enabled while surfacing field validation only after save is attempted', () => {
+    expect(source).toContain('const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);');
+    expect(source).toContain('Required provider details are highlighted under each field after you try to save.');
+    expect(source).toContain('type="submit" disabled={mutation.isPending}');
+    expect(source).not.toContain('This provider is ready to save with the current settings.');
+  });
 });
 
 /* ─── Provider type auto-fill mapping ───────────────────────────────────── */

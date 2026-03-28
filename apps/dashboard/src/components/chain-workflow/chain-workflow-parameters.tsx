@@ -20,6 +20,7 @@ import { Textarea } from '../ui/textarea.js';
 export function ChainParameterField(props: {
   spec: LaunchParameterSpec;
   value: string;
+  error?: string;
   onChange(value: string): void;
 }): JSX.Element {
   return (
@@ -35,7 +36,14 @@ export function ChainParameterField(props: {
           </span>
         </div>
       </div>
-      <Input value={props.value} onChange={(event) => props.onChange(event.target.value)} />
+      <Input
+        value={props.value}
+        onChange={(event) => props.onChange(event.target.value)}
+        aria-invalid={Boolean(props.error)}
+      />
+      {props.error ? (
+        <p className="text-xs text-red-600 dark:text-red-400">{props.error}</p>
+      ) : null}
     </div>
   );
 }

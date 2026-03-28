@@ -95,8 +95,8 @@ describe('role definitions page source', () => {
     const source = readCombinedSource();
     expect(source).toContain('Model assignment');
     expect(source).toContain('Active specialist');
-    expect(source).toContain('Save readiness');
-    expect(source).toContain('Resolve these specialist setup issues before saving.');
+    expect(source).toContain('Setup summary');
+    expect(source).toContain('Fix the highlighted fields before saving this specialist.');
     expect(source).toContain('Choose a unique specialist name.');
     expect(source).toContain('Remote MCP servers');
     expect(source).toContain('Skills');

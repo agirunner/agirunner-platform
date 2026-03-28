@@ -24,5 +24,11 @@ describe('api key management page source', () => {
     expect(source).toContain('Copy');
     expect(source).toContain('Revoke API Key');
   });
-});
 
+  it('shows create-key expiry validation after submit is attempted instead of disabling the create action', () => {
+    const source = readSource();
+    expect(source).toContain('const [hasAttemptedCreateSubmit, setHasAttemptedCreateSubmit] = useState(false);');
+    expect(source).toContain('Select an expiry date.');
+    expect(source).toContain('type="submit" disabled={createMutation.isPending}');
+  });
+});

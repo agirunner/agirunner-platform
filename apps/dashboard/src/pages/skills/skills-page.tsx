@@ -50,6 +50,7 @@ export function SkillsPage(): JSX.Element {
   const queryClient = useQueryClient();
   const [dialogState, setDialogState] = useState<DialogState | null>(null);
   const [form, setForm] = useState<SkillFormState>(createSkillFormState());
+  const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
   const [deletingSkill, setDeletingSkill] = useState<DashboardSpecialistSkillRecord | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_LIST_PAGE_SIZE);
@@ -64,9 +65,6 @@ export function SkillsPage(): JSX.Element {
       if (!dialogState) {
         throw new Error('Open the skill dialog before saving.');
       }
-      if (!validation.isValid) {
-        throw new Error('Complete the required skill fields before saving.');
-      }
       const payload = buildSkillPayload(form);
       if (dialogState.mode === 'create') {
         return createSpecialistSkill(payload);
@@ -77,6 +75,7 @@ export function SkillsPage(): JSX.Element {
       await queryClient.invalidateQueries({ queryKey: ['specialist-skills'] });
       setDialogState(null);
       setForm(createSkillFormState());
+      setHasAttemptedSave(false);
       toast.success(
         dialogState?.mode === 'edit'
           ? `Updated skill ${skill.name}.`
@@ -140,6 +139,7 @@ export function SkillsPage(): JSX.Element {
             onClick={() => {
               setDialogState({ mode: 'create', skill: null });
               setForm(createSkillFormState());
+              setHasAttemptedSave(false);
             }}
           >
             <Plus className="h-4 w-4" />
@@ -162,6 +162,7 @@ export function SkillsPage(): JSX.Element {
               onClick={() => {
                 setDialogState({ mode: 'create', skill: null });
                 setForm(createSkillFormState());
+                setHasAttemptedSave(false);
               }}
             >
               <Plus className="h-4 w-4" />
@@ -193,6 +194,7 @@ export function SkillsPage(): JSX.Element {
                             onClick={() => {
                               setDialogState({ mode: 'edit', skill });
                               setForm(createSkillFormState(skill));
+                              setHasAttemptedSave(false);
                             }}
                           >
                             <Pencil className="h-4 w-4" />
@@ -231,15 +233,23 @@ export function SkillsPage(): JSX.Element {
         submitLabel={dialogState?.mode === 'edit' ? 'Save Skill' : 'Create Skill'}
         form={form}
         validation={validation}
+        showValidationErrors={hasAttemptedSave}
         isPending={saveMutation.isPending}
         onOpenChange={(open) => {
           if (!open) {
             setDialogState(null);
             setForm(createSkillFormState());
+            setHasAttemptedSave(false);
           }
         }}
         onFormChange={setForm}
-        onSubmit={() => saveMutation.mutate()}
+        onSubmit={() => {
+          if (!validation.isValid) {
+            setHasAttemptedSave(true);
+            return;
+          }
+          saveMutation.mutate();
+        }}
       />
 
       <Dialog

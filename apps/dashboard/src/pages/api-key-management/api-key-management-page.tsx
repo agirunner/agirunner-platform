@@ -94,6 +94,7 @@ function CreateApiKeyDialog(props: {
     const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     return nextWeek.toISOString().slice(0, 10);
   });
+  const [hasAttemptedCreateSubmit, setHasAttemptedCreateSubmit] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [hasCopied, setHasCopied] = useState(false);
 
@@ -115,6 +116,7 @@ function CreateApiKeyDialog(props: {
     setScope('agent');
     setOwnerType('user');
     setLabel('');
+    setHasAttemptedCreateSubmit(false);
     setHasCopied(false);
     setCreatedKey(null);
     props.onClose();
@@ -164,6 +166,10 @@ function CreateApiKeyDialog(props: {
             className="space-y-4"
             onSubmit={(event) => {
               event.preventDefault();
+              if (!expiresAt) {
+                setHasAttemptedCreateSubmit(true);
+                return;
+              }
               createMutation.mutate();
             }}
           >
@@ -214,7 +220,13 @@ function CreateApiKeyDialog(props: {
                 type="date"
                 value={expiresAt}
                 onChange={(event) => setExpiresAt(event.target.value)}
+                aria-invalid={Boolean(hasAttemptedCreateSubmit && !expiresAt)}
               />
+              {hasAttemptedCreateSubmit && !expiresAt ? (
+                <span className="text-xs text-red-600 dark:text-red-400">
+                  Select an expiry date.
+                </span>
+              ) : null}
             </label>
             {createMutation.isError ? (
               <p className="text-sm text-red-600">Failed to create API key.</p>
@@ -223,7 +235,7 @@ function CreateApiKeyDialog(props: {
               <Button type="button" variant="outline" onClick={resetAndClose}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={createMutation.isPending || !expiresAt}>
+              <Button type="submit" disabled={createMutation.isPending}>
                 {createMutation.isPending ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" />

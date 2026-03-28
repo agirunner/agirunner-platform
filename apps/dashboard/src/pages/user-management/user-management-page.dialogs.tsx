@@ -43,6 +43,7 @@ export function CreateUserDialog(props: {
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [role, setRole] = useState<UserRole>('viewer');
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   const mutation = useMutation({
     mutationFn: props.registerUser,
@@ -59,11 +60,16 @@ export function CreateUserDialog(props: {
     },
   });
 
-  const canSubmit = Boolean(email.trim()) && Boolean(displayName.trim()) && !mutation.isPending;
+  const validationErrors = validateCreateUserDialog({
+    email,
+    displayName,
+  });
+  const canSubmit = Object.keys(validationErrors).length === 0;
 
   function handleSubmit(event: React.FormEvent): void {
     event.preventDefault();
     if (!canSubmit) {
+      setHasAttemptedSubmit(true);
       return;
     }
 
@@ -78,6 +84,7 @@ export function CreateUserDialog(props: {
     setEmail('');
     setDisplayName('');
     setRole('viewer');
+    setHasAttemptedSubmit(false);
     props.onClose();
   }
 
@@ -90,7 +97,7 @@ export function CreateUserDialog(props: {
             Add a platform user with the narrowest role that still fits their operational responsibilities.
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label htmlFor="user-email" className="text-sm font-medium">
@@ -102,8 +109,11 @@ export function CreateUserDialog(props: {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="user@example.com"
-                required
+                aria-invalid={Boolean(hasAttemptedSubmit && validationErrors.email)}
               />
+              {hasAttemptedSubmit && validationErrors.email ? (
+                <p className="text-xs text-red-600 dark:text-red-400">{validationErrors.email}</p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <label htmlFor="user-name" className="text-sm font-medium">
@@ -114,8 +124,13 @@ export function CreateUserDialog(props: {
                 value={displayName}
                 onChange={(event) => setDisplayName(event.target.value)}
                 placeholder="Jane Doe"
-                required
+                aria-invalid={Boolean(hasAttemptedSubmit && validationErrors.displayName)}
               />
+              {hasAttemptedSubmit && validationErrors.displayName ? (
+                <p className="text-xs text-red-600 dark:text-red-400">
+                  {validationErrors.displayName}
+                </p>
+              ) : null}
             </div>
           </div>
           <div className="space-y-2">
@@ -141,7 +156,7 @@ export function CreateUserDialog(props: {
             <Button type="button" variant="outline" onClick={resetAndClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={!canSubmit}>
+            <Button type="submit" disabled={mutation.isPending}>
               {mutation.isPending ? 'Creating...' : 'Create user'}
             </Button>
           </div>
@@ -149,6 +164,31 @@ export function CreateUserDialog(props: {
       </DialogContent>
     </Dialog>
   );
+}
+
+function validateCreateUserDialog(input: {
+  email: string;
+  displayName: string;
+}): {
+  email?: string;
+  displayName?: string;
+} {
+  const errors: {
+    email?: string;
+    displayName?: string;
+  } = {};
+
+  if (!input.email.trim()) {
+    errors.email = 'Enter an email address.';
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email.trim())) {
+    errors.email = 'Enter a valid email address.';
+  }
+
+  if (!input.displayName.trim()) {
+    errors.displayName = 'Enter a display name.';
+  }
+
+  return errors;
 }
 
 export function EditUserDialog(props: {

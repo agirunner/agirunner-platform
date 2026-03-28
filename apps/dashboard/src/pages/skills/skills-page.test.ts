@@ -62,9 +62,15 @@ describe('skills page source', () => {
     expect(source).toContain("fieldErrors.name = 'Enter a skill name.';");
     expect(source).toContain("fieldErrors.content = 'Add the reusable skill content.';");
     expect(source).toContain('validation={validation}');
-    expect(source).toContain('aria-invalid={Boolean(props.validation.fieldErrors.name)}');
-    expect(source).toContain('aria-invalid={Boolean(props.validation.fieldErrors.content)}');
-    expect(source).toContain('disabled={props.isPending || !props.validation.isValid}');
+    expect(source).toContain('showValidationErrors={hasAttemptedSave}');
+    expect(source).toContain(
+      'aria-invalid={Boolean(props.showValidationErrors && props.validation.fieldErrors.name)}',
+    );
+    expect(source).toContain(
+      'aria-invalid={Boolean(props.showValidationErrors && props.validation.fieldErrors.content)}',
+    );
+    expect(source).toContain('setHasAttemptedSave(true);');
+    expect(source).toContain('disabled={props.isPending}');
   });
 
   it('uses the larger orchestrator-sized modal footprint for skill editing', () => {

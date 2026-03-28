@@ -66,4 +66,11 @@ describe('governance api key page source', () => {
     expect(source).toContain("worker: 'Specialist Agent'");
     expect(source).toContain("agent: 'Specialist Execution'");
   });
+
+  it('shows expiry validation after submit is attempted instead of disabling key creation', () => {
+    const source = readSource();
+    expect(source).toContain('const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);');
+    expect(source).toContain('Select an expiry date or choose no expiry.');
+    expect(source).toContain('type="submit" disabled={mutation.isPending}');
+  });
 });

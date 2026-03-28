@@ -42,6 +42,7 @@ export function CreateGrantDialog(props: {
   const [workflowId, setWorkflowId] = useState('');
   const [expiresAt, setExpiresAt] = useState('');
   const [permissions, setPermissions] = useState<string[]>([]);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const agentsQuery = useQuery({
     queryKey: ['agent-grant-options'],
     queryFn: () => dashboardApi.listAgents(),
@@ -68,6 +69,7 @@ export function CreateGrantDialog(props: {
     setWorkflowId('');
     setExpiresAt('');
     setPermissions([]);
+    setHasAttemptedSubmit(false);
     props.onClose();
   }
 
@@ -81,7 +83,8 @@ export function CreateGrantDialog(props: {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
-    if (!agentId.trim() || !workflowId.trim() || permissions.length === 0) {
+    if (!validation.isValid) {
+      setHasAttemptedSubmit(true);
       return;
     }
     mutation.mutate({
@@ -96,10 +99,12 @@ export function CreateGrantDialog(props: {
   const workflows = sortWorkflows(workflowsQuery.data?.data ?? []);
   const selectedAgent = findAgent(agents, agentId);
   const selectedWorkflow = findWorkflow(workflows, workflowId);
+  const validation = validateCreateGrantDialog({
+    agentId,
+    workflowId,
+    permissions,
+  });
   const canSubmit =
-    Boolean(agentId.trim()) &&
-    Boolean(workflowId.trim()) &&
-    permissions.length > 0 &&
     !mutation.isPending &&
     !agentsQuery.isLoading &&
     !workflowsQuery.isLoading &&
@@ -124,6 +129,7 @@ export function CreateGrantDialog(props: {
               agents={agents}
               isLoading={agentsQuery.isLoading}
               hasError={Boolean(agentsQuery.error)}
+              error={hasAttemptedSubmit ? validation.agentId : undefined}
               onChange={(value) => setAgentId(value ?? '')}
               onRetry={() => void agentsQuery.refetch()}
             />
@@ -132,6 +138,7 @@ export function CreateGrantDialog(props: {
               workflows={workflows}
               isLoading={workflowsQuery.isLoading}
               hasError={Boolean(workflowsQuery.error)}
+              error={hasAttemptedSubmit ? validation.workflowId : undefined}
               onChange={(value) => setWorkflowId(value ?? '')}
               onRetry={() => void workflowsQuery.refetch()}
             />
@@ -151,7 +158,11 @@ export function CreateGrantDialog(props: {
                 Set a deadline for temporary escalations so cleanup does not depend on memory.
               </p>
             </div>
-            <PermissionField permissions={permissions} onToggle={togglePermission} />
+            <PermissionField
+              permissions={permissions}
+              error={hasAttemptedSubmit ? validation.permissions : undefined}
+              onToggle={togglePermission}
+            />
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
             {selectedAgent ? (
@@ -281,6 +292,7 @@ function WorkflowScopeField(props: {
   workflows: DashboardWorkflowRecord[];
   isLoading: boolean;
   hasError: boolean;
+  error?: string;
   onChange(value: string | null): void;
   onRetry(): void;
 }): JSX.Element {
@@ -317,6 +329,7 @@ function WorkflowScopeField(props: {
           Scope the grant to the exact workflow that needs orchestration access.
         </p>
       )}
+      {props.error ? <p className="text-xs text-red-600 dark:text-red-400">{props.error}</p> : null}
     </div>
   );
 }
@@ -326,6 +339,7 @@ function AgentInventoryField(props: {
   agents: DashboardAgentRecord[];
   isLoading: boolean;
   hasError: boolean;
+  error?: string;
   onChange(value: string | null): void;
   onRetry(): void;
 }): JSX.Element {
@@ -364,12 +378,14 @@ function AgentInventoryField(props: {
           Choose a registered agent from the live inventory instead of typing a raw identifier.
         </p>
       )}
+      {props.error ? <p className="text-xs text-red-600 dark:text-red-400">{props.error}</p> : null}
     </div>
   );
 }
 
 function PermissionField(props: {
   permissions: string[];
+  error?: string;
   onToggle(permission: string): void;
 }): JSX.Element {
   return (
@@ -394,8 +410,43 @@ function PermissionField(props: {
       <p className="text-xs leading-5 text-muted">
         Read grants view posture, write grants adjust state, and execute grants allow action-taking orchestration flows.
       </p>
+      {props.error ? <p className="text-xs text-red-600 dark:text-red-400">{props.error}</p> : null}
     </div>
   );
+}
+
+function validateCreateGrantDialog(input: {
+  agentId: string;
+  workflowId: string;
+  permissions: string[];
+}): {
+  isValid: boolean;
+  agentId?: string;
+  workflowId?: string;
+  permissions?: string;
+} {
+  const errors: {
+    agentId?: string;
+    workflowId?: string;
+    permissions?: string;
+  } = {};
+
+  if (!input.agentId.trim()) {
+    errors.agentId = 'Select an agent.';
+  }
+
+  if (!input.workflowId.trim()) {
+    errors.workflowId = 'Select a workflow scope.';
+  }
+
+  if (input.permissions.length === 0) {
+    errors.permissions = 'Select at least one permission.';
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    ...errors,
+  };
 }
 
 function SelectionPacket(props: {

@@ -19,4 +19,14 @@ describe('workflow work item task review dialogs source', () => {
     expect(source).toContain('Reassign Step');
     expect(source).toContain('SearchableCombobox');
   });
+
+  it('keeps review actions enabled while surfacing inline required-field feedback after action is attempted', () => {
+    const source = readSource();
+    expect(source).toContain('const [hasAttemptedAction, setHasAttemptedAction] = useState(false);');
+    expect(source).toContain('Enter review feedback before continuing.');
+    expect(source).toContain('Enter operator guidance before continuing.');
+    expect(source).toContain('Enter replacement output JSON before continuing.');
+    expect(source).toContain('Select a target agent.');
+    expect(source).toContain('Explain why the step should be reassigned.');
+  });
 });

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
 import {
@@ -51,8 +51,15 @@ export function ExecutionEnvironmentDialog(props: {
   onClose: () => void;
   onSubmit: () => void;
 }) {
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const validationErrors = useMemo(() => validateForm(props.form), [props.form]);
   const isValid = Object.keys(validationErrors).length === 0;
+
+  useEffect(() => {
+    if (!props.open) {
+      setHasAttemptedSubmit(false);
+    }
+  }, [props.open]);
 
   return (
     <Dialog open={props.open} onOpenChange={(open) => !open && props.onClose()}>
@@ -66,6 +73,7 @@ export function ExecutionEnvironmentDialog(props: {
           onSubmit={(event) => {
             event.preventDefault();
             if (!isValid) {
+              setHasAttemptedSubmit(true);
               return;
             }
             props.onSubmit();
@@ -76,9 +84,9 @@ export function ExecutionEnvironmentDialog(props: {
             <Input
               value={props.form.name}
               onChange={(event) => props.onFormChange({ ...props.form, name: event.target.value })}
-              aria-invalid={Boolean(validationErrors.name)}
+              aria-invalid={Boolean(hasAttemptedSubmit && validationErrors.name)}
             />
-            {validationErrors.name ? (
+            {hasAttemptedSubmit && validationErrors.name ? (
               <span className="text-xs text-red-600 dark:text-red-400">{validationErrors.name}</span>
             ) : null}
           </label>
@@ -100,9 +108,9 @@ export function ExecutionEnvironmentDialog(props: {
                 props.onFormChange({ ...props.form, image: event.target.value })
               }
               placeholder="ghcr.io/customer/dev:1.2.3"
-              aria-invalid={Boolean(validationErrors.image)}
+              aria-invalid={Boolean(hasAttemptedSubmit && validationErrors.image)}
             />
-            {validationErrors.image ? (
+            {hasAttemptedSubmit && validationErrors.image ? (
               <span className="text-xs text-red-600 dark:text-red-400">{validationErrors.image}</span>
             ) : null}
           </label>
@@ -112,9 +120,9 @@ export function ExecutionEnvironmentDialog(props: {
               <Input
                 value={props.form.cpu}
                 onChange={(event) => props.onFormChange({ ...props.form, cpu: event.target.value })}
-                aria-invalid={Boolean(validationErrors.cpu)}
+                aria-invalid={Boolean(hasAttemptedSubmit && validationErrors.cpu)}
               />
-              {validationErrors.cpu ? (
+              {hasAttemptedSubmit && validationErrors.cpu ? (
                 <span className="text-xs text-red-600 dark:text-red-400">{validationErrors.cpu}</span>
               ) : null}
             </label>
@@ -125,9 +133,9 @@ export function ExecutionEnvironmentDialog(props: {
                 onChange={(event) =>
                   props.onFormChange({ ...props.form, memory: event.target.value })
                 }
-                aria-invalid={Boolean(validationErrors.memory)}
+                aria-invalid={Boolean(hasAttemptedSubmit && validationErrors.memory)}
               />
-              {validationErrors.memory ? (
+              {hasAttemptedSubmit && validationErrors.memory ? (
                 <span className="text-xs text-red-600 dark:text-red-400">{validationErrors.memory}</span>
               ) : null}
             </label>
@@ -173,7 +181,7 @@ export function ExecutionEnvironmentDialog(props: {
             <Button type="button" variant="outline" onClick={props.onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={props.isPending || !isValid}>
+            <Button type="submit" disabled={props.isPending}>
               {props.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {props.submitLabel}
             </Button>

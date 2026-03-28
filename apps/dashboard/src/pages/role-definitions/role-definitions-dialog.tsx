@@ -249,7 +249,7 @@ export function RoleDialog(props: {
                 setForm={setForm}
                 environments={executionEnvironmentOptions}
               />
-              <RoleReadinessCard validation={validation} summary={summary} />
+              <RoleReadinessCard summary={summary} />
             </div>
           </div>
           <RoleDialogFooter

@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 import type { DashboardAgentRecord } from '../../lib/api.js';
 import { SearchableCombobox, type ComboboxItem } from '../../components/log-viewer/ui/searchable-combobox.js';
 import { Button } from '../../components/ui/button.js';
@@ -47,6 +49,24 @@ export function StepChangesDialog(props: {
   onReject(): void;
   onRequestChanges(): void;
 }): JSX.Element {
+  const [hasAttemptedAction, setHasAttemptedAction] = useState(false);
+  const feedbackError =
+    hasAttemptedAction && !props.feedback.trim() ? 'Enter review feedback before continuing.' : null;
+
+  useEffect(() => {
+    if (!props.isOpen) {
+      setHasAttemptedAction(false);
+    }
+  }, [props.isOpen]);
+
+  function handleAction(action: () => void): void {
+    if (!props.feedback.trim()) {
+      setHasAttemptedAction(true);
+      return;
+    }
+    action();
+  }
+
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-h-[75vh] overflow-y-auto sm:max-w-lg">
@@ -65,7 +85,9 @@ export function StepChangesDialog(props: {
             onChange={(event) => props.onFeedbackChange(event.target.value)}
             placeholder="Describe the operator changes needed..."
             rows={4}
+            aria-invalid={Boolean(feedbackError)}
           />
+          {feedbackError ? <p className="text-sm text-destructive">{feedbackError}</p> : null}
           <div className="flex flex-wrap justify-end gap-2">
             <Button
               variant="outline"
@@ -75,25 +97,15 @@ export function StepChangesDialog(props: {
               Cancel
             </Button>
             {props.state === 'failed' ? (
-              <Button
-                onClick={props.onRequestChanges}
-                disabled={!props.feedback.trim() || props.isPending}
-              >
+              <Button onClick={() => handleAction(props.onRequestChanges)} disabled={props.isPending}>
                 Rework Step
               </Button>
             ) : (
               <>
-                <Button
-                  variant="destructive"
-                  onClick={props.onReject}
-                  disabled={!props.feedback.trim() || props.isPending}
-                >
+                <Button variant="destructive" onClick={() => handleAction(props.onReject)} disabled={props.isPending}>
                   Reject Step
                 </Button>
-                <Button
-                  onClick={props.onRequestChanges}
-                  disabled={!props.feedback.trim() || props.isPending}
-                >
+                <Button onClick={() => handleAction(props.onRequestChanges)} disabled={props.isPending}>
                   Request Changes
                 </Button>
               </>
@@ -114,6 +126,26 @@ export function StepEscalationDialog(props: {
   onInstructionsChange(value: string): void;
   onSubmit(): void;
 }): JSX.Element {
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const instructionsError =
+    hasAttemptedSubmit && !props.instructions.trim()
+      ? 'Enter operator guidance before continuing.'
+      : null;
+
+  useEffect(() => {
+    if (!props.isOpen) {
+      setHasAttemptedSubmit(false);
+    }
+  }, [props.isOpen]);
+
+  function handleSubmit(): void {
+    if (!props.instructions.trim()) {
+      setHasAttemptedSubmit(true);
+      return;
+    }
+    props.onSubmit();
+  }
+
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-h-[75vh] overflow-y-auto sm:max-w-lg">
@@ -130,7 +162,9 @@ export function StepEscalationDialog(props: {
             onChange={(event) => props.onInstructionsChange(event.target.value)}
             placeholder="Describe the operator guidance needed to resume this step..."
             rows={4}
+            aria-invalid={Boolean(instructionsError)}
           />
+          {instructionsError ? <p className="text-sm text-destructive">{instructionsError}</p> : null}
           <p className="text-xs leading-5 text-muted">
             This keeps escalation review in a focused dialog instead of turning the task action row
             into another long inline form.
@@ -143,10 +177,7 @@ export function StepEscalationDialog(props: {
             >
               Close
             </Button>
-            <Button
-              onClick={props.onSubmit}
-              disabled={!props.instructions.trim() || props.isPending}
-            >
+            <Button onClick={handleSubmit} disabled={props.isPending}>
               Provide Operator Guidance
             </Button>
           </div>
@@ -188,6 +219,28 @@ export function StepOutputOverrideDialog(props: {
   onReasonChange(value: string): void;
   onSubmit(): void;
 }): JSX.Element {
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const outputDraftError =
+    hasAttemptedSubmit && !props.outputDraft.trim()
+      ? 'Enter replacement output JSON before continuing.'
+      : null;
+  const reasonError =
+    hasAttemptedSubmit && !props.reason.trim() ? 'Enter a reason for the override.' : null;
+
+  useEffect(() => {
+    if (!props.isOpen) {
+      setHasAttemptedSubmit(false);
+    }
+  }, [props.isOpen]);
+
+  function handleSubmit(): void {
+    if (!props.outputDraft.trim() || !props.reason.trim()) {
+      setHasAttemptedSubmit(true);
+      return;
+    }
+    props.onSubmit();
+  }
+
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-h-[75vh] overflow-y-auto sm:max-w-2xl">
@@ -201,13 +254,17 @@ export function StepOutputOverrideDialog(props: {
             onChange={(event) => props.onOutputDraftChange(event.target.value)}
             placeholder='{"summary":"Updated output packet"}'
             rows={10}
+            aria-invalid={Boolean(outputDraftError)}
           />
+          {outputDraftError ? <p className="text-sm text-destructive">{outputDraftError}</p> : null}
           <Textarea
             value={props.reason}
             onChange={(event) => props.onReasonChange(event.target.value)}
             placeholder="Explain why the stored output packet must be overridden..."
             rows={4}
+            aria-invalid={Boolean(reasonError)}
           />
+          {reasonError ? <p className="text-sm text-destructive">{reasonError}</p> : null}
           {props.error ? <p className="text-sm text-destructive">{props.error}</p> : null}
           <div className="flex flex-wrap justify-end gap-2">
             <Button
@@ -217,10 +274,7 @@ export function StepOutputOverrideDialog(props: {
             >
               Cancel
             </Button>
-            <Button
-              onClick={props.onSubmit}
-              disabled={!props.reason.trim() || !props.outputDraft.trim() || props.isPending}
-            >
+            <Button onClick={handleSubmit} disabled={props.isPending}>
               Override Output
             </Button>
           </div>
@@ -242,7 +296,27 @@ export function StepManualEscalationDialog(props: {
   onReasonChange(value: string): void;
   onSubmit(): void;
 }): JSX.Element {
-  const canSubmit = Boolean(props.reason.trim()) && !props.isPending;
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const escalationTargetError =
+    hasAttemptedSubmit && !props.escalationTarget.trim() ? 'Enter an escalation target.' : null;
+  const reasonError =
+    hasAttemptedSubmit && !props.reason.trim()
+      ? 'Explain why the step needs escalation.'
+      : null;
+
+  useEffect(() => {
+    if (!props.isOpen) {
+      setHasAttemptedSubmit(false);
+    }
+  }, [props.isOpen]);
+
+  function handleSubmit(): void {
+    if (!props.escalationTarget.trim() || !props.reason.trim()) {
+      setHasAttemptedSubmit(true);
+      return;
+    }
+    props.onSubmit();
+  }
 
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
@@ -260,17 +334,23 @@ export function StepManualEscalationDialog(props: {
               value={props.escalationTarget}
               onChange={(event) => props.onEscalationTargetChange(event.target.value)}
               placeholder="human"
+              aria-invalid={Boolean(escalationTargetError)}
             />
             <p className="text-xs leading-5 text-muted">
               Leave this as &ldquo;human&rdquo; unless a different escalation destination is already defined.
             </p>
+            {escalationTargetError ? (
+              <p className="text-sm text-destructive">{escalationTargetError}</p>
+            ) : null}
           </div>
           <Textarea
             value={props.reason}
             onChange={(event) => props.onReasonChange(event.target.value)}
             placeholder="Explain what is blocked and what decision or intervention is needed..."
             rows={4}
+            aria-invalid={Boolean(reasonError)}
           />
+          {reasonError ? <p className="text-sm text-destructive">{reasonError}</p> : null}
           {props.error ? <p className="text-sm text-destructive">{props.error}</p> : null}
           <div className="flex flex-wrap justify-end gap-2">
             <Button
@@ -280,7 +360,7 @@ export function StepManualEscalationDialog(props: {
             >
               Cancel
             </Button>
-            <Button onClick={props.onSubmit} disabled={!canSubmit}>
+            <Button onClick={handleSubmit} disabled={props.isPending}>
               Escalate Step
             </Button>
           </div>
@@ -306,7 +386,25 @@ export function WorkItemReassignDialog(props: {
   const agents = sortAgents(props.agents);
   const agentItems = buildAgentItems(agents);
   const selectedAgent = agents.find((agent) => agent.id === props.selectedAgentId) ?? null;
-  const canSubmit = Boolean(props.selectedAgentId?.trim()) && Boolean(props.reason.trim()) && !props.isPending;
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const agentError =
+    hasAttemptedSubmit && !props.selectedAgentId?.trim() ? 'Select a target agent.' : null;
+  const reasonError =
+    hasAttemptedSubmit && !props.reason.trim() ? 'Explain why the step should be reassigned.' : null;
+
+  useEffect(() => {
+    if (!props.isOpen) {
+      setHasAttemptedSubmit(false);
+    }
+  }, [props.isOpen]);
+
+  function handleSubmit(): void {
+    if (!props.selectedAgentId?.trim() || !props.reason.trim()) {
+      setHasAttemptedSubmit(true);
+      return;
+    }
+    props.onSubmit();
+  }
 
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
@@ -333,13 +431,16 @@ export function WorkItemReassignDialog(props: {
             <p className="text-xs leading-5 text-muted">
               Reassignments follow the selected agent and preserve the work-item scope.
             </p>
+            {agentError ? <p className="text-sm text-destructive">{agentError}</p> : null}
           </div>
           <Textarea
             value={props.reason}
             onChange={(event) => props.onReasonChange(event.target.value)}
             placeholder="Explain why this step should move to another agent..."
             rows={4}
+            aria-invalid={Boolean(reasonError)}
           />
+          {reasonError ? <p className="text-sm text-destructive">{reasonError}</p> : null}
           {selectedAgent ? (
             <p className="text-xs leading-5 text-muted">
               Selected agent: {agentDisplayName(selectedAgent)}
@@ -354,7 +455,7 @@ export function WorkItemReassignDialog(props: {
             >
               Cancel
             </Button>
-            <Button onClick={props.onSubmit} disabled={!canSubmit}>
+            <Button onClick={handleSubmit} disabled={props.isPending || props.isLoadingAgents}>
               Reassign Step
             </Button>
           </div>

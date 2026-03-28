@@ -32,6 +32,14 @@ describe('user management page source', () => {
     expect(source).toContain('UserManagementOverview');
   });
 
+  it('shows create-user field validation after submit is attempted instead of disabling the create button', () => {
+    const source = readSource();
+    expect(source).toContain('const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);');
+    expect(source).toContain("errors.email = 'Enter an email address.';");
+    expect(source).toContain("errors.displayName = 'Enter a display name.';");
+    expect(source).toContain('type="submit" disabled={mutation.isPending}');
+  });
+
   it('marks the surface as legacy and points operators back to API keys', () => {
     const source = readSource();
     expect(source).toContain('Legacy admin surface');

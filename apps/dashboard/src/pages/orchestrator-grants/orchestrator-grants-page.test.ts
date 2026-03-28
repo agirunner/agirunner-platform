@@ -51,4 +51,13 @@ describe('orchestrator grants page source', () => {
     expect(source).toContain('Selected workflow');
     expect(source).toContain('Confirm by typing {expectedValue}');
   });
+
+  it('keeps grant creation enabled while surfacing inline validation after submit is attempted', () => {
+    const source = readSource();
+    expect(source).toContain('const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);');
+    expect(source).toContain("errors.agentId = 'Select an agent.';");
+    expect(source).toContain("errors.workflowId = 'Select a workflow scope.';");
+    expect(source).toContain("errors.permissions = 'Select at least one permission.';");
+    expect(source).toContain('type="submit" disabled={!canSubmit}');
+  });
 });
