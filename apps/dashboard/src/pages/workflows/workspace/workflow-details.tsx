@@ -39,9 +39,8 @@ export function WorkflowDetails(props: {
     || hasStructuredContent(props.workflowParameters);
 
   return (
-    <section className="rounded-2xl border border-border/70 bg-background/80 p-4">
-      <div className="grid gap-4">
-        <header className="grid gap-3 border-b border-border/70 pb-4">
+    <section className="grid gap-4">
+      <header className="grid gap-3 border-b border-border/70 pb-4">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{scope.scope_label}</Badge>
             {scope.badges.map((badge) => (
@@ -74,46 +73,45 @@ export function WorkflowDetails(props: {
               ))}
             </dl>
           ) : null}
-        </header>
+      </header>
 
-        {hasInputs ? (
-          <DetailSection title="Inputs">
-            {hasStructuredContent(props.workflowParameters) ? (
-              <StructuredBlock label="Workflow parameters" value={props.workflowParameters} />
-            ) : null}
-            {workflowPackets.length > 0 ? (
-              <PacketSection label="Workflow inputs" packets={workflowPackets} />
-            ) : null}
-            {workItemPackets.length > 0 ? (
-              <PacketSection label="Work item inputs" packets={workItemPackets} />
-            ) : null}
-            {hasTaskInput ? (
-              <StructuredBlock label="Task input" value={props.selectedTask?.input ?? null} />
-            ) : null}
-          </DetailSection>
-        ) : null}
+      {hasInputs ? (
+        <DetailSection title="Inputs">
+          {hasStructuredContent(props.workflowParameters) ? (
+            <StructuredBlock label="Workflow parameters" value={props.workflowParameters} />
+          ) : null}
+          {workflowPackets.length > 0 ? (
+            <PacketSection label="Workflow inputs" packets={workflowPackets} />
+          ) : null}
+          {workItemPackets.length > 0 ? (
+            <PacketSection label="Work item inputs" packets={workItemPackets} />
+          ) : null}
+          {hasTaskInput ? (
+            <StructuredBlock label="Task input" value={props.selectedTask?.input ?? null} />
+          ) : null}
+        </DetailSection>
+      ) : null}
 
-        {scope.related_tasks.length > 0 ? (
-          <DetailSection title="Related tasks">
-            <div className="grid gap-2">
-              {scope.related_tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className={
-                    task.is_selected
-                      ? 'flex flex-wrap items-center gap-2 rounded-xl border border-amber-300 bg-amber-100/90 px-3 py-2 text-sm dark:border-amber-500/60 dark:bg-amber-500/10'
-                      : 'flex flex-wrap items-center gap-2 rounded-xl border border-border/70 bg-background/70 px-3 py-2 text-sm'
-                  }
-                >
-                  <span className="font-medium text-foreground">{task.title}</span>
-                  {task.role ? <Badge variant="outline">{humanizeToken(task.role)}</Badge> : null}
-                  {task.state ? <Badge variant="secondary">{humanizeToken(task.state)}</Badge> : null}
-                </div>
-              ))}
-            </div>
-          </DetailSection>
-        ) : null}
-      </div>
+      {scope.related_tasks.length > 0 ? (
+        <DetailSection title="Related tasks">
+          <div className="grid gap-2">
+            {scope.related_tasks.map((task) => (
+              <div
+                key={task.id}
+                className={
+                  task.is_selected
+                    ? 'flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-100/90 px-3 py-2 text-sm dark:border-amber-500/60 dark:bg-amber-500/10'
+                    : 'flex flex-wrap items-center gap-2 rounded-lg border border-border/70 bg-background/70 px-3 py-2 text-sm'
+                }
+              >
+                <span className="font-medium text-foreground">{task.title}</span>
+                {task.role ? <Badge variant="outline">{humanizeToken(task.role)}</Badge> : null}
+                {task.state ? <Badge variant="secondary">{humanizeToken(task.state)}</Badge> : null}
+              </div>
+            ))}
+          </div>
+        </DetailSection>
+      ) : null}
     </section>
   );
 }
@@ -139,13 +137,14 @@ function PacketSection(props: {
       <p className="text-sm font-semibold text-foreground">{props.label}</p>
       <div className="grid gap-2">
         {props.packets.map((packet) => (
-          <article key={packet.id} className="grid gap-2 rounded-xl border border-border/70 bg-muted/10 p-3">
-            <div className="flex flex-wrap items-center gap-2">
+          <article key={packet.id} className="grid gap-2 rounded-lg border border-border/70 bg-muted/5 px-3 py-2">
+            <div className="grid gap-1">
               <strong className="text-sm text-foreground">
                 {packet.summary ?? humanizeToken(packet.packet_kind)}
               </strong>
-              <Badge variant="outline">{humanizeToken(packet.packet_kind)}</Badge>
-              <Badge variant="secondary">{humanizeToken(packet.source)}</Badge>
+              <p className="text-xs text-muted-foreground">
+                {humanizeToken(packet.packet_kind)} • {humanizeToken(packet.source)}
+              </p>
             </div>
             {hasStructuredContent(packet.structured_inputs) ? (
               <StructuredBlock value={packet.structured_inputs} compact />

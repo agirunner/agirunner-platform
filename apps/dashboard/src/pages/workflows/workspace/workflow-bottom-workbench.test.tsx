@@ -36,7 +36,7 @@ describe('WorkflowBottomWorkbench', () => {
       }),
     );
 
-    expect(html).toContain('Workflow scope');
+    expect(html).toContain('Workflow');
     expect(html).not.toContain('Details, actions, steering, live updates, history, and deliverables stay in one place.');
     expect(html).not.toContain('Workspace</p>');
   });
@@ -75,6 +75,7 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).toContain('Verify deliverable');
     expect(html).toContain('Prepare release bundle');
     expect(html).toContain('Workflow');
+    expect(html).not.toContain('Selected on board');
     expect(html).not.toContain('Back to work item');
     expect(html).not.toContain('Back to workflow');
     expect(html).not.toContain('Workflow 1</h3>');

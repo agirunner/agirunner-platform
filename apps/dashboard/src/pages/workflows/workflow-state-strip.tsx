@@ -36,7 +36,7 @@ export function WorkflowStateStrip(props: {
   const activeSpecialistTaskCount = sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount;
 
   return (
-    <section className="space-y-2 rounded-2xl border border-border/70 bg-background/90 p-2">
+    <section className="space-y-1.5 rounded-xl border border-border/70 bg-background/90 p-2">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-0.5">
           <div className="flex flex-wrap items-center gap-2">
@@ -90,7 +90,7 @@ export function WorkflowStateStrip(props: {
         <HeaderCard
           title="Workflow State"
           value={postureLabel}
-          detail={truncateDetail(readOptionalSummary(sticky?.summary) ?? 'Current posture')}
+          detail={readWorkflowStateDetail(sticky?.summary, postureLabel)}
         />
         <HeaderCard
           title="Needs Action"
@@ -101,7 +101,7 @@ export function WorkflowStateStrip(props: {
         <HeaderCard
           title="Workflow"
           value={`${workload.activeWorkItemCount} active • ${workload.completedWorkItemCount} done`}
-          detail={formatSpecialistTaskLabel(activeSpecialistTaskCount)}
+          detail={formatWorkloadDetail(activeSpecialistTaskCount, workload.activeWorkItemCount)}
         />
         <HeaderCard
           title="Steering"
@@ -117,19 +117,19 @@ export function WorkflowStateStrip(props: {
 function HeaderCard(props: {
   title: string;
   value: string;
-  detail: string;
+  detail: string | null;
   onClick?(): void;
 }): JSX.Element {
-  const className = 'grid gap-0.5 rounded-xl border border-border/70 bg-muted/10 px-2.5 py-2 text-left';
+  const className = 'grid gap-0.5 rounded-lg border border-border/70 bg-muted/10 px-2 py-1.5 text-left';
 
   if (!props.onClick) {
     return (
       <div className={className}>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           {props.title}
         </p>
-        <p className="min-h-5 text-sm font-semibold leading-5 text-foreground">{props.value}</p>
-        <p className="text-[11px] leading-4 text-muted-foreground">{props.detail}</p>
+        <p className="min-h-4 text-[13px] font-semibold leading-4 text-foreground">{props.value}</p>
+        {props.detail ? <p className="text-[10px] leading-4 text-muted-foreground">{props.detail}</p> : null}
       </div>
     );
   }
@@ -140,17 +140,23 @@ function HeaderCard(props: {
       className={`${className} transition-colors hover:bg-muted/20`}
       onClick={props.onClick}
     >
-      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+      <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         {props.title}
       </p>
-      <p className="min-h-5 text-sm font-semibold leading-5 text-foreground">{props.value}</p>
-      <p className="text-[11px] leading-4 text-muted-foreground">{props.detail}</p>
+      <p className="min-h-4 text-[13px] font-semibold leading-4 text-foreground">{props.value}</p>
+      {props.detail ? <p className="text-[10px] leading-4 text-muted-foreground">{props.detail}</p> : null}
     </button>
   );
 }
 
-function formatSpecialistTaskLabel(count: number): string {
-  return `${count} specialist task${count === 1 ? '' : 's'}`;
+function formatWorkloadDetail(count: number, activeWorkItemCount: number): string | null {
+  if (activeWorkItemCount === 0 && count > 0) {
+    return 'Routing new work';
+  }
+  if (count === 0) {
+    return null;
+  }
+  return `${count} task${count === 1 ? '' : 's'}`;
 }
 
 function humanizePosture(value: string | null | undefined): string {
@@ -195,4 +201,19 @@ function readOptionalSummary(value: string | null | undefined): string | null {
 
 function truncateDetail(value: string): string {
   return value.length <= 72 ? value : `${value.slice(0, 69)}...`;
+}
+
+function readWorkflowStateDetail(summary: string | null | undefined, postureLabel: string): string | null {
+  const detail = readOptionalSummary(summary);
+  if (!detail) {
+    return null;
+  }
+  const normalized = detail.trim().toLowerCase();
+  if (normalized === 'workflow is waiting by design') {
+    return null;
+  }
+  if (normalized === postureLabel.trim().toLowerCase()) {
+    return null;
+  }
+  return truncateDetail(detail);
 }

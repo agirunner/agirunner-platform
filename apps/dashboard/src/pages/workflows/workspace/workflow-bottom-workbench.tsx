@@ -44,7 +44,7 @@ export function WorkflowBottomWorkbench(props: {
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
         {props.selectedTaskId ? (
           <>
             <Button type="button" size="sm" variant="ghost" onClick={props.onClearWorkItemScope}>
@@ -71,12 +71,8 @@ export function WorkflowBottomWorkbench(props: {
               Work item: {props.selectedWorkItemTitle ?? props.scopedWorkItemId}
             </Badge>
           </>
-        ) : props.selectedWorkItemId ? (
-          <Badge variant="outline">
-            Selected on board: {props.selectedWorkItemTitle ?? props.selectedWorkItemId}
-          </Badge>
         ) : (
-          <Badge variant="outline">Workflow scope</Badge>
+          <Badge variant="outline">Workflow</Badge>
         )}
       </div>
 

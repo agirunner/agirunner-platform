@@ -51,6 +51,8 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('release/2026.03');
     expect(html).toContain('Inputs');
     expect(html).toContain('Related tasks');
+    expect(html).toContain('Launch • Operator');
+    expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/80 p-4');
     expect(html).not.toContain('Workflow, work-item, and task inputs used for the current selection.');
     expect(html).not.toContain('Fields');
     expect(html).not.toContain('Owner role');
