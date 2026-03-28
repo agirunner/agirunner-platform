@@ -3,12 +3,14 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 describe('WorkflowAddWorkDialog source', () => {
-  it('keeps modify mode focused on editable inputs, files, and steering only', () => {
+  it('keeps add and modify work focused on operator inputs, files, and steering only', () => {
     const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
 
     expect(source).not.toContain('Owner role');
     expect(source).toContain('Steering instruction');
-    expect(source).toContain('Editable inputs');
+    expect(source).not.toContain('Typed inputs');
+    expect(source).not.toContain('Editable inputs');
+    expect(source).toContain('Additional inputs');
     expect(source).not.toContain("<span className=\"font-medium\">Goal</span>");
   });
 
@@ -22,15 +24,16 @@ describe('WorkflowAddWorkDialog source', () => {
     expect(source).toContain('Work item title');
   });
 
-  it('clarifies how workflow-scope add or modify work attaches new operator inputs', () => {
+  it('removes the old workflow attachment explainer chrome from the operator modal', () => {
     const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
 
-    expect(source).toContain('workflow-scoped input packet');
-    expect(source).toContain('If you opened this from task scope');
-    expect(source).toContain('parent work item');
+    expect(source).not.toContain('How this attaches');
+    expect(source).not.toContain('workflow-scoped input packet');
+    expect(source).not.toContain('If you opened this from task scope');
+    expect(source).not.toContain('parent work item');
   });
 
-  it('creates new work with an embedded initial input packet instead of a second follow-up packet mutation', () => {
+  it('creates new work with the embedded input packet and can add a steering request in the same flow', () => {
     const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
     const newWorkBranch = source.slice(
       source.indexOf('const trimmedTitle = title.trim();'),
@@ -39,6 +42,16 @@ describe('WorkflowAddWorkDialog source', () => {
 
     expect(newWorkBranch).toContain('initial_input_packet');
     expect(newWorkBranch).toContain('createWorkflowWorkItem(props.workflowId, payload)');
+    expect(newWorkBranch).toContain('createWorkflowSteeringRequest(props.workflowId');
     expect(newWorkBranch).not.toContain('createWorkflowInputPacket(props.workflowId');
+  });
+
+  it('replaces the shared structured editor with a modal-local operator input editor', () => {
+    const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).not.toContain('ChainStructuredEntryEditor');
+    expect(source).toContain('Add input');
+    expect(source).toContain('Input name');
+    expect(source).toContain('Input value');
   });
 });

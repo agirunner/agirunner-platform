@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Rocket } from 'lucide-react';
 
-import { ChainParameterField } from '../../components/chain-workflow/chain-workflow-parameters.js';
 import { Button } from '../../components/ui/button.js';
 import {
   DEFAULT_FORM_VALIDATION_MESSAGE,
@@ -225,19 +224,31 @@ export function WorkflowLaunchDialog(props: {
             <div className="grid gap-3">
               <strong className="text-sm">Launch inputs</strong>
               {launchDefinition.parameterSpecs.map((spec) => (
-                <ChainParameterField
-                  key={spec.slug}
-                  spec={spec}
-                  value={parameterDrafts[spec.slug] ?? ''}
-                  showSlugBadge={false}
-                  multiline
-                  error={
-                    hasAttemptedSubmit && spec.required && !(parameterDrafts[spec.slug]?.trim())
-                      ? `Enter a value for ${spec.title}.`
-                      : undefined
-                  }
-                  onChange={(value) => setParameterDrafts((current) => ({ ...current, [spec.slug]: value }))}
-                />
+                <label key={spec.slug} className="grid gap-2 text-sm">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="font-medium">{spec.title}</span>
+                    <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
+                      {spec.required ? 'Required' : 'Optional'}
+                    </span>
+                  </div>
+                  <Textarea
+                    value={parameterDrafts[spec.slug] ?? ''}
+                    onChange={(event) =>
+                      setParameterDrafts((current) => ({ ...current, [spec.slug]: event.target.value }))
+                    }
+                    rows={2}
+                    className="min-h-[64px]"
+                    placeholder={spec.required ? 'Required launch input' : 'Optional launch input'}
+                    aria-invalid={Boolean(
+                      hasAttemptedSubmit && spec.required && !(parameterDrafts[spec.slug]?.trim()),
+                    )}
+                  />
+                  {hasAttemptedSubmit && spec.required && !(parameterDrafts[spec.slug]?.trim()) ? (
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      {`Enter a value for ${spec.title}.`}
+                    </p>
+                  ) : null}
+                </label>
               ))}
             </div>
           ) : null}
