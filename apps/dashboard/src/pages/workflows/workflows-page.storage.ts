@@ -2,6 +2,7 @@ const LAST_WORKFLOW_STORAGE_KEY = 'agirunner.workflows.lastSelectedWorkflowId';
 const WORKFLOW_RAIL_HIDDEN_STORAGE_KEY = 'agirunner.workflows.railHidden';
 const WORKFLOW_RAIL_WIDTH_STORAGE_KEY = 'agirunner.workflows.railWidthPx';
 const WORKFLOW_WORKBENCH_FRACTION_STORAGE_KEY = 'agirunner.workflows.workbenchFraction';
+const WORKFLOW_BOARD_LENS_STORAGE_KEY = 'agirunner.workflows.boardLens';
 
 export function readStoredWorkflowId(): string | null {
   return readOptionalStorageValue(LAST_WORKFLOW_STORAGE_KEY);
@@ -39,6 +40,15 @@ export function writeStoredWorkflowWorkbenchFraction(fraction: number | null): v
     WORKFLOW_WORKBENCH_FRACTION_STORAGE_KEY,
     typeof fraction === 'number' && Number.isFinite(fraction) ? String(fraction) : null,
   );
+}
+
+export function readStoredWorkflowBoardLens(): 'work_items' | 'tasks' | null {
+  const value = readOptionalStorageValue(WORKFLOW_BOARD_LENS_STORAGE_KEY);
+  return value === 'tasks' || value === 'work_items' ? value : null;
+}
+
+export function writeStoredWorkflowBoardLens(lens: 'work_items' | 'tasks' | null): void {
+  writeOptionalStorageValue(WORKFLOW_BOARD_LENS_STORAGE_KEY, lens);
 }
 
 function readOptionalStorageValue(key: string): string | null {

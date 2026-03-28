@@ -165,6 +165,45 @@ describe('WorkflowsRail', () => {
     expect(html).not.toContain('0 work items');
     expect(html).not.toContain('1 tasks');
   });
+
+  it('pins a selected ongoing workflow when it falls outside the capped ongoing preview', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowsRail, {
+        mode: 'live',
+        search: '',
+        needsActionOnly: false,
+        ongoingOnly: false,
+        rows: [],
+        ongoingRows: [
+          createRailRow({ workflow_id: 'workflow-1', name: 'Workflow 1', lifecycle: 'ongoing' }),
+          createRailRow({ workflow_id: 'workflow-2', name: 'Workflow 2', lifecycle: 'ongoing' }),
+          createRailRow({ workflow_id: 'workflow-3', name: 'Workflow 3', lifecycle: 'ongoing' }),
+          createRailRow({ workflow_id: 'workflow-4', name: 'Workflow 4', lifecycle: 'ongoing' }),
+          createRailRow({ workflow_id: 'workflow-5', name: 'Workflow 5', lifecycle: 'ongoing' }),
+          createRailRow({ workflow_id: 'workflow-selected', name: 'Workflow Selected', lifecycle: 'ongoing' }),
+        ],
+        selectedWorkflowId: 'workflow-selected',
+        selectedWorkflowRow: createRailRow({
+          workflow_id: 'workflow-selected',
+          name: 'Workflow Selected',
+          lifecycle: 'ongoing',
+        }),
+        hasNextPage: false,
+        isLoading: false,
+        onModeChange: vi.fn(),
+        onSearchChange: vi.fn(),
+        onNeedsActionOnlyChange: vi.fn(),
+        onShowAllOngoing: vi.fn(),
+        onClearOngoingFilter: vi.fn(),
+        onSelectWorkflow: vi.fn(),
+        onLoadMore: vi.fn(),
+        onCreateWorkflow: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Selected workflow');
+    expect(html).toContain('Workflow Selected');
+  });
 });
 
 function createRailRow(

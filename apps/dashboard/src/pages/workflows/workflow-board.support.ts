@@ -3,6 +3,7 @@ import type {
   DashboardWorkflowBoardResponse,
   DashboardWorkflowWorkItemRecord,
 } from '../../lib/api.js';
+import type { WorkflowTaskPreviewSummary } from './workflow-board-task-preview.js';
 import type { WorkflowBoardMode } from './workflows-page.support.js';
 
 export interface WorkflowBoardViewInput {
@@ -32,6 +33,17 @@ export interface WorkflowBoardView {
   hasFilters: boolean;
 }
 
+export interface WorkflowBoardTaskCard {
+  id: string;
+  title: string;
+  role: string | null;
+  state: string | null;
+  workItemId: string;
+  workItemTitle: string;
+  stageName: string | null;
+  hasActiveOrchestratorTask: boolean;
+}
+
 export function buildWorkflowBoardView(
   board: DashboardWorkflowBoardResponse | null,
   input: WorkflowBoardViewInput,
@@ -49,7 +61,7 @@ export function buildWorkflowBoardView(
   }
 
   const filteredItems = board.work_items.filter((workItem) => {
-    const displayColumnId = resolveDisplayColumnId(board.columns, workItem);
+    const displayColumnId = resolveDisplayColumnId(workItem);
     if (input.stageFilter !== '__all__' && workItem.stage_name !== input.stageFilter) {
       return false;
     }
@@ -73,7 +85,7 @@ export function buildWorkflowBoardView(
 
   const filteredByColumn = new Map<string, DashboardWorkflowWorkItemRecord[]>();
   for (const workItem of filteredItems) {
-    const displayColumnId = resolveDisplayColumnId(board.columns, workItem);
+    const displayColumnId = resolveDisplayColumnId(workItem);
     const current = filteredByColumn.get(displayColumnId) ?? [];
     current.push(workItem);
     filteredByColumn.set(displayColumnId, current);
@@ -122,15 +134,30 @@ export function isCompletedWorkItem(
   return Boolean(column?.is_terminal);
 }
 
-function resolveDisplayColumnId(
-  columns: DashboardWorkflowBoardColumn[],
-  workItem: DashboardWorkflowWorkItemRecord,
-): string {
-  if (!isNeedsActionWorkItem(workItem)) {
-    return workItem.column_id;
-  }
-  const blockedColumnId = columns.find((column) => column.is_blocked)?.id;
-  return blockedColumnId ?? workItem.column_id;
+export function buildWorkflowBoardTaskCards(
+  workItems: DashboardWorkflowWorkItemRecord[],
+  taskSummaries: Map<string, WorkflowTaskPreviewSummary>,
+): WorkflowBoardTaskCard[] {
+  return workItems.flatMap((workItem) => {
+    const summary = taskSummaries.get(workItem.id);
+    if (!summary || summary.tasks.length === 0) {
+      return [];
+    }
+    return summary.tasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      role: task.role,
+      state: task.state,
+      workItemId: workItem.id,
+      workItemTitle: task.workItemTitle ?? workItem.title,
+      stageName: task.stageName ?? workItem.stage_name ?? null,
+      hasActiveOrchestratorTask: summary.hasActiveOrchestratorTask,
+    }));
+  });
+}
+
+function resolveDisplayColumnId(workItem: DashboardWorkflowWorkItemRecord): string {
+  return workItem.column_id;
 }
 
 function buildLaneView(

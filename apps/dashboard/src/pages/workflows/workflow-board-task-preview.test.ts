@@ -31,6 +31,9 @@ describe('summarizeTaskPreviewsForWorkItem', () => {
           title: 'Correct task',
           role: 'analyst',
           state: 'completed',
+          workItemId: 'work-item-1',
+          workItemTitle: null,
+          stageName: null,
         },
       ],
       hasActiveOrchestratorTask: false,
@@ -67,9 +70,31 @@ describe('summarizeTaskPreviewsForWorkItem', () => {
           title: 'Assess packet',
           role: 'policy-assessor',
           state: 'ready',
+          workItemId: 'work-item-1',
+          workItemTitle: null,
+          stageName: null,
         },
       ],
       hasActiveOrchestratorTask: true,
+    });
+  });
+
+  it('drops tasks that do not declare an owning work item instead of assigning them to the current card', () => {
+    const previewSummary = summarizeTaskPreviewsForWorkItem(
+      [
+        {
+          id: 'task-missing-owner',
+          title: 'Unknown owner',
+          role: 'analyst',
+          state: 'ready',
+        },
+      ],
+      'work-item-1',
+    );
+
+    expect(previewSummary).toEqual({
+      tasks: [],
+      hasActiveOrchestratorTask: false,
     });
   });
 });

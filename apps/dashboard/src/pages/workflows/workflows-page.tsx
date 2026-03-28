@@ -16,10 +16,12 @@ import {
   type WorkflowsPageState,
 } from './workflows-page.support.js';
 import {
+  readStoredWorkflowBoardLens,
   readStoredWorkflowId,
   readStoredWorkflowRailHidden,
   readStoredWorkflowRailWidth,
   readStoredWorkflowWorkbenchFraction,
+  writeStoredWorkflowBoardLens,
   writeStoredWorkflowId,
   writeStoredWorkflowRailHidden,
   writeStoredWorkflowRailWidth,
@@ -69,6 +71,9 @@ export function WorkflowsPage(): JSX.Element {
   const [railWidthPx, setRailWidthPx] = useState(
     clampWorkflowRailWidthPx(readStoredWorkflowRailWidth() ?? DEFAULT_WORKFLOW_RAIL_WIDTH_PX),
   );
+  const [boardLens, setBoardLens] = useState<'work_items' | 'tasks'>(
+    readStoredWorkflowBoardLens() ?? 'work_items',
+  );
   const [workbenchFraction, setWorkbenchFraction] = useState(
     clampWorkflowWorkbenchFraction(
       readStoredWorkflowWorkbenchFraction() ?? DEFAULT_WORKFLOW_WORKBENCH_FRACTION,
@@ -91,6 +96,9 @@ export function WorkflowsPage(): JSX.Element {
   useEffect(() => {
     writeStoredWorkflowRailWidth(railWidthPx);
   }, [railWidthPx]);
+  useEffect(() => {
+    writeStoredWorkflowBoardLens(boardLens);
+  }, [boardLens]);
   useEffect(() => {
     writeStoredWorkflowWorkbenchFraction(workbenchFraction);
   }, [workbenchFraction]);
@@ -132,6 +140,7 @@ export function WorkflowsPage(): JSX.Element {
         taskId: scopedTaskId ?? undefined,
         tabScope,
         boardMode: pageState.boardMode,
+        liveConsoleLimit: activityLimit,
         historyLimit: activityLimit,
         deliverablesLimit,
       }),
@@ -213,6 +222,11 @@ export function WorkflowsPage(): JSX.Element {
     );
     return typeof matchingTask?.title === 'string' ? matchingTask.title : null;
   }, [pageState.taskId, selectedTaskQuery.data?.title, selectedWorkItemTasksQuery.data]);
+  const selectedScopeLabel = pageState.taskId
+    ? taskTitle ?? pageState.taskId
+    : scopedWorkItemId
+      ? workItemTitle ?? scopedWorkItemId
+      : null;
   const hasMoreRailRows = Boolean(railPacket?.next_cursor) || (railPacket?.rows.length ?? 0) >= railLimit;
 
   useEffect(() => {
@@ -327,7 +341,7 @@ export function WorkflowsPage(): JSX.Element {
                   stickyStrip={workspaceQuery.data.sticky_strip}
                   workflowSettings={workflowSettingsQuery.data ?? null}
                   board={board}
-                  selectedScopeLabel={scopedWorkItemId ? workItemTitle : null}
+                  selectedScopeLabel={selectedScopeLabel}
                   onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
                   onAddWork={() => setIsAddWorkOpen(true)}
                   onOpenRedrive={() => setIsRedriveOpen(true)}
@@ -357,7 +371,9 @@ export function WorkflowsPage(): JSX.Element {
                     board={board}
                     selectedWorkItemId={pageState.workItemId}
                     selectedTaskId={pageState.taskId}
+                    boardLens={boardLens}
                     boardMode={pageState.boardMode}
+                    onBoardLensChange={setBoardLens}
                     onBoardModeChange={(boardMode) =>
                       patchPageState(navigate, pageState, { boardMode })
                     }

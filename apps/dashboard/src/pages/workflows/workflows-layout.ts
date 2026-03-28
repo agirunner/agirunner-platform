@@ -6,8 +6,6 @@ export const MAX_WORKFLOW_RAIL_WIDTH_PX = 520;
 export const DEFAULT_WORKFLOW_WORKBENCH_FRACTION = 0.5;
 export const MIN_WORKFLOW_WORKBENCH_FRACTION = 0.35;
 export const MAX_WORKFLOW_WORKBENCH_FRACTION = 0.7;
-const DEFAULT_WORKFLOW_BOARD_MIN_HEIGHT_REM = 20;
-const DEFAULT_WORKFLOW_WORKBENCH_MIN_HEIGHT_REM = 20;
 const WORKFLOW_SPLIT_GUTTER_REM = 0.5;
 
 export function buildWorkflowsShellClassName(isRailHidden: boolean): string {
@@ -39,7 +37,7 @@ export function buildWorkflowWorkspaceSplitStyle(
   const gutterOffset = `${WORKFLOW_SPLIT_GUTTER_REM / 2}rem`;
   return {
     gridTemplateRows:
-      `minmax(${DEFAULT_WORKFLOW_BOARD_MIN_HEIGHT_REM}rem, calc(${boardPercent}% - ${gutterOffset})) ${WORKFLOW_SPLIT_GUTTER_REM}rem minmax(${DEFAULT_WORKFLOW_WORKBENCH_MIN_HEIGHT_REM}rem, calc(${footerPercent}% - ${gutterOffset}))`,
+      `minmax(0, calc(${boardPercent}% - ${gutterOffset})) ${WORKFLOW_SPLIT_GUTTER_REM}rem minmax(0, calc(${footerPercent}% - ${gutterOffset}))`,
   };
 }
 

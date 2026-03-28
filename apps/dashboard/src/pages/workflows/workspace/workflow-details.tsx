@@ -137,7 +137,7 @@ function PacketSection(props: {
       <p className="text-sm font-semibold text-foreground">{props.label}</p>
       <div className="grid gap-2">
         {props.packets.map((packet) => (
-          <article key={packet.id} className="grid gap-2 rounded-lg border border-border/70 bg-muted/5 px-3 py-2">
+          <div key={packet.id} className="grid gap-2 border-l border-border/70 pl-3">
             <div className="grid gap-1">
               <strong className="text-sm text-foreground">
                 {packet.summary ?? humanizeToken(packet.packet_kind)}
@@ -156,7 +156,7 @@ function PacketSection(props: {
                 ))}
               </div>
             ) : null}
-          </article>
+          </div>
         ))}
       </div>
     </div>

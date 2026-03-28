@@ -8,8 +8,12 @@ import { dashboardApi } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
 import { WorkflowBoardTaskStack } from './workflow-board-task-stack.js';
 import { summarizeTaskPreviewsForWorkItem, type WorkflowTaskPreviewSummary } from './workflow-board-task-preview.js';
-import type { WorkflowBoardMode } from './workflows-page.support.js';
-import { buildWorkflowBoardView, isNeedsActionWorkItem } from './workflow-board.support.js';
+import type { WorkflowBoardLens, WorkflowBoardMode } from './workflows-page.support.js';
+import {
+  buildWorkflowBoardTaskCards,
+  buildWorkflowBoardView,
+  isNeedsActionWorkItem,
+} from './workflow-board.support.js';
 
 type StageFilter = string;
 type LaneFilter = string;
@@ -20,7 +24,10 @@ export function WorkflowBoard(props: {
   board: DashboardWorkflowBoardResponse | null;
   selectedWorkItemId: string | null;
   selectedTaskId: string | null;
+  boardLens: WorkflowBoardLens;
   boardMode: WorkflowBoardMode;
+  taskPreviewSummaries?: Map<string, WorkflowTaskPreviewSummary>;
+  onBoardLensChange(nextLens: WorkflowBoardLens): void;
   onBoardModeChange(nextMode: WorkflowBoardMode): void;
   onSelectWorkItem(workItemId: string): void;
   onSelectTask(workItemId: string, taskId: string): void;
@@ -49,23 +56,34 @@ export function WorkflowBoard(props: {
     [boardView],
   );
 
+  const taskQueryDescriptors =
+    props.taskPreviewSummaries
+      ? []
+      : filteredWorkItems.map((workItem) => ({
+          queryKey: ['workflows', 'work-item-tasks', props.workflowId, workItem.id],
+          queryFn: () => dashboardApi.listWorkflowWorkItemTasks(props.workflowId, workItem.id),
+          staleTime: 15_000,
+        }));
   const taskQueries = useQueries({
-    queries: filteredWorkItems.map((workItem) => ({
-      queryKey: ['workflows', 'work-item-tasks', props.workflowId, workItem.id],
-      queryFn: () => dashboardApi.listWorkflowWorkItemTasks(props.workflowId, workItem.id),
-      staleTime: 15_000,
-    })),
+    queries: taskQueryDescriptors,
   });
 
   const tasksByWorkItem = useMemo(
-    () =>
-      new Map(
+    () => {
+      if (props.taskPreviewSummaries) {
+        return props.taskPreviewSummaries;
+      }
+      return new Map(
         filteredWorkItems.map((workItem, index) => [
           workItem.id,
-          summarizeTaskPreviewsForWorkItem(taskQueries[index]?.data, workItem.id),
+          summarizeTaskPreviewsForWorkItem(taskQueries[index]?.data, workItem.id, {
+            workItemTitle: workItem.title,
+            stageName: workItem.stage_name,
+          }),
         ]),
-      ),
-    [filteredWorkItems, taskQueries],
+      );
+    },
+    [filteredWorkItems, props.taskPreviewSummaries, taskQueries],
   );
 
   if (!props.board) {
@@ -84,6 +102,16 @@ export function WorkflowBoard(props: {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-base font-semibold text-foreground">Workflow board</p>
+          <ModeButton
+            isActive={props.boardLens === 'work_items'}
+            label="Work items"
+            onClick={() => props.onBoardLensChange('work_items')}
+          />
+          <ModeButton
+            isActive={props.boardLens === 'tasks'}
+            label="Tasks"
+            onClick={() => props.onBoardLensChange('tasks')}
+          />
           <ModeButton
             isActive={props.boardMode === 'active'}
             label="Active"
@@ -143,6 +171,7 @@ export function WorkflowBoard(props: {
             <BoardLaneCard
               key={lane.column.id}
               lane={lane}
+              boardLens={props.boardLens}
               boardMode={props.boardMode}
               selectedWorkItemId={props.selectedWorkItemId}
               selectedTaskId={props.selectedTaskId}
@@ -155,7 +184,7 @@ export function WorkflowBoard(props: {
       </div>
 
       {boardView.filteredCount === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/70 p-4 text-sm text-muted-foreground">
+        <div className="px-1 py-2 text-sm text-muted-foreground">
           No work items match the current board filters.
         </div>
       ) : null}
@@ -165,6 +194,7 @@ export function WorkflowBoard(props: {
 
 function BoardLaneCard(props: {
   lane: ReturnType<typeof buildWorkflowBoardView>['lanes'][number];
+  boardLens: WorkflowBoardLens;
   boardMode: WorkflowBoardMode;
   selectedWorkItemId: string | null;
   selectedTaskId: string | null;
@@ -172,6 +202,14 @@ function BoardLaneCard(props: {
   onSelectTask(workItemId: string, taskId: string): void;
   tasksByWorkItem: Map<string, WorkflowTaskPreviewSummary>;
 }): JSX.Element {
+  const activeTaskCards = useMemo(
+    () => buildWorkflowBoardTaskCards(props.lane.activeItems, props.tasksByWorkItem),
+    [props.lane.activeItems, props.tasksByWorkItem],
+  );
+  const completedTaskCards = useMemo(
+    () => buildWorkflowBoardTaskCards(props.lane.visibleCompletedItems, props.tasksByWorkItem),
+    [props.lane.visibleCompletedItems, props.tasksByWorkItem],
+  );
   const showCompletedSection =
     props.boardMode !== 'active'
     && (props.lane.visibleCompletedItems.length > 0 || props.lane.hiddenCompletedCount > 0);
@@ -192,7 +230,9 @@ function BoardLaneCard(props: {
       </div>
 
       <div className="grid gap-3">
-        {props.lane.activeItems.length === 0 ? (
+        {props.boardLens === 'tasks'
+          ? renderTaskLaneCards(activeTaskCards, props.selectedTaskId, props.onSelectTask)
+          : props.lane.activeItems.length === 0 ? (
           <div className="flex min-h-[8rem] items-center justify-center text-center">
             <p className="text-sm text-muted-foreground">No active work in this lane.</p>
           </div>
@@ -206,9 +246,9 @@ function BoardLaneCard(props: {
               selectedTaskId={props.selectedTaskId}
               onSelect={props.onSelectWorkItem}
               onSelectTask={props.onSelectTask}
-            />
-          ))
-        )}
+              />
+            ))
+          )}
       </div>
 
       {showCompletedSection ? (
@@ -218,7 +258,14 @@ function BoardLaneCard(props: {
             {props.lane.hiddenCompletedCount > 0 ? ` • ${props.lane.hiddenCompletedCount} older hidden` : ''}
           </summary>
           <div className="mt-3 grid gap-3">
-            {props.lane.visibleCompletedItems.length === 0 ? (
+            {props.boardLens === 'tasks'
+              ? renderTaskLaneCards(
+                  completedTaskCards,
+                  props.selectedTaskId,
+                  props.onSelectTask,
+                  'No completed specialist tasks match the current visibility window.',
+                )
+              : props.lane.visibleCompletedItems.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No completed work items match the current visibility window.
               </p>
@@ -235,7 +282,7 @@ function BoardLaneCard(props: {
                   muted
                 />
               ))
-            )}
+              )}
           </div>
         </details>
       ) : null}
@@ -291,6 +338,48 @@ function BoardWorkItemCard(props: {
       />
       <span className="sr-only">Task preview</span>
     </article>
+  );
+}
+
+function renderTaskLaneCards(
+  taskCards: ReturnType<typeof buildWorkflowBoardTaskCards>,
+  selectedTaskId: string | null,
+  onSelectTask: (workItemId: string, taskId: string) => void,
+  emptyMessage = 'No specialist tasks in this lane.',
+): JSX.Element {
+  if (taskCards.length === 0) {
+    return (
+      <div className="flex min-h-[8rem] items-center justify-center text-center">
+        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {taskCards.map((task) => (
+        <button
+          key={task.id}
+          type="button"
+          className={cn(
+            'grid gap-2 rounded-2xl border px-4 py-3 text-left transition-colors',
+            selectedTaskId === task.id
+              ? 'border-amber-300 bg-amber-100/90 shadow-sm dark:border-amber-500/60 dark:bg-amber-500/10'
+              : 'border-border/70 bg-background/85 hover:bg-background',
+          )}
+          onClick={() => onSelectTask(task.workItemId, task.id)}
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <strong className="text-foreground">{task.title}</strong>
+            {task.stageName ? <Badge variant="outline">{humanizeToken(task.stageName)}</Badge> : null}
+            {task.role ? <Badge variant="outline">{humanizeToken(task.role)}</Badge> : null}
+            {task.state ? <Badge variant="secondary">{humanizeToken(task.state)}</Badge> : null}
+            {task.hasActiveOrchestratorTask ? <Badge variant="secondary">Orchestrator working</Badge> : null}
+          </div>
+          <p className="text-sm text-muted-foreground">{task.workItemTitle}</p>
+        </button>
+      ))}
+    </>
   );
 }
 

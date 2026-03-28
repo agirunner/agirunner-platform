@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { DashboardWorkflowBoardResponse } from '../../lib/api.js';
 import { WorkflowBoard } from './workflow-board.js';
+import type { WorkflowTaskPreviewSummary } from './workflow-board-task-preview.js';
 
 describe('WorkflowBoard', () => {
   it('keeps board controls in one header row and removes noisy workflow-level board copy', () => {
@@ -17,7 +18,9 @@ describe('WorkflowBoard', () => {
           board: createBoard(),
           selectedWorkItemId: null,
           selectedTaskId: null,
+          boardLens: 'work_items',
           boardMode: 'active_recent_complete',
+          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
           onSelectTask: vi.fn(),
@@ -43,7 +46,9 @@ describe('WorkflowBoard', () => {
           board: createBoard(),
           selectedWorkItemId: null,
           selectedTaskId: null,
+          boardLens: 'work_items',
           boardMode: 'active_recent_complete',
+          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
           onSelectTask: vi.fn(),
@@ -68,7 +73,9 @@ describe('WorkflowBoard', () => {
           board: createBoardWithRecentCompletion(),
           selectedWorkItemId: null,
           selectedTaskId: null,
+          boardLens: 'work_items',
           boardMode: 'active_recent_complete',
+          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
           onSelectTask: vi.fn(),
@@ -80,6 +87,52 @@ describe('WorkflowBoard', () => {
     expect(html).not.toContain('<details class="rounded-2xl border border-border/70 bg-background/70 p-3" open="">');
     expect(html).not.toContain('>3 tasks<');
     expect(html).toContain('flex min-h-[8rem] items-center justify-center text-center');
+  });
+
+  it('supports a task lens that renders only specialist tasks as first-class cards', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: createBoard(),
+          selectedWorkItemId: 'work-item-1',
+          selectedTaskId: 'task-specialist',
+          boardLens: 'tasks',
+          boardMode: 'active_recent_complete',
+          taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
+            [
+              'work-item-1',
+              {
+                tasks: [
+                  {
+                    id: 'task-specialist',
+                    title: 'Assess packet',
+                    role: 'policy-assessor',
+                    state: 'in_progress',
+                    workItemId: 'work-item-1',
+                    workItemTitle: 'Review incoming packet',
+                    stageName: 'intake-triage',
+                  },
+                ],
+                hasActiveOrchestratorTask: true,
+              },
+            ],
+          ]),
+          onBoardLensChange: vi.fn(),
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+          onSelectTask: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Tasks');
+    expect(html).toContain('Assess packet');
+    expect(html).toContain('Review incoming packet');
+    expect(html).not.toContain('Task stack');
+    expect(html).not.toContain('Orchestrate workflow');
   });
 });
 

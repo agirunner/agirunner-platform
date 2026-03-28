@@ -42,12 +42,19 @@ export function WorkflowsRail(props: {
         : props.rows,
     [props.mode, props.ongoingOnly, props.rows],
   );
+  const renderedRows = useMemo(
+    () =>
+      props.mode === 'live' && !props.ongoingOnly
+        ? [...ongoingPreviewRows, ...visibleRows]
+        : visibleRows,
+    [ongoingPreviewRows, props.mode, props.ongoingOnly, visibleRows],
+  );
   const selectedVisible = useMemo(
     () =>
       props.selectedWorkflowId
-        ? [...props.rows, ...props.ongoingRows].some((row) => row.workflow_id === props.selectedWorkflowId)
+        ? renderedRows.some((row) => row.workflow_id === props.selectedWorkflowId)
         : true,
-    [props.ongoingRows, props.rows, props.selectedWorkflowId],
+    [props.selectedWorkflowId, renderedRows],
   );
   const shouldShowMainEmptyState = visibleRows.length === 0 && !(props.mode === 'live' && !props.ongoingOnly && ongoingPreviewRows.length > 0);
 
@@ -69,7 +76,7 @@ export function WorkflowsRail(props: {
             onChange={(event) => props.onSearchChange(event.target.value)}
             placeholder="Search workflows"
           />
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <ModeButton
               isActive={props.mode === 'live'}
               label="Live"
@@ -156,7 +163,7 @@ export function WorkflowsRail(props: {
       >
         <div className="grid gap-2">
           {shouldShowMainEmptyState ? (
-            <div className="rounded-2xl border border-dashed border-border/70 bg-background/80 p-4 text-sm text-muted-foreground">
+            <div className="px-1 py-2 text-sm text-muted-foreground">
               No workflows match the current filters.
             </div>
           ) : visibleRows.length > 0 ? (

@@ -1,4 +1,5 @@
 export type WorkflowPageMode = 'live' | 'recent';
+export type WorkflowBoardLens = 'work_items' | 'tasks';
 export type WorkflowWorkbenchTab =
   | 'details'
   | 'needs_action'

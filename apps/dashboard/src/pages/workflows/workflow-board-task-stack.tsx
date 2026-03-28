@@ -3,6 +3,9 @@ export interface WorkflowTaskPreview {
   title: string;
   role: string | null;
   state: string | null;
+  workItemId?: string | null;
+  workItemTitle?: string | null;
+  stageName?: string | null;
 }
 
 export function WorkflowBoardTaskStack(props: {
@@ -24,20 +27,20 @@ export function WorkflowBoardTaskStack(props: {
         {props.tasks.length === 0 ? (
           <p className="text-sm text-muted-foreground">No task previews available yet.</p>
         ) : (
-          <div className="grid max-h-56 gap-2 overflow-y-auto pr-1">
+          <div className="grid gap-2">
             {props.tasks.map((task) => (
               <button
                 key={task.id}
                 type="button"
                 className={
                   props.selectedTaskId === task.id
-                    ? 'flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-100/90 px-3 py-2 text-left text-sm dark:border-amber-500/60 dark:bg-amber-500/10'
-                    : 'flex flex-wrap items-center justify-between gap-3 rounded-lg border border-transparent px-3 py-2 text-left text-sm transition-colors hover:border-border/70 hover:bg-background/70'
+                    ? 'grid gap-1 rounded-lg border border-amber-300 bg-amber-100/90 px-3 py-2 text-left text-sm dark:border-amber-500/60 dark:bg-amber-500/10'
+                    : 'grid gap-1 rounded-lg border border-transparent px-3 py-2 text-left text-sm transition-colors hover:border-border/70 hover:bg-background/70'
                 }
                 onClick={() => props.onSelectTask?.(task.id)}
               >
-                <span className="min-w-0 flex-1 text-foreground">{task.title}</span>
-                <span className="text-muted-foreground">
+                <span className="text-foreground">{task.title}</span>
+                <span className="text-xs text-muted-foreground">
                   {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}
                 </span>
               </button>

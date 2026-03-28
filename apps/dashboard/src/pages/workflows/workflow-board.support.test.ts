@@ -107,7 +107,7 @@ describe('buildWorkflowBoardView', () => {
     expect(view.lanes[0]?.activeItems.map((item) => item.id)).toEqual(['blocked-active']);
   });
 
-  it('renders needs-action items in the blocked lane when the stored column is stale', () => {
+  it('keeps actionable work in the platform-assigned lane instead of reprojecting it in the dashboard', () => {
     const board = createBoard([
       createWorkItem({
         id: 'needs-action-item',
@@ -126,13 +126,13 @@ describe('buildWorkflowBoardView', () => {
       needsActionOnly: false,
     });
 
-    expect(view.lanes.find((lane) => lane.column.id === 'blocked')?.activeItems.map((item) => item.id)).toEqual([
+    expect(view.lanes.find((lane) => lane.column.id === 'planned')?.activeItems.map((item) => item.id)).toEqual([
       'needs-action-item',
     ]);
-    expect(view.lanes.find((lane) => lane.column.id === 'planned')?.activeItems).toEqual([]);
+    expect(view.lanes.find((lane) => lane.column.id === 'blocked')?.activeItems).toEqual([]);
   });
 
-  it('treats rejected gate work as needs-action work for blocked-lane projection', () => {
+  it('keeps rejected work filterable as needs action without changing its lane', () => {
     const board = createBoard([
       createWorkItem({
         id: 'rejected-item',
@@ -151,12 +151,12 @@ describe('buildWorkflowBoardView', () => {
       needsActionOnly: false,
     });
 
-    expect(view.lanes.find((lane) => lane.column.id === 'blocked')?.activeItems.map((item) => item.id)).toEqual([
+    expect(view.lanes.find((lane) => lane.column.id === 'planned')?.activeItems.map((item) => item.id)).toEqual([
       'rejected-item',
     ]);
   });
 
-  it('treats request-changes work as needs-action work for blocked-lane projection', () => {
+  it('keeps request-changes work visible in its stored lane while needs-action filters still match it', () => {
     const board = createBoard([
       createWorkItem({
         id: 'request-changes-item',
@@ -175,10 +175,9 @@ describe('buildWorkflowBoardView', () => {
       needsActionOnly: false,
     });
 
-    expect(view.lanes.find((lane) => lane.column.id === 'blocked')?.activeItems.map((item) => item.id)).toEqual([
+    expect(view.lanes.find((lane) => lane.column.id === 'planned')?.activeItems.map((item) => item.id)).toEqual([
       'request-changes-item',
     ]);
-    expect(view.lanes.find((lane) => lane.column.id === 'planned')?.activeItems).toEqual([]);
   });
 });
 

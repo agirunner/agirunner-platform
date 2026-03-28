@@ -8,6 +8,10 @@ export interface WorkflowTaskPreviewSummary {
 export function summarizeTaskPreviewsForWorkItem(
   records: Record<string, unknown>[] | undefined,
   workItemId: string,
+  context?: {
+    workItemTitle?: string | null;
+    stageName?: string | null;
+  },
 ): WorkflowTaskPreviewSummary {
   if (!Array.isArray(records)) {
     return {
@@ -16,12 +20,12 @@ export function summarizeTaskPreviewsForWorkItem(
     };
   }
 
-  const relatedRecords = records.filter((entry) => readWorkItemId(entry, workItemId) === workItemId);
+  const relatedRecords = records.filter((entry) => readWorkItemId(entry) === workItemId);
 
   return {
     tasks: relatedRecords
       .filter((entry) => readIsOrchestratorTask(entry) === false)
-      .flatMap((entry) => buildTaskPreview(entry))
+      .flatMap((entry) => buildTaskPreview(entry, workItemId, context))
       .sort((left, right) => readTaskPriority(left).localeCompare(readTaskPriority(right))),
     hasActiveOrchestratorTask: relatedRecords.some(
       (entry) => readIsOrchestratorTask(entry) && isActiveOrchestratorState(readState(entry)),
@@ -29,7 +33,14 @@ export function summarizeTaskPreviewsForWorkItem(
   };
 }
 
-function buildTaskPreview(entry: Record<string, unknown>): WorkflowTaskPreview[] {
+function buildTaskPreview(
+  entry: Record<string, unknown>,
+  workItemId: string,
+  context?: {
+    workItemTitle?: string | null;
+    stageName?: string | null;
+  },
+): WorkflowTaskPreview[] {
   const id = typeof entry.id === 'string' ? entry.id : null;
   if (!id) {
     return [];
@@ -40,6 +51,9 @@ function buildTaskPreview(entry: Record<string, unknown>): WorkflowTaskPreview[]
       title: typeof entry.title === 'string' ? entry.title : 'Untitled task',
       role: typeof entry.role === 'string' ? entry.role : null,
       state: readState(entry),
+      workItemId,
+      workItemTitle: context?.workItemTitle ?? null,
+      stageName: context?.stageName ?? null,
     },
   ];
 }
@@ -58,8 +72,8 @@ function readTaskPriority(task: WorkflowTaskPreview): string {
   }
 }
 
-function readWorkItemId(entry: Record<string, unknown>, fallback: string): string {
-  return typeof entry.work_item_id === 'string' ? entry.work_item_id : fallback;
+function readWorkItemId(entry: Record<string, unknown>): string | null {
+  return typeof entry.work_item_id === 'string' ? entry.work_item_id : null;
 }
 
 function readIsOrchestratorTask(entry: Record<string, unknown>): boolean {

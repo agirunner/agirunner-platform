@@ -64,6 +64,7 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Workflow details');
     expect(html).not.toContain('Work item details');
     expect(html).not.toContain('1 tasks');
+    expect(html).not.toContain('rounded-lg border border-border/70 bg-muted/5 px-3 py-2');
   });
 
   it('keeps scoped work-item packets visible before the selected work-item record finishes loading', () => {

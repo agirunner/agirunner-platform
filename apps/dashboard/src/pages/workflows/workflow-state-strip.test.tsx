@@ -94,6 +94,8 @@ describe('WorkflowStateStrip', () => {
 
     expect(html).toContain('Waiting for Work');
     expect(html).toContain('Ongoing');
+    expect(html).toContain('Steering');
+    expect(html).toContain('Open');
     expect(html).not.toContain('Waiting By Design');
     expect(html).not.toContain('Workflow is waiting by design');
     expect((html.match(/min-h-4 text-\[13px\] font-semibold leading-4 text-foreground/g) ?? []).length).toBeGreaterThanOrEqual(4);
