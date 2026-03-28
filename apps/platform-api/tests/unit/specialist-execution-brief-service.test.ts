@@ -211,13 +211,25 @@ describe('buildSpecialistExecutionBrief', () => {
       'short_brief must include a headline.',
     );
     expect(brief?.rendered_markdown).toContain(
-      'record_operator_update headlines must be one operator-readable sentence and must not dump raw tool names, phases, JSON, or UUIDs when titles exist.',
+      'Operator updates and briefs are console text, not audit logs',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'use titles and roles when available',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      '"Ran File Read", "tool_failure", or "executed 2 tools"',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Operator updates and briefs are console text, not audit logs: keep them human-readable',
     );
     expect(brief?.rendered_markdown).toContain(
       'Example: { payload: { headline: "Reviewer is checking rollback handling.", summary: "Rollback handling is under review." } }',
     );
     expect(brief?.rendered_markdown).toContain(
       'record_operator_brief requires short_brief.headline plus detailed_brief_json.headline and status_kind, and must never be called with only linked_target_ids or an empty brief shell.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Brief headlines and summaries must stay human-readable, describe the real workflow progress, and use titles instead of UUIDs or internal handles whenever titles exist.',
     );
     expect(brief?.rendered_markdown).toContain(
       'detailed_brief_json must include headline and status_kind and should carry the fuller human-readable summary and sections.',

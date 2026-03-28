@@ -274,7 +274,7 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
         `Use ${brief.operator_visibility.record_operator_update_tool} for one tiny operator-readable headline after each eligible execution step.`,
       );
       lines.push(
-        'record_operator_update headlines must be one operator-readable sentence and must not dump raw tool names, phases, JSON, or UUIDs when titles exist.',
+        'Operator updates and briefs are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".',
       );
       lines.push(
         'Example: { payload: { headline: "Reviewer is checking rollback handling.", summary: "Rollback handling is under review." } }',
@@ -290,6 +290,9 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
       lines.push('short_brief must include a headline.');
       lines.push(
         'record_operator_brief requires short_brief.headline plus detailed_brief_json.headline and status_kind, and must never be called with only linked_target_ids or an empty brief shell.',
+      );
+      lines.push(
+        'Brief headlines and summaries must stay human-readable, describe the real workflow progress, and use titles instead of UUIDs or internal handles whenever titles exist.',
       );
       lines.push(
         'detailed_brief_json must include headline and status_kind and should carry the fuller human-readable summary and sections.',

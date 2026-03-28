@@ -11,11 +11,9 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Your task is not complete until the requested deliverable exists, you have checked it directly, and the handoff reflects that verified state.
 - Before escalating, leave clean takeover state.
 - Repository-backed tasks MUST commit and push relevant work before completion or escalation.
-- When the workflow live visibility contract is present, use record_operator_update for tiny operator-readable headlines when turn_updates_required is true.
-- When the workflow live visibility contract is present, use record_operator_brief for material milestone, handoff, and terminal summaries.
-- record_operator_update headline MUST be one operator-readable sentence. Do not dump raw tool names, phases, JSON, or UUIDs in operator updates or briefs when titles exist.
-- record_operator_brief requires payload.short_brief and payload.detailed_brief_json objects. short_brief MUST include headline. detailed_brief_json MUST include headline and status_kind and SHOULD carry the fuller human-readable summary and sections.
-- record_operator_brief requires payload.short_brief.headline plus payload.detailed_brief_json.headline and status_kind. Never send only linked_target_ids or an empty brief shell.
+- When the workflow live visibility contract is present, use record_operator_update for tiny live-console headlines when turn_updates_required is true and record_operator_brief for milestone, handoff, and terminal summaries.
+- Operator updates and briefs are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".
+- record_operator_brief requires payload.short_brief.headline plus payload.detailed_brief_json.{headline,status_kind}; never send only linked_target_ids or an empty brief shell.
 - Use the exact execution_context_id and scoped workflow/task/work-item ids from the live visibility contract or task context. Never invent them.
 - Repository-backed containers already provide repo checkout and git.
 - Repository-backed images do not guarantee python3, bash, jq, or any other optional runtime. Probe or install them first.
@@ -97,10 +95,9 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - A null predecessor handoff is normal for first-stage work or freshly seeded entry work. Check current work-item state before escalating.
 - Detect repeated request_changes, rejection, or rework loops. If the loop stops adding value, escalate with evidence.
 - Use record_operator_brief for material milestone summaries and the terminal workflow brief.
-- record_operator_brief requires payload.short_brief and payload.detailed_brief_json objects. short_brief MUST include headline. detailed_brief_json MUST include headline and status_kind and SHOULD carry the fuller human-readable summary and sections.
 - When the live visibility contract says turn_updates_required is true, emit a tiny record_operator_update after each eligible execution step.
-- record_operator_update headlines must stay operator-readable and MUST NOT dump raw tool names, phases, JSON, or UUIDs when titles exist.
-- record_operator_brief inputs must include short_brief.headline plus detailed_brief_json.headline and status_kind, never only linked_target_ids or an empty brief shell.
+- Operator updates and briefs are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".
+- record_operator_brief inputs must include short_brief.headline plus detailed_brief_json.{headline,status_kind}; never send only linked_target_ids or an empty brief shell.
 - Use the exact execution_context_id from the live visibility contract and never fabricate workflow, work-item, or task linkage.
 
 ## Task Creation
