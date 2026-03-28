@@ -25,6 +25,24 @@ function writeSse(reply: { raw: NodeJS.WritableStream & { write: (chunk: string)
   reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
+function applyWorkflowStreamHeaders(
+  request: { headers: Record<string, unknown> },
+  reply: {
+    raw: NodeJS.WritableStream & {
+      setHeader: (name: string, value: string) => void;
+    };
+  },
+): void {
+  const origin = request.headers.origin;
+  if (typeof origin === 'string' && origin.length > 0) {
+    reply.raw.setHeader('Access-Control-Allow-Origin', origin);
+    reply.raw.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  reply.raw.setHeader('Content-Type', 'text/event-stream');
+  reply.raw.setHeader('Cache-Control', 'no-cache');
+  reply.raw.setHeader('Connection', 'keep-alive');
+}
+
 export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
   const auth = { preHandler: [authenticateApiKey, withAllowedScopes(['agent', 'admin'])] };
 
@@ -149,9 +167,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
     if (!prefersSse(request)) {
       return reply.send({ data: batch });
     }
-    reply.raw.setHeader('Content-Type', 'text/event-stream');
-    reply.raw.setHeader('Cache-Control', 'no-cache');
-    reply.raw.setHeader('Connection', 'keep-alive');
+    applyWorkflowStreamHeaders(request, reply);
     writeSse(reply, batch);
     let currentCursor = batch.cursor;
     const unsubscribe = app.eventStreamService.subscribe(request.auth!.tenantId, {}, (event) => {
@@ -207,9 +223,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
     if (!prefersSse(request)) {
       return reply.send({ data: batch });
     }
-    reply.raw.setHeader('Content-Type', 'text/event-stream');
-    reply.raw.setHeader('Cache-Control', 'no-cache');
-    reply.raw.setHeader('Connection', 'keep-alive');
+    applyWorkflowStreamHeaders(request, reply);
     writeSse(reply, batch);
     let currentCursor = batch.cursor;
     let currentLiveConsoleHead = batch.surface_cursors?.live_console_head ?? null;

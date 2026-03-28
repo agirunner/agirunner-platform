@@ -6,6 +6,14 @@ function readSource() {
   return readFileSync(resolve(import.meta.dirname, './login-page.tsx'), 'utf8');
 }
 
+function readDashboardDockerfile() {
+  return readFileSync(resolve(import.meta.dirname, '../../../../dashboard/Dockerfile'), 'utf8');
+}
+
+function readComposeSource() {
+  return readFileSync(resolve(import.meta.dirname, '../../../../../docker-compose.yml'), 'utf8');
+}
+
 describe('login page source', () => {
   it('adds a local env api key prefill and passes the keep-signed-in flag through the login call', () => {
     const source = readSource();
@@ -18,5 +26,14 @@ describe('login page source', () => {
     expect(source).toContain('checked={keepSignedIn}');
     expect(source).toContain('onChange={(e) => setKeepSignedIn(e.target.checked)}');
     expect(source).toContain('await dashboardApi.login(apiKey, keepSignedIn);');
+  });
+
+  it('wires the dashboard build to preload the seeded local admin key from compose config', () => {
+    const dockerfile = readDashboardDockerfile();
+    const compose = readComposeSource();
+
+    expect(dockerfile).toContain('ARG VITE_DASHBOARD_LOGIN_PREFILL_KEY=');
+    expect(dockerfile).toContain('ENV VITE_DASHBOARD_LOGIN_PREFILL_KEY=${VITE_DASHBOARD_LOGIN_PREFILL_KEY}');
+    expect(compose).toContain('VITE_DASHBOARD_LOGIN_PREFILL_KEY: ${DEFAULT_ADMIN_API_KEY}');
   });
 });

@@ -1,9 +1,15 @@
-import type { MissionControlActionAvailability, MissionControlWorkflowCard } from './mission-control-types.js';
+import type {
+  MissionControlActionAvailability,
+  MissionControlOutputDescriptor,
+  MissionControlOutputLocation,
+  MissionControlWorkflowCard,
+} from './mission-control-types.js';
 import type { WorkflowService } from '../workflow-service.js';
 import type { WorkflowDeliverablesService } from './workflow-deliverables-service.js';
 import type { WorkflowHistoryService } from './workflow-history-service.js';
 import type { WorkflowLiveConsoleService } from './workflow-live-console-service.js';
 import type { WorkflowRailService } from './workflow-rail-service.js';
+import type { WorkflowDeliverableRecord } from '../workflow-deliverable-service.js';
 import type {
   WorkflowInterventionRecord,
   WorkflowInterventionService,
@@ -14,7 +20,9 @@ import type {
 } from '../workflow-steering-session-service.js';
 import type {
   WorkflowBottomTabsPacket,
+  WorkflowHistoryItem,
   WorkflowNeedsActionItem,
+  WorkflowLiveConsoleItem,
   WorkflowWorkspacePacket,
 } from './workflow-operations-types.js';
 
@@ -80,14 +88,33 @@ export class WorkflowWorkspaceService {
 
     const needsActionItems = buildNeedsActionItems(
       workflowId,
+      board as Record<string, unknown>,
       workflowCard?.availableActions ?? [],
       interventions,
       selectedScope.work_item_id,
     );
-    const allDeliverables = deliverables.all_deliverables ?? [
-      ...deliverables.final_deliverables,
-      ...deliverables.in_progress_deliverables,
+    const hydratedDeliverables = mergeOutputDescriptorDeliverables(
+      workflowId,
+      deliverables,
+      workflowCard?.outputDescriptors ?? [],
+      history.generated_at,
+    );
+    const allDeliverables = hydratedDeliverables.all_deliverables ?? [
+      ...hydratedDeliverables.final_deliverables,
+      ...hydratedDeliverables.in_progress_deliverables,
     ];
+    const effectiveLiveConsole = synthesizeLiveConsoleItems(
+      liveConsole,
+      selectedScope.work_item_id,
+      board as Record<string, unknown>,
+      workflowCard?.pulse.summary ?? null,
+    );
+    const effectiveHistory = synthesizeHistoryItems(
+      history,
+      selectedScope.work_item_id,
+      board as Record<string, unknown>,
+      allDeliverables as WorkflowDeliverableRecord[],
+    );
     const activeSession = sessions[0] ?? null;
     const sessionMessages = activeSession
       ? await this.steeringSessionService.listMessages(tenantId, workflowId, activeSession.id)
@@ -95,14 +122,15 @@ export class WorkflowWorkspaceService {
     const bottomTabs = buildBottomTabs(
       needsActionItems.length,
       activeSession ? 1 : 0,
-      liveConsole.items.length,
-      history.items.length,
+      effectiveLiveConsole.items.length,
+      effectiveHistory.items.length,
       allDeliverables.length,
       input,
     );
 
     return {
       workflow_id: workflowId,
+      workflow: workflowCard ?? null,
       generated_at: history.generated_at,
       latest_event_id: history.latest_event_id,
       snapshot_version: history.snapshot_version,
@@ -131,9 +159,9 @@ export class WorkflowWorkspaceService {
           messages: sessionMessages,
         },
       },
-      live_console: liveConsole,
-      history,
-      deliverables,
+      live_console: effectiveLiveConsole,
+      history: effectiveHistory,
+      deliverables: hydratedDeliverables,
       redrive_lineage: readRedriveLineage(workflow),
     };
   }
@@ -192,25 +220,21 @@ function buildBottomTabs(
 
 function buildNeedsActionItems(
   workflowId: string,
+  board: Record<string, unknown>,
   actions: MissionControlActionAvailability[],
   interventions: WorkflowInterventionRecord[],
   selectedWorkItemId: string | null,
 ): WorkflowNeedsActionItem[] {
-  const items: WorkflowNeedsActionItem[] = actions
-    .filter((action) => action.enabled)
-    .map((action): WorkflowNeedsActionItem => ({
-      action_id: `${workflowId}:${action.kind}`,
-      action_kind: action.kind,
-      label: humanizeActionKind(action.kind),
-      summary: action.disabledReason ?? humanizeActionKind(action.kind),
-      target: resolveActionTarget(action.scope, workflowId, interventions, selectedWorkItemId),
-      priority: action.scope === 'workflow' ? 'medium' : 'high',
-      requires_confirmation: action.confirmationLevel !== 'immediate',
-      submission: {
-        route_kind: 'workflow_intervention',
-        method: 'POST',
-      },
-    }));
+  const items: WorkflowNeedsActionItem[] = [];
+  for (const boardItem of readBoardNeedsActionItems(board)) {
+    items.push(boardItem);
+  }
+  for (const stageItem of readBoardStageNeedsActionItems(board, workflowId)) {
+    if (items.some((item) => item.action_id === stageItem.action_id)) {
+      continue;
+    }
+    items.push(stageItem);
+  }
   for (const intervention of interventions) {
     if (!isActionableIntervention(intervention)) {
       continue;
@@ -235,7 +259,25 @@ function buildNeedsActionItems(
       },
     });
   }
-  return items;
+  for (const action of actions) {
+    if (!isNeedsActionQuickAction(action)) {
+      continue;
+    }
+    items.push({
+      action_id: `${workflowId}:${action.kind}`,
+      action_kind: action.kind,
+      label: humanizeActionKind(action.kind),
+      summary: action.disabledReason ?? humanizeActionKind(action.kind),
+      target: resolveActionTarget(action.scope, workflowId, interventions, selectedWorkItemId),
+      priority: action.scope === 'workflow' ? 'medium' : 'high',
+      requires_confirmation: action.confirmationLevel !== 'immediate',
+      submission: {
+        route_kind: 'workflow_intervention',
+        method: 'POST',
+      },
+    });
+  }
+  return items.sort(compareNeedsActionPriority);
 }
 
 function humanizeActionKind(actionKind: string): string {
@@ -283,6 +325,138 @@ function isActionableIntervention(intervention: WorkflowInterventionRecord): boo
   return intervention.status === 'open' || intervention.status === 'pending';
 }
 
+function isNeedsActionQuickAction(action: MissionControlActionAvailability): boolean {
+  return action.enabled && action.kind === 'redrive_workflow';
+}
+
+function readBoardNeedsActionItems(board: Record<string, unknown>): WorkflowNeedsActionItem[] {
+  const workItems = Array.isArray(board.work_items) ? board.work_items : [];
+  const items: WorkflowNeedsActionItem[] = [];
+  for (const workItem of workItems) {
+    if (!workItem || typeof workItem !== 'object' || Array.isArray(workItem)) {
+      continue;
+    }
+    const record = workItem as Record<string, unknown>;
+    const workItemId = readOptionalString(record.id);
+    if (!workItemId) {
+      continue;
+    }
+    const title = readOptionalString(record.title) ?? 'Work item';
+    const gateStatus = readOptionalString(record.gate_status);
+    const escalationStatus = readOptionalString(record.escalation_status);
+    const blockedState = readOptionalString(record.blocked_state);
+    if (gateStatus === 'awaiting_approval') {
+      items.push({
+        action_id: `${workItemId}:awaiting_approval`,
+        action_kind: 'review_work_item',
+        label: 'Approval required',
+        summary: `${title} is waiting for operator approval.`,
+        target: { target_kind: 'work_item', target_id: workItemId },
+        priority: 'high',
+        requires_confirmation: true,
+        submission: { route_kind: 'workflow_intervention', method: 'POST' },
+      });
+    }
+    if (escalationStatus === 'open') {
+      items.push({
+        action_id: `${workItemId}:open_escalation`,
+        action_kind: 'resolve_escalation',
+        label: 'Resolve escalation',
+        summary: `${title} has an open escalation.`,
+        target: { target_kind: 'work_item', target_id: workItemId },
+        priority: 'high',
+        requires_confirmation: false,
+        submission: { route_kind: 'workflow_intervention', method: 'POST' },
+      });
+    }
+    if (blockedState === 'blocked') {
+      items.push({
+        action_id: `${workItemId}:blocked`,
+        action_kind: 'unblock_work_item',
+        label: 'Unblock work item',
+        summary: buildBlockedSummary(title, record),
+        target: { target_kind: 'work_item', target_id: workItemId },
+        priority: 'high',
+        requires_confirmation: false,
+        submission: { route_kind: 'workflow_intervention', method: 'POST' },
+      });
+    }
+  }
+  return items;
+}
+
+function readBoardStageNeedsActionItems(
+  board: Record<string, unknown>,
+  workflowId: string,
+): WorkflowNeedsActionItem[] {
+  const stageSummary = Array.isArray(board.stage_summary) ? board.stage_summary : [];
+  const actionableWorkItemStages = readActionableWorkItemStages(board);
+  const items: WorkflowNeedsActionItem[] = [];
+  for (const stage of stageSummary) {
+    if (!stage || typeof stage !== 'object' || Array.isArray(stage)) {
+      continue;
+    }
+    const record = stage as Record<string, unknown>;
+    const stageName = readOptionalString(record.name);
+    const gateStatus = readOptionalString(record.gate_status);
+    if (!stageName || !gateStatus || actionableWorkItemStages.has(stageName)) {
+      continue;
+    }
+    if (gateStatus === 'awaiting_approval') {
+      items.push({
+        action_id: `stage:${stageName}:awaiting_approval`,
+        action_kind: 'review_stage_gate',
+        label: 'Approval required',
+        summary: `Stage ${stageName} is waiting for operator approval.`,
+        target: { target_kind: 'workflow', target_id: workflowId },
+        priority: 'high',
+        requires_confirmation: true,
+        submission: { route_kind: 'workflow_intervention', method: 'POST' },
+      });
+      continue;
+    }
+    if (['blocked', 'changes_requested', 'rejected'].includes(gateStatus)) {
+      items.push({
+        action_id: `stage:${stageName}:${gateStatus}`,
+        action_kind: 'resolve_stage_gate',
+        label: 'Stage requires intervention',
+        summary: `Stage ${stageName} is ${humanizeGateStatus(gateStatus)} and needs operator intervention.`,
+        target: { target_kind: 'workflow', target_id: workflowId },
+        priority: 'high',
+        requires_confirmation: false,
+        submission: { route_kind: 'workflow_intervention', method: 'POST' },
+      });
+    }
+  }
+  return items;
+}
+
+function readActionableWorkItemStages(board: Record<string, unknown>): Set<string> {
+  const workItems = Array.isArray(board.work_items) ? board.work_items : [];
+  const stages = new Set<string>();
+  for (const workItem of workItems) {
+    if (!workItem || typeof workItem !== 'object' || Array.isArray(workItem)) {
+      continue;
+    }
+    const record = workItem as Record<string, unknown>;
+    const stageName = readOptionalString(record.stage_name);
+    const gateStatus = readOptionalString(record.gate_status);
+    const escalationStatus = readOptionalString(record.escalation_status);
+    const blockedState = readOptionalString(record.blocked_state);
+    if (!stageName) {
+      continue;
+    }
+    if (
+      gateStatus === 'awaiting_approval'
+      || escalationStatus === 'open'
+      || blockedState === 'blocked'
+    ) {
+      stages.add(stageName);
+    }
+  }
+  return stages;
+}
+
 function readStructuredActionKind(intervention: WorkflowInterventionRecord): string | null {
   const value = intervention.structured_action?.kind;
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
@@ -317,6 +491,344 @@ function readSessionStatus(session: WorkflowSteeringSessionRecord | null): strin
   return session.status.trim().length > 0 ? session.status : 'open';
 }
 
+function compareNeedsActionPriority(
+  left: WorkflowNeedsActionItem,
+  right: WorkflowNeedsActionItem,
+): number {
+  return readNeedsActionPriorityRank(left.priority) - readNeedsActionPriorityRank(right.priority);
+}
+
+function readNeedsActionPriorityRank(priority: WorkflowNeedsActionItem['priority']): number {
+  switch (priority) {
+    case 'high':
+      return 0;
+    case 'medium':
+      return 1;
+    default:
+      return 2;
+  }
+}
+
+function buildBlockedSummary(title: string, record: Record<string, unknown>): string {
+  const blockedReason =
+    readOptionalString(record.blocked_reason) ?? readOptionalString(record.gate_decision_feedback);
+  if (blockedReason) {
+    return `${title} is blocked: ${blockedReason}`;
+  }
+  return `${title} is blocked and needs operator intervention.`;
+}
+
+function mergeOutputDescriptorDeliverables(
+  workflowId: string,
+  deliverables: Awaited<ReturnType<WorkflowDeliverablesService['getDeliverables']>>,
+  outputDescriptors: MissionControlOutputDescriptor[],
+  fallbackTimestamp: string,
+) {
+  if (outputDescriptors.length === 0) {
+    return deliverables;
+  }
+
+  const finalDeliverables = [...deliverables.final_deliverables];
+  const inProgressDeliverables = [...deliverables.in_progress_deliverables];
+  const allDeliverables = [
+    ...(deliverables.all_deliverables ?? [...finalDeliverables, ...inProgressDeliverables]),
+  ];
+  const existingIds = new Set<string>();
+  for (const deliverable of allDeliverables) {
+    const descriptorId = readOptionalString(
+      (deliverable as unknown as Record<string, unknown>).descriptor_id,
+    );
+    if (descriptorId) {
+      existingIds.add(descriptorId);
+    }
+  }
+
+  for (const descriptor of outputDescriptors) {
+    if (existingIds.has(descriptor.id)) {
+      continue;
+    }
+    const mapped = mapOutputDescriptorDeliverable(workflowId, descriptor, fallbackTimestamp);
+    allDeliverables.push(mapped);
+    if (mapped.delivery_stage === 'final') {
+      finalDeliverables.push(mapped);
+    } else {
+      inProgressDeliverables.push(mapped);
+    }
+  }
+
+  return {
+    ...deliverables,
+    final_deliverables: finalDeliverables,
+    in_progress_deliverables: inProgressDeliverables,
+    all_deliverables: allDeliverables,
+  };
+}
+
+function synthesizeLiveConsoleItems(
+  packet: Awaited<ReturnType<WorkflowLiveConsoleService['getLiveConsole']>>,
+  selectedWorkItemId: string | null,
+  board: Record<string, unknown>,
+  workflowSummary: string | null,
+) {
+  if (packet.items.length > 0) {
+    return packet;
+  }
+
+  const syntheticItem = selectedWorkItemId
+    ? buildWorkItemStateNotice(selectedWorkItemId, board)
+    : buildWorkflowStateNotice(workflowSummary, packet.generated_at);
+  if (!syntheticItem) {
+    return packet;
+  }
+
+  return {
+    ...packet,
+    items: [syntheticItem],
+  };
+}
+
+function synthesizeHistoryItems(
+  packet: Awaited<ReturnType<WorkflowHistoryService['getHistory']>>,
+  selectedWorkItemId: string | null,
+  board: Record<string, unknown>,
+  allDeliverables: WorkflowDeliverableRecord[],
+) {
+  if (packet.items.length > 0) {
+    return packet;
+  }
+
+  const syntheticItems: WorkflowHistoryItem[] = [];
+  const workItemNotice = selectedWorkItemId
+    ? buildWorkItemStateNotice(selectedWorkItemId, board)
+    : null;
+  if (workItemNotice) {
+    syntheticItems.push(toHistoryNotice(workItemNotice));
+  }
+  for (const deliverable of allDeliverables) {
+    syntheticItems.push(toSyntheticDeliverableHistoryItem(deliverable));
+  }
+
+  if (syntheticItems.length === 0) {
+    return packet;
+  }
+
+  const sorted = [...syntheticItems].sort((left, right) => right.created_at.localeCompare(left.created_at));
+  return {
+    ...packet,
+    groups: buildSyntheticHistoryGroups(sorted),
+    items: sorted,
+  };
+}
+
+function buildWorkItemStateNotice(
+  workItemId: string,
+  board: Record<string, unknown>,
+): WorkflowLiveConsoleItem | null {
+  const workItems = Array.isArray(board.work_items) ? board.work_items : [];
+  for (const workItem of workItems) {
+    if (!workItem || typeof workItem !== 'object' || Array.isArray(workItem)) {
+      continue;
+    }
+    const record = workItem as Record<string, unknown>;
+    if (readOptionalString(record.id) !== workItemId) {
+      continue;
+    }
+    const title = readOptionalString(record.title) ?? 'Work item';
+    const blockedReason =
+      readOptionalString(record.blocked_reason) ?? readOptionalString(record.gate_decision_feedback);
+    const updatedAt =
+      readOptionalString(record.updated_at) ?? readOptionalString(record.created_at) ?? new Date().toISOString();
+    if (readOptionalString(record.blocked_state) === 'blocked' || readOptionalString(record.gate_status) === 'blocked') {
+      return {
+        item_id: `work-item-notice:${workItemId}:blocked`,
+        item_kind: 'platform_notice',
+        source_kind: 'platform',
+        source_label: 'Platform',
+        headline: `${title} is blocked`,
+        summary: blockedReason ?? `${title} is blocked and needs operator action.`,
+        created_at: updatedAt,
+        linked_target_ids: [workItemId],
+      };
+    }
+    const stageName = readOptionalString(record.stage_name);
+    return {
+      item_id: `work-item-notice:${workItemId}:state`,
+      item_kind: 'platform_notice',
+      source_kind: 'platform',
+      source_label: 'Platform',
+      headline: stageName ? `${title} is in ${stageName}` : `${title} is selected`,
+      summary: blockedReason ?? `${title} is the active work item scope.`,
+      created_at: updatedAt,
+      linked_target_ids: [workItemId],
+    };
+  }
+  return null;
+}
+
+function buildWorkflowStateNotice(
+  workflowSummary: string | null,
+  createdAt: string,
+): WorkflowLiveConsoleItem | null {
+  if (!workflowSummary) {
+    return null;
+  }
+  return {
+    item_id: 'workflow-notice:summary',
+    item_kind: 'platform_notice',
+    source_kind: 'platform',
+    source_label: 'Platform',
+    headline: workflowSummary,
+    summary: workflowSummary,
+    created_at: createdAt,
+    linked_target_ids: [],
+  };
+}
+
+function toHistoryNotice(item: WorkflowLiveConsoleItem): WorkflowHistoryItem {
+  return {
+    item_id: item.item_id,
+    item_kind: 'platform_notice',
+    source_kind: item.source_kind,
+    source_label: item.source_label,
+    headline: item.headline,
+    summary: item.summary,
+    created_at: item.created_at,
+    linked_target_ids: item.linked_target_ids,
+  };
+}
+
+function toSyntheticDeliverableHistoryItem(
+  deliverable: WorkflowDeliverableRecord,
+): WorkflowHistoryItem {
+  const descriptorId =
+    readOptionalString(deliverable.descriptor_id)
+    ?? `deliverable:${readOptionalString(deliverable.title) ?? 'workflow-deliverable'}`;
+  const title = readOptionalString(deliverable.title) ?? 'Workflow deliverable';
+  const summary = readOptionalString(deliverable.summary_brief) ?? title;
+  const createdAt =
+    readOptionalString(deliverable.updated_at) ?? readOptionalString(deliverable.created_at) ?? new Date().toISOString();
+  const linkedTargetIds = [
+    readOptionalString(deliverable.workflow_id),
+    readOptionalString(deliverable.work_item_id),
+  ].filter((value): value is string => typeof value === 'string' && value.length > 0);
+  return {
+    item_id: descriptorId,
+    item_kind: 'deliverable',
+    source_kind: 'deliverable',
+    source_label: 'Deliverable',
+    headline: title,
+    summary,
+    created_at: createdAt,
+    linked_target_ids: linkedTargetIds,
+  };
+}
+
+function buildSyntheticHistoryGroups(items: WorkflowHistoryItem[]) {
+  const groups = new Map<string, string[]>();
+  for (const item of items) {
+    const groupId = item.created_at.slice(0, 10);
+    const existing = groups.get(groupId) ?? [];
+    existing.push(item.item_id);
+    groups.set(groupId, existing);
+  }
+  return Array.from(groups.entries()).map(([groupId, itemIds]) => ({
+    group_id: groupId,
+    label: groupId,
+    anchor_at: `${groupId}T00:00:00.000Z`,
+    item_ids: itemIds,
+  }));
+}
+
+function mapOutputDescriptorDeliverable(
+  workflowId: string,
+  descriptor: MissionControlOutputDescriptor,
+  fallbackTimestamp: string,
+) {
+  return {
+    descriptor_id: descriptor.id,
+    workflow_id: workflowId,
+    work_item_id: descriptor.workItemId,
+    descriptor_kind: descriptor.primaryLocation.kind,
+    delivery_stage: descriptor.status === 'final' ? 'final' : 'in_progress',
+    title: descriptor.title,
+    state: descriptor.status,
+    summary_brief: descriptor.summary,
+    preview_capabilities: buildOutputPreviewCapabilities(descriptor.primaryLocation),
+    primary_target: mapOutputLocationTarget(descriptor.primaryLocation, true),
+    secondary_targets: descriptor.secondaryLocations.map((location) =>
+      mapOutputLocationTarget(location, false),
+    ),
+    content_preview: {},
+    source_brief_id: null,
+    created_at: fallbackTimestamp,
+    updated_at: fallbackTimestamp,
+  };
+}
+
+function buildOutputPreviewCapabilities(location: MissionControlOutputLocation): Record<string, unknown> {
+  if (location.kind === 'artifact') {
+    const previewKind = location.contentType?.includes('markdown')
+      ? 'markdown'
+      : location.contentType?.includes('json')
+        ? 'json'
+        : 'text';
+    return {
+      can_inline_preview: Boolean(location.previewPath),
+      can_download: Boolean(location.downloadPath),
+      can_open_external: false,
+      can_copy_path: Boolean(location.logicalPath),
+      preview_kind: previewKind,
+    };
+  }
+  return {
+    can_inline_preview: false,
+    can_download: false,
+    can_open_external: true,
+    can_copy_path: 'path' in location ? Boolean(location.path) : false,
+  };
+}
+
+function mapOutputLocationTarget(location: MissionControlOutputLocation, primary: boolean) {
+  switch (location.kind) {
+    case 'artifact':
+      return {
+        target_kind: 'artifact',
+        label: primary ? 'Open artifact' : 'Artifact',
+        url: location.previewPath ?? location.downloadPath,
+        path: location.logicalPath,
+        artifact_id: location.artifactId,
+      };
+    case 'repository':
+      return {
+        target_kind: 'repository',
+        label: primary ? 'Open repository output' : 'Repository output',
+        url: location.pullRequestUrl ?? location.commitUrl ?? location.branchUrl ?? location.repository,
+        repo_ref: location.pullRequestUrl ?? location.commitSha ?? location.branch ?? location.repository,
+      };
+    case 'workflow_document':
+      return {
+        target_kind: 'workflow_document',
+        label: primary ? 'Open workflow document' : 'Workflow document',
+        url: location.location,
+        path: location.logicalName,
+        artifact_id: location.artifactId,
+      };
+    case 'external_url':
+      return {
+        target_kind: 'external_url',
+        label: primary ? 'Open link' : 'External link',
+        url: location.url,
+      };
+    case 'host_directory':
+      return {
+        target_kind: 'host_directory',
+        label: primary ? 'Open host output' : 'Host output',
+        url: location.path,
+        path: location.path,
+      };
+  }
+}
+
 function readRedriveLineage(workflow: Record<string, unknown>): Record<string, unknown> | null {
   const rootWorkflowId = readOptionalString(workflow.root_workflow_id);
   const previousAttemptWorkflowId = readOptionalString(workflow.previous_attempt_workflow_id);
@@ -339,4 +851,8 @@ function readOptionalString(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function humanizeGateStatus(value: string): string {
+  return value.replaceAll('_', ' ');
 }

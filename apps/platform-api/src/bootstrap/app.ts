@@ -256,6 +256,7 @@ export async function buildApp() {
   const workflowOperationsHistoryPacketService = new WorkflowHistoryService(
     workflowOperationsHistoryService,
     workflowOperatorBriefService,
+    workflowOperatorUpdateService,
     workflowInterventionService,
     workflowInputPacketService,
     workflowDeliverableService,
@@ -264,6 +265,7 @@ export async function buildApp() {
     workflowOperationsHistoryService,
     workflowOperatorBriefService,
     workflowOperatorUpdateService,
+    workflowSettingsService,
   );
   const workflowOperationsDeliverablesService = new WorkflowDeliverablesService(
     workflowDeliverableService,

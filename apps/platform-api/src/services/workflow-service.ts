@@ -830,7 +830,12 @@ export class WorkflowService {
         .filter((column) => Boolean(column.is_terminal))
         .map((column) => String(column.id)),
     );
-    const boardWorkItems = annotateBoardWorkItems(workItems, terminalColumns);
+    const blockedColumn = definition.board.columns.find((column) => Boolean(column.is_blocked));
+    const boardWorkItems = annotateBoardWorkItems(
+      workItems,
+      terminalColumns,
+      blockedColumn ? String(blockedColumn.id) : null,
+    );
     const stageSummary = buildBoardStageSummary(
       String(workflow.lifecycle ?? 'planned'),
       definition.stages ?? [],
@@ -893,7 +898,8 @@ function buildWorkflowRelations(
 function annotateBoardWorkItems(
   workItems: Array<Record<string, unknown>>,
   terminalColumns: Set<string>,
-) {
+  blockedColumnId: string | null,
+): Array<Record<string, unknown>> {
   const childCounts = new Map<string, { total: number; completed: number }>();
 
   for (const item of workItems) {
@@ -911,16 +917,52 @@ function annotateBoardWorkItems(
 
   return workItems.map((item) => {
     const counts = childCounts.get(String(item.id));
+    const columnId = resolveBoardColumnId(item, terminalColumns, blockedColumnId);
     if (!counts) {
-      return item;
+      return {
+        ...item,
+        column_id: columnId,
+      };
     }
     return {
       ...item,
+      column_id: columnId,
       children_count: counts.total,
       children_completed: counts.completed,
       is_milestone: counts.total > 0,
     };
   });
+}
+
+function resolveBoardColumnId(
+  item: Record<string, unknown>,
+  terminalColumns: Set<string>,
+  blockedColumnId: string | null,
+): string | null {
+  const currentColumnId = asOptionalString(item.column_id) ?? null;
+  if (!blockedColumnId) {
+    return currentColumnId;
+  }
+  if (isCompletedBoardChild(item, terminalColumns)) {
+    return currentColumnId;
+  }
+  if (shouldProjectBoardItemToBlockedLane(item)) {
+    return blockedColumnId;
+  }
+  return currentColumnId;
+}
+
+function shouldProjectBoardItemToBlockedLane(item: Record<string, unknown>): boolean {
+  const blockedState = asOptionalString(item.blocked_state);
+  if (blockedState === 'blocked') {
+    return true;
+  }
+  const escalationStatus = asOptionalString(item.escalation_status);
+  if (escalationStatus === 'open') {
+    return true;
+  }
+  const gateStatus = asOptionalString(item.gate_status);
+  return gateStatus === 'blocked' || gateStatus === 'changes_requested' || gateStatus === 'rejected';
 }
 
 function toWorkflowRelationRef(workflowId: string, row?: Record<string, unknown>) {

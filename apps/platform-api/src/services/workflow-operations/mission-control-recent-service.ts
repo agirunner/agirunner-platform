@@ -57,11 +57,76 @@ function resolveWorkflowId(event: { entity_type: string; entity_id: string; data
 }
 
 function shouldIncludeRecentEvent(event: {
+  entity_type: string;
+  entity_id: string;
   type: string;
   data: Record<string, unknown> | null;
 }): boolean {
-  if (event.type !== 'workflow.activation.started') {
-    return true;
+  const workflowId = resolveWorkflowId(event);
+  if (!workflowId) {
+    return false;
   }
-  return event.data?.reason !== 'heartbeat';
+  if (event.type.startsWith('workflow.activation.')) {
+    return false;
+  }
+
+  const reason = readString(event.data?.reason);
+  if (reason && INTERNAL_REASON_CODES.has(reason)) {
+    return false;
+  }
+
+  return hasOperatorReadablePayload(event.data) || isMeaningfulRecentEventType(event.type);
+}
+
+const INTERNAL_REASON_CODES = new Set([
+  'heartbeat',
+  'queued_events',
+  'task_started',
+]);
+
+function hasOperatorReadablePayload(data: Record<string, unknown> | null): boolean {
+  if (!data) {
+    return false;
+  }
+  return (
+    readString(data.summary) !== null
+    || readString(data.request_summary) !== null
+    || readString(data.logical_name) !== null
+    || readString(data.logical_path) !== null
+  );
+}
+
+function isMeaningfulRecentEventType(eventType: string): boolean {
+  return [
+    'brief',
+    'deliverable',
+    'document',
+    'artifact',
+    'output',
+    'approve',
+    'reject',
+    'request_changes',
+    'escalat',
+    'pause',
+    'resume',
+    'cancel',
+    'retry',
+    'skip',
+    'reassign',
+    'redrive',
+    'complete',
+    'failed',
+    'created',
+    'state_changed',
+    'input_packet',
+    'intervention',
+  ].some((fragment) => eventType.includes(fragment));
+}
+
+function readString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }

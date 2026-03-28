@@ -147,7 +147,7 @@ describe('WorkflowOperatorUpdateService', () => {
       if (sql.includes('INSERT INTO workflow_operator_updates')) {
         expect(params?.[9]).toBe('Verification is reviewing rollback handling.');
         expect(params?.[10]).toBe('redacted://workflow-update-secret');
-        expect(params?.[11]).toEqual(['work-item-1', 'task-9']);
+        expect(params?.[11]).toBe(JSON.stringify(['work-item-1', 'task-9']));
         expect(params?.[12]).toBe('enhanced');
         return {
           rowCount: 1,

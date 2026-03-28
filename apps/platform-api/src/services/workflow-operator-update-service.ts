@@ -182,7 +182,7 @@ export class WorkflowOperatorUpdateService {
         executionContext.sourceRoleName,
         sanitizeOperatorUpdateHeadline(input.payload.headline),
         sanitizeOperatorUpdateSummary(input.payload.summary),
-        sanitizeLinkedIdList(input.payload.linkedTargetIds),
+        serializeJsonb(sanitizeLinkedIdList(input.payload.linkedTargetIds)),
         effectiveVisibilityMode,
         sanitizeRequiredText(input.payload.updateKind, 'Workflow operator update kind is required'),
         sanitizeOptionalText(input.payload.promotedBriefId),
@@ -344,6 +344,10 @@ function toWorkflowOperatorUpdateRecord(row: WorkflowOperatorUpdateRow): Workflo
     created_by_id: row.created_by_id,
     created_at: row.created_at.toISOString(),
   };
+}
+
+function serializeJsonb(value: unknown): string {
+  return JSON.stringify(value);
 }
 
 function toWorkflowLiveVisibilityModeRecord(row: WorkflowLiveVisibilityRow): WorkflowLiveVisibilityModeRecord {

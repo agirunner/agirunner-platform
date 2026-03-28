@@ -3,8 +3,8 @@ import { Link } from 'react-router-dom';
 import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import type { DashboardWorkflowHistoryPacket } from '../../../lib/api.js';
-import { buildWorkflowDetailPermalink } from '../../workflow-detail/workflow-detail-permalinks.js';
 import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
+import { buildWorkflowsPageHref } from '../workflows-page.support.js';
 
 export function WorkflowHistory(props: {
   workflowId: string;
@@ -73,6 +73,7 @@ function HistoryItemCard(props: {
     <article className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">{humanizeToken(props.item.item_kind)}</Badge>
+        <Badge variant="secondary">{props.item.source_label}</Badge>
         <span className="text-xs text-muted-foreground">
           {formatRelativeTimestamp(props.item.created_at)}
         </span>
@@ -84,11 +85,11 @@ function HistoryItemCard(props: {
       <div className="flex flex-wrap gap-2">
         <Link
           className="text-sm font-medium text-accent underline-offset-4 hover:underline"
-          to={
-            linkedWorkItemId
-              ? buildWorkflowDetailPermalink(props.workflowId, { workItemId: linkedWorkItemId })
-              : buildWorkflowDetailPermalink(props.workflowId, {})
-          }
+          to={buildWorkflowsPageHref({
+            workflowId: props.workflowId,
+            workItemId: linkedWorkItemId,
+            tab: 'history',
+          })}
         >
           Open workflow context
         </Link>
@@ -98,5 +99,5 @@ function HistoryItemCard(props: {
 }
 
 function humanizeToken(value: string): string {
-  return value.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }

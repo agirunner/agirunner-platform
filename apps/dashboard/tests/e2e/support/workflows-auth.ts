@@ -10,6 +10,17 @@ export async function loginToWorkflows(page: Page): Promise<void> {
   await expect(page.getByText('Select workflow')).toBeVisible();
 }
 
+export async function loginToWorkflowsWithPrefill(page: Page): Promise<void> {
+  await page.goto('/login');
+  await expect(page.getByLabel('API Key')).toHaveValue(ADMIN_API_KEY);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page).toHaveURL(/\/workflows/);
+}
+
+export function workflowsPrimaryNavLink(page: Page): Locator {
+  return page.getByLabel('Desktop navigation').getByRole('link', { name: 'Workflows' });
+}
+
 export function workflowRailButton(page: Page, name: string): Locator {
   return page.locator('aside button').filter({ hasText: name }).first();
 }

@@ -240,9 +240,15 @@ export class MissionControlLiveService {
     if (workflowIds.length === 0) return new Map();
     const result = await this.pool.query<WorkflowSignalRow>(
       `SELECT w.id AS workflow_id,
-              COALESCE(task_summary.waiting_for_decision_count, 0)::int AS waiting_for_decision_count,
+              (
+                COALESCE(task_summary.waiting_for_decision_count, 0)
+                + COALESCE(stage_summary.waiting_for_decision_count, 0)
+              )::int AS waiting_for_decision_count,
               COALESCE(work_item_summary.open_escalation_count, 0)::int AS open_escalation_count,
-              COALESCE(work_item_summary.blocked_work_item_count, 0)::int AS blocked_work_item_count,
+              (
+                COALESCE(work_item_summary.blocked_work_item_count, 0)
+                + COALESCE(stage_summary.blocked_stage_count, 0)
+              )::int AS blocked_work_item_count,
               COALESCE(task_summary.failed_task_count, 0)::int AS failed_task_count,
               COALESCE(task_summary.active_task_count, 0)::int AS active_task_count,
               COALESCE(work_item_summary.active_work_item_count, 0)::int AS active_work_item_count,
@@ -266,6 +272,15 @@ export class MissionControlLiveService {
             WHERE tenant_id = w.tenant_id
               AND workflow_id = w.id
          ) work_item_summary ON true
+         LEFT JOIN LATERAL (
+           SELECT COUNT(*) FILTER (WHERE gate_status = 'awaiting_approval')::int AS waiting_for_decision_count,
+                  COUNT(*) FILTER (
+                    WHERE gate_status IN ('blocked', 'changes_requested', 'rejected')
+                  )::int AS blocked_stage_count
+             FROM workflow_stages
+            WHERE tenant_id = w.tenant_id
+              AND workflow_id = w.id
+         ) stage_summary ON true
          LEFT JOIN LATERAL (
            SELECT COUNT(*) FILTER (
                     WHERE type IN ('workflow.activation_requeued', 'workflow.activation_stale_detected')

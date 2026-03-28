@@ -181,13 +181,13 @@ export class WorkflowOperatorBriefService {
         sanitizeRequiredText(input.briefKind, 'Workflow operator brief kind is required'),
         sanitizeRequiredText(input.briefScope, 'Workflow operator brief scope is required'),
         executionContext.sourceKind,
-        shortBrief,
-        detailedBriefJson,
+        serializeJsonb(shortBrief),
+        serializeJsonb(detailedBriefJson),
         sanitizeRequiredText(input.statusKind, 'Workflow operator brief status kind is required'),
-        linkedTargetIds,
-        sanitizeLinkedIdList(input.relatedArtifactIds),
-        [],
-        sanitizeLinkedIdList(input.relatedInterventionIds),
+        serializeJsonb(linkedTargetIds),
+        serializeJsonb(sanitizeLinkedIdList(input.relatedArtifactIds)),
+        serializeJsonb([]),
+        serializeJsonb(sanitizeLinkedIdList(input.relatedInterventionIds)),
         executionContext.sourceRoleName,
         sequenceNumber,
         sanitizeOptionalText(input.canonicalWorkflowBriefId),
@@ -238,8 +238,8 @@ export class WorkflowOperatorBriefService {
           AND id = $5
       RETURNING *`,
       [
-        linkedDescriptorIds,
-        sanitizeLinkedIdList(insertedRow.related_artifact_ids),
+        serializeJsonb(linkedDescriptorIds),
+        serializeJsonb(sanitizeLinkedIdList(insertedRow.related_artifact_ids)),
         identity.tenantId,
         workflowId,
         insertedRow.id,
@@ -349,4 +349,8 @@ function toWorkflowOperatorBriefRecord(row: WorkflowOperatorBriefRow): WorkflowO
     created_at: row.created_at.toISOString(),
     updated_at: row.updated_at.toISOString(),
   };
+}
+
+function serializeJsonb(value: unknown): string {
+  return JSON.stringify(value);
 }

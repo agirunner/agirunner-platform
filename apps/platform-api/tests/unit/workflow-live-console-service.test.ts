@@ -95,6 +95,11 @@ describe('WorkflowLiveConsoleService', () => {
       versionSource as never,
       briefService as never,
       updateService as never,
+      {
+        getWorkflowSettings: vi.fn(async () => ({
+          effective_live_visibility_mode: 'enhanced',
+        })),
+      } as never,
     );
     const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
       limit: 2,
@@ -108,11 +113,15 @@ describe('WorkflowLiveConsoleService', () => {
             item_id: 'update-2',
             item_kind: 'platform_notice',
             headline: 'Approval is now required.',
+            source_kind: 'platform',
+            source_label: 'Platform',
           }),
           expect.objectContaining({
             item_id: 'brief-1',
             item_kind: 'milestone_brief',
             headline: 'Release package is ready for approval.',
+            source_kind: 'orchestrator',
+            source_label: 'Orchestrator',
           }),
         ],
         next_cursor: '2026-03-27T22:35:00.000Z|brief-1',
@@ -188,6 +197,11 @@ describe('WorkflowLiveConsoleService', () => {
       versionSource as never,
       briefService as never,
       updateService as never,
+      {
+        getWorkflowSettings: vi.fn(async () => ({
+          effective_live_visibility_mode: 'enhanced',
+        })),
+      } as never,
     );
 
     const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
@@ -201,5 +215,43 @@ describe('WorkflowLiveConsoleService', () => {
         headline: 'Older update',
       }),
     ]);
+  });
+
+  it('reports the effective visibility mode even before any operator updates exist', async () => {
+    const versionSource = {
+      getHistory: vi.fn(async () => ({
+        version: {
+          generatedAt: '2026-03-27T22:35:00.000Z',
+          latestEventId: 101,
+          token: 'mission-control:101',
+        },
+        packets: [],
+      })),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const updateService = {
+      listUpdates: vi.fn(async () => []),
+    };
+    const settingsSource = {
+      getWorkflowSettings: vi.fn(async () => ({
+        effective_live_visibility_mode: 'enhanced',
+      })),
+    };
+
+    const service = new WorkflowLiveConsoleService(
+      versionSource as never,
+      briefService as never,
+      updateService as never,
+      settingsSource as never,
+    );
+
+    const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
+      limit: 10,
+    });
+
+    expect(result.live_visibility_mode).toBe('enhanced');
+    expect(settingsSource.getWorkflowSettings).toHaveBeenCalledWith('tenant-1', 'workflow-1');
   });
 });

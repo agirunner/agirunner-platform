@@ -144,8 +144,8 @@ describe('WorkflowOperatorBriefService', () => {
         return { rowCount: 1, rows: [{ next_sequence: 3 }] };
       }
       if (sql.includes('UPDATE workflow_operator_briefs')) {
-        expect(params?.[0]).toEqual(['descriptor-2']);
-        expect(params?.[1]).toEqual(['artifact-1']);
+        expect(params?.[0]).toBe(JSON.stringify(['descriptor-2']));
+        expect(params?.[1]).toBe(JSON.stringify(['artifact-1']));
         expect(params?.[2]).toBe('tenant-1');
         expect(params?.[3]).toBe('workflow-1');
         expect(params?.[4]).toBe('brief-1');
@@ -199,13 +199,13 @@ describe('WorkflowOperatorBriefService', () => {
         };
       }
       if (sql.includes('INSERT INTO workflow_operator_briefs')) {
-        expect(params?.[10]).toEqual({
+        expect(JSON.parse(String(params?.[10]))).toEqual({
           headline: 'Release package is ready for approval.',
           status_label: 'Needs Action',
           delta_label: 'approval requested',
           next_action_label: 'Approve release',
         });
-        expect(params?.[11]).toEqual({
+        expect(JSON.parse(String(params?.[11]))).toEqual({
           headline: 'Release package is ready for approval.',
           status_kind: 'in_progress',
           summary: 'Verification completed and release is ready for operator approval.',
@@ -220,10 +220,10 @@ describe('WorkflowOperatorBriefService', () => {
             ],
           },
         });
-        expect(params?.[13]).toEqual(['target-work-item-2']);
-        expect(params?.[14]).toEqual(['artifact-1']);
-        expect(params?.[15]).toEqual([]);
-        expect(params?.[16]).toEqual(['intervention-1']);
+        expect(params?.[13]).toBe(JSON.stringify(['target-work-item-2']));
+        expect(params?.[14]).toBe(JSON.stringify(['artifact-1']));
+        expect(params?.[15]).toBe(JSON.stringify([]));
+        expect(params?.[16]).toBe(JSON.stringify(['intervention-1']));
         return {
           rowCount: 1,
           rows: [{
@@ -239,9 +239,9 @@ describe('WorkflowOperatorBriefService', () => {
             source_kind: 'specialist',
             source_role_name: 'Verifier',
             status_kind: 'in_progress',
-            short_brief: params?.[10],
-            detailed_brief_json: params?.[11],
-            linked_target_ids: params?.[13],
+            short_brief: JSON.parse(String(params?.[10])),
+            detailed_brief_json: JSON.parse(String(params?.[11])),
+            linked_target_ids: JSON.parse(String(params?.[13])),
             sequence_number: 3,
             related_artifact_ids: ['artifact-1'],
             related_output_descriptor_ids: [],

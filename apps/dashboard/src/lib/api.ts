@@ -546,18 +546,29 @@ export interface DashboardWorkflowNeedsActionItem {
   action_kind: string;
   label: string;
   summary: string;
-  target_kind: 'workflow' | 'work_item' | 'task';
-  target_id: string;
+  target: {
+    target_kind: 'workflow' | 'work_item' | 'task';
+    target_id: string;
+  };
+  priority: 'high' | 'medium' | 'low';
   requires_confirmation: boolean;
+  submission: {
+    route_kind: 'workflow_intervention';
+    method: 'POST';
+  };
 }
 
 export interface DashboardWorkflowNeedsActionPacket {
   items: DashboardWorkflowNeedsActionItem[];
+  total_count: number;
+  default_sort: 'priority_desc';
 }
 
 export interface DashboardWorkflowLiveConsoleItem {
   item_id: string;
   item_kind: 'milestone_brief' | 'operator_update' | 'platform_notice';
+  source_kind: string;
+  source_label: string;
   headline: string;
   summary: string;
   created_at: string;
@@ -578,7 +589,16 @@ export interface DashboardWorkflowHistoryGroup {
 
 export interface DashboardWorkflowHistoryItem {
   item_id: string;
-  item_kind: 'milestone_brief' | 'intervention' | 'input' | 'deliverable' | 'redrive';
+  item_kind:
+    | 'milestone_brief'
+    | 'operator_update'
+    | 'platform_notice'
+    | 'intervention'
+    | 'input'
+    | 'deliverable'
+    | 'redrive';
+  source_kind: string;
+  source_label: string;
   headline: string;
   summary: string;
   created_at: string;
@@ -680,7 +700,7 @@ export interface DashboardWorkflowBottomTabsPacket {
   counts: {
     needs_action: number;
     steering: number;
-    live_console: number;
+    live_console_activity: number;
     history: number;
     deliverables: number;
   };
@@ -688,11 +708,16 @@ export interface DashboardWorkflowBottomTabsPacket {
 
 export interface DashboardWorkflowWorkspacePacket extends DashboardWorkflowOperationsSnapshot {
   workflow_id: string;
+  workflow: DashboardMissionControlWorkflowCard | null;
+  selected_scope: {
+    scope_kind: 'workflow' | 'selected_work_item';
+    work_item_id: string | null;
+  };
   sticky_strip: DashboardWorkflowStickyStrip | null;
   board: DashboardWorkflowBoardResponse | null;
   bottom_tabs: DashboardWorkflowBottomTabsPacket;
   needs_action: DashboardWorkflowNeedsActionPacket;
-  steering_panel: {
+  steering: {
     quick_actions: DashboardMissionControlActionAvailability[];
     decision_actions: DashboardMissionControlActionAvailability[];
     steering_state: {
@@ -709,11 +734,9 @@ export interface DashboardWorkflowWorkspacePacket extends DashboardWorkflowOpera
     };
   };
   live_console: DashboardWorkflowLiveConsolePacket;
-  history_timeline: DashboardWorkflowHistoryPacket;
-  deliverables_panel: DashboardWorkflowDeliverablesPacket;
+  history: DashboardWorkflowHistoryPacket;
+  deliverables: DashboardWorkflowDeliverablesPacket;
   redrive_lineage: Record<string, unknown> | null;
-  workflow: DashboardMissionControlWorkflowCard | null;
-  overview: DashboardMissionControlWorkspaceOverview | null;
 }
 
 export interface DashboardWorkflowOperationsStreamEvent {

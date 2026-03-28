@@ -19,7 +19,7 @@ export function WorkflowLiveConsole(props: {
   const previousItemCount = useRef(props.packet.items.length);
 
   const sortedItems = useMemo(
-    () => [...props.packet.items].sort((left, right) => left.created_at.localeCompare(right.created_at)),
+    () => [...props.packet.items].sort((left, right) => right.created_at.localeCompare(left.created_at)),
     [props.packet.items],
   );
 
@@ -36,7 +36,7 @@ export function WorkflowLiveConsole(props: {
     }
 
     if (isPinnedToLiveEdge) {
-      container.scrollTop = container.scrollHeight;
+      container.scrollTop = 0;
       setHasQueuedUpdates(false);
       return;
     }
@@ -64,7 +64,7 @@ export function WorkflowLiveConsole(props: {
                 if (!container) {
                   return;
                 }
-                container.scrollTop = container.scrollHeight;
+                container.scrollTop = 0;
                 setIsPinnedToLiveEdge(true);
                 setHasQueuedUpdates(false);
               }}
@@ -80,9 +80,7 @@ export function WorkflowLiveConsole(props: {
         className="max-h-[28rem] overflow-y-auto rounded-2xl border border-slate-800 bg-[#09111f] p-4 font-mono text-sm text-slate-100 shadow-inner"
         onScroll={(event) => {
           const element = event.currentTarget;
-          const distanceFromBottom =
-            element.scrollHeight - (element.scrollTop + element.clientHeight);
-          const nextPinned = distanceFromBottom <= LIVE_EDGE_THRESHOLD_PX;
+          const nextPinned = element.scrollTop <= LIVE_EDGE_THRESHOLD_PX;
           setIsPinnedToLiveEdge(nextPinned);
           if (nextPinned) {
             setHasQueuedUpdates(false);
@@ -111,6 +109,7 @@ export function WorkflowLiveConsole(props: {
                   <Badge variant="outline" className="border-current text-[10px] uppercase tracking-[0.2em]">
                     {humanizeToken(item.item_kind)}
                   </Badge>
+                  <Badge variant="secondary">{item.source_label}</Badge>
                   <span className="text-xs text-slate-400">
                     {formatRelativeTimestamp(item.created_at)}
                   </span>
@@ -135,5 +134,5 @@ export function WorkflowLiveConsole(props: {
 }
 
 function humanizeToken(value: string): string {
-  return value.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }

@@ -62,6 +62,8 @@ export interface WorkflowNeedsActionPacket {
 export interface WorkflowLiveConsoleItem {
   item_id: string;
   item_kind: 'milestone_brief' | 'operator_update' | 'platform_notice';
+  source_kind: string;
+  source_label: string;
   headline: string;
   summary: string;
   created_at: string;
@@ -83,7 +85,16 @@ export interface WorkflowHistoryGroup {
 
 export interface WorkflowHistoryItem {
   item_id: string;
-  item_kind: 'milestone_brief' | 'intervention' | 'input' | 'deliverable' | 'redrive';
+  item_kind:
+    | 'milestone_brief'
+    | 'operator_update'
+    | 'platform_notice'
+    | 'intervention'
+    | 'input'
+    | 'deliverable'
+    | 'redrive';
+  source_kind: string;
+  source_label: string;
   headline: string;
   summary: string;
   created_at: string;
@@ -158,6 +169,7 @@ export interface WorkflowBottomTabsPacket {
 
 export interface WorkflowWorkspacePacket extends WorkflowOperationsSnapshot {
   workflow_id: string;
+  workflow: import('./mission-control-types.js').MissionControlWorkflowCard | null;
   selected_scope: {
     scope_kind: 'workflow' | 'selected_work_item';
     work_item_id: string | null;

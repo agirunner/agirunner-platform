@@ -2,17 +2,20 @@ import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import type {
   DashboardMissionControlWorkflowCard,
+  DashboardWorkflowBoardResponse,
   DashboardWorkflowSettingsRecord,
   DashboardWorkflowStickyStrip,
 } from '../../lib/api.js';
 import { formatRelativeTimestamp } from '../workflow-detail/workflow-detail-presentation.js';
 import { WorkflowControlActions } from '../workflow-detail/workflow-control-actions.js';
 import type { WorkflowWorkbenchTab } from './workflows-page.support.js';
+import { isCompletedWorkItem } from './workflow-board.support.js';
 
 export function WorkflowStateStrip(props: {
   workflow: DashboardMissionControlWorkflowCard;
   stickyStrip: DashboardWorkflowStickyStrip | null;
   workflowSettings: DashboardWorkflowSettingsRecord | null;
+  board: DashboardWorkflowBoardResponse | null;
   selectedScopeLabel: string | null;
   onTabChange(tab: WorkflowWorkbenchTab): void;
   onAddWork(): void;
@@ -20,6 +23,8 @@ export function WorkflowStateStrip(props: {
 }): JSX.Element {
   const sticky = props.stickyStrip;
   const visibilityValue = props.workflowSettings?.workflow_live_visibility_mode_override ?? '__inherit__';
+  const workload = summarizeWorkload(props.board, props.workflow);
+  const activeStages = readActiveStages(props.board, props.workflow);
 
   return (
     <section className="space-y-4 rounded-3xl border border-border/70 bg-background/90 p-5">
@@ -33,6 +38,17 @@ export function WorkflowStateStrip(props: {
           <p className="text-sm text-muted-foreground">
             {[props.workflow.playbookName, props.workflow.workspaceName].filter(Boolean).join(' • ') || 'Workflow'}
           </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {activeStages.length > 0 ? (
+              activeStages.map((stageName) => (
+                <Badge key={stageName} variant="outline">
+                  Active stage: {humanizePosture(stageName)}
+                </Badge>
+              ))
+            ) : (
+              <Badge variant="outline">No active stages</Badge>
+            )}
+          </div>
           <p className="max-w-4xl text-sm text-foreground">{sticky?.summary ?? props.workflow.pulse.summary}</p>
           <p className="text-xs text-muted-foreground">
             Last changed {formatRelativeTimestamp(props.workflow.metrics.lastChangedAt)}
@@ -58,7 +74,7 @@ export function WorkflowStateStrip(props: {
         <InfoCard
           title="Workflow State"
           body={sticky?.summary ?? props.workflow.pulse.summary}
-          footer={`${props.workflow.lifecycle ?? 'workflow'} • ${sticky?.active_work_item_count ?? props.workflow.metrics.activeWorkItemCount} active work items`}
+          footer={`${props.workflow.lifecycle ?? 'workflow'} • ${activeStages.length} active stages`}
         />
         <TabShortcutCard
           title="Needs Action"
@@ -67,9 +83,9 @@ export function WorkflowStateStrip(props: {
           onClick={() => props.onTabChange('needs_action')}
         />
         <InfoCard
-          title="Progress"
-          body={`${sticky?.active_work_item_count ?? props.workflow.metrics.activeWorkItemCount} work items • ${sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount} tasks in flight`}
-          footer={`${props.workflow.metrics.failedTaskCount} failed tasks • ${props.workflow.metrics.blockedWorkItemCount} blocked work items`}
+          title="Workload"
+          body={`${workload.activeWorkItemCount} active work item${workload.activeWorkItemCount === 1 ? '' : 's'} • ${workload.completedWorkItemCount} completed work item${workload.completedWorkItemCount === 1 ? '' : 's'}`}
+          footer={`${sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount} active tasks • ${props.workflow.metrics.failedTaskCount} failed tasks`}
         />
         <div className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
           <TabShortcutCard
@@ -150,6 +166,40 @@ function humanizePosture(value: string | null | undefined): string {
     return 'Workflow';
   }
   return value
-    .replaceAll('_', ' ')
+    .replace(/[_-]+/g, ' ')
     .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function summarizeWorkload(
+  board: DashboardWorkflowBoardResponse | null,
+  workflow: DashboardMissionControlWorkflowCard,
+): {
+  activeWorkItemCount: number;
+  completedWorkItemCount: number;
+} {
+  if (!board) {
+    return {
+      activeWorkItemCount: workflow.metrics.activeWorkItemCount,
+      completedWorkItemCount: 0,
+    };
+  }
+
+  return {
+    activeWorkItemCount: board.work_items.filter((workItem) => !isCompletedWorkItem(board.columns, workItem)).length,
+    completedWorkItemCount: board.work_items.filter((workItem) => isCompletedWorkItem(board.columns, workItem)).length,
+  };
+}
+
+function readActiveStages(
+  board: DashboardWorkflowBoardResponse | null,
+  workflow: DashboardMissionControlWorkflowCard,
+): string[] {
+  const stages = board?.active_stages ?? [];
+  if (stages.length > 0) {
+    return stages;
+  }
+  if (workflow.currentStage) {
+    return [workflow.currentStage];
+  }
+  return [];
 }

@@ -12,7 +12,7 @@ export function buildMissionControlPacket(
 ): MissionControlPacket {
   const workflowId = readWorkflowId(event);
   const title = humanizeEventType(event.type);
-  const summary = readEventSummary(event);
+  const summary = readEventSummary(event, workflow, title);
   return {
     id: `event:${event.id}`,
     workflowId,
@@ -59,7 +59,11 @@ function humanizeEventType(eventType: string): string {
     .join(' ');
 }
 
-function readEventSummary(event: StreamEvent): string {
+function readEventSummary(
+  event: StreamEvent,
+  workflow: MissionControlWorkflowCard | undefined,
+  genericTitle: string,
+): string {
   const summary = readString(event.data.summary);
   if (summary) return summary;
   const requestSummary = readString(event.data.request_summary);
@@ -70,7 +74,7 @@ function readEventSummary(event: StreamEvent): string {
   if (logicalName) return `Updated ${logicalName}`;
   const artifactPath = readString(event.data.logical_path);
   if (artifactPath) return `Updated ${artifactPath}`;
-  return humanizeEventType(event.type);
+  return workflow?.pulse.summary ?? genericTitle;
 }
 
 function readWorkflowId(event: StreamEvent): string {

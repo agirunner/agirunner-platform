@@ -18,6 +18,7 @@ export function WorkflowsRail(props: {
   rows: DashboardWorkflowRailRow[];
   ongoingRows: DashboardWorkflowRailRow[];
   selectedWorkflowId: string | null;
+  selectedWorkflowRow?: DashboardWorkflowRailRow | null;
   hasNextPage: boolean;
   isLoading: boolean;
   onModeChange(mode: WorkflowPageMode): void;
@@ -34,9 +35,23 @@ export function WorkflowsRail(props: {
     () => props.ongoingRows.slice(0, ONGOING_PREVIEW_LIMIT),
     [props.ongoingRows],
   );
+  const visibleRows = useMemo(
+    () =>
+      props.mode === 'live' && !props.ongoingOnly
+        ? props.rows.filter((row) => row.lifecycle !== 'ongoing')
+        : props.rows,
+    [props.mode, props.ongoingOnly, props.rows],
+  );
+  const selectedVisible = useMemo(
+    () =>
+      props.selectedWorkflowId
+        ? [...props.rows, ...props.ongoingRows].some((row) => row.workflow_id === props.selectedWorkflowId)
+        : true,
+    [props.ongoingRows, props.rows, props.selectedWorkflowId],
+  );
 
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col border-r border-border/70 bg-stone-50/90 dark:bg-slate-950/70">
+    <aside className="flex h-full min-h-0 w-full flex-col overflow-x-hidden border-r border-border/70 bg-stone-50/90 dark:bg-slate-950/70">
       <div className="space-y-4 border-b border-border/70 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -67,14 +82,11 @@ export function WorkflowsRail(props: {
               label="Recent"
               onClick={() => props.onModeChange('recent')}
             />
-            <Button
-              size="sm"
-              type="button"
-              variant={props.needsActionOnly ? 'default' : 'outline'}
+            <FilterToggleButton
+              label="Needs Action Only"
+              isActive={props.needsActionOnly}
               onClick={() => props.onNeedsActionOnlyChange(!props.needsActionOnly)}
-            >
-              Needs Action
-            </Button>
+            />
             {props.ongoingOnly ? (
               <Button
                 size="sm"
@@ -88,6 +100,26 @@ export function WorkflowsRail(props: {
           </div>
         </div>
       </div>
+
+      {props.selectedWorkflowRow && props.selectedWorkflowId && !selectedVisible ? (
+        <section className="border-b border-border/70 px-4 py-3">
+          <div className="grid gap-3 rounded-2xl border border-amber-300/60 bg-amber-50/70 p-3 dark:border-amber-800/60 dark:bg-amber-950/30">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                Current workflow
+              </p>
+              <p className="text-sm text-muted-foreground">
+                The selected workflow stays pinned while you browse other rail results.
+              </p>
+            </div>
+            <WorkflowRailRowCard
+              row={props.selectedWorkflowRow}
+              isSelected
+              onSelect={props.onSelectWorkflow}
+            />
+          </div>
+        </section>
+      ) : null}
 
       {props.mode === 'live' && !props.ongoingOnly && ongoingPreviewRows.length > 0 ? (
         <section className="space-y-3 border-b border-border/70 px-4 py-4">
@@ -119,7 +151,7 @@ export function WorkflowsRail(props: {
 
       <div
         ref={scrollRef}
-        className="min-h-0 flex-1 overflow-y-auto px-3 py-3"
+        className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-3"
         onScroll={(event) => {
           const element = event.currentTarget;
           const nearBottom =
@@ -130,12 +162,12 @@ export function WorkflowsRail(props: {
         }}
       >
         <div className="grid gap-2">
-          {props.rows.length === 0 ? (
+          {visibleRows.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border/70 bg-background/80 p-4 text-sm text-muted-foreground">
               No workflows match the current rail view.
             </div>
           ) : (
-            props.rows.map((row) => (
+            visibleRows.map((row) => (
               <WorkflowRailRowCard
                 key={row.workflow_id}
                 row={row}
@@ -164,21 +196,21 @@ function WorkflowRailRowCard(props: {
     <button
       type="button"
       className={cn(
-        'grid w-full gap-2 rounded-2xl border px-3 py-3 text-left transition-colors',
+        'grid w-full min-w-0 max-w-full gap-2 overflow-hidden rounded-2xl border px-3 py-3 text-left transition-colors',
         props.isSelected
           ? 'border-amber-300 bg-amber-100/90 shadow-sm dark:border-amber-500/60 dark:bg-amber-500/10'
           : 'border-border/70 bg-background/85 hover:border-border hover:bg-background',
       )}
       onClick={() => props.onSelect(props.row.workflow_id)}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-foreground">{props.row.name}</p>
           <p className="truncate text-xs text-muted-foreground">
             {[props.row.playbook_name, props.row.workspace_name].filter(Boolean).join(' • ') || 'Workflow'}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex max-w-full flex-wrap justify-end gap-1">
           {props.row.needs_action ? <Badge variant="warning">Needs action</Badge> : null}
           {props.row.lifecycle === 'ongoing' ? <Badge variant="outline">Ongoing</Badge> : null}
         </div>
@@ -217,11 +249,33 @@ function ModeButton(props: {
   );
 }
 
+function FilterToggleButton(props: {
+  label: string;
+  isActive: boolean;
+  onClick(): void;
+}): JSX.Element {
+  return (
+    <button
+      type="button"
+      aria-pressed={props.isActive}
+      className={cn(
+        'inline-flex h-8 items-center justify-center rounded-md border px-3 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+        props.isActive
+          ? 'border-amber-300 bg-amber-100 text-amber-950 dark:border-amber-500/60 dark:bg-amber-500/10 dark:text-amber-50'
+          : 'border-border bg-background text-foreground hover:bg-border/30',
+      )}
+      onClick={props.onClick}
+    >
+      {props.label}
+    </button>
+  );
+}
+
 function humanizePosture(value: string | null): string {
   if (!value) {
     return 'Workflow';
   }
   return value
-    .replaceAll('_', ' ')
+    .replace(/[_-]+/g, ' ')
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }

@@ -4,7 +4,7 @@ import { LayoutDashboard, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { Button } from '../../components/ui/button.js';
-import { dashboardApi } from '../../lib/api.js';
+import { dashboardApi, type DashboardMissionControlWorkflowCard, type DashboardWorkflowRailRow } from '../../lib/api.js';
 import { WorkflowsRail } from './workflows-rail.js';
 import {
   buildWorkflowsPageSearchParams,
@@ -128,6 +128,10 @@ export function WorkflowsPage(): JSX.Element {
   const railPacket = railQuery.data ?? null;
   const workflow = workspaceQuery.data?.workflow ?? null;
   const board = workspaceQuery.data?.board ?? null;
+  const selectedWorkflowRow = useMemo(
+    () => deriveSelectedWorkflowRow(railPacket?.rows ?? [], railPacket?.ongoing_rows ?? [], pageState.workflowId, workflow),
+    [pageState.workflowId, railPacket?.ongoing_rows, railPacket?.rows, workflow],
+  );
   const scopedWorkItemId =
     resolveWorkflowTabScope(activeTabFromState(pageState), pageState.workItemId) ===
     'selected_work_item'
@@ -167,9 +171,9 @@ export function WorkflowsPage(): JSX.Element {
 
   return (
     <>
-      <div className="grid h-[calc(100vh-9rem)] min-h-[calc(100vh-9rem)] gap-4 xl:grid-cols-[22rem_minmax(0,1fr)]">
+      <div className="flex flex-col gap-4 xl:grid xl:h-[calc(100vh-9rem)] xl:min-h-[calc(100vh-9rem)] xl:grid-cols-[22rem_minmax(0,1fr)]">
         {!isRailHidden ? (
-          <div className="min-h-0 overflow-hidden rounded-3xl border border-border/70 bg-stone-50/90 dark:bg-slate-950/70">
+          <div className="overflow-hidden rounded-3xl border border-border/70 bg-stone-50/90 xl:min-h-0 dark:bg-slate-950/70">
             <WorkflowsRail
               mode={pageState.mode}
               search={pageState.search}
@@ -178,6 +182,7 @@ export function WorkflowsPage(): JSX.Element {
               rows={railPacket?.rows ?? []}
               ongoingRows={railPacket?.ongoing_rows ?? []}
               selectedWorkflowId={pageState.workflowId}
+              selectedWorkflowRow={selectedWorkflowRow}
               hasNextPage={hasMoreRailRows}
               isLoading={railQuery.isLoading}
               onModeChange={(mode) => patchPageState(navigate, pageState, { mode, tab: null })}
@@ -200,7 +205,7 @@ export function WorkflowsPage(): JSX.Element {
           </div>
         ) : null}
 
-        <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden">
+        <div className="flex min-h-0 flex-col gap-4 xl:grid xl:grid-rows-[auto_minmax(0,1fr)] xl:overflow-hidden">
           <div className="flex items-center justify-between gap-3">
             <Button type="button" size="sm" variant="outline" onClick={() => setIsRailHidden((current) => !current)}>
               {isRailHidden ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
@@ -214,12 +219,13 @@ export function WorkflowsPage(): JSX.Element {
           </div>
 
           {workflow && workspaceQuery.data ? (
-            <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_minmax(22rem,40vh)] gap-4 overflow-hidden">
+            <div className="flex min-h-0 flex-col gap-4 xl:grid xl:grid-rows-[auto_minmax(0,1fr)_minmax(22rem,40vh)] xl:overflow-hidden">
               <div className="sticky top-0 z-10">
                 <WorkflowStateStrip
                   workflow={workflow}
                   stickyStrip={workspaceQuery.data.sticky_strip}
                   workflowSettings={workflowSettingsQuery.data ?? null}
+                  board={board}
                   selectedScopeLabel={scopedWorkItemId ? workItemTitle : null}
                   onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
                   onAddWork={() => setIsAddWorkOpen(true)}
@@ -238,8 +244,8 @@ export function WorkflowsPage(): JSX.Element {
                   }}
                 />
               </div>
-              <div className="min-h-0 overflow-hidden rounded-3xl border border-border/70 bg-background/70">
-                <div className="h-full overflow-auto p-4">
+              <div className="rounded-3xl border border-border/70 bg-background/70 xl:min-h-0 xl:overflow-hidden">
+                <div className="p-4 xl:h-full xl:overflow-auto">
                   <WorkflowBoard
                     workflowId={workflow.id}
                     board={board}
@@ -254,8 +260,8 @@ export function WorkflowsPage(): JSX.Element {
                   />
                 </div>
               </div>
-              <div className="min-h-0 overflow-hidden rounded-3xl border border-border/70 bg-background/70">
-                <div className="h-full overflow-auto p-4">
+              <div className="rounded-3xl border border-border/70 bg-background/70 xl:min-h-0 xl:overflow-hidden">
+                <div className="p-4 xl:h-full xl:overflow-auto">
                   <WorkflowBottomWorkbench
                     workflowId={workflow.id}
                     workflowName={workflow.name}
@@ -330,6 +336,51 @@ export function WorkflowsPage(): JSX.Element {
       ) : null}
     </>
   );
+}
+
+function deriveSelectedWorkflowRow(
+  rows: DashboardWorkflowRailRow[],
+  ongoingRows: DashboardWorkflowRailRow[],
+  workflowId: string | null,
+  workflow: DashboardMissionControlWorkflowCard | null,
+): DashboardWorkflowRailRow | null {
+  if (!workflowId) {
+    return null;
+  }
+  const visibleRow = [...rows, ...ongoingRows].find((row) => row.workflow_id === workflowId);
+  if (visibleRow) {
+    return visibleRow;
+  }
+  if (!workflow) {
+    return null;
+  }
+  return {
+    workflow_id: workflow.id,
+    name: workflow.name,
+    state: workflow.state ?? null,
+    lifecycle: workflow.lifecycle ?? null,
+    current_stage: workflow.currentStage ?? null,
+    workspace_name: workflow.workspaceName ?? null,
+    playbook_name: workflow.playbookName ?? null,
+    posture: workflow.posture ?? null,
+    live_summary: workflow.pulse.summary,
+    last_changed_at: workflow.metrics.lastChangedAt ?? workflow.pulse.updatedAt ?? null,
+    needs_action:
+      workflow.attentionLane === 'needs_decision'
+      || workflow.attentionLane === 'needs_intervention'
+      || workflow.posture === 'needs_decision'
+      || workflow.posture === 'needs_intervention'
+      || workflow.posture === 'recoverable_needs_steering'
+      || workflow.posture === 'terminal_failed',
+    counts: {
+      active_task_count: workflow.metrics.activeTaskCount,
+      active_work_item_count: workflow.metrics.activeWorkItemCount,
+      blocked_work_item_count: workflow.metrics.blockedWorkItemCount,
+      open_escalation_count: workflow.metrics.openEscalationCount,
+      waiting_for_decision_count: workflow.metrics.waitingForDecisionCount,
+      failed_task_count: workflow.metrics.failedTaskCount,
+    },
+  };
 }
 
 function EmptyWorkflowsState(props: {

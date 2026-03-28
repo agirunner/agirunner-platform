@@ -32,10 +32,16 @@ export function WorkflowNeedsAction(props: {
             >
               <div className="flex flex-wrap items-center gap-2">
                 <strong className="text-foreground">{item.label}</strong>
-                <Badge variant="warning">{humanizeToken(item.target_kind)}</Badge>
+                <Badge variant="warning">{humanizeToken(item.target.target_kind)}</Badge>
+                <Badge variant="secondary">{humanizePriority(item.priority)} priority</Badge>
                 {item.requires_confirmation ? <Badge variant="outline">Confirm</Badge> : null}
               </div>
-              <p className="text-sm text-muted-foreground">{item.summary}</p>
+              <div className="grid gap-1">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                  Why it needs action
+                </p>
+                <p className="text-sm text-muted-foreground">{item.summary}</p>
+              </div>
               <div className="flex flex-wrap gap-2">
                 <ActionButton
                   actionKind={item.action_kind}
@@ -80,6 +86,21 @@ function ActionButton(props: {
   }
 }
 
-function humanizeToken(value: string): string {
-  return value.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+function humanizeToken(value: string | null | undefined): string {
+  if (!value) {
+    return 'Workflow';
+  }
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function humanizePriority(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  switch (normalized) {
+    case 'high':
+      return 'High';
+    case 'low':
+      return 'Low';
+    default:
+      return 'Medium';
+  }
 }

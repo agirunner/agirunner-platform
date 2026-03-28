@@ -128,6 +128,76 @@ describe('workflow operations routes v2', () => {
     );
   });
 
+  it('adds CORS headers to workflow stream responses for browser clients', async () => {
+    const { workflowOperationsRoutes } = await import('../../src/api/routes/workflow-operations.routes.js');
+    const workflowOperationsRailService = {
+      getRail: vi.fn(async () => ({ rows: [], selected_workflow_id: null })),
+    };
+    const workflowOperationsWorkspaceService = {
+      getWorkspace: vi.fn(async () => ({ workflow_id: 'workflow-1' })),
+    };
+    const workflowOperationsStreamService = {
+      buildRailBatch: vi.fn(async () => ({
+        cursor: 'workflow-operations:42',
+        snapshot_version: 'workflow-operations:42',
+        events: [],
+      })),
+      buildWorkspaceBatch: vi.fn(async () => ({
+        cursor: 'workflow-operations:42',
+        snapshot_version: 'workflow-operations:42',
+        events: [],
+        surface_cursors: {
+          live_console_head: null,
+          history_head: null,
+          deliverables_head: null,
+        },
+      })),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowOperationsRailService', workflowOperationsRailService as never);
+    app.decorate('workflowOperationsWorkspaceService', workflowOperationsWorkspaceService as never);
+    app.decorate('workflowOperationsStreamService', workflowOperationsStreamService as never);
+    app.decorate('eventStreamService', {
+      subscribe: vi.fn(() => () => undefined),
+    } as never);
+    await app.register(workflowOperationsRoutes);
+
+    await app.listen({ port: 0, host: '127.0.0.1' });
+    const address = app.server.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Failed to resolve test server address.');
+    }
+    const baseUrl = `http://127.0.0.1:${address.port}`;
+    const headers = {
+      authorization: 'Bearer test',
+      accept: 'text/event-stream',
+      origin: 'http://localhost:3000',
+    };
+
+    const railController = new AbortController();
+    const railResponse = await fetch(`${baseUrl}/api/v1/operations/workflows/stream?mode=live`, {
+      headers,
+      signal: railController.signal,
+    });
+    railController.abort();
+
+    const workspaceController = new AbortController();
+    const workspaceResponse = await fetch(`${baseUrl}/api/v1/operations/workflows/workflow-1/stream`, {
+      headers,
+      signal: workspaceController.signal,
+    });
+    workspaceController.abort();
+
+    expect(railResponse.status).toBe(200);
+    expect(workspaceResponse.status).toBe(200);
+    expect(railResponse.headers.get('access-control-allow-origin')).toBe('http://localhost:3000');
+    expect(workspaceResponse.headers.get('access-control-allow-origin')).toBe('http://localhost:3000');
+    expect(railResponse.headers.get('access-control-allow-credentials')).toBe('true');
+    expect(workspaceResponse.headers.get('access-control-allow-credentials')).toBe('true');
+  });
+
   it('does not expose legacy mission control route aliases after workflows cutover', async () => {
     const { workflowOperationsRoutes } = await import('../../src/api/routes/workflow-operations.routes.js');
 

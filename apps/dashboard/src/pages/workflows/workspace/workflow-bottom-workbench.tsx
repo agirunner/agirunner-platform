@@ -32,7 +32,7 @@ export function WorkflowBottomWorkbench(props: {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="grid gap-1">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-foreground">Workflow Workbench</p>
+            <p className="text-sm font-semibold text-foreground">Workflow Details</p>
             {props.scopedWorkItemId ? (
               <>
                 <Badge variant="secondary">
@@ -51,7 +51,7 @@ export function WorkflowBottomWorkbench(props: {
             )}
           </div>
           <p className="text-sm text-muted-foreground">
-            Respond, steer, review live execution, inspect history, and read deliverables without leaving the workflow.
+            Respond, steer, inspect the live console, review history, and read deliverables without leaving this workflow.
           </p>
         </div>
       </div>
@@ -71,7 +71,7 @@ export function WorkflowBottomWorkbench(props: {
         />
         <WorkbenchTabButton
           label="Live Console"
-          count={counts.live_console}
+          count={counts.live_console_activity}
           isActive={props.activeTab === 'live_console'}
           onClick={() => props.onTabChange('live_console')}
         />
@@ -105,12 +105,12 @@ export function WorkflowBottomWorkbench(props: {
             workflowState={props.workflowState}
             workspaceId={props.workspaceId}
             selectedWorkItemId={props.scopedWorkItemId}
-            quickActions={props.packet.steering_panel.quick_actions}
-            decisionActions={props.packet.steering_panel.decision_actions}
-            interventions={props.packet.steering_panel.recent_interventions}
-            messages={props.packet.steering_panel.session.messages}
-            sessionId={props.packet.steering_panel.session.session_id}
-            canAcceptRequest={props.packet.steering_panel.steering_state.can_accept_request}
+            quickActions={props.packet.steering.quick_actions}
+            decisionActions={props.packet.steering.decision_actions}
+            interventions={props.packet.steering.recent_interventions}
+            messages={props.packet.steering.session.messages}
+            sessionId={props.packet.steering.session.session_id}
+            canAcceptRequest={props.packet.steering.steering_state.can_accept_request}
             onOpenAddWork={props.onOpenAddWork}
             onOpenRedrive={props.onOpenRedrive}
           />
@@ -125,14 +125,14 @@ export function WorkflowBottomWorkbench(props: {
         {props.activeTab === 'history' ? (
           <WorkflowHistory
             workflowId={props.workflowId}
-            packet={props.packet.history_timeline}
+            packet={props.packet.history}
             selectedWorkItemId={props.scopedWorkItemId}
             onLoadMore={props.onLoadMoreActivity}
           />
         ) : null}
         {props.activeTab === 'deliverables' ? (
           <WorkflowDeliverables
-            packet={props.packet.deliverables_panel}
+            packet={props.packet.deliverables}
             onLoadMore={props.onLoadMoreDeliverables}
           />
         ) : null}

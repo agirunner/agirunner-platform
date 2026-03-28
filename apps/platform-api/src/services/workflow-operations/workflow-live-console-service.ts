@@ -35,11 +35,19 @@ interface UpdateSource {
   ): Promise<WorkflowOperatorUpdateRecord[]>;
 }
 
+interface VisibilityModeSource {
+  getWorkflowSettings(
+    tenantId: string,
+    workflowId: string,
+  ): Promise<{ effective_live_visibility_mode: 'standard' | 'enhanced' }>;
+}
+
 export class WorkflowLiveConsoleService {
   constructor(
     private readonly versionSource: VersionSource,
     private readonly briefSource: BriefSource,
     private readonly updateSource: UpdateSource,
+    private readonly visibilityModeSource: VisibilityModeSource,
   ) {}
 
   async getLiveConsole(
@@ -49,7 +57,7 @@ export class WorkflowLiveConsoleService {
   ): Promise<WorkflowLiveConsolePacket> {
     const limit = input.limit ?? 50;
     const fetchWindow = resolveFetchWindow(limit);
-    const [version, briefs, updates] = await Promise.all([
+    const [version, briefs, updates, workflowSettings] = await Promise.all([
       this.versionSource.getHistory(tenantId, {
         workflowId,
         limit: 1,
@@ -62,6 +70,7 @@ export class WorkflowLiveConsoleService {
         workItemId: input.workItemId,
         limit: fetchWindow,
       }),
+      this.visibilityModeSource.getWorkflowSettings(tenantId, workflowId),
     ]);
 
     const items = [...updates.map(toUpdateItem), ...briefs.map(toBriefItem)]
@@ -77,7 +86,8 @@ export class WorkflowLiveConsoleService {
       snapshot_version: buildWorkflowOperationsSnapshotVersion(version.version.latestEventId),
       items: page.items,
       next_cursor: page.nextCursor,
-      live_visibility_mode: deriveVisibilityMode(updates),
+      live_visibility_mode:
+        workflowSettings.effective_live_visibility_mode ?? deriveVisibilityModeFromUpdates(updates),
     };
   }
 }
@@ -88,6 +98,8 @@ function toBriefItem(brief: WorkflowOperatorBriefRecord): WorkflowLiveConsoleIte
   return {
     item_id: brief.id,
     item_kind: 'milestone_brief',
+    source_kind: brief.source_kind,
+    source_label: readSourceLabel(brief.source_role_name, brief.source_kind),
     headline: readHeadline(shortBrief, detailedBrief, 'Workflow brief'),
     summary: readSummary(detailedBrief, shortBrief),
     created_at: brief.created_at,
@@ -100,6 +112,8 @@ function toUpdateItem(update: WorkflowOperatorUpdateRecord): WorkflowLiveConsole
   return {
     item_id: update.id,
     item_kind: updateKind === 'platform_notice' ? 'platform_notice' : 'operator_update',
+    source_kind: update.source_kind,
+    source_label: readSourceLabel(update.source_role_name, update.source_kind),
     headline: readRequiredString(update.headline, 'Workflow update'),
     summary: readOptionalString(update.summary) ?? readRequiredString(update.headline, 'Workflow update'),
     created_at: update.created_at,
@@ -150,6 +164,10 @@ function readOptionalString(value: unknown): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
+function readSourceLabel(sourceRoleName: string | null, sourceKind: string): string {
+  return readOptionalString(sourceRoleName) ?? humanizeToken(sourceKind);
+}
+
 function readStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
@@ -171,10 +189,14 @@ function sortNewestFirst(left: WorkflowLiveConsoleItem, right: WorkflowLiveConso
   );
 }
 
-function deriveVisibilityMode(
+function deriveVisibilityModeFromUpdates(
   updates: WorkflowOperatorUpdateRecord[],
 ): 'standard' | 'enhanced' {
   return updates.some((update) => update.visibility_mode === 'enhanced')
     ? 'enhanced'
     : 'standard';
+}
+
+function humanizeToken(value: string): string {
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }
