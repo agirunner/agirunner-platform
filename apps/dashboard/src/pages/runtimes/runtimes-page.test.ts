@@ -12,12 +12,11 @@ describe('runtimes page source', () => {
     expect(module.RuntimesPage).toBeTypeOf('function');
   });
 
-  it('composes the runtime defaults editor with the tenant live visibility settings panel', () => {
+  it('renders agentic settings through the shared runtime defaults page only', () => {
     const source = readSource();
     expect(source).toContain("import { RuntimeDefaultsPage }");
-    expect(source).toContain("import { AgenticLiveVisibilitySettingsCard }");
     expect(source).toContain('<RuntimeDefaultsPage />');
-    expect(source).toContain('<AgenticLiveVisibilitySettingsCard />');
+    expect(source).not.toContain('AgenticLiveVisibilitySettingsCard');
     expect(source).not.toContain('/api/v1/agentic-settings');
   });
 });

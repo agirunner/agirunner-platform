@@ -90,6 +90,11 @@ describe('runtime defaults page source', () => {
     expect(pageSource).toContain('navHref="/admin/agentic-settings"');
     expect(pageSource).toContain('successMessage="Agentic Settings saved."');
     expect(pageSource).toContain('headerDescriptionClassName="max-w-none whitespace-nowrap"');
+    expect(pageSource).toContain('dashboardApi.getAgenticSettings()');
+    expect(pageSource).toContain('dashboardApi.updateAgenticSettings');
+    expect(pageSource).toContain('fieldId="agentic-live-visibility-mode"');
+    expect(pageSource).toContain('label="Live visibility mode"');
+    expect(pageSource).toContain('connected_platform: (');
     expect(pageSource).toContain('PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS');
     expect(pageSource).toContain('RUNTIME_INLINE_SECTION_COLUMNS');
     expect(editorSource).toContain('RuntimeDefaultsSection');
@@ -103,6 +108,10 @@ describe('runtime defaults page source', () => {
     expect(editorSource).not.toContain('RuntimeAdvancedSettingsSection');
     expect(editorSource).toContain('Reset changes');
     expect(editorSource).toContain('Save');
+    expect(editorSource).toContain('sectionSupplementalContent?: Partial<Record<SectionDefinition[\'key\'], ReactNode>>;');
+    expect(editorSource).toContain('additionalHasChanges?: boolean;');
+    expect(editorSource).toContain('onSaveAdditional?(): Promise<void>;');
+    expect(editorSource).toContain('supplementalContent={props.sectionSupplementalContent?.[section.key]}');
     expect(editorSource).toContain('buildValidationErrors');
     expect(editorSource).toContain('summarizeRuntimeDefaultSections');
     expect(editorSource).toContain('className="space-y-6 p-6"');
@@ -119,6 +128,7 @@ describe('runtime defaults page source', () => {
     expect(pageSource).not.toContain('Configured overrides');
     expect(pageSource).not.toContain('Save blockers');
     expect(pageSource).not.toContain('Warm pools');
+    expect(pageSource).not.toContain('Save live visibility');
     expect(fieldsSource).not.toContain('Advanced Settings');
     expect(fieldsSource).not.toContain('Runtime log level');
     expect(fieldsSource).not.toContain('Show');
@@ -128,7 +138,8 @@ describe('runtime defaults page source', () => {
   it('guards against unsaved changes via beforeunload', () => {
     const source = readSource('./runtime-defaults-editor-page.tsx');
     expect(source).toContain('useUnsavedChanges');
-    expect(source).toContain('useUnsavedChanges(isDirty)');
+    expect(source).toContain('const hasAnyChanges = isDirty || Boolean(props.additionalHasChanges);');
+    expect(source).toContain('useUnsavedChanges(hasAnyChanges)');
   });
 
   it('keeps all hooks before the loading and error early returns', () => {

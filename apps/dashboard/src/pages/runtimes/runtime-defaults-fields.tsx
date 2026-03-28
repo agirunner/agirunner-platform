@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Input } from '../../components/ui/input.js';
 import {
@@ -22,6 +24,7 @@ export function RuntimeDefaultsSection({
   configuredCount,
   fieldCount,
   errorCount,
+  supplementalContent,
   onChange,
 }: {
   title: string;
@@ -32,6 +35,7 @@ export function RuntimeDefaultsSection({
   configuredCount: number;
   fieldCount: number;
   errorCount: number;
+  supplementalContent?: ReactNode;
   onChange: (key: string, value: string) => void;
 }): JSX.Element {
   return (
@@ -50,6 +54,11 @@ export function RuntimeDefaultsSection({
             onChange={(nextValue) => onChange(field.key, nextValue)}
           />
         ))}
+        {supplementalContent ? (
+          <div className="border-t border-border/70 pt-4">
+            {supplementalContent}
+          </div>
+        ) : null}
     </DashboardSectionCard>
   );
 }

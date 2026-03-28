@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, RotateCcw, Save } from 'lucide-react';
 
@@ -44,6 +44,17 @@ interface RuntimeDefaultsEditorPageProps {
   sectionIdPrefix: string;
   successMessage: string;
   errorLabel: string;
+  sectionSupplementalContent?: Partial<Record<SectionDefinition['key'], ReactNode>>;
+  additionalHasChanges?: boolean;
+  onResetAdditional?(): void;
+  onSaveAdditional?(): Promise<void>;
+}
+
+interface RenderableSection extends SectionDefinition {
+  fields: FieldDefinition[];
+  configuredCount: number;
+  fieldCount: number;
+  errorCount: number;
 }
 
 function isDefined<T>(value: T | null): value is T {
@@ -179,7 +190,9 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
     ];
   }, [inlineSectionColumns, primarySections]);
 
-  useUnsavedChanges(isDirty);
+  const hasAnyChanges = isDirty || Boolean(props.additionalHasChanges);
+
+  useUnsavedChanges(hasAnyChanges);
 
   useEffect(() => {
     setFormValues(buildFormValues(data, props.fieldDefinitions));
@@ -190,11 +203,16 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
   const saveMutation = useMutation({
     mutationFn: async () => {
       await Promise.all(
-        buildSaveOperations(
-          formValues,
-          defaultsByKey,
-          props.fieldDefinitions,
-        ),
+        [
+          ...buildSaveOperations(
+            formValues,
+            defaultsByKey,
+            props.fieldDefinitions,
+          ),
+          ...(props.onSaveAdditional && props.additionalHasChanges
+            ? [props.onSaveAdditional()]
+            : []),
+        ],
       );
     },
     onSuccess: async () => {
@@ -216,6 +234,7 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
     setFormValues(buildFormValues(data, props.fieldDefinitions));
     setIsDirty(false);
     setHasAttemptedSubmit(false);
+    props.onResetAdditional?.();
   }
 
   function saveForm(): void {
@@ -256,15 +275,7 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
     validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
   });
 
-  function renderSectionCard(section: {
-    key: string;
-    title: string;
-    description: string;
-    fields: FieldDefinition[];
-    configuredCount: number;
-    fieldCount: number;
-    errorCount: number;
-  }): JSX.Element {
+  function renderSectionCard(section: RenderableSection): JSX.Element {
     return (
       <section key={section.key} id={`${props.sectionIdPrefix}-${section.key}`}>
         <RuntimeDefaultsSection
@@ -276,6 +287,7 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
           configuredCount={section.configuredCount}
           fieldCount={section.fieldCount}
           errorCount={section.errorCount}
+          supplementalContent={props.sectionSupplementalContent?.[section.key]}
           onChange={updateField}
         />
       </section>
@@ -293,14 +305,14 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
             <Button
               variant="outline"
               onClick={resetForm}
-              disabled={!isDirty || saveMutation.isPending}
+              disabled={!hasAnyChanges || saveMutation.isPending}
             >
               <RotateCcw className="h-4 w-4" />
               Reset changes
             </Button>
             <Button
               onClick={saveForm}
-              disabled={!isDirty || saveMutation.isPending}
+              disabled={!hasAnyChanges || saveMutation.isPending}
             >
               {saveMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
