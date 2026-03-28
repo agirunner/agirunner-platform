@@ -135,6 +135,86 @@ describe('dashboard api auth/session behavior', () => {
     expect(source).toContain('/resolve-escalation');
   });
 
+  it('routes workflow-linked escalation resolution through the workflow work-item operator flow', async () => {
+    writeSession({ accessToken: 'token-1', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn(async () =>
+      new Response(JSON.stringify({ data: { id: 'task-1' } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getWorkflow: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      baseUrl: 'http://platform.test',
+      client: client as never,
+      fetcher,
+    });
+
+    await api.resolveTaskEscalation(
+      'task-1',
+      { instructions: 'Resume with captured operator guidance.' },
+      { workflowId: 'workflow-1', workItemId: 'wi-1' },
+    );
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://platform.test/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/resolve-escalation',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+  });
+
+  it('keeps standalone escalation resolution on the raw task endpoint', async () => {
+    writeSession({ accessToken: 'token-1', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn(async () =>
+      new Response(JSON.stringify({ data: { id: 'task-standalone-1' } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getWorkflow: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      baseUrl: 'http://platform.test',
+      client: client as never,
+      fetcher,
+    });
+
+    await api.resolveTaskEscalation('task-standalone-1', {
+      instructions: 'Continue using the standalone task flow.',
+    });
+
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://platform.test/api/v1/tasks/task-standalone-1/resolve-escalation',
+      expect.objectContaining({
+        method: 'POST',
+      }),
+    );
+  });
+
   it('exposes typed workspace settings posture in the dashboard api contract', () => {
     const source = readApiSource();
     const workspaceSettingsBlock = readExportBlock(source, 'DashboardWorkspaceSettingsRecord');

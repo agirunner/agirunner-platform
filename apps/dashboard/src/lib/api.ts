@@ -570,6 +570,7 @@ export interface DashboardWorkflowNeedsActionResponseAction {
   action_id: string;
   kind: string;
   label: string;
+  work_item_id?: string | null;
   target: {
     target_kind: 'workflow' | 'work_item' | 'task' | 'gate';
     target_id: string;
@@ -3045,6 +3046,11 @@ export interface DashboardApi {
     taskId: string,
     payload: { instructions: string; context?: Record<string, unknown> },
   ): Promise<unknown>;
+  resolveTaskEscalation(
+    taskId: string,
+    payload: { instructions: string; context?: Record<string, unknown> },
+    options?: { workflowId?: string | null; workItemId?: string | null },
+  ): Promise<unknown>;
   actOnWorkflowGate(
     workflowId: string,
     gateId: string,
@@ -3312,6 +3318,29 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
   ): Promise<unknown> {
     return requestJson(`/api/v1/workflows/${workflowId}/work-items/${workItemId}/${action}`, {
       body: buildRequestBodyWithRequestId(body),
+    });
+  }
+
+  function requestTaskEscalationResolution(
+    taskId: string,
+    payload: { instructions: string; context?: Record<string, unknown> },
+    options: { workflowId?: string | null; workItemId?: string | null } = {},
+  ): Promise<unknown> {
+    const workflowId = options.workflowId?.trim();
+    const workItemId = options.workItemId?.trim();
+
+    if (workflowId && workItemId) {
+      return requestWorkflowWorkItemTaskAction(
+        workflowId,
+        workItemId,
+        taskId,
+        'resolve-escalation',
+        payload,
+      );
+    }
+
+    return requestJson(`/api/v1/tasks/${taskId}/resolve-escalation`, {
+      body: buildRequestBodyWithRequestId(payload),
     });
   }
 
@@ -4190,9 +4219,9 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     escalateTask: (taskId, payload) =>
       withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/escalate`, { body: payload })),
     resolveEscalation: (taskId, payload) =>
-      withRefresh(() =>
-        requestJson(`/api/v1/tasks/${taskId}/resolve-escalation`, { body: payload }),
-      ),
+      withRefresh(() => requestTaskEscalationResolution(taskId, payload)),
+    resolveTaskEscalation: (taskId, payload, options) =>
+      withRefresh(() => requestTaskEscalationResolution(taskId, payload, options)),
     actOnWorkflowGate: (workflowId, gateId, payload) =>
       withRefresh(() =>
         requestJson(`/api/v1/workflows/${workflowId}/gates/${gateId}`, {

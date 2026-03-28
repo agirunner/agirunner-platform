@@ -463,4 +463,11 @@ describe('WorkflowNeedsAction', () => {
     expect(source).not.toContain('DialogContent');
     expect(source).not.toContain('DialogTitle');
   });
+
+  it('routes escalation responses through the workflow-aware dashboard api helper', () => {
+    const source = readFileSync(new URL('./workflow-needs-action.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('dashboardApi.resolveTaskEscalation(');
+    expect(source).not.toContain('dashboardApi.resolveEscalation(action.target.target_id');
+  });
 });

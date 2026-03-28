@@ -813,7 +813,15 @@ function buildBoardNeedsActionResponses(
   }
   if (actionKind === 'resolve_escalation' && directTask) {
     return [
-      buildNeedsActionResponse('resolve_escalation', 'Resume with guidance', directTask.id, 'task', 'instructions', true),
+      buildNeedsActionResponse(
+        'resolve_escalation',
+        'Resume with guidance',
+        directTask.id,
+        'task',
+        'instructions',
+        true,
+        directTask.work_item_id,
+      ),
     ];
   }
   if (actionKind === 'resolve_stage_gate' && gate) {
@@ -860,7 +868,14 @@ function buildInterventionResponses(
   }
   if (actionKind === 'resolve_escalation' && target.target_kind === 'task') {
     return [
-      buildNeedsActionResponse('resolve_escalation', 'Resume with guidance', target.target_id, 'task', 'instructions', true),
+      buildNeedsActionResponse(
+        'resolve_escalation',
+        'Resume with guidance',
+        target.target_id,
+        'task',
+        'instructions',
+        true,
+      ),
     ];
   }
   return [];
@@ -886,11 +901,13 @@ function buildNeedsActionResponse(
   targetKind: WorkflowNeedsActionResponseAction['target']['target_kind'],
   promptKind: WorkflowNeedsActionResponseAction['prompt_kind'],
   requiresConfirmation = false,
+  workItemId?: string | null,
 ): WorkflowNeedsActionResponseAction {
   return {
     action_id: `${targetId}:${kind}`,
     kind,
     label,
+    work_item_id: workItemId,
     target: {
       target_kind: targetKind,
       target_id: targetId,

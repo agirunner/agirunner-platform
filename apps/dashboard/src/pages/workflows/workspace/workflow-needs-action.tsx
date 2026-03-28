@@ -228,7 +228,14 @@ async function runNeedsAction(
       await dashboardApi.requestTaskChanges(action.target.target_id, { feedback: promptValue.trim() });
       return;
     case 'resolve_escalation':
-      await dashboardApi.resolveEscalation(action.target.target_id, { instructions: promptValue.trim() });
+      await dashboardApi.resolveTaskEscalation(
+        action.target.target_id,
+        { instructions: promptValue.trim() },
+        {
+          workflowId,
+          workItemId: action.work_item_id ?? null,
+        },
+      );
       return;
     case 'approve_gate':
       await dashboardApi.actOnWorkflowGate(workflowId, action.target.target_id, { action: 'approve' });

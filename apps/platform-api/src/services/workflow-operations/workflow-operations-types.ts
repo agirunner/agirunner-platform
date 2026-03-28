@@ -64,6 +64,7 @@ export interface WorkflowNeedsActionResponseAction {
   action_id: string;
   kind: string;
   label: string;
+  work_item_id?: string | null;
   target: {
     target_kind: 'workflow' | 'work_item' | 'task' | 'gate';
     target_id: string;

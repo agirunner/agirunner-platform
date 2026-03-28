@@ -623,6 +623,7 @@ describe('WorkflowWorkspaceService', () => {
           expect.objectContaining({
             kind: 'resolve_escalation',
             label: 'Resume with guidance',
+            work_item_id: 'work-item-1',
             target: {
               target_kind: 'task',
               target_id: '771908c8-0634-467a-b41d-6dd4a6798d7d',
