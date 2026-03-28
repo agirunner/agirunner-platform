@@ -1799,8 +1799,20 @@ describe('WorkflowActivationDispatchService', () => {
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('If a stage already awaits approval, do not request another gate');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('record_operator_brief');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('record_operator_update');
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
+            'In enhanced live visibility mode, every eligible activation turn must emit at least one record_operator_update before you finish the turn.',
+          );
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
+            'Eligible turns include routing work, requesting approval or assessment, reporting that active work is still progressing, and finishing an activation with a concrete wait/noop decision.',
+          );
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
+            'Use request_id values with the pattern operator-update:<execution_context_id>:<step-slug> and keep the same request_id only when retrying that exact write.',
+          );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('payload.short_brief and payload.detailed_brief_json objects');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('detailed_brief_json must include headline and status_kind');
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
+            'record_operator_update example shape: { request_id: "operator-update:<execution_context_id>:route-reviewer", execution_context_id: "<execution_context_id>", work_item_id: "<work_item_id if present>", source_kind: "orchestrator", payload: { headline: "Orchestrator is routing the next specialist task." } }.',
+          );
           expect(inserted.environment).toEqual({
             execution_mode: 'orchestrator',
             template: 'execution-workspace',

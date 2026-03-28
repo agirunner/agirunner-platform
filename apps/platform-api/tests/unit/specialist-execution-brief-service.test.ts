@@ -211,6 +211,12 @@ describe('buildSpecialistExecutionBrief', () => {
     expect(brief?.rendered_markdown).toContain(
       'Every operator record write must include a unique request_id.',
     );
+    expect(brief?.rendered_markdown).toContain(
+      'Enhanced live visibility requires one record_operator_update on every eligible turn',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Use operator-update:task-review-1: as the stable request_id prefix for record_operator_update writes in this execution context.',
+    );
     expect(brief?.rendered_markdown).toContain('record_operator_update');
     expect(brief?.rendered_markdown).toContain('record_operator_brief');
     expect(brief?.rendered_markdown).toContain(
@@ -232,7 +238,7 @@ describe('buildSpecialistExecutionBrief', () => {
       'Operator updates and briefs are console text, not audit logs: keep them human-readable',
     );
     expect(brief?.rendered_markdown).toContain(
-      'Example: { payload: { headline: "Reviewer is checking rollback handling.", summary: "Rollback handling is under review." } }',
+      'Example: { request_id: "operator-update:task-review-1:rollback-review", execution_context_id: "task-review-1", work_item_id: "wi-1", task_id: "task-review-1", source_kind: "specialist", payload: { headline: "Reviewer is checking rollback handling.", summary: "Rollback handling is under review." } }',
     );
     expect(brief?.rendered_markdown).toContain(
       'record_operator_brief requires short_brief.headline plus detailed_brief_json.headline and status_kind, and must never be called with only linked_target_ids or an empty brief shell.',

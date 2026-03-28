@@ -31,6 +31,10 @@ interface OperatorVisibilityContract {
   record_operator_brief_tool: string | null;
   record_operator_update_tool: string | null;
   turn_updates_required: boolean;
+  turn_update_scope: string | null;
+  eligible_turn_guidance: string | null;
+  operator_update_request_id_prefix: string | null;
+  operator_brief_request_id_prefix: string | null;
   milestone_briefs_required: boolean;
 }
 
@@ -102,6 +106,9 @@ interface SpecialistExecutionBriefInput {
   specialistCapabilities?: SpecialistRoleCapabilities | null;
   executionEnvironmentSnapshot?: Record<string, unknown> | null;
 }
+
+const DEFAULT_ELIGIBLE_TURN_GUIDANCE =
+  'Emit one operator update after every eligible turn that inspects workflow state and then routes work, requests review or approval, reports waiting progress, or finishes with a concrete noop or next-step decision.';
 
 export function buildSpecialistExecutionBrief(
   input: SpecialistExecutionBriefInput,
@@ -285,6 +292,19 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
       'Every operator record write must include a unique request_id. Reuse a request_id only for an intentional retry of the same write.',
     );
     if (brief.operator_visibility.turn_updates_required && brief.operator_visibility.record_operator_update_tool) {
+      if (brief.operator_visibility.turn_update_scope === 'per_eligible_turn') {
+        lines.push(
+          `Enhanced live visibility requires one ${brief.operator_visibility.record_operator_update_tool} on every eligible turn.`,
+        );
+      }
+      if (brief.operator_visibility.eligible_turn_guidance) {
+        lines.push(brief.operator_visibility.eligible_turn_guidance);
+      }
+      if (brief.operator_visibility.operator_update_request_id_prefix) {
+        lines.push(
+          `Use ${brief.operator_visibility.operator_update_request_id_prefix} as the stable request_id prefix for ${brief.operator_visibility.record_operator_update_tool} writes in this execution context.`,
+        );
+      }
       lines.push(
         `Use ${brief.operator_visibility.record_operator_update_tool} for one tiny operator-readable headline after each eligible execution step.`,
       );
@@ -292,10 +312,15 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
         'Operator updates and briefs are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".',
       );
       lines.push(
-        'Example: { payload: { headline: "Reviewer is checking rollback handling.", summary: "Rollback handling is under review." } }',
+        `Example: { request_id: "${brief.operator_visibility.operator_update_request_id_prefix ?? 'operator-update:<execution_context_id>:'}rollback-review", execution_context_id: "${brief.operator_visibility.execution_context_id ?? '<execution_context_id>'}", work_item_id: "${brief.operator_visibility.work_item_id ?? '<work_item_id>'}", task_id: "${brief.operator_visibility.task_id ?? '<task_id>'}", source_kind: "${brief.operator_visibility.source_kind ?? 'specialist'}", payload: { headline: "Reviewer is checking rollback handling.", summary: "Rollback handling is under review." } }`,
       );
     }
     if (brief.operator_visibility.milestone_briefs_required && brief.operator_visibility.record_operator_brief_tool) {
+      if (brief.operator_visibility.operator_brief_request_id_prefix) {
+        lines.push(
+          `Use ${brief.operator_visibility.operator_brief_request_id_prefix} as the stable request_id prefix for ${brief.operator_visibility.record_operator_brief_tool} writes in this execution context.`,
+        );
+      }
       lines.push(
         `Use ${brief.operator_visibility.record_operator_brief_tool} for material handoff or milestone summaries when the platform requests them.`,
       );
@@ -415,16 +440,29 @@ function operatorVisibilityFrom(workflow: Record<string, unknown>): OperatorVisi
   if (Object.keys(liveVisibility).length === 0) {
     return null;
   }
+  const executionContextId = readString(liveVisibility.execution_context_id);
+  const turnUpdatesRequired = Boolean(liveVisibility.turn_updates_required);
   return {
     mode: readString(liveVisibility.mode),
     workflow_id: readString(liveVisibility.workflow_id),
     work_item_id: readString(liveVisibility.work_item_id),
     task_id: readString(liveVisibility.task_id),
-    execution_context_id: readString(liveVisibility.execution_context_id),
+    execution_context_id: executionContextId,
     source_kind: readString(liveVisibility.source_kind),
     record_operator_brief_tool: readString(liveVisibility.record_operator_brief_tool),
     record_operator_update_tool: readString(liveVisibility.record_operator_update_tool),
-    turn_updates_required: Boolean(liveVisibility.turn_updates_required),
+    turn_updates_required: turnUpdatesRequired,
+    turn_update_scope:
+      readString(liveVisibility.turn_update_scope) ?? (turnUpdatesRequired ? 'per_eligible_turn' : null),
+    eligible_turn_guidance:
+      readString(liveVisibility.eligible_turn_guidance) ??
+      (turnUpdatesRequired ? DEFAULT_ELIGIBLE_TURN_GUIDANCE : null),
+    operator_update_request_id_prefix:
+      readString(liveVisibility.operator_update_request_id_prefix) ??
+      (executionContextId ? `operator-update:${executionContextId}:` : null),
+    operator_brief_request_id_prefix:
+      readString(liveVisibility.operator_brief_request_id_prefix) ??
+      (executionContextId ? `operator-brief:${executionContextId}:` : null),
     milestone_briefs_required: Boolean(liveVisibility.milestone_briefs_required),
   };
 }

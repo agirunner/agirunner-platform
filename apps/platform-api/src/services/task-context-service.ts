@@ -397,6 +397,11 @@ async function loadWorkflowLiveVisibilityContext(
     record_operator_brief_tool: 'record_operator_brief',
     record_operator_update_tool: 'record_operator_update',
     turn_updates_required: mode === 'enhanced',
+    turn_update_scope: 'per_eligible_turn',
+    eligible_turn_guidance:
+      'Emit one operator update after every eligible turn that inspects workflow state and then routes work, requests review or approval, reports waiting progress, or finishes with a concrete noop or next-step decision.',
+    operator_update_request_id_prefix: `operator-update:${executionContextId}:`,
+    operator_brief_request_id_prefix: `operator-brief:${executionContextId}:`,
     milestone_briefs_required: true,
     terminal_briefs_required: task.is_orchestrator_task === true,
   };

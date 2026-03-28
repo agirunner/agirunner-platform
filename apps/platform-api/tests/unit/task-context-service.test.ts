@@ -225,6 +225,9 @@ describe('buildTaskContext active stage semantics', () => {
         record_operator_brief_tool: 'record_operator_brief',
         record_operator_update_tool: 'record_operator_update',
         turn_updates_required: true,
+        turn_update_scope: 'per_eligible_turn',
+        operator_update_request_id_prefix: 'operator-update:activation-live:',
+        operator_brief_request_id_prefix: 'operator-brief:activation-live:',
       }),
     );
   });
