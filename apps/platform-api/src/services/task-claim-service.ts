@@ -9,9 +9,10 @@ import {
 
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { AgentBusyError, ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import { AgentBusyError, ForbiddenError, NotFoundError, ServiceUnavailableError, ValidationError } from '../errors/domain-errors.js';
 import {
   isExternalSecretReference,
+  ProviderSecretDecryptionError,
   readOAuthToken,
   readProviderSecret,
 } from '../lib/oauth-crypto.js';
@@ -227,21 +228,22 @@ function buildExecutionContractLogPayload(input: {
   };
 }
 
-function buildClaimCredentialResolutionError(providerId?: string): ValidationError {
-  return new ValidationError(
-    'OAuth session expired. An admin must reconnect on the LLM Providers page.',
+function buildClaimCredentialResolutionError(): ServiceUnavailableError {
+  return new ServiceUnavailableError(
+    'Stored OAuth credentials are unavailable. Verify platform secret configuration before retrying.',
     {
-      category: 'provider_reauth_required',
+      category: 'provider_credentials_unavailable',
       retryable: false,
       recoverable: false,
-      recovery_hint: 'reconnect_oauth_provider',
-      recovery: {
-        status: 'operator_action_required',
-        reason: 'provider_reauth_required',
-        provider_id: providerId ?? null,
-      },
     },
   );
+}
+
+function mapClaimCredentialResolutionError(error: unknown): Error {
+  if (error instanceof ProviderSecretDecryptionError) {
+    return buildClaimCredentialResolutionError();
+  }
+  return error instanceof Error ? error : buildClaimCredentialResolutionError();
 }
 
 function buildClaimLLMFields(
@@ -362,6 +364,18 @@ export class TaskClaimService {
 
       if (payload.worker_id && agent.worker_id !== payload.worker_id) {
         throw new ForbiddenError('Specialist Agent cannot claim tasks with a Specialist Execution owned by a different Specialist Agent.');
+      }
+
+      if (agent.current_task_id) {
+        const stillBusy = await this.reconcileAgentClaimState(
+          identity.tenantId,
+          payload.agent_id,
+          agent,
+          client,
+        );
+        if (!stillBusy) {
+          agent.current_task_id = null;
+        }
       }
 
       if (agent.current_task_id) {
@@ -812,9 +826,8 @@ export class TaskClaimService {
       );
       try {
         credentials.llm_api_key = readOAuthToken(claim.stored_secret);
-      } catch {
-        await this.handleClaimCredentialResolutionFailure(claim.provider_id);
-        throw buildClaimCredentialResolutionError(claim.provider_id);
+      } catch (error) {
+        throw mapClaimCredentialResolutionError(error);
       }
     }
     if (payload.llm_extra_headers_claim_handle) {
@@ -826,9 +839,8 @@ export class TaskClaimService {
       );
       try {
         credentials.llm_extra_headers = parseExtraHeadersSecret(claim.stored_secret);
-      } catch {
-        await this.handleClaimCredentialResolutionFailure(claim.provider_id);
-        throw buildClaimCredentialResolutionError(claim.provider_id);
+      } catch (error) {
+        throw mapClaimCredentialResolutionError(error);
       }
     }
     if (Array.isArray(payload.mcp_claim_handles) && payload.mcp_claim_handles.length > 0) {
@@ -848,11 +860,57 @@ export class TaskClaimService {
     return credentials;
   }
 
-  private async handleClaimCredentialResolutionFailure(providerId?: string): Promise<void> {
-    if (!providerId) {
-      return;
+  private async reconcileAgentClaimState(
+    tenantId: string,
+    agentId: string,
+    agent: Record<string, unknown>,
+    client: DatabaseClient,
+  ): Promise<boolean> {
+    const currentTaskId =
+      typeof agent.current_task_id === 'string' && agent.current_task_id.trim().length > 0
+        ? agent.current_task_id.trim()
+        : null;
+    if (!currentTaskId) {
+      return false;
     }
-    await new OAuthService(this.deps.pool).markProviderNeedsReauth(providerId).catch(() => undefined);
+
+    const taskResult = await client.query<{
+      id: string;
+      state: string;
+      assigned_agent_id: string | null;
+      assigned_worker_id: string | null;
+    }>(
+      `SELECT id, state, assigned_agent_id, assigned_worker_id
+         FROM tasks
+        WHERE tenant_id = $1
+          AND id = $2
+        LIMIT 1`,
+      [tenantId, currentTaskId],
+    );
+    const activeTask = taskResult.rows[0];
+    const expectedWorkerId =
+      typeof agent.worker_id === 'string' && agent.worker_id.trim().length > 0
+        ? agent.worker_id.trim()
+        : null;
+    const stillBusy =
+      !!activeTask
+      && (activeTask.state === 'claimed' || activeTask.state === 'in_progress')
+      && activeTask.assigned_agent_id === agentId
+      && (expectedWorkerId == null || activeTask.assigned_worker_id === expectedWorkerId);
+    if (stillBusy) {
+      return true;
+    }
+
+    await client.query(
+      `UPDATE agents
+          SET current_task_id = NULL,
+              status = (CASE WHEN status = 'inactive' THEN 'inactive' ELSE 'active' END)::agent_status,
+              last_heartbeat_at = now()
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [tenantId, agentId],
+    );
+    return false;
   }
 
   private async enrichWithLLMCredentials(

@@ -7,6 +7,13 @@ const GCM_IV_LENGTH_BYTES = 12;
 const EXTERNAL_SECRET_REFERENCE_PREFIXES = ['secret:', 'redacted://'];
 let configuredEncryptionKey: Buffer | null = null;
 
+export class ProviderSecretDecryptionError extends Error {
+  constructor(message = 'Stored provider secret could not be decrypted') {
+    super(message);
+    this.name = 'ProviderSecretDecryptionError';
+  }
+}
+
 export function configureProviderSecretEncryptionKey(rawKey: string): void {
   const normalized = rawKey.trim();
   if (!normalized) {
@@ -80,21 +87,28 @@ function decryptProviderSecret(secret: string): string {
     !authTagBase64 ||
     rest.length > 0
   ) {
-    throw new Error('Invalid encrypted provider secret format');
+    throw new ProviderSecretDecryptionError('Invalid encrypted provider secret format');
   }
 
-  const decipher = createDecipheriv(
-    ENCRYPTION_ALGORITHM,
-    deriveKey(),
-    Buffer.from(ivBase64, 'base64url'),
-  );
-  decipher.setAuthTag(Buffer.from(authTagBase64, 'base64url'));
+  try {
+    const decipher = createDecipheriv(
+      ENCRYPTION_ALGORITHM,
+      deriveKey(),
+      Buffer.from(ivBase64, 'base64url'),
+    );
+    decipher.setAuthTag(Buffer.from(authTagBase64, 'base64url'));
 
-  const decrypted = Buffer.concat([
-    decipher.update(Buffer.from(encryptedBase64, 'base64url')),
-    decipher.final(),
-  ]);
-  return decrypted.toString('utf8');
+    const decrypted = Buffer.concat([
+      decipher.update(Buffer.from(encryptedBase64, 'base64url')),
+      decipher.final(),
+    ]);
+    return decrypted.toString('utf8');
+  } catch (error) {
+    if (error instanceof ProviderSecretDecryptionError) {
+      throw error;
+    }
+    throw new ProviderSecretDecryptionError();
+  }
 }
 
 function deriveKey(): Buffer {

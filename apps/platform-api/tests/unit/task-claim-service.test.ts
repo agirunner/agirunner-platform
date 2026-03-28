@@ -331,6 +331,145 @@ describe('TaskClaimService', () => {
     expect(params).toContain('playbook-1');
   });
 
+  it('clears stale agent current_task_id values before attempting the next claim', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: 'task-stale',
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('assigned_agent_id') && sql.includes('LIMIT 1')) {
+          expect(params).toEqual(['tenant-1', 'task-stale']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-stale',
+              state: 'completed',
+              assigned_agent_id: null,
+              assigned_worker_id: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents') && sql.includes('current_task_id = NULL')) {
+          expect(params).toEqual(['tenant-1', 'agent-1']);
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-ready-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'ready',
+              role: 'developer',
+              title: 'Ship the change',
+              role_config: {},
+              input: { description: 'Ship the change' },
+              metadata: {},
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: false,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: null,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-ready-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'claimed',
+              role: 'developer',
+              title: 'Ship the change',
+              role_config: {},
+              input: { description: 'Ship the change' },
+              metadata: {},
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: false,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: null,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id = $2')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (
+          sql.includes('SELECT')
+          && sql.includes('w.name AS workflow_name')
+          && sql.includes('p.name AS workspace_name')
+        ) {
+          return {
+            rowCount: 1,
+            rows: [{
+              workflow_name: 'Workflow 1',
+              workspace_name: null,
+              workspace_repository_url: null,
+              workspace_settings: null,
+            }],
+          };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      routing_tags: ['coding', 'role:developer'],
+    });
+
+    expect(task?.id).toBe('task-ready-1');
+    expect(
+      client.query.mock.calls.some(([sql]) =>
+        typeof sql === 'string' && sql.includes('current_task_id = NULL'),
+      ),
+    ).toBe(true);
+  });
+
   it('claims workflow specialist tasks by advertised role tag instead of stored capability tags', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
@@ -3880,7 +4019,7 @@ describe('TaskClaimService', () => {
     });
   });
 
-  it('marks oauth providers for reauth when claim credential resolution cannot decrypt the stored secret', async () => {
+  it('does not mark oauth providers for reauth when claim credential resolution cannot decrypt the stored secret', async () => {
     const restoreProviderSecretKey = () => {
       process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
       configureProviderSecretEncryptionKey('test-encryption-key');
@@ -3898,8 +4037,7 @@ describe('TaskClaimService', () => {
             };
           }
           if (sql.includes('UPDATE llm_providers') && sql.includes("'{needs_reauth}'")) {
-            expect(params).toEqual(['provider-oauth']);
-            return { rowCount: 1, rows: [] };
+            throw new Error(`claim credential decrypt failures must not mark provider reauth: ${JSON.stringify(params ?? [])}`);
           }
           throw new Error(`unexpected query: ${sql} :: ${JSON.stringify(params ?? [])}`);
         }),
@@ -3933,15 +4071,9 @@ describe('TaskClaimService', () => {
           { llm_api_key_claim_handle: handle },
         ),
       ).rejects.toMatchObject({
-        code: 'VALIDATION_ERROR',
+        code: 'SERVICE_UNAVAILABLE',
         details: expect.objectContaining({
-          category: 'provider_reauth_required',
-          recovery_hint: 'reconnect_oauth_provider',
-          recovery: expect.objectContaining({
-            status: 'operator_action_required',
-            reason: 'provider_reauth_required',
-            provider_id: 'provider-oauth',
-          }),
+          category: 'provider_credentials_unavailable',
         }),
       });
     } finally {

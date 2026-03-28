@@ -6,10 +6,11 @@ import {
   storeOAuthToken,
   storeProviderSecret,
   readOAuthToken,
+  ProviderSecretDecryptionError,
 } from '../lib/oauth-crypto.js';
 import { generateCodeVerifier, generateCodeChallenge, generateState } from '../lib/pkce.js';
 import { extractChatGptAccountId, extractEmailFromJwt } from '../lib/jwt-decode.js';
-import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import { NotFoundError, ServiceUnavailableError, ValidationError } from '../errors/domain-errors.js';
 
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 const PROVIDER_ERROR_MAX_LENGTH = 160;
@@ -301,11 +302,14 @@ export class OAuthService {
       let refreshed: OAuthCredentials;
       try {
         refreshed = await this.refreshToken(creds, config);
-      } catch {
-        await this.markNeedsReauth(client, providerId);
-        await client.query('COMMIT');
-        committed = true;
-        throw buildProviderReauthRequiredError(providerId);
+      } catch (error) {
+        if (isProviderReauthRequiredFailure(error)) {
+          await this.markNeedsReauth(client, providerId);
+          await client.query('COMMIT');
+          committed = true;
+          throw buildProviderReauthRequiredError(providerId);
+        }
+        throw error;
       }
       await this.storeCredentials(client, providerId, refreshed);
       await client.query('COMMIT');
@@ -388,10 +392,18 @@ export class OAuthService {
     config: OAuthConfig,
   ): Promise<OAuthCredentials> {
     if (!config.token_url || !creds.refresh_token) {
-      throw new ValidationError('Cannot refresh: missing token URL or refresh token');
+      throw buildProviderRefreshReauthSignal();
     }
 
-    const refreshToken = readOAuthToken(creds.refresh_token);
+    let refreshToken: string;
+    try {
+      refreshToken = readOAuthToken(creds.refresh_token);
+    } catch (error) {
+      if (error instanceof ProviderSecretDecryptionError) {
+        throw buildProviderCredentialsUnavailableError();
+      }
+      throw error;
+    }
 
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
@@ -401,14 +413,23 @@ export class OAuthService {
       body.set('client_id', config.client_id);
     }
 
-    const resp = await fetch(config.token_url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-    });
+    let resp: Response;
+    try {
+      resp = await fetch(config.token_url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      });
+    } catch {
+      throw buildOAuthRefreshUnavailableError();
+    }
 
     if (!resp.ok) {
-      throw new ValidationError(`OAuth token refresh failed: ${resp.status}`);
+      const errorText = await resp.text().catch(() => '');
+      if (isProviderRefreshReauthStatus(resp.status, errorText)) {
+        throw buildProviderRefreshReauthSignal();
+      }
+      throw buildOAuthRefreshUnavailableError(resp.status, errorText);
     }
 
     const data = await resp.json() as {
@@ -620,6 +641,61 @@ function buildProviderReauthRequiredError(providerId: string): ValidationError {
         provider_id: providerId,
       },
     },
+  );
+}
+
+function buildProviderRefreshReauthSignal(): ValidationError {
+  return new ValidationError('OAuth refresh requires reauthorization.', {
+    category: 'provider_reauth_required',
+  });
+}
+
+function isProviderReauthRequiredFailure(error: unknown): boolean {
+  return error instanceof ValidationError && error.details?.category === 'provider_reauth_required';
+}
+
+function buildProviderCredentialsUnavailableError(): ServiceUnavailableError {
+  return new ServiceUnavailableError(
+    'Stored OAuth credentials are unavailable. Verify platform secret configuration before retrying.',
+    {
+      category: 'provider_credentials_unavailable',
+      retryable: false,
+      recoverable: false,
+    },
+  );
+}
+
+function buildOAuthRefreshUnavailableError(
+  status?: number,
+  rawDetail?: string,
+): ServiceUnavailableError {
+  const detail = sanitizeProviderErrorDetail(rawDetail ?? '');
+  const message = status == null
+    ? 'OAuth token refresh is temporarily unavailable.'
+    : detail
+      ? `OAuth token refresh is temporarily unavailable (${status}): ${detail}`
+      : `OAuth token refresh is temporarily unavailable (${status}).`;
+  return new ServiceUnavailableError(message, {
+    category: 'provider_oauth_refresh_unavailable',
+    retryable: true,
+    recoverable: true,
+  });
+}
+
+function isProviderRefreshReauthStatus(status: number, rawDetail: string): boolean {
+  if (status === 401 || status === 403) {
+    return true;
+  }
+  if (status !== 400) {
+    return false;
+  }
+  const normalized = rawDetail.trim().toLowerCase();
+  return (
+    normalized.includes('invalid_grant')
+    || normalized.includes('invalid_client')
+    || normalized.includes('expired')
+    || normalized.includes('revoked')
+    || normalized.includes('reauthor')
   );
 }
 
