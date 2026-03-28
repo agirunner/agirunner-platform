@@ -30,6 +30,7 @@ describe('WorkflowDeliverables', () => {
     expect(html).toContain('Inputs');
     expect(html).not.toContain('Inputs &amp; Provenance');
     expect(html).not.toContain('<summary class="cursor-pointer text-xs');
+    expect(html).not.toContain('rounded-xl border border-border/70 bg-muted/10 p-3');
   });
 
   it('opens briefs by default when there are no materialized deliverables yet', () => {

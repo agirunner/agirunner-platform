@@ -48,6 +48,9 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Owner role');
     expect(html).not.toContain('Next expected actor');
     expect(html).not.toContain('Next expected action');
+    expect(html).not.toContain('Backend');
+    expect(html).not.toContain('Started');
+    expect(html).not.toContain('Updated');
     expect(html).not.toContain('Workflow details');
     expect(html).not.toContain('Work item details');
     expect(html).not.toContain('1 tasks');

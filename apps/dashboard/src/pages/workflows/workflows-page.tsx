@@ -345,10 +345,10 @@ export function WorkflowsPage(): JSX.Element {
               </div>
               <div
                 ref={workspaceSplitRef}
-                className="xl:grid xl:min-h-0 xl:flex-1"
+                className="xl:grid xl:min-h-0 xl:flex-1 xl:overflow-hidden"
                 style={buildWorkflowWorkspaceSplitStyle(workbenchFraction)}
               >
-                <div className="min-h-[18rem] xl:min-h-0 xl:overflow-auto">
+                <div className="min-h-[18rem] xl:min-h-0 xl:overflow-hidden">
                   <WorkflowBoard
                     workflowId={workflow.id}
                     board={board}
@@ -396,7 +396,7 @@ export function WorkflowsPage(): JSX.Element {
                     }}
                   />
                 </div>
-                <div className="min-h-[18rem] xl:min-h-0 xl:overflow-auto">
+                <div className="min-h-[18rem] xl:min-h-0 xl:overflow-hidden">
                   <WorkflowBottomWorkbench
                     workflowId={workflow.id}
                     workflow={workflow}

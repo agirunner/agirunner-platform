@@ -43,7 +43,7 @@ export function WorkflowBottomWorkbench(props: {
   const counts = props.packet.bottom_tabs.counts;
 
   return (
-    <section className="grid gap-4 rounded-3xl border border-border/70 bg-background/90 p-5">
+    <section className="flex h-full min-h-0 flex-col gap-4 rounded-3xl border border-border/70 bg-background/90 p-5">
       <div className="flex flex-wrap items-center gap-2">
         {props.selectedTaskId ? (
           <>
@@ -112,7 +112,7 @@ export function WorkflowBottomWorkbench(props: {
         />
       </div>
 
-      <div className="min-h-[20rem]">
+      <div className="min-h-0 flex-1 overflow-auto">
         {props.activeTab === 'details' && props.workflow ? (
           <WorkflowDetails
             workflow={props.workflow}

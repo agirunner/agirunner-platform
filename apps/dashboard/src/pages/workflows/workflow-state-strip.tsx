@@ -25,7 +25,12 @@ export function WorkflowStateStrip(props: {
   const sticky = props.stickyStrip;
   const visibilityValue = props.workflowSettings?.workflow_live_visibility_mode_override ?? '__inherit__';
   const workload = summarizeWorkload(props.board, props.workflow);
-  const contextLine = [props.workflow.playbookName, props.workflow.workspaceName].filter(Boolean).join(' • ');
+  const metaLine = [
+    props.workflow.playbookName,
+    props.workflow.workspaceName,
+    `Updated ${formatRelativeTimestamp(props.workflow.metrics.lastChangedAt)}`,
+    props.selectedScopeLabel ? `Viewing ${props.selectedScopeLabel}` : null,
+  ].filter(Boolean).join(' • ');
   const canOpenRedrive = props.workflow.availableActions.some(
     (action) => action.kind === 'redrive_workflow' && action.enabled,
   );
@@ -46,11 +51,7 @@ export function WorkflowStateStrip(props: {
             <Badge variant="secondary">{postureLabel}</Badge>
             {isOngoingWorkflow ? <Badge variant="outline">Ongoing</Badge> : null}
           </div>
-          {contextLine ? <p className="text-xs text-muted-foreground">{contextLine}</p> : null}
-          <p className="text-xs text-muted-foreground">
-            Last changed {formatRelativeTimestamp(props.workflow.metrics.lastChangedAt)}
-            {props.selectedScopeLabel ? ` • Viewing ${props.selectedScopeLabel}` : ''}
-          </p>
+          {metaLine ? <p className="text-xs text-muted-foreground">{metaLine}</p> : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -133,7 +134,7 @@ function StateCard(props: {
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         {props.title}
       </p>
-      <p className="text-lg font-semibold text-foreground">{props.value}</p>
+      <p className="text-base font-semibold text-foreground">{props.value}</p>
       <p className="text-xs text-muted-foreground">{props.footer}</p>
     </div>
   );
@@ -154,7 +155,7 @@ function ShortcutCard(props: {
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         {props.title}
       </p>
-      <p className="text-lg font-semibold text-foreground">{props.value}</p>
+      <p className="text-base font-semibold text-foreground">{props.value}</p>
       <p className="text-xs text-muted-foreground">{props.detail}</p>
     </button>
   );

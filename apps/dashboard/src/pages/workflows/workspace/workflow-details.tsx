@@ -8,7 +8,6 @@ import type {
   DashboardWorkflowStickyStrip,
   DashboardWorkflowWorkItemRecord,
 } from '../../../lib/api.js';
-import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
 
 export function WorkflowDetails(props: {
   workflow: DashboardMissionControlWorkflowCard;
@@ -92,9 +91,7 @@ export function WorkflowDetails(props: {
       <section className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4">
         <div className="grid gap-1">
           <p className="text-sm font-semibold text-foreground">Inputs</p>
-          <p className="text-sm text-muted-foreground">
-            Actual workflow inputs, scoped work-item packets, attached files, and task input for the current selection.
-          </p>
+          <p className="text-sm text-muted-foreground">Workflow, work-item, and task inputs used for the current selection.</p>
         </div>
 
         {workflowPackets.length === 0 && workItemPackets.length === 0 && !hasTaskInput && !hasStructuredContent(props.workflowParameters) ? (
@@ -127,11 +124,11 @@ function PacketSection(props: {
   packets: DashboardWorkflowInputPacketRecord[];
 }): JSX.Element {
   return (
-    <div className="grid gap-3">
+    <div className="grid gap-2">
       <p className="text-sm font-semibold text-foreground">{props.label}</p>
       <div className="grid gap-3">
         {props.packets.map((packet) => (
-          <article key={packet.id} className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-3">
+          <article key={packet.id} className="grid gap-3 rounded-xl border border-border/70 bg-background/70 p-3">
             <div className="flex flex-wrap items-center gap-2">
               <strong className="text-sm text-foreground">
                 {packet.summary ?? humanizeToken(packet.packet_kind)}
@@ -139,8 +136,8 @@ function PacketSection(props: {
               <Badge variant="outline">{humanizeToken(packet.packet_kind)}</Badge>
               <Badge variant="secondary">{humanizeToken(packet.source)}</Badge>
             </div>
-            {readStructuredPreview(packet.structured_inputs) ? (
-              <StructuredBlock label="Structured inputs" value={packet.structured_inputs} compact />
+            {hasStructuredContent(packet.structured_inputs) ? (
+              <StructuredBlock label="Fields" value={packet.structured_inputs} compact />
             ) : null}
             {packet.files.length > 0 ? (
               <div className="grid gap-2">
@@ -176,8 +173,9 @@ function StructuredBlock(props: {
   value: unknown;
   compact?: boolean;
 }): JSX.Element {
+  const entries = readStructuredEntries(props.value);
   const rendered = readStructuredPreview(props.value);
-  if (!rendered) {
+  if (entries.length === 0 && !rendered) {
     return <></>;
   }
 
@@ -186,15 +184,30 @@ function StructuredBlock(props: {
       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         {props.label}
       </p>
-      <pre
-        className={
-          props.compact
-            ? 'overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-foreground'
-            : 'overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-sm text-foreground'
-        }
-      >
-        {rendered}
-      </pre>
+      {entries.length > 0 ? (
+        <dl className="divide-y divide-border/60 rounded-xl border border-border/70 bg-background/70">
+          {entries.map(([label, value]) => (
+            <div key={label} className="grid gap-1 px-3 py-2 sm:grid-cols-[10rem_minmax(0,1fr)] sm:items-start sm:gap-3">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {label}
+              </dt>
+              <dd className={props.compact ? 'text-xs text-foreground' : 'text-sm text-foreground'}>
+                {value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : rendered ? (
+        <pre
+          className={
+            props.compact
+              ? 'overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-foreground'
+              : 'overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-sm text-foreground'
+          }
+        >
+          {rendered}
+        </pre>
+      ) : null}
     </div>
   );
 }
@@ -229,9 +242,8 @@ function buildDetailsScope(props: {
         ['Workflow', props.workflow.name],
         ['Work item', props.selectedTask.work_item_title ?? props.selectedTask.work_item_id ?? null],
         ['Stage', props.selectedTask.stage_name ? humanizeToken(props.selectedTask.stage_name) : null],
-        ['Backend', humanizeToken(props.selectedTask.execution_backend)],
-        ['Started', props.selectedTask.started_at ? formatRelativeTimestamp(props.selectedTask.started_at) : null],
-        ['Updated', formatRelativeTimestamp(props.selectedTask.updated_at)],
+        ['Role', props.selectedTask.role ? humanizeToken(props.selectedTask.role) : null],
+        ['Status', humanizeToken(props.selectedTask.state)],
       ]),
       related_tasks: buildRelatedTasks(props.selectedWorkItemTasks, props.selectedTask.id),
     };
@@ -257,8 +269,8 @@ function buildDetailsScope(props: {
         readOptionalText(props.selectedWorkItem.gate_decision_feedback),
       rows: compactRows([
         ['Workflow', props.workflow.name],
-        ['Acceptance', readOptionalText(props.selectedWorkItem.acceptance_criteria)],
-        ['Notes', readOptionalText(props.selectedWorkItem.notes)],
+        ['Stage', props.selectedWorkItem.stage_name ? humanizeToken(props.selectedWorkItem.stage_name) : null],
+        ['Lane', readColumnLabel(props.board, props.selectedWorkItem.column_id)],
       ]),
       related_tasks: buildRelatedTasks(props.selectedWorkItemTasks, null),
     };
@@ -276,7 +288,6 @@ function buildDetailsScope(props: {
     rows: compactRows([
       ['Playbook', props.workflow.playbookName],
       ['Workspace', props.workflow.workspaceName],
-      ['Last changed', formatRelativeTimestamp(props.workflow.metrics.lastChangedAt)],
     ]),
     related_tasks: [],
   };
@@ -328,6 +339,39 @@ function readStructuredPreview(value: unknown): string | null {
   }
   const rendered = JSON.stringify(value, null, 2);
   return rendered === '{}' ? null : rendered;
+}
+
+function readStructuredEntries(value: unknown): Array<[string, string]> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return [];
+  }
+  const entries = Object.entries(value as Record<string, unknown>);
+  const rendered: Array<[string, string]> = [];
+  for (const [key, entryValue] of entries) {
+    const text = renderStructuredValue(entryValue);
+    if (!text) {
+      continue;
+    }
+    rendered.push([humanizeToken(key), text]);
+  }
+  return rendered;
+}
+
+function renderStructuredValue(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    const items = value
+      .map((entry) => renderStructuredValue(entry))
+      .filter((entry): entry is string => Boolean(entry));
+    return items.length > 0 ? items.join(' • ') : null;
+  }
+  return null;
 }
 
 function readOptionalText(value: unknown): string | null {

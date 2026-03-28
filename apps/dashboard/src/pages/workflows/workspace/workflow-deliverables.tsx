@@ -25,7 +25,7 @@ export function WorkflowDeliverables(props: {
       <div className="grid gap-1">
         <p className="text-sm font-semibold text-foreground">Deliverables</p>
         <p className="text-sm text-muted-foreground">
-          Final outputs stay prominent while in-progress deliverables, briefs, and input provenance remain available in place.
+          Final outputs stay prominent while in-progress deliverables, briefs, and inputs remain available in place.
         </p>
       </div>
 
@@ -182,11 +182,11 @@ function InputPacketSection(props: {
   emptyMessage: string;
 }): JSX.Element {
   return (
-    <section className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-3">
+    <section className="grid gap-3">
       <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         {props.label} ({props.packets.length})
       </div>
-      <div className="mt-3 grid gap-3">
+      <div className="grid gap-3">
         {props.packets.length === 0 ? (
           <p className="text-sm text-muted-foreground">{props.emptyMessage}</p>
         ) : (
@@ -200,7 +200,10 @@ function InputPacketSection(props: {
 function InputPacketCard(props: {
   packet: DashboardWorkflowInputPacketRecord;
 }): JSX.Element {
-  const structuredInputs = readStructuredPreview(props.packet.structured_inputs);
+  const structuredInputs = readStructuredEntries(props.packet.structured_inputs);
+  const structuredPreview = structuredInputs.length === 0
+    ? readStructuredPreview(props.packet.structured_inputs)
+    : null;
 
   return (
     <article className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-3">
@@ -214,9 +217,20 @@ function InputPacketCard(props: {
         <span>Created {new Date(props.packet.created_at).toLocaleString()}</span>
         <span>{props.packet.files.length} file(s)</span>
       </div>
-      {structuredInputs ? (
+      {structuredInputs.length > 0 ? (
+        <dl className="divide-y divide-border/60 rounded-xl border border-border/70 bg-background">
+          {structuredInputs.map(([label, value]) => (
+            <div key={label} className="grid gap-1 px-3 py-2 sm:grid-cols-[10rem_minmax(0,1fr)] sm:items-start sm:gap-3">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {label}
+              </dt>
+              <dd className="text-xs text-foreground">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : structuredPreview ? (
         <pre className="overflow-x-auto rounded-xl border border-border/70 bg-background p-3 text-xs text-foreground">
-          {structuredInputs}
+          {structuredPreview}
         </pre>
       ) : null}
       {props.packet.files.length > 0 ? (
@@ -234,11 +248,11 @@ function InterventionAttachmentSection(props: {
   interventions: DashboardWorkflowInterventionRecord[];
 }): JSX.Element {
   return (
-    <section className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-3">
+    <section className="grid gap-3">
       <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         Intervention Attachments ({props.interventions.length})
       </div>
-      <div className="mt-3 grid gap-3">
+      <div className="grid gap-3">
         {props.interventions.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No intervention attachments are attached to this workflow.
@@ -337,6 +351,38 @@ function readStructuredPreview(value: unknown): string | null {
   }
   const rendered = JSON.stringify(value, null, 2);
   return rendered === '{}' ? null : rendered;
+}
+
+function readStructuredEntries(value: unknown): Array<[string, string]> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return [];
+  }
+  const rendered: Array<[string, string]> = [];
+  for (const [key, entryValue] of Object.entries(value as Record<string, unknown>)) {
+    const text = renderStructuredValue(entryValue);
+    if (!text) {
+      continue;
+    }
+    rendered.push([humanizeToken(key), text]);
+  }
+  return rendered;
+}
+
+function renderStructuredValue(value: unknown): string | null {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    const rendered = value
+      .map((entry) => renderStructuredValue(entry))
+      .filter((entry): entry is string => Boolean(entry));
+    return rendered.length > 0 ? rendered.join(' • ') : null;
+  }
+  return null;
 }
 
 function formatBytes(value: number): string {
