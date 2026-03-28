@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { configureProviderSecretEncryptionKey } from '../../src/lib/oauth-crypto.js';
+import { configureProviderSecretEncryptionKey, storeOAuthToken } from '../../src/lib/oauth-crypto.js';
 import { OAuthService } from '../../src/services/oauth-service.js';
 
 describe('OAuthService', () => {
@@ -97,6 +97,84 @@ describe('OAuthService', () => {
       endpointType: 'responses',
       extraHeadersSecret: expect.stringMatching(/^enc:v1:/),
     });
+  });
+
+  it('marks providers for reauth and returns operator-action-required details when refresh fails', async () => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
+    configureProviderSecretEncryptionKey('test-encryption-key');
+
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: vi.fn(),
+      text: vi.fn().mockResolvedValue('invalid_grant'),
+    }) as never;
+
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM llm_providers WHERE id = $1 FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'provider-1',
+              auth_mode: 'oauth',
+              oauth_config: {
+                profile_id: 'openai-codex',
+                client_id: 'client-id',
+                authorize_url: 'https://auth.example.test/oauth/authorize',
+                token_url: 'https://auth.example.test/oauth/token',
+                scopes: ['openid'],
+                base_url: 'https://api.openai.test/v1',
+                endpoint_type: 'responses',
+                token_lifetime: 'expiring',
+                cost_model: 'usage',
+              extra_authorize_params: {},
+            },
+              oauth_credentials: {
+                access_token: storeOAuthToken('access-token'),
+                refresh_token: storeOAuthToken('refresh-token'),
+                expires_at: Date.now() - 60_000,
+                account_id: 'acct_123',
+                email: 'mark@example.com',
+                authorized_at: '2026-03-11T00:00:00.000Z',
+                authorized_by_user_id: 'user-1',
+                needs_reauth: false,
+              },
+            }],
+          };
+        }
+        if (sql.includes('UPDATE llm_providers') && sql.includes("'{needs_reauth}'")) {
+          expect(params).toEqual(['provider-1']);
+          return { rowCount: 1, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = {
+      connect: vi.fn(async () => client),
+    };
+    const service = new OAuthService(pool as never);
+
+    await expect(service.resolveValidToken('provider-1')).rejects.toMatchObject({
+      message: 'OAuth session expired. An admin must reconnect on the LLM Providers page.',
+      details: expect.objectContaining({
+        category: 'provider_reauth_required',
+        recovery_hint: 'reconnect_oauth_provider',
+        recovery: expect.objectContaining({
+          status: 'operator_action_required',
+          reason: 'provider_reauth_required',
+          provider_id: 'provider-1',
+        }),
+      }),
+    });
+
+    global.fetch = originalFetch;
   });
 
   it('returns only status metadata from oauth status reads', async () => {

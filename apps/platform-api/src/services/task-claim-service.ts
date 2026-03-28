@@ -333,6 +333,7 @@ export class TaskClaimService {
     },
   ): Promise<Record<string, unknown> | null> {
     const client = await this.deps.pool.connect();
+    let committed = false;
     try {
       await client.query('BEGIN');
       await this.promoteRetryReadyTasks(identity.tenantId, payload.workflow_id, client);
@@ -553,7 +554,6 @@ export class TaskClaimService {
         client,
       );
 
-      await client.query('COMMIT');
       const claimedTask = mergeClaimRuntimeBindings(
         this.deps.toTaskResponse(updatedTaskRes.rows[0] as Record<string, unknown>),
         updatedTaskRes.rows[0] as Record<string, unknown>,
@@ -618,6 +618,8 @@ export class TaskClaimService {
       const executionBackend = readTaskExecutionBackend(runtimeReadyTask);
       const toolOwners = buildToolOwnerContract(mergedBase);
       if ((payload.include_context ?? true) === false) {
+        await client.query('COMMIT');
+        committed = true;
         return {
           ...mergedBase,
           execution_backend: executionBackend,
@@ -634,6 +636,8 @@ export class TaskClaimService {
         };
       }
 
+      await client.query('COMMIT');
+      committed = true;
       return {
         ...mergedBase,
         execution_backend: executionBackend,
@@ -650,7 +654,9 @@ export class TaskClaimService {
         context: instructionContext,
       };
     } catch (error) {
-      await client.query('ROLLBACK');
+      if (!committed) {
+        await client.query('ROLLBACK');
+      }
       throw error;
     } finally {
       client.release();

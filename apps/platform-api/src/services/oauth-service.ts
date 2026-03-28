@@ -256,6 +256,7 @@ export class OAuthService {
 
   async resolveValidToken(providerId: string): Promise<ResolvedOAuthToken> {
     const client = await this.pool.connect();
+    let committed = false;
     try {
       await client.query('BEGIN');
       const lockResult = await client.query<ProviderRow>(
@@ -271,6 +272,7 @@ export class OAuthService {
       const creds = provider.oauth_credentials;
       if (!creds || creds.needs_reauth) {
         await client.query('COMMIT');
+        committed = true;
         throw new ValidationError(
           'OAuth session expired. An admin must reconnect on the LLM Providers page.',
         );
@@ -279,25 +281,35 @@ export class OAuthService {
       const config = provider.oauth_config;
       if (!config) {
         await client.query('COMMIT');
+        committed = true;
         throw new ValidationError('Provider missing OAuth configuration');
       }
 
       if (config.token_lifetime === 'permanent' || !this.isTokenExpired(creds.expires_at)) {
         await client.query('COMMIT');
+        committed = true;
         return this.buildResolvedToken(creds.access_token, config, creds.account_id);
       }
 
       if (!creds.refresh_token) {
         await this.markNeedsReauth(client, providerId);
         await client.query('COMMIT');
-        throw new ValidationError(
-          'OAuth token expired and no refresh token available. Admin must reconnect.',
-        );
+        committed = true;
+        throw buildProviderReauthRequiredError(providerId);
       }
 
-      const refreshed = await this.refreshToken(creds, config);
+      let refreshed: OAuthCredentials;
+      try {
+        refreshed = await this.refreshToken(creds, config);
+      } catch {
+        await this.markNeedsReauth(client, providerId);
+        await client.query('COMMIT');
+        committed = true;
+        throw buildProviderReauthRequiredError(providerId);
+      }
       await this.storeCredentials(client, providerId, refreshed);
       await client.query('COMMIT');
+      committed = true;
 
       return this.buildResolvedToken(
         refreshed.access_token,
@@ -305,7 +317,9 @@ export class OAuthService {
         refreshed.account_id,
       );
     } catch (err) {
-      await client.query('ROLLBACK').catch(() => {});
+      if (!committed) {
+        await client.query('ROLLBACK').catch(() => {});
+      }
       throw err;
     } finally {
       client.release();
@@ -590,6 +604,23 @@ export class OAuthService {
   private getRedirectUri(): string {
     return 'http://localhost:1455/auth/callback';
   }
+}
+
+function buildProviderReauthRequiredError(providerId: string): ValidationError {
+  return new ValidationError(
+    'OAuth session expired. An admin must reconnect on the LLM Providers page.',
+    {
+      category: 'provider_reauth_required',
+      retryable: false,
+      recoverable: false,
+      recovery_hint: 'reconnect_oauth_provider',
+      recovery: {
+        status: 'operator_action_required',
+        reason: 'provider_reauth_required',
+        provider_id: providerId,
+      },
+    },
+  );
 }
 
 function buildImportedCredentials(

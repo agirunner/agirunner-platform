@@ -3949,6 +3949,184 @@ describe('TaskClaimService', () => {
     }
   });
 
+  it('rolls back the claim when oauth credential assembly fails before the response is returned', async () => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
+    configureProviderSecretEncryptionKey('test-encryption-key');
+
+    const sqlCalls: string[] = [];
+    const claimUpdateSql =
+      "UPDATE agents SET current_task_id = $2, status = 'busy', last_heartbeat_at = now()\n" +
+      "            , last_claim_at = now()\n" +
+      '         WHERE tenant_id = $1 AND id = $3';
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        sqlCalls.push(sql);
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-oauth-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'ready',
+              role: 'developer',
+              title: 'Ship the change',
+              role_config: {},
+              input: { description: 'Ship the change' },
+              metadata: {},
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: false,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: null,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-oauth-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'claimed',
+              role: 'developer',
+              title: 'Ship the change',
+              role_config: {},
+              input: { description: 'Ship the change' },
+              metadata: {},
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: false,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: null,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql === claimUpdateSql) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (
+          sql.includes('SELECT')
+          && sql.includes('w.name AS workflow_name')
+          && sql.includes('p.name AS workspace_name')
+        ) {
+          return {
+            rowCount: 1,
+            rows: [{
+              workflow_name: 'Workflow 1',
+              workspace_name: null,
+              workspace_repository_url: null,
+              workspace_settings: null,
+            }],
+          };
+        }
+        if (sql.includes('SELECT * FROM llm_providers WHERE id = $1 FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'provider-oauth',
+              auth_mode: 'oauth',
+              oauth_config: {
+                profile_id: 'openai-codex',
+                client_id: 'client-id',
+                authorize_url: 'https://auth.example.test/oauth/authorize',
+                token_url: null,
+                scopes: ['openid'],
+                base_url: 'https://api.openai.test/v1',
+                endpoint_type: 'responses',
+                token_lifetime: 'expiring',
+                cost_model: 'usage',
+                extra_authorize_params: {},
+              },
+              oauth_credentials: {
+                access_token: 'enc:v1:stored:access',
+                refresh_token: null,
+                expires_at: Date.now() - 60_000,
+                account_id: 'acct_123',
+                email: 'mark@example.com',
+                authorized_at: '2026-03-11T00:00:00.000Z',
+                authorized_by_user_id: 'user-1',
+                needs_reauth: false,
+              },
+            }],
+          };
+        }
+        if (sql.includes('UPDATE llm_providers') && sql.includes("'{needs_reauth}'")) {
+          expect(params).toEqual(['provider-oauth']);
+          return { rowCount: 1, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const service = createService(client, {
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => ({
+        provider: {
+          name: 'OpenAI',
+          providerId: 'provider-oauth',
+          providerType: 'openai',
+          authMode: 'oauth',
+          apiKeySecretRef: null,
+          baseUrl: 'https://api.openai.test/v1',
+        },
+        model: {
+          modelId: 'gpt-5',
+          contextWindow: null,
+          maxOutputTokens: 128000,
+          endpointType: 'responses',
+          reasoningConfig: null,
+        },
+        reasoningConfig: null,
+      })),
+    });
+
+    await expect(
+      service.claimTask(identity, {
+        agent_id: 'agent-1',
+        routing_tags: ['coding', 'role:developer'],
+      }),
+    ).rejects.toMatchObject({
+      message: 'OAuth session expired. An admin must reconnect on the LLM Providers page.',
+    });
+
+    expect(sqlCalls.filter((sql) => sql === 'COMMIT')).toHaveLength(1);
+    expect(sqlCalls.filter((sql) => sql === 'ROLLBACK')).toHaveLength(1);
+    expect(sqlCalls.indexOf('ROLLBACK')).toBeGreaterThan(sqlCalls.indexOf(claimUpdateSql));
+  });
+
   it('allows worker identities to resolve claim credentials for their assigned tasks', async () => {
     process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
     const encryptedApiKey = storeProviderSecret('provider-api-key');
