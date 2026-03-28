@@ -32,12 +32,20 @@ export interface MissionControlDerivedPosture {
 export function deriveMissionControlPosture(
   input: MissionControlPostureInput,
 ): MissionControlDerivedPosture {
-  if (input.hasPauseRequest || input.workflowState === 'paused') {
-    return buildResult('paused', 'watchlist', buildPulse('Workflow is paused', 'waiting', input));
-  }
-
   if (input.workflowState === 'cancelled') {
     return buildResult('cancelled', 'watchlist', buildPulse('Workflow was cancelled', 'settled', input));
+  }
+
+  if (input.hasCancelRequest) {
+    return buildResult(
+      'cancelling',
+      'watchlist',
+      buildPulse('Workflow cancellation is in progress', 'waiting', input),
+    );
+  }
+
+  if (input.hasPauseRequest || input.workflowState === 'paused') {
+    return buildResult('paused', 'watchlist', buildPulse('Workflow is paused', 'waiting', input));
   }
 
   if (input.workflowState === 'completed') {
@@ -132,7 +140,7 @@ function describeWaitingState(pendingWorkItemCount: number, recentOutputCount: n
   if (recentOutputCount > 0) {
     return 'Workflow is waiting after the latest output change';
   }
-  return 'Workflow is waiting by design';
+  return 'No work is running right now';
 }
 
 function buildPulse(

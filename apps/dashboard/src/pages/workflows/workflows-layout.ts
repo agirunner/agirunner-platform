@@ -1,0 +1,58 @@
+import type { CSSProperties } from 'react';
+
+export const DEFAULT_WORKFLOW_RAIL_WIDTH_PX = 360;
+export const MIN_WORKFLOW_RAIL_WIDTH_PX = 280;
+export const MAX_WORKFLOW_RAIL_WIDTH_PX = 520;
+export const DEFAULT_WORKFLOW_WORKBENCH_FRACTION = 0.5;
+export const MIN_WORKFLOW_WORKBENCH_FRACTION = 0.35;
+export const MAX_WORKFLOW_WORKBENCH_FRACTION = 0.7;
+
+export function buildWorkflowsShellClassName(isRailHidden: boolean): string {
+  const baseClassName = 'flex flex-col gap-4 xl:min-h-[calc(100vh-9rem)]';
+  if (isRailHidden) {
+    return `${baseClassName} xl:block`;
+  }
+  return `${baseClassName} xl:grid`;
+}
+
+export function buildWorkflowsShellStyle(
+  isRailHidden: boolean,
+  railWidthPx: number,
+): CSSProperties {
+  if (isRailHidden) {
+    return {};
+  }
+  return {
+    gridTemplateColumns: `${clampWorkflowRailWidthPx(railWidthPx)}px 0.75rem minmax(0,1fr)`,
+  };
+}
+
+export function buildWorkflowWorkspaceSplitStyle(
+  workbenchFraction: number,
+): CSSProperties {
+  const clampedFraction = clampWorkflowWorkbenchFraction(workbenchFraction);
+  const boardFraction = trimFraction(1 - clampedFraction);
+  const footerFraction = trimFraction(clampedFraction);
+  return {
+    gridTemplateRows:
+      `minmax(18rem, calc((100% - 0.5rem) * ${boardFraction})) 0.5rem minmax(18rem, calc((100% - 0.5rem) * ${footerFraction}))`,
+  };
+}
+
+export function clampWorkflowRailWidthPx(widthPx: number): number {
+  if (!Number.isFinite(widthPx)) {
+    return DEFAULT_WORKFLOW_RAIL_WIDTH_PX;
+  }
+  return Math.min(MAX_WORKFLOW_RAIL_WIDTH_PX, Math.max(MIN_WORKFLOW_RAIL_WIDTH_PX, Math.round(widthPx)));
+}
+
+export function clampWorkflowWorkbenchFraction(fraction: number): number {
+  if (!Number.isFinite(fraction)) {
+    return DEFAULT_WORKFLOW_WORKBENCH_FRACTION;
+  }
+  return Math.min(MAX_WORKFLOW_WORKBENCH_FRACTION, Math.max(MIN_WORKFLOW_WORKBENCH_FRACTION, fraction));
+}
+
+function trimFraction(value: number): string {
+  return Number(value.toFixed(3)).toString();
+}

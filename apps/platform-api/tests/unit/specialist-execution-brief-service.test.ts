@@ -205,6 +205,15 @@ describe('buildSpecialistExecutionBrief', () => {
     expect(brief?.rendered_markdown).toContain('record_operator_update');
     expect(brief?.rendered_markdown).toContain('record_operator_brief');
     expect(brief?.rendered_markdown).toContain(
+      'record_operator_brief payload must include short_brief and detailed_brief_json objects.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'short_brief must include a headline.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'detailed_brief_json must include headline and status_kind and should carry the fuller human-readable summary and sections.',
+    );
+    expect(brief?.rendered_markdown).toContain(
       'Submitting your handoff does not itself close the work item or workflow.',
     );
     expect(brief?.rendered_markdown).toContain('## Path Discipline');

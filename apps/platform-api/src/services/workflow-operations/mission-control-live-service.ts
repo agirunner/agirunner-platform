@@ -17,6 +17,7 @@ interface WorkflowRow {
   state: string;
   lifecycle: string | null;
   current_stage: string | null;
+  metadata: Record<string, unknown> | null;
   workspace_id: string | null;
   workspace_name: string | null;
   playbook_id: string | null;
@@ -201,7 +202,7 @@ export class MissionControlLiveService {
   ): Promise<WorkflowRow[]> {
     if (input.workflowIds && input.workflowIds.length > 0) {
       const result = await this.pool.query<WorkflowRow>(
-        `SELECT w.id, w.name, w.state, w.lifecycle, w.current_stage, w.workspace_id,
+        `SELECT w.id, w.name, w.state, w.lifecycle, w.current_stage, w.metadata, w.workspace_id,
                 ws.name AS workspace_name, w.playbook_id, pb.name AS playbook_name,
                 w.parameters, w.context, w.updated_at
            FROM workflows w
@@ -219,7 +220,7 @@ export class MissionControlLiveService {
     const perPage = input.perPage ?? 100;
     const offset = (page - 1) * perPage;
     const result = await this.pool.query<WorkflowRow>(
-      `SELECT w.id, w.name, w.state, w.lifecycle, w.current_stage, w.workspace_id,
+      `SELECT w.id, w.name, w.state, w.lifecycle, w.current_stage, w.metadata, w.workspace_id,
               ws.name AS workspace_name, w.playbook_id, pb.name AS playbook_name,
               w.parameters, w.context, w.updated_at
          FROM workflows w
@@ -305,10 +306,12 @@ function buildWorkflowCard(
   outputs: MissionControlOutputDescriptor[],
   version: MissionControlReadModelVersion,
 ): MissionControlWorkflowCard {
+  const hasPauseRequest = hasWorkflowMarker(workflow.metadata, 'pause_requested_at');
+  const hasCancelRequest = hasWorkflowMarker(workflow.metadata, 'cancel_requested_at');
   const posture = deriveMissionControlPosture({
     workflowState: workflow.state,
-    hasPauseRequest: workflow.state === 'paused',
-    hasCancelRequest: false,
+    hasPauseRequest,
+    hasCancelRequest,
     waitingForDecisionCount: signals.waiting_for_decision_count,
     openEscalationCount: signals.open_escalation_count,
     blockedWorkItemCount: signals.blocked_work_item_count,
@@ -341,6 +344,7 @@ function buildWorkflowCard(
     availableActions: deriveWorkflowActionAvailability({
       workflowState: workflow.state,
       posture: posture.posture,
+      hasCancelRequest,
       version: {
         readModelEventId: version.latestEventId,
         latestEventId: version.latestEventId,
@@ -365,14 +369,14 @@ function groupWorkflowSections(workflows: MissionControlWorkflowCard[]): Mission
     buildSection('needs_action', 'Needs Action', workflows.filter((row) => row.posture === 'needs_decision')),
     buildSection('at_risk', 'At Risk', workflows.filter((row) => ['needs_intervention', 'recoverable_needs_steering', 'terminal_failed'].includes(row.posture))),
     buildSection('progressing', 'Progressing', workflows.filter((row) => row.posture === 'progressing')),
-    buildSection('waiting', 'Waiting', workflows.filter((row) => row.posture === 'waiting_by_design' || row.posture === 'paused')),
+    buildSection('waiting', 'Waiting', workflows.filter((row) => row.posture === 'waiting_by_design' || row.posture === 'paused' || row.posture === 'cancelling')),
     buildSection('recently_changed', 'Recently Changed', workflows.filter((row) => row.posture === 'completed' || row.posture === 'cancelled')),
   ].filter((section) => section.count > 0);
 }
 
 function buildAttentionItems(workflows: MissionControlWorkflowCard[]): MissionControlAttentionItem[] {
   return workflows
-    .filter((workflow) => workflow.posture !== 'progressing' && workflow.posture !== 'waiting_by_design')
+    .filter((workflow) => workflow.attentionLane !== 'watchlist')
     .map((workflow) => ({
       id: `attention:${workflow.id}`,
       lane: workflow.attentionLane,
@@ -431,4 +435,9 @@ function readBlockerReason(signals: WorkflowSignalRow): string | null {
 function toIsoString(value: Date | string | null): string | null {
   if (!value) return null;
   return value instanceof Date ? value.toISOString() : value;
+}
+
+function hasWorkflowMarker(metadata: Record<string, unknown> | null, key: string): boolean {
+  const value = metadata?.[key];
+  return typeof value === 'string' && value.trim().length > 0;
 }

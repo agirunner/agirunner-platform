@@ -19,6 +19,8 @@ describe('workflows page source', () => {
     expect(source).toContain('WorkflowStateStrip');
     expect(source).toContain('WorkflowBoard');
     expect(source).toContain('WorkflowBottomWorkbench');
+    expect(source).toContain('selectedTaskId');
+    expect(source).toContain("taskId: null");
     expect(source).toContain('WorkflowLaunchDialog');
     expect(source).toContain('WorkflowAddWorkDialog');
     expect(source).toContain('WorkflowRedriveDialog');
@@ -30,6 +32,14 @@ describe('workflows page source', () => {
     expect(source).toContain('buildWorkflowsPageSearchParams');
     expect(source).toContain('resolveWorkflowTabScope');
     expect(source).toContain('resolveSelectedWorkflowId');
+    expect(source).toContain('readStoredWorkflowRailWidth');
+    expect(source).toContain('readStoredWorkflowWorkbenchFraction');
+    expect(source).toContain('writeStoredWorkflowRailWidth');
+    expect(source).toContain('writeStoredWorkflowWorkbenchFraction');
+    expect(source).toContain('buildWorkflowsShellStyle');
+    expect(source).toContain('buildWorkflowWorkspaceSplitStyle');
+    expect(source).toContain('cursor-col-resize');
+    expect(source).toContain('cursor-row-resize');
     expect(source).not.toContain('MissionControlPage');
     expect(source).not.toContain('MissionControlWorkspacePane');
     expect(source).not.toContain('SavedViews');
@@ -45,6 +55,7 @@ describe('workflows page source', () => {
 
   it('keeps the previous workspace shell mounted while scoped work-item selections refetch', () => {
     const source = readSource();
-    expect(source).toContain('placeholderData: (previous) => previous');
+    expect(source).toContain('resolveWorkspacePlaceholderData');
+    expect(source).not.toContain('placeholderData: (previous) => previous');
   });
 });

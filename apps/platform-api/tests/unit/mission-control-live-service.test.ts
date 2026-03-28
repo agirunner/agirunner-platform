@@ -89,6 +89,53 @@ describe('mission control posture', () => {
       }),
     );
   });
+
+  it('avoids the vague waiting-by-design summary when no concrete waiting reason exists', () => {
+    const posture = deriveMissionControlPosture({
+      workflowState: 'pending',
+      hasPauseRequest: false,
+      hasCancelRequest: false,
+      waitingForDecisionCount: 0,
+      openEscalationCount: 0,
+      blockedWorkItemCount: 0,
+      failedTaskCount: 0,
+      recoverableIssueCount: 0,
+      activeTaskCount: 0,
+      activeWorkItemCount: 0,
+      pendingWorkItemCount: 0,
+      recentOutputCount: 0,
+    });
+
+    expect(posture.pulse.summary).toBe('No work is running right now');
+  });
+
+  it('classifies cancellation-in-progress separately from a true paused workflow', () => {
+    const posture = deriveMissionControlPosture({
+      workflowState: 'paused',
+      hasPauseRequest: false,
+      hasCancelRequest: true,
+      waitingForDecisionCount: 0,
+      openEscalationCount: 0,
+      blockedWorkItemCount: 0,
+      failedTaskCount: 0,
+      recoverableIssueCount: 0,
+      activeTaskCount: 0,
+      activeWorkItemCount: 1,
+      pendingWorkItemCount: 0,
+      recentOutputCount: 0,
+    });
+
+    expect(posture).toEqual(
+      expect.objectContaining({
+        posture: 'cancelling',
+        attentionLane: 'watchlist',
+        pulse: expect.objectContaining({
+          summary: 'Workflow cancellation is in progress',
+          tone: 'waiting',
+        }),
+      }),
+    );
+  });
 });
 
 describe('MissionControlLiveService', () => {

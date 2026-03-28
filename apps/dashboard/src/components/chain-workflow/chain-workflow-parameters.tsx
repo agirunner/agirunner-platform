@@ -21,8 +21,11 @@ export function ChainParameterField(props: {
   spec: LaunchParameterSpec;
   value: string;
   error?: string;
+  showSlugBadge?: boolean;
+  multiline?: boolean;
   onChange(value: string): void;
 }): JSX.Element {
+  const showSlugBadge = props.showSlugBadge ?? true;
   return (
     <div className="grid gap-2 text-sm">
       <div className="flex items-center justify-between gap-3">
@@ -31,16 +34,27 @@ export function ChainParameterField(props: {
           <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
             {props.spec.required ? 'Required' : 'Optional'}
           </span>
-          <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-            {props.spec.slug}
-          </span>
+          {showSlugBadge ? (
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              {props.spec.slug}
+            </span>
+          ) : null}
         </div>
       </div>
-      <Input
-        value={props.value}
-        onChange={(event) => props.onChange(event.target.value)}
-        aria-invalid={Boolean(props.error)}
-      />
+      {props.multiline ? (
+        <Textarea
+          value={props.value}
+          className="min-h-[64px]"
+          onChange={(event) => props.onChange(event.target.value)}
+          aria-invalid={Boolean(props.error)}
+        />
+      ) : (
+        <Input
+          value={props.value}
+          onChange={(event) => props.onChange(event.target.value)}
+          aria-invalid={Boolean(props.error)}
+        />
+      )}
       {props.error ? (
         <p className="text-xs text-red-600 dark:text-red-400">{props.error}</p>
       ) : null}

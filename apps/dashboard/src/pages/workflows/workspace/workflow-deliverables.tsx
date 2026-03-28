@@ -25,7 +25,7 @@ export function WorkflowDeliverables(props: {
       <div className="grid gap-1">
         <p className="text-sm font-semibold text-foreground">Deliverables</p>
         <p className="text-sm text-muted-foreground">
-          Final outputs stay prominent while in-progress deliverables, handoffs, and input provenance remain available in place.
+          Final outputs stay prominent while in-progress deliverables, briefs, and input provenance remain available in place.
         </p>
       </div>
 
@@ -71,11 +71,11 @@ export function WorkflowDeliverables(props: {
 
       <details className="rounded-2xl border border-border/70 bg-background/80 p-4">
         <summary className="cursor-pointer text-sm font-semibold text-foreground">
-          Working Handoffs ({props.packet.working_handoffs.length})
+          Briefs ({props.packet.working_handoffs.length})
         </summary>
         <div className="mt-4 grid gap-4">
           {props.packet.working_handoffs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No milestone handoffs have been published yet.</p>
+            <p className="text-sm text-muted-foreground">No milestone briefs have been published yet.</p>
           ) : (
             props.packet.working_handoffs.map((brief) => (
               <article key={brief.id} className="rounded-2xl border border-border/70 bg-muted/10 p-4">
@@ -88,7 +88,7 @@ export function WorkflowDeliverables(props: {
 
       <details className="rounded-2xl border border-border/70 bg-background/80 p-4">
         <summary className="cursor-pointer text-sm font-semibold text-foreground">
-          Inputs & Provenance
+          Inputs
         </summary>
         <div className="mt-4 grid gap-4">
           <InputPacketSection
@@ -99,7 +99,6 @@ export function WorkflowDeliverables(props: {
                 : []
             }
             emptyMessage="No launch packet is available for this workflow."
-            openByDefault
           />
           <InputPacketSection
             label="Intake & Plan Updates"
@@ -181,16 +180,12 @@ function InputPacketSection(props: {
   label: string;
   packets: DashboardWorkflowInputPacketRecord[];
   emptyMessage: string;
-  openByDefault?: boolean;
 }): JSX.Element {
   return (
-    <details
-      className="rounded-xl border border-border/70 bg-muted/10 p-3"
-      open={props.openByDefault}
-    >
-      <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+    <section className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-3">
+      <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         {props.label} ({props.packets.length})
-      </summary>
+      </div>
       <div className="mt-3 grid gap-3">
         {props.packets.length === 0 ? (
           <p className="text-sm text-muted-foreground">{props.emptyMessage}</p>
@@ -198,7 +193,7 @@ function InputPacketSection(props: {
           props.packets.map((packet) => <InputPacketCard key={packet.id} packet={packet} />)
         )}
       </div>
-    </details>
+    </section>
   );
 }
 
@@ -239,10 +234,10 @@ function InterventionAttachmentSection(props: {
   interventions: DashboardWorkflowInterventionRecord[];
 }): JSX.Element {
   return (
-    <details className="rounded-xl border border-border/70 bg-muted/10 p-3">
-      <summary className="cursor-pointer text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+    <section className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-3">
+      <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         Intervention Attachments ({props.interventions.length})
-      </summary>
+      </div>
       <div className="mt-3 grid gap-3">
         {props.interventions.length === 0 ? (
           <p className="text-sm text-muted-foreground">
@@ -270,7 +265,7 @@ function InterventionAttachmentSection(props: {
           ))
         )}
       </div>
-    </details>
+    </section>
   );
 }
 

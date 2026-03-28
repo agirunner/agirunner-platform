@@ -18,6 +18,31 @@ describe('WorkflowDeliverables', () => {
     expect(html).toContain('Open in new window');
     expect(html).toContain('Deliverables');
   });
+
+  it('keeps the inputs section flat and operator-readable', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: createPacket(),
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Inputs');
+    expect(html).not.toContain('Inputs &amp; Provenance');
+    expect(html).not.toContain('<summary class="cursor-pointer text-xs');
+  });
+
+  it('opens briefs by default when there are no materialized deliverables yet', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: createBriefOnlyPacket(),
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Briefs (1)');
+    expect(html).toContain('<details class="rounded-2xl border border-border/70 bg-background/80 p-4" open="">');
+  });
 });
 
 function createPacket(): DashboardWorkflowDeliverablesPacket {
@@ -51,6 +76,53 @@ function createPacket(): DashboardWorkflowDeliverablesPacket {
     ],
     in_progress_deliverables: [],
     working_handoffs: [],
+    inputs_and_provenance: {
+      launch_packet: null,
+      supplemental_packets: [],
+      intervention_attachments: [],
+      redrive_packet: null,
+    },
+    next_cursor: null,
+  };
+}
+
+function createBriefOnlyPacket(): DashboardWorkflowDeliverablesPacket {
+  return {
+    final_deliverables: [],
+    in_progress_deliverables: [],
+    working_handoffs: [
+      {
+        id: 'brief-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        task_id: 'task-1',
+        request_id: 'request-1',
+        execution_context_id: 'task-1',
+        brief_kind: 'milestone',
+        brief_scope: 'deliverable_context',
+        source_kind: 'specialist',
+        source_role_name: 'Reviewer',
+        status_kind: 'completed',
+        short_brief: {
+          headline: 'Review packet is complete',
+        },
+        detailed_brief_json: {
+          headline: 'Review packet is complete',
+          status_kind: 'completed',
+          summary: 'The reviewer published a completed brief but no formal deliverable descriptor yet exists.',
+        },
+        linked_target_ids: [],
+        sequence_number: 1,
+        related_artifact_ids: [],
+        related_output_descriptor_ids: [],
+        related_intervention_ids: [],
+        canonical_workflow_brief_id: null,
+        created_by_type: 'agent',
+        created_by_id: 'agent-1',
+        created_at: '2026-03-28T08:00:00.000Z',
+        updated_at: '2026-03-28T08:00:00.000Z',
+      },
+    ],
     inputs_and_provenance: {
       launch_packet: null,
       supplemental_packets: [],

@@ -1,16 +1,19 @@
 export type WorkflowPageMode = 'live' | 'recent';
 export type WorkflowWorkbenchTab =
+  | 'details'
   | 'needs_action'
   | 'steering'
   | 'live_console'
   | 'history'
   | 'deliverables';
 export type WorkflowBoardMode = 'active' | 'active_recent_complete' | 'all';
+export type WorkflowTabScope = 'workflow' | 'selected_work_item' | 'selected_task';
 
 export interface WorkflowsPageState {
   mode: WorkflowPageMode;
   workflowId: string | null;
   workItemId: string | null;
+  taskId: string | null;
   tab: WorkflowWorkbenchTab | null;
   search: string;
   needsActionOnly: boolean;
@@ -22,6 +25,7 @@ const DEFAULT_STATE: WorkflowsPageState = {
   mode: 'live',
   workflowId: null,
   workItemId: null,
+  taskId: null,
   tab: null,
   search: '',
   needsActionOnly: false,
@@ -40,6 +44,9 @@ export function readWorkflowsPageState(
     workItemId:
       readOptionalValue(searchParams.get('work_item_id')) ??
       readOptionalValue(searchParams.get('work_item')),
+    taskId:
+      readOptionalValue(searchParams.get('task_id')) ??
+      readOptionalValue(searchParams.get('task')),
     tab: readTab(searchParams.get('tab')),
     search:
       readOptionalValue(searchParams.get('search')) ??
@@ -69,6 +76,9 @@ export function buildWorkflowsPageSearchParams(
   }
   if (nextState.workItemId) {
     next.set('work_item_id', nextState.workItemId);
+  }
+  if (nextState.taskId) {
+    next.set('task_id', nextState.taskId);
   }
   if (nextState.tab) {
     next.set('tab', nextState.tab);
@@ -108,13 +118,18 @@ export function buildWorkflowsPageHref(
 export function resolveWorkflowTabScope(
   activeTab: WorkflowWorkbenchTab | null,
   workItemId: string | null,
-): 'workflow' | 'selected_work_item' {
+  taskId: string | null,
+): WorkflowTabScope {
   if (!workItemId) {
     return 'workflow';
   }
-  return activeTab === 'live_console' || activeTab === 'history' || activeTab === 'deliverables'
-    ? 'selected_work_item'
-    : 'workflow';
+  if (activeTab === 'needs_action') {
+    return 'workflow';
+  }
+  if (taskId) {
+    return 'selected_task';
+  }
+  return 'selected_work_item';
 }
 
 export function resolveSelectedWorkflowId(input: {
@@ -130,6 +145,15 @@ export function resolveSelectedWorkflowId(input: {
     return input.storedWorkflowId;
   }
   return input.selectedWorkflowId ?? input.rows[0]?.workflow_id ?? null;
+}
+
+export function resolveWorkspacePlaceholderData<
+  T extends { workflow?: { id?: string | null } | null },
+>(previous: T | undefined, nextWorkflowId: string | null): T | undefined {
+  if (!previous || !nextWorkflowId) {
+    return undefined;
+  }
+  return previous.workflow?.id === nextWorkflowId ? previous : undefined;
 }
 
 export function buildWorkflowDiagnosticsHref(input: {
@@ -162,6 +186,7 @@ function readWorkflowIdFromPath(pathname: string): string | null {
 
 function readTab(value: string | null): WorkflowWorkbenchTab | null {
   switch (value) {
+    case 'details':
     case 'needs_action':
     case 'steering':
     case 'live_console':

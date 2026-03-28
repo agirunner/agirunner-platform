@@ -31,6 +31,7 @@ export function WorkflowBottomWorkbench(props: {
   selectedTask: DashboardTaskRecord | null;
   selectedWorkItemTasks: Record<string, unknown>[];
   inputPackets: DashboardWorkflowInputPacketRecord[];
+  workflowParameters: Record<string, unknown> | null;
   onTabChange(tab: WorkflowWorkbenchTab): void;
   onClearWorkItemScope(): void;
   onClearTaskScope(): void;
@@ -131,6 +132,7 @@ export function WorkflowBottomWorkbench(props: {
             selectedTask={props.selectedTask}
             selectedWorkItemTasks={props.selectedWorkItemTasks}
             inputPackets={props.inputPackets}
+            workflowParameters={props.workflowParameters}
           />
         ) : null}
         {props.activeTab === 'needs_action' ? (

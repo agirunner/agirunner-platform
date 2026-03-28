@@ -24,18 +24,53 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
           onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
 
-    expect(html).toContain('Active stage: Approval Gate');
-    expect(html).toContain('2 completed work items');
-    expect(html).toContain('1 active work item');
+    expect(html).toContain('1 active • 2 completed');
+    expect(html).toContain('3 active tasks • 0 failed tasks');
+    expect(html).toContain('Live visibility');
+  });
+
+  it('keeps the sticky cards compact and uses operator-friendly workflow badges', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            lifecycle: 'ongoing',
+            currentStage: null,
+            posture: 'waiting_by_design',
+          }),
+          stickyStrip: createStickyStrip({
+            posture: 'waiting_by_design',
+          }),
+          workflowSettings: null,
+          board: createBoard(),
+          selectedScopeLabel: 'workflows-intake-01',
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onVisibilityModeChange: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Waiting for Work');
+    expect(html).toContain('Ongoing');
+    expect(html).not.toContain('Waiting By Design');
+    expect((html.match(/text-lg font-semibold text-foreground/g) ?? [])).toHaveLength(4);
+    expect(html).not.toContain('grid gap-2 rounded-2xl border border-border/70 bg-muted/10 p-3');
   });
 });
 
-function createWorkflowCard(): DashboardMissionControlWorkflowCard {
+function createWorkflowCard(
+  overrides: Partial<DashboardMissionControlWorkflowCard> = {},
+): DashboardMissionControlWorkflowCard {
   return {
     id: 'workflow-1',
     name: 'Workflow 1',
@@ -70,10 +105,13 @@ function createWorkflowCard(): DashboardMissionControlWorkflowCard {
       latestEventId: 1,
       token: 'token-1',
     },
+    ...overrides,
   };
 }
 
-function createStickyStrip(): DashboardWorkflowStickyStrip {
+function createStickyStrip(
+  overrides: Partial<DashboardWorkflowStickyStrip> = {},
+): DashboardWorkflowStickyStrip {
   return {
     workflow_id: 'workflow-1',
     workflow_name: 'Workflow 1',
@@ -85,6 +123,7 @@ function createStickyStrip(): DashboardWorkflowStickyStrip {
     active_task_count: 3,
     active_work_item_count: 1,
     steering_available: true,
+    ...overrides,
   };
 }
 

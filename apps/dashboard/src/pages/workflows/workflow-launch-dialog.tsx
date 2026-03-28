@@ -17,13 +17,14 @@ import { buildFileUploadPayloads } from '../../lib/file-upload.js';
 import { toast } from '../../lib/toast.js';
 import {
   buildParametersFromDrafts,
-  buildWorkflowBudgetInput,
-  createWorkflowBudgetDraft,
   readLaunchDefinition,
-  validateLaunchDraft,
 } from '../playbook-launch/playbook-launch-support.js';
 import { invalidateWorkflowsQueries } from './workflows-query.js';
 import { WorkflowFileInput } from './workflow-file-input.js';
+import {
+  resolveDefaultWorkflowLaunchWorkspaceId,
+  validateWorkflowLaunchDialogDraft,
+} from './workflow-launch-dialog.support.js';
 
 export function WorkflowLaunchDialog(props: {
   isOpen: boolean;
@@ -36,7 +37,6 @@ export function WorkflowLaunchDialog(props: {
   const [workspaceId, setWorkspaceId] = useState('');
   const [parameterDrafts, setParameterDrafts] = useState<Record<string, string>>({});
   const [files, setFiles] = useState<File[]>([]);
-  const [budgetDraft, setBudgetDraft] = useState(createWorkflowBudgetDraft());
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
@@ -52,6 +52,7 @@ export function WorkflowLaunchDialog(props: {
   });
 
   const playbooks = playbooksQuery.data?.data?.filter((playbook) => playbook.is_active !== false) ?? [];
+  const workspaces = workspacesQuery.data?.data?.filter((workspace) => workspace.is_active !== false) ?? [];
   const selectedPlaybook = useMemo(
     () => playbooks.find((playbook) => playbook.id === selectedPlaybookId) ?? null,
     [playbooks, selectedPlaybookId],
@@ -59,14 +60,14 @@ export function WorkflowLaunchDialog(props: {
   const launchDefinition = useMemo(() => readLaunchDefinition(selectedPlaybook), [selectedPlaybook]);
   const validation = useMemo(
     () =>
-      validateLaunchDraft({
+      validateWorkflowLaunchDialogDraft({
         selectedPlaybook,
+        workspaceId,
         workflowName,
-        workflowBudgetDraft: budgetDraft,
         parameterSpecs: launchDefinition.parameterSpecs,
         parameterDrafts,
       }),
-    [budgetDraft, launchDefinition.parameterSpecs, parameterDrafts, selectedPlaybook, workflowName],
+    [launchDefinition.parameterSpecs, parameterDrafts, selectedPlaybook, workflowName, workspaceId],
   );
 
   useEffect(() => {
@@ -74,6 +75,13 @@ export function WorkflowLaunchDialog(props: {
       setSelectedPlaybookId(playbooks[0].id);
     }
   }, [playbooks, props.isOpen, selectedPlaybookId]);
+
+  useEffect(() => {
+    if (!props.isOpen) {
+      return;
+    }
+    setWorkspaceId((current) => resolveDefaultWorkflowLaunchWorkspaceId(workspaces, current));
+  }, [props.isOpen, workspaces]);
 
   useEffect(() => {
     if (props.isOpen) {
@@ -91,7 +99,6 @@ export function WorkflowLaunchDialog(props: {
     setWorkspaceId('');
     setParameterDrafts({});
     setFiles([]);
-    setBudgetDraft(createWorkflowBudgetDraft());
     setErrorMessage(null);
     setHasAttemptedSubmit(false);
   }, [launchDefinition.parameterSpecs, props.isOpen]);
@@ -100,10 +107,9 @@ export function WorkflowLaunchDialog(props: {
     mutationFn: async () => {
       const workflow = await dashboardApi.createWorkflow({
         playbook_id: selectedPlaybookId,
-        workspace_id: workspaceId || undefined,
+        workspace_id: workspaceId,
         name: workflowName.trim(),
         parameters: buildParametersFromDrafts(launchDefinition.parameterSpecs, parameterDrafts),
-        budget: buildWorkflowBudgetInput(budgetDraft),
       });
       if (files.length > 0) {
         await dashboardApi.createWorkflowInputPacket(workflow.id, {
@@ -127,15 +133,12 @@ export function WorkflowLaunchDialog(props: {
 
   const isSubmitDisabled = launchMutation.isPending || playbooksQuery.isLoading;
   const playbookError = hasAttemptedSubmit ? validation.fieldErrors.playbook : undefined;
+  const workspaceError = hasAttemptedSubmit ? validation.fieldErrors.workspace : undefined;
   const workflowNameError = hasAttemptedSubmit ? validation.fieldErrors.workflowName : undefined;
-  const tokenBudgetError = hasAttemptedSubmit ? validation.fieldErrors.tokenBudget : undefined;
-  const costCapError = hasAttemptedSubmit ? validation.fieldErrors.costCapUsd : undefined;
-  const maxDurationError =
-    hasAttemptedSubmit ? validation.fieldErrors.maxDurationMinutes : undefined;
   const formFeedbackMessage = resolveFormFeedbackMessage({
     serverError: errorMessage,
     showValidation: hasAttemptedSubmit,
-    isValid: validation.isValid && Boolean(selectedPlaybookId),
+    isValid: validation.isValid,
     validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
   });
 
@@ -148,7 +151,7 @@ export function WorkflowLaunchDialog(props: {
             New workflow
           </DialogTitle>
           <DialogDescription>
-            Launch a workflow with typed playbook inputs, optional launch files, and run-scoped guardrails.
+            Launch a workflow with required workspace context, typed playbook inputs, and immutable launch files.
           </DialogDescription>
         </DialogHeader>
 
@@ -180,19 +183,26 @@ export function WorkflowLaunchDialog(props: {
 
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Workspace</span>
-              <Select value={workspaceId || '__none__'} onValueChange={(value) => setWorkspaceId(value === '__none__' ? '' : value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Optional workspace" />
+              <Select value={workspaceId} onValueChange={setWorkspaceId}>
+                <SelectTrigger
+                  className={
+                    workspaceError ? 'border-red-300 focus-visible:ring-red-500' : undefined
+                  }
+                  aria-invalid={Boolean(workspaceError)}
+                >
+                  <SelectValue placeholder="Select workspace" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">No workspace</SelectItem>
-                  {(workspacesQuery.data?.data ?? []).map((workspace) => (
+                  {workspaces.map((workspace) => (
                     <SelectItem key={workspace.id} value={workspace.id}>
                       {workspace.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {workspaceError ? (
+                <p className="text-xs text-red-600 dark:text-red-400">{workspaceError}</p>
+              ) : null}
             </label>
           </div>
 
@@ -210,18 +220,15 @@ export function WorkflowLaunchDialog(props: {
           </label>
 
           {launchDefinition.parameterSpecs.length > 0 ? (
-            <div className="grid gap-3 rounded-md border border-border p-4">
-              <div className="grid gap-1">
-                <strong className="text-sm">Launch inputs</strong>
-                <p className="text-sm text-muted-foreground">
-                  These values map directly to the selected playbook launch contract.
-                </p>
-              </div>
+            <div className="grid gap-3">
+              <strong className="text-sm">Launch inputs</strong>
               {launchDefinition.parameterSpecs.map((spec) => (
                 <ChainParameterField
                   key={spec.slug}
                   spec={spec}
                   value={parameterDrafts[spec.slug] ?? ''}
+                  showSlugBadge={false}
+                  multiline
                   error={
                     hasAttemptedSubmit && spec.required && !(parameterDrafts[spec.slug]?.trim())
                       ? `Enter a value for ${spec.title}.`
@@ -232,54 +239,6 @@ export function WorkflowLaunchDialog(props: {
               ))}
             </div>
           ) : null}
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Token budget</span>
-              <Input
-                value={budgetDraft.tokenBudget}
-                onChange={(event) =>
-                  setBudgetDraft((current) => ({ ...current, tokenBudget: event.target.value }))
-                }
-                placeholder="Optional"
-                aria-invalid={Boolean(tokenBudgetError)}
-              />
-              {tokenBudgetError ? (
-                <p className="text-xs text-red-600 dark:text-red-400">{tokenBudgetError}</p>
-              ) : null}
-            </label>
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Cost cap (USD)</span>
-              <Input
-                value={budgetDraft.costCapUsd}
-                onChange={(event) =>
-                  setBudgetDraft((current) => ({ ...current, costCapUsd: event.target.value }))
-                }
-                placeholder="Optional"
-                aria-invalid={Boolean(costCapError)}
-              />
-              {costCapError ? (
-                <p className="text-xs text-red-600 dark:text-red-400">{costCapError}</p>
-              ) : null}
-            </label>
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Max duration (minutes)</span>
-              <Input
-                value={budgetDraft.maxDurationMinutes}
-                onChange={(event) =>
-                  setBudgetDraft((current) => ({
-                    ...current,
-                    maxDurationMinutes: event.target.value,
-                  }))
-                }
-                placeholder="Optional"
-                aria-invalid={Boolean(maxDurationError)}
-              />
-              {maxDurationError ? (
-                <p className="text-xs text-red-600 dark:text-red-400">{maxDurationError}</p>
-              ) : null}
-            </label>
-          </div>
 
           <WorkflowFileInput
             files={files}

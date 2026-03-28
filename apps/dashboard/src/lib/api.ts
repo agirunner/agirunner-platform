@@ -1693,6 +1693,7 @@ interface DashboardWorkflowRecordBase {
   task_counts?: Record<string, number>;
   metadata?: Record<string, unknown>;
   context?: Record<string, unknown>;
+  parameters?: Record<string, unknown>;
   completion_callouts?: DashboardCompletionCallouts | null;
   workflow_relations?: DashboardWorkflowRelations | null;
   workflow_stages?: DashboardWorkflowStageRecord[];

@@ -66,6 +66,9 @@ export class WorkflowControlService {
         throw new NotFoundError('Workflow not found');
       }
       const currentWorkflow = workflow.rows[0];
+      if (hasCancelRequest(currentWorkflow.metadata)) {
+        throw new ConflictError('Workflow cancellation is already in progress and cannot be resumed');
+      }
       if (currentWorkflow.state !== 'paused') {
         if (isResumedWorkflowState(currentWorkflow.state) && !hasPauseRequest(currentWorkflow.metadata)) {
           await client.query('COMMIT');
@@ -134,5 +137,13 @@ function hasPauseRequest(metadata: unknown) {
     return false;
   }
   const value = (metadata as Record<string, unknown>).pause_requested_at;
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function hasCancelRequest(metadata: unknown) {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return false;
+  }
+  const value = (metadata as Record<string, unknown>).cancel_requested_at;
   return typeof value === 'string' && value.trim().length > 0;
 }

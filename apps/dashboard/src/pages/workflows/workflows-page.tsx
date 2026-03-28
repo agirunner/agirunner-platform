@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LayoutDashboard, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -11,19 +11,33 @@ import {
   buildWorkflowsPageHref,
   readWorkflowsPageState,
   resolveSelectedWorkflowId,
+  resolveWorkspacePlaceholderData,
   resolveWorkflowTabScope,
   type WorkflowsPageState,
 } from './workflows-page.support.js';
 import {
   readStoredWorkflowId,
   readStoredWorkflowRailHidden,
+  readStoredWorkflowRailWidth,
+  readStoredWorkflowWorkbenchFraction,
   writeStoredWorkflowId,
   writeStoredWorkflowRailHidden,
+  writeStoredWorkflowRailWidth,
+  writeStoredWorkflowWorkbenchFraction,
 } from './workflows-page.storage.js';
 import { buildWorkflowRailQueryKey, buildWorkflowWorkspaceQueryKey } from './workflows-query.js';
 import { useWorkflowRailRealtime, useWorkflowWorkspaceRealtime } from './workflows-realtime.js';
 import { WorkflowBoard } from './workflow-board.js';
 import { WorkflowLaunchDialog } from './workflow-launch-dialog.js';
+import {
+  buildWorkflowWorkspaceSplitStyle,
+  buildWorkflowsShellClassName,
+  buildWorkflowsShellStyle,
+  clampWorkflowRailWidthPx,
+  clampWorkflowWorkbenchFraction,
+  DEFAULT_WORKFLOW_RAIL_WIDTH_PX,
+  DEFAULT_WORKFLOW_WORKBENCH_FRACTION,
+} from './workflows-layout.js';
 import { WorkflowStateStrip } from './workflow-state-strip.js';
 import { WorkflowBottomWorkbench } from './workspace/workflow-bottom-workbench.js';
 import { WorkflowAddWorkDialog } from './workspace/workflow-add-work-dialog.js';
@@ -52,6 +66,15 @@ export function WorkflowsPage(): JSX.Element {
   const [isAddWorkOpen, setIsAddWorkOpen] = useState(false);
   const [isRedriveOpen, setIsRedriveOpen] = useState(false);
   const [isRailHidden, setIsRailHidden] = useState(readStoredWorkflowRailHidden());
+  const [railWidthPx, setRailWidthPx] = useState(
+    clampWorkflowRailWidthPx(readStoredWorkflowRailWidth() ?? DEFAULT_WORKFLOW_RAIL_WIDTH_PX),
+  );
+  const [workbenchFraction, setWorkbenchFraction] = useState(
+    clampWorkflowWorkbenchFraction(
+      readStoredWorkflowWorkbenchFraction() ?? DEFAULT_WORKFLOW_WORKBENCH_FRACTION,
+    ),
+  );
+  const workspaceSplitRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setRailLimit(RAIL_PAGE_SIZE);
@@ -65,6 +88,19 @@ export function WorkflowsPage(): JSX.Element {
   useEffect(() => {
     writeStoredWorkflowRailHidden(isRailHidden);
   }, [isRailHidden]);
+  useEffect(() => {
+    writeStoredWorkflowRailWidth(railWidthPx);
+  }, [railWidthPx]);
+  useEffect(() => {
+    writeStoredWorkflowWorkbenchFraction(workbenchFraction);
+  }, [workbenchFraction]);
+
+  const activeTab = pageState.tab ?? 'details';
+  const tabScope = resolveWorkflowTabScope(activeTab, pageState.workItemId, pageState.taskId);
+  const scopedWorkItemId = tabScope === 'selected_work_item' || tabScope === 'selected_task'
+    ? pageState.workItemId
+    : null;
+  const scopedTaskId = tabScope === 'selected_task' ? pageState.taskId : null;
 
   const railQuery = useQuery({
     queryKey: [...buildWorkflowRailQueryKey(pageState), railLimit],
@@ -82,12 +118,9 @@ export function WorkflowsPage(): JSX.Element {
     queryKey: pageState.workflowId
       ? buildWorkflowWorkspaceQueryKey({
           workflowId: pageState.workflowId,
-          workItemId: resolveWorkflowTabScope(
-            pageState.tab,
-            pageState.workItemId,
-          ) === 'selected_work_item'
-            ? pageState.workItemId
-            : null,
+          workItemId: scopedWorkItemId,
+          taskId: scopedTaskId,
+          scopeKind: tabScope,
           boardMode: pageState.boardMode,
           activityLimit,
           deliverablesLimit,
@@ -95,17 +128,43 @@ export function WorkflowsPage(): JSX.Element {
       : ['workflows', 'workspace', 'none'],
     queryFn: () =>
       dashboardApi.getWorkflowWorkspace(pageState.workflowId as string, {
-        workItemId:
-          resolveWorkflowTabScope(pageState.tab, pageState.workItemId) === 'selected_work_item'
-            ? pageState.workItemId ?? undefined
-            : undefined,
-        tabScope: resolveWorkflowTabScope(pageState.tab, pageState.workItemId),
+        workItemId: scopedWorkItemId ?? undefined,
+        taskId: scopedTaskId ?? undefined,
+        tabScope,
         boardMode: pageState.boardMode,
         historyLimit: activityLimit,
         deliverablesLimit,
       }),
     enabled: Boolean(pageState.workflowId),
-    placeholderData: (previous) => previous,
+    placeholderData: (previous) =>
+      resolveWorkspacePlaceholderData(previous, pageState.workflowId),
+  });
+  const inputPacketsQuery = useQuery({
+    queryKey: ['workflows', 'input-packets', pageState.workflowId],
+    queryFn: () => dashboardApi.listWorkflowInputPackets(pageState.workflowId as string),
+    enabled: Boolean(pageState.workflowId),
+  });
+  const workflowDetailQuery = useQuery({
+    queryKey: ['workflows', 'detail', pageState.workflowId],
+    queryFn: () => dashboardApi.getWorkflow(pageState.workflowId as string),
+    enabled: Boolean(pageState.workflowId),
+  });
+  const selectedWorkItemQuery = useQuery({
+    queryKey: ['workflows', 'work-item-detail', pageState.workflowId, pageState.workItemId],
+    queryFn: () =>
+      dashboardApi.getWorkflowWorkItem(pageState.workflowId as string, pageState.workItemId as string),
+    enabled: Boolean(pageState.workflowId && pageState.workItemId),
+  });
+  const selectedWorkItemTasksQuery = useQuery({
+    queryKey: ['workflows', 'work-item-tasks', pageState.workflowId, pageState.workItemId],
+    queryFn: () =>
+      dashboardApi.listWorkflowWorkItemTasks(pageState.workflowId as string, pageState.workItemId as string),
+    enabled: Boolean(pageState.workflowId && pageState.workItemId),
+  });
+  const selectedTaskQuery = useQuery({
+    queryKey: ['tasks', pageState.taskId],
+    queryFn: () => dashboardApi.getTask(pageState.taskId as string),
+    enabled: Boolean(pageState.taskId),
   });
   const workflowSettingsQuery = useQuery({
     queryKey: ['workflow-settings', pageState.workflowId],
@@ -122,7 +181,9 @@ export function WorkflowsPage(): JSX.Element {
   });
   useWorkflowWorkspaceRealtime(queryClient, {
     workflowId: pageState.workflowId,
-    workItemId: pageState.workItemId,
+    workItemId: scopedWorkItemId,
+    taskId: scopedTaskId,
+    tabScope,
     boardMode: pageState.boardMode,
   });
 
@@ -133,16 +194,25 @@ export function WorkflowsPage(): JSX.Element {
     () => deriveSelectedWorkflowRow(railPacket?.rows ?? [], railPacket?.ongoing_rows ?? [], pageState.workflowId, workflow),
     [pageState.workflowId, railPacket?.ongoing_rows, railPacket?.rows, workflow],
   );
-  const scopedWorkItemId =
-    resolveWorkflowTabScope(activeTabFromState(pageState), pageState.workItemId) ===
-    'selected_work_item'
-      ? pageState.workItemId
-      : null;
   const workItemTitle = useMemo(
-    () => board?.work_items.find((item) => item.id === pageState.workItemId)?.title ?? null,
-    [board, pageState.workItemId],
+    () =>
+      selectedWorkItemQuery.data?.title
+      ?? board?.work_items.find((item) => item.id === pageState.workItemId)?.title
+      ?? null,
+    [board, pageState.workItemId, selectedWorkItemQuery.data?.title],
   );
-  const activeTab = pageState.tab ?? workspaceQuery.data?.bottom_tabs.default_tab ?? 'live_console';
+  const taskTitle = useMemo(() => {
+    if (selectedTaskQuery.data?.title) {
+      return selectedTaskQuery.data.title;
+    }
+    if (!pageState.taskId) {
+      return null;
+    }
+    const matchingTask = (selectedWorkItemTasksQuery.data ?? []).find(
+      (task) => typeof task.id === 'string' && task.id === pageState.taskId,
+    );
+    return typeof matchingTask?.title === 'string' ? matchingTask.title : null;
+  }, [pageState.taskId, selectedTaskQuery.data?.title, selectedWorkItemTasksQuery.data]);
   const hasMoreRailRows = Boolean(railPacket?.next_cursor) || (railPacket?.rows.length ?? 0) >= railLimit;
 
   useEffect(() => {
@@ -172,7 +242,10 @@ export function WorkflowsPage(): JSX.Element {
 
   return (
     <>
-      <div className="flex flex-col gap-4 xl:grid xl:h-[calc(100vh-9rem)] xl:min-h-[calc(100vh-9rem)] xl:grid-cols-[22rem_minmax(0,1fr)]">
+      <div
+        className={buildWorkflowsShellClassName(isRailHidden)}
+        style={buildWorkflowsShellStyle(isRailHidden, railWidthPx)}
+      >
         {!isRailHidden ? (
           <div className="overflow-hidden rounded-3xl border border-border/70 bg-stone-50/90 xl:min-h-0 dark:bg-slate-950/70">
             <WorkflowsRail
@@ -198,15 +271,39 @@ export function WorkflowsPage(): JSX.Element {
                 patchPageState(navigate, pageState, { ongoingOnly: false })
               }
               onSelectWorkflow={(workflowId) =>
-                patchPageState(navigate, pageState, { workflowId, workItemId: null })
+                patchPageState(navigate, pageState, { workflowId, workItemId: null, taskId: null })
               }
               onLoadMore={() => setRailLimit((current) => current + RAIL_PAGE_SIZE)}
               onCreateWorkflow={() => setIsLaunchOpen(true)}
             />
           </div>
         ) : null}
+        {!isRailHidden ? (
+          <div className="relative hidden xl:flex items-stretch justify-center">
+            <button
+              type="button"
+              aria-label="Resize workflows rail"
+              className="h-full w-full cursor-col-resize rounded-full bg-transparent transition-colors hover:bg-border/60"
+              onPointerDown={(event) => {
+                event.preventDefault();
+                const startX = event.clientX;
+                const startWidth = railWidthPx;
+                const handlePointerMove = (moveEvent: PointerEvent) => {
+                  const delta = moveEvent.clientX - startX;
+                  setRailWidthPx(clampWorkflowRailWidthPx(startWidth + delta));
+                };
+                const handlePointerUp = () => {
+                  window.removeEventListener('pointermove', handlePointerMove);
+                  window.removeEventListener('pointerup', handlePointerUp);
+                };
+                window.addEventListener('pointermove', handlePointerMove);
+                window.addEventListener('pointerup', handlePointerUp);
+              }}
+            />
+          </div>
+        ) : null}
 
-        <div className="flex min-h-0 flex-col gap-4 xl:grid xl:grid-rows-[auto_minmax(0,1fr)] xl:overflow-hidden">
+        <div className="flex min-h-0 flex-col gap-4 xl:grid xl:grid-rows-[auto_minmax(0,1fr)]">
           <div className="flex items-center justify-between gap-3">
             <Button type="button" size="sm" variant="outline" onClick={() => setIsRailHidden((current) => !current)}>
               {isRailHidden ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
@@ -220,7 +317,7 @@ export function WorkflowsPage(): JSX.Element {
           </div>
 
           {workflow && workspaceQuery.data ? (
-            <div className="flex min-h-0 flex-col gap-4 xl:grid xl:grid-rows-[auto_minmax(0,1fr)_minmax(22rem,40vh)] xl:overflow-hidden">
+            <div className="flex min-h-0 flex-col gap-4 xl:min-h-0 xl:flex-1">
               <div className="sticky top-0 z-10">
                 <WorkflowStateStrip
                   workflow={workflow}
@@ -230,6 +327,7 @@ export function WorkflowsPage(): JSX.Element {
                   selectedScopeLabel={scopedWorkItemId ? workItemTitle : null}
                   onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
                   onAddWork={() => setIsAddWorkOpen(true)}
+                  onOpenRedrive={() => setIsRedriveOpen(true)}
                   onVisibilityModeChange={async (nextMode) => {
                     const currentSettings = workflowSettingsQuery.data;
                     if (!currentSettings) {
@@ -245,38 +343,83 @@ export function WorkflowsPage(): JSX.Element {
                   }}
                 />
               </div>
-              <div className="rounded-3xl border border-border/70 bg-background/70 xl:min-h-0 xl:overflow-hidden">
-                <div className="p-4 xl:h-full xl:overflow-auto">
+              <div
+                ref={workspaceSplitRef}
+                className="xl:grid xl:min-h-0 xl:flex-1"
+                style={buildWorkflowWorkspaceSplitStyle(workbenchFraction)}
+              >
+                <div className="min-h-[18rem] xl:min-h-0 xl:overflow-auto">
                   <WorkflowBoard
                     workflowId={workflow.id}
                     board={board}
                     selectedWorkItemId={pageState.workItemId}
+                    selectedTaskId={pageState.taskId}
                     boardMode={pageState.boardMode}
                     onBoardModeChange={(boardMode) =>
                       patchPageState(navigate, pageState, { boardMode })
                     }
                     onSelectWorkItem={(workItemId) =>
-                      patchPageState(navigate, pageState, { workItemId })
+                      patchPageState(navigate, pageState, { workItemId, taskId: null })
+                    }
+                    onSelectTask={(workItemId, taskId) =>
+                      patchPageState(navigate, pageState, { workItemId, taskId })
                     }
                   />
                 </div>
-              </div>
-              <div className="rounded-3xl border border-border/70 bg-background/70 xl:min-h-0 xl:overflow-hidden">
-                <div className="p-4 xl:h-full xl:overflow-auto">
+                <div className="relative hidden xl:flex items-center justify-center">
+                  <button
+                    type="button"
+                    aria-label="Resize workflow workbench"
+                    className="h-full w-full cursor-row-resize rounded-full bg-transparent transition-colors hover:bg-border/60"
+                    onPointerDown={(event) => {
+                      const splitContainer = workspaceSplitRef.current;
+                      if (!splitContainer) {
+                        return;
+                      }
+                      event.preventDefault();
+                      const startY = event.clientY;
+                      const startFraction = workbenchFraction;
+                      const containerHeight = splitContainer.getBoundingClientRect().height;
+                      const handlePointerMove = (moveEvent: PointerEvent) => {
+                        const delta = moveEvent.clientY - startY;
+                        const nextFraction = clampWorkflowWorkbenchFraction(
+                          startFraction - (delta / Math.max(containerHeight, 1)),
+                        );
+                        setWorkbenchFraction(nextFraction);
+                      };
+                      const handlePointerUp = () => {
+                        window.removeEventListener('pointermove', handlePointerMove);
+                        window.removeEventListener('pointerup', handlePointerUp);
+                      };
+                      window.addEventListener('pointermove', handlePointerMove);
+                      window.addEventListener('pointerup', handlePointerUp);
+                    }}
+                  />
+                </div>
+                <div className="min-h-[18rem] xl:min-h-0 xl:overflow-auto">
                   <WorkflowBottomWorkbench
                     workflowId={workflow.id}
+                    workflow={workflow}
+                    stickyStrip={workspaceQuery.data.sticky_strip}
+                    board={board}
                     workflowName={workflow.name}
-                    workflowState={workflow.state}
-                    workspaceId={workflow.workspaceId}
                     packet={workspaceQuery.data}
                     activeTab={activeTab}
                     selectedWorkItemId={pageState.workItemId}
                     scopedWorkItemId={scopedWorkItemId}
                     selectedWorkItemTitle={workItemTitle}
+                    selectedTaskId={pageState.taskId}
+                    selectedTaskTitle={taskTitle}
+                    selectedWorkItem={selectedWorkItemQuery.data ?? null}
+                    selectedTask={selectedTaskQuery.data ?? null}
+                    selectedWorkItemTasks={selectedWorkItemTasksQuery.data ?? []}
+                    inputPackets={inputPacketsQuery.data ?? []}
+                    workflowParameters={(workflowDetailQuery.data?.parameters as Record<string, unknown> | null | undefined) ?? null}
                     onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
                     onClearWorkItemScope={() =>
-                      patchPageState(navigate, pageState, { workItemId: null })
+                      patchPageState(navigate, pageState, { workItemId: null, taskId: null })
                     }
+                    onClearTaskScope={() => patchPageState(navigate, pageState, { taskId: null })}
                     onOpenAddWork={() => setIsAddWorkOpen(true)}
                     onOpenRedrive={() => setIsRedriveOpen(true)}
                     onLoadMoreActivity={() =>
@@ -305,6 +448,7 @@ export function WorkflowsPage(): JSX.Element {
           patchPageState(navigate, pageState, {
             workflowId,
             workItemId: null,
+            taskId: null,
             tab: null,
           })
         }
@@ -329,6 +473,7 @@ export function WorkflowsPage(): JSX.Element {
               patchPageState(navigate, pageState, {
                 workflowId,
                 workItemId: null,
+                taskId: null,
                 tab: null,
               })
             }
@@ -437,8 +582,4 @@ function patchPageState(
   navigate(buildWorkflowsPageHref(patch, currentState), {
     replace: true,
   });
-}
-
-function activeTabFromState(pageState: WorkflowsPageState) {
-  return pageState.tab ?? null;
 }

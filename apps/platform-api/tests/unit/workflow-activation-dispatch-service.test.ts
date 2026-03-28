@@ -1799,6 +1799,8 @@ describe('WorkflowActivationDispatchService', () => {
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('If a stage already awaits approval, do not request another gate');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('record_operator_brief');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('record_operator_update');
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('payload.short_brief and payload.detailed_brief_json objects');
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('detailed_brief_json must include headline and status_kind');
           expect(inserted.environment).toEqual({
             execution_mode: 'orchestrator',
             template: 'execution-workspace',

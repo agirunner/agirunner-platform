@@ -54,6 +54,23 @@ describe('mission control action availability', () => {
     );
   });
 
+  it('does not enable pause, resume, or cancel while cancellation is already in progress', () => {
+    const actions = deriveWorkflowActionAvailability({
+      workflowState: 'paused',
+      posture: 'cancelling',
+      hasCancelRequest: true,
+    });
+
+    expect(actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'pause_workflow', enabled: false }),
+        expect.objectContaining({ kind: 'resume_workflow', enabled: false }),
+        expect.objectContaining({ kind: 'cancel_workflow', enabled: false }),
+        expect.objectContaining({ kind: 'add_work_item', enabled: false }),
+      ]),
+    );
+  });
+
   it('disables all actions when the read model is stale', () => {
     const actions = deriveWorkflowActionAvailability({
       workflowState: 'active',

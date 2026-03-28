@@ -278,6 +278,13 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
       lines.push(
         `Use ${brief.operator_visibility.record_operator_brief_tool} for material handoff or milestone summaries when the platform requests them.`,
       );
+      lines.push(
+        `${brief.operator_visibility.record_operator_brief_tool} payload must include short_brief and detailed_brief_json objects.`,
+      );
+      lines.push('short_brief must include a headline.');
+      lines.push(
+        'detailed_brief_json must include headline and status_kind and should carry the fuller human-readable summary and sections.',
+      );
     }
   }
   lines.push('', '## Path Discipline');

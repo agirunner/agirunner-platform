@@ -16,7 +16,8 @@ interface WorkspaceBatchQuery {
   boardMode?: string;
   boardFilters?: string;
   workItemId?: string;
-  tabScope?: 'workflow' | 'selected_work_item';
+  taskId?: string;
+  tabScope?: 'workflow' | 'selected_work_item' | 'selected_task';
   liveConsoleHeadCursor?: string | null;
   historyHeadCursor?: string | null;
   deliverablesHeadCursor?: string | null;
@@ -51,6 +52,7 @@ export class WorkflowOperationsStreamService {
       boardMode: query.boardMode,
       boardFilters: query.boardFilters,
       workItemId: query.workItemId,
+      taskId: query.taskId,
       tabScope: query.tabScope,
     });
     return {

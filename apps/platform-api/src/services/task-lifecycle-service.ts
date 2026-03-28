@@ -141,6 +141,10 @@ interface WorkItemExecutionColumnContextRow {
   definition: unknown;
 }
 
+interface WorkItemExecutionProgressRow {
+  engaged_task_count: string | number;
+}
+
 interface LatestAssessmentRequestHandoffRow {
   handoff_id: string;
   assessment_task_id: string;
@@ -632,22 +636,15 @@ export class TaskLifecycleService {
       return;
     }
 
-    const activeTaskCountResult = await client.query<{ active_task_count: string | number }>(
-      `SELECT COUNT(*)::int AS active_task_count
-         FROM tasks
-        WHERE tenant_id = $1
-          AND workflow_id = $2
-          AND work_item_id = $3
-          AND is_orchestrator_task = FALSE
-          AND state = 'in_progress'`,
-      [identity.tenantId, workflowId, workItemId],
+    const executionProgress = await this.loadWorkItemExecutionProgress(
+      client,
+      identity.tenantId,
+      workflowId,
+      workItemId,
     );
-    const activeTaskCount = Number(activeTaskCountResult.rows[0]?.active_task_count ?? 0);
-    const nextColumnId = activeTaskCount > 0
+    const nextColumnId = executionProgress.hasEngagedSpecialistTask
       ? activeColumnId
-      : workItem.column_id === activeColumnId
-        ? entryColumnId
-        : null;
+      : null;
     if (!nextColumnId || nextColumnId === workItem.column_id) {
       return;
     }
@@ -698,6 +695,36 @@ export class TaskLifecycleService {
       },
       client,
     );
+  }
+
+  private async loadWorkItemExecutionProgress(
+    client: DatabaseClient,
+    tenantId: string,
+    workflowId: string,
+    workItemId: string,
+  ) {
+    const result = await client.query<WorkItemExecutionProgressRow>(
+      `SELECT COUNT(*)::int AS engaged_task_count
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND work_item_id = $3
+          AND is_orchestrator_task = FALSE
+          AND state IN (
+            'claimed',
+            'in_progress',
+            'awaiting_approval',
+            'output_pending_assessment',
+            'completed',
+            'failed',
+            'escalated'
+          )`,
+      [tenantId, workflowId, workItemId],
+    );
+
+    return {
+      hasEngagedSpecialistTask: Number(result.rows[0]?.engaged_task_count ?? 0) > 0,
+    };
   }
 
   private async logGovernanceTransition(

@@ -4627,8 +4627,8 @@ describe('TaskLifecycleService replay-safe idempotent guards', () => {
             ],
           };
         }
-        if (sql.includes('COUNT(*)::int AS active_task_count')) {
-          return { rows: [{ active_task_count: 1 }], rowCount: 1 };
+        if (sql.includes('COUNT(*)::int AS engaged_task_count')) {
+          return { rows: [{ engaged_task_count: 1 }], rowCount: 1 };
         }
         if (sql.includes('UPDATE workflow_work_items') && sql.includes('SET column_id = $4')) {
           expect(values).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 'active']);
@@ -4684,7 +4684,7 @@ describe('TaskLifecycleService replay-safe idempotent guards', () => {
     );
   });
 
-  it('returns a settled specialist work item from active back to the entry column', async () => {
+  it('keeps a settled specialist work item in the active board column until explicit routing moves it', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const handoffService = {
       assertRequiredTaskHandoffBeforeCompletion: vi.fn(async () => undefined),
@@ -4744,12 +4744,8 @@ describe('TaskLifecycleService replay-safe idempotent guards', () => {
             ],
           };
         }
-        if (sql.includes('COUNT(*)::int AS active_task_count')) {
-          return { rows: [{ active_task_count: 0 }], rowCount: 1 };
-        }
-        if (sql.includes('UPDATE workflow_work_items') && sql.includes('SET column_id = $4')) {
-          expect(values).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 'planned']);
-          return { rows: [{ id: 'work-item-1' }], rowCount: 1 };
+        if (sql.includes('COUNT(*)::int AS engaged_task_count')) {
+          return { rows: [{ engaged_task_count: 1 }], rowCount: 1 };
         }
         return { rows: [], rowCount: 0 };
       }),
@@ -4792,13 +4788,130 @@ describe('TaskLifecycleService replay-safe idempotent guards', () => {
       verification: { passed: true },
     });
 
+    expect(eventService.emit).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'work_item.moved',
+        entityId: 'work-item-1',
+      }),
+      expect.anything(),
+    );
+  });
+
+  it('promotes an already-engaged work item back into the active board column on completion', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const handoffService = {
+      assertRequiredTaskHandoffBeforeCompletion: vi.fn(async () => undefined),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflows') && sql.includes('FOR UPDATE')) {
+          return { rows: [{ id: 'workflow-1' }], rowCount: 1 };
+        }
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-complete-recover-active',
+                state: 'completed',
+                workflow_id: 'workflow-1',
+                work_item_id: 'work-item-1',
+                assigned_agent_id: null,
+                assigned_worker_id: null,
+                is_orchestrator_task: false,
+                output: { summary: 'done' },
+                metadata: {},
+              },
+            ],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                workflow_id: 'workflow-1',
+                work_item_id: 'work-item-1',
+                stage_name: 'implementation',
+                column_id: 'planned',
+                completed_at: null,
+                blocked_state: null,
+                escalation_status: null,
+                definition: {
+                  process_instructions: 'Keep work moving.',
+                  roles: [],
+                  board: {
+                    columns: [
+                      { id: 'planned', label: 'Planned' },
+                      { id: 'active', label: 'In Progress' },
+                      { id: 'blocked', label: 'Blocked', is_blocked: true },
+                      { id: 'done', label: 'Done', is_terminal: true },
+                    ],
+                  },
+                  stages: [],
+                },
+              },
+            ],
+          };
+        }
+        if (sql.includes('COUNT(*)::int AS engaged_task_count')) {
+          return { rows: [{ engaged_task_count: 1 }], rowCount: 1 };
+        }
+        if (sql.includes('UPDATE workflow_work_items') && sql.includes('SET column_id = $4')) {
+          expect(values).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 'active']);
+          return { rows: [{ id: 'work-item-1' }], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+    const workflowStateService = { recomputeWorkflowState: vi.fn(async () => 'active') };
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      workflowStateService: workflowStateService as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi
+        .fn()
+        .mockResolvedValueOnce({
+          id: 'task-complete-recover-active',
+          state: 'in_progress',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          assigned_agent_id: 'agent-1',
+          assigned_worker_id: null,
+          role_config: {},
+          is_orchestrator_task: false,
+        })
+        .mockResolvedValueOnce({
+          id: 'task-complete-recover-active',
+          state: 'in_progress',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          assigned_agent_id: 'agent-1',
+          assigned_worker_id: null,
+          role_config: {},
+          is_orchestrator_task: false,
+        }),
+      toTaskResponse: (task: Record<string, unknown>) => task,
+      handoffService: handoffService as never,
+    });
+
+    await service.completeTask(agentIdentity, 'task-complete-recover-active', {
+      output: { summary: 'done' },
+      verification: { passed: true },
+    });
+
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'work_item.moved',
         entityId: 'work-item-1',
         data: expect.objectContaining({
-          previous_column_id: 'active',
-          column_id: 'planned',
+          previous_column_id: 'planned',
+          column_id: 'active',
         }),
       }),
       client,

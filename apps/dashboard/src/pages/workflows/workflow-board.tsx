@@ -6,7 +6,8 @@ import { Button } from '../../components/ui/button.js';
 import type { DashboardWorkflowBoardResponse, DashboardWorkflowWorkItemRecord } from '../../lib/api.js';
 import { dashboardApi } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
-import { WorkflowBoardTaskStack, type WorkflowTaskPreview } from './workflow-board-task-stack.js';
+import { WorkflowBoardTaskStack } from './workflow-board-task-stack.js';
+import { summarizeTaskPreviewsForWorkItem, type WorkflowTaskPreviewSummary } from './workflow-board-task-preview.js';
 import type { WorkflowBoardMode } from './workflows-page.support.js';
 import { buildWorkflowBoardView, isNeedsActionWorkItem } from './workflow-board.support.js';
 
@@ -18,9 +19,11 @@ export function WorkflowBoard(props: {
   workflowId: string;
   board: DashboardWorkflowBoardResponse | null;
   selectedWorkItemId: string | null;
+  selectedTaskId: string | null;
   boardMode: WorkflowBoardMode;
   onBoardModeChange(nextMode: WorkflowBoardMode): void;
   onSelectWorkItem(workItemId: string): void;
+  onSelectTask(workItemId: string, taskId: string): void;
 }): JSX.Element {
   const [stageFilter, setStageFilter] = useState<StageFilter>('__all__');
   const [laneFilter, setLaneFilter] = useState<LaneFilter>('__all__');
@@ -59,7 +62,7 @@ export function WorkflowBoard(props: {
       new Map(
         filteredWorkItems.map((workItem, index) => [
           workItem.id,
-          normalizeTaskPreviews(taskQueries[index]?.data),
+          summarizeTaskPreviewsForWorkItem(taskQueries[index]?.data, workItem.id),
         ]),
       ),
     [filteredWorkItems, taskQueries],
@@ -77,15 +80,10 @@ export function WorkflowBoard(props: {
   }
 
   return (
-    <section className="space-y-4 rounded-3xl border border-border/70 bg-background/90 p-5">
+    <section className="flex h-full flex-col gap-4 rounded-3xl border border-border/70 bg-background/90 p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-lg font-semibold text-foreground">Workflow board</p>
-          <p className="text-sm text-muted-foreground">
-            Lanes show the actual workflow flow while tasks stay subordinate under each work item.
-          </p>
-        </div>
         <div className="flex flex-wrap items-center gap-2">
+          <p className="text-lg font-semibold text-foreground">Workflow board</p>
           <ModeButton
             isActive={props.boardMode === 'active'}
             label="Active"
@@ -101,72 +99,55 @@ export function WorkflowBoard(props: {
             label="All"
             onClick={() => props.onBoardModeChange('all')}
           />
+          <select
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+            value={stageFilter}
+            onChange={(event) => setStageFilter(event.target.value)}
+          >
+            <option value="__all__">All stages</option>
+            {boardView.stageOptions.map((stageName) => (
+              <option key={stageName} value={stageName}>
+                {humanizeToken(stageName)}
+              </option>
+            ))}
+          </select>
+          <select
+            className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+            value={laneFilter}
+            onChange={(event) => setLaneFilter(event.target.value)}
+          >
+            <option value="__all__">All lanes</option>
+            {boardView.laneOptions.map((column) => (
+              <option key={column.id} value={column.id}>
+                {column.label}
+              </option>
+            ))}
+          </select>
+          <ToggleFilter
+            label="Needs Action"
+            isActive={needsActionOnly}
+            onClick={() => setNeedsActionOnly((current) => !current)}
+          />
+          <ToggleFilter label="Blocked" isActive={blockedOnly} onClick={() => setBlockedOnly((current) => !current)} />
+          <ToggleFilter
+            label="Escalated"
+            isActive={escalatedOnly}
+            onClick={() => setEscalatedOnly((current) => !current)}
+          />
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
-          value={stageFilter}
-          onChange={(event) => setStageFilter(event.target.value)}
-        >
-          <option value="__all__">All stages</option>
-          {boardView.stageOptions.map((stageName) => (
-            <option key={stageName} value={stageName}>
-              {stageName}
-            </option>
-          ))}
-        </select>
-        <select
-          className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
-          value={laneFilter}
-          onChange={(event) => setLaneFilter(event.target.value)}
-        >
-          <option value="__all__">All lanes</option>
-          {boardView.laneOptions.map((column) => (
-            <option key={column.id} value={column.id}>
-              {column.label}
-            </option>
-          ))}
-        </select>
-        <ToggleFilter
-          label="Needs Action"
-          isActive={needsActionOnly}
-          onClick={() => setNeedsActionOnly((current) => !current)}
-        />
-        <ToggleFilter label="Blocked" isActive={blockedOnly} onClick={() => setBlockedOnly((current) => !current)} />
-        <ToggleFilter
-          label="Escalated"
-          isActive={escalatedOnly}
-          onClick={() => setEscalatedOnly((current) => !current)}
-        />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        {boardView.activeStageNames.length > 0 ? (
-          boardView.activeStageNames.map((stageName) => (
-            <Badge key={stageName} variant="outline">
-              Active stage: {humanizeToken(stageName)}
-            </Badge>
-          ))
-        ) : (
-          <Badge variant="outline">No active stages</Badge>
-        )}
-        <Badge variant="secondary">{boardView.filteredCount} visible items</Badge>
-        {boardView.hasFilters ? (
-          <Badge variant="outline">Filtered from {boardView.totalCount} total items</Badge>
-        ) : null}
-      </div>
-
-      <div className="overflow-x-auto pb-2">
-        <div className="grid gap-4 md:grid-flow-col md:auto-cols-[minmax(18rem,1fr)]">
+      <div className="min-h-0 flex-1 overflow-x-auto pb-2">
+        <div className="grid min-h-full gap-4 md:grid-flow-col md:auto-cols-[minmax(18rem,1fr)]">
           {boardView.lanes.map((lane) => (
             <BoardLaneCard
               key={lane.column.id}
               lane={lane}
               boardMode={props.boardMode}
               selectedWorkItemId={props.selectedWorkItemId}
+              selectedTaskId={props.selectedTaskId}
               onSelectWorkItem={props.onSelectWorkItem}
+              onSelectTask={props.onSelectTask}
               tasksByWorkItem={tasksByWorkItem}
             />
           ))}
@@ -186,15 +167,17 @@ function BoardLaneCard(props: {
   lane: ReturnType<typeof buildWorkflowBoardView>['lanes'][number];
   boardMode: WorkflowBoardMode;
   selectedWorkItemId: string | null;
+  selectedTaskId: string | null;
   onSelectWorkItem(workItemId: string): void;
-  tasksByWorkItem: Map<string, WorkflowTaskPreview[]>;
+  onSelectTask(workItemId: string, taskId: string): void;
+  tasksByWorkItem: Map<string, WorkflowTaskPreviewSummary>;
 }): JSX.Element {
   const showCompletedSection =
     props.boardMode !== 'active'
     && (props.lane.visibleCompletedItems.length > 0 || props.lane.hiddenCompletedCount > 0);
 
   return (
-    <article className="grid min-w-0 gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
+    <article className="grid h-full min-w-0 content-start gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <p className="text-sm font-semibold text-foreground">{props.lane.column.label}</p>
@@ -205,13 +188,12 @@ function BoardLaneCard(props: {
         <div className="flex flex-wrap items-center gap-2">
           {props.lane.column.is_blocked ? <Badge variant="warning">Blocked lane</Badge> : null}
           {props.lane.column.is_terminal ? <Badge variant="secondary">Terminal lane</Badge> : null}
-          <Badge variant="outline">{props.lane.totalFilteredCount} visible</Badge>
         </div>
       </div>
 
       <div className="grid gap-3">
         {props.lane.activeItems.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border/70 bg-background/70 p-4 text-sm text-muted-foreground">
+          <div className="flex min-h-[10rem] items-center justify-center text-center text-sm text-muted-foreground">
             No active work is currently visible in this lane.
           </div>
         ) : (
@@ -219,9 +201,11 @@ function BoardLaneCard(props: {
             <BoardWorkItemCard
               key={workItem.id}
               workItem={workItem}
-              tasks={props.tasksByWorkItem.get(workItem.id) ?? []}
+              taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
               isSelected={workItem.id === props.selectedWorkItemId}
+              selectedTaskId={props.selectedTaskId}
               onSelect={props.onSelectWorkItem}
+              onSelectTask={props.onSelectTask}
             />
           ))
         )}
@@ -243,9 +227,11 @@ function BoardLaneCard(props: {
                 <BoardWorkItemCard
                   key={workItem.id}
                   workItem={workItem}
-                  tasks={props.tasksByWorkItem.get(workItem.id) ?? []}
+                  taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
                   isSelected={workItem.id === props.selectedWorkItemId}
+                  selectedTaskId={props.selectedTaskId}
                   onSelect={props.onSelectWorkItem}
+                  onSelectTask={props.onSelectTask}
                   muted
                 />
               ))
@@ -259,14 +245,15 @@ function BoardLaneCard(props: {
 
 function BoardWorkItemCard(props: {
   workItem: DashboardWorkflowWorkItemRecord;
-  tasks: WorkflowTaskPreview[];
+  taskSummary: WorkflowTaskPreviewSummary;
   isSelected: boolean;
+  selectedTaskId: string | null;
   muted?: boolean;
   onSelect(workItemId: string): void;
+  onSelectTask(workItemId: string, taskId: string): void;
 }): JSX.Element {
   return (
-    <button
-      type="button"
+    <article
       className={cn(
         'grid w-full gap-3 rounded-2xl border px-4 py-4 text-left transition-colors',
         props.isSelected
@@ -275,74 +262,36 @@ function BoardWorkItemCard(props: {
             ? 'border-border/70 bg-background/60 hover:bg-background/80'
             : 'border-border/70 bg-background/85 hover:bg-background',
       )}
-      onClick={() => props.onSelect(props.workItem.id)}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <strong className="text-foreground">{props.workItem.title}</strong>
-        <Badge variant="outline">{humanizeToken(props.workItem.stage_name)}</Badge>
-        <Badge variant="outline">{props.workItem.priority}</Badge>
-        {props.workItem.blocked_state === 'blocked' ? <Badge variant="destructive">Blocked</Badge> : null}
-        {props.workItem.escalation_status === 'open' ? <Badge variant="warning">Escalated</Badge> : null}
-        {isNeedsActionWorkItem(props.workItem) ? <Badge variant="warning">Needs action</Badge> : null}
-      </div>
-
-      <p className="text-sm text-muted-foreground">
-        {props.workItem.goal ?? props.workItem.acceptance_criteria ?? 'No goal published for this work item.'}
-      </p>
-
-      <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-        {props.workItem.owner_role ? <span>Owner {props.workItem.owner_role}</span> : null}
-        {props.workItem.next_expected_action ? <span>Next {props.workItem.next_expected_action}</span> : null}
-        <span>{props.workItem.task_count ?? 0} tasks</span>
-        {props.workItem.children_count ? <span>{props.workItem.children_count} child items</span> : null}
-      </div>
-
-      {props.workItem.blocked_reason || props.workItem.gate_decision_feedback ? (
-        <div className="rounded-xl border border-amber-300/60 bg-amber-50/70 p-3 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">
-          {props.workItem.blocked_reason ?? props.workItem.gate_decision_feedback}
+      <button type="button" className="grid w-full gap-3 text-left" onClick={() => props.onSelect(props.workItem.id)}>
+        <div className="flex flex-wrap items-center gap-2">
+          <strong className="text-foreground">{props.workItem.title}</strong>
+          <Badge variant="outline">{humanizeToken(props.workItem.stage_name)}</Badge>
+          {shouldShowPriorityBadge(props.workItem.priority) ? (
+            <Badge variant="outline">{humanizeToken(props.workItem.priority)}</Badge>
+          ) : null}
+          {props.workItem.blocked_state === 'blocked' ? <Badge variant="destructive">Blocked</Badge> : null}
+          {props.workItem.escalation_status === 'open' ? <Badge variant="warning">Escalated</Badge> : null}
+          {isNeedsActionWorkItem(props.workItem) ? <Badge variant="warning">Needs action</Badge> : null}
+          {props.taskSummary.hasActiveOrchestratorTask ? <Badge variant="secondary">Orchestrator working</Badge> : null}
         </div>
-      ) : null}
 
-      <WorkflowBoardTaskStack tasks={props.tasks} />
+        {props.workItem.blocked_reason || props.workItem.gate_decision_feedback ? (
+          <div className="rounded-xl border border-amber-300/60 bg-amber-50/70 p-3 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">
+            {props.workItem.blocked_reason ?? props.workItem.gate_decision_feedback}
+          </div>
+        ) : null}
+      </button>
+
+      <WorkflowBoardTaskStack
+        tasks={props.taskSummary.tasks}
+        selectedTaskId={props.selectedTaskId}
+        defaultOpen={!props.muted}
+        onSelectTask={(taskId) => props.onSelectTask(props.workItem.id, taskId)}
+      />
       <span className="sr-only">Task preview</span>
-    </button>
+    </article>
   );
-}
-
-function normalizeTaskPreviews(records: Record<string, unknown>[] | undefined): WorkflowTaskPreview[] {
-  if (!Array.isArray(records)) {
-    return [];
-  }
-  return records
-    .flatMap((entry) => {
-      const id = typeof entry.id === 'string' ? entry.id : null;
-      if (!id) {
-        return [];
-      }
-      return [
-        {
-          id,
-          title: typeof entry.title === 'string' ? entry.title : 'Untitled task',
-          role: typeof entry.role === 'string' ? entry.role : null,
-          state: typeof entry.state === 'string' ? entry.state : null,
-        },
-      ];
-    })
-    .sort((left, right) => readTaskPriority(left).localeCompare(readTaskPriority(right)));
-}
-
-function readTaskPriority(task: WorkflowTaskPreview): string {
-  switch (task.state) {
-    case 'failed':
-    case 'awaiting_approval':
-    case 'in_progress':
-      return '0';
-    case 'claimed':
-    case 'ready':
-      return '1';
-    default:
-      return '2';
-  }
 }
 
 function ModeButton(props: {
@@ -373,4 +322,19 @@ function humanizeToken(value: string): string {
   return value
     .replace(/[_-]+/g, ' ')
     .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function shouldShowPriorityBadge(priority: string | null | undefined): boolean {
+  if (!priority) {
+    return false;
+  }
+  const normalized = priority.trim().toLowerCase();
+  return normalized !== 'medium' && normalized !== 'normal';
+}
+
+function emptyTaskSummary(): WorkflowTaskPreviewSummary {
+  return {
+    tasks: [],
+    hasActiveOrchestratorTask: false,
+  };
 }

@@ -112,7 +112,8 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
       board_mode?: string;
       board_filters?: string;
       work_item_id?: string;
-      tab_scope?: 'workflow' | 'selected_work_item';
+      task_id?: string;
+      tab_scope?: 'workflow' | 'selected_work_item' | 'selected_task';
       live_console_after?: string;
       live_console_limit?: string;
       history_after?: string;
@@ -129,6 +130,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
         boardMode: query.board_mode,
         boardFilters: query.board_filters,
         workItemId: query.work_item_id,
+        taskId: query.task_id,
         tabScope: query.tab_scope ?? 'workflow',
         liveConsoleAfter: query.live_console_after,
         liveConsoleLimit: readPositiveInt(query.live_console_limit, 50),
@@ -201,7 +203,8 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
       board_mode?: string;
       board_filters?: string;
       work_item_id?: string;
-      tab_scope?: 'workflow' | 'selected_work_item';
+      task_id?: string;
+      tab_scope?: 'workflow' | 'selected_work_item' | 'selected_task';
     };
     headers: Record<string, unknown>;
     raw?: NodeJS.EventEmitter;
@@ -217,6 +220,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
         boardMode: request.query.board_mode,
         boardFilters: request.query.board_filters,
         workItemId: request.query.work_item_id,
+        taskId: request.query.task_id,
         tabScope: request.query.tab_scope ?? 'workflow',
       },
     );
@@ -243,6 +247,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
           boardMode: request.query.board_mode,
           boardFilters: request.query.board_filters,
           workItemId: request.query.work_item_id,
+          taskId: request.query.task_id,
           tabScope: request.query.tab_scope ?? 'workflow',
           liveConsoleHeadCursor: currentLiveConsoleHead,
           historyHeadCursor: currentHistoryHead,

@@ -32,15 +32,22 @@ export function WorkflowAddWorkDialog(props: {
   workItemId: string | null;
 }): JSX.Element {
   const queryClient = useQueryClient();
+  const selectedWorkItem = useMemo(
+    () =>
+      props.workItemId
+        ? props.board?.work_items.find((entry) => entry.id === props.workItemId) ?? null
+        : null,
+    [props.board, props.workItemId],
+  );
+  const isModifyMode = selectedWorkItem !== null;
   const [title, setTitle] = useState('');
-  const [goal, setGoal] = useState('');
   const [acceptanceCriteria, setAcceptanceCriteria] = useState('');
   const [stageName, setStageName] = useState('__auto__');
-  const [ownerRole, setOwnerRole] = useState('');
   const [priority, setPriority] = useState<Priority>('normal');
   const [notes, setNotes] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [structuredDrafts, setStructuredDrafts] = useState<StructuredEntryDraft[]>([]);
+  const [steeringInstruction, setSteeringInstruction] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
@@ -49,86 +56,88 @@ export function WorkflowAddWorkDialog(props: {
     const workItemStages = props.board?.work_items.map((entry) => entry.stage_name) ?? [];
     return Array.from(new Set([...ordered, ...workItemStages])).filter((entry) => entry.length > 0);
   }, [props.board]);
-  const ownerRoleOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          props.board?.work_items.flatMap((entry) => (entry.owner_role ? [entry.owner_role] : [])) ?? [],
-        ),
-      ),
-    [props.board],
-  );
-  const selectedWorkItem = useMemo(
-    () =>
-      props.workItemId
-        ? props.board?.work_items.find((entry) => entry.id === props.workItemId) ?? null
-        : null,
-    [props.board, props.workItemId],
-  );
 
   useEffect(() => {
     if (!props.isOpen) {
       setTitle('');
-      setGoal('');
       setAcceptanceCriteria('');
       setStageName('__auto__');
-      setOwnerRole('');
       setPriority('normal');
       setNotes('');
       setFiles([]);
       setStructuredDrafts([]);
+      setSteeringInstruction('');
       setErrorMessage(null);
       setHasAttemptedSubmit(false);
       return;
     }
 
     setTitle(selectedWorkItem?.title ?? '');
-    setGoal(selectedWorkItem?.goal ?? '');
     setAcceptanceCriteria(selectedWorkItem?.acceptance_criteria ?? '');
     setStageName(selectedWorkItem?.stage_name ?? '__auto__');
-    setOwnerRole(selectedWorkItem?.owner_role ?? '');
     setPriority(readPriority(selectedWorkItem?.priority));
     setNotes(selectedWorkItem?.notes ?? '');
     setFiles([]);
     setStructuredDrafts([]);
+    setSteeringInstruction('');
     setErrorMessage(null);
     setHasAttemptedSubmit(false);
   }, [props.isOpen, selectedWorkItem]);
 
-  const titleError = hasAttemptedSubmit && !title.trim() ? 'Enter a work item title.' : undefined;
+  const hasSupplementalInput = structuredDrafts.some(
+    (entry) => entry.key.trim().length > 0 || entry.value.trim().length > 0,
+  ) || files.length > 0;
+  const titleError = hasAttemptedSubmit && !isModifyMode && !title.trim() ? 'Enter a work item title.' : undefined;
+  const modifyWorkError =
+    hasAttemptedSubmit && isModifyMode && !hasSupplementalInput && steeringInstruction.trim().length === 0
+      ? 'Add inputs, files, or a steering instruction before saving changes.'
+      : undefined;
   const formFeedbackMessage = resolveFormFeedbackMessage({
     serverError: errorMessage,
     showValidation: hasAttemptedSubmit,
-    isValid: Boolean(title.trim()),
+    isValid: isModifyMode
+      ? !modifyWorkError
+      : Boolean(title.trim()),
     validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
   });
 
   const mutation = useMutation({
     mutationFn: async () => {
       const structuredInputs = buildStructuredObject(structuredDrafts, 'Workflow work input');
-      const workItem = selectedWorkItem
-        ? await dashboardApi.updateWorkflowWorkItem(props.workflowId, selectedWorkItem.id, {
-            title: title.trim() || undefined,
-            goal: goal.trim() || undefined,
-            acceptance_criteria: acceptanceCriteria.trim() || undefined,
-            stage_name: stageName === '__auto__' ? undefined : stageName,
-            owner_role: ownerRole.trim() || null,
-            priority,
-            notes: notes.trim() || null,
-          })
-        : await dashboardApi.createWorkflowWorkItem(props.workflowId, {
-            title: title.trim(),
-            goal: goal.trim() || undefined,
-            acceptance_criteria: acceptanceCriteria.trim() || undefined,
-            stage_name: stageName === '__auto__' ? undefined : stageName,
-            owner_role: ownerRole.trim() || undefined,
-            priority,
-            notes: notes.trim() || undefined,
+      if (isModifyMode && selectedWorkItem) {
+        const linkedInputPacketIds: string[] = [];
+        if (structuredInputs || files.length > 0) {
+          const packet = await dashboardApi.createWorkflowInputPacket(props.workflowId, {
+            packet_kind: 'plan_update',
+            work_item_id: selectedWorkItem.id,
+            summary: `Inputs updated for ${selectedWorkItem.title}`,
+            structured_inputs: structuredInputs,
+            files: await buildFileUploadPayloads(files),
           });
+          linkedInputPacketIds.push(packet.id);
+        }
+        if (steeringInstruction.trim().length > 0) {
+          await dashboardApi.createWorkflowSteeringRequest(props.workflowId, {
+            request_id: crypto.randomUUID(),
+            request: steeringInstruction.trim(),
+            work_item_id: selectedWorkItem.id,
+            linked_input_packet_ids: linkedInputPacketIds,
+          });
+        }
+        return selectedWorkItem;
+      }
+
+      const workItem = await dashboardApi.createWorkflowWorkItem(props.workflowId, {
+        title: title.trim(),
+        acceptance_criteria: acceptanceCriteria.trim() || undefined,
+        stage_name: stageName === '__auto__' ? undefined : stageName,
+        priority,
+        notes: notes.trim() || undefined,
+      });
       await dashboardApi.createWorkflowInputPacket(props.workflowId, {
-        packet_kind: resolvePacketKind(props.lifecycle, selectedWorkItem?.id ?? null),
+        packet_kind: resolvePacketKind(props.lifecycle, null),
         work_item_id: workItem.id,
-        summary: buildPacketSummary(props.lifecycle, selectedWorkItem?.id ?? null, workItem.title),
+        summary: buildPacketSummary(props.lifecycle, null, workItem.title),
         structured_inputs: structuredInputs,
         files: await buildFileUploadPayloads(files),
       });
@@ -150,7 +159,7 @@ export function WorkflowAddWorkDialog(props: {
       ? 'Add Intake'
       : 'Add Work';
   const description = selectedWorkItem
-    ? 'Update the selected work item and attach a plan-update packet without leaving the workflow workspace.'
+    ? 'Update the selected work item with new inputs, files, or a built-in steering request without leaving the workflow workspace.'
     : props.lifecycle === 'ongoing'
       ? 'Add new incoming work, files, and typed inputs into this ongoing workflow.'
       : 'Add planned work with supporting typed inputs and immutable workflow-scoped files.';
@@ -167,86 +176,99 @@ export function WorkflowAddWorkDialog(props: {
         </DialogHeader>
 
         <div className="grid gap-4">
-          <label className="grid gap-2 text-sm">
-            <span className="font-medium">Title</span>
-            <Input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Validation rerun"
-              aria-invalid={Boolean(titleError)}
-            />
-            <FieldErrorText message={titleError} />
-          </label>
+          {isModifyMode ? (
+            <section className="grid gap-2 rounded-2xl border border-border/70 bg-muted/10 p-4 text-sm">
+              <strong className="text-foreground">{selectedWorkItem.title}</strong>
+              <p className="text-muted-foreground">
+                Add inputs, files, or steering for this work item without rewriting its core definition.
+              </p>
+            </section>
+          ) : (
+            <>
+              <label className="grid gap-2 text-sm">
+                <span className="font-medium">Title</span>
+                <Input
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="Validation rerun"
+                  aria-invalid={Boolean(titleError)}
+                />
+                <FieldErrorText message={titleError} />
+              </label>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Stage</span>
-              <Select value={stageName} onValueChange={setStageName}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Auto-route stage" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__auto__">Auto-route</SelectItem>
-                  {stageOptions.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Owner role</span>
-              <Input list="workflow-add-work-owner-roles" value={ownerRole} onChange={(event) => setOwnerRole(event.target.value)} placeholder="Optional" />
-              <datalist id="workflow-add-work-owner-roles">
-                {ownerRoleOptions.map((option) => (
-                  <option key={option} value={option} />
-                ))}
-              </datalist>
-            </label>
-          </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="grid gap-2 text-sm">
+                  <span className="font-medium">Stage</span>
+                  <Select value={stageName} onValueChange={setStageName}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Auto-route stage" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__auto__">Auto-route</SelectItem>
+                      {stageOptions.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+                <label className="grid gap-2 text-sm">
+                  <span className="font-medium">Acceptance criteria</span>
+                  <Textarea
+                    value={acceptanceCriteria}
+                    onChange={(event) => setAcceptanceCriteria(event.target.value)}
+                    className="min-h-[96px]"
+                  />
+                </label>
+              </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Goal</span>
-              <Textarea value={goal} onChange={(event) => setGoal(event.target.value)} className="min-h-[96px]" />
-            </label>
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Acceptance criteria</span>
-              <Textarea value={acceptanceCriteria} onChange={(event) => setAcceptanceCriteria(event.target.value)} className="min-h-[96px]" />
-            </label>
-          </div>
+              <div className="grid gap-4 md:grid-cols-[12rem_minmax(0,1fr)]">
+                <label className="grid gap-2 text-sm">
+                  <span className="font-medium">Priority</span>
+                  <Select value={priority} onValueChange={(value) => setPriority(value as Priority)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="critical">Critical</SelectItem>
+                      <SelectItem value="high">High</SelectItem>
+                      <SelectItem value="normal">Normal</SelectItem>
+                      <SelectItem value="low">Low</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </label>
+                <label className="grid gap-2 text-sm">
+                  <span className="font-medium">Operator note</span>
+                  <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-[96px]" />
+                </label>
+              </div>
+            </>
+          )}
 
-          <div className="grid gap-4 md:grid-cols-[12rem_minmax(0,1fr)]">
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Priority</span>
-              <Select value={priority} onValueChange={(value) => setPriority(value as Priority)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="critical">Critical</SelectItem>
-                  <SelectItem value="high">High</SelectItem>
-                  <SelectItem value="normal">Normal</SelectItem>
-                  <SelectItem value="low">Low</SelectItem>
-                </SelectContent>
-              </Select>
-            </label>
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium">Operator note</span>
-              <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-[96px]" />
-            </label>
-          </div>
-
-          <div className="grid gap-3 rounded-md border border-border p-4">
+          <div className="grid gap-3">
             <div className="grid gap-1">
-              <strong className="text-sm">Typed inputs</strong>
+              <strong className="text-sm">{isModifyMode ? 'Editable inputs' : 'Typed inputs'}</strong>
               <p className="text-sm text-muted-foreground">
-                These values become a durable workflow input packet linked to the new work item.
+                {isModifyMode
+                  ? 'These values become a durable input packet linked to the selected work item.'
+                  : 'These values become a durable workflow input packet linked to the new work item.'}
               </p>
             </div>
             <ChainStructuredEntryEditor drafts={structuredDrafts} onChange={setStructuredDrafts} addLabel="Add structured input" />
           </div>
+
+          {isModifyMode ? (
+            <label className="grid gap-2 text-sm">
+              <span className="font-medium">Steering instruction</span>
+              <Textarea
+                value={steeringInstruction}
+                onChange={(event) => setSteeringInstruction(event.target.value)}
+                className="min-h-[96px]"
+                placeholder="Guide the orchestrator on how this work item should proceed next."
+              />
+            </label>
+          ) : null}
 
           <WorkflowFileInput
             files={files}
@@ -255,6 +277,7 @@ export function WorkflowAddWorkDialog(props: {
             description="Attach immutable workflow-scoped files for this work item."
           />
 
+          <FieldErrorText message={modifyWorkError} />
           <FormFeedbackMessage message={formFeedbackMessage} />
 
           <div className="flex justify-end gap-2">
@@ -265,7 +288,7 @@ export function WorkflowAddWorkDialog(props: {
               type="button"
               disabled={mutation.isPending}
               onClick={() => {
-                if (!title.trim()) {
+                if ((!isModifyMode && !title.trim()) || (isModifyMode && !hasSupplementalInput && steeringInstruction.trim().length === 0)) {
                   setHasAttemptedSubmit(true);
                   return;
                 }

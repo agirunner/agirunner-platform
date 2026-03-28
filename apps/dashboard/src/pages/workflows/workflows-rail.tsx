@@ -49,6 +49,7 @@ export function WorkflowsRail(props: {
         : true,
     [props.ongoingRows, props.rows, props.selectedWorkflowId],
   );
+  const shouldShowMainEmptyState = visibleRows.length === 0 && !(props.mode === 'live' && !props.ongoingOnly && ongoingPreviewRows.length > 0);
 
   return (
     <aside className="flex h-full min-h-0 w-full flex-col overflow-x-hidden border-r border-border/70 bg-stone-50/90 dark:bg-slate-950/70">
@@ -162,11 +163,11 @@ export function WorkflowsRail(props: {
         }}
       >
         <div className="grid gap-2">
-          {visibleRows.length === 0 ? (
+          {shouldShowMainEmptyState ? (
             <div className="rounded-2xl border border-dashed border-border/70 bg-background/80 p-4 text-sm text-muted-foreground">
-              No workflows match the current rail view.
+              No workflows match the current filters.
             </div>
-          ) : (
+          ) : visibleRows.length > 0 ? (
             visibleRows.map((row) => (
               <WorkflowRailRowCard
                 key={row.workflow_id}
@@ -175,7 +176,7 @@ export function WorkflowsRail(props: {
                 onSelect={props.onSelectWorkflow}
               />
             ))
-          )}
+          ) : null}
           {props.hasNextPage ? (
             <Button type="button" variant="ghost" onClick={props.onLoadMore}>
               Load more
@@ -219,14 +220,9 @@ function WorkflowRailRowCard(props: {
       <p className="line-clamp-2 text-sm text-foreground">{props.row.live_summary}</p>
 
       <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-        <span>{props.row.counts.active_work_item_count} work items</span>
-        <span>{props.row.counts.active_task_count} tasks</span>
-        {props.row.counts.open_escalation_count > 0 ? (
-          <span>{props.row.counts.open_escalation_count} escalations</span>
-        ) : null}
-        {props.row.counts.waiting_for_decision_count > 0 ? (
-          <span>{props.row.counts.waiting_for_decision_count} approvals</span>
-        ) : null}
+        {buildWorkflowActivityLine(props.row).map((entry) => (
+          <span key={`${props.row.workflow_id}:${entry}`}>{entry}</span>
+        ))}
       </div>
 
       <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
@@ -275,7 +271,29 @@ function humanizePosture(value: string | null): string {
   if (!value) {
     return 'Workflow';
   }
+  if (value === 'waiting_by_design') {
+    return 'Waiting for Work';
+  }
   return value
     .replace(/[_-]+/g, ' ')
     .replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function buildWorkflowActivityLine(row: DashboardWorkflowRailRow): string[] {
+  const counts = row.counts;
+  if (counts.active_work_item_count === 0 && counts.active_task_count > 0) {
+    return ['Orchestrator working'];
+  }
+
+  const parts = [
+    formatCount(counts.active_work_item_count, 'work item'),
+    formatCount(counts.active_task_count, 'task'),
+    counts.open_escalation_count > 0 ? formatCount(counts.open_escalation_count, 'escalation') : null,
+    counts.waiting_for_decision_count > 0 ? formatCount(counts.waiting_for_decision_count, 'approval') : null,
+  ];
+  return parts.filter((value): value is string => Boolean(value));
+}
+
+function formatCount(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`;
 }

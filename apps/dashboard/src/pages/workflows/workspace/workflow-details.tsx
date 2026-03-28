@@ -18,6 +18,7 @@ export function WorkflowDetails(props: {
   selectedTask: DashboardTaskRecord | null;
   selectedWorkItemTasks: Record<string, unknown>[];
   inputPackets: DashboardWorkflowInputPacketRecord[];
+  workflowParameters: Record<string, unknown> | null;
 }): JSX.Element {
   const selectedWorkItemId = props.selectedWorkItem?.id ?? null;
   const workflowPackets = props.inputPackets.filter((packet) => packet.work_item_id === null);
@@ -51,9 +52,9 @@ export function WorkflowDetails(props: {
         ) : null}
 
         {scope.rows.length > 0 ? (
-          <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <dl className="divide-y divide-border/60 rounded-xl border border-border/70 bg-muted/10">
             {scope.rows.map(([label, value]) => (
-              <div key={label} className="grid gap-1 rounded-xl border border-border/70 bg-muted/10 p-3">
+              <div key={label} className="grid gap-1 px-3 py-2.5 sm:grid-cols-[10rem_minmax(0,1fr)] sm:items-start sm:gap-3 md:grid">
                 <dt className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                   {label}
                 </dt>
@@ -99,12 +100,15 @@ export function WorkflowDetails(props: {
           </p>
         </div>
 
-        {workflowPackets.length === 0 && workItemPackets.length === 0 && !hasTaskInput ? (
+        {workflowPackets.length === 0 && workItemPackets.length === 0 && !hasTaskInput && !hasStructuredContent(props.workflowParameters) ? (
           <p className="text-sm text-muted-foreground">
             No workflow, work item, or task inputs are recorded for the current selection.
           </p>
         ) : (
           <div className="grid gap-4">
+            {hasStructuredContent(props.workflowParameters) ? (
+              <StructuredBlock label="Workflow parameters" value={props.workflowParameters} />
+            ) : null}
             {workflowPackets.length > 0 ? (
               <PacketSection label="Workflow inputs" packets={workflowPackets} />
             ) : null}

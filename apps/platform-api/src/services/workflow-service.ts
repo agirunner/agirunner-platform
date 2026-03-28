@@ -1,4 +1,5 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
+import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
 import { buildArtifactStorageConfig } from '../content/storage-config.js';
 import { createArtifactStorage } from '../content/storage-factory.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
@@ -56,6 +57,7 @@ import type {
 } from './workflow-service.types.js';
 
 export class WorkflowService {
+  private readonly artifactStorage: ArtifactStorageAdapter;
   private readonly creationService: WorkflowCreationService;
   private readonly cancellationService: WorkflowCancellationService;
   private readonly controlService: WorkflowControlService;
@@ -79,10 +81,8 @@ export class WorkflowService {
   ) {
     this.workspaceTimelineService = new WorkspaceTimelineService(pool);
     this.modelCatalogService = new ModelCatalogService(pool);
-    const artifactRetentionService = new ArtifactRetentionService(
-      pool,
-      createArtifactStorage(buildArtifactStorageConfig(config)),
-    );
+    this.artifactStorage = createArtifactStorage(buildArtifactStorageConfig(config));
+    const artifactRetentionService = new ArtifactRetentionService(pool, this.artifactStorage);
     const stateService = new WorkflowStateService(
       pool,
       eventService,
@@ -621,6 +621,7 @@ export class WorkflowService {
         throw new ConflictError('Only terminal workflows can be deleted');
       }
 
+      await this.deleteWorkflowStoredObjects(client, identity.tenantId, workflowId);
       await client.query('DELETE FROM tasks WHERE tenant_id = $1 AND workflow_id = $2', [
         identity.tenantId,
         workflowId,
@@ -663,6 +664,38 @@ export class WorkflowService {
 
   resumeWorkflow(identity: ApiKeyIdentity, workflowId: string) {
     return this.controlService.resumeWorkflow(identity, workflowId);
+  }
+
+  private async deleteWorkflowStoredObjects(
+    client: DatabaseClient,
+    tenantId: string,
+    workflowId: string,
+  ): Promise<void> {
+    const result = await client.query<{ storage_key: string }>(
+      `SELECT DISTINCT storage_key
+         FROM (
+           SELECT storage_key
+             FROM workflow_artifacts
+            WHERE tenant_id = $1
+              AND workflow_id = $2
+           UNION ALL
+           SELECT storage_key
+             FROM workflow_input_packet_files
+            WHERE tenant_id = $1
+              AND workflow_id = $2
+           UNION ALL
+           SELECT storage_key
+             FROM workflow_intervention_files
+            WHERE tenant_id = $1
+              AND workflow_id = $2
+         ) stored_files`,
+      [tenantId, workflowId],
+    );
+
+    const keys = Array.from(new Set(result.rows.map((row) => row.storage_key).filter(Boolean)));
+    for (const storageKey of keys) {
+      await this.artifactStorage.deleteObject(storageKey);
+    }
   }
 
   listWorkflowWorkItems(

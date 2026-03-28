@@ -19,7 +19,7 @@ test('redirects into Workflows and defaults the workbench by workflow posture', 
 
   await workflowRailButton(page, 'E2E Ongoing Intake').click();
   await expect(page.getByRole('heading', { name: 'E2E Ongoing Intake' })).toBeVisible();
-  await expect(page.getByText('Live Console')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Live Console' })).toBeVisible();
   await expect(page.getByText('Initial execution burst')).toBeVisible();
 
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();

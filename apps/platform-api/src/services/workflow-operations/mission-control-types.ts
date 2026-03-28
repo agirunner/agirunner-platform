@@ -4,6 +4,7 @@ export type MissionControlWorkflowPosture =
   | 'recoverable_needs_steering'
   | 'progressing'
   | 'waiting_by_design'
+  | 'cancelling'
   | 'paused'
   | 'terminal_failed'
   | 'completed'

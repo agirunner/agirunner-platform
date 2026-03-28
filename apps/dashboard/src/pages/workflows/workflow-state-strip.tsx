@@ -19,37 +19,29 @@ export function WorkflowStateStrip(props: {
   selectedScopeLabel: string | null;
   onTabChange(tab: WorkflowWorkbenchTab): void;
   onAddWork(): void;
+  onOpenRedrive(): void;
   onVisibilityModeChange(nextMode: 'standard' | 'enhanced' | null): void;
 }): JSX.Element {
   const sticky = props.stickyStrip;
   const visibilityValue = props.workflowSettings?.workflow_live_visibility_mode_override ?? '__inherit__';
   const workload = summarizeWorkload(props.board, props.workflow);
-  const activeStages = readActiveStages(props.board, props.workflow);
+  const contextLine = [props.workflow.playbookName, props.workflow.workspaceName].filter(Boolean).join(' • ');
+  const canOpenRedrive = props.workflow.availableActions.some(
+    (action) => action.kind === 'redrive_workflow' && action.enabled,
+  );
+  const postureLabel = humanizePosture(sticky?.posture ?? props.workflow.posture);
+  const isOngoingWorkflow = props.workflow.lifecycle === 'ongoing';
 
   return (
-    <section className="space-y-4 rounded-3xl border border-border/70 bg-background/90 p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="space-y-2">
+    <section className="space-y-3 rounded-3xl border border-border/70 bg-background/90 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-2xl font-semibold text-foreground">{props.workflow.name}</h2>
-            {props.workflow.currentStage ? <Badge variant="outline">{props.workflow.currentStage}</Badge> : null}
-            <Badge variant="secondary">{humanizePosture(sticky?.posture ?? props.workflow.posture)}</Badge>
+            <h2 className="text-base font-semibold text-foreground">{props.workflow.name}</h2>
+            <Badge variant="secondary">{postureLabel}</Badge>
+            {isOngoingWorkflow ? <Badge variant="outline">Ongoing</Badge> : null}
           </div>
-          <p className="text-sm text-muted-foreground">
-            {[props.workflow.playbookName, props.workflow.workspaceName].filter(Boolean).join(' • ') || 'Workflow'}
-          </p>
-          <div className="flex flex-wrap items-center gap-2">
-            {activeStages.length > 0 ? (
-              activeStages.map((stageName) => (
-                <Badge key={stageName} variant="outline">
-                  Active stage: {humanizePosture(stageName)}
-                </Badge>
-              ))
-            ) : (
-              <Badge variant="outline">No active stages</Badge>
-            )}
-          </div>
-          <p className="max-w-4xl text-sm text-foreground">{sticky?.summary ?? props.workflow.pulse.summary}</p>
+          {contextLine ? <p className="text-xs text-muted-foreground">{contextLine}</p> : null}
           <p className="text-xs text-muted-foreground">
             Last changed {formatRelativeTimestamp(props.workflow.metrics.lastChangedAt)}
             {props.selectedScopeLabel ? ` • Viewing ${props.selectedScopeLabel}` : ''}
@@ -64,38 +56,45 @@ export function WorkflowStateStrip(props: {
             additionalQueryKeys={[['workflows']]}
             availableActions={props.workflow.availableActions}
           />
+          {canOpenRedrive ? (
+            <Button size="sm" variant="outline" onClick={props.onOpenRedrive}>
+              Redrive
+            </Button>
+          ) : null}
           <Button size="sm" onClick={props.onAddWork}>
             Add / Modify Work
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-3 xl:grid-cols-[1.5fr_1fr_1fr_1.1fr]">
-        <InfoCard
+      <div className="grid gap-2 xl:grid-cols-[1.15fr_1fr_1fr_1.15fr]">
+        <StateCard
           title="Workflow State"
-          body={sticky?.summary ?? props.workflow.pulse.summary}
-          footer={`${props.workflow.lifecycle ?? 'workflow'} • ${activeStages.length} active stages`}
+          value={postureLabel}
+          footer={[
+            isOngoingWorkflow ? 'Accepting new work' : 'Planned flow',
+            props.workflow.state === 'paused' ? 'Paused' : null,
+          ].filter(Boolean).join(' • ')}
         />
-        <TabShortcutCard
+        <ShortcutCard
           title="Needs Action"
           value={String((sticky?.approvals_count ?? 0) + (sticky?.escalations_count ?? 0) + (sticky?.blocked_work_item_count ?? 0))}
           detail={`${sticky?.approvals_count ?? 0} approvals • ${sticky?.escalations_count ?? 0} escalations • ${sticky?.blocked_work_item_count ?? 0} blocked`}
           onClick={() => props.onTabChange('needs_action')}
         />
-        <InfoCard
+        <StateCard
           title="Workload"
-          body={`${workload.activeWorkItemCount} active work item${workload.activeWorkItemCount === 1 ? '' : 's'} • ${workload.completedWorkItemCount} completed work item${workload.completedWorkItemCount === 1 ? '' : 's'}`}
+          value={`${workload.activeWorkItemCount} active • ${workload.completedWorkItemCount} completed`}
           footer={`${sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount} active tasks • ${props.workflow.metrics.failedTaskCount} failed tasks`}
         />
-        <div className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
-          <TabShortcutCard
+        <div className="grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-3">
+          <ShortcutCard
             title="Steering"
             value={sticky?.steering_available ? 'Open' : 'Idle'}
-            detail="Requests, responses, inputs, and workflow-safe intervention history."
+            detail="Requests, responses, and safe workflow intervention."
             onClick={() => props.onTabChange('steering')}
-            compact
           />
-          <label className="grid gap-2 text-sm">
+          <label className="flex items-center justify-between gap-3 text-sm">
             <span className="font-medium text-foreground">Live visibility</span>
             <select
               className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
@@ -121,41 +120,38 @@ export function WorkflowStateStrip(props: {
   );
 }
 
-function InfoCard(props: {
+function StateCard(props: {
   title: string;
-  body: string;
+  value: string;
   footer: string;
 }): JSX.Element {
   return (
-    <div className="grid gap-2 rounded-2xl border border-border/70 bg-muted/10 p-4">
+    <div className="grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-3">
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         {props.title}
       </p>
-      <p className="text-sm text-foreground">{props.body}</p>
+      <p className="text-lg font-semibold text-foreground">{props.value}</p>
       <p className="text-xs text-muted-foreground">{props.footer}</p>
     </div>
   );
 }
 
-function TabShortcutCard(props: {
+function ShortcutCard(props: {
   title: string;
   value: string;
   detail: string;
-  compact?: boolean;
   onClick(): void;
 }): JSX.Element {
   return (
     <button
       type="button"
-      className="grid gap-2 rounded-2xl border border-border/70 bg-muted/10 p-4 text-left transition-colors hover:bg-muted/20"
+      className="grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-3 text-left transition-colors hover:bg-muted/20"
       onClick={props.onClick}
     >
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         {props.title}
       </p>
-      <p className={props.compact ? 'text-lg font-semibold text-foreground' : 'text-2xl font-semibold text-foreground'}>
-        {props.value}
-      </p>
+      <p className="text-lg font-semibold text-foreground">{props.value}</p>
       <p className="text-xs text-muted-foreground">{props.detail}</p>
     </button>
   );
@@ -164,6 +160,9 @@ function TabShortcutCard(props: {
 function humanizePosture(value: string | null | undefined): string {
   if (!value) {
     return 'Workflow';
+  }
+  if (value === 'waiting_by_design') {
+    return 'Waiting for Work';
   }
   return value
     .replace(/[_-]+/g, ' ')
@@ -188,18 +187,4 @@ function summarizeWorkload(
     activeWorkItemCount: board.work_items.filter((workItem) => !isCompletedWorkItem(board.columns, workItem)).length,
     completedWorkItemCount: board.work_items.filter((workItem) => isCompletedWorkItem(board.columns, workItem)).length,
   };
-}
-
-function readActiveStages(
-  board: DashboardWorkflowBoardResponse | null,
-  workflow: DashboardMissionControlWorkflowCard,
-): string[] {
-  const stages = board?.active_stages ?? [];
-  if (stages.length > 0) {
-    return stages;
-  }
-  if (workflow.currentStage) {
-    return [workflow.currentStage];
-  }
-  return [];
 }

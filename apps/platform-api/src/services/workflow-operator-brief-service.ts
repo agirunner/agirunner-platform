@@ -96,6 +96,7 @@ export interface RecordWorkflowOperatorBriefInput {
 
 export interface ListWorkflowOperatorBriefsInput {
   workItemId?: string;
+  taskId?: string;
   limit?: number;
 }
 
@@ -124,9 +125,10 @@ export class WorkflowOperatorBriefService {
         WHERE tenant_id = $1
           AND workflow_id = $2
           AND ($3::uuid IS NULL OR work_item_id = $3)
+          AND ($4::uuid IS NULL OR task_id = $4)
         ORDER BY sequence_number DESC
-        LIMIT $4`,
-      [tenantId, workflowId, input.workItemId ?? null, input.limit ?? 50],
+        LIMIT $5`,
+      [tenantId, workflowId, input.workItemId ?? null, input.taskId ?? null, input.limit ?? 50],
     );
     return result.rows.map(toWorkflowOperatorBriefRecord);
   }

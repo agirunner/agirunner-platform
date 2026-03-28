@@ -129,7 +129,7 @@ export interface WorkflowSteeringPacket {
   quick_actions: unknown[];
   decision_actions: unknown[];
   steering_state: {
-    mode: 'workflow_scoped' | 'selected_work_item';
+    mode: 'workflow_scoped' | 'selected_work_item' | 'selected_task';
     can_accept_request: boolean;
     active_session_id: string | null;
     last_summary: string | null;
@@ -156,10 +156,12 @@ export interface WorkflowStickyStrip {
 }
 
 export interface WorkflowBottomTabsPacket {
-  default_tab: 'needs_action' | 'steering' | 'live_console' | 'history' | 'deliverables';
-  current_scope_kind: 'workflow' | 'selected_work_item';
+  default_tab: 'details' | 'needs_action' | 'steering' | 'live_console' | 'history' | 'deliverables';
+  current_scope_kind: 'workflow' | 'selected_work_item' | 'selected_task';
   current_work_item_id: string | null;
+  current_task_id: string | null;
   counts: {
+    details: number;
     needs_action: number;
     steering: number;
     live_console_activity: number;
@@ -172,8 +174,9 @@ export interface WorkflowWorkspacePacket extends WorkflowOperationsSnapshot {
   workflow_id: string;
   workflow: import('./mission-control-types.js').MissionControlWorkflowCard | null;
   selected_scope: {
-    scope_kind: 'workflow' | 'selected_work_item';
+    scope_kind: 'workflow' | 'selected_work_item' | 'selected_task';
     work_item_id: string | null;
+    task_id: string | null;
   };
   sticky_strip: WorkflowStickyStrip | null;
   board: Record<string, unknown> | null;

@@ -146,6 +146,39 @@ describe('WorkflowControlService', () => {
     expect(client.query).toHaveBeenCalledWith('ROLLBACK');
   });
 
+  it('rejects resume requests for workflows that are cancelling even if their coarse state is paused', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('SELECT id, state, metadata FROM workflows')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              state: 'paused',
+              metadata: { cancel_requested_at: '2026-03-12T00:00:00.000Z' },
+            }],
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      connect: vi.fn(async () => client),
+    };
+    const service = new WorkflowControlService(
+      pool as never,
+      { emit: vi.fn() } as never,
+      { recomputeWorkflowState: vi.fn() } as never,
+    );
+
+    await expect(service.resumeWorkflow(identity, 'workflow-1')).rejects.toBeInstanceOf(ConflictError);
+    expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+  });
+
   it('treats a repeated resume request as idempotent once the workflow is already active without a pause marker', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {

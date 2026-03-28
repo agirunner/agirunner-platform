@@ -1,5 +1,4 @@
 import type { MissionControlHistoryResponse } from './mission-control-types.js';
-import type { KeysetPage, LogFilters, LogRow } from '../../logging/log-service.js';
 import type { WorkflowOperatorBriefRecord } from '../workflow-operator-brief-service.js';
 import type { WorkflowOperatorUpdateRecord } from '../workflow-operator-update-service.js';
 import {
@@ -7,7 +6,6 @@ import {
   type WorkflowLiveConsoleItem,
   type WorkflowLiveConsolePacket,
 } from './workflow-operations-types.js';
-import { buildExecutionTurnItems } from './workflow-execution-log-composer.js';
 import {
   compareCursorTargets,
   paginateOrderedItems,
@@ -25,7 +23,7 @@ interface BriefSource {
   listBriefs(
     tenantId: string,
     workflowId: string,
-    input?: { workItemId?: string; limit?: number },
+    input?: { workItemId?: string; taskId?: string; limit?: number },
   ): Promise<WorkflowOperatorBriefRecord[]>;
 }
 
@@ -33,12 +31,8 @@ interface UpdateSource {
   listUpdates(
     tenantId: string,
     workflowId: string,
-    input?: { workItemId?: string; limit?: number },
+    input?: { workItemId?: string; taskId?: string; limit?: number },
   ): Promise<WorkflowOperatorUpdateRecord[]>;
-}
-
-interface LogSource {
-  listLogs(tenantId: string, filters: LogFilters): Promise<KeysetPage<LogRow>>;
 }
 
 interface VisibilityModeSource {
@@ -53,47 +47,35 @@ export class WorkflowLiveConsoleService {
     private readonly versionSource: VersionSource,
     private readonly briefSource: BriefSource,
     private readonly updateSource: UpdateSource,
-    private readonly logSource: LogSource,
     private readonly visibilityModeSource: VisibilityModeSource,
   ) {}
 
   async getLiveConsole(
     tenantId: string,
     workflowId: string,
-    input: { limit?: number; workItemId?: string; after?: string } = {},
+    input: { limit?: number; workItemId?: string; taskId?: string; after?: string } = {},
   ): Promise<WorkflowLiveConsolePacket> {
     const limit = input.limit ?? 50;
     const fetchWindow = resolveFetchWindow(limit);
-    const [version, briefs, updates, executionLogs, workflowSettings] = await Promise.all([
+    const [version, briefs, updates, workflowSettings] = await Promise.all([
       this.versionSource.getHistory(tenantId, {
         workflowId,
         limit: 1,
       }),
       this.briefSource.listBriefs(tenantId, workflowId, {
         workItemId: input.workItemId,
+        taskId: input.taskId,
         limit: fetchWindow,
       }),
       this.updateSource.listUpdates(tenantId, workflowId, {
         workItemId: input.workItemId,
+        taskId: input.taskId,
         limit: fetchWindow,
-      }),
-      this.logSource.listLogs(tenantId, {
-        workflowId,
-        workItemId: input.workItemId,
-        category: ['agent_loop'],
-        operation: ['agent.think', 'agent.plan', 'agent.act', 'agent.observe', 'agent.verify'],
-        order: 'desc',
-        perPage: fetchWindow,
       }),
       this.visibilityModeSource.getWorkflowSettings(tenantId, workflowId),
     ]);
 
-    const items = [
-      ...updates.map(toUpdateItem),
-      ...briefs.map(toBriefItem),
-      ...buildExecutionTurnItems(executionLogs.data),
-    ]
-      .sort(sortNewestFirst)
+    const items = [...updates.map(toUpdateItem), ...briefs.map(toBriefItem)].sort(sortNewestFirst);
     const page = paginateOrderedItems(items, limit, input.after, (item) => ({
       timestamp: item.created_at,
       id: item.item_id,

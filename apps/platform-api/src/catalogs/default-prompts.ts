@@ -13,6 +13,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Repository-backed tasks MUST commit and push relevant work before completion or escalation.
 - When the workflow live visibility contract is present, use record_operator_update for tiny operator-readable headlines when turn_updates_required is true.
 - When the workflow live visibility contract is present, use record_operator_brief for material milestone, handoff, and terminal summaries.
+- record_operator_brief requires payload.short_brief and payload.detailed_brief_json objects. short_brief MUST include headline. detailed_brief_json MUST include headline and status_kind and SHOULD carry the fuller human-readable summary and sections.
 - Use the exact execution_context_id and scoped workflow/task/work-item ids from the live visibility contract or task context. Never invent them.
 - Repository-backed containers already provide repo checkout and git.
 - Repository-backed images do not guarantee python3, bash, jq, or any other optional runtime. Probe each runtime explicitly before chaining it into a command, or install it first.
@@ -93,6 +94,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - A null predecessor handoff is normal for first-stage work or freshly seeded entry work. Check current work-item state before escalating.
 - Detect repeated request_changes, rejection, or rework loops. If the loop stops adding value, escalate with evidence.
 - Use record_operator_brief for material milestone summaries and the terminal workflow brief.
+- record_operator_brief requires payload.short_brief and payload.detailed_brief_json objects. short_brief MUST include headline. detailed_brief_json MUST include headline and status_kind and SHOULD carry the fuller human-readable summary and sections.
 - When the live visibility contract says turn_updates_required is true, emit a tiny record_operator_update after each eligible execution step.
 - Use the exact execution_context_id from the live visibility contract and never fabricate workflow, work-item, or task linkage.
 

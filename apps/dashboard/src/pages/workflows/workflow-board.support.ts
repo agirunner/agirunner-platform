@@ -49,10 +49,11 @@ export function buildWorkflowBoardView(
   }
 
   const filteredItems = board.work_items.filter((workItem) => {
+    const displayColumnId = resolveDisplayColumnId(board.columns, workItem);
     if (input.stageFilter !== '__all__' && workItem.stage_name !== input.stageFilter) {
       return false;
     }
-    if (input.laneFilter !== '__all__' && workItem.column_id !== input.laneFilter) {
+    if (input.laneFilter !== '__all__' && displayColumnId !== input.laneFilter) {
       return false;
     }
     if (input.blockedOnly && workItem.blocked_state !== 'blocked') {
@@ -72,9 +73,10 @@ export function buildWorkflowBoardView(
 
   const filteredByColumn = new Map<string, DashboardWorkflowWorkItemRecord[]>();
   for (const workItem of filteredItems) {
-    const current = filteredByColumn.get(workItem.column_id) ?? [];
+    const displayColumnId = resolveDisplayColumnId(board.columns, workItem);
+    const current = filteredByColumn.get(displayColumnId) ?? [];
     current.push(workItem);
-    filteredByColumn.set(workItem.column_id, current);
+    filteredByColumn.set(displayColumnId, current);
   }
 
   const lanes = board.columns
@@ -115,6 +117,17 @@ export function isCompletedWorkItem(
   }
   const column = columns.find((entry) => entry.id === workItem.column_id);
   return Boolean(column?.is_terminal);
+}
+
+function resolveDisplayColumnId(
+  columns: DashboardWorkflowBoardColumn[],
+  workItem: DashboardWorkflowWorkItemRecord,
+): string {
+  if (!isNeedsActionWorkItem(workItem)) {
+    return workItem.column_id;
+  }
+  const blockedColumnId = columns.find((column) => column.is_blocked)?.id;
+  return blockedColumnId ?? workItem.column_id;
 }
 
 function buildLaneView(

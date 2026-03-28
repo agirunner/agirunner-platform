@@ -13,6 +13,7 @@ interface VersionSnapshot {
 export interface WorkflowActionAvailabilityInput {
   workflowState: string;
   posture: MissionControlWorkflowPosture;
+  hasCancelRequest?: boolean;
   version?: VersionSnapshot;
 }
 
@@ -29,12 +30,38 @@ export function deriveWorkflowActionAvailability(
   input: WorkflowActionAvailabilityInput,
 ): MissionControlActionAvailability[] {
   const stale = isStale(input.version);
+  const hasCancelRequest = input.hasCancelRequest === true;
   return [
-    buildWorkflowAction('pause_workflow', canPause(input.workflowState, input.posture), 'immediate', stale),
-    buildWorkflowAction('resume_workflow', input.workflowState === 'paused', 'immediate', stale),
-    buildWorkflowAction('cancel_workflow', canCancel(input.workflowState), 'high_impact_confirm', stale),
-    buildWorkflowAction('add_work_item', canAddWork(input.posture), 'standard_confirm', stale),
-    buildWorkflowAction('request_replan', canReplan(input.posture), 'standard_confirm', stale),
+    buildWorkflowAction(
+      'pause_workflow',
+      canPause(input.workflowState, input.posture, hasCancelRequest),
+      'immediate',
+      stale,
+    ),
+    buildWorkflowAction(
+      'resume_workflow',
+      canResume(input.workflowState, input.posture, hasCancelRequest),
+      'immediate',
+      stale,
+    ),
+    buildWorkflowAction(
+      'cancel_workflow',
+      canCancel(input.workflowState, hasCancelRequest),
+      'high_impact_confirm',
+      stale,
+    ),
+    buildWorkflowAction(
+      'add_work_item',
+      canAddWork(input.posture),
+      'standard_confirm',
+      stale,
+    ),
+    buildWorkflowAction(
+      'request_replan',
+      canReplan(input.posture),
+      'standard_confirm',
+      stale,
+    ),
     buildWorkflowAction(
       'spawn_child_workflow',
       canSpawnChildWorkflow(input.posture),
@@ -65,24 +92,36 @@ export function deriveTaskActionAvailability(
   ];
 }
 
-function canPause(workflowState: string, posture: MissionControlWorkflowPosture): boolean {
-  return workflowState !== 'paused' && !isTerminalState(workflowState) && posture !== 'paused';
+function canPause(
+  workflowState: string,
+  posture: MissionControlWorkflowPosture,
+  hasCancelRequest: boolean,
+): boolean {
+  return workflowState !== 'paused' && !isTerminalState(workflowState) && posture !== 'paused' && !hasCancelRequest;
 }
 
-function canCancel(workflowState: string): boolean {
-  return !isTerminalState(workflowState);
+function canResume(
+  workflowState: string,
+  posture: MissionControlWorkflowPosture,
+  hasCancelRequest: boolean,
+): boolean {
+  return workflowState === 'paused' && posture === 'paused' && !hasCancelRequest;
+}
+
+function canCancel(workflowState: string, hasCancelRequest: boolean): boolean {
+  return !isTerminalState(workflowState) && !hasCancelRequest;
 }
 
 function canAddWork(posture: MissionControlWorkflowPosture): boolean {
-  return posture !== 'terminal_failed' && posture !== 'completed' && posture !== 'cancelled';
+  return posture !== 'terminal_failed' && posture !== 'completed' && posture !== 'cancelled' && posture !== 'cancelling';
 }
 
 function canReplan(posture: MissionControlWorkflowPosture): boolean {
-  return posture !== 'completed' && posture !== 'cancelled';
+  return posture !== 'completed' && posture !== 'cancelled' && posture !== 'cancelling';
 }
 
 function canSpawnChildWorkflow(posture: MissionControlWorkflowPosture): boolean {
-  return posture !== 'completed' && posture !== 'cancelled' && posture !== 'terminal_failed';
+  return posture !== 'completed' && posture !== 'cancelled' && posture !== 'terminal_failed' && posture !== 'cancelling';
 }
 
 function canRetryTask(taskState: string, posture: MissionControlWorkflowPosture): boolean {
