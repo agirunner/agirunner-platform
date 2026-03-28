@@ -648,7 +648,9 @@ function createWorkflowReplayPool(
           : { rowCount: 0, rows: [] };
       }
       if (sql.includes('INSERT INTO workflow_tool_results')) {
-        expect(params).toEqual(['tenant-1', workflowId, toolName, requestId, expect.any(Object)]);
+        expect(params).toHaveLength(7);
+        expect(params?.slice(0, 4)).toEqual(['tenant-1', workflowId, toolName, requestId]);
+        expect(params?.[4]).toEqual(expect.any(Object));
         const key = `${params?.[0]}:${params?.[1]}:${params?.[2]}:${params?.[3]}`;
         const response = params?.[4] as Record<string, unknown>;
         const existing = storedResults.get(key);

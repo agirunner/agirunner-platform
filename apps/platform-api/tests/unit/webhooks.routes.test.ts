@@ -31,12 +31,12 @@ describe('webhook routes', () => {
     }
   });
 
-  it('does not serialize webhook secrets on create responses', async () => {
+  it('does not expose admin webhook CRUD endpoints from the git webhook route module', async () => {
     const { webhookRoutes } = await import('../../src/api/routes/webhooks.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
-    app.decorate('config', {});
+    app.decorate('config', { GIT_WEBHOOK_MAX_PER_MINUTE: 60 } as never);
     app.log.warn = vi.fn();
     app.decorate('pgPool', { query: vi.fn() });
     app.decorate('workspaceService', {
@@ -63,80 +63,30 @@ describe('webhook routes', () => {
     await app.register(webhookRoutes);
 
     const response = await app.inject({
-      method: 'POST',
-      url: '/api/v1/webhooks',
-      headers: { authorization: 'Bearer test' },
-      payload: {
-        url: 'https://hooks.example.com',
-        event_types: ['task.*'],
-        secret: 'my-webhook-secret',
-      },
-    });
-
-    expect(response.statusCode).toBe(201);
-    expect(response.body).not.toContain('my-webhook-secret');
-    expect(response.body).not.toContain('"secret":');
-    expect(response.json().data).toEqual({
-      id: 'hook-1',
-      url: 'https://hooks.example.com',
-      event_types: ['task.*'],
-      is_active: true,
-      created_at: '2026-03-12T00:00:00.000Z',
-      secret_configured: true,
-    });
-  });
-
-  it('does not serialize webhook secrets on list responses', async () => {
-    const { webhookRoutes } = await import('../../src/api/routes/webhooks.routes.js');
-
-    app = fastify();
-    registerErrorHandler(app);
-    app.decorate('config', {});
-    app.log.warn = vi.fn();
-    app.decorate('pgPool', { query: vi.fn() });
-    app.decorate('workspaceService', {
-      findWorkspaceByRepositoryUrl: vi.fn(),
-      getGitWebhookSecret: vi.fn(),
-    });
-    app.decorate('taskLifecycleService', {
-      receiveGitEvent: vi.fn(),
-    });
-    app.decorate('webhookService', {
-      registerWebhook: vi.fn(),
-      updateWebhook: vi.fn(),
-      listWebhooks: vi.fn().mockResolvedValue([
-        {
-          id: 'hook-1',
-          url: 'https://hooks.example.com',
-          event_types: ['task.*'],
-          is_active: true,
-          created_at: '2026-03-12T00:00:00.000Z',
-          secret_configured: true,
-        },
-      ]),
-      deleteWebhook: vi.fn(),
-    });
-
-    await app.register(webhookRoutes);
-
-    const response = await app.inject({
       method: 'GET',
       url: '/api/v1/webhooks',
       headers: { authorization: 'Bearer test' },
     });
 
-    expect(response.statusCode).toBe(200);
-    expect(response.body).not.toContain('"secret":');
-    expect(response.json().data).toEqual([
-      {
-        id: 'hook-1',
-        url: 'https://hooks.example.com',
-        event_types: ['task.*'],
-        is_active: true,
-        created_at: '2026-03-12T00:00:00.000Z',
-        secret_configured: true,
-      },
-    ]);
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('registers the git webhook ingestion endpoint', async () => {
+    const { webhookRoutes } = await import('../../src/api/routes/webhooks.routes.js');
+
+    app = fastify();
+    app.decorate('config', { GIT_WEBHOOK_MAX_PER_MINUTE: 60 } as never);
+    app.decorate('pgPool', { query: vi.fn() } as never);
+    app.decorate('workspaceService', {
+      findWorkspaceByRepositoryUrl: vi.fn(),
+      getGitWebhookSecret: vi.fn(),
+    } as never);
+    app.decorate('eventService', { emit: vi.fn() } as never);
+
+    await app.register(webhookRoutes);
+
+    const routes = app.printRoutes();
+    expect(routes).toContain('webhooks/git (POST)');
   });
 
   it('rejects git webhooks when the matched workspace has no configured per-workspace secret', async () => {

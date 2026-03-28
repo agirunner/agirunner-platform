@@ -5936,6 +5936,15 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('UPDATE workflow_stages') && sql.includes("SET status = $4")) {
+          expect(params?.slice(0, 4)).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'stage-implementation',
+            'completed',
+          ]);
+          return { rowCount: 1, rows: [] };
+        }
         if (sql.includes('COALESCE(blocking_assessment.blocking_resolution')) {
           return { rowCount: 0, rows: [] };
         }

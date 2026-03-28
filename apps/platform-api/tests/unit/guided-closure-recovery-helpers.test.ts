@@ -116,6 +116,7 @@ describe('GuidedClosureRecoveryHelpersService', () => {
       'workflow-1',
       'wi-1',
       {
+        acting_task_id: null,
         completion_callouts: {
           residual_risks: [],
           unmet_preferred_expectations: [],

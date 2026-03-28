@@ -74,7 +74,9 @@ describe('task platform routes', () => {
             : { rowCount: 0, rows: [] };
         }
         if (sql.includes('INSERT INTO workflow_tool_results')) {
-          expect(params).toEqual(['tenant-1', workflowId, toolName, expect.any(String), expect.any(Object)]);
+          expect(params).toHaveLength(7);
+          expect(params?.slice(0, 4)).toEqual(['tenant-1', workflowId, toolName, expect.any(String)]);
+          expect(params?.[4]).toEqual(expect.any(Object));
           const key = `${params?.[0]}:${params?.[1]}:${params?.[2]}:${params?.[3]}`;
           const response = params?.[4] as Record<string, unknown>;
           if (storedResults.has(key)) {

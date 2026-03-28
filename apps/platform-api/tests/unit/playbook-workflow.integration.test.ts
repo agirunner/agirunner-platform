@@ -253,6 +253,7 @@ describe('playbook workflow integration', () => {
     expect(listedWorkflow?.work_item_summary).toEqual({
       total_work_items: 1,
       open_work_item_count: 1,
+      blocked_work_item_count: 0,
       completed_work_item_count: 0,
       active_stage_count: 1,
       awaiting_gate_count: 0,
@@ -511,7 +512,7 @@ describe('playbook workflow integration', () => {
     expect(approvedStage).toEqual(
       expect.objectContaining({
         name: 'requirements',
-        status: 'awaiting_gate',
+        status: 'active',
         gate_status: 'approved',
       }),
     );
@@ -535,7 +536,7 @@ describe('playbook workflow integration', () => {
     expect(approvedStages[0]).toEqual(
       expect.objectContaining({
         name: 'requirements',
-        status: 'awaiting_gate',
+        status: 'active',
         gate_status: 'approved',
       }),
     );
@@ -589,6 +590,13 @@ describe('playbook workflow integration', () => {
       state: 'completed',
       summary: 'Release candidate shipped',
       final_artifacts: [],
+      completion_callouts: {
+        residual_risks: [],
+        unmet_preferred_expectations: [],
+        waived_steps: [],
+        unresolved_advisory_items: [],
+        completion_notes: null,
+      },
     });
 
     const hydratedWorkflow = await harness.workflowService.getWorkflow(
@@ -774,7 +782,7 @@ describe('playbook workflow integration', () => {
     expect(rawStagesBeforeCompletion.rows).toEqual([
       expect.objectContaining({ name: 'requirements', status: 'completed' }),
       expect.objectContaining({ name: 'implementation', status: 'completed' }),
-      expect.objectContaining({ name: 'release', status: 'active' }),
+      expect.objectContaining({ name: 'release', status: 'completed' }),
     ]);
 
     const completedWorkflow = await harness.workflowService.completePlaybookWorkflow(
@@ -790,6 +798,13 @@ describe('playbook workflow integration', () => {
       state: 'completed',
       summary: 'All planned stage work finished without explicit checkpoint advances',
       final_artifacts: [],
+      completion_callouts: {
+        residual_risks: [],
+        unmet_preferred_expectations: [],
+        waived_steps: [],
+        unresolved_advisory_items: [],
+        completion_notes: null,
+      },
     });
 
     const rawStagesAfterCompletion = await db.pool.query<{ name: string; status: string }>(
@@ -828,11 +843,6 @@ describe('playbook workflow integration', () => {
         stages: [
           { name: 'requirements', goal: 'Scope is confirmed' },
           { name: 'implementation', goal: 'Code is delivered' },
-          { name: 'release', goal: 'Release package is approved', human_gate: true },
-        ],
-        checkpoints: [
-          { name: 'requirements', goal: 'Scope is confirmed', human_gate: false },
-          { name: 'implementation', goal: 'Code is delivered', human_gate: false },
           { name: 'release', goal: 'Release package is approved', human_gate: true },
         ],
       },
@@ -975,6 +985,13 @@ describe('playbook workflow integration', () => {
       state: 'completed',
       summary: 'Hello world release completed cleanly',
       final_artifacts: [],
+      completion_callouts: {
+        residual_risks: [],
+        unmet_preferred_expectations: [],
+        waived_steps: [],
+        unresolved_advisory_items: [],
+        completion_notes: null,
+      },
     });
 
     const releaseAfterCompletion = await harness.workflowService.getWorkflowWorkItem(
@@ -1229,7 +1246,7 @@ describe('playbook workflow integration', () => {
         {
           name: 'developer-specialist',
           execution_mode: 'specialist',
-          routing_tags: ['coding', 'testing', 'git', 'python'],
+          routing_tags: ['coding', 'testing', 'git', 'python', 'role:developer'],
         },
       ],
     });
@@ -1294,7 +1311,7 @@ describe('playbook workflow integration', () => {
     const specialistClaim = await harness.taskService.claimTask(agentIdentity(String(specialistAgent?.id)), {
       agent_id: String(specialistAgent?.id),
       worker_id: registration.worker_id,
-      routing_tags: ['coding', 'testing', 'git', 'python'],
+      routing_tags: ['coding', 'testing', 'git', 'python', 'role:developer'],
       include_context: true,
       playbook_id: String(playbook.id),
     });

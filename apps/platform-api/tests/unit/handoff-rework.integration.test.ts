@@ -100,9 +100,6 @@ describe('handoff rework integration', () => {
           ],
         },
         stages: [{ name: 'implementation', goal: 'Deliver the implementation.' }],
-        handoff_rules: [
-          { from_role: 'developer', to_role: 'reviewer', required: true },
-        ],
       },
     });
 
