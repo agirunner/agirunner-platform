@@ -214,10 +214,16 @@ describe('buildSpecialistExecutionBrief', () => {
       'record_operator_update headlines must be one operator-readable sentence and must not dump raw tool names, phases, JSON, or UUIDs when titles exist.',
     );
     expect(brief?.rendered_markdown).toContain(
+      'Example: { payload: { headline: "Reviewer is checking rollback handling.", summary: "Rollback handling is under review." } }',
+    );
+    expect(brief?.rendered_markdown).toContain(
       'record_operator_brief requires short_brief.headline plus detailed_brief_json.headline and status_kind, and must never be called with only linked_target_ids or an empty brief shell.',
     );
     expect(brief?.rendered_markdown).toContain(
       'detailed_brief_json must include headline and status_kind and should carry the fuller human-readable summary and sections.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Example: { payload: { short_brief: { headline: "Rollback review is ready for approval." }, detailed_brief_json: { headline: "Rollback review is ready for approval.", status_kind: "in_progress", summary: "Rollback handling passed review and is ready for approval.", sections: { validation: ["Verified rollback path against the current implementation."] } } } }',
     );
     expect(brief?.rendered_markdown).toContain(
       'Submitting your handoff does not itself close the work item or workflow.',

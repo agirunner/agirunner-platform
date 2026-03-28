@@ -57,6 +57,7 @@ describe('WorkflowHistory', () => {
     expect(html).toContain('Milestone Brief');
     expect(html).toContain('Briefs');
     expect(html).toContain('Policy assessment settled revision 3');
+    expect(html).toContain('Show brief details');
     expect(html).toContain('Open brief scope');
     expect(html).not.toContain('input lineage');
     expect(html).not.toContain('Lifecycle Event');

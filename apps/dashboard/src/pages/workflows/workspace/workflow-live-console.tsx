@@ -129,43 +129,18 @@ function LiveConsoleEntry(props: {
     : item.item_kind === 'milestone_brief'
       ? 'text-emerald-200'
       : 'text-emerald-200';
-  const message = buildConsoleMessage(item.headline, item.summary);
   return (
     <article className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 font-mono leading-6 text-sm text-slate-100">
       <p className="min-w-0 break-words">
         <span className={accentClass}>&gt; </span>
         <span className={`font-semibold ${sourceClass}`}>{item.source_label}: </span>
-        <span className="text-slate-100">{message}</span>
+        <span className="text-slate-100">{normalizeConsoleText(item.headline)}</span>
       </p>
       <span className="text-right text-xs text-slate-500">{formatRelativeTimestamp(item.created_at)}</span>
     </article>
   );
 }
 
-function buildConsoleMessage(headline: string, summary: string): string {
-  const normalizedHeadline = normalizeConsoleText(headline);
-  const normalizedSummary = normalizeConsoleText(summary);
-  if (normalizedSummary.length === 0) {
-    return normalizedHeadline;
-  }
-  if (isLowSignalSummary(normalizedSummary)) {
-    return normalizedHeadline;
-  }
-  if (normalizedSummary === normalizedHeadline) {
-    return normalizedHeadline;
-  }
-  if (normalizedSummary.toLowerCase().startsWith(normalizedHeadline.toLowerCase())) {
-    return normalizedSummary;
-  }
-  return `${normalizedHeadline} - ${normalizedSummary}`;
-}
-
 function normalizeConsoleText(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
-}
-
-function isLowSignalSummary(value: string): boolean {
-  return /^execution turn completed\b/i.test(value)
-    || /^turn completed\b/i.test(value)
-    || /^observed \d+ tool/i.test(value);
 }

@@ -86,7 +86,7 @@ function buildExecutionTurnSummary(row: LogRow): string {
   const subject = readExecutionSubject(row);
   const detail =
     readOperatorReadableField(payload, ['summary', 'details', 'reasoning_summary', 'approach'])
-    ?? buildExecutionTurnFallbackSummary(subject);
+    ?? buildExecutionTurnFallbackSummary(row.operation, subject);
   if (!detail) {
     return humanizeToken(row.operation);
   }
@@ -268,11 +268,17 @@ function looksLikeRawExecutionDump(value: string): boolean {
   );
 }
 
-function buildExecutionTurnFallbackSummary(subject: string | null): string {
-  if (!subject) {
-    return 'Execution turn completed.';
+function buildExecutionTurnFallbackSummary(operation: string, subject: string | null): string {
+  if (operation === 'agent.observe' || operation === 'agent.verify') {
+    if (!subject) {
+      return 'Checked the latest execution results.';
+    }
+    return `Checked the latest results for ${subject}.`;
   }
-  return `Execution turn completed for ${subject}.`;
+  if (!subject) {
+    return 'Working through the next execution step.';
+  }
+  return `Working through the next step for ${subject}.`;
 }
 
 function truncate(value: string | null, maxLength: number): string | null {

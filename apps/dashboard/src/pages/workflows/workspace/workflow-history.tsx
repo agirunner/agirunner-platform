@@ -89,10 +89,13 @@ function HistoryItemCard(props: {
           {formatRelativeTimestamp(props.item.created_at)}
         </span>
       </div>
-      <div className="grid gap-1">
-        <strong className="text-foreground">{props.item.headline}</strong>
-        {showSummary ? <p className="text-sm text-muted-foreground">{props.item.summary}</p> : null}
-      </div>
+      <strong className="text-foreground">{props.item.headline}</strong>
+      {showSummary ? (
+        <details className="rounded-xl border border-border/70 bg-muted/10 p-3">
+          <summary className="cursor-pointer text-sm font-medium text-foreground">Show brief details</summary>
+          <p className="mt-3 text-sm text-muted-foreground">{props.item.summary}</p>
+        </details>
+      ) : null}
       {linkedWorkItemId ? (
         <div className="flex flex-wrap gap-2">
           <Link

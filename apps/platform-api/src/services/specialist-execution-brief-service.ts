@@ -276,6 +276,9 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
       lines.push(
         'record_operator_update headlines must be one operator-readable sentence and must not dump raw tool names, phases, JSON, or UUIDs when titles exist.',
       );
+      lines.push(
+        'Example: { payload: { headline: "Reviewer is checking rollback handling.", summary: "Rollback handling is under review." } }',
+      );
     }
     if (brief.operator_visibility.milestone_briefs_required && brief.operator_visibility.record_operator_brief_tool) {
       lines.push(
@@ -290,6 +293,9 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
       );
       lines.push(
         'detailed_brief_json must include headline and status_kind and should carry the fuller human-readable summary and sections.',
+      );
+      lines.push(
+        'Example: { payload: { short_brief: { headline: "Rollback review is ready for approval." }, detailed_brief_json: { headline: "Rollback review is ready for approval.", status_kind: "in_progress", summary: "Rollback handling passed review and is ready for approval.", sections: { validation: ["Verified rollback path against the current implementation."] } } } }',
       );
     }
   }
