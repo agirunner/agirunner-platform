@@ -45,6 +45,7 @@ export function useWorkflowRailRealtime(
             search: input.search,
             needsActionOnly: input.needsActionOnly,
             ongoingOnly: input.ongoingOnly,
+            workflowId: input.workflowId,
           }),
         });
       },

@@ -82,7 +82,7 @@ export class WorkflowRailService {
       ? await this.readSelectedLiveRow(tenantId, query.selectedWorkflowId)
       : null;
     const filteredRows = applyRailFilters(
-      dedupeRows(response.sections.flatMap((section) => readSectionCards(section).map(toRailRowFromCard))),
+      dedupeRows(response.sections.flatMap((section) => readSectionRows(section))),
       query,
     );
     const allRows = dedupeRows(pinSelectedRow(filteredRows, selectedRow));
@@ -107,7 +107,7 @@ export class WorkflowRailService {
       return null;
     }
     const card = await this.getWorkflowCard(tenantId, safeWorkflowId);
-    return card ? toRailRowFromCard(card) : null;
+    return toRailRowFromCard(card);
   }
 
   private async buildRecentRail(tenantId: string, query: WorkflowRailQuery): Promise<WorkflowRailPacket> {
@@ -207,7 +207,16 @@ function readSectionCards(section: { workflows?: MissionControlWorkflowCard[] | 
   return Array.isArray(section.workflows) ? section.workflows : [];
 }
 
-function toRailRowFromCard(card: MissionControlWorkflowCard): WorkflowRailRow {
+function readSectionRows(section: { workflows?: MissionControlWorkflowCard[] | null }): WorkflowRailRow[] {
+  return readSectionCards(section)
+    .map((card) => toRailRowFromCard(card))
+    .filter((row): row is WorkflowRailRow => row !== null);
+}
+
+function toRailRowFromCard(card: MissionControlWorkflowCard | null): WorkflowRailRow | null {
+  if (!card || typeof card.id !== 'string' || card.id.length === 0) {
+    return null;
+  }
   const pulse = card.pulse ?? { summary: '', updatedAt: null };
   const metrics = card.metrics ?? {
     activeTaskCount: 0,

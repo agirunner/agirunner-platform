@@ -8,6 +8,7 @@ export function buildWorkflowRailQueryKey(input: {
   search: string;
   needsActionOnly: boolean;
   ongoingOnly: boolean;
+  workflowId?: string | null;
 }) {
   return [
     'workflows',
@@ -16,6 +17,7 @@ export function buildWorkflowRailQueryKey(input: {
     input.search,
     input.needsActionOnly,
     input.ongoingOnly,
+    input.workflowId ?? null,
   ] as const;
 }
 

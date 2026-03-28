@@ -251,6 +251,45 @@ describe('WorkflowsRail', () => {
     expect(html).toContain('Workflow Selected');
     expect(html).not.toContain('rounded-2xl border border-amber-300/60');
   });
+
+  it('renders ongoing rows when the operator filters to ongoing workflows only', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowsRail, {
+        mode: 'live',
+        search: '',
+        needsActionOnly: false,
+        ongoingOnly: true,
+        rows: [],
+        ongoingRows: [
+          createRailRow({
+            workflow_id: 'workflow-ongoing',
+            name: 'Workflow Ongoing',
+            lifecycle: 'ongoing',
+          }),
+        ],
+        selectedWorkflowId: 'workflow-ongoing',
+        selectedWorkflowRow: createRailRow({
+          workflow_id: 'workflow-ongoing',
+          name: 'Workflow Ongoing',
+          lifecycle: 'ongoing',
+        }),
+        hasNextPage: false,
+        isLoading: false,
+        onModeChange: vi.fn(),
+        onSearchChange: vi.fn(),
+        onNeedsActionOnlyChange: vi.fn(),
+        onShowAllOngoing: vi.fn(),
+        onClearOngoingFilter: vi.fn(),
+        onSelectWorkflow: vi.fn(),
+        onLoadMore: vi.fn(),
+        onCreateWorkflow: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Workflow Ongoing');
+    expect(html).not.toContain('No workflows match');
+    expect(html).not.toContain('Selected workflow');
+  });
 });
 
 function createRailRow(

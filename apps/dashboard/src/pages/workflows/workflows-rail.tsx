@@ -36,11 +36,16 @@ export function WorkflowsRail(props: {
     [props.ongoingRows],
   );
   const visibleRows = useMemo(
-    () =>
-      props.mode === 'live' && !props.ongoingOnly
-        ? props.rows.filter((row) => row.lifecycle !== 'ongoing')
-        : props.rows,
-    [props.mode, props.ongoingOnly, props.rows],
+    () => {
+      if (props.mode !== 'live') {
+        return props.rows;
+      }
+      if (props.ongoingOnly) {
+        return props.ongoingRows;
+      }
+      return props.rows.filter((row) => row.lifecycle !== 'ongoing');
+    },
+    [props.mode, props.ongoingOnly, props.ongoingRows, props.rows],
   );
   const renderedRows = useMemo(
     () =>
@@ -56,7 +61,7 @@ export function WorkflowsRail(props: {
         : true,
     [props.selectedWorkflowId, renderedRows],
   );
-  const shouldShowMainEmptyState = visibleRows.length === 0 && !(props.mode === 'live' && !props.ongoingOnly && ongoingPreviewRows.length > 0);
+  const shouldShowMainEmptyState = renderedRows.length === 0;
 
   return (
     <aside className="flex h-full min-h-0 w-full flex-col overflow-x-hidden border-r border-border/70 bg-stone-50/90 dark:bg-slate-950/70">
