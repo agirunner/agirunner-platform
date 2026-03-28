@@ -15,8 +15,18 @@ import {
   sanitizeOperatorDetailedBrief,
   sanitizeOperatorShortBrief,
   sanitizeOptionalText,
-  sanitizeRequiredText,
 } from './workflow-operator-record-sanitization.js';
+
+interface ArtifactRow {
+  id: string;
+  task_id: string;
+  logical_path: string | null;
+  content_type: string | null;
+}
+
+interface ExistingDescriptorRow {
+  id: string;
+}
 
 interface WorkflowOperatorBriefRow {
   id: string;
@@ -179,9 +189,20 @@ export class WorkflowOperatorBriefService {
     if (executionContext.workItemId) {
       await this.assertWorkItem(identity.tenantId, workflowId, executionContext.workItemId);
     }
+    const effectiveStatusKind = resolveEffectiveStatusKind(
+      input.statusKind,
+      input.payload.detailedBriefJson,
+      sanitizeOptionalText(input.briefScope) ?? deriveDefaultBriefScope(executionContext, input.payload, null),
+    );
+    const effectiveBriefScope =
+      sanitizeOptionalText(input.briefScope)
+      ?? deriveDefaultBriefScope(executionContext, input.payload, effectiveStatusKind);
     const existing = await this.findByRequestId(identity.tenantId, workflowId, effectiveRequestId);
     if (existing) {
-      const record = toWorkflowOperatorBriefRecord(existing);
+      const record = await this.syncLinkedDeliverables(identity, workflowId, existing, {
+        ...input.payload,
+        detailedBriefJson: withDefaultStatusKind(input.payload.detailedBriefJson, effectiveStatusKind),
+      });
       return {
         record_id: record.id,
         sequence_number: record.sequence_number,
@@ -192,15 +213,7 @@ export class WorkflowOperatorBriefService {
 
     const sequenceNumber = await this.nextSequenceNumber(identity.tenantId, workflowId);
     const shortBrief = sanitizeOperatorShortBrief(input.payload.shortBrief);
-    const effectiveStatusKind = resolveEffectiveStatusKind(
-      input.statusKind,
-      input.payload.detailedBriefJson,
-      sanitizeOptionalText(input.briefScope) ?? deriveDefaultBriefScope(executionContext, input.payload, null),
-    );
     const effectiveBriefKind = sanitizeOptionalText(input.briefKind) ?? 'milestone';
-    const effectiveBriefScope =
-      sanitizeOptionalText(input.briefScope)
-      ?? deriveDefaultBriefScope(executionContext, input.payload, effectiveStatusKind);
     const detailedBriefJson = sanitizeOperatorDetailedBrief(
       withDefaultStatusKind(input.payload.detailedBriefJson, effectiveStatusKind),
     );
@@ -262,12 +275,12 @@ export class WorkflowOperatorBriefService {
   private async syncLinkedDeliverables(
     identity: ApiKeyIdentity,
     workflowId: string,
-    insertedRow: WorkflowOperatorBriefRow,
+    briefRow: WorkflowOperatorBriefRow,
     payload: WorkflowOperatorBriefPayloadInput,
   ): Promise<WorkflowOperatorBriefRecord> {
-    const linkedDescriptorIds = await this.materializeLinkedDeliverables(identity, workflowId, insertedRow.id, payload);
+    const linkedDescriptorIds = await this.materializeLinkedDeliverables(identity, workflowId, briefRow, payload);
     if (linkedDescriptorIds.length === 0) {
-      return toWorkflowOperatorBriefRecord(insertedRow);
+      return toWorkflowOperatorBriefRecord(briefRow);
     }
     const result = await this.pool.query<WorkflowOperatorBriefRow>(
       `UPDATE workflow_operator_briefs
@@ -280,10 +293,10 @@ export class WorkflowOperatorBriefService {
       RETURNING *`,
       [
         serializeJsonb(linkedDescriptorIds),
-        serializeJsonb(sanitizeLinkedIdList(insertedRow.related_artifact_ids)),
+        serializeJsonb(sanitizeLinkedIdList(briefRow.related_artifact_ids)),
         identity.tenantId,
         workflowId,
-        insertedRow.id,
+        briefRow.id,
       ],
     );
     return toWorkflowOperatorBriefRecord(result.rows[0]);
@@ -292,21 +305,105 @@ export class WorkflowOperatorBriefService {
   private async materializeLinkedDeliverables(
     identity: ApiKeyIdentity,
     workflowId: string,
-    sourceBriefId: string,
+    briefRow: WorkflowOperatorBriefRow,
     payload: WorkflowOperatorBriefPayloadInput,
   ): Promise<string[]> {
-    if (!this.deliverableService || !Array.isArray(payload.linkedDeliverables) || payload.linkedDeliverables.length === 0) {
+    if (!this.deliverableService) {
+      return [];
+    }
+    const existingIds = sanitizeLinkedIdList(briefRow.related_output_descriptor_ids);
+    if (existingIds.length > 0) {
+      return existingIds;
+    }
+    const deliverables = Array.isArray(payload.linkedDeliverables) && payload.linkedDeliverables.length > 0
+      ? payload.linkedDeliverables
+      : shouldMaterializeDeliverablePacket(briefRow)
+        ? [await this.buildSynthesizedDeliverable(identity, workflowId, briefRow)]
+        : [];
+    if (deliverables.length === 0) {
       return [];
     }
     const descriptorIds: string[] = [];
-    for (const deliverable of payload.linkedDeliverables) {
+    for (const deliverable of deliverables) {
       const record = await this.deliverableService.upsertDeliverable(identity, workflowId, {
         ...deliverable,
-        sourceBriefId,
+        sourceBriefId: briefRow.id,
       });
       descriptorIds.push(record.descriptor_id);
     }
     return descriptorIds;
+  }
+
+  private async buildSynthesizedDeliverable(
+    identity: ApiKeyIdentity,
+    workflowId: string,
+    briefRow: WorkflowOperatorBriefRow,
+  ): Promise<UpsertWorkflowDeliverableInput> {
+    const [descriptorId, artifacts] = await Promise.all([
+      this.loadExistingDescriptorId(identity.tenantId, workflowId, briefRow.id),
+      this.loadArtifacts(identity.tenantId, workflowId, sanitizeLinkedIdList(briefRow.related_artifact_ids)),
+    ]);
+    const artifactTargets = artifacts.map((artifact, index) => buildArtifactTarget(artifact, index === 0));
+    const headline = readBriefHeadline(briefRow);
+    return {
+      descriptorId,
+      workItemId: briefRow.work_item_id ?? undefined,
+      descriptorKind: 'brief_packet',
+      deliveryStage: 'final',
+      title: headline,
+      state: 'final',
+      summaryBrief: readBriefSummary(briefRow),
+      previewCapabilities: artifacts.length > 0
+        ? buildArtifactPreviewCapabilities(artifacts[0])
+        : buildInlinePreviewCapabilities(),
+      primaryTarget: artifactTargets[0] ?? buildInlineSummaryTarget(),
+      secondaryTargets: artifactTargets.slice(1),
+      contentPreview: {
+        summary: buildBriefPreviewSummary(briefRow),
+      },
+      sourceBriefId: briefRow.id,
+    };
+  }
+
+  private async loadExistingDescriptorId(
+    tenantId: string,
+    workflowId: string,
+    sourceBriefId: string,
+  ): Promise<string | undefined> {
+    const result = await this.pool.query<ExistingDescriptorRow>(
+      `SELECT id
+         FROM workflow_output_descriptors
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND source_brief_id = $3
+        LIMIT 1`,
+      [tenantId, workflowId, sourceBriefId],
+    );
+    return result.rows[0]?.id;
+  }
+
+  private async loadArtifacts(
+    tenantId: string,
+    workflowId: string,
+    artifactIds: string[],
+  ): Promise<ArtifactRow[]> {
+    if (artifactIds.length === 0) {
+      return [];
+    }
+    const result = await this.pool.query<ArtifactRow>(
+      `SELECT id, task_id, logical_path, content_type
+         FROM workflow_artifacts
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = ANY($3::uuid[])
+        ORDER BY created_at ASC`,
+      [tenantId, workflowId, artifactIds],
+    );
+    const order = new Map(artifactIds.map((artifactId, index) => [artifactId, index]));
+    return [...result.rows].sort(
+      (left, right) =>
+        (order.get(left.id) ?? Number.MAX_SAFE_INTEGER) - (order.get(right.id) ?? Number.MAX_SAFE_INTEGER),
+    );
   }
 
   private async findByRequestId(
@@ -423,6 +520,74 @@ function asRecord(value: unknown): Record<string, unknown> {
     return {};
   }
   return value as Record<string, unknown>;
+}
+
+function shouldMaterializeDeliverablePacket(brief: WorkflowOperatorBriefRow): boolean {
+  return brief.brief_scope === 'deliverable_context' && isDeliverableOutcomeStatus(sanitizeOptionalText(brief.status_kind));
+}
+
+function readBriefHeadline(brief: WorkflowOperatorBriefRow): string {
+  return sanitizeOptionalText(asRecord(brief.detailed_brief_json).headline)
+    ?? sanitizeOptionalText(asRecord(brief.short_brief).headline)
+    ?? 'Workflow deliverable packet';
+}
+
+function readBriefSummary(brief: WorkflowOperatorBriefRow): string | undefined {
+  return sanitizeOptionalText(asRecord(brief.detailed_brief_json).summary)
+    ?? sanitizeOptionalText(asRecord(brief.short_brief).headline)
+    ?? undefined;
+}
+
+function buildBriefPreviewSummary(brief: WorkflowOperatorBriefRow): string {
+  const parts = [
+    readBriefHeadline(brief),
+    sanitizeOptionalText(asRecord(brief.detailed_brief_json).summary),
+    brief.source_role_name ? `Produced by: ${brief.source_role_name}` : null,
+  ];
+  return parts.filter((part): part is string => typeof part === 'string' && part.length > 0).join('\n\n');
+}
+
+function buildInlinePreviewCapabilities(): Record<string, unknown> {
+  return {
+    can_inline_preview: true,
+    can_download: false,
+    can_open_external: false,
+    can_copy_path: false,
+    preview_kind: 'structured_summary',
+  };
+}
+
+function buildInlineSummaryTarget(): Record<string, unknown> {
+  return {
+    target_kind: 'inline_summary',
+    label: 'Review completion packet',
+    url: '',
+  };
+}
+
+function buildArtifactPreviewCapabilities(artifact: ArtifactRow): Record<string, unknown> {
+  const contentType = sanitizeOptionalText(artifact.content_type) ?? '';
+  return {
+    can_inline_preview: true,
+    can_download: true,
+    can_open_external: false,
+    can_copy_path: Boolean(sanitizeOptionalText(artifact.logical_path)),
+    preview_kind: contentType.includes('markdown')
+      ? 'markdown'
+      : contentType.includes('json')
+        ? 'json'
+        : 'text',
+  };
+}
+
+function buildArtifactTarget(artifact: ArtifactRow, primary: boolean): Record<string, unknown> {
+  return {
+    target_kind: 'artifact',
+    label: primary ? 'Open artifact' : 'Artifact',
+    url: `/artifacts/tasks/${artifact.task_id}/${artifact.id}`,
+    path: sanitizeOptionalText(artifact.logical_path),
+    artifact_id: artifact.id,
+  };
 }
 
 function toWorkflowOperatorBriefRecord(row: WorkflowOperatorBriefRow): WorkflowOperatorBriefRecord {
