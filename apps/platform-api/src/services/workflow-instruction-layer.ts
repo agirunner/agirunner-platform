@@ -194,6 +194,12 @@ function buildOrchestratorSections(params: {
     `Parallel work items: ${orchestrator.allow_parallel_work_items === false ? 'disabled' : 'enabled'}`,
   ];
   sections.push(`## Parallelism\n${parallelLines.join('\n')}`);
+  const operatorVisibilitySection = formatOperatorVisibilitySection(
+    asRecord(params.workflow.live_visibility),
+  );
+  if (operatorVisibilitySection) {
+    sections.push(operatorVisibilitySection);
+  }
 
   sections.push(`## Output Protocol\n${outputProtocol(params.repoBacked, true)}`);
   return sections.filter((section) => section.trim().length > 0);
@@ -359,6 +365,103 @@ function formatRoleCatalog(
   return roles
     .map((role) => `- ${role.name}: ${role.description ?? 'No description configured.'}`)
     .join('\n');
+}
+
+function formatOperatorVisibilitySection(liveVisibility: Record<string, unknown>): string {
+  if (Object.keys(liveVisibility).length === 0) {
+    return '';
+  }
+
+  const lines: string[] = [];
+  const mode = readString(liveVisibility.mode);
+  const workflowId = readString(liveVisibility.workflow_id);
+  const workItemId = readString(liveVisibility.work_item_id);
+  const taskId = readString(liveVisibility.task_id);
+  const executionContextId = readString(liveVisibility.execution_context_id);
+  const recordOperatorUpdateTool = readString(liveVisibility.record_operator_update_tool);
+  const recordOperatorBriefTool = readString(liveVisibility.record_operator_brief_tool);
+  const sourceKind = readString(liveVisibility.source_kind) ?? 'orchestrator';
+  const operatorUpdateRequestIdPrefix = readString(liveVisibility.operator_update_request_id_prefix);
+  const operatorBriefRequestIdPrefix = readString(liveVisibility.operator_brief_request_id_prefix);
+
+  if (mode) lines.push(`Live visibility mode: ${mode}`);
+  if (workflowId) lines.push(`Workflow id: ${workflowId}`);
+  if (workItemId) lines.push(`Work item id: ${workItemId}`);
+  if (taskId) lines.push(`Task id: ${taskId}`);
+  if (executionContextId) lines.push(`Execution context id: ${executionContextId}`);
+  lines.push(
+    'Every operator record write must include a unique request_id. Reuse a request_id only for an intentional retry of the same write.',
+  );
+
+  if (liveVisibility.turn_updates_required === true && recordOperatorUpdateTool) {
+    if (liveVisibility.turn_update_scope === 'per_eligible_turn') {
+      lines.push(`Enhanced live visibility requires one ${recordOperatorUpdateTool} on every eligible turn.`);
+    }
+    const eligibleTurnGuidance = readString(liveVisibility.eligible_turn_guidance);
+    if (eligibleTurnGuidance) {
+      lines.push(eligibleTurnGuidance);
+    }
+    if (operatorUpdateRequestIdPrefix) {
+      lines.push(
+        `Use ${operatorUpdateRequestIdPrefix} as the stable request_id prefix for ${recordOperatorUpdateTool} writes in this execution context.`,
+      );
+    }
+    lines.push(
+      `Use ${recordOperatorUpdateTool} for one tiny operator-readable headline after each eligible execution step.`,
+    );
+    lines.push(
+      'Operator updates and briefs are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".',
+    );
+    lines.push(
+      `Example: ${formatOperatorUpdateExample({
+        requestIdPrefix: operatorUpdateRequestIdPrefix,
+        executionContextId,
+        workItemId,
+        taskId,
+        sourceKind,
+      })}`,
+    );
+  }
+
+  if (liveVisibility.milestone_briefs_required === true && recordOperatorBriefTool) {
+    if (operatorBriefRequestIdPrefix) {
+      lines.push(
+        `Use ${operatorBriefRequestIdPrefix} as the stable request_id prefix for ${recordOperatorBriefTool} writes in this execution context.`,
+      );
+    }
+    lines.push(
+      `Use ${recordOperatorBriefTool} for material handoff or milestone summaries when the platform requests them.`,
+    );
+    lines.push(
+      `${recordOperatorBriefTool} payload must include short_brief and detailed_brief_json objects.`,
+    );
+    lines.push('short_brief must include a headline.');
+    lines.push(
+      'record_operator_brief requires short_brief.headline plus detailed_brief_json.headline and status_kind, and must never be called with only linked_target_ids or an empty brief shell.',
+    );
+  }
+
+  return lines.length > 0 ? `## Operator Visibility\n${lines.join('\n')}` : '';
+}
+
+function formatOperatorUpdateExample(input: {
+  requestIdPrefix: string | null;
+  executionContextId: string | null;
+  workItemId: string | null;
+  taskId: string | null;
+  sourceKind: string;
+}): string {
+  const requestId = `${input.requestIdPrefix ?? 'operator-update:<execution_context_id>:'}route-reviewer`;
+  const fields = [
+    `request_id: "${requestId}"`,
+    `execution_context_id: "${input.executionContextId ?? '<execution_context_id>'}"`,
+    input.workItemId ? `work_item_id: "${input.workItemId}"` : null,
+    input.taskId ? `task_id: "${input.taskId}"` : null,
+    `source_kind: "${input.sourceKind}"`,
+    'payload: { headline: "Orchestrator is routing the next specialist task." }',
+  ].filter((value): value is string => Boolean(value));
+
+  return `{ ${fields.join(', ')} }`;
 }
 
 function formatPendingDispatches(

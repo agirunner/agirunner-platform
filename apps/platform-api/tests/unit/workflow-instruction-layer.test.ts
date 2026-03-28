@@ -233,6 +233,74 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('Reroute candidates: brand-reviewer, editor');
   });
 
+  it('renders the orchestrator live-visibility contract with exact operator update fields', () => {
+    const layer = buildWorkflowInstructionLayer({
+      isOrchestratorTask: true,
+      workflow: {
+        lifecycle: 'planned',
+        active_stages: ['review'],
+        live_visibility: {
+          mode: 'enhanced',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: null,
+          execution_context_id: 'activation-1',
+          source_kind: 'orchestrator',
+          record_operator_update_tool: 'record_operator_update',
+          record_operator_brief_tool: 'record_operator_brief',
+          turn_updates_required: true,
+          turn_update_scope: 'per_eligible_turn',
+          eligible_turn_guidance:
+            'Emit one operator update after every eligible turn that inspects workflow state and then routes work, requests review or approval, reports waiting progress, or finishes with a concrete noop or next-step decision.',
+          operator_update_request_id_prefix: 'operator-update:activation-1:',
+          operator_brief_request_id_prefix: 'operator-brief:activation-1:',
+          milestone_briefs_required: true,
+        },
+        playbook: {
+          definition: {
+            lifecycle: 'planned',
+            process_instructions: 'Route work through review.',
+            board: {
+              columns: [{ id: 'review', label: 'In Review' }],
+            },
+            stages: [{ name: 'review', goal: 'Review the accepted change' }],
+          },
+        },
+      },
+      orchestratorContext: {
+        activation: { payload: { work_item_id: 'work-item-1' } },
+        board: {
+          work_items: [
+            {
+              id: 'work-item-1',
+              stage_name: 'review',
+              column_id: 'review',
+              next_expected_actor: 'reviewer',
+              next_expected_action: 'assess',
+              rework_count: 0,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(layer).not.toBeNull();
+    expect(layer!.content).toContain('## Operator Visibility');
+    expect(layer!.content).toContain('Live visibility mode: enhanced');
+    expect(layer!.content).toContain('Workflow id: workflow-1');
+    expect(layer!.content).toContain('Work item id: work-item-1');
+    expect(layer!.content).toContain('Execution context id: activation-1');
+    expect(layer!.content).toContain(
+      'Enhanced live visibility requires one record_operator_update on every eligible turn.',
+    );
+    expect(layer!.content).toContain(
+      'Use operator-update:activation-1: as the stable request_id prefix for record_operator_update writes in this execution context.',
+    );
+    expect(layer!.content).toContain(
+      'Example: { request_id: "operator-update:activation-1:route-reviewer", execution_context_id: "activation-1", work_item_id: "work-item-1", source_kind: "orchestrator", payload: { headline: "Orchestrator is routing the next specialist task." } }',
+    );
+  });
+
   it('tells the orchestrator that restrictive findings do not satisfy missing same-stage roles', () => {
     const layer = buildWorkflowInstructionLayer({
       isOrchestratorTask: true,
