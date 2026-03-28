@@ -22,6 +22,7 @@ import type {
 import type {
   WorkflowBottomTabsPacket,
   WorkflowHistoryItem,
+  WorkflowNeedsActionDetail,
   WorkflowNeedsActionItem,
   WorkflowNeedsActionResponseAction,
   WorkflowLiveConsoleItem,
@@ -49,6 +50,13 @@ interface ActionableTaskRecord {
   state: string;
   work_item_id: string | null;
   updated_at: string | null;
+  description: string | null;
+  review_feedback: string | null;
+  verification_summary: string | null;
+  subject_revision: number | null;
+  escalation_reason: string | null;
+  escalation_context: string | null;
+  escalation_work_so_far: string | null;
 }
 
 interface TaskActionSource {
@@ -68,7 +76,12 @@ interface WorkflowGateRecord {
   gate_id: string;
   stage_name: string;
   status: string;
+  request_summary: string | null;
+  recommendation: string | null;
+  concerns: string[];
   requested_by_work_item_id: string | null;
+  requested_by_task_title: string | null;
+  requested_by_work_item_title: string | null;
 }
 
 interface GateActionSource {
@@ -77,6 +90,7 @@ interface GateActionSource {
 
 interface WorkflowBoardNeedsActionItem extends WorkflowNeedsActionItem {
   stage_name?: string | null;
+  subject_label?: string | null;
 }
 
 export class WorkflowWorkspaceService {
@@ -323,11 +337,18 @@ function buildNeedsActionItems(
   const gatesByStage = buildWorkflowGateStageMap(gates);
   for (const boardItem of readBoardNeedsActionItems(board)) {
     const gate = resolveNeedsActionGate(boardItem, gatesByWorkItem, gatesByStage);
-    const directTask = readDirectActionTask(boardItem.target.target_kind, boardItem.target.target_id, actionableTaskMap);
+    const directTask = readDirectActionTask(
+      boardItem.action_kind,
+      boardItem.target.target_kind,
+      boardItem.target.target_id,
+      actionableTaskMap,
+    );
     const responses = buildBoardNeedsActionResponses(boardItem.action_kind, boardItem.target, directTask, gate);
-    const { stage_name: _stageName, ...publicItem } = boardItem;
+    const presentation = buildBoardNeedsActionPresentation(boardItem, directTask, gate);
+    const { stage_name: _stageName, subject_label: _subjectLabel, ...publicItem } = boardItem;
     items.push({
       ...publicItem,
+      ...presentation,
       target: directTask ? { target_kind: 'task', target_id: directTask.id } : boardItem.target,
       submission: {
         route_kind: directTask ? 'task_mutation' : boardItem.submission.route_kind,
@@ -341,9 +362,11 @@ function buildNeedsActionItems(
       continue;
     }
     const gate = resolveNeedsActionGate(stageItem, gatesByWorkItem, gatesByStage);
+    const presentation = buildBoardNeedsActionPresentation(stageItem, null, gate);
     const { stage_name: _stageName, ...publicItem } = stageItem;
     items.push({
       ...publicItem,
+      ...presentation,
       responses: buildBoardNeedsActionResponses(stageItem.action_kind, stageItem.target, null, gate),
     });
   }
@@ -451,6 +474,18 @@ function normalizeActionableTask(record: Record<string, unknown>): ActionableTas
     state,
     work_item_id: readOptionalString(record.work_item_id),
     updated_at: readOptionalString(record.updated_at),
+    description: readOptionalString(record.description) ?? readOptionalString(asRecord(record.metadata).description),
+    review_feedback:
+      readOptionalString(asRecord(record.input).assessment_feedback)
+      ?? readOptionalString(asRecord(record.metadata).assessment_feedback),
+    verification_summary: buildTaskVerificationSummary(asRecord(record.verification)),
+    subject_revision:
+      readOptionalInteger(asRecord(record.input).subject_revision)
+      ?? readOptionalInteger(asRecord(record.metadata).subject_revision)
+      ?? readOptionalInteger(asRecord(record.metadata).output_revision),
+    escalation_reason: readOptionalString(asRecord(record.metadata).escalation_reason),
+    escalation_context: readOptionalString(asRecord(record.metadata).escalation_context),
+    escalation_work_so_far: readOptionalString(asRecord(record.metadata).escalation_work_so_far),
   };
 }
 
@@ -469,7 +504,16 @@ function normalizeWorkflowGate(record: Record<string, unknown>): WorkflowGateRec
     gate_id: gateId,
     stage_name: stageName,
     status,
+    request_summary: readOptionalString(record.request_summary) ?? readOptionalString(record.summary),
+    recommendation: readOptionalString(record.recommendation),
+    concerns: readStringArray(record.concerns),
     requested_by_work_item_id: readOptionalString(record.requested_by_work_item_id) ?? null,
+    requested_by_task_title:
+      readOptionalString(asRecord(record.requested_by_task).title)
+      ?? readOptionalString(record.requested_by_task_title),
+    requested_by_work_item_title:
+      readOptionalString(asRecord(record.requested_by_task).work_item_title)
+      ?? readOptionalString(record.requested_by_work_item_title),
   };
 }
 
@@ -487,6 +531,7 @@ function buildActionableTaskMap(tasks: ActionableTaskRecord[]): Map<string, Acti
 }
 
 function readDirectActionTask(
+  actionKind: string,
   targetKind: WorkflowNeedsActionItem['target']['target_kind'],
   targetId: string,
   actionableTaskMap: Map<string, ActionableTaskRecord[]>,
@@ -503,7 +548,122 @@ function readDirectActionTask(
   if (targetKind !== 'work_item') {
     return null;
   }
-  return actionableTaskMap.get(targetId)?.[0] ?? null;
+  const tasks = actionableTaskMap.get(targetId) ?? [];
+  const preferredStates = readPreferredActionTaskStates(actionKind);
+  for (const state of preferredStates) {
+    const matchingTask = tasks.find((task) => task.state === state);
+    if (matchingTask) {
+      return matchingTask;
+    }
+  }
+  return tasks[0] ?? null;
+}
+
+function readPreferredActionTaskStates(actionKind: string): string[] {
+  if (actionKind === 'resolve_escalation') {
+    return ['escalated'];
+  }
+  if (actionKind === 'review_work_item') {
+    return ['awaiting_approval', 'output_pending_assessment'];
+  }
+  return [];
+}
+
+function buildBoardNeedsActionPresentation(
+  item: WorkflowBoardNeedsActionItem,
+  directTask: ActionableTaskRecord | null,
+  gate: WorkflowGateRecord | null,
+): Pick<WorkflowNeedsActionItem, 'summary' | 'details'> {
+  if (item.action_kind === 'resolve_escalation' && directTask) {
+    return buildEscalationPresentation(item, directTask);
+  }
+  if ((item.action_kind === 'review_work_item' || item.action_kind === 'review_stage_gate') && directTask) {
+    return buildTaskApprovalPresentation(item, directTask);
+  }
+  if ((item.action_kind === 'review_work_item' || item.action_kind === 'review_stage_gate') && gate?.status === 'awaiting_approval') {
+    return buildGateApprovalPresentation(item, gate);
+  }
+  return { summary: item.summary };
+}
+
+function buildEscalationPresentation(
+  item: WorkflowBoardNeedsActionItem,
+  directTask: ActionableTaskRecord,
+): Pick<WorkflowNeedsActionItem, 'summary' | 'details'> {
+  const title = item.subject_label ?? 'Work item';
+  const reason = directTask.escalation_reason;
+  const details: WorkflowNeedsActionDetail[] = [];
+  if (directTask.escalation_context) {
+    details.push({ label: 'Context', value: directTask.escalation_context });
+  }
+  if (directTask.escalation_work_so_far) {
+    details.push({ label: 'Work so far', value: directTask.escalation_work_so_far });
+  }
+  return {
+    summary: reason
+      ? `${title} needs escalation resolution: ${ensureSentence(reason)}`
+      : `${title} has an open escalation.`,
+    ...(details.length > 0 ? { details } : {}),
+  };
+}
+
+function buildTaskApprovalPresentation(
+  item: WorkflowBoardNeedsActionItem,
+  directTask: ActionableTaskRecord,
+): Pick<WorkflowNeedsActionItem, 'summary' | 'details'> {
+  const title = item.subject_label ?? 'Work item';
+  const isOutputReview = directTask.state === 'output_pending_assessment';
+  const details: WorkflowNeedsActionDetail[] = [
+    {
+      label: isOutputReview ? 'Assessment target' : 'Approval target',
+      value: directTask.title,
+    },
+  ];
+  if (directTask.description) {
+    details.push({ label: 'Context', value: directTask.description });
+  }
+  if (directTask.review_feedback) {
+    details.push({ label: 'Latest feedback', value: directTask.review_feedback });
+  }
+  if (directTask.verification_summary) {
+    details.push({ label: 'Verification', value: directTask.verification_summary });
+  }
+  if (directTask.subject_revision !== null) {
+    details.push({ label: 'Revision', value: String(directTask.subject_revision) });
+  }
+
+  return {
+    summary: isOutputReview
+      ? `${title} is waiting for output review on ${directTask.title}.`
+      : `${title} is waiting for operator approval on ${directTask.title}.`,
+    ...(details.length > 0 ? { details } : {}),
+  };
+}
+
+function buildGateApprovalPresentation(
+  item: WorkflowBoardNeedsActionItem,
+  gate: WorkflowGateRecord,
+): Pick<WorkflowNeedsActionItem, 'summary' | 'details'> {
+  const title = item.subject_label ?? gate.requested_by_work_item_title ?? (item.stage_name ? `Stage ${item.stage_name}` : 'Approval');
+  const details: WorkflowNeedsActionDetail[] = [];
+  if (gate.recommendation) {
+    details.push({ label: 'Recommendation', value: humanizeToken(gate.recommendation) });
+  }
+  const requestedBy = gate.requested_by_task_title ?? gate.requested_by_work_item_title;
+  if (requestedBy) {
+    details.push({ label: 'Requested by', value: requestedBy });
+  }
+  const concernsSummary = summarizeConcerns(gate.concerns);
+  if (concernsSummary) {
+    details.push({ label: 'Concerns', value: concernsSummary });
+  }
+
+  return {
+    summary: gate.request_summary
+      ? `${title} is waiting for operator approval: ${ensureSentence(gate.request_summary)}`
+      : item.summary,
+    ...(details.length > 0 ? { details } : {}),
+  };
 }
 
 function buildWorkflowGateWorkItemMap(gates: WorkflowGateRecord[]): Map<string, WorkflowGateRecord> {
@@ -728,6 +888,7 @@ function readBoardNeedsActionItems(board: Record<string, unknown>): WorkflowBoar
         action_kind: 'review_work_item',
         label: 'Approval required',
         summary: `${title} is waiting for operator approval.`,
+        subject_label: title,
         target: { target_kind: 'work_item', target_id: workItemId },
         stage_name: readOptionalString(record.stage_name) ?? null,
         priority: 'high',
@@ -742,6 +903,7 @@ function readBoardNeedsActionItems(board: Record<string, unknown>): WorkflowBoar
         action_kind: 'resolve_escalation',
         label: 'Resolve escalation',
         summary: `${title} has an open escalation.`,
+        subject_label: title,
         target: { target_kind: 'work_item', target_id: workItemId },
         stage_name: readOptionalString(record.stage_name) ?? null,
         priority: 'high',
@@ -756,6 +918,7 @@ function readBoardNeedsActionItems(board: Record<string, unknown>): WorkflowBoar
         action_kind: 'unblock_work_item',
         label: 'Unblock work item',
         summary: buildBlockedSummary(title, record),
+        subject_label: title,
         target: { target_kind: 'work_item', target_id: workItemId },
         stage_name: readOptionalString(record.stage_name) ?? null,
         priority: 'high',
@@ -775,6 +938,7 @@ function readBoardNeedsActionItems(board: Record<string, unknown>): WorkflowBoar
             ? 'Resolve rejection'
             : 'Unblock work item',
         summary: buildBlockedSummary(title, record),
+        subject_label: title,
         target: { target_kind: 'work_item', target_id: workItemId },
         stage_name: readOptionalString(record.stage_name) ?? null,
         priority: 'high',
@@ -1102,6 +1266,77 @@ function readOptionalString(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function readOptionalInteger(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+function readStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) => readOptionalString(entry))
+    .filter((entry): entry is string => entry !== null);
+}
+
+function ensureSentence(value: string): string {
+  return /[.!?]$/.test(value) ? value : `${value}.`;
+}
+
+function buildTaskVerificationSummary(verification: Record<string, unknown>): string | null {
+  const operatorSummary = readConciseRecordText(verification, ['summary', 'reason', 'details', 'assessment_prompt', 'message']);
+  if (operatorSummary) {
+    return operatorSummary;
+  }
+  if (typeof verification.passed === 'boolean') {
+    return verification.passed ? 'Verification passed.' : 'Verification reported a failing check.';
+  }
+  const fieldCount = Object.keys(verification).length;
+  if (fieldCount === 0) {
+    return null;
+  }
+  return `${fieldCount} verification ${fieldCount === 1 ? 'field' : 'fields'} recorded.`;
+}
+
+function summarizeConcerns(concerns: string[]): string | null {
+  if (concerns.length === 0) {
+    return null;
+  }
+  if (concerns.length === 1) {
+    return concerns[0];
+  }
+  return `${concerns[0]} (+${concerns.length - 1} more)`;
+}
+
+function readConciseRecordText(record: Record<string, unknown>, keys: string[]): string | null {
+  for (const key of keys) {
+    const value = readOptionalString(record[key]);
+    if (!value) {
+      continue;
+    }
+    return value.length > 180 ? `${value.slice(0, 179)}…` : value;
+  }
+  return null;
+}
+
+function humanizeToken(value: string): string {
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function humanizeGateStatus(value: string): string {

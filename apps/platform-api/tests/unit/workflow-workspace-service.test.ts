@@ -428,6 +428,13 @@ describe('WorkflowWorkspaceService', () => {
                   state: 'awaiting_approval',
                   work_item_id: 'work-item-1',
                   updated_at: '2026-03-27T22:42:00.000Z',
+                  description: 'Release packet draft and rollback notes are assembled for sign-off.',
+                  input: {
+                    subject_revision: 3,
+                  },
+                  verification: {
+                    summary: 'Release packet verification passed and the required artifacts are attached.',
+                  },
                 },
               ]
             : [],
@@ -451,11 +458,176 @@ describe('WorkflowWorkspaceService', () => {
       expect.objectContaining({
         action_kind: 'review_work_item',
         label: 'Approval required',
+        summary: 'Review release packet is waiting for operator approval on Approve release packet.',
         target: { target_kind: 'task', target_id: 'task-approve-1' },
+        details: [
+          { label: 'Approval target', value: 'Approve release packet' },
+          { label: 'Context', value: 'Release packet draft and rollback notes are assembled for sign-off.' },
+          {
+            label: 'Verification',
+            value: 'Release packet verification passed and the required artifacts are attached.',
+          },
+          { label: 'Revision', value: '3' },
+        ],
         responses: [
           expect.objectContaining({ kind: 'approve_task', label: 'Approve' }),
           expect.objectContaining({ kind: 'reject_task', label: 'Reject', prompt_kind: 'feedback' }),
           expect.objectContaining({ kind: 'request_changes_task', label: 'Request changes', prompt_kind: 'feedback' }),
+        ],
+      }),
+    ]);
+  });
+
+  it('surfaces escalated task metadata in needs action instead of generic open-escalation copy', async () => {
+    const workflowService = {
+      getWorkflow: vi.fn(async () => ({})),
+      getWorkflowBoard: vi.fn(async () => ({
+        columns: [{ id: 'review' }],
+        work_items: [
+          {
+            id: 'work-item-1',
+            title: 'workflows-intake-02',
+            stage_name: 'policy-review',
+            column_id: 'review',
+            gate_status: null,
+            escalation_status: 'open',
+            blocked_state: null,
+            completed_at: null,
+          },
+        ],
+        stage_summary: [],
+      })),
+    };
+    const railService = {
+      getWorkflowCard: vi.fn(async () => ({
+        id: 'workflow-1',
+        name: 'Release Workflow',
+        posture: 'needs_intervention',
+        pulse: { summary: 'Waiting on escalation guidance' },
+        availableActions: [],
+        metrics: {
+          blockedWorkItemCount: 0,
+          openEscalationCount: 1,
+          failedTaskCount: 0,
+          recoverableIssueCount: 0,
+          waitingForDecisionCount: 0,
+          activeTaskCount: 1,
+          activeWorkItemCount: 1,
+          lastChangedAt: '2026-03-27T22:45:00.000Z',
+        },
+      })),
+    };
+    const liveConsoleService = {
+      getLiveConsole: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:120',
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        items: [],
+        next_cursor: null,
+        live_visibility_mode: 'enhanced',
+      })),
+    };
+    const historyService = {
+      getHistory: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:120',
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        groups: [],
+        items: [],
+        filters: { available: [], active: [] },
+        next_cursor: null,
+      })),
+    };
+    const deliverablesService = {
+      getDeliverables: vi.fn(async () => ({
+        final_deliverables: [],
+        in_progress_deliverables: [],
+        working_handoffs: [],
+        inputs_and_provenance: {
+          launch_packet: null,
+          supplemental_packets: [],
+          intervention_attachments: [],
+          redrive_packet: null,
+        },
+        next_cursor: null,
+        all_deliverables: [],
+      })),
+    };
+    const interventionService = {
+      listWorkflowInterventions: vi.fn(async () => []),
+    };
+    const steeringSessionService = {
+      listSessions: vi.fn(async () => []),
+      listMessages: vi.fn(async () => []),
+    };
+    const taskService = {
+      listTasks: vi.fn(async (_tenantId: string, query: { state?: string }) => ({
+        data:
+          query.state === 'escalated'
+            ? [
+                {
+                  id: '771908c8-0634-467a-b41d-6dd4a6798d7d',
+                  title: 'Review intake summary',
+                  role: 'policy-reviewer',
+                  state: 'escalated',
+                  work_item_id: 'work-item-1',
+                  updated_at: '2026-03-27T22:42:00.000Z',
+                  metadata: {
+                    escalation_reason: 'submit_handoff replay mismatch conflict',
+                    escalation_context:
+                      'item content is ready for policy review, summary file already written',
+                    escalation_work_so_far:
+                      'reviewed context, wrote summary, submit_handoff rejected once',
+                  },
+                },
+              ]
+            : [],
+      })),
+    };
+
+    const service = new WorkflowWorkspaceService(
+      workflowService as never,
+      railService as never,
+      liveConsoleService as never,
+      historyService as never,
+      deliverablesService as never,
+      interventionService as never,
+      steeringSessionService as never,
+      taskService as never,
+    );
+
+    const result = await service.getWorkspace('tenant-1', 'workflow-1');
+
+    expect(result.needs_action.items).toEqual([
+      expect.objectContaining({
+        action_id: 'work-item-1:open_escalation',
+        action_kind: 'resolve_escalation',
+        label: 'Resolve escalation',
+        summary:
+          'workflows-intake-02 needs escalation resolution: submit_handoff replay mismatch conflict.',
+        target: {
+          target_kind: 'task',
+          target_id: '771908c8-0634-467a-b41d-6dd4a6798d7d',
+        },
+        details: [
+          {
+            label: 'Context',
+            value: 'item content is ready for policy review, summary file already written',
+          },
+          {
+            label: 'Work so far',
+            value: 'reviewed context, wrote summary, submit_handoff rejected once',
+          },
+        ],
+        responses: [
+          expect.objectContaining({
+            kind: 'resolve_escalation',
+            label: 'Resume with guidance',
+            target: {
+              target_kind: 'task',
+              target_id: '771908c8-0634-467a-b41d-6dd4a6798d7d',
+            },
+          }),
         ],
       }),
     ]);
@@ -552,7 +724,12 @@ describe('WorkflowWorkspaceService', () => {
           gate_id: 'gate-1',
           stage_name: 'approval-gate',
           status: 'awaiting_approval',
+          request_summary: 'Ready for signoff after editorial and policy review.',
+          recommendation: 'approve',
+          concerns: ['Confirm final owner attribution before publishing.'],
           requested_by_work_item_id: 'work-item-1',
+          requested_by_work_item_title: 'Approve Curiosity Deck brief',
+          requested_by_task_title: 'Package approval brief',
         },
       ]),
     };
@@ -575,7 +752,13 @@ describe('WorkflowWorkspaceService', () => {
       expect.objectContaining({
         action_kind: 'review_work_item',
         label: 'Approval required',
+        summary: 'Approve Curiosity Deck brief is waiting for operator approval: Ready for signoff after editorial and policy review.',
         target: { target_kind: 'work_item', target_id: 'work-item-1' },
+        details: [
+          { label: 'Recommendation', value: 'Approve' },
+          { label: 'Requested by', value: 'Package approval brief' },
+          { label: 'Concerns', value: 'Confirm final owner attribution before publishing.' },
+        ],
         responses: [
           expect.objectContaining({
             kind: 'approve_gate',

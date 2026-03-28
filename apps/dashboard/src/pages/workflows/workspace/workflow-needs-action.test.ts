@@ -249,6 +249,134 @@ describe('WorkflowNeedsAction', () => {
     expect(html).toContain('Request changes');
   });
 
+  it('renders approval context details inline for approval cards', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowNeedsAction, {
+          workflowId: 'workflow-1',
+          workspaceId: 'workspace-1',
+          packet: {
+            items: [
+              {
+                action_id: 'task-approve-1:awaiting_approval',
+                action_kind: 'review_work_item',
+                label: 'Approval required',
+                summary: 'Review release packet is waiting for operator approval on Approve release packet.',
+                target: {
+                  target_kind: 'task',
+                  target_id: 'task-approve-1',
+                },
+                priority: 'high',
+                requires_confirmation: true,
+                submission: {
+                  route_kind: 'task_mutation',
+                  method: 'POST',
+                },
+                details: [
+                  { label: 'Approval target', value: 'Approve release packet' },
+                  { label: 'Context', value: 'Release packet draft and rollback notes are assembled for sign-off.' },
+                  {
+                    label: 'Verification',
+                    value: 'Release packet verification passed and the required artifacts are attached.',
+                  },
+                  { label: 'Revision', value: '3' },
+                ],
+                responses: [
+                  {
+                    action_id: 'task-approve-1:approve',
+                    kind: 'approve_task',
+                    label: 'Approve',
+                    target: {
+                      target_kind: 'task',
+                      target_id: 'task-approve-1',
+                    },
+                    requires_confirmation: false,
+                    prompt_kind: 'none',
+                  },
+                ],
+              },
+            ],
+            total_count: 1,
+            default_sort: 'priority_desc',
+          } as never,
+        }),
+      ),
+    );
+
+    expect(html).toContain('Approve release packet');
+    expect(html).toContain('Release packet draft and rollback notes are assembled for sign-off.');
+    expect(html).toContain('Release packet verification passed and the required artifacts are attached.');
+    expect(html).toContain('Revision');
+    expect(html).toContain('3');
+  });
+
+  it('renders escalation reason, context, and work-so-far details inside the needs-action card', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowNeedsAction, {
+          workflowId: 'workflow-1',
+          workspaceId: 'workspace-1',
+          packet: {
+            items: [
+              {
+                action_id: 'work-item-1:open_escalation',
+                action_kind: 'resolve_escalation',
+                label: 'Resolve escalation',
+                summary:
+                  'workflows-intake-02 needs escalation resolution: submit_handoff replay mismatch conflict.',
+                target: {
+                  target_kind: 'task',
+                  target_id: '771908c8-0634-467a-b41d-6dd4a6798d7d',
+                },
+                priority: 'high',
+                requires_confirmation: false,
+                submission: {
+                  route_kind: 'task_mutation',
+                  method: 'POST',
+                },
+                details: [
+                  {
+                    label: 'Context',
+                    value: 'item content is ready for policy review, summary file already written',
+                  },
+                  {
+                    label: 'Work so far',
+                    value: 'reviewed context, wrote summary, submit_handoff rejected once',
+                  },
+                ],
+                responses: [
+                  {
+                    action_id: 'task-1:resolve',
+                    kind: 'resolve_escalation',
+                    label: 'Resume with guidance',
+                    target: {
+                      target_kind: 'task',
+                      target_id: '771908c8-0634-467a-b41d-6dd4a6798d7d',
+                    },
+                    requires_confirmation: true,
+                    prompt_kind: 'instructions',
+                  },
+                ],
+              },
+            ],
+            total_count: 1,
+            default_sort: 'priority_desc',
+          } as never,
+        }),
+      ),
+    );
+
+    expect(html).toContain('submit_handoff replay mismatch conflict');
+    expect(html).toContain('Context');
+    expect(html).toContain('item content is ready for policy review, summary file already written');
+    expect(html).toContain('Work so far');
+    expect(html).toContain('reviewed context, wrote summary, submit_handoff rejected once');
+  });
+
   it('keeps prompt-based responses inside the needs-action surface instead of opening a dialog', () => {
     const source = readFileSync(new URL('./workflow-needs-action.tsx', import.meta.url), 'utf8');
 

@@ -141,6 +141,18 @@ function NeedsActionCard(props: {
           {props.item.requires_confirmation ? ' • Requires confirmation' : ''}
         </p>
       </div>
+      {props.item.details && props.item.details.length > 0 ? (
+        <dl className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-3">
+          {props.item.details.map((detail) => (
+            <div key={`${detail.label}:${detail.value}`} className="grid gap-1">
+              <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                {detail.label}
+              </dt>
+              <dd className="text-sm text-foreground">{detail.value}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
       <div className="flex flex-wrap gap-2">
         {responses.map((action) => (
           <Button

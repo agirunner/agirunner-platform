@@ -41,6 +41,7 @@ export interface WorkflowNeedsActionItem {
   action_kind: string;
   label: string;
   summary: string;
+  details?: WorkflowNeedsActionDetail[];
   target: {
     target_kind: 'workflow' | 'work_item' | 'task';
     target_id: string;
@@ -52,6 +53,11 @@ export interface WorkflowNeedsActionItem {
     method: 'POST';
   };
   responses: WorkflowNeedsActionResponseAction[];
+}
+
+export interface WorkflowNeedsActionDetail {
+  label: string;
+  value: string;
 }
 
 export interface WorkflowNeedsActionResponseAction {

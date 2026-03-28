@@ -547,6 +547,7 @@ export interface DashboardWorkflowNeedsActionItem {
   action_kind: string;
   label: string;
   summary: string;
+  details?: DashboardWorkflowNeedsActionDetail[];
   target: {
     target_kind: 'workflow' | 'work_item' | 'task';
     target_id: string;
@@ -558,6 +559,11 @@ export interface DashboardWorkflowNeedsActionItem {
     method: 'POST';
   };
   responses: DashboardWorkflowNeedsActionResponseAction[];
+}
+
+export interface DashboardWorkflowNeedsActionDetail {
+  label: string;
+  value: string;
 }
 
 export interface DashboardWorkflowNeedsActionResponseAction {
