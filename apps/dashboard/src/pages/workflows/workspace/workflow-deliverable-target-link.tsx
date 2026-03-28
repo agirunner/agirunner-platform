@@ -20,13 +20,14 @@ export function WorkflowDeliverableTargetLink(props: {
   const targetLabel = props.primary
     ? props.target.label
     : `${props.target.label} (${humanizeToken(props.target.target_kind)})`;
+  const openInNewTabLabel = buildOpenInNewTabLabel(props.target.target_kind);
 
   return (
     <div className="grid gap-2">
       {action.action_kind === 'dialog_preview' ? (
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" onClick={() => setIsPreviewOpen(true)}>
-            Open without leaving workflow
+            Preview inline
           </Button>
           <a
             className="text-sm font-medium text-accent underline-offset-4 hover:underline"
@@ -34,7 +35,7 @@ export function WorkflowDeliverableTargetLink(props: {
             target="_blank"
             rel="noreferrer"
           >
-            Open in new window
+            {openInNewTabLabel}
           </a>
         </div>
       ) : (
@@ -55,7 +56,7 @@ export function WorkflowDeliverableTargetLink(props: {
           <DialogHeader className="border-b border-border/70 px-6 py-5 pr-14">
             <DialogTitle>{targetLabel}</DialogTitle>
             <DialogDescription>
-              Review the artifact preview without leaving the selected workflow.
+              Review the preview inline or open the source in a new tab.
             </DialogDescription>
           </DialogHeader>
           <div className="h-[72vh] min-h-[420px] bg-background">
@@ -74,4 +75,14 @@ export function WorkflowDeliverableTargetLink(props: {
 
 function humanizeToken(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function buildOpenInNewTabLabel(targetKind: DashboardWorkflowDeliverableTarget['target_kind']): string {
+  if (targetKind === 'artifact') {
+    return 'Open artifact in new tab';
+  }
+  if (targetKind === 'input_packet_file' || targetKind === 'intervention_file') {
+    return 'Open file in new tab';
+  }
+  return `Open ${humanizeToken(targetKind).toLowerCase()} in new tab`;
 }

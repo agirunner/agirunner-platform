@@ -5,17 +5,19 @@ export interface DeliverableTargetAction {
   href: string;
 }
 
+const DASHBOARD_ORIGIN = 'http://dashboard.local';
 const IN_PLACE_TARGET_PATH_PATTERNS = [
   /^\/artifacts\/tasks\/[^/]+\/[^/]+$/,
   /^\/api\/v1\/tasks\/[^/]+\/artifacts\/[^/]+(?:\/content)?$/,
   /^\/api\/v1\/workflows\/[^/]+\/input-packets\/[^/]+\/files\/[^/]+\/content$/,
   /^\/api\/v1\/workflows\/[^/]+\/interventions\/[^/]+\/files\/[^/]+\/content$/,
 ];
+const DEPRECATED_NAVIGATION_PARAM_NAMES = ['return_to', 'return_source'];
 
 export function resolveDeliverableTargetAction(
   target: DashboardWorkflowDeliverableTarget,
 ): DeliverableTargetAction {
-  const href = rewriteDeprecatedArtifactPreviewUrl(target.url);
+  const href = normalizeDeliverableTargetUrl(target.url);
 
   if (isInPlaceArtifactPreviewTarget(href)) {
     return {
@@ -42,34 +44,50 @@ function readNormalizedPath(url: string): string | null {
   }
 
   try {
-    const parsed = new URL(trimmed, 'http://dashboard.local');
+    const parsed = new URL(trimmed, DASHBOARD_ORIGIN);
     return parsed.pathname;
   } catch {
     return null;
   }
 }
 
-function rewriteDeprecatedArtifactPreviewUrl(url: string): string {
+function normalizeDeliverableTargetUrl(url: string): string {
   const trimmed = url.trim();
   if (trimmed.length === 0) {
     return url;
   }
 
   try {
-    const parsed = new URL(trimmed, 'http://dashboard.local');
-    const match = parsed.pathname.match(/^\/artifacts\/tasks\/([^/]+)\/([^/]+)$/);
-    if (!match) {
-      return trimmed;
+    const parsed = new URL(trimmed, DASHBOARD_ORIGIN);
+    rewriteDeprecatedArtifactPreviewPath(parsed);
+    if (isInPlaceArtifactPreviewTarget(parsed.toString())) {
+      stripDeprecatedNavigationParams(parsed);
     }
-
-    const [, taskId, artifactId] = match;
-    parsed.pathname =
-      `/api/v1/tasks/${encodeURIComponent(taskId)}/artifacts/${encodeURIComponent(artifactId)}/content`;
-
-    return parsed.origin === 'http://dashboard.local'
-      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
-      : parsed.toString();
+    return serializeTargetUrl(parsed);
   } catch {
     return url;
   }
+}
+
+function rewriteDeprecatedArtifactPreviewPath(parsed: URL): void {
+  const match = parsed.pathname.match(/^\/artifacts\/tasks\/([^/]+)\/([^/]+)$/);
+  if (!match) {
+    return;
+  }
+
+  const [, taskId, artifactId] = match;
+  parsed.pathname =
+    `/api/v1/tasks/${encodeURIComponent(taskId)}/artifacts/${encodeURIComponent(artifactId)}/content`;
+}
+
+function stripDeprecatedNavigationParams(parsed: URL): void {
+  for (const paramName of DEPRECATED_NAVIGATION_PARAM_NAMES) {
+    parsed.searchParams.delete(paramName);
+  }
+}
+
+function serializeTargetUrl(parsed: URL): string {
+  return parsed.origin === DASHBOARD_ORIGIN
+    ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+    : parsed.toString();
 }

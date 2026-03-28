@@ -6,7 +6,7 @@ import type { DashboardTaskRecord, DashboardWorkflowDeliverablesPacket } from '.
 import { WorkflowDeliverables } from './workflow-deliverables.js';
 
 describe('WorkflowDeliverables', () => {
-  it('offers in-place artifact preview actions without routing the operator away from Workflows', () => {
+  it('offers inline artifact preview actions without workflow-navigation copy or deprecated routes', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createPacket(),
@@ -23,10 +23,12 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Open without leaving workflow');
-    expect(html).toContain('Open in new window');
+    expect(html).toContain('Preview inline');
+    expect(html).toContain('Open artifact in new tab');
     expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/content');
     expect(html).not.toContain('/artifacts/tasks/task-1/artifact-1');
+    expect(html).not.toContain('Open without leaving workflow');
+    expect(html).not.toContain('Open in new window');
     expect(html).toContain('Deliverables');
   });
 
@@ -80,7 +82,7 @@ describe('WorkflowDeliverables', () => {
     expect(html).not.toContain('Briefs (1)');
   });
 
-  it('keeps task scope limited to task evidence plus parent work-item deliverables', () => {
+  it('keeps task scope anchored on task evidence and clearly labels the parent work-item deliverables', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createTaskScopePacket(),
@@ -97,17 +99,19 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Task Evidence');
+    expect(html).toContain('Task output and evidence');
     expect(html).toContain('Generate release bundle');
-    expect(html).toContain('Parent work item deliverables from Prepare release bundle');
+    expect(html).toContain('Showing work item deliverables from Prepare release bundle.');
+    expect(html).toContain('Workflow deliverables stay available in workflow scope.');
     expect(html).toContain('artifact-1');
-    expect(html).toContain('Parent Work Item Final Deliverables (1)');
-    expect(html).toContain('Parent Work Item In Progress Deliverables (0)');
-    expect(html).toContain('No in-progress deliverables are attached to this selected work item.');
-    expect(html).toContain('No inputs or intervention files are attached to this selected work item.');
-    expect(html).not.toContain('No in-progress deliverables are attached to this task.');
-    expect(html).not.toContain('No inputs or intervention files are attached to this task.');
-    expect(html).not.toContain('Workflow Deliverables remain available when you return to workflow scope.');
+    expect(html).toContain('Final deliverables (1)');
+    expect(html).toContain('In-progress deliverables (0)');
+    expect(html).toContain('No in-progress deliverables are attached to this work item.');
+    expect(html).toContain('No inputs or intervention files are attached to this work item.');
+    expect(html).not.toContain('Parent Work Item Final Deliverables');
+    expect(html).not.toContain('Parent Work Item In Progress Deliverables');
+    expect(html).not.toContain('No in-progress deliverables are attached to this selected work item.');
+    expect(html).not.toContain('No inputs or intervention files are attached to this selected work item.');
   });
 
   it('uses the exact selected work-item title when task scope falls back to parent deliverables', () => {
@@ -127,8 +131,8 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Parent work item deliverables from Prepare release bundle');
-    expect(html).not.toContain('Work Item Deliverables');
+    expect(html).toContain('Showing work item deliverables from Prepare release bundle.');
+    expect(html).not.toContain('Showing work item deliverables from Generate release bundle.');
   });
 
   it('renders synthesized inline-summary deliverables without deprecated navigation links', () => {
@@ -173,7 +177,10 @@ describe('WorkflowDeliverables', () => {
         },
         scope: {
           scopeKind: 'selected_work_item',
-          label: 'Work item: workflow-intake-01',
+          title: 'Work item',
+          subject: 'work item',
+          name: 'workflow-intake-01',
+          banner: 'Work item: workflow-intake-01',
         },
         selectedTask: null,
         selectedWorkItemTitle: 'workflow-intake-01',
@@ -183,8 +190,8 @@ describe('WorkflowDeliverables', () => {
 
     expect(html).toContain('workflow-intake-01 completion packet');
     expect(html).toContain('Approved the intake packet and confirmed it satisfies the readiness criteria.');
-    expect(html).not.toContain('Open in new window');
-    expect(html).not.toContain('Open without leaving workflow');
+    expect(html).not.toContain('Open artifact in new tab');
+    expect(html).not.toContain('Preview inline');
   });
 });
 

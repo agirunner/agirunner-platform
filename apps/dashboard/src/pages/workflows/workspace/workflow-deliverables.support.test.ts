@@ -6,7 +6,7 @@ import {
 } from './workflow-deliverables.support.js';
 
 describe('workflow deliverables support', () => {
-  it('rewrites deprecated task artifact routes to direct artifact content preview targets', () => {
+  it('rewrites deprecated task artifact routes to direct artifact content preview targets without deprecated return navigation', () => {
     expect(
       resolveDeliverableTargetAction({
         target_kind: 'artifact',
@@ -15,7 +15,21 @@ describe('workflow deliverables support', () => {
       }),
     ).toEqual({
       action_kind: 'dialog_preview',
-      href: 'http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/content?return_to=%2Fworkflows',
+      href: 'http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/content',
+    });
+  });
+
+  it('strips deprecated return navigation params from direct preview links while preserving other query params', () => {
+    expect(
+      resolveDeliverableTargetAction({
+        target_kind: 'artifact',
+        label: 'Open artifact',
+        url:
+          'http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/content?download=1&return_to=%2Fworkflows%2Fworkflow-1&return_source=workspace-artifacts',
+      }),
+    ).toEqual({
+      action_kind: 'dialog_preview',
+      href: 'http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/content?download=1',
     });
   });
 

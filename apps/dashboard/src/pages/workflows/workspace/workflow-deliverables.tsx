@@ -19,6 +19,7 @@ export function WorkflowDeliverables(props: {
   scope: WorkflowWorkbenchScopeDescriptor;
   onLoadMore(): void;
 }): JSX.Element {
+  const scopeCopy = buildDeliverablesScopeCopy(props.scope, props.selectedWorkItemTitle);
   const outcomeBrief = pickOutcomeBrief(
     props.packet.final_deliverables,
     props.packet.working_handoffs,
@@ -37,13 +38,6 @@ export function WorkflowDeliverables(props: {
     ? buildTaskEvidence(props.selectedTask)
     : null;
   const deliverablesSubject = readDeliverablesSubject(props.scope.scopeKind);
-  const parentDeliverablesLabel = buildParentDeliverablesLabel(
-    props.scope,
-    props.selectedWorkItemTitle,
-  );
-  const finalSectionTitle = buildDeliverableSectionTitle(props.scope.scopeKind, 'final');
-  const inProgressSectionTitle = buildDeliverableSectionTitle(props.scope.scopeKind, 'in_progress');
-  const briefsSectionTitle = buildDeliverableSectionTitle(props.scope.scopeKind, 'briefs');
   const inProgressTitle = briefBackedOutputs ? 'Brief-backed outputs' : 'In Progress Deliverables';
   const inProgressCount = briefBackedOutputs
     ? props.packet.working_handoffs.length
@@ -52,10 +46,13 @@ export function WorkflowDeliverables(props: {
 
   return (
     <div className="grid gap-4">
-      <div className="grid gap-1">
-        <p className="text-sm font-semibold text-foreground">Deliverables</p>
+      <div className="grid gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-semibold text-foreground">Deliverables</p>
+          <Badge variant="outline">{scopeCopy.label}</Badge>
+        </div>
         <p className="text-sm text-muted-foreground">
-          Final outputs stay prominent while active deliverables, briefs, and inputs remain available in place.
+          {scopeCopy.description}
         </p>
       </div>
 
@@ -71,21 +68,19 @@ export function WorkflowDeliverables(props: {
 
       {taskEvidence ? (
         <section className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">Task Evidence</Badge>
-            <Badge variant="secondary">{props.selectedTask?.title ?? 'Selected task'}</Badge>
+          <div className="grid gap-2">
+            <p className="text-sm font-semibold text-foreground">Task output and evidence</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">{props.selectedTask?.title ?? 'Selected task'}</Badge>
+            </div>
           </div>
           <StructuredValuePreview value={taskEvidence} />
         </section>
       ) : null}
 
-      <div className="grid gap-1">
-        <p className="text-sm text-muted-foreground">{parentDeliverablesLabel}</p>
-      </div>
-
       <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open>
         <summary className="cursor-pointer text-sm font-semibold text-foreground">
-          {finalSectionTitle} ({props.packet.final_deliverables.length})
+          Final deliverables ({props.packet.final_deliverables.length})
         </summary>
         <div className="mt-4 grid gap-4">
           {props.packet.final_deliverables.length === 0 ? (
@@ -100,7 +95,7 @@ export function WorkflowDeliverables(props: {
 
       <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open={openInProgressByDefault}>
         <summary className="cursor-pointer text-sm font-semibold text-foreground">
-          {briefBackedOutputs ? inProgressTitle : `${inProgressSectionTitle} (${inProgressCount})`}
+          {briefBackedOutputs ? inProgressTitle : `In-progress deliverables (${inProgressCount})`}
         </summary>
         <div className="mt-4 grid gap-4">
           {briefBackedOutputs ? (
@@ -133,7 +128,7 @@ export function WorkflowDeliverables(props: {
           open={openBriefsByDefault}
         >
           <summary className="cursor-pointer text-sm font-semibold text-foreground">
-            {briefsSectionTitle} ({props.packet.working_handoffs.length})
+            Briefs ({props.packet.working_handoffs.length})
           </summary>
           <div className="mt-4 grid gap-4">
             {props.packet.working_handoffs.length === 0 ? (
@@ -166,7 +161,7 @@ export function WorkflowDeliverables(props: {
         </div>
       </details>
 
-      <div className="flex justify-end">
+      <div className="flex justify-start sm:justify-end">
         <button
           type="button"
           className="text-sm font-medium text-accent underline-offset-4 hover:underline"
@@ -179,43 +174,45 @@ export function WorkflowDeliverables(props: {
   );
 }
 
-function buildParentDeliverablesLabel(
+function buildDeliverablesScopeCopy(
   scope: WorkflowWorkbenchScopeDescriptor,
   selectedWorkItemTitle: string | null,
-): string {
+): {
+  label: string;
+  description: string;
+} {
   const workItemTitle = readText(selectedWorkItemTitle);
   if (scope.scopeKind === 'selected_task') {
-    return workItemTitle
-      ? `Parent work item deliverables from ${workItemTitle}`
-      : 'Parent work item deliverables';
+    return {
+      label: 'Task evidence + work item deliverables',
+      description: [
+        'Task output and evidence appears first.',
+        workItemTitle
+          ? `Showing work item deliverables from ${workItemTitle}.`
+          : 'Showing work item deliverables from the parent work item.',
+        'Workflow deliverables stay available in workflow scope.',
+      ].join(' '),
+    };
   }
   if (scope.scopeKind === 'selected_work_item') {
-    return workItemTitle ? `Deliverables for ${workItemTitle}` : 'Work Item Deliverables';
+    return {
+      label: 'Work item deliverables',
+      description: workItemTitle
+        ? `Showing work item deliverables for ${workItemTitle}. Workflow deliverables stay available in workflow scope.`
+        : 'Showing work item deliverables. Workflow deliverables stay available in workflow scope.',
+    };
   }
-  return 'Workflow Deliverables';
+  return {
+    label: 'Workflow deliverables',
+    description:
+      'Workflow deliverables stay prominent while active deliverables, briefs, and inputs remain available in place.',
+  };
 }
 
 function readDeliverablesSubject(
   scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
-): 'workflow' | 'work item' | 'selected work item' {
-  if (scopeKind === 'selected_task') {
-    return 'selected work item';
-  }
+): 'workflow' | 'work item' {
   return scopeKind === 'workflow' ? 'workflow' : 'work item';
-}
-
-function buildDeliverableSectionTitle(
-  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
-  section: 'final' | 'in_progress' | 'briefs',
-): string {
-  const prefix = scopeKind === 'selected_task' ? 'Parent Work Item ' : '';
-  if (section === 'final') {
-    return `${prefix}Final Deliverables`;
-  }
-  if (section === 'in_progress') {
-    return `${prefix}In Progress Deliverables`;
-  }
-  return `${prefix}Briefs`;
 }
 
 function DeliverableCard(props: {
