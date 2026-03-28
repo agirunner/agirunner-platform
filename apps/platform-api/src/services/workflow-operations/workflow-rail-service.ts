@@ -77,8 +77,14 @@ export class WorkflowRailService {
       page: query.page ?? 1,
       perPage: query.perPage ?? 100,
     });
+    const selectedRow = query.selectedWorkflowId
+      ? await this.readSelectedLiveRow(tenantId, query.selectedWorkflowId)
+      : null;
     const allRows = applyRailFilters(
-      dedupeRows(response.sections.flatMap((section) => section.workflows.map(toRailRowFromCard))),
+      dedupeRows(pinSelectedRow(
+        response.sections.flatMap((section) => readSectionCards(section).map(toRailRowFromCard)),
+        selectedRow,
+      )),
       query,
     );
     const ongoingRows = allRows.filter((row) => row.lifecycle === 'ongoing');
@@ -91,6 +97,14 @@ export class WorkflowRailService {
       ongoingRows,
       query,
     );
+  }
+
+  private async readSelectedLiveRow(
+    tenantId: string,
+    workflowId: string,
+  ): Promise<WorkflowRailRow | null> {
+    const card = await this.getWorkflowCard(tenantId, workflowId);
+    return card ? toRailRowFromCard(card) : null;
   }
 
   private async buildRecentRail(tenantId: string, query: WorkflowRailQuery): Promise<WorkflowRailPacket> {
@@ -151,6 +165,16 @@ function dedupeRows(rows: WorkflowRailRow[]): WorkflowRailRow[] {
   });
 }
 
+function pinSelectedRow(
+  rows: WorkflowRailRow[],
+  selectedRow: WorkflowRailRow | null,
+): WorkflowRailRow[] {
+  if (!selectedRow) {
+    return rows;
+  }
+  return [selectedRow, ...rows];
+}
+
 function applyRailFilters(rows: WorkflowRailRow[], query: WorkflowRailQuery): WorkflowRailRow[] {
   return rows.filter((row) => {
     if (query.needsActionOnly && !row.needs_action) {
@@ -176,18 +200,33 @@ function applyRailFilters(rows: WorkflowRailRow[], query: WorkflowRailQuery): Wo
   });
 }
 
+function readSectionCards(section: { workflows?: MissionControlWorkflowCard[] | null }): MissionControlWorkflowCard[] {
+  return Array.isArray(section.workflows) ? section.workflows : [];
+}
+
 function toRailRowFromCard(card: MissionControlWorkflowCard): WorkflowRailRow {
+  const pulse = card.pulse ?? { summary: '', updatedAt: null };
+  const metrics = card.metrics ?? {
+    activeTaskCount: 0,
+    activeWorkItemCount: 0,
+    blockedWorkItemCount: 0,
+    openEscalationCount: 0,
+    waitingForDecisionCount: 0,
+    failedTaskCount: 0,
+    recoverableIssueCount: 0,
+    lastChangedAt: null,
+  };
   return {
     workflow_id: card.id,
-    name: card.name,
+    name: card.name ?? card.id,
     state: card.state ?? null,
     lifecycle: card.lifecycle ?? null,
     current_stage: card.currentStage ?? null,
     workspace_name: card.workspaceName ?? null,
     playbook_name: card.playbookName ?? null,
     posture: card.posture ?? null,
-    live_summary: card.pulse.summary,
-    last_changed_at: card.metrics.lastChangedAt ?? card.pulse.updatedAt ?? null,
+    live_summary: pulse.summary ?? '',
+    last_changed_at: metrics.lastChangedAt ?? pulse.updatedAt ?? null,
     needs_action:
       card.attentionLane === 'needs_decision'
       || card.attentionLane === 'needs_intervention'
@@ -196,12 +235,12 @@ function toRailRowFromCard(card: MissionControlWorkflowCard): WorkflowRailRow {
       || card.posture === 'recoverable_needs_steering'
       || card.posture === 'terminal_failed',
     counts: {
-      active_task_count: card.metrics.activeTaskCount,
-      active_work_item_count: card.metrics.activeWorkItemCount,
-      blocked_work_item_count: card.metrics.blockedWorkItemCount,
-      open_escalation_count: card.metrics.openEscalationCount,
-      waiting_for_decision_count: card.metrics.waitingForDecisionCount,
-      failed_task_count: card.metrics.failedTaskCount,
+      active_task_count: metrics.activeTaskCount,
+      active_work_item_count: metrics.activeWorkItemCount,
+      blocked_work_item_count: metrics.blockedWorkItemCount,
+      open_escalation_count: metrics.openEscalationCount,
+      waiting_for_decision_count: metrics.waitingForDecisionCount,
+      failed_task_count: metrics.failedTaskCount,
     },
   };
 }

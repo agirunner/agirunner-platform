@@ -131,6 +131,155 @@ describe('WorkflowRailService', () => {
     expect(result.selected_workflow_id).toBe('workflow-ongoing');
   });
 
+  it('pins a selected workflow into the live rail when it falls outside the paged slice', async () => {
+    const liveService = {
+      getLive: vi.fn(async () => ({
+        version: {
+          generatedAt: '2026-03-27T22:30:00.000Z',
+          latestEventId: 42,
+          token: 'mission-control:42',
+        },
+        sections: [
+          {
+            id: 'progressing',
+            title: 'Progressing',
+            count: 1,
+            workflows: [
+              {
+                id: 'workflow-visible',
+                name: 'Visible Workflow',
+                state: 'active',
+                lifecycle: 'planned',
+                currentStage: 'delivery',
+                workspaceName: 'Core Product',
+                playbookName: 'Delivery',
+                posture: 'progressing',
+                attentionLane: 'watchlist',
+                pulse: {
+                  summary: 'Actively delivering.',
+                  tone: 'progressing',
+                  updatedAt: '2026-03-27T22:29:00.000Z',
+                },
+                metrics: {
+                  activeTaskCount: 1,
+                  activeWorkItemCount: 1,
+                  blockedWorkItemCount: 0,
+                  openEscalationCount: 0,
+                  waitingForDecisionCount: 0,
+                  failedTaskCount: 0,
+                  recoverableIssueCount: 0,
+                  lastChangedAt: '2026-03-27T22:29:00.000Z',
+                },
+              },
+            ],
+          },
+        ],
+        attentionItems: [],
+      })),
+      listWorkflowCards: vi.fn(async () => [
+        {
+          id: 'workflow-selected',
+          name: 'Fresh Workflow',
+          state: 'pending',
+          lifecycle: 'planned',
+          currentStage: 'intake',
+          workspaceName: 'Core Product',
+          playbookName: 'Intake',
+          posture: 'waiting_by_design',
+          attentionLane: 'watchlist',
+          pulse: {
+            summary: 'Queued for the next workflow event.',
+            tone: 'waiting',
+            updatedAt: '2026-03-27T22:30:00.000Z',
+          },
+          metrics: {
+            activeTaskCount: 0,
+            activeWorkItemCount: 0,
+            blockedWorkItemCount: 0,
+            openEscalationCount: 0,
+            waitingForDecisionCount: 0,
+            failedTaskCount: 0,
+            recoverableIssueCount: 0,
+            lastChangedAt: '2026-03-27T22:30:00.000Z',
+          },
+        },
+      ]),
+    };
+    const service = new WorkflowRailService(
+      liveService as never,
+      { getRecent: vi.fn() } as never,
+      { getHistory: vi.fn() } as never,
+    );
+
+    const result = await service.getRail('tenant-1', {
+      mode: 'live',
+      selectedWorkflowId: 'workflow-selected',
+      perPage: 1,
+    });
+
+    expect(liveService.listWorkflowCards).toHaveBeenCalledWith('tenant-1', {
+      workflowIds: ['workflow-selected'],
+      page: 1,
+      perPage: 1,
+    });
+    expect(result.selected_workflow_id).toBe('workflow-selected');
+    expect(result.rows).toEqual([
+      expect.objectContaining({ workflow_id: 'workflow-selected' }),
+      expect.objectContaining({ workflow_id: 'workflow-visible' }),
+    ]);
+  });
+
+  it('does not throw when a fresh workflow card is missing optional pulse or metrics fields', async () => {
+    const liveService = {
+      getLive: vi.fn(async () => ({
+        version: {
+          generatedAt: '2026-03-27T22:30:00.000Z',
+          latestEventId: 42,
+          token: 'mission-control:42',
+        },
+        sections: [
+          {
+            id: 'progressing',
+            title: 'Progressing',
+            count: 1,
+            workflows: [
+              {
+                id: 'workflow-fresh',
+                name: 'Fresh Workflow',
+                state: 'pending',
+                lifecycle: 'planned',
+                currentStage: null,
+                workspaceName: 'Core Product',
+                playbookName: 'Intake',
+              },
+            ],
+          },
+        ],
+        attentionItems: [],
+      })),
+      listWorkflowCards: vi.fn(),
+    };
+    const service = new WorkflowRailService(
+      liveService as never,
+      { getRecent: vi.fn() } as never,
+      { getHistory: vi.fn() } as never,
+    );
+
+    await expect(service.getRail('tenant-1', { mode: 'live' })).resolves.toEqual(
+      expect.objectContaining({
+        selected_workflow_id: 'workflow-fresh',
+        rows: [
+          expect.objectContaining({
+            workflow_id: 'workflow-fresh',
+            live_summary: '',
+            last_changed_at: null,
+            needs_action: false,
+          }),
+        ],
+      }),
+    );
+  });
+
   it('builds recent rail rows from recent packets when recent mode is selected', async () => {
     const liveService = { getLive: vi.fn() };
     const recentService = {

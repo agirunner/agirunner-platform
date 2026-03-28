@@ -39,7 +39,12 @@ export class WorkflowOperationsStreamService {
       latest_event_id: rail.latest_event_id,
       snapshot_version: rail.snapshot_version,
       cursor: rail.snapshot_version,
-      events: buildRailEvents(rail.rows, rail.snapshot_version, query.afterCursor, rail.latest_event_id),
+      events: buildRailEvents(
+        [...rail.rows, ...rail.ongoing_rows],
+        rail.snapshot_version,
+        query.afterCursor,
+        rail.latest_event_id,
+      ),
     };
   }
 

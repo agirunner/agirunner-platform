@@ -145,6 +145,48 @@ describe('WorkflowOperationsStreamService', () => {
     ]);
   });
 
+  it('emits upserts for ongoing rail rows so fresh ongoing workflows reach subscribers', async () => {
+    const railService = {
+      getRail: vi.fn(async () => ({
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        snapshot_version: 'workflow-operations:120',
+        mode: 'live',
+        rows: [],
+        ongoing_rows: [
+          {
+            workflow_id: 'workflow-ongoing',
+            name: 'Ongoing Workflow',
+          },
+        ],
+        selected_workflow_id: 'workflow-ongoing',
+        next_cursor: null,
+      })),
+    };
+    const workspaceService = {
+      getWorkspace: vi.fn(),
+    };
+
+    const service = new WorkflowOperationsStreamService(
+      railService as never,
+      workspaceService as never,
+    );
+
+    const result = await service.buildRailBatch('tenant-1', {
+      mode: 'live',
+    });
+
+    expect(result.events).toEqual([
+      expect.objectContaining({
+        event_type: 'rail_row_upsert',
+        workflow_id: 'workflow-ongoing',
+        payload: expect.objectContaining({
+          workflow_id: 'workflow-ongoing',
+        }),
+      }),
+    ]);
+  });
+
   it('emits append events when surface heads advance without a snapshot version change', async () => {
     const railService = {
       getRail: vi.fn(),
