@@ -38,7 +38,9 @@ describe('WorkflowBudgetCard', () => {
     expect(html).toContain('500');
     expect(html).toContain('$6.2500');
     expect(html).toContain('Inspect budget context');
-    expect(html).toContain('href="/mission-control/workflows/workflow-1/inspector"');
+    expect(html).toContain(
+      'href="/diagnostics/live-logs?workflow=workflow-1&amp;view=summary"',
+    );
   });
 
   it('renders exceeded posture with return navigation in inspector context', () => {
@@ -68,7 +70,7 @@ describe('WorkflowBudgetCard', () => {
     expect(html).toContain('Exceeded');
     expect(html).toContain('Exceeded: tokens, cost, duration');
     expect(html).toContain('Back to board controls');
-    expect(html).toContain('href="/mission-control/workflows/workflow-2"');
+    expect(html).toContain('href="/workflows?workflow=workflow-2"');
     expect(html).toContain('Orchestrator activations');
     expect(html).toContain('9');
     expect(html).toContain('5');

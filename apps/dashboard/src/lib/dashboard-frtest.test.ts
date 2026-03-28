@@ -103,52 +103,54 @@ describe('FR-030: modern SPA structure', () => {
 // FR-031a: Live workflow execution view
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-031a: live workflow execution view', () => {
-  it('mission-control workspace fetches selected workflow data with a reactive query', () => {
-    const source = readComponent('pages/workflows/mission-control-page.tsx');
+  it('workflows workspace fetches selected workflow data with reactive queries', () => {
+    const source = readComponent('pages/workflows/workflows-page.tsx');
     expect(source).toContain('useQuery');
-    expect(source).toContain('getMissionControlWorkflowWorkspace');
+    expect(source).toContain('getWorkflowWorkspace');
   });
 
-  it('mission-control workspace frames workflow posture and selected tabs in the view', () => {
-    const source = readComponent('pages/workflows/mission-control-workspace-pane.tsx');
-    expect(source).toContain('workflow.state');
-    expect(source).toContain('Overview');
-    expect(source).toContain('Board');
-    expect(source).toContain('Outputs');
+  it('workflows workspace keeps workflow posture, board, and workbench surfaces visible', () => {
+    const source = [
+      readComponent('pages/workflows/workflow-state-strip.tsx'),
+      readComponent('pages/workflows/workflow-board.tsx'),
+      readComponent('pages/workflows/workspace/workflow-bottom-workbench.tsx'),
+    ].join('\n');
+    expect(source).toContain('WorkflowStateStrip');
+    expect(source).toContain('Workflow board');
+    expect(source).toContain('Live Console');
+    expect(source).toContain('Deliverables');
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FR-032: Unified Mission Control shell
+// FR-032: Unified Workflows shell
 // ─────────────────────────────────────────────────────────────────────────────
-describe('FR-032: mission control shell', () => {
-  it('mission-control-page exports MissionControlPage component', () => {
-    const source = readComponent('pages/workflows/mission-control-page.tsx');
-    expect(source).toContain('export function MissionControlPage');
+describe('FR-032: workflows shell', () => {
+  it('workflows-page exports the WorkflowsPage component', () => {
+    const source = readComponent('pages/workflows/workflows-page.tsx');
+    expect(source).toContain('export function WorkflowsPage');
   });
 
-  it('mission-control-page uses live, recent, history, and saved views', () => {
-    const source = readComponent('pages/workflows/mission-control-page.tsx');
-    expect(source).toContain('SavedViews');
-    expect(source).toContain('Live');
-    expect(source).toContain('Recent');
-    expect(source).toContain('History');
-    expect(source).toContain('Workflow canvas');
+  it('workflows-page uses live and recent modes with workflow rail controls', () => {
+    const source = readComponent('pages/workflows/workflows-page.tsx');
+    expect(source).toContain('pageState.mode');
+    expect(source).toContain('WorkflowsRail');
+    expect(source).toContain('needsActionOnly');
   });
 
-  it('mission-control-page includes launch and selected-workflow workspace controls', () => {
-    const source = readComponent('pages/workflows/mission-control-page.tsx');
-    expect(source).toContain('Launch workflow');
-    expect(source).toContain('MissionControlWorkspacePane');
-    expect(source).toContain('SavedViews');
-    expect(source).toContain('MissionControlLaunchDialog');
+  it('workflows-page includes launch, add-work, redrive, and bottom workbench controls', () => {
+    const source = readComponent('pages/workflows/workflows-page.tsx');
+    expect(source).toContain('WorkflowLaunchDialog');
+    expect(source).toContain('WorkflowAddWorkDialog');
+    expect(source).toContain('WorkflowRedriveDialog');
+    expect(source).toContain('WorkflowBottomWorkbench');
   });
 });
 
 describe('FR-035: workflow-level controls', () => {
   it('exposes workflow pause, resume, and cancel controls on summary surfaces', () => {
     const source = [
-      readComponent('pages/workflows/mission-control-workspace-pane.tsx'),
+      readComponent('pages/workflows/workflow-state-strip.tsx'),
       readComponent('pages/workflow-detail/workflow-detail-sections.tsx'),
       readComponent('pages/workflow-detail/workflow-control-actions.tsx'),
     ].join('\n');
@@ -210,35 +212,36 @@ describe('FR-033 / FR-034 / FR-035 / FR-035a / FR-036 / FR-213: task detail page
 // FR-717: Dashboard renders playbook-oriented workflow detail
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () => {
-  it('mission-control workspace exposes overview, board, outputs, steering, and history tabs', () => {
-    const source = readComponent('pages/workflows/mission-control-workspace-pane.tsx');
-    expect(source).toContain('MissionControlWorkspaceOverview');
-    expect(source).toContain('MissionControlWorkspaceBoard');
-    expect(source).toContain('MissionControlWorkspaceOutputs');
-    expect(source).toContain('MissionControlWorkspaceSteering');
-    expect(source).toContain('MissionControlWorkspaceHistory');
+  it('workflow workbench exposes needs action, steering, live console, history, and deliverables tabs', () => {
+    const source = readComponent('pages/workflows/workspace/workflow-bottom-workbench.tsx');
+    expect(source).toContain('WorkflowNeedsAction');
+    expect(source).toContain('WorkflowSteering');
+    expect(source).toContain('WorkflowLiveConsole');
+    expect(source).toContain('WorkflowHistory');
+    expect(source).toContain('WorkflowDeliverables');
   });
 
-  it('mission-control board renders work-item-first grouped workflow work', () => {
-    const source = readComponent('pages/workflows/workspace/mission-control-workspace-board.tsx');
-    expect(source).toContain('groupWorkflowWorkItems');
-    expect(source).toContain('Open workflow context');
+  it('workflow board renders work-item-first grouped workflow work', () => {
+    const source = readComponent('pages/workflows/workflow-board.tsx');
+    expect(source).toContain('groupStages');
+    expect(source).toContain('Task preview');
   });
 
-  it('mission-control outputs and history keep produced value and review packets visible', () => {
+  it('workflow deliverables and history keep produced value and review packets visible', () => {
     const source = [
-      readComponent('pages/workflows/workspace/mission-control-workspace-outputs.tsx'),
-      readComponent('pages/workflows/workspace/mission-control-workspace-history.tsx'),
+      readComponent('pages/workflows/workspace/workflow-deliverables.tsx'),
+      readComponent('pages/workflows/workspace/workflow-history.tsx'),
     ].join('\n');
-    expect(source).toContain('Deliverables');
-    expect(source).toContain('Narrative workflow packet history');
+    expect(source).toContain('Final Deliverables');
+    expect(source).toContain('History');
   });
 
-  it('mission-control steering exposes workflow interventions and add-work or redrive actions', () => {
-    const source = readComponent('pages/workflows/workspace/mission-control-workspace-steering.tsx');
-    expect(source).toContain('createWorkflowIntervention');
-    expect(source).toContain('MissionControlWorkspaceAddWorkDialog');
-    expect(source).toContain('MissionControlWorkspaceRedriveDialog');
+  it('workflow steering exposes workflow interventions and add-work or redrive actions', () => {
+    const source = readComponent('pages/workflows/workspace/workflow-steering.tsx');
+    expect(source).toContain('createWorkflowSteeringRequest');
+    expect(source).toContain('createWorkflowInputPacket');
+    expect(source).toContain('onOpenAddWork');
+    expect(source).toContain('onOpenRedrive');
   });
 });
 
@@ -405,16 +408,16 @@ describe('operator information architecture', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// FR-429: Mission Control live canvas with filters
+// FR-429: Workflows live canvas with filters
 // ─────────────────────────────────────────────────────────────────────────────
-describe('FR-429: mission control live canvas with filters', () => {
-  it('mission-control-page renders the unified shell with scope, saved views, and workflow lens controls', () => {
-    const source = readComponent('pages/workflows/mission-control-page.tsx');
+describe('FR-429: workflows live canvas with filters', () => {
+  it('workflows-page renders the unified shell with live or recent modes and workflow filters', () => {
+    const source = readComponent('pages/workflows/workflows-page.tsx');
     expect(source).toContain('Workflows');
-    expect(source).toContain('Saved view');
-    expect(source).toContain('Scope');
-    expect(source).toContain('Workflow canvas');
-    expect(source).toContain('Task lens');
+    expect(source).toContain('mode');
+    expect(source).toContain('needsActionOnly');
+    expect(source).toContain('ongoingOnly');
+    expect(source).toContain('WorkflowBoard');
   });
 
   it('listTasks API supports workflow_id filter for scoped task view', () => {
@@ -423,10 +426,10 @@ describe('FR-429: mission control live canvas with filters', () => {
     expect(source).toContain('filters');
   });
 
-  it('mission-control-page subscribes to realtime mission-control updates', () => {
-    const source = readComponent('pages/workflows/mission-control-page.tsx');
-    expect(source).toContain('useMissionControlRealtime');
-    expect(source).toContain('buildMissionControlLiveQueryKey');
+  it('workflows-page subscribes to realtime workflows updates', () => {
+    const source = readComponent('pages/workflows/workflows-page.tsx');
+    expect(source).toContain('useWorkflowRailRealtime');
+    expect(source).toContain('useWorkflowWorkspaceRealtime');
   });
 });
 

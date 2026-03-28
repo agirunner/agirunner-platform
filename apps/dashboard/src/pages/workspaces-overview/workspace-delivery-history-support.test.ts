@@ -49,8 +49,8 @@ describe('workspace delivery history support', () => {
     expect(packet).toEqual({
       workflowId: 'workflow-1',
       workflowName: 'Release candidate',
-      workflowHref: '/mission-control/workflows/workflow-1',
-      inspectorHref: '/mission-control/workflows/workflow-1/inspector',
+      workflowHref: '/workflows?workflow=workflow-1',
+      inspectorHref: '/diagnostics/live-logs?workflow=workflow-1&view=summary',
       stateLabel: 'active',
       stateVariant: 'default',
       createdLabel: '30m ago',
@@ -91,7 +91,7 @@ describe('workspace delivery history support', () => {
 
     expect(overview).toEqual({
       summary: 'Run 1 ran most recently. Run 2 is the next inspection target because it failed.',
-      nextActionHref: '/mission-control/workflows/workflow-2/inspector',
+      nextActionHref: '/diagnostics/live-logs?workflow=workflow-2&view=summary',
       packets: [
         { label: 'What ran', value: 'Run 1', detail: 'Active, started 30m ago.' },
         { label: 'What failed', value: 'Run 2', detail: '1 failed run needs review.' },
@@ -130,13 +130,13 @@ describe('workspace delivery history support', () => {
       statusLabel: 'Failed',
       attentionLabel: 'Needs immediate review',
       nextAction: 'Start with inspector: confirm the failing activation and affected work items.',
-      primaryActionHref: '/mission-control/workflows/workflow-2/inspector',
+      primaryActionHref: '/diagnostics/live-logs?workflow=workflow-2&view=summary',
     });
     expect(pausedState).toEqual({
       statusLabel: 'Paused',
       attentionLabel: 'Review blocked progress',
       nextAction: 'Open board: resolve the blocked gate or work item before resuming.',
-      primaryActionHref: '/mission-control/workflows/workflow-3',
+      primaryActionHref: '/workflows?workflow=workflow-3',
     });
   });
 });

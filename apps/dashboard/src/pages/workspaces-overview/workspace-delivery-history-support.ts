@@ -1,5 +1,5 @@
 import type { DashboardWorkspaceTimelineEntry } from '../../lib/api.js';
-import { buildWorkflowDiagnosticsHref } from '../workflows/mission-control-page.support.js';
+import { buildWorkflowDiagnosticsHref } from '../workflows/workflows-page.support.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
 
 interface WorkspaceDeliverySignalCandidate {

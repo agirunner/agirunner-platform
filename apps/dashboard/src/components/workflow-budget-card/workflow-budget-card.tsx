@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 
 import type { DashboardWorkflowBudgetRecord } from '../../lib/api.js';
-import { buildWorkflowDiagnosticsHref } from '../../pages/workflows/mission-control-page.support.js';
+import { buildWorkflowDiagnosticsHref } from '../../pages/workflows/workflows-page.support.js';
 import { buildWorkflowDetailPermalink } from '../../pages/workflow-detail/workflow-detail-permalinks.js';
 import { Badge } from '../ui/badge.js';
 import { Button } from '../ui/button.js';
@@ -25,7 +25,7 @@ export function WorkflowBudgetCard(props: WorkflowBudgetCardProps): JSX.Element 
   const status = readBudgetStatus(props.budget);
   const actionCopy =
     props.context === 'workflow-detail'
-      ? 'Pause, resume, and cancel controls remain in the mission-control card beside this summary.'
+      ? 'Pause, resume, and cancel controls remain in the workflow workspace controls beside this summary.'
       : 'Return to the board to intervene if this workflow needs to be paused, resumed, or cancelled.';
 
   return (

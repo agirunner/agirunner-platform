@@ -23,10 +23,10 @@ describe('gate detail support', () => {
 
   it('builds stable workflow and approval queue permalinks', () => {
     expect(buildWorkflowGatePermalink('workflow-1', 'review')).toBe(
-      '/mission-control/workflows/workflow-1?gate=review#gate-review',
+      '/workflows?workflow=workflow-1&tab=needs_action#gate-review',
     );
     expect(buildApprovalQueueGatePermalink('gate-1')).toBe(
-      '/mission-control/action-queue?gate=gate-1#gate-gate-1',
+      '/workflows?tab=needs_action#gate-gate-1',
     );
   });
 

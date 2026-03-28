@@ -23,7 +23,6 @@ describe('dashboard page header consistency', () => {
 
   it('uses the shared nav-backed header for top-level dashboard pages', () => {
     const expectations: Array<[string, string]> = [
-      ['../../pages/workflows/mission-control-page.tsx', 'navHref="/workflows"'],
       ['../../pages/task-list/task-list-page.tsx', 'navHref="/work/tasks"'],
       ['../../pages/workspace-list/workspace-list-page.tsx', 'navHref="/design/workspaces"'],
       ['../../pages/playbook-list/playbook-list-page.tsx', 'navHref="/design/playbooks"'],
@@ -57,13 +56,5 @@ describe('dashboard page header consistency', () => {
     expect(placeholderSource).toContain('title={props.title}');
     expect(webhooksSource).toContain('title="Webhooks"');
     expect(triggersSource).toContain('title="Triggers"');
-  });
-
-  it('does not leave the workflows page title drifting away from the nav label', () => {
-    const missionControlSource = readSource('../../pages/workflows/mission-control-page.tsx');
-
-    expect(missionControlSource).toContain('DashboardPageHeader');
-    expect(missionControlSource).toContain('navHref="/workflows"');
-    expect(missionControlSource).toContain('title="Workflows"');
   });
 });

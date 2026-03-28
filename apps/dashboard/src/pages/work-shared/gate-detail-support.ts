@@ -1,4 +1,5 @@
 import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
+import { buildWorkflowsPageHref } from '../workflows/workflows-page.support.js';
 
 export interface GateIdentityShape {
   id?: string | null;
@@ -101,7 +102,7 @@ export function buildWorkflowGatePermalink(workflowId: string, stageName: string
 }
 
 export function buildApprovalQueueGatePermalink(gateId: string): string {
-  return `/mission-control/action-queue?gate=${encodeURIComponent(gateId)}#gate-${encodeURIComponent(gateId)}`;
+  return `${buildWorkflowsPageHref({ tab: 'needs_action' })}#gate-${encodeURIComponent(gateId)}`;
 }
 
 export function isGateHighlighted(search: string, hash: string, gateId: string | null): boolean {
