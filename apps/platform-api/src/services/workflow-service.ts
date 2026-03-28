@@ -872,13 +872,9 @@ export class WorkflowService {
         .filter((column) => Boolean(column.is_terminal))
         .map((column) => String(column.id)),
     );
-    const blockedColumn = definition.board.columns.find((column) => Boolean(column.is_blocked));
     const boardWorkItems = annotateBoardWorkItems(
       workItems,
       terminalColumns,
-      blockedColumn ? String(blockedColumn.id) : null,
-      defaultBoardColumnId(definition),
-      activeBoardColumnId(definition),
       asOptionalString(workflow.state) ?? null,
       hasWorkflowCancelRequest(asRecord(workflow.metadata)),
     );
@@ -944,9 +940,6 @@ function buildWorkflowRelations(
 function annotateBoardWorkItems(
   workItems: Array<Record<string, unknown>>,
   terminalColumns: Set<string>,
-  blockedColumnId: string | null,
-  entryColumnId: string | null,
-  activeColumnId: string | null,
   workflowState: string | null,
   hasCancelRequest: boolean,
 ): Array<Record<string, unknown>> {
@@ -970,9 +963,6 @@ function annotateBoardWorkItems(
     const columnId = resolveBoardColumnId(
       item,
       terminalColumns,
-      blockedColumnId,
-      entryColumnId,
-      activeColumnId,
       workflowState,
       hasCancelRequest,
     );
@@ -995,29 +985,12 @@ function annotateBoardWorkItems(
 function resolveBoardColumnId(
   item: Record<string, unknown>,
   terminalColumns: Set<string>,
-  blockedColumnId: string | null,
-  entryColumnId: string | null,
-  activeColumnId: string | null,
-  workflowState: string | null,
-  hasCancelRequest: boolean,
+  _workflowState: string | null,
+  _hasCancelRequest: boolean,
 ): string | null {
   const currentColumnId = asOptionalString(item.column_id) ?? null;
-  if (!blockedColumnId && !(entryColumnId && activeColumnId)) {
-    return currentColumnId;
-  }
   if (isCompletedBoardChild(item, terminalColumns)) {
     return currentColumnId;
-  }
-  if (workflowState === 'paused' || hasCancelRequest) {
-    return currentColumnId;
-  }
-  if (shouldProjectBoardItemToBlockedLane(item)) {
-    if (blockedColumnId) {
-      return blockedColumnId;
-    }
-    if (entryColumnId && activeColumnId && currentColumnId === entryColumnId) {
-      return activeColumnId;
-    }
   }
   return currentColumnId;
 }
@@ -1025,43 +998,6 @@ function resolveBoardColumnId(
 function hasWorkflowCancelRequest(metadata: Record<string, unknown>) {
   const value = metadata.cancel_requested_at;
   return typeof value === 'string' && value.length > 0;
-}
-
-function defaultBoardColumnId(definition: ReturnType<typeof parsePlaybookDefinition>) {
-  return definition.board.entry_column_id ?? definition.board.columns[0]?.id ?? null;
-}
-
-function activeBoardColumnId(definition: ReturnType<typeof parsePlaybookDefinition>) {
-  const entryColumnId = defaultBoardColumnId(definition);
-  if (!entryColumnId) {
-    return null;
-  }
-  const entryIndex = definition.board.columns.findIndex((column) => column.id === entryColumnId);
-  if (entryIndex < 0) {
-    return null;
-  }
-  const activeColumn = definition.board.columns
-    .slice(entryIndex + 1)
-    .find((column) => !column.is_blocked && !column.is_terminal);
-  return activeColumn?.id ?? null;
-}
-
-function shouldProjectBoardItemToBlockedLane(item: Record<string, unknown>): boolean {
-  const blockedState = asOptionalString(item.blocked_state);
-  if (blockedState === 'blocked') {
-    return true;
-  }
-  const escalationStatus = asOptionalString(item.escalation_status);
-  if (escalationStatus === 'open') {
-    return true;
-  }
-  const gateStatus = asOptionalString(item.gate_status);
-  return (
-    gateStatus === 'blocked'
-    || gateStatus === 'request_changes'
-    || gateStatus === 'changes_requested'
-    || gateStatus === 'rejected'
-  );
 }
 
 function toWorkflowRelationRef(workflowId: string, row?: Record<string, unknown>) {

@@ -115,6 +115,85 @@ describe('WorkflowStateStrip', () => {
     expect(html).not.toContain('<p class="text-xs text-muted-foreground">Playbook • Workspace</p>');
     expect(html).not.toContain('Accepting new work');
   });
+
+  it('shows add-or-modify-work only when the platform marks it legal', () => {
+    const hiddenHtml = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            availableActions: [
+              {
+                kind: 'pause_workflow',
+                scope: 'workflow',
+                enabled: true,
+                confirmationLevel: 'immediate',
+                stale: false,
+                disabledReason: null,
+              },
+              {
+                kind: 'add_work_item',
+                scope: 'workflow',
+                enabled: false,
+                confirmationLevel: 'standard_confirm',
+                stale: false,
+                disabledReason: 'Action is not available in the current workflow state.',
+              },
+            ],
+          }),
+          stickyStrip: createStickyStrip(),
+          workflowSettings: null,
+          board: createBoard(),
+          selectedScopeLabel: null,
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onVisibilityModeChange: vi.fn(),
+        }),
+      ),
+    );
+
+    const visibleHtml = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            availableActions: [
+              {
+                kind: 'pause_workflow',
+                scope: 'workflow',
+                enabled: true,
+                confirmationLevel: 'immediate',
+                stale: false,
+                disabledReason: null,
+              },
+              {
+                kind: 'add_work_item',
+                scope: 'workflow',
+                enabled: true,
+                confirmationLevel: 'standard_confirm',
+                stale: false,
+                disabledReason: null,
+              },
+            ],
+          }),
+          stickyStrip: createStickyStrip(),
+          workflowSettings: null,
+          board: createBoard(),
+          selectedScopeLabel: null,
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onVisibilityModeChange: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(hiddenHtml).not.toContain('Add / Modify Work');
+    expect(visibleHtml).toContain('Add / Modify Work');
+  });
 });
 
 function createWorkflowCard(

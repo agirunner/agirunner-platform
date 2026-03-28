@@ -1004,7 +1004,7 @@ describe('WorkflowService continuous workflow reads', () => {
     });
   });
 
-  it('projects escalated open work items into the blocked board lane', async () => {
+  it('keeps escalated open work items in their stored board lane', async () => {
     const pool = {
       query: vi
         .fn()
@@ -1086,13 +1086,13 @@ describe('WorkflowService continuous workflow reads', () => {
     expect(board.work_items).toEqual([
       expect.objectContaining({
         id: 'wi-escalated',
-        column_id: 'blocked',
+        column_id: 'planned',
         escalation_status: 'open',
       }),
     ]);
   });
 
-  it('projects blocked request-changes work back into the active lane when the board has no blocked lane', async () => {
+  it('keeps request-changes work in its stored lane when the board has no blocked lane', async () => {
     const pool = {
       query: vi
         .fn()
@@ -1173,7 +1173,7 @@ describe('WorkflowService continuous workflow reads', () => {
     expect(board.work_items).toEqual([
       expect.objectContaining({
         id: 'wi-request-changes',
-        column_id: 'active',
+        column_id: 'planned',
         gate_status: 'changes_requested',
       }),
     ]);

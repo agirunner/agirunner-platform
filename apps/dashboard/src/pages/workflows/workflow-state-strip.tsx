@@ -29,6 +29,9 @@ export function WorkflowStateStrip(props: {
   const canOpenRedrive = props.workflow.availableActions.some(
     (action) => action.kind === 'redrive_workflow' && action.enabled,
   );
+  const canAddWork = props.workflow.availableActions.some(
+    (action) => action.kind === 'add_work_item' && action.enabled,
+  );
   const postureLabel = humanizePosture(sticky?.posture ?? props.workflow.posture);
   const isOngoingWorkflow = props.workflow.lifecycle === 'ongoing';
   const needsActionCount =
@@ -60,9 +63,11 @@ export function WorkflowStateStrip(props: {
               Redrive
             </Button>
           ) : null}
-          <Button size="sm" onClick={props.onAddWork}>
-            Add / Modify Work
-          </Button>
+          {canAddWork ? (
+            <Button size="sm" onClick={props.onAddWork}>
+              Add / Modify Work
+            </Button>
+          ) : null}
           <label className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/10 px-2.5 py-1.5 text-[11px] text-muted-foreground">
             <span className="font-medium text-foreground">Live visibility</span>
             <select

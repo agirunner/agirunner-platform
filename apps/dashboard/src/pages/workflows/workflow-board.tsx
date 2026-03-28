@@ -22,6 +22,7 @@ const groupStages = buildWorkflowBoardView;
 export function WorkflowBoard(props: {
   workflowId: string;
   board: DashboardWorkflowBoardResponse | null;
+  workflowState?: string | null;
   selectedWorkItemId: string | null;
   selectedTaskId: string | null;
   boardLens: WorkflowBoardLens;
@@ -173,6 +174,7 @@ export function WorkflowBoard(props: {
               lane={lane}
               boardLens={props.boardLens}
               boardMode={props.boardMode}
+              workflowState={props.workflowState}
               selectedWorkItemId={props.selectedWorkItemId}
               selectedTaskId={props.selectedTaskId}
               onSelectWorkItem={props.onSelectWorkItem}
@@ -196,6 +198,7 @@ function BoardLaneCard(props: {
   lane: ReturnType<typeof buildWorkflowBoardView>['lanes'][number];
   boardLens: WorkflowBoardLens;
   boardMode: WorkflowBoardMode;
+  workflowState?: string | null;
   selectedWorkItemId: string | null;
   selectedTaskId: string | null;
   onSelectWorkItem(workItemId: string): void;
@@ -239,6 +242,7 @@ function BoardLaneCard(props: {
             <BoardWorkItemCard
               key={workItem.id}
               workItem={workItem}
+              workflowState={props.workflowState}
               taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
               isSelected={workItem.id === props.selectedWorkItemId}
               selectedTaskId={props.selectedTaskId}
@@ -272,6 +276,7 @@ function BoardLaneCard(props: {
                 <BoardWorkItemCard
                   key={workItem.id}
                   workItem={workItem}
+                  workflowState={props.workflowState}
                   taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
                   isSelected={workItem.id === props.selectedWorkItemId}
                   selectedTaskId={props.selectedTaskId}
@@ -290,6 +295,7 @@ function BoardLaneCard(props: {
 
 function BoardWorkItemCard(props: {
   workItem: DashboardWorkflowWorkItemRecord;
+  workflowState?: string | null;
   taskSummary: WorkflowTaskPreviewSummary;
   isSelected: boolean;
   selectedTaskId: string | null;
@@ -318,6 +324,9 @@ function BoardWorkItemCard(props: {
           {props.workItem.blocked_state === 'blocked' ? <Badge variant="destructive">Blocked</Badge> : null}
           {props.workItem.escalation_status === 'open' ? <Badge variant="warning">Escalated</Badge> : null}
           {isNeedsActionWorkItem(props.workItem) ? <Badge variant="warning">Needs action</Badge> : null}
+          {isPausedWorkflowWorkItem(props.workflowState, props.workItem.completed_at) ? (
+            <Badge variant="secondary">Paused</Badge>
+          ) : null}
           {props.taskSummary.hasActiveOrchestratorTask ? <Badge variant="secondary">Orchestrator working</Badge> : null}
         </div>
 
@@ -422,4 +431,11 @@ function emptyTaskSummary(): WorkflowTaskPreviewSummary {
     tasks: [],
     hasActiveOrchestratorTask: false,
   };
+}
+
+function isPausedWorkflowWorkItem(
+  workflowState: string | null | undefined,
+  completedAt: string | null | undefined,
+): boolean {
+  return workflowState === 'paused' && !completedAt;
 }

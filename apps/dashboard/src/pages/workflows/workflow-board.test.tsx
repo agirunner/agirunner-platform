@@ -158,6 +158,32 @@ describe('WorkflowBoard', () => {
     expect(html).not.toContain('Task stack');
     expect(html).not.toContain('Orchestrate workflow');
   });
+
+  it('keeps paused work in its lane and marks it as paused', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: createBoard(),
+          selectedWorkItemId: null,
+          selectedTaskId: null,
+          boardLens: 'work_items',
+          boardMode: 'active_recent_complete',
+          workflowState: 'paused',
+          onBoardLensChange: vi.fn(),
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+          onSelectTask: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Review incoming packet');
+    expect(html).toContain('1 active • 0 completed');
+    expect(html).toContain('>Paused<');
+  });
 });
 
 function createBoard(): DashboardWorkflowBoardResponse {

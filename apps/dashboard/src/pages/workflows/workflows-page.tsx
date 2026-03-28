@@ -423,6 +423,7 @@ export function WorkflowsPage(): JSX.Element {
                 <WorkflowBoard
                   workflowId={workflow.id}
                   board={board}
+                  workflowState={workflow.state}
                   selectedWorkItemId={pageState.workItemId}
                   selectedTaskId={pageState.taskId}
                   boardLens={boardLens}
