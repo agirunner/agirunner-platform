@@ -2845,6 +2845,15 @@ export interface DashboardApi {
     name: string;
     workspace_id?: string;
     parameters?: Record<string, string>;
+    initial_input_packet?: {
+      summary?: string;
+      files?: Array<{
+        file_name: string;
+        description?: string;
+        content_base64: string;
+        content_type?: string;
+      }>;
+    };
     metadata?: Record<string, unknown>;
     config_overrides?: Record<string, unknown>;
     instruction_config?: Record<string, unknown>;

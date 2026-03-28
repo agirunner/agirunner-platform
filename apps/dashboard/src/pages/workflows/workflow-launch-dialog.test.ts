@@ -17,5 +17,13 @@ describe('WorkflowLaunchDialog source', () => {
     expect(source.match(/rows=\{2\}/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(source).not.toContain('ChainParameterField');
     expect(source).not.toContain('Launch input groups');
+    expect(source).not.toContain('rounded-full border border-border');
+  });
+
+  it('persists launch files through workflow creation instead of a second packet request', () => {
+    const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('initial_input_packet');
+    expect(source).not.toContain('createWorkflowInputPacket(workflow.id');
   });
 });

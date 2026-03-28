@@ -84,13 +84,24 @@ export function buildWorkflowOperatorStorageKey(params: {
 }): string {
   return [
     'tenants',
-    params.tenantId,
+    sanitizeWorkflowOperatorStorageSegment(params.tenantId, 'Tenant'),
     'workflows',
-    params.workflowId,
-    params.ownerPath,
-    params.ownerId,
+    sanitizeWorkflowOperatorStorageSegment(params.workflowId, 'Workflow'),
+    sanitizeWorkflowOperatorStorageSegment(params.ownerPath, 'Workflow file owner path'),
+    sanitizeWorkflowOperatorStorageSegment(params.ownerId, 'Workflow file owner'),
     'files',
-    params.fileId,
+    sanitizeWorkflowOperatorStorageSegment(params.fileId, 'Workflow file'),
     params.fileName,
   ].join('/');
+}
+
+function sanitizeWorkflowOperatorStorageSegment(value: string, label: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new ValidationError(`${label} storage path segment is required`);
+  }
+  if (trimmed === '.' || trimmed === '..' || trimmed.includes('/') || trimmed.includes('\\')) {
+    throw new ValidationError(`${label} storage path segment is invalid`);
+  }
+  return trimmed;
 }

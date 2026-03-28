@@ -8,9 +8,8 @@ describe('WorkflowAddWorkDialog source', () => {
 
     expect(source).not.toContain('Owner role');
     expect(source).toContain('Steering instruction');
-    expect(source).not.toContain('Typed inputs');
-    expect(source).not.toContain('Editable inputs');
-    expect(source).toContain('Additional inputs');
+    expect(source).not.toContain('Input type');
+    expect(source).toContain('Work item inputs');
     expect(source).not.toContain("<span className=\"font-medium\">Goal</span>");
   });
 
@@ -30,7 +29,7 @@ describe('WorkflowAddWorkDialog source', () => {
     expect(source).not.toContain('How this attaches');
     expect(source).not.toContain('workflow-scoped input packet');
     expect(source).not.toContain('If you opened this from task scope');
-    expect(source).not.toContain('parent work item');
+    expect(source).toContain('parent work item');
   });
 
   it('creates new work with the embedded input packet and can add a steering request in the same flow', () => {
@@ -53,5 +52,8 @@ describe('WorkflowAddWorkDialog source', () => {
     expect(source).toContain('Add input');
     expect(source).toContain('Input name');
     expect(source).toContain('Input value');
+    expect(source).not.toContain('<SelectItem value="number">');
+    expect(source).not.toContain('<SelectItem value="boolean">');
+    expect(source).not.toContain('<SelectItem value="json">');
   });
 });

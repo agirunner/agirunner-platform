@@ -104,20 +104,19 @@ export function WorkflowLaunchDialog(props: {
 
   const launchMutation = useMutation({
     mutationFn: async () => {
-      const workflow = await dashboardApi.createWorkflow({
+      return dashboardApi.createWorkflow({
         playbook_id: selectedPlaybookId,
         workspace_id: workspaceId,
         name: workflowName.trim(),
         parameters: buildParametersFromDrafts(launchDefinition.parameterSpecs, parameterDrafts),
+        initial_input_packet:
+          files.length > 0
+            ? {
+                summary: 'Workflow launch files',
+                files: await buildFileUploadPayloads(files),
+              }
+            : undefined,
       });
-      if (files.length > 0) {
-        await dashboardApi.createWorkflowInputPacket(workflow.id, {
-          packet_kind: 'launch',
-          summary: 'Workflow launch files',
-          files: await buildFileUploadPayloads(files),
-        });
-      }
-      return workflow;
     },
     onSuccess: async (workflow) => {
       await invalidateWorkflowsQueries(queryClient, workflow.id, workflow.workspace_id ?? undefined);
@@ -222,15 +221,9 @@ export function WorkflowLaunchDialog(props: {
 
           {launchDefinition.parameterSpecs.length > 0 ? (
             <div className="grid gap-3">
-              <strong className="text-sm">Launch inputs</strong>
               {launchDefinition.parameterSpecs.map((spec) => (
                 <label key={spec.slug} className="grid gap-2 text-sm">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="font-medium">{spec.title}</span>
-                    <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted">
-                      {spec.required ? 'Required' : 'Optional'}
-                    </span>
-                  </div>
+                  <span className="font-medium">{spec.title}</span>
                   <Textarea
                     value={parameterDrafts[spec.slug] ?? ''}
                     onChange={(event) =>
