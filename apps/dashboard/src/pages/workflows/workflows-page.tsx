@@ -105,6 +105,7 @@ export function WorkflowsPage(): JSX.Element {
         deliverablesLimit,
       }),
     enabled: Boolean(pageState.workflowId),
+    placeholderData: (previous) => previous,
   });
   const workflowSettingsQuery = useQuery({
     queryKey: ['workflow-settings', pageState.workflowId],

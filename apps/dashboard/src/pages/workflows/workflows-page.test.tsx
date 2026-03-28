@@ -42,4 +42,9 @@ describe('workflows page source', () => {
     expect(source).not.toContain('{ search, workflowId: null, workItemId: null }');
     expect(source).not.toContain('{ needsActionOnly, workflowId: null, workItemId: null }');
   });
+
+  it('keeps the previous workspace shell mounted while scoped work-item selections refetch', () => {
+    const source = readSource();
+    expect(source).toContain('placeholderData: (previous) => previous');
+  });
 });
