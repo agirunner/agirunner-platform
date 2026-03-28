@@ -477,6 +477,7 @@ describe('WorkflowWorkspaceService', () => {
           { kind: 'pause_workflow', enabled: true, scope: 'workflow', confirmationLevel: 'immediate' },
           { kind: 'cancel_workflow', enabled: true, scope: 'workflow', confirmationLevel: 'high_impact_confirm' },
           { kind: 'add_work_item', enabled: true, scope: 'workflow', confirmationLevel: 'standard_confirm' },
+          { kind: 'redrive_workflow', enabled: true, scope: 'workflow', confirmationLevel: 'high_impact_confirm' },
         ],
         metrics: {
           blockedWorkItemCount: 0,

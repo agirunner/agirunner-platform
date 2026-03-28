@@ -70,7 +70,7 @@ export function deriveWorkflowActionAvailability(
     ),
     buildWorkflowAction(
       'redrive_workflow',
-      input.posture === 'terminal_failed',
+      isTerminalState(input.workflowState),
       'high_impact_confirm',
       stale,
     ),

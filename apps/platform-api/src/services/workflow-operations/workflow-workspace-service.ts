@@ -551,7 +551,7 @@ function isActionableIntervention(intervention: WorkflowInterventionRecord): boo
 }
 
 function isNeedsActionQuickAction(action: MissionControlActionAvailability): boolean {
-  return action.enabled && action.kind === 'redrive_workflow';
+  return false;
 }
 
 function readBoardNeedsActionItems(board: Record<string, unknown>): WorkflowNeedsActionItem[] {

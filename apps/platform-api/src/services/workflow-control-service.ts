@@ -66,6 +66,9 @@ export class WorkflowControlService {
         throw new NotFoundError('Workflow not found');
       }
       const currentWorkflow = workflow.rows[0];
+      if (isTerminalWorkflowState(currentWorkflow.state)) {
+        throw new ConflictError('Workflow is not resumable');
+      }
       if (hasCancelRequest(currentWorkflow.metadata)) {
         throw new ConflictError('Workflow cancellation is already in progress and cannot be resumed');
       }
@@ -130,6 +133,10 @@ function isPausableWorkflowState(state: string) {
 
 function isResumedWorkflowState(state: string) {
   return state === 'pending' || state === 'active';
+}
+
+function isTerminalWorkflowState(state: string) {
+  return state === 'completed' || state === 'failed' || state === 'cancelled';
 }
 
 function hasPauseRequest(metadata: unknown) {

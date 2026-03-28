@@ -54,6 +54,34 @@ describe('mission control action availability', () => {
     );
   });
 
+  it('enables redrive for other terminal workflow states too', () => {
+    const cancelledActions = deriveWorkflowActionAvailability({
+      workflowState: 'cancelled',
+      posture: 'cancelled',
+    });
+    const completedActions = deriveWorkflowActionAvailability({
+      workflowState: 'completed',
+      posture: 'completed',
+    });
+
+    expect(cancelledActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'redrive_workflow',
+          enabled: true,
+        }),
+      ]),
+    );
+    expect(completedActions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'redrive_workflow',
+          enabled: true,
+        }),
+      ]),
+    );
+  });
+
   it('does not enable pause, resume, or cancel while cancellation is already in progress', () => {
     const actions = deriveWorkflowActionAvailability({
       workflowState: 'paused',
