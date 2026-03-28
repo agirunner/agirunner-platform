@@ -7,7 +7,7 @@ export interface DeliverableTargetAction {
 
 const IN_PLACE_TARGET_PATH_PATTERNS = [
   /^\/artifacts\/tasks\/[^/]+\/[^/]+$/,
-  /^\/api\/v1\/tasks\/[^/]+\/artifacts\/[^/]+$/,
+  /^\/api\/v1\/tasks\/[^/]+\/artifacts\/[^/]+(?:\/content)?$/,
   /^\/api\/v1\/workflows\/[^/]+\/input-packets\/[^/]+\/files\/[^/]+\/content$/,
   /^\/api\/v1\/workflows\/[^/]+\/interventions\/[^/]+\/files\/[^/]+\/content$/,
 ];
@@ -15,16 +15,18 @@ const IN_PLACE_TARGET_PATH_PATTERNS = [
 export function resolveDeliverableTargetAction(
   target: DashboardWorkflowDeliverableTarget,
 ): DeliverableTargetAction {
-  if (isInPlaceArtifactPreviewTarget(target.url)) {
+  const href = rewriteDeprecatedArtifactPreviewUrl(target.url);
+
+  if (isInPlaceArtifactPreviewTarget(href)) {
     return {
       action_kind: 'dialog_preview',
-      href: target.url,
+      href,
     };
   }
 
   return {
     action_kind: 'external_link',
-    href: target.url,
+    href,
   };
 }
 
@@ -44,5 +46,30 @@ function readNormalizedPath(url: string): string | null {
     return parsed.pathname;
   } catch {
     return null;
+  }
+}
+
+function rewriteDeprecatedArtifactPreviewUrl(url: string): string {
+  const trimmed = url.trim();
+  if (trimmed.length === 0) {
+    return url;
+  }
+
+  try {
+    const parsed = new URL(trimmed, 'http://dashboard.local');
+    const match = parsed.pathname.match(/^\/artifacts\/tasks\/([^/]+)\/([^/]+)$/);
+    if (!match) {
+      return trimmed;
+    }
+
+    const [, taskId, artifactId] = match;
+    parsed.pathname =
+      `/api/v1/tasks/${encodeURIComponent(taskId)}/artifacts/${encodeURIComponent(artifactId)}/content`;
+
+    return parsed.origin === 'http://dashboard.local'
+      ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+      : parsed.toString();
+  } catch {
+    return url;
   }
 }

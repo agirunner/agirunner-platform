@@ -25,6 +25,8 @@ describe('WorkflowDeliverables', () => {
 
     expect(html).toContain('Open without leaving workflow');
     expect(html).toContain('Open in new window');
+    expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/content');
+    expect(html).not.toContain('/artifacts/tasks/task-1/artifact-1');
     expect(html).toContain('Deliverables');
   });
 

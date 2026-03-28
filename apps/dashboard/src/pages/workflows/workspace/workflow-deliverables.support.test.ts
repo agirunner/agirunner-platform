@@ -6,16 +6,16 @@ import {
 } from './workflow-deliverables.support.js';
 
 describe('workflow deliverables support', () => {
-  it('routes task artifact preview permalinks through the in-place preview dialog flow', () => {
+  it('rewrites deprecated task artifact routes to direct artifact content preview targets', () => {
     expect(
       resolveDeliverableTargetAction({
         target_kind: 'artifact',
         label: 'Open artifact',
-        url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-1',
+        url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-1?return_to=%2Fworkflows',
       }),
     ).toEqual({
       action_kind: 'dialog_preview',
-      href: 'http://localhost:3000/artifacts/tasks/task-1/artifact-1',
+      href: 'http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/content?return_to=%2Fworkflows',
     });
   });
 
