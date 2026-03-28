@@ -220,6 +220,16 @@ describe('GuidedClosureRecoveryHelpersService', () => {
   });
 
   it('reopens a completed work item for missing handoff recovery', async () => {
+    const definitionWithActiveColumn = {
+      ...definition,
+      board: {
+        columns: [
+          { id: 'planned', label: 'Planned' },
+          { id: 'active', label: 'Active' },
+          { id: 'done', label: 'Done', is_terminal: true },
+        ],
+      },
+    };
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflow_work_items wi')) {
@@ -234,12 +244,12 @@ describe('GuidedClosureRecoveryHelpersService', () => {
               metadata: { orchestrator_finish_state: { finished: true } },
               completion_callouts: {},
               updated_at: new Date('2026-03-24T10:00:00Z'),
-              definition,
+              definition: definitionWithActiveColumn,
             }],
           };
         }
         if (sql.includes('UPDATE workflow_work_items') && sql.includes('completed_at = NULL')) {
-          expect(params?.[3]).toBe('planned');
+          expect(params?.[3]).toBe('active');
           expect(params?.[4]).toBe('The predecessor exited without a full handoff.');
           return {
             rowCount: 1,
@@ -247,12 +257,12 @@ describe('GuidedClosureRecoveryHelpersService', () => {
               id: 'wi-1',
               workflow_id: 'workflow-1',
               stage_name: 'review',
-              column_id: 'planned',
+              column_id: 'active',
               completed_at: null,
               metadata: { guided_closure: { last_reopen_reason: 'The predecessor exited without a full handoff.' } },
               completion_callouts: {},
               updated_at: new Date('2026-03-24T10:06:00Z'),
-              definition,
+              definition: definitionWithActiveColumn,
             }],
           };
         }
@@ -278,7 +288,7 @@ describe('GuidedClosureRecoveryHelpersService', () => {
       reason: 'The predecessor exited without a full handoff.',
     }, client as never);
 
-    expect(result.column_id).toBe('planned');
+    expect(result.column_id).toBe('active');
     expect(result.completed_at).toBeNull();
     expect(eventService.emit).toHaveBeenCalledTimes(3);
   });

@@ -115,6 +115,17 @@ export function blockedColumnId(definition: PlaybookDefinition): string | null {
   return definition.board.columns.find((column) => column.is_blocked)?.id ?? null;
 }
 
+export function activeColumnId(definition: PlaybookDefinition): string | null {
+  const entryColumnId = defaultColumnId(definition);
+  const entryIndex = definition.board.columns.findIndex((column) => column.id === entryColumnId);
+  if (entryIndex < 0) {
+    return null;
+  }
+  return definition.board.columns
+    .slice(entryIndex + 1)
+    .find((column) => !column.is_blocked && !column.is_terminal)?.id ?? null;
+}
+
 export function hasBoardColumn(definition: PlaybookDefinition, columnId: string): boolean {
   return definition.board.columns.some((column) => column.id === columnId);
 }

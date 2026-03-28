@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowLiveConsoleService } from '../../src/services/workflow-operations/workflow-live-console-service.js';
 
 describe('WorkflowLiveConsoleService', () => {
-  it('prefers operator updates and briefs over raw execution-turn fallbacks when updates exist', async () => {
+  it('merges execution-turn fallbacks with operator updates and briefs when updates exist', async () => {
     const service = new WorkflowLiveConsoleService(
       {
         getHistory: vi.fn(async () => ({
@@ -138,8 +138,20 @@ describe('WorkflowLiveConsoleService', () => {
     });
 
     expect(result.snapshot_version).toBe('workflow-operations:77');
-    expect(result.items.map((item) => item.item_id)).toEqual(['update-1', 'brief-1']);
+    expect(result.items.map((item) => item.item_id)).toEqual([
+      'execution-log:log-1',
+      'update-1',
+      'brief-1',
+    ]);
     expect(result.items[0]).toEqual(
+      expect.objectContaining({
+        item_kind: 'execution_turn',
+        headline: 'Checking results for Verify rollback handling',
+        summary: 'Observed that verification completed successfully.',
+        source_label: 'Verifier',
+      }),
+    );
+    expect(result.items[1]).toEqual(
       expect.objectContaining({
         item_kind: 'operator_update',
         headline: 'Verifier is checking rollback handling.',
@@ -148,7 +160,7 @@ describe('WorkflowLiveConsoleService', () => {
     );
   });
 
-  it('uses a humanized generic fallback when no operator updates exist', async () => {
+  it('uses a safe generic fallback when no operator updates exist', async () => {
     const service = new WorkflowLiveConsoleService(
       {
         getHistory: vi.fn(async () => ({
@@ -230,6 +242,7 @@ describe('WorkflowLiveConsoleService', () => {
         item_id: 'execution-log:log-1',
         item_kind: 'execution_turn',
         headline: 'Working through Verify rollback handling',
+        summary: 'Execution turn completed for Verify rollback handling.',
         source_label: 'Verifier',
       }),
     ]);

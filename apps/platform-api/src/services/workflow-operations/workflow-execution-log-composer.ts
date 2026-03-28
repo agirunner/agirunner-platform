@@ -53,25 +53,27 @@ function buildExecutionTurnHeadline(row: LogRow): string {
   switch (row.operation) {
     case 'agent.think':
       return (
-        truncate(readString(payload.reasoning_summary) ?? readString(payload.approach), 180)
+        readOperatorReadableField(payload, ['headline', 'reasoning_summary', 'approach'])
         ?? buildSubjectHeadline('Thinking through the next step for', subject, 'Thinking through the next step')
       );
     case 'agent.plan':
       return (
-        truncate(readString(payload.summary) ?? readFirstPlanDescription(payload.steps), 180)
+        readOperatorReadableField(payload, ['headline', 'summary'])
+        ?? readOperatorReadableText(readFirstPlanDescription(payload.steps), 180)
         ?? buildSubjectHeadline('Planning the next step for', subject, 'Planning the next step')
       );
     case 'agent.act':
-      return truncate(readString(payload.output_preview) ?? readString(payload.output), 180)
+      return readOperatorReadableField(payload, ['headline'])
         ?? buildSubjectHeadline('Working through', subject, 'Working through the next execution step');
     case 'agent.observe':
       return (
-        truncate(readString(payload.summary) ?? readString(payload.text) ?? readString(payload.text_preview), 180)
+        readOperatorReadableField(payload, ['headline'])
         ?? buildSubjectHeadline('Checking results for', subject, 'Checking execution results')
       );
     case 'agent.verify':
       return (
-        truncate(readString(payload.details) ?? buildVerifyHeadline(payload), 180)
+        readOperatorReadableField(payload, ['headline'])
+        ?? readOperatorReadableText(buildVerifyHeadline(payload), 180)
         ?? buildSubjectHeadline('Checking', subject, 'Checking current progress')
       );
     default:
@@ -81,15 +83,10 @@ function buildExecutionTurnHeadline(row: LogRow): string {
 
 function buildExecutionTurnSummary(row: LogRow): string {
   const payload = asRecord(row.payload);
+  const subject = readExecutionSubject(row);
   const detail =
-    truncate(
-      readString(payload.output_preview)
-        ?? readString(payload.text_preview)
-        ?? readString(payload.summary)
-        ?? readString(payload.details)
-        ?? readString(payload.approach),
-      220,
-    );
+    readOperatorReadableField(payload, ['summary', 'details', 'reasoning_summary', 'approach'])
+    ?? buildExecutionTurnFallbackSummary(subject);
   if (!detail) {
     return humanizeToken(row.operation);
   }
@@ -234,6 +231,48 @@ function readString(value: unknown): string | null {
 function readHumanizedString(value: unknown): string | null {
   const parsed = readString(value);
   return parsed ? humanizeToken(parsed) : null;
+}
+
+function readOperatorReadableField(
+  payload: Record<string, unknown>,
+  keys: string[],
+): string | null {
+  for (const key of keys) {
+    const value = readOperatorReadableText(readString(payload[key]), 180);
+    if (value) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function readOperatorReadableText(value: string | null, maxLength: number): string | null {
+  const trimmed = truncate(value, maxLength);
+  if (!trimmed || looksLikeRawExecutionDump(trimmed)) {
+    return null;
+  }
+  return trimmed;
+}
+
+function looksLikeRawExecutionDump(value: string): boolean {
+  return (
+    value.includes('{')
+    || value.includes('}')
+    || value.includes('[')
+    || value.includes(']')
+    || /\bphase\s+\w+/i.test(value)
+    || /\bturn\s+\d+\b/i.test(value)
+    || /\btool steps?\b/i.test(value)
+    || /\btool_failure\b/i.test(value)
+    || /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i.test(value)
+  );
+}
+
+function buildExecutionTurnFallbackSummary(subject: string | null): string {
+  if (!subject) {
+    return 'Execution turn completed.';
+  }
+  return `Execution turn completed for ${subject}.`;
 }
 
 function truncate(value: string | null, maxLength: number): string | null {

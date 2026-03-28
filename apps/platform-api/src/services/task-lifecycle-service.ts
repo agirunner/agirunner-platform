@@ -11,6 +11,7 @@ import {
   type TaskState,
 } from '../orchestration/task-state-machine.js';
 import {
+  activeColumnId,
   defaultColumnId,
   parsePlaybookDefinition,
 } from '../orchestration/playbook-model.js';
@@ -631,8 +632,8 @@ export class TaskLifecycleService {
 
     const definition = parsePlaybookDefinition(workItem.definition);
     const entryColumnId = defaultColumnId(definition);
-    const activeColumnId = activeColumnIdFor(definition);
-    if (!entryColumnId || !activeColumnId) {
+    const executionColumnId = activeColumnId(definition);
+    if (!entryColumnId || !executionColumnId) {
       return;
     }
 
@@ -643,7 +644,7 @@ export class TaskLifecycleService {
       workItemId,
     );
     const nextColumnId = executionProgress.hasEngagedSpecialistTask
-      ? activeColumnId
+      ? executionColumnId
       : null;
     if (!nextColumnId || nextColumnId === workItem.column_id) {
       return;
@@ -3128,22 +3129,11 @@ function releasesParallelismSlot(previousState: TaskState, nextState: TaskState)
   );
 }
 
-function activeColumnIdFor(definition: ReturnType<typeof parsePlaybookDefinition>): string | null {
-  const entryColumnId = defaultColumnId(definition);
-  const entryIndex = definition.board.columns.findIndex((column) => column.id === entryColumnId);
-  if (entryIndex < 0) {
-    return null;
-  }
-  return definition.board.columns
-    .slice(entryIndex + 1)
-    .find((column) => !column.is_blocked && !column.is_terminal)?.id ?? null;
-}
-
 function resolveReopenColumnId(
   definition: ReturnType<typeof parsePlaybookDefinition>,
   currentColumnId: string | null,
 ): string | null {
-  return activeColumnIdFor(definition) ?? defaultColumnId(definition) ?? currentColumnId;
+  return activeColumnId(definition) ?? defaultColumnId(definition) ?? currentColumnId;
 }
 
 interface WorkflowActivationTransition {

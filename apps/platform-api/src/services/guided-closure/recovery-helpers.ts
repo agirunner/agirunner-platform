@@ -2,7 +2,11 @@ import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import type { EventService } from '../event-service.js';
 import { NotFoundError } from '../../errors/domain-errors.js';
-import { defaultColumnId, parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
+import {
+  activeColumnId,
+  defaultColumnId,
+  parsePlaybookDefinition,
+} from '../../orchestration/playbook-model.js';
 import type { PlaybookWorkflowControlService } from '../playbook-workflow-control-service.js';
 import type { TaskService } from '../task-service.js';
 import {
@@ -285,7 +289,7 @@ export class GuidedClosureRecoveryHelpersService {
     }
 
     const definition = parsePlaybookDefinition(current.definition as Record<string, unknown>);
-    const reopenColumnId = defaultColumnId(definition) ?? current.column_id;
+    const reopenColumnId = activeColumnId(definition) ?? defaultColumnId(definition) ?? current.column_id;
     const updated = await db.query<RecoveryWorkItemRow>(
       `UPDATE workflow_work_items
           SET column_id = $4,
