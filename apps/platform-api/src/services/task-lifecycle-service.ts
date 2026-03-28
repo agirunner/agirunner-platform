@@ -1,7 +1,7 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import { validateOutputSchema } from '../validation/output-validator.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { ConflictError, ForbiddenError } from '../errors/domain-errors.js';
+import { ConflictError, ForbiddenError, ValidationError } from '../errors/domain-errors.js';
 import type { LogService } from '../logging/log-service.js';
 import { logTaskGovernanceTransition } from '../logging/task-governance-log.js';
 import {
@@ -1279,6 +1279,11 @@ export class TaskLifecycleService {
       task,
       existingClient,
     );
+    await this.assertOperatorReportingBeforeCompletion(
+      identity.tenantId,
+      task,
+      existingClient,
+    );
 
     const outputValidation = validateOutputSchema(payload.output, this.extractOutputSchema(task));
     const verificationPassed = this.readVerificationPassed(payload.verification, payload.metrics);
@@ -1353,6 +1358,101 @@ export class TaskLifecycleService {
         }
       }
       throw error;
+    }
+  }
+
+  private async assertOperatorReportingBeforeCompletion(
+    tenantId: string,
+    task: Record<string, unknown>,
+    client?: DatabaseClient,
+  ): Promise<void> {
+    const queryClient = client ?? await this.deps.pool.connect();
+    const shouldReleaseClient = !client;
+    const workflowId = readOptionalText(task.workflow_id);
+    const taskId = readOptionalText(task.id);
+    if (!workflowId || !taskId) {
+      if (shouldReleaseClient) {
+        queryClient.release();
+      }
+      return;
+    }
+
+    try {
+      const contract = await readOperatorReportingContract(
+        this.deps.pool,
+        tenantId,
+        task,
+        queryClient,
+      );
+      if (!contract) {
+        return;
+      }
+
+      if (contract.turnUpdatesRequired) {
+        const missingTurns = await findMissingReportedTurns(
+          this.deps.pool,
+          tenantId,
+          workflowId,
+          taskId,
+          contract.executionContextId,
+          queryClient,
+        );
+        if (missingTurns.length > 0) {
+          throw new ValidationError(
+            buildMissingTurnUpdateMessage(contract, missingTurns),
+            {
+              reason_code: 'required_operator_turn_update',
+              recoverable: true,
+              recovery_hint: 'record_required_operator_update',
+              recovery: {
+                status: 'action_required',
+                reason: 'required_operator_turn_update',
+                action: 'record_operator_update',
+                execution_context_id: contract.executionContextId,
+                missing_turns: missingTurns,
+                request_id_prefix: contract.operatorUpdateRequestIdPrefix,
+                source_kind: contract.sourceKind,
+              },
+            },
+          );
+        }
+      }
+
+      if (!contract.milestoneBriefsRequired) {
+        return;
+      }
+
+      const hasBrief = await hasOperatorBriefForExecutionContext(
+        this.deps.pool,
+        tenantId,
+        workflowId,
+        contract.executionContextId,
+        queryClient,
+      );
+      if (hasBrief) {
+        return;
+      }
+
+      throw new ValidationError(
+        buildMissingMilestoneBriefMessage(contract),
+        {
+          reason_code: 'required_operator_milestone_brief',
+          recoverable: true,
+          recovery_hint: 'record_required_operator_brief',
+          recovery: {
+            status: 'action_required',
+            reason: 'required_operator_milestone_brief',
+            action: 'record_operator_brief',
+            execution_context_id: contract.executionContextId,
+            request_id_prefix: contract.operatorBriefRequestIdPrefix,
+            source_kind: contract.sourceKind,
+          },
+        },
+      );
+    } finally {
+      if (shouldReleaseClient) {
+        queryClient.release();
+      }
     }
   }
 
@@ -3132,6 +3232,152 @@ function isFailTaskReplay(task: Record<string, unknown>, error: Record<string, u
     return true;
   }
   return false;
+}
+
+interface OperatorReportingContract {
+  mode: 'standard' | 'enhanced';
+  executionContextId: string;
+  sourceKind: 'orchestrator' | 'specialist';
+  turnUpdatesRequired: boolean;
+  milestoneBriefsRequired: boolean;
+  operatorUpdateRequestIdPrefix: string;
+  operatorBriefRequestIdPrefix: string;
+}
+
+async function readOperatorReportingContract(
+  pool: DatabasePool,
+  tenantId: string,
+  task: Record<string, unknown>,
+  client?: DatabaseClient,
+): Promise<OperatorReportingContract | null> {
+  const workflowId = readOptionalText(task.workflow_id);
+  const taskId = readOptionalText(task.id);
+  if (!workflowId || !taskId) {
+    return null;
+  }
+  const db = client ?? pool;
+  const workflowResult = await db.query<{
+    live_visibility_mode_override: string | null;
+    activation_id: string | null;
+    is_orchestrator_task: boolean;
+  }>(
+    `SELECT w.live_visibility_mode_override,
+            t.activation_id::text AS activation_id,
+            t.is_orchestrator_task
+       FROM tasks t
+       JOIN workflows w
+         ON w.tenant_id = t.tenant_id
+        AND w.id = t.workflow_id
+      WHERE t.tenant_id = $1
+        AND t.id = $2
+      LIMIT 1`,
+    [tenantId, taskId],
+  );
+  const workflowRow = workflowResult.rows[0];
+  if (!workflowRow) {
+    return null;
+  }
+  const settingsResult = await db.query<{ live_visibility_mode_default: string }>(
+    `SELECT live_visibility_mode_default
+       FROM agentic_settings
+      WHERE tenant_id = $1`,
+    [tenantId],
+  );
+  const mode = normalizeReportingMode(
+    workflowRow.live_visibility_mode_override ?? settingsResult.rows[0]?.live_visibility_mode_default,
+  );
+  const isOrchestratorTask = workflowRow.is_orchestrator_task === true;
+  const executionContextId = isOrchestratorTask
+    ? readOptionalText(workflowRow.activation_id)
+    : taskId;
+  if (!executionContextId) {
+    return null;
+  }
+  return {
+    mode,
+    executionContextId,
+    sourceKind: isOrchestratorTask ? 'orchestrator' : 'specialist',
+    turnUpdatesRequired: mode === 'enhanced',
+    milestoneBriefsRequired: true,
+    operatorUpdateRequestIdPrefix: `operator-update:${executionContextId}:`,
+    operatorBriefRequestIdPrefix: `operator-brief:${executionContextId}:`,
+  };
+}
+
+function normalizeReportingMode(value: string | null | undefined): 'standard' | 'enhanced' {
+  return value === 'standard' ? 'standard' : 'enhanced';
+}
+
+async function findMissingReportedTurns(
+  pool: DatabasePool,
+  tenantId: string,
+  workflowId: string,
+  taskId: string,
+  executionContextId: string,
+  client?: DatabaseClient,
+): Promise<number[]> {
+  const db = client ?? pool;
+  const turnResult = await db.query<{ llm_turn_count: number | null }>(
+    `SELECT DISTINCT NULLIF(payload->>'llm_turn_count', '')::integer AS llm_turn_count
+       FROM execution_logs
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND task_id = $3
+        AND payload ? 'llm_turn_count'`,
+    [tenantId, workflowId, taskId],
+  );
+  const observedTurns = turnResult.rows
+    .map((row) => row.llm_turn_count ?? 0)
+    .filter((value) => Number.isInteger(value) && value > 0)
+    .sort((left, right) => left - right);
+  if (observedTurns.length === 0) {
+    return [];
+  }
+  const updateResult = await db.query<{ llm_turn_count: number | null }>(
+    `SELECT DISTINCT llm_turn_count
+       FROM workflow_operator_updates
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND execution_context_id = $3`,
+    [tenantId, workflowId, executionContextId],
+  );
+  const reportedTurns = new Set(
+    updateResult.rows
+      .map((row) => row.llm_turn_count ?? 0)
+      .filter((value) => Number.isInteger(value) && value > 0),
+  );
+  return observedTurns.filter((value) => !reportedTurns.has(value));
+}
+
+async function hasOperatorBriefForExecutionContext(
+  pool: DatabasePool,
+  tenantId: string,
+  workflowId: string,
+  executionContextId: string,
+  client?: DatabaseClient,
+): Promise<boolean> {
+  const db = client ?? pool;
+  const result = await db.query<{ id: string }>(
+    `SELECT id
+       FROM workflow_operator_briefs
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND execution_context_id = $3
+      LIMIT 1`,
+    [tenantId, workflowId, executionContextId],
+  );
+  return (result.rowCount ?? 0) > 0;
+}
+
+function buildMissingTurnUpdateMessage(
+  contract: OperatorReportingContract,
+  missingTurns: number[],
+): string {
+  return `Enhanced live visibility requires one concise record_operator_update for every llm turn before completion. Missing updates for execution context ${contract.executionContextId} on turn ${missingTurns.join(', ')}. Emit one record_operator_update for each missing turn with source_kind ${contract.sourceKind} before retrying completion. Use request_id values starting with ${contract.operatorUpdateRequestIdPrefix}.`;
+}
+
+function buildMissingMilestoneBriefMessage(contract: OperatorReportingContract): string {
+  return `This task reached a meaningful completion or handoff checkpoint without a required record_operator_brief for execution context ${contract.executionContextId}. Emit one milestone record_operator_brief with source_kind ${contract.sourceKind}, payload.short_brief.headline, and payload.detailed_brief_json.{headline,status_kind,summary} before retrying completion. Use request_id values starting with ${contract.operatorBriefRequestIdPrefix}.`;
 }
 
 function releasesParallelismSlot(previousState: TaskState, nextState: TaskState) {

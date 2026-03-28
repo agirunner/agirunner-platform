@@ -302,7 +302,7 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
     if (brief.operator_visibility.turn_updates_required && brief.operator_visibility.record_operator_update_tool) {
       if (brief.operator_visibility.turn_update_scope === 'per_eligible_turn') {
         lines.push(
-          `Enhanced live visibility requires one ${brief.operator_visibility.record_operator_update_tool} on every eligible turn.`,
+          `Enhanced live visibility requires exactly one ${brief.operator_visibility.record_operator_update_tool} on every llm turn before that turn can close.`,
         );
       }
       if (brief.operator_visibility.eligible_turn_guidance) {
@@ -314,7 +314,10 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
         );
       }
       lines.push(
-        `Use ${brief.operator_visibility.record_operator_update_tool} for one tiny operator-readable headline after each eligible execution step.`,
+        `Use ${brief.operator_visibility.record_operator_update_tool} for one tiny operator-readable headline on every llm turn.`,
+      );
+      lines.push(
+        `If you forget the required ${brief.operator_visibility.record_operator_update_tool}, the execution contract will automatically send you back to emit it before progress can continue.`,
       );
       lines.push(
         'If you do not already have the exact scoped workflow_id, work_item_id, or task_id from this contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id. Never guess them.',
@@ -334,6 +337,9 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
       }
       lines.push(
         `Use ${brief.operator_visibility.record_operator_brief_tool} for material handoff or milestone summaries when the platform requests them.`,
+      );
+      lines.push(
+        `If this task reaches a meaningful completion, handoff, approval, or output checkpoint without the required ${brief.operator_visibility.record_operator_brief_tool}, completion will be rejected recoverably until you emit it.`,
       );
       lines.push(
         'Use brief_kind "milestone" for in-flight progress or handoff summaries. Use brief_kind "terminal" only for the final workflow outcome summary.',

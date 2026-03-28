@@ -30,6 +30,7 @@ interface WorkflowOperatorBriefRow {
   brief_scope: string;
   source_kind: string;
   source_role_name: string | null;
+  llm_turn_count: number | null;
   status_kind: string;
   short_brief: Record<string, unknown>;
   detailed_brief_json: Record<string, unknown>;
@@ -56,6 +57,7 @@ export interface WorkflowOperatorBriefRecord {
   brief_scope: string;
   source_kind: string;
   source_role_name: string | null;
+  llm_turn_count: number | null;
   status_kind: string;
   short_brief: Record<string, unknown>;
   detailed_brief_json: Record<string, unknown>;
@@ -83,6 +85,7 @@ export interface RecordWorkflowOperatorBriefInput {
   executionContextId: string;
   workItemId?: string;
   taskId?: string;
+  llmTurnCount?: number;
   briefKind?: string;
   briefScope?: string;
   sourceKind?: string;
@@ -204,8 +207,8 @@ export class WorkflowOperatorBriefService {
     const linkedTargetIds = sanitizeLinkedIdList(input.payload.linkedTargetIds);
     const inserted = await this.pool.query<WorkflowOperatorBriefRow>(
       `INSERT INTO workflow_operator_briefs
-         (id, tenant_id, workflow_id, work_item_id, task_id, request_id, execution_context_id, brief_kind, brief_scope, source_kind, short_brief, detailed_brief_json, status_kind, linked_target_ids, related_artifact_ids, related_output_descriptor_ids, related_intervention_ids, source_role_name, sequence_number, canonical_workflow_brief_id, created_by_type, created_by_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13,$14::jsonb,$15::jsonb,$16::jsonb,$17::jsonb,$18,$19,$20,$21,$22)
+         (id, tenant_id, workflow_id, work_item_id, task_id, request_id, execution_context_id, brief_kind, brief_scope, source_kind, short_brief, detailed_brief_json, status_kind, linked_target_ids, related_artifact_ids, related_output_descriptor_ids, related_intervention_ids, source_role_name, llm_turn_count, sequence_number, canonical_workflow_brief_id, created_by_type, created_by_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13,$14::jsonb,$15::jsonb,$16::jsonb,$17::jsonb,$18,$19,$20,$21,$22,$23)
        RETURNING *`,
       [
         randomUUID(),
@@ -226,6 +229,7 @@ export class WorkflowOperatorBriefService {
         serializeJsonb([]),
         serializeJsonb(sanitizeLinkedIdList(input.relatedInterventionIds)),
         executionContext.sourceRoleName,
+        sanitizeOptionalPositiveInteger(input.llmTurnCount),
         sequenceNumber,
         sanitizeOptionalText(input.canonicalWorkflowBriefId),
         identity.ownerType,
@@ -433,6 +437,7 @@ function toWorkflowOperatorBriefRecord(row: WorkflowOperatorBriefRow): WorkflowO
     brief_scope: row.brief_scope,
     source_kind: row.source_kind,
     source_role_name: row.source_role_name,
+    llm_turn_count: row.llm_turn_count ?? null,
     status_kind: row.status_kind,
     short_brief: row.short_brief ?? {},
     detailed_brief_json: row.detailed_brief_json ?? {},
@@ -451,4 +456,11 @@ function toWorkflowOperatorBriefRecord(row: WorkflowOperatorBriefRow): WorkflowO
 
 function serializeJsonb(value: unknown): string {
   return JSON.stringify(value);
+}
+
+function sanitizeOptionalPositiveInteger(value: number | undefined): number | null {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+    return null;
+  }
+  return value;
 }

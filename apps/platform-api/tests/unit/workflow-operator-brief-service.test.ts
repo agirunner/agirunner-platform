@@ -60,6 +60,7 @@ describe('WorkflowOperatorBriefService', () => {
               brief_scope: 'workflow_timeline',
               source_kind: 'orchestrator',
               source_role_name: 'Orchestrator',
+              llm_turn_count: null,
               status_kind: 'in_progress',
               short_brief: { headline: 'Newer brief' },
               detailed_brief_json: { headline: 'Newer brief', status_kind: 'in_progress' },
@@ -86,6 +87,7 @@ describe('WorkflowOperatorBriefService', () => {
               brief_scope: 'workflow_timeline',
               source_kind: 'specialist',
               source_role_name: 'Verifier',
+              llm_turn_count: null,
               status_kind: 'handoff',
               short_brief: { headline: 'Older brief' },
               detailed_brief_json: { headline: 'Older brief', status_kind: 'handoff' },
@@ -145,6 +147,7 @@ describe('WorkflowOperatorBriefService', () => {
               brief_scope: 'workflow_timeline',
               source_kind: 'orchestrator',
               source_role_name: 'Orchestrator',
+              llm_turn_count: null,
               status_kind: 'handoff',
               short_brief: { headline: 'Linked brief' },
               detailed_brief_json: { headline: 'Linked brief', status_kind: 'handoff' },
@@ -301,6 +304,7 @@ describe('WorkflowOperatorBriefService', () => {
         expect(params?.[14]).toBe(JSON.stringify(['artifact-1']));
         expect(params?.[15]).toBe(JSON.stringify([]));
         expect(params?.[16]).toBe(JSON.stringify(['intervention-1']));
+        expect(params?.[18]).toBeNull();
         return {
           rowCount: 1,
           rows: [{
@@ -315,6 +319,7 @@ describe('WorkflowOperatorBriefService', () => {
             brief_scope: 'workflow_timeline',
             source_kind: 'specialist',
             source_role_name: 'Verifier',
+            llm_turn_count: null,
             status_kind: 'in_progress',
             short_brief: JSON.parse(String(params?.[10])),
             detailed_brief_json: JSON.parse(String(params?.[11])),
@@ -471,6 +476,7 @@ describe('WorkflowOperatorBriefService', () => {
             brief_scope: 'workflow_timeline',
             source_kind: 'specialist',
             source_role_name: 'Verifier',
+            llm_turn_count: null,
             status_kind: 'in_progress',
             short_brief: { headline: 'Existing brief' },
             detailed_brief_json: { headline: 'Existing brief', status_kind: 'in_progress' },
@@ -537,6 +543,7 @@ describe('WorkflowOperatorBriefService', () => {
       }
       if (sql.includes('INSERT INTO workflow_operator_briefs')) {
         expect(params?.[12]).toBe('handoff');
+        expect(params?.[18]).toBeNull();
         return {
           rowCount: 1,
           rows: [{
@@ -551,6 +558,7 @@ describe('WorkflowOperatorBriefService', () => {
             brief_scope: 'work_item_handoff',
             source_kind: 'specialist',
             source_role_name: 'Verifier',
+            llm_turn_count: null,
             status_kind: 'handoff',
             short_brief: JSON.parse(String(params?.[10])),
             detailed_brief_json: JSON.parse(String(params?.[11])),
@@ -627,6 +635,7 @@ describe('WorkflowOperatorBriefService', () => {
         expect(params?.[8]).toBe('work_item_handoff');
         expect(params?.[9]).toBe('specialist');
         expect(params?.[12]).toBe('handoff');
+        expect(params?.[18]).toBeNull();
         return {
           rowCount: 1,
           rows: [{
@@ -641,6 +650,7 @@ describe('WorkflowOperatorBriefService', () => {
             brief_scope: 'work_item_handoff',
             source_kind: 'specialist',
             source_role_name: 'Verifier',
+            llm_turn_count: null,
             status_kind: 'handoff',
             short_brief: JSON.parse(String(params?.[10])),
             detailed_brief_json: JSON.parse(String(params?.[11])),
@@ -712,6 +722,7 @@ describe('WorkflowOperatorBriefService', () => {
       if (sql.includes('INSERT INTO workflow_operator_briefs')) {
         expect(params?.[8]).toBe('deliverable_context');
         expect(params?.[12]).toBe('completed');
+        expect(params?.[18]).toBeNull();
         return {
           rowCount: 1,
           rows: [{
@@ -726,6 +737,7 @@ describe('WorkflowOperatorBriefService', () => {
             brief_scope: 'deliverable_context',
             source_kind: 'specialist',
             source_role_name: 'Writer',
+            llm_turn_count: null,
             status_kind: 'completed',
             short_brief: JSON.parse(String(params?.[10])),
             detailed_brief_json: JSON.parse(String(params?.[11])),
@@ -763,5 +775,92 @@ describe('WorkflowOperatorBriefService', () => {
 
     expect(result.record.brief_scope).toBe('deliverable_context');
     expect(result.record.status_kind).toBe('completed');
+  });
+
+  it('persists llm turn count on recorded operator briefs', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows')) {
+        return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+      }
+      if (sql.includes('FROM tasks')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'task-4',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-4',
+            is_orchestrator_task: false,
+            role: 'Verifier',
+            state: 'completed',
+          }],
+        };
+      }
+      if (sql.includes('FROM workflow_operator_briefs') && sql.includes('request_id = $3')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM workflow_work_items')) {
+        return { rowCount: 1, rows: [{ id: 'work-item-4' }] };
+      }
+      if (sql.includes('COALESCE(MAX(sequence_number), 0) + 1')) {
+        return { rowCount: 1, rows: [{ next_sequence: 9 }] };
+      }
+      if (sql.includes('INSERT INTO workflow_operator_briefs')) {
+        expect(params?.[18]).toBe(5);
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'brief-9',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-4',
+            task_id: 'task-4',
+            request_id: 'request-9',
+            execution_context_id: 'task-4',
+            brief_kind: 'milestone',
+            brief_scope: 'workflow_timeline',
+            source_kind: 'specialist',
+            source_role_name: 'Verifier',
+            llm_turn_count: 5,
+            status_kind: 'completed',
+            short_brief: JSON.parse(String(params?.[10])),
+            detailed_brief_json: JSON.parse(String(params?.[11])),
+            linked_target_ids: [],
+            sequence_number: 9,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: new Date('2026-03-28T03:10:00.000Z'),
+            updated_at: new Date('2026-03-28T03:10:00.000Z'),
+          }],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const result = await service.recordBriefWrite(IDENTITY as never, 'workflow-1', {
+      requestId: 'request-9',
+      executionContextId: 'task-4',
+      workItemId: 'work-item-4',
+      taskId: 'task-4',
+      llmTurnCount: 5,
+      briefKind: 'milestone',
+      briefScope: 'workflow_timeline',
+      sourceKind: 'specialist',
+      payload: {
+        shortBrief: {
+          headline: 'Verifier closed the review loop.',
+        },
+        detailedBriefJson: {
+          headline: 'Verifier closed the review loop.',
+          status_kind: 'completed',
+          summary: 'The review completed successfully.',
+        },
+      },
+    });
+
+    expect(result.record.llm_turn_count).toBe(5);
   });
 });

@@ -41,6 +41,7 @@ const workflowOperatorBriefCreateSchema = z.object({
   workflow_id: z.string().min(1).max(255).optional(),
   work_item_id: z.string().uuid().optional(),
   task_id: z.string().uuid().optional(),
+  llm_turn_count: z.number().int().positive().optional(),
   brief_kind: z.string().min(1).max(120).optional(),
   brief_scope: z.string().min(1).max(120).optional(),
   source_kind: z.string().min(1).max(120).optional(),
@@ -74,6 +75,7 @@ const workflowOperatorUpdateCreateSchema = z.object({
   workflow_id: z.string().min(1).max(255).optional(),
   work_item_id: z.string().uuid().optional(),
   task_id: z.string().uuid().optional(),
+  llm_turn_count: z.number().int().positive().optional(),
   source_kind: z.string().min(1).max(120).optional(),
   source_role_name: z.string().max(255).optional(),
   payload: z.object({
@@ -131,6 +133,7 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
         executionContextId: resolveExecutionContextId(body.execution_context_id, body.task_id),
         workItemId: body.work_item_id,
         taskId: body.task_id,
+        llmTurnCount: body.llm_turn_count,
         briefKind: body.brief_kind,
         briefScope: body.brief_scope,
         sourceKind: body.source_kind,
@@ -189,6 +192,7 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
         executionContextId: resolveExecutionContextId(body.execution_context_id, body.task_id),
         workItemId: body.work_item_id,
         taskId: body.task_id,
+        llmTurnCount: body.llm_turn_count,
         sourceKind: body.source_kind,
         sourceRoleName: body.source_role_name,
         payload: {

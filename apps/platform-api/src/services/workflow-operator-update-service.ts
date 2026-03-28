@@ -33,6 +33,7 @@ interface WorkflowOperatorUpdateRow {
   execution_context_id: string;
   source_kind: string;
   source_role_name: string | null;
+  llm_turn_count: number | null;
   update_kind: string;
   headline: string;
   summary: string | null;
@@ -54,6 +55,7 @@ export interface WorkflowOperatorUpdateRecord {
   execution_context_id: string;
   source_kind: string;
   source_role_name: string | null;
+  llm_turn_count: number | null;
   update_kind: string;
   headline: string;
   summary: string | null;
@@ -79,6 +81,7 @@ export interface RecordWorkflowOperatorUpdateInput {
   executionContextId: string;
   workItemId?: string;
   taskId?: string;
+  llmTurnCount?: number;
   sourceKind?: string;
   sourceRoleName?: string;
   payload: {
@@ -196,8 +199,8 @@ export class WorkflowOperatorUpdateService {
     const effectiveUpdateKind = sanitizeOptionalText(input.payload.updateKind) ?? 'turn_update';
     const result = await this.pool.query<WorkflowOperatorUpdateRow>(
       `INSERT INTO workflow_operator_updates
-         (id, tenant_id, workflow_id, work_item_id, task_id, request_id, execution_context_id, source_kind, source_role_name, headline, summary, linked_target_ids, visibility_mode, update_kind, promoted_brief_id, sequence_number, created_by_type, created_by_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13,$14,$15,$16,$17,$18)
+         (id, tenant_id, workflow_id, work_item_id, task_id, request_id, execution_context_id, source_kind, source_role_name, llm_turn_count, headline, summary, linked_target_ids, visibility_mode, update_kind, promoted_brief_id, sequence_number, created_by_type, created_by_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19)
        RETURNING *`,
       [
         randomUUID(),
@@ -209,6 +212,7 @@ export class WorkflowOperatorUpdateService {
         executionContext.executionContextId,
         executionContext.sourceKind,
         executionContext.sourceRoleName,
+        sanitizeOptionalPositiveInteger(input.llmTurnCount),
         sanitizeOperatorUpdateHeadline(input.payload.headline),
         sanitizeOperatorUpdateSummary(input.payload.summary),
         serializeJsonb(sanitizeLinkedIdList(input.payload.linkedTargetIds)),
@@ -362,6 +366,7 @@ function toWorkflowOperatorUpdateRecord(row: WorkflowOperatorUpdateRow): Workflo
     execution_context_id: row.execution_context_id,
     source_kind: row.source_kind,
     source_role_name: row.source_role_name,
+    llm_turn_count: row.llm_turn_count ?? null,
     update_kind: row.update_kind,
     headline: row.headline,
     summary: row.summary,
@@ -390,6 +395,13 @@ function matchesRequestedScope(
 
 function serializeJsonb(value: unknown): string {
   return JSON.stringify(value);
+}
+
+function sanitizeOptionalPositiveInteger(value: number | undefined): number | null {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+    return null;
+  }
+  return value;
 }
 
 function toWorkflowLiveVisibilityModeRecord(row: WorkflowLiveVisibilityRow): WorkflowLiveVisibilityModeRecord {

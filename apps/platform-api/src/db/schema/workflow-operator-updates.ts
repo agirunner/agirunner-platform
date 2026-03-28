@@ -19,6 +19,7 @@ export const workflowOperatorUpdates = pgTable(
     executionContextId: text('execution_context_id').notNull(),
     sourceKind: text('source_kind').notNull(),
     sourceRoleName: text('source_role_name'),
+    llmTurnCount: integer('llm_turn_count'),
     updateKind: text('update_kind').notNull(),
     headline: text('headline').notNull(),
     summary: text('summary'),

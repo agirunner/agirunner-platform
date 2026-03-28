@@ -399,7 +399,7 @@ function formatOperatorVisibilitySection(liveVisibility: Record<string, unknown>
 
   if (liveVisibility.turn_updates_required === true && recordOperatorUpdateTool) {
     if (liveVisibility.turn_update_scope === 'per_eligible_turn') {
-      lines.push(`Enhanced live visibility requires one ${recordOperatorUpdateTool} on every eligible turn.`);
+      lines.push(`Enhanced live visibility requires exactly one ${recordOperatorUpdateTool} on every llm turn before that turn can close.`);
     }
     const eligibleTurnGuidance = readString(liveVisibility.eligible_turn_guidance);
     if (eligibleTurnGuidance) {
@@ -411,7 +411,10 @@ function formatOperatorVisibilitySection(liveVisibility: Record<string, unknown>
       );
     }
     lines.push(
-      `Use ${recordOperatorUpdateTool} for one tiny operator-readable headline after each eligible execution step.`,
+      `Use ${recordOperatorUpdateTool} for one tiny operator-readable headline on every llm turn.`,
+    );
+    lines.push(
+      `If you forget the required ${recordOperatorUpdateTool}, the execution contract will send you back automatically to emit it before progress can continue.`,
     );
     lines.push(
       'If you do not have the exact scoped workflow, work-item, or task ids from the live visibility contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id.',
@@ -438,6 +441,9 @@ function formatOperatorVisibilitySection(liveVisibility: Record<string, unknown>
     }
     lines.push(
       `Use ${recordOperatorBriefTool} for material handoff or milestone summaries when the platform requests them.`,
+    );
+    lines.push(
+      `If this task reaches a meaningful completion, handoff, approval, or output checkpoint without the required ${recordOperatorBriefTool}, completion will be rejected recoverably until you emit it.`,
     );
     lines.push(
       'Use brief_kind milestone for in-flight progress or handoff summaries and brief_kind terminal only for the final workflow outcome summary.',

@@ -301,10 +301,11 @@ describe('WorkflowOperatorUpdateService', () => {
         return { rowCount: 1, rows: [{ next_sequence: 9 }] };
       }
       if (sql.includes('INSERT INTO workflow_operator_updates')) {
-        expect(params?.[9]).toBe('Verification is reviewing rollback handling.');
-        expect(params?.[10]).toBe('redacted://workflow-update-secret');
-        expect(params?.[11]).toBe(JSON.stringify(['work-item-1', 'task-9']));
-        expect(params?.[12]).toBe('enhanced');
+        expect(params?.[9]).toBeNull();
+        expect(params?.[10]).toBe('Verification is reviewing rollback handling.');
+        expect(params?.[11]).toBe('redacted://workflow-update-secret');
+        expect(params?.[12]).toBe(JSON.stringify(['work-item-1', 'task-9']));
+        expect(params?.[13]).toBe('enhanced');
         return {
           rowCount: 1,
           rows: [{
@@ -317,6 +318,7 @@ describe('WorkflowOperatorUpdateService', () => {
             execution_context_id: 'task-9',
             source_kind: 'specialist',
             source_role_name: 'Verifier',
+            llm_turn_count: null,
             update_kind: 'turn_update',
             headline: 'Verification is reviewing rollback handling.',
             summary: 'redacted://workflow-update-secret',
@@ -358,6 +360,7 @@ describe('WorkflowOperatorUpdateService', () => {
           workflow_id: 'workflow-1',
           work_item_id: 'work-item-1',
           task_id: 'task-9',
+          llm_turn_count: null,
           visibility_mode: 'enhanced',
           summary: 'redacted://workflow-update-secret',
         }),
@@ -451,7 +454,7 @@ describe('WorkflowOperatorUpdateService', () => {
       if (sql.includes('INSERT INTO workflow_operator_updates')) {
         expect(params?.[5]).toEqual(expect.any(String));
         expect(params?.[7]).toBe('specialist');
-        expect(params?.[13]).toBe('turn_update');
+        expect(params?.[14]).toBe('turn_update');
         return {
           rowCount: 1,
           rows: [{
@@ -464,6 +467,7 @@ describe('WorkflowOperatorUpdateService', () => {
             execution_context_id: 'task-11',
             source_kind: 'specialist',
             source_role_name: 'Verifier',
+            llm_turn_count: null,
             update_kind: 'turn_update',
             headline: 'Verifier is writing the operator update.',
             summary: null,
@@ -492,5 +496,87 @@ describe('WorkflowOperatorUpdateService', () => {
     expect(result.record.request_id).toEqual(expect.any(String));
     expect(result.record.source_kind).toBe('specialist');
     expect(result.record.update_kind).toBe('turn_update');
+  });
+
+  it('persists llm turn count on recorded operator updates', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows') && sql.includes('SELECT id, live_visibility_mode_override')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'workflow-1',
+            live_visibility_mode_override: 'enhanced',
+            live_visibility_revision: 2,
+            live_visibility_updated_by_operator_id: 'user-1',
+            live_visibility_updated_at: new Date('2026-03-27T16:00:00.000Z'),
+          }],
+        };
+      }
+      if (sql.includes('FROM tasks')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'task-12',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-12',
+            is_orchestrator_task: false,
+            role: 'Verifier',
+            state: 'in_progress',
+          }],
+        };
+      }
+      if (sql.includes('FROM workflow_operator_updates') && sql.includes('request_id = $3')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM workflow_work_items')) {
+        return { rowCount: 1, rows: [{ id: 'work-item-12' }] };
+      }
+      if (sql.includes('COALESCE(MAX(sequence_number), 0) + 1')) {
+        return { rowCount: 1, rows: [{ next_sequence: 11 }] };
+      }
+      if (sql.includes('INSERT INTO workflow_operator_updates')) {
+        expect(params?.[9]).toBe(7);
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'update-11',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-12',
+            task_id: 'task-12',
+            request_id: 'request-11',
+            execution_context_id: 'task-12',
+            source_kind: 'specialist',
+            source_role_name: 'Verifier',
+            llm_turn_count: 7,
+            update_kind: 'turn_update',
+            headline: 'Verifier is closing the loop.',
+            summary: null,
+            linked_target_ids: [],
+            visibility_mode: 'enhanced',
+            promoted_brief_id: null,
+            sequence_number: 11,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: new Date('2026-03-28T02:15:00.000Z'),
+          }],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const result = await service.recordUpdateWrite(IDENTITY as never, 'workflow-1', {
+      requestId: 'request-11',
+      executionContextId: 'task-12',
+      workItemId: 'work-item-12',
+      taskId: 'task-12',
+      llmTurnCount: 7,
+      sourceKind: 'specialist',
+      payload: {
+        headline: 'Verifier is closing the loop.',
+      },
+    });
+
+    expect(result.record.llm_turn_count).toBe(7);
   });
 });

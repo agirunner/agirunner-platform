@@ -20,6 +20,7 @@ export const workflowOperatorBriefs = pgTable(
     briefScope: text('brief_scope').notNull(),
     sourceKind: text('source_kind').notNull(),
     sourceRoleName: text('source_role_name'),
+    llmTurnCount: integer('llm_turn_count'),
     statusKind: text('status_kind').notNull(),
     shortBrief: jsonb('short_brief').notNull().default({}),
     detailedBriefJson: jsonb('detailed_brief_json').notNull().default({}),
