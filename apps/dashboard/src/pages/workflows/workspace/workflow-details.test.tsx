@@ -13,7 +13,7 @@ import type {
 import { WorkflowDetails } from './workflow-details.js';
 
 describe('WorkflowDetails', () => {
-  it('renders a trimmed operator-facing scope sheet with real inputs', () => {
+  it('renders explicit task scope content with only task-owned inputs', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
         workflow: createWorkflow(),
@@ -48,22 +48,15 @@ describe('WorkflowDetails', () => {
       }),
     );
 
+    expect(html).toContain('Task scope');
     expect(html).toContain('Verify deliverable');
-    expect(html).toContain('Latest status');
     expect(html).toContain('In Progress');
     expect(html).toContain('Task input');
-    expect(html).toContain('Files and inputs');
-    expect(html).not.toContain('>Inputs<');
-    expect(html).not.toContain('Workflow parameters');
-    expect(html).not.toContain('Workflow inputs');
-    expect(html).not.toContain('Work item inputs');
+    expect(html).toContain('Inputs');
+    expect(html).not.toContain('Launch packet');
     expect(html).not.toContain('Rollback guide');
     expect(html).not.toContain('release/2026.03');
     expect(html).not.toContain('Launch • Operator');
-    expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/80 p-4');
-    expect(html).not.toContain('Workflow, work-item, and task inputs used for the current selection.');
-    expect(html).not.toContain('Fields');
-    expect(html).not.toContain('Current scope');
     expect(html).not.toContain('Owner role');
     expect(html).not.toContain('Next expected actor');
     expect(html).not.toContain('Next expected action');
@@ -77,7 +70,8 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Stage');
     expect(html).not.toContain('Lane');
     expect(html).not.toContain('Related tasks');
-    expect(html).not.toContain('rounded-lg border border-border/70 bg-muted/5 px-3 py-2');
+    expect(html).not.toContain('rounded-lg border border-border/60 bg-muted/5 p-3');
+    expect(html).not.toContain('rounded-xl border border-border/70 bg-background/70');
   });
 
   it('shows one compact task summary line for work-item scope instead of a full related-task list', () => {
@@ -109,7 +103,8 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain('Task summary');
+    expect(html).toContain('Work item scope');
+    expect(html).toContain('Tasks');
     expect(html).toContain('1 active');
     expect(html).toContain('1 blocked');
     expect(html).toContain('1 completed');
@@ -118,6 +113,43 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Rollback validation</span>');
     expect(html).not.toContain('Archive release notes</span>');
     expect(html).not.toContain('Related tasks');
+  });
+
+  it('shows workflow launch inputs without leaking work-item content', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [],
+        inputPackets: createPackets(),
+        workflowParameters: {
+          branch: 'release/2026.03',
+          release_window: 'Friday 17:00',
+        },
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Release Workflow',
+          banner: 'Workflow: Release Workflow',
+        },
+      }),
+    );
+
+    expect(html).toContain('Workflow scope');
+    expect(html).toContain('Launch inputs');
+    expect(html).toContain('Launch packet');
+    expect(html).toContain('release/2026.03');
+    expect(html).not.toContain('Rollback guide');
+    expect(html).not.toContain('rollback.md');
+    expect(html).not.toContain('Task input');
   });
 
   it('keeps the selected task context compact by showing only the parent work item and task summary', () => {
@@ -145,6 +177,7 @@ describe('WorkflowDetails', () => {
       }),
     );
 
+    expect(html).toContain('Task scope');
     expect(html).toContain('Prepare release bundle');
     expect(html).toContain('Check the final release packet and approve it.');
     expect(html).not.toContain('Owner role');
@@ -176,7 +209,7 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain('Files and inputs');
+    expect(html).toContain('Inputs');
     expect(html).toContain('Rollback guide');
     expect(html).toContain('rollback.md');
     expect(html).not.toContain('Workflow inputs');

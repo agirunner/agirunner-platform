@@ -45,43 +45,26 @@ export function WorkflowDetails(props: {
     || (isWorkflowScope && hasStructuredContent(props.workflowParameters));
 
   return (
-    <section className="grid gap-3">
-      <header className="grid gap-2">
+    <section className="grid gap-4">
+      <header className="grid gap-2 border-b border-border/60 pb-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          {scope.scope_label}
+        </p>
         <h3 className="text-base font-semibold text-foreground">{scope.title}</h3>
-        <div className="grid gap-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Latest status
-          </p>
-          <p className="text-sm text-muted-foreground">{scope.latest_status}</p>
-        </div>
         {scope.summary ? (
-          <div className="grid gap-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Summary
-            </p>
-            <p className="text-sm text-muted-foreground">{scope.summary}</p>
-          </div>
+          <p className="text-sm text-muted-foreground">{scope.summary}</p>
         ) : null}
-        {scope.parent_work_item ? (
-          <p className="text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">Work item</span>
-            {' '}
-            {scope.parent_work_item}
-          </p>
-        ) : null}
-        {scope.task_summary ? (
-          <p className="text-xs text-muted-foreground">
-            <span className="font-semibold text-foreground">Task summary</span>
-            {' '}
-            {scope.task_summary}
-          </p>
-        ) : null}
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <ScopeMeta label="Latest status" value={scope.latest_status} />
+          {scope.parent_work_item ? <ScopeMeta label="Work item" value={scope.parent_work_item} /> : null}
+          {scope.task_summary ? <ScopeMeta label="Tasks" value={scope.task_summary} /> : null}
+        </div>
       </header>
 
       {hasInputs ? (
-        <DetailSection title="Files and inputs">
+        <DetailSection title="Inputs">
           {isWorkflowScope && hasStructuredContent(props.workflowParameters) ? (
-            <StructuredBlock label="Parameters" value={props.workflowParameters} />
+            <StructuredBlock label="Launch inputs" value={props.workflowParameters} />
           ) : null}
           {workflowPackets.length > 0 ? (
             <PacketSection packets={workflowPackets} />
@@ -95,6 +78,19 @@ export function WorkflowDetails(props: {
         </DetailSection>
       ) : null}
     </section>
+  );
+}
+
+function ScopeMeta(props: {
+  label: string;
+  value: string;
+}): JSX.Element {
+  return (
+    <p>
+      <span className="font-semibold text-foreground">{props.label}</span>
+      {': '}
+      {props.value}
+    </p>
   );
 }
 
@@ -116,20 +112,31 @@ function PacketSection(props: {
   packets: DashboardWorkflowInputPacketRecord[];
 }): JSX.Element {
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-3 divide-y divide-border/60">
       {props.packets.map((packet) => (
-        <div key={packet.id} className="grid gap-2 rounded-lg border border-border/60 bg-muted/5 p-3">
-          <strong className="text-sm text-foreground">
-            {packet.summary ?? humanizeToken(packet.packet_kind)}
-          </strong>
+        <div key={packet.id} className="grid gap-2 pt-3 first:pt-0">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <strong className="text-sm text-foreground">
+              {packet.summary ?? humanizeToken(packet.packet_kind)}
+            </strong>
+            <span className="text-xs text-muted-foreground">
+              {humanizeToken(packet.packet_kind)}
+              {' input'}
+            </span>
+          </div>
           {hasStructuredContent(packet.structured_inputs) ? (
             <StructuredBlock value={packet.structured_inputs} compact />
           ) : null}
           {packet.files.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
+            <div className="grid gap-1">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                Attached files
+              </p>
+              <div className="flex flex-wrap gap-2">
               {packet.files.map((file) => (
                 <PacketFileLink key={file.id} file={file} />
               ))}
+              </div>
             </div>
           ) : null}
         </div>
@@ -143,7 +150,7 @@ function PacketFileLink(props: {
 }): JSX.Element {
   return (
     <a
-      className="inline-flex items-center rounded-lg border border-border/70 bg-background px-2.5 py-1.5 text-sm font-medium text-accent underline-offset-4 hover:underline"
+      className="inline-flex items-center rounded-md border border-border/70 px-2 py-1 text-xs font-medium text-accent underline-offset-4 hover:underline"
       href={props.file.download_url}
       target="_blank"
       rel="noreferrer"
@@ -172,9 +179,9 @@ function StructuredBlock(props: {
         </p>
       ) : null}
       {entries.length > 0 ? (
-        <dl className="divide-y divide-border/60 rounded-xl border border-border/70 bg-background/70">
+        <dl className="divide-y divide-border/60">
           {entries.map(([label, value]) => (
-            <div key={label} className="grid gap-1 px-3 py-2 sm:grid-cols-[10rem_minmax(0,1fr)] sm:items-start sm:gap-3">
+            <div key={label} className="grid gap-1 py-1 sm:grid-cols-[10rem_minmax(0,1fr)] sm:items-start sm:gap-3">
               <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 {label}
               </dt>
@@ -188,8 +195,8 @@ function StructuredBlock(props: {
         <pre
           className={
             props.compact
-              ? 'overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-foreground'
-              : 'overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-sm text-foreground'
+              ? 'overflow-x-auto rounded-md border border-border/70 p-2 text-xs text-foreground'
+              : 'overflow-x-auto rounded-md border border-border/70 p-2 text-sm text-foreground'
           }
         >
           {rendered}
@@ -212,6 +219,7 @@ function buildDetailsScope(props: {
   selectedWorkItemTasks: Record<string, unknown>[];
   scope: WorkflowWorkbenchScopeDescriptor;
 }): {
+  scope_label: string;
   title: string;
   latest_status: string;
   summary: string | null;
@@ -220,6 +228,7 @@ function buildDetailsScope(props: {
 } {
   if (props.scope.scopeKind === 'selected_task') {
     return {
+      scope_label: 'Task scope',
       title:
         props.selectedTask?.title
         ?? props.selectedTaskTitle
@@ -238,6 +247,7 @@ function buildDetailsScope(props: {
 
   if (props.scope.scopeKind === 'selected_work_item') {
     return {
+      scope_label: 'Work item scope',
       title:
         props.selectedWorkItem?.title
         ?? props.selectedWorkItemTitle
@@ -253,6 +263,7 @@ function buildDetailsScope(props: {
   }
 
   return {
+    scope_label: 'Workflow scope',
     title: props.workflow.name,
     latest_status:
       readOptionalText(props.stickyStrip?.summary)
@@ -285,14 +296,45 @@ function buildWorkItemLatestStatus(
   if (blockedReason) {
     return blockedReason;
   }
-  const summary = buildTaskSummary(tasks);
-  return summary ?? 'Work item details are loading.';
+  return buildTaskHeadline(tasks) ?? 'Work item details are loading.';
 }
 
 function buildTaskSummary(tasks: Record<string, unknown>[]): string | null {
+  const counts = readTaskCounts(tasks);
+  if (!counts) {
+    return null;
+  }
+  const segments = [
+    `${counts.activeCount} active`,
+    `${counts.blockedCount} blocked`,
+    `${counts.completedCount} completed`,
+  ];
+  return segments.join(' • ');
+}
+
+function buildTaskHeadline(tasks: Record<string, unknown>[]): string | null {
+  const counts = readTaskCounts(tasks);
+  if (!counts) {
+    return null;
+  }
+  if (counts.blockedCount > 0) {
+    return `${counts.blockedCount} blocked ${pluralize('task', counts.blockedCount)}`;
+  }
+  if (counts.activeCount > 0) {
+    return `${counts.activeCount} active ${pluralize('task', counts.activeCount)}`;
+  }
+  return `${counts.completedCount} completed ${pluralize('task', counts.completedCount)}`;
+}
+
+function readTaskCounts(tasks: Record<string, unknown>[]): {
+  activeCount: number;
+  blockedCount: number;
+  completedCount: number;
+} | null {
   if (tasks.length === 0) {
     return null;
   }
+
   let activeCount = 0;
   let blockedCount = 0;
   let completedCount = 0;
@@ -310,12 +352,11 @@ function buildTaskSummary(tasks: Record<string, unknown>[]): string | null {
     activeCount += 1;
   }
 
-  const segments = [
-    `${activeCount} active`,
-    `${blockedCount} blocked`,
-    `${completedCount} completed`,
-  ];
-  return segments.join(' • ');
+  return {
+    activeCount,
+    blockedCount,
+    completedCount,
+  };
 }
 
 function hasStructuredContent(value: unknown): boolean {
@@ -373,6 +414,10 @@ function readOptionalText(value: unknown): string | null {
 
 function humanizeToken(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function pluralize(value: string, count: number): string {
+  return count === 1 ? value : `${value}s`;
 }
 
 function isBlockedState(state: string): boolean {
