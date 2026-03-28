@@ -7,7 +7,7 @@ import type { DashboardWorkflowHistoryPacket } from '../../../lib/api.js';
 import { WorkflowHistory } from './workflow-history.js';
 
 describe('WorkflowHistory', () => {
-  it('keeps briefs links inside the Workflows shell instead of legacy workflow-detail routes', () => {
+  it('keeps briefs links inside the Workflows shell and opens scoped details instead of reloading Briefs', () => {
     const html = renderToStaticMarkup(
       createElement(
         MemoryRouter,
@@ -21,7 +21,7 @@ describe('WorkflowHistory', () => {
       ),
     );
 
-    expect(html).toContain('/workflows/workflow-1?work_item_id=work-item-1&amp;tab=history');
+    expect(html).toContain('/workflows/workflow-1?work_item_id=work-item-1&amp;tab=details');
     expect(html).not.toContain('/mission-control/');
     expect(html).not.toContain('/workflow-detail/');
   });
@@ -95,7 +95,7 @@ describe('WorkflowHistory', () => {
       ),
     );
 
-    expect(html).toContain('/workflows/workflow-1?work_item_id=work-item-1&amp;task_id=task-4&amp;tab=history');
+    expect(html).toContain('/workflows/workflow-1?work_item_id=work-item-1&amp;task_id=task-4&amp;tab=details');
   });
 });
 

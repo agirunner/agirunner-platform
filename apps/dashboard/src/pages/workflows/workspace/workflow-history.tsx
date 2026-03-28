@@ -127,7 +127,7 @@ function resolveHistoryScopeLink(
     workflowId,
     workItemId,
     taskId: item.task_id ?? null,
-    tab: 'history',
+    tab: 'details',
   });
 }
 
