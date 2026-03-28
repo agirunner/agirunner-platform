@@ -19,9 +19,9 @@ import {
 } from '../lib/auth-session.js';
 import { clearSession, readSession } from '../lib/session.js';
 import {
-  buildMissionControlShellHref,
   buildWorkflowDiagnosticsHref,
-} from '../pages/workflows/mission-control-page.support.js';
+  buildWorkflowsPageHref,
+} from '../pages/workflows/workflows-page.support.js';
 import { buildWorkflowDetailPermalink } from '../pages/workflow-detail/workflow-detail-permalinks.js';
 
 import { applyTheme, readTheme } from './theme.js';
@@ -69,9 +69,9 @@ const LoginPage = lazyWithRetry(() =>
   import('../pages/login/login-page.js').then((m) => ({ default: m.LoginPage })),
 );
 
-const MissionControlPage = lazyWithRetry(() =>
-  import('../pages/workflows/mission-control-page.js').then((m) => ({
-    default: m.MissionControlPage,
+const WorkflowsPage = lazyWithRetry(() =>
+  import('../pages/workflows/workflows-page.js').then((m) => ({
+    default: m.WorkflowsPage,
   })),
 );
 const CostDashboardPage = lazyWithRetry(() =>
@@ -278,7 +278,7 @@ export function App(): JSX.Element {
               <Route path="/" element={<Navigate to="/workflows" replace />} />
 
               {/* Workflows */}
-              <Route path="/workflows" element={<MissionControlPage />} />
+              <Route path="/workflows" element={<WorkflowsPage />} />
               <Route path="/mission-control" element={<LegacyMissionControlRootRedirect />} />
               <Route
                 path="/mission-control/workflows"
@@ -310,12 +310,12 @@ export function App(): JSX.Element {
               <Route path="/work/workflows/*" element={<LegacyWorkflowBoardRedirect />} />
               <Route
                 path="/work/tasks"
-                element={<Navigate to="/workflows?lens=tasks" replace />}
+                element={<Navigate to={buildWorkflowsPageHref({ mode: 'recent', tab: 'history' })} replace />}
               />
               <Route path="/work/tasks/:id" element={<TaskDetailPage />} />
               <Route
                 path="/work/approvals"
-                element={<Navigate to="/workflows?rail=attention" replace />}
+                element={<Navigate to={buildWorkflowsPageHref({ tab: 'needs_action' })} replace />}
               />
 
               {/* Work Design */}
@@ -483,10 +483,36 @@ function RequireAuth(): JSX.Element {
 
 function LegacyWorkflowBoardRedirect(): JSX.Element {
   const location = useLocation();
-  const nextPath = location.pathname.startsWith('/work/workflows')
-    ? location.pathname.replace('/work/workflows', '/workflows')
-    : location.pathname.replace('/work/boards', '/workflows');
-  return <Navigate to={`${nextPath}${location.search}${location.hash}`} replace />;
+  const routePrefix = location.pathname.startsWith('/work/workflows')
+    ? '/work/workflows'
+    : '/work/boards';
+  const segments = location.pathname
+    .slice(routePrefix.length)
+    .split('/')
+    .filter((segment) => segment.length > 0);
+  const workflowId = segments[0] ?? null;
+  const searchParams = new URLSearchParams(location.search);
+
+  if (!workflowId) {
+    return <Navigate to={`/workflows${location.search}${location.hash}`} replace />;
+  }
+
+  if (segments[1] === 'inspector') {
+    const target = buildWorkflowDiagnosticsHref({
+      workflowId,
+      taskId: searchParams.get('task'),
+      view: searchParams.get('view') === 'summary' ? 'summary' : 'raw',
+    });
+    return <Navigate to={target} replace />;
+  }
+
+  const target = buildWorkflowDetailPermalink(workflowId, {
+    workItemId: searchParams.get('work_item'),
+    activationId: searchParams.get('activation'),
+    childWorkflowId: searchParams.get('child'),
+    gateStageName: searchParams.get('gate'),
+  });
+  return <Navigate to={target} replace />;
 }
 
 function LegacyMissionControlRootRedirect(): JSX.Element {
@@ -502,10 +528,10 @@ function LegacyMissionControlShellRedirect({
   const location = useLocation();
   const target =
     section === 'workflows'
-      ? buildMissionControlShellHref({ rail: 'workflow' })
+      ? buildWorkflowsPageHref()
       : section === 'tasks'
-        ? buildMissionControlShellHref({ lens: 'tasks' })
-        : buildMissionControlShellHref({ rail: 'attention' });
+        ? buildWorkflowsPageHref({ mode: 'recent', tab: 'history' })
+        : buildWorkflowsPageHref({ tab: 'needs_action' });
   return <Navigate to={`${target}${location.hash}`} replace />;
 }
 

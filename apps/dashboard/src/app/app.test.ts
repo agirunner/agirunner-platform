@@ -51,7 +51,8 @@ describe('app trigger routes source', () => {
     expect(source).toContain('Navigate to={`/design/workspaces/${id}?tab=knowledge&panel=${panel}`} replace');
     expect(source).toContain('path="/mission-control/workflows/:id/inspector"');
     expect(source).toContain('path="/work/workflows/*"');
-    expect(source).toContain("replace('/work/workflows', '/workflows')");
+    expect(source).toContain("const routePrefix = location.pathname.startsWith('/work/workflows')");
+    expect(source).toContain("if (segments[1] === 'inspector')");
   });
 
   it('uses admin-owned general, agentic, and platform settings routes and redirects the legacy platform paths', () => {
@@ -123,9 +124,9 @@ describe('app trigger routes source', () => {
 
   it('uses a unified workflows shell and redirects legacy mission control list routes into shell state', () => {
     const source = readSource();
-    expect(source).toContain("../pages/workflows/mission-control-page.js");
+    expect(source).toContain("../pages/workflows/workflows-page.js");
     expect(source).toContain('path="/" element={<Navigate to="/workflows" replace />}');
-    expect(source).toContain('path="/workflows" element={<MissionControlPage />}');
+    expect(source).toContain('path="/workflows" element={<WorkflowsPage />}');
     expect(source).toContain('path="/mission-control"');
     expect(source).toContain('Navigate to="/workflows" replace');
     expect(source).toContain('function LegacyMissionControlShellRedirect({');
@@ -135,9 +136,9 @@ describe('app trigger routes source', () => {
     expect(source).toContain('section="workflows"');
     expect(source).toContain('section="action_queue"');
     expect(source).toContain('section="tasks"');
-    expect(source).toContain("buildMissionControlShellHref({ rail: 'workflow' })");
-    expect(source).toContain("buildMissionControlShellHref({ rail: 'attention' })");
-    expect(source).toContain("buildMissionControlShellHref({ lens: 'tasks' })");
+    expect(source).toContain('buildWorkflowsPageHref()');
+    expect(source).toContain("buildWorkflowsPageHref({ tab: 'needs_action' })");
+    expect(source).toContain("buildWorkflowsPageHref({ mode: 'recent', tab: 'history' })");
     expect(source).not.toContain('path="/mission-control/workflows" element={<WorkflowListPage />}');
     expect(source).not.toContain('path="/mission-control/action-queue" element={<AlertsApprovalsPage />}');
   });

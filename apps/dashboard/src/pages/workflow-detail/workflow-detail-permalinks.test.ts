@@ -6,23 +6,23 @@ import {
 } from './workflow-detail-permalinks.js';
 
 describe('workflow detail permalinks', () => {
-  it('maps workflow operator links into unified mission control shell state', () => {
+  it('maps workflow operator links into the workflows shell state', () => {
     expect(buildWorkflowDetailPermalink('workflow-1', {})).toBe(
-      '/mission-control?rail=workflow&workflow=workflow-1',
+      '/workflows?workflow=workflow-1',
     );
     expect(
       buildWorkflowDetailPermalink('workflow-1', {
         workItemId: 'work-item-9',
       }),
     ).toBe(
-      '/mission-control?rail=workflow&workflow=workflow-1&tab=board#work-item-work-item-9',
+      '/workflows?workflow=workflow-1&work_item=work-item-9#work-item-work-item-9',
     );
     expect(
       buildWorkflowDetailPermalink('workflow-1', {
         activationId: 'activation-4',
       }),
     ).toBe(
-      '/mission-control?rail=workflow&workflow=workflow-1&tab=history#activation-activation-4',
+      '/workflows?workflow=workflow-1&tab=history#activation-activation-4',
     );
   });
 

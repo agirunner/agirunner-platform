@@ -1,7 +1,4 @@
-import {
-  buildMissionControlShellHref,
-  type MissionControlWorkspaceTab,
-} from '../workflows/mission-control-page.support.js';
+import { buildWorkflowsPageHref } from '../workflows/workflows-page.support.js';
 
 export interface WorkflowDetailTarget {
   workItemId?: string | null;
@@ -15,10 +12,10 @@ export function buildWorkflowDetailPermalink(
   target: WorkflowDetailTarget,
 ): string {
   const hash = buildWorkflowDetailHash(target);
-  const href = buildMissionControlShellHref({
-    rail: 'workflow',
+  const href = buildWorkflowsPageHref({
     workflowId,
-    tab: deriveMissionControlTab(target),
+    workItemId: target.workItemId ?? null,
+    tab: deriveWorkflowWorkbenchTab(target),
   });
   return `${href}${hash}`;
 }
@@ -60,12 +57,14 @@ export function isWorkflowDetailTargetHighlighted(
   return hash === expectedHash;
 }
 
-function deriveMissionControlTab(target: WorkflowDetailTarget): MissionControlWorkspaceTab {
-  if (target.workItemId || target.gateStageName) {
-    return 'board';
+function deriveWorkflowWorkbenchTab(
+  target: WorkflowDetailTarget,
+): 'needs_action' | 'history' | null {
+  if (target.gateStageName) {
+    return 'needs_action';
   }
   if (target.activationId || target.childWorkflowId) {
     return 'history';
   }
-  return 'overview';
+  return null;
 }

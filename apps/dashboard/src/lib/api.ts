@@ -503,6 +503,232 @@ export interface DashboardMissionControlWorkspaceResponse {
   };
 }
 
+export type DashboardWorkflowRailMode = 'live' | 'recent' | 'history';
+
+export interface DashboardWorkflowOperationsSnapshot {
+  generated_at: string;
+  latest_event_id: number | null;
+  snapshot_version: string;
+}
+
+export interface DashboardWorkflowRailRow {
+  workflow_id: string;
+  name: string;
+  state: string | null;
+  lifecycle: string | null;
+  current_stage: string | null;
+  workspace_name: string | null;
+  playbook_name: string | null;
+  posture: string | null;
+  live_summary: string;
+  last_changed_at: string | null;
+  needs_action: boolean;
+  counts: {
+    active_task_count: number;
+    active_work_item_count: number;
+    blocked_work_item_count: number;
+    open_escalation_count: number;
+    waiting_for_decision_count: number;
+    failed_task_count: number;
+  };
+}
+
+export interface DashboardWorkflowRailPacket extends DashboardWorkflowOperationsSnapshot {
+  mode: DashboardWorkflowRailMode;
+  rows: DashboardWorkflowRailRow[];
+  ongoing_rows: DashboardWorkflowRailRow[];
+  selected_workflow_id: string | null;
+  next_cursor: string | null;
+}
+
+export interface DashboardWorkflowNeedsActionItem {
+  action_id: string;
+  action_kind: string;
+  label: string;
+  summary: string;
+  target_kind: 'workflow' | 'work_item' | 'task';
+  target_id: string;
+  requires_confirmation: boolean;
+}
+
+export interface DashboardWorkflowNeedsActionPacket {
+  items: DashboardWorkflowNeedsActionItem[];
+}
+
+export interface DashboardWorkflowLiveConsoleItem {
+  item_id: string;
+  item_kind: 'milestone_brief' | 'operator_update' | 'platform_notice';
+  headline: string;
+  summary: string;
+  created_at: string;
+  linked_target_ids: string[];
+}
+
+export interface DashboardWorkflowLiveConsolePacket extends DashboardWorkflowOperationsSnapshot {
+  items: DashboardWorkflowLiveConsoleItem[];
+  next_cursor: string | null;
+}
+
+export interface DashboardWorkflowHistoryGroup {
+  group_id: string;
+  label: string;
+  anchor_at: string;
+  item_ids: string[];
+}
+
+export interface DashboardWorkflowHistoryItem {
+  item_id: string;
+  item_kind: 'milestone_brief' | 'intervention' | 'input' | 'deliverable' | 'redrive';
+  headline: string;
+  summary: string;
+  created_at: string;
+  linked_target_ids: string[];
+}
+
+export interface DashboardWorkflowHistoryPacket extends DashboardWorkflowOperationsSnapshot {
+  groups: DashboardWorkflowHistoryGroup[];
+  items: DashboardWorkflowHistoryItem[];
+  filters: {
+    available: string[];
+    active: string[];
+  };
+  next_cursor: string | null;
+}
+
+export interface DashboardWorkflowDeliverableTarget {
+  target_kind: string;
+  label: string;
+  url: string;
+  path?: string | null;
+  repo_ref?: string | null;
+  artifact_id?: string | null;
+}
+
+export interface DashboardWorkflowDeliverableRecord {
+  descriptor_id: string;
+  workflow_id: string;
+  work_item_id: string | null;
+  descriptor_kind: string;
+  delivery_stage: 'in_progress' | 'final' | string;
+  title: string;
+  state: 'draft' | 'under_review' | 'approved' | 'superseded' | 'final' | string;
+  summary_brief: string | null;
+  preview_capabilities: Record<string, unknown>;
+  primary_target: DashboardWorkflowDeliverableTarget;
+  secondary_targets: DashboardWorkflowDeliverableTarget[];
+  content_preview: Record<string, unknown>;
+  source_brief_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DashboardWorkflowOperatorBriefRecord {
+  id: string;
+  workflow_id: string;
+  work_item_id: string | null;
+  task_id: string | null;
+  request_id: string;
+  execution_context_id: string;
+  brief_kind: string;
+  brief_scope: string;
+  source_kind: string;
+  source_role_name: string | null;
+  status_kind: string;
+  short_brief: Record<string, unknown>;
+  detailed_brief_json: Record<string, unknown>;
+  sequence_number: number;
+  related_artifact_ids: string[];
+  related_output_descriptor_ids: string[];
+  related_intervention_ids: string[];
+  canonical_workflow_brief_id: string | null;
+  created_by_type: string;
+  created_by_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DashboardWorkflowDeliverablesPacket {
+  final_deliverables: DashboardWorkflowDeliverableRecord[];
+  in_progress_deliverables: DashboardWorkflowDeliverableRecord[];
+  working_handoffs: DashboardWorkflowOperatorBriefRecord[];
+  inputs_and_provenance: {
+    launch_packet: DashboardWorkflowInputPacketRecord | null;
+    supplemental_packets: DashboardWorkflowInputPacketRecord[];
+    intervention_attachments: DashboardWorkflowInterventionRecord[];
+    redrive_packet: DashboardWorkflowInputPacketRecord | null;
+  };
+  next_cursor: string | null;
+}
+
+export interface DashboardWorkflowStickyStrip {
+  workflow_id: string;
+  workflow_name: string;
+  posture: string | null;
+  summary: string;
+  approvals_count: number;
+  escalations_count: number;
+  blocked_work_item_count: number;
+  active_task_count: number;
+  active_work_item_count: number;
+  steering_available: boolean;
+}
+
+export interface DashboardWorkflowBottomTabsPacket {
+  default_tab: 'needs_action' | 'steering' | 'live_console' | 'history' | 'deliverables';
+  current_scope_kind: 'workflow' | 'selected_work_item';
+  current_work_item_id: string | null;
+  counts: {
+    needs_action: number;
+    steering: number;
+    live_console: number;
+    history: number;
+    deliverables: number;
+  };
+}
+
+export interface DashboardWorkflowWorkspacePacket extends DashboardWorkflowOperationsSnapshot {
+  workflow_id: string;
+  sticky_strip: DashboardWorkflowStickyStrip | null;
+  board: DashboardWorkflowBoardResponse | null;
+  bottom_tabs: DashboardWorkflowBottomTabsPacket;
+  needs_action: DashboardWorkflowNeedsActionPacket;
+  steering_panel: {
+    quick_actions: DashboardMissionControlActionAvailability[];
+    decision_actions: DashboardMissionControlActionAvailability[];
+    steering_state: {
+      mode: 'workflow_scoped' | 'selected_work_item';
+      can_accept_request: boolean;
+      active_session_id: string | null;
+      last_summary: string | null;
+    };
+    recent_interventions: DashboardWorkflowInterventionRecord[];
+    session: {
+      session_id: string | null;
+      status: string;
+      messages: DashboardWorkflowSteeringMessageRecord[];
+    };
+  };
+  live_console: DashboardWorkflowLiveConsolePacket;
+  history_timeline: DashboardWorkflowHistoryPacket;
+  deliverables_panel: DashboardWorkflowDeliverablesPacket;
+  redrive_lineage: Record<string, unknown> | null;
+  workflow: DashboardMissionControlWorkflowCard | null;
+  overview: DashboardMissionControlWorkspaceOverview | null;
+}
+
+export interface DashboardWorkflowOperationsStreamEvent {
+  event_type: string;
+  cursor: string;
+  snapshot_version: string;
+  workflow_id: string | null;
+  payload: unknown;
+}
+
+export interface DashboardWorkflowOperationsStreamBatch extends DashboardWorkflowOperationsSnapshot {
+  cursor: string;
+  events: DashboardWorkflowOperationsStreamEvent[];
+}
+
 export interface DashboardWorkflowOperatorFileUploadInput {
   description?: string;
   file_name: string;
@@ -591,12 +817,14 @@ export interface DashboardWorkflowInterventionCreateInput {
 export interface DashboardWorkflowSteeringSessionRecord {
   id: string;
   workflow_id: string;
+  work_item_id?: string | null;
   title: string | null;
   status: string;
   created_by_type: string;
   created_by_id: string;
   created_at: string;
   updated_at: string;
+  last_message_at?: string | null;
 }
 
 export interface DashboardWorkflowSteeringSessionCreateInput {
@@ -606,11 +834,19 @@ export interface DashboardWorkflowSteeringSessionCreateInput {
 export interface DashboardWorkflowSteeringMessageRecord {
   id: string;
   workflow_id: string;
+  work_item_id?: string | null;
   steering_session_id: string;
-  role: string;
-  content: string;
-  structured_proposal: Record<string, unknown>;
-  intervention_id: string | null;
+  role?: string;
+  content?: string;
+  structured_proposal?: Record<string, unknown>;
+  intervention_id?: string | null;
+  source_kind?: string;
+  message_kind?: string;
+  headline?: string;
+  body?: string | null;
+  linked_intervention_id?: string | null;
+  linked_input_packet_id?: string | null;
+  linked_operator_update_id?: string | null;
   created_by_type: string;
   created_by_id: string;
   created_at: string;
@@ -620,6 +856,35 @@ export interface DashboardWorkflowSteeringMessageCreateInput {
   content: string;
   structured_proposal?: Record<string, unknown>;
   intervention_id?: string;
+}
+
+export interface DashboardWorkflowSteeringRequestInput {
+  request_id: string;
+  request: string;
+  base_snapshot_version?: string;
+  work_item_id?: string;
+  task_id?: string;
+  linked_input_packet_ids?: string[];
+  session_id?: string;
+}
+
+export interface DashboardWorkflowSteeringRequestResult {
+  outcome: 'applied';
+  result_kind: 'steering_request_recorded';
+  source_workflow_id: string;
+  workflow_id: string;
+  resulting_work_item_id: string | null;
+  input_packet_id: string | null;
+  intervention_id: string | null;
+  snapshot_version: string | null;
+  settings_revision: number | null;
+  message: string;
+  redrive_lineage: null;
+  steering_session_id: string;
+  request_message_id: string;
+  response_message_id: string | null;
+  linked_intervention_ids: string[];
+  linked_input_packet_ids: string[];
 }
 
 export interface DashboardWorkflowRedriveInput {
@@ -637,6 +902,34 @@ export interface DashboardWorkflowRedriveResult {
   attempt_number: number;
   workflow: DashboardWorkflowRecord;
   input_packet: DashboardWorkflowInputPacketRecord | null;
+}
+
+export interface DashboardWorkflowSettingsRecord {
+  workflow_id: string;
+  effective_live_visibility_mode: 'standard' | 'enhanced';
+  workflow_live_visibility_mode_override: 'standard' | 'enhanced' | null;
+  source: 'agentic_settings' | 'workflow_override';
+  revision: number;
+  updated_by_operator_id: string | null;
+  updated_at: string | null;
+}
+
+export interface DashboardWorkflowSettingsPatchInput {
+  live_visibility_mode: 'standard' | 'enhanced' | null;
+  settings_revision: number;
+}
+
+export interface DashboardAgenticSettingsRecord {
+  live_visibility_mode_default: 'standard' | 'enhanced';
+  scope: 'tenant';
+  revision: number;
+  updated_by_operator_id: string | null;
+  updated_at: string | null;
+}
+
+export interface DashboardAgenticSettingsPatchInput {
+  live_visibility_mode_default: 'standard' | 'enhanced';
+  settings_revision: number;
 }
 
 export interface DashboardLlmProviderRecord {
@@ -2359,6 +2652,38 @@ export interface DashboardApi {
     payload: { provider: string; secret: string },
   ): Promise<Record<string, unknown>>;
   getWorkflow(id: string): Promise<DashboardWorkflowRecord>;
+  getWorkflowRail(input?: {
+    mode?: DashboardWorkflowRailMode;
+    page?: number;
+    perPage?: number;
+    needsActionOnly?: boolean;
+    ongoingOnly?: boolean;
+    search?: string;
+    workflowId?: string;
+  }): Promise<DashboardWorkflowRailPacket>;
+  getWorkflowWorkspace(
+    workflowId: string,
+    input?: {
+      workItemId?: string;
+      tabScope?: 'workflow' | 'selected_work_item';
+      historyLimit?: number;
+      deliverablesLimit?: number;
+      boardMode?: string;
+      boardFilters?: string;
+      liveConsoleAfter?: string;
+      historyAfter?: string;
+      deliverablesAfter?: string;
+    },
+  ): Promise<DashboardWorkflowWorkspacePacket>;
+  getAgenticSettings(): Promise<DashboardAgenticSettingsRecord>;
+  updateAgenticSettings(
+    payload: DashboardAgenticSettingsPatchInput,
+  ): Promise<DashboardAgenticSettingsRecord>;
+  getWorkflowSettings(workflowId: string): Promise<DashboardWorkflowSettingsRecord>;
+  updateWorkflowSettings(
+    workflowId: string,
+    payload: DashboardWorkflowSettingsPatchInput,
+  ): Promise<DashboardWorkflowSettingsRecord>;
   getMissionControlLive(input?: {
     page?: number;
     perPage?: number;
@@ -2396,6 +2721,10 @@ export interface DashboardApi {
     workflowId: string,
     sessionId: string,
   ): Promise<DashboardWorkflowSteeringMessageRecord[]>;
+  createWorkflowSteeringRequest(
+    workflowId: string,
+    payload: DashboardWorkflowSteeringRequestInput,
+  ): Promise<DashboardWorkflowSteeringRequestResult>;
   appendWorkflowSteeringMessage(
     workflowId: string,
     sessionId: string,
@@ -3314,6 +3643,68 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         }),
       ),
     getWorkflow: (id) => withRefresh(() => client.getWorkflow(id)),
+    getWorkflowRail: (input) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowRailPacket>(
+          `/api/v1/operations/workflows${buildMissionControlQuery({
+            mode: input?.mode,
+            page: input?.page,
+            per_page: input?.perPage,
+            needs_action_only: input?.needsActionOnly ? 'true' : undefined,
+            ongoing_only: input?.ongoingOnly ? 'true' : undefined,
+            search: input?.search,
+            workflow_id: input?.workflowId,
+          })}`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    getWorkflowWorkspace: (workflowId, input) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowWorkspacePacket>(
+          `/api/v1/operations/workflows/${workflowId}/workspace${buildMissionControlQuery({
+            work_item_id: input?.workItemId,
+            tab_scope: input?.tabScope,
+            history_limit: input?.historyLimit,
+            deliverables_limit: input?.deliverablesLimit,
+            board_mode: input?.boardMode,
+            board_filters: input?.boardFilters,
+            live_console_after: input?.liveConsoleAfter,
+            history_after: input?.historyAfter,
+            deliverables_after: input?.deliverablesAfter,
+          })}`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    getAgenticSettings: () =>
+      withRefresh(() =>
+        requestData<DashboardAgenticSettingsRecord>('/api/v1/agentic-settings', {
+          method: 'GET',
+        }),
+      ),
+    updateAgenticSettings: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardAgenticSettingsRecord>('/api/v1/agentic-settings', {
+          method: 'PATCH',
+          body: payload as unknown as Record<string, unknown>,
+        }),
+      ),
+    getWorkflowSettings: (workflowId) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowSettingsRecord>(`/api/v1/workflows/${workflowId}/settings`, {
+          method: 'GET',
+        }),
+      ),
+    updateWorkflowSettings: (workflowId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowSettingsRecord>(`/api/v1/workflows/${workflowId}/settings`, {
+          method: 'PATCH',
+          body: payload as unknown as Record<string, unknown>,
+        }),
+      ),
     getMissionControlLive: (input) =>
       withRefresh(() =>
         requestData<DashboardMissionControlLiveResponse>(
@@ -3420,6 +3811,16 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         requestData<DashboardWorkflowSteeringMessageRecord[]>(
           `/api/v1/workflows/${workflowId}/steering-sessions/${sessionId}/messages`,
           { method: 'GET' },
+        ),
+      ),
+    createWorkflowSteeringRequest: (workflowId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardWorkflowSteeringRequestResult>(
+          `/api/v1/workflows/${workflowId}/steering-requests`,
+          {
+            method: 'POST',
+            body: payload as unknown as Record<string, unknown>,
+          },
         ),
       ),
     appendWorkflowSteeringMessage: (workflowId, sessionId, payload) =>
