@@ -75,14 +75,14 @@ export interface WorkflowLiveVisibilityModeRecord {
 }
 
 export interface RecordWorkflowOperatorUpdateInput {
-  requestId: string;
+  requestId?: string;
   executionContextId: string;
   workItemId?: string;
   taskId?: string;
-  sourceKind: string;
+  sourceKind?: string;
   sourceRoleName?: string;
   payload: {
-    updateKind: string;
+    updateKind?: string;
     headline: string;
     summary?: string;
     linkedTargetIds?: unknown;
@@ -148,10 +148,11 @@ export class WorkflowOperatorUpdateService {
       workItemId: input.workItemId,
       taskId: input.taskId,
     });
+    const effectiveRequestId = sanitizeOptionalText(input.requestId) ?? randomUUID();
     if (executionContext.workItemId) {
       await this.assertWorkItem(identity.tenantId, workflowId, executionContext.workItemId);
     }
-    const existing = await this.findByRequestId(identity.tenantId, workflowId, input.requestId);
+    const existing = await this.findByRequestId(identity.tenantId, workflowId, effectiveRequestId);
     if (existing) {
       const record = toWorkflowOperatorUpdateRecord(existing);
       return {
@@ -167,6 +168,7 @@ export class WorkflowOperatorUpdateService {
       identity.tenantId,
       workflow,
     );
+    const effectiveUpdateKind = sanitizeOptionalText(input.payload.updateKind) ?? 'turn_update';
     const result = await this.pool.query<WorkflowOperatorUpdateRow>(
       `INSERT INTO workflow_operator_updates
          (id, tenant_id, workflow_id, work_item_id, task_id, request_id, execution_context_id, source_kind, source_role_name, headline, summary, linked_target_ids, visibility_mode, update_kind, promoted_brief_id, sequence_number, created_by_type, created_by_id)
@@ -178,7 +180,7 @@ export class WorkflowOperatorUpdateService {
         workflowId,
         executionContext.workItemId,
         executionContext.taskId,
-        sanitizeRequiredText(input.requestId, 'Workflow operator update request id is required'),
+        effectiveRequestId,
         executionContext.executionContextId,
         executionContext.sourceKind,
         executionContext.sourceRoleName,
@@ -186,7 +188,7 @@ export class WorkflowOperatorUpdateService {
         sanitizeOperatorUpdateSummary(input.payload.summary),
         serializeJsonb(sanitizeLinkedIdList(input.payload.linkedTargetIds)),
         effectiveVisibilityMode,
-        sanitizeRequiredText(input.payload.updateKind, 'Workflow operator update kind is required'),
+        effectiveUpdateKind,
         sanitizeOptionalText(input.payload.promotedBriefId),
         sequenceNumber,
         identity.ownerType,

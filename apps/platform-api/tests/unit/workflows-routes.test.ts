@@ -567,6 +567,59 @@ describe('workflow routes', () => {
     );
   });
 
+  it('accepts operator brief route writes when runtime-derived fields are omitted', async () => {
+    const recordBriefWrite = vi.fn().mockResolvedValue({
+      record_id: 'brief-4',
+      sequence_number: 7,
+      deduped: false,
+      record: {
+        id: 'brief-4',
+        workflow_id: 'workflow-1',
+        short_brief: { headline: 'Verification completed.' },
+      },
+    });
+
+    app = createWorkflowRoutesApp({
+      workflowOperatorBriefService: {
+        listBriefs: vi.fn().mockResolvedValue([]),
+        recordBriefWrite,
+      },
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/operator-briefs',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        execution_context_id: 'execution-4',
+        workflow_id: 'workflow-1',
+        payload: {
+          short_brief: {
+            headline: 'Verification completed.',
+          },
+          detailed_brief_json: {
+            headline: 'Verification completed.',
+            status_kind: 'in_progress',
+          },
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(recordBriefWrite).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({
+        requestId: undefined,
+        executionContextId: 'execution-4',
+        briefKind: undefined,
+        briefScope: undefined,
+        sourceKind: undefined,
+      }),
+    );
+  });
+
   it('registers operator record writes with both admin and agent scopes', async () => {
     app = createWorkflowRoutesApp();
     await app.register(workflowRoutes);
@@ -656,6 +709,55 @@ describe('workflow routes', () => {
         payload: expect.objectContaining({
           updateKind: 'turn_update',
           linkedTargetIds: ['task-1'],
+        }),
+      }),
+    );
+  });
+
+  it('accepts operator update route writes when runtime-derived fields are omitted', async () => {
+    const recordUpdateWrite = vi.fn().mockResolvedValue({
+      record_id: 'update-3',
+      sequence_number: 11,
+      deduped: false,
+      record: {
+        id: 'update-3',
+        workflow_id: 'workflow-1',
+        headline: 'Verification is reviewing rollback handling.',
+      },
+    });
+
+    app = createWorkflowRoutesApp({
+      workflowOperatorUpdateService: {
+        listUpdates: vi.fn().mockResolvedValue([]),
+        recordUpdateWrite,
+      },
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/operator-updates',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        execution_context_id: 'execution-3',
+        workflow_id: 'workflow-1',
+        payload: {
+          headline: 'Verification is reviewing rollback handling.',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(recordUpdateWrite).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({
+        requestId: undefined,
+        executionContextId: 'execution-3',
+        sourceKind: undefined,
+        payload: expect.objectContaining({
+          updateKind: undefined,
+          headline: 'Verification is reviewing rollback handling.',
         }),
       }),
     );

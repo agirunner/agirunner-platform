@@ -79,13 +79,13 @@ export interface WorkflowOperatorBriefPayloadInput {
 }
 
 export interface RecordWorkflowOperatorBriefInput {
-  requestId: string;
+  requestId?: string;
   executionContextId: string;
   workItemId?: string;
   taskId?: string;
-  briefKind: string;
-  briefScope: string;
-  sourceKind: string;
+  briefKind?: string;
+  briefScope?: string;
+  sourceKind?: string;
   sourceRoleName?: string;
   statusKind?: string;
   payload: WorkflowOperatorBriefPayloadInput;
@@ -149,10 +149,11 @@ export class WorkflowOperatorBriefService {
   ): Promise<WorkflowOperatorBriefWriteResult> {
     await this.assertWorkflow(identity.tenantId, workflowId);
     const executionContext = await this.resolveExecutionContext(identity, workflowId, input);
+    const effectiveRequestId = sanitizeOptionalText(input.requestId) ?? randomUUID();
     if (executionContext.workItemId) {
       await this.assertWorkItem(identity.tenantId, workflowId, executionContext.workItemId);
     }
-    const existing = await this.findByRequestId(identity.tenantId, workflowId, input.requestId);
+    const existing = await this.findByRequestId(identity.tenantId, workflowId, effectiveRequestId);
     if (existing) {
       const record = toWorkflowOperatorBriefRecord(existing);
       return {
@@ -166,6 +167,9 @@ export class WorkflowOperatorBriefService {
     const sequenceNumber = await this.nextSequenceNumber(identity.tenantId, workflowId);
     const shortBrief = sanitizeOperatorShortBrief(input.payload.shortBrief);
     const detailedBriefJson = sanitizeOperatorDetailedBrief(input.payload.detailedBriefJson);
+    const effectiveBriefKind = sanitizeOptionalText(input.briefKind) ?? 'milestone';
+    const effectiveBriefScope =
+      sanitizeOptionalText(input.briefScope) ?? deriveDefaultBriefScope(executionContext, input.payload);
     const effectiveStatusKind =
       sanitizeOptionalText(input.statusKind) ??
       sanitizeRequiredText(
@@ -184,10 +188,10 @@ export class WorkflowOperatorBriefService {
         workflowId,
         executionContext.workItemId,
         executionContext.taskId,
-        sanitizeRequiredText(input.requestId, 'Workflow operator brief request id is required'),
+        effectiveRequestId,
         executionContext.executionContextId,
-        sanitizeRequiredText(input.briefKind, 'Workflow operator brief kind is required'),
-        sanitizeRequiredText(input.briefScope, 'Workflow operator brief scope is required'),
+        effectiveBriefKind,
+        effectiveBriefScope,
         executionContext.sourceKind,
         serializeJsonb(shortBrief),
         serializeJsonb(detailedBriefJson),
@@ -329,6 +333,19 @@ export class WorkflowOperatorBriefService {
       throw new ValidationError('Workflow operator brief work item must belong to the selected workflow');
     }
   }
+}
+
+function deriveDefaultBriefScope(
+  executionContext: ResolvedWorkflowOperatorExecutionContext,
+  payload: WorkflowOperatorBriefPayloadInput,
+): string {
+  if (Array.isArray(payload.linkedDeliverables) && payload.linkedDeliverables.length > 0) {
+    return 'deliverable_context';
+  }
+  if (executionContext.workItemId || executionContext.taskId) {
+    return 'work_item_handoff';
+  }
+  return 'workflow_timeline';
 }
 
 function toWorkflowOperatorBriefRecord(row: WorkflowOperatorBriefRow): WorkflowOperatorBriefRecord {

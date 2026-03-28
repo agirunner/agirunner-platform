@@ -263,4 +263,87 @@ describe('WorkflowOperatorUpdateService', () => {
       live_visibility_updated_at: '2026-03-27T18:00:00.000Z',
     });
   });
+
+  it('derives request, source, and update kind defaults when omitted', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows') && sql.includes('SELECT id, live_visibility_mode_override')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'workflow-1',
+            live_visibility_mode_override: 'enhanced',
+            live_visibility_revision: 2,
+            live_visibility_updated_by_operator_id: 'user-1',
+            live_visibility_updated_at: new Date('2026-03-27T16:00:00.000Z'),
+          }],
+        };
+      }
+      if (sql.includes('FROM tasks')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'task-11',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-11',
+            is_orchestrator_task: false,
+            role: 'Verifier',
+            state: 'completed',
+          }],
+        };
+      }
+      if (sql.includes('FROM workflow_operator_updates') && sql.includes('request_id = $3')) {
+        expect(params?.[2]).toEqual(expect.any(String));
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM workflow_work_items')) {
+        return { rowCount: 1, rows: [{ id: 'work-item-11' }] };
+      }
+      if (sql.includes('COALESCE(MAX(sequence_number), 0) + 1')) {
+        return { rowCount: 1, rows: [{ next_sequence: 10 }] };
+      }
+      if (sql.includes('INSERT INTO workflow_operator_updates')) {
+        expect(params?.[5]).toEqual(expect.any(String));
+        expect(params?.[7]).toBe('specialist');
+        expect(params?.[13]).toBe('turn_update');
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'update-10',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-11',
+            task_id: 'task-11',
+            request_id: params?.[5],
+            execution_context_id: 'task-11',
+            source_kind: 'specialist',
+            source_role_name: 'Verifier',
+            update_kind: 'turn_update',
+            headline: 'Verifier is writing the operator update.',
+            summary: null,
+            linked_target_ids: [],
+            visibility_mode: 'enhanced',
+            promoted_brief_id: null,
+            sequence_number: 10,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: new Date('2026-03-28T02:10:00.000Z'),
+          }],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const result = await service.recordUpdateWrite(IDENTITY as never, 'workflow-1', {
+      executionContextId: 'task-11',
+      workItemId: 'work-item-11',
+      taskId: 'task-11',
+      payload: {
+        headline: 'Verifier is writing the operator update.',
+      },
+    } as never);
+
+    expect(result.record.request_id).toEqual(expect.any(String));
+    expect(result.record.source_kind).toBe('specialist');
+    expect(result.record.update_kind).toBe('turn_update');
+  });
 });

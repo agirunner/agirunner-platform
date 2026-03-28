@@ -36,14 +36,14 @@ const workflowInterventionCreateSchema = z.object({
 });
 
 const workflowOperatorBriefCreateSchema = z.object({
-  request_id: z.string().min(1).max(255),
+  request_id: z.string().min(1).max(255).optional(),
   execution_context_id: z.string().min(1).max(255),
   workflow_id: z.string().min(1).max(255).optional(),
   work_item_id: z.string().uuid().optional(),
   task_id: z.string().uuid().optional(),
-  brief_kind: z.string().min(1).max(120),
-  brief_scope: z.string().min(1).max(120),
-  source_kind: z.string().min(1).max(120),
+  brief_kind: z.string().min(1).max(120).optional(),
+  brief_scope: z.string().min(1).max(120).optional(),
+  source_kind: z.string().min(1).max(120).optional(),
   source_role_name: z.string().max(255).optional(),
   status_kind: z.string().min(1).max(120).optional(),
   payload: z.object({
@@ -69,15 +69,15 @@ const workflowOperatorBriefCreateSchema = z.object({
 });
 
 const workflowOperatorUpdateCreateSchema = z.object({
-  request_id: z.string().min(1).max(255),
+  request_id: z.string().min(1).max(255).optional(),
   execution_context_id: z.string().min(1).max(255),
   workflow_id: z.string().min(1).max(255).optional(),
   work_item_id: z.string().uuid().optional(),
   task_id: z.string().uuid().optional(),
-  source_kind: z.string().min(1).max(120),
+  source_kind: z.string().min(1).max(120).optional(),
   source_role_name: z.string().max(255).optional(),
   payload: z.object({
-    update_kind: z.string().min(1).max(120),
+    update_kind: z.string().min(1).max(120).optional(),
     headline: z.string().min(1).max(4000),
     summary: z.string().max(4000).optional(),
     linked_target_ids: z.array(z.string().min(1).max(255)).optional(),
