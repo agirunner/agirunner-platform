@@ -128,6 +128,8 @@ interface ReworkWorkItemContextRow {
   stage_name: string | null;
   column_id: string | null;
   completed_at: Date | null;
+  workflow_state: string | null;
+  workflow_metadata: unknown;
   definition: unknown;
 }
 
@@ -496,6 +498,8 @@ export class TaskLifecycleService {
               wi.stage_name,
               wi.column_id,
               wi.completed_at,
+              w.state AS workflow_state,
+              w.metadata AS workflow_metadata,
               p.definition
          FROM workflow_work_items wi
          JOIN workflows w
@@ -517,7 +521,12 @@ export class TaskLifecycleService {
     }
 
     const definition = parsePlaybookDefinition(workItem.definition);
-    const reopenColumnId = resolveReopenColumnId(definition, workItem.column_id);
+    const reopenColumnId = resolveReopenColumnId({
+      definition,
+      currentColumnId: workItem.column_id,
+      workflowState: workItem.workflow_state,
+      workflowMetadata: workItem.workflow_metadata,
+    });
     if (!reopenColumnId) {
       return;
     }
@@ -3129,11 +3138,26 @@ function releasesParallelismSlot(previousState: TaskState, nextState: TaskState)
   );
 }
 
-function resolveReopenColumnId(
-  definition: ReturnType<typeof parsePlaybookDefinition>,
-  currentColumnId: string | null,
-): string | null {
-  return activeColumnId(definition) ?? defaultColumnId(definition) ?? currentColumnId;
+function resolveReopenColumnId(input: {
+  definition: ReturnType<typeof parsePlaybookDefinition>;
+  currentColumnId: string | null;
+  workflowState: string | null;
+  workflowMetadata: unknown;
+}): string | null {
+  if (input.workflowState === 'paused' || hasPendingWorkflowCancel(input.workflowMetadata)) {
+    return input.currentColumnId;
+  }
+
+  return activeColumnId(input.definition) ?? defaultColumnId(input.definition) ?? input.currentColumnId;
+}
+
+function hasPendingWorkflowCancel(metadata: unknown) {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return false;
+  }
+
+  const value = (metadata as Record<string, unknown>).cancel_requested_at;
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 interface WorkflowActivationTransition {
