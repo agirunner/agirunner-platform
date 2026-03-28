@@ -862,10 +862,7 @@ export class WorkflowService {
     if (!playbook.rowCount) {
       throw new NotFoundError('Playbook workflow not found');
     }
-    const definition = playbook.rows[0].definition as {
-      board: { columns: Array<Record<string, unknown>> };
-      stages?: Array<{ name: string; goal: string }>;
-    };
+    const definition = parsePlaybookDefinition(playbook.rows[0].definition);
     const workItems = (workflow.work_items as Record<string, unknown>[]) ?? [];
     const workflowStages = Array.isArray(workflow.workflow_stages)
       ? (workflow.workflow_stages as WorkflowStageResponse[])
@@ -880,10 +877,14 @@ export class WorkflowService {
       workItems,
       terminalColumns,
       blockedColumn ? String(blockedColumn.id) : null,
+      defaultBoardColumnId(definition),
+      activeBoardColumnId(definition),
+      asOptionalString(workflow.state) ?? null,
+      hasWorkflowCancelRequest(asRecord(workflow.metadata)),
     );
     const stageSummary = buildBoardStageSummary(
       String(workflow.lifecycle ?? 'planned'),
-      definition.stages ?? [],
+      definition.stages,
       workflowStages,
       boardWorkItems,
       terminalColumns,
@@ -944,6 +945,10 @@ function annotateBoardWorkItems(
   workItems: Array<Record<string, unknown>>,
   terminalColumns: Set<string>,
   blockedColumnId: string | null,
+  entryColumnId: string | null,
+  activeColumnId: string | null,
+  workflowState: string | null,
+  hasCancelRequest: boolean,
 ): Array<Record<string, unknown>> {
   const childCounts = new Map<string, { total: number; completed: number }>();
 
@@ -962,7 +967,15 @@ function annotateBoardWorkItems(
 
   return workItems.map((item) => {
     const counts = childCounts.get(String(item.id));
-    const columnId = resolveBoardColumnId(item, terminalColumns, blockedColumnId);
+    const columnId = resolveBoardColumnId(
+      item,
+      terminalColumns,
+      blockedColumnId,
+      entryColumnId,
+      activeColumnId,
+      workflowState,
+      hasCancelRequest,
+    );
     if (!counts) {
       return {
         ...item,
@@ -983,18 +996,54 @@ function resolveBoardColumnId(
   item: Record<string, unknown>,
   terminalColumns: Set<string>,
   blockedColumnId: string | null,
+  entryColumnId: string | null,
+  activeColumnId: string | null,
+  workflowState: string | null,
+  hasCancelRequest: boolean,
 ): string | null {
   const currentColumnId = asOptionalString(item.column_id) ?? null;
-  if (!blockedColumnId) {
+  if (!blockedColumnId && !(entryColumnId && activeColumnId)) {
     return currentColumnId;
   }
   if (isCompletedBoardChild(item, terminalColumns)) {
     return currentColumnId;
   }
+  if (workflowState === 'paused' || hasCancelRequest) {
+    return currentColumnId;
+  }
   if (shouldProjectBoardItemToBlockedLane(item)) {
-    return blockedColumnId;
+    if (blockedColumnId) {
+      return blockedColumnId;
+    }
+    if (entryColumnId && activeColumnId && currentColumnId === entryColumnId) {
+      return activeColumnId;
+    }
   }
   return currentColumnId;
+}
+
+function hasWorkflowCancelRequest(metadata: Record<string, unknown>) {
+  const value = metadata.cancel_requested_at;
+  return typeof value === 'string' && value.length > 0;
+}
+
+function defaultBoardColumnId(definition: ReturnType<typeof parsePlaybookDefinition>) {
+  return definition.board.entry_column_id ?? definition.board.columns[0]?.id ?? null;
+}
+
+function activeBoardColumnId(definition: ReturnType<typeof parsePlaybookDefinition>) {
+  const entryColumnId = defaultBoardColumnId(definition);
+  if (!entryColumnId) {
+    return null;
+  }
+  const entryIndex = definition.board.columns.findIndex((column) => column.id === entryColumnId);
+  if (entryIndex < 0) {
+    return null;
+  }
+  const activeColumn = definition.board.columns
+    .slice(entryIndex + 1)
+    .find((column) => !column.is_blocked && !column.is_terminal);
+  return activeColumn?.id ?? null;
 }
 
 function shouldProjectBoardItemToBlockedLane(item: Record<string, unknown>): boolean {
