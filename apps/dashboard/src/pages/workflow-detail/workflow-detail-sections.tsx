@@ -16,6 +16,7 @@ import type {
 import { dashboardApi } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
 import { buildWorkflowDiagnosticsHref } from '../workflows/workflows-page.support.js';
+import { buildTaskDetailHref } from '../work-shared/work-href-support.js';
 import {
   describeTaskGraphPacket,
   type DashboardWorkflowTaskRow,
@@ -218,7 +219,7 @@ export function TaskGraphCard(props: {
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="grid gap-1">
-                          <Link to={`/mission-control/tasks/${task.id}`} className="font-medium text-foreground">
+                          <Link to={buildTaskDetailHref(task.id)} className="font-medium text-foreground">
                             {task.title}
                           </Link>
                           <p className="text-sm text-muted">{packet.focus}</p>
@@ -252,7 +253,7 @@ export function TaskGraphCard(props: {
                         <TableRow key={task.id}>
                           <TableCell className="font-medium">
                             <div className="grid gap-1">
-                              <Link to={`/mission-control/tasks/${task.id}`}>{task.title}</Link>
+                              <Link to={buildTaskDetailHref(task.id)}>{task.title}</Link>
                               <Badge variant={badgeVariantForState(task.state)} className="w-fit">
                                 {task.state}
                               </Badge>
@@ -1131,7 +1132,7 @@ export function WorkflowActivationsCard(props: {
                 </Link>
                 {activation.redispatched_task_id ? (
                   <Link
-                    to={`/mission-control/tasks/${activation.redispatched_task_id}`}
+                    to={buildTaskDetailHref(activation.redispatched_task_id)}
                     className="text-sm text-muted underline-offset-4 hover:underline"
                   >
                     Redispatched task

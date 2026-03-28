@@ -2,6 +2,7 @@ import {
   buildWorkflowOperatorPermalink,
   usesWorkItemOperatorFlow,
 } from '../work-shared/task-operator-flow.js';
+import { buildTaskDetailHref } from '../work-shared/work-href-support.js';
 
 export interface TaskListOperatorScope {
   id: string;
@@ -57,7 +58,7 @@ export function buildTaskPrimaryOperatorAction(
     };
   }
   return {
-    href: `/mission-control/tasks/${task.id}`,
+    href: buildTaskDetailHref(task.id),
     label: 'Open step record',
     helper: 'Open the step record for full context and recent activity.',
     showsDiagnosticLink: false,
@@ -71,7 +72,7 @@ export function buildTaskDiagnosticAction(
     return null;
   }
   return {
-    href: `/mission-control/tasks/${task.id}`,
+    href: buildTaskDetailHref(task.id),
     label: isRecoveryStatus(task) ? 'Open failed step diagnostics' : 'Open step diagnostics',
   };
 }

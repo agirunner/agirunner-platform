@@ -10,6 +10,7 @@ import { Skeleton } from '../../components/ui/skeleton.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import { cn } from '../../lib/utils.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
+import { buildTaskDetailHref } from '../work-shared/work-href-support.js';
 import {
   formatArtifactFileSize,
   type WorkspaceArtifactEntry,
@@ -190,7 +191,7 @@ export function WorkspaceArtifactQuickInspector(props: {
 
             <div className="flex flex-wrap gap-2">
               <Button asChild variant="outline" size="sm">
-                <Link to={`/mission-control/tasks/${props.artifact.taskId}`}>Open Task</Link>
+                <Link to={buildTaskDetailHref(props.artifact.taskId)}>Open Task</Link>
               </Button>
               {props.artifact.workflowId ? (
                 <Button asChild variant="outline" size="sm">

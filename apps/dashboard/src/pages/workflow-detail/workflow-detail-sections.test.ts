@@ -133,8 +133,9 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('stale_started_at');
     expect(source).toContain('redispatched_task_id');
     expect(source).toContain('Open inspector');
-    expect(source).toContain('/mission-control/workflows/${activation.workflow_id}/inspector?activation=${activation.activation_id ?? activation.id}&view=summary');
-    expect(source).not.toContain('/logs?workflow=${activation.workflow_id}&activation=${activation.activation_id ?? activation.id}&view=summary');
+    expect(source).toContain('buildWorkflowDiagnosticsHref({');
+    expect(source).toContain('buildTaskDetailHref(activation.redispatched_task_id)');
+    expect(source).not.toContain('/mission-control/workflows/${activation.workflow_id}/inspector?activation=${activation.activation_id ?? activation.id}&view=summary');
     expect(source).toContain('Redispatched task');
     expect(source).not.toContain('<StructuredRecordView data={activation.payload}');
   });

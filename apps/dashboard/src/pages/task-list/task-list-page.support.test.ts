@@ -42,13 +42,14 @@ describe('task list page support', () => {
       'Review and approve this step from the grouped work-item flow.',
     );
     expect(buildTaskPrimaryOperatorAction(approvalTask)).toEqual({
-      href: '/mission-control/workflows/workflow-1?work_item=work-item-12345678&activation=activation-12345678#work-item-work-item-12345678',
+      href:
+        '/workflows?workflow=workflow-1&work_item=work-item-12345678&tab=history#work-item-work-item-12345678',
       label: 'Open work-item flow',
       helper: 'Review this step from the grouped work-item flow so board context stays aligned.',
       showsDiagnosticLink: true,
     });
     expect(buildTaskDiagnosticAction(approvalTask)).toEqual({
-      href: '/mission-control/tasks/task-1',
+      href: '/work/tasks/task-1',
       label: 'Open step diagnostics',
     });
   });
@@ -64,7 +65,7 @@ describe('task list page support', () => {
         created_at: '2026-03-12T12:00:00.000Z',
       }),
     ).toEqual({
-      href: '/mission-control/workflows/workflow-1?gate=review#gate-review',
+      href: '/workflows?workflow=workflow-1&tab=needs_action#gate-review',
       label: 'Open workflow context',
       helper:
         'Review this step in its workflow stage context. Step diagnostics are available separately when you need execution details.',
@@ -79,7 +80,7 @@ describe('task list page support', () => {
         created_at: '2026-03-12T12:00:00.000Z',
       }),
     ).toEqual({
-      href: '/mission-control/tasks/task-stage',
+      href: '/work/tasks/task-stage',
       label: 'Open failed step diagnostics',
     });
 
@@ -92,7 +93,7 @@ describe('task list page support', () => {
         created_at: '2026-03-12T12:00:00.000Z',
       }),
     ).toEqual({
-      href: '/mission-control/workflows/workflow-2',
+      href: '/workflows?workflow=workflow-2',
       label: 'Open workflow board',
       helper:
         'This step is linked to a workflow. Use the board for operator decisions so workflow state stays aligned.',
@@ -106,7 +107,7 @@ describe('task list page support', () => {
         created_at: '2026-03-12T12:00:00.000Z',
       }),
     ).toEqual({
-      href: '/mission-control/tasks/task-board',
+      href: '/work/tasks/task-board',
       label: 'Open step diagnostics',
     });
 
@@ -118,7 +119,7 @@ describe('task list page support', () => {
         created_at: '2026-03-12T12:00:00.000Z',
       }),
     ).toEqual({
-      href: '/mission-control/tasks/task-direct',
+      href: '/work/tasks/task-direct',
       label: 'Open step record',
       helper: 'Open the step record for full context and recent activity.',
       showsDiagnosticLink: false,

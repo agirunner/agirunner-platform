@@ -57,7 +57,7 @@ describe('workspace delivery history question-driven support', () => {
         }),
       ]),
     );
-    expect(overview.nextActionHref).toBe('/mission-control/workflows/workflow-2/inspector');
+    expect(overview.nextActionHref).toBe('/diagnostics/live-logs?workflow=workflow-2&view=summary');
   });
 
   it('describes per-run attention and inspection guidance for failed delivery', () => {
@@ -75,7 +75,7 @@ describe('workspace delivery history question-driven support', () => {
     expect(state.nextAction).toBe(
       'Start with inspector: confirm the failing activation and affected work items.',
     );
-    expect(state.primaryActionHref).toBe('/mission-control/workflows/workflow-2/inspector');
+    expect(state.primaryActionHref).toBe('/diagnostics/live-logs?workflow=workflow-2&view=summary');
   });
 
   it('compresses delivery metrics into terse operator signals for each run', () => {

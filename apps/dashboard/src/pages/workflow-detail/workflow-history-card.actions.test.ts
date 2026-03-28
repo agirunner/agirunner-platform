@@ -17,23 +17,23 @@ describe('workflow history timeline actions', () => {
     ).toEqual([
       {
         label: 'Open work item flow',
-        href: '/mission-control/workflows/workflow-1?work_item=work-item-7',
+        href: '/workflows?workflow=workflow-1&work_item=work-item-7#work-item-work-item-7',
       },
       {
         label: 'Open gate focus',
-        href: '/mission-control/workflows/workflow-1?gate=design#gate-design',
+        href: '/workflows?workflow=workflow-1&tab=needs_action#gate-design',
       },
       {
         label: 'Open activation packet',
-        href: '/mission-control/workflows/workflow-1?activation=activation-3#activation-activation-3',
+        href: '/workflows?workflow=workflow-1&tab=history#activation-activation-3',
       },
       {
         label: 'Open child board',
-        href: '/mission-control/workflows/workflow-child-2',
+        href: '/workflows?workflow=workflow-child-2',
       },
       {
         label: 'Open step diagnostics',
-        href: '/mission-control/tasks/task-9',
+        href: '/work/tasks/task-9',
       },
     ]);
   });
@@ -52,7 +52,7 @@ describe('workflow history timeline actions', () => {
     ).toEqual([
       {
         label: 'Open step diagnostics',
-        href: '/mission-control/tasks/task-9',
+        href: '/work/tasks/task-9',
       },
     ]);
   });

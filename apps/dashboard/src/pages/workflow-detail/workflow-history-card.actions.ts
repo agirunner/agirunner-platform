@@ -1,4 +1,8 @@
 import { buildWorkflowDetailPermalink } from './workflow-detail-permalinks.js';
+import {
+  buildTaskDetailHref,
+  normalizeWorkflowBoardHref,
+} from '../work-shared/work-href-support.js';
 
 export interface TimelineEntryAction {
   label: string;
@@ -42,20 +46,22 @@ export function buildTimelineEntryActions(input: {
   }
 
   if (input.childWorkflowHref || input.childWorkflowId) {
-    actions.push({
-      label: 'Open child board',
-      href:
-        input.childWorkflowHref ??
-        buildWorkflowDetailPermalink(input.workflowId, {
-          childWorkflowId: input.childWorkflowId,
-        }),
+    const childWorkflowHref = normalizeWorkflowBoardHref({
+      href: input.childWorkflowHref,
+      workflowId: input.childWorkflowId,
     });
+    if (childWorkflowHref) {
+      actions.push({
+        label: 'Open child board',
+        href: childWorkflowHref,
+      });
+    }
   }
 
   if (input.taskId) {
     actions.push({
       label: 'Open step diagnostics',
-      href: `/mission-control/tasks/${encodeURIComponent(input.taskId)}`,
+      href: buildTaskDetailHref(input.taskId),
     });
   }
 

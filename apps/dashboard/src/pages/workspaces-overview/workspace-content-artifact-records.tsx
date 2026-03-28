@@ -7,6 +7,7 @@ import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
 import { TableCell, TableRow } from '../../components/ui/table.js';
+import { buildTaskDetailHref } from '../work-shared/work-href-support.js';
 import {
   formatContentFileSize,
   formatContentRelativeTimestamp,
@@ -46,7 +47,7 @@ export function ArtifactCard(props: {
           ) : null}
           <Link
             className="text-sm text-accent hover:underline"
-            to={`/mission-control/tasks/${props.artifact.task_id}`}
+            to={buildTaskDetailHref(props.artifact.task_id)}
           >
             Open task
           </Link>
@@ -100,7 +101,7 @@ export function ArtifactDesktopRow(props: {
           ) : null}
           <Link
             className="text-sm text-accent hover:underline"
-            to={`/mission-control/tasks/${props.taskId}`}
+            to={buildTaskDetailHref(props.taskId)}
           >
             Open task
           </Link>

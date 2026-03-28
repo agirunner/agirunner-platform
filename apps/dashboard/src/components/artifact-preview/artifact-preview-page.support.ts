@@ -1,6 +1,7 @@
 import type { ArtifactPreviewReturnSource } from '../../lib/artifact-navigation.js';
 import { buildWorkflowDetailPermalink } from '../../pages/workflow-detail/workflow-detail-permalinks.js';
 import { buildWorkflowOperatorPermalink } from '../../pages/work-shared/task-operator-flow.js';
+import { buildTaskDetailHref } from '../../pages/work-shared/work-href-support.js';
 
 import { MAX_INLINE_ARTIFACT_PREVIEW_BYTES } from './artifact-preview-support.js';
 
@@ -78,7 +79,7 @@ export function buildArtifactPreviewOperatorNavigation(input: {
       primaryLabel: 'Back to work-item flow',
       primaryHelper:
         'Return to the grouped work-item flow first so artifact review stays attached to board context and operator decisions.',
-      diagnosticHref: `/mission-control/tasks/${encodeURIComponent(input.taskId)}`,
+      diagnosticHref: buildTaskDetailHref(input.taskId),
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
         'This preview stays tied to the grouped work-item flow that produced it, so operators can return there first and only open step diagnostics when they need lower-level execution detail.',
@@ -91,7 +92,7 @@ export function buildArtifactPreviewOperatorNavigation(input: {
       primaryLabel: 'Back to board stage flow',
       primaryHelper:
         'Return to the board stage flow first so review, rework, and escalation stay attached to the current stage.',
-      diagnosticHref: `/mission-control/tasks/${encodeURIComponent(input.taskId)}`,
+      diagnosticHref: buildTaskDetailHref(input.taskId),
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
         'This preview stays tied to the current board stage flow, so operators can return there first and only open step diagnostics when they need lower-level execution detail.',
@@ -104,7 +105,7 @@ export function buildArtifactPreviewOperatorNavigation(input: {
       primaryLabel: 'Back to board context',
       primaryHelper:
         'Return to the board context first, then open step diagnostics only if you need lower-level execution detail.',
-      diagnosticHref: `/mission-control/tasks/${encodeURIComponent(input.taskId)}`,
+      diagnosticHref: buildTaskDetailHref(input.taskId),
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
         'This preview stays tied to the surrounding board context, so operators can return there first and only open step diagnostics when they need lower-level execution detail.',
@@ -112,7 +113,7 @@ export function buildArtifactPreviewOperatorNavigation(input: {
   }
 
   return {
-    primaryHref: `/mission-control/tasks/${encodeURIComponent(input.taskId)}`,
+    primaryHref: buildTaskDetailHref(input.taskId),
     primaryLabel: 'Back to step record',
     primaryHelper: 'This artifact is only linked to the source step record, so continue review there.',
     diagnosticHref: null,
@@ -136,7 +137,7 @@ function buildContextualArtifactNavigation(
       primaryLabel: 'Back to workspace artifacts',
       primaryHelper:
         'Return to the workspace artifact explorer so the selected workflow scope, filters, and artifact packet stay intact.',
-      diagnosticHref: `/mission-control/tasks/${encodeURIComponent(taskId)}`,
+      diagnosticHref: buildTaskDetailHref(taskId),
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
         'This preview was opened from the workspace artifact explorer, so return there first to keep workspace-level browsing, provenance checks, and adjacent artifact review intact.',
@@ -149,7 +150,7 @@ function buildContextualArtifactNavigation(
       primaryLabel: 'Back to workspace content',
       primaryHelper:
         'Return to the workspace content surface so artifact review stays attached to the current workflow and task packet.',
-      diagnosticHref: `/mission-control/tasks/${encodeURIComponent(taskId)}`,
+      diagnosticHref: buildTaskDetailHref(taskId),
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
         'This preview was opened from the workspace content surface, so return there first to continue document and artifact management in one place.',
@@ -162,7 +163,7 @@ function buildContextualArtifactNavigation(
       primaryLabel: 'Back to board context',
       primaryHelper:
         'Return to the board first so artifact review stays attached to the surrounding stage and work-item flow.',
-      diagnosticHref: `/mission-control/tasks/${encodeURIComponent(taskId)}`,
+      diagnosticHref: buildTaskDetailHref(taskId),
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
         'This preview was opened from the board surface, so return there first and only open lower-level diagnostics when needed.',
@@ -175,7 +176,7 @@ function buildContextualArtifactNavigation(
       primaryLabel: 'Back to board inspector',
       primaryHelper:
         'Return to the inspector so the artifact stays attached to the current activation trace and board diagnostics.',
-      diagnosticHref: `/mission-control/tasks/${encodeURIComponent(taskId)}`,
+      diagnosticHref: buildTaskDetailHref(taskId),
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
         'This preview was opened from the inspector, so return there first to continue trace review alongside the raw execution context.',
@@ -187,7 +188,7 @@ function buildContextualArtifactNavigation(
     primaryLabel: 'Back to step record',
     primaryHelper:
       'Return to the source step record so artifact review stays attached to the producing execution packet.',
-    diagnosticHref: `/mission-control/tasks/${encodeURIComponent(taskId)}`,
+    diagnosticHref: buildTaskDetailHref(taskId),
     diagnosticLabel: 'Open step diagnostics',
     sourceContextBody:
       'This preview was opened from the source step record, so return there first unless you need a broader board or workspace surface.',

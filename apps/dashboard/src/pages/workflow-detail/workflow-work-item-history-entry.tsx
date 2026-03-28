@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { StructuredRecordView } from '../../components/structured-data/structured-data.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
+import { buildTaskDetailHref } from '../work-shared/work-href-support.js';
 import { summarizeStructuredValue } from './workflow-work-item-detail-support.js';
 import type { WorkItemHistoryPacket } from './workflow-work-item-history-support.js';
 
@@ -56,7 +57,7 @@ export function WorkItemHistoryEntry(props: {
               Stay in the work-item flow first. Open linked step diagnostics only when you need the lower-level specialist trace behind this event.
             </p>
             <Button asChild variant="outline" size="sm">
-              <Link to={`/mission-control/tasks/${taskId}`}>Open linked step diagnostics</Link>
+              <Link to={buildTaskDetailHref(taskId)}>Open linked step diagnostics</Link>
             </Button>
           </>
         ) : null}

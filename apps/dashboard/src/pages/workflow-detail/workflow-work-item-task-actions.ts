@@ -1,4 +1,5 @@
 import { buildWorkflowDetailPermalink } from './workflow-detail-permalinks.js';
+import { buildTaskDetailHref } from '../work-shared/work-href-support.js';
 
 export interface WorkItemTaskLinkAction {
   label: string;
@@ -33,7 +34,7 @@ export function buildWorkItemTaskLinkActions(input: {
           ? 'Open failed step diagnostics'
           : 'Open step diagnostics'
         : 'Open step record',
-    href: `/mission-control/tasks/${encodeURIComponent(taskId)}`,
+    href: buildTaskDetailHref(taskId),
     isPrimary: false,
   });
 

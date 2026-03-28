@@ -53,6 +53,7 @@ import {
   buildStructuredObject,
   type StructuredEntryDraft,
 } from '../workspace-detail/workspace-detail-support.js';
+import { buildTaskDetailHref } from '../work-shared/work-href-support.js';
 import {
   buildMetadataRecord,
   createMetadataDraft,
@@ -1114,7 +1115,7 @@ function DocumentCard(props: {
           ) : null}
           {document.task_id ? (
             <Button asChild variant="outline" size="sm">
-              <Link to={`/mission-control/tasks/${document.task_id}`}>Open Linked Step</Link>
+              <Link to={buildTaskDetailHref(document.task_id)}>Open Linked Step</Link>
             </Button>
           ) : null}
           {document.url ? (

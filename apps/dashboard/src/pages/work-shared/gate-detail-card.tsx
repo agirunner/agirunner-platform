@@ -44,6 +44,7 @@ import {
   readGateId,
 } from './gate-detail-support.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
+import { buildTaskDetailHref } from './work-href-support.js';
 
 function readArtifactLabel(artifact: Record<string, unknown>, index: number): string {
   const label = artifact.label ?? artifact.path ?? artifact.name ?? artifact.id;
@@ -194,9 +195,9 @@ export function GateDetailCard(props: {
         })
       : null;
   const requestTaskPermalink = gate.requested_by_task?.id
-    ? `/mission-control/tasks/${gate.requested_by_task.id}`
+    ? buildTaskDetailHref(gate.requested_by_task.id)
     : null;
-  const resumeTaskPermalink = resume?.task?.id ? `/mission-control/tasks/${resume.task.id}` : null;
+  const resumeTaskPermalink = resume?.task?.id ? buildTaskDetailHref(resume.task.id) : null;
 
   return (
     <>
@@ -371,7 +372,7 @@ export function GateDetailCard(props: {
                                 {taskId ? (
                                   <Link
                                     className="font-medium text-accent hover:underline"
-                                    to={`/mission-control/tasks/${taskId}`}
+                                    to={buildTaskDetailHref(taskId)}
                                   >
                                     {label}
                                   </Link>
