@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import type { DashboardWorkflowWorkspacePacket } from '../../lib/api.js';
 import {
   describeWorkflowWorkbenchScope,
   buildWorkflowDiagnosticsHref,
@@ -276,15 +277,73 @@ describe('workflows page support', () => {
   });
 });
 
-function createWorkspacePacket() {
+function createWorkspacePacket(): DashboardWorkflowWorkspacePacket {
   return {
-    workflow: { id: 'workflow-1' },
+    generated_at: '2026-03-28T03:00:00.000Z',
+    latest_event_id: 10,
+    snapshot_version: 'workflow-operations:10',
+    workflow_id: 'workflow-1',
+    workflow: {
+      id: 'workflow-1',
+      name: 'Release Workflow',
+      state: 'active',
+      lifecycle: 'continuous',
+      currentStage: null,
+      workspaceId: 'workspace-1',
+      workspaceName: 'Launch Workspace',
+      playbookId: 'playbook-1',
+      playbookName: 'Release Playbook',
+      posture: 'progressing',
+      attentionLane: 'watchlist',
+      pulse: {
+        summary: 'Workflow is active.',
+        tone: 'progressing',
+        updatedAt: '2026-03-28T03:00:00.000Z',
+      },
+      outputDescriptors: [],
+      availableActions: [],
+      metrics: {
+        activeTaskCount: 1,
+        activeWorkItemCount: 1,
+        blockedWorkItemCount: 0,
+        openEscalationCount: 0,
+        waitingForDecisionCount: 0,
+        failedTaskCount: 0,
+        recoverableIssueCount: 0,
+        lastChangedAt: '2026-03-28T03:00:00.000Z',
+      },
+      version: {
+        generatedAt: '2026-03-28T03:00:00.000Z',
+        latestEventId: 10,
+        token: 'workflow-operations:10',
+      },
+    },
     selected_scope: {
       scope_kind: 'workflow' as const,
       work_item_id: null,
       task_id: null,
     },
+    sticky_strip: {
+      workflow_id: 'workflow-1',
+      workflow_name: 'Release Workflow',
+      posture: 'progressing',
+      summary: 'Workflow is active.',
+      approvals_count: 0,
+      escalations_count: 0,
+      blocked_work_item_count: 0,
+      active_task_count: 1,
+      active_work_item_count: 1,
+      steering_available: true,
+    },
+    board: {
+      columns: [],
+      work_items: [],
+      active_stages: [],
+      awaiting_gate_count: 0,
+      stage_summary: [],
+    },
     bottom_tabs: {
+      default_tab: 'details',
       current_scope_kind: 'workflow' as const,
       current_work_item_id: null,
       current_task_id: null,
@@ -297,12 +356,19 @@ function createWorkspacePacket() {
         deliverables: 4,
       },
     },
+    needs_action: {
+      items: [],
+      total_count: 0,
+      default_sort: 'priority_desc',
+    },
     steering: {
-      recent_interventions: [{ id: 'intervention-1' }],
+      quick_actions: [],
+      decision_actions: [],
+      recent_interventions: [],
       session: {
         session_id: 'session-1',
         status: 'active',
-        messages: [{ id: 'message-1' }],
+        messages: [],
       },
       steering_state: {
         mode: 'workflow_scoped' as const,
@@ -312,25 +378,36 @@ function createWorkspacePacket() {
       },
     },
     live_console: {
+      generated_at: '2026-03-28T03:00:00.000Z',
+      latest_event_id: 10,
+      snapshot_version: 'workflow-operations:10',
       next_cursor: 'cursor-1',
-      items: [{ item_id: 'item-1' }],
+      items: [],
     },
     history: {
-      groups: [{ id: 'group-1' }],
-      items: [{ id: 'history-1' }],
-      next_cursor: 'cursor-1',
-    },
-    deliverables: {
-      final_deliverables: [{ id: 'deliverable-1' }],
-      in_progress_deliverables: [{ id: 'deliverable-2' }],
-      working_handoffs: [{ id: 'handoff-1' }],
-      inputs_and_provenance: {
-        launch_packet: { id: 'packet-1' },
-        supplemental_packets: [{ id: 'packet-2' }],
-        intervention_attachments: [{ id: 'attachment-1' }],
-        redrive_packet: { id: 'packet-3' },
+      generated_at: '2026-03-28T03:00:00.000Z',
+      latest_event_id: 10,
+      snapshot_version: 'workflow-operations:10',
+      groups: [],
+      items: [],
+      filters: {
+        available: [],
+        active: [],
       },
       next_cursor: 'cursor-1',
     },
+    deliverables: {
+      final_deliverables: [],
+      in_progress_deliverables: [],
+      working_handoffs: [],
+      inputs_and_provenance: {
+        launch_packet: null,
+        supplemental_packets: [],
+        intervention_attachments: [],
+        redrive_packet: null,
+      },
+      next_cursor: 'cursor-1',
+    },
+    redrive_lineage: null,
   };
 }

@@ -420,8 +420,10 @@ function createPackets(): DashboardWorkflowInputPacketRecord[] {
         {
           id: 'file-1',
           file_name: 'rollback.md',
-          media_type: 'text/markdown',
-          byte_size: 512,
+          description: null,
+          content_type: 'text/markdown',
+          size_bytes: 512,
+          created_at: '2026-03-27T23:31:00.000Z',
           download_url: '/files/rollback.md',
         },
       ],

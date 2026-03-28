@@ -61,6 +61,7 @@ export function WorkflowNeedsAction(props: {
     if (!promptAction) {
       return;
     }
+    const promptMeta = buildPromptMeta(promptAction);
     if (!promptValue.trim()) {
       setPromptError(promptMeta.requiredMessage);
       return;

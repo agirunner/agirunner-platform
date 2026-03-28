@@ -42,7 +42,13 @@ export function WorkflowBoardTaskStack(props: {
                       ? 'grid gap-1 rounded-lg border border-amber-300 bg-amber-100/90 px-3 py-2 text-left text-sm dark:border-amber-500/60 dark:bg-amber-500/10'
                       : 'grid gap-1 rounded-lg border border-transparent px-3 py-2 text-left text-sm transition-colors hover:border-border/70 hover:bg-background/70'
                   }
-                  onClick={() => props.onSelectTask(task.id)}
+                  onClick={() => {
+                    const onSelectTask = props.onSelectTask;
+                    if (!onSelectTask) {
+                      return;
+                    }
+                    onSelectTask(task.id);
+                  }}
                 >
                   <span className="text-foreground">{task.title}</span>
                   <span className="text-xs text-muted-foreground">
