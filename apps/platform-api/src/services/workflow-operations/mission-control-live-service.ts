@@ -423,8 +423,8 @@ function readActivitySummary(workflow: WorkflowRow, signals: WorkflowSignalRow):
   if (signals.active_work_item_count === 0 && signals.active_task_count > 0) {
     return 'Orchestrator working';
   }
-  if (signals.active_task_count > 0) return `${signals.active_task_count} tasks in flight`;
-  if (signals.active_work_item_count > 0) return `${signals.active_work_item_count} work items in flight`;
+  if (signals.active_work_item_count > 0) return 'Active work is progressing';
+  if (signals.active_task_count > 0) return 'Workflow activity is progressing';
   return null;
 }
 

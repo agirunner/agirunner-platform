@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowHistoryService } from '../../src/services/workflow-operations/workflow-history-service.js';
 
 describe('WorkflowHistoryService', () => {
-  it('builds newest-first briefs packets from milestone briefs, interventions, and inputs without replaying live updates or duplicate deliverables', async () => {
+  it('builds newest-first briefs packets from milestone briefs, deliverables, interventions, and inputs without replaying live updates', async () => {
     const versionSource = {
       getHistory: vi.fn(async () => ({
         version: {
@@ -47,48 +47,7 @@ describe('WorkflowHistoryService', () => {
       ]),
     };
     const updateService = {
-      listUpdates: vi.fn(async () => [
-        {
-          id: 'update-1',
-          workflow_id: 'workflow-1',
-          work_item_id: null,
-          task_id: null,
-          request_id: 'request-update-1',
-          execution_context_id: 'execution-update-1',
-          source_kind: 'platform',
-          source_role_name: 'Platform',
-          update_kind: 'platform_notice',
-          headline: 'Activation resumed after gate decision',
-          summary: 'The orchestrator resumed after the review decision.',
-          linked_target_ids: ['workflow-1'],
-          visibility_mode: 'enhanced',
-          promoted_brief_id: null,
-          sequence_number: 5,
-          created_by_type: 'user',
-          created_by_id: 'user-1',
-          created_at: '2026-03-27T22:39:30.000Z',
-        },
-        {
-          id: 'turn-update-1',
-          workflow_id: 'workflow-1',
-          work_item_id: null,
-          task_id: null,
-          request_id: 'request-turn-update-1',
-          execution_context_id: 'execution-turn-update-1',
-          source_kind: 'specialist',
-          source_role_name: 'Verifier',
-          update_kind: 'turn_update',
-          headline: 'Verification is reviewing rollback handling',
-          summary: 'Validation is still running.',
-          linked_target_ids: ['workflow-1'],
-          visibility_mode: 'enhanced',
-          promoted_brief_id: null,
-          sequence_number: 6,
-          created_by_type: 'user',
-          created_by_id: 'user-1',
-          created_at: '2026-03-27T22:39:40.000Z',
-        },
-      ]),
+      listUpdates: vi.fn(async () => []),
     };
     const interventionService = {
       listWorkflowInterventions: vi.fn(async () => [
@@ -167,18 +126,6 @@ describe('WorkflowHistoryService', () => {
         },
       ]),
     };
-    const logService = {
-      listLogs: vi.fn(async () => ({
-        data: [],
-        pagination: {
-          per_page: 0,
-          has_more: false,
-          next_cursor: null,
-          prev_cursor: null,
-        },
-      })),
-    };
-
     const service = new WorkflowHistoryService(
       versionSource as never,
       briefService as never,
@@ -187,13 +134,13 @@ describe('WorkflowHistoryService', () => {
       inputPacketService as never,
       deliverableService as never,
     );
-    const result = await service.getHistory('tenant-1', 'workflow-1', { limit: 4 });
+    const result = await service.getHistory('tenant-1', 'workflow-1', { limit: 5 });
 
     expect(result.snapshot_version).toBe('workflow-operations:110');
     expect(result.groups).toEqual([
       expect.objectContaining({
         group_id: '2026-03-27',
-        item_ids: ['brief-1', 'intervention-1', 'packet-1', 'packet-2'],
+        item_ids: ['brief-1', 'intervention-1', 'packet-1', 'packet-2', 'deliverable-1'],
       }),
     ]);
     expect(result.items).toEqual([
@@ -219,10 +166,17 @@ describe('WorkflowHistoryService', () => {
         item_kind: 'redrive',
         headline: 'Retry with corrected inputs',
       }),
+      expect.objectContaining({
+        item_id: 'deliverable-1',
+        item_kind: 'deliverable',
+        headline: 'Release Notes',
+        source_kind: 'deliverable',
+        source_label: 'Deliverable',
+      }),
     ]);
     expect(result.next_cursor).toBeNull();
     expect(result.filters).toEqual({
-      available: ['briefs', 'interventions', 'inputs', 'redrives'],
+      available: ['briefs', 'deliverables', 'interventions', 'inputs', 'redrives'],
       active: [],
     });
   });
@@ -346,7 +300,10 @@ describe('WorkflowHistoryService', () => {
       taskId: 'task-4',
       limit: 500,
     });
-    expect(deliverableService.listDeliverables).not.toHaveBeenCalled();
+    expect(deliverableService.listDeliverables).toHaveBeenCalledWith('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-7',
+      limit: 500,
+    });
     expect(updateService.listUpdates).not.toHaveBeenCalled();
   });
 

@@ -216,12 +216,16 @@ export function WorkflowsPage(): JSX.Element {
   const hasMoreRailRows = Boolean(railPacket?.next_cursor) || (railPacket?.rows.length ?? 0) >= railLimit;
 
   useEffect(() => {
-    if (!railPacket || railPacket.rows.length === 0 || pageState.workflowId) {
+    if (!railPacket || pageState.workflowId) {
+      return;
+    }
+    const selectableRows = [...railPacket.rows, ...railPacket.ongoing_rows];
+    if (selectableRows.length === 0) {
       return;
     }
     const nextWorkflowId = resolveSelectedWorkflowId({
       currentWorkflowId: pageState.workflowId,
-      rows: railPacket.rows,
+      rows: selectableRows,
       selectedWorkflowId: railPacket.selected_workflow_id,
       storedWorkflowId: readStoredWorkflowId(),
     });
@@ -434,7 +438,7 @@ export function WorkflowsPage(): JSX.Element {
             </div>
           ) : (
             <EmptyWorkspaceState
-              hasWorkflows={(railPacket?.rows.length ?? 0) > 0}
+              hasWorkflows={((railPacket?.rows.length ?? 0) + (railPacket?.ongoing_rows.length ?? 0)) > 0}
               onCreateWorkflow={() => setIsLaunchOpen(true)}
             />
           )}

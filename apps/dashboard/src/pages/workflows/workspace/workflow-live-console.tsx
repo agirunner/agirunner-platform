@@ -10,6 +10,7 @@ const LIVE_EDGE_THRESHOLD_PX = 48;
 export function WorkflowLiveConsole(props: {
   packet: DashboardWorkflowLiveConsolePacket;
   selectedWorkItemId: string | null;
+  selectedTaskId: string | null;
   onLoadMore(): void;
 }): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -53,7 +54,11 @@ export function WorkflowLiveConsole(props: {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {props.selectedWorkItemId ? <Badge variant="outline">Scoped to selected work item</Badge> : null}
+          {props.selectedTaskId ? (
+            <Badge variant="outline">Scoped to selected task</Badge>
+          ) : props.selectedWorkItemId ? (
+            <Badge variant="outline">Scoped to selected work item</Badge>
+          ) : null}
           {hasQueuedUpdates ? (
             <Button
               type="button"

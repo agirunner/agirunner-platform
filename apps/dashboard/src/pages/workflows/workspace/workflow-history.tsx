@@ -10,6 +10,7 @@ export function WorkflowHistory(props: {
   workflowId: string;
   packet: DashboardWorkflowHistoryPacket;
   selectedWorkItemId?: string | null;
+  selectedTaskId?: string | null;
   onLoadMore(): void;
 }): JSX.Element {
   return (
@@ -19,6 +20,13 @@ export function WorkflowHistory(props: {
         <p className="text-sm text-muted-foreground">
           Durable milestone briefs, steering outcomes, and input lineage ordered newest first.
         </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {props.selectedTaskId ? (
+          <Badge variant="outline">Scoped to selected task</Badge>
+        ) : props.selectedWorkItemId ? (
+          <Badge variant="outline">Scoped to selected work item</Badge>
+        ) : null}
       </div>
 
       {props.packet.groups.length === 0 ? (

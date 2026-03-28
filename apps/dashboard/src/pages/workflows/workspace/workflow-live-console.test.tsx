@@ -24,6 +24,7 @@ describe('WorkflowLiveConsole', () => {
           },
         ]),
         selectedWorkItemId: null,
+        selectedTaskId: null,
         onLoadMore: vi.fn(),
       }),
     );
@@ -54,6 +55,7 @@ describe('WorkflowLiveConsole', () => {
           },
         ]),
         selectedWorkItemId: null,
+        selectedTaskId: null,
         onLoadMore: vi.fn(),
       }),
     );
@@ -68,6 +70,20 @@ describe('WorkflowLiveConsole', () => {
     expect(html).not.toContain('[brief]');
     expect(html).not.toContain('border-sky-500/20');
     expect(html).toContain('grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-start gap-x-2');
+  });
+
+  it('shows task scope explicitly when a task is selected', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowLiveConsole, {
+        packet: createPacket([]),
+        selectedWorkItemId: 'work-item-1',
+        selectedTaskId: 'task-1',
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Scoped to selected task');
+    expect(html).not.toContain('Scoped to selected work item');
   });
 });
 

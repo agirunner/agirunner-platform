@@ -149,6 +149,7 @@ export function WorkflowBottomWorkbench(props: {
           <WorkflowLiveConsole
             packet={props.packet.live_console}
             selectedWorkItemId={props.scopedWorkItemId}
+            selectedTaskId={props.selectedTaskId}
             onLoadMore={props.onLoadMoreActivity}
           />
         ) : null}
@@ -157,6 +158,7 @@ export function WorkflowBottomWorkbench(props: {
             workflowId={props.workflowId}
             packet={props.packet.history}
             selectedWorkItemId={props.scopedWorkItemId}
+            selectedTaskId={props.selectedTaskId}
             onLoadMore={props.onLoadMoreActivity}
           />
         ) : null}

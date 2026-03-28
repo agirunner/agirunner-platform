@@ -70,7 +70,7 @@ export class WorkflowHistoryService {
   ): Promise<WorkflowHistoryPacket> {
     const limit = input.limit ?? 100;
     const fetchWindow = resolveFetchWindow(limit);
-    const [version, briefs, interventions, inputPackets] = await Promise.all([
+    const [version, briefs, interventions, inputPackets, deliverables] = await Promise.all([
       this.versionSource.getHistory(tenantId, {
         workflowId,
         limit: 1,
@@ -82,10 +82,15 @@ export class WorkflowHistoryService {
       }),
       this.interventionSource.listWorkflowInterventions(tenantId, workflowId),
       this.inputPacketSource.listWorkflowInputPackets(tenantId, workflowId),
+      this.deliverableSource.listDeliverables(tenantId, workflowId, {
+        workItemId: input.workItemId,
+        limit: fetchWindow,
+      }),
     ]);
 
     const items = [
       ...briefs.map(toBriefHistoryItem),
+      ...deliverables.map(toDeliverableHistoryItem),
       ...filterByWorkItem(interventions, input.workItemId).map(toInterventionHistoryItem),
       ...filterInputPackets(inputPackets, input.workItemId).map(toInputHistoryItem),
     ]
@@ -102,7 +107,7 @@ export class WorkflowHistoryService {
       groups: buildGroups(page.items),
       items: page.items,
       filters: {
-        available: ['briefs', 'interventions', 'inputs', 'redrives'],
+        available: ['briefs', 'deliverables', 'interventions', 'inputs', 'redrives'],
         active: [],
       },
       next_cursor: page.nextCursor,
@@ -171,6 +176,27 @@ function toInterventionHistoryItem(intervention: WorkflowInterventionRecord): Wo
   };
 }
 
+function toDeliverableHistoryItem(deliverable: {
+  descriptor_id: string;
+  title: string;
+  summary_brief: string | null;
+  updated_at: string;
+  created_at: string;
+  workflow_id: string;
+  work_item_id: string | null;
+}): WorkflowHistoryItem {
+  return {
+    item_id: deliverable.descriptor_id,
+    item_kind: 'deliverable',
+    source_kind: 'deliverable',
+    source_label: 'Deliverable',
+    headline: deliverable.title,
+    summary: readOptionalString(deliverable.summary_brief) ?? deliverable.title,
+    created_at: deliverable.updated_at ?? deliverable.created_at,
+    linked_target_ids: buildLinkedTargetIds(deliverable),
+  };
+}
+
 function toInputHistoryItem(packet: WorkflowInputPacketRecord): WorkflowHistoryItem {
   const packetKind = readOptionalString(packet.packet_kind);
   return {
@@ -189,7 +215,8 @@ function buildLinkedTargetIds(
   record:
     | WorkflowOperatorBriefRecord
     | WorkflowInterventionRecord
-    | WorkflowInputPacketRecord,
+    | WorkflowInputPacketRecord
+    | { workflow_id: string; work_item_id: string | null; task_id?: string | null },
 ): string[] {
   const targets = [
     record.workflow_id,

@@ -1,4 +1,5 @@
 import type { MissionControlHistoryResponse } from './mission-control-types.js';
+import type { LogFilters, LogRow } from '../../logging/log-service.js';
 import type { WorkflowOperatorBriefRecord } from '../workflow-operator-brief-service.js';
 import type { WorkflowOperatorUpdateRecord } from '../workflow-operator-update-service.js';
 import {
@@ -11,6 +12,7 @@ import {
   paginateOrderedItems,
   resolveFetchWindow,
 } from './workflow-packet-cursors.js';
+import { buildExecutionTurnItems } from './workflow-execution-log-composer.js';
 
 interface VersionSource {
   getHistory(
@@ -42,12 +44,20 @@ interface VisibilityModeSource {
   ): Promise<{ effective_live_visibility_mode: 'standard' | 'enhanced' }>;
 }
 
+interface ExecutionLogSource {
+  query(
+    tenantId: string,
+    filters: LogFilters,
+  ): Promise<{ data: LogRow[] }>;
+}
+
 export class WorkflowLiveConsoleService {
   constructor(
     private readonly versionSource: VersionSource,
     private readonly briefSource: BriefSource,
     private readonly updateSource: UpdateSource,
     private readonly visibilityModeSource: VisibilityModeSource,
+    private readonly executionLogSource?: ExecutionLogSource,
   ) {}
 
   async getLiveConsole(
@@ -57,7 +67,7 @@ export class WorkflowLiveConsoleService {
   ): Promise<WorkflowLiveConsolePacket> {
     const limit = input.limit ?? 50;
     const fetchWindow = resolveFetchWindow(limit);
-    const [version, briefs, updates, workflowSettings] = await Promise.all([
+    const [version, briefs, updates, workflowSettings, executionTurns] = await Promise.all([
       this.versionSource.getHistory(tenantId, {
         workflowId,
         limit: 1,
@@ -73,9 +83,12 @@ export class WorkflowLiveConsoleService {
         limit: fetchWindow,
       }),
       this.visibilityModeSource.getWorkflowSettings(tenantId, workflowId),
+      this.listExecutionTurns(tenantId, workflowId, fetchWindow, input),
     ]);
 
-    const items = [...updates.map(toUpdateItem), ...briefs.map(toBriefItem)].sort(sortNewestFirst);
+    const items = [...executionTurns, ...updates.map(toUpdateItem), ...briefs.map(toBriefItem)].sort(
+      sortNewestFirst,
+    );
     const page = paginateOrderedItems(items, limit, input.after, (item) => ({
       timestamp: item.created_at,
       id: item.item_id,
@@ -90,6 +103,26 @@ export class WorkflowLiveConsoleService {
       live_visibility_mode:
         workflowSettings.effective_live_visibility_mode ?? deriveVisibilityModeFromUpdates(updates),
     };
+  }
+
+  private async listExecutionTurns(
+    tenantId: string,
+    workflowId: string,
+    limit: number,
+    input: { workItemId?: string; taskId?: string },
+  ): Promise<WorkflowLiveConsoleItem[]> {
+    if (!this.executionLogSource) {
+      return [];
+    }
+    const page = await this.executionLogSource.query(tenantId, {
+      workflowId,
+      workItemId: input.workItemId,
+      taskId: input.taskId,
+      category: ['agent_loop'],
+      perPage: limit,
+      order: 'desc',
+    });
+    return buildExecutionTurnItems(page.data);
   }
 }
 
