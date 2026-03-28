@@ -74,14 +74,20 @@
   },
   "explicit_only": {
     "name": "supported_but_explicit_only_live_scenarios",
-    "total": 2,
+    "total": 7,
     "notes": [
       "These scenarios are supported but intentionally excluded from the default batch corpus.",
-      "Run them only with `bash tests/live/run.sh --scenario <name>` so they do not lengthen or destabilize the main tracker campaign."
+      "Run them only with `bash tests/live/run.sh --scenario <name>` so they do not lengthen or destabilize the main tracker campaign.",
+      "The `workflows-*` entries are Workflows UI observation seeds and should be paired with headed dashboard evidence capture."
     ],
     "scenarios": [
       "remote-mcp-oauth-client-credentials",
-      "remote-mcp-parameterized-fixture"
+      "remote-mcp-parameterized-fixture",
+      "workflows-planned-terminal-brief",
+      "workflows-ongoing-intake-live",
+      "workflows-needs-action-live",
+      "workflows-steering-live",
+      "workflows-redrive-live"
     ]
   },
   "unsupported_future_design": {

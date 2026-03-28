@@ -1,0 +1,49 @@
+{
+  "name": "workflows-needs-action-live",
+  "profile": "requirements-human-review-blocked",
+  "workflow": {
+    "name": "Workflows Needs Action Live",
+    "goal": "Seed a workflow that blocks at human review so the Workflows Needs Action and approval/escalation surfaces can be observed live.",
+    "parameters": {
+      "human_review_contract": "Block the first review-ready packet and do not allow successor packaging to start."
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "existing_context": "Budget-conscious operators need concise rollout guidance."
+    },
+    "spec": {
+      "documents": {
+        "budget-notes": {
+          "source": "external",
+          "url": "https://example.test/budgets"
+        }
+      }
+    }
+  },
+  "approvals": [
+    {
+      "match": {
+        "stage_name": "approval-gate"
+      },
+      "action": "block"
+    }
+  ],
+  "actions": [],
+  "expect": {
+    "state": "active",
+    "outcome_envelope": {
+      "allowed_states": [
+        "active"
+      ],
+      "require_output_artifacts": true,
+      "require_completed_non_orchestrator_tasks": true,
+      "require_terminal_work_items": true,
+      "require_db_state": true,
+      "require_runtime_cleanup": true,
+      "require_fatal_log_free": true
+    }
+  },
+  "coverage": {}
+}

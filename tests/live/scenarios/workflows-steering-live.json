@@ -1,0 +1,46 @@
+{
+  "name": "workflows-steering-live",
+  "profile": "ongoing-intake-assessment",
+  "workflow": {
+    "name": "Workflows Steering Live",
+    "goal": "Seed an active ongoing workflow that operators can use for manual Workflows steering, add-work, pause/resume, and input-packet observation while the harness verifies clean settlement.",
+    "parameters": {
+      "intake_contract": "Keep enough ongoing intake work active for manual steering observation before the workflow settles back to pending."
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "program": "workflows steering observation"
+    },
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [
+    {
+      "type": "create_work_items",
+      "dispatch": "serial",
+      "count": 3,
+      "title_template": "workflows-steering-{index:02d}",
+      "request_id_template": "workflows-steering-{index:02d}",
+      "goal_template": "Keep manual steering observation item {index:02d} active long enough for Workflows UI capture.",
+      "acceptance_criteria_template": "Publish a triage packet and leave enough activity for steering observation item {index:02d}.",
+      "notes_template": "Observation item {index:02d} exists so operators can manually test Workflows steering and add-work flows during a live run."
+    }
+  ],
+  "expect": {
+    "state": "pending",
+    "outcome_envelope": {
+      "allowed_states": [
+        "pending"
+      ],
+      "require_output_artifacts": true,
+      "require_completed_non_orchestrator_tasks": true,
+      "require_terminal_work_items": true,
+      "require_db_state": true,
+      "require_runtime_cleanup": true,
+      "require_fatal_log_free": true
+    }
+  },
+  "coverage": {}
+}

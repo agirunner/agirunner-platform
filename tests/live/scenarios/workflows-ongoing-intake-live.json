@@ -1,0 +1,46 @@
+{
+  "name": "workflows-ongoing-intake-live",
+  "profile": "ongoing-intake-assessment",
+  "workflow": {
+    "name": "Workflows Ongoing Intake Live",
+    "goal": "Seed an ongoing intake workflow with enough active and reworked work to exercise the Workflows rail, board, history, and live-console surfaces during observation.",
+    "parameters": {
+      "intake_contract": "At least one intake item should request changes before a corrected resubmission is approved so the Workflows board and history remain interesting during capture."
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "program": "ongoing intake"
+    },
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [
+    {
+      "type": "create_work_items",
+      "dispatch": "serial",
+      "count": 2,
+      "title_template": "workflows-intake-{index:02d}",
+      "request_id_template": "workflows-intake-{index:02d}",
+      "goal_template": "Keep the ongoing Workflows observation corpus active for intake item {index:02d}.",
+      "acceptance_criteria_template": "Produce a triage packet with summary, controls, owner handoff, and next action for item {index:02d}.",
+      "notes_template": "Observation item {index:02d} should keep the workflow active long enough for Workflows UI evidence capture."
+    }
+  ],
+  "expect": {
+    "state": "pending",
+    "outcome_envelope": {
+      "allowed_states": [
+        "pending"
+      ],
+      "require_output_artifacts": true,
+      "require_completed_non_orchestrator_tasks": true,
+      "require_terminal_work_items": true,
+      "require_db_state": true,
+      "require_runtime_cleanup": true,
+      "require_fatal_log_free": true
+    }
+  },
+  "coverage": {}
+}

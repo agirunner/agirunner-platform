@@ -1,0 +1,49 @@
+{
+  "name": "workflows-planned-terminal-brief",
+  "profile": "artifact-memory-publishing",
+  "workflow": {
+    "name": "Workflows Planned Terminal Brief",
+    "goal": "Seed a planned workflow that reaches a published terminal brief and deliverables packet for Workflows UI evidence capture.",
+    "parameters": {
+      "publication_contract": "The fact-check assessment approves, then the human gate approves the assessed packet before publication editing begins so the Workflows deliverables surface has a stable final brief to review."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {
+      "content_state": "drafting"
+    },
+    "spec": {
+      "documents": {
+        "style-guide": {
+          "source": "external",
+          "url": "https://example.test/style-guide"
+        }
+      }
+    }
+  },
+  "approvals": [
+    {
+      "match": {
+        "stage_name": "operator-approval"
+      },
+      "action": "approve"
+    }
+  ],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "outcome_envelope": {
+      "allowed_states": [
+        "completed"
+      ],
+      "require_output_artifacts": true,
+      "require_completed_non_orchestrator_tasks": true,
+      "require_terminal_work_items": true,
+      "require_db_state": true,
+      "require_runtime_cleanup": true,
+      "require_fatal_log_free": true
+    }
+  },
+  "coverage": {}
+}

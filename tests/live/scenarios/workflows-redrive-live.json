@@ -1,0 +1,42 @@
+{
+  "name": "workflows-redrive-live",
+  "profile": "requirements-human-review-reject",
+  "workflow": {
+    "name": "Workflows Redrive Live",
+    "goal": "Seed a workflow that rejects at human review so operators have a live precursor for manual Workflows redrive observation and lineage checks.",
+    "parameters": {
+      "human_review_contract": "Reject the packet and escalate for operator intervention."
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "existing_context": "The launch packet touches a regulated rollout."
+    },
+    "spec": {}
+  },
+  "approvals": [
+    {
+      "match": {
+        "stage_name": "approval-gate"
+      },
+      "action": "reject"
+    }
+  ],
+  "actions": [],
+  "expect": {
+    "state": "active",
+    "outcome_envelope": {
+      "allowed_states": [
+        "active"
+      ],
+      "require_output_artifacts": true,
+      "require_completed_non_orchestrator_tasks": true,
+      "require_terminal_work_items": true,
+      "require_db_state": true,
+      "require_runtime_cleanup": true,
+      "require_fatal_log_free": true
+    }
+  },
+  "coverage": {}
+}

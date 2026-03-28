@@ -47,6 +47,29 @@ Internal harness implementation files remain under:
 - `scripts/run-live-scenario-batch.sh`
 - `scripts/run-multi-orchestrator-concurrent-assessment-workflows-live-test.sh`
 
+## Workflows Observation Scenarios
+
+The Workflows dashboard observation slice currently adds five explicit-only scenario seeds:
+
+- `workflows-planned-terminal-brief`
+- `workflows-ongoing-intake-live`
+- `workflows-needs-action-live`
+- `workflows-steering-live`
+- `workflows-redrive-live`
+
+These are observation-oriented seeds for the Workflows UI campaign, not part of the default tracker batch yet.
+Run them one at a time with explicit `--scenario` invocations while capturing Workflows UI evidence.
+
+`workflows-steering-live` and `workflows-redrive-live` are currently meant to provide truthful live precursor state for manual operator observation during a headed dashboard pass.
+The shared helper in [workflows_ui_evidence.py](/home/mark/codex/agirunner-platform/tests/live/lib/workflows_ui_evidence.py) summarizes runner exit code, output presence, DB evidence, runtime cleanup, fatal logs, and optional deliverables provenance payloads from the resulting run artifact.
+
+Helper verification command:
+
+```bash
+cd /home/mark/codex/agirunner-platform
+python3 tests/live/tests/workflows_ui_evidence_test.py
+```
+
 ## Prerequisites
 
 - Run from the canonical repo on `main`:
@@ -247,6 +270,7 @@ Run the full supported corpus in tracker order:
 
 `bash tests/live/run.sh` runs the full supported corpus in tracker order.
 That default corpus excludes `remote-mcp-oauth-client-credentials` and `remote-mcp-parameterized-fixture`.
+It also excludes the `workflows-*` observation scenarios.
 Run those only with explicit `--scenario` invocations.
 
 Run with explicit concurrency:
