@@ -40,6 +40,42 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).not.toContain('Details, actions, steering, live updates, history, and deliverables stay in one place.');
     expect(html).not.toContain('Workspace</p>');
   });
+
+  it('keeps task scope visible in details while the selected records are still loading', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBottomWorkbench, {
+        workflowId: 'workflow-1',
+        workflow: createPacket().workflow,
+        stickyStrip: createPacket().sticky_strip,
+        board: createPacket().board,
+        workflowName: 'Workflow 1',
+        packet: createPacket(),
+        activeTab: 'details',
+        selectedWorkItemId: 'work-item-7',
+        scopedWorkItemId: 'work-item-7',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: 'task-3',
+        selectedTaskTitle: 'Verify deliverable',
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [],
+        inputPackets: [],
+        workflowParameters: null,
+        onTabChange: vi.fn(),
+        onClearWorkItemScope: vi.fn(),
+        onClearTaskScope: vi.fn(),
+        onOpenAddWork: vi.fn(),
+        onOpenRedrive: vi.fn(),
+        onLoadMoreActivity: vi.fn(),
+        onLoadMoreDeliverables: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Task');
+    expect(html).toContain('Verify deliverable');
+    expect(html).toContain('Prepare release bundle');
+    expect(html).not.toContain('Workflow 1</h3>');
+  });
 });
 
 function createPacket(): DashboardWorkflowWorkspacePacket {

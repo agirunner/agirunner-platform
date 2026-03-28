@@ -118,6 +118,10 @@ export function WorkflowBottomWorkbench(props: {
             workflow={props.workflow}
             stickyStrip={props.stickyStrip}
             board={props.board}
+            selectedWorkItemId={props.selectedWorkItemId}
+            selectedWorkItemTitle={props.selectedWorkItemTitle}
+            selectedTaskId={props.selectedTaskId}
+            selectedTaskTitle={props.selectedTaskTitle}
             selectedWorkItem={props.selectedWorkItem}
             selectedTask={props.selectedTask}
             selectedWorkItemTasks={props.selectedWorkItemTasks}
@@ -125,7 +129,7 @@ export function WorkflowBottomWorkbench(props: {
             workflowParameters={props.workflowParameters}
           />
         ) : null}
-        {props.activeTab === 'needs_action' ? (
+        {props.activeTab === 'needs_action' && props.workflow ? (
           <WorkflowNeedsAction
             workflowId={props.workflowId}
             workspaceId={props.workflow.workspaceId}

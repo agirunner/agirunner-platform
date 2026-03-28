@@ -174,7 +174,7 @@ function createTask(): DashboardTaskRecord {
     role_config: {},
     environment: {},
     resource_bindings: [],
-    input: null,
+    input: {},
     output: {
       artifact_id: 'artifact-1',
       path: 'artifacts/release-bundle.zip',

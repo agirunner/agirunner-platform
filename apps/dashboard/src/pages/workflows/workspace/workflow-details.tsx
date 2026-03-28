@@ -13,6 +13,10 @@ export function WorkflowDetails(props: {
   workflow: DashboardMissionControlWorkflowCard;
   stickyStrip: DashboardWorkflowStickyStrip | null;
   board: DashboardWorkflowBoardResponse | null;
+  selectedWorkItemId: string | null;
+  selectedWorkItemTitle: string | null;
+  selectedTaskId: string | null;
+  selectedTaskTitle: string | null;
   selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
   selectedTask: DashboardTaskRecord | null;
   selectedWorkItemTasks: Record<string, unknown>[];
@@ -90,12 +94,7 @@ export function WorkflowDetails(props: {
       </div>
 
       <div className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4">
-        <div className="grid gap-1">
-          <p className="text-sm font-semibold text-foreground">Inputs</p>
-          <p className="text-sm text-muted-foreground">
-            Workflow, work-item, and task inputs used for the current selection.
-          </p>
-        </div>
+        <p className="text-sm font-semibold text-foreground">Inputs</p>
 
         {workflowPackets.length === 0 && workItemPackets.length === 0 && !hasTaskInput && !hasStructuredContent(props.workflowParameters) ? (
           <p className="text-sm text-muted-foreground">
@@ -104,16 +103,16 @@ export function WorkflowDetails(props: {
         ) : (
           <div className="grid gap-4">
             {hasStructuredContent(props.workflowParameters) ? (
-              <StructuredBlock label="Workflow parameters" value={props.workflowParameters} />
+              <StructuredBlock label="Parameters" value={props.workflowParameters} />
             ) : null}
             {workflowPackets.length > 0 ? (
-              <PacketSection label="Workflow inputs" packets={workflowPackets} />
+              <PacketSection label="Workflow packets" packets={workflowPackets} />
             ) : null}
             {workItemPackets.length > 0 ? (
-              <PacketSection label="Work item inputs" packets={workItemPackets} />
+              <PacketSection label="Work item packets" packets={workItemPackets} />
             ) : null}
             {hasTaskInput ? (
-              <StructuredBlock label="Task input" value={props.selectedTask?.input ?? null} />
+              <StructuredBlock label="Task payload" value={props.selectedTask?.input ?? null} />
             ) : null}
           </div>
         )}
@@ -140,7 +139,7 @@ function PacketSection(props: {
               <Badge variant="secondary">{humanizeToken(packet.source)}</Badge>
             </div>
             {hasStructuredContent(packet.structured_inputs) ? (
-              <StructuredBlock label="Fields" value={packet.structured_inputs} compact />
+              <StructuredBlock value={packet.structured_inputs} compact />
             ) : null}
             {packet.files.length > 0 ? (
               <div className="flex flex-wrap gap-2">
@@ -172,7 +171,7 @@ function PacketFileLink(props: {
 }
 
 function StructuredBlock(props: {
-  label: string;
+  label?: string;
   value: unknown;
   compact?: boolean;
 }): JSX.Element {
@@ -184,9 +183,11 @@ function StructuredBlock(props: {
 
   return (
     <div className="grid gap-2">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-        {props.label}
-      </p>
+      {props.label ? (
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          {props.label}
+        </p>
+      ) : null}
       {entries.length > 0 ? (
         <dl className="divide-y divide-border/60 rounded-xl border border-border/70 bg-background/70">
           {entries.map(([label, value]) => (
@@ -219,6 +220,10 @@ function buildDetailsScope(props: {
   workflow: DashboardMissionControlWorkflowCard;
   stickyStrip: DashboardWorkflowStickyStrip | null;
   board: DashboardWorkflowBoardResponse | null;
+  selectedWorkItemId: string | null;
+  selectedWorkItemTitle: string | null;
+  selectedTaskId: string | null;
+  selectedTaskTitle: string | null;
   selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
   selectedTask: DashboardTaskRecord | null;
   selectedWorkItemTasks: Record<string, unknown>[];
@@ -231,49 +236,63 @@ function buildDetailsScope(props: {
   rows: Array<[string, string]>;
   related_tasks: Array<{ id: string; title: string; role: string | null; state: string | null; is_selected: boolean }>;
 } {
-  if (props.selectedTask) {
+  if (props.selectedTask || props.selectedTaskId) {
     return {
       scope_label: 'Task',
-      title: props.selectedTask.title,
-      summary: readOptionalText(props.selectedTask.description),
+      title:
+        props.selectedTask?.title
+        ?? props.selectedTaskTitle
+        ?? props.selectedTaskId
+        ?? 'Selected task',
+      summary: readOptionalText(props.selectedTask?.description),
       badges: [
-        props.selectedTask.role ? humanizeToken(props.selectedTask.role) : null,
-        humanizeToken(props.selectedTask.state),
+        props.selectedTask?.role ? humanizeToken(props.selectedTask.role) : null,
+        humanizeToken(props.selectedTask?.state ?? ''),
       ].filter((value): value is string => Boolean(value)),
       callout: null,
       rows: compactRows([
-        ['Workflow', props.workflow.name],
-        ['Work item', props.selectedTask.work_item_title ?? props.selectedTask.work_item_id ?? null],
-        ['Stage', props.selectedTask.stage_name ? humanizeToken(props.selectedTask.stage_name) : null],
-        ['Role', props.selectedTask.role ? humanizeToken(props.selectedTask.role) : null],
-        ['Status', humanizeToken(props.selectedTask.state)],
+        [
+          'Work item',
+          props.selectedTask?.work_item_title
+          ?? props.selectedWorkItemTitle
+          ?? props.selectedTask?.work_item_id
+          ?? props.selectedWorkItemId,
+        ],
+        ['Stage', props.selectedTask?.stage_name ? humanizeToken(props.selectedTask.stage_name) : null],
       ]),
-      related_tasks: buildRelatedTasks(props.selectedWorkItemTasks, props.selectedTask.id),
+      related_tasks: buildRelatedTasks(
+        props.selectedWorkItemTasks,
+        props.selectedTask?.id ?? props.selectedTaskId,
+      ),
     };
   }
 
-  if (props.selectedWorkItem) {
+  if (props.selectedWorkItem || props.selectedWorkItemId) {
     return {
       scope_label: 'Work item',
-      title: props.selectedWorkItem.title,
+      title:
+        props.selectedWorkItem?.title
+        ?? props.selectedWorkItemTitle
+        ?? props.selectedWorkItemId
+        ?? 'Selected work item',
       summary:
-        readOptionalText(props.selectedWorkItem.acceptance_criteria) ??
-        readOptionalText(props.selectedWorkItem.goal) ??
-        readOptionalText(props.selectedWorkItem.notes),
+        readOptionalText(props.selectedWorkItem?.acceptance_criteria) ??
+        readOptionalText(props.selectedWorkItem?.goal) ??
+        readOptionalText(props.selectedWorkItem?.notes),
       badges: [
-        props.selectedWorkItem.stage_name ? humanizeToken(props.selectedWorkItem.stage_name) : null,
-        readColumnLabel(props.board, props.selectedWorkItem.column_id),
-        shouldShowPriorityBadge(props.selectedWorkItem.priority)
-          ? humanizeToken(props.selectedWorkItem.priority)
+        props.selectedWorkItem?.stage_name ? humanizeToken(props.selectedWorkItem.stage_name) : null,
+        readColumnLabel(props.board, props.selectedWorkItem?.column_id),
+        shouldShowPriorityBadge(props.selectedWorkItem?.priority)
+          ? humanizeToken(props.selectedWorkItem?.priority ?? '')
           : null,
       ].filter((value): value is string => Boolean(value)),
       callout:
-        readOptionalText(props.selectedWorkItem.blocked_reason) ??
-        readOptionalText(props.selectedWorkItem.gate_decision_feedback),
+        readOptionalText(props.selectedWorkItem?.blocked_reason) ??
+        readOptionalText(props.selectedWorkItem?.gate_decision_feedback),
       rows: compactRows([
         ['Workflow', props.workflow.name],
-        ['Stage', props.selectedWorkItem.stage_name ? humanizeToken(props.selectedWorkItem.stage_name) : null],
-        ['Lane', readColumnLabel(props.board, props.selectedWorkItem.column_id)],
+        ['Stage', props.selectedWorkItem?.stage_name ? humanizeToken(props.selectedWorkItem.stage_name) : null],
+        ['Lane', readColumnLabel(props.board, props.selectedWorkItem?.column_id)],
       ]),
       related_tasks: buildRelatedTasks(props.selectedWorkItemTasks, null),
     };

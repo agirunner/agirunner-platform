@@ -19,6 +19,10 @@ describe('WorkflowDetails', () => {
         workflow: createWorkflow(),
         stickyStrip: createStickyStrip(),
         board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: 'task-1',
+        selectedTaskTitle: 'Verify deliverable',
         selectedWorkItem: createWorkItem(),
         selectedTask: createTask(),
         selectedWorkItemTasks: [
@@ -39,12 +43,14 @@ describe('WorkflowDetails', () => {
 
     expect(html).toContain('Task');
     expect(html).toContain('Verify deliverable');
-    expect(html).toContain('Workflow inputs');
-    expect(html).toContain('Workflow parameters');
-    expect(html).toContain('Work item inputs');
-    expect(html).toContain('Task input');
+    expect(html).toContain('Parameters');
+    expect(html).toContain('Workflow packets');
+    expect(html).toContain('Work item packets');
+    expect(html).toContain('Task payload');
     expect(html).toContain('Rollback guide');
     expect(html).toContain('release/2026.03');
+    expect(html).not.toContain('Workflow, work-item, and task inputs used for the current selection.');
+    expect(html).not.toContain('Fields');
     expect(html).not.toContain('Owner role');
     expect(html).not.toContain('Next expected actor');
     expect(html).not.toContain('Next expected action');

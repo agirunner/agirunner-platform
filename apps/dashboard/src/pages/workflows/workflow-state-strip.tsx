@@ -122,27 +122,31 @@ function HeaderCard(props: {
   detail: string;
   onClick?(): void;
 }): JSX.Element {
-  const content = (
-    <div className="grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-2.5 text-left">
-      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-        {props.title}
-      </p>
-      <p className="text-sm font-semibold leading-5 text-foreground">{props.value}</p>
-      <p className="text-[11px] leading-4 text-muted-foreground">{props.detail}</p>
-    </div>
-  );
+  const className = 'grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-2.5 text-left';
 
   if (!props.onClick) {
-    return content;
+    return (
+      <div className={className}>
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+          {props.title}
+        </p>
+        <p className="text-sm font-semibold leading-5 text-foreground">{props.value}</p>
+        <p className="text-[11px] leading-4 text-muted-foreground">{props.detail}</p>
+      </div>
+    );
   }
 
   return (
     <button
       type="button"
-      className="rounded-2xl transition-colors hover:bg-muted/20"
+      className={`${className} transition-colors hover:bg-muted/20`}
       onClick={props.onClick}
     >
-      {content}
+      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+        {props.title}
+      </p>
+      <p className="text-sm font-semibold leading-5 text-foreground">{props.value}</p>
+      <p className="text-[11px] leading-4 text-muted-foreground">{props.detail}</p>
     </button>
   );
 }

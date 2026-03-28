@@ -18,7 +18,7 @@ export function WorkflowHistory(props: {
       <div className="grid gap-1">
         <p className="text-sm font-semibold text-foreground">Briefs</p>
         <p className="text-sm text-muted-foreground">
-          Durable milestone briefs, steering outcomes, and input lineage ordered newest first.
+          Milestone briefs, steering outcomes, and durable workflow updates ordered newest first.
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -103,7 +103,7 @@ function HistoryItemCard(props: {
               tab: 'history',
             })}
           >
-            Open linked work item
+            Open brief scope
           </Link>
         </div>
       ) : null}
