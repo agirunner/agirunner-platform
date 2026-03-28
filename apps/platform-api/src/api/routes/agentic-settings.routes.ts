@@ -5,9 +5,18 @@ import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
 
 const agenticSettingsPatchSchema = z.object({
-  live_visibility_mode_default: z.enum(['standard', 'enhanced']),
+  live_visibility_mode_default: z.enum(['standard', 'enhanced']).optional(),
+  assembled_prompt_warning_threshold_chars: z.number().int().min(1).optional(),
   settings_revision: z.number().int().min(0),
-});
+}).refine(
+  (value) =>
+    value.live_visibility_mode_default !== undefined
+    || value.assembled_prompt_warning_threshold_chars !== undefined,
+  {
+    message: 'At least one agentic setting must be provided',
+    path: ['live_visibility_mode_default'],
+  },
+);
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
@@ -33,6 +42,7 @@ export const agenticSettingsRoutes: FastifyPluginAsync = async (app) => {
       return {
         data: await app.agenticSettingsService.updateSettings(request.auth!, {
           liveVisibilityModeDefault: body.live_visibility_mode_default,
+          assembledPromptWarningThresholdChars: body.assembled_prompt_warning_threshold_chars,
           settingsRevision: body.settings_revision,
         }),
       };

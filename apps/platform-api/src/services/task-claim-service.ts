@@ -78,6 +78,7 @@ const CLAIM_CREDENTIAL_HANDLE_VERSION = 'v1';
 const CLAIM_CREDENTIAL_HANDLE_ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 const CLAIM_CREDENTIAL_HANDLE_IV_LENGTH_BYTES = 12;
 const gitTokenCredentialKeys = ['token', 'git_token', 'access_token', 'token_ref', 'git_token_ref', 'access_token_ref', 'secret_ref'];
+const DEFAULT_ASSEMBLED_PROMPT_WARNING_THRESHOLD_CHARS = 32_000;
 const gitSSHPrivateKeyCredentialKeys = [
   'git_ssh_private_key',
   'ssh_private_key',
@@ -633,7 +634,15 @@ export class TaskClaimService {
       const layers = (instructionContext.instruction_layers ?? {}) as Record<string, unknown>;
       const executionBrief = (instructionContext.execution_brief ?? null) as Record<string, unknown> | null;
       const runtimeCapabilities = buildRuntimeTaskCapabilities(runtimeReadyTask, instructionContext);
-      const mergedBase = mergeSystemPrompt(claimedTaskBase, layers);
+      const assembledSystemPrompt = flattenInstructionLayers(layers);
+      const mergedBase = mergeSystemPrompt(claimedTaskBase, assembledSystemPrompt);
+      await logAssembledPromptWarningIfNeeded(this.deps.logService, {
+        tenantId: identity.tenantId,
+        executor: client,
+        task: runtimeReadyTask,
+        prompt: assembledSystemPrompt,
+        warningThresholdChars: readAssembledPromptWarningThreshold(instructionContext),
+      });
       const executionBackend = readTaskExecutionBackend(runtimeReadyTask);
       const toolOwners = buildToolOwnerContract(mergedBase);
       if ((payload.include_context ?? true) === false) {
@@ -1415,16 +1424,50 @@ function isCompleteTaskModelOverrideSelection(
 
 function mergeSystemPrompt(
   taskResponse: Record<string, unknown>,
-  instructionLayers: Record<string, unknown>,
+  flattenedPrompt: string,
 ): Record<string, unknown> {
-  const flattened = flattenInstructionLayers(instructionLayers);
-  if (!flattened) return taskResponse;
+  if (!flattenedPrompt) return taskResponse;
 
   const existing = (taskResponse.role_config ?? {}) as Record<string, unknown>;
   return {
     ...taskResponse,
-    role_config: { ...existing, system_prompt: flattened },
+    role_config: { ...existing, system_prompt: flattenedPrompt },
   };
+}
+
+function readAssembledPromptWarningThreshold(context: Record<string, unknown>): number {
+  const agenticSettings = isRecord(context.agentic_settings) ? context.agentic_settings : {};
+  const value = agenticSettings.assembled_prompt_warning_threshold_chars;
+  return typeof value === 'number' && Number.isInteger(value) && value > 0
+    ? value
+    : DEFAULT_ASSEMBLED_PROMPT_WARNING_THRESHOLD_CHARS;
+}
+
+async function logAssembledPromptWarningIfNeeded(
+  logService: LogService | undefined,
+  input: {
+    tenantId: string;
+    executor: DatabaseClient;
+    task: Record<string, unknown>;
+    prompt: string;
+    warningThresholdChars: number;
+  },
+): Promise<void> {
+  if (input.prompt.length <= input.warningThresholdChars) {
+    return;
+  }
+
+  await logTaskGovernanceTransition(logService, {
+    tenantId: input.tenantId,
+    level: 'warn',
+    operation: 'task.execution_context_prompt_warning',
+    executor: input.executor,
+    task: input.task,
+    payload: {
+      assembled_prompt_length_chars: input.prompt.length,
+      warning_threshold_chars: input.warningThresholdChars,
+    },
+  });
 }
 
 function buildResolvedTaskExecutionEnvironment(

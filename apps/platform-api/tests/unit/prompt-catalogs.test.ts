@@ -4,6 +4,7 @@ import {
   DEFAULT_ORCHESTRATOR_PROMPT,
   DEFAULT_PLATFORM_INSTRUCTIONS,
 } from '../../src/catalogs/default-prompts.js';
+import { normalizeInstructionDocument } from '../../src/services/instruction-policy.js';
 
 describe('prompt catalogs', () => {
   it('keeps platform instructions aligned with escalation and memory discipline', () => {
@@ -331,8 +332,14 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).not.toContain('approval_before_assessment');
   });
 
-  it('keeps the shared prompts bounded for routine execution', () => {
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(7000);
-    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(10000);
+  it('accepts the shared prompts through instruction validation without size ceilings', () => {
+    expect(normalizeInstructionDocument(DEFAULT_PLATFORM_INSTRUCTIONS, 'platform instructions')).toEqual({
+      content: DEFAULT_PLATFORM_INSTRUCTIONS.trim(),
+      format: 'text',
+    });
+    expect(normalizeInstructionDocument(DEFAULT_ORCHESTRATOR_PROMPT, 'orchestrator prompt')).toEqual({
+      content: DEFAULT_ORCHESTRATOR_PROMPT.trim(),
+      format: 'text',
+    });
   });
 });

@@ -199,6 +199,7 @@ describe('buildTaskContext active stage semantics', () => {
             rowCount: 1,
             rows: [{
               live_visibility_mode_default: 'enhanced',
+              assembled_prompt_warning_threshold_chars: 32000,
               revision: 2,
             }],
           };
@@ -230,6 +231,9 @@ describe('buildTaskContext active stage semantics', () => {
         operator_brief_request_id_prefix: 'operator-brief:activation-live:',
       }),
     );
+    expect((context as Record<string, any>).agentic_settings).toEqual({
+      assembled_prompt_warning_threshold_chars: 32000,
+    });
   });
 
   it('anchors orchestrator live visibility scope to the activation event work item', async () => {

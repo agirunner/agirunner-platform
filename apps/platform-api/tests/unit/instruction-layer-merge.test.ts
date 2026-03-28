@@ -117,6 +117,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     taskRow?: Record<string, unknown>;
     agentRow?: Record<string, unknown>;
     instructionLayers?: Record<string, unknown>;
+    taskContext?: Record<string, unknown>;
     resolvedRole?: Record<string, unknown> | null;
   } = {}) {
     const taskRow = overrides.taskRow ?? {
@@ -210,6 +211,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     const getTaskContext = vi.fn().mockResolvedValue({
       instructions: 'flat instructions',
       instruction_layers: instructionLayers,
+      ...(overrides.taskContext ?? {}),
     });
 
     const resolveRoleConfig = overrides.resolvedRole === undefined
@@ -249,6 +251,44 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     expect(roleConfig.system_prompt).toContain('Use TypeScript');
     expect(roleConfig.system_prompt).toContain('=== Role Instructions ===');
     expect(roleConfig.system_prompt).toContain('You are a coder');
+  });
+
+  it('warns once at startup when the assembled prompt exceeds the tenant threshold', async () => {
+    const logService = {
+      insert: vi.fn().mockResolvedValue(undefined),
+      insertWithExecutor: vi.fn().mockResolvedValue(undefined),
+    };
+    const deps = buildMockDeps({
+      instructionLayers: {
+        platform: { content: 'Platform prompt section', format: 'text' },
+        role: { content: 'Role prompt section', format: 'text' },
+      },
+      taskContext: {
+        agentic_settings: {
+          assembled_prompt_warning_threshold_chars: 10,
+        },
+      },
+    });
+
+    const service = new TaskClaimService({
+      ...deps,
+      logService: logService as never,
+    } as never);
+    await service.claimTask(
+      { tenantId: 'tenant-1', scope: 'agent', keyPrefix: 'ab_test' } as never,
+      { agent_id: 'agent-1', routing_tags: ['role:coder'] },
+    );
+
+    const warningEntries = logService.insertWithExecutor.mock.calls
+      .map((call) => call[1] as Record<string, unknown>)
+      .filter((entry) => entry.operation === 'task.execution_context_prompt_warning');
+    expect(warningEntries).toHaveLength(1);
+    expect(warningEntries[0]).toMatchObject({
+      level: 'warn',
+      payload: {
+        warning_threshold_chars: 10,
+      },
+    });
   });
 
   it('preserves LLM credential metadata alongside system_prompt without serializing plaintext claim secrets', async () => {

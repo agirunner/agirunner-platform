@@ -14,18 +14,17 @@ const allowedFormats = new Set<InstructionFormat>(['text', 'markdown']);
 export function normalizeInstructionDocument(
   value: unknown,
   fieldName: string,
-  maxLength: number,
 ): InstructionDocument | null {
   if (value === undefined || value === null) {
     return null;
   }
 
   if (typeof value === 'string') {
-    return validateInstructionDocument({ content: value, format: 'text' }, fieldName, maxLength);
+    return validateInstructionDocument({ content: value, format: 'text' }, fieldName);
   }
 
   if (Array.isArray(value)) {
-    return normalizeInstructionArray(value, fieldName, maxLength);
+    return normalizeInstructionArray(value, fieldName);
   }
 
   if (!value || typeof value !== 'object') {
@@ -36,13 +35,12 @@ export function normalizeInstructionDocument(
     ? String((value as Record<string, unknown>).content)
     : '';
   const format = ((value as Record<string, unknown>).format ?? 'text') as InstructionFormat;
-  return validateInstructionDocument({ content, format }, fieldName, maxLength);
+  return validateInstructionDocument({ content, format }, fieldName);
 }
 
 function normalizeInstructionArray(
   value: unknown[],
   fieldName: string,
-  maxLength: number,
 ): InstructionDocument | null {
   const entries = value.flatMap((entry) => {
     if (typeof entry !== 'string') {
@@ -58,7 +56,7 @@ function normalizeInstructionArray(
   }
 
   if (entries.length === 1) {
-    return validateInstructionDocument({ content: entries[0], format: 'text' }, fieldName, maxLength);
+    return validateInstructionDocument({ content: entries[0], format: 'text' }, fieldName);
   }
 
   return validateInstructionDocument(
@@ -67,21 +65,16 @@ function normalizeInstructionArray(
       format: 'markdown',
     },
     fieldName,
-    maxLength,
   );
 }
 
 function validateInstructionDocument(
   value: InstructionDocument,
   fieldName: string,
-  maxLength: number,
 ): InstructionDocument | null {
   const content = value.content.trim();
   if (content.length === 0) {
     return null;
-  }
-  if (content.length > maxLength) {
-    throw new ValidationError(`${fieldName} exceeds ${maxLength} characters`);
   }
   if (!allowedFormats.has(value.format)) {
     throw new ValidationError(`${fieldName} format must be text or markdown`);

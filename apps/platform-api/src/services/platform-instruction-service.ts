@@ -33,7 +33,7 @@ export class PlatformInstructionService {
   }
 
   async put(identity: ApiKeyIdentity, payload: { content: string; format?: string }) {
-    const document = normalizeInstructionDocument(payload, 'platform instructions', 10_000) ?? {
+    const document = normalizeInstructionDocument(payload, 'platform instructions') ?? {
       content: '',
       format: 'text',
     };

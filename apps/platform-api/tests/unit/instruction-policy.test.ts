@@ -7,7 +7,6 @@ describe('normalizeInstructionDocument', () => {
     const document = normalizeInstructionDocument(
       ['Clarify the accepted input contract.', 'Expand edge-case test coverage.'],
       'task instructions',
-      10_000,
     );
 
     expect(document).toEqual({
@@ -20,7 +19,6 @@ describe('normalizeInstructionDocument', () => {
     const document = normalizeInstructionDocument(
       ['   ', '\n'],
       'task instructions',
-      10_000,
     );
 
     expect(document).toBeNull();
@@ -31,8 +29,18 @@ describe('normalizeInstructionDocument', () => {
       normalizeInstructionDocument(
         ['Valid instruction', { text: 'invalid' }],
         'task instructions',
-        10_000,
       ),
     ).toThrow('task instructions array entries must be strings');
+  });
+
+  it('accepts oversized instruction content without truncation or rejection', () => {
+    const content = 'Long instruction block. '.repeat(2500);
+
+    const document = normalizeInstructionDocument(content, 'task instructions');
+
+    expect(document).toEqual({
+      content: content.trim(),
+      format: 'text',
+    });
   });
 });

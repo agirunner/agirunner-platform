@@ -22,6 +22,7 @@ const TASK_CONTEXT_LOG_VERSION = 1;
 const TASK_CONTEXT_MEMORY_INDEX_LIMIT = 100;
 const TASK_CONTEXT_ARTIFACT_INDEX_LIMIT = 100;
 const TASK_CONTEXT_RECENT_HANDOFF_LIMIT = 2;
+const DEFAULT_ASSEMBLED_PROMPT_WARNING_THRESHOLD_CHARS = 32_000;
 
 interface TaskContextAnchor {
   source: 'task' | 'activation_event' | 'none';
@@ -128,6 +129,8 @@ export async function buildTaskContext(
     : null;
   const workspaceInstructions = await loadWorkspaceInstructions(db, tenantId, task, workflowRow);
   const platformInstructions = await loadPlatformInstructions(db, tenantId);
+  const assembledPromptWarningThresholdChars =
+    await readTenantAssembledPromptWarningThreshold(db, tenantId);
   const orchestratorPrompt = task.is_orchestrator_task
     ? await loadOrchestratorPrompt(db, tenantId)
     : undefined;
@@ -202,6 +205,9 @@ export async function buildTaskContext(
 
   return {
     agent: sanitizeTaskContextValue(agent),
+    agentic_settings: sanitizeTaskContextValue({
+      assembled_prompt_warning_threshold_chars: assembledPromptWarningThresholdChars,
+    }),
     workspace: sanitizeTaskContextValue(workspaceContext),
     workflow: sanitizeTaskContextValue(workflowContext),
     orchestrator: sanitizeTaskContextValue(orchestratorContext),
@@ -418,6 +424,20 @@ async function readTenantLiveVisibilityMode(
     [tenantId],
   );
   return readLiveVisibilityMode(result.rows[0]?.live_visibility_mode_default) ?? 'enhanced';
+}
+
+async function readTenantAssembledPromptWarningThreshold(
+  db: DatabaseQueryable,
+  tenantId: string,
+): Promise<number> {
+  const result = await db.query<{ assembled_prompt_warning_threshold_chars: number }>(
+    `SELECT assembled_prompt_warning_threshold_chars
+       FROM agentic_settings
+      WHERE tenant_id = $1`,
+    [tenantId],
+  );
+  return readPositiveInteger(result.rows[0]?.assembled_prompt_warning_threshold_chars)
+    ?? DEFAULT_ASSEMBLED_PROMPT_WARNING_THRESHOLD_CHARS;
 }
 
 function readLiveVisibilityMode(value: unknown): 'standard' | 'enhanced' | null {
@@ -811,7 +831,6 @@ function buildInstructionLayers(params: {
         }
       : undefined,
     'platform instructions',
-    10_000,
   );
   if (platformDocument && !suppressed.has('platform')) {
     layers.platform = {
@@ -827,7 +846,6 @@ function buildInstructionLayers(params: {
     const orchestratorDocument = normalizeInstructionDocument(
       params.orchestratorPrompt,
       'orchestrator prompt',
-      10_000,
     );
     if (orchestratorDocument) {
       layers.orchestrator = {
@@ -840,7 +858,6 @@ function buildInstructionLayers(params: {
   const workspaceDocument = normalizeInstructionDocument(
     params.workspaceInstructions?.instructions,
     'workspace instructions',
-    20_000,
   );
   if (workspaceDocument && !suppressed.has('workspace')) {
     layers.workspace = {
@@ -856,7 +873,6 @@ function buildInstructionLayers(params: {
     const roleDocument = normalizeInstructionDocument(
       buildRoleInstructionContent(params.roleConfig, params.specialistCapabilities),
       'role instructions',
-      10_000,
     );
     if (roleDocument && !suppressed.has('role')) {
       layers.role = {
@@ -892,7 +908,6 @@ function buildInstructionLayers(params: {
   const taskDocument = normalizeInstructionDocument(
     params.taskInput.instructions,
     'task instructions',
-    1_048_576,
   );
   if (taskDocument && !suppressed.has('task')) {
     layers.task = {
@@ -1060,7 +1075,6 @@ function readFlatInstructions(roleConfig: Record<string, unknown>, agentMetadata
   const roleInstructions = normalizeInstructionDocument(
     roleConfig.system_prompt ?? roleConfig.instructions,
     'role instructions',
-    10_000,
   );
   return roleInstructions?.content ?? readAgentProfileInstructions(agentMetadata);
 }
@@ -1106,6 +1120,10 @@ function toWorkflowRelationRef(workflowId: string, row?: Record<string, unknown>
 
 function asOptionalNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function readPositiveInteger(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
 }
 
 function formatDateValue(value: unknown): string | null {

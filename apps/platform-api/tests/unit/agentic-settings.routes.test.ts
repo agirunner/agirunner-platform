@@ -36,6 +36,7 @@ describe('agentic settings routes', () => {
     const agenticSettingsService = {
       getSettings: vi.fn(async () => ({
         live_visibility_mode_default: 'enhanced',
+        assembled_prompt_warning_threshold_chars: 32000,
         scope: 'tenant',
         revision: 2,
         updated_by_operator_id: 'user-1',
@@ -43,6 +44,7 @@ describe('agentic settings routes', () => {
       })),
       updateSettings: vi.fn(async () => ({
         live_visibility_mode_default: 'standard',
+        assembled_prompt_warning_threshold_chars: 64000,
         scope: 'tenant',
         revision: 3,
         updated_by_operator_id: 'user-1',
@@ -67,6 +69,7 @@ describe('agentic settings routes', () => {
       headers,
       payload: {
         live_visibility_mode_default: 'standard',
+        assembled_prompt_warning_threshold_chars: 64000,
         settings_revision: 2,
       },
     });
@@ -78,6 +81,7 @@ describe('agentic settings routes', () => {
       expect.objectContaining({ tenantId: 'tenant-1' }),
       {
         liveVisibilityModeDefault: 'standard',
+        assembledPromptWarningThresholdChars: 64000,
         settingsRevision: 2,
       },
     );

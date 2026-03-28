@@ -225,7 +225,7 @@ export class WorkspaceSpecService {
 
     validateWorkspaceDocumentRegistry(spec);
     validateWorkspaceToolTags(spec);
-    normalizeInstructionDocument(spec.instructions, 'workspace instructions', 20_000);
+    normalizeInstructionDocument(spec.instructions, 'workspace instructions');
   }
 
   private validateBinding(type: ResourceType, logicalName: string, binding: Record<string, unknown>): void {

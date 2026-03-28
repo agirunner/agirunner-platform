@@ -8,6 +8,7 @@ import { getRequestContext } from '../observability/request-context.js';
 interface LogTaskGovernanceTransitionInput {
   tenantId: string;
   operation: string;
+  level?: 'debug' | 'info' | 'warn' | 'error';
   executor?: DatabaseQueryable;
   task: {
     id?: unknown;
@@ -37,7 +38,7 @@ export async function logTaskGovernanceTransition(
     spanId: randomUUID(),
     source: 'platform' as const,
     category: 'task_lifecycle' as const,
-    level: 'debug' as const,
+    level: input.level ?? 'debug',
     operation: input.operation,
     status: 'completed' as const,
     payload: input.payload,
