@@ -34,10 +34,10 @@ describe('WorkflowsRail', () => {
       }),
     );
 
-    expect(html).toContain('Current workflow');
+    expect(html).toContain('Selected workflow');
     expect(html).toContain('Hidden workflow');
     expect(html).not.toContain('outside the current rail view');
-    expect(html).not.toContain('Workspace stays pinned');
+    expect(html).not.toContain('stays pinned while you browse other rail results');
   });
 
   it('treats Needs Action as a filter toggle instead of a second primary mode highlight', () => {

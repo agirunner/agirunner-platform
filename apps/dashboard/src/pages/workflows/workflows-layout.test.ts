@@ -10,7 +10,7 @@ import {
 
 describe('buildWorkflowsShellClassName', () => {
   it('uses a single-column shell when the workflow rail is hidden', () => {
-    expect(buildWorkflowsShellClassName(true)).toContain('xl:block');
+    expect(buildWorkflowsShellClassName(true)).toContain('xl:flex');
     expect(buildWorkflowsShellClassName(true)).toContain('xl:h-[calc(100vh-8.5rem)]');
     expect(buildWorkflowsShellClassName(true)).not.toContain('xl:grid-cols-[22rem_minmax(0,1fr)]');
   });
@@ -38,7 +38,7 @@ describe('buildWorkflowsShellClassName', () => {
   it('builds a stable board/workbench split that defaults to a half-screen workbench', () => {
     expect(buildWorkflowWorkspaceSplitStyle(0.5)).toEqual({
       gridTemplateRows:
-        'minmax(24rem, calc(50% - 0.25rem)) 0.5rem minmax(24rem, calc(50% - 0.25rem))',
+        'minmax(16rem, calc(50% - 0.25rem)) 0.5rem minmax(14rem, calc(50% - 0.25rem))',
     });
   });
 });

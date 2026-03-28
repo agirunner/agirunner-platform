@@ -102,14 +102,9 @@ export function WorkflowsRail(props: {
       {props.selectedWorkflowRow && props.selectedWorkflowId && !selectedVisible ? (
         <section className="border-b border-border/70 px-4 py-3">
           <div className="grid gap-3 rounded-2xl border border-amber-300/60 bg-amber-50/70 p-3 dark:border-amber-800/60 dark:bg-amber-950/30">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Current workflow
-              </p>
-              <p className="text-sm text-muted-foreground">
-                The selected workflow stays pinned while you browse other rail results.
-              </p>
-            </div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+              Selected workflow
+            </p>
             <WorkflowRailRowCard
               row={props.selectedWorkflowRow}
               isSelected
