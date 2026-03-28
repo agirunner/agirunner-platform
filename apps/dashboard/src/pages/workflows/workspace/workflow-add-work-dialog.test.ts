@@ -3,13 +3,23 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 describe('WorkflowAddWorkDialog source', () => {
+  it('uses operator-facing section labels that distinguish add work from modify work', () => {
+    const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('Modify Work');
+    expect(source).toContain('Editable inputs');
+    expect(source).toContain('Optional steering instruction');
+    expect(source).not.toContain('Update Work Item');
+    expect(source).not.toContain('<strong className="text-sm">Work item inputs</strong>');
+  });
+
   it('keeps add and modify work focused on operator inputs, files, and steering only', () => {
     const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
 
     expect(source).not.toContain('Owner role');
-    expect(source).toContain('Steering instruction');
+    expect(source).toContain('Optional steering instruction');
     expect(source).not.toContain('Input type');
-    expect(source).toContain('Work item inputs');
+    expect(source).toContain('Editable inputs');
     expect(source).not.toContain("<span className=\"font-medium\">Goal</span>");
   });
 

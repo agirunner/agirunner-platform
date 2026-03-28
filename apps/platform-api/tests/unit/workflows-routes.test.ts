@@ -997,6 +997,7 @@ describe('workflow routes', () => {
       payload: {
         request_id: 'request-1',
         playbook_id: '00000000-0000-4000-8000-000000000002',
+        workspace_id: '00000000-0000-4000-8000-000000000001',
         name: 'Release workflow',
         operator_note: 'Prioritize the verification branch first.',
         initial_input_packet: {
@@ -1012,6 +1013,7 @@ describe('workflow routes', () => {
       expect.objectContaining({ tenantId: 'tenant-1' }),
       expect.objectContaining({
         request_id: 'request-1',
+        workspace_id: '00000000-0000-4000-8000-000000000001',
         operator_note: 'Prioritize the verification branch first.',
         initial_input_packet: {
           summary: 'Launch packet summary',
@@ -1040,6 +1042,7 @@ describe('workflow routes', () => {
       headers: { authorization: 'Bearer test' },
       payload: {
         playbook_id: '00000000-0000-4000-8000-000000000002',
+        workspace_id: '00000000-0000-4000-8000-000000000001',
         name: 'Release workflow',
         live_visibility_mode: 'enhanced',
       },
@@ -1050,10 +1053,71 @@ describe('workflow routes', () => {
       expect.objectContaining({ tenantId: 'tenant-1' }),
       expect.objectContaining({
         playbook_id: '00000000-0000-4000-8000-000000000002',
+        workspace_id: '00000000-0000-4000-8000-000000000001',
         name: 'Release workflow',
         live_visibility_mode: 'enhanced',
       }),
     );
+  });
+
+  it('rejects workflow creation without workspace_id', async () => {
+    const createWorkflow = vi.fn();
+
+    app = createWorkflowRoutesApp({
+      workflowService: { createWorkflow },
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        playbook_id: '00000000-0000-4000-8000-000000000002',
+        name: 'Release workflow',
+      },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error.code).toBe('SCHEMA_VALIDATION_FAILED');
+    expect(createWorkflow).not.toHaveBeenCalled();
+  });
+
+  it('rejects blank workflow names and work-item titles after trimming whitespace', async () => {
+    const createWorkflow = vi.fn();
+    const createWorkflowWorkItem = vi.fn();
+
+    app = createWorkflowRoutesApp({
+      workflowService: {
+        createWorkflow,
+        createWorkflowWorkItem,
+      },
+    });
+    await app.register(workflowRoutes);
+
+    const workflowResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        playbook_id: '00000000-0000-4000-8000-000000000002',
+        workspace_id: '00000000-0000-4000-8000-000000000001',
+        name: '   ',
+      },
+    });
+    const workItemResponse = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items',
+      payload: {
+        request_id: 'request-1',
+        title: '   ',
+      },
+    });
+
+    expect(workflowResponse.statusCode).toBe(422);
+    expect(workItemResponse.statusCode).toBe(422);
+    expect(createWorkflow).not.toHaveBeenCalled();
+    expect(createWorkflowWorkItem).not.toHaveBeenCalled();
   });
 
   it('reads and updates workflow live visibility settings through workflow-owned routes', async () => {

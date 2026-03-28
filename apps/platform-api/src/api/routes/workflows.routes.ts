@@ -62,8 +62,8 @@ const workflowInitialInputPacketSchema = z.object({
 const workflowCreateSchema = z.object({
   request_id: requestIdSchema.optional(),
   playbook_id: z.string().uuid(),
-  workspace_id: z.string().uuid().optional(),
-  name: z.string().min(1).max(255),
+  workspace_id: z.string().uuid(),
+  name: z.string().trim().min(1).max(255),
   operator_note: z.string().min(1).max(4000).optional(),
   initial_input_packet: workflowInitialInputPacketSchema.optional(),
   parameters: z.record(z.string()).optional(),
@@ -160,7 +160,7 @@ const workItemCreateSchema = z.object({
   parent_work_item_id: z.string().uuid().optional(),
   branch_key: z.string().min(1).max(120).optional(),
   stage_name: z.string().min(1).max(120).optional(),
-  title: z.string().min(1).max(500),
+  title: z.string().trim().min(1).max(500),
   goal: z.string().max(4000).optional(),
   acceptance_criteria: z.string().max(4000).optional(),
   column_id: z.string().min(1).max(120).optional(),
@@ -174,7 +174,7 @@ const workItemCreateSchema = z.object({
 const workItemUpdateSchema = z.object({
   request_id: requestIdSchema,
   parent_work_item_id: z.string().uuid().nullable().optional(),
-  title: z.string().min(1).max(500).optional(),
+  title: z.string().trim().min(1).max(500).optional(),
   goal: z.string().max(4000).optional(),
   acceptance_criteria: z.string().max(4000).optional(),
   stage_name: z.string().min(1).max(120).optional(),

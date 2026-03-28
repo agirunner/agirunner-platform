@@ -70,12 +70,6 @@ export function WorkflowLaunchDialog(props: {
   );
 
   useEffect(() => {
-    if (props.isOpen && !selectedPlaybookId && playbooks.length > 0) {
-      setSelectedPlaybookId(playbooks[0].id);
-    }
-  }, [playbooks, props.isOpen, selectedPlaybookId]);
-
-  useEffect(() => {
     if (!props.isOpen) {
       return;
     }
@@ -129,7 +123,8 @@ export function WorkflowLaunchDialog(props: {
     },
   });
 
-  const isSubmitDisabled = launchMutation.isPending || playbooksQuery.isLoading;
+  const isSubmitDisabled =
+    launchMutation.isPending || playbooksQuery.isLoading || workspacesQuery.isLoading;
   const playbookError = hasAttemptedSubmit ? validation.fieldErrors.playbook : undefined;
   const workspaceError = hasAttemptedSubmit ? validation.fieldErrors.workspace : undefined;
   const workflowNameError = hasAttemptedSubmit ? validation.fieldErrors.workflowName : undefined;
@@ -149,7 +144,7 @@ export function WorkflowLaunchDialog(props: {
             New workflow
           </DialogTitle>
           <DialogDescription>
-            Launch a workflow with required workspace context, typed playbook inputs, and immutable launch files.
+            Choose the playbook, workspace, launch inputs, and optional files for the new workflow.
           </DialogDescription>
         </DialogHeader>
 

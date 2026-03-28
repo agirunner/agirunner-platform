@@ -128,9 +128,9 @@ export function WorkflowAddWorkDialog(props: {
     },
   });
 
-  const titleLabel = selectedWorkItem ? 'Update Work Item' : props.lifecycle === 'ongoing' ? 'Add Intake' : 'Add Work';
+  const titleLabel = selectedWorkItem ? 'Modify Work' : props.lifecycle === 'ongoing' ? 'Add Intake' : 'Add Work';
   const description = selectedWorkItem
-    ? 'Update the parent work item with operator-authored inputs, files, and an optional steering instruction.'
+    ? 'Add new operator inputs, files, and optional steering to the parent work item without reopening its internal planning fields.'
     : props.lifecycle === 'ongoing'
       ? 'Add a new intake item with optional inputs, files, and steering.'
       : 'Add a new work item with optional inputs, files, and steering.';
@@ -145,7 +145,7 @@ export function WorkflowAddWorkDialog(props: {
         <div className="grid gap-4">
           {isModifyMode ? (
             <p className="text-sm text-muted-foreground">
-              Updating the parent work item <span className="font-medium text-foreground">{selectedWorkItem.title}</span>
+              Modifying the parent work item <span className="font-medium text-foreground">{selectedWorkItem.title}</span> with new operator-authored context only.
             </p>
           ) : (
             <label className="grid gap-2 text-sm">
@@ -155,16 +155,28 @@ export function WorkflowAddWorkDialog(props: {
             </label>
           )}
 
-          <div className="grid gap-3">
+          <section className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
             <div className="grid gap-1">
-              <strong className="text-sm">Work item inputs</strong>
-              <p className="text-sm text-muted-foreground">Add named notes or instructions that belong with this parent work item.</p>
+              <strong className="text-sm">Editable inputs</strong>
+              <p className="text-sm text-muted-foreground">
+                Add named notes or instructions that should travel with this work item.
+              </p>
             </div>
             <WorkflowAdditionalInputsEditor drafts={inputDrafts} onChange={setInputDrafts} />
-          </div>
+          </section>
 
-          <label className="grid gap-2 text-sm">
-            <span className="font-medium">Steering instruction</span>
+          <section className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
+            <div className="grid gap-1">
+              <strong className="text-sm">Input files</strong>
+              <p className="text-sm text-muted-foreground">
+                Attach immutable files that belong with this work item.
+              </p>
+            </div>
+            <WorkflowFileInput files={files} onChange={setFiles} label="Additional input files" description="Attach immutable files that belong with this work item." />
+          </section>
+
+          <label className="grid gap-2 rounded-xl border border-border/70 bg-muted/10 p-4 text-sm">
+            <span className="font-medium">Optional steering instruction</span>
             <Textarea
               value={steeringInstruction}
               onChange={(event) => setSteeringInstruction(event.target.value)}
@@ -173,8 +185,6 @@ export function WorkflowAddWorkDialog(props: {
               placeholder="Optional guidance for how this work should proceed next."
             />
           </label>
-
-          <WorkflowFileInput files={files} onChange={setFiles} label="Additional input files" description="Attach immutable files that belong with this work item." />
           <FieldErrorText message={modifyWorkError} />
           <FormFeedbackMessage message={formFeedbackMessage} />
 
@@ -206,9 +216,9 @@ function WorkflowAdditionalInputsEditor(props: {
   onChange(drafts: WorkItemInputDraft[]): void;
 }): JSX.Element {
   return (
-    <div className="space-y-3 rounded-md border border-dashed border-border p-3">
+    <div className="space-y-3 rounded-md border border-dashed border-border bg-background/80 p-3">
       {props.drafts.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No work item inputs yet.</p>
+        <p className="text-sm text-muted-foreground">No editable inputs yet.</p>
       ) : (
         props.drafts.map((draft) => (
           <div key={draft.id} className="grid gap-3 rounded-md border border-border p-3 md:grid-cols-[0.9fr,1.4fr,auto]">

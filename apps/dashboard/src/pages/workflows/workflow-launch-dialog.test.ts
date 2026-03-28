@@ -3,6 +3,13 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 describe('WorkflowLaunchDialog source', () => {
+  it('requires the operator to choose a playbook instead of silently picking the first one', () => {
+    const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).not.toContain('setSelectedPlaybookId(playbooks[0].id)');
+    expect(source).toContain('SelectValue placeholder="Select playbook"');
+  });
+
   it('removes budget guardrail fields from the workflow launch modal', () => {
     const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
 
