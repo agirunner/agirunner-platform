@@ -583,7 +583,7 @@ function buildArtifactTarget(artifact: ArtifactRow, primary: boolean): Record<st
   return {
     target_kind: 'artifact',
     label: primary ? 'Open artifact' : 'Artifact',
-    url: `/artifacts/tasks/${artifact.task_id}/${artifact.id}`,
+    url: `/api/v1/tasks/${encodeURIComponent(artifact.task_id)}/artifacts/${encodeURIComponent(artifact.id)}/preview`,
     path: sanitizeOptionalText(artifact.logical_path),
     artifact_id: artifact.id,
   };

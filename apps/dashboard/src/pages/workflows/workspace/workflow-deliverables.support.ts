@@ -8,7 +8,7 @@ export interface DeliverableTargetAction {
 const DASHBOARD_ORIGIN = 'http://dashboard.local';
 const IN_PLACE_TARGET_PATH_PATTERNS = [
   /^\/artifacts\/tasks\/[^/]+\/[^/]+$/,
-  /^\/api\/v1\/tasks\/[^/]+\/artifacts\/[^/]+(?:\/content)?$/,
+  /^\/api\/v1\/tasks\/[^/]+\/artifacts\/[^/]+(?:\/preview|\/permalink)?$/,
   /^\/api\/v1\/workflows\/[^/]+\/input-packets\/[^/]+\/files\/[^/]+\/content$/,
   /^\/api\/v1\/workflows\/[^/]+\/interventions\/[^/]+\/files\/[^/]+\/content$/,
 ];
@@ -77,7 +77,7 @@ function rewriteDeprecatedArtifactPreviewPath(parsed: URL): void {
 
   const [, taskId, artifactId] = match;
   parsed.pathname =
-    `/api/v1/tasks/${encodeURIComponent(taskId)}/artifacts/${encodeURIComponent(artifactId)}/content`;
+    `/api/v1/tasks/${encodeURIComponent(taskId)}/artifacts/${encodeURIComponent(artifactId)}/preview`;
 }
 
 function stripDeprecatedNavigationParams(parsed: URL): void {

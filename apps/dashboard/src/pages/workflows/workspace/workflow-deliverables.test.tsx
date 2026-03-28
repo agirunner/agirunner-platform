@@ -26,7 +26,7 @@ describe('WorkflowDeliverables', () => {
 
     expect(html).toContain('Preview inline');
     expect(html).toContain('Open artifact in new tab');
-    expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/content');
+    expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
     expect(html).not.toContain('/artifacts/tasks/task-1/artifact-1');
     expect(html).not.toContain('Open without leaving workflow');
     expect(html).not.toContain('Open in new window');
@@ -224,6 +224,97 @@ describe('WorkflowDeliverables', () => {
     expect(html).toContain('Approved the intake packet and confirmed it satisfies the readiness criteria.');
     expect(html).not.toContain('Open artifact in new tab');
     expect(html).not.toContain('Preview inline');
+  });
+
+  it('keeps work-item scope on brief-backed outputs when no materialized deliverables exist for the selected work item', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: {
+          final_deliverables: [
+            {
+              descriptor_id: 'deliverable-1',
+              workflow_id: 'workflow-1',
+              work_item_id: null,
+              descriptor_kind: 'artifact',
+              delivery_stage: 'final',
+              title: 'Workflow release brief',
+              state: 'final',
+              summary_brief: 'Workflow summary ready.',
+              preview_capabilities: {},
+              primary_target: {
+                target_kind: 'inline_summary',
+                label: 'Review summary',
+              },
+              secondary_targets: [],
+              content_preview: {
+                summary: 'Workflow summary ready.',
+              },
+              source_brief_id: null,
+              created_at: '2026-03-28T08:00:00.000Z',
+              updated_at: '2026-03-28T08:00:00.000Z',
+            },
+          ],
+          in_progress_deliverables: [],
+          working_handoffs: [
+            {
+              id: 'brief-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              task_id: 'task-1',
+              request_id: 'request-1',
+              execution_context_id: 'task-1',
+              brief_kind: 'milestone',
+              brief_scope: 'deliverable_context',
+              source_kind: 'specialist',
+              source_role_name: 'Policy Assessor',
+              status_kind: 'approved',
+              short_brief: {
+                headline: 'workflow-intake-01 is approved and ready to remain open.',
+              },
+              detailed_brief_json: {
+                headline: 'workflow-intake-01 is approved and ready to remain open.',
+                summary: 'Only the finalized brief exists for this work item.',
+                status_kind: 'approved',
+              },
+              linked_target_ids: [],
+              sequence_number: 1,
+              related_artifact_ids: [],
+              related_output_descriptor_ids: [],
+              related_intervention_ids: [],
+              canonical_workflow_brief_id: null,
+              created_by_type: 'agent',
+              created_by_id: 'agent-1',
+              created_at: '2026-03-28T08:10:00.000Z',
+              updated_at: '2026-03-28T08:10:00.000Z',
+            },
+          ],
+          inputs_and_provenance: {
+            launch_packet: null,
+            supplemental_packets: [],
+            intervention_attachments: [],
+            redrive_packet: null,
+          },
+          next_cursor: null,
+        },
+        selectedTask: null,
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'workflow-intake-01',
+        scope: {
+          scopeKind: 'selected_work_item',
+          title: 'Work item',
+          subject: 'work item',
+          name: 'workflow-intake-01',
+          banner: 'Work item: workflow-intake-01',
+        },
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Work item deliverables (0)');
+    expect(html).toContain('Material output is currently available only as briefs for this layer.');
+    expect(html).toContain('workflow-intake-01 is approved and ready to remain open.');
+    expect(html).toContain('Workflow deliverables (1)');
+    expect(html).toContain('Workflow release brief');
   });
 });
 

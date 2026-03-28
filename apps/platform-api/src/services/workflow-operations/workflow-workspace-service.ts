@@ -1347,7 +1347,7 @@ function mapOutputLocationTarget(location: MissionControlOutputLocation, primary
       return {
         target_kind: 'artifact',
         label: primary ? 'Open artifact' : 'Artifact',
-        url: location.previewPath ?? location.downloadPath,
+        url: resolveArtifactPreviewUrl(location),
         path: location.logicalPath,
         artifact_id: location.artifactId,
       };
@@ -1380,6 +1380,21 @@ function mapOutputLocationTarget(location: MissionControlOutputLocation, primary
         path: location.path,
       };
   }
+}
+
+function resolveArtifactPreviewUrl(
+  location: Extract<MissionControlOutputLocation, { kind: 'artifact' }>,
+): string | undefined {
+  if (location.previewPath?.trim()) {
+    return location.previewPath.replace(
+      /^\/artifacts\/tasks\/([^/]+)\/([^/]+)$/,
+      '/api/v1/tasks/$1/artifacts/$2/preview',
+    );
+  }
+  if (location.downloadPath?.trim()) {
+    return `${location.downloadPath.replace(/\/$/, '')}/preview`;
+  }
+  return undefined;
 }
 
 function readRedriveLineage(workflow: Record<string, unknown>): Record<string, unknown> | null {

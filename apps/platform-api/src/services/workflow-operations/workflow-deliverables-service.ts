@@ -67,7 +67,10 @@ export class WorkflowDeliverablesService {
     ]);
     const finalizedBriefIds = collectFinalizedBriefIds(briefs);
     const finalizedDescriptorIds = collectFinalizedDescriptorIds(briefs);
-    const hydratedDeliverables = appendSynthesizedHandoffDeliverables(deliverables, handoffs);
+    const hydratedDeliverables = appendSynthesizedBriefDeliverables(
+      appendSynthesizedHandoffDeliverables(deliverables, handoffs),
+      briefs,
+    );
 
     const orderedDeliverables = [...hydratedDeliverables].sort((left, right) =>
       compareDeliverables(left, right),
@@ -127,6 +130,40 @@ function appendSynthesizedHandoffDeliverables(
   return records;
 }
 
+function appendSynthesizedBriefDeliverables(
+  deliverables: WorkflowDeliverableRecord[],
+  briefs: WorkflowOperatorBriefRecord[],
+): WorkflowDeliverableRecord[] {
+  const records = [...deliverables];
+  const existingBriefIds = new Set(
+    deliverables
+      .map((deliverable) => readOptionalString(deliverable.source_brief_id))
+      .filter((briefId): briefId is string => briefId !== null),
+  );
+  const existingPacketScopes = new Set(
+    deliverables
+      .filter(isPacketLikeDeliverable)
+      .map((deliverable) => buildDeliverableScopeKey(readOptionalString(deliverable.work_item_id))),
+  );
+
+  for (const brief of briefs) {
+    if (!shouldSynthesizeBriefDeliverable(brief)) {
+      continue;
+    }
+    if (existingBriefIds.has(brief.id)) {
+      continue;
+    }
+    const scopeKey = buildDeliverableScopeKey(readOptionalString(brief.work_item_id));
+    if (existingPacketScopes.has(scopeKey)) {
+      continue;
+    }
+    records.push(buildBriefPacketDeliverable(brief));
+    existingPacketScopes.add(scopeKey);
+  }
+
+  return records;
+}
+
 function buildHandoffPacketDeliverable(
   handoff: WorkflowDeliverableHandoffRecord,
 ): WorkflowDeliverableRecord {
@@ -169,8 +206,51 @@ function buildHandoffPacketDeliverable(
   };
 }
 
+function buildBriefPacketDeliverable(
+  brief: WorkflowOperatorBriefRecord,
+): WorkflowDeliverableRecord {
+  const headline = readBriefHeadline(brief);
+  const summary = readBriefSummary(brief);
+  const previewText = [headline, summary, readBriefSourceLabel(brief)]
+    .filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+    .join('\n\n');
+
+  return {
+    descriptor_id: `brief:${brief.id}`,
+    workflow_id: brief.workflow_id,
+    work_item_id: brief.work_item_id,
+    descriptor_kind: 'brief_packet',
+    delivery_stage: 'final',
+    title: headline,
+    state: 'final',
+    summary_brief: summary,
+    preview_capabilities: {
+      can_inline_preview: true,
+      can_download: false,
+      can_open_external: false,
+      can_copy_path: false,
+      preview_kind: 'structured_summary',
+    },
+    primary_target: {
+      target_kind: 'inline_summary',
+      label: 'Review completion packet',
+    },
+    secondary_targets: [],
+    content_preview: {
+      summary: previewText,
+    },
+    source_brief_id: brief.id,
+    created_at: brief.created_at,
+    updated_at: brief.updated_at,
+  };
+}
+
 function isDeliverableBrief(brief: WorkflowOperatorBriefRecord): boolean {
   return readOptionalString(brief.brief_scope) === 'deliverable_context';
+}
+
+function shouldSynthesizeBriefDeliverable(brief: WorkflowOperatorBriefRecord): boolean {
+  return isDeliverableBrief(brief) && isDeliverableOutcomeStatus(readOptionalString(brief.status_kind));
 }
 
 function isFinalDeliverable(
@@ -255,6 +335,42 @@ function readOptionalString(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function isPacketLikeDeliverable(deliverable: WorkflowDeliverableRecord): boolean {
+  const descriptorKind = readOptionalString(deliverable.descriptor_kind);
+  return descriptorKind === 'handoff_packet' || descriptorKind === 'brief_packet';
+}
+
+function buildDeliverableScopeKey(workItemId: string | null): string {
+  return workItemId ?? '__workflow__';
+}
+
+function readBriefHeadline(brief: WorkflowOperatorBriefRecord): string {
+  return (
+    readOptionalString(asRecord(brief.detailed_brief_json).headline)
+    ?? readOptionalString(asRecord(brief.short_brief).headline)
+    ?? 'Workflow deliverable packet'
+  );
+}
+
+function readBriefSummary(brief: WorkflowOperatorBriefRecord): string | null {
+  return (
+    readOptionalString(asRecord(brief.detailed_brief_json).summary)
+    ?? readOptionalString(asRecord(brief.short_brief).headline)
+  );
+}
+
+function readBriefSourceLabel(brief: WorkflowOperatorBriefRecord): string | null {
+  const roleName = readOptionalString(brief.source_role_name);
+  return roleName ? `Produced by: ${roleName}` : null;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
 }
 
 function compareDeliverables(

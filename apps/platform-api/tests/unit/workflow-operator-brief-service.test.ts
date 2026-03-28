@@ -985,6 +985,7 @@ describe('WorkflowOperatorBriefService', () => {
         primaryTarget: expect.objectContaining({
           target_kind: 'artifact',
           artifact_id: 'artifact-9',
+          url: '/api/v1/tasks/task-9/artifacts/artifact-9/preview',
           path: 'artifact:workflow/output/final-packet.md',
         }),
       }),
@@ -1130,6 +1131,10 @@ describe('WorkflowOperatorBriefService', () => {
       expect.objectContaining({
         sourceBriefId: 'brief-10',
         descriptorKind: 'brief_packet',
+        primaryTarget: expect.objectContaining({
+          artifact_id: 'artifact-10',
+          url: '/api/v1/tasks/task-10/artifacts/artifact-10/preview',
+        }),
       }),
     );
     expect(result.record.related_output_descriptor_ids).toEqual(['descriptor-10']);

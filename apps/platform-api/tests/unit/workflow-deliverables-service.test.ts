@@ -548,4 +548,71 @@ describe('WorkflowDeliverablesService', () => {
       }),
     ]);
   });
+
+  it('synthesizes a final brief-backed deliverable when a finalized deliverable brief has no descriptor row', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => []),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => [
+        {
+          id: 'brief-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: 'task-1',
+          request_id: 'request-1',
+          execution_context_id: 'task-1',
+          brief_kind: 'milestone',
+          brief_scope: 'deliverable_context',
+          source_kind: 'specialist',
+          source_role_name: 'Policy Assessor',
+          status_kind: 'approved',
+          short_brief: { headline: 'workflow-intake-01 is approved and ready to remain open.' },
+          detailed_brief_json: {
+            headline: 'workflow-intake-01 is approved and ready to remain open.',
+            summary: 'The only structured completion record is the finalized brief itself.',
+            status_kind: 'approved',
+          },
+          linked_target_ids: [],
+          sequence_number: 6,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: [],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:40:00.000Z',
+          updated_at: '2026-03-27T22:40:00.000Z',
+        },
+      ]),
+    };
+    const inputPacketService = { listWorkflowInputPackets: vi.fn(async () => []) };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+    });
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'brief:brief-1',
+        descriptor_kind: 'brief_packet',
+        work_item_id: 'work-item-1',
+        delivery_stage: 'final',
+        state: 'final',
+        primary_target: expect.objectContaining({
+          target_kind: 'inline_summary',
+        }),
+      }),
+    ]);
+    expect(result.in_progress_deliverables).toEqual([]);
+    expect(result.working_handoffs).toEqual([
+      expect.objectContaining({ id: 'brief-1' }),
+    ]);
+  });
 });

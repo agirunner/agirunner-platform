@@ -30,6 +30,8 @@ export interface WorkflowTaskDeliverablePromotionHandoff {
   created_at: string;
 }
 
+type DeliverableProgress = 'final' | 'in_progress';
+
 export class WorkflowTaskDeliverablePromotionService {
   constructor(
     private readonly pool: DatabaseQueryable,
@@ -127,9 +129,8 @@ export class WorkflowTaskDeliverablePromotionService {
 }
 
 function shouldPromoteHandoff(handoff: WorkflowTaskDeliverablePromotionHandoff): boolean {
-  const taskKind = readOptionalString(handoff.role_data?.task_kind);
   const completionState = readOptionalString(handoff.completion_state) ?? readOptionalString(handoff.completion);
-  return taskKind === 'delivery' && completionState === 'full';
+  return completionState === 'full';
 }
 
 function buildPromotedDeliverableInput(
@@ -138,21 +139,22 @@ function buildPromotedDeliverableInput(
   descriptorId: string | undefined,
   artifacts: ArtifactRow[],
 ): UpsertWorkflowDeliverableInput {
+  const progress = resolveDeliverableProgress(handoff);
   const artifactTargets = artifacts.map((artifact, index) =>
     buildArtifactTarget(artifact, index === 0),
   );
   const primaryTarget = artifactTargets[0] ?? {
     target_kind: 'inline_summary',
-    label: 'Review completion packet',
+    label: progress === 'final' ? 'Review completion packet' : 'Review handoff packet',
   };
   const previewSummary = buildPreviewSummary(handoff);
   return {
     descriptorId,
     workItemId: handoff.work_item_id ?? undefined,
     descriptorKind: 'handoff_packet',
-    deliveryStage: 'final',
-    title: `${workItemTitle ?? 'Work item'} completion packet`,
-    state: 'final',
+    deliveryStage: progress,
+    title: `${workItemTitle ?? 'Work item'} ${progress === 'final' ? 'completion' : 'handoff'} packet`,
+    state: progress === 'final' ? 'final' : 'draft',
     summaryBrief: handoff.summary,
     previewCapabilities: artifacts.length > 0
       ? buildArtifactPreviewCapabilities(artifacts[0])
@@ -171,10 +173,15 @@ function buildPromotedDeliverableInput(
   };
 }
 
+function resolveDeliverableProgress(handoff: WorkflowTaskDeliverablePromotionHandoff): DeliverableProgress {
+  return readOptionalString(handoff.role_data?.task_kind) === 'delivery' ? 'final' : 'in_progress';
+}
+
 function buildPreviewSummary(handoff: WorkflowTaskDeliverablePromotionHandoff): string {
+  const completionText = readOptionalString(handoff.completion);
   const detailLines = [
     handoff.summary,
-    readOptionalString(handoff.completion_state) ?? readOptionalString(handoff.completion),
+    completionText && completionText !== 'full' ? completionText : null,
     readOptionalString(handoff.role) ? `Produced by: ${humanizeToken(handoff.role ?? '')}` : null,
   ];
   return detailLines.filter((line): line is string => Boolean(line)).join('\n\n');
@@ -199,7 +206,7 @@ function buildArtifactTarget(artifact: ArtifactRow, primary: boolean): Record<st
   return {
     target_kind: 'artifact',
     label: primary ? 'Open artifact' : 'Artifact',
-    url: `/artifacts/tasks/${artifact.task_id}/${artifact.id}`,
+    url: `/api/v1/tasks/${encodeURIComponent(artifact.task_id)}/artifacts/${encodeURIComponent(artifact.id)}/preview`,
     path: readOptionalString(artifact.logical_path),
     artifact_id: artifact.id,
   };

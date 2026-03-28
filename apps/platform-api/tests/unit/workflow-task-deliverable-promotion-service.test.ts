@@ -121,6 +121,7 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
         primaryTarget: expect.objectContaining({
           target_kind: 'artifact',
           artifact_id: 'artifact-1',
+          url: '/api/v1/tasks/task-2/artifacts/artifact-1/preview',
           path: 'artifact:workflow/output/workflows-intake-02-triage-packet.md',
         }),
         previewCapabilities: expect.objectContaining({
@@ -131,7 +132,63 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
     );
   });
 
-  it('does not promote non-delivery handoffs into deliverables', async () => {
+  it('promotes non-delivery full handoffs into in-progress work-item deliverables', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [],
+          rowCount: 0,
+        })
+        .mockResolvedValueOnce({
+          rows: [{ title: 'workflow-intake-03' }],
+          rowCount: 1,
+        }),
+    };
+    const deliverableService = {
+      upsertSystemDeliverable: vi.fn(async () => ({
+        descriptor_id: 'descriptor-3',
+      })),
+    };
+
+    const service = new WorkflowTaskDeliverablePromotionService(
+      pool as never,
+      deliverableService as never,
+    );
+
+    await service.promoteFromHandoff('tenant-1', {
+      id: 'handoff-3',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-3',
+      task_id: 'task-3',
+      role: 'policy-assessor',
+      summary: 'Policy assessment is complete and the intake item is ready for closure review.',
+      completion: 'full',
+      completion_state: 'full',
+      role_data: {
+        task_kind: 'assessment',
+      },
+      artifact_ids: [],
+      created_at: '2026-03-28T20:30:00.000Z',
+    });
+
+    expect(deliverableService.upsertSystemDeliverable).toHaveBeenCalledWith(
+      'tenant-1',
+      'workflow-1',
+      expect.objectContaining({
+        workItemId: 'work-item-3',
+        descriptorKind: 'handoff_packet',
+        deliveryStage: 'in_progress',
+        state: 'draft',
+        title: 'workflow-intake-03 handoff packet',
+        primaryTarget: expect.objectContaining({
+          target_kind: 'inline_summary',
+        }),
+      }),
+    );
+  });
+
+  it('does not promote blocked handoffs into deliverables', async () => {
     const pool = {
       query: vi.fn(),
     };
@@ -151,8 +208,8 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
       task_id: 'task-3',
       role: 'policy-assessor',
       summary: 'Approved the intake packet.',
-      completion: 'full',
-      completion_state: 'full',
+      completion: 'blocked',
+      completion_state: 'blocked',
       role_data: {
         task_kind: 'assessment',
       },
