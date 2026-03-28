@@ -614,8 +614,16 @@ function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHa
     branch_id: branchId,
     artifact_ids: normalizeStringArray(input.artifact_ids),
   };
-  assertNoTaskLocalHandoffPaths(payload);
-  return payload;
+  const repairedPayload = normalizeTaskLocalHandoffReferences(payload);
+  if (repairedPayload.wasRepaired) {
+    logSafetynetTriggered(
+      HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_SAFETYNET,
+      'task-local handoff references repaired to stable operator-facing references',
+      { task_id: task.id, workflow_id: task.workflow_id },
+    );
+  }
+  assertNoTaskLocalHandoffPaths(repairedPayload.payload);
+  return repairedPayload.payload;
 }
 
 function applyActivationEventAnchor(task: TaskContextRow): TaskContextRow {
@@ -1030,6 +1038,88 @@ function assertNoTaskLocalHandoffPaths(value: unknown) {
   throw new ValidationError(
     `Structured handoffs must not reference task-local path "${offendingPath}". Persist output to artifacts/repo/memory and reference artifact ids/logical paths, repo-relative paths, memory keys, and workflow/task ids instead`,
   );
+}
+
+function normalizeTaskLocalHandoffReferences(
+  payload: ReturnType<typeof compactRecord>,
+): {
+  payload: ReturnType<typeof compactRecord>;
+  wasRepaired: boolean;
+} {
+  const artifactIds = Array.isArray(payload.artifact_ids) ? payload.artifact_ids : [];
+  const normalization = normalizeTaskLocalHandoffValue(payload, artifactIds.length > 0);
+  return {
+    payload: normalization.value as ReturnType<typeof compactRecord>,
+    wasRepaired: normalization.wasRepaired,
+  };
+}
+
+function normalizeTaskLocalHandoffValue(
+  value: unknown,
+  canRepairOutputPath: boolean,
+): {
+  value: unknown;
+  wasRepaired: boolean;
+} {
+  if (typeof value === 'string') {
+    return normalizeTaskLocalHandoffText(value, canRepairOutputPath);
+  }
+  if (Array.isArray(value)) {
+    let wasRepaired = false;
+    const next = value.map((entry) => {
+      const normalized = normalizeTaskLocalHandoffValue(entry, canRepairOutputPath);
+      wasRepaired = wasRepaired || normalized.wasRepaired;
+      return normalized.value;
+    });
+    return { value: next, wasRepaired };
+  }
+  if (!value || typeof value !== 'object') {
+    return { value, wasRepaired: false };
+  }
+  let wasRepaired = false;
+  const next = Object.fromEntries(
+    Object.entries(value as Record<string, unknown>).map(([key, entry]) => {
+      const normalized = normalizeTaskLocalHandoffValue(entry, canRepairOutputPath);
+      wasRepaired = wasRepaired || normalized.wasRepaired;
+      return [key, normalized.value];
+    }),
+  );
+  return { value: next, wasRepaired };
+}
+
+function normalizeTaskLocalHandoffText(
+  text: string,
+  canRepairOutputPath: boolean,
+): {
+  value: string;
+  wasRepaired: boolean;
+} {
+  let wasRepaired = false;
+  let value = text.replace(
+    /(^|[\s"'`(])\/tmp\/workspace\/repo\/([^\s"'`),\]]+)/gi,
+    (_match, prefix: string, repoPath: string) => {
+      wasRepaired = true;
+      return `${prefix}${repoPath}`;
+    },
+  );
+  value = value.replace(
+    /(^|[\s"'`(])repo\/([^\s"'`),\]]+)/gi,
+    (_match, prefix: string, repoPath: string) => {
+      wasRepaired = true;
+      return `${prefix}${repoPath}`;
+    },
+  );
+  if (!canRepairOutputPath) {
+    return { value, wasRepaired };
+  }
+  value = value.replace(
+    /(^|[\s"'`(])(?:\/tmp\/workspace\/)?output\/([^\s"'`),\]]+)/gi,
+    (_match, prefix: string, outputPath: string) => {
+      wasRepaired = true;
+      return `${prefix}uploaded artifact ${outputPath}`;
+    },
+  );
+  return { value, wasRepaired };
 }
 
 function findTaskLocalHandoffPath(value: unknown): string | null {

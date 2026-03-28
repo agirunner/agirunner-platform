@@ -41,6 +41,83 @@ describe('HandoffService', () => {
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
 
+  it('repairs uploaded output references into stable handoff wording when artifact ids are present', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            role: 'developer',
+            stage_name: 'requirements',
+            state: 'in_progress',
+            rework_count: 0,
+            metadata: { team_name: 'delivery' },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ next_sequence: 1 }], rowCount: 1 })
+        .mockImplementationOnce(async (_sql: string, params?: unknown[]) => ({
+          rows: [{
+            id: 'handoff-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: 'task-1',
+            task_rework_count: 0,
+            request_id: 'req-1',
+            role: 'developer',
+            team_name: 'delivery',
+            stage_name: 'requirements',
+            sequence: 1,
+            summary: String(params?.[10]),
+            completion: 'full',
+            completion_state: 'full',
+            resolution: null,
+            decision_state: null,
+            closure_effect: null,
+            changes: JSON.parse(String(params?.[15])),
+            decisions: [],
+            remaining_items: [],
+            blockers: [],
+            focus_areas: [],
+            known_risks: [],
+            successor_context: String(params?.[21]),
+            role_data: {},
+            artifact_ids: ['artifact-1'],
+            created_at: new Date('2026-03-28T02:00:00.000Z'),
+          }],
+          rowCount: 1,
+        })),
+    };
+
+    const service = new HandoffService(pool as never);
+
+    const result = await service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-1',
+      summary: 'Recorded the triage packet in output/workflows-intake-01-triage.md for review.',
+      completion: 'full',
+      changes: ['Created triage packet at output/workflows-intake-01-triage.md.'],
+      successor_context: 'Inspect output/workflows-intake-01-triage.md next.',
+      artifact_ids: ['artifact-1'],
+    });
+
+    expect(result.summary).toBe(
+      'Recorded the triage packet in uploaded artifact workflows-intake-01-triage.md for review.',
+    );
+    expect(result.changes).toEqual([
+      'Created triage packet at uploaded artifact workflows-intake-01-triage.md.',
+    ]);
+    expect(result.successor_context).toBe(
+      'Inspect uploaded artifact workflows-intake-01-triage.md next.',
+    );
+  });
+
   it('submits a structured task handoff with sequenced persistence', async () => {
     const pool = {
       query: vi

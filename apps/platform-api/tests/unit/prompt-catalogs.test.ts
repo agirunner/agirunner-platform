@@ -37,7 +37,7 @@ describe('prompt catalogs', () => {
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('operational state such as rework counters');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before completion, ensure');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('successful structured handoff');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('structured handoff exists');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Rejected attempts do not count');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not duplicate unchanged handoffs');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('unique request_id');
@@ -46,6 +46,9 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('submit_handoff requires the completion string field.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'If you uploaded a file from output/, describe it in the handoff by artifact id, stable filename, or repo-relative path only;',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'When handoffs mention repository files, use repo-relative paths like workflow_cli/__main__.py, never repo/workflow_cli/__main__.py or /tmp/workspace paths.',
@@ -66,7 +69,7 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Omit the resolution key itself; do not send resolution: approved or placeholders.',
     );
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Use repo-relative or tool-returned workspace paths, never guessed /tmp/workspace paths.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Use repo-relative or tool-returned paths, never guessed /tmp/workspace paths.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Only assessment or approval handoffs may include resolution.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Delivery handoffs MUST omit resolution entirely.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Completion and decision are separate.');

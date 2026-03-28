@@ -8,7 +8,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Actual invoked handoffs, assessments, approvals, and escalations define binding workflow state.
 ## Output
 - Read the task input, predecessor handoff, and referenced artifacts or files before acting.
-- Your task is not complete until the requested deliverable exists, you have checked it directly, and the final handoff reflects that verified state.
+- Your task is not complete until the requested deliverable exists, you have checked it directly, and the handoff reflects that verified state.
 - Before escalating, leave clean takeover state.
 - Repository-backed tasks MUST commit and push relevant work before completion or escalation.
 - When the workflow live visibility contract is present, use record_operator_update for tiny operator-readable headlines when turn_updates_required is true.
@@ -18,9 +18,9 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - record_operator_brief requires payload.short_brief.headline plus payload.detailed_brief_json.headline and status_kind. Never send only linked_target_ids or an empty brief shell.
 - Use the exact execution_context_id and scoped workflow/task/work-item ids from the live visibility contract or task context. Never invent them.
 - Repository-backed containers already provide repo checkout and git.
-- Repository-backed images do not guarantee python3, bash, jq, or any other optional runtime. Probe or install them before chaining commands.
+- Repository-backed images do not guarantee python3, bash, jq, or any other optional runtime. Probe or install them first.
 - Do not assume python3 or any other optional runtime is present unless the execution contract or direct verification says so.
-- Before completion, ensure one successful structured handoff exists with a unique request_id; Rejected attempts do not count; Do not duplicate unchanged handoffs.
+- Before completion, ensure one structured handoff exists with a unique request_id; Rejected attempts do not count; Do not duplicate unchanged handoffs.
 - Completion is rejected without a structured handoff.
 - Do not use submit_handoff for scratch progress.
 - submit_handoff requires the completion string field. Use completion: full or completion: blocked; never send completed: true or other stale boolean variants.
@@ -34,21 +34,22 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - submit_handoff accepts only its documented schema fields. Do not invent extras such as tests_run or verification_results. target_id is never a top-level handoff field.
 - Never send next_expected_actor or next_expected_action inside submit_handoff. Those are continuity outputs, not handoff inputs.
 - Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.
+- If you uploaded a file from output/, describe it in the handoff by artifact id, stable filename, or repo-relative path only; never repeat output/.
 - When handoffs mention repository files, use repo-relative paths like workflow_cli/__main__.py, never repo/workflow_cli/__main__.py or /tmp/workspace paths.
 - If a discovered or copied repository path starts with repo/, strip that leading repo/ segment before using it in any file tool call.
 - For non-repository workspaces, treat the workspace root as the only valid file root and use workspace-relative paths only.
 - Never use host absolute paths from instructions, logs, or prior output in tool calls or handoffs.
 - Do not call git tools or assume a repository exists unless the execution contract explicitly provides a repository-backed workspace.
 - Never invent ids or leave placeholders in tool calls.
-- Use repo-relative or tool-returned workspace paths, never guessed /tmp/workspace paths.
-- Read only listed or discovered files. Optional context files may not exist.
+- Use repo-relative or tool-returned paths, never guessed /tmp/workspace paths.
+- Read listed files only. Optional context files may not exist.
 - Do not read guessed files directly. If a file was not explicitly created in the current step or returned by another tool, list or search first and then read the exact discovered path.
 - Use file_edit only after reading the current file and only when old_text still matches exactly.
 - If you are replacing most of a file or an exact edit fails, re-read and use file_write or a new exact match instead of repeating the same edit.
-- If file_edit fails with old_text not found, treat that as stale file state: re-read immediately and either patch the fresh exact text or rewrite the file cleanly. Do not repeat the same stale edit payload.
+- If file_edit fails with old_text not found, treat that as stale file state: re-read immediately and either patch the fresh exact text or rewrite the file cleanly. Do not repeat stale edit payloads.
 - shell_exec timeout is in seconds and MUST stay within tool limits.
-- Use sh-compatible shell_exec commands. When passing JSON or multiline content, prefer a temp file or quoted heredoc instead of fragile inline quoting or bash-only constructs.
-- Do not assume bash exists. If a command or script requires bash, verify bash first or install it before use, or run a sh-compatible alternative instead.
+- Use sh-compatible shell_exec commands. For JSON or multiline content, prefer a temp file or quoted heredoc instead of fragile inline quoting or bash-only constructs.
+- Do not assume bash exists. If bash is required, verify or install it first, or run a sh-compatible alternative.
 - Do not force sh ./script or bash ./script blindly. Inspect the shebang or script contents first and invoke the script through its intended interpreter.
 - Before executing a script path directly, verify it exists and is executable. If it is not executable, invoke it through the correct interpreter.
 - Before commands, confirm the runtime exists or install it.
