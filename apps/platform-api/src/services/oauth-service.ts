@@ -15,18 +15,14 @@ import { NotFoundError, ServiceUnavailableError, ValidationError } from '../erro
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 const PROVIDER_ERROR_MAX_LENGTH = 160;
 const PROVIDER_REFRESH_REAUTH_PATTERNS = [
-  'invalid_grant',
-  'invalid refresh token',
-  'refresh token is invalid',
-  'refresh token invalid',
-  'refresh token expired',
-  'token expired',
-  'expired',
-  'revoked',
-  'reauthor',
-  're-author',
-  'consent_required',
-  'login_required',
+  /\binvalid_grant\b/i,
+  /\brefresh token\b.*\binvalid\b/i,
+  /\brefresh token\b.*\bexpired\b/i,
+  /\brefresh token\b.*\brevoked\b/i,
+  /\breauthor/i,
+  /\bre-author/i,
+  /\bconsent_required\b/i,
+  /\blogin_required\b/i,
 ] as const;
 
 interface OAuthConfig {
@@ -704,7 +700,7 @@ function isProviderRefreshReauthStatus(status: number, rawDetail: string): boole
   if (!normalized) {
     return false;
   }
-  return PROVIDER_REFRESH_REAUTH_PATTERNS.some((pattern) => normalized.includes(pattern));
+  return PROVIDER_REFRESH_REAUTH_PATTERNS.some((pattern) => pattern.test(normalized));
 }
 
 function buildImportedCredentials(
