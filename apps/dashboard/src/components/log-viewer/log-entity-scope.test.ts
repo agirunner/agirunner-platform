@@ -7,7 +7,7 @@ function readSource(fileName: string): string {
 }
 
 describe('log entity scope source', () => {
-  it('loads entity scope options lazily instead of polling all selectors on page load', () => {
+  it('loads entity scope options lazily while keeping option caches warm after the operator opens them', () => {
     const scopeSource = readSource('./log-entity-scope.tsx');
     const hooksSource = readSource('./hooks/use-cascading-entities.ts');
 
@@ -20,7 +20,8 @@ describe('log entity scope source', () => {
     expect(hooksSource).toContain('isWorkspaceMenuOpen || Boolean(workspaceId)');
     expect(hooksSource).toContain('isWorkflowMenuOpen || Boolean(workflowId)');
     expect(hooksSource).toContain('isTaskMenuOpen || Boolean(taskId)');
-    expect(hooksSource).not.toContain('refetchInterval: 10_000');
-    expect(hooksSource).not.toContain('refetchIntervalInBackground: true');
+    expect(hooksSource).toContain('refetchInterval: 10_000');
+    expect(hooksSource).toContain('refetchIntervalInBackground: true');
+    expect(hooksSource).toContain('refetchOnWindowFocus: true');
   });
 });
