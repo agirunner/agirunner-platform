@@ -45,7 +45,7 @@ const workflowOperatorBriefCreateSchema = z.object({
   brief_scope: z.string().min(1).max(120),
   source_kind: z.string().min(1).max(120),
   source_role_name: z.string().max(255).optional(),
-  status_kind: z.string().min(1).max(120),
+  status_kind: z.string().min(1).max(120).optional(),
   payload: z.object({
     short_brief: z.record(z.unknown()),
     detailed_brief_json: z.record(z.unknown()),

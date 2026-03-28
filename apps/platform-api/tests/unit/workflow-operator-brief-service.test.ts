@@ -439,4 +439,89 @@ describe('WorkflowOperatorBriefService', () => {
     expect(result.deduped).toBe(true);
     expect(result.record_id).toBe('brief-1');
   });
+
+  it('derives persisted status_kind from the detailed brief when the top-level field is omitted', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows')) {
+        return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+      }
+      if (sql.includes('FROM tasks')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'task-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            is_orchestrator_task: false,
+            role: 'Verifier',
+            state: 'completed',
+          }],
+        };
+      }
+      if (sql.includes('FROM workflow_operator_briefs') && sql.includes('request_id = $3')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM workflow_work_items')) {
+        return { rowCount: 1, rows: [{ id: 'work-item-1' }] };
+      }
+      if (sql.includes('COALESCE(MAX(sequence_number), 0) + 1')) {
+        return { rowCount: 1, rows: [{ next_sequence: 6 }] };
+      }
+      if (sql.includes('INSERT INTO workflow_operator_briefs')) {
+        expect(params?.[12]).toBe('handoff');
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'brief-6',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: 'task-1',
+            request_id: 'request-6',
+            execution_context_id: 'task-1',
+            brief_kind: 'milestone',
+            brief_scope: 'work_item_handoff',
+            source_kind: 'specialist',
+            source_role_name: 'Verifier',
+            status_kind: 'handoff',
+            short_brief: JSON.parse(String(params?.[10])),
+            detailed_brief_json: JSON.parse(String(params?.[11])),
+            linked_target_ids: [],
+            sequence_number: 6,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: new Date('2026-03-28T01:00:00.000Z'),
+            updated_at: new Date('2026-03-28T01:00:00.000Z'),
+          }],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const result = await service.recordBriefWrite(IDENTITY as never, 'workflow-1', {
+      requestId: 'request-6',
+      executionContextId: 'task-1',
+      workItemId: 'work-item-1',
+      taskId: 'task-1',
+      briefKind: 'milestone',
+      briefScope: 'work_item_handoff',
+      sourceKind: 'specialist',
+      payload: {
+        shortBrief: {
+          headline: 'Verifier handed the packet back for review.',
+        },
+        detailedBriefJson: {
+          headline: 'Verifier handed the packet back for review.',
+          status_kind: 'handoff',
+          summary: 'The packet is ready for the next reviewer.',
+        },
+      },
+    } as never);
+
+    expect(result.record.status_kind).toBe('handoff');
+  });
 });

@@ -512,6 +512,61 @@ describe('workflow routes', () => {
     );
   });
 
+  it('accepts operator brief route writes without a duplicate top-level status_kind field', async () => {
+    const recordBriefWrite = vi.fn().mockResolvedValue({
+      record_id: 'brief-3',
+      sequence_number: 6,
+      deduped: false,
+      record: {
+        id: 'brief-3',
+        workflow_id: 'workflow-1',
+        short_brief: { headline: 'Verification completed.' },
+      },
+    });
+
+    app = createWorkflowRoutesApp({
+      workflowOperatorBriefService: {
+        listBriefs: vi.fn().mockResolvedValue([]),
+        recordBriefWrite,
+      },
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/operator-briefs',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'request-3',
+        execution_context_id: 'execution-3',
+        workflow_id: 'workflow-1',
+        brief_kind: 'milestone',
+        brief_scope: 'workflow_timeline',
+        source_kind: 'orchestrator',
+        payload: {
+          short_brief: {
+            headline: 'Verification completed.',
+          },
+          detailed_brief_json: {
+            headline: 'Verification completed.',
+            status_kind: 'in_progress',
+          },
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(recordBriefWrite).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({
+        requestId: 'request-3',
+        executionContextId: 'execution-3',
+        statusKind: undefined,
+      }),
+    );
+  });
+
   it('registers operator record writes with both admin and agent scopes', async () => {
     app = createWorkflowRoutesApp();
     await app.register(workflowRoutes);

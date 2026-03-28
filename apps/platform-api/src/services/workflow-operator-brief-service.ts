@@ -87,7 +87,7 @@ export interface RecordWorkflowOperatorBriefInput {
   briefScope: string;
   sourceKind: string;
   sourceRoleName?: string;
-  statusKind: string;
+  statusKind?: string;
   payload: WorkflowOperatorBriefPayloadInput;
   relatedArtifactIds?: unknown;
   relatedInterventionIds?: unknown;
@@ -166,6 +166,12 @@ export class WorkflowOperatorBriefService {
     const sequenceNumber = await this.nextSequenceNumber(identity.tenantId, workflowId);
     const shortBrief = sanitizeOperatorShortBrief(input.payload.shortBrief);
     const detailedBriefJson = sanitizeOperatorDetailedBrief(input.payload.detailedBriefJson);
+    const effectiveStatusKind =
+      sanitizeOptionalText(input.statusKind) ??
+      sanitizeRequiredText(
+        detailedBriefJson.status_kind,
+        'Workflow operator brief status kind is required',
+      );
     const linkedTargetIds = sanitizeLinkedIdList(input.payload.linkedTargetIds);
     const inserted = await this.pool.query<WorkflowOperatorBriefRow>(
       `INSERT INTO workflow_operator_briefs
@@ -185,7 +191,7 @@ export class WorkflowOperatorBriefService {
         executionContext.sourceKind,
         serializeJsonb(shortBrief),
         serializeJsonb(detailedBriefJson),
-        sanitizeRequiredText(input.statusKind, 'Workflow operator brief status kind is required'),
+        effectiveStatusKind,
         serializeJsonb(linkedTargetIds),
         serializeJsonb(sanitizeLinkedIdList(input.relatedArtifactIds)),
         serializeJsonb([]),
