@@ -92,8 +92,9 @@ describe('WorkflowsRail', () => {
       }),
     );
 
-    expect(html).toContain('flex min-w-0 items-center gap-2');
+    expect(html).toContain('flex min-w-0 flex-wrap items-center gap-2');
     expect(html).toContain('overflow-x-hidden');
+    expect(html).not.toContain('overflow-x-auto');
     expect(html).not.toContain('overflow-hidden rounded-2xl border');
     expect(html).not.toContain('Select workflow');
   });

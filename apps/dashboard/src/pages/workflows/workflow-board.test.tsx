@@ -114,6 +114,7 @@ describe('WorkflowBoard', () => {
     );
 
     expect(html).toContain('Nothing active here right now.');
+    expect(html).toContain('grid min-h-[10rem] place-items-center text-center');
     expect(html).not.toContain('No active work items in this lane.');
     expect(html).not.toContain('flex min-h-[8rem] items-center justify-center text-center');
   });

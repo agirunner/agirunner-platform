@@ -48,6 +48,8 @@ export function buildWorkflowWorkspaceSplitClassName(): string {
     'min-h-0',
     'min-w-0',
     'gap-2',
+    'grid-rows-[minmax(18rem,42vh)_minmax(20rem,1fr)]',
+    'md:grid-rows-[minmax(20rem,44vh)_minmax(22rem,1fr)]',
     'lg:h-full',
     'lg:gap-0',
     'lg:overflow-hidden',

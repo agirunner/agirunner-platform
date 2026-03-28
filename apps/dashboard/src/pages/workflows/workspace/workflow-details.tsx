@@ -47,8 +47,8 @@ export function WorkflowDetails(props: {
     || (isWorkflowScope && hasStructuredContent(props.workflowParameters));
 
   return (
-    <section className="grid gap-4">
-      <header className="grid gap-2 border-b border-border/60 pb-3">
+    <section className="grid gap-3 pb-1">
+      <header className="grid gap-1.5 border-b border-border/60 pb-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           {scope.scope_label}
         </p>
@@ -101,7 +101,7 @@ function DetailSection(props: {
   children: ReactNode;
 }): JSX.Element {
   return (
-    <section className="grid gap-3">
+    <section className="grid gap-2">
       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         {props.title}
       </p>

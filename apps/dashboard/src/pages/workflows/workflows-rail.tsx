@@ -81,7 +81,7 @@ export function WorkflowsRail(props: {
             onChange={(event) => props.onSearchChange(event.target.value)}
             placeholder="Search workflows"
           />
-          <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-1">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <ModeButton
               isActive={props.mode === 'live'}
               label="Live"
@@ -218,7 +218,7 @@ function WorkflowRailRowCard(props: {
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{humanizePosture(props.row.posture)}</span>
         <span>{formatRelativeTimestamp(props.row.last_changed_at)}</span>
       </div>

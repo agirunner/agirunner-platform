@@ -393,8 +393,8 @@ export function WorkflowsPage(): JSX.Element {
             />
           </div>
         ) : null}
-        <div className="grid min-h-0 w-full min-w-0 gap-2 lg:h-full lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
-          <div className="flex min-w-0 items-center justify-between gap-2">
+        <div className="grid min-h-0 w-full min-w-0 gap-1.5 lg:h-full lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
+          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
             <Button type="button" size="sm" variant="outline" onClick={() => setIsRailHidden((current) => !current)}>
               {isRailHidden ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
               {isRailHidden ? 'Show workflows' : 'Hide workflows'}
@@ -407,7 +407,7 @@ export function WorkflowsPage(): JSX.Element {
           </div>
 
           {workflow && workspacePacket ? (
-            <div className="grid min-h-0 min-w-0 gap-2 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
+            <div className="grid min-h-0 min-w-0 gap-1.5 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
               <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm">
                 <WorkflowStateStrip
                   workflow={workflow}
@@ -438,7 +438,7 @@ export function WorkflowsPage(): JSX.Element {
                 className={buildWorkflowWorkspaceSplitClassName()}
                 style={buildWorkflowWorkspaceSplitStyle(workbenchFraction)}
               >
-                <div className="min-h-0 min-w-0 overflow-visible lg:overflow-hidden">
+                <div className="min-h-0 min-w-0 overflow-hidden">
                   <WorkflowBoard
                     workflowId={workflow.id}
                     board={board}
@@ -489,7 +489,7 @@ export function WorkflowsPage(): JSX.Element {
                     }}
                   />
                 </div>
-                <div className="min-h-0 min-w-0 overflow-visible lg:overflow-hidden">
+                <div className="min-h-0 min-w-0 overflow-hidden">
                   <WorkflowBottomWorkbench
                     workflowId={workflow.id}
                     workflow={workflow}

@@ -237,21 +237,19 @@ function BoardLaneCard(props: {
       <div className="grid gap-3">
         {props.boardLens === 'tasks'
           ? renderTaskLaneCards(activeTaskCards, props.selectedTaskId, props.onSelectTask)
-          : props.lane.activeItems.length === 0 ? (
-          <p className="px-1 py-1 text-sm text-muted-foreground">Nothing active here right now.</p>
-        ) : (
-          props.lane.activeItems.map((workItem) => (
-            <BoardWorkItemCard
-              key={workItem.id}
-              workItem={workItem}
-              workflowState={props.workflowState}
-              taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
-              isSelected={workItem.id === props.selectedWorkItemId}
-              selectedTaskId={props.selectedTaskId}
-              onSelect={props.onSelectWorkItem}
-              />
-            ))
-          )}
+          : props.lane.activeItems.length === 0
+            ? renderLaneEmptyState('Nothing active here right now.')
+            : props.lane.activeItems.map((workItem) => (
+                <BoardWorkItemCard
+                  key={workItem.id}
+                  workItem={workItem}
+                  workflowState={props.workflowState}
+                  taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
+                  isSelected={workItem.id === props.selectedWorkItemId}
+                  selectedTaskId={props.selectedTaskId}
+                  onSelect={props.onSelectWorkItem}
+                />
+              ))}
       </div>
 
       {showCompletedSection ? (
@@ -269,9 +267,7 @@ function BoardLaneCard(props: {
                   'No completed specialist tasks match the current visibility window.',
                 )
               : props.lane.visibleCompletedItems.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No completed work items match the current visibility window.
-              </p>
+              renderLaneEmptyState('No completed work items match the current visibility window.')
             ) : (
               props.lane.visibleCompletedItems.map((workItem) => (
                 <BoardWorkItemCard
@@ -359,9 +355,7 @@ function renderTaskLaneCards(
   emptyMessage = 'No specialist tasks in this lane.',
 ): JSX.Element {
   if (taskCards.length === 0) {
-    return (
-      <p className="px-1 py-1 text-sm text-muted-foreground">{emptyMessage}</p>
-    );
+    return renderLaneEmptyState(emptyMessage);
   }
 
   return (
@@ -398,6 +392,14 @@ function renderTaskLaneCards(
         </section>
       ))}
     </>
+  );
+}
+
+function renderLaneEmptyState(message: string): JSX.Element {
+  return (
+    <div className="grid min-h-[10rem] place-items-center text-center">
+      <p className="text-sm text-muted-foreground">{message}</p>
+    </div>
   );
 }
 

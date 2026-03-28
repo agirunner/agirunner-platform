@@ -41,10 +41,10 @@ export function WorkflowStateStrip(props: {
   const activeSpecialistTaskCount = sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount;
 
   return (
-    <section className="space-y-2 rounded-lg border border-border/70 bg-background/90 p-2">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-sm font-semibold text-foreground">{props.workflow.name}</h2>
+    <section className="space-y-1.5 rounded-lg border border-border/70 bg-background/90 p-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <h2 className="truncate text-sm font-semibold text-foreground">{props.workflow.name}</h2>
           <Badge variant={isPausedWorkflow ? 'warning' : 'secondary'}>
             {isPausedWorkflow ? 'Workflow paused' : postureLabel}
           </Badge>
@@ -101,7 +101,7 @@ export function WorkflowStateStrip(props: {
         </div>
       </div>
 
-      <div className="grid gap-2 lg:grid-cols-4">
+      <div className="grid gap-1.5 lg:grid-cols-4">
         <HeaderCard
           title="State"
           value={postureLabel}
@@ -139,7 +139,7 @@ function HeaderCard(props: {
   detail: string | null;
   onClick?(): void;
 }): JSX.Element {
-  const className = 'grid gap-1 rounded-lg border border-border/50 bg-background/80 px-3 py-2 text-left shadow-none';
+  const className = 'grid gap-0.5 rounded-lg border border-border/50 bg-background/80 px-2.5 py-2 text-left shadow-none';
 
   if (!props.onClick) {
     return (
@@ -147,7 +147,7 @@ function HeaderCard(props: {
         <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           {props.title}
         </p>
-        <p className="text-lg font-semibold tracking-tight text-foreground">{props.value}</p>
+        <p className="text-base font-semibold tracking-tight text-foreground sm:text-lg">{props.value}</p>
         {props.detail ? <p className="text-[10px] leading-4 text-muted-foreground">{props.detail}</p> : null}
       </div>
     );
@@ -162,7 +162,7 @@ function HeaderCard(props: {
       <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         {props.title}
       </p>
-      <p className="text-lg font-semibold tracking-tight text-foreground">{props.value}</p>
+      <p className="text-base font-semibold tracking-tight text-foreground sm:text-lg">{props.value}</p>
       {props.detail ? <p className="text-[10px] leading-4 text-muted-foreground">{props.detail}</p> : null}
     </button>
   );
