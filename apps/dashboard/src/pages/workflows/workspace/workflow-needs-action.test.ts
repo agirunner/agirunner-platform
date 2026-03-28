@@ -184,4 +184,67 @@ describe('WorkflowNeedsAction', () => {
     expect(html).toContain('Add / Modify Work');
     expect(html).not.toContain('Open Steering');
   });
+
+  it('renders stage-gate decision responses inline instead of dropping them from needs action', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowNeedsAction, {
+          workflowId: 'workflow-1',
+          workspaceId: 'workspace-1',
+          packet: {
+            items: [
+              {
+                action_id: 'work-item-1:awaiting_approval',
+                action_kind: 'review_work_item',
+                label: 'Approval required',
+                summary: 'Approve Curiosity Deck brief is waiting for operator approval.',
+                target: {
+                  target_kind: 'work_item',
+                  target_id: 'work-item-1',
+                },
+                priority: 'high',
+                requires_confirmation: true,
+                submission: {
+                  route_kind: 'workflow_mutation',
+                  method: 'POST',
+                },
+                responses: [
+                  {
+                    action_id: 'gate-1:approve_gate',
+                    kind: 'approve_gate',
+                    label: 'Approve',
+                    target: {
+                      target_kind: 'gate',
+                      target_id: 'gate-1',
+                    },
+                    requires_confirmation: false,
+                    prompt_kind: 'none',
+                  },
+                  {
+                    action_id: 'gate-1:request_changes_gate',
+                    kind: 'request_changes_gate',
+                    label: 'Request changes',
+                    target: {
+                      target_kind: 'gate',
+                      target_id: 'gate-1',
+                    },
+                    requires_confirmation: true,
+                    prompt_kind: 'feedback',
+                  },
+                ],
+              },
+            ],
+            total_count: 1,
+            default_sort: 'priority_desc',
+          },
+        }),
+      ),
+    );
+
+    expect(html).toContain('Approval required');
+    expect(html).toContain('Approve');
+    expect(html).toContain('Request changes');
+  });
 });

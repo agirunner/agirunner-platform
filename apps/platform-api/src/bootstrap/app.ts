@@ -31,6 +31,7 @@ import { ExecutionEnvironmentService } from '../services/execution-environment-s
 import { ExecutionEnvironmentVerificationService } from '../services/execution-environment-verification-service.js';
 import { FleetService } from '../services/fleet-service.js';
 import { GovernanceService } from '../services/governance-service.js';
+import { ApprovalQueueService } from '../services/approval-queue-service.js';
 import { MissionControlHistoryService } from '../services/workflow-operations/mission-control-history-service.js';
 import { MissionControlLiveService } from '../services/workflow-operations/mission-control-live-service.js';
 import { MissionControlRecentService } from '../services/workflow-operations/mission-control-recent-service.js';
@@ -245,6 +246,7 @@ export async function buildApp() {
     pool,
     workflowInterventionService,
   );
+  const approvalQueueService = new ApprovalQueueService(pool);
   const workflowOperationsLiveService = new MissionControlLiveService(pool);
   const workflowOperationsRecentService = new MissionControlRecentService(pool, workflowOperationsLiveService);
   const workflowOperationsHistoryService = new MissionControlHistoryService(pool, workflowOperationsLiveService);
@@ -280,6 +282,7 @@ export async function buildApp() {
     workflowInterventionService,
     workflowSteeringSessionService,
     taskService,
+    approvalQueueService,
   );
   const workflowOperationsStreamService = new WorkflowOperationsStreamService(
     workflowOperationsRailService,

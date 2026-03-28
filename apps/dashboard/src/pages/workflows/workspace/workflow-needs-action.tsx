@@ -33,7 +33,7 @@ export function WorkflowNeedsAction(props: {
 
   const mutation = useMutation({
     mutationFn: async (action: DashboardWorkflowNeedsActionResponseAction) =>
-      runNeedsAction(action, promptValue),
+      runNeedsAction(props.workflowId, action, promptValue),
     onSuccess: async (_result, action) => {
       await invalidateWorkflowsQueries(queryClient, props.workflowId, props.workspaceId);
       setPromptAction(null);
@@ -194,6 +194,7 @@ function NeedsActionCard(props: {
 }
 
 async function runNeedsAction(
+  workflowId: string,
   action: DashboardWorkflowNeedsActionResponseAction,
   promptValue: string,
 ): Promise<void> {
@@ -213,6 +214,21 @@ async function runNeedsAction(
     case 'resolve_escalation':
       await dashboardApi.resolveEscalation(action.target.target_id, { instructions: promptValue.trim() });
       return;
+    case 'approve_gate':
+      await dashboardApi.actOnWorkflowGate(workflowId, action.target.target_id, { action: 'approve' });
+      return;
+    case 'reject_gate':
+      await dashboardApi.actOnWorkflowGate(workflowId, action.target.target_id, {
+        action: 'reject',
+        feedback: promptValue.trim(),
+      });
+      return;
+    case 'request_changes_gate':
+      await dashboardApi.actOnWorkflowGate(workflowId, action.target.target_id, {
+        action: 'request_changes',
+        feedback: promptValue.trim(),
+      });
+      return;
     case 'retry_task':
       await dashboardApi.retryTask(action.target.target_id);
       return;
@@ -229,8 +245,11 @@ function isSupportedNeedsActionResponse(
   }
   return action.kind === 'approve_task'
     || action.kind === 'approve_task_output'
+    || action.kind === 'approve_gate'
     || action.kind === 'reject_task'
+    || action.kind === 'reject_gate'
     || action.kind === 'request_changes_task'
+    || action.kind === 'request_changes_gate'
     || action.kind === 'resolve_escalation'
     || action.kind === 'retry_task';
 }
@@ -243,7 +262,13 @@ function readSuccessMessage(actionKind: string): string {
       return 'Output approval recorded';
     case 'reject_task':
       return 'Rejection recorded';
+    case 'approve_gate':
+      return 'Approval recorded';
+    case 'reject_gate':
+      return 'Rejection recorded';
     case 'request_changes_task':
+      return 'Change request recorded';
+    case 'request_changes_gate':
       return 'Change request recorded';
     case 'resolve_escalation':
       return 'Escalation resolved';
@@ -282,10 +307,19 @@ function buildPromptMeta(
     };
   }
   return {
-    title: action.kind === 'reject_task' ? 'Reject task' : 'Request task changes',
-    description: 'Attach explicit operator feedback to this task so the next workflow step is clear.',
+    title:
+      action.kind === 'reject_task' || action.kind === 'reject_gate'
+        ? 'Reject approval'
+        : 'Request changes',
+    description:
+      action.kind === 'reject_gate' || action.kind === 'request_changes_gate'
+        ? 'Attach explicit operator feedback to this approval gate so the next workflow step is clear.'
+        : 'Attach explicit operator feedback to this task so the next workflow step is clear.',
     placeholder: 'Describe the changes or rejection reason...',
-    confirmLabel: action.kind === 'reject_task' ? 'Reject' : 'Request changes',
+    confirmLabel:
+      action.kind === 'reject_task' || action.kind === 'reject_gate'
+        ? 'Reject'
+        : 'Request changes',
     requiredMessage: 'Enter review feedback before continuing.',
   };
 }

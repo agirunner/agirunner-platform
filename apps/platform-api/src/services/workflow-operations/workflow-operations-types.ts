@@ -59,7 +59,7 @@ export interface WorkflowNeedsActionResponseAction {
   kind: string;
   label: string;
   target: {
-    target_kind: 'workflow' | 'work_item' | 'task';
+    target_kind: 'workflow' | 'work_item' | 'task' | 'gate';
     target_id: string;
   };
   requires_confirmation: boolean;

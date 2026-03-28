@@ -565,7 +565,7 @@ export interface DashboardWorkflowNeedsActionResponseAction {
   kind: string;
   label: string;
   target: {
-    target_kind: 'workflow' | 'work_item' | 'task';
+    target_kind: 'workflow' | 'work_item' | 'task' | 'gate';
     target_id: string;
   };
   requires_confirmation: boolean;
@@ -3023,6 +3023,11 @@ export interface DashboardApi {
     taskId: string,
     payload: { instructions: string; context?: Record<string, unknown> },
   ): Promise<unknown>;
+  actOnWorkflowGate(
+    workflowId: string,
+    gateId: string,
+    payload: { action: 'approve' | 'reject' | 'request_changes' | 'block'; feedback?: string },
+  ): Promise<unknown>;
   overrideTaskOutput(
     taskId: string,
     payload: { output: unknown; reason: string },
@@ -4164,6 +4169,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     resolveEscalation: (taskId, payload) =>
       withRefresh(() =>
         requestJson(`/api/v1/tasks/${taskId}/resolve-escalation`, { body: payload }),
+      ),
+    actOnWorkflowGate: (workflowId, gateId, payload) =>
+      withRefresh(() =>
+        requestJson(`/api/v1/workflows/${workflowId}/gates/${gateId}`, {
+          body: buildRequestBodyWithRequestId(payload),
+        }),
       ),
     overrideTaskOutput: (taskId, payload) =>
       withRefresh(() => requestJson(`/api/v1/tasks/${taskId}/output-override`, { body: payload })),
