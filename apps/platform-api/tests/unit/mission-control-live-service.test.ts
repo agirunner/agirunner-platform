@@ -556,6 +556,63 @@ describe('MissionControlLiveService', () => {
       }),
     ]);
   });
+
+  it('qualifies workflow-work-item signal columns so the live signal query stays valid in joined subqueries', async () => {
+    const pool = createSequencedPool([
+      { rows: [{ latest_event_id: 42 }], rowCount: 1 },
+      {
+        rows: [
+          {
+            id: 'workflow-1',
+            name: 'Release Workflow',
+            state: 'active',
+            lifecycle: 'planned',
+            current_stage: 'review',
+            workspace_id: 'workspace-1',
+            workspace_name: 'Core Product',
+            playbook_id: 'playbook-1',
+            playbook_name: 'Release',
+            parameters: {},
+            context: {},
+            updated_at: '2026-03-27T04:00:00.000Z',
+          },
+        ],
+        rowCount: 1,
+      },
+      {
+        rows: [
+          {
+            workflow_id: 'workflow-1',
+            waiting_for_decision_count: 0,
+            open_escalation_count: 0,
+            blocked_work_item_count: 0,
+            failed_task_count: 0,
+            active_task_count: 0,
+            active_work_item_count: 1,
+            pending_work_item_count: 0,
+            recoverable_issue_count: 0,
+          },
+        ],
+        rowCount: 1,
+      },
+      { rows: [], rowCount: 0 },
+      { rows: [], rowCount: 0 },
+    ]);
+
+    const service = new MissionControlLiveService(pool as never);
+    await service.getLive('tenant-1');
+
+    expect(pool.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('WHERE wi.tenant_id = w.tenant_id'),
+      expect.any(Array),
+    );
+    expect(pool.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining('AND wi.workflow_id = w.id'),
+      expect.any(Array),
+    );
+  });
 });
 
 function createSequencedPool(responses: Array<{ rows: unknown[]; rowCount: number }>) {

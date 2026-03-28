@@ -1,16 +1,28 @@
 import { useEffect } from 'react';
 import type { QueryClient } from '@tanstack/react-query';
 
+import { readCookieValue } from '../../lib/auth-callback.js';
 import { processSseBuffer } from '../../lib/sse.js';
-import { readSession } from '../../lib/session.js';
+import { clearSession, readSession, writeSession } from '../../lib/session.js';
 import { buildWorkflowRailQueryKey } from './workflows-query.js';
 import type { WorkflowPageMode } from './workflows-page.support.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
+const AUTH_REFRESH_PATH = '/api/v1/auth/refresh';
+const CSRF_COOKIE_NAME = 'agirunner_csrf_token';
+const CSRF_HEADER_NAME = 'x-csrf-token';
+
+let refreshPromise: Promise<string | null> | null = null;
 
 interface StreamOptions {
   path: string;
   onMessage(): void;
+}
+
+interface StreamRequestOptions {
+  path: string;
+  signal: AbortSignal;
+  fetcher?: typeof fetch;
 }
 
 export function useWorkflowRailRealtime(
@@ -78,25 +90,23 @@ function subscribeToWorkflowOperationsStream(options: StreamOptions): () => void
   }
 
   const controller = new AbortController();
-  void runStreamLoop(controller, session.accessToken, options);
+  void runStreamLoop(controller, options);
   return () => controller.abort();
 }
 
 async function runStreamLoop(
   controller: AbortController,
-  accessToken: string,
   options: StreamOptions,
 ): Promise<void> {
   while (!controller.signal.aborted) {
     try {
-      const response = await fetch(`${API_BASE_URL}${options.path}`, {
-        headers: {
-          accept: 'text/event-stream',
-          authorization: `Bearer ${accessToken}`,
-        },
-        credentials: 'include',
+      const response = await requestWorkflowOperationsStreamResponse({
+        path: options.path,
         signal: controller.signal,
       });
+      if (!response) {
+        return;
+      }
       if (!response.ok || !response.body) {
         await sleep();
         continue;
@@ -119,6 +129,106 @@ async function runStreamLoop(
         await sleep();
       }
     }
+  }
+}
+
+export async function requestWorkflowOperationsStreamResponse(
+  options: StreamRequestOptions,
+): Promise<Response | null> {
+  const fetcher = options.fetcher ?? fetch;
+  const session = readSession();
+  if (!session?.accessToken) {
+    return null;
+  }
+
+  const response = await fetchWorkflowOperationsStream(fetcher, session.accessToken, options);
+  if (response.status !== 401) {
+    return response;
+  }
+
+  const refreshedAccessToken = await refreshWorkflowOperationsAccessToken(fetcher, session);
+  if (!refreshedAccessToken) {
+    clearWorkflowOperationsSession();
+    return null;
+  }
+
+  const retriedResponse = await fetchWorkflowOperationsStream(fetcher, refreshedAccessToken, options);
+  if (retriedResponse.status === 401) {
+    clearWorkflowOperationsSession();
+    return null;
+  }
+
+  return retriedResponse;
+}
+
+async function fetchWorkflowOperationsStream(
+  fetcher: typeof fetch,
+  accessToken: string,
+  options: StreamRequestOptions,
+): Promise<Response> {
+  return fetcher(`${API_BASE_URL}${options.path}`, {
+    headers: {
+      accept: 'text/event-stream',
+      authorization: `Bearer ${accessToken}`,
+    },
+    credentials: 'include',
+    signal: options.signal,
+  });
+}
+
+async function refreshWorkflowOperationsAccessToken(
+  fetcher: typeof fetch,
+  session: NonNullable<ReturnType<typeof readSession>>,
+): Promise<string | null> {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = refreshAccessToken(fetcher).finally(() => {
+    refreshPromise = null;
+  });
+
+  const refreshedAccessToken = await refreshPromise;
+  if (!refreshedAccessToken) {
+    return null;
+  }
+
+  writeSession({
+    accessToken: refreshedAccessToken,
+    tenantId: session.tenantId,
+    persistentSession: session.persistentSession,
+  });
+
+  return refreshedAccessToken;
+}
+
+async function refreshAccessToken(fetcher: typeof fetch): Promise<string | null> {
+  const cookieHeader = typeof document === 'undefined' ? '' : document.cookie ?? '';
+  const csrfToken = readCookieValue(cookieHeader, CSRF_COOKIE_NAME);
+  if (!csrfToken) {
+    return null;
+  }
+
+  const response = await fetcher(`${API_BASE_URL}${AUTH_REFRESH_PATH}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      [CSRF_HEADER_NAME]: csrfToken,
+    },
+  });
+  if (!response.ok) {
+    return null;
+  }
+
+  const payload = await response.json() as { data?: { token?: string } };
+  const accessToken = payload.data?.token?.trim() ?? '';
+  return accessToken.length > 0 ? accessToken : null;
+}
+
+function clearWorkflowOperationsSession(): void {
+  clearSession();
+  if (typeof window !== 'undefined') {
+    window.location.assign('/login');
   }
 }
 
