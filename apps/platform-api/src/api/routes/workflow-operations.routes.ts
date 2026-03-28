@@ -96,6 +96,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
       work_item_id?: string;
       tab_scope?: 'workflow' | 'selected_work_item';
       live_console_after?: string;
+      live_console_limit?: string;
       history_after?: string;
       deliverables_after?: string;
       history_limit?: string;
@@ -112,6 +113,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
         workItemId: query.work_item_id,
         tabScope: query.tab_scope ?? 'workflow',
         liveConsoleAfter: query.live_console_after,
+        liveConsoleLimit: readPositiveInt(query.live_console_limit, 50),
         historyAfter: query.history_after,
         deliverablesAfter: query.deliverables_after,
         historyLimit: readPositiveInt(query.history_limit, 50),
@@ -151,6 +153,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
     reply.raw.setHeader('Cache-Control', 'no-cache');
     reply.raw.setHeader('Connection', 'keep-alive');
     writeSse(reply, batch);
+    let currentCursor = batch.cursor;
     const unsubscribe = app.eventStreamService.subscribe(request.auth!.tenantId, {}, (event) => {
       void app.workflowOperationsStreamService
         .buildRailBatch(request.auth!.tenantId, {
@@ -159,9 +162,10 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
           ongoingOnly: readBooleanFlag(query.ongoing_only),
           search: query.search,
           selectedWorkflowId: query.workflow_id,
-          afterCursor: batch.cursor,
+          afterCursor: currentCursor,
         })
         .then((nextBatch) => {
+          currentCursor = nextBatch.cursor;
           writeSse(reply, nextBatch);
         });
       void event;
@@ -207,19 +211,30 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
     reply.raw.setHeader('Cache-Control', 'no-cache');
     reply.raw.setHeader('Connection', 'keep-alive');
     writeSse(reply, batch);
+    let currentCursor = batch.cursor;
+    let currentLiveConsoleHead = batch.surface_cursors?.live_console_head ?? null;
+    let currentHistoryHead = batch.surface_cursors?.history_head ?? null;
+    let currentDeliverablesHead = batch.surface_cursors?.deliverables_head ?? null;
     const unsubscribe = app.eventStreamService.subscribe(
       request.auth!.tenantId,
       { workflowId: request.params.id },
       () => {
         void app.workflowOperationsStreamService
           .buildWorkspaceBatch(request.auth!.tenantId, request.params.id, {
-            afterCursor: batch.cursor,
+            afterCursor: currentCursor,
             boardMode: request.query.board_mode,
             boardFilters: request.query.board_filters,
             workItemId: request.query.work_item_id,
             tabScope: request.query.tab_scope ?? 'workflow',
+            liveConsoleHeadCursor: currentLiveConsoleHead,
+            historyHeadCursor: currentHistoryHead,
+            deliverablesHeadCursor: currentDeliverablesHead,
           })
           .then((nextBatch) => {
+            currentCursor = nextBatch.cursor;
+            currentLiveConsoleHead = nextBatch.surface_cursors?.live_console_head ?? currentLiveConsoleHead;
+            currentHistoryHead = nextBatch.surface_cursors?.history_head ?? currentHistoryHead;
+            currentDeliverablesHead = nextBatch.surface_cursors?.deliverables_head ?? currentDeliverablesHead;
             writeSse(reply, nextBatch);
           });
       },

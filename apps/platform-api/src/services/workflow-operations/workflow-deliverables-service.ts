@@ -1,8 +1,11 @@
 import type { WorkflowDeliverableRecord } from '../workflow-deliverable-service.js';
 import type { WorkflowInputPacketRecord } from '../workflow-input-packet-service.js';
-import type { WorkflowInterventionRecord } from '../workflow-intervention-service.js';
 import type { WorkflowOperatorBriefRecord } from '../workflow-operator-brief-service.js';
 import type { WorkflowDeliverablesPacket } from './workflow-operations-types.js';
+import {
+  paginateOrderedItems,
+  resolveFetchWindow,
+} from './workflow-packet-cursors.js';
 
 interface DeliverableSource {
   listDeliverables(
@@ -24,49 +27,59 @@ interface InputPacketSource {
   listWorkflowInputPackets(tenantId: string, workflowId: string): Promise<WorkflowInputPacketRecord[]>;
 }
 
-interface InterventionSource {
-  listWorkflowInterventions(tenantId: string, workflowId: string): Promise<WorkflowInterventionRecord[]>;
-}
-
 export class WorkflowDeliverablesService {
   constructor(
     private readonly deliverableSource: DeliverableSource,
     private readonly briefSource: BriefSource,
     private readonly inputPacketSource: InputPacketSource,
-    private readonly interventionSource: InterventionSource,
   ) {}
 
   async getDeliverables(
     tenantId: string,
     workflowId: string,
-    input: { limit?: number; workItemId?: string } = {},
+    input: { limit?: number; workItemId?: string; after?: string } = {},
   ): Promise<WorkflowDeliverablesPacket & { all_deliverables: WorkflowDeliverableRecord[] }> {
     const limit = input.limit ?? 10;
-    const [deliverables, briefs, inputPackets, interventions] = await Promise.all([
+    const fetchWindow = resolveFetchWindow(limit);
+    const [deliverables, briefs, inputPackets] = await Promise.all([
       this.deliverableSource.listDeliverables(tenantId, workflowId, {
         workItemId: input.workItemId,
-        limit,
+        limit: fetchWindow,
       }),
       this.briefSource.listBriefs(tenantId, workflowId, {
         workItemId: input.workItemId,
         limit,
       }),
       this.inputPacketSource.listWorkflowInputPackets(tenantId, workflowId),
-      this.interventionSource.listWorkflowInterventions(tenantId, workflowId),
     ]);
 
-    const allDeliverables = deliverables;
+    const orderedDeliverables = [...deliverables].sort((left, right) =>
+      compareDeliverables(left, right),
+    );
+    const page = paginateOrderedItems(orderedDeliverables, limit, input.after, (deliverable) => ({
+      timestamp: deliverable.updated_at ?? deliverable.created_at,
+      id: deliverable.descriptor_id,
+    }));
+    const allDeliverables = page.items;
     return {
       final_deliverables: allDeliverables.filter(isFinalDeliverable),
       in_progress_deliverables: allDeliverables.filter((deliverable) => !isFinalDeliverable(deliverable)),
       working_handoffs: briefs.filter((brief) => readOptionalString(brief.brief_scope) !== 'workflow_timeline'),
       inputs_and_provenance: {
         launch_packet: pickSinglePacket(inputPackets, 'launch'),
-        supplemental_packets: filterSupplementalPackets(inputPackets, input.workItemId),
-        intervention_attachments: filterInterventionAttachments(interventions, input.workItemId),
-        redrive_packet: pickSinglePacket(inputPackets, 'redrive'),
+        supplemental_packets: filterPacketKinds(
+          inputPackets,
+          ['intake', 'plan_update'],
+          input.workItemId,
+        ),
+        intervention_attachments: filterPacketKinds(
+          inputPackets,
+          ['intervention_attachment'],
+          input.workItemId,
+        ),
+        redrive_packet: pickSinglePacket(inputPackets, 'redrive_patch'),
       },
-      next_cursor: null,
+      next_cursor: page.nextCursor,
       all_deliverables: allDeliverables,
     };
   }
@@ -86,12 +99,13 @@ function pickSinglePacket(
   return packets.find((packet) => readOptionalString(packet.packet_kind) === packetKind) ?? null;
 }
 
-function filterSupplementalPackets(
+function filterPacketKinds(
   packets: WorkflowInputPacketRecord[],
+  packetKinds: string[],
   workItemId?: string,
 ): WorkflowInputPacketRecord[] {
   return packets.filter((packet) => {
-    if (readOptionalString(packet.packet_kind) !== 'supplemental') {
+    if (!packetKinds.includes(readOptionalString(packet.packet_kind) ?? '')) {
       return false;
     }
     if (!workItemId) {
@@ -101,26 +115,19 @@ function filterSupplementalPackets(
   });
 }
 
-function filterInterventionAttachments(
-  interventions: WorkflowInterventionRecord[],
-  workItemId?: string,
-): WorkflowInterventionRecord[] {
-  return interventions.filter((intervention) => {
-    const files = intervention.files;
-    if (!Array.isArray(files) || files.length === 0) {
-      return false;
-    }
-    if (!workItemId) {
-      return true;
-    }
-    return readOptionalString(intervention.work_item_id) === workItemId;
-  });
-}
-
 function readOptionalString(value: unknown): string | null {
   if (typeof value !== 'string') {
     return null;
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function compareDeliverables(
+  left: WorkflowDeliverableRecord,
+  right: WorkflowDeliverableRecord,
+): number {
+  const leftTimestamp = left.updated_at ?? left.created_at;
+  const rightTimestamp = right.updated_at ?? right.created_at;
+  return rightTimestamp.localeCompare(leftTimestamp) || right.descriptor_id.localeCompare(left.descriptor_id);
 }

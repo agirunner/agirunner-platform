@@ -6,6 +6,11 @@ import {
   type WorkflowLiveConsoleItem,
   type WorkflowLiveConsolePacket,
 } from './workflow-operations-types.js';
+import {
+  compareCursorTargets,
+  paginateOrderedItems,
+  resolveFetchWindow,
+} from './workflow-packet-cursors.js';
 
 interface VersionSource {
   getHistory(
@@ -40,9 +45,10 @@ export class WorkflowLiveConsoleService {
   async getLiveConsole(
     tenantId: string,
     workflowId: string,
-    input: { limit?: number; workItemId?: string } = {},
+    input: { limit?: number; workItemId?: string; after?: string } = {},
   ): Promise<WorkflowLiveConsolePacket> {
     const limit = input.limit ?? 50;
+    const fetchWindow = resolveFetchWindow(limit);
     const [version, briefs, updates] = await Promise.all([
       this.versionSource.getHistory(tenantId, {
         workflowId,
@@ -50,24 +56,28 @@ export class WorkflowLiveConsoleService {
       }),
       this.briefSource.listBriefs(tenantId, workflowId, {
         workItemId: input.workItemId,
-        limit,
+        limit: fetchWindow,
       }),
       this.updateSource.listUpdates(tenantId, workflowId, {
         workItemId: input.workItemId,
-        limit,
+        limit: fetchWindow,
       }),
     ]);
 
     const items = [...updates.map(toUpdateItem), ...briefs.map(toBriefItem)]
       .sort(sortNewestFirst)
-      .slice(0, limit);
+    const page = paginateOrderedItems(items, limit, input.after, (item) => ({
+      timestamp: item.created_at,
+      id: item.item_id,
+    }));
 
     return {
       generated_at: version.version.generatedAt,
       latest_event_id: version.version.latestEventId,
       snapshot_version: buildWorkflowOperationsSnapshotVersion(version.version.latestEventId),
-      items,
-      next_cursor: null,
+      items: page.items,
+      next_cursor: page.nextCursor,
+      live_visibility_mode: deriveVisibilityMode(updates),
     };
   }
 }
@@ -155,5 +165,16 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 function sortNewestFirst(left: WorkflowLiveConsoleItem, right: WorkflowLiveConsoleItem): number {
-  return right.created_at.localeCompare(left.created_at);
+  return compareCursorTargets(
+    { timestamp: left.created_at, id: left.item_id },
+    { timestamp: right.created_at, id: right.item_id },
+  );
+}
+
+function deriveVisibilityMode(
+  updates: WorkflowOperatorUpdateRecord[],
+): 'standard' | 'enhanced' {
+  return updates.some((update) => update.visibility_mode === 'enhanced')
+    ? 'enhanced'
+    : 'standard';
 }

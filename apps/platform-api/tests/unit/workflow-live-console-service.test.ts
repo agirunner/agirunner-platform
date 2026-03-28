@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowLiveConsoleService } from '../../src/services/workflow-operations/workflow-live-console-service.js';
 
 describe('WorkflowLiveConsoleService', () => {
-  it('composes milestone briefs and operator updates into the live console stream', async () => {
+  it('composes milestone briefs and operator updates into the live console stream with cursors', async () => {
     const versionSource = {
       getHistory: vi.fn(async () => ({
         version: {
@@ -96,7 +96,9 @@ describe('WorkflowLiveConsoleService', () => {
       briefService as never,
       updateService as never,
     );
-    const result = await service.getLiveConsole('tenant-1', 'workflow-1');
+    const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
+      limit: 2,
+    });
 
     expect(result).toEqual(
       expect.objectContaining({
@@ -112,14 +114,92 @@ describe('WorkflowLiveConsoleService', () => {
             item_kind: 'milestone_brief',
             headline: 'Release package is ready for approval.',
           }),
-          expect.objectContaining({
-            item_id: 'update-1',
-            item_kind: 'operator_update',
-            headline: 'Verification is reviewing rollback handling.',
-          }),
         ],
-        next_cursor: null,
+        next_cursor: '2026-03-27T22:35:00.000Z|brief-1',
       }),
     );
+  });
+
+  it('filters older console items when an after cursor is supplied', async () => {
+    const versionSource = {
+      getHistory: vi.fn(async () => ({
+        version: {
+          generatedAt: '2026-03-27T22:35:00.000Z',
+          latestEventId: 101,
+          token: 'mission-control:101',
+        },
+        packets: [],
+      })),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => [
+        {
+          id: 'brief-1',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          task_id: null,
+          request_id: 'request-1',
+          execution_context_id: 'execution-1',
+          brief_kind: 'milestone',
+          brief_scope: 'workflow_timeline',
+          source_kind: 'orchestrator',
+          source_role_name: 'Orchestrator',
+          status_kind: 'in_progress',
+          short_brief: { headline: 'Newest brief' },
+          detailed_brief_json: { headline: 'Newest brief', status_kind: 'in_progress' },
+          sequence_number: 2,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: [],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:35:00.000Z',
+          updated_at: '2026-03-27T22:35:00.000Z',
+        },
+      ]),
+    };
+    const updateService = {
+      listUpdates: vi.fn(async () => [
+        {
+          id: 'update-1',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          task_id: null,
+          request_id: 'request-1',
+          execution_context_id: 'execution-1',
+          source_kind: 'specialist',
+          source_role_name: 'Verifier',
+          update_kind: 'turn_update',
+          headline: 'Older update',
+          summary: 'Still in progress.',
+          linked_target_ids: ['work-item-1'],
+          visibility_mode: 'enhanced',
+          promoted_brief_id: null,
+          sequence_number: 1,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:34:00.000Z',
+        },
+      ]),
+    };
+
+    const service = new WorkflowLiveConsoleService(
+      versionSource as never,
+      briefService as never,
+      updateService as never,
+    );
+
+    const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
+      limit: 10,
+      after: '2026-03-27T22:35:00.000Z|brief-1',
+    });
+
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        item_id: 'update-1',
+        headline: 'Older update',
+      }),
+    ]);
   });
 });

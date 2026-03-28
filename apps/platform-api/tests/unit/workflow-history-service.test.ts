@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowHistoryService } from '../../src/services/workflow-operations/workflow-history-service.js';
 
 describe('WorkflowHistoryService', () => {
-  it('builds newest-first history packets from briefs, interventions, inputs, and deliverables', async () => {
+  it('builds newest-first history packets from briefs, interventions, inputs, and deliverables with cursors', async () => {
     const versionSource = {
       getHistory: vi.fn(async () => ({
         version: {
@@ -89,7 +89,7 @@ describe('WorkflowHistoryService', () => {
           id: 'packet-2',
           workflow_id: 'workflow-1',
           work_item_id: null,
-          packet_kind: 'redrive',
+          packet_kind: 'redrive_patch',
           source: 'redrive',
           summary: 'Retry with corrected inputs',
           structured_inputs: {},
@@ -131,13 +131,13 @@ describe('WorkflowHistoryService', () => {
       inputPacketService as never,
       deliverableService as never,
     );
-    const result = await service.getHistory('tenant-1', 'workflow-1');
+    const result = await service.getHistory('tenant-1', 'workflow-1', { limit: 4 });
 
     expect(result.snapshot_version).toBe('workflow-operations:110');
     expect(result.groups).toEqual([
       expect.objectContaining({
         group_id: '2026-03-27',
-        item_ids: ['brief-1', 'intervention-1', 'packet-1', 'packet-2', 'deliverable-1'],
+        item_ids: ['brief-1', 'intervention-1', 'packet-1', 'packet-2'],
       }),
     ]);
     expect(result.items).toEqual([
@@ -161,15 +161,86 @@ describe('WorkflowHistoryService', () => {
         item_kind: 'redrive',
         headline: 'Retry with corrected inputs',
       }),
-      expect.objectContaining({
-        item_id: 'deliverable-1',
-        item_kind: 'deliverable',
-        headline: 'Release Notes',
-      }),
     ]);
+    expect(result.next_cursor).toBe('2026-03-27T22:36:00.000Z|packet-2');
     expect(result.filters).toEqual({
       available: ['briefs', 'interventions', 'inputs', 'deliverables', 'redrives'],
       active: [],
     });
+  });
+
+  it('filters older history items when an after cursor is supplied', async () => {
+    const versionSource = {
+      getHistory: vi.fn(async () => ({
+        version: {
+          generatedAt: '2026-03-27T22:40:00.000Z',
+          latestEventId: 110,
+          token: 'mission-control:110',
+        },
+        packets: [],
+      })),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const interventionService = {
+      listWorkflowInterventions: vi.fn(async () => []),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => [
+        {
+          id: 'packet-1',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          packet_kind: 'launch',
+          source: 'operator',
+          summary: 'Launch packet',
+          structured_inputs: {},
+          metadata: {},
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:37:00.000Z',
+          updated_at: '2026-03-27T22:37:00.000Z',
+          files: [],
+        },
+        {
+          id: 'packet-2',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          packet_kind: 'intake',
+          source: 'operator',
+          summary: 'Intake packet',
+          structured_inputs: {},
+          metadata: {},
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:36:00.000Z',
+          updated_at: '2026-03-27T22:36:00.000Z',
+          files: [],
+        },
+      ]),
+    };
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowHistoryService(
+      versionSource as never,
+      briefService as never,
+      interventionService as never,
+      inputPacketService as never,
+      deliverableService as never,
+    );
+
+    const result = await service.getHistory('tenant-1', 'workflow-1', {
+      after: '2026-03-27T22:37:00.000Z|packet-1',
+    });
+
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        item_id: 'packet-2',
+        item_kind: 'input',
+      }),
+    ]);
   });
 });

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowWorkspaceService } from '../../src/services/workflow-operations/workflow-workspace-service.js';
 
 describe('WorkflowWorkspaceService', () => {
-  it('composes sticky strip, board, workbench tabs, steering state, and deliverable-backed overview data', async () => {
+  it('composes the workflow workspace packet with spec-aligned sub-packets', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({
         parameters: { objective: 'ship the release' },
@@ -41,6 +41,7 @@ describe('WorkflowWorkspaceService', () => {
         latest_event_id: 120,
         items: [{ item_id: 'console-1' }],
         next_cursor: null,
+        live_visibility_mode: 'enhanced',
       })),
     };
     const historyService = {
@@ -73,6 +74,12 @@ describe('WorkflowWorkspaceService', () => {
       listWorkflowInterventions: vi.fn(async () => [
         {
           id: 'intervention-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: 'task-1',
+          kind: 'task_action',
+          status: 'open',
+          structured_action: { kind: 'retry_task' },
           summary: 'Paused for review',
         },
       ]),
@@ -125,24 +132,41 @@ describe('WorkflowWorkspaceService', () => {
       expect.objectContaining({
         workflow_id: 'workflow-1',
         workflow_name: 'Release Workflow',
-        posture: 'needs_decision',
-        approvals_count: 1,
-        escalations_count: 2,
       }),
     );
+    expect(result.selected_scope).toEqual({
+      scope_kind: 'workflow',
+      work_item_id: null,
+    });
     expect(result.bottom_tabs).toEqual(
       expect.objectContaining({
         default_tab: 'needs_action',
         counts: expect.objectContaining({
-          needs_action: 1,
+          needs_action: 2,
           steering: 1,
-          live_console: 1,
+          live_console_activity: 1,
           history: 1,
           deliverables: 1,
         }),
       }),
     );
-    expect(result.steering_panel).toEqual(
+    expect(result.needs_action).toEqual(
+      expect.objectContaining({
+        total_count: 2,
+        default_sort: 'priority_desc',
+        items: [
+          expect.objectContaining({
+            target: { target_kind: 'workflow', target_id: 'workflow-1' },
+            submission: { route_kind: 'workflow_intervention', method: 'POST' },
+          }),
+          expect.objectContaining({
+            action_kind: 'retry_task',
+            target: { target_kind: 'task', target_id: 'task-1' },
+          }),
+        ],
+      }),
+    );
+    expect(result.steering).toEqual(
       expect.objectContaining({
         recent_interventions: [expect.objectContaining({ id: 'intervention-1' })],
         session: expect.objectContaining({
@@ -152,15 +176,130 @@ describe('WorkflowWorkspaceService', () => {
         }),
       }),
     );
-    expect(result.overview).toEqual(
+    expect(result.live_console).toEqual(
       expect.objectContaining({
-        currentOperatorAsk: 'Waiting on operator approval',
-        latestOutput: expect.objectContaining({ descriptor_id: 'deliverable-1' }),
+        items: [{ item_id: 'console-1' }],
+      }),
+    );
+    expect(result.history).toEqual(
+      expect.objectContaining({
+        items: [expect.objectContaining({ item_id: 'history-1' })],
+      }),
+    );
+    expect(result.deliverables).toEqual(
+      expect.objectContaining({
+        final_deliverables: [expect.objectContaining({ descriptor_id: 'deliverable-1' })],
       }),
     );
     expect(result.board).toEqual({
       columns: [{ id: 'verification' }],
       work_items: [],
+    });
+    expect(result).not.toHaveProperty('steering_panel');
+    expect(result).not.toHaveProperty('history_timeline');
+    expect(result).not.toHaveProperty('deliverables_panel');
+    expect(result).not.toHaveProperty('workflow');
+    expect(result).not.toHaveProperty('overview');
+    expect(result).not.toHaveProperty('outputs');
+  });
+
+  it('keeps needs action and steering workflow-scoped unless tabScope explicitly selects the work item', async () => {
+    const workflowService = {
+      getWorkflow: vi.fn(async () => ({})),
+      getWorkflowBoard: vi.fn(async () => ({ columns: [], work_items: [] })),
+    };
+    const railService = {
+      getWorkflowCard: vi.fn(async () => ({
+        id: 'workflow-1',
+        name: 'Release Workflow',
+        posture: 'needs_decision',
+        pulse: { summary: 'Waiting on operator approval' },
+        availableActions: [{ kind: 'pause_workflow', enabled: true, scope: 'workflow' }],
+        metrics: {
+          blockedWorkItemCount: 0,
+          openEscalationCount: 0,
+          failedTaskCount: 0,
+          recoverableIssueCount: 0,
+          waitingForDecisionCount: 1,
+          activeTaskCount: 1,
+          activeWorkItemCount: 1,
+          lastChangedAt: '2026-03-27T22:45:00.000Z',
+        },
+      })),
+    };
+    const liveConsoleService = {
+      getLiveConsole: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:120',
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        items: [],
+        next_cursor: null,
+        live_visibility_mode: 'enhanced',
+      })),
+    };
+    const historyService = {
+      getHistory: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:120',
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        groups: [],
+        items: [],
+        filters: { available: [], active: [] },
+        next_cursor: null,
+      })),
+    };
+    const deliverablesService = {
+      getDeliverables: vi.fn(async () => ({
+        final_deliverables: [],
+        in_progress_deliverables: [],
+        working_handoffs: [],
+        inputs_and_provenance: {
+          launch_packet: null,
+          supplemental_packets: [],
+          intervention_attachments: [],
+          redrive_packet: null,
+        },
+        next_cursor: null,
+        all_deliverables: [],
+      })),
+    };
+    const interventionService = {
+      listWorkflowInterventions: vi.fn(async () => []),
+    };
+    const steeringSessionService = {
+      listSessions: vi.fn(async () => []),
+      listMessages: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowWorkspaceService(
+      workflowService as never,
+      railService as never,
+      liveConsoleService as never,
+      historyService as never,
+      deliverablesService as never,
+      interventionService as never,
+      steeringSessionService as never,
+    );
+
+    await service.getWorkspace('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+      tabScope: 'workflow',
+    });
+
+    expect(liveConsoleService.getLiveConsole).toHaveBeenCalledWith('tenant-1', 'workflow-1', {
+      limit: undefined,
+      workItemId: undefined,
+      after: undefined,
+    });
+    expect(historyService.getHistory).toHaveBeenCalledWith('tenant-1', 'workflow-1', {
+      limit: undefined,
+      workItemId: undefined,
+      after: undefined,
+    });
+    expect(deliverablesService.getDeliverables).toHaveBeenCalledWith('tenant-1', 'workflow-1', {
+      limit: undefined,
+      workItemId: undefined,
+      after: undefined,
     });
   });
 });

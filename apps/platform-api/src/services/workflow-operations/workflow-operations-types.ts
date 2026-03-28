@@ -41,13 +41,22 @@ export interface WorkflowNeedsActionItem {
   action_kind: string;
   label: string;
   summary: string;
-  target_kind: 'workflow' | 'work_item' | 'task';
-  target_id: string;
+  target: {
+    target_kind: 'workflow' | 'work_item' | 'task';
+    target_id: string;
+  };
+  priority: 'high' | 'medium' | 'low';
   requires_confirmation: boolean;
+  submission: {
+    route_kind: 'workflow_intervention';
+    method: 'POST';
+  };
 }
 
 export interface WorkflowNeedsActionPacket {
   items: WorkflowNeedsActionItem[];
+  total_count: number;
+  default_sort: 'priority_desc';
 }
 
 export interface WorkflowLiveConsoleItem {
@@ -62,6 +71,7 @@ export interface WorkflowLiveConsoleItem {
 export interface WorkflowLiveConsolePacket extends WorkflowOperationsSnapshot {
   items: WorkflowLiveConsoleItem[];
   next_cursor: string | null;
+  live_visibility_mode: 'standard' | 'enhanced';
 }
 
 export interface WorkflowHistoryGroup {
@@ -103,6 +113,23 @@ export interface WorkflowDeliverablesPacket {
   next_cursor: string | null;
 }
 
+export interface WorkflowSteeringPacket {
+  quick_actions: unknown[];
+  decision_actions: unknown[];
+  steering_state: {
+    mode: 'workflow_scoped' | 'selected_work_item';
+    can_accept_request: boolean;
+    active_session_id: string | null;
+    last_summary: string | null;
+  };
+  recent_interventions: unknown[];
+  session: {
+    session_id: string | null;
+    status: string;
+    messages: unknown[];
+  } | null;
+}
+
 export interface WorkflowStickyStrip {
   workflow_id: string;
   workflow_name: string;
@@ -123,7 +150,7 @@ export interface WorkflowBottomTabsPacket {
   counts: {
     needs_action: number;
     steering: number;
-    live_console: number;
+    live_console_activity: number;
     history: number;
     deliverables: number;
   };
@@ -131,20 +158,19 @@ export interface WorkflowBottomTabsPacket {
 
 export interface WorkflowWorkspacePacket extends WorkflowOperationsSnapshot {
   workflow_id: string;
+  selected_scope: {
+    scope_kind: 'workflow' | 'selected_work_item';
+    work_item_id: string | null;
+  };
   sticky_strip: WorkflowStickyStrip | null;
   board: Record<string, unknown> | null;
   bottom_tabs: WorkflowBottomTabsPacket;
   needs_action: WorkflowNeedsActionPacket;
-  steering_panel: Record<string, unknown>;
+  steering: WorkflowSteeringPacket;
   live_console: WorkflowLiveConsolePacket;
-  history_timeline: WorkflowHistoryPacket;
-  deliverables_panel: WorkflowDeliverablesPacket;
+  history: WorkflowHistoryPacket;
+  deliverables: WorkflowDeliverablesPacket;
   redrive_lineage: Record<string, unknown> | null;
-  workflow: Record<string, unknown> | null;
-  overview: Record<string, unknown> | null;
-  outputs: Record<string, unknown>;
-  steering: Record<string, unknown>;
-  history: Record<string, unknown>;
 }
 
 export interface WorkflowOperationsStreamEvent {
@@ -157,6 +183,11 @@ export interface WorkflowOperationsStreamEvent {
 
 export interface WorkflowOperationsStreamBatch extends WorkflowOperationsSnapshot {
   cursor: string;
+  surface_cursors?: {
+    live_console_head: string | null;
+    history_head: string | null;
+    deliverables_head: string | null;
+  };
   events: WorkflowOperationsStreamEvent[];
 }
 

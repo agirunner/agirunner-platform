@@ -94,7 +94,7 @@ describe('WorkflowDeliverablesService', () => {
           id: 'packet-redrive',
           workflow_id: 'workflow-1',
           work_item_id: null,
-          packet_kind: 'redrive',
+          packet_kind: 'redrive_patch',
           source: 'redrive',
           summary: 'Retry with corrected inputs',
           structured_inputs: {},
@@ -106,10 +106,10 @@ describe('WorkflowDeliverablesService', () => {
           files: [],
         },
         {
-          id: 'packet-supplemental',
+          id: 'packet-intake',
           workflow_id: 'workflow-1',
           work_item_id: 'work-item-1',
-          packet_kind: 'supplemental',
+          packet_kind: 'intake',
           source: 'operator',
           summary: 'Added rollback notes',
           structured_inputs: {},
@@ -120,21 +120,14 @@ describe('WorkflowDeliverablesService', () => {
           updated_at: '2026-03-27T22:32:00.000Z',
           files: [],
         },
-      ]),
-    };
-    const interventionService = {
-      listWorkflowInterventions: vi.fn(async () => [
         {
-          id: 'intervention-1',
+          id: 'packet-intervention',
           workflow_id: 'workflow-1',
           work_item_id: 'work-item-1',
-          task_id: null,
-          kind: 'task_action',
-          origin: 'operator',
-          status: 'applied',
+          packet_kind: 'intervention_attachment',
+          source: 'operator',
           summary: 'Attached rollback notes',
-          note: null,
-          structured_action: {},
+          structured_inputs: {},
           metadata: {},
           created_by_type: 'user',
           created_by_id: 'user-1',
@@ -149,7 +142,6 @@ describe('WorkflowDeliverablesService', () => {
       deliverableService as never,
       briefService as never,
       inputPacketService as never,
-      interventionService as never,
     );
     const result = await service.getDeliverables('tenant-1', 'workflow-1');
 
@@ -164,9 +156,67 @@ describe('WorkflowDeliverablesService', () => {
     ]);
     expect(result.inputs_and_provenance).toEqual({
       launch_packet: expect.objectContaining({ id: 'packet-launch' }),
-      supplemental_packets: [expect.objectContaining({ id: 'packet-supplemental' })],
-      intervention_attachments: [expect.objectContaining({ id: 'intervention-1' })],
+      supplemental_packets: [expect.objectContaining({ id: 'packet-intake' })],
+      intervention_attachments: [expect.objectContaining({ id: 'packet-intervention' })],
       redrive_packet: expect.objectContaining({ id: 'packet-redrive' }),
     });
+  });
+
+  it('paginates deliverables and exposes the next cursor', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'deliverable-1',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'artifact',
+          delivery_stage: 'final',
+          title: 'Release Notes',
+          state: 'final',
+          summary_brief: 'Final release notes approved.',
+          preview_capabilities: {},
+          primary_target: {},
+          secondary_targets: [],
+          content_preview: {},
+          source_brief_id: 'brief-2',
+          created_at: '2026-03-27T22:35:00.000Z',
+          updated_at: '2026-03-27T22:35:00.000Z',
+        },
+        {
+          descriptor_id: 'deliverable-2',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'artifact',
+          delivery_stage: 'final',
+          title: 'Validation Notes',
+          state: 'final',
+          summary_brief: 'Validation notes approved.',
+          preview_capabilities: {},
+          primary_target: {},
+          secondary_targets: [],
+          content_preview: {},
+          source_brief_id: 'brief-3',
+          created_at: '2026-03-27T22:34:00.000Z',
+          updated_at: '2026-03-27T22:34:00.000Z',
+        },
+      ]),
+    };
+    const briefService = { listBriefs: vi.fn(async () => []) };
+    const inputPacketService = { listWorkflowInputPackets: vi.fn(async () => []) };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1', {
+      limit: 1,
+    });
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({ descriptor_id: 'deliverable-1' }),
+    ]);
+    expect(result.next_cursor).toBe('2026-03-27T22:35:00.000Z|deliverable-1');
   });
 });

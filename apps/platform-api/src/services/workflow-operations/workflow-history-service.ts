@@ -9,6 +9,11 @@ import {
   type WorkflowHistoryItem,
   type WorkflowHistoryPacket,
 } from './workflow-operations-types.js';
+import {
+  compareCursorTargets,
+  paginateOrderedItems,
+  resolveFetchWindow,
+} from './workflow-packet-cursors.js';
 
 interface VersionSource {
   getHistory(
@@ -53,9 +58,10 @@ export class WorkflowHistoryService {
   async getHistory(
     tenantId: string,
     workflowId: string,
-    input: { limit?: number; workItemId?: string } = {},
+    input: { limit?: number; workItemId?: string; after?: string } = {},
   ): Promise<WorkflowHistoryPacket> {
     const limit = input.limit ?? 100;
+    const fetchWindow = resolveFetchWindow(limit);
     const [version, briefs, interventions, inputPackets, deliverables] = await Promise.all([
       this.versionSource.getHistory(tenantId, {
         workflowId,
@@ -63,13 +69,13 @@ export class WorkflowHistoryService {
       }),
       this.briefSource.listBriefs(tenantId, workflowId, {
         workItemId: input.workItemId,
-        limit,
+        limit: fetchWindow,
       }),
       this.interventionSource.listWorkflowInterventions(tenantId, workflowId),
       this.inputPacketSource.listWorkflowInputPackets(tenantId, workflowId),
       this.deliverableSource.listDeliverables(tenantId, workflowId, {
         workItemId: input.workItemId,
-        limit,
+        limit: fetchWindow,
       }),
     ]);
 
@@ -80,19 +86,22 @@ export class WorkflowHistoryService {
       ...deliverables.map(toDeliverableHistoryItem),
     ]
       .sort(sortNewestFirst)
-      .slice(0, limit);
+    const page = paginateOrderedItems(items, limit, input.after, (item) => ({
+      timestamp: item.created_at,
+      id: item.item_id,
+    }));
 
     return {
       generated_at: version.version.generatedAt,
       latest_event_id: version.version.latestEventId,
       snapshot_version: buildWorkflowOperationsSnapshotVersion(version.version.latestEventId),
-      groups: buildGroups(items),
-      items,
+      groups: buildGroups(page.items),
+      items: page.items,
       filters: {
         available: ['briefs', 'interventions', 'inputs', 'deliverables', 'redrives'],
         active: [],
       },
-      next_cursor: null,
+      next_cursor: page.nextCursor,
     };
   }
 }
@@ -158,7 +167,7 @@ function toInputHistoryItem(packet: WorkflowInputPacketRecord): WorkflowHistoryI
   const packetKind = readOptionalString(packet.packet_kind);
   return {
     item_id: packet.id,
-    item_kind: packetKind === 'redrive' ? 'redrive' : 'input',
+    item_kind: packetKind === 'redrive_patch' ? 'redrive' : 'input',
     headline: readOptionalString(packet.summary) ?? humanizePacketKind(packetKind),
     summary: readOptionalString(packet.summary) ?? humanizePacketKind(packetKind),
     created_at: packet.created_at,
@@ -222,5 +231,8 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 function sortNewestFirst(left: WorkflowHistoryItem, right: WorkflowHistoryItem): number {
-  return right.created_at.localeCompare(left.created_at);
+  return compareCursorTargets(
+    { timestamp: left.created_at, id: left.item_id },
+    { timestamp: right.created_at, id: right.item_id },
+  );
 }

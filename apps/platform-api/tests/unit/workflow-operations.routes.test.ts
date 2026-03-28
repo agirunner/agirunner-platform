@@ -67,7 +67,7 @@ describe('workflow operations routes v2', () => {
     });
     const workspaceResponse = await app.inject({
       method: 'GET',
-      url: '/api/v1/operations/workflows/workflow-1/workspace?work_item_id=work-item-1',
+      url: '/api/v1/operations/workflows/workflow-1/workspace?work_item_id=work-item-1&tab_scope=selected_work_item&live_console_after=console-cursor&history_after=history-cursor&deliverables_after=deliverables-cursor&live_console_limit=20&history_limit=30&deliverables_limit=8',
       headers,
     });
     const railStreamResponse = await app.inject({
@@ -99,12 +99,13 @@ describe('workflow operations routes v2', () => {
       boardMode: undefined,
       boardFilters: undefined,
       workItemId: 'work-item-1',
-      tabScope: 'workflow',
-      liveConsoleAfter: undefined,
-      historyAfter: undefined,
-      deliverablesAfter: undefined,
-      historyLimit: 50,
-      deliverablesLimit: 10,
+      tabScope: 'selected_work_item',
+      liveConsoleAfter: 'console-cursor',
+      historyAfter: 'history-cursor',
+      deliverablesAfter: 'deliverables-cursor',
+      liveConsoleLimit: 20,
+      historyLimit: 30,
+      deliverablesLimit: 8,
     });
     expect(workflowOperationsStreamService.buildRailBatch).toHaveBeenCalledWith('tenant-1', {
       mode: 'live',
