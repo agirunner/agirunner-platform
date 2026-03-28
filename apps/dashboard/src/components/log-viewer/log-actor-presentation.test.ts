@@ -21,11 +21,11 @@ describe('log actor presentation', () => {
 
   it('sorts actor kinds in operator-facing order', () => {
     const sorted = sortActorKindRecords([
-      { actor_kind: 'platform_system', count: 2 },
-      { actor_kind: 'operator', count: 9 },
-      { actor_kind: 'specialist_task_execution', count: 4 },
-      { actor_kind: 'specialist_agent', count: 5 },
-      { actor_kind: 'orchestrator_agent', count: 3 },
+      { actor_kind: 'platform_system', actor_id: null, actor_name: null, count: 2 },
+      { actor_kind: 'operator', actor_id: null, actor_name: null, count: 9 },
+      { actor_kind: 'specialist_task_execution', actor_id: null, actor_name: null, count: 4 },
+      { actor_kind: 'specialist_agent', actor_id: null, actor_name: null, count: 5 },
+      { actor_kind: 'orchestrator_agent', actor_id: null, actor_name: null, count: 3 },
     ]);
 
     expect(sorted.map((item) => item.actor_kind)).toEqual([
@@ -38,8 +38,16 @@ describe('log actor presentation', () => {
   });
 
   it('uses the canonical actor kind label directly', () => {
-    expect(describeActorPrimaryLabel({ actor_kind: 'operator' })).toBe('Operator');
-    expect(describeActorPrimaryLabel({ actor_kind: 'orchestrator_agent' })).toBe(
+    expect(
+      describeActorPrimaryLabel({ actor_kind: 'operator', actor_id: null, actor_name: null }),
+    ).toBe('Operator');
+    expect(
+      describeActorPrimaryLabel({
+        actor_kind: 'orchestrator_agent',
+        actor_id: null,
+        actor_name: null,
+      }),
+    ).toBe(
       'Orchestrator agent',
     );
   });

@@ -591,7 +591,7 @@ function PlaybookDeleteImpactDetails(props: {
   revisions: number | null;
   isLoading: boolean;
   error: unknown;
-}): JSX.Element {
+}): JSX.Element | null {
   if (props.isLoading) {
     return <p className="mt-2 text-sm text-muted">Loading delete impact…</p>;
   }

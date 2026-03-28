@@ -582,7 +582,7 @@ export const OPERATIONS_FIELD_DEFINITIONS: FieldDefinition[] = [
         || OPERATIONS_CONNECTED_PLATFORM_FIELD_KEYS.has(field.key))
       && field.key !== 'tasks.default_timeout_minutes'
       && field.key !== 'specialist_runtime_drain_grace_seconds',
-  ).map((field) => {
+  ).map<FieldDefinition>((field) => {
     if (field.section === 'workflow_activation') {
       return { ...field, section: 'task_timeouts' };
     }

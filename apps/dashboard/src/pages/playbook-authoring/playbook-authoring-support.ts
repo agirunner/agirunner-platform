@@ -175,7 +175,13 @@ export function buildPlaybookDefinition(
   }
 
   const parameters = buildParameters(draft.parameters);
-  if (hasDuplicates(parameters.map((parameter) => parameter.slug))) {
+  if (
+    hasDuplicates(
+      parameters
+        .map((parameter) => parameter.slug)
+        .filter((slug): slug is string => typeof slug === 'string'),
+    )
+  ) {
     return { ok: false, error: 'Playbook launch input slugs must be unique.' };
   }
 

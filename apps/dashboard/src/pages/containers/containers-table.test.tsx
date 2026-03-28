@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from 'react-dom/server';
-import { StaticRouter } from 'react-router-dom/server';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 
 import type { SessionContainerRow } from './containers-page.support.js';
@@ -47,9 +47,9 @@ function createRow(overrides: Partial<SessionContainerRow> = {}): SessionContain
 describe('ContainersTable', () => {
   it('shows the actual specialist runtime image instead of the linked execution environment image', () => {
     const html = renderToStaticMarkup(
-      <StaticRouter location="/">
+      <MemoryRouter initialEntries={['/']}>
         <ContainersTable rows={[createRow()]} emptyMessage="No rows" />
-      </StaticRouter>,
+      </MemoryRouter>,
     );
 
     expect(html).toContain('agirunner-runtime:local');
@@ -60,7 +60,7 @@ describe('ContainersTable', () => {
 
   it('keeps execution environment context on specialist execution rows', () => {
     const html = renderToStaticMarkup(
-      <StaticRouter location="/">
+      <MemoryRouter initialEntries={['/']}>
         <ContainersTable
           rows={[
             createRow({
@@ -71,7 +71,7 @@ describe('ContainersTable', () => {
           ]}
           emptyMessage="No rows"
         />
-      </StaticRouter>,
+      </MemoryRouter>,
     );
 
     expect(html).toContain('debian:trixie-slim');
