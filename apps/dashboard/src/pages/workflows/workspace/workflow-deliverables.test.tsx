@@ -74,7 +74,7 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Brief-backed outputs (1)');
+    expect(html).toContain('Brief-backed outputs');
     expect(html).toContain('Material output is currently available only as briefs for this workflow.');
     expect(html).toContain('No final deliverables are available yet.');
     expect(html).not.toContain('Briefs (1)');
@@ -83,10 +83,7 @@ describe('WorkflowDeliverables', () => {
   it('keeps task scope limited to task evidence plus parent work-item deliverables', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
-        packet: {
-          ...createPacket(),
-          final_deliverables: [],
-        },
+        packet: createTaskScopePacket(),
         selectedTask: createTask(),
         selectedWorkItemTitle: 'Prepare release bundle',
         scope: {
@@ -102,14 +99,14 @@ describe('WorkflowDeliverables', () => {
 
     expect(html).toContain('Task Evidence');
     expect(html).toContain('Generate release bundle');
-    expect(html).toContain('Deliverables from Prepare release bundle');
+    expect(html).toContain('Parent work item deliverables from Prepare release bundle');
     expect(html).toContain('artifact-1');
-    expect(html).toContain('No in-progress deliverables are attached to this work item.');
-    expect(html).toContain('No inputs or intervention files are attached to this work item.');
+    expect(html).toContain('Parent Work Item Final Deliverables (1)');
+    expect(html).toContain('Parent Work Item In Progress Deliverables (0)');
+    expect(html).toContain('No in-progress deliverables are attached to this selected work item.');
+    expect(html).toContain('No inputs or intervention files are attached to this selected work item.');
     expect(html).not.toContain('No in-progress deliverables are attached to this task.');
     expect(html).not.toContain('No inputs or intervention files are attached to this task.');
-    expect(html).not.toContain('Parent work item');
-    expect(html).not.toContain('Workflow Deliverables');
     expect(html).not.toContain('Workflow Deliverables remain available when you return to workflow scope.');
   });
 
@@ -130,8 +127,64 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Deliverables from Prepare release bundle');
+    expect(html).toContain('Parent work item deliverables from Prepare release bundle');
     expect(html).not.toContain('Work Item Deliverables');
+  });
+
+  it('renders synthesized inline-summary deliverables without deprecated navigation links', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: {
+          final_deliverables: [
+            {
+              descriptor_id: 'handoff:1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              descriptor_kind: 'handoff_packet',
+              delivery_stage: 'final',
+              title: 'workflow-intake-01 completion packet',
+              state: 'final',
+              summary_brief: 'workflow-intake-01 is approved and ready to remain open.',
+              preview_capabilities: { can_inline_preview: true, preview_kind: 'structured_summary' },
+              primary_target: {
+                target_kind: 'inline_summary',
+                label: 'Review completion packet',
+                url: '',
+              },
+              secondary_targets: [],
+              content_preview: {
+                summary:
+                  'workflow-intake-01 is approved and ready to remain open.\n\nApproved the intake packet and confirmed it satisfies the readiness criteria.',
+              },
+              source_brief_id: null,
+              created_at: '2026-03-28T20:20:00.000Z',
+              updated_at: '2026-03-28T20:20:00.000Z',
+            },
+          ],
+          in_progress_deliverables: [],
+          working_handoffs: [],
+          inputs_and_provenance: {
+            launch_packet: null,
+            supplemental_packets: [],
+            intervention_attachments: [],
+            redrive_packet: null,
+          },
+          next_cursor: null,
+        },
+        scope: {
+          scopeKind: 'selected_work_item',
+          label: 'Work item: workflow-intake-01',
+        },
+        selectedTask: null,
+        selectedWorkItemTitle: 'workflow-intake-01',
+        onLoadMore: () => undefined,
+      }),
+    );
+
+    expect(html).toContain('workflow-intake-01 completion packet');
+    expect(html).toContain('Approved the intake packet and confirmed it satisfies the readiness criteria.');
+    expect(html).not.toContain('Open in new window');
+    expect(html).not.toContain('Open without leaving workflow');
   });
 });
 
@@ -273,5 +326,46 @@ function createTask(): DashboardTaskRecord {
     stage_name: 'release',
     activation_id: 'activation-1',
     execution_environment: null,
+  };
+}
+
+function createTaskScopePacket(): DashboardWorkflowDeliverablesPacket {
+  return {
+    final_deliverables: [
+      {
+        descriptor_id: 'deliverable-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        descriptor_kind: 'artifact',
+        delivery_stage: 'final',
+        title: 'Release bundle',
+        state: 'final',
+        summary_brief: 'The release bundle is ready for operator review.',
+        preview_capabilities: {},
+        primary_target: {
+          target_kind: 'artifact',
+          label: 'Open artifact',
+          url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-1',
+          path: 'artifacts/release-bundle.zip',
+          artifact_id: 'artifact-1',
+        },
+        secondary_targets: [],
+        content_preview: {
+          summary: 'Release notes and bundle metadata are available.',
+        },
+        source_brief_id: null,
+        created_at: '2026-03-27T06:00:00.000Z',
+        updated_at: '2026-03-27T06:00:00.000Z',
+      },
+    ],
+    in_progress_deliverables: [],
+    working_handoffs: [],
+    inputs_and_provenance: {
+      launch_packet: null,
+      supplemental_packets: [],
+      intervention_attachments: [],
+      redrive_packet: null,
+    },
+    next_cursor: null,
   };
 }

@@ -41,6 +41,9 @@ export function WorkflowDeliverables(props: {
     props.scope,
     props.selectedWorkItemTitle,
   );
+  const finalSectionTitle = buildDeliverableSectionTitle(props.scope.scopeKind, 'final');
+  const inProgressSectionTitle = buildDeliverableSectionTitle(props.scope.scopeKind, 'in_progress');
+  const briefsSectionTitle = buildDeliverableSectionTitle(props.scope.scopeKind, 'briefs');
   const inProgressTitle = briefBackedOutputs ? 'Brief-backed outputs' : 'In Progress Deliverables';
   const inProgressCount = briefBackedOutputs
     ? props.packet.working_handoffs.length
@@ -82,7 +85,7 @@ export function WorkflowDeliverables(props: {
 
       <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open>
         <summary className="cursor-pointer text-sm font-semibold text-foreground">
-          Final Deliverables ({props.packet.final_deliverables.length})
+          {finalSectionTitle} ({props.packet.final_deliverables.length})
         </summary>
         <div className="mt-4 grid gap-4">
           {props.packet.final_deliverables.length === 0 ? (
@@ -97,7 +100,7 @@ export function WorkflowDeliverables(props: {
 
       <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open={openInProgressByDefault}>
         <summary className="cursor-pointer text-sm font-semibold text-foreground">
-          {inProgressTitle} ({inProgressCount})
+          {briefBackedOutputs ? inProgressTitle : `${inProgressSectionTitle} (${inProgressCount})`}
         </summary>
         <div className="mt-4 grid gap-4">
           {briefBackedOutputs ? (
@@ -130,7 +133,7 @@ export function WorkflowDeliverables(props: {
           open={openBriefsByDefault}
         >
           <summary className="cursor-pointer text-sm font-semibold text-foreground">
-            Briefs ({props.packet.working_handoffs.length})
+            {briefsSectionTitle} ({props.packet.working_handoffs.length})
           </summary>
           <div className="mt-4 grid gap-4">
             {props.packet.working_handoffs.length === 0 ? (
@@ -182,7 +185,9 @@ function buildParentDeliverablesLabel(
 ): string {
   const workItemTitle = readText(selectedWorkItemTitle);
   if (scope.scopeKind === 'selected_task') {
-    return workItemTitle ? `Deliverables from ${workItemTitle}` : 'Work Item Deliverables';
+    return workItemTitle
+      ? `Parent work item deliverables from ${workItemTitle}`
+      : 'Parent work item deliverables';
   }
   if (scope.scopeKind === 'selected_work_item') {
     return workItemTitle ? `Deliverables for ${workItemTitle}` : 'Work Item Deliverables';
@@ -192,8 +197,25 @@ function buildParentDeliverablesLabel(
 
 function readDeliverablesSubject(
   scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
-): 'workflow' | 'work item' {
+): 'workflow' | 'work item' | 'selected work item' {
+  if (scopeKind === 'selected_task') {
+    return 'selected work item';
+  }
   return scopeKind === 'workflow' ? 'workflow' : 'work item';
+}
+
+function buildDeliverableSectionTitle(
+  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
+  section: 'final' | 'in_progress' | 'briefs',
+): string {
+  const prefix = scopeKind === 'selected_task' ? 'Parent Work Item ' : '';
+  if (section === 'final') {
+    return `${prefix}Final Deliverables`;
+  }
+  if (section === 'in_progress') {
+    return `${prefix}In Progress Deliverables`;
+  }
+  return `${prefix}Briefs`;
 }
 
 function DeliverableCard(props: {
@@ -223,18 +245,22 @@ function DeliverableCard(props: {
           {previewText}
         </pre>
       ) : null}
-      <div className="grid gap-2">
-        <WorkflowDeliverableTargetLink
-          target={props.deliverable.primary_target}
-          primary
-        />
-        {props.deliverable.secondary_targets.map((target, index) => (
-          <WorkflowDeliverableTargetLink
-            key={`${props.deliverable.descriptor_id}:secondary:${index}`}
-            target={target}
-          />
-        ))}
-      </div>
+      {shouldRenderTargets(props.deliverable) ? (
+        <div className="grid gap-2">
+          {props.deliverable.primary_target.target_kind !== 'inline_summary' ? (
+            <WorkflowDeliverableTargetLink
+              target={props.deliverable.primary_target}
+              primary
+            />
+          ) : null}
+          {props.deliverable.secondary_targets.map((target, index) => (
+            <WorkflowDeliverableTargetLink
+              key={`${props.deliverable.descriptor_id}:secondary:${index}`}
+              target={target}
+            />
+          ))}
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -441,6 +467,13 @@ function readPreviewText(deliverable: DashboardWorkflowDeliverableRecord): strin
     readText(preview.summary) ??
     readText(preview.snippet)
   );
+}
+
+function shouldRenderTargets(deliverable: DashboardWorkflowDeliverableRecord): boolean {
+  if (deliverable.primary_target.target_kind !== 'inline_summary') {
+    return true;
+  }
+  return deliverable.secondary_targets.length > 0;
 }
 
 function buildTaskEvidence(task: DashboardTaskRecord | null): unknown {

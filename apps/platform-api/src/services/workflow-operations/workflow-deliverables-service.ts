@@ -1,4 +1,5 @@
 import type { WorkflowDeliverableRecord } from '../workflow-deliverable-service.js';
+import type { WorkflowDeliverableHandoffRecord } from '../workflow-deliverable-handoff-service.js';
 import type { WorkflowInputPacketRecord } from '../workflow-input-packet-service.js';
 import type { WorkflowOperatorBriefRecord } from '../workflow-operator-brief-service.js';
 import type { WorkflowDeliverablesPacket } from './workflow-operations-types.js';
@@ -27,11 +28,20 @@ interface InputPacketSource {
   listWorkflowInputPackets(tenantId: string, workflowId: string): Promise<WorkflowInputPacketRecord[]>;
 }
 
+interface HandoffSource {
+  listLatestCompletedWorkItemHandoffs(
+    tenantId: string,
+    workflowId: string,
+    input?: { workItemId?: string },
+  ): Promise<WorkflowDeliverableHandoffRecord[]>;
+}
+
 export class WorkflowDeliverablesService {
   constructor(
     private readonly deliverableSource: DeliverableSource,
     private readonly briefSource: BriefSource,
     private readonly inputPacketSource: InputPacketSource,
+    private readonly handoffSource?: HandoffSource,
   ) {}
 
   async getDeliverables(
@@ -41,7 +51,7 @@ export class WorkflowDeliverablesService {
   ): Promise<WorkflowDeliverablesPacket & { all_deliverables: WorkflowDeliverableRecord[] }> {
     const limit = input.limit ?? 10;
     const fetchWindow = resolveFetchWindow(limit);
-    const [deliverables, briefs, inputPackets] = await Promise.all([
+    const [deliverables, briefs, inputPackets, handoffs] = await Promise.all([
       this.deliverableSource.listDeliverables(tenantId, workflowId, {
         workItemId: input.workItemId,
         limit: fetchWindow,
@@ -51,11 +61,15 @@ export class WorkflowDeliverablesService {
         limit,
       }),
       this.inputPacketSource.listWorkflowInputPackets(tenantId, workflowId),
+      this.handoffSource?.listLatestCompletedWorkItemHandoffs(tenantId, workflowId, {
+        workItemId: input.workItemId,
+      }) ?? Promise.resolve([]),
     ]);
     const finalizedBriefIds = collectFinalizedBriefIds(briefs);
     const finalizedDescriptorIds = collectFinalizedDescriptorIds(briefs);
+    const hydratedDeliverables = appendSynthesizedHandoffDeliverables(deliverables, handoffs);
 
-    const orderedDeliverables = [...deliverables].sort((left, right) =>
+    const orderedDeliverables = [...hydratedDeliverables].sort((left, right) =>
       compareDeliverables(left, right),
     );
     const page = paginateOrderedItems(orderedDeliverables, limit, input.after, (deliverable) => ({
@@ -89,6 +103,71 @@ export class WorkflowDeliverablesService {
       all_deliverables: allDeliverables,
     };
   }
+}
+
+function appendSynthesizedHandoffDeliverables(
+  deliverables: WorkflowDeliverableRecord[],
+  handoffs: WorkflowDeliverableHandoffRecord[],
+): WorkflowDeliverableRecord[] {
+  if (handoffs.length === 0) {
+    return deliverables;
+  }
+  const records = [...deliverables];
+  const existingWorkItemIds = new Set(
+    deliverables
+      .map((deliverable) => readOptionalString(deliverable.work_item_id))
+      .filter((workItemId): workItemId is string => workItemId !== null),
+  );
+  for (const handoff of handoffs) {
+    if (existingWorkItemIds.has(handoff.work_item_id)) {
+      continue;
+    }
+    records.push(buildHandoffPacketDeliverable(handoff));
+  }
+  return records;
+}
+
+function buildHandoffPacketDeliverable(
+  handoff: WorkflowDeliverableHandoffRecord,
+): WorkflowDeliverableRecord {
+  const previewText = [
+    handoff.summary,
+    handoff.completion.trim(),
+    handoff.decision_state ? `Decision: ${humanizeToken(handoff.decision_state)}` : null,
+    handoff.role ? `Produced by: ${humanizeToken(handoff.role)}` : null,
+  ]
+    .filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+    .join('\n\n');
+  const workItemTitle = handoff.work_item_title ?? 'Work item';
+  return {
+    descriptor_id: `handoff:${handoff.id}`,
+    workflow_id: handoff.workflow_id,
+    work_item_id: handoff.work_item_id,
+    descriptor_kind: 'handoff_packet',
+    delivery_stage: 'final',
+    title: `${workItemTitle} completion packet`,
+    state: 'final',
+    summary_brief: handoff.summary,
+    preview_capabilities: {
+      can_inline_preview: true,
+      can_download: false,
+      can_open_external: false,
+      can_copy_path: false,
+      preview_kind: 'structured_summary',
+    },
+    primary_target: {
+      target_kind: 'inline_summary',
+      label: 'Review completion packet',
+      url: '',
+    },
+    secondary_targets: [],
+    content_preview: {
+      summary: previewText,
+    },
+    source_brief_id: null,
+    created_at: handoff.created_at,
+    updated_at: handoff.created_at,
+  };
 }
 
 function isDeliverableBrief(brief: WorkflowOperatorBriefRecord): boolean {
@@ -186,4 +265,8 @@ function compareDeliverables(
   const leftTimestamp = left.updated_at ?? left.created_at;
   const rightTimestamp = right.updated_at ?? right.created_at;
   return rightTimestamp.localeCompare(leftTimestamp) || right.descriptor_id.localeCompare(left.descriptor_id);
+}
+
+function humanizeToken(value: string): string {
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }

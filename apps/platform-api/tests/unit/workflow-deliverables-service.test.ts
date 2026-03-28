@@ -408,4 +408,144 @@ describe('WorkflowDeliverablesService', () => {
     ]);
     expect(result.in_progress_deliverables).toEqual([]);
   });
+
+  it('synthesizes a final handoff packet deliverable for completed work items without materialized descriptors', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'deliverable-2',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-2',
+          descriptor_kind: 'artifact',
+          delivery_stage: 'final',
+          title: 'Workflow Intake 02 packet',
+          state: 'final',
+          summary_brief: 'Materialized descriptor already exists.',
+          preview_capabilities: {},
+          primary_target: {},
+          secondary_targets: [],
+          content_preview: {},
+          source_brief_id: null,
+          created_at: '2026-03-27T22:35:00.000Z',
+          updated_at: '2026-03-27T22:35:00.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const inputPacketService = { listWorkflowInputPackets: vi.fn(async () => []) };
+    const handoffSource = {
+      listLatestCompletedWorkItemHandoffs: vi.fn(async () => [
+        {
+          id: 'handoff-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: 'task-1',
+          role: 'policy-assessor',
+          summary: 'workflow-intake-01 is approved and ready to remain open.',
+          completion:
+            'Approved the intake packet and confirmed it satisfies the readiness criteria without additional findings.',
+          completion_state: 'completed',
+          resolution: 'approved',
+          decision_state: 'approved',
+          created_at: '2026-03-27T22:36:00.000Z',
+          work_item_title: 'workflow-intake-01',
+        },
+        {
+          id: 'handoff-2',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-2',
+          task_id: 'task-2',
+          role: 'policy-assessor',
+          summary: 'workflow-intake-02 is approved and ready to remain open.',
+          completion: 'This record should be ignored because a real descriptor already exists.',
+          completion_state: 'completed',
+          resolution: 'approved',
+          decision_state: 'approved',
+          created_at: '2026-03-27T22:37:00.000Z',
+          work_item_title: 'workflow-intake-02',
+        },
+      ]),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+      handoffSource as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1');
+
+    expect(result.final_deliverables).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          descriptor_id: 'handoff:handoff-1',
+          work_item_id: 'work-item-1',
+          descriptor_kind: 'handoff_packet',
+          delivery_stage: 'final',
+          state: 'final',
+          primary_target: expect.objectContaining({
+            target_kind: 'inline_summary',
+            label: 'Review completion packet',
+          }),
+        }),
+      ]),
+    );
+    expect(result.final_deliverables).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ descriptor_id: 'handoff:handoff-2' })]),
+    );
+  });
+
+  it('keeps synthesized handoff packets scoped to the selected work item', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => []),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const inputPacketService = { listWorkflowInputPackets: vi.fn(async () => []) };
+    const handoffSource = {
+      listLatestCompletedWorkItemHandoffs: vi.fn(async () => [
+        {
+          id: 'handoff-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: 'task-1',
+          role: 'policy-assessor',
+          summary: 'workflow-intake-01 is approved and ready to remain open.',
+          completion: 'Approved work item 01.',
+          completion_state: 'completed',
+          resolution: 'approved',
+          decision_state: 'approved',
+          created_at: '2026-03-27T22:36:00.000Z',
+          work_item_title: 'workflow-intake-01',
+        },
+      ]),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+      handoffSource as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+    });
+
+    expect(handoffSource.listLatestCompletedWorkItemHandoffs).toHaveBeenCalledWith(
+      'tenant-1',
+      'workflow-1',
+      { workItemId: 'work-item-1' },
+    );
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'handoff:handoff-1',
+        work_item_id: 'work-item-1',
+      }),
+    ]);
+  });
 });

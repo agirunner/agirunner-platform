@@ -70,6 +70,7 @@ import { WorkflowService } from '../services/workflow-service.js';
 import { WorkflowActivationService } from '../services/workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from '../services/workflow-activation-dispatch-service.js';
 import { WorkflowDeliverableService } from '../services/workflow-deliverable-service.js';
+import { WorkflowDeliverableHandoffService } from '../services/workflow-deliverable-handoff-service.js';
 import { WorkflowInputPacketService } from '../services/workflow-input-packet-service.js';
 import { WorkflowInterventionService } from '../services/workflow-intervention-service.js';
 import { WorkflowOperatorBriefService } from '../services/workflow-operator-brief-service.js';
@@ -284,10 +285,12 @@ export async function buildApp() {
     workflowOperatorUpdateService,
     workflowSettingsService,
   );
+  const workflowDeliverableHandoffService = new WorkflowDeliverableHandoffService(pool);
   const workflowOperationsDeliverablesService = new WorkflowDeliverablesService(
     workflowDeliverableService,
     workflowOperatorBriefService,
     workflowInputPacketService,
+    workflowDeliverableHandoffService,
   );
   const workflowOperationsWorkspaceService = new WorkflowWorkspaceService(
     workflowService,
