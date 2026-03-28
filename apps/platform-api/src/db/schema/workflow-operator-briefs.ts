@@ -23,6 +23,7 @@ export const workflowOperatorBriefs = pgTable(
     statusKind: text('status_kind').notNull(),
     shortBrief: jsonb('short_brief').notNull().default({}),
     detailedBriefJson: jsonb('detailed_brief_json').notNull().default({}),
+    linkedTargetIds: jsonb('linked_target_ids').notNull().default([]),
     sequenceNumber: integer('sequence_number').notNull(),
     relatedArtifactIds: jsonb('related_artifact_ids').notNull().default([]),
     relatedOutputDescriptorIds: jsonb('related_output_descriptor_ids').notNull().default([]),

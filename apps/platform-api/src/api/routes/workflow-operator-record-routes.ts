@@ -38,6 +38,7 @@ const workflowInterventionCreateSchema = z.object({
 const workflowOperatorBriefCreateSchema = z.object({
   request_id: z.string().min(1).max(255),
   execution_context_id: z.string().min(1).max(255),
+  workflow_id: z.string().min(1).max(255).optional(),
   work_item_id: z.string().uuid().optional(),
   task_id: z.string().uuid().optional(),
   brief_kind: z.string().min(1).max(120),
@@ -45,10 +46,24 @@ const workflowOperatorBriefCreateSchema = z.object({
   source_kind: z.string().min(1).max(120),
   source_role_name: z.string().max(255).optional(),
   status_kind: z.string().min(1).max(120),
-  short_brief: z.record(z.unknown()),
-  detailed_brief_json: z.record(z.unknown()),
+  payload: z.object({
+    short_brief: z.record(z.unknown()),
+    detailed_brief_json: z.record(z.unknown()),
+    linked_target_ids: z.array(z.string().min(1).max(255)).optional(),
+    linked_deliverables: z.array(z.object({
+      descriptor_kind: z.string().min(1).max(120),
+      delivery_stage: z.string().min(1).max(120),
+      title: z.string().min(1).max(255),
+      state: z.string().min(1).max(120),
+      summary_brief: z.string().max(4000).optional(),
+      work_item_id: z.string().uuid().optional(),
+      preview_capabilities: z.record(z.unknown()).optional(),
+      primary_target: z.record(z.unknown()),
+      secondary_targets: z.array(z.record(z.unknown())).optional(),
+      content_preview: z.record(z.unknown()).optional(),
+    })).default([]),
+  }),
   related_artifact_ids: z.array(z.string().min(1).max(255)).optional(),
-  related_output_descriptor_ids: z.array(z.string().min(1).max(255)).optional(),
   related_intervention_ids: z.array(z.string().min(1).max(255)).optional(),
   canonical_workflow_brief_id: z.string().uuid().optional(),
 });
@@ -56,16 +71,18 @@ const workflowOperatorBriefCreateSchema = z.object({
 const workflowOperatorUpdateCreateSchema = z.object({
   request_id: z.string().min(1).max(255),
   execution_context_id: z.string().min(1).max(255),
+  workflow_id: z.string().min(1).max(255).optional(),
   work_item_id: z.string().uuid().optional(),
   task_id: z.string().uuid().optional(),
   source_kind: z.string().min(1).max(120),
   source_role_name: z.string().max(255).optional(),
-  update_kind: z.string().min(1).max(120),
-  headline: z.string().min(1).max(4000),
-  summary: z.string().max(4000).optional(),
-  linked_target_ids: z.array(z.string().min(1).max(255)).optional(),
-  visibility_mode: z.enum(['standard', 'enhanced']),
-  promoted_brief_id: z.string().uuid().optional(),
+  payload: z.object({
+    update_kind: z.string().min(1).max(120),
+    headline: z.string().min(1).max(4000),
+    summary: z.string().max(4000).optional(),
+    linked_target_ids: z.array(z.string().min(1).max(255)).optional(),
+    promoted_brief_id: z.string().uuid().optional(),
+  }),
 });
 
 const workflowSteeringRequestCreateSchema = z.object({
@@ -76,17 +93,6 @@ const workflowSteeringRequestCreateSchema = z.object({
   task_id: z.string().uuid().optional(),
   linked_input_packet_ids: z.array(z.string().uuid()).default([]),
   session_id: z.string().uuid().optional(),
-});
-
-const workflowRedriveCreateSchema = z.object({
-  request_id: z.string().min(1).max(255),
-  name: z.string().min(1).max(255).optional(),
-  summary: z.string().max(4000).optional(),
-  steering_instruction: z.string().max(4000).optional(),
-  parameters: z.record(z.string()).optional(),
-  structured_inputs: z.record(z.unknown()).optional(),
-  live_visibility_mode: z.enum(['standard', 'enhanced']).optional(),
-  files: z.array(workflowOperatorFileUploadSchema).default([]),
 });
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
@@ -118,7 +124,8 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(workflowOperatorBriefCreateSchema.safeParse(request.body ?? {}));
-      const brief = await app.workflowOperatorBriefService.recordBrief(request.auth!, params.id, {
+      assertBodyWorkflowId(params.id, body.workflow_id);
+      const brief = await app.workflowOperatorBriefService.recordBriefWrite(request.auth!, params.id, {
         requestId: body.request_id,
         executionContextId: body.execution_context_id,
         workItemId: body.work_item_id,
@@ -128,10 +135,24 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
         sourceKind: body.source_kind,
         sourceRoleName: body.source_role_name,
         statusKind: body.status_kind,
-        shortBrief: body.short_brief,
-        detailedBriefJson: body.detailed_brief_json,
+        payload: {
+          shortBrief: body.payload.short_brief,
+          detailedBriefJson: body.payload.detailed_brief_json,
+          linkedDeliverables: body.payload.linked_deliverables.map((entry) => ({
+            descriptorKind: entry.descriptor_kind,
+            deliveryStage: entry.delivery_stage,
+            title: entry.title,
+            state: entry.state,
+            summaryBrief: entry.summary_brief,
+            workItemId: entry.work_item_id,
+            previewCapabilities: entry.preview_capabilities,
+            primaryTarget: entry.primary_target,
+            secondaryTargets: entry.secondary_targets,
+            contentPreview: entry.content_preview,
+          })),
+          linkedTargetIds: body.payload.linked_target_ids,
+        },
         relatedArtifactIds: body.related_artifact_ids,
-        relatedOutputDescriptorIds: body.related_output_descriptor_ids,
         relatedInterventionIds: body.related_intervention_ids,
         canonicalWorkflowBriefId: body.canonical_workflow_brief_id,
       });
@@ -160,19 +181,21 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(workflowOperatorUpdateCreateSchema.safeParse(request.body ?? {}));
-      const update = await app.workflowOperatorUpdateService.recordUpdate(request.auth!, params.id, {
+      assertBodyWorkflowId(params.id, body.workflow_id);
+      const update = await app.workflowOperatorUpdateService.recordUpdateWrite(request.auth!, params.id, {
         requestId: body.request_id,
         executionContextId: body.execution_context_id,
         workItemId: body.work_item_id,
         taskId: body.task_id,
         sourceKind: body.source_kind,
         sourceRoleName: body.source_role_name,
-        updateKind: body.update_kind,
-        headline: body.headline,
-        summary: body.summary,
-        linkedTargetIds: body.linked_target_ids,
-        visibilityMode: body.visibility_mode,
-        promotedBriefId: body.promoted_brief_id,
+        payload: {
+          updateKind: body.payload.update_kind,
+          headline: body.payload.headline,
+          summary: body.payload.summary,
+          linkedTargetIds: body.payload.linked_target_ids,
+          promotedBriefId: body.payload.promoted_brief_id,
+        },
       });
       return reply.status(201).send({ data: update });
     },
@@ -327,29 +350,10 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
       return reply.status(201).send({ data: result });
     },
   );
-
-  app.post(
-    '/api/v1/workflows/:id/redrives',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
-    async (request, reply) => {
-      const params = request.params as { id: string };
-      const body = parseOrThrow(workflowRedriveCreateSchema.safeParse(request.body ?? {}));
-      const redrive = await app.workflowRedriveService.redriveWorkflow(request.auth!, params.id, {
-        requestId: body.request_id,
-        name: body.name,
-        summary: body.summary,
-        steeringInstruction: body.steering_instruction,
-        parameters: body.parameters,
-        structuredInputs: body.structured_inputs,
-        liveVisibilityMode: body.live_visibility_mode,
-        files: body.files.map((entry) => ({
-          fileName: entry.file_name,
-          description: entry.description,
-          contentBase64: entry.content_base64,
-          contentType: entry.content_type,
-        })),
-      });
-      return reply.status(201).send({ data: redrive });
-    },
-  );
 };
+
+function assertBodyWorkflowId(pathWorkflowId: string, bodyWorkflowId?: string): void {
+  if (bodyWorkflowId && bodyWorkflowId !== pathWorkflowId) {
+    throw new SchemaValidationFailedError('Workflow id in body must match the route workflow id');
+  }
+}

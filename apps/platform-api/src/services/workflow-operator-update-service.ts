@@ -4,6 +4,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseQueryable } from '../db/database.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
+import { resolveWorkflowOperatorExecutionContext } from './workflow-operator-execution-context.js';
 import {
   sanitizeLinkedIdList,
   sanitizeOperatorUpdateHeadline,
@@ -11,7 +12,6 @@ import {
   sanitizeOptionalText,
   sanitizeRequiredText,
   sanitizeOptionalWorkflowLiveVisibilityMode,
-  sanitizeWorkflowLiveVisibilityMode,
   type WorkflowLiveVisibilityMode,
 } from './workflow-operator-record-sanitization.js';
 
@@ -81,17 +81,25 @@ export interface RecordWorkflowOperatorUpdateInput {
   taskId?: string;
   sourceKind: string;
   sourceRoleName?: string;
-  updateKind: string;
-  headline: string;
-  summary?: string;
-  linkedTargetIds?: unknown;
-  visibilityMode: WorkflowLiveVisibilityMode;
-  promotedBriefId?: string;
+  payload: {
+    updateKind: string;
+    headline: string;
+    summary?: string;
+    linkedTargetIds?: unknown;
+    promotedBriefId?: string;
+  };
 }
 
 export interface ListWorkflowOperatorUpdatesInput {
   workItemId?: string;
   limit?: number;
+}
+
+export interface WorkflowOperatorUpdateWriteResult {
+  record_id: string;
+  sequence_number: number;
+  deduped: boolean;
+  record: WorkflowOperatorUpdateRecord;
 }
 
 export class WorkflowOperatorUpdateService {
@@ -121,19 +129,42 @@ export class WorkflowOperatorUpdateService {
     workflowId: string,
     input: RecordWorkflowOperatorUpdateInput,
   ): Promise<WorkflowOperatorUpdateRecord> {
-    await this.assertWorkflow(identity.tenantId, workflowId);
-    if (input.workItemId) {
-      await this.assertWorkItem(identity.tenantId, workflowId, input.workItemId);
-    }
-    if (input.taskId) {
-      await this.assertTask(identity.tenantId, workflowId, input.taskId);
+    const result = await this.recordUpdateWrite(identity, workflowId, input);
+    return result.record;
+  }
+
+  async recordUpdateWrite(
+    identity: ApiKeyIdentity,
+    workflowId: string,
+    input: RecordWorkflowOperatorUpdateInput,
+  ): Promise<WorkflowOperatorUpdateWriteResult> {
+    const workflow = await this.assertWorkflow(identity.tenantId, workflowId);
+    const executionContext = await resolveWorkflowOperatorExecutionContext(this.pool, identity, workflowId, {
+      executionContextId: input.executionContextId,
+      sourceKind: input.sourceKind,
+      sourceRoleName: input.sourceRoleName,
+      workItemId: input.workItemId,
+      taskId: input.taskId,
+    });
+    if (executionContext.workItemId) {
+      await this.assertWorkItem(identity.tenantId, workflowId, executionContext.workItemId);
     }
     const existing = await this.findByRequestId(identity.tenantId, workflowId, input.requestId);
     if (existing) {
-      return toWorkflowOperatorUpdateRecord(existing);
+      const record = toWorkflowOperatorUpdateRecord(existing);
+      return {
+        record_id: record.id,
+        sequence_number: record.sequence_number,
+        deduped: true,
+        record,
+      };
     }
 
     const sequenceNumber = await this.nextSequenceNumber(identity.tenantId, workflowId);
+    const effectiveVisibilityMode = await this.readEffectiveWorkflowLiveVisibilityMode(
+      identity.tenantId,
+      workflow,
+    );
     const result = await this.pool.query<WorkflowOperatorUpdateRow>(
       `INSERT INTO workflow_operator_updates
          (id, tenant_id, workflow_id, work_item_id, task_id, request_id, execution_context_id, source_kind, source_role_name, headline, summary, linked_target_ids, visibility_mode, update_kind, promoted_brief_id, sequence_number, created_by_type, created_by_id)
@@ -143,27 +174,30 @@ export class WorkflowOperatorUpdateService {
         randomUUID(),
         identity.tenantId,
         workflowId,
-        input.workItemId ?? null,
-        input.taskId ?? null,
+        executionContext.workItemId,
+        executionContext.taskId,
         sanitizeRequiredText(input.requestId, 'Workflow operator update request id is required'),
-        sanitizeRequiredText(
-          input.executionContextId,
-          'Workflow operator update execution context id is required',
-        ),
-        sanitizeRequiredText(input.sourceKind, 'Workflow operator update source kind is required'),
-        sanitizeOptionalText(input.sourceRoleName),
-        sanitizeOperatorUpdateHeadline(input.headline),
-        sanitizeOperatorUpdateSummary(input.summary),
-        sanitizeLinkedIdList(input.linkedTargetIds),
-        sanitizeWorkflowLiveVisibilityMode(input.visibilityMode),
-        sanitizeRequiredText(input.updateKind, 'Workflow operator update kind is required'),
-        sanitizeOptionalText(input.promotedBriefId),
+        executionContext.executionContextId,
+        executionContext.sourceKind,
+        executionContext.sourceRoleName,
+        sanitizeOperatorUpdateHeadline(input.payload.headline),
+        sanitizeOperatorUpdateSummary(input.payload.summary),
+        sanitizeLinkedIdList(input.payload.linkedTargetIds),
+        effectiveVisibilityMode,
+        sanitizeRequiredText(input.payload.updateKind, 'Workflow operator update kind is required'),
+        sanitizeOptionalText(input.payload.promotedBriefId),
         sequenceNumber,
         identity.ownerType,
         resolveOperatorRecordActorId(identity),
       ],
     );
-    return toWorkflowOperatorUpdateRecord(result.rows[0]);
+    const record = toWorkflowOperatorUpdateRecord(result.rows[0]);
+    return {
+      record_id: record.id,
+      sequence_number: record.sequence_number,
+      deduped: false,
+      record,
+    };
   }
 
   async updateWorkflowLiveVisibilityModeOverride(
@@ -236,8 +270,11 @@ export class WorkflowOperatorUpdateService {
     return Number(result.rows[0]?.next_sequence ?? 1);
   }
 
-  private async assertWorkflow(tenantId: string, workflowId: string): Promise<void> {
-    const result = await this.pool.query(
+  private async assertWorkflow(
+    tenantId: string,
+    workflowId: string,
+  ): Promise<WorkflowLiveVisibilityRow> {
+    const result = await this.pool.query<WorkflowLiveVisibilityRow>(
       `SELECT id, live_visibility_mode_override
          FROM workflows
         WHERE tenant_id = $1
@@ -247,6 +284,13 @@ export class WorkflowOperatorUpdateService {
     if (!result.rowCount) {
       throw new NotFoundError('Workflow not found');
     }
+    return {
+      id: result.rows[0].id,
+      live_visibility_mode_override: result.rows[0].live_visibility_mode_override ?? null,
+      live_visibility_revision: 0,
+      live_visibility_updated_by_operator_id: null,
+      live_visibility_updated_at: null,
+    };
   }
 
   private async assertWorkItem(tenantId: string, workflowId: string, workItemId: string): Promise<void> {
@@ -262,19 +306,20 @@ export class WorkflowOperatorUpdateService {
       throw new ValidationError('Workflow operator update work item must belong to the selected workflow');
     }
   }
-
-  private async assertTask(tenantId: string, workflowId: string, taskId: string): Promise<void> {
-    const result = await this.pool.query(
-      `SELECT id
-         FROM tasks
-        WHERE tenant_id = $1
-          AND workflow_id = $2
-          AND id = $3`,
-      [tenantId, workflowId, taskId],
-    );
-    if (!result.rowCount) {
-      throw new ValidationError('Workflow operator update task must belong to the selected workflow');
+  private async readEffectiveWorkflowLiveVisibilityMode(
+    tenantId: string,
+    workflow: WorkflowLiveVisibilityRow,
+  ): Promise<WorkflowLiveVisibilityMode> {
+    if (workflow.live_visibility_mode_override) {
+      return workflow.live_visibility_mode_override;
     }
+    const result = await this.pool.query<{ live_visibility_mode_default: WorkflowLiveVisibilityMode }>(
+      `SELECT live_visibility_mode_default
+         FROM agentic_settings
+        WHERE tenant_id = $1`,
+      [tenantId],
+    );
+    return result.rows[0]?.live_visibility_mode_default ?? 'enhanced';
   }
 }
 

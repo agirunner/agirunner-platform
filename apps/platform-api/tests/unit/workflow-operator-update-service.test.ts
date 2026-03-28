@@ -101,7 +101,7 @@ describe('WorkflowOperatorUpdateService', () => {
     expect(result.map((entry) => entry.id)).toEqual(['update-2', 'update-1']);
   });
 
-  it('persists workflow or work-item scoped operator updates with explicit visibility mode', async () => {
+  it('records nested operator update payloads and derives visibility mode from workflow settings', async () => {
     pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
       if (sql.includes('FROM workflows') && sql.includes('SELECT id, live_visibility_mode_override')) {
         return {
@@ -115,11 +115,31 @@ describe('WorkflowOperatorUpdateService', () => {
           }],
         };
       }
-      if (sql.includes('FROM workflow_work_items')) {
-        return { rowCount: 1, rows: [{ id: 'work-item-1' }] };
+      if (sql.includes('FROM tasks')) {
+        expect(params).toEqual([
+          'tenant-1',
+          'workflow-1',
+          'task-9',
+          ['claimed', 'in_progress', 'output_pending_assessment', 'awaiting_approval'],
+        ]);
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'task-9',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            is_orchestrator_task: false,
+            role: 'Verifier',
+            state: 'in_progress',
+          }],
+        };
       }
       if (sql.includes('FROM workflow_operator_updates') && sql.includes('request_id = $3')) {
         return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM workflow_work_items')) {
+        expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
+        return { rowCount: 1, rows: [{ id: 'work-item-1' }] };
       }
       if (sql.includes('COALESCE(MAX(sequence_number), 0) + 1')) {
         return { rowCount: 1, rows: [{ next_sequence: 9 }] };
@@ -136,9 +156,9 @@ describe('WorkflowOperatorUpdateService', () => {
             tenant_id: 'tenant-1',
             workflow_id: 'workflow-1',
             work_item_id: 'work-item-1',
-            task_id: null,
+            task_id: 'task-9',
             request_id: 'request-1',
-            execution_context_id: 'execution-1',
+            execution_context_id: 'task-9',
             source_kind: 'specialist',
             source_role_name: 'Verifier',
             update_kind: 'turn_update',
@@ -157,27 +177,34 @@ describe('WorkflowOperatorUpdateService', () => {
       throw new Error(`Unexpected SQL: ${sql}`);
     });
 
-    const result = await service.recordUpdate(IDENTITY as never, 'workflow-1', {
+    const result = await service.recordUpdateWrite(IDENTITY as never, 'workflow-1', {
       requestId: 'request-1',
-      executionContextId: 'execution-1',
+      executionContextId: 'task-9',
       workItemId: 'work-item-1',
+      taskId: 'task-9',
       sourceKind: 'specialist',
       sourceRoleName: 'Verifier',
-      updateKind: 'turn_update',
-      headline: 'Verification is reviewing rollback handling.',
-      summary: 'Bearer hidden',
-      linkedTargetIds: ['work-item-1', 'task-9'],
-      visibilityMode: 'enhanced',
+      payload: {
+        updateKind: 'turn_update',
+        headline: 'Verification is reviewing rollback handling.',
+        summary: 'Bearer hidden',
+        linkedTargetIds: ['work-item-1', 'task-9'],
+      },
     });
 
     expect(result).toEqual(
       expect.objectContaining({
-        id: 'update-1',
-        workflow_id: 'workflow-1',
-        work_item_id: 'work-item-1',
+        record_id: 'update-1',
         sequence_number: 9,
-        visibility_mode: 'enhanced',
-        summary: 'redacted://workflow-update-secret',
+        deduped: false,
+        record: expect.objectContaining({
+          id: 'update-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: 'task-9',
+          visibility_mode: 'enhanced',
+          summary: 'redacted://workflow-update-secret',
+        }),
       }),
     );
   });

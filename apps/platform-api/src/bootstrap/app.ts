@@ -224,9 +224,9 @@ export async function buildApp() {
     appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_FILES,
     appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_BYTES,
   );
-  const workflowOperatorBriefService = new WorkflowOperatorBriefService(pool);
-  const workflowOperatorUpdateService = new WorkflowOperatorUpdateService(pool);
   const workflowDeliverableService = new WorkflowDeliverableService(pool);
+  const workflowOperatorBriefService = new WorkflowOperatorBriefService(pool, workflowDeliverableService);
+  const workflowOperatorUpdateService = new WorkflowOperatorUpdateService(pool);
   const workflowInterventionService = new WorkflowInterventionService(
     pool,
     artifactStorage,

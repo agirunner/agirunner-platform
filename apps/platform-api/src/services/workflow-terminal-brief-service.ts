@@ -56,19 +56,21 @@ export class WorkflowTerminalBriefService {
         sourceKind: 'platform',
         sourceRoleName: 'Platform',
         statusKind: workflow.state,
-        shortBrief: {
-          headline: `${workflow.name} ${humanizeTerminalState(workflow.state)}.`,
-          status_label: humanizeTerminalState(workflow.state),
-          delta_label: workflow.state,
-          next_action_label: workflow.state === 'failed' ? 'Review terminal brief or redrive' : 'Review workflow outcome',
-        },
-        detailedBriefJson: {
-          headline: `${workflow.name} ${humanizeTerminalState(workflow.state)}.`,
-          status_kind: workflow.state,
-          summary: readSummary(workflow),
-          sections: {
-            risks_and_callouts: readStringArray(workflow.completion_callouts?.risks_and_callouts),
-            decisions_made: readStringArray(workflow.completion_callouts?.decisions_made),
+        payload: {
+          shortBrief: {
+            headline: `${workflow.name} ${humanizeTerminalState(workflow.state)}.`,
+            status_label: humanizeTerminalState(workflow.state),
+            delta_label: workflow.state,
+            next_action_label: workflow.state === 'failed' ? 'Review terminal brief or redrive' : 'Review workflow outcome',
+          },
+          detailedBriefJson: {
+            headline: `${workflow.name} ${humanizeTerminalState(workflow.state)}.`,
+            status_kind: workflow.state,
+            summary: readSummary(workflow),
+            sections: {
+              risks_and_callouts: readStringArray(workflow.completion_callouts?.risks_and_callouts),
+              decisions_made: readStringArray(workflow.completion_callouts?.decisions_made),
+            },
           },
         },
       },

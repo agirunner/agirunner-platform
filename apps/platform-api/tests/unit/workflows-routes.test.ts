@@ -181,7 +181,7 @@ function createWorkflowRoutesApp(overrides?: {
     'workflowOperatorBriefService',
     {
       listBriefs: async () => [],
-      recordBrief: async () => ({}),
+      recordBriefWrite: async () => ({}),
       ...(overrides?.workflowOperatorBriefService ?? {}),
     } as never,
   );
@@ -189,7 +189,7 @@ function createWorkflowRoutesApp(overrides?: {
     'workflowOperatorUpdateService',
     {
       listUpdates: async () => [],
-      recordUpdate: async () => ({}),
+      recordUpdateWrite: async () => ({}),
       ...(overrides?.workflowOperatorUpdateService ?? {}),
     } as never,
   );
@@ -428,16 +428,21 @@ describe('workflow routes', () => {
         updated_at: '2026-03-27T10:00:00.000Z',
       },
     ]);
-    const recordBrief = vi.fn().mockResolvedValue({
-      id: 'brief-2',
-      workflow_id: 'workflow-1',
-      short_brief: { headline: 'Verification completed.' },
+    const recordBriefWrite = vi.fn().mockResolvedValue({
+      record_id: 'brief-2',
+      sequence_number: 5,
+      deduped: false,
+      record: {
+        id: 'brief-2',
+        workflow_id: 'workflow-1',
+        short_brief: { headline: 'Verification completed.' },
+      },
     });
 
     app = createWorkflowRoutesApp({
       workflowOperatorBriefService: {
         listBriefs,
-        recordBrief,
+        recordBriefWrite,
       },
     });
     await app.register(workflowRoutes);
@@ -455,17 +460,34 @@ describe('workflow routes', () => {
       payload: {
         request_id: 'request-2',
         execution_context_id: 'execution-2',
+        workflow_id: 'workflow-1',
         brief_kind: 'milestone',
         brief_scope: 'workflow_timeline',
         source_kind: 'orchestrator',
         source_role_name: 'Orchestrator',
         status_kind: 'in_progress',
-        short_brief: {
-          headline: 'Verification completed.',
-        },
-        detailed_brief_json: {
-          headline: 'Verification completed.',
-          status_kind: 'in_progress',
+        payload: {
+          short_brief: {
+            headline: 'Verification completed.',
+          },
+          detailed_brief_json: {
+            headline: 'Verification completed.',
+            status_kind: 'in_progress',
+          },
+          linked_deliverables: [
+            {
+              descriptor_kind: 'artifact',
+              delivery_stage: 'final',
+              title: 'Release bundle',
+              state: 'final',
+              primary_target: {
+                target_kind: 'artifact',
+                label: 'Download release bundle',
+                url: 'https://example.invalid/bundle.zip',
+              },
+            },
+          ],
+          linked_target_ids: ['target-1'],
         },
       },
     });
@@ -476,13 +498,16 @@ describe('workflow routes', () => {
       workItemId: undefined,
       limit: 10,
     });
-    expect(recordBrief).toHaveBeenCalledWith(
+    expect(recordBriefWrite).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
       'workflow-1',
       expect.objectContaining({
         requestId: 'request-2',
         executionContextId: 'execution-2',
         briefKind: 'milestone',
+        payload: expect.objectContaining({
+          linkedTargetIds: ['target-1'],
+        }),
       }),
     );
   });
@@ -517,16 +542,21 @@ describe('workflow routes', () => {
         created_at: '2026-03-27T10:05:00.000Z',
       },
     ]);
-    const recordUpdate = vi.fn().mockResolvedValue({
-      id: 'update-2',
-      workflow_id: 'workflow-1',
-      headline: 'Verification is reviewing rollback handling.',
+    const recordUpdateWrite = vi.fn().mockResolvedValue({
+      record_id: 'update-2',
+      sequence_number: 10,
+      deduped: false,
+      record: {
+        id: 'update-2',
+        workflow_id: 'workflow-1',
+        headline: 'Verification is reviewing rollback handling.',
+      },
     });
 
     app = createWorkflowRoutesApp({
       workflowOperatorUpdateService: {
         listUpdates,
-        recordUpdate,
+        recordUpdateWrite,
       },
     });
     await app.register(workflowRoutes);
@@ -544,12 +574,15 @@ describe('workflow routes', () => {
       payload: {
         request_id: 'request-2',
         execution_context_id: 'execution-2',
+        workflow_id: 'workflow-1',
         source_kind: 'specialist',
         source_role_name: 'Verifier',
-        update_kind: 'turn_update',
-        headline: 'Verification is reviewing rollback handling.',
-        summary: 'Verification is in progress.',
-        visibility_mode: 'enhanced',
+        payload: {
+          update_kind: 'turn_update',
+          headline: 'Verification is reviewing rollback handling.',
+          summary: 'Verification is in progress.',
+          linked_target_ids: ['task-1'],
+        },
       },
     });
 
@@ -559,14 +592,16 @@ describe('workflow routes', () => {
       workItemId: undefined,
       limit: 5,
     });
-    expect(recordUpdate).toHaveBeenCalledWith(
+    expect(recordUpdateWrite).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
       'workflow-1',
       expect.objectContaining({
         requestId: 'request-2',
         executionContextId: 'execution-2',
-        updateKind: 'turn_update',
-        visibilityMode: 'enhanced',
+        payload: expect.objectContaining({
+          updateKind: 'turn_update',
+          linkedTargetIds: ['task-1'],
+        }),
       }),
     );
   });
