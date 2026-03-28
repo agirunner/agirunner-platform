@@ -80,10 +80,10 @@ export function WorkflowBoard(props: {
   }
 
   return (
-    <section className="flex h-full flex-col gap-4 rounded-3xl border border-border/70 bg-background/90 p-5">
+    <section className="flex h-full min-h-0 flex-col gap-3 rounded-2xl border border-border/70 bg-background/90 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="text-lg font-semibold text-foreground">Workflow board</p>
+          <p className="text-base font-semibold text-foreground">Workflow board</p>
           <ModeButton
             isActive={props.boardMode === 'active'}
             label="Active"
@@ -137,7 +137,7 @@ export function WorkflowBoard(props: {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-x-auto pb-2">
+      <div className="min-h-0 flex-1 overflow-x-auto pb-1">
         <div className="grid min-h-full gap-4 md:grid-flow-col md:auto-cols-[minmax(18rem,1fr)]">
           {boardView.lanes.map((lane) => (
             <BoardLaneCard
@@ -177,7 +177,7 @@ function BoardLaneCard(props: {
     && (props.lane.visibleCompletedItems.length > 0 || props.lane.hiddenCompletedCount > 0);
 
   return (
-    <article className="grid h-full min-w-0 content-start gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
+    <article className="grid h-full min-w-0 content-start gap-3 rounded-xl border border-border/70 bg-muted/10 p-3.5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <p className="text-sm font-semibold text-foreground">{props.lane.column.label}</p>

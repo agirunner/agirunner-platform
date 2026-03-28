@@ -6,10 +6,11 @@ export const MAX_WORKFLOW_RAIL_WIDTH_PX = 520;
 export const DEFAULT_WORKFLOW_WORKBENCH_FRACTION = 0.5;
 export const MIN_WORKFLOW_WORKBENCH_FRACTION = 0.35;
 export const MAX_WORKFLOW_WORKBENCH_FRACTION = 0.7;
-const DEFAULT_WORKFLOW_REGION_MIN_HEIGHT_REM = 22;
+const DEFAULT_WORKFLOW_REGION_MIN_HEIGHT_REM = 24;
+const WORKFLOW_SPLIT_GUTTER_REM = 0.5;
 
 export function buildWorkflowsShellClassName(isRailHidden: boolean): string {
-  const baseClassName = 'flex flex-col gap-4 xl:h-[calc(100vh-9rem)]';
+  const baseClassName = 'flex w-full min-w-0 flex-col gap-3 xl:h-[calc(100vh-8.5rem)] xl:min-h-0 xl:overflow-hidden';
   if (isRailHidden) {
     return `${baseClassName} xl:block`;
   }
@@ -32,11 +33,12 @@ export function buildWorkflowWorkspaceSplitStyle(
   workbenchFraction: number,
 ): CSSProperties {
   const clampedFraction = clampWorkflowWorkbenchFraction(workbenchFraction);
-  const boardFraction = trimFraction(1 - clampedFraction);
-  const footerFraction = trimFraction(clampedFraction);
+  const boardPercent = trimPercent(1 - clampedFraction);
+  const footerPercent = trimPercent(clampedFraction);
+  const gutterOffset = `${WORKFLOW_SPLIT_GUTTER_REM / 2}rem`;
   return {
     gridTemplateRows:
-      `minmax(${DEFAULT_WORKFLOW_REGION_MIN_HEIGHT_REM}rem, ${boardFraction}fr) 0.5rem minmax(${DEFAULT_WORKFLOW_REGION_MIN_HEIGHT_REM}rem, ${footerFraction}fr)`,
+      `minmax(${DEFAULT_WORKFLOW_REGION_MIN_HEIGHT_REM}rem, calc(${boardPercent}% - ${gutterOffset})) ${WORKFLOW_SPLIT_GUTTER_REM}rem minmax(${DEFAULT_WORKFLOW_REGION_MIN_HEIGHT_REM}rem, calc(${footerPercent}% - ${gutterOffset}))`,
   };
 }
 
@@ -54,6 +56,6 @@ export function clampWorkflowWorkbenchFraction(fraction: number): number {
   return Math.min(MAX_WORKFLOW_WORKBENCH_FRACTION, Math.max(MIN_WORKFLOW_WORKBENCH_FRACTION, fraction));
 }
 
-function trimFraction(value: number): string {
-  return Number(value.toFixed(3)).toString();
+function trimPercent(value: number): string {
+  return Number((value * 100).toFixed(3)).toString();
 }

@@ -43,12 +43,14 @@ describe('WorkflowDetails', () => {
 
     expect(html).toContain('Task');
     expect(html).toContain('Verify deliverable');
-    expect(html).toContain('Parameters');
-    expect(html).toContain('Workflow packets');
-    expect(html).toContain('Work item packets');
-    expect(html).toContain('Task payload');
+    expect(html).toContain('Workflow parameters');
+    expect(html).toContain('Workflow inputs');
+    expect(html).toContain('Work item inputs');
+    expect(html).toContain('Task input');
     expect(html).toContain('Rollback guide');
     expect(html).toContain('release/2026.03');
+    expect(html).toContain('Inputs');
+    expect(html).toContain('Related tasks');
     expect(html).not.toContain('Workflow, work-item, and task inputs used for the current selection.');
     expect(html).not.toContain('Fields');
     expect(html).not.toContain('Owner role');
@@ -80,7 +82,7 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain('Work item packets');
+    expect(html).toContain('Work item inputs');
     expect(html).toContain('Rollback guide');
   });
 });

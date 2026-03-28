@@ -95,11 +95,11 @@ describe('WorkflowStateStrip', () => {
     expect(html).toContain('Waiting for Work');
     expect(html).toContain('Ongoing');
     expect(html).not.toContain('Waiting By Design');
-    expect((html.match(/text-\[13px\] font-semibold leading-5 text-foreground/g) ?? []).length).toBeGreaterThanOrEqual(4);
+    expect((html.match(/min-h-5 text-sm font-semibold leading-5 text-foreground/g) ?? []).length).toBeGreaterThanOrEqual(4);
     expect(html).toContain('Live visibility');
-    expect((html.match(/rounded-2xl border border-border\/70 bg-muted\/10 p-2 text-left/g) ?? [])).toHaveLength(4);
-    expect((html.match(/rounded-2xl border border-border\/70 bg-muted\/10 p-2 text-left transition-colors hover:bg-muted\/20/g) ?? [])).toHaveLength(2);
-    expect(html).not.toContain('Requests, responses, and safe workflow intervention.');
+    expect((html.match(/rounded-xl border border-border\/70 bg-muted\/10 px-2\.5 py-2 text-left/g) ?? [])).toHaveLength(4);
+    expect((html.match(/rounded-xl border border-border\/70 bg-muted\/10 px-2\.5 py-2 text-left transition-colors hover:bg-muted\/20/g) ?? [])).toHaveLength(2);
+    expect(html).toContain('Requests and responses');
     expect(html).not.toContain('<p class="text-xs text-muted-foreground">Playbook • Workspace</p>');
     expect(html).not.toContain('Accepting new work');
   });

@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { Badge } from '../../../components/ui/badge.js';
 import type {
   DashboardMissionControlWorkflowCard,
@@ -37,65 +39,62 @@ export function WorkflowDetails(props: {
     || hasStructuredContent(props.workflowParameters);
 
   return (
-    <section className="grid gap-3">
-      {hasInputs ? (
-        <div className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
-          <p className="text-sm font-semibold text-foreground">Inputs</p>
+    <section className="rounded-2xl border border-border/70 bg-background/80 p-4">
+      <div className="grid gap-4">
+        <header className="grid gap-3 border-b border-border/70 pb-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{scope.scope_label}</Badge>
+            {scope.badges.map((badge) => (
+              <Badge key={`${scope.scope_label}:${badge}`} variant="secondary">
+                {badge}
+              </Badge>
+            ))}
+          </div>
 
-          <div className="grid gap-3">
+          <div className="grid gap-1">
+            <h3 className="text-base font-semibold text-foreground">{scope.title}</h3>
+            {scope.summary ? <p className="text-sm text-muted-foreground">{scope.summary}</p> : null}
+          </div>
+
+          {scope.callout ? (
+            <p className="text-sm font-medium text-amber-950 dark:text-amber-100">
+              {scope.callout}
+            </p>
+          ) : null}
+
+          {scope.rows.length > 0 ? (
+            <dl className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
+              {scope.rows.map(([label, value]) => (
+                <div key={label} className="grid gap-0.5">
+                  <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    {label}
+                  </dt>
+                  <dd className="text-sm text-foreground">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          ) : null}
+        </header>
+
+        {hasInputs ? (
+          <DetailSection title="Inputs">
             {hasStructuredContent(props.workflowParameters) ? (
-              <StructuredBlock label="Parameters" value={props.workflowParameters} />
+              <StructuredBlock label="Workflow parameters" value={props.workflowParameters} />
             ) : null}
             {workflowPackets.length > 0 ? (
-              <PacketSection label="Workflow packets" packets={workflowPackets} />
+              <PacketSection label="Workflow inputs" packets={workflowPackets} />
             ) : null}
             {workItemPackets.length > 0 ? (
-              <PacketSection label="Work item packets" packets={workItemPackets} />
+              <PacketSection label="Work item inputs" packets={workItemPackets} />
             ) : null}
             {hasTaskInput ? (
-              <StructuredBlock label="Task payload" value={props.selectedTask?.input ?? null} />
+              <StructuredBlock label="Task input" value={props.selectedTask?.input ?? null} />
             ) : null}
-          </div>
-        </div>
-      ) : null}
-
-      <div className="grid gap-2 rounded-2xl border border-border/70 bg-background/80 p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">{scope.scope_label}</Badge>
-          {scope.badges.map((badge) => (
-            <Badge key={`${scope.scope_label}:${badge}`} variant="secondary">
-              {badge}
-            </Badge>
-          ))}
-        </div>
-
-        <div className="grid gap-1">
-          <h3 className="text-base font-semibold text-foreground">{scope.title}</h3>
-          {scope.summary ? <p className="text-sm text-muted-foreground">{scope.summary}</p> : null}
-        </div>
-
-        {scope.callout ? (
-          <div className="rounded-xl border border-amber-300/60 bg-amber-50/70 px-3 py-2 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">
-            {scope.callout}
-          </div>
-        ) : null}
-
-        {scope.rows.length > 0 ? (
-          <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
-            {scope.rows.map(([label, value]) => (
-              <div key={label} className="grid gap-0.5">
-                <dt className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                  {label}
-                </dt>
-                <dd className="text-sm text-foreground">{value}</dd>
-              </div>
-            ))}
-          </dl>
+          </DetailSection>
         ) : null}
 
         {scope.related_tasks.length > 0 ? (
-          <div className="grid gap-2">
-            <p className="text-sm font-semibold text-foreground">Related tasks</p>
+          <DetailSection title="Related tasks">
             <div className="grid gap-2">
               {scope.related_tasks.map((task) => (
                 <div
@@ -112,9 +111,21 @@ export function WorkflowDetails(props: {
                 </div>
               ))}
             </div>
-          </div>
+          </DetailSection>
         ) : null}
       </div>
+    </section>
+  );
+}
+
+function DetailSection(props: {
+  title: string;
+  children: ReactNode;
+}): JSX.Element {
+  return (
+    <section className="grid gap-3">
+      <p className="text-sm font-semibold text-foreground">{props.title}</p>
+      <div className="grid gap-3">{props.children}</div>
     </section>
   );
 }

@@ -25,10 +25,7 @@ export function WorkflowStateStrip(props: {
   const sticky = props.stickyStrip;
   const visibilityValue = props.workflowSettings?.workflow_live_visibility_mode_override ?? '__inherit__';
   const workload = summarizeWorkload(props.board, props.workflow);
-  const metaLine = [
-    `Updated ${formatRelativeTimestamp(props.workflow.metrics.lastChangedAt)}`,
-    props.selectedScopeLabel ? `Focused on ${props.selectedScopeLabel}` : null,
-  ].filter(Boolean).join(' • ');
+  const metaLine = `Updated ${formatRelativeTimestamp(props.workflow.metrics.lastChangedAt)}`;
   const canOpenRedrive = props.workflow.availableActions.some(
     (action) => action.kind === 'redrive_workflow' && action.enabled,
   );
@@ -39,9 +36,9 @@ export function WorkflowStateStrip(props: {
   const activeSpecialistTaskCount = sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount;
 
   return (
-    <section className="space-y-2 rounded-2xl border border-border/70 bg-background/90 p-2.5">
+    <section className="space-y-2 rounded-2xl border border-border/70 bg-background/90 p-2">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
+        <div className="space-y-0.5">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold text-foreground">{props.workflow.name}</h2>
             <Badge variant="secondary">{postureLabel}</Badge>
@@ -50,7 +47,7 @@ export function WorkflowStateStrip(props: {
           {metaLine ? <p className="text-[11px] text-muted-foreground">{metaLine}</p> : null}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <WorkflowControlActions
             workflowId={props.workflow.id}
             workflowState={props.workflow.state}
@@ -93,7 +90,7 @@ export function WorkflowStateStrip(props: {
         <HeaderCard
           title="Workflow State"
           value={postureLabel}
-          detail={readOptionalSummary(sticky?.summary) ?? 'Current workflow posture'}
+          detail={truncateDetail(readOptionalSummary(sticky?.summary) ?? 'Current posture')}
         />
         <HeaderCard
           title="Needs Action"
@@ -102,14 +99,14 @@ export function WorkflowStateStrip(props: {
           onClick={() => props.onTabChange('needs_action')}
         />
         <HeaderCard
-          title="Workload"
+          title="Workflow"
           value={`${workload.activeWorkItemCount} active • ${workload.completedWorkItemCount} done`}
           detail={formatSpecialistTaskLabel(activeSpecialistTaskCount)}
         />
         <HeaderCard
           title="Steering"
           value={sticky?.steering_available ? 'Open' : 'Idle'}
-          detail="Requests, responses, and intervention history"
+          detail="Requests and responses"
           onClick={() => props.onTabChange('steering')}
         />
       </div>
@@ -123,15 +120,15 @@ function HeaderCard(props: {
   detail: string;
   onClick?(): void;
 }): JSX.Element {
-  const className = 'grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-2 text-left';
+  const className = 'grid gap-0.5 rounded-xl border border-border/70 bg-muted/10 px-2.5 py-2 text-left';
 
   if (!props.onClick) {
     return (
       <div className={className}>
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           {props.title}
         </p>
-        <p className="text-[13px] font-semibold leading-5 text-foreground">{props.value}</p>
+        <p className="min-h-5 text-sm font-semibold leading-5 text-foreground">{props.value}</p>
         <p className="text-[11px] leading-4 text-muted-foreground">{props.detail}</p>
       </div>
     );
@@ -143,10 +140,10 @@ function HeaderCard(props: {
       className={`${className} transition-colors hover:bg-muted/20`}
       onClick={props.onClick}
     >
-      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         {props.title}
       </p>
-      <p className="text-[13px] font-semibold leading-5 text-foreground">{props.value}</p>
+      <p className="min-h-5 text-sm font-semibold leading-5 text-foreground">{props.value}</p>
       <p className="text-[11px] leading-4 text-muted-foreground">{props.detail}</p>
     </button>
   );
@@ -194,4 +191,8 @@ function readOptionalSummary(value: string | null | undefined): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function truncateDetail(value: string): string {
+  return value.length <= 72 ? value : `${value.slice(0, 69)}...`;
 }
