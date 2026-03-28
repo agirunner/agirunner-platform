@@ -1,5 +1,11 @@
 import { useState } from 'react';
 import { Bookmark, Plus, RotateCcw, Trash2, ChevronDown } from 'lucide-react';
+
+import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FieldErrorText,
+  resolveFormFeedbackMessage,
+} from '../forms/form-feedback.js';
 import { Button } from '../ui/button.js';
 import { Input } from '../ui/input.js';
 import {
@@ -51,16 +57,21 @@ export function SavedViews({
   const [views, setViews] = useState<SavedView[]>(() => loadViews(storageKey));
   const [isSaving, setIsSaving] = useState(false);
   const [newViewName, setNewViewName] = useState('');
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   function saveView(): void {
     const name = newViewName.trim();
-    if (!name) return;
+    if (!name) {
+      setHasAttemptedSubmit(true);
+      return;
+    }
 
     const updated = [...views.filter((v) => v.name !== name), { name, filters: { ...currentFilters } }];
     setViews(updated);
     persistViews(storageKey, updated);
     setNewViewName('');
     setIsSaving(false);
+    setHasAttemptedSubmit(false);
   }
 
   function deleteView(name: string): void {
@@ -129,11 +140,26 @@ export function SavedViews({
                 placeholder="View name"
                 className="h-7 text-xs"
                 autoFocus
+                aria-invalid={hasAttemptedSubmit && !newViewName.trim() ? true : undefined}
               />
-              <Button type="submit" size="sm" className="h-7 px-2 text-xs" disabled={!newViewName.trim()}>
+              <Button type="submit" size="sm" className="h-7 px-2 text-xs">
                 Save
               </Button>
             </form>
+            <div className="mt-2 space-y-2">
+              <FieldErrorText
+                message={hasAttemptedSubmit && !newViewName.trim() ? 'Enter a name for this saved view.' : undefined}
+              />
+              {hasAttemptedSubmit && !newViewName.trim() ? (
+                <p className="text-xs leading-5 text-red-600 dark:text-red-400">
+                  {resolveFormFeedbackMessage({
+                    showValidation: true,
+                    isValid: false,
+                    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+                  })}
+                </p>
+              ) : null}
+            </div>
           </div>
         ) : (
           <>
@@ -141,6 +167,7 @@ export function SavedViews({
               onSelect={(e) => {
                 e.preventDefault();
                 setIsSaving(true);
+                setHasAttemptedSubmit(false);
               }}
             >
               <Plus className="h-3.5 w-3.5" />

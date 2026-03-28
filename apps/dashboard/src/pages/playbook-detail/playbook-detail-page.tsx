@@ -11,6 +11,11 @@ import {
 import { useUnsavedChanges } from '../../lib/use-unsaved-changes.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
+import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import {
   Dialog,
@@ -79,6 +84,7 @@ export function PlaybookDetailPage(): JSX.Element {
   const [message, setMessage] = useState<string | null>(null);
   const [loadedPlaybookId, setLoadedPlaybookId] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+  const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [permanentDeleteOpen, setPermanentDeleteOpen] = useState(false);
   const [dangerOpen, setDangerOpen] = useState(false);
@@ -112,6 +118,7 @@ export function PlaybookDetailPage(): JSX.Element {
     setAuthoringValidationIssues([]);
     setLoadedPlaybookId(playbook.id);
     setIsDirty(false);
+    setHasAttemptedSave(false);
   }
 
   useEffect(() => {
@@ -208,10 +215,29 @@ export function PlaybookDetailPage(): JSX.Element {
     },
   });
 
-  const canSave = useMemo(
-    () => Boolean(playbookId && name.trim() && outcome.trim() && authoringValidationIssues.length === 0),
-    [authoringValidationIssues.length, name, outcome, playbookId],
+  const basicValidation = useMemo(
+    () => validatePlaybookBasicsDraft({ name, outcome }),
+    [name, outcome],
   );
+  const canSave = useMemo(
+    () => Boolean(playbookId) && !updateMutation.isPending,
+    [playbookId, updateMutation.isPending],
+  );
+  const isSaveValid = basicValidation.isValid && authoringValidationIssues.length === 0;
+  const saveFormFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: definitionError,
+    showValidation: hasAttemptedSave,
+    isValid: isSaveValid,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
+
+  function handleSave(): void {
+    if (!isSaveValid) {
+      setHasAttemptedSave(true);
+      return;
+    }
+    updateMutation.mutate();
+  }
 
   if (playbookQuery.isLoading) {
     return <div className="p-6 text-sm text-muted">Loading playbook...</div>;
@@ -238,11 +264,6 @@ export function PlaybookDetailPage(): JSX.Element {
       {message ? (
         <div className="rounded-xl border border-emerald-300 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
           {message}
-        </div>
-      ) : null}
-      {definitionError ? (
-        <div className="rounded-xl border border-red-300 bg-red-50/80 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-          {definitionError}
         </div>
       ) : null}
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -273,12 +294,13 @@ export function PlaybookDetailPage(): JSX.Element {
               <Link to={`/design/playbooks/${playbook.id}/launch`}>Launch</Link>
             </Button>
           ) : null}
-          <Button onClick={() => updateMutation.mutate()} disabled={!canSave || updateMutation.isPending}>
+          <Button onClick={handleSave} disabled={!canSave}>
             <Save className="h-4 w-4" />
             Save Playbook
           </Button>
         </div>
       </div>
+      <FormFeedbackMessage message={saveFormFeedbackMessage} />
 
       <Card id="playbook-identity">
         <CardHeader className="space-y-2">
@@ -307,7 +329,16 @@ export function PlaybookDetailPage(): JSX.Element {
             <div className="grid gap-4">
               <label className="grid gap-2 text-sm">
                 <span className="font-medium">Name</span>
-                <Input value={name} onChange={(event) => { setName(event.target.value); setIsDirty(true); }} />
+                <Input
+                  value={name}
+                  onChange={(event) => { setName(event.target.value); setIsDirty(true); }}
+                  aria-invalid={Boolean(hasAttemptedSave && basicValidation.fieldErrors.name)}
+                />
+                {hasAttemptedSave && basicValidation.fieldErrors.name ? (
+                  <p className="text-xs text-red-600 dark:text-red-400">
+                    {basicValidation.fieldErrors.name}
+                  </p>
+                ) : null}
               </label>
               <label className="grid gap-2 text-sm">
                 <span className="font-medium">Slug</span>
@@ -344,7 +375,13 @@ export function PlaybookDetailPage(): JSX.Element {
                 value={outcome}
                 onChange={(event) => { setOutcome(event.target.value); setIsDirty(true); }}
                 className="min-h-[220px] h-full lg:min-h-0"
+                aria-invalid={Boolean(hasAttemptedSave && basicValidation.fieldErrors.outcome)}
               />
+              {hasAttemptedSave && basicValidation.fieldErrors.outcome ? (
+                <p className="text-xs text-red-600 dark:text-red-400">
+                  {basicValidation.fieldErrors.outcome}
+                </p>
+              ) : null}
             </div>
           </div>
         </CardContent>
@@ -352,6 +389,7 @@ export function PlaybookDetailPage(): JSX.Element {
 
       <PlaybookAuthoringForm
         draft={draft}
+        showValidationErrors={hasAttemptedSave}
         onChange={(nextDraft) => { setDraft(nextDraft); setIsDirty(true); }}
         onClearError={() => {
           setDefinitionError(null);
@@ -635,4 +673,33 @@ function formatDate(value: string | null | undefined): string {
   }
   const date = new Date(value);
   return Number.isNaN(date.valueOf()) ? value : date.toLocaleString();
+}
+
+function validatePlaybookBasicsDraft(input: {
+  name: string;
+  outcome: string;
+}): {
+  fieldErrors: {
+    name?: string;
+    outcome?: string;
+  };
+  isValid: boolean;
+} {
+  const fieldErrors: {
+    name?: string;
+    outcome?: string;
+  } = {};
+
+  if (!input.name.trim()) {
+    fieldErrors.name = 'Enter a playbook name.';
+  }
+
+  if (!input.outcome.trim()) {
+    fieldErrors.outcome = 'Describe the workflow outcome this playbook owns.';
+  }
+
+  return {
+    fieldErrors,
+    isValid: Object.keys(fieldErrors).length === 0,
+  };
 }

@@ -3,6 +3,10 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { dashboardApi } from '../../lib/api.js';
 import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
+import {
   buildWorkflowBudgetInput,
   createWorkflowBudgetDraft,
   readLaunchDefinition,
@@ -51,6 +55,7 @@ export function PlaybookLaunchPage(): JSX.Element {
     createWorkflowBudgetDraft(),
   );
   const [error, setError] = useState<string | null>(null);
+  const [hasAttemptedLaunch, setHasAttemptedLaunch] = useState(false);
   const playbooksQuery = useQuery({
     queryKey: ['playbooks'],
     queryFn: () => dashboardApi.listPlaybooks(),
@@ -243,9 +248,23 @@ export function PlaybookLaunchPage(): JSX.Element {
     workflowBudget,
     setError,
   });
-  const canLaunch = launchValidation.isValid && !launchMutation.isPending;
+  const canLaunch = !launchMutation.isPending;
+  const launchFormFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: error,
+    showValidation: hasAttemptedLaunch,
+    isValid: launchValidation.isValid,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
   const hasMetadataEntries = metadataDrafts.length > 0;
   const hasWorkflowOverrides = configuredWorkflowOverrideCount > 0;
+
+  function handleLaunch(): void {
+    if (!launchValidation.isValid) {
+      setHasAttemptedLaunch(true);
+      return;
+    }
+    launchMutation.mutate();
+  }
 
   return (
     <div data-testid="playbook-launch-surface" className="mx-auto max-w-[88rem] space-y-6 px-4 py-6 sm:px-6">
@@ -259,6 +278,8 @@ export function PlaybookLaunchPage(): JSX.Element {
         selectedPlaybook={selectedPlaybook}
         selectedWorkspace={selectedWorkspace}
         launchValidation={launchValidation}
+        showValidationErrors={hasAttemptedLaunch}
+        formFeedbackMessage={launchFormFeedbackMessage}
         launchDefinition={launchDefinition}
         parameterDrafts={parameterDrafts}
         metadataDrafts={metadataDrafts}
@@ -289,6 +310,7 @@ export function PlaybookLaunchPage(): JSX.Element {
         isLoadingSummary={playbooksQuery.isLoading || workspacesQuery.isLoading}
         error={error}
         canLaunch={canLaunch}
+        isReadyToLaunch={launchValidation.isValid}
         isLaunching={launchMutation.isPending}
         onPlaybookChange={(id) => {
           setSelectedPlaybookId(id);
@@ -327,7 +349,7 @@ export function PlaybookLaunchPage(): JSX.Element {
           setError(null);
           setModelOverrideDrafts(drafts);
         }}
-        onLaunch={() => launchMutation.mutate()}
+        onLaunch={handleLaunch}
       />
     </div>
   );

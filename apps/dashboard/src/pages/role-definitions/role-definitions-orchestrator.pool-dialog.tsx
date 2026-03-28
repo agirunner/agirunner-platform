@@ -24,6 +24,11 @@ import {
   SelectValue,
 } from '../../components/ui/select.js';
 import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
+import {
   buildOrchestratorPoolDraft,
   listOrchestratorWorkerOptions,
   validateOrchestratorPoolDraft,
@@ -52,14 +57,21 @@ export function OrchestratorPoolDialog(props: {
   const [draft, setDraft] = useState(() =>
     buildOrchestratorPoolDraft(props.workers),
   );
+  const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
 
   useEffect(() => {
     if (props.isOpen) {
       setDraft(buildOrchestratorPoolDraft(props.workers));
+      setHasAttemptedSave(false);
     }
   }, [props.isOpen, props.workers]);
   const validationErrors = validateOrchestratorPoolDraft(draft);
   const hasValidationErrors = Object.keys(validationErrors).length > 0;
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    showValidation: hasAttemptedSave,
+    isValid: !hasValidationErrors,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
 
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
@@ -139,9 +151,9 @@ export function OrchestratorPoolDialog(props: {
                   setDraft((current) => ({ ...current, runtimeImage: event.target.value }))
                 }
                 placeholder="agirunner-runtime:local"
-                aria-invalid={validationErrors.runtimeImage ? 'true' : 'false'}
+                aria-invalid={hasAttemptedSave && validationErrors.runtimeImage ? true : undefined}
               />
-              {validationErrors.runtimeImage ? (
+              {hasAttemptedSave && validationErrors.runtimeImage ? (
                 <p className="text-xs text-red-600">{validationErrors.runtimeImage}</p>
               ) : null}
               <p className="text-xs leading-5 text-muted">
@@ -158,9 +170,9 @@ export function OrchestratorPoolDialog(props: {
                   setDraft((current) => ({ ...current, cpuLimit: event.target.value }))
                 }
                 placeholder="2"
-                aria-invalid={validationErrors.cpuLimit ? 'true' : 'false'}
+                aria-invalid={hasAttemptedSave && validationErrors.cpuLimit ? true : undefined}
               />
-              {validationErrors.cpuLimit ? (
+              {hasAttemptedSave && validationErrors.cpuLimit ? (
                 <p className="text-xs text-red-600">{validationErrors.cpuLimit}</p>
               ) : null}
             </div>
@@ -172,20 +184,22 @@ export function OrchestratorPoolDialog(props: {
                   setDraft((current) => ({ ...current, memoryLimit: event.target.value }))
                 }
                 placeholder="256m"
-                aria-invalid={validationErrors.memoryLimit ? 'true' : 'false'}
+                aria-invalid={hasAttemptedSave && validationErrors.memoryLimit ? true : undefined}
               />
-              {validationErrors.memoryLimit ? (
+              {hasAttemptedSave && validationErrors.memoryLimit ? (
                 <p className="text-xs text-red-600">{validationErrors.memoryLimit}</p>
               ) : null}
             </div>
           </CardContent>
         </Card>
+        <FormFeedbackMessage message={formFeedbackMessage} />
         <DialogActions
           isSaving={props.isSaving}
           saveLabel={draft.workerId ? 'Save pool posture' : 'Create pool posture'}
           onCancel={() => props.onOpenChange(false)}
           onSave={async () => {
             if (hasValidationErrors) {
+              setHasAttemptedSave(true);
               return;
             }
             await props.onSave({

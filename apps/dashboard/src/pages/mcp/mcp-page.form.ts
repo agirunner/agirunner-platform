@@ -11,6 +11,7 @@ import {
   REMOTE_MCP_STORED_SECRET_VALUE,
   type RemoteMcpOauthFormState,
   type RemoteMcpParameterFormState,
+  type RemoteMcpServerFormValidation,
   type RemoteMcpServerFormState,
 } from './mcp-page.form.types.js';
 
@@ -42,6 +43,43 @@ export function createRemoteMcpParameterForm(): RemoteMcpParameterFormState {
     valueKind: 'static',
     value: '',
     hasStoredSecret: false,
+  };
+}
+
+export function validateRemoteMcpServerForm(
+  form: RemoteMcpServerFormState,
+): RemoteMcpServerFormValidation {
+  const fieldErrors: RemoteMcpServerFormValidation['fieldErrors'] = {};
+
+  if (!form.name.trim()) {
+    fieldErrors.name = 'Enter a remote MCP server name.';
+  }
+
+  const normalizedEndpointUrl = form.endpointUrl.trim();
+  if (!normalizedEndpointUrl) {
+    fieldErrors.endpointUrl = 'Enter the endpoint URL.';
+  } else {
+    try {
+      const parsed = new URL(normalizedEndpointUrl);
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        fieldErrors.endpointUrl = 'Endpoint URL must use http:// or https://.';
+      }
+    } catch {
+      fieldErrors.endpointUrl = 'Enter a valid endpoint URL.';
+    }
+  }
+
+  const normalizedCallTimeout = form.callTimeoutSeconds.trim();
+  const parsedCallTimeout = Number.parseInt(normalizedCallTimeout, 10);
+  if (!normalizedCallTimeout) {
+    fieldErrors.callTimeoutSeconds = 'Enter a call timeout in seconds.';
+  } else if (!Number.isInteger(parsedCallTimeout) || parsedCallTimeout <= 0) {
+    fieldErrors.callTimeoutSeconds = 'Call timeout must be a positive whole number of seconds.';
+  }
+
+  return {
+    fieldErrors,
+    isValid: Object.keys(fieldErrors).length === 0,
   };
 }
 

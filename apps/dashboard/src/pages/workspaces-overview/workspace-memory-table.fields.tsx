@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Save, X } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
@@ -30,7 +31,9 @@ export function MemoryEditor(props: {
   onCancel(): void;
   isSaving: boolean;
 }): JSX.Element {
+  const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
   const validation = props.draft ? parseMemoryEditorDraft(props.draft) : null;
+  const shouldShowValidationError = hasAttemptedSave && Boolean(validation?.error);
   return (
     <div className="space-y-3 rounded-xl bg-border/10 p-4">
       <div className="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
@@ -48,10 +51,14 @@ export function MemoryEditor(props: {
             <SelectContent>{props.typeOptions}</SelectContent>
           </Select>
         </label>
-        <MemoryEditorField draft={props.draft} onChange={props.onChange} />
+        <MemoryEditorField
+          draft={props.draft}
+          hasError={shouldShowValidationError}
+          onChange={props.onChange}
+        />
       </div>
-      {validation?.error ? (
-        <p className="text-sm text-red-600">{validation.error}</p>
+      {shouldShowValidationError ? (
+        <p className="text-sm text-red-600">{validation?.error}</p>
       ) : (
         <p className="text-sm text-muted">
           Edit memory inline with a typed control. Known value types should stay structured.
@@ -62,7 +69,17 @@ export function MemoryEditor(props: {
           <X className="mr-1 h-4 w-4" />
           Cancel
         </Button>
-        <Button size="sm" onClick={props.onSave} disabled={props.isSaving || Boolean(validation?.error)}>
+        <Button
+          size="sm"
+          onClick={() => {
+            if (validation?.error) {
+              setHasAttemptedSave(true);
+              return;
+            }
+            props.onSave();
+          }}
+          disabled={props.isSaving}
+        >
           <Save className="mr-1 h-4 w-4" />
           {props.saveLabel}
         </Button>
@@ -118,6 +135,7 @@ export function MemoryValuePreview(props: {
 export function MemoryEditorField(props: {
   draft: MemoryEditorDraft | null;
   showLabel?: boolean;
+  hasError?: boolean;
   onChange(next: MemoryEditorDraft): void;
 }): JSX.Element {
   const label = props.showLabel === false ? null : <span className="text-sm font-medium">Value</span>;
@@ -135,7 +153,7 @@ export function MemoryEditorField(props: {
             props.onChange({ kind: 'boolean', textValue: draft.textValue, booleanValue: value as 'true' | 'false' })
           }
         >
-          <SelectTrigger>
+          <SelectTrigger aria-invalid={props.hasError ? true : undefined}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -156,6 +174,7 @@ export function MemoryEditorField(props: {
             props.onChange({ kind: 'number', textValue: event.target.value, booleanValue: draft.booleanValue })
           }
           placeholder="Enter a numeric value"
+          aria-invalid={props.hasError ? true : undefined}
         />
       </label>
     );
@@ -174,6 +193,7 @@ export function MemoryEditorField(props: {
           })
         }
         placeholder={draft.kind === 'json' ? 'Enter valid JSON' : 'Enter the memory value'}
+        aria-invalid={props.hasError ? true : undefined}
       />
     </label>
   );

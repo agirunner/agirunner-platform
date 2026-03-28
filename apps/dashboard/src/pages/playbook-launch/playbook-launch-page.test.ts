@@ -90,7 +90,9 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('Reasoning Config Entries');
     expect(source).toContain('Launch action');
     expect(source).toContain('Ready to launch');
-    expect(source).toContain('Resolve blockers');
+    expect(source).toContain('Review required inputs');
+    expect(source).toContain('Check inputs');
+    expect(source).toContain('FormFeedbackMessage message={props.formFeedbackMessage}');
     expect(source).toContain('validateLaunchDraft');
     expect(source).toContain('parameterSpecs');
     expect(source).toContain('parameterDrafts');

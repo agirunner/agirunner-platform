@@ -35,6 +35,7 @@ export function RoleBasicsSection(props: {
   setForm: Dispatch<SetStateAction<RoleFormState>>;
   role?: RoleDefinition | null;
   validation: RoleDialogValidation;
+  showValidationErrors: boolean;
 }) {
   return (
     <Card>
@@ -66,9 +67,9 @@ export function RoleBasicsSection(props: {
             onChange={(event) =>
               props.setForm((current) => ({ ...current, name: event.target.value }))
             }
-            aria-invalid={Boolean(props.validation.fieldErrors.name)}
+            aria-invalid={Boolean(props.showValidationErrors && props.validation.fieldErrors.name)}
           />
-          {props.validation.fieldErrors.name ? (
+          {props.showValidationErrors && props.validation.fieldErrors.name ? (
             <span className="text-xs text-red-600 dark:text-red-400">{props.validation.fieldErrors.name}</span>
           ) : null}
         </label>

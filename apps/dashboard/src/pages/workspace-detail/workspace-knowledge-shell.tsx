@@ -7,6 +7,7 @@ import type { WorkspaceOverview } from './workspace-detail-support.js';
 interface WorkspaceKnowledgeShellProps {
   overview: WorkspaceOverview;
   headerAction?: ReactNode;
+  headerFeedback?: ReactNode;
   headerNotice?: ReactNode;
   artifactSummary?: string;
   memorySummary?: string;
@@ -53,6 +54,7 @@ export function WorkspaceKnowledgeShell(props: WorkspaceKnowledgeShellProps): JS
           </div>
           {props.headerAction ? <div className="shrink-0">{props.headerAction}</div> : null}
         </div>
+        {props.headerFeedback}
 
         <div className="grid gap-3">
           {KNOWLEDGE_PANELS.map((panel) => (

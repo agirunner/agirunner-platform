@@ -4,6 +4,11 @@ import type { DashboardAgentRecord } from '../../lib/api.js';
 import { SearchableCombobox, type ComboboxItem } from '../../components/log-viewer/ui/searchable-combobox.js';
 import { Button } from '../../components/ui/button.js';
 import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -52,6 +57,11 @@ export function StepChangesDialog(props: {
   const [hasAttemptedAction, setHasAttemptedAction] = useState(false);
   const feedbackError =
     hasAttemptedAction && !props.feedback.trim() ? 'Enter review feedback before continuing.' : null;
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    showValidation: hasAttemptedAction,
+    isValid: Boolean(props.feedback.trim()),
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
 
   useEffect(() => {
     if (!props.isOpen) {
@@ -88,6 +98,7 @@ export function StepChangesDialog(props: {
             aria-invalid={Boolean(feedbackError)}
           />
           {feedbackError ? <p className="text-sm text-destructive">{feedbackError}</p> : null}
+          <FormFeedbackMessage message={formFeedbackMessage} />
           <div className="flex flex-wrap justify-end gap-2">
             <Button
               variant="outline"
@@ -131,6 +142,11 @@ export function StepEscalationDialog(props: {
     hasAttemptedSubmit && !props.instructions.trim()
       ? 'Enter operator guidance before continuing.'
       : null;
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    showValidation: hasAttemptedSubmit,
+    isValid: Boolean(props.instructions.trim()),
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
 
   useEffect(() => {
     if (!props.isOpen) {
@@ -169,6 +185,7 @@ export function StepEscalationDialog(props: {
             This keeps escalation review in a focused dialog instead of turning the task action row
             into another long inline form.
           </p>
+          <FormFeedbackMessage message={formFeedbackMessage} />
           <div className="flex flex-wrap justify-end gap-2">
             <Button
               variant="outline"
@@ -226,6 +243,12 @@ export function StepOutputOverrideDialog(props: {
       : null;
   const reasonError =
     hasAttemptedSubmit && !props.reason.trim() ? 'Enter a reason for the override.' : null;
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: props.error,
+    showValidation: hasAttemptedSubmit,
+    isValid: Boolean(props.outputDraft.trim() && props.reason.trim()),
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
 
   useEffect(() => {
     if (!props.isOpen) {
@@ -265,7 +288,7 @@ export function StepOutputOverrideDialog(props: {
             aria-invalid={Boolean(reasonError)}
           />
           {reasonError ? <p className="text-sm text-destructive">{reasonError}</p> : null}
-          {props.error ? <p className="text-sm text-destructive">{props.error}</p> : null}
+          <FormFeedbackMessage message={formFeedbackMessage} />
           <div className="flex flex-wrap justify-end gap-2">
             <Button
               variant="outline"
@@ -303,6 +326,12 @@ export function StepManualEscalationDialog(props: {
     hasAttemptedSubmit && !props.reason.trim()
       ? 'Explain why the step needs escalation.'
       : null;
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: props.error,
+    showValidation: hasAttemptedSubmit,
+    isValid: Boolean(props.escalationTarget.trim() && props.reason.trim()),
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
 
   useEffect(() => {
     if (!props.isOpen) {
@@ -351,7 +380,7 @@ export function StepManualEscalationDialog(props: {
             aria-invalid={Boolean(reasonError)}
           />
           {reasonError ? <p className="text-sm text-destructive">{reasonError}</p> : null}
-          {props.error ? <p className="text-sm text-destructive">{props.error}</p> : null}
+          <FormFeedbackMessage message={formFeedbackMessage} />
           <div className="flex flex-wrap justify-end gap-2">
             <Button
               variant="outline"
@@ -391,6 +420,11 @@ export function WorkItemReassignDialog(props: {
     hasAttemptedSubmit && !props.selectedAgentId?.trim() ? 'Select a target agent.' : null;
   const reasonError =
     hasAttemptedSubmit && !props.reason.trim() ? 'Explain why the step should be reassigned.' : null;
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    showValidation: hasAttemptedSubmit,
+    isValid: Boolean(props.selectedAgentId?.trim() && props.reason.trim()),
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
 
   useEffect(() => {
     if (!props.isOpen) {
@@ -447,6 +481,7 @@ export function WorkItemReassignDialog(props: {
               {selectedAgent.worker_id ? ` • agent ${selectedAgent.worker_id}` : ''}
             </p>
           ) : null}
+          <FormFeedbackMessage message={formFeedbackMessage} />
           <div className="flex flex-wrap justify-end gap-2">
             <Button
               variant="outline"

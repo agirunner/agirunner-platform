@@ -4,6 +4,12 @@ import { Check, Copy, ShieldAlert } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
 import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FieldErrorText,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -58,6 +64,13 @@ export function CreateApiKeyDialog(props: {
     onError: () => {
       toast.error('Failed to create API key');
     },
+  });
+  const isCreateFormValid = hasNoExpiry || Boolean(expiryDate);
+  const createFormFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: mutation.isError ? 'Failed to create API key. Please try again.' : null,
+    showValidation: hasAttemptedSubmit,
+    isValid: isCreateFormValid,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
   });
 
   function resetAndClose(): void {
@@ -173,11 +186,13 @@ export function CreateApiKeyDialog(props: {
                   />
                   <span>No expiry</span>
                 </label>
-                {hasAttemptedSubmit && !hasNoExpiry && !expiryDate ? (
-                  <p className="text-xs text-red-600 dark:text-red-400">
-                    Select an expiry date or choose no expiry.
-                  </p>
-                ) : null}
+                <FieldErrorText
+                  message={
+                    hasAttemptedSubmit && !hasNoExpiry && !expiryDate
+                      ? 'Select an expiry date or choose no expiry.'
+                      : undefined
+                  }
+                />
               </div>
             </div>
             <div className="space-y-2">
@@ -197,9 +212,7 @@ export function CreateApiKeyDialog(props: {
             <div className="rounded-xl border border-border/70 bg-border/10 p-4 text-sm text-muted">
               Keys are shown once after creation. Confirm the receiving system is ready before you issue one.
             </div>
-            {mutation.isError ? (
-              <p className="text-sm text-red-600">Failed to create API key. Please try again.</p>
-            ) : null}
+            <FormFeedbackMessage message={createFormFeedbackMessage} />
             <div className="flex flex-col-reverse gap-2 border-t border-border/70 pt-4 sm:flex-row sm:justify-end">
               <Button type="button" variant="outline" onClick={resetAndClose}>
                 Cancel

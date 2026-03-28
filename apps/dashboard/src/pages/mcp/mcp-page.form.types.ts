@@ -59,3 +59,12 @@ export interface RemoteMcpServerFormState {
   oauth: RemoteMcpOauthFormState;
   parameters: RemoteMcpParameterFormState[];
 }
+
+export interface RemoteMcpServerFormValidation {
+  fieldErrors: {
+    name?: string;
+    endpointUrl?: string;
+    callTimeoutSeconds?: string;
+  };
+  isValid: boolean;
+}

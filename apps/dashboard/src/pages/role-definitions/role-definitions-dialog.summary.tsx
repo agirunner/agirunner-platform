@@ -1,6 +1,7 @@
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
+import { FormFeedbackMessage, resolveFormFeedbackMessage } from '../../components/forms/form-feedback.js';
 import {
   Card,
   CardContent,
@@ -39,20 +40,25 @@ export function RoleReadinessCard(props: {
 export function RoleDialogFooter(props: {
   mutationError: unknown;
   validation: RoleDialogValidation;
+  showValidationErrors: boolean;
   isPending: boolean;
   submitLabel: string;
+  validationMessage: string;
   onClose(): void;
 }) {
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: props.mutationError ? String(props.mutationError) : null,
+    showValidation: props.showValidationErrors,
+    isValid: props.validation.isValid,
+    validationMessage: props.validationMessage,
+  });
+
   return (
     <div className="border-t border-border/70 bg-surface/95 px-6 py-4 backdrop-blur">
-      {props.mutationError ? (
-        <p className="mb-3 text-sm text-red-600 dark:text-red-400">{String(props.mutationError)}</p>
-      ) : null}
+      <FormFeedbackMessage message={formFeedbackMessage} className="mb-3" />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted">
-          {props.validation.isValid
-            ? 'All required fields are ready. Save keeps specialist definitions and orchestration posture in sync.'
-            : 'Fix the highlighted fields before saving this specialist.'}
+          Save keeps specialist identity, tool grants, skills, and orchestration posture in sync.
         </p>
         <div className="flex flex-wrap justify-end gap-2">
           <Button type="button" variant="outline" onClick={props.onClose}>

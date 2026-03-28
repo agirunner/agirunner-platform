@@ -42,6 +42,7 @@ export function RoleOverrideEditor(props: {
   providers: DashboardLlmProviderRecord[];
   models: DashboardLlmModelRecord[];
   validation: RoleOverrideValidationResult;
+  showValidationErrors?: boolean;
   onChange(drafts: RoleOverrideDraft[]): void;
 }): JSX.Element {
   const enabledModels = useMemo(
@@ -74,6 +75,7 @@ export function RoleOverrideEditor(props: {
             roleOptions={roleOptions}
             allDrafts={props.drafts}
             validation={props.validation}
+            showValidationErrors={props.showValidationErrors}
             onChange={props.onChange}
           />
         ))
@@ -99,14 +101,15 @@ function RoleOverrideCard(props: {
   roleOptions: StructuredChoiceOption[];
   allDrafts: RoleOverrideDraft[];
   validation: RoleOverrideValidationResult;
+  showValidationErrors?: boolean;
   onChange(drafts: RoleOverrideDraft[]): void;
 }): JSX.Element {
   const isPlaybookRole = props.playbookRoles.includes(props.draft.role.trim());
   const selectedProvider = findProviderByDraft(props.providers, props.draft.provider);
   const availableModels = listModelsForProvider(props.enabledModels, selectedProvider);
-  const fieldErrors = props.validation.draftErrors[props.index] ?? {
+  const fieldErrors = props.showValidationErrors ? props.validation.draftErrors[props.index] ?? {
     reasoning: { entryErrors: [], blockingIssues: [], isValid: true },
-  };
+  } : undefined;
 
   return (
     <div className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
@@ -262,7 +265,8 @@ function RoleOverrideCard(props: {
         title="Reasoning Config Entries"
         description="Add only the reasoning settings this role needs as structured key/value entries."
         drafts={props.draft.reasoningEntries}
-        validation={fieldErrors.reasoning}
+        validation={fieldErrors?.reasoning ?? { entryErrors: [], blockingIssues: [], isValid: true }}
+        showValidationErrors={props.showValidationErrors}
         addLabel="Add reasoning setting"
         onChange={(reasoningEntries) =>
           props.onChange(

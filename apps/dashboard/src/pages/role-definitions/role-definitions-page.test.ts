@@ -96,7 +96,8 @@ describe('role definitions page source', () => {
     expect(source).toContain('Model assignment');
     expect(source).toContain('Active specialist');
     expect(source).toContain('Setup summary');
-    expect(source).toContain('Fix the highlighted fields before saving this specialist.');
+    expect(source).toContain('validationMessage={DEFAULT_FORM_VALIDATION_MESSAGE}');
+    expect(source).toContain('FormFeedbackMessage message={formFeedbackMessage}');
     expect(source).toContain('Choose a unique specialist name.');
     expect(source).toContain('Remote MCP servers');
     expect(source).toContain('Skills');

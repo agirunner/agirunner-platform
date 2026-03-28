@@ -5,6 +5,12 @@ import { ChevronDown, Save } from 'lucide-react';
 import type { DashboardWorkspaceRecord } from '../../lib/api.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
+import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FieldErrorText,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
 import { Card, CardContent } from '../../components/ui/card.js';
 import { Input } from '../../components/ui/input.js';
 import {
@@ -59,6 +65,7 @@ export function WorkspaceSettingsTab(props: {
   const [showDelete, setShowDelete] = useState(false);
   const [isGitTokenExpanded, setGitTokenExpanded] = useState(false);
   const [isDangerExpanded, setDangerExpanded] = useState(false);
+  const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
   const [verifiedGitAccessFingerprint, setVerifiedGitAccessFingerprint] = useState<string | null>(
     null,
   );
@@ -108,11 +115,20 @@ export function WorkspaceSettingsTab(props: {
     },
   });
   const isSavePending = mutation.isPending || verifyMutation.isPending;
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: mutation.error
+      ? String(mutation.error)
+      : activeGitVerificationIssue,
+    showValidation: hasAttemptedSave,
+    isValid: validation.isValid,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
 
   const storageSummary = buildStorageSummary(draft, surfaceSummary.storageLabel);
 
   async function handleSave() {
     if (!validation.isValid) {
+      setHasAttemptedSave(true);
       return;
     }
 
@@ -136,10 +152,11 @@ export function WorkspaceSettingsTab(props: {
       <WorkspaceSettingsShell
         workspace={props.workspace}
         overview={props.overview}
+        headerFeedback={<FormFeedbackMessage message={formFeedbackMessage} />}
         headerAction={
           <Button
             size="sm"
-            disabled={!validation.isValid || isSavePending}
+            disabled={isSavePending}
             onClick={() => {
               void handleSave();
             }}
@@ -149,10 +166,6 @@ export function WorkspaceSettingsTab(props: {
           </Button>
         }
       >
-        {blockingIssues.length > 0 ? (
-          <BlockingIssuesPanel title="Resolve Before Saving" issues={blockingIssues} />
-        ) : null}
-
         <StaticSettingsSection
           id="workspace-settings-basics"
           title="Workspace Basics"
@@ -177,13 +190,13 @@ export function WorkspaceSettingsTab(props: {
               <TextField
                 label="Name"
                 value={draft.name}
-                error={validation.fieldErrors.name}
+                error={hasAttemptedSave ? validation.fieldErrors.name : undefined}
                 onChange={(value) => setDraft((current) => ({ ...current, name: value }))}
               />
               <TextField
                 label="Slug"
                 value={draft.slug}
-                error={validation.fieldErrors.slug}
+                error={hasAttemptedSave ? validation.fieldErrors.slug : undefined}
                 onChange={(value) => setDraft((current) => ({ ...current, slug: value }))}
               />
             </div>
@@ -227,7 +240,7 @@ export function WorkspaceSettingsTab(props: {
                   <TextField
                     label="Repository URL"
                     value={draft.repositoryUrl}
-                    error={validation.fieldErrors.repositoryUrl}
+                    error={hasAttemptedSave ? validation.fieldErrors.repositoryUrl : undefined}
                     onChange={(value) =>
                       setDraft((current) => ({ ...current, repositoryUrl: value }))
                     }
@@ -251,7 +264,7 @@ export function WorkspaceSettingsTab(props: {
                   <TextField
                     label="Git user email"
                     value={draft.gitUserEmail}
-                    error={validation.fieldErrors.gitUserEmail}
+                    error={hasAttemptedSave ? validation.fieldErrors.gitUserEmail : undefined}
                     onChange={(value) =>
                       setDraft((current) => ({ ...current, gitUserEmail: value }))
                     }
@@ -261,7 +274,7 @@ export function WorkspaceSettingsTab(props: {
                   <SecretDisclosureRow
                     label="Git token"
                     draft={draft.credentials.gitToken}
-                    error={validation.fieldErrors.gitToken}
+                    error={hasAttemptedSave ? validation.fieldErrors.gitToken : undefined}
                     isExpanded={isGitTokenExpanded}
                     onToggle={() => setGitTokenExpanded((current) => !current)}
                     onChange={(next) =>
@@ -283,7 +296,7 @@ export function WorkspaceSettingsTab(props: {
                 <TextField
                   label="Host path"
                   value={draft.hostPath}
-                  error={validation.fieldErrors.hostPath}
+                  error={hasAttemptedSave ? validation.fieldErrors.hostPath : undefined}
                   onChange={(value) => setDraft((current) => ({ ...current, hostPath: value }))}
                 />
                 <p className="text-sm leading-6 text-muted">
@@ -414,7 +427,7 @@ function TextField(props: {
         aria-invalid={props.error ? true : undefined}
         onChange={(event) => props.onChange(event.target.value)}
       />
-      <FieldMessage message={props.error} />
+      <FieldErrorText message={props.error} />
     </label>
   );
 }
@@ -526,7 +539,7 @@ function SecretDisclosureRow(props: {
                   event: ChangeEvent<HTMLInputElement> | ChangeEvent<HTMLTextAreaElement>,
                 ) => props.onChange({ ...props.draft, value: event.target.value })}
               />
-              <FieldMessage message={props.error} />
+              <FieldErrorText message={props.error} />
             </label>
           ) : props.draft.mode === 'clear' ? (
             <p className="text-xs leading-5 text-muted">
@@ -543,30 +556,6 @@ function SecretDisclosureRow(props: {
       ) : null}
     </div>
   );
-}
-
-function BlockingIssuesPanel(props: { title: string; issues: string[] }): JSX.Element {
-  return (
-    <div className="rounded-xl border border-border/70 bg-muted/30 p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="warning">Attention</Badge>
-        <p className="text-sm font-medium text-foreground">{props.title}</p>
-      </div>
-      <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-foreground">
-        {props.issues.map((issue) => (
-          <li key={issue}>{issue}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function FieldMessage(props: { message?: string }): JSX.Element | null {
-  if (!props.message) {
-    return null;
-  }
-
-  return <p className="text-xs text-amber-900 dark:text-amber-100">{props.message}</p>;
 }
 
 function buildStorageSummary(draft: WorkspaceSettingsDraft, storageLabel: string): string {

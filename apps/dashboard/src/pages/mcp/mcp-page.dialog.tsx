@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react';
+
 import {
   Dialog,
   DialogContent,
@@ -6,6 +8,12 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog.js';
 import { Button } from '../../components/ui/button.js';
+import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FieldErrorText,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
 import { Input } from '../../components/ui/input.js';
 import {
   Select,
@@ -26,6 +34,7 @@ import {
   createRemoteMcpParameterForm,
   formatRemoteMcpTransportPreference,
   normalizeParametersForAuthMode,
+  validateRemoteMcpServerForm,
   type RemoteMcpServerFormState,
 } from './mcp-page.support.js';
 
@@ -42,10 +51,24 @@ export function McpPageDialog(props: {
   onClose(): void;
   onSubmit(): void;
 }) {
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const selectedOauthClientProfile =
     props.form.authMode === 'oauth'
       ? props.oauthClientProfiles.find((profile) => profile.id === props.form.oauthClientProfileId) ?? null
       : null;
+  const validation = validateRemoteMcpServerForm(props.form);
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: props.error,
+    showValidation: hasAttemptedSubmit,
+    isValid: validation.isValid,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
+
+  useEffect(() => {
+    if (!props.open) {
+      setHasAttemptedSubmit(false);
+    }
+  }, [props.open]);
 
   return (
     <Dialog open={props.open} onOpenChange={(open) => !open && props.onClose()}>
@@ -62,6 +85,10 @@ export function McpPageDialog(props: {
           className="flex min-h-0 flex-1 flex-col"
           onSubmit={(event) => {
             event.preventDefault();
+            if (!validation.isValid) {
+              setHasAttemptedSubmit(true);
+              return;
+            }
             props.onSubmit();
           }}
         >
@@ -76,6 +103,10 @@ export function McpPageDialog(props: {
                       onChange={(event) =>
                         props.onFormChange({ ...props.form, name: event.target.value })
                       }
+                      aria-invalid={Boolean(hasAttemptedSubmit && validation.fieldErrors.name)}
+                    />
+                    <FieldErrorText
+                      message={hasAttemptedSubmit ? validation.fieldErrors.name : undefined}
                     />
                   </label>
                   <label className="grid gap-2 text-sm">
@@ -132,6 +163,10 @@ export function McpPageDialog(props: {
                         props.onFormChange({ ...props.form, endpointUrl: event.target.value })
                       }
                       placeholder="https://mcp.example.test/server"
+                      aria-invalid={Boolean(hasAttemptedSubmit && validation.fieldErrors.endpointUrl)}
+                    />
+                    <FieldErrorText
+                      message={hasAttemptedSubmit ? validation.fieldErrors.endpointUrl : undefined}
                     />
                   </label>
                   <label className="grid gap-2 text-sm xl:col-span-2">
@@ -146,6 +181,14 @@ export function McpPageDialog(props: {
                         })
                       }
                       placeholder="300"
+                      aria-invalid={Boolean(
+                        hasAttemptedSubmit && validation.fieldErrors.callTimeoutSeconds,
+                      )}
+                    />
+                    <FieldErrorText
+                      message={
+                        hasAttemptedSubmit ? validation.fieldErrors.callTimeoutSeconds : undefined
+                      }
                     />
                   </label>
                   <label className="grid gap-2 text-sm xl:col-span-4">
@@ -249,9 +292,7 @@ export function McpPageDialog(props: {
             </div>
           </div>
           <div className="border-t border-border/70 bg-surface/95 px-6 py-4 backdrop-blur">
-            {props.error ? (
-              <p className="mb-3 text-sm text-red-600 dark:text-red-400">{props.error}</p>
-            ) : null}
+            <FormFeedbackMessage message={formFeedbackMessage} className="mb-3" />
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted">
                 {props.form.authMode === 'oauth'

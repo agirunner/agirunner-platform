@@ -155,9 +155,7 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('summarizeAssignmentSurface');
     expect(source).toContain('Orchestrator and specialist agent model overrides');
     expect(source).not.toContain('1 orchestrator');
-    expect(source).toContain(
-      'Add a shared default or choose explicit models for the affected roles below.',
-    );
+    expect(source).toContain('Choose explicit models only where the default is not enough.');
     expect(source).not.toContain('Affected roles');
     expect(source).not.toContain('assignmentValidation.missingRoleNames.map((roleName) => (');
     expect(source).not.toContain(
@@ -172,7 +170,7 @@ describe('LlmProvidersPage renders three sections', () => {
       'Review the updated default and role overrides, then save when ready.',
     );
     expect(source).toContain('const shouldShowAssignmentGuidance =');
-    expect(source).toContain('assignmentValidation.blockingIssues.length > 0 || hasUnsavedChanges');
+    expect(source).toContain('assignmentValidation.isValid && hasUnsavedChanges');
     expect(source).not.toContain('Assignments are ready to save');
     expect(source).toContain('Review providers');
     expect(source).toContain('Review model catalog');
@@ -209,9 +207,9 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('onPageChange={setPage}');
     expect(source).toContain('setPageSize(value);');
     expect(source).toContain('setPage(1);');
-    expect(source).toContain(
-      'disabled={saveMutation.isPending || !assignmentValidation.isValid || !hasUnsavedChanges}',
-    );
+    expect(source).toContain('FormFeedbackMessage message={assignmentFormFeedbackMessage}');
+    expect(source).toContain('setHasAttemptedSave(true);');
+    expect(source).toContain('disabled={saveMutation.isPending || !hasUnsavedChanges}');
     expect(source).not.toContain('const ROLE_NAMES');
   });
 

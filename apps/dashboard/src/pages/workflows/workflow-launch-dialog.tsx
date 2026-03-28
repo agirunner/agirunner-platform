@@ -4,6 +4,11 @@ import { Loader2, Rocket } from 'lucide-react';
 
 import { ChainParameterField } from '../../components/chain-workflow/chain-workflow-parameters.js';
 import { Button } from '../../components/ui/button.js';
+import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog.js';
 import { Input } from '../../components/ui/input.js';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select.js';
@@ -127,6 +132,12 @@ export function WorkflowLaunchDialog(props: {
   const costCapError = hasAttemptedSubmit ? validation.fieldErrors.costCapUsd : undefined;
   const maxDurationError =
     hasAttemptedSubmit ? validation.fieldErrors.maxDurationMinutes : undefined;
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: errorMessage,
+    showValidation: hasAttemptedSubmit,
+    isValid: validation.isValid && Boolean(selectedPlaybookId),
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
 
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
@@ -277,11 +288,7 @@ export function WorkflowLaunchDialog(props: {
             description="Attach immutable input files to the new workflow."
           />
 
-          {errorMessage ? (
-            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-              {errorMessage}
-            </div>
-          ) : null}
+          <FormFeedbackMessage message={formFeedbackMessage} />
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>

@@ -4,6 +4,7 @@ export {
   createRemoteMcpParameterForm,
   createRemoteMcpServerForm,
   normalizeParametersForAuthMode,
+  validateRemoteMcpServerForm,
 } from './mcp-page.form.js';
 export {
   DEFAULT_REMOTE_MCP_CALL_TIMEOUT_SECONDS,

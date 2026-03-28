@@ -7,6 +7,7 @@ interface WorkspaceSettingsShellProps {
   workspace: DashboardWorkspaceRecord;
   overview: WorkspaceOverview;
   headerAction?: ReactNode;
+  headerFeedback?: ReactNode;
   children: ReactNode;
 }
 
@@ -20,6 +21,7 @@ export function WorkspaceSettingsShell(props: WorkspaceSettingsShellProps): JSX.
         </div>
         {props.headerAction ? <div className="shrink-0">{props.headerAction}</div> : null}
       </div>
+      {props.headerFeedback}
       {props.children}
     </section>
   );

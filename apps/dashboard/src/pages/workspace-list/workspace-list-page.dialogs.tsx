@@ -11,6 +11,12 @@ import {
 import { toast } from '../../lib/toast.js';
 import { Button } from '../../components/ui/button.js';
 import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FieldErrorText,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -238,13 +244,27 @@ function WorkspaceEditorForm(props: {
   onFieldChange: (field: keyof WorkspaceFormData, value: string) => void;
   onSubmit: () => void;
 }): JSX.Element {
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const validation = validateWorkspaceForm(props.form);
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: props.error,
+    showValidation: hasAttemptedSubmit,
+    isValid: validation.isValid,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
+
   return (
     <form
       className="space-y-4"
       onSubmit={(event) => {
         event.preventDefault();
+        if (!validation.isValid) {
+          setHasAttemptedSubmit(true);
+          return;
+        }
         props.onSubmit();
       }}
+      noValidate
     >
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
@@ -253,7 +273,10 @@ function WorkspaceEditorForm(props: {
             placeholder="My Workspace"
             value={props.form.name}
             onChange={(event) => props.onNameChange(event.target.value)}
-            required
+            aria-invalid={Boolean(hasAttemptedSubmit && validation.fieldErrors.name)}
+          />
+          <FieldErrorText
+            message={hasAttemptedSubmit ? validation.fieldErrors.name : undefined}
           />
         </div>
         <div className="space-y-2">
@@ -262,11 +285,14 @@ function WorkspaceEditorForm(props: {
             placeholder="my-workspace"
             value={props.form.slug}
             onChange={(event) => props.onFieldChange('slug', event.target.value)}
-            required
+            aria-invalid={Boolean(hasAttemptedSubmit && validation.fieldErrors.slug)}
+          />
+          <FieldErrorText
+            message={hasAttemptedSubmit ? validation.fieldErrors.slug : undefined}
           />
         </div>
       </div>
-      {props.error ? <p className="text-sm text-red-600">{props.error}</p> : null}
+      <FormFeedbackMessage message={formFeedbackMessage} />
       <div className="flex flex-wrap justify-end gap-2">
         <Button type="button" variant="outline" onClick={props.onCancel}>
           Cancel
@@ -278,4 +304,30 @@ function WorkspaceEditorForm(props: {
       </div>
     </form>
   );
+}
+
+function validateWorkspaceForm(form: WorkspaceFormData): {
+  fieldErrors: {
+    name?: string;
+    slug?: string;
+  };
+  isValid: boolean;
+} {
+  const fieldErrors: {
+    name?: string;
+    slug?: string;
+  } = {};
+
+  if (!form.name.trim()) {
+    fieldErrors.name = 'Enter a workspace name.';
+  }
+
+  if (!form.slug.trim()) {
+    fieldErrors.slug = 'Enter a workspace slug.';
+  }
+
+  return {
+    fieldErrors,
+    isValid: Object.keys(fieldErrors).length === 0,
+  };
 }

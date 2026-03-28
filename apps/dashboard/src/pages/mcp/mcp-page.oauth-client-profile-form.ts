@@ -25,6 +25,15 @@ export interface RemoteMcpOAuthClientProfileFormState {
   defaultAudiencesText: string;
 }
 
+export interface RemoteMcpOAuthClientProfileFormValidation {
+  fieldErrors: {
+    name?: string;
+    clientId?: string;
+    tokenEndpoint?: string;
+  };
+  isValid: boolean;
+}
+
 export function createRemoteMcpOAuthClientProfileForm(
   profile?: DashboardRemoteMcpOAuthClientProfileRecord | null,
 ): RemoteMcpOAuthClientProfileFormState {
@@ -72,6 +81,36 @@ export function buildRemoteMcpOAuthClientProfileUpdatePayload(
   form: RemoteMcpOAuthClientProfileFormState,
 ): DashboardRemoteMcpOAuthClientProfileUpdateInput {
   return buildRemoteMcpOAuthClientProfileCreatePayload(form);
+}
+
+export function validateRemoteMcpOAuthClientProfileForm(
+  form: RemoteMcpOAuthClientProfileFormState,
+): RemoteMcpOAuthClientProfileFormValidation {
+  const fieldErrors: RemoteMcpOAuthClientProfileFormValidation['fieldErrors'] = {};
+
+  if (!form.name.trim()) {
+    fieldErrors.name = 'Enter an OAuth client profile name.';
+  }
+
+  if (!form.clientId.trim()) {
+    fieldErrors.clientId = 'Enter the client ID.';
+  }
+
+  const normalizedTokenEndpoint = form.tokenEndpoint.trim();
+  if (!normalizedTokenEndpoint) {
+    fieldErrors.tokenEndpoint = 'Enter the token endpoint URL.';
+  } else {
+    try {
+      new URL(normalizedTokenEndpoint);
+    } catch {
+      fieldErrors.tokenEndpoint = 'Enter a valid token endpoint URL.';
+    }
+  }
+
+  return {
+    fieldErrors,
+    isValid: Object.keys(fieldErrors).length === 0,
+  };
 }
 
 function isStoredSecretValue(value: string | null | undefined): boolean {

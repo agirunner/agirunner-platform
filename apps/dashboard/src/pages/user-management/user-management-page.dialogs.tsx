@@ -3,6 +3,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { Button } from '../../components/ui/button.js';
 import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FieldErrorText,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -65,6 +71,12 @@ export function CreateUserDialog(props: {
     displayName,
   });
   const canSubmit = Object.keys(validationErrors).length === 0;
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: mutation.isError ? 'Failed to create user. Please try again.' : null,
+    showValidation: hasAttemptedSubmit,
+    isValid: canSubmit,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
 
   function handleSubmit(event: React.FormEvent): void {
     event.preventDefault();
@@ -111,9 +123,7 @@ export function CreateUserDialog(props: {
                 placeholder="user@example.com"
                 aria-invalid={Boolean(hasAttemptedSubmit && validationErrors.email)}
               />
-              {hasAttemptedSubmit && validationErrors.email ? (
-                <p className="text-xs text-red-600 dark:text-red-400">{validationErrors.email}</p>
-              ) : null}
+              <FieldErrorText message={hasAttemptedSubmit ? validationErrors.email : undefined} />
             </div>
             <div className="space-y-2">
               <label htmlFor="user-name" className="text-sm font-medium">
@@ -126,11 +136,9 @@ export function CreateUserDialog(props: {
                 placeholder="Jane Doe"
                 aria-invalid={Boolean(hasAttemptedSubmit && validationErrors.displayName)}
               />
-              {hasAttemptedSubmit && validationErrors.displayName ? (
-                <p className="text-xs text-red-600 dark:text-red-400">
-                  {validationErrors.displayName}
-                </p>
-              ) : null}
+              <FieldErrorText
+                message={hasAttemptedSubmit ? validationErrors.displayName : undefined}
+              />
             </div>
           </div>
           <div className="space-y-2">
@@ -149,9 +157,7 @@ export function CreateUserDialog(props: {
             </Select>
             <p className="text-xs leading-5 text-muted">{describeRole(role)}</p>
           </div>
-          {mutation.isError ? (
-            <p className="text-sm text-red-600">Failed to create user. Please try again.</p>
-          ) : null}
+          <FormFeedbackMessage message={formFeedbackMessage} />
           <div className="flex flex-col-reverse gap-2 border-t border-border/70 pt-4 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={resetAndClose}>
               Cancel

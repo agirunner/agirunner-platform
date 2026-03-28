@@ -18,6 +18,12 @@ import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { Button } from '../../components/ui/button.js';
 import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FieldErrorText,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
+import {
   DEFAULT_LIST_PAGE_SIZE,
   ListPagination,
   paginateListItems,
@@ -636,6 +642,12 @@ function AddProviderDialog(props: { existingNames: string[] }): JSX.Element {
       toast.error(`Failed to add provider: ${String(error)}`);
     },
   });
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: mutation.error ? String(mutation.error) : null,
+    showValidation: hasAttemptedSubmit,
+    isValid: validation.isValid,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
@@ -807,11 +819,7 @@ function AddProviderDialog(props: { existingNames: string[] }): JSX.Element {
               </p>
             )}
           </div>
-          {mutation.error && (
-            <p className={DIALOG_ALERT_CLASS_NAME} style={ERROR_PANEL_STYLE}>
-              {String(mutation.error)}
-            </p>
-          )}
+          <FormFeedbackMessage message={formFeedbackMessage} />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => handleOpenChange(false)}>
               Cancel
@@ -1250,6 +1258,7 @@ function RoleAssignmentsSection({
   );
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(DEFAULT_LIST_PAGE_SIZE);
+  const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
 
   const [roleStates, setRoleStates] = useState<Record<string, RoleState>>(() => {
     const initial: Record<string, RoleState> = {};
@@ -1328,6 +1337,10 @@ function RoleAssignmentsSection({
     return (state?.modelId ?? '__none__') !== '__none__' || state?.reasoningConfig != null;
   }).length;
   const [isOverridesExpanded, setIsOverridesExpanded] = useState(false);
+  const showAssignmentValidation = hasAttemptedSave && !assignmentValidation.isValid;
+  const assignmentDefaultError = showAssignmentValidation
+    ? 'Select a default model or choose explicit models for every affected role.'
+    : undefined;
 
   const assignmentSurface = summarizeAssignmentSurface({
     enabledModelCount: enabledModels.length,
@@ -1362,18 +1375,20 @@ function RoleAssignmentsSection({
       );
     });
   })();
-  const shouldShowAssignmentGuidance =
-    assignmentValidation.blockingIssues.length > 0 || hasUnsavedChanges;
+  const shouldShowAssignmentGuidance = assignmentValidation.isValid && hasUnsavedChanges;
   const assignmentGuidance =
-    assignmentValidation.blockingIssues.length > 0
-      ? assignmentSurface.guidance
-      : hasUnsavedChanges
+    hasUnsavedChanges
         ? {
             tone: 'success' as const,
             headline: 'Unsaved assignment changes',
             detail: 'Review the updated default and role overrides, then save when ready.',
           }
         : null;
+  const assignmentFormFeedbackMessage = resolveFormFeedbackMessage({
+    showValidation: hasAttemptedSave,
+    isValid: assignmentValidation.isValid,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
   const assignmentSummarySnapshot = JSON.stringify(assignmentSurface.cards);
 
   useEffect(() => {
@@ -1417,7 +1432,7 @@ function RoleAssignmentsSection({
           >
             <SelectTrigger
               className={
-                assignmentValidation.blockingIssues.length > 0
+                assignmentDefaultError
                   ? 'w-[380px] border-red-300 focus-visible:ring-red-500'
                   : 'w-[380px]'
               }
@@ -1440,15 +1455,12 @@ function RoleAssignmentsSection({
             onChange={setDefaultReasoning}
           />
         </div>
-        {assignmentValidation.blockingIssues.length > 0 ? (
-          <p className="text-xs text-muted">
-            Add a shared default or choose explicit models for the affected roles below.
-          </p>
-        ) : (
+        <FieldErrorText message={assignmentDefaultError} />
+        {!assignmentDefaultError ? (
           <p className="text-xs text-muted">
             Specialists may inherit this model when they do not need an explicit override.
           </p>
-        )}
+        ) : null}
       </SubsectionPanel>
 
       <SubsectionPanel
@@ -1595,14 +1607,23 @@ function RoleAssignmentsSection({
       </SubsectionPanel>
 
       {/* ── Save ──────────────────────────────────────────────────────── */}
-      <div className="flex justify-end">
+      <div className="space-y-3">
+        <FormFeedbackMessage message={assignmentFormFeedbackMessage} />
+        <div className="flex justify-end">
         <Button
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending || !assignmentValidation.isValid || !hasUnsavedChanges}
+          onClick={() => {
+            if (!assignmentValidation.isValid) {
+              setHasAttemptedSave(true);
+              return;
+            }
+            saveMutation.mutate();
+          }}
+          disabled={saveMutation.isPending || !hasUnsavedChanges}
         >
           {saveMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
           Save All
         </Button>
+      </div>
       </div>
     </DashboardSectionCard>
   );

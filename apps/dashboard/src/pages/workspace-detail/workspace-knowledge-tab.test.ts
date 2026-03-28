@@ -7,16 +7,19 @@ function readSource() {
 }
 
 describe('workspace knowledge tab source', () => {
-  it('disables save when local memory validation errors are present, matching settings-tab gating', () => {
+  it('keeps memory save enabled until submit is attempted, then surfaces shared feedback', () => {
     const source = readSource();
 
     expect(source).toContain("const memoryValidationError = readStructuredValidationError(memoryDrafts, 'Workspace memory');");
     expect(source).toContain('normalizeMemoryDrafts');
-    expect(source).toContain('disabled={saveMutation.isPending || Boolean(validationError)}');
+    expect(source).toContain('const [hasAttemptedSave, setHasAttemptedSave] = useState(false);');
+    expect(source).toContain('headerFeedback={<FormFeedbackMessage message={formFeedbackMessage} />}');
+    expect(source).toContain('disabled={saveMutation.isPending}');
     expect(source).toContain('syncWorkspaceMemory');
     expect(source).toContain('Workspace memory saved.');
     expect(source).toContain('memoryDrafts={memoryDrafts}');
     expect(source).toContain('Save memory');
+    expect(source).not.toContain('saveErrorMessage=');
     expect(source).not.toContain('Save knowledge');
     expect(source).not.toContain('updateWorkspaceSpec');
   });

@@ -22,6 +22,7 @@ export function StructuredEntryEditor(props: {
   description?: string;
   drafts: StructuredEntryDraft[];
   validation: StructuredEntryValidationResult;
+  showValidationErrors?: boolean;
   onChange(drafts: StructuredEntryDraft[]): void;
   addLabel: string;
 }): JSX.Element {
@@ -31,7 +32,7 @@ export function StructuredEntryEditor(props: {
         <div className="text-sm font-medium">{props.title}</div>
         {props.description ? <p className="text-xs text-muted">{props.description}</p> : null}
       </header>
-      {props.validation.blockingIssues.length > 0 ? (
+      {props.showValidationErrors && props.validation.blockingIssues.length > 0 ? (
         <div className="rounded-md border border-amber-300 bg-amber-50/80 px-3 py-2 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
           Resolve the highlighted entry rows before launch.
         </div>
@@ -45,6 +46,7 @@ export function StructuredEntryEditor(props: {
             draft={draft}
             index={index}
             validation={props.validation}
+            showValidationErrors={props.showValidationErrors}
             onUpdate={(patch) =>
               props.onChange(updateStructuredDraft(props.drafts, draft.id, patch))
             }
@@ -70,10 +72,11 @@ function StructuredEntryRow(props: {
   draft: StructuredEntryDraft;
   index: number;
   validation: StructuredEntryValidationResult;
+  showValidationErrors?: boolean;
   onUpdate(patch: Partial<StructuredEntryDraft>): void;
   onRemove(): void;
 }): JSX.Element {
-  const errors = props.validation.entryErrors[props.index];
+  const errors = props.showValidationErrors ? props.validation.entryErrors[props.index] : undefined;
 
   return (
     <article className="grid gap-3 rounded-md border border-border p-3">

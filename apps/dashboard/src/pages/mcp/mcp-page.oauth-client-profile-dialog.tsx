@@ -1,6 +1,12 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 
 import { Button } from '../../components/ui/button.js';
+import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FieldErrorText,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +23,10 @@ import {
   SelectValue,
 } from '../../components/ui/select.js';
 import { Textarea } from '../../components/ui/textarea.js';
-import type { RemoteMcpOAuthClientProfileFormState } from './mcp-page.oauth-client-profile-form.js';
+import {
+  type RemoteMcpOAuthClientProfileFormState,
+  validateRemoteMcpOAuthClientProfileForm,
+} from './mcp-page.oauth-client-profile-form.js';
 
 export function McpPageOAuthClientProfileDialog(props: {
   open: boolean;
@@ -29,6 +38,21 @@ export function McpPageOAuthClientProfileDialog(props: {
   onFormChange(next: RemoteMcpOAuthClientProfileFormState): void;
   onSubmit(): void;
 }) {
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
+  const validation = validateRemoteMcpOAuthClientProfileForm(props.form);
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: props.error,
+    showValidation: hasAttemptedSubmit,
+    isValid: validation.isValid,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
+
+  useEffect(() => {
+    if (!props.open) {
+      setHasAttemptedSubmit(false);
+    }
+  }, [props.open]);
+
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-[84rem] overflow-y-auto">
@@ -45,15 +69,24 @@ export function McpPageOAuthClientProfileDialog(props: {
           className="space-y-5"
           onSubmit={(event) => {
             event.preventDefault();
+            if (!validation.isValid) {
+              setHasAttemptedSubmit(true);
+              return;
+            }
             props.onSubmit();
           }}
         >
           <section className="grid gap-4 rounded-lg border border-border/70 bg-surface px-5 py-5">
             <div className="grid gap-4 xl:grid-cols-4">
-              <LabeledField label="Name" className="xl:col-span-2">
+              <LabeledField
+                label="Name"
+                className="xl:col-span-2"
+                error={hasAttemptedSubmit ? validation.fieldErrors.name : undefined}
+              >
                 <Input
                   value={props.form.name}
                   onChange={(event) => updateField(props, 'name', event.target.value)}
+                  aria-invalid={Boolean(hasAttemptedSubmit && validation.fieldErrors.name)}
                 />
               </LabeledField>
               <LabeledField label="Callback mode">
@@ -98,10 +131,15 @@ export function McpPageOAuthClientProfileDialog(props: {
                   </SelectContent>
                 </Select>
               </LabeledField>
-              <LabeledField label="Client ID" className="xl:col-span-2">
+              <LabeledField
+                label="Client ID"
+                className="xl:col-span-2"
+                error={hasAttemptedSubmit ? validation.fieldErrors.clientId : undefined}
+              >
                 <Input
                   value={props.form.clientId}
                   onChange={(event) => updateField(props, 'clientId', event.target.value)}
+                  aria-invalid={Boolean(hasAttemptedSubmit && validation.fieldErrors.clientId)}
                 />
               </LabeledField>
               <LabeledField label="Client secret" className="xl:col-span-2">
@@ -157,11 +195,15 @@ export function McpPageOAuthClientProfileDialog(props: {
                   placeholder="https://issuer.example.test/authorize"
                 />
               </LabeledField>
-              <LabeledField label="Token endpoint">
+              <LabeledField
+                label="Token endpoint"
+                error={hasAttemptedSubmit ? validation.fieldErrors.tokenEndpoint : undefined}
+              >
                 <Input
                   value={props.form.tokenEndpoint}
                   onChange={(event) => updateField(props, 'tokenEndpoint', event.target.value)}
                   placeholder="https://issuer.example.test/token"
+                  aria-invalid={Boolean(hasAttemptedSubmit && validation.fieldErrors.tokenEndpoint)}
                 />
               </LabeledField>
               <LabeledField label="Registration endpoint">
@@ -225,9 +267,7 @@ export function McpPageOAuthClientProfileDialog(props: {
             </div>
           </section>
 
-          {props.error ? (
-            <p className="text-sm text-red-600 dark:text-red-400">{props.error}</p>
-          ) : null}
+          <FormFeedbackMessage message={formFeedbackMessage} />
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>
@@ -246,12 +286,14 @@ export function McpPageOAuthClientProfileDialog(props: {
 function LabeledField(props: {
   label: string;
   className?: string;
+  error?: string;
   children: ReactNode;
 }) {
   return (
     <label className={`grid gap-2 text-sm ${props.className ?? ''}`.trim()}>
       <span className="font-medium">{props.label}</span>
       {props.children}
+      <FieldErrorText message={props.error} />
     </label>
   );
 }

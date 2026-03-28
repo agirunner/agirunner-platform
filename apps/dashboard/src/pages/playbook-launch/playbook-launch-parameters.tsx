@@ -16,6 +16,7 @@ import {
 export function ParameterField(props: {
   spec: LaunchParameterSpec;
   value: string;
+  hasError?: boolean;
   onChange(value: string): void;
 }): JSX.Element {
   return (
@@ -34,7 +35,17 @@ export function ParameterField(props: {
       </div>
       <label className="grid gap-2 text-sm">
         <span className="font-medium">Workflow Goal</span>
-        <Input value={props.value} onChange={(event) => props.onChange(event.target.value)} />
+        <Input
+          value={props.value}
+          onChange={(event) => props.onChange(event.target.value)}
+          aria-invalid={props.hasError ? true : undefined}
+          className={props.hasError ? 'border-red-300 focus-visible:ring-red-500' : undefined}
+        />
+        {props.hasError ? (
+          <p className="text-xs text-red-600 dark:text-red-400">
+            Enter a value for {props.spec.title}.
+          </p>
+        ) : null}
       </label>
     </div>
   );

@@ -19,6 +19,7 @@ import {
 
 interface PlaybookAuthoringFormProps {
   draft: PlaybookAuthoringDraft;
+  showValidationErrors?: boolean;
   onChange(next: PlaybookAuthoringDraft): void;
   onClearError(): void;
   onValidationChange?(issues: string[]): void;
@@ -74,18 +75,28 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
           <ProcessInstructionsSection draft={props.draft} onChange={updateDraft} />
           <TeamRolesSection
             draft={props.draft}
+            showValidationErrors={props.showValidationErrors}
             onChange={updateDraft}
             availableRoleNames={availableRoleNames}
           />
           <LaunchInputsSection
             draft={props.draft}
+            showValidationErrors={props.showValidationErrors}
             onChange={updateDraft}
           />
-          <WorkflowStagesSection draft={props.draft} onChange={updateDraft} />
+          <WorkflowStagesSection
+            draft={props.draft}
+            showValidationErrors={props.showValidationErrors}
+            onChange={updateDraft}
+          />
         </TabsContent>
 
         <TabsContent value="advanced" className="space-y-4">
-          <AdvancedWorkflowSection draft={props.draft} onChange={updateDraft} />
+          <AdvancedWorkflowSection
+            draft={props.draft}
+            showValidationErrors={props.showValidationErrors}
+            onChange={updateDraft}
+          />
         </TabsContent>
       </Tabs>
     </div>

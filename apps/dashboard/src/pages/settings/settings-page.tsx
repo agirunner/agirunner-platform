@@ -6,6 +6,12 @@ import { toast } from '../../lib/toast.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 import { Button } from '../../components/ui/button.js';
+import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FieldErrorText,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
 import { Input } from '../../components/ui/input.js';
 import {
   Select,
@@ -46,6 +52,7 @@ export function SettingsPage(): JSX.Element {
   const [taskPruneDays, setTaskPruneDays] = useState('');
   const [workflowDeleteDays, setWorkflowDeleteDays] = useState('');
   const [logRetentionDays, setLogRetentionDays] = useState('');
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   useEffect(() => {
     if (loggingQuery.data?.level) {
@@ -72,6 +79,17 @@ export function SettingsPage(): JSX.Element {
     !isPositiveInteger(taskPruneDays) ||
     !isPositiveInteger(workflowDeleteDays) ||
     !isPositiveInteger(logRetentionDays);
+  const fieldErrors = {
+    taskPruneDays: !isPositiveInteger(taskPruneDays)
+      ? 'Enter a positive whole number of days.'
+      : undefined,
+    workflowDeleteDays: !isPositiveInteger(workflowDeleteDays)
+      ? 'Enter a positive whole number of days.'
+      : undefined,
+    logRetentionDays: !isPositiveInteger(logRetentionDays)
+      ? 'Enter a positive whole number of days.'
+      : undefined,
+  };
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -104,10 +122,20 @@ export function SettingsPage(): JSX.Element {
       toast.error('Failed to save general settings.');
     },
   });
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: saveMutation.isError ? 'Failed to save settings.' : null,
+    showValidation: hasAttemptedSubmit,
+    isValid: !hasRetentionValidationErrors,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
 
   function handleSubmit(e: React.FormEvent): void {
     e.preventDefault();
-    if (!isDirty || hasRetentionValidationErrors) {
+    if (!isDirty) {
+      return;
+    }
+    if (hasRetentionValidationErrors) {
+      setHasAttemptedSubmit(true);
       return;
     }
     saveMutation.mutate();
@@ -128,7 +156,7 @@ export function SettingsPage(): JSX.Element {
         navHref="/admin/general-settings"
         description="Configure general operational settings in one place."
         actions={
-          <Button type="submit" disabled={!isDirty || isSaving || hasRetentionValidationErrors}>
+          <Button type="submit" disabled={!isDirty || isSaving}>
             {isSaving ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
@@ -176,20 +204,24 @@ export function SettingsPage(): JSX.Element {
                 Prune terminal tasks from ongoing workflows after the configured window.
               </p>
             </div>
-            <div className="space-y-2">
-              <label htmlFor="task-prune" className="text-sm font-medium">
-                Task Pruning Retention (days)
-              </label>
-              <Input
-                id="task-prune"
-                type="number"
-                min={1}
-                value={taskPruneDays}
-                onChange={(e) => setTaskPruneDays(e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Ongoing workflows are not automatically deleted.
-              </p>
+          <div className="space-y-2">
+            <label htmlFor="task-prune" className="text-sm font-medium">
+              Task Pruning Retention (days)
+            </label>
+            <Input
+              id="task-prune"
+              type="number"
+              min={1}
+              value={taskPruneDays}
+              onChange={(e) => setTaskPruneDays(e.target.value)}
+              aria-invalid={Boolean(hasAttemptedSubmit && fieldErrors.taskPruneDays)}
+            />
+            <FieldErrorText
+              message={hasAttemptedSubmit ? fieldErrors.taskPruneDays : undefined}
+            />
+            <p className="text-xs text-muted-foreground">
+              Ongoing workflows are not automatically deleted.
+            </p>
             </div>
           </div>
           <div className="space-y-3 rounded-lg border border-border/70 bg-card/60 p-4">
@@ -209,6 +241,10 @@ export function SettingsPage(): JSX.Element {
                 min={1}
                 value={workflowDeleteDays}
                 onChange={(e) => setWorkflowDeleteDays(e.target.value)}
+                aria-invalid={Boolean(hasAttemptedSubmit && fieldErrors.workflowDeleteDays)}
+              />
+              <FieldErrorText
+                message={hasAttemptedSubmit ? fieldErrors.workflowDeleteDays : undefined}
               />
               <p className="text-xs text-muted-foreground">
                 Deleting a workflow also removes its workflow-owned records.
@@ -232,20 +268,17 @@ export function SettingsPage(): JSX.Element {
                 min={1}
                 value={logRetentionDays}
                 onChange={(e) => setLogRetentionDays(e.target.value)}
+                aria-invalid={Boolean(hasAttemptedSubmit && fieldErrors.logRetentionDays)}
+              />
+              <FieldErrorText
+                message={hasAttemptedSubmit ? fieldErrors.logRetentionDays : undefined}
               />
               <p className="text-xs text-muted-foreground">
                 Log partitions older than this window are dropped.
               </p>
             </div>
           </div>
-          {hasRetentionValidationErrors ? (
-            <p className="text-sm text-red-600">
-              Enter positive whole-number retention values before saving.
-            </p>
-          ) : null}
-          {saveMutation.isError ? (
-            <p className="text-sm text-red-600">Failed to save settings.</p>
-          ) : null}
+          <FormFeedbackMessage message={formFeedbackMessage} />
       </DashboardSectionCard>
     </form>
   );

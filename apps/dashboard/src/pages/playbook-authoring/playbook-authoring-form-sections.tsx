@@ -30,6 +30,7 @@ import { LabeledField, SectionCard, ToggleField } from './playbook-authoring-for
 
 interface SectionProps {
   draft: PlaybookAuthoringDraft;
+  showValidationErrors?: boolean;
   onChange(updater: (current: PlaybookAuthoringDraft) => PlaybookAuthoringDraft): void;
 }
 
@@ -76,7 +77,7 @@ export function TeamRolesSection(
       description="Choose the active specialist definitions for this workflow."
     >
       <div className="space-y-3">
-        {roleValidation.selectionIssue ? (
+        {props.showValidationErrors && roleValidation.selectionIssue ? (
           <p className="text-xs text-red-600 dark:text-red-400">{roleValidation.selectionIssue}</p>
         ) : null}
         {props.draft.roles.map((role, index) => (
@@ -131,7 +132,7 @@ export function TeamRolesSection(
                 Remove Specialist
               </Button>
             </div>
-            {roleValidation.roleErrors[index] ? (
+            {props.showValidationErrors && roleValidation.roleErrors[index] ? (
               <p className="text-xs text-red-600 dark:text-red-400">
                 {roleValidation.roleErrors[index]}
               </p>
@@ -176,7 +177,9 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
                     value={stage.name}
                     onChange={(event) => updateStage(props, index, 'name', event.target.value)}
                   />
-                  <ValidationText issue={stageValidation.stageErrors[index]?.name} />
+                  <ValidationText
+                    issue={props.showValidationErrors ? stageValidation.stageErrors[index]?.name : undefined}
+                  />
                 </label>
                 <label className="grid gap-2 text-sm">
                   <span className="font-medium">Stage goal</span>
@@ -184,7 +187,9 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
                     value={stage.goal}
                     onChange={(event) => updateStage(props, index, 'goal', event.target.value)}
                   />
-                  <ValidationText issue={stageValidation.stageErrors[index]?.goal} />
+                  <ValidationText
+                    issue={props.showValidationErrors ? stageValidation.stageErrors[index]?.goal : undefined}
+                  />
                 </label>
               </div>
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
@@ -220,7 +225,9 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
             </div>
           </div>
         ))}
-        {stageValidation.blockingIssues.length > 0 && props.draft.stages.length === 0 ? (
+        {props.showValidationErrors
+        && stageValidation.blockingIssues.length > 0
+        && props.draft.stages.length === 0 ? (
           <p className="text-xs text-red-600 dark:text-red-400">
             {stageValidation.blockingIssues[0]}
           </p>
@@ -263,7 +270,13 @@ export function LaunchInputsSection(props: SectionProps): JSX.Element {
                 value={parameter.slug}
                 onChange={(event) => updateParameter(props, index, 'slug', event.target.value)}
               />
-              <ValidationText issue={parameterValidation.parameterErrors[index]?.slug} />
+              <ValidationText
+                issue={
+                  props.showValidationErrors
+                    ? parameterValidation.parameterErrors[index]?.slug
+                    : undefined
+                }
+              />
             </label>
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Title</span>
@@ -271,7 +284,13 @@ export function LaunchInputsSection(props: SectionProps): JSX.Element {
                 value={parameter.title}
                 onChange={(event) => updateParameterTitle(props, index, event.target.value)}
               />
-              <ValidationText issue={parameterValidation.parameterErrors[index]?.title} />
+              <ValidationText
+                issue={
+                  props.showValidationErrors
+                    ? parameterValidation.parameterErrors[index]?.title
+                    : undefined
+                }
+              />
             </label>
             <div className="flex items-start lg:min-w-[7rem] lg:pt-7">
               <ToggleField
@@ -370,7 +389,9 @@ function BoardColumnsSection(props: SectionProps): JSX.Element {
                 </SelectContent>
               </Select>
             </LabeledField>
-            <ValidationText issue={boardValidation.entryColumnError} />
+            <ValidationText
+              issue={props.showValidationErrors ? boardValidation.entryColumnError : undefined}
+            />
           </div>
           <div className="grid gap-1.5">
             <LabeledField label="Blocked lane">
@@ -391,7 +412,9 @@ function BoardColumnsSection(props: SectionProps): JSX.Element {
                 </SelectContent>
               </Select>
             </LabeledField>
-            <ValidationText issue={boardValidation.blockedColumnError} />
+            <ValidationText
+              issue={props.showValidationErrors ? boardValidation.blockedColumnError : undefined}
+            />
           </div>
           <div className="grid gap-1.5">
             <LabeledField label="Terminal lane">
@@ -412,7 +435,9 @@ function BoardColumnsSection(props: SectionProps): JSX.Element {
                 </SelectContent>
               </Select>
             </LabeledField>
-            <ValidationText issue={boardValidation.terminalColumnError} />
+            <ValidationText
+              issue={props.showValidationErrors ? boardValidation.terminalColumnError : undefined}
+            />
           </div>
         </div>
         {props.draft.columns.map((column, index) => (
@@ -458,8 +483,14 @@ function BoardColumnsSection(props: SectionProps): JSX.Element {
                   className="min-h-[90px]"
                 />
               </LabeledField>
-              <ValidationText issue={boardValidation.columnErrors[index]?.id} />
-              <ValidationText issue={boardValidation.columnErrors[index]?.label} />
+              <ValidationText
+                issue={props.showValidationErrors ? boardValidation.columnErrors[index]?.id : undefined}
+              />
+              <ValidationText
+                issue={
+                  props.showValidationErrors ? boardValidation.columnErrors[index]?.label : undefined
+                }
+              />
             </div>
           </div>
         ))}

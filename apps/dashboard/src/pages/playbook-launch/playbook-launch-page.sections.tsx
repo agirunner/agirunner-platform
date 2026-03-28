@@ -4,6 +4,7 @@ import { Loader2, Rocket } from 'lucide-react';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
+import { FormFeedbackMessage } from '../../components/forms/form-feedback.js';
 import type { LaunchDefinitionSummary } from './playbook-launch-support.js';
 
 export function StructuredSection(props: {
@@ -82,8 +83,9 @@ function SnapshotList(props: {
 
 export function LaunchActionCard(props: {
   canLaunch: boolean;
+  isReadyToLaunch: boolean;
   isLaunching: boolean;
-  blockingIssueCount: number;
+  formFeedbackMessage: string | null;
   onLaunch(): void;
 }): JSX.Element {
   return (
@@ -99,19 +101,28 @@ export function LaunchActionCard(props: {
         <div className="rounded-xl border border-border/70 bg-muted/10 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="text-sm font-medium text-foreground">
-              {props.canLaunch ? 'Ready to launch' : 'Resolve blockers'}
+              {props.isReadyToLaunch
+                ? 'Ready to launch'
+                : props.formFeedbackMessage
+                  ? 'Review required inputs'
+                  : 'Launch workflow'}
             </div>
-            <Badge variant={props.canLaunch ? 'secondary' : 'destructive'}>
-              {props.canLaunch ? 'Ready to launch' : `${props.blockingIssueCount} blocker${props.blockingIssueCount === 1 ? '' : 's'}`}
+            <Badge
+              variant={
+                props.isReadyToLaunch ? 'secondary' : props.formFeedbackMessage ? 'warning' : 'outline'
+              }
+            >
+              {props.isReadyToLaunch ? 'Ready to launch' : props.formFeedbackMessage ? 'Check inputs' : 'Ready to review'}
             </Badge>
           </div>
           <p className="mt-2 text-sm text-muted">
-            {props.canLaunch
+            {props.isReadyToLaunch
               ? 'All required launch inputs are present. Start the workflow when you are ready.'
-              : 'Resolve the highlighted inputs in the main column or advanced section before launch.'}
+              : 'Review the launch inputs, optional workflow policy, and model overrides before starting the run.'}
           </p>
         </div>
-        <Button onClick={props.onLaunch} disabled={!props.canLaunch}>
+        <FormFeedbackMessage message={props.formFeedbackMessage} />
+        <Button onClick={props.onLaunch} disabled={props.isLaunching}>
           {props.isLaunching ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (

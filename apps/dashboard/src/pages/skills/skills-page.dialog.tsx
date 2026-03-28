@@ -1,5 +1,11 @@
 import { Button } from '../../components/ui/button.js';
 import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FieldErrorText,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -19,6 +25,7 @@ export interface SkillFormValidation {
   isValid: boolean;
   fieldErrors: {
     name?: string;
+    summary?: string;
     content?: string;
   };
 }
@@ -38,6 +45,10 @@ export function validateSkillForm(form: SkillFormState): SkillFormValidation {
 
   if (!form.name.trim()) {
     fieldErrors.name = 'Enter a skill name.';
+  }
+
+  if (!form.summary.trim()) {
+    fieldErrors.summary = 'Add a short summary.';
   }
 
   if (!form.content.trim()) {
@@ -62,6 +73,12 @@ export function SkillsPageDialog(props: {
   onFormChange(next: SkillFormState): void;
   onSubmit(): void;
 }) {
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    showValidation: props.showValidationErrors,
+    isValid: props.validation.isValid,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
+
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-h-[92vh] max-w-[84rem] overflow-y-auto">
@@ -87,11 +104,9 @@ export function SkillsPageDialog(props: {
               }}
               aria-invalid={Boolean(props.showValidationErrors && props.validation.fieldErrors.name)}
             />
-            {props.showValidationErrors && props.validation.fieldErrors.name ? (
-              <span className="text-xs text-red-600 dark:text-red-400">
-                {props.validation.fieldErrors.name}
-              </span>
-            ) : null}
+            <FieldErrorText
+              message={props.showValidationErrors ? props.validation.fieldErrors.name : undefined}
+            />
           </label>
           <label className="grid gap-2 text-sm">
             <span className="font-medium">Summary</span>
@@ -100,6 +115,12 @@ export function SkillsPageDialog(props: {
               onChange={(event) => {
                 props.onFormChange({ ...props.form, summary: event.target.value });
               }}
+              aria-invalid={Boolean(
+                props.showValidationErrors && props.validation.fieldErrors.summary,
+              )}
+            />
+            <FieldErrorText
+              message={props.showValidationErrors ? props.validation.fieldErrors.summary : undefined}
             />
           </label>
           <label className="grid gap-2 text-sm">
@@ -112,12 +133,11 @@ export function SkillsPageDialog(props: {
               }}
               aria-invalid={Boolean(props.showValidationErrors && props.validation.fieldErrors.content)}
             />
-            {props.showValidationErrors && props.validation.fieldErrors.content ? (
-              <span className="text-xs text-red-600 dark:text-red-400">
-                {props.validation.fieldErrors.content}
-              </span>
-            ) : null}
+            <FieldErrorText
+              message={props.showValidationErrors ? props.validation.fieldErrors.content : undefined}
+            />
           </label>
+          <FormFeedbackMessage message={formFeedbackMessage} />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>
               Cancel

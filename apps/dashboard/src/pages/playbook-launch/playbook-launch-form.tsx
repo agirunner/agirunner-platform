@@ -21,7 +21,6 @@ import {
   StructuredSection,
 } from './playbook-launch-page.sections.js';
 import { ParameterField } from './playbook-launch-parameters.js';
-import { LaunchReadinessPanel } from './playbook-launch-readiness.js';
 import {
   type LaunchDefinitionSummary,
   type LaunchValidationResult,
@@ -50,6 +49,8 @@ export function PlaybookLaunchForm(props: {
   selectedPlaybook: DashboardPlaybookRecord | null;
   selectedWorkspace: DashboardWorkspaceRecord | null;
   launchValidation: LaunchValidationResult;
+  showValidationErrors: boolean;
+  formFeedbackMessage: string | null;
   launchDefinition: LaunchDefinitionSummary;
   parameterDrafts: Record<string, string>;
   metadataDrafts: StructuredEntryDraft[];
@@ -85,6 +86,7 @@ export function PlaybookLaunchForm(props: {
   isLoadingSummary: boolean;
   error: string | null;
   canLaunch: boolean;
+  isReadyToLaunch: boolean;
   isLaunching: boolean;
   onPlaybookChange(id: string): void;
   onWorkflowNameChange(name: string): void;
@@ -114,8 +116,8 @@ export function PlaybookLaunchForm(props: {
       props.error ||
         props.workflowConfigBlockingError ||
         props.workflowOverrideBlockingError ||
-        props.launchValidation.fieldErrors.parameters ||
-        props.launchValidation.fieldErrors.metadata,
+        (props.showValidationErrors && props.launchValidation.fieldErrors.parameters) ||
+        (props.showValidationErrors && props.launchValidation.fieldErrors.metadata),
     );
 
   return (
@@ -147,6 +149,7 @@ export function PlaybookLaunchForm(props: {
               workspaceId={props.workspaceId}
               workspaces={props.workspaces}
               launchValidation={props.launchValidation}
+              showValidationErrors={props.showValidationErrors}
               onPlaybookChange={props.onPlaybookChange}
               onWorkflowNameChange={props.onWorkflowNameChange}
               onWorkspaceChange={props.onWorkspaceChange}
@@ -175,6 +178,14 @@ export function PlaybookLaunchForm(props: {
                       key={spec.slug}
                       spec={spec}
                       value={props.parameterDrafts[spec.slug] ?? ''}
+                      hasError={
+                        props.showValidationErrors
+                          && Boolean(
+                            props.launchValidation.fieldErrors.parameters
+                            && spec.required
+                            && !(props.parameterDrafts[spec.slug]?.trim()),
+                          )
+                      }
                       onChange={(value) => props.onParameterChange(spec.slug, value)}
                     />
                   ))}
@@ -184,7 +195,7 @@ export function PlaybookLaunchForm(props: {
                   This playbook does not declare launch inputs.
                 </p>
               )}
-              {props.launchValidation.fieldErrors.parameters ? (
+              {props.showValidationErrors && props.launchValidation.fieldErrors.parameters ? (
                 <p className="text-sm text-red-600 dark:text-red-400">
                   {props.launchValidation.fieldErrors.parameters}
                 </p>
@@ -223,6 +234,7 @@ export function PlaybookLaunchForm(props: {
                     title="Metadata Entries"
                     drafts={props.metadataDrafts}
                     validation={props.metadataValidation}
+                    showValidationErrors={props.showValidationErrors}
                     onChange={props.onMetadataDraftsChange}
                     addLabel="Add metadata field"
                   />
@@ -235,6 +247,7 @@ export function PlaybookLaunchForm(props: {
                   extraWorkflowConfigDrafts={props.extraWorkflowConfigDrafts}
                   extraWorkflowConfigValidation={props.extraWorkflowConfigValidation}
                   suppressedInstructionLayers={props.suppressedInstructionLayers}
+                  showValidationErrors={props.showValidationErrors}
                   onWorkflowConfigChange={props.onWorkflowConfigChange}
                   onExtraWorkflowConfigDraftsChange={props.onExtraWorkflowConfigDraftsChange}
                   onSuppressedInstructionLayersChange={props.onSuppressedInstructionLayersChange}
@@ -247,7 +260,7 @@ export function PlaybookLaunchForm(props: {
                 >
                   <WorkflowBudgetEditor
                     draft={props.workflowBudgetDraft}
-                    fieldErrors={props.launchValidation.fieldErrors}
+                    fieldErrors={props.showValidationErrors ? props.launchValidation.fieldErrors : {}}
                     onChange={props.onWorkflowBudgetChange}
                   />
                 </StructuredSection>
@@ -277,6 +290,7 @@ export function PlaybookLaunchForm(props: {
                     providers={props.llmProviders}
                     models={props.llmModels}
                     validation={props.roleOverrideValidation}
+                    showValidationErrors={props.showValidationErrors}
                     onChange={props.onModelOverrideDraftsChange}
                   />
                   {props.hasLlmLoadError ? (
@@ -286,18 +300,15 @@ export function PlaybookLaunchForm(props: {
                   ) : null}
                 </StructuredSection>
 
-                {props.workflowConfigBlockingError ? (
+                {props.showValidationErrors && props.workflowConfigBlockingError ? (
                   <p className="text-sm text-red-600 dark:text-red-400">
                     {props.workflowConfigBlockingError}
                   </p>
                 ) : null}
-                {props.workflowOverrideBlockingError ? (
+                {props.showValidationErrors && props.workflowOverrideBlockingError ? (
                   <p className="text-sm text-red-600 dark:text-red-400">
                     {props.workflowOverrideBlockingError}
                   </p>
-                ) : null}
-                {props.error ? (
-                  <p className="text-sm text-red-600 dark:text-red-400">{props.error}</p>
                 ) : null}
               </div>
             </details>
@@ -307,8 +318,9 @@ export function PlaybookLaunchForm(props: {
         <div className="space-y-4 xl:sticky xl:top-6">
           <LaunchActionCard
             canLaunch={props.canLaunch}
+            isReadyToLaunch={props.isReadyToLaunch}
             isLaunching={props.isLaunching}
-            blockingIssueCount={props.launchValidation.blockingIssues.length}
+            formFeedbackMessage={props.formFeedbackMessage}
             onLaunch={props.onLaunch}
           />
           <PlaybookSummaryCard
@@ -324,20 +336,6 @@ export function PlaybookLaunchForm(props: {
             instructionConfigSummary={props.instructionConfigSummary}
             launchDefinition={props.launchDefinition}
             isLoading={props.isLoadingSummary}
-          />
-          <LaunchReadinessPanel
-            selectedPlaybook={props.selectedPlaybook}
-            selectedWorkspace={props.selectedWorkspace}
-            workflowName={props.workflowName}
-            hasDeclaredParameters={props.launchDefinition.parameterSpecs.length > 0}
-            hasMetadataEntries={hasMetadataEntries}
-            hasWorkflowConfigOverrides={
-              props.configuredWorkflowConfigOverrideCount > 0 ||
-              props.hasInstructionConfigOverride
-            }
-            hasWorkflowOverrides={hasWorkflowOverrides}
-            budgetDraft={props.workflowBudgetDraft}
-            validation={props.launchValidation}
           />
         </div>
       </div>

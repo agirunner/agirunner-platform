@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../components/ui/dialog.js';
+import { DEFAULT_FORM_VALIDATION_MESSAGE } from '../../components/forms/form-feedback.js';
 import { summarizeRoleSetup, validateRoleDialog } from './role-definitions-dialog.support.js';
 import {
   RoleBasicsSection,
@@ -114,6 +115,7 @@ export function RoleDialog(props: {
   const [reasoningConfig, setReasoningConfig] = useState<Record<string, unknown> | null>(
     currentAssignment?.reasoning_config ?? null,
   );
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -195,6 +197,7 @@ export function RoleDialog(props: {
           onSubmit={(event) => {
             event.preventDefault();
             if (!validation.isValid) {
+              setHasAttemptedSubmit(true);
               return;
             }
             mutation.mutate();
@@ -207,6 +210,7 @@ export function RoleDialog(props: {
                 setForm={setForm}
                 role={props.role}
                 validation={validation}
+                showValidationErrors={hasAttemptedSubmit}
               />
               <RoleModelAssignmentSection
                 models={props.models}
@@ -255,8 +259,10 @@ export function RoleDialog(props: {
           <RoleDialogFooter
             mutationError={mutation.error}
             validation={validation}
+            showValidationErrors={hasAttemptedSubmit}
             isPending={mutation.isPending}
             submitLabel={props.role ? 'Save Specialist' : 'Create Specialist'}
+            validationMessage={DEFAULT_FORM_VALIDATION_MESSAGE}
             onClose={props.onClose}
           />
         </form>

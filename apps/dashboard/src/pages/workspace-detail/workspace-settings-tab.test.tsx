@@ -16,7 +16,8 @@ describe('workspace settings tab source', () => {
     expect(shellSource).toContain('props.overview.summary');
     expect(shellSource).toContain('>Settings<');
     expect(shellSource).not.toContain('Settings Control Plane');
-    expect(tabSource).toContain('Resolve Before Saving');
+    expect(tabSource).toContain('headerFeedback={<FormFeedbackMessage message={formFeedbackMessage} />}');
+    expect(tabSource).not.toContain('Resolve Before Saving');
     expect(tabSource).toContain('aria-label="Workspace active"');
     expect(tabSource).toContain('Workspace Basics');
     expect(tabSource).toContain('Workspace Storage');

@@ -55,6 +55,7 @@ export function WorkflowLaunchPolicySections(props: {
   extraWorkflowConfigDrafts: StructuredEntryDraft[];
   extraWorkflowConfigValidation: StructuredEntryValidationResult;
   suppressedInstructionLayers: InstructionLayerName[];
+  showValidationErrors?: boolean;
   onWorkflowConfigChange(path: string, value: string): void;
   onExtraWorkflowConfigDraftsChange(drafts: StructuredEntryDraft[]): void;
   onSuppressedInstructionLayersChange(layers: InstructionLayerName[]): void;
@@ -77,6 +78,7 @@ export function WorkflowLaunchPolicySections(props: {
           validation={props.workflowConfigValidation}
           extraDrafts={props.extraWorkflowConfigDrafts}
           extraValidation={props.extraWorkflowConfigValidation}
+          showValidationErrors={props.showValidationErrors}
           onWorkflowConfigChange={props.onWorkflowConfigChange}
           onExtraDraftsChange={props.onExtraWorkflowConfigDraftsChange}
         />
@@ -148,6 +150,7 @@ function WorkflowConfigOverrideEditor(props: {
   validation: WorkflowConfigOverrideValidationResult;
   extraDrafts: StructuredEntryDraft[];
   extraValidation: StructuredEntryValidationResult;
+  showValidationErrors?: boolean;
   onWorkflowConfigChange(path: string, value: string): void;
   onExtraDraftsChange(drafts: StructuredEntryDraft[]): void;
 }): JSX.Element {
@@ -155,7 +158,7 @@ function WorkflowConfigOverrideEditor(props: {
     <div className="space-y-4">
       {props.definition.configOverrideSpecs.length > 0 ? (
         <div className="grid gap-4">
-          {props.validation.blockingIssues.length > 0 ? (
+          {props.showValidationErrors && props.validation.blockingIssues.length > 0 ? (
             <div className="rounded-lg border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
               Resolve the highlighted config override fields before launch.
             </div>
@@ -170,7 +173,7 @@ function WorkflowConfigOverrideEditor(props: {
               value={props.draftValues[spec.path] ?? ''}
               options={spec.options}
               defaultValue={spec.defaultValue}
-              fieldError={props.validation.fieldErrors[spec.path]}
+              fieldError={props.showValidationErrors ? props.validation.fieldErrors[spec.path] : undefined}
               onChange={(value) => props.onWorkflowConfigChange(spec.path, value)}
             />
           ))}
@@ -187,6 +190,7 @@ function WorkflowConfigOverrideEditor(props: {
         description="Add backend-supported dotted paths such as tools.web_fetch_timeout_seconds or model_override.reasoning_config without authoring a raw JSON object."
         drafts={props.extraDrafts}
         validation={props.extraValidation}
+        showValidationErrors={props.showValidationErrors}
         onChange={props.onExtraDraftsChange}
         addLabel="Add config override"
       />

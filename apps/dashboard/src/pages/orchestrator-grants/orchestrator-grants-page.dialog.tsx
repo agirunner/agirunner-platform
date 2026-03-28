@@ -5,6 +5,11 @@ import { AlertTriangle } from 'lucide-react';
 import { SearchableCombobox } from '../../components/log-viewer/ui/searchable-combobox.js';
 import { Button } from '../../components/ui/button.js';
 import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -104,14 +109,17 @@ export function CreateGrantDialog(props: {
     workflowId,
     permissions,
   });
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    showValidation: hasAttemptedSubmit,
+    isValid: validation.isValid,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
   const canSubmit =
     !mutation.isPending &&
     !agentsQuery.isLoading &&
     !workflowsQuery.isLoading &&
     !agentsQuery.isError &&
-    !workflowsQuery.isError &&
-    agents.length > 0 &&
-    workflows.length > 0;
+    !workflowsQuery.isError;
 
   return (
     <Dialog open={props.isOpen} onOpenChange={(open) => !open && resetAndClose()}>
@@ -186,6 +194,7 @@ export function CreateGrantDialog(props: {
               <p>Failed to create the grant. Check the selected agent and workflow scope, then retry.</p>
             </div>
           ) : null}
+          <FormFeedbackMessage message={formFeedbackMessage} />
           <div className="flex flex-col-reverse gap-2 border-t border-border/70 pt-4 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={resetAndClose}>
               Cancel

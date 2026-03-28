@@ -6,6 +6,12 @@ import { dashboardApi, type DashboardApiKeyRecord } from '../../lib/api.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FieldErrorText,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
+import {
   Card,
   CardContent,
   CardDescription,
@@ -110,6 +116,13 @@ function CreateApiKeyDialog(props: {
       setCreatedKey(data.api_key);
       await queryClient.invalidateQueries({ queryKey: ['api-keys'] });
     },
+  });
+  const isCreateFormValid = Boolean(expiresAt);
+  const createFormFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: createMutation.isError ? 'Failed to create API key.' : null,
+    showValidation: hasAttemptedCreateSubmit,
+    isValid: isCreateFormValid,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
   });
 
   function resetAndClose(): void {
@@ -222,15 +235,11 @@ function CreateApiKeyDialog(props: {
                 onChange={(event) => setExpiresAt(event.target.value)}
                 aria-invalid={Boolean(hasAttemptedCreateSubmit && !expiresAt)}
               />
-              {hasAttemptedCreateSubmit && !expiresAt ? (
-                <span className="text-xs text-red-600 dark:text-red-400">
-                  Select an expiry date.
-                </span>
-              ) : null}
+              <FieldErrorText
+                message={hasAttemptedCreateSubmit && !expiresAt ? 'Select an expiry date.' : undefined}
+              />
             </label>
-            {createMutation.isError ? (
-              <p className="text-sm text-red-600">Failed to create API key.</p>
-            ) : null}
+            <FormFeedbackMessage message={createFormFeedbackMessage} />
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={resetAndClose}>
                 Cancel

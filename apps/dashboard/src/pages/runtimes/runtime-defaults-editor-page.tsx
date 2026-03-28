@@ -4,6 +4,11 @@ import { Loader2, RotateCcw, Save } from 'lucide-react';
 
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Button } from '../../components/ui/button.js';
+import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
 import { toast } from '../../lib/toast.js';
 import { useUnsavedChanges } from '../../lib/use-unsaved-changes.js';
 import {
@@ -80,21 +85,26 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
   });
   const [formValues, setFormValues] = useState<FormValues>({});
   const [isDirty, setIsDirty] = useState(false);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   const defaultsByKey = useMemo(() => buildDefaultsByKey(data), [data]);
   const validationErrors = useMemo(
     () => buildValidationErrors(formValues, props.fieldDefinitions),
     [formValues, props.fieldDefinitions],
   );
+  const visibleValidationErrors = useMemo(
+    () => (hasAttemptedSubmit ? validationErrors : {}),
+    [hasAttemptedSubmit, validationErrors],
+  );
   const sectionSummaries = useMemo(
     () =>
       summarizeRuntimeDefaultSections(
         formValues,
-        validationErrors,
+        visibleValidationErrors,
         props.sectionDefinitions,
         props.fieldDefinitions,
       ),
-    [formValues, validationErrors, props.fieldDefinitions, props.sectionDefinitions],
+    [formValues, visibleValidationErrors, props.fieldDefinitions, props.sectionDefinitions],
   );
   const sectionSummaryByKey = useMemo(
     () => new Map(sectionSummaries.map((section) => [section.key, section])),
@@ -174,6 +184,7 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
   useEffect(() => {
     setFormValues(buildFormValues(data, props.fieldDefinitions));
     setIsDirty(false);
+    setHasAttemptedSubmit(false);
   }, [data, props.fieldDefinitions]);
 
   const saveMutation = useMutation({
@@ -189,27 +200,27 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['runtime-defaults'] });
       setIsDirty(false);
+      setHasAttemptedSubmit(false);
       toast.success(props.successMessage);
-    },
-    onError: (errorValue) => {
-      const message = errorValue instanceof Error ? errorValue.message : String(errorValue);
-      toast.error(`Failed to save ${props.errorLabel}: ${message}`);
     },
   });
 
   function updateField(key: string, value: string): void {
+    saveMutation.reset();
     setFormValues((current) => ({ ...current, [key]: value }));
     setIsDirty(true);
   }
 
   function resetForm(): void {
+    saveMutation.reset();
     setFormValues(buildFormValues(data, props.fieldDefinitions));
     setIsDirty(false);
+    setHasAttemptedSubmit(false);
   }
 
   function saveForm(): void {
     if (hasValidationErrors) {
-      toast.error(`Resolve the highlighted ${props.errorLabel} settings before saving.`);
+      setHasAttemptedSubmit(true);
       return;
     }
     saveMutation.mutate();
@@ -233,6 +244,18 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
     );
   }
 
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    serverError:
+      saveMutation.error instanceof Error
+        ? `Failed to save ${props.errorLabel}: ${saveMutation.error.message}`
+        : saveMutation.error
+          ? `Failed to save ${props.errorLabel}.`
+          : null,
+    showValidation: hasAttemptedSubmit,
+    isValid: !hasValidationErrors,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
+
   function renderSectionCard(section: {
     key: string;
     title: string;
@@ -249,7 +272,7 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
           description={section.description}
           fields={section.fields}
           values={formValues}
-          errors={validationErrors}
+          errors={visibleValidationErrors}
           configuredCount={section.configuredCount}
           fieldCount={section.fieldCount}
           errorCount={section.errorCount}
@@ -277,7 +300,7 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
             </Button>
             <Button
               onClick={saveForm}
-              disabled={!isDirty || saveMutation.isPending || hasValidationErrors}
+              disabled={!isDirty || saveMutation.isPending}
             >
               {saveMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -289,6 +312,7 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
           </>
         }
       />
+      <FormFeedbackMessage message={formFeedbackMessage} />
 
       {leftColumnSections && rightColumnSections ? (
         <div className="grid gap-6 xl:grid-cols-2">

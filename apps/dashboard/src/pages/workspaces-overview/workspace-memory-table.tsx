@@ -48,12 +48,14 @@ export function WorkspaceMemoryTable(props: {
   const queryClient = useQueryClient();
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<MemoryEditorDraft | null>(null);
+  const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
   const patchMutation = useMutation({
     mutationFn: (payload: { key: string; value: unknown }) => dashboardApi.patchWorkspaceMemory(props.workspaceId, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workspace', props.workspaceId] });
       setEditingKey(null);
       setEditDraft(null);
+      setHasAttemptedSave(false);
     },
   });
   const deleteMutation = useMutation({
@@ -63,7 +65,16 @@ export function WorkspaceMemoryTable(props: {
     },
   });
 
-  const editor = createEntryEditor({ editingKey, editDraft, setEditingKey, setEditDraft, patchMutation, deleteMutation });
+  const editor = createEntryEditor({
+    editingKey,
+    editDraft,
+    hasAttemptedSave,
+    setEditingKey,
+    setEditDraft,
+    setHasAttemptedSave,
+    patchMutation,
+    deleteMutation,
+  });
 
   return (
     <div className="space-y-3">
@@ -82,6 +93,7 @@ function MemoryEntryRow(props: {
   const draft = isEditing ? props.editor.editDraft : null;
   const parsedDraft = draft ? parseMemoryEditorDraft(draft) : null;
   const kind = draft?.kind ?? inferMemoryEditorKind(props.entry.value);
+  const shouldShowValidationError = isEditing && props.editor.hasAttemptedSave && Boolean(parsedDraft?.error);
 
   return (
     <div className="grid gap-3 rounded-md border border-border p-3">
@@ -120,7 +132,7 @@ function MemoryEntryRow(props: {
               label="Save memory entry"
               icon={<Check className="h-4 w-4" />}
               onClick={() => props.editor.save(props.entry.key)}
-              disabled={props.editor.isSaving || Boolean(parsedDraft?.error)}
+              disabled={props.editor.isSaving}
             />
           </div>
         ) : (
@@ -135,7 +147,12 @@ function MemoryEntryRow(props: {
         <span className="pt-2 text-xs font-medium text-muted sm:w-10 sm:shrink-0">Value</span>
         <div className="sm:min-w-0 sm:flex-1">
           {isEditing ? (
-            <MemoryEditorField draft={draft} showLabel={false} onChange={props.editor.setDraft} />
+            <MemoryEditorField
+              draft={draft}
+              showLabel={false}
+              hasError={shouldShowValidationError}
+              onChange={props.editor.setDraft}
+            />
           ) : (
             <MemoryValuePreview
               value={props.entry.value}
@@ -145,7 +162,7 @@ function MemoryEntryRow(props: {
           )}
         </div>
       </div>
-      {parsedDraft?.error ? <p className="text-sm text-red-600">{parsedDraft.error}</p> : null}
+      {shouldShowValidationError ? <p className="text-sm text-red-600">{parsedDraft?.error}</p> : null}
     </div>
   );
 }
@@ -196,24 +213,29 @@ function IconActionButton(props: {
 function createEntryEditor(input: {
   editingKey: string | null;
   editDraft: MemoryEditorDraft | null;
+  hasAttemptedSave: boolean;
   setEditingKey(value: string | null): void;
   setEditDraft(value: MemoryEditorDraft | null): void;
+  setHasAttemptedSave(value: boolean): void;
   patchMutation: { mutate(payload: { key: string; value: unknown }): void; isPending: boolean };
   deleteMutation: { mutate(key: string): void; isPending: boolean };
 }) {
   return {
     editDraft: input.editDraft,
+    hasAttemptedSave: input.hasAttemptedSave,
     isSaving: input.patchMutation.isPending,
     isDeleting: input.deleteMutation.isPending,
     isEditing: (key: string) => input.editingKey === key,
     start: (entry: MemoryEntry) => {
       input.setEditingKey(entry.key);
       input.setEditDraft(createMemoryEditorDraft(entry.value));
+      input.setHasAttemptedSave(false);
     },
     setDraft: (value: MemoryEditorDraft) => input.setEditDraft(value),
     cancel: () => {
       input.setEditingKey(null);
       input.setEditDraft(null);
+      input.setHasAttemptedSave(false);
     },
     save: (key: string) => {
       if (!input.editDraft) {
@@ -221,6 +243,7 @@ function createEntryEditor(input: {
       }
       const parsed = parseMemoryEditorDraft(input.editDraft);
       if (parsed.error) {
+        input.setHasAttemptedSave(true);
         return;
       }
       input.patchMutation.mutate({ key, value: parsed.value });

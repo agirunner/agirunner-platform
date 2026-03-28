@@ -45,6 +45,7 @@ export function RunIdentitySection(props: {
   workspaceId: string;
   workspaces: Array<{ id: string; name: string }>;
   launchValidation: LaunchValidationResult;
+  showValidationErrors: boolean;
   onPlaybookChange(id: string): void;
   onWorkflowNameChange(name: string): void;
   onWorkspaceChange(id: string): void;
@@ -81,7 +82,9 @@ export function RunIdentitySection(props: {
             ))}
           </SelectContent>
         </Select>
-        {props.launchValidation.fieldErrors.playbook && !props.isSelectedPlaybookArchived ? (
+        {props.showValidationErrors
+        && props.launchValidation.fieldErrors.playbook
+        && !props.isSelectedPlaybookArchived ? (
           <p className="text-xs text-red-600 dark:text-red-400">{props.launchValidation.fieldErrors.playbook}</p>
         ) : null}
       </label>
@@ -98,8 +101,11 @@ export function RunIdentitySection(props: {
           value={props.workflowName}
           onChange={(event) => props.onWorkflowNameChange(event.target.value)}
           placeholder="e.g. Customer onboarding board run"
+          aria-invalid={Boolean(
+            props.showValidationErrors && props.launchValidation.fieldErrors.workflowName,
+          )}
         />
-        {props.launchValidation.fieldErrors.workflowName ? (
+        {props.showValidationErrors && props.launchValidation.fieldErrors.workflowName ? (
           <p className="text-xs text-red-600 dark:text-red-400">
             {props.launchValidation.fieldErrors.workflowName}
           </p>

@@ -4,6 +4,12 @@ import { Loader2, Plus } from 'lucide-react';
 
 import { ChainStructuredEntryEditor } from '../../../components/chain-workflow/chain-workflow-parameters.js';
 import { Button } from '../../../components/ui/button.js';
+import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FieldErrorText,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../../components/forms/form-feedback.js';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../components/ui/dialog.js';
 import { Input } from '../../../components/ui/input.js';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select.js';
@@ -36,6 +42,7 @@ export function WorkflowAddWorkDialog(props: {
   const [files, setFiles] = useState<File[]>([]);
   const [structuredDrafts, setStructuredDrafts] = useState<StructuredEntryDraft[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
   const stageOptions = useMemo(() => {
     const ordered = props.board?.stage_summary.map((entry) => entry.name) ?? [];
@@ -71,6 +78,7 @@ export function WorkflowAddWorkDialog(props: {
       setFiles([]);
       setStructuredDrafts([]);
       setErrorMessage(null);
+      setHasAttemptedSubmit(false);
       return;
     }
 
@@ -84,7 +92,16 @@ export function WorkflowAddWorkDialog(props: {
     setFiles([]);
     setStructuredDrafts([]);
     setErrorMessage(null);
+    setHasAttemptedSubmit(false);
   }, [props.isOpen, selectedWorkItem]);
+
+  const titleError = hasAttemptedSubmit && !title.trim() ? 'Enter a work item title.' : undefined;
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: errorMessage,
+    showValidation: hasAttemptedSubmit,
+    isValid: Boolean(title.trim()),
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -152,7 +169,13 @@ export function WorkflowAddWorkDialog(props: {
         <div className="grid gap-4">
           <label className="grid gap-2 text-sm">
             <span className="font-medium">Title</span>
-            <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Validation rerun" />
+            <Input
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              placeholder="Validation rerun"
+              aria-invalid={Boolean(titleError)}
+            />
+            <FieldErrorText message={titleError} />
           </label>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -232,17 +255,23 @@ export function WorkflowAddWorkDialog(props: {
             description="Attach immutable workflow-scoped files for this work item."
           />
 
-          {errorMessage ? (
-            <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-              {errorMessage}
-            </div>
-          ) : null}
+          <FormFeedbackMessage message={formFeedbackMessage} />
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => props.onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="button" disabled={mutation.isPending || title.trim().length === 0} onClick={() => mutation.mutate()}>
+            <Button
+              type="button"
+              disabled={mutation.isPending}
+              onClick={() => {
+                if (!title.trim()) {
+                  setHasAttemptedSubmit(true);
+                  return;
+                }
+                mutation.mutate();
+              }}
+            >
               {mutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
               {titleLabel}
             </Button>

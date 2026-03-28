@@ -8,6 +8,11 @@ import { toast } from '../../lib/toast.js';
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { Button } from '../../components/ui/button.js';
 import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
+import {
   DEFAULT_LIST_PAGE_SIZE,
   paginateListItems,
 } from '../../components/list-pagination.js';
@@ -62,6 +67,7 @@ export function PlaybookListPage(): JSX.Element {
   );
   const [authoringValidationIssues, setAuthoringValidationIssues] = useState<string[]>([]);
   const [definitionError, setDefinitionError] = useState<string | null>(null);
+  const [hasAttemptedCreate, setHasAttemptedCreate] = useState(false);
 
   const playbooksQuery = useQuery({
     queryKey: ['playbooks'],
@@ -147,6 +153,7 @@ export function PlaybookListPage(): JSX.Element {
     setDraft(createDefaultAuthoringDraft(DEFAULT_LIFECYCLE));
     setAuthoringValidationIssues([]);
     setDefinitionError(null);
+    setHasAttemptedCreate(false);
   }
 
   function handleLifecycleChange(next: 'planned' | 'ongoing') {
@@ -156,10 +163,23 @@ export function PlaybookListPage(): JSX.Element {
     setDefinitionError(null);
   }
 
-  const canCreate =
-    createValidation.blockingIssues.length === 0 &&
-    authoringValidationIssues.length === 0 &&
-    !createMutation.isPending;
+  const canCreate = !createMutation.isPending;
+  const isCreateFormValid =
+    createValidation.blockingIssues.length === 0 && authoringValidationIssues.length === 0;
+  const createFormFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: definitionError,
+    showValidation: hasAttemptedCreate,
+    isValid: isCreateFormValid,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
+
+  function handleCreate(): void {
+    if (!isCreateFormValid) {
+      setHasAttemptedCreate(true);
+      return;
+    }
+    createMutation.mutate();
+  }
 
   function openCreateWorkspace() {
     resetForm();
@@ -196,7 +216,7 @@ export function PlaybookListPage(): JSX.Element {
               <Button variant="outline" onClick={closeCreateWorkspace}>
                 Cancel
               </Button>
-              <Button onClick={() => createMutation.mutate()} disabled={!canCreate}>
+              <Button onClick={handleCreate} disabled={!canCreate}>
                 Create Playbook
               </Button>
             </div>
@@ -223,7 +243,7 @@ export function PlaybookListPage(): JSX.Element {
                       setDefinitionError(null);
                     }}
                   />
-                  {createValidation.fieldErrors.name ? (
+                  {hasAttemptedCreate && createValidation.fieldErrors.name ? (
                     <p className="text-xs text-red-600 dark:text-red-400">{createValidation.fieldErrors.name}</p>
                   ) : null}
                 </label>
@@ -242,7 +262,7 @@ export function PlaybookListPage(): JSX.Element {
                       ? `Slug preview: ${createValidation.normalizedSlug} (${createValidation.slugSource === 'custom' ? 'custom' : 'derived from name'})`
                       : 'Slug will be generated from the name once it contains letters or numbers.'}
                   </p>
-                  {createValidation.fieldErrors.slug ? (
+                  {hasAttemptedCreate && createValidation.fieldErrors.slug ? (
                     <p className="text-xs text-red-600 dark:text-red-400">{createValidation.fieldErrors.slug}</p>
                   ) : null}
                 </label>
@@ -255,7 +275,7 @@ export function PlaybookListPage(): JSX.Element {
                       setDefinitionError(null);
                     }}
                   />
-                  {createValidation.fieldErrors.outcome ? (
+                  {hasAttemptedCreate && createValidation.fieldErrors.outcome ? (
                     <p className="text-xs text-red-600 dark:text-red-400">{createValidation.fieldErrors.outcome}</p>
                   ) : null}
                 </label>
@@ -280,6 +300,7 @@ export function PlaybookListPage(): JSX.Element {
 
               <PlaybookAuthoringForm
                 draft={draft}
+                showValidationErrors={hasAttemptedCreate}
                 onChange={setDraft}
                 onClearError={() => setDefinitionError(null)}
                 onValidationChange={(nextIssues) =>
@@ -288,25 +309,20 @@ export function PlaybookListPage(): JSX.Element {
                   )
                 }
               />
-
-              {definitionError ? <p className="text-sm text-red-600 dark:text-red-400">{definitionError}</p> : null}
             </CardContent>
           </Card>
         </div>
 
         <div className="sticky bottom-4 z-10">
           <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-surface/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-            <div className="space-y-1">
-              <div className="text-sm font-medium">Ready to create</div>
-              <p className="text-sm text-muted">
-                The action bar stays visible while you scroll through the workspace.
-              </p>
+            <div className="min-w-0 flex-1">
+              <FormFeedbackMessage message={createFormFeedbackMessage} />
             </div>
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" onClick={closeCreateWorkspace}>
                 Cancel
               </Button>
-              <Button onClick={() => createMutation.mutate()} disabled={!canCreate}>
+              <Button onClick={handleCreate} disabled={!canCreate}>
                 Create Playbook
               </Button>
             </div>

@@ -5,6 +5,11 @@ import { Save } from 'lucide-react';
 import { dashboardApi } from '../../lib/api.js';
 import { Button } from '../../components/ui/button.js';
 import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
+import {
   buildStructuredObject,
   objectToStructuredDrafts,
   type WorkspaceOverview,
@@ -21,6 +26,7 @@ export function WorkspaceKnowledgeTab(props: {
 }): JSX.Element {
   const queryClient = useQueryClient();
   const [memoryDrafts, setMemoryDrafts] = useState<StructuredEntryDraft[]>([]);
+  const [hasAttemptedSave, setHasAttemptedSave] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   const workspaceQuery = useQuery({
@@ -33,6 +39,7 @@ export function WorkspaceKnowledgeTab(props: {
       return;
     }
     setMemoryDrafts(toMemoryDrafts(workspaceQuery.data));
+    setHasAttemptedSave(false);
   }, [workspaceQuery.data]);
 
   const saveMutation = useMutation({
@@ -43,6 +50,7 @@ export function WorkspaceKnowledgeTab(props: {
     },
     onSuccess: async () => {
       setSaveMessage('Workspace memory saved.');
+      setHasAttemptedSave(false);
       await queryClient.invalidateQueries({ queryKey: ['workspace', props.workspaceId] });
     },
   });
@@ -50,6 +58,12 @@ export function WorkspaceKnowledgeTab(props: {
   const memoryValidationError = readStructuredValidationError(memoryDrafts, 'Workspace memory');
   const mutationError = readMutationError(saveMutation.error);
   const validationError = memoryValidationError;
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: mutationError,
+    showValidation: hasAttemptedSave,
+    isValid: !validationError,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
 
   if (workspaceQuery.isLoading) {
     return <LoadingCard />;
@@ -64,12 +78,19 @@ export function WorkspaceKnowledgeTab(props: {
       <WorkspaceKnowledgeShell
         overview={props.overview}
         headerNotice={saveMessage ? <p className="text-sm text-muted">{saveMessage}</p> : null}
+        headerFeedback={<FormFeedbackMessage message={formFeedbackMessage} />}
         memorySummary={buildMemoryDraftSummary(memoryDrafts.length)}
         headerAction={
           <Button
             size="sm"
-            disabled={saveMutation.isPending || Boolean(validationError)}
-            onClick={() => saveMutation.mutate()}
+            disabled={saveMutation.isPending}
+            onClick={() => {
+              if (validationError) {
+                setHasAttemptedSave(true);
+                return;
+              }
+              saveMutation.mutate();
+            }}
           >
             <Save className="h-4 w-4" />
             Save memory
@@ -81,7 +102,6 @@ export function WorkspaceKnowledgeTab(props: {
         memoryContent={
           <WorkspaceDetailMemoryTab
             memoryDrafts={memoryDrafts}
-            saveErrorMessage={memoryValidationError ?? mutationError}
             onMemoryDraftsChange={(drafts) => {
               setSaveMessage(null);
               saveMutation.reset();

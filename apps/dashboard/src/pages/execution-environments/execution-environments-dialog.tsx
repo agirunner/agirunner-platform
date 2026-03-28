@@ -9,6 +9,12 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog.js';
 import { Button } from '../../components/ui/button.js';
+import {
+  DEFAULT_FORM_VALIDATION_MESSAGE,
+  FieldErrorText,
+  FormFeedbackMessage,
+  resolveFormFeedbackMessage,
+} from '../../components/forms/form-feedback.js';
 import { Input } from '../../components/ui/input.js';
 import {
   Select,
@@ -54,6 +60,12 @@ export function ExecutionEnvironmentDialog(props: {
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
   const validationErrors = useMemo(() => validateForm(props.form), [props.form]);
   const isValid = Object.keys(validationErrors).length === 0;
+  const formFeedbackMessage = resolveFormFeedbackMessage({
+    serverError: props.mutationError ?? null,
+    showValidation: hasAttemptedSubmit,
+    isValid,
+    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+  });
 
   useEffect(() => {
     if (!props.open) {
@@ -86,9 +98,7 @@ export function ExecutionEnvironmentDialog(props: {
               onChange={(event) => props.onFormChange({ ...props.form, name: event.target.value })}
               aria-invalid={Boolean(hasAttemptedSubmit && validationErrors.name)}
             />
-            {hasAttemptedSubmit && validationErrors.name ? (
-              <span className="text-xs text-red-600 dark:text-red-400">{validationErrors.name}</span>
-            ) : null}
+            <FieldErrorText message={hasAttemptedSubmit ? validationErrors.name : undefined} />
           </label>
           <label className="grid gap-2 text-sm">
             <span className="font-medium">Description</span>
@@ -110,9 +120,7 @@ export function ExecutionEnvironmentDialog(props: {
               placeholder="ghcr.io/customer/dev:1.2.3"
               aria-invalid={Boolean(hasAttemptedSubmit && validationErrors.image)}
             />
-            {hasAttemptedSubmit && validationErrors.image ? (
-              <span className="text-xs text-red-600 dark:text-red-400">{validationErrors.image}</span>
-            ) : null}
+            <FieldErrorText message={hasAttemptedSubmit ? validationErrors.image : undefined} />
           </label>
           <div className="grid gap-4 md:grid-cols-3">
             <label className="grid gap-2 text-sm">
@@ -122,9 +130,7 @@ export function ExecutionEnvironmentDialog(props: {
                 onChange={(event) => props.onFormChange({ ...props.form, cpu: event.target.value })}
                 aria-invalid={Boolean(hasAttemptedSubmit && validationErrors.cpu)}
               />
-              {hasAttemptedSubmit && validationErrors.cpu ? (
-                <span className="text-xs text-red-600 dark:text-red-400">{validationErrors.cpu}</span>
-              ) : null}
+              <FieldErrorText message={hasAttemptedSubmit ? validationErrors.cpu : undefined} />
             </label>
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Memory</span>
@@ -135,9 +141,9 @@ export function ExecutionEnvironmentDialog(props: {
                 }
                 aria-invalid={Boolean(hasAttemptedSubmit && validationErrors.memory)}
               />
-              {hasAttemptedSubmit && validationErrors.memory ? (
-                <span className="text-xs text-red-600 dark:text-red-400">{validationErrors.memory}</span>
-              ) : null}
+              <FieldErrorText
+                message={hasAttemptedSubmit ? validationErrors.memory : undefined}
+              />
             </label>
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Pull policy</span>
@@ -174,9 +180,7 @@ export function ExecutionEnvironmentDialog(props: {
               placeholder="Document expected tooling, install posture, or caveats for operators."
             />
           </label>
-          {props.mutationError ? (
-            <p className="text-sm text-red-600 dark:text-red-400">{props.mutationError}</p>
-          ) : null}
+          <FormFeedbackMessage message={formFeedbackMessage} />
           <div className="flex items-center justify-end gap-2">
             <Button type="button" variant="outline" onClick={props.onClose}>
               Cancel
