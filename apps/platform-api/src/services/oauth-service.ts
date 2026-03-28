@@ -88,7 +88,7 @@ interface ProviderRow {
   tenant_id: string;
   auth_mode: string;
   oauth_config: OAuthConfig | null;
-  oauth_credentials: OAuthCredentials | null;
+  oauth_credentials: unknown;
 }
 
 interface StateRow {
@@ -280,8 +280,9 @@ export class OAuthService {
         throw new ValidationError('Provider is not configured for OAuth');
       }
 
-      const creds = provider.oauth_credentials;
-      if (!creds || creds.needs_reauth) {
+      let creds = normalizeOAuthCredentials(provider.oauth_credentials);
+      const config = provider.oauth_config;
+      if (!creds) {
         await client.query('COMMIT');
         committed = true;
         throw new ValidationError(
@@ -289,14 +290,26 @@ export class OAuthService {
         );
       }
 
-      const config = provider.oauth_config;
       if (!config) {
         await client.query('COMMIT');
         committed = true;
         throw new ValidationError('Provider missing OAuth configuration');
       }
 
-      if (config.token_lifetime === 'permanent' || !this.isTokenExpired(creds.expires_at)) {
+      if (creds.needs_reauth && this.isCredentialAccessTokenUsable(creds, config)) {
+        creds = { ...creds, needs_reauth: false };
+        await this.storeCredentials(client, providerId, creds);
+      }
+
+      if (creds.needs_reauth) {
+        await client.query('COMMIT');
+        committed = true;
+        throw new ValidationError(
+          'OAuth session expired. An admin must reconnect on the LLM Providers page.',
+        );
+      }
+
+      if (this.isCredentialAccessTokenUsable(creds, config)) {
         await client.query('COMMIT');
         committed = true;
         return this.buildResolvedToken(creds.access_token, config, creds.account_id);
@@ -373,7 +386,7 @@ export class OAuthService {
       throw new ValidationError('Provider is not configured for OAuth');
     }
 
-    const creds = provider.oauth_credentials;
+    const creds = normalizeOAuthCredentials(provider.oauth_credentials);
     if (!creds) {
       return {
         connected: false,
@@ -385,13 +398,15 @@ export class OAuthService {
       };
     }
 
+    const needsReauth = creds.needs_reauth && !this.isCredentialAccessTokenUsable(creds, provider.oauth_config);
+
     return {
-      connected: !creds.needs_reauth,
+      connected: !needsReauth,
       email: creds.email,
       authorizedAt: creds.authorized_at,
       expiresAt: creds.expires_at ? new Date(creds.expires_at).toISOString() : null,
       authorizedBy: creds.authorized_by_user_id,
-      needsReauth: creds.needs_reauth,
+      needsReauth,
     };
   }
 
@@ -523,6 +538,13 @@ export class OAuthService {
   private isTokenExpired(expiresAt: number | null): boolean {
     if (expiresAt === null) return false;
     return Date.now() >= expiresAt - EXPIRY_BUFFER_MS;
+  }
+
+  private isCredentialAccessTokenUsable(
+    creds: OAuthCredentials,
+    config: OAuthConfig | null,
+  ): boolean {
+    return config?.token_lifetime === 'permanent' || !this.isTokenExpired(creds.expires_at);
   }
 
   private async markNeedsReauth(
@@ -738,7 +760,12 @@ function normalizeImportedExpiry(value: number | string | null | undefined): num
     return null;
   }
   if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : null;
+    return normalizeEpochTimestamp(value);
+  }
+
+  const numericValue = Number(value);
+  if (Number.isFinite(numericValue) && value.trim() !== '') {
+    return normalizeEpochTimestamp(numericValue);
   }
 
   const parsed = Date.parse(value);
@@ -746,6 +773,96 @@ function normalizeImportedExpiry(value: number | string | null | undefined): num
     throw new ValidationError('OAuth import expiresAt must be a unix timestamp or ISO date string');
   }
   return parsed;
+}
+
+function normalizeOAuthCredentials(value: unknown): OAuthCredentials | null {
+  const record = asRecord(value);
+  if (!record) {
+    return null;
+  }
+
+  const accessToken = readString(record, 'access_token', 'accessToken');
+  const authorizedAt = readString(record, 'authorized_at', 'authorizedAt');
+  const authorizedByUserId = readString(record, 'authorized_by_user_id', 'authorizedByUserId');
+  if (!accessToken || !authorizedAt || !authorizedByUserId) {
+    return null;
+  }
+
+  return {
+    access_token: normalizeStoredProviderSecret(accessToken),
+    refresh_token: normalizeOptionalSecret(record, 'refresh_token', 'refreshToken'),
+    expires_at: normalizeStoredExpiry(record, 'expires_at', 'expiresAt'),
+    account_id: readNullableString(record, 'account_id', 'accountId'),
+    email: readNullableString(record, 'email'),
+    authorized_at: authorizedAt,
+    authorized_by_user_id: authorizedByUserId,
+    needs_reauth: readBoolean(record, 'needs_reauth', 'needsReauth'),
+  };
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
+}
+
+function readString(record: Record<string, unknown>, ...keys: string[]): string | null {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'string' && value.trim() !== '') {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+function readNullableString(record: Record<string, unknown>, ...keys: string[]): string | null {
+  return readString(record, ...keys);
+}
+
+function normalizeOptionalSecret(record: Record<string, unknown>, ...keys: string[]): string | null {
+  const value = readString(record, ...keys);
+  return value ? normalizeStoredProviderSecret(value) : null;
+}
+
+function normalizeStoredExpiry(record: Record<string, unknown>, ...keys: string[]): number | null {
+  for (const key of keys) {
+    const value = record[key];
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return normalizeEpochTimestamp(value);
+    }
+    if (typeof value === 'string' && value.trim() !== '') {
+      const numericValue = Number(value);
+      if (Number.isFinite(numericValue)) {
+        return normalizeEpochTimestamp(numericValue);
+      }
+      const parsed = Date.parse(value);
+      if (!Number.isNaN(parsed)) {
+        return parsed;
+      }
+    }
+  }
+  return null;
+}
+
+function readBoolean(record: Record<string, unknown>, ...keys: string[]): boolean {
+  for (const key of keys) {
+    if (record[key] === true) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function normalizeEpochTimestamp(value: number): number | null {
+  if (!Number.isFinite(value)) {
+    return null;
+  }
+  if (Math.abs(value) < 1_000_000_000_000) {
+    return Math.trunc(value * 1000);
+  }
+  return Math.trunc(value);
 }
 
 function buildOAuthTokenExchangeErrorMessage(status: number, rawDetail: string): string {
