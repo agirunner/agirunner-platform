@@ -4,10 +4,10 @@ import type {
   DashboardWorkflowDeliverablesPacket,
   DashboardWorkflowInputPacketFileRecord,
   DashboardWorkflowInputPacketRecord,
-  DashboardWorkflowDeliverableTarget,
   DashboardWorkflowInterventionRecord,
   DashboardWorkflowOperatorBriefRecord,
 } from '../../../lib/api.js';
+import { WorkflowDeliverableTargetLink } from './workflow-deliverable-target-link.js';
 import { WorkflowBriefRenderer } from './workflow-brief-renderer.js';
 
 export function WorkflowDeliverables(props: {
@@ -162,36 +162,18 @@ function DeliverableCard(props: {
         </pre>
       ) : null}
       <div className="grid gap-2">
-        <DeliverableTargetLink target={props.deliverable.primary_target} primary />
+        <WorkflowDeliverableTargetLink
+          target={props.deliverable.primary_target}
+          primary
+        />
         {props.deliverable.secondary_targets.map((target, index) => (
-          <DeliverableTargetLink
+          <WorkflowDeliverableTargetLink
             key={`${props.deliverable.descriptor_id}:secondary:${index}`}
             target={target}
           />
         ))}
       </div>
     </article>
-  );
-}
-
-function DeliverableTargetLink(props: {
-  target: DashboardWorkflowDeliverableTarget;
-  primary?: boolean;
-}): JSX.Element {
-  return (
-    <div className="grid gap-1">
-      <a
-        className="text-sm font-medium text-accent underline-offset-4 hover:underline"
-        href={props.target.url}
-        target="_blank"
-        rel="noreferrer"
-      >
-        {props.primary ? props.target.label : `${props.target.label} (${humanizeToken(props.target.target_kind)})`}
-      </a>
-      {props.target.path || props.target.repo_ref ? (
-        <p className="text-xs text-muted-foreground">{props.target.path ?? props.target.repo_ref}</p>
-      ) : null}
-    </div>
   );
 }
 
@@ -351,7 +333,7 @@ function readText(value: unknown): string | null {
 }
 
 function humanizeToken(value: string): string {
-  return value.replaceAll('_', ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function readStructuredPreview(value: unknown): string | null {
