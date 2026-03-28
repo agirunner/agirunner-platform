@@ -109,7 +109,7 @@ describe('WorkflowBoard', () => {
       ),
     );
 
-    expect(html).toContain('No active work in this lane.');
+    expect(html).toContain('No active work items in this lane.');
     expect(html).not.toContain('flex min-h-[8rem] items-center justify-center text-center');
   });
 
@@ -182,6 +182,7 @@ describe('WorkflowBoard', () => {
 
     expect(html).toContain('Review incoming packet');
     expect(html).toContain('1 active • 0 completed');
+    expect(html).toContain('Workflow paused');
     expect(html).toContain('>Paused<');
   });
 });

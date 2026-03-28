@@ -194,6 +194,158 @@ describe('WorkflowStateStrip', () => {
     expect(hiddenHtml).not.toContain('Add / Modify Work');
     expect(visibleHtml).toContain('Add / Modify Work');
   });
+
+  it('keeps workflow-only controls hidden while a narrower scope is selected', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            availableActions: [
+              {
+                kind: 'pause_workflow',
+                scope: 'workflow',
+                enabled: true,
+                confirmationLevel: 'immediate',
+                stale: false,
+                disabledReason: null,
+              },
+              {
+                kind: 'cancel_workflow',
+                scope: 'workflow',
+                enabled: true,
+                confirmationLevel: 'high_impact_confirm',
+                stale: false,
+                disabledReason: null,
+              },
+              {
+                kind: 'redrive_workflow',
+                scope: 'workflow',
+                enabled: true,
+                confirmationLevel: 'high_impact_confirm',
+                stale: false,
+                disabledReason: null,
+              },
+              {
+                kind: 'add_work_item',
+                scope: 'workflow',
+                enabled: true,
+                confirmationLevel: 'standard_confirm',
+                stale: false,
+                disabledReason: null,
+              },
+            ],
+          }),
+          stickyStrip: createStickyStrip(),
+          workflowSettings: null,
+          board: createBoard(),
+          selectedScopeLabel: 'Review incoming packet',
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onVisibilityModeChange: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).not.toContain('Pause');
+    expect(html).not.toContain('Resume');
+    expect(html).not.toContain('Cancel');
+    expect(html).not.toContain('Redrive');
+    expect(html).not.toContain('Add / Modify Work');
+    expect(html).toContain('Workflow controls stay at workflow scope while viewing Review incoming packet.');
+  });
+
+  it('shows an explicit paused badge and only the legal lifecycle controls for paused workflows', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            state: 'paused',
+            posture: 'paused',
+            availableActions: [
+              {
+                kind: 'pause_workflow',
+                scope: 'workflow',
+                enabled: false,
+                confirmationLevel: 'immediate',
+                stale: false,
+                disabledReason: 'Action is not available in the current workflow state.',
+              },
+              {
+                kind: 'resume_workflow',
+                scope: 'workflow',
+                enabled: true,
+                confirmationLevel: 'immediate',
+                stale: false,
+                disabledReason: null,
+              },
+              {
+                kind: 'cancel_workflow',
+                scope: 'workflow',
+                enabled: true,
+                confirmationLevel: 'high_impact_confirm',
+                stale: false,
+                disabledReason: null,
+              },
+            ],
+          }),
+          stickyStrip: createStickyStrip({
+            posture: 'paused',
+          }),
+          workflowSettings: null,
+          board: createBoard(),
+          selectedScopeLabel: null,
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onVisibilityModeChange: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Workflow paused');
+    expect(html).toContain('Resume');
+    expect(html).toContain('Cancel');
+    expect(html).not.toContain('>Pause<');
+  });
+
+  it('describes pre-dispatch activity as workflow orchestration instead of hidden board work', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            metrics: {
+              ...createWorkflowCard().metrics,
+              activeTaskCount: 1,
+              activeWorkItemCount: 0,
+            },
+          }),
+          stickyStrip: createStickyStrip({
+            active_task_count: 1,
+            active_work_item_count: 0,
+          }),
+          workflowSettings: null,
+          board: createBoard({
+            work_items: [],
+          }),
+          selectedScopeLabel: null,
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onVisibilityModeChange: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Orchestrating workflow setup');
+    expect(html).not.toContain('Routing new work');
+  });
 });
 
 function createWorkflowCard(
@@ -255,7 +407,9 @@ function createStickyStrip(
   };
 }
 
-function createBoard(): DashboardWorkflowBoardResponse {
+function createBoard(
+  overrides: Partial<DashboardWorkflowBoardResponse> = {},
+): DashboardWorkflowBoardResponse {
   return {
     columns: [
       { id: 'active', label: 'Active' },
@@ -292,5 +446,6 @@ function createBoard(): DashboardWorkflowBoardResponse {
     active_stages: ['approval-gate'],
     awaiting_gate_count: 1,
     stage_summary: [],
+    ...overrides,
   };
 }

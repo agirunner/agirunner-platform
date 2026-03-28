@@ -26,6 +26,7 @@ export function WorkflowStateStrip(props: {
   const visibilityValue = props.workflowSettings?.workflow_live_visibility_mode_override ?? '__inherit__';
   const workload = summarizeWorkload(props.board, props.workflow);
   const metaLine = `Updated ${formatRelativeTimestamp(props.workflow.metrics.lastChangedAt)}`;
+  const isWorkflowScope = props.selectedScopeLabel === null;
   const canOpenRedrive = props.workflow.availableActions.some(
     (action) => action.kind === 'redrive_workflow' && action.enabled,
   );
@@ -33,6 +34,7 @@ export function WorkflowStateStrip(props: {
     (action) => action.kind === 'add_work_item' && action.enabled,
   );
   const postureLabel = humanizePosture(sticky?.posture ?? props.workflow.posture);
+  const isPausedWorkflow = props.workflow.state === 'paused' || sticky?.posture === 'paused';
   const isOngoingWorkflow = props.workflow.lifecycle === 'ongoing';
   const needsActionCount =
     (sticky?.approvals_count ?? 0) + (sticky?.escalations_count ?? 0) + (sticky?.blocked_work_item_count ?? 0);
@@ -44,30 +46,40 @@ export function WorkflowStateStrip(props: {
         <div className="space-y-0.5">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold text-foreground">{props.workflow.name}</h2>
-            <Badge variant="secondary">{postureLabel}</Badge>
+            <Badge variant={isPausedWorkflow ? 'warning' : 'secondary'}>
+              {isPausedWorkflow ? 'Workflow paused' : postureLabel}
+            </Badge>
             {isOngoingWorkflow ? <Badge variant="outline">Ongoing</Badge> : null}
           </div>
           {metaLine ? <p className="text-[11px] text-muted-foreground">{metaLine}</p> : null}
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          <WorkflowControlActions
-            workflowId={props.workflow.id}
-            workflowState={props.workflow.state}
-            workspaceId={props.workflow.workspaceId}
-            additionalQueryKeys={[['workflows']]}
-            availableActions={props.workflow.availableActions}
-          />
-          {canOpenRedrive ? (
-            <Button size="sm" variant="outline" onClick={props.onOpenRedrive}>
-              Redrive
-            </Button>
-          ) : null}
-          {canAddWork ? (
-            <Button size="sm" onClick={props.onAddWork}>
-              Add / Modify Work
-            </Button>
-          ) : null}
+          {isWorkflowScope ? (
+            <>
+              <WorkflowControlActions
+                workflowId={props.workflow.id}
+                workflowState={props.workflow.state}
+                workspaceId={props.workflow.workspaceId}
+                additionalQueryKeys={[['workflows']]}
+                availableActions={props.workflow.availableActions}
+              />
+              {canOpenRedrive ? (
+                <Button size="sm" variant="outline" onClick={props.onOpenRedrive}>
+                  Redrive
+                </Button>
+              ) : null}
+              {canAddWork ? (
+                <Button size="sm" onClick={props.onAddWork}>
+                  Add / Modify Work
+                </Button>
+              ) : null}
+            </>
+          ) : (
+            <p className="rounded-xl border border-border/70 bg-muted/10 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+              Workflow controls stay at workflow scope while viewing {props.selectedScopeLabel}.
+            </p>
+          )}
           <label className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/10 px-2.5 py-1.5 text-[11px] text-muted-foreground">
             <span className="font-medium text-foreground">Live visibility</span>
             <select
@@ -166,7 +178,7 @@ function formatWorkloadDetail(input: {
   posture: string | null;
 }): string | null {
   if (input.activeWorkItemCount === 0 && input.activeSpecialistTaskCount > 0) {
-    return 'Routing new work';
+    return 'Orchestrating workflow setup';
   }
   if (
     input.activeSpecialistTaskCount === 0

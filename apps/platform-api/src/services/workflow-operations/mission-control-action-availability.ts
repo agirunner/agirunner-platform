@@ -40,7 +40,7 @@ export function deriveWorkflowActionAvailability(
     ),
     buildWorkflowAction(
       'resume_workflow',
-      canResume(input.workflowState, input.posture, hasCancelRequest),
+      canResume(input.workflowState, hasCancelRequest),
       'immediate',
       stale,
     ),
@@ -114,12 +114,8 @@ function canPause(
   );
 }
 
-function canResume(
-  workflowState: string,
-  posture: MissionControlWorkflowPosture,
-  hasCancelRequest: boolean,
-): boolean {
-  return workflowState === 'paused' && posture === 'paused' && !hasCancelRequest;
+function canResume(workflowState: string, hasCancelRequest: boolean): boolean {
+  return workflowState === 'paused' && !hasCancelRequest;
 }
 
 function canCancel(workflowState: string, hasCancelRequest: boolean): boolean {

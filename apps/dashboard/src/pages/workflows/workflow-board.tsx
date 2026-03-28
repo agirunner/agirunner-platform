@@ -103,6 +103,7 @@ export function WorkflowBoard(props: {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-base font-semibold text-foreground">Workflow board</p>
+          {props.workflowState === 'paused' ? <Badge variant="warning">Workflow paused</Badge> : null}
           <ModeButton
             isActive={props.boardLens === 'work_items'}
             label="Work items"
@@ -236,7 +237,7 @@ function BoardLaneCard(props: {
         {props.boardLens === 'tasks'
           ? renderTaskLaneCards(activeTaskCards, props.selectedTaskId, props.onSelectTask)
           : props.lane.activeItems.length === 0 ? (
-          <p className="px-1 py-1 text-sm text-muted-foreground">No active work in this lane.</p>
+          <p className="px-1 py-1 text-sm text-muted-foreground">No active work items in this lane.</p>
         ) : (
           props.lane.activeItems.map((workItem) => (
             <BoardWorkItemCard

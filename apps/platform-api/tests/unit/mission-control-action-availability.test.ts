@@ -121,6 +121,22 @@ describe('mission control action availability', () => {
     );
   });
 
+  it('keeps resume legal for paused workflows even if posture metadata is lagging', () => {
+    const actions = deriveWorkflowActionAvailability({
+      workflowState: 'paused',
+      posture: 'progressing',
+    });
+
+    expect(actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ kind: 'pause_workflow', enabled: false }),
+        expect.objectContaining({ kind: 'resume_workflow', enabled: true }),
+        expect.objectContaining({ kind: 'cancel_workflow', enabled: true }),
+        expect.objectContaining({ kind: 'add_work_item', enabled: false }),
+      ]),
+    );
+  });
+
   it('disables all actions when the read model is stale', () => {
     const actions = deriveWorkflowActionAvailability({
       workflowState: 'active',
