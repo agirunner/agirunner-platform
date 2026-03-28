@@ -86,7 +86,8 @@ export class WorkflowLiveConsoleService {
       this.listExecutionTurns(tenantId, workflowId, fetchWindow, input),
     ]);
 
-    const items = [...executionTurns, ...updates.map(toUpdateItem), ...briefs.map(toBriefItem)].sort(
+    const visibleExecutionTurns = updates.length > 0 ? [] : executionTurns;
+    const items = [...visibleExecutionTurns, ...updates.map(toUpdateItem), ...briefs.map(toBriefItem)].sort(
       sortNewestFirst,
     );
     const page = paginateOrderedItems(items, limit, input.after, (item) => ({

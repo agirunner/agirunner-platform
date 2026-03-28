@@ -49,34 +49,30 @@ export function buildLifecycleHistoryItems(rows: LogRow[]): WorkflowHistoryItem[
 
 function buildExecutionTurnHeadline(row: LogRow): string {
   const payload = asRecord(row.payload);
+  const subject = readExecutionSubject(row);
   switch (row.operation) {
     case 'agent.think':
       return (
         truncate(readString(payload.reasoning_summary) ?? readString(payload.approach), 180)
-        ?? 'Thinking through the next step'
+        ?? buildSubjectHeadline('Thinking through the next step for', subject, 'Thinking through the next step')
       );
     case 'agent.plan':
       return (
         truncate(readString(payload.summary) ?? readFirstPlanDescription(payload.steps), 180)
-        ?? 'Planned the next execution steps'
+        ?? buildSubjectHeadline('Planning the next step for', subject, 'Planning the next step')
       );
-    case 'agent.act': {
-      const tool = readString(payload.tool);
-      if (tool) {
-        return `Ran ${humanizeToken(tool)}`;
-      }
+    case 'agent.act':
       return truncate(readString(payload.output_preview) ?? readString(payload.output), 180)
-        ?? 'Executed task action';
-    }
+        ?? buildSubjectHeadline('Working through', subject, 'Working through the next execution step');
     case 'agent.observe':
       return (
         truncate(readString(payload.summary) ?? readString(payload.text) ?? readString(payload.text_preview), 180)
-        ?? 'Observed execution results'
+        ?? buildSubjectHeadline('Checking results for', subject, 'Checking execution results')
       );
     case 'agent.verify':
       return (
         truncate(readString(payload.details) ?? buildVerifyHeadline(payload), 180)
-        ?? 'Verified current progress'
+        ?? buildSubjectHeadline('Checking', subject, 'Checking current progress')
       );
     default:
       return humanizeToken(row.operation);
@@ -94,26 +90,10 @@ function buildExecutionTurnSummary(row: LogRow): string {
         ?? readString(payload.approach),
       220,
     );
-  const phase = readString(payload.phase);
-  const iteration = readPositiveInteger(payload.iteration);
-  const llmTurnCount = readPositiveInteger(payload.llm_turn_count);
-  const toolStepsInBurst = readPositiveInteger(payload.tool_steps_in_burst);
-  const meta = [
-    phase ? `phase ${phase}` : null,
-    iteration !== null ? `iteration ${iteration}` : null,
-    llmTurnCount !== null ? `turn ${llmTurnCount}` : null,
-    toolStepsInBurst !== null ? `${toolStepsInBurst} tool steps` : null,
-  ].filter((value): value is string => value !== null);
-  if (!detail && meta.length === 0) {
+  if (!detail) {
     return humanizeToken(row.operation);
   }
-  if (!detail) {
-    return meta.join(' · ');
-  }
-  if (meta.length === 0) {
-    return detail;
-  }
-  return `${meta.join(' · ')} · ${detail}`;
+  return detail;
 }
 
 function buildLifecycleHeadline(row: LogRow): string {
@@ -174,6 +154,21 @@ function buildVerifyHeadline(payload: Record<string, unknown>): string | null {
     return `Verification ${humanizeToken(decision)}`;
   }
   return null;
+}
+
+function readExecutionSubject(row: LogRow): string | null {
+  return (
+    readString(row.task_title)
+    ?? readString(row.resource_name)
+    ?? readString(row.workflow_name)
+  );
+}
+
+function buildSubjectHeadline(prefix: string, subject: string | null, fallback: string): string {
+  if (!subject) {
+    return fallback;
+  }
+  return `${prefix} ${subject}`;
 }
 
 function readFirstPlanDescription(value: unknown): string | null {
@@ -239,13 +234,6 @@ function readString(value: unknown): string | null {
 function readHumanizedString(value: unknown): string | null {
   const parsed = readString(value);
   return parsed ? humanizeToken(parsed) : null;
-}
-
-function readPositiveInteger(value: unknown): number | null {
-  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
-    return null;
-  }
-  return value;
 }
 
 function truncate(value: string | null, maxLength: number): string | null {
