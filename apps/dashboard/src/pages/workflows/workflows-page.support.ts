@@ -1,3 +1,5 @@
+import type { DashboardWorkflowWorkspacePacket } from '../../lib/api.js';
+
 export type WorkflowPageMode = 'live' | 'recent';
 export type WorkflowBoardLens = 'work_items' | 'tasks';
 export type WorkflowWorkbenchTab =
@@ -9,6 +11,13 @@ export type WorkflowWorkbenchTab =
   | 'deliverables';
 export type WorkflowBoardMode = 'active' | 'active_recent_complete' | 'all';
 export type WorkflowTabScope = 'workflow' | 'selected_work_item' | 'selected_task';
+
+export interface RequestedWorkspaceScope {
+  workflowId: string | null;
+  scopeKind: WorkflowTabScope;
+  workItemId: string | null;
+  taskId: string | null;
+}
 
 export interface WorkflowsPageState {
   mode: WorkflowPageMode;
@@ -148,13 +157,17 @@ export function resolveSelectedWorkflowId(input: {
   return input.selectedWorkflowId ?? input.rows[0]?.workflow_id ?? null;
 }
 
-export function resolveWorkspacePlaceholderData<
-  T extends { workflow?: { id?: string | null } | null },
->(previous: T | undefined, nextWorkflowId: string | null): T | undefined {
-  if (!previous || !nextWorkflowId) {
+export function resolveWorkspacePlaceholderData(
+  previous: DashboardWorkflowWorkspacePacket | undefined,
+  request: RequestedWorkspaceScope,
+): DashboardWorkflowWorkspacePacket | undefined {
+  if (!previous || !request.workflowId || previous.workflow?.id !== request.workflowId) {
     return undefined;
   }
-  return previous.workflow?.id === nextWorkflowId ? previous : undefined;
+  if (workspacePacketMatchesScope(previous, request)) {
+    return previous;
+  }
+  return buildScopedWorkspacePlaceholder(previous, request);
 }
 
 export function buildWorkflowDiagnosticsHref(input: {
@@ -216,6 +229,103 @@ function readBooleanFlag(value: string | null): boolean {
 function readOptionalValue(value: string | null): string | null {
   const trimmed = value?.trim() ?? '';
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function workspacePacketMatchesScope(
+  packet: DashboardWorkflowWorkspacePacket,
+  request: RequestedWorkspaceScope,
+): boolean {
+  return (
+    packet.selected_scope.scope_kind === request.scopeKind &&
+    packet.selected_scope.work_item_id === request.workItemId &&
+    packet.selected_scope.task_id === request.taskId &&
+    packet.bottom_tabs.current_scope_kind === request.scopeKind &&
+    packet.bottom_tabs.current_work_item_id === request.workItemId &&
+    packet.bottom_tabs.current_task_id === request.taskId
+  );
+}
+
+function buildScopedWorkspacePlaceholder(
+  previous: DashboardWorkflowWorkspacePacket,
+  request: RequestedWorkspaceScope,
+): DashboardWorkflowWorkspacePacket {
+  return {
+    ...previous,
+    selected_scope: {
+      scope_kind: request.scopeKind,
+      work_item_id: request.workItemId,
+      task_id: request.taskId,
+    },
+    bottom_tabs: {
+      ...previous.bottom_tabs,
+      current_scope_kind: request.scopeKind,
+      current_work_item_id: request.workItemId,
+      current_task_id: request.taskId,
+      counts: buildEmptyBottomTabCounts(),
+    },
+    steering: {
+      ...previous.steering,
+      recent_interventions: [],
+      session: {
+        session_id: null,
+        status: 'idle',
+        messages: [],
+      },
+      steering_state: {
+        ...previous.steering.steering_state,
+        mode: resolveSteeringScopeMode(request),
+        active_session_id: null,
+        last_summary: null,
+      },
+    },
+    live_console: {
+      ...previous.live_console,
+      next_cursor: null,
+      items: [],
+    },
+    history: {
+      ...previous.history,
+      groups: [],
+      items: [],
+      next_cursor: null,
+    },
+    deliverables: {
+      ...previous.deliverables,
+      final_deliverables: [],
+      in_progress_deliverables: [],
+      working_handoffs: [],
+      inputs_and_provenance: {
+        launch_packet: null,
+        supplemental_packets: [],
+        intervention_attachments: [],
+        redrive_packet: null,
+      },
+      next_cursor: null,
+    },
+  };
+}
+
+function buildEmptyBottomTabCounts() {
+  return {
+    details: 0,
+    needs_action: 0,
+    steering: 0,
+    live_console_activity: 0,
+    history: 0,
+    deliverables: 0,
+  };
+}
+
+function resolveSteeringScopeMode(
+  request: RequestedWorkspaceScope,
+): DashboardWorkflowWorkspacePacket['steering']['steering_state']['mode'] {
+  if (request.taskId) {
+    return 'selected_task';
+  }
+  if (request.workItemId) {
+    return 'selected_work_item';
+  }
+  return 'workflow_scoped';
 }
 
 function hasWorkflowRow(

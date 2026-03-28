@@ -115,6 +115,12 @@ export function WorkflowsPage(): JSX.Element {
     ? pageState.workItemId
     : null;
   const scopedTaskId = tabScope === 'selected_task' ? pageState.taskId : null;
+  const requestedWorkspaceScope = {
+    workflowId: pageState.workflowId,
+    scopeKind: tabScope,
+    workItemId: scopedWorkItemId,
+    taskId: scopedTaskId,
+  };
 
   const railQuery = useQuery({
     queryKey: [...buildWorkflowRailQueryKey(pageState), railLimit],
@@ -152,7 +158,7 @@ export function WorkflowsPage(): JSX.Element {
       }),
     enabled: Boolean(pageState.workflowId),
     placeholderData: (previous) =>
-      resolveWorkspacePlaceholderData(previous, pageState.workflowId),
+      resolveWorkspacePlaceholderData(previous, requestedWorkspaceScope),
   });
   const inputPacketsQuery = useQuery({
     queryKey: ['workflows', 'input-packets', pageState.workflowId],
@@ -203,20 +209,25 @@ export function WorkflowsPage(): JSX.Element {
   });
 
   useEffect(() => {
-    if (workspaceQuery.data?.workflow?.id === pageState.workflowId) {
-      lastWorkspacePacketRef.current = workspaceQuery.data;
-      return;
-    }
     if (!pageState.workflowId) {
       lastWorkspacePacketRef.current = null;
+      return;
     }
-  }, [pageState.workflowId, workspaceQuery.data]);
+    if (workspaceQuery.isPlaceholderData) {
+      return;
+    }
+    if (workspaceQuery.data?.workflow?.id === pageState.workflowId) {
+      lastWorkspacePacketRef.current = workspaceQuery.data;
+    }
+  }, [pageState.workflowId, workspaceQuery.data, workspaceQuery.isPlaceholderData]);
 
   const railPacket = railQuery.data ?? null;
   const workspacePacket = workspaceQuery.data
-    ?? (lastWorkspacePacketRef.current?.workflow?.id === pageState.workflowId
-      ? lastWorkspacePacketRef.current
-      : null);
+    ?? resolveWorkspacePlaceholderData(
+      lastWorkspacePacketRef.current ?? undefined,
+      requestedWorkspaceScope,
+    )
+    ?? null;
   const workflow = workspacePacket?.workflow ?? null;
   const board = workspacePacket?.board ?? null;
   const selectedWorkflowRow = useMemo(

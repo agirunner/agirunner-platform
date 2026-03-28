@@ -56,8 +56,11 @@ describe('workflows page source', () => {
   it('keeps the previous workspace shell mounted while scoped work-item selections refetch', () => {
     const source = readSource();
     expect(source).toContain('lastWorkspacePacketRef');
+    expect(source).toContain('const requestedWorkspaceScope = {');
     expect(source).toContain('const workspacePacket = workspaceQuery.data');
-    expect(source).toContain('resolveWorkspacePlaceholderData');
+    expect(source).toContain('resolveWorkspacePlaceholderData(previous, requestedWorkspaceScope)');
+    expect(source).toContain('lastWorkspacePacketRef.current ?? undefined');
+    expect(source).toContain('requestedWorkspaceScope');
     expect(source).not.toContain('workflow && workspaceQuery.data ? (');
     expect(source).not.toContain('placeholderData: (previous) => previous');
   });
