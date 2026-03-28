@@ -16,6 +16,7 @@ export function WorkflowBottomWorkbench(props: {
   packet: DashboardWorkflowWorkspacePacket;
   activeTab: WorkflowWorkbenchTab;
   selectedWorkItemId: string | null;
+  scopedWorkItemId: string | null;
   selectedWorkItemTitle: string | null;
   onTabChange(tab: WorkflowWorkbenchTab): void;
   onClearWorkItemScope(): void;
@@ -32,15 +33,19 @@ export function WorkflowBottomWorkbench(props: {
         <div className="grid gap-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm font-semibold text-foreground">Workflow Workbench</p>
-            {props.selectedWorkItemId ? (
+            {props.scopedWorkItemId ? (
               <>
                 <Badge variant="secondary">
-                  Work item: {props.selectedWorkItemTitle ?? props.selectedWorkItemId}
+                  Work item: {props.selectedWorkItemTitle ?? props.scopedWorkItemId}
                 </Badge>
                 <Button type="button" size="sm" variant="outline" onClick={props.onClearWorkItemScope}>
                   Back to workflow
                 </Button>
               </>
+            ) : props.selectedWorkItemId ? (
+              <Badge variant="outline">
+                Board selection: {props.selectedWorkItemTitle ?? props.selectedWorkItemId}
+              </Badge>
             ) : (
               <Badge variant="outline">Workflow scope</Badge>
             )}
@@ -88,7 +93,6 @@ export function WorkflowBottomWorkbench(props: {
         {props.activeTab === 'needs_action' ? (
           <WorkflowNeedsAction
             packet={props.packet.needs_action}
-            selectedWorkItemId={props.selectedWorkItemId}
             onOpenAddWork={props.onOpenAddWork}
             onOpenRedrive={props.onOpenRedrive}
             onOpenSteering={() => props.onTabChange('steering')}
@@ -100,7 +104,7 @@ export function WorkflowBottomWorkbench(props: {
             workflowName={props.workflowName}
             workflowState={props.workflowState}
             workspaceId={props.workspaceId}
-            selectedWorkItemId={props.selectedWorkItemId}
+            selectedWorkItemId={props.scopedWorkItemId}
             quickActions={props.packet.steering_panel.quick_actions}
             decisionActions={props.packet.steering_panel.decision_actions}
             interventions={props.packet.steering_panel.recent_interventions}
@@ -114,7 +118,7 @@ export function WorkflowBottomWorkbench(props: {
         {props.activeTab === 'live_console' ? (
           <WorkflowLiveConsole
             packet={props.packet.live_console}
-            selectedWorkItemId={props.selectedWorkItemId}
+            selectedWorkItemId={props.scopedWorkItemId}
             onLoadMore={props.onLoadMoreActivity}
           />
         ) : null}
@@ -122,6 +126,7 @@ export function WorkflowBottomWorkbench(props: {
           <WorkflowHistory
             workflowId={props.workflowId}
             packet={props.packet.history_timeline}
+            selectedWorkItemId={props.scopedWorkItemId}
             onLoadMore={props.onLoadMoreActivity}
           />
         ) : null}

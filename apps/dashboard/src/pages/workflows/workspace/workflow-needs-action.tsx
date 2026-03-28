@@ -4,7 +4,6 @@ import type { DashboardWorkflowNeedsActionPacket } from '../../../lib/api.js';
 
 export function WorkflowNeedsAction(props: {
   packet: DashboardWorkflowNeedsActionPacket;
-  selectedWorkItemId: string | null;
   onOpenAddWork(): void;
   onOpenRedrive(): void;
   onOpenSteering(): void;
@@ -18,9 +17,6 @@ export function WorkflowNeedsAction(props: {
             Prioritized workflow actions that currently require an operator response.
           </p>
         </div>
-        {props.selectedWorkItemId ? (
-          <Badge variant="outline">Scoped to selected work item</Badge>
-        ) : null}
       </div>
 
       {props.packet.items.length === 0 ? (

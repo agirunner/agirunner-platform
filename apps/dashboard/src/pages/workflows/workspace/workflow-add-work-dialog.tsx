@@ -23,6 +23,7 @@ export function WorkflowAddWorkDialog(props: {
   workflowId: string;
   lifecycle: string | null | undefined;
   board: DashboardWorkflowBoardResponse | null;
+  workItemId: string | null;
 }): JSX.Element {
   const queryClient = useQueryClient();
   const [title, setTitle] = useState('');
@@ -50,39 +51,67 @@ export function WorkflowAddWorkDialog(props: {
       ),
     [props.board],
   );
+  const selectedWorkItem = useMemo(
+    () =>
+      props.workItemId
+        ? props.board?.work_items.find((entry) => entry.id === props.workItemId) ?? null
+        : null,
+    [props.board, props.workItemId],
+  );
 
   useEffect(() => {
-    if (props.isOpen) {
+    if (!props.isOpen) {
+      setTitle('');
+      setGoal('');
+      setAcceptanceCriteria('');
+      setStageName('__auto__');
+      setOwnerRole('');
+      setPriority('normal');
+      setNotes('');
+      setFiles([]);
+      setStructuredDrafts([]);
+      setErrorMessage(null);
       return;
     }
-    setTitle('');
-    setGoal('');
-    setAcceptanceCriteria('');
-    setStageName('__auto__');
-    setOwnerRole('');
-    setPriority('normal');
-    setNotes('');
+
+    setTitle(selectedWorkItem?.title ?? '');
+    setGoal(selectedWorkItem?.goal ?? '');
+    setAcceptanceCriteria(selectedWorkItem?.acceptance_criteria ?? '');
+    setStageName(selectedWorkItem?.stage_name ?? '__auto__');
+    setOwnerRole(selectedWorkItem?.owner_role ?? '');
+    setPriority(readPriority(selectedWorkItem?.priority));
+    setNotes(selectedWorkItem?.notes ?? '');
     setFiles([]);
     setStructuredDrafts([]);
     setErrorMessage(null);
-  }, [props.isOpen]);
+  }, [props.isOpen, selectedWorkItem]);
 
   const mutation = useMutation({
     mutationFn: async () => {
       const structuredInputs = buildStructuredObject(structuredDrafts, 'Workflow work input');
-      const workItem = await dashboardApi.createWorkflowWorkItem(props.workflowId, {
-        title: title.trim(),
-        goal: goal.trim() || undefined,
-        acceptance_criteria: acceptanceCriteria.trim() || undefined,
-        stage_name: stageName === '__auto__' ? undefined : stageName,
-        owner_role: ownerRole.trim() || undefined,
-        priority,
-        notes: notes.trim() || undefined,
-      });
+      const workItem = selectedWorkItem
+        ? await dashboardApi.updateWorkflowWorkItem(props.workflowId, selectedWorkItem.id, {
+            title: title.trim() || undefined,
+            goal: goal.trim() || undefined,
+            acceptance_criteria: acceptanceCriteria.trim() || undefined,
+            stage_name: stageName === '__auto__' ? undefined : stageName,
+            owner_role: ownerRole.trim() || null,
+            priority,
+            notes: notes.trim() || null,
+          })
+        : await dashboardApi.createWorkflowWorkItem(props.workflowId, {
+            title: title.trim(),
+            goal: goal.trim() || undefined,
+            acceptance_criteria: acceptanceCriteria.trim() || undefined,
+            stage_name: stageName === '__auto__' ? undefined : stageName,
+            owner_role: ownerRole.trim() || undefined,
+            priority,
+            notes: notes.trim() || undefined,
+          });
       await dashboardApi.createWorkflowInputPacket(props.workflowId, {
-        packet_kind: 'supplemental',
+        packet_kind: resolvePacketKind(props.lifecycle, selectedWorkItem?.id ?? null),
         work_item_id: workItem.id,
-        summary: `${props.lifecycle === 'ongoing' ? 'Workflow intake' : 'Workflow plan update'} for ${workItem.title}`,
+        summary: buildPacketSummary(props.lifecycle, selectedWorkItem?.id ?? null, workItem.title),
         structured_inputs: structuredInputs,
         files: await buildFileUploadPayloads(files),
       });
@@ -90,7 +119,7 @@ export function WorkflowAddWorkDialog(props: {
     },
     onSuccess: async () => {
       await invalidateWorkflowsQueries(queryClient, props.workflowId);
-      toast.success(props.lifecycle === 'ongoing' ? 'Workflow intake added' : 'Workflow plan updated');
+      toast.success(buildSuccessMessage(props.lifecycle, selectedWorkItem?.id ?? null));
       props.onOpenChange(false);
     },
     onError: (error) => {
@@ -98,11 +127,16 @@ export function WorkflowAddWorkDialog(props: {
     },
   });
 
-  const titleLabel = props.lifecycle === 'ongoing' ? 'Add intake' : 'Add / Modify Work';
-  const description =
-    props.lifecycle === 'ongoing'
+  const titleLabel = selectedWorkItem
+    ? 'Modify Work'
+    : props.lifecycle === 'ongoing'
+      ? 'Add Intake'
+      : 'Add Work';
+  const description = selectedWorkItem
+    ? 'Update the selected work item and attach a plan-update packet without leaving the workflow workspace.'
+    : props.lifecycle === 'ongoing'
       ? 'Add new incoming work, files, and typed inputs into this ongoing workflow.'
-      : 'Add planned work or adjust the current path with new work items and supporting inputs.';
+      : 'Add planned work with supporting typed inputs and immutable workflow-scoped files.';
 
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
@@ -217,4 +251,43 @@ export function WorkflowAddWorkDialog(props: {
       </DialogContent>
     </Dialog>
   );
+}
+
+function resolvePacketKind(lifecycle: string | null | undefined, workItemId: string | null): string {
+  if (workItemId) {
+    return 'plan_update';
+  }
+  return lifecycle === 'ongoing' ? 'intake' : 'plan_update';
+}
+
+function buildPacketSummary(
+  lifecycle: string | null | undefined,
+  workItemId: string | null,
+  title: string,
+): string {
+  if (workItemId) {
+    return `Plan update for ${title}`;
+  }
+  return lifecycle === 'ongoing' ? `Workflow intake for ${title}` : `Planned work for ${title}`;
+}
+
+function buildSuccessMessage(
+  lifecycle: string | null | undefined,
+  workItemId: string | null,
+): string {
+  if (workItemId) {
+    return 'Workflow work updated';
+  }
+  return lifecycle === 'ongoing' ? 'Workflow intake added' : 'Workflow work added';
+}
+
+function readPriority(value: string | null | undefined): Priority {
+  switch (value) {
+    case 'critical':
+    case 'high':
+    case 'low':
+      return value;
+    default:
+      return 'normal';
+  }
 }

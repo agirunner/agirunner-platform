@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LayoutDashboard, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { Button } from '../../components/ui/button.js';
 import { dashboardApi } from '../../lib/api.js';
 import { WorkflowsRail } from './workflows-rail.js';
 import {
   buildWorkflowsPageSearchParams,
+  buildWorkflowsPageHref,
   readWorkflowsPageState,
+  resolveSelectedWorkflowId,
+  resolveWorkflowTabScope,
   type WorkflowsPageState,
 } from './workflows-page.support.js';
 import {
@@ -32,8 +35,16 @@ const DELIVERABLES_PAGE_SIZE = 12;
 
 export function WorkflowsPage(): JSX.Element {
   const queryClient = useQueryClient();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const pageState = useMemo(() => readWorkflowsPageState(searchParams), [searchParams]);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const searchParams = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search],
+  );
+  const pageState = useMemo(
+    () => readWorkflowsPageState(location.pathname, searchParams),
+    [location.pathname, searchParams],
+  );
   const [railLimit, setRailLimit] = useState(RAIL_PAGE_SIZE);
   const [activityLimit, setActivityLimit] = useState(ACTIVITY_PAGE_SIZE);
   const [deliverablesLimit, setDeliverablesLimit] = useState(DELIVERABLES_PAGE_SIZE);
@@ -71,7 +82,12 @@ export function WorkflowsPage(): JSX.Element {
     queryKey: pageState.workflowId
       ? buildWorkflowWorkspaceQueryKey({
           workflowId: pageState.workflowId,
-          workItemId: pageState.workItemId,
+          workItemId: resolveWorkflowTabScope(
+            pageState.tab,
+            pageState.workItemId,
+          ) === 'selected_work_item'
+            ? pageState.workItemId
+            : null,
           boardMode: pageState.boardMode,
           activityLimit,
           deliverablesLimit,
@@ -79,8 +95,11 @@ export function WorkflowsPage(): JSX.Element {
       : ['workflows', 'workspace', 'none'],
     queryFn: () =>
       dashboardApi.getWorkflowWorkspace(pageState.workflowId as string, {
-        workItemId: pageState.workItemId ?? undefined,
-        tabScope: pageState.workItemId ? 'selected_work_item' : 'workflow',
+        workItemId:
+          resolveWorkflowTabScope(pageState.tab, pageState.workItemId) === 'selected_work_item'
+            ? pageState.workItemId ?? undefined
+            : undefined,
+        tabScope: resolveWorkflowTabScope(pageState.tab, pageState.workItemId),
         boardMode: pageState.boardMode,
         historyLimit: activityLimit,
         deliverablesLimit,
@@ -109,23 +128,35 @@ export function WorkflowsPage(): JSX.Element {
   const railPacket = railQuery.data ?? null;
   const workflow = workspaceQuery.data?.workflow ?? null;
   const board = workspaceQuery.data?.board ?? null;
+  const scopedWorkItemId =
+    resolveWorkflowTabScope(activeTabFromState(pageState), pageState.workItemId) ===
+    'selected_work_item'
+      ? pageState.workItemId
+      : null;
   const workItemTitle = useMemo(
     () => board?.work_items.find((item) => item.id === pageState.workItemId)?.title ?? null,
     [board, pageState.workItemId],
   );
   const activeTab = pageState.tab ?? workspaceQuery.data?.bottom_tabs.default_tab ?? 'live_console';
-  const hasMoreRailRows = (railPacket?.rows.length ?? 0) >= railLimit;
+  const hasMoreRailRows = Boolean(railPacket?.next_cursor) || (railPacket?.rows.length ?? 0) >= railLimit;
 
   useEffect(() => {
-    if (pageState.workflowId || !railPacket || railPacket.rows.length === 0) {
+    if (!railPacket || railPacket.rows.length === 0 || pageState.workflowId) {
       return;
     }
-    const storedWorkflowId = readStoredWorkflowId();
-    const visibleStoredId = railPacket.rows.find((row) => row.workflow_id === storedWorkflowId)?.workflow_id;
-    patchPageState(searchParams, setSearchParams, {
-      workflowId: visibleStoredId ?? railPacket.selected_workflow_id ?? railPacket.rows[0]?.workflow_id ?? null,
+    const nextWorkflowId = resolveSelectedWorkflowId({
+      currentWorkflowId: pageState.workflowId,
+      rows: railPacket.rows,
+      selectedWorkflowId: railPacket.selected_workflow_id,
+      storedWorkflowId: readStoredWorkflowId(),
     });
-  }, [pageState.workflowId, railPacket, searchParams, setSearchParams]);
+    if (!nextWorkflowId) {
+      return;
+    }
+    patchPageState(navigate, pageState, {
+      workflowId: nextWorkflowId,
+    });
+  }, [navigate, pageState, railPacket]);
 
   useEffect(() => {
     if (!pageState.workflowId) {
@@ -134,19 +165,11 @@ export function WorkflowsPage(): JSX.Element {
     writeStoredWorkflowId(pageState.workflowId);
   }, [pageState.workflowId]);
 
-  if ((railPacket?.rows.length ?? 0) === 0 && !pageState.workflowId && !railQuery.isLoading) {
-    return (
-      <EmptyWorkflowsState
-        onCreateWorkflow={() => setIsLaunchOpen(true)}
-      />
-    );
-  }
-
   return (
     <>
-      <div className="grid min-h-[calc(100vh-9rem)] gap-4 xl:grid-cols-[22rem_minmax(0,1fr)]">
+      <div className="grid h-[calc(100vh-9rem)] min-h-[calc(100vh-9rem)] gap-4 xl:grid-cols-[22rem_minmax(0,1fr)]">
         {!isRailHidden ? (
-          <div className="min-h-0">
+          <div className="min-h-0 overflow-hidden rounded-3xl border border-border/70 bg-stone-50/90 dark:bg-slate-950/70">
             <WorkflowsRail
               mode={pageState.mode}
               search={pageState.search}
@@ -157,18 +180,27 @@ export function WorkflowsPage(): JSX.Element {
               selectedWorkflowId={pageState.workflowId}
               hasNextPage={hasMoreRailRows}
               isLoading={railQuery.isLoading}
-              onModeChange={(mode) => patchPageState(searchParams, setSearchParams, { mode, workflowId: null, workItemId: null, tab: null })}
-              onSearchChange={(search) => patchPageState(searchParams, setSearchParams, { search, workflowId: null, workItemId: null })}
-              onNeedsActionOnlyChange={(needsActionOnly) => patchPageState(searchParams, setSearchParams, { needsActionOnly, workflowId: null, workItemId: null })}
-              onShowAllOngoing={() => patchPageState(searchParams, setSearchParams, { ongoingOnly: true, workflowId: null, workItemId: null })}
-              onSelectWorkflow={(workflowId) => patchPageState(searchParams, setSearchParams, { workflowId, workItemId: null })}
+              onModeChange={(mode) => patchPageState(navigate, pageState, { mode, tab: null })}
+              onSearchChange={(search) => patchPageState(navigate, pageState, { search })}
+              onNeedsActionOnlyChange={(needsActionOnly) =>
+                patchPageState(navigate, pageState, { needsActionOnly })
+              }
+              onShowAllOngoing={() =>
+                patchPageState(navigate, pageState, { ongoingOnly: true })
+              }
+              onClearOngoingFilter={() =>
+                patchPageState(navigate, pageState, { ongoingOnly: false })
+              }
+              onSelectWorkflow={(workflowId) =>
+                patchPageState(navigate, pageState, { workflowId, workItemId: null })
+              }
               onLoadMore={() => setRailLimit((current) => current + RAIL_PAGE_SIZE)}
               onCreateWorkflow={() => setIsLaunchOpen(true)}
             />
           </div>
         ) : null}
 
-        <div className="flex min-h-0 flex-col gap-4">
+        <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-4 overflow-hidden">
           <div className="flex items-center justify-between gap-3">
             <Button type="button" size="sm" variant="outline" onClick={() => setIsRailHidden((current) => !current)}>
               {isRailHidden ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
@@ -182,61 +214,79 @@ export function WorkflowsPage(): JSX.Element {
           </div>
 
           {workflow && workspaceQuery.data ? (
-            <>
-              <WorkflowStateStrip
-                workflow={workflow}
-                stickyStrip={workspaceQuery.data.sticky_strip}
-                workflowSettings={workflowSettingsQuery.data ?? null}
-                selectedScopeLabel={workItemTitle}
-                onTabChange={(tab) => patchPageState(searchParams, setSearchParams, { tab })}
-                onAddWork={() => setIsAddWorkOpen(true)}
-                onVisibilityModeChange={async (nextMode) => {
-                  const currentSettings = workflowSettingsQuery.data;
-                  if (!currentSettings) {
-                    return;
-                  }
-                  await dashboardApi.updateWorkflowSettings(pageState.workflowId as string, {
-                    live_visibility_mode: nextMode,
-                    settings_revision: currentSettings.revision,
-                  });
-                  await queryClient.invalidateQueries({ queryKey: ['workflow-settings', pageState.workflowId] });
-                }}
-              />
-              <WorkflowBoard
-                workflowId={workflow.id}
-                board={board}
-                selectedWorkItemId={pageState.workItemId}
-                boardMode={pageState.boardMode}
-                onBoardModeChange={(boardMode) => patchPageState(searchParams, setSearchParams, { boardMode })}
-                onSelectWorkItem={(workItemId) => patchPageState(searchParams, setSearchParams, { workItemId })}
-              />
-              <WorkflowBottomWorkbench
-                workflowId={workflow.id}
-                workflowName={workflow.name}
-                workflowState={workflow.state}
-                workspaceId={workflow.workspaceId}
-                packet={workspaceQuery.data}
-                activeTab={activeTab}
-                selectedWorkItemId={pageState.workItemId}
-                selectedWorkItemTitle={workItemTitle}
-                onTabChange={(tab) => patchPageState(searchParams, setSearchParams, { tab })}
-                onClearWorkItemScope={() => patchPageState(searchParams, setSearchParams, { workItemId: null })}
-                onOpenAddWork={() => setIsAddWorkOpen(true)}
-                onOpenRedrive={() => setIsRedriveOpen(true)}
-                onLoadMoreActivity={() => setActivityLimit((current) => current + ACTIVITY_PAGE_SIZE)}
-                onLoadMoreDeliverables={() => setDeliverablesLimit((current) => current + DELIVERABLES_PAGE_SIZE)}
-              />
-            </>
-          ) : (
-            <div className="flex min-h-[28rem] items-center justify-center rounded-3xl border border-dashed border-border/70 bg-background/70 p-8">
-              <div className="grid max-w-lg gap-3 text-center">
-                <LayoutDashboard className="mx-auto h-10 w-10 text-muted-foreground" />
-                <p className="text-lg font-semibold text-foreground">Select a workflow</p>
-                <p className="text-sm text-muted-foreground">
-                  Choose a workflow from the left rail to open its board, steering, history, live console, and deliverables in one place.
-                </p>
+            <div className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_minmax(22rem,40vh)] gap-4 overflow-hidden">
+              <div className="sticky top-0 z-10">
+                <WorkflowStateStrip
+                  workflow={workflow}
+                  stickyStrip={workspaceQuery.data.sticky_strip}
+                  workflowSettings={workflowSettingsQuery.data ?? null}
+                  selectedScopeLabel={scopedWorkItemId ? workItemTitle : null}
+                  onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
+                  onAddWork={() => setIsAddWorkOpen(true)}
+                  onVisibilityModeChange={async (nextMode) => {
+                    const currentSettings = workflowSettingsQuery.data;
+                    if (!currentSettings) {
+                      return;
+                    }
+                    await dashboardApi.updateWorkflowSettings(pageState.workflowId as string, {
+                      live_visibility_mode: nextMode,
+                      settings_revision: currentSettings.revision,
+                    });
+                    await queryClient.invalidateQueries({
+                      queryKey: ['workflow-settings', pageState.workflowId],
+                    });
+                  }}
+                />
+              </div>
+              <div className="min-h-0 overflow-hidden rounded-3xl border border-border/70 bg-background/70">
+                <div className="h-full overflow-auto p-4">
+                  <WorkflowBoard
+                    workflowId={workflow.id}
+                    board={board}
+                    selectedWorkItemId={pageState.workItemId}
+                    boardMode={pageState.boardMode}
+                    onBoardModeChange={(boardMode) =>
+                      patchPageState(navigate, pageState, { boardMode })
+                    }
+                    onSelectWorkItem={(workItemId) =>
+                      patchPageState(navigate, pageState, { workItemId })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="min-h-0 overflow-hidden rounded-3xl border border-border/70 bg-background/70">
+                <div className="h-full overflow-auto p-4">
+                  <WorkflowBottomWorkbench
+                    workflowId={workflow.id}
+                    workflowName={workflow.name}
+                    workflowState={workflow.state}
+                    workspaceId={workflow.workspaceId}
+                    packet={workspaceQuery.data}
+                    activeTab={activeTab}
+                    selectedWorkItemId={pageState.workItemId}
+                    scopedWorkItemId={scopedWorkItemId}
+                    selectedWorkItemTitle={workItemTitle}
+                    onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
+                    onClearWorkItemScope={() =>
+                      patchPageState(navigate, pageState, { workItemId: null })
+                    }
+                    onOpenAddWork={() => setIsAddWorkOpen(true)}
+                    onOpenRedrive={() => setIsRedriveOpen(true)}
+                    onLoadMoreActivity={() =>
+                      setActivityLimit((current) => current + ACTIVITY_PAGE_SIZE)
+                    }
+                    onLoadMoreDeliverables={() =>
+                      setDeliverablesLimit((current) => current + DELIVERABLES_PAGE_SIZE)
+                    }
+                  />
+                </div>
               </div>
             </div>
+          ) : (
+            <EmptyWorkspaceState
+              hasWorkflows={(railPacket?.rows.length ?? 0) > 0}
+              onCreateWorkflow={() => setIsLaunchOpen(true)}
+            />
           )}
         </div>
       </div>
@@ -245,7 +295,7 @@ export function WorkflowsPage(): JSX.Element {
         isOpen={isLaunchOpen}
         onOpenChange={setIsLaunchOpen}
         onLaunched={(workflowId) =>
-          patchPageState(searchParams, setSearchParams, {
+          patchPageState(navigate, pageState, {
             workflowId,
             workItemId: null,
             tab: null,
@@ -260,6 +310,7 @@ export function WorkflowsPage(): JSX.Element {
             workflowId={pageState.workflowId}
             lifecycle={workflow?.lifecycle}
             board={board}
+            workItemId={pageState.workItemId}
           />
           <WorkflowRedriveDialog
             isOpen={isRedriveOpen}
@@ -268,7 +319,7 @@ export function WorkflowsPage(): JSX.Element {
             workflowName={workflow?.name ?? 'Workflow'}
             workspaceId={workflow?.workspaceId}
             onRedriven={(workflowId) =>
-              patchPageState(searchParams, setSearchParams, {
+              patchPageState(navigate, pageState, {
                 workflowId,
                 workItemId: null,
                 tab: null,
@@ -304,13 +355,38 @@ function EmptyWorkflowsState(props: {
   );
 }
 
+function EmptyWorkspaceState(props: {
+  hasWorkflows: boolean;
+  onCreateWorkflow(): void;
+}): JSX.Element {
+  if (!props.hasWorkflows) {
+    return <EmptyWorkflowsState onCreateWorkflow={props.onCreateWorkflow} />;
+  }
+
+  return (
+    <div className="flex min-h-[28rem] items-center justify-center rounded-3xl border border-dashed border-border/70 bg-background/70 p-8">
+      <div className="grid max-w-lg gap-3 text-center">
+        <LayoutDashboard className="mx-auto h-10 w-10 text-muted-foreground" />
+        <p className="text-lg font-semibold text-foreground">Select a workflow</p>
+        <p className="text-sm text-muted-foreground">
+          Choose a workflow from the left rail to open its board, steering, history, live console,
+          and deliverables in one place.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function patchPageState(
-  searchParams: URLSearchParams,
-  setSearchParams: ReturnType<typeof useSearchParams>[1],
+  navigate: ReturnType<typeof useNavigate>,
+  currentState: WorkflowsPageState,
   patch: Partial<WorkflowsPageState>,
 ): void {
-  setSearchParams((current) => buildWorkflowsPageSearchParams(current, patch), {
+  navigate(buildWorkflowsPageHref(patch, currentState), {
     replace: true,
   });
-  void searchParams;
+}
+
+function activeTabFromState(pageState: WorkflowsPageState) {
+  return pageState.tab ?? null;
 }

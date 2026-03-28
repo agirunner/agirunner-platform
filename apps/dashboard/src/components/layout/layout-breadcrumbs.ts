@@ -41,11 +41,6 @@ const SEGMENT_LABELS: Record<string, string> = {
  */
 const ROUTABLE_PATHS: ReadonlySet<string> = new Set([
   '/workflows',
-  '/mission-control',
-  '/mission-control/workflows',
-  '/mission-control/tasks',
-  '/mission-control/action-queue',
-  '/mission-control/costs',
   '/design/workspaces',
   '/design/playbooks',
   '/design/specialists',

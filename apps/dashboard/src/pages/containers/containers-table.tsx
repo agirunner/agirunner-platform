@@ -14,6 +14,7 @@ import {
   type ContainerDiffField,
   type SessionContainerRow,
 } from './containers-page.support.js';
+import { buildTaskDetailHref, normalizeWorkflowBoardHref } from '../work-shared/work-href-support.js';
 
 const TABLE_COLUMN_CLASS_NAMES = [
   'w-[7rem]',
@@ -82,13 +83,13 @@ export function ContainersTable(props: {
                 {renderEntityLink(row.playbook_id, row.playbook_name, '/design/playbooks')}
               </DiffCell>
               <DiffCell row={row} field="workflow" className="py-3">
-                {renderEntityLink(row.workflow_id, row.workflow_name, '/mission-control/workflows')}
+                {renderWorkflowLink(row.workflow_id, row.workflow_name)}
               </DiffCell>
               <DiffCell row={row} field="stage" className="py-3">
                 <CellText>{row.stage_name ?? '-'}</CellText>
               </DiffCell>
               <DiffCell row={row} field="task" className="py-3">
-                {renderEntityLink(row.task_id, row.task_title, '/mission-control/tasks')}
+                {renderTaskLink(row.task_id, row.task_title)}
               </DiffCell>
               <DiffCell row={row} field="image" className="py-3">
                 <code
@@ -116,6 +117,35 @@ export function ContainersTable(props: {
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+function renderWorkflowLink(
+  id: string | null | undefined,
+  label: string | null | undefined,
+): ReactNode {
+  const href = normalizeWorkflowBoardHref({ workflowId: id });
+  if (!href) {
+    return renderEntityLink(id, label, '/workflows');
+  }
+  return (
+    <Link className="text-sm text-foreground hover:underline" to={href}>
+      {label ?? id}
+    </Link>
+  );
+}
+
+function renderTaskLink(
+  id: string | null | undefined,
+  label: string | null | undefined,
+): ReactNode {
+  if (!id) {
+    return <span className="text-sm text-muted-foreground">-</span>;
+  }
+  return (
+    <Link className="text-sm text-foreground hover:underline" to={buildTaskDetailHref(id)}>
+      {label ?? id}
+    </Link>
   );
 }
 

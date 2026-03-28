@@ -21,10 +21,20 @@ export function normalizeWorkflowBoardHref(input: {
     return href;
   }
 
-  const match = href.match(/^\/mission-control\/workflows\/([^/?#]+)/);
-  if (match?.[1]) {
-    return buildWorkflowDetailPermalink(decodeURIComponent(match[1]), {});
+  const derivedWorkflowId = readWorkflowIdFromHref(href);
+  if (derivedWorkflowId) {
+    return buildWorkflowDetailPermalink(derivedWorkflowId, {});
   }
 
   return href;
+}
+
+function readWorkflowIdFromHref(href: string): string | null {
+  const pathname = href.split(/[?#]/, 1)[0] ?? '';
+  const segments = pathname.split('/').filter(Boolean);
+  const workflowsIndex = segments.lastIndexOf('workflows');
+  if (workflowsIndex === -1 || !segments[workflowsIndex + 1]) {
+    return null;
+  }
+  return decodeURIComponent(segments[workflowsIndex + 1]);
 }

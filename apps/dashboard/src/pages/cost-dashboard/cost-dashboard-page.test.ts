@@ -37,12 +37,12 @@ describe('cost dashboard page source', () => {
 
   it('leads with spend posture and a concrete next step before the charts', () => {
     const source = readSource();
-    expect(source).toContain('Mission control operator surface');
+    expect(source).toContain('Workflow operator surface');
     expect(source).toContain('Best next step:');
-    expect(source).toContain('Open live board');
+    expect(source).toContain('Open workflows');
     expect(source).toContain('Open logs');
     expect(source).toContain("navigate('/logs')");
-    expect(source).toContain("navigate('/mission-control')");
+    expect(source).toContain("navigate('/workflows')");
     expect(source).toContain('Immediate spend');
     expect(source).toContain('Budget posture');
     expect(source).toContain('Top board driver');

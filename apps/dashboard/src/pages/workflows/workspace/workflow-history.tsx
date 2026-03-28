@@ -9,6 +9,7 @@ import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-p
 export function WorkflowHistory(props: {
   workflowId: string;
   packet: DashboardWorkflowHistoryPacket;
+  selectedWorkItemId?: string | null;
   onLoadMore(): void;
 }): JSX.Element {
   return (

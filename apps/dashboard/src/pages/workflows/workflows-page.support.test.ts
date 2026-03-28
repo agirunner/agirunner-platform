@@ -3,12 +3,13 @@ import { describe, expect, it } from 'vitest';
 import {
   buildWorkflowDiagnosticsHref,
   buildWorkflowsPageHref,
+  resolveWorkflowTabScope,
   readWorkflowsPageState,
 } from './workflows-page.support.js';
 
 describe('workflows page support', () => {
   it('reads defaults from empty search params', () => {
-    expect(readWorkflowsPageState(new URLSearchParams())).toEqual({
+    expect(readWorkflowsPageState('/workflows', new URLSearchParams())).toEqual({
       mode: 'live',
       workflowId: null,
       workItemId: null,
@@ -23,8 +24,9 @@ describe('workflows page support', () => {
   it('normalizes recent mode and known shell state from search params', () => {
     expect(
       readWorkflowsPageState(
+        '/workflows/workflow-9',
         new URLSearchParams(
-          'mode=history&workflow=workflow-9&work_item=work-item-2&tab=history&q=release&needs_action_only=1&ongoing_only=true&board_mode=all',
+          'mode=history&work_item_id=work-item-2&tab=history&search=release&needs_action_only=1&ongoing_only=true&board_mode=all',
         ),
       ),
     ).toEqual({
@@ -52,9 +54,18 @@ describe('workflows page support', () => {
         boardMode: 'all',
       }),
     ).toBe(
-      '/workflows?mode=recent&workflow=workflow-2&work_item=work-item-7&tab=deliverables&q=release+readiness&needs_action_only=1&ongoing_only=1&board_mode=all',
+      '/workflows/workflow-2?mode=recent&work_item_id=work-item-7&tab=deliverables&search=release+readiness&needs_action_only=1&ongoing_only=1&board_mode=all',
     );
     expect(buildWorkflowsPageHref({})).toBe('/workflows');
+  });
+
+  it('keeps needs action and steering workflow-scoped when a work item is selected', () => {
+    expect(resolveWorkflowTabScope('needs_action', 'work-item-7')).toBe('workflow');
+    expect(resolveWorkflowTabScope('steering', 'work-item-7')).toBe('workflow');
+    expect(resolveWorkflowTabScope('live_console', 'work-item-7')).toBe('selected_work_item');
+    expect(resolveWorkflowTabScope('history', 'work-item-7')).toBe('selected_work_item');
+    expect(resolveWorkflowTabScope('deliverables', 'work-item-7')).toBe('selected_work_item');
+    expect(resolveWorkflowTabScope('live_console', null)).toBe('workflow');
   });
 
   it('builds workflow-scoped diagnostics hrefs for live evidence', () => {

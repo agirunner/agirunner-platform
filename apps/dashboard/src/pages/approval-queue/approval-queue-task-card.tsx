@@ -39,6 +39,7 @@ import { QueueInfoTile } from './approval-queue-layout.js';
 import { OperatorBreadcrumbTrail } from '../work-shared/operator-breadcrumb-trail.js';
 import { invalidateWorkflowQueries } from '../workflow-detail/workflow-detail-query.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
+import { buildTaskDetailHref } from '../work-shared/work-href-support.js';
 import {
   buildWorkflowOperatorPermalink,
   usesWorkItemOperatorFlow,
@@ -124,7 +125,7 @@ export function TaskApprovalCard(props: {
   const stepReferenceLabel = workflowOperatorFlow ? 'Step diagnostics' : 'Step record';
   const primaryTitleHref = workflowOperatorFlow && workflowContextLink
     ? workflowContextLink
-    : `/mission-control/tasks/${task.id}`;
+    : buildTaskDetailHref(task.id);
   const handoffSummary = sanitizeApprovalText(task.latest_handoff?.summary);
   const successorContext = sanitizeApprovalText(task.latest_handoff?.successor_context);
 
@@ -191,7 +192,7 @@ export function TaskApprovalCard(props: {
                     </Link>
                   </Button>
                   <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
-                    <Link to={`/mission-control/tasks/${task.id}`}>{diagnosticsLabel}</Link>
+                    <Link to={buildTaskDetailHref(task.id)}>{diagnosticsLabel}</Link>
                   </Button>
                 </>
               ) : (
@@ -234,7 +235,7 @@ export function TaskApprovalCard(props: {
                     Reject
                   </Button>
                   <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
-                    <Link to={`/mission-control/tasks/${task.id}`}>{diagnosticsLabel}</Link>
+                    <Link to={buildTaskDetailHref(task.id)}>{diagnosticsLabel}</Link>
                   </Button>
                   {!workflowOperatorFlow && workflowContextLink ? (
                     <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>

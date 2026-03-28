@@ -24,6 +24,7 @@ export function WorkflowsRail(props: {
   onSearchChange(value: string): void;
   onNeedsActionOnlyChange(nextValue: boolean): void;
   onShowAllOngoing(): void;
+  onClearOngoingFilter(): void;
   onSelectWorkflow(workflowId: string): void;
   onLoadMore(): void;
   onCreateWorkflow(): void;
@@ -74,6 +75,16 @@ export function WorkflowsRail(props: {
             >
               Needs Action
             </Button>
+            {props.ongoingOnly ? (
+              <Button
+                size="sm"
+                type="button"
+                variant="ghost"
+                onClick={props.onClearOngoingFilter}
+              >
+                Clear Ongoing
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>

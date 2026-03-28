@@ -182,7 +182,7 @@ export function CostDashboardPage(): JSX.Element {
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">
-            Mission control operator surface
+            Workflow operator surface
           </p>
           <h1 className="text-2xl font-semibold">Operator Cost Dashboard</h1>
           <p className="text-sm text-muted">
@@ -207,10 +207,10 @@ export function CostDashboardPage(): JSX.Element {
           </Button>
           <Button
             size="sm"
-            onClick={() => navigate('/mission-control')}
+            onClick={() => navigate('/workflows')}
             className="gap-2"
           >
-            Open live board
+            Open workflows
             <ArrowRight className="h-4 w-4" />
           </Button>
         </div>

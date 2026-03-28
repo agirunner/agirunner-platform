@@ -87,7 +87,6 @@ export function WorkflowSteering(props: {
               Steering can direct workflow, work item, or task actions without changing system configuration.
             </p>
           </div>
-          {props.selectedWorkItemId ? <Badge variant="outline">Scoped to selected work item</Badge> : null}
         </div>
         <WorkflowControlActions
           workflowId={props.workflowId}

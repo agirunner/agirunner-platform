@@ -28,9 +28,18 @@ describe('workflows page source', () => {
     expect(source).toContain('useWorkflowWorkspaceRealtime');
     expect(source).toContain('readWorkflowsPageState');
     expect(source).toContain('buildWorkflowsPageSearchParams');
+    expect(source).toContain('resolveWorkflowTabScope');
+    expect(source).toContain('resolveSelectedWorkflowId');
     expect(source).not.toContain('MissionControlPage');
     expect(source).not.toContain('MissionControlWorkspacePane');
     expect(source).not.toContain('SavedViews');
     expect(source).not.toContain('Attention rail');
+  });
+
+  it('does not clear the active workflow when rail mode, search, and filters change', () => {
+    const source = readSource();
+    expect(source).not.toContain('{ mode, workflowId: null, workItemId: null, tab: null }');
+    expect(source).not.toContain('{ search, workflowId: null, workItemId: null }');
+    expect(source).not.toContain('{ needsActionOnly, workflowId: null, workItemId: null }');
   });
 });

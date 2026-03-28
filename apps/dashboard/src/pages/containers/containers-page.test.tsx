@@ -71,7 +71,7 @@ describe('containers page source', () => {
     expect(tableSource).toContain('sanitizeContainerContextLabel');
     expect(tableSource).toContain("value?.trim().toLowerCase() === 'specialist agents'");
     expect(tableSource).toContain("renderEntityLink(row.playbook_id, row.playbook_name, '/design/playbooks')");
-    expect(tableSource).toContain("renderEntityLink(row.workflow_id, row.workflow_name, '/mission-control/workflows')");
+    expect(tableSource).toContain('renderWorkflowLink(row.workflow_id, row.workflow_name)');
     expect(tableSource).toContain("if (label?.trim() && !id) {");
     expect(tableSource).toContain('<span className="text-sm text-foreground">{label}</span>');
     expect(tableSource).toContain('<Link className="text-sm text-foreground hover:underline" to={`${hrefBase}/${id}`}>');

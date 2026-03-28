@@ -49,7 +49,6 @@ describe('app trigger routes source', () => {
     expect(source).toContain("location.pathname.endsWith('/artifacts')");
     expect(source).toContain("? 'artifacts'");
     expect(source).toContain('Navigate to={`/design/workspaces/${id}?tab=knowledge&panel=${panel}`} replace');
-    expect(source).toContain('path="/mission-control/workflows/:id/inspector"');
     expect(source).toContain('path="/work/workflows/*"');
     expect(source).toContain("const routePrefix = location.pathname.startsWith('/work/workflows')");
     expect(source).toContain("if (segments[1] === 'inspector')");
@@ -122,37 +121,26 @@ describe('app trigger routes source', () => {
     expect(source).not.toContain('path="/governance/grants"');
   });
 
-  it('uses a unified workflows shell and redirects legacy mission control list routes into shell state', () => {
+  it('uses only canonical workflows routes for the shipped workflows shell', () => {
     const source = readSource();
     expect(source).toContain("../pages/workflows/workflows-page.js");
     expect(source).toContain('path="/" element={<Navigate to="/workflows" replace />}');
     expect(source).toContain('path="/workflows" element={<WorkflowsPage />}');
-    expect(source).toContain('path="/mission-control"');
-    expect(source).toContain('Navigate to="/workflows" replace');
-    expect(source).toContain('function LegacyMissionControlShellRedirect({');
-    expect(source).toContain("path=\"/mission-control/workflows\"");
-    expect(source).toContain("path=\"/mission-control/action-queue\"");
-    expect(source).toContain("path=\"/mission-control/tasks\"");
-    expect(source).toContain('section="workflows"');
-    expect(source).toContain('section="action_queue"');
-    expect(source).toContain('section="tasks"');
-    expect(source).toContain('buildWorkflowsPageHref()');
-    expect(source).toContain("buildWorkflowsPageHref({ tab: 'needs_action' })");
-    expect(source).toContain("buildWorkflowsPageHref({ mode: 'recent', tab: 'history' })");
-    expect(source).not.toContain('path="/mission-control/workflows" element={<WorkflowListPage />}');
-    expect(source).not.toContain('path="/mission-control/action-queue" element={<AlertsApprovalsPage />}');
+    expect(source).toContain('path="/workflows/:workflowId" element={<WorkflowsPage />}');
+    expect(source).not.toContain('path="/mission-control"');
+    expect(source).not.toContain('LegacyMissionControl');
+    expect(source).not.toContain('/mission-control/workflows');
+    expect(source).not.toContain('/mission-control/action-queue');
+    expect(source).not.toContain('/mission-control/tasks');
+    expect(source).not.toContain('/mission-control/costs');
   });
 
-  it('redirects legacy workflow detail and inspector routes into the workflows shell instead of mounting deprecated pages', () => {
+  it('keeps only legacy work board redirects into the workflows shell instead of shipping old mission-control detail routes', () => {
     const source = readSource();
-    expect(source).toContain('function LegacyMissionControlWorkflowRedirect()');
-    expect(source).toContain('function LegacyMissionControlWorkflowInspectorRedirect()');
-    expect(source).toContain('path="/mission-control/workflows/:id"');
-    expect(source).toContain('element={<LegacyMissionControlWorkflowRedirect />}');
-    expect(source).toContain('path="/mission-control/workflows/:id/inspector"');
-    expect(source).toContain('element={<LegacyMissionControlWorkflowInspectorRedirect />}');
-    expect(source).not.toContain('element={<WorkflowDetailPage />}');
-    expect(source).not.toContain('element={<WorkflowInspectorPage />}');
-    expect(source).toContain('const target = buildWorkflowDetailPermalink(id, {');
+    expect(source).toContain('const target = buildWorkflowDetailPermalink(workflowId, {');
+    expect(source).toContain('path="/work/boards/*"');
+    expect(source).toContain('path="/work/workflows/*"');
+    expect(source).not.toContain('/mission-control/workflows/:id');
+    expect(source).not.toContain('/mission-control/workflows/:id/inspector');
   });
 });
