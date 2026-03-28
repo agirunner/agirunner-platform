@@ -280,6 +280,7 @@ export async function buildApp() {
     workflowOperationsDeliverablesService,
     workflowInterventionService,
     workflowSteeringSessionService,
+    taskService,
   );
   const workflowOperationsStreamService = new WorkflowOperationsStreamService(
     workflowOperationsRailService,

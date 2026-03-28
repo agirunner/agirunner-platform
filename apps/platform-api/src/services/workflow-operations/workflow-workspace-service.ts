@@ -22,6 +22,7 @@ import type {
   WorkflowBottomTabsPacket,
   WorkflowHistoryItem,
   WorkflowNeedsActionItem,
+  WorkflowNeedsActionResponseAction,
   WorkflowLiveConsoleItem,
   WorkflowWorkspacePacket,
 } from './workflow-operations-types.js';
@@ -40,6 +41,28 @@ interface WorkflowWorkspaceQuery {
   deliverablesAfter?: string;
 }
 
+interface ActionableTaskRecord {
+  id: string;
+  title: string;
+  role: string | null;
+  state: string;
+  work_item_id: string | null;
+  updated_at: string | null;
+}
+
+interface TaskActionSource {
+  listTasks(
+    tenantId: string,
+    query: {
+      workflow_id?: string;
+      work_item_id?: string;
+      state?: string;
+      page: number;
+      per_page: number;
+    },
+  ): Promise<{ data: Array<Record<string, unknown>> }>;
+}
+
 export class WorkflowWorkspaceService {
   constructor(
     private readonly workflowService: Pick<WorkflowService, 'getWorkflow' | 'getWorkflowBoard'>,
@@ -52,6 +75,7 @@ export class WorkflowWorkspaceService {
       WorkflowSteeringSessionService,
       'listSessions' | 'listMessages'
     >,
+    private readonly taskActionSource?: TaskActionSource,
   ) {}
 
   async getWorkspace(
@@ -67,7 +91,7 @@ export class WorkflowWorkspaceService {
     const scopedTaskId = selectedScope.scope_kind === 'selected_task'
       ? selectedScope.task_id
       : undefined;
-    const [workflow, board, workflowCard, liveConsole, history, deliverables, interventions, sessions] =
+    const [workflow, board, workflowCard, liveConsole, history, deliverables, interventions, sessions, actionableTasks] =
       await Promise.all([
         this.workflowService.getWorkflow(tenantId, workflowId),
         this.workflowService.getWorkflowBoard(tenantId, workflowId),
@@ -91,6 +115,7 @@ export class WorkflowWorkspaceService {
         }),
         this.interventionService.listWorkflowInterventions(tenantId, workflowId),
         this.steeringSessionService.listSessions(tenantId, workflowId),
+        loadActionableTasks(this.taskActionSource, tenantId, workflowId, scopedWorkItemId ?? null),
       ]);
 
     const needsActionItems = buildNeedsActionItems(
@@ -98,6 +123,7 @@ export class WorkflowWorkspaceService {
       board as Record<string, unknown>,
       workflowCard?.availableActions ?? [],
       interventions,
+      actionableTasks,
       selectedScope.work_item_id,
     );
     const hydratedDeliverables = mergeOutputDescriptorDeliverables(
@@ -243,16 +269,29 @@ function buildNeedsActionItems(
   board: Record<string, unknown>,
   actions: MissionControlActionAvailability[],
   interventions: WorkflowInterventionRecord[],
+  actionableTasks: ActionableTaskRecord[],
   selectedWorkItemId: string | null,
 ): WorkflowNeedsActionItem[] {
   const items: WorkflowNeedsActionItem[] = [];
+  const actionableTaskMap = buildActionableTaskMap(actionableTasks);
   for (const boardItem of readBoardNeedsActionItems(board)) {
-    items.push(boardItem);
+    const directTask = readDirectActionTask(boardItem.target.target_kind, boardItem.target.target_id, actionableTaskMap);
+    const responses = buildBoardNeedsActionResponses(boardItem.action_kind, boardItem.target, directTask);
+    items.push({
+      ...boardItem,
+      target: directTask ? { target_kind: 'task', target_id: directTask.id } : boardItem.target,
+      submission: {
+        route_kind: directTask ? 'task_mutation' : boardItem.submission.route_kind,
+        method: 'POST',
+      },
+      responses,
+    });
   }
   for (const stageItem of readBoardStageNeedsActionItems(board, workflowId)) {
     if (items.some((item) => item.action_id === stageItem.action_id)) {
       continue;
     }
+    stageItem.responses = [];
     items.push(stageItem);
   }
   for (const intervention of interventions) {
@@ -274,9 +313,10 @@ function buildNeedsActionItems(
       priority: 'high',
       requires_confirmation: false,
       submission: {
-        route_kind: 'workflow_intervention',
+        route_kind: target.target_kind === 'task' ? 'task_mutation' : 'workflow_intervention',
         method: 'POST',
       },
+      responses: buildInterventionResponses(actionKind, target),
     });
   }
   for (const action of actions) {
@@ -292,12 +332,177 @@ function buildNeedsActionItems(
       priority: action.scope === 'workflow' ? 'medium' : 'high',
       requires_confirmation: action.confirmationLevel !== 'immediate',
       submission: {
-        route_kind: 'workflow_intervention',
+        route_kind: 'workflow_mutation',
         method: 'POST',
       },
+      responses: buildQuickActionResponses(action.kind, resolveActionTarget(action.scope, workflowId, interventions, selectedWorkItemId)),
     });
   }
   return items.sort(compareNeedsActionPriority);
+}
+
+async function loadActionableTasks(
+  taskActionSource: TaskActionSource | undefined,
+  tenantId: string,
+  workflowId: string,
+  workItemId: string | null,
+): Promise<ActionableTaskRecord[]> {
+  if (!taskActionSource) {
+    return [];
+  }
+  const states = ['awaiting_approval', 'output_pending_assessment', 'escalated', 'failed'] as const;
+  const pages = await Promise.all(
+    states.map((state) =>
+      taskActionSource.listTasks(tenantId, {
+        workflow_id: workflowId,
+        work_item_id: workItemId ?? undefined,
+        state,
+        page: 1,
+        per_page: 100,
+      }),
+    ),
+  );
+
+  return pages
+    .flatMap((page) => page.data)
+    .map(normalizeActionableTask)
+    .filter((task): task is ActionableTaskRecord => task !== null)
+    .sort(compareActionableTasks);
+}
+
+function normalizeActionableTask(record: Record<string, unknown>): ActionableTaskRecord | null {
+  const id = readOptionalString(record.id);
+  const title = readOptionalString(record.title);
+  const state = readOptionalString(record.state);
+  if (!id || !title || !state) {
+    return null;
+  }
+  return {
+    id,
+    title,
+    role: readOptionalString(record.role),
+    state,
+    work_item_id: readOptionalString(record.work_item_id),
+    updated_at: readOptionalString(record.updated_at),
+  };
+}
+
+function compareActionableTasks(left: ActionableTaskRecord, right: ActionableTaskRecord): number {
+  return (right.updated_at ?? '').localeCompare(left.updated_at ?? '') || left.id.localeCompare(right.id);
+}
+
+function buildActionableTaskMap(tasks: ActionableTaskRecord[]): Map<string, ActionableTaskRecord[]> {
+  const taskMap = new Map<string, ActionableTaskRecord[]>();
+  for (const task of tasks) {
+    if (!task.work_item_id) {
+      continue;
+    }
+    const entries = taskMap.get(task.work_item_id) ?? [];
+    entries.push(task);
+    taskMap.set(task.work_item_id, entries);
+  }
+  return taskMap;
+}
+
+function readDirectActionTask(
+  targetKind: WorkflowNeedsActionItem['target']['target_kind'],
+  targetId: string,
+  actionableTaskMap: Map<string, ActionableTaskRecord[]>,
+): ActionableTaskRecord | null {
+  if (targetKind === 'task') {
+    for (const tasks of actionableTaskMap.values()) {
+      const directTask = tasks.find((task) => task.id === targetId);
+      if (directTask) {
+        return directTask;
+      }
+    }
+    return null;
+  }
+  if (targetKind !== 'work_item') {
+    return null;
+  }
+  return actionableTaskMap.get(targetId)?.[0] ?? null;
+}
+
+function buildBoardNeedsActionResponses(
+  actionKind: string,
+  target: WorkflowNeedsActionItem['target'],
+  directTask: ActionableTaskRecord | null,
+): WorkflowNeedsActionResponseAction[] {
+  if (actionKind === 'review_work_item' && directTask) {
+    if (directTask.state === 'output_pending_assessment') {
+      return [
+        buildNeedsActionResponse('approve_task_output', 'Approve output', directTask.id, 'task', 'none'),
+        buildNeedsActionResponse('reject_task', 'Reject', directTask.id, 'task', 'feedback', true),
+        buildNeedsActionResponse('request_changes_task', 'Request changes', directTask.id, 'task', 'feedback', true),
+      ];
+    }
+    return [
+      buildNeedsActionResponse('approve_task', 'Approve', directTask.id, 'task', 'none'),
+      buildNeedsActionResponse('reject_task', 'Reject', directTask.id, 'task', 'feedback', true),
+      buildNeedsActionResponse('request_changes_task', 'Request changes', directTask.id, 'task', 'feedback', true),
+    ];
+  }
+  if (actionKind === 'resolve_escalation' && directTask) {
+    return [
+      buildNeedsActionResponse('resolve_escalation', 'Resume with guidance', directTask.id, 'task', 'instructions', true),
+    ];
+  }
+  if (actionKind === 'unblock_work_item') {
+    return [
+      buildNeedsActionResponse('add_work_item', 'Add / Modify Work', target.target_id, 'workflow', 'none'),
+    ];
+  }
+  return [];
+}
+
+function buildInterventionResponses(
+  actionKind: string,
+  target: WorkflowNeedsActionItem['target'],
+): WorkflowNeedsActionResponseAction[] {
+  if (actionKind === 'retry_task' && target.target_kind === 'task') {
+    return [buildNeedsActionResponse('retry_task', 'Retry task', target.target_id, 'task', 'none')];
+  }
+  if (actionKind === 'resolve_escalation' && target.target_kind === 'task') {
+    return [
+      buildNeedsActionResponse('resolve_escalation', 'Resume with guidance', target.target_id, 'task', 'instructions', true),
+    ];
+  }
+  return [];
+}
+
+function buildQuickActionResponses(
+  actionKind: string,
+  target: WorkflowNeedsActionItem['target'],
+): WorkflowNeedsActionResponseAction[] {
+  if (actionKind === 'redrive_workflow') {
+    return [buildNeedsActionResponse('redrive_workflow', 'Redrive workflow', target.target_id, 'workflow', 'none', true)];
+  }
+  if (actionKind === 'add_work_item') {
+    return [buildNeedsActionResponse('add_work_item', 'Add / Modify Work', target.target_id, target.target_kind, 'none')];
+  }
+  return [];
+}
+
+function buildNeedsActionResponse(
+  kind: string,
+  label: string,
+  targetId: string,
+  targetKind: WorkflowNeedsActionResponseAction['target']['target_kind'],
+  promptKind: WorkflowNeedsActionResponseAction['prompt_kind'],
+  requiresConfirmation = false,
+): WorkflowNeedsActionResponseAction {
+  return {
+    action_id: `${targetId}:${kind}`,
+    kind,
+    label,
+    target: {
+      target_kind: targetKind,
+      target_id: targetId,
+    },
+    requires_confirmation: requiresConfirmation,
+    prompt_kind: promptKind,
+  };
 }
 
 function humanizeActionKind(actionKind: string): string {
@@ -375,6 +580,7 @@ function readBoardNeedsActionItems(board: Record<string, unknown>): WorkflowNeed
         priority: 'high',
         requires_confirmation: true,
         submission: { route_kind: 'workflow_intervention', method: 'POST' },
+        responses: [],
       });
     }
     if (escalationStatus === 'open') {
@@ -387,6 +593,7 @@ function readBoardNeedsActionItems(board: Record<string, unknown>): WorkflowNeed
         priority: 'high',
         requires_confirmation: false,
         submission: { route_kind: 'workflow_intervention', method: 'POST' },
+        responses: [],
       });
     }
     if (blockedState === 'blocked') {
@@ -399,6 +606,7 @@ function readBoardNeedsActionItems(board: Record<string, unknown>): WorkflowNeed
         priority: 'high',
         requires_confirmation: false,
         submission: { route_kind: 'workflow_intervention', method: 'POST' },
+        responses: [],
       });
     }
   }
@@ -432,6 +640,7 @@ function readBoardStageNeedsActionItems(
         priority: 'high',
         requires_confirmation: true,
         submission: { route_kind: 'workflow_intervention', method: 'POST' },
+        responses: [],
       });
       continue;
     }
@@ -445,6 +654,7 @@ function readBoardStageNeedsActionItems(
         priority: 'high',
         requires_confirmation: false,
         submission: { route_kind: 'workflow_intervention', method: 'POST' },
+        responses: [],
       });
     }
   }

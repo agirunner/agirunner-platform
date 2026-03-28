@@ -554,9 +554,22 @@ export interface DashboardWorkflowNeedsActionItem {
   priority: 'high' | 'medium' | 'low';
   requires_confirmation: boolean;
   submission: {
-    route_kind: 'workflow_intervention';
+    route_kind: 'workflow_intervention' | 'workflow_mutation' | 'task_mutation';
     method: 'POST';
   };
+  responses: DashboardWorkflowNeedsActionResponseAction[];
+}
+
+export interface DashboardWorkflowNeedsActionResponseAction {
+  action_id: string;
+  kind: string;
+  label: string;
+  target: {
+    target_kind: 'workflow' | 'work_item' | 'task';
+    target_id: string;
+  };
+  requires_confirmation: boolean;
+  prompt_kind: 'none' | 'feedback' | 'instructions';
 }
 
 export interface DashboardWorkflowNeedsActionPacket {
