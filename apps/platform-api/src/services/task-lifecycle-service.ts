@@ -3373,7 +3373,7 @@ function buildMissingTurnUpdateMessage(
   contract: OperatorReportingContract,
   missingTurns: number[],
 ): string {
-  return `Enhanced live visibility requires one concise record_operator_update for every actual llm turn before completion. Missing updates for execution context ${contract.executionContextId} on turn ${missingTurns.join(', ')}. Emit one record_operator_update for each missing turn with source_kind ${contract.sourceKind} before retrying completion. Treat that operator update as the turn-close step for the missing turn. Use request_id values starting with ${contract.operatorUpdateRequestIdPrefix}.`;
+  return `Enhanced live visibility requires one concise record_operator_update for every actual llm turn before completion. Missing updates for execution context ${contract.executionContextId} on turn ${missingTurns.join(', ')}. Emit one record_operator_update for each missing turn with source_kind ${contract.sourceKind} before retrying completion. Treat that operator update as the turn-close step for the missing turn. Set top-level llm_turn_count to the exact missing turn number for each recovery write. Use request_id values starting with ${contract.operatorUpdateRequestIdPrefix}.`;
 }
 
 function buildMissingMilestoneBriefMessage(contract: OperatorReportingContract): string {

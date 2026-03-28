@@ -783,6 +783,30 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     ).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
       message: expect.stringContaining('every actual llm turn before completion'),
+      details: expect.objectContaining({
+        recovery: expect.objectContaining({
+          missing_turns: [2],
+        }),
+      }),
+    });
+    await expect(
+      service.completeTask(
+        {
+          id: 'agent-key',
+          tenantId: 'tenant-1',
+          scope: 'agent',
+          ownerType: 'agent',
+          ownerId: 'agent-1',
+          keyPrefix: 'ak',
+        },
+        'task-live-1',
+        {
+          output: { ok: true },
+          verification: { passed: true },
+        },
+      ),
+    ).rejects.toMatchObject({
+      message: expect.stringContaining('Set top-level llm_turn_count to the exact missing turn number for each recovery write'),
       details: {
         reason_code: 'required_operator_turn_update',
         recoverable: true,
@@ -874,6 +898,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       ),
     ).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
+      message: expect.stringContaining('Set top-level llm_turn_count to the exact missing turn number for each recovery write'),
       details: {
         reason_code: 'required_operator_turn_update',
         recoverable: true,
