@@ -3,6 +3,93 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowCreationService } from '../../src/services/workflow-creation-service.js';
 
 describe('WorkflowCreationService', () => {
+  it('materializes a launch input packet with request and operator provenance when a workflow is created', async () => {
+    const createWorkflowInputPacket = vi.fn(async () => ({ id: 'packet-launch-1' }));
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM playbooks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'playbook-1',
+              version: 1,
+              definition: {
+                lifecycle: 'planned',
+                board: { columns: [{ id: 'planned', label: 'Planned' }] },
+                stages: [{ name: 'implementation', goal: 'Build it' }],
+                roles: ['developer'],
+              },
+            }],
+          };
+        }
+        if (sql.includes('INSERT INTO workflows')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'planned',
+              current_stage: 'implementation',
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new WorkflowCreationService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      stateService: {} as never,
+      activationService: { enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-1' })) } as never,
+      activationDispatchService: { dispatchActivation: vi.fn(async () => null) } as never,
+      stageService: { createStages: vi.fn(async () => []) } as never,
+      modelCatalogService: { validateModelOverride: vi.fn(async () => undefined) } as never,
+      inputPacketService: { createWorkflowInputPacket } as never,
+    });
+
+    await service.createWorkflow(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: 'user-1',
+        keyPrefix: 'admin-key',
+        id: 'key-1',
+      } as never,
+      {
+        playbook_id: 'playbook-1',
+        name: 'Workflow One',
+        request_id: 'request-1',
+        operator_note: 'Prioritize the verification branch first.',
+        initial_input_packet: {
+          summary: 'Launch packet summary',
+          structured_inputs: { ticket: 'INC-42' },
+        },
+      } as never,
+    );
+
+    expect(createWorkflowInputPacket).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({
+        requestId: 'request-1',
+        packetKind: 'launch',
+        createdByKind: 'operator',
+        summary: 'Launch packet summary',
+        structuredInputs: { ticket: 'INC-42' },
+        metadata: expect.objectContaining({
+          operator_note: 'Prioritize the verification branch first.',
+        }),
+      }),
+      expect.anything(),
+    );
+  });
+
   it('persists workflow execution context and attempt lineage when provided', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
@@ -41,10 +128,11 @@ describe('WorkflowCreationService', () => {
               'utf8',
             ),
           );
-          expect(params?.[20]).toBe('workflow-1');
+          expect(params?.[20]).toBe(null);
           expect(params?.[21]).toBe('workflow-1');
-          expect(params?.[22]).toBe(2);
-          expect(params?.[23]).toBe('redrive');
+          expect(params?.[22]).toBe('workflow-1');
+          expect(params?.[23]).toBe(2);
+          expect(params?.[24]).toBe('redrive');
           return {
             rowCount: 1,
             rows: [{
@@ -54,10 +142,11 @@ describe('WorkflowCreationService', () => {
               current_stage: 'implementation',
               context: params?.[18],
               live_visibility_mode_override: params?.[15],
-              root_workflow_id: params?.[20],
-              previous_attempt_workflow_id: params?.[21],
-              attempt_number: params?.[22],
-              attempt_kind: params?.[23],
+              attempt_group_id: params?.[20],
+              root_workflow_id: params?.[21],
+              previous_attempt_workflow_id: params?.[22],
+              attempt_number: params?.[23],
+              attempt_kind: params?.[24],
             }],
           };
         }
@@ -109,6 +198,7 @@ describe('WorkflowCreationService', () => {
           launch: { trigger: 'mission_control' },
           redrive: { source_workflow_id: 'workflow-1' },
         },
+        attempt_group_id: null,
         root_workflow_id: 'workflow-1',
         previous_attempt_workflow_id: 'workflow-1',
         attempt_number: 2,

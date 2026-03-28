@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { NotFoundError } from '../../src/errors/domain-errors.js';
+import { NotFoundError, ValidationError } from '../../src/errors/domain-errors.js';
 import { WorkflowRedriveService } from '../../src/services/workflow-redrive-service.js';
 
 const IDENTITY = {
@@ -55,16 +55,21 @@ describe('WorkflowRedriveService', () => {
       rowCount: 1,
       rows: [{
         id: 'workflow-1',
+        state: 'failed',
         workspace_id: 'workspace-1',
         playbook_id: 'playbook-1',
         name: 'Release workflow',
         parameters: { target: 'production' },
         context: { launch: { trigger: 'mission_control' } },
         metadata: { model_overrides: { developer: { provider: 'openai', model: 'gpt-5.4' } } },
+        attempt_group_id: 'attempt-group-1',
         root_workflow_id: null,
         previous_attempt_workflow_id: null,
         attempt_number: 1,
         attempt_kind: 'initial',
+        redrive_reason: null,
+        redrive_input_packet_id: null,
+        inherited_input_packet_ids_json: ['packet-launch-1'],
         live_visibility_mode_override: 'standard',
       }],
     });
@@ -78,11 +83,15 @@ describe('WorkflowRedriveService', () => {
     });
 
     const result = await service.redriveWorkflow(IDENTITY as never, 'workflow-1', {
+      requestId: 'request-1',
       name: 'Release workflow retry',
+      reason: 'Verification failed after stale rollback instructions.',
       summary: 'Retry with corrected deployment inputs',
       steeringInstruction: 'Focus on the verification path first.',
       parameters: { target: 'staging' },
       structuredInputs: { ticket: 'INC-42' },
+      inheritancePolicy: 'inherit_all',
+      redriveInputPacketId: 'packet-redrive-source-1',
       files: [
         {
           fileName: 'checklist.txt',
@@ -100,6 +109,7 @@ describe('WorkflowRedriveService', () => {
         name: 'Release workflow retry',
         parameters: { target: 'staging' },
         attempt: {
+          attempt_group_id: 'attempt-group-1',
           root_workflow_id: 'workflow-1',
           previous_attempt_workflow_id: 'workflow-1',
           attempt_number: 2,
@@ -116,6 +126,10 @@ describe('WorkflowRedriveService', () => {
         }),
         metadata: expect.objectContaining({
           model_overrides: { developer: { provider: 'openai', model: 'gpt-5.4' } },
+          redrive_reason: 'Verification failed after stale rollback instructions.',
+          redrive_input_packet_id: 'packet-redrive-source-1',
+          inherited_input_packet_ids: ['packet-launch-1'],
+          inheritance_policy: 'inherit_all',
         }),
         live_visibility_mode: 'standard',
       }),
@@ -124,7 +138,9 @@ describe('WorkflowRedriveService', () => {
       expect.objectContaining({ tenantId: 'tenant-1' }),
       'workflow-2',
       expect.objectContaining({
-        packetKind: 'redrive',
+        requestId: 'request-1',
+        packetKind: 'redrive_patch',
+        sourceAttemptId: 'workflow-1',
         summary: 'Retry with corrected deployment inputs',
         structuredInputs: { ticket: 'INC-42' },
       }),
@@ -145,6 +161,14 @@ describe('WorkflowRedriveService', () => {
       expect.objectContaining({
         source_workflow_id: 'workflow-1',
         attempt_number: 2,
+        redrive_lineage: expect.objectContaining({
+          attempt_group_id: 'attempt-group-1',
+          attempt_number: 2,
+          source_workflow_id: 'workflow-1',
+          redrive_reason: 'Verification failed after stale rollback instructions.',
+          redrive_input_packet_id: 'packet-redrive-source-1',
+          inherited_input_packet_ids: ['packet-launch-1'],
+        }),
         workflow: expect.objectContaining({ id: 'workflow-2' }),
         input_packet: expect.objectContaining({ id: 'packet-1' }),
       }),
@@ -159,5 +183,36 @@ describe('WorkflowRedriveService', () => {
         summary: 'Retry missing workflow',
       }),
     ).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('rejects redrive when the source workflow is not terminal', async () => {
+    pool.query.mockResolvedValueOnce({
+      rowCount: 1,
+      rows: [{
+        id: 'workflow-1',
+        state: 'active',
+        workspace_id: 'workspace-1',
+        playbook_id: 'playbook-1',
+        name: 'Release workflow',
+        parameters: {},
+        context: {},
+        metadata: {},
+        attempt_group_id: 'attempt-group-1',
+        root_workflow_id: null,
+        previous_attempt_workflow_id: null,
+        attempt_number: 1,
+        attempt_kind: 'initial',
+        redrive_reason: null,
+        redrive_input_packet_id: null,
+        inherited_input_packet_ids_json: [],
+        live_visibility_mode_override: 'standard',
+      }],
+    });
+
+    await expect(
+      service.redriveWorkflow(IDENTITY as never, 'workflow-1', {
+        reason: 'Retry this active workflow',
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 });

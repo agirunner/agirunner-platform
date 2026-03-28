@@ -25,16 +25,35 @@ export interface WorkflowBudgetSnapshot {
 }
 
 export interface WorkflowAttemptInput {
+  attempt_group_id?: string;
   root_workflow_id?: string;
   previous_attempt_workflow_id?: string;
   attempt_number?: number;
   attempt_kind?: string;
 }
 
+export interface CreateWorkflowInitialInputPacketInput {
+  summary?: string;
+  structured_inputs?: Record<string, unknown>;
+  files?: Array<{
+    fileName: string;
+    description?: string;
+    contentBase64: string;
+    contentType?: string;
+  }>;
+}
+
 export interface CreateWorkflowInput {
   playbook_id: string;
   workspace_id?: string;
   name: string;
+  request_id?: string;
+  operator_note?: string;
+  initial_input_packet?: CreateWorkflowInitialInputPacketInput;
+  redrive_reason?: string;
+  redrive_input_packet_id?: string;
+  inherited_input_packet_ids?: string[];
+  inheritance_policy?: string;
   parameters?: Record<string, string>;
   context?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
@@ -74,5 +93,10 @@ export type WorkflowServiceConfig = LegacyTaskTimeoutConfig &
       'WORKFLOW_ACTIVATION_DELAY_MS' | 'WORKFLOW_ACTIVATION_STALE_AFTER_MS' | 'WORKFLOW_BUDGET_WARNING_RATIO'
     >
   > &
-  Partial<Pick<AppEnv, 'TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS'>> &
+  Partial<
+    Pick<
+      AppEnv,
+      'TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS' | 'WORKSPACE_ARTIFACT_MAX_UPLOAD_FILES' | 'WORKSPACE_ARTIFACT_MAX_UPLOAD_BYTES'
+    >
+  > &
   ArtifactStorageEnv;

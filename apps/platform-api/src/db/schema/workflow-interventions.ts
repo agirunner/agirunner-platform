@@ -1,4 +1,4 @@
-import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { tasks } from './tasks.js';
 import { tenants } from './tenants.js';
@@ -17,10 +17,16 @@ export const workflowInterventions = pgTable(
       .references(() => workflows.id, { onDelete: 'cascade' }),
     workItemId: uuid('work_item_id').references(() => workflowWorkItems.id, { onDelete: 'set null' }),
     taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'set null' }),
+    requestId: text('request_id'),
     kind: text('kind').notNull(),
     origin: text('origin').notNull().default('operator'),
     status: text('status').notNull().default('applied'),
+    outcome: text('outcome').notNull().default('applied'),
+    resultKind: text('result_kind').notNull().default('intervention_recorded'),
+    snapshotVersion: text('snapshot_version'),
+    settingsRevision: integer('settings_revision'),
     summary: text('summary').notNull(),
+    message: text('message'),
     note: text('note'),
     structuredAction: jsonb('structured_action').notNull().default({}),
     metadata: jsonb('metadata').notNull().default({}),

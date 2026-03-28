@@ -21,10 +21,16 @@ interface WorkflowInterventionRow {
   workflow_id: string;
   work_item_id: string | null;
   task_id: string | null;
+  request_id: string | null;
   kind: string;
   origin: string;
   status: string;
+  outcome: string;
+  result_kind: string;
+  snapshot_version: string | null;
+  settings_revision: number | null;
   summary: string;
+  message: string | null;
   note: string | null;
   structured_action: Record<string, unknown> | null;
   metadata: Record<string, unknown> | null;
@@ -54,10 +60,16 @@ export interface WorkflowInterventionRecord {
   workflow_id: string;
   work_item_id: string | null;
   task_id: string | null;
+  request_id: string | null;
   kind: string;
   origin: string;
   status: string;
+  outcome: string;
+  result_kind: string;
+  snapshot_version: string | null;
+  settings_revision: number | null;
   summary: string;
+  message: string | null;
   note: string | null;
   structured_action: Record<string, unknown>;
   metadata: Record<string, unknown>;
@@ -79,10 +91,16 @@ export interface WorkflowInterventionFileRecord {
 }
 
 export interface RecordWorkflowInterventionInput {
+  requestId?: string;
   kind: string;
   origin?: string;
   status?: string;
+  outcome?: string;
+  resultKind?: string;
+  snapshotVersion?: string;
+  settingsRevision?: number;
   summary: string;
+  message?: string;
   note?: string;
   structuredAction?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
@@ -116,8 +134,8 @@ export class WorkflowInterventionService {
     const interventionId = randomUUID();
     const result = await this.pool.query<WorkflowInterventionRow>(
       `INSERT INTO workflow_interventions
-         (id, tenant_id, workflow_id, work_item_id, task_id, kind, origin, status, summary, note, structured_action, metadata, created_by_type, created_by_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13,$14)
+         (id, tenant_id, workflow_id, work_item_id, task_id, request_id, kind, origin, status, outcome, result_kind, snapshot_version, settings_revision, summary, message, note, structured_action, metadata, created_by_type, created_by_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17::jsonb,$18::jsonb,$19,$20)
        RETURNING *`,
       [
         interventionId,
@@ -125,10 +143,16 @@ export class WorkflowInterventionService {
         workflowId,
         input.workItemId ?? null,
         input.taskId ?? null,
+        sanitizeOptionalText(input.requestId),
         input.kind.trim(),
         sanitizeOptionalText(input.origin) ?? 'operator',
         sanitizeOptionalText(input.status) ?? 'applied',
+        sanitizeOptionalText(input.outcome) ?? 'applied',
+        sanitizeOptionalText(input.resultKind) ?? 'intervention_recorded',
+        sanitizeOptionalText(input.snapshotVersion),
+        Number.isInteger(input.settingsRevision) ? input.settingsRevision : null,
         sanitizeRequiredText(input.summary, 'Workflow intervention summary is required'),
+        sanitizeOptionalText(input.message),
         sanitizeOptionalText(input.note),
         sanitizeRecord(input.structuredAction),
         sanitizeRecord(input.metadata),
@@ -300,10 +324,16 @@ function toWorkflowInterventionRecord(
     workflow_id: row.workflow_id,
     work_item_id: row.work_item_id,
     task_id: row.task_id,
+    request_id: row.request_id,
     kind: row.kind,
     origin: row.origin,
     status: row.status,
+    outcome: row.outcome,
+    result_kind: row.result_kind,
+    snapshot_version: row.snapshot_version,
+    settings_revision: row.settings_revision === null ? null : Number(row.settings_revision),
     summary: row.summary,
+    message: row.message,
     note: row.note,
     structured_action: sanitizeRecord(row.structured_action),
     metadata: sanitizeRecord(row.metadata),

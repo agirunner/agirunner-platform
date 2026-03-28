@@ -4,6 +4,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
+import type { WorkflowInterventionService } from './workflow-intervention-service.js';
 
 type WorkflowSteeringSourceKind = 'operator' | 'platform' | 'system';
 type WorkflowSteeringMessageKind = 'operator_request' | 'steering_response' | 'system_notice';
@@ -95,7 +96,10 @@ export interface WorkflowSteeringRequestResult {
 }
 
 export class WorkflowSteeringSessionService {
-  constructor(private readonly pool: DatabasePool) {}
+  constructor(
+    private readonly pool: DatabasePool,
+    private readonly interventionService?: Pick<WorkflowInterventionService, 'recordIntervention'>,
+  ) {}
 
   async createSession(
     identity: ApiKeyIdentity,
@@ -248,12 +252,21 @@ export class WorkflowSteeringSessionService {
       body: deriveMessageBody(input.request),
       linkedInputPacketId: firstArrayValue(input.linkedInputPacketIds),
     });
+    const linkedIntervention = await this.recordLinkedIntervention(identity, workflowId, session.id, {
+      requestId: input.requestId,
+      request: input.request,
+      workItemId: scopedWorkItemId ?? undefined,
+      taskId: input.taskId,
+      linkedInputPacketIds: dedupeNonEmptyStrings(input.linkedInputPacketIds),
+      baseSnapshotVersion: input.baseSnapshotVersion,
+    });
     const responseMessage = await this.appendMessage(identity, workflowId, session.id, {
       workItemId: toOptionalString(scopedWorkItemId),
       sourceKind: 'platform',
       messageKind: 'steering_response',
       headline: 'Steering request recorded',
       body: buildResponseBody(scopedWorkItemId, input.taskId, input.linkedInputPacketIds ?? []),
+      linkedInterventionId: linkedIntervention?.id ?? undefined,
       linkedInputPacketId: firstArrayValue(input.linkedInputPacketIds),
     });
 
@@ -264,17 +277,61 @@ export class WorkflowSteeringSessionService {
       workflow_id: workflowId,
       resulting_work_item_id: scopedWorkItemId,
       input_packet_id: null,
-      intervention_id: null,
-      snapshot_version: null,
+      intervention_id: linkedIntervention?.id ?? null,
+      snapshot_version: input.baseSnapshotVersion ?? null,
       settings_revision: null,
       message: 'Steering request recorded.',
       redrive_lineage: null,
       steering_session_id: session.id,
       request_message_id: requestMessage.id,
       response_message_id: responseMessage.id,
-      linked_intervention_ids: [],
+      linked_intervention_ids: linkedIntervention ? [linkedIntervention.id] : [],
       linked_input_packet_ids: dedupeNonEmptyStrings(input.linkedInputPacketIds),
     };
+  }
+
+  private async recordLinkedIntervention(
+    identity: ApiKeyIdentity,
+    workflowId: string,
+    sessionId: string,
+    input: {
+      requestId: string;
+      request: string;
+      workItemId?: string;
+      taskId?: string;
+      linkedInputPacketIds: string[];
+      baseSnapshotVersion?: string;
+    },
+  ) {
+    if (!this.interventionService) {
+      return null;
+    }
+
+    return this.interventionService.recordIntervention(identity, workflowId, {
+      requestId: input.requestId,
+      kind: 'steering_request',
+      origin: 'operator',
+      status: 'applied',
+      outcome: 'applied',
+      resultKind: 'steering_request_recorded',
+      snapshotVersion: input.baseSnapshotVersion,
+      summary: deriveMessageHeadline(input.request),
+      message: 'Steering request recorded.',
+      note: deriveMessageBody(input.request),
+      structuredAction: {
+        kind: input.taskId ? 'steer_task' : input.workItemId ? 'steer_work_item' : 'steer_workflow',
+        request: sanitizeRequiredText(input.request, 'Steering request is required'),
+        ...(input.workItemId ? { work_item_id: input.workItemId } : {}),
+        ...(input.taskId ? { task_id: input.taskId } : {}),
+        ...(input.linkedInputPacketIds.length > 0 ? { linked_input_packet_ids: input.linkedInputPacketIds } : {}),
+      },
+      metadata: {
+        steering_session_id: sessionId,
+      },
+      workItemId: input.workItemId,
+      taskId: input.taskId,
+      files: [],
+    });
   }
 
   private async touchSession(tenantId: string, workflowId: string, sessionId: string): Promise<void> {

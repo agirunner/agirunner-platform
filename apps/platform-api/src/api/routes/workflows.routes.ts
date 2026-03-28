@@ -44,10 +44,28 @@ const workflowBudgetSchema = z.object({
   max_duration_minutes: z.number().int().positive().optional(),
 });
 
+const requestIdSchema = z.string().min(1).max(255);
+
+const workflowInitialInputPacketFileSchema = z.object({
+  file_name: z.string().min(1).max(255),
+  description: z.string().max(4000).optional(),
+  content_base64: z.string().min(1),
+  content_type: z.string().min(1).max(255).optional(),
+});
+
+const workflowInitialInputPacketSchema = z.object({
+  summary: z.string().min(1).max(4000).optional(),
+  structured_inputs: z.record(z.unknown()).optional(),
+  files: z.array(workflowInitialInputPacketFileSchema).max(25).optional(),
+});
+
 const workflowCreateSchema = z.object({
+  request_id: requestIdSchema.optional(),
   playbook_id: z.string().uuid(),
   workspace_id: z.string().uuid().optional(),
   name: z.string().min(1).max(255),
+  operator_note: z.string().min(1).max(4000).optional(),
+  initial_input_packet: workflowInitialInputPacketSchema.optional(),
   parameters: z.record(z.string()).optional(),
   metadata: z.record(z.unknown()).optional(),
   config_overrides: z.record(z.unknown()).optional(),
@@ -57,12 +75,24 @@ const workflowCreateSchema = z.object({
   live_visibility_mode: z.enum(['standard', 'enhanced']).optional(),
 });
 
+const workflowRedriveCreateSchema = z.object({
+  request_id: requestIdSchema.optional(),
+  name: z.string().min(1).max(255).optional(),
+  reason: z.string().min(1).max(4000).optional(),
+  summary: z.string().min(1).max(4000).optional(),
+  steering_instruction: z.string().min(1).max(4000).optional(),
+  redrive_input_packet_id: z.string().uuid().optional(),
+  inheritance_policy: z.enum(['inherit_all', 'inherit_none']).optional(),
+  parameters: z.record(z.string()).optional(),
+  structured_inputs: z.record(z.unknown()).optional(),
+  live_visibility_mode: z.enum(['standard', 'enhanced']).optional(),
+  files: z.array(workflowInitialInputPacketFileSchema).max(25).optional(),
+});
+
 const workflowSettingsPatchSchema = z.object({
   live_visibility_mode: z.enum(['standard', 'enhanced']).nullable(),
   settings_revision: z.number().int().min(0),
 });
-
-const requestIdSchema = z.string().min(1).max(255);
 
 const stageGateSchema = z.object({
   request_id: requestIdSchema,
@@ -253,6 +283,30 @@ function readTaskState(value: unknown): string {
   return typeof value === 'string' ? value.toLowerCase() : '';
 }
 
+function mapWorkflowCreateBody(body: z.infer<typeof workflowCreateSchema>) {
+  return {
+    ...body,
+    initial_input_packet: body.initial_input_packet
+      ? {
+          summary: body.initial_input_packet.summary,
+          structured_inputs: body.initial_input_packet.structured_inputs,
+          files: mapWorkflowOperatorFiles(body.initial_input_packet.files),
+        }
+      : undefined,
+  };
+}
+
+function mapWorkflowOperatorFiles(
+  files: Array<z.infer<typeof workflowInitialInputPacketFileSchema>> | undefined,
+) {
+  return files?.map((file) => ({
+    fileName: file.file_name,
+    description: file.description,
+    contentBase64: file.content_base64,
+    contentType: file.content_type,
+  }));
+}
+
 export const workflowRoutes: FastifyPluginAsync = async (app) => {
   const workflowService = app.workflowService;
   const workflowChainingService = new WorkflowChainingService(app.pgPool, workflowService);
@@ -285,11 +339,34 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const body = parseOrThrow(workflowCreateSchema.safeParse(request.body));
       const workflow = await workflowService.createWorkflow(request.auth!, {
-        ...body,
+        ...mapWorkflowCreateBody(body),
         metadata: mergeWorkflowMetadata(body.metadata, body.model_overrides),
         live_visibility_mode: body.live_visibility_mode,
       });
       return reply.status(201).send({ data: workflow });
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/redrives',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(workflowRedriveCreateSchema.safeParse(request.body ?? {}));
+      const redrive = await app.workflowRedriveService.redriveWorkflow(request.auth!, params.id, {
+        requestId: body.request_id,
+        name: body.name,
+        reason: body.reason,
+        summary: body.summary,
+        steeringInstruction: body.steering_instruction,
+        redriveInputPacketId: body.redrive_input_packet_id,
+        inheritancePolicy: body.inheritance_policy,
+        parameters: body.parameters,
+        structuredInputs: body.structured_inputs,
+        liveVisibilityMode: body.live_visibility_mode,
+        files: mapWorkflowOperatorFiles(body.files),
+      });
+      return reply.status(201).send({ data: redrive });
     },
   );
 

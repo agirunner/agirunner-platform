@@ -18,6 +18,7 @@ import { currentStageNameFromStages, WorkflowStageService } from './workflow-sta
 import { WorkflowStateService } from './workflow-state-service.js';
 import { readWorkspaceSettingsExtras } from './workspace-settings.js';
 import type { WorkflowAttemptInput } from './workflow-service.types.js';
+import type { WorkflowInputPacketService } from './workflow-input-packet-service.js';
 
 interface WorkflowCreationDeps {
   pool: DatabasePool;
@@ -27,6 +28,7 @@ interface WorkflowCreationDeps {
   activationDispatchService: WorkflowActivationDispatchService;
   stageService: WorkflowStageService;
   modelCatalogService: Pick<ModelCatalogService, 'validateModelOverride'>;
+  inputPacketService?: Pick<WorkflowInputPacketService, 'createWorkflowInputPacket'>;
 }
 
 type CreatedWorkflow = Record<string, unknown> & {
@@ -97,14 +99,16 @@ export class WorkflowCreationService {
         resolveOperatorRecordActorId(identity),
       );
       const initialStageName = initialWorkflowStageName(definition);
+      const workflowMetadata = buildWorkflowMetadata(input);
       const workflowResult = await client.query(
         `INSERT INTO workflows (
            tenant_id, workspace_id, playbook_id, playbook_version, name, state, lifecycle,
            current_stage, parameters, metadata, resolved_config, config_layers,
            instruction_config, token_budget, cost_cap_usd, max_duration_minutes, orchestration_state,
            live_visibility_mode_override, live_visibility_revision, live_visibility_updated_by_operator_id,
-           context, context_size_bytes, root_workflow_id, previous_attempt_workflow_id, attempt_number, attempt_kind
-         ) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, '{}'::jsonb, $16, $17, $18, $19, $20, $21, $22, $23, $24)
+           context, context_size_bytes, attempt_group_id, root_workflow_id, previous_attempt_workflow_id,
+           attempt_number, attempt_kind, redrive_reason, redrive_input_packet_id, inherited_input_packet_ids_json
+         ) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, '{}'::jsonb, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28::jsonb)
          RETURNING *`,
         [
           identity.tenantId,
@@ -115,7 +119,7 @@ export class WorkflowCreationService {
           definition.lifecycle,
           null,
           workflowParameters,
-          input.metadata ?? {},
+          workflowMetadata,
           resolvedConfig.resolved,
           resolvedConfig.layers,
           input.instruction_config ?? null,
@@ -127,10 +131,14 @@ export class WorkflowCreationService {
           workflowLiveVisibility.updatedByOperatorId,
           workflowContext,
           byteLengthJson(workflowContext),
+          workflowAttempt.attempt_group_id,
           workflowAttempt.root_workflow_id,
           workflowAttempt.previous_attempt_workflow_id,
           workflowAttempt.attempt_number,
           workflowAttempt.attempt_kind,
+          sanitizeOptionalText(input.redrive_reason),
+          sanitizeOptionalIdentifier(input.redrive_input_packet_id),
+          sanitizeIdentifierArray(input.inherited_input_packet_ids),
         ],
       );
       const workflow = workflowResult.rows[0] as PersistedWorkflowRow;
@@ -140,6 +148,7 @@ export class WorkflowCreationService {
         definition,
         client,
       );
+      await this.createLaunchInputPacket(identity, workflow.id as string, input, client);
 
       await this.deps.eventService.emit(
         {
@@ -228,6 +237,43 @@ export class WorkflowCreationService {
     }
     return readWorkspaceSettingsExtras(result.rows[0].settings);
   }
+
+  private async createLaunchInputPacket(
+    identity: ApiKeyIdentity,
+    workflowId: string,
+    input: CreateWorkflowInput,
+    client: { query: DatabasePool['query'] },
+  ): Promise<void> {
+    if (!this.deps.inputPacketService) {
+      return;
+    }
+
+    const requestId = sanitizeOptionalIdentifier(input.request_id);
+    const operatorNote = sanitizeOptionalText(input.operator_note);
+    const initialPacket = input.initial_input_packet;
+    const summary = sanitizeOptionalText(initialPacket?.summary) ?? operatorNote;
+    const structuredInputs = sanitizeRecord(initialPacket?.structured_inputs);
+    const files = initialPacket?.files ?? [];
+    if (!requestId && !operatorNote && !summary && Object.keys(structuredInputs).length === 0 && files.length === 0) {
+      return;
+    }
+
+    await this.deps.inputPacketService.createWorkflowInputPacket(
+      identity,
+      workflowId,
+      {
+        requestId: requestId ?? undefined,
+        packetKind: 'launch',
+        source: 'launch',
+        createdByKind: 'operator',
+        summary: summary ?? undefined,
+        structuredInputs,
+        metadata: operatorNote ? { operator_note: operatorNote } : {},
+        files,
+      },
+      client as never,
+    );
+  }
 }
 
 function initialWorkflowStageName(definition: ReturnType<typeof parsePlaybookDefinition>): string | null {
@@ -306,6 +352,7 @@ function normalizeWorkflowAttempt(value: WorkflowAttemptInput | undefined) {
   }
 
   return {
+    attempt_group_id: sanitizeOptionalIdentifier(value?.attempt_group_id),
     root_workflow_id: sanitizeOptionalIdentifier(value?.root_workflow_id),
     previous_attempt_workflow_id: sanitizeOptionalIdentifier(value?.previous_attempt_workflow_id),
     attempt_number: attemptNumber,
@@ -335,6 +382,50 @@ function sanitizeOptionalIdentifier(value?: string): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function sanitizeOptionalText(value?: string): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function sanitizeRecord(value?: Record<string, unknown>): Record<string, unknown> {
+  if (!value || Array.isArray(value)) {
+    return {};
+  }
+  return value;
+}
+
+function sanitizeIdentifierArray(value?: string[]): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) => sanitizeOptionalIdentifier(entry))
+    .filter((entry): entry is string => entry !== null);
+}
+
+function buildWorkflowMetadata(input: CreateWorkflowInput): Record<string, unknown> {
+  const metadata = sanitizeRecord(input.metadata);
+  const requestId = sanitizeOptionalIdentifier(input.request_id);
+  const operatorNote = sanitizeOptionalText(input.operator_note);
+  const redriveReason = sanitizeOptionalText(input.redrive_reason);
+  const redriveInputPacketId = sanitizeOptionalIdentifier(input.redrive_input_packet_id);
+  const inheritedInputPacketIds = sanitizeIdentifierArray(input.inherited_input_packet_ids);
+  const inheritancePolicy = sanitizeOptionalText(input.inheritance_policy);
+
+  return {
+    ...metadata,
+    ...(requestId ? { create_request_id: requestId } : {}),
+    ...(operatorNote ? { operator_note: operatorNote } : {}),
+    ...(redriveReason ? { redrive_reason: redriveReason } : {}),
+    ...(redriveInputPacketId ? { redrive_input_packet_id: redriveInputPacketId } : {}),
+    ...(inheritedInputPacketIds.length > 0 ? { inherited_input_packet_ids: inheritedInputPacketIds } : {}),
+    ...(inheritancePolicy ? { inheritance_policy: inheritancePolicy } : {}),
+  };
 }
 
 function byteLengthJson(value: Record<string, unknown>): number {

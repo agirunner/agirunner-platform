@@ -728,6 +728,10 @@ describe('workflow routes', () => {
     const redriveWorkflow = vi.fn().mockResolvedValue({
       source_workflow_id: 'workflow-1',
       attempt_number: 2,
+      redrive_lineage: {
+        attempt_group_id: 'attempt-group-1',
+        attempt_number: 2,
+      },
       workflow: {
         id: 'workflow-2',
         name: 'Release workflow retry',
@@ -747,8 +751,11 @@ describe('workflow routes', () => {
       payload: {
         request_id: 'request-1',
         name: 'Release workflow retry',
+        reason: 'Verification failed after stale rollback instructions.',
         summary: 'Retry with corrected deployment inputs',
         steering_instruction: 'Focus on the verification path first.',
+        redrive_input_packet_id: '11111111-1111-4111-8111-111111111111',
+        inheritance_policy: 'inherit_all',
         parameters: { target: 'staging' },
       },
     });
@@ -760,9 +767,56 @@ describe('workflow routes', () => {
       expect.objectContaining({
         requestId: 'request-1',
         name: 'Release workflow retry',
+        reason: 'Verification failed after stale rollback instructions.',
         summary: 'Retry with corrected deployment inputs',
         steeringInstruction: 'Focus on the verification path first.',
+        redriveInputPacketId: '11111111-1111-4111-8111-111111111111',
+        inheritancePolicy: 'inherit_all',
         parameters: { target: 'staging' },
+      }),
+    );
+  });
+
+  it('passes request and initial launch packet inputs through workflow creation routes', async () => {
+    const createWorkflow = vi.fn().mockResolvedValue({
+      id: 'workflow-1',
+      name: 'Release workflow',
+      live_visibility_mode_override: 'enhanced',
+    });
+
+    app = createWorkflowRoutesApp({
+      workflowService: { createWorkflow },
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'request-1',
+        playbook_id: '00000000-0000-4000-8000-000000000002',
+        name: 'Release workflow',
+        operator_note: 'Prioritize the verification branch first.',
+        initial_input_packet: {
+          summary: 'Launch packet summary',
+          structured_inputs: { ticket: 'INC-42' },
+        },
+        live_visibility_mode: 'enhanced',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(createWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      expect.objectContaining({
+        request_id: 'request-1',
+        operator_note: 'Prioritize the verification branch first.',
+        initial_input_packet: {
+          summary: 'Launch packet summary',
+          structured_inputs: { ticket: 'INC-42' },
+        },
+        live_visibility_mode: 'enhanced',
       }),
     );
   });

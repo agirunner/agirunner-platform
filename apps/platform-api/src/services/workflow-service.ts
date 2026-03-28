@@ -47,6 +47,7 @@ import { buildWorkflowReadColumns } from './workflow-read-columns.js';
 import { readTaskCancelSignalGracePeriodMs } from './platform-timing-defaults.js';
 import type { LogService } from '../logging/log-service.js';
 import type { WorkerConnectionHub } from './worker-connection-hub.js';
+import type { WorkflowInputPacketService } from './workflow-input-packet-service.js';
 import type {
   CreateWorkflowInput,
   ListWorkflowQuery,
@@ -74,6 +75,7 @@ export class WorkflowService {
     connectionHub?: WorkerConnectionHub,
     logService?: LogService,
     taskService?: Pick<TaskService, 'requestTaskChanges'>,
+    workflowInputPacketService?: Pick<WorkflowInputPacketService, 'createWorkflowInputPacket'>,
   ) {
     this.workspaceTimelineService = new WorkspaceTimelineService(pool);
     this.modelCatalogService = new ModelCatalogService(pool);
@@ -112,6 +114,7 @@ export class WorkflowService {
       activationDispatchService: this.activationDispatchService,
       stageService: this.stageService,
       modelCatalogService: this.modelCatalogService,
+      inputPacketService: workflowInputPacketService,
     });
     this.workItemService = new WorkItemService(
       pool,

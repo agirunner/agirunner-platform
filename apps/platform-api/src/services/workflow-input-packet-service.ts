@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
-import type { DatabasePool } from '../db/database.js';
+import type { DatabasePool, DatabaseQueryable } from '../db/database.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import {
   buildWorkflowOperatorFileRecordId,
@@ -20,11 +20,15 @@ interface WorkflowPacketRow {
   tenant_id: string;
   workflow_id: string;
   work_item_id: string | null;
+  request_id: string | null;
+  source_intervention_id: string | null;
+  source_attempt_id: string | null;
   packet_kind: string;
   source: string;
   summary: string | null;
   structured_inputs: Record<string, unknown> | null;
   metadata: Record<string, unknown> | null;
+  created_by_kind: string;
   created_by_type: string;
   created_by_id: string;
   created_at: Date;
@@ -50,11 +54,15 @@ export interface WorkflowInputPacketRecord {
   id: string;
   workflow_id: string;
   work_item_id: string | null;
+  request_id: string | null;
+  source_intervention_id: string | null;
+  source_attempt_id: string | null;
   packet_kind: string;
   source: string;
   summary: string | null;
   structured_inputs: Record<string, unknown>;
   metadata: Record<string, unknown>;
+  created_by_kind: string;
   created_by_type: string;
   created_by_id: string;
   created_at: string;
@@ -73,11 +81,15 @@ export interface WorkflowInputPacketFileRecord {
 }
 
 export interface CreateWorkflowInputPacketInput {
+  requestId?: string;
   packetKind: string;
   source?: string;
   summary?: string;
   structuredInputs?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
+  createdByKind?: string;
+  sourceInterventionId?: string;
+  sourceAttemptId?: string;
   workItemId?: string;
   files: WorkflowOperatorFileUploadInput[];
 }
@@ -94,40 +106,45 @@ export class WorkflowInputPacketService {
     identity: ApiKeyIdentity,
     workflowId: string,
     input: CreateWorkflowInputPacketInput,
+    db: DatabaseQueryable = this.pool,
   ): Promise<WorkflowInputPacketRecord> {
     this.assertUploadCount(input.files);
-    await this.loadWorkflow(identity.tenantId, workflowId);
+    await this.loadWorkflow(db, identity.tenantId, workflowId);
     if (input.workItemId) {
-      await this.assertWorkItem(identity.tenantId, workflowId, input.workItemId);
+      await this.assertWorkItem(db, identity.tenantId, workflowId, input.workItemId);
     }
 
     const packetId = randomUUID();
-    const packetResult = await this.pool.query<WorkflowPacketRow>(
+    const packetResult = await db.query<WorkflowPacketRow>(
       `INSERT INTO workflow_input_packets
-         (id, tenant_id, workflow_id, work_item_id, packet_kind, source, summary, structured_inputs, metadata, created_by_type, created_by_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9::jsonb,$10,$11)
+         (id, tenant_id, workflow_id, work_item_id, request_id, source_intervention_id, source_attempt_id, packet_kind, source, summary, structured_inputs, metadata, created_by_kind, created_by_type, created_by_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13,$14,$15)
        RETURNING *`,
       [
         packetId,
         identity.tenantId,
         workflowId,
         input.workItemId ?? null,
+        sanitizeOptionalText(input.requestId),
+        sanitizeOptionalText(input.sourceInterventionId),
+        sanitizeOptionalText(input.sourceAttemptId),
         input.packetKind.trim(),
         sanitizeOptionalText(input.source) ?? 'operator',
         sanitizeOptionalText(input.summary),
         sanitizeRecord(input.structuredInputs),
         sanitizeRecord(input.metadata),
+        sanitizeOptionalText(input.createdByKind) ?? 'operator',
         identity.ownerType,
         resolveOperatorRecordActorId(identity),
       ],
     );
     const packetRow = packetResult.rows[0];
-    const fileRows = await this.createFiles(identity, workflowId, packetRow.id, input.files);
+    const fileRows = await this.createFiles(identity, workflowId, packetRow.id, input.files, db);
     return toWorkflowInputPacketRecord(packetRow, fileRows);
   }
 
   async listWorkflowInputPackets(tenantId: string, workflowId: string): Promise<WorkflowInputPacketRecord[]> {
-    await this.loadWorkflow(tenantId, workflowId);
+    await this.loadWorkflow(this.pool, tenantId, workflowId);
     const [packetResult, fileResult] = await Promise.all([
       this.pool.query<WorkflowPacketRow>(
         `SELECT *
@@ -189,6 +206,7 @@ export class WorkflowInputPacketService {
     workflowId: string,
     packetId: string,
     files: WorkflowOperatorFileUploadInput[],
+    db: DatabaseQueryable,
   ): Promise<WorkflowPacketFileRow[]> {
     const created: WorkflowPacketFileRow[] = [];
     for (const input of files) {
@@ -206,7 +224,7 @@ export class WorkflowInputPacketService {
         fileName,
       });
       const stored = await this.storage.putObject(storageKey, payload, contentType);
-      const result = await this.pool.query<WorkflowPacketFileRow>(
+      const result = await db.query<WorkflowPacketFileRow>(
         `INSERT INTO workflow_input_packet_files
            (id, tenant_id, workflow_id, packet_id, file_name, description, storage_backend, storage_key, content_type, size_bytes, checksum_sha256)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
@@ -236,8 +254,12 @@ export class WorkflowInputPacketService {
     }
   }
 
-  private async loadWorkflow(tenantId: string, workflowId: string): Promise<void> {
-    const result = await this.pool.query(
+  private async loadWorkflow(
+    db: DatabaseQueryable,
+    tenantId: string,
+    workflowId: string,
+  ): Promise<void> {
+    const result = await db.query(
       `SELECT id, workspace_id
          FROM workflows
         WHERE tenant_id = $1
@@ -249,8 +271,13 @@ export class WorkflowInputPacketService {
     }
   }
 
-  private async assertWorkItem(tenantId: string, workflowId: string, workItemId: string): Promise<void> {
-    const result = await this.pool.query(
+  private async assertWorkItem(
+    db: DatabaseQueryable,
+    tenantId: string,
+    workflowId: string,
+    workItemId: string,
+  ): Promise<void> {
+    const result = await db.query(
       `SELECT id
          FROM workflow_work_items
         WHERE tenant_id = $1
@@ -272,11 +299,15 @@ function toWorkflowInputPacketRecord(
     id: row.id,
     workflow_id: row.workflow_id,
     work_item_id: row.work_item_id,
+    request_id: row.request_id,
+    source_intervention_id: row.source_intervention_id,
+    source_attempt_id: row.source_attempt_id,
     packet_kind: row.packet_kind,
     source: row.source,
     summary: row.summary,
     structured_inputs: sanitizeRecord(row.structured_inputs),
     metadata: sanitizeRecord(row.metadata),
+    created_by_kind: row.created_by_kind,
     created_by_type: row.created_by_type,
     created_by_id: row.created_by_id,
     created_at: row.created_at.toISOString(),

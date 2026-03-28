@@ -77,10 +77,14 @@ describe('WorkflowInputPacketService', () => {
             workflow_id: 'workflow-1',
             work_item_id: 'work-item-1',
             packet_kind: 'supplemental',
+            request_id: 'request-1',
+            source_intervention_id: null,
+            source_attempt_id: 'workflow-attempt-1',
             source: 'operator',
             summary: 'Operator supplied additional design brief',
             structured_inputs: { branch: 'hotfix' },
             metadata: { channel: 'mission_control' },
+            created_by_kind: 'operator',
             created_by_type: 'user',
             created_by_id: 'user-1',
             created_at: new Date('2026-03-27T10:00:00.000Z'),
@@ -111,10 +115,13 @@ describe('WorkflowInputPacketService', () => {
     });
 
     const result = await service.createWorkflowInputPacket(IDENTITY as never, 'workflow-1', {
+      requestId: 'request-1',
       packetKind: 'supplemental',
+      createdByKind: 'operator',
       summary: 'Operator supplied additional design brief',
       structuredInputs: { branch: 'hotfix' },
       metadata: { channel: 'mission_control' },
+      sourceAttemptId: 'workflow-attempt-1',
       workItemId: 'work-item-1',
       files: [
         {
@@ -137,7 +144,9 @@ describe('WorkflowInputPacketService', () => {
         workflow_id: 'workflow-1',
         work_item_id: 'work-item-1',
         packet_kind: 'supplemental',
+        request_id: 'request-1',
         source: 'operator',
+        created_by_kind: 'operator',
         created_by_type: 'user',
         created_by_id: 'user-1',
         files: [
@@ -184,7 +193,7 @@ describe('WorkflowInputPacketService', () => {
         };
       }
       if (sql.includes('INSERT INTO workflow_input_packets')) {
-        expect(params?.[10]).toBe('admin-system');
+        expect(params?.[14]).toBe('admin-system');
         return {
           rowCount: 1,
           rows: [{
@@ -192,11 +201,15 @@ describe('WorkflowInputPacketService', () => {
             tenant_id: 'tenant-1',
             workflow_id: 'workflow-1',
             work_item_id: null,
+            request_id: null,
+            source_intervention_id: null,
+            source_attempt_id: null,
             packet_kind: 'launch',
             source: 'operator',
             summary: null,
             structured_inputs: {},
             metadata: {},
+            created_by_kind: 'operator',
             created_by_type: 'system',
             created_by_id: 'admin-system',
             created_at: new Date('2026-03-27T10:00:00.000Z'),

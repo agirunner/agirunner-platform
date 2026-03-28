@@ -160,6 +160,12 @@ export async function buildApp() {
   const workerService = new WorkerService(pool, eventService, workerConnectionHub, appConfig);
   const taskService = new TaskService(pool, eventService, appConfig, workerConnectionHub, logService);
   const artifactStorage = createArtifactStorage(buildArtifactStorageConfig(appConfig));
+  const workflowInputPacketService = new WorkflowInputPacketService(
+    pool,
+    artifactStorage,
+    appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_FILES,
+    appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_BYTES,
+  );
   await applyDefaultTenantLoggingLevel({
     governanceService,
     logger: app.log,
@@ -177,6 +183,7 @@ export async function buildApp() {
     workerConnectionHub,
     logService,
     taskService,
+    workflowInputPacketService,
   );
   const destructiveDeleteService = new DestructiveDeleteService(pool, {
     cancelWorkflow: workflowService.cancelWorkflow.bind(workflowService),
@@ -218,12 +225,6 @@ export async function buildApp() {
   const modelCatalogService = new ModelCatalogService(pool);
   const agenticSettingsService = new AgenticSettingsService(pool);
   const oauthService = new OAuthService(pool);
-  const workflowInputPacketService = new WorkflowInputPacketService(
-    pool,
-    artifactStorage,
-    appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_FILES,
-    appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_BYTES,
-  );
   const workflowDeliverableService = new WorkflowDeliverableService(pool);
   const workflowOperatorBriefService = new WorkflowOperatorBriefService(pool, workflowDeliverableService);
   const workflowOperatorUpdateService = new WorkflowOperatorUpdateService(pool);
@@ -240,7 +241,10 @@ export async function buildApp() {
     eventService,
   );
   const workflowSettingsService = new WorkflowSettingsService(pool);
-  const workflowSteeringSessionService = new WorkflowSteeringSessionService(pool);
+  const workflowSteeringSessionService = new WorkflowSteeringSessionService(
+    pool,
+    workflowInterventionService,
+  );
   const workflowOperationsLiveService = new MissionControlLiveService(pool);
   const workflowOperationsRecentService = new MissionControlRecentService(pool, workflowOperationsLiveService);
   const workflowOperationsHistoryService = new MissionControlHistoryService(pool, workflowOperationsLiveService);
@@ -265,7 +269,6 @@ export async function buildApp() {
     workflowDeliverableService,
     workflowOperatorBriefService,
     workflowInputPacketService,
-    workflowInterventionService,
   );
   const workflowOperationsWorkspaceService = new WorkflowWorkspaceService(
     workflowService,

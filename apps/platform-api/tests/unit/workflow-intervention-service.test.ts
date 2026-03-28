@@ -83,10 +83,16 @@ describe('WorkflowInterventionService', () => {
             workflow_id: 'workflow-1',
             work_item_id: 'work-item-1',
             task_id: 'task-1',
+            request_id: 'request-1',
             kind: 'task_action',
             origin: 'operator',
             status: 'applied',
+            outcome: 'applied',
+            result_kind: 'task_retry_requested',
+            snapshot_version: 'snapshot-1',
+            settings_revision: 4,
             summary: 'Retry the verification task with the attached checklist',
+            message: 'Retry requested.',
             note: 'Use the updated checklist first.',
             structured_action: { kind: 'retry_task', task_id: 'task-1' },
             metadata: { source: 'mission_control' },
@@ -120,8 +126,14 @@ describe('WorkflowInterventionService', () => {
     });
 
     const result = await service.recordIntervention(IDENTITY as never, 'workflow-1', {
+      requestId: 'request-1',
       kind: 'task_action',
       summary: 'Retry the verification task with the attached checklist',
+      outcome: 'applied',
+      resultKind: 'task_retry_requested',
+      snapshotVersion: 'snapshot-1',
+      settingsRevision: 4,
+      message: 'Retry requested.',
       note: 'Use the updated checklist first.',
       status: 'applied',
       structuredAction: { kind: 'retry_task', task_id: 'task-1' },
@@ -144,7 +156,13 @@ describe('WorkflowInterventionService', () => {
         workflow_id: 'workflow-1',
         work_item_id: 'work-item-1',
         task_id: 'task-1',
+        request_id: 'request-1',
         kind: 'task_action',
+        outcome: 'applied',
+        result_kind: 'task_retry_requested',
+        snapshot_version: 'snapshot-1',
+        settings_revision: 4,
+        message: 'Retry requested.',
         created_by_id: 'user-1',
         files: [
           expect.objectContaining({
@@ -191,7 +209,7 @@ describe('WorkflowInterventionService', () => {
         };
       }
       if (sql.includes('INSERT INTO workflow_interventions')) {
-        expect(params?.[13]).toBe('admin-system');
+        expect(params?.[19]).toBe('admin-system');
         return {
           rowCount: 1,
           rows: [{
@@ -200,10 +218,16 @@ describe('WorkflowInterventionService', () => {
             workflow_id: 'workflow-1',
             work_item_id: null,
             task_id: null,
+            request_id: null,
             kind: 'workflow_action',
             origin: 'operator',
             status: 'applied',
+            outcome: 'applied',
+            result_kind: 'intervention_recorded',
+            snapshot_version: null,
+            settings_revision: null,
             summary: 'Pause workflow',
+            message: null,
             note: null,
             structured_action: { kind: 'pause_workflow' },
             metadata: {},
