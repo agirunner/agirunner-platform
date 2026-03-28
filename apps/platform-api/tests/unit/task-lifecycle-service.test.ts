@@ -1452,9 +1452,9 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
           && sql.includes('SET column_id = $4')
           && sql.includes('completed_at = NULL')
           && sql.includes('id = $3')
-          && sql.includes('completed_at IS NOT NULL')
+          && sql.includes('(completed_at IS NOT NULL OR column_id = $5)')
         ) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item', 'planned']);
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item', 'planned', 'done']);
           return {
             rowCount: 1,
             rows: [{
@@ -1565,7 +1565,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         && sql.includes('SET column_id = $4')
         && sql.includes('completed_at = NULL')
         && sql.includes('id = $3')
-        && sql.includes('completed_at IS NOT NULL'),
+        && sql.includes('(completed_at IS NOT NULL OR column_id = $5)'),
     ) as [string, unknown[]] | undefined;
 
     expect(reopenCall?.[1]).toEqual([
@@ -1573,6 +1573,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       'workflow-1',
       'implementation-item',
       'planned',
+      'done',
     ]);
   });
 
@@ -1714,9 +1715,9 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
           && sql.includes('SET column_id = $4')
           && sql.includes('completed_at = NULL')
           && sql.includes('id = $3')
-          && sql.includes('completed_at IS NOT NULL')
+          && sql.includes('(completed_at IS NOT NULL OR column_id = $5)')
         ) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 'active']);
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 'active', 'done']);
           return {
             rowCount: 1,
             rows: [{
@@ -1806,7 +1807,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         && sql.includes('SET column_id = $4')
         && sql.includes('completed_at = NULL')
         && sql.includes('id = $3')
-        && sql.includes('completed_at IS NOT NULL'),
+        && sql.includes('(completed_at IS NOT NULL OR column_id = $5)'),
     ) as [string, unknown[]] | undefined;
 
     expect(reopenCall?.[1]).toEqual([
@@ -1814,6 +1815,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       'workflow-1',
       'work-item-1',
       'active',
+      'done',
     ]);
   });
 
@@ -1881,9 +1883,9 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
           && sql.includes('SET column_id = $4')
           && sql.includes('completed_at = NULL')
           && sql.includes('id = $3')
-          && sql.includes('completed_at IS NOT NULL')
+          && sql.includes('(completed_at IS NOT NULL OR column_id = $5)')
         ) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 'done']);
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 'done', 'done']);
           return {
             rowCount: 1,
             rows: [{
@@ -1973,13 +1975,14 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         && sql.includes('SET column_id = $4')
         && sql.includes('completed_at = NULL')
         && sql.includes('id = $3')
-        && sql.includes('completed_at IS NOT NULL'),
+        && sql.includes('(completed_at IS NOT NULL OR column_id = $5)'),
     ) as [string, unknown[]] | undefined;
 
     expect(reopenCall?.[1]).toEqual([
       'tenant-1',
       'workflow-1',
       'work-item-1',
+      'done',
       'done',
     ]);
   });

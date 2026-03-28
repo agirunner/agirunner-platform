@@ -516,11 +516,14 @@ export class TaskLifecycleService {
       [identity.tenantId, workflowId, workItemId],
     );
     const workItem = workItemResult.rows[0];
-    if (!workItem?.completed_at) {
+    if (!workItem) {
       return;
     }
 
     const definition = parsePlaybookDefinition(workItem.definition);
+    if (!shouldReopenWorkItemForRework(definition, workItem)) {
+      return;
+    }
     const reopenColumnId = resolveReopenColumnId({
       definition,
       currentColumnId: workItem.column_id,
@@ -543,9 +546,9 @@ export class TaskLifecycleService {
         WHERE tenant_id = $1
           AND workflow_id = $2
           AND id = $3
-          AND completed_at IS NOT NULL
+          AND (completed_at IS NOT NULL OR column_id = $5)
       RETURNING id`,
-      [identity.tenantId, workflowId, workItemId, reopenColumnId],
+      [identity.tenantId, workflowId, workItemId, reopenColumnId, workItem.column_id],
     );
     if (!reopenResult.rowCount) {
       return;
@@ -557,7 +560,7 @@ export class TaskLifecycleService {
       stage_name: workItem.stage_name,
       previous_column_id: workItem.column_id,
       column_id: reopenColumnId,
-      previous_completed_at: workItem.completed_at.toISOString(),
+      previous_completed_at: workItem.completed_at?.toISOString() ?? null,
       reopened_at: reopenedAt.toISOString(),
     };
     await this.deps.eventService.emit(
@@ -3149,6 +3152,21 @@ function resolveReopenColumnId(input: {
   }
 
   return activeColumnId(input.definition) ?? defaultColumnId(input.definition) ?? input.currentColumnId;
+}
+
+function shouldReopenWorkItemForRework(
+  definition: ReturnType<typeof parsePlaybookDefinition>,
+  workItem: ReworkWorkItemContextRow,
+): boolean {
+  if (workItem.completed_at) {
+    return true;
+  }
+  if (!workItem.column_id) {
+    return false;
+  }
+  return definition.board.columns.some(
+    (column) => column.id === workItem.column_id && column.is_terminal === true,
+  );
 }
 
 function hasPendingWorkflowCancel(metadata: unknown) {
