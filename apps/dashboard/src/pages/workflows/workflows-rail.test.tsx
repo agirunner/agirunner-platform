@@ -92,7 +92,7 @@ describe('WorkflowsRail', () => {
       }),
     );
 
-    expect(html).toContain('flex flex-wrap items-center gap-2');
+    expect(html).toContain('flex min-w-0 items-center gap-2');
     expect(html).toContain('overflow-x-hidden');
     expect(html).not.toContain('overflow-hidden rounded-2xl border');
     expect(html).not.toContain('Select workflow');
@@ -165,6 +165,7 @@ describe('WorkflowsRail', () => {
     expect(html).toContain('Orchestrator working');
     expect(html).not.toContain('0 work items');
     expect(html).not.toContain('1 tasks');
+    expect(html).not.toContain('Working through the current lane.');
   });
 
   it('shows routing language when an ongoing workflow is waiting without specialist tasks', () => {
@@ -208,6 +209,7 @@ describe('WorkflowsRail', () => {
     expect(html).toContain('Waiting for Work');
     expect(html).not.toContain('0 work items');
     expect(html).not.toContain('Awaiting Intake');
+    expect(html).not.toContain('Working through the current lane.');
   });
 
   it('pins a selected ongoing workflow when it falls outside the capped ongoing preview', () => {
@@ -247,6 +249,7 @@ describe('WorkflowsRail', () => {
 
     expect(html).toContain('Selected workflow');
     expect(html).toContain('Workflow Selected');
+    expect(html).not.toContain('rounded-2xl border border-amber-300/60');
   });
 });
 

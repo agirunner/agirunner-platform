@@ -60,7 +60,7 @@ export function WorkflowsRail(props: {
 
   return (
     <aside className="flex h-full min-h-0 w-full flex-col overflow-x-hidden border-r border-border/70 bg-stone-50/90 dark:bg-slate-950/70">
-      <div className="space-y-4 border-b border-border/70 px-4 py-4">
+      <div className="space-y-3 border-b border-border/70 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-semibold text-foreground">Workflows</h1>
@@ -76,7 +76,7 @@ export function WorkflowsRail(props: {
             onChange={(event) => props.onSearchChange(event.target.value)}
             placeholder="Search workflows"
           />
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-1">
             <ModeButton
               isActive={props.mode === 'live'}
               label="Live"
@@ -108,7 +108,7 @@ export function WorkflowsRail(props: {
 
       {props.selectedWorkflowRow && props.selectedWorkflowId && !selectedVisible ? (
         <section className="border-b border-border/70 px-4 py-3">
-          <div className="grid gap-3 rounded-2xl border border-amber-300/60 bg-amber-50/70 p-3 dark:border-amber-800/60 dark:bg-amber-950/30">
+          <div className="grid gap-2">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
               Selected workflow
             </p>
@@ -124,12 +124,7 @@ export function WorkflowsRail(props: {
       {props.mode === 'live' && !props.ongoingOnly && ongoingPreviewRows.length > 0 ? (
         <section className="space-y-3 border-b border-border/70 px-4 py-4">
           <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-foreground">Ongoing</p>
-              <p className="text-xs text-muted-foreground">
-                Sticky workflows stay visible without taking over the rail.
-              </p>
-            </div>
+            <p className="text-sm font-semibold text-foreground">Ongoing</p>
             {props.ongoingRows.length > ONGOING_PREVIEW_LIMIT ? (
               <Button size="sm" type="button" variant="ghost" onClick={props.onShowAllOngoing}>
                 Show all
@@ -192,11 +187,13 @@ function WorkflowRailRowCard(props: {
   isSelected: boolean;
   onSelect(workflowId: string): void;
 }): JSX.Element {
+  const primaryStatus = buildWorkflowPrimaryStatus(props.row);
+
   return (
     <button
       type="button"
       className={cn(
-        'grid w-full min-w-0 max-w-full gap-2 rounded-2xl border px-3 py-3 text-left transition-colors',
+        'grid w-full min-w-0 max-w-full gap-2 rounded-xl border px-3 py-3 text-left transition-colors',
         props.isSelected
           ? 'border-amber-300 bg-amber-100/90 shadow-sm dark:border-amber-500/60 dark:bg-amber-500/10'
           : 'border-border/70 bg-background/85 hover:border-border hover:bg-background',
@@ -210,24 +207,20 @@ function WorkflowRailRowCard(props: {
             {[props.row.playbook_name, props.row.workspace_name].filter(Boolean).join(' • ') || 'Workflow'}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-1">
           {props.row.needs_action ? <Badge variant="warning">Needs action</Badge> : null}
           {props.row.lifecycle === 'ongoing' ? <Badge variant="outline">Ongoing</Badge> : null}
         </div>
-      </div>
-
-      <p className="line-clamp-2 text-sm text-foreground">{props.row.live_summary}</p>
-
-      <div className="flex flex-wrap items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
-        {buildWorkflowActivityLine(props.row).map((entry) => (
-          <span key={`${props.row.workflow_id}:${entry}`}>{entry}</span>
-        ))}
       </div>
 
       <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
         <span>{humanizePosture(props.row.posture)}</span>
         <span>{formatRelativeTimestamp(props.row.last_changed_at)}</span>
       </div>
+
+      {primaryStatus ? (
+        <p className="text-sm text-foreground">{primaryStatus}</p>
+      ) : null}
     </button>
   );
 }
@@ -278,26 +271,15 @@ function humanizePosture(value: string | null): string {
     .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-function buildWorkflowActivityLine(row: DashboardWorkflowRailRow): string[] {
+function buildWorkflowPrimaryStatus(row: DashboardWorkflowRailRow): string | null {
   const counts = row.counts;
-  const shouldShowRouting = shouldShowRoutingState(row);
   if (counts.active_work_item_count === 0 && counts.active_task_count > 0) {
-    return ['Orchestrator working'];
+    return 'Orchestrator working';
   }
-
-  const parts = [
-    counts.active_work_item_count > 0 ? formatCount(counts.active_work_item_count, 'work item') : null,
-    counts.active_task_count > 0 ? formatCount(counts.active_task_count, 'task') : null,
-    shouldShowRouting ? 'Routing next step' : null,
-    counts.open_escalation_count > 0 ? formatCount(counts.open_escalation_count, 'escalation') : null,
-    counts.waiting_for_decision_count > 0 ? formatCount(counts.waiting_for_decision_count, 'approval') : null,
-  ];
-  const filteredParts = parts.filter((value): value is string => Boolean(value));
-  return filteredParts.length > 0 ? filteredParts : ['No active work'];
-}
-
-function formatCount(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+  if (shouldShowRoutingState(row)) {
+    return 'Routing next step';
+  }
+  return null;
 }
 
 function shouldShowRoutingState(row: DashboardWorkflowRailRow): boolean {

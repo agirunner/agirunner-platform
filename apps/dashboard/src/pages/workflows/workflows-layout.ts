@@ -1,17 +1,17 @@
 import type { CSSProperties } from 'react';
 
-export const DEFAULT_WORKFLOW_RAIL_WIDTH_PX = 360;
-export const MIN_WORKFLOW_RAIL_WIDTH_PX = 280;
-export const MAX_WORKFLOW_RAIL_WIDTH_PX = 520;
+export const DEFAULT_WORKFLOW_RAIL_WIDTH_PX = 320;
+export const MIN_WORKFLOW_RAIL_WIDTH_PX = 296;
+export const MAX_WORKFLOW_RAIL_WIDTH_PX = 440;
 export const DEFAULT_WORKFLOW_WORKBENCH_FRACTION = 0.5;
-export const MIN_WORKFLOW_WORKBENCH_FRACTION = 0.35;
-export const MAX_WORKFLOW_WORKBENCH_FRACTION = 0.7;
+export const MIN_WORKFLOW_WORKBENCH_FRACTION = 0.42;
+export const MAX_WORKFLOW_WORKBENCH_FRACTION = 0.58;
 const WORKFLOW_SPLIT_GUTTER_REM = 0.5;
-const WORKFLOW_BOARD_MIN_HEIGHT_REM = 16;
-const WORKFLOW_WORKBENCH_MIN_HEIGHT_REM = 18;
+const WORKFLOW_BOARD_MIN_HEIGHT_REM = 24;
+const WORKFLOW_WORKBENCH_MIN_HEIGHT_REM = 22;
 
 export function buildWorkflowsShellClassName(isRailHidden: boolean): string {
-  const baseClassName = 'flex w-full min-w-0 flex-col gap-3 lg:h-[calc(100vh-8.5rem)] lg:min-h-0 lg:overflow-hidden';
+  const baseClassName = 'flex w-full min-w-0 flex-col gap-2 lg:h-[calc(100vh-8.5rem)] lg:min-h-0 lg:overflow-hidden';
   if (isRailHidden) {
     return `${baseClassName} lg:flex`;
   }

@@ -29,15 +29,15 @@ describe('buildWorkflowsShellClassName', () => {
   });
 
   it('clamps persisted shell dimensions to sane operator ranges', () => {
-    expect(clampWorkflowRailWidthPx(120)).toBe(280);
-    expect(clampWorkflowRailWidthPx(900)).toBe(520);
-    expect(clampWorkflowWorkbenchFraction(0.1)).toBe(0.35);
-    expect(clampWorkflowWorkbenchFraction(0.95)).toBe(0.7);
+    expect(clampWorkflowRailWidthPx(120)).toBe(296);
+    expect(clampWorkflowRailWidthPx(900)).toBe(440);
+    expect(clampWorkflowWorkbenchFraction(0.1)).toBe(0.42);
+    expect(clampWorkflowWorkbenchFraction(0.95)).toBe(0.58);
   });
 
-  it('builds a stable board/workbench split that defaults to a half-screen workbench', () => {
+  it('builds a stable board/workbench split that keeps the board large enough for stacked work-item cards', () => {
     expect(buildWorkflowWorkspaceSplitStyle(0.5)).toEqual({
-      gridTemplateRows: 'minmax(16rem, 1fr) 0.5rem minmax(18rem, 1fr)',
+      gridTemplateRows: 'minmax(24rem, 1fr) 0.5rem minmax(22rem, 1fr)',
     });
   });
 });

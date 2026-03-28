@@ -99,11 +99,15 @@ export function WorkflowBoard(props: {
   }
 
   return (
-    <section className="flex h-full min-h-0 flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-base font-semibold text-foreground">Workflow board</p>
-          {props.workflowState === 'paused' ? <Badge variant="warning">Workflow paused</Badge> : null}
+    <section className="flex h-full min-h-0 flex-col gap-2">
+      <div className="grid gap-2">
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="text-base font-semibold text-foreground">Workflow board</p>
+            {props.workflowState === 'paused' ? <Badge variant="warning">Workflow paused</Badge> : null}
+          </div>
+        </div>
+        <div className="flex min-w-0 items-center gap-2 overflow-x-auto pb-1">
           <ModeButton
             isActive={props.boardLens === 'work_items'}
             label="Work items"
@@ -130,7 +134,7 @@ export function WorkflowBoard(props: {
             onClick={() => props.onBoardModeChange('all')}
           />
           <select
-            className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+            className="shrink-0 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
             value={stageFilter}
             onChange={(event) => setStageFilter(event.target.value)}
           >
@@ -142,7 +146,7 @@ export function WorkflowBoard(props: {
             ))}
           </select>
           <select
-            className="rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+            className="shrink-0 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
             value={laneFilter}
             onChange={(event) => setLaneFilter(event.target.value)}
           >
@@ -168,7 +172,7 @@ export function WorkflowBoard(props: {
       </div>
 
       <div className="min-h-0 flex-1 overflow-x-auto pb-1">
-        <div className="grid min-h-full gap-4 md:grid-flow-col md:auto-cols-[minmax(18rem,1fr)]">
+        <div className="grid min-h-full gap-3 md:grid-flow-col md:auto-cols-[minmax(17.5rem,1fr)]">
           {boardView.lanes.map((lane) => (
             <BoardLaneCard
               key={lane.column.id}
@@ -219,13 +223,10 @@ function BoardLaneCard(props: {
     && (props.lane.visibleCompletedItems.length > 0 || props.lane.hiddenCompletedCount > 0);
 
   return (
-    <article className="grid h-full min-w-0 content-start gap-3 rounded-lg border border-border/60 bg-muted/5 p-3">
+    <article className="grid h-full min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
+        <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">{props.lane.column.label}</p>
-          <p className="text-xs text-muted-foreground">
-            {props.lane.activeItems.length} active • {props.lane.visibleCompletedItems.length + props.lane.hiddenCompletedCount} completed
-          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {props.lane.column.is_blocked ? <Badge variant="warning">Blocked lane</Badge> : null}
@@ -255,7 +256,7 @@ function BoardLaneCard(props: {
       </div>
 
       {showCompletedSection ? (
-        <details className="rounded-2xl border border-border/70 bg-background/70 p-3" open={props.boardMode === 'all'}>
+        <details className="rounded-lg border border-border/70 bg-background/70 p-3" open={props.boardMode === 'all'}>
           <summary className="cursor-pointer text-sm font-medium text-foreground">
             {props.boardMode === 'all' ? 'Completed work' : 'Recent completions'}
             {props.lane.hiddenCompletedCount > 0 ? ` • ${props.lane.hiddenCompletedCount} older hidden` : ''}
@@ -307,7 +308,7 @@ function BoardWorkItemCard(props: {
   return (
     <article
       className={cn(
-        'grid w-full gap-3 rounded-2xl border px-4 py-4 text-left transition-colors',
+        'grid w-full gap-3 rounded-xl border px-3.5 py-3.5 text-left transition-colors',
         props.isSelected
           ? 'border-amber-300 bg-amber-100/90 shadow-sm dark:border-amber-500/60 dark:bg-amber-500/10'
           : props.muted

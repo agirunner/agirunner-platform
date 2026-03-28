@@ -31,7 +31,8 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Workflow board');
     expect(html).toContain('All stages');
     expect(html).toContain('All lanes');
-    expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/90 p-4');
+    expect(html).toContain('overflow-x-auto pb-1');
+    expect(html).not.toContain('flex flex-wrap items-center justify-between gap-3');
     expect(html).not.toContain('Lanes show the actual workflow flow while tasks stay subordinate');
     expect(html).not.toContain('Active stage:');
     expect(html).not.toContain('visible items');
@@ -62,6 +63,7 @@ describe('WorkflowBoard', () => {
     expect(html).not.toContain('>Medium<');
     expect(html).not.toContain('visible items');
     expect(html).not.toContain('>1 visible<');
+    expect(html).not.toContain('1 active • 0 completed');
   });
 
   it('keeps recent completions collapsed by default so they do not consume the active board space', () => {
@@ -183,7 +185,6 @@ describe('WorkflowBoard', () => {
     );
 
     expect(html).toContain('Review incoming packet');
-    expect(html).toContain('1 active • 0 completed');
     expect(html).toContain('Workflow paused');
     expect(html).toContain('>Paused<');
   });
