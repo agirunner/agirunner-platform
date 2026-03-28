@@ -233,9 +233,7 @@ function BoardLaneCard(props: {
         {props.boardLens === 'tasks'
           ? renderTaskLaneCards(activeTaskCards, props.selectedTaskId, props.onSelectTask)
           : props.lane.activeItems.length === 0 ? (
-          <div className="flex min-h-[8rem] items-center justify-center text-center">
-            <p className="text-sm text-muted-foreground">No active work in this lane.</p>
-          </div>
+          <p className="px-1 py-1 text-sm text-muted-foreground">No active work in this lane.</p>
         ) : (
           props.lane.activeItems.map((workItem) => (
             <BoardWorkItemCard
@@ -349,9 +347,7 @@ function renderTaskLaneCards(
 ): JSX.Element {
   if (taskCards.length === 0) {
     return (
-      <div className="flex min-h-[8rem] items-center justify-center text-center">
-        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
-      </div>
+      <p className="px-1 py-1 text-sm text-muted-foreground">{emptyMessage}</p>
     );
   }
 

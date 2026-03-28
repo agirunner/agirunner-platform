@@ -37,8 +37,7 @@ describe('buildWorkflowsShellClassName', () => {
 
   it('builds a stable board/workbench split that defaults to a half-screen workbench', () => {
     expect(buildWorkflowWorkspaceSplitStyle(0.5)).toEqual({
-      gridTemplateRows:
-        'minmax(0, calc(50% - 0.25rem)) 0.5rem minmax(0, calc(50% - 0.25rem))',
+      gridTemplateRows: 'minmax(0, 1fr) 0.5rem minmax(0, 1fr)',
     });
   });
 });

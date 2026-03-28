@@ -101,7 +101,12 @@ export function WorkflowStateStrip(props: {
         <HeaderCard
           title="Workflow"
           value={`${workload.activeWorkItemCount} active • ${workload.completedWorkItemCount} done`}
-          detail={formatWorkloadDetail(activeSpecialistTaskCount, workload.activeWorkItemCount)}
+          detail={formatWorkloadDetail({
+            activeSpecialistTaskCount,
+            activeWorkItemCount: workload.activeWorkItemCount,
+            lifecycle: props.workflow.lifecycle,
+            posture: sticky?.posture ?? props.workflow.posture,
+          })}
         />
         <HeaderCard
           title="Steering"
@@ -149,14 +154,25 @@ function HeaderCard(props: {
   );
 }
 
-function formatWorkloadDetail(count: number, activeWorkItemCount: number): string | null {
-  if (activeWorkItemCount === 0 && count > 0) {
+function formatWorkloadDetail(input: {
+  activeSpecialistTaskCount: number;
+  activeWorkItemCount: number;
+  lifecycle: string | null;
+  posture: string | null;
+}): string | null {
+  if (input.activeWorkItemCount === 0 && input.activeSpecialistTaskCount > 0) {
     return 'Routing new work';
   }
-  if (count === 0) {
+  if (
+    input.activeSpecialistTaskCount === 0
+    && (input.lifecycle === 'ongoing' || input.posture === 'waiting_by_design')
+  ) {
+    return 'Routing next step';
+  }
+  if (input.activeSpecialistTaskCount === 0) {
     return null;
   }
-  return `${count} task${count === 1 ? '' : 's'}`;
+  return `${input.activeSpecialistTaskCount} task${input.activeSpecialistTaskCount === 1 ? '' : 's'}`;
 }
 
 function humanizePosture(value: string | null | undefined): string {

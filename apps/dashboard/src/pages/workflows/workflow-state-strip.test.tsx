@@ -77,9 +77,16 @@ describe('WorkflowStateStrip', () => {
             lifecycle: 'ongoing',
             currentStage: null,
             posture: 'waiting_by_design',
+            metrics: {
+              ...createWorkflowCard().metrics,
+              activeTaskCount: 0,
+              activeWorkItemCount: 0,
+            },
           }),
           stickyStrip: createStickyStrip({
             posture: 'waiting_by_design',
+            active_task_count: 0,
+            active_work_item_count: 0,
           }),
           workflowSettings: null,
           board: createBoard(),
@@ -96,8 +103,10 @@ describe('WorkflowStateStrip', () => {
     expect(html).toContain('Ongoing');
     expect(html).toContain('Steering');
     expect(html).toContain('Open');
+    expect(html).toContain('Routing next step');
     expect(html).not.toContain('Waiting By Design');
     expect(html).not.toContain('Workflow is waiting by design');
+    expect(html).not.toContain('Awaiting Intake');
     expect((html.match(/min-h-4 text-\[13px\] font-semibold leading-4 text-foreground/g) ?? []).length).toBeGreaterThanOrEqual(4);
     expect(html).toContain('Live visibility');
     expect((html.match(/rounded-lg border border-border\/70 bg-muted\/10 px-2 py-1\.5 text-left/g) ?? [])).toHaveLength(4);

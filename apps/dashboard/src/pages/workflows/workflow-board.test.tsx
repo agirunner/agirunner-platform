@@ -86,7 +86,31 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Recent completions');
     expect(html).not.toContain('<details class="rounded-2xl border border-border/70 bg-background/70 p-3" open="">');
     expect(html).not.toContain('>3 tasks<');
-    expect(html).toContain('flex min-h-[8rem] items-center justify-center text-center');
+    expect(html).not.toContain('flex min-h-[8rem] items-center justify-center text-center');
+  });
+
+  it('renders empty-lane copy inline instead of as a centered pseudo-card', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: createBoard(),
+          selectedWorkItemId: null,
+          selectedTaskId: null,
+          boardLens: 'work_items',
+          boardMode: 'active_recent_complete',
+          onBoardLensChange: vi.fn(),
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+          onSelectTask: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('No active work in this lane.');
+    expect(html).not.toContain('flex min-h-[8rem] items-center justify-center text-center');
   });
 
   it('supports a task lens that renders only specialist tasks as first-class cards', () => {

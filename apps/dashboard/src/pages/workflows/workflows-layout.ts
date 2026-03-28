@@ -32,12 +32,11 @@ export function buildWorkflowWorkspaceSplitStyle(
   workbenchFraction: number,
 ): CSSProperties {
   const clampedFraction = clampWorkflowWorkbenchFraction(workbenchFraction);
-  const boardPercent = trimPercent(1 - clampedFraction);
-  const footerPercent = trimPercent(clampedFraction);
-  const gutterOffset = `${WORKFLOW_SPLIT_GUTTER_REM / 2}rem`;
+  const boardWeight = trimGridWeight(1 - clampedFraction);
+  const footerWeight = trimGridWeight(clampedFraction);
   return {
     gridTemplateRows:
-      `minmax(0, calc(${boardPercent}% - ${gutterOffset})) ${WORKFLOW_SPLIT_GUTTER_REM}rem minmax(0, calc(${footerPercent}% - ${gutterOffset}))`,
+      `minmax(0, ${boardWeight}fr) ${WORKFLOW_SPLIT_GUTTER_REM}rem minmax(0, ${footerWeight}fr)`,
   };
 }
 
@@ -55,6 +54,6 @@ export function clampWorkflowWorkbenchFraction(fraction: number): number {
   return Math.min(MAX_WORKFLOW_WORKBENCH_FRACTION, Math.max(MIN_WORKFLOW_WORKBENCH_FRACTION, fraction));
 }
 
-function trimPercent(value: number): string {
-  return Number((value * 100).toFixed(3)).toString();
+function trimGridWeight(value: number): string {
+  return Number((value / DEFAULT_WORKFLOW_WORKBENCH_FRACTION).toFixed(3)).toString();
 }

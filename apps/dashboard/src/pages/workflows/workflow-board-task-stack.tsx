@@ -14,7 +14,10 @@ export function WorkflowBoardTaskStack(props: {
   defaultOpen?: boolean;
   onSelectTask?(taskId: string): void;
 }): JSX.Element {
-  const isOpen = props.selectedTaskId ? true : (props.defaultOpen ?? true);
+  const hasSelectedTask = props.selectedTaskId
+    ? props.tasks.some((task) => task.id === props.selectedTaskId)
+    : false;
+  const isOpen = hasSelectedTask || (props.defaultOpen ?? true);
 
   return (
     <details className="rounded-xl border border-border/70 bg-muted/10 p-3" open={isOpen}>

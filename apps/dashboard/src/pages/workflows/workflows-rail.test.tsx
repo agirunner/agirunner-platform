@@ -94,6 +94,7 @@ describe('WorkflowsRail', () => {
 
     expect(html).toContain('flex flex-wrap items-center gap-2');
     expect(html).toContain('overflow-x-hidden');
+    expect(html).not.toContain('overflow-hidden rounded-2xl border');
     expect(html).not.toContain('Select workflow');
   });
 
@@ -164,6 +165,49 @@ describe('WorkflowsRail', () => {
     expect(html).toContain('Orchestrator working');
     expect(html).not.toContain('0 work items');
     expect(html).not.toContain('1 tasks');
+  });
+
+  it('shows routing language when an ongoing workflow is waiting without specialist tasks', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowsRail, {
+        mode: 'live',
+        search: '',
+        needsActionOnly: false,
+        ongoingOnly: false,
+        rows: [],
+        ongoingRows: [createRailRow({
+          workflow_id: 'workflow-routing',
+          name: 'Routing workflow',
+          lifecycle: 'ongoing',
+          posture: 'waiting_by_design',
+          counts: {
+            active_task_count: 0,
+            active_work_item_count: 0,
+            blocked_work_item_count: 0,
+            open_escalation_count: 0,
+            waiting_for_decision_count: 0,
+            failed_task_count: 0,
+          },
+        })],
+        selectedWorkflowId: 'workflow-routing',
+        selectedWorkflowRow: null,
+        hasNextPage: false,
+        isLoading: false,
+        onModeChange: vi.fn(),
+        onSearchChange: vi.fn(),
+        onNeedsActionOnlyChange: vi.fn(),
+        onShowAllOngoing: vi.fn(),
+        onClearOngoingFilter: vi.fn(),
+        onSelectWorkflow: vi.fn(),
+        onLoadMore: vi.fn(),
+        onCreateWorkflow: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Routing next step');
+    expect(html).toContain('Waiting for Work');
+    expect(html).not.toContain('0 work items');
+    expect(html).not.toContain('Awaiting Intake');
   });
 
   it('pins a selected ongoing workflow when it falls outside the capped ongoing preview', () => {
