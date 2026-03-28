@@ -67,6 +67,7 @@ describe('WorkflowLiveConsole', () => {
     expect(html).not.toContain('A structured brief was published.');
     expect(html).not.toContain('[brief]');
     expect(html).not.toContain('border-sky-500/20');
+    expect(html).toContain('grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-start gap-x-2');
   });
 });
 

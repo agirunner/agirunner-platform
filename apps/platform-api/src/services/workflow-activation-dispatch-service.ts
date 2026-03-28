@@ -1783,6 +1783,8 @@ function buildActivationRoleConfig(): Record<string, unknown> {
       'Use record_operator_brief for material milestone summaries and the terminal workflow brief.',
       'record_operator_brief requires payload.short_brief and payload.detailed_brief_json objects. short_brief must include headline. detailed_brief_json must include headline and status_kind and should carry the fuller human-readable summary and sections.',
       'When the live visibility contract says turn_updates_required is true, emit a tiny record_operator_update after each eligible execution step.',
+      'record_operator_update headlines must stay operator-readable and MUST NOT dump raw tool names, phases, JSON, or UUIDs when titles exist.',
+      'record_operator_brief inputs must include short_brief.headline plus detailed_brief_json.headline and status_kind, never only linked_target_ids or an empty brief shell.',
       'Use the exact execution_context_id from the live visibility contract and never invent workflow, work-item, or task linkage.',
       'When assigning repository-backed specialist work, include the repository execution context and required git binding details in the task payload.',
       'Do not use repository, shell, git, filesystem, or web-fetch tools from the orchestrator activation. Orchestrator activations run on the orchestrator agent only.',

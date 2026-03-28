@@ -273,6 +273,9 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
       lines.push(
         `Use ${brief.operator_visibility.record_operator_update_tool} for one tiny operator-readable headline after each eligible execution step.`,
       );
+      lines.push(
+        'record_operator_update headlines must be one operator-readable sentence and must not dump raw tool names, phases, JSON, or UUIDs when titles exist.',
+      );
     }
     if (brief.operator_visibility.milestone_briefs_required && brief.operator_visibility.record_operator_brief_tool) {
       lines.push(
@@ -282,6 +285,9 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
         `${brief.operator_visibility.record_operator_brief_tool} payload must include short_brief and detailed_brief_json objects.`,
       );
       lines.push('short_brief must include a headline.');
+      lines.push(
+        'record_operator_brief requires short_brief.headline plus detailed_brief_json.headline and status_kind, and must never be called with only linked_target_ids or an empty brief shell.',
+      );
       lines.push(
         'detailed_brief_json must include headline and status_kind and should carry the fuller human-readable summary and sections.',
       );

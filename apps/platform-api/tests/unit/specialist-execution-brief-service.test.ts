@@ -211,6 +211,12 @@ describe('buildSpecialistExecutionBrief', () => {
       'short_brief must include a headline.',
     );
     expect(brief?.rendered_markdown).toContain(
+      'record_operator_update headlines must be one operator-readable sentence and must not dump raw tool names, phases, JSON, or UUIDs when titles exist.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'record_operator_brief requires short_brief.headline plus detailed_brief_json.headline and status_kind, and must never be called with only linked_target_ids or an empty brief shell.',
+    );
+    expect(brief?.rendered_markdown).toContain(
       'detailed_brief_json must include headline and status_kind and should carry the fuller human-readable summary and sections.',
     );
     expect(brief?.rendered_markdown).toContain(

@@ -126,11 +126,11 @@ function LiveConsoleEntry(props: {
       : 'text-emerald-200';
   const message = buildConsoleMessage(item.headline, item.summary);
   return (
-    <article className="flex flex-wrap items-center gap-2 text-sm text-slate-100">
+    <article className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-start gap-x-2 text-sm text-slate-100">
       <span className={accentClass}>&gt;</span>
       <span className={`font-semibold ${sourceClass}`}>{item.source_label}:</span>
-      <span className="text-slate-100">{message}</span>
-      <span className="text-xs text-slate-500">{formatRelativeTimestamp(item.created_at)}</span>
+      <span className="min-w-0 break-words text-slate-100">{message}</span>
+      <span className="pl-2 text-right text-xs text-slate-500">{formatRelativeTimestamp(item.created_at)}</span>
     </article>
   );
 }

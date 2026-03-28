@@ -26,6 +26,15 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Do not assume python3 or any other optional runtime is present unless the execution contract or direct verification says so.',
     );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'record_operator_update headline MUST be one operator-readable sentence.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Do not dump raw tool names, phases, JSON, or UUIDs in operator updates or briefs when titles exist.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'record_operator_brief requires payload.short_brief.headline plus payload.detailed_brief_json.headline and status_kind. Never send only linked_target_ids or an empty brief shell.',
+    );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('operational state such as rework counters');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before completion, ensure');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('successful structured handoff');
@@ -161,6 +170,8 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use structured handoffs and continuity state to preserve context between activations and role changes.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use process instructions as the workflow contract.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Treat actual invoked governance state and continuity state as authoritative.');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('record_operator_update headlines must stay operator-readable and MUST NOT dump raw tool names, phases, JSON, or UUIDs when titles exist.');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('record_operator_brief inputs must include short_brief.headline plus detailed_brief_json.headline and status_kind, never only linked_target_ids or an empty brief shell.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'A null predecessor handoff is normal for first-stage work or freshly seeded entry work.',
     );

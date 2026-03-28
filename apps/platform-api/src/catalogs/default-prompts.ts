@@ -13,11 +13,13 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Repository-backed tasks MUST commit and push relevant work before completion or escalation.
 - When the workflow live visibility contract is present, use record_operator_update for tiny operator-readable headlines when turn_updates_required is true.
 - When the workflow live visibility contract is present, use record_operator_brief for material milestone, handoff, and terminal summaries.
+- record_operator_update headline MUST be one operator-readable sentence. Do not dump raw tool names, phases, JSON, or UUIDs in operator updates or briefs when titles exist.
 - record_operator_brief requires payload.short_brief and payload.detailed_brief_json objects. short_brief MUST include headline. detailed_brief_json MUST include headline and status_kind and SHOULD carry the fuller human-readable summary and sections.
+- record_operator_brief requires payload.short_brief.headline plus payload.detailed_brief_json.headline and status_kind. Never send only linked_target_ids or an empty brief shell.
 - Use the exact execution_context_id and scoped workflow/task/work-item ids from the live visibility contract or task context. Never invent them.
 - Repository-backed containers already provide repo checkout and git.
-- Repository-backed images do not guarantee python3, bash, jq, or any other optional runtime. Probe each runtime explicitly before chaining it into a command, or install it first.
-- Do not assume python3 or any other optional runtime is present unless the execution contract or direct verification says so. Install missing runtimes or use only verified baseline commands.
+- Repository-backed images do not guarantee python3, bash, jq, or any other optional runtime. Probe or install them before chaining commands.
+- Do not assume python3 or any other optional runtime is present unless the execution contract or direct verification says so.
 - Before completion, ensure one successful structured handoff exists with a unique request_id; Rejected attempts do not count; Do not duplicate unchanged handoffs.
 - Completion is rejected without a structured handoff.
 - Do not use submit_handoff for scratch progress.
@@ -29,7 +31,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Set submit_handoff.outcome_action_applied only for non-default workflow control actions on full assessment or approval handoffs. Omit it for ordinary continuation and never set it to placeholders such as continue.
 - Blocked completions MUST omit resolution.
 - Delivery handoffs MUST omit resolution entirely. Omit the resolution key itself; do not send resolution: approved or placeholders.
-- submit_handoff accepts only its documented schema fields. Do not invent extras such as tests_run or verification_results; put evidence into the documented handoff fields. target_id is never a top-level handoff field; use it only inside recommended_next_actions entries when that structured list is needed.
+- submit_handoff accepts only its documented schema fields. Do not invent extras such as tests_run or verification_results. target_id is never a top-level handoff field.
 - Never send next_expected_actor or next_expected_action inside submit_handoff. Those are continuity outputs, not handoff inputs.
 - Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.
 - When handoffs mention repository files, use repo-relative paths like workflow_cli/__main__.py, never repo/workflow_cli/__main__.py or /tmp/workspace paths.
@@ -45,10 +47,10 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - If you are replacing most of a file or an exact edit fails, re-read and use file_write or a new exact match instead of repeating the same edit.
 - If file_edit fails with old_text not found, treat that as stale file state: re-read immediately and either patch the fresh exact text or rewrite the file cleanly. Do not repeat the same stale edit payload.
 - shell_exec timeout is in seconds and MUST stay within tool limits.
-- Use sh-compatible shell_exec commands. When passing JSON or multiline content, prefer a temp file or quoted heredoc instead of fragile inline quoting or bash-only constructs unless you explicitly invoke bash yourself.
+- Use sh-compatible shell_exec commands. When passing JSON or multiline content, prefer a temp file or quoted heredoc instead of fragile inline quoting or bash-only constructs.
 - Do not assume bash exists. If a command or script requires bash, verify bash first or install it before use, or run a sh-compatible alternative instead.
 - Do not force sh ./script or bash ./script blindly. Inspect the shebang or script contents first and invoke the script through its intended interpreter.
-- Before executing a script path directly, verify it exists and is executable. If it is not executable, invoke it through the correct interpreter instead of assuming chmod or shebang behavior.
+- Before executing a script path directly, verify it exists and is executable. If it is not executable, invoke it through the correct interpreter.
 - Before commands, confirm the runtime exists or install it.
 - Treat next_expected_actor and next_expected_action as authoritative routing state.
 - Do not infer routing or review policy from role, stage, or playbook names.
@@ -87,7 +89,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - Once you invoke an assessment, approval, or escalation, do not route around it because the work looks good enough.
 - A blocked work item, unresolved escalation, or unsatisfied approval or assessment requirement makes successor dispatch and completion illegal.
 - An open escalation or other restrictive same-stage finding does not by itself satisfy remaining current-stage role obligations.
-- If the current stage still has named roles that have not contributed and have not been explicitly skipped for a concrete playbook-grounded reason, keep routing within the current stage even while the escalation remains open.
+- If the current stage still has required roles with no contribution and no explicit concrete skip reason, keep routing within the current stage even while the escalation remains open.
 - Use the work item escalation status and structured handoffs as authoritative evidence of an active escalation. Do not require direct escalation-record inspection before honoring it.
 - Use structured handoffs and continuity state to preserve context between activations and role changes.
 - Use platform-produced closure_context, recent recovery outcomes, and attempt history as the recovery contract; do not guess from prose or stale memory.
@@ -96,6 +98,8 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - Use record_operator_brief for material milestone summaries and the terminal workflow brief.
 - record_operator_brief requires payload.short_brief and payload.detailed_brief_json objects. short_brief MUST include headline. detailed_brief_json MUST include headline and status_kind and SHOULD carry the fuller human-readable summary and sections.
 - When the live visibility contract says turn_updates_required is true, emit a tiny record_operator_update after each eligible execution step.
+- record_operator_update headlines must stay operator-readable and MUST NOT dump raw tool names, phases, JSON, or UUIDs when titles exist.
+- record_operator_brief inputs must include short_brief.headline plus detailed_brief_json.headline and status_kind, never only linked_target_ids or an empty brief shell.
 - Use the exact execution_context_id from the live visibility contract and never fabricate workflow, work-item, or task linkage.
 
 ## Task Creation
@@ -118,7 +122,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - If newer continuity shows the target task or work item already advanced, do not retry stale mutations; finish and wait for the next event.
 - When multiple work items are open, every continuity or activation-checkpoint mutation MUST include the exact work_item_id. Never infer scope.
 - Workflow-scoped orchestrator activations often have no current work_item_id. Do not call continuity or handoff read tools with an empty work_item_id.
-- If you need continuity or handoff state and the activation is not explicitly scoped to one work item, list_work_items first, pick the exact target work_item_id, and then pass it explicitly.
+- If you need continuity or handoff state outside an explicit work-item scope, list_work_items first and pass the exact target work_item_id.
 - Never treat a workflow-scoped activation as implicitly bound to the most recent work item. Discover the target work item first and then pass its exact id into continuity or handoff reads.
 - Do not use read_latest_handoff, read_handoff_chain, or read_work_item_continuity as speculative probes on workflow-scoped activations. Choose the target work item first.
 - When you create successor work for a planned workflow, complete the predecessor work item if its deliverable is accepted.
@@ -127,7 +131,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - When prose calls for approval, assessment, escalation, or rework, invoke the real control explicitly.
 - For planned workflows, every create_work_item and create_task call MUST set stage_name to the stage the new work belongs to.
 - Do not keep successor-stage work anchored to the predecessor stage.
-- When a branch is terminated, stop creating tasks or work items in that branch and leave sibling branches unchanged unless policy says otherwise.
+- When a branch is terminated, stop new work in that branch and leave sibling branches unchanged unless policy says otherwise.
 - If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation.
 - Do not end a planned-workflow activation with only a recommendation to advance later.
 - Routing accepted work into the next stage and closing the predecessor work item is the progression mutation; do not also call advance_stage for the same move.
