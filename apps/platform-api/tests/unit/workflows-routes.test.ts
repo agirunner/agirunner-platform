@@ -1193,6 +1193,70 @@ describe('workflow routes', () => {
     );
   });
 
+  it('forwards optional initial input packets with workflow work-item creation', async () => {
+    const { pool } = createTransactionalWorkflowReplayPool(
+      'workflow-1',
+      'operator_create_workflow_work_item',
+    );
+    const createWorkflowWorkItem = vi.fn(async () => ({
+      id: 'work-item-1',
+      workflow_id: 'workflow-1',
+      title: 'Ship the change',
+    }));
+
+    app = createWorkflowRoutesApp({
+      pgPool: pool,
+      workflowService: { createWorkflowWorkItem },
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items',
+      payload: {
+        request_id: 'request-1',
+        title: 'Ship the change',
+        initial_input_packet: {
+          summary: 'Operator packet',
+          structured_inputs: {
+            prompt: 'Tell me a joke',
+          },
+          files: [
+            {
+              file_name: 'prompt.txt',
+              content_base64: Buffer.from('Tell me a joke').toString('base64'),
+              content_type: 'text/plain',
+            },
+          ],
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(createWorkflowWorkItem).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({
+        request_id: 'request-1',
+        title: 'Ship the change',
+        initial_input_packet: expect.objectContaining({
+          summary: 'Operator packet',
+          structured_inputs: {
+            prompt: 'Tell me a joke',
+          },
+          files: [
+            expect.objectContaining({
+              fileName: 'prompt.txt',
+              contentBase64: Buffer.from('Tell me a joke').toString('base64'),
+              contentType: 'text/plain',
+            }),
+          ],
+        }),
+      }),
+      expect.objectContaining({ query: expect.any(Function) }),
+    );
+  });
+
   it('rejects workflow work-item creation without request_id', async () => {
     const createWorkflowWorkItem = vi.fn();
 

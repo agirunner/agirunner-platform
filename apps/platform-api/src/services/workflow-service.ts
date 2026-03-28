@@ -27,6 +27,10 @@ import {
 } from './playbook-workflow-control-service.js';
 import type { TaskService } from './task-service.js';
 import {
+  type CreateWorkflowWorkItemEnvelopeInput,
+  WorkflowAddWorkService,
+} from './workflow-add-work-service.js';
+import {
   WorkItemService,
   type GetWorkflowWorkItemInput,
   type GroupedWorkItemReadModel,
@@ -69,6 +73,7 @@ export class WorkflowService {
   private readonly stageService: WorkflowStageService;
   private readonly playbookControlService: PlaybookWorkflowControlService;
   private readonly modelCatalogService: ModelCatalogService;
+  private readonly addWorkService: WorkflowAddWorkService;
 
   constructor(
     private readonly pool: DatabasePool,
@@ -122,6 +127,13 @@ export class WorkflowService {
       this.activationService,
       this.activationDispatchService,
     );
+    this.addWorkService = new WorkflowAddWorkService({
+      pool,
+      workItemService: this.workItemService,
+      activationService: this.activationService,
+      activationDispatchService: this.activationDispatchService,
+      inputPacketService: workflowInputPacketService,
+    });
     this.playbookControlService = new PlaybookWorkflowControlService({
       pool,
       eventService,
@@ -756,10 +768,10 @@ export class WorkflowService {
   createWorkflowWorkItem(
     identity: ApiKeyIdentity,
     workflowId: string,
-    input: Parameters<WorkItemService['createWorkItem']>[2],
+    input: CreateWorkflowWorkItemEnvelopeInput,
     client?: DatabaseClient,
   ) {
-    return this.workItemService.createWorkItem(identity, workflowId, input, client);
+    return this.addWorkService.createWorkItem(identity, workflowId, input, client);
   }
 
   updateWorkflowWorkItem(

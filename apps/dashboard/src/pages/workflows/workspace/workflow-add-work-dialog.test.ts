@@ -21,4 +21,16 @@ describe('WorkflowAddWorkDialog source', () => {
     expect(source).not.toContain('Operator note');
     expect(source).toContain('Work item title');
   });
+
+  it('creates new work with an embedded initial input packet instead of a second follow-up packet mutation', () => {
+    const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
+    const newWorkBranch = source.slice(
+      source.indexOf('const trimmedTitle = title.trim();'),
+      source.indexOf('return workItem;'),
+    );
+
+    expect(newWorkBranch).toContain('initial_input_packet');
+    expect(newWorkBranch).toContain('createWorkflowWorkItem(props.workflowId, payload)');
+    expect(newWorkBranch).not.toContain('createWorkflowInputPacket(props.workflowId');
+  });
 });

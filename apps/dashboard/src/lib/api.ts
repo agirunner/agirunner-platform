@@ -2864,6 +2864,16 @@ export interface DashboardApi {
       priority?: 'critical' | 'high' | 'normal' | 'low';
       notes?: string;
       metadata?: Record<string, unknown>;
+      initial_input_packet?: {
+        summary?: string;
+        structured_inputs?: Record<string, unknown>;
+        files?: Array<{
+          file_name: string;
+          description?: string;
+          content_base64: string;
+          content_type?: string;
+        }>;
+      };
     },
   ): Promise<DashboardWorkflowWorkItemRecord>;
   updateWorkflowWorkItem(

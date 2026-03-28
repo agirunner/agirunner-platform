@@ -168,6 +168,7 @@ const workItemCreateSchema = z.object({
   priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
   notes: z.string().max(4000).optional(),
   metadata: z.record(z.unknown()).optional(),
+  initial_input_packet: workflowInitialInputPacketSchema.optional(),
 });
 
 const workItemUpdateSchema = z.object({
@@ -284,6 +285,19 @@ function readTaskState(value: unknown): string {
 }
 
 function mapWorkflowCreateBody(body: z.infer<typeof workflowCreateSchema>) {
+  return {
+    ...body,
+    initial_input_packet: body.initial_input_packet
+      ? {
+          summary: body.initial_input_packet.summary,
+          structured_inputs: body.initial_input_packet.structured_inputs,
+          files: mapWorkflowOperatorFiles(body.initial_input_packet.files),
+        }
+      : undefined,
+  };
+}
+
+function mapWorkItemCreateBody(body: z.infer<typeof workItemCreateSchema>) {
   return {
     ...body,
     initial_input_packet: body.initial_input_packet
@@ -564,7 +578,12 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
         params.id,
         'operator_create_workflow_work_item',
         body.request_id,
-        (client) => workflowService.createWorkflowWorkItem(request.auth!, params.id, body, client),
+        (client) => workflowService.createWorkflowWorkItem(
+          request.auth!,
+          params.id,
+          mapWorkItemCreateBody(body),
+          client,
+        ),
       );
       return reply.status(201).send({ data: workItem });
     },

@@ -106,16 +106,20 @@ export function WorkflowAddWorkDialog(props: {
         return selectedWorkItem;
       }
 
-      const workItem = await dashboardApi.createWorkflowWorkItem(props.workflowId, {
-        title: title.trim(),
-      });
-      await dashboardApi.createWorkflowInputPacket(props.workflowId, {
-        packet_kind: resolvePacketKind(props.lifecycle, null),
-        work_item_id: workItem.id,
-        summary: buildPacketSummary(props.lifecycle, null, workItem.title),
-        structured_inputs: structuredInputs,
-        files: await buildFileUploadPayloads(files),
-      });
+      const trimmedTitle = title.trim();
+      const payload = {
+        title: trimmedTitle,
+        ...(structuredInputs || files.length > 0
+          ? {
+              initial_input_packet: {
+                summary: buildPacketSummary(props.lifecycle, null, trimmedTitle),
+                structured_inputs: structuredInputs ?? undefined,
+                files: await buildFileUploadPayloads(files),
+              },
+            }
+          : {}),
+      };
+      const workItem = await dashboardApi.createWorkflowWorkItem(props.workflowId, payload);
       return workItem;
     },
     onSuccess: async () => {
@@ -230,13 +234,6 @@ export function WorkflowAddWorkDialog(props: {
       </DialogContent>
     </Dialog>
   );
-}
-
-function resolvePacketKind(lifecycle: string | null | undefined, workItemId: string | null): string {
-  if (workItemId) {
-    return 'plan_update';
-  }
-  return lifecycle === 'ongoing' ? 'intake' : 'plan_update';
 }
 
 function buildPacketSummary(

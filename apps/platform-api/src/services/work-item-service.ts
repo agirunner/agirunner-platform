@@ -45,6 +45,10 @@ export interface CreateWorkItemInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface CreateWorkItemOptions {
+  dispatchActivation?: boolean;
+}
+
 export interface ListWorkflowWorkItemsInput {
   parent_work_item_id?: string;
   stage_name?: string;
@@ -323,6 +327,7 @@ export class WorkItemService {
     workflowId: string,
     input: CreateWorkItemInput,
     externalClient?: DatabaseClient,
+    options: CreateWorkItemOptions = {},
   ) {
     if (!input.title.trim()) {
       throw new ValidationError('title is required');
@@ -511,25 +516,27 @@ export class WorkItemService {
         client,
       );
 
-      const activation = await this.activationService.enqueueForWorkflow(
-        {
-          tenantId: identity.tenantId,
-          workflowId,
-          requestId: input.request_id ? `work-item:${input.request_id}` : undefined,
-          reason: 'work_item.created',
-          eventType: 'work_item.created',
-          payload: { work_item_id: workItem.id, stage_name: workItem.stage_name },
-          actorType,
-          actorId: identity.keyPrefix,
-        },
-        client,
-      );
+      if (options.dispatchActivation !== false) {
+        const activation = await this.activationService.enqueueForWorkflow(
+          {
+            tenantId: identity.tenantId,
+            workflowId,
+            requestId: input.request_id ? `work-item:${input.request_id}` : undefined,
+            reason: 'work_item.created',
+            eventType: 'work_item.created',
+            payload: { work_item_id: workItem.id, stage_name: workItem.stage_name },
+            actorType,
+            actorId: identity.keyPrefix,
+          },
+          client,
+        );
 
-      await this.activationDispatchService.dispatchActivation(
-        identity.tenantId,
-        String(activation.id),
-        client,
-      );
+        await this.activationDispatchService.dispatchActivation(
+          identity.tenantId,
+          String(activation.id),
+          client,
+        );
+      }
 
       if (ownsClient) {
         await client.query('COMMIT');
