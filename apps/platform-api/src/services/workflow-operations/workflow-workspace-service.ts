@@ -181,8 +181,8 @@ export class WorkflowWorkspaceService {
       ...hydratedDeliverables.final_deliverables,
       ...hydratedDeliverables.in_progress_deliverables,
     ];
-    const effectiveLiveConsole = liveConsole;
-    const effectiveHistory = history;
+    const effectiveLiveConsole = filterLiveConsoleForSelectedScope(liveConsole, selectedScope);
+    const effectiveHistory = filterHistoryForSelectedScope(history, selectedScope);
     const activeSession = sessions[0] ?? null;
     const steeringQuickActions = filterSteeringQuickActions(workflowCard?.availableActions ?? []);
     const sessionMessages = activeSession
@@ -320,6 +320,89 @@ function buildBottomTabs(
       deliverables: deliverablesCount,
     },
   };
+}
+
+function filterLiveConsoleForSelectedScope(
+  packet: WorkflowWorkspacePacket['live_console'],
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+): WorkflowWorkspacePacket['live_console'] {
+  const filteredItems = packet.items.filter((item) => matchesScopedRecord(item, selectedScope));
+  if (filteredItems.length === packet.items.length) {
+    return packet;
+  }
+  return {
+    ...packet,
+    items: filteredItems,
+  };
+}
+
+function filterHistoryForSelectedScope(
+  packet: WorkflowWorkspacePacket['history'],
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+): WorkflowWorkspacePacket['history'] {
+  const filteredItems = packet.items.filter((item) => matchesScopedRecord(item, selectedScope));
+  if (filteredItems.length === packet.items.length) {
+    return packet;
+  }
+  return {
+    ...packet,
+    items: filteredItems,
+    groups: buildHistoryGroupsFromItems(filteredItems),
+  };
+}
+
+function matchesScopedRecord(
+  item: Pick<WorkflowLiveConsoleItem | WorkflowHistoryItem, 'work_item_id' | 'task_id' | 'linked_target_ids'>,
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+): boolean {
+  if (selectedScope.scope_kind === 'workflow') {
+    return true;
+  }
+
+  if (selectedScope.scope_kind === 'selected_task') {
+    return matchesTaskScope(item, selectedScope.task_id);
+  }
+
+  return matchesWorkItemScope(item, selectedScope.work_item_id);
+}
+
+function matchesTaskScope(
+  item: Pick<WorkflowLiveConsoleItem | WorkflowHistoryItem, 'task_id' | 'linked_target_ids'>,
+  taskId: string | null,
+): boolean {
+  if (!taskId) {
+    return false;
+  }
+
+  return item.task_id === taskId || item.linked_target_ids.includes(taskId);
+}
+
+function matchesWorkItemScope(
+  item: Pick<WorkflowLiveConsoleItem | WorkflowHistoryItem, 'work_item_id' | 'linked_target_ids'>,
+  workItemId: string | null,
+): boolean {
+  if (!workItemId) {
+    return false;
+  }
+
+  return item.work_item_id === workItemId || item.linked_target_ids.includes(workItemId);
+}
+
+function buildHistoryGroupsFromItems(items: WorkflowHistoryItem[]): WorkflowWorkspacePacket['history']['groups'] {
+  const idsByDay = new Map<string, string[]>();
+  for (const item of items) {
+    const groupId = item.created_at.slice(0, 10);
+    const itemIds = idsByDay.get(groupId) ?? [];
+    itemIds.push(item.item_id);
+    idsByDay.set(groupId, itemIds);
+  }
+
+  return Array.from(idsByDay.entries()).map(([groupId, itemIds]) => ({
+    group_id: groupId,
+    label: groupId,
+    anchor_at: `${groupId}T00:00:00.000Z`,
+    item_ids: itemIds,
+  }));
 }
 
 function buildNeedsActionItems(

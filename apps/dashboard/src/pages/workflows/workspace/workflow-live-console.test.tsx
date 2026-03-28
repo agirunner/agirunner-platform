@@ -75,6 +75,42 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('whitespace-nowrap');
   });
 
+  it('humanizes role labels and falls back when the provided label is a raw uuid', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowLiveConsole, {
+        packet: createPacket([
+          {
+            item_id: 'update-1',
+            item_kind: 'operator_update',
+            source_kind: 'specialist',
+            source_label: 'implementation_engineer',
+            headline: 'Updated retry handling.',
+            summary: 'Execution turn completed for implementation engineer.',
+            created_at: '2026-03-27T04:04:00.000Z',
+          },
+          {
+            item_id: 'update-2',
+            item_kind: 'operator_update',
+            source_kind: 'orchestrator',
+            source_label: '771908c8-0634-467a-b41d-6dd4a6798d7d',
+            headline: 'Published workflow update.',
+            summary: 'Published workflow update.',
+            created_at: '2026-03-27T04:03:00.000Z',
+          },
+        ]),
+        selectedWorkItemId: null,
+        selectedTaskId: null,
+        scopeSubject: 'workflow',
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Implementation Engineer:');
+    expect(html).toContain('Orchestrator:');
+    expect(html).not.toContain('implementation_engineer:');
+    expect(html).not.toContain('771908c8-0634-467a-b41d-6dd4a6798d7d:');
+  });
+
   it('shows task scope explicitly when a task is selected', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowLiveConsole, {

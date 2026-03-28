@@ -5,6 +5,7 @@ import { Button } from '../../../components/ui/button.js';
 import type { DashboardWorkflowHistoryPacket } from '../../../lib/api.js';
 import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
 import { buildWorkflowsPageHref } from '../workflows-page.support.js';
+import { formatWorkflowActivitySourceLabel } from './workflow-live-console.support.js';
 
 export function WorkflowHistory(props: {
   workflowId: string;
@@ -78,6 +79,10 @@ function HistoryItemCard(props: {
   item: DashboardWorkflowHistoryPacket['items'][number];
 }): JSX.Element {
   const scopeLink = resolveHistoryScopeLink(props.workflowId, props.item);
+  const sourceLabel = formatWorkflowActivitySourceLabel(
+    props.item.source_label,
+    props.item.source_kind,
+  );
   const summary = props.item.summary.trim();
   const headline = props.item.headline.trim();
   const showSummary = summary.length > 0 && summary !== headline;
@@ -86,7 +91,7 @@ function HistoryItemCard(props: {
     <article className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">{humanizeToken(props.item.item_kind)}</Badge>
-        <Badge variant="secondary">{props.item.source_label}</Badge>
+        <Badge variant="secondary">{sourceLabel}</Badge>
         <span className="text-xs text-muted-foreground">
           {formatRelativeTimestamp(props.item.created_at)}
         </span>

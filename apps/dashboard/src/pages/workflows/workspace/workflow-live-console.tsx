@@ -4,6 +4,10 @@ import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import type { DashboardWorkflowLiveConsolePacket } from '../../../lib/api.js';
 import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
+import {
+  formatWorkflowActivitySourceLabel,
+  normalizeWorkflowConsoleText,
+} from './workflow-live-console.support.js';
 
 const LIVE_EDGE_THRESHOLD_PX = 48;
 
@@ -116,6 +120,7 @@ function LiveConsoleEntry(props: {
   item: DashboardWorkflowLiveConsolePacket['items'][number];
 }): JSX.Element {
   const { item } = props;
+  const sourceLabel = formatWorkflowActivitySourceLabel(item.source_label, item.source_kind);
   const accentClass = item.item_kind === 'platform_notice'
     ? 'text-amber-300'
     : item.item_kind === 'milestone_brief'
@@ -130,14 +135,10 @@ function LiveConsoleEntry(props: {
     <article className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 font-mono leading-6 text-sm text-slate-100">
       <p className="min-w-0 whitespace-nowrap">
         <span className={accentClass}>&gt; </span>
-        <span className={`font-semibold ${sourceClass}`}>{item.source_label}: </span>
-        <span className="text-slate-100">{normalizeConsoleText(item.headline)}</span>
+        <span className={`font-semibold ${sourceClass}`}>{sourceLabel}: </span>
+        <span className="text-slate-100">{normalizeWorkflowConsoleText(item.headline)}</span>
       </p>
       <span className="text-right text-xs text-slate-500">{formatRelativeTimestamp(item.created_at)}</span>
     </article>
   );
-}
-
-function normalizeConsoleText(value: string): string {
-  return value.replace(/\s+/g, ' ').trim();
 }

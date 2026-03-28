@@ -101,6 +101,41 @@ describe('WorkflowHistory', () => {
     expect(html).toContain('/workflows/workflow-1?work_item_id=work-item-1&amp;task_id=task-4&amp;tab=details');
   });
 
+  it('humanizes source badges and hides raw uuid labels in briefs', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        MemoryRouter,
+        undefined,
+        createElement(WorkflowHistory, {
+          workflowId: 'workflow-1',
+          packet: {
+            ...createPacket(),
+            items: [
+              {
+                item_id: 'history-1',
+                item_kind: 'milestone_brief',
+                source_kind: 'policy-reviewer',
+                source_label: '771908c8-0634-467a-b41d-6dd4a6798d7d',
+                headline: 'Revision 3 still needs owner detail',
+                summary: 'Policy review sent task 4 back for another revision.',
+                created_at: '2026-03-27T04:04:00.000Z',
+                linked_target_ids: ['workflow-1', 'work-item-1', 'task-4'],
+                work_item_id: 'work-item-1',
+                task_id: 'task-4',
+              },
+            ],
+          },
+          selectedTaskId: 'task-4',
+          scopeSubject: 'task',
+          onLoadMore: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Policy Reviewer');
+    expect(html).not.toContain('771908c8-0634-467a-b41d-6dd4a6798d7d');
+  });
+
   it('hides the older-briefs control when no backfill cursor is available', () => {
     const html = renderToStaticMarkup(
       createElement(

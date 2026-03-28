@@ -146,7 +146,9 @@ export class WorkflowOperatorUpdateService {
         input.limit ?? 50,
       ],
     );
-    return result.rows.map(toWorkflowOperatorUpdateRecord);
+    return result.rows
+      .map(toWorkflowOperatorUpdateRecord)
+      .filter((record) => matchesRequestedScope(record, input));
   }
 
   async recordUpdate(
@@ -371,6 +373,19 @@ function toWorkflowOperatorUpdateRecord(row: WorkflowOperatorUpdateRow): Workflo
     created_by_id: row.created_by_id,
     created_at: row.created_at.toISOString(),
   };
+}
+
+function matchesRequestedScope(
+  record: WorkflowOperatorUpdateRecord,
+  input: ListWorkflowOperatorUpdatesInput,
+): boolean {
+  if (input.taskId) {
+    return record.task_id === input.taskId || record.linked_target_ids.includes(input.taskId);
+  }
+  if (input.workItemId) {
+    return record.work_item_id === input.workItemId || record.linked_target_ids.includes(input.workItemId);
+  }
+  return true;
 }
 
 function serializeJsonb(value: unknown): string {
