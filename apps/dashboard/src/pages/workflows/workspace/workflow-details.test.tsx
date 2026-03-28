@@ -38,20 +38,27 @@ describe('WorkflowDetails', () => {
           branch: 'release/2026.03',
           release_window: 'Friday 17:00',
         },
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Verify deliverable',
+          banner: 'Task: Verify deliverable',
+        },
       }),
     );
 
     expect(html).toContain('Verify deliverable');
     expect(html).toContain('Latest status');
     expect(html).toContain('In Progress');
-    expect(html).toContain('Workflow parameters');
-    expect(html).toContain('Workflow inputs');
-    expect(html).toContain('Work item inputs');
     expect(html).toContain('Task input');
-    expect(html).toContain('Rollback guide');
-    expect(html).toContain('release/2026.03');
     expect(html).toContain('Inputs');
-    expect(html).toContain('Launch • Operator');
+    expect(html).not.toContain('Workflow parameters');
+    expect(html).not.toContain('Workflow inputs');
+    expect(html).not.toContain('Work item inputs');
+    expect(html).not.toContain('Rollback guide');
+    expect(html).not.toContain('release/2026.03');
+    expect(html).not.toContain('Launch • Operator');
     expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/80 p-4');
     expect(html).not.toContain('Workflow, work-item, and task inputs used for the current selection.');
     expect(html).not.toContain('Fields');
@@ -91,6 +98,13 @@ describe('WorkflowDetails', () => {
         ],
         inputPackets: createPackets(),
         workflowParameters: null,
+        scope: {
+          scopeKind: 'selected_work_item',
+          title: 'Work item',
+          subject: 'work item',
+          name: 'Prepare release bundle',
+          banner: 'Work item: Prepare release bundle',
+        },
       }),
     );
 
@@ -119,11 +133,19 @@ describe('WorkflowDetails', () => {
         selectedWorkItemTasks: [],
         inputPackets: createPackets(),
         workflowParameters: null,
+        scope: {
+          scopeKind: 'selected_work_item',
+          title: 'Work item',
+          subject: 'work item',
+          name: 'Prepare release bundle',
+          banner: 'Work item: Prepare release bundle',
+        },
       }),
     );
 
     expect(html).toContain('Work item inputs');
     expect(html).toContain('Rollback guide');
+    expect(html).not.toContain('Workflow inputs');
   });
 
   it('omits the inputs section when the current scope has no operator-facing inputs yet', () => {
@@ -141,6 +163,13 @@ describe('WorkflowDetails', () => {
         selectedWorkItemTasks: [],
         inputPackets: [],
         workflowParameters: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Release Workflow',
+          banner: 'Workflow: Release Workflow',
+        },
       }),
     );
 

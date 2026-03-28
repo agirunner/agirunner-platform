@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  describeWorkflowWorkbenchScope,
   buildWorkflowDiagnosticsHref,
   buildWorkflowsPageHref,
   resolveWorkspacePlaceholderData,
@@ -63,18 +64,67 @@ describe('workflows page support', () => {
     expect(buildWorkflowsPageHref({})).toBe('/workflows');
   });
 
-  it('supports task scope for task-selected tabs while keeping needs action workflow-scoped', () => {
+  it('uses the same exact scope across every workbench tab based on the current selection', () => {
     expect(resolveWorkflowTabScope('details', 'work-item-7', null)).toBe('selected_work_item');
-    expect(resolveWorkflowTabScope('needs_action', 'work-item-7', null)).toBe('workflow');
+    expect(resolveWorkflowTabScope('needs_action', 'work-item-7', null)).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('steering', 'work-item-7', null)).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('live_console', 'work-item-7', null)).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('history', 'work-item-7', null)).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('deliverables', 'work-item-7', null)).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('details', 'work-item-7', 'task-4')).toBe('selected_task');
+    expect(resolveWorkflowTabScope('needs_action', 'work-item-7', 'task-4')).toBe('selected_task');
     expect(resolveWorkflowTabScope('steering', 'work-item-7', 'task-4')).toBe('selected_task');
     expect(resolveWorkflowTabScope('live_console', 'work-item-7', 'task-4')).toBe('selected_task');
     expect(resolveWorkflowTabScope('history', 'work-item-7', 'task-4')).toBe('selected_task');
     expect(resolveWorkflowTabScope('live_console', null, null)).toBe('workflow');
+  });
+
+  it('describes the exact workbench scope banner for workflow, work item, and task views', () => {
+    expect(
+      describeWorkflowWorkbenchScope({
+        scopeKind: 'workflow',
+        workflowName: 'Release Workflow',
+        workItemId: null,
+        workItemTitle: null,
+        taskId: null,
+        taskTitle: null,
+      }),
+    ).toMatchObject({
+      scopeKind: 'workflow',
+      title: 'Workflow',
+      subject: 'workflow',
+      banner: 'Workflow: Release Workflow',
+    });
+    expect(
+      describeWorkflowWorkbenchScope({
+        scopeKind: 'selected_work_item',
+        workflowName: 'Release Workflow',
+        workItemId: 'work-item-7',
+        workItemTitle: 'Prepare release bundle',
+        taskId: null,
+        taskTitle: null,
+      }),
+    ).toMatchObject({
+      scopeKind: 'selected_work_item',
+      title: 'Work item',
+      subject: 'work item',
+      banner: 'Work item: Prepare release bundle',
+    });
+    expect(
+      describeWorkflowWorkbenchScope({
+        scopeKind: 'selected_task',
+        workflowName: 'Release Workflow',
+        workItemId: 'work-item-7',
+        workItemTitle: 'Prepare release bundle',
+        taskId: 'task-3',
+        taskTitle: 'Verify deliverable',
+      }),
+    ).toMatchObject({
+      scopeKind: 'selected_task',
+      title: 'Task',
+      subject: 'task',
+      banner: 'Task: Verify deliverable',
+    });
   });
 
   it('builds workflow-scoped diagnostics hrefs for live evidence', () => {

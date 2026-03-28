@@ -27,6 +27,13 @@ describe('WorkflowBottomWorkbench', () => {
         selectedWorkItemTasks: [],
         inputPackets: [],
         workflowParameters: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
         onTabChange: vi.fn(),
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
@@ -64,6 +71,13 @@ describe('WorkflowBottomWorkbench', () => {
         selectedWorkItemTasks: [],
         inputPackets: [],
         workflowParameters: null,
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Verify deliverable',
+          banner: 'Task: Verify deliverable',
+        },
         onTabChange: vi.fn(),
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
@@ -74,10 +88,10 @@ describe('WorkflowBottomWorkbench', () => {
       }),
     );
 
-    expect(html).toContain('Task');
+    expect(html).toContain('Task: Verify deliverable');
     expect(html).toContain('Verify deliverable');
-    expect(html).toContain('Prepare release bundle');
-    expect(html).toContain('Workflow');
+    expect(html).toContain('Show work item');
+    expect(html).toContain('Show workflow');
     expect(html).not.toContain('Selected on board');
     expect(html).not.toContain('Back to work item');
     expect(html).not.toContain('Back to workflow');
@@ -129,6 +143,13 @@ describe('WorkflowBottomWorkbench', () => {
           selectedWorkItemTasks: [],
           inputPackets: [],
           workflowParameters: null,
+          scope: {
+            scopeKind: 'workflow',
+            title: 'Workflow',
+            subject: 'workflow',
+            name: 'Workflow 1',
+            banner: 'Workflow: Workflow 1',
+          },
           onTabChange: vi.fn(),
           onClearWorkItemScope: vi.fn(),
           onClearTaskScope: vi.fn(),
@@ -144,6 +165,66 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).toContain('Steering history');
     expect(html).not.toContain('Use the top-right workflow controls');
     expect(html).not.toContain('Steering scope');
+  });
+
+  it('renders the live console empty state for the exact selected scope shown in the banner', () => {
+    const packet = createPacket();
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBottomWorkbench, {
+        workflowId: 'workflow-1',
+        workflow: packet.workflow,
+        stickyStrip: packet.sticky_strip,
+        board: packet.board,
+        workflowName: 'Workflow 1',
+        packet: {
+          ...packet,
+          selected_scope: {
+            scope_kind: 'selected_task',
+            work_item_id: 'work-item-7',
+            task_id: 'task-3',
+          },
+          bottom_tabs: {
+            ...packet.bottom_tabs,
+            current_scope_kind: 'selected_task',
+            current_work_item_id: 'work-item-7',
+            current_task_id: 'task-3',
+            counts: {
+              ...packet.bottom_tabs.counts,
+              live_console_activity: 0,
+            },
+          },
+        },
+        activeTab: 'live_console',
+        selectedWorkItemId: 'work-item-7',
+        scopedWorkItemId: 'work-item-7',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: 'task-3',
+        selectedTaskTitle: 'Verify deliverable',
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [],
+        inputPackets: [],
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Verify deliverable',
+          banner: 'Task: Verify deliverable',
+        },
+        onTabChange: vi.fn(),
+        onClearWorkItemScope: vi.fn(),
+        onClearTaskScope: vi.fn(),
+        onOpenAddWork: vi.fn(),
+        onOpenRedrive: vi.fn(),
+        onLoadMoreActivity: vi.fn(),
+        onLoadMoreDeliverables: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Task: Verify deliverable');
+    expect(html).toContain('No live headlines have been recorded for this task yet.');
+    expect(html).not.toContain('this workflow yet');
   });
 });
 
