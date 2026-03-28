@@ -1,4 +1,5 @@
 import type { MissionControlHistoryResponse } from './mission-control-types.js';
+import type { WorkflowDeliverableRecord } from '../workflow-deliverable-service.js';
 import type { WorkflowInputPacketRecord } from '../workflow-input-packet-service.js';
 import type { WorkflowInterventionRecord } from '../workflow-intervention-service.js';
 import type { WorkflowOperatorBriefRecord } from '../workflow-operator-brief-service.js';
@@ -50,7 +51,7 @@ interface DeliverableSource {
     tenantId: string,
     workflowId: string,
     input?: { workItemId?: string; limit?: number },
-  ): Promise<unknown>;
+  ): Promise<WorkflowDeliverableRecord[]>;
 }
 
 export class WorkflowHistoryService {
@@ -94,7 +95,7 @@ export class WorkflowHistoryService {
       ...filterByWorkItem(interventions, input.workItemId).map(toInterventionHistoryItem),
       ...filterInputPackets(inputPackets, input.workItemId).map(toInputHistoryItem),
     ]
-      .sort(sortNewestFirst)
+      .sort(sortNewestFirst);
     const page = paginateOrderedItems(items, limit, input.after, (item) => ({
       timestamp: item.created_at,
       id: item.item_id,
