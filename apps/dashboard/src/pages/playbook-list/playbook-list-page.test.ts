@@ -23,11 +23,14 @@ describe('playbook list page source', () => {
     const source = readSource();
     expect(source).toContain('PlaybookAuthoringForm');
     expect(source).toContain('playbook-create-workspace');
-    expect(source).toContain('Full-page authoring workspace');
     expect(source).toContain('className="space-y-6 p-4 sm:p-6"');
+    expect(source).toContain('<div className="space-y-6">');
     expect(source).not.toContain('mx-auto max-w-[88rem]');
     expect(source).toContain('sticky bottom-4');
-    expect(source).toContain('xl:sticky xl:top-6');
+    expect(source).not.toContain('xl:sticky xl:top-6');
+    expect(source).not.toContain('Full-page authoring workspace');
+    expect(source).not.toContain('Structured controls only');
+    expect(source).not.toContain('Pinned create actions');
     expect(source).not.toContain('Definition JSON');
     expect(source).toContain('buildPlaybookDefinition(');
     expect(source).toContain('label={`Open ${family.name}`}');
@@ -65,7 +68,11 @@ describe('playbook list page source', () => {
     expect(source).toContain('aria-label="Playbook lifecycle"');
     expect(source).not.toContain('SegmentedFilter');
     expect(source).toContain('validatePlaybookCreateDraft');
-    expect(source).toContain('Resolve these blockers before creating the playbook.');
+    expect(source).not.toContain('Creation Readiness');
+    expect(source).not.toContain('Keep the critical setup visible while you author.');
+    expect(source).not.toContain('Resolve these blockers before creating the playbook.');
+    expect(source).not.toContain('ReadinessRow');
+    expect(source).not.toContain('createReadinessIssues');
     expect(source).toContain('Slug preview:');
     expect(source).toContain('reconcileValidationIssues(currentIssues, nextIssues)');
     expect(source).toContain('Define the playbook identity first, then author the process, specialists,');
@@ -77,6 +84,14 @@ describe('playbook list page source', () => {
     expect(source).not.toContain('PlaybookFamilyCard');
     expect(source).not.toContain('Settings2 className="h-4 w-4"');
     expect(source).not.toContain('className="h-8 w-8"');
+    expect(source).not.toContain('Workspace Guide');
+    expect(source).not.toContain(
+      'The authoring form is split so operators can focus on one decision set at a time.',
+    );
+    expect(source).not.toContain(
+      'Process instructions, specialists, workflow goals, and workflow stages.',
+    );
+    expect(source).not.toContain('Board overrides and orchestration limits.');
   });
 
   it('keeps fresh playbook drafts blank instead of backfilling active roles', () => {

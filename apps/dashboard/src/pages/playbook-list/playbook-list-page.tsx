@@ -12,13 +12,11 @@ import {
   paginateListItems,
 } from '../../components/list-pagination.js';
 import { Input } from '../../components/ui/input.js';
-import { Badge } from '../../components/ui/badge.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import {
   buildPlaybookDefinition,
   createDefaultAuthoringDraft,
   reconcileValidationIssues,
-  summarizePlaybookAuthoringDraft,
   type PlaybookAuthoringDraft,
 } from '../playbook-authoring/playbook-authoring-support.js';
 import { PlaybookAuthoringForm } from '../playbook-authoring/playbook-authoring-form.js';
@@ -44,10 +42,6 @@ import {
 } from './playbook-list-page.library.js';
 
 const DEFAULT_LIFECYCLE = 'ongoing';
-
-function describePlaybookLifecycle(lifecycle: 'planned' | 'ongoing'): string {
-  return lifecycle === 'planned' ? 'Planned' : 'Ongoing';
-}
 
 export function PlaybookListPage(): JSX.Element {
   const navigate = useNavigate();
@@ -144,10 +138,6 @@ export function PlaybookListPage(): JSX.Element {
       }),
     [name, slug, outcome, allPlaybooks],
   );
-  const createReadinessIssues = useMemo(
-    () => Array.from(new Set([...createValidation.blockingIssues, ...authoringValidationIssues])),
-    [authoringValidationIssues, createValidation.blockingIssues],
-  );
 
   function resetForm() {
     setName('');
@@ -166,8 +156,10 @@ export function PlaybookListPage(): JSX.Element {
     setDefinitionError(null);
   }
 
-  const summary = summarizePlaybookAuthoringDraft(draft);
-  const canCreate = createReadinessIssues.length === 0 && !createMutation.isPending;
+  const canCreate =
+    createValidation.blockingIssues.length === 0 &&
+    authoringValidationIssues.length === 0 &&
+    !createMutation.isPending;
 
   function openCreateWorkspace() {
     resetForm();
@@ -192,11 +184,6 @@ export function PlaybookListPage(): JSX.Element {
           </Button>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="space-y-2">
-              <div className="flex flex-wrap gap-2">
-                <Badge variant="secondary">Full-page authoring workspace</Badge>
-                <Badge variant="outline">Structured controls only</Badge>
-                <Badge variant="outline">Pinned create actions</Badge>
-              </div>
               <div>
                 <h1 className="text-2xl font-semibold">Create Playbook</h1>
                 <p className="text-sm text-muted">
@@ -216,7 +203,7 @@ export function PlaybookListPage(): JSX.Element {
           </div>
         </div>
 
-        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.35fr),22rem]">
+        <div className="space-y-6">
           <Card className="border-border/70 bg-card/80 shadow-sm">
             <CardHeader className="space-y-2">
               <CardTitle>Playbook Basics</CardTitle>
@@ -305,79 +292,6 @@ export function PlaybookListPage(): JSX.Element {
               {definitionError ? <p className="text-sm text-red-600 dark:text-red-400">{definitionError}</p> : null}
             </CardContent>
           </Card>
-
-          <div className="space-y-4 xl:sticky xl:top-6">
-            <Card className="border-border/70 bg-card/80 shadow-sm">
-              <CardHeader className="space-y-1">
-                <CardTitle className="text-base">Creation Readiness</CardTitle>
-                <p className="text-sm text-muted">
-                  Keep the critical setup visible while you author.
-                </p>
-              </CardHeader>
-              <CardContent className="grid gap-3 text-sm">
-                {createReadinessIssues.length > 0 ? (
-                  <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-                    <div className="font-medium">Resolve these blockers before creating the playbook.</div>
-                    <ul className="mt-2 list-disc space-y-1 pl-5">
-                      {createReadinessIssues.map((issue) => (
-                        <li key={issue}>{issue}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : (
-                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
-                    Playbook basics are ready. Continue shaping the process, specialists, and
-                    workflow goals below.
-                  </div>
-                )}
-                <ReadinessRow
-                  label="Identity"
-                  value={name.trim() ? name.trim() : 'Add a playbook name'}
-                  ready={!createValidation.fieldErrors.name}
-                />
-                <ReadinessRow
-                  label="Outcome"
-                  value={outcome.trim() ? outcome.trim() : 'Describe the expected result'}
-                  ready={!createValidation.fieldErrors.outcome}
-                />
-                <ReadinessRow
-                  label="Slug"
-                  value={createValidation.normalizedSlug || 'Generated from the playbook name'}
-                  ready={!createValidation.fieldErrors.slug}
-                />
-                <ReadinessRow label="Lifecycle" value={describePlaybookLifecycle(lifecycle)} ready />
-                <ReadinessRow
-                  label="Workflow structure"
-                  value={`${summary.roleCount} roles • ${summary.stageCount} stages`}
-                  ready={summary.hasProcessInstructions && summary.roleCount > 0}
-                />
-                <ReadinessRow
-                  label="Workflow goals"
-                  value={`${summary.parameterCount} goal${summary.parameterCount === 1 ? '' : 's'}`}
-                  ready={authoringValidationIssues.length === 0}
-                />
-              </CardContent>
-            </Card>
-
-            <Card className="border-border/70 bg-card/80 shadow-sm">
-              <CardHeader className="space-y-1">
-                <CardTitle className="text-base">Workspace Guide</CardTitle>
-                <p className="text-sm text-muted">
-                  The authoring form is split so operators can focus on one decision set at a time.
-                </p>
-              </CardHeader>
-              <CardContent className="grid gap-3 text-sm text-muted">
-                <div>
-                  <div className="font-medium text-foreground">Process</div>
-                  Process instructions, specialists, workflow goals, and workflow stages.
-                </div>
-                <div>
-                  <div className="font-medium text-foreground">Advanced</div>
-                  Board overrides and orchestration limits.
-                </div>
-              </CardContent>
-            </Card>
-          </div>
         </div>
 
         <div className="sticky bottom-4 z-10">
@@ -457,20 +371,6 @@ export function PlaybookListPage(): JSX.Element {
         }}
         onToggleActive={(family) => toggleActiveMutation.mutate(family)}
       />
-    </div>
-  );
-}
-
-function ReadinessRow(props: { label: string; value: string; ready: boolean }): JSX.Element {
-  return (
-    <div className="rounded-xl border border-border/70 bg-muted/10 p-3">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="text-sm font-medium">{props.label}</div>
-        <Badge variant={props.ready ? 'secondary' : 'destructive'}>
-          {props.ready ? 'Ready' : 'Needs input'}
-        </Badge>
-      </div>
-      <div className="text-sm text-muted">{props.value}</div>
     </div>
   );
 }
