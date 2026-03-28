@@ -99,12 +99,69 @@ export class WorkflowDeliverableService {
     workflowId: string,
     input: UpsertWorkflowDeliverableInput,
   ): Promise<WorkflowDeliverableRecord> {
-    await this.assertWorkflow(identity.tenantId, workflowId);
+    return this.upsertDeliverableForTenant(identity.tenantId, workflowId, input);
+  }
+
+  async upsertSystemDeliverable(
+    tenantId: string,
+    workflowId: string,
+    input: UpsertWorkflowDeliverableInput,
+  ): Promise<WorkflowDeliverableRecord> {
+    return this.upsertDeliverableForTenant(tenantId, workflowId, input);
+  }
+
+  private async assertWorkflow(tenantId: string, workflowId: string): Promise<void> {
+    const result = await this.pool.query(
+      `SELECT id
+         FROM workflows
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [tenantId, workflowId],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError('Workflow not found');
+    }
+  }
+
+  private async assertWorkItem(tenantId: string, workflowId: string, workItemId: string): Promise<void> {
+    const result = await this.pool.query(
+      `SELECT id
+         FROM workflow_work_items
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = $3`,
+      [tenantId, workflowId, workItemId],
+    );
+    if (!result.rowCount) {
+      throw new ValidationError('Workflow deliverable work item must belong to the selected workflow');
+    }
+  }
+
+  private async assertSourceBrief(tenantId: string, workflowId: string, sourceBriefId: string): Promise<void> {
+    const result = await this.pool.query(
+      `SELECT id
+         FROM workflow_operator_briefs
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = $3`,
+      [tenantId, workflowId, sourceBriefId],
+    );
+    if (!result.rowCount) {
+      throw new ValidationError('Workflow deliverable source brief must belong to the selected workflow');
+    }
+  }
+
+  private async upsertDeliverableForTenant(
+    tenantId: string,
+    workflowId: string,
+    input: UpsertWorkflowDeliverableInput,
+  ): Promise<WorkflowDeliverableRecord> {
+    await this.assertWorkflow(tenantId, workflowId);
     if (input.workItemId) {
-      await this.assertWorkItem(identity.tenantId, workflowId, input.workItemId);
+      await this.assertWorkItem(tenantId, workflowId, input.workItemId);
     }
     if (input.sourceBriefId) {
-      await this.assertSourceBrief(identity.tenantId, workflowId, input.sourceBriefId);
+      await this.assertSourceBrief(tenantId, workflowId, input.sourceBriefId);
     }
 
     const descriptorId = sanitizeOptionalText(input.descriptorId) ?? randomUUID();
@@ -114,11 +171,11 @@ export class WorkflowDeliverableService {
         WHERE tenant_id = $1
           AND workflow_id = $2
           AND id = $3`,
-      [identity.tenantId, workflowId, descriptorId],
+      [tenantId, workflowId, descriptorId],
     );
 
     const params = [
-      identity.tenantId,
+      tenantId,
       sanitizeDeliverableStage(input.deliveryStage),
       sanitizeRequiredText(input.title, 'Workflow deliverable title is required'),
       sanitizeDeliverableState(input.state),
@@ -164,47 +221,6 @@ export class WorkflowDeliverableService {
         );
 
     return toWorkflowDeliverableRecord(result.rows[0]);
-  }
-
-  private async assertWorkflow(tenantId: string, workflowId: string): Promise<void> {
-    const result = await this.pool.query(
-      `SELECT id
-         FROM workflows
-        WHERE tenant_id = $1
-          AND id = $2`,
-      [tenantId, workflowId],
-    );
-    if (!result.rowCount) {
-      throw new NotFoundError('Workflow not found');
-    }
-  }
-
-  private async assertWorkItem(tenantId: string, workflowId: string, workItemId: string): Promise<void> {
-    const result = await this.pool.query(
-      `SELECT id
-         FROM workflow_work_items
-        WHERE tenant_id = $1
-          AND workflow_id = $2
-          AND id = $3`,
-      [tenantId, workflowId, workItemId],
-    );
-    if (!result.rowCount) {
-      throw new ValidationError('Workflow deliverable work item must belong to the selected workflow');
-    }
-  }
-
-  private async assertSourceBrief(tenantId: string, workflowId: string, sourceBriefId: string): Promise<void> {
-    const result = await this.pool.query(
-      `SELECT id
-         FROM workflow_operator_briefs
-        WHERE tenant_id = $1
-          AND workflow_id = $2
-          AND id = $3`,
-      [tenantId, workflowId, sourceBriefId],
-    );
-    if (!result.rowCount) {
-      throw new ValidationError('Workflow deliverable source brief must belong to the selected workflow');
-    }
   }
 }
 

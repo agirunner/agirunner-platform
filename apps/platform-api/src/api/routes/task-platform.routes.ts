@@ -12,6 +12,8 @@ import {
   parseArtifactCatalogArtifactId,
 } from '../../services/artifact-catalog-service.js';
 import { HandoffService } from '../../services/handoff-service.js';
+import { WorkflowDeliverableService } from '../../services/workflow-deliverable-service.js';
+import { WorkflowTaskDeliverablePromotionService } from '../../services/workflow-task-deliverable-promotion-service.js';
 import {
   completionCalloutsSchema,
   guidedClosureSuggestedActionSchema,
@@ -98,11 +100,17 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
     eventService: app.eventService,
     config: app.config,
   });
+  const workflowDeliverableService = new WorkflowDeliverableService(app.pgPool);
+  const workflowTaskDeliverablePromotionService = new WorkflowTaskDeliverablePromotionService(
+    app.pgPool,
+    workflowDeliverableService,
+  );
   const handoffService = new HandoffService(
     app.pgPool,
     app.logService,
     app.eventService,
     activationDispatchService,
+    workflowTaskDeliverablePromotionService,
   );
   const workspaceMemoryScopeService = new WorkspaceMemoryScopeService(app.pgPool);
   const artifactCatalogService = new ArtifactCatalogService(

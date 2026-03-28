@@ -1207,6 +1207,7 @@ function mergeOutputDescriptorDeliverables(
     ...(deliverables.all_deliverables ?? [...finalDeliverables, ...inProgressDeliverables]),
   ];
   const existingIds = new Set<string>();
+  const existingArtifactIds = new Set<string>();
   for (const deliverable of allDeliverables) {
     const descriptorId = readOptionalString(
       (deliverable as unknown as Record<string, unknown>).descriptor_id,
@@ -1214,10 +1215,23 @@ function mergeOutputDescriptorDeliverables(
     if (descriptorId) {
       existingIds.add(descriptorId);
     }
+    const targets = collectDeliverableTargets(deliverable as unknown as Record<string, unknown>);
+    for (const target of targets) {
+      const artifactId = readOptionalString(target.artifact_id);
+      if (artifactId) {
+        existingArtifactIds.add(artifactId);
+      }
+    }
   }
 
   for (const descriptor of scopedDescriptors) {
     if (existingIds.has(descriptor.id)) {
+      continue;
+    }
+    if (
+      descriptor.primaryLocation.kind === 'artifact'
+      && existingArtifactIds.has(descriptor.primaryLocation.artifactId)
+    ) {
       continue;
     }
     const mapped = mapOutputDescriptorDeliverable(workflowId, descriptor, fallbackTimestamp);
@@ -1261,6 +1275,24 @@ function mapOutputDescriptorDeliverable(
     created_at: fallbackTimestamp,
     updated_at: fallbackTimestamp,
   };
+}
+
+function collectDeliverableTargets(deliverable: Record<string, unknown>) {
+  const targets: Array<Record<string, unknown>> = [];
+  const primaryTarget =
+    deliverable.primary_target && typeof deliverable.primary_target === 'object' && !Array.isArray(deliverable.primary_target)
+      ? deliverable.primary_target as Record<string, unknown>
+      : null;
+  if (primaryTarget) {
+    targets.push(primaryTarget);
+  }
+  const secondaryTargets = Array.isArray(deliverable.secondary_targets)
+    ? deliverable.secondary_targets.filter(
+      (target): target is Record<string, unknown> =>
+        Boolean(target) && typeof target === 'object' && !Array.isArray(target),
+    )
+    : [];
+  return targets.concat(secondaryTargets);
 }
 
 function buildOutputPreviewCapabilities(location: MissionControlOutputLocation): Record<string, unknown> {

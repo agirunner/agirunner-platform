@@ -199,6 +199,92 @@ describe('HandoffService', () => {
     );
   });
 
+  it('promotes delivery handoffs into canonical work-item deliverables after persistence', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            role: 'developer',
+            stage_name: 'implementation',
+            state: 'in_progress',
+            rework_count: 0,
+            metadata: { team_name: 'delivery', output_revision: 2 },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ next_sequence: 3 }], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'handoff-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: 'task-1',
+            request_id: 'req-1',
+            role: 'developer',
+            team_name: 'delivery',
+            stage_name: 'implementation',
+            sequence: 3,
+            summary: 'Implemented auth flow.',
+            completion: 'full',
+            completion_state: 'full',
+            resolution: null,
+            decision_state: null,
+            changes: [{ file: 'src/auth.ts' }],
+            decisions: [],
+            remaining_items: [],
+            blockers: [],
+            focus_areas: ['error handling'],
+            known_risks: [],
+            successor_context: 'Focus on refresh token expiry.',
+            role_data: { task_kind: 'delivery' },
+            artifact_ids: [],
+            created_at: new Date('2026-03-15T12:00:00Z'),
+          }],
+          rowCount: 1,
+        }),
+    };
+    const promotionService = {
+      promoteFromHandoff: vi.fn(async () => null),
+    };
+
+    const service = new HandoffService(
+      pool as never,
+      undefined,
+      undefined,
+      undefined,
+      promotionService as never,
+    );
+
+    await service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-1',
+      summary: 'Implemented auth flow.',
+      completion: 'full',
+      changes: [{ file: 'src/auth.ts' }],
+      focus_areas: ['error handling'],
+      successor_context: 'Focus on refresh token expiry.',
+    });
+
+    expect(promotionService.promoteFromHandoff).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        id: 'handoff-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        role_data: expect.objectContaining({
+          task_kind: 'delivery',
+        }),
+      }),
+    );
+  });
+
   it('persists guided closure handoff fields without disturbing delivery linkage', async () => {
     const pool = {
       query: vi

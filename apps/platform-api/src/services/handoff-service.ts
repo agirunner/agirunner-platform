@@ -23,6 +23,7 @@ import {
 } from './safetynet/registry.js';
 import { logSafetynetTriggered } from './safetynet/logging.js';
 import type { EventService } from './event-service.js';
+import type { WorkflowTaskDeliverablePromotionService } from './workflow-task-deliverable-promotion-service.js';
 import {
   enqueueAndDispatchImmediatePlaybookActivation,
   type ImmediateWorkflowActivationDispatcher,
@@ -130,6 +131,7 @@ export class HandoffService {
     private readonly logService?: LogService,
     private readonly eventService?: EventService,
     private readonly activationDispatchService?: ImmediateWorkflowActivationDispatcher,
+    private readonly deliverablePromotionService?: Pick<WorkflowTaskDeliverablePromotionService, 'promoteFromHandoff'>,
   ) {}
 
   async assertRequiredTaskHandoffBeforeCompletion(
@@ -198,6 +200,7 @@ export class HandoffService {
     );
     if (replayMatch) {
       assertMatchingHandoffReplay(replayMatch, payload);
+      await this.promoteTaskDeliverable(tenantId, toTaskHandoffResponse(replayMatch));
       return toTaskHandoffResponse(replayMatch);
     }
 
@@ -209,12 +212,14 @@ export class HandoffService {
     );
     if (existingTaskAttempt) {
       if (matchesHandoffReplay(existingTaskAttempt, payload)) {
+        await this.promoteTaskDeliverable(tenantId, toTaskHandoffResponse(existingTaskAttempt));
         return toTaskHandoffResponse(existingTaskAttempt);
       }
       if (!isEditableTaskState(task.state)) {
         throw new ConflictError('task handoff request replay does not match the existing handoff');
       }
       const updated = await this.updateExistingHandoff(existingTaskAttempt.id, payload, db);
+      await this.promoteTaskDeliverable(tenantId, updated);
       await this.enqueueWorkflowActivation(task, payload, db);
       return updated;
     }
@@ -270,6 +275,7 @@ export class HandoffService {
     );
     if (result.rowCount) {
       const handoff = toTaskHandoffResponse(result.rows[0]);
+      await this.promoteTaskDeliverable(tenantId, handoff);
       await this.enqueueWorkflowActivation(task, payload, db);
       await this.logSubmittedTaskHandoff(tenantId, task, payload, handoff, db);
       return handoff;
@@ -286,9 +292,32 @@ export class HandoffService {
       throw new ConflictError('task handoff request replay does not match the existing handoff');
     }
     const updated = await this.updateExistingHandoff(existing.id, payload, db);
+    await this.promoteTaskDeliverable(tenantId, updated);
     await this.enqueueWorkflowActivation(task, payload, db);
     await this.logSubmittedTaskHandoff(tenantId, task, payload, updated, db);
     return updated;
+  }
+
+  private async promoteTaskDeliverable(
+    tenantId: string,
+    handoff: ReturnType<typeof toTaskHandoffResponse>,
+  ): Promise<void> {
+    if (!this.deliverablePromotionService) {
+      return;
+    }
+    await this.deliverablePromotionService.promoteFromHandoff(tenantId, {
+      id: handoff.id,
+      workflow_id: handoff.workflow_id,
+      work_item_id: handoff.work_item_id,
+      task_id: handoff.task_id,
+      role: handoff.role,
+      summary: handoff.summary,
+      completion: handoff.completion,
+      completion_state: handoff.completion_state,
+      role_data: normalizeRecord(handoff.role_data),
+      artifact_ids: Array.isArray(handoff.artifact_ids) ? handoff.artifact_ids : [],
+      created_at: handoff.created_at,
+    });
   }
 
   private async enqueueWorkflowActivation(
