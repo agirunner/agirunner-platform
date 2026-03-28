@@ -203,6 +203,10 @@ export class WorkflowStateService {
       return deriveContinuousWorkflowState(posture);
     }
 
+    if (hasCompletedPlannedWorkflow(posture)) {
+      return 'completed';
+    }
+
     const stageStatuses = posture.stages.map((row) => row.status);
     if (stageStatuses.length > 0 && stageStatuses.every((status) => status === 'completed')) {
       return 'completed';
@@ -240,8 +244,9 @@ export class WorkflowStateService {
           LIMIT 1`,
         [tenantId, workflowId],
       ),
-      db.query<{ open_work_item_count: number }>(
-        `SELECT COUNT(*) FILTER (WHERE completed_at IS NULL)::int AS open_work_item_count
+      db.query<{ total_work_item_count: number; open_work_item_count: number }>(
+        `SELECT COUNT(*)::int AS total_work_item_count,
+                COUNT(*) FILTER (WHERE completed_at IS NULL)::int AS open_work_item_count
            FROM workflow_work_items WHERE tenant_id = $1 AND workflow_id = $2`,
         [tenantId, workflowId],
       ),
@@ -251,6 +256,7 @@ export class WorkflowStateService {
       normalizedLifecycle,
       stageResult.rows,
       (orchestratorResult.rowCount ?? 0) > 0,
+      workItemResult.rows[0]?.total_work_item_count ?? 0,
       workItemResult.rows[0]?.open_work_item_count ?? 0,
     );
   }
@@ -270,6 +276,7 @@ export interface WorkflowPostureBase {
   lifecycle: string;
   stages: Array<{ status: string; gate_status: string }>;
   hasActiveOrchestratorTask: boolean;
+  totalWorkItemCount: number;
   openWorkItemCount: number;
 }
 
@@ -289,6 +296,7 @@ export function buildWorkflowPosture(
   lifecycle: string,
   stages: Array<{ status: string; gate_status: string }>,
   hasActiveOrchestratorTask: boolean,
+  totalWorkItemCount: number,
   openWorkItemCount: number,
 ): WorkflowPosture {
   const normalizedLifecycle: WorkflowPosture['lifecycle'] =
@@ -296,6 +304,7 @@ export function buildWorkflowPosture(
   const base: WorkflowPostureShape = {
     stages,
     hasActiveOrchestratorTask,
+    totalWorkItemCount,
     openWorkItemCount,
   };
   if (normalizedLifecycle === 'ongoing') {
@@ -321,6 +330,12 @@ function readOptionalString(value: unknown): string | null {
 
 function deriveContinuousWorkflowState(posture: ContinuousWorkflowPosture) {
   return hasContinuousWorkflowPosture(posture) ? 'active' : 'pending';
+}
+
+function hasCompletedPlannedWorkflow(posture: StandardWorkflowPosture) {
+  return posture.totalWorkItemCount > 0
+    && posture.openWorkItemCount === 0
+    && !posture.hasActiveOrchestratorTask;
 }
 
 function hasActiveWorkflowPosture(posture: StandardWorkflowPosture) {

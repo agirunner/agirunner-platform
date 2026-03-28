@@ -80,13 +80,11 @@ export class WorkflowRailService {
     const selectedRow = query.selectedWorkflowId
       ? await this.readSelectedLiveRow(tenantId, query.selectedWorkflowId)
       : null;
-    const allRows = applyRailFilters(
-      dedupeRows(pinSelectedRow(
-        response.sections.flatMap((section) => readSectionCards(section).map(toRailRowFromCard)),
-        selectedRow,
-      )),
+    const filteredRows = applyRailFilters(
+      dedupeRows(response.sections.flatMap((section) => readSectionCards(section).map(toRailRowFromCard))),
       query,
     );
+    const allRows = dedupeRows(pinSelectedRow(filteredRows, selectedRow));
     const ongoingRows = allRows.filter((row) => row.lifecycle === 'ongoing');
     const primaryRows = allRows.filter((row) => row.lifecycle !== 'ongoing');
     return buildRailPacket(

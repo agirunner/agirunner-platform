@@ -31,48 +31,62 @@ export function deriveWorkflowActionAvailability(
 ): MissionControlActionAvailability[] {
   const stale = isStale(input.version);
   const hasCancelRequest = input.hasCancelRequest === true;
+  const pauseEnabled = canPause(input.workflowState, input.posture, hasCancelRequest);
+  const resumeEnabled = canResume(input.workflowState, hasCancelRequest);
+  const cancelEnabled = canCancel(input.workflowState, hasCancelRequest);
+  const addWorkEnabled = canAddWork(input.workflowState, input.posture, hasCancelRequest);
+  const replanEnabled = canReplan(input.workflowState, input.posture, hasCancelRequest);
+  const spawnChildEnabled = canSpawnChildWorkflow(input.workflowState, input.posture, hasCancelRequest);
+  const redriveEnabled = isTerminalState(input.workflowState);
   return [
     buildWorkflowAction(
       'pause_workflow',
-      canPause(input.workflowState, input.posture, hasCancelRequest),
+      pauseEnabled,
       'immediate',
       stale,
+      pauseEnabled ? null : explainPauseDisabled(input.workflowState, hasCancelRequest),
     ),
     buildWorkflowAction(
       'resume_workflow',
-      canResume(input.workflowState, hasCancelRequest),
+      resumeEnabled,
       'immediate',
       stale,
+      resumeEnabled ? null : explainResumeDisabled(input.workflowState, hasCancelRequest),
     ),
     buildWorkflowAction(
       'cancel_workflow',
-      canCancel(input.workflowState, hasCancelRequest),
+      cancelEnabled,
       'high_impact_confirm',
       stale,
+      cancelEnabled ? null : explainCancelDisabled(input.workflowState, hasCancelRequest),
     ),
     buildWorkflowAction(
       'add_work_item',
-      canAddWork(input.workflowState, input.posture, hasCancelRequest),
+      addWorkEnabled,
       'standard_confirm',
       stale,
+      addWorkEnabled ? null : explainWorkflowSteeringDisabled(input.workflowState, input.posture, hasCancelRequest),
     ),
     buildWorkflowAction(
       'request_replan',
-      canReplan(input.workflowState, input.posture, hasCancelRequest),
+      replanEnabled,
       'standard_confirm',
       stale,
+      replanEnabled ? null : explainWorkflowSteeringDisabled(input.workflowState, input.posture, hasCancelRequest),
     ),
     buildWorkflowAction(
       'spawn_child_workflow',
-      canSpawnChildWorkflow(input.workflowState, input.posture, hasCancelRequest),
+      spawnChildEnabled,
       'high_impact_confirm',
       stale,
+      spawnChildEnabled ? null : explainWorkflowSteeringDisabled(input.workflowState, input.posture, hasCancelRequest),
     ),
     buildWorkflowAction(
       'redrive_workflow',
-      isTerminalState(input.workflowState),
+      redriveEnabled,
       'high_impact_confirm',
       stale,
+      redriveEnabled ? null : 'Action is not available in the current workflow state.',
     ),
   ];
 }
@@ -108,7 +122,7 @@ function canPause(
   hasCancelRequest: boolean,
 ): boolean {
   return (
-    (workflowState === 'pending' || workflowState === 'active')
+    workflowState === 'active'
     && posture !== 'paused'
     && !hasCancelRequest
   );
@@ -187,8 +201,9 @@ function buildWorkflowAction(
   enabled: boolean,
   confirmationLevel: MissionControlConfirmationLevel,
   stale: boolean,
+  disabledReason: string | null,
 ): MissionControlActionAvailability {
-  return buildAction(kind, 'workflow', enabled, confirmationLevel, stale);
+  return buildAction(kind, 'workflow', enabled, confirmationLevel, stale, disabledReason);
 }
 
 function buildTaskAction(
@@ -197,7 +212,7 @@ function buildTaskAction(
   confirmationLevel: MissionControlConfirmationLevel,
   stale: boolean,
 ): MissionControlActionAvailability {
-  return buildAction(kind, 'task', enabled, confirmationLevel, stale);
+  return buildAction(kind, 'task', enabled, confirmationLevel, stale, null);
 }
 
 function buildAction(
@@ -206,6 +221,7 @@ function buildAction(
   enabled: boolean,
   confirmationLevel: MissionControlConfirmationLevel,
   stale: boolean,
+  disabledReason: string | null,
 ): MissionControlActionAvailability {
   if (stale) {
     return {
@@ -223,6 +239,86 @@ function buildAction(
     enabled,
     confirmationLevel,
     stale: false,
-    disabledReason: enabled ? null : 'Action is not available in the current workflow state.',
+    disabledReason: enabled ? null : disabledReason ?? 'Action is not available in the current workflow state.',
   };
+}
+
+function explainPauseDisabled(workflowState: string, hasCancelRequest: boolean): string {
+  if (hasCancelRequest) {
+    return 'Workflow cancellation is already in progress.';
+  }
+  if (workflowState === 'paused') {
+    return 'Workflow is already paused.';
+  }
+  if (workflowState === 'pending') {
+    return 'Only active workflows can be paused.';
+  }
+  if (workflowState === 'cancelled') {
+    return 'Cancelled workflows cannot be paused.';
+  }
+  if (workflowState === 'completed') {
+    return 'Completed workflows cannot be paused.';
+  }
+  if (workflowState === 'failed') {
+    return 'Failed workflows cannot be paused.';
+  }
+  return 'Action is not available in the current workflow state.';
+}
+
+function explainResumeDisabled(workflowState: string, hasCancelRequest: boolean): string {
+  if (hasCancelRequest) {
+    return 'Workflow cancellation is already in progress and cannot be resumed.';
+  }
+  if (workflowState === 'cancelled') {
+    return 'Cancelled workflows cannot be resumed.';
+  }
+  if (workflowState === 'completed') {
+    return 'Completed workflows cannot be resumed.';
+  }
+  if (workflowState === 'failed') {
+    return 'Failed workflows cannot be resumed.';
+  }
+  if (workflowState === 'active' || workflowState === 'pending') {
+    return 'Workflow is not paused.';
+  }
+  return 'Action is not available in the current workflow state.';
+}
+
+function explainCancelDisabled(workflowState: string, hasCancelRequest: boolean): string {
+  if (hasCancelRequest || workflowState === 'cancelling') {
+    return 'Workflow cancellation is already in progress.';
+  }
+  if (workflowState === 'cancelled') {
+    return 'Workflow is already cancelled.';
+  }
+  if (workflowState === 'completed') {
+    return 'Completed workflows cannot be cancelled.';
+  }
+  if (workflowState === 'failed') {
+    return 'Failed workflows cannot be cancelled.';
+  }
+  return 'Action is not available in the current workflow state.';
+}
+
+function explainWorkflowSteeringDisabled(
+  workflowState: string,
+  posture: MissionControlWorkflowPosture,
+  hasCancelRequest: boolean,
+): string {
+  if (hasCancelRequest || posture === 'cancelling') {
+    return 'Workflow cancellation is already in progress.';
+  }
+  if (workflowState === 'paused' || posture === 'paused') {
+    return 'Resume the workflow before applying this action.';
+  }
+  if (workflowState === 'cancelled') {
+    return 'Cancelled workflows cannot accept new work.';
+  }
+  if (workflowState === 'completed') {
+    return 'Completed workflows cannot accept new work.';
+  }
+  if (workflowState === 'failed') {
+    return 'Redrive the workflow before applying this action.';
+  }
+  return 'Action is not available in the current workflow state.';
 }

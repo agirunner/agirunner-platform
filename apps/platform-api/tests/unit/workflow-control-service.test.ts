@@ -83,6 +83,29 @@ describe('WorkflowControlService', () => {
     expect(pool.query).not.toHaveBeenCalledWith(expect.stringContaining('UPDATE workflows'), expect.anything());
   });
 
+  it('rejects pause requests for workflows that are not actively in progress', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.startsWith('SELECT id, state, metadata FROM workflows')) {
+          return {
+            rowCount: 1,
+            rows: [{ id: 'workflow-1', state: 'pending', metadata: {} }],
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const service = new WorkflowControlService(
+      pool as never,
+      { emit: vi.fn() } as never,
+      { recomputeWorkflowState: vi.fn() } as never,
+    );
+
+    await expect(service.pauseWorkflow(identity, 'workflow-1')).rejects.toThrow(
+      'Only active workflows can be paused',
+    );
+  });
+
   it('resumes paused workflows by clearing the pause marker before recomputing state', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
@@ -232,7 +255,9 @@ describe('WorkflowControlService', () => {
       { recomputeWorkflowState: vi.fn() } as never,
     );
 
-    await expect(service.resumeWorkflow(identity, 'workflow-1')).rejects.toBeInstanceOf(ConflictError);
+    await expect(service.resumeWorkflow(identity, 'workflow-1')).rejects.toThrow(
+      'Cancelled workflows cannot be resumed',
+    );
     expect(client.query).toHaveBeenCalledWith('ROLLBACK');
   });
 

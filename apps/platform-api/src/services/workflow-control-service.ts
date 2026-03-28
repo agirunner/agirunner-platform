@@ -24,7 +24,7 @@ export class WorkflowControlService {
       return workflow;
     }
     if (!isPausableWorkflowState(workflow.state)) {
-      throw new ConflictError('Workflow is not pausable');
+      throw new ConflictError('Only active workflows can be paused');
     }
     const result = await this.pool.query<WorkflowControlRow>(
       `UPDATE workflows
@@ -33,13 +33,13 @@ export class WorkflowControlService {
               updated_at = now()
         WHERE tenant_id = $1
           AND id = $2
-          AND state IN ('pending', 'active')
+          AND state = 'active'
       RETURNING id, state, metadata`,
       [identity.tenantId, workflowId, { pause_requested_at: new Date().toISOString() }],
     );
     const pausedWorkflow = result.rows[0];
     if (!pausedWorkflow) {
-      throw new ConflictError('Workflow is not pausable');
+      throw new ConflictError('Only active workflows can be paused');
     }
 
     await this.eventService.emit({
@@ -68,8 +68,14 @@ export class WorkflowControlService {
       }
       const currentWorkflow = workflow.rows[0];
       const pauseRequestedAt = readWorkflowMarker(currentWorkflow.metadata, 'pause_requested_at');
-      if (isTerminalWorkflowState(currentWorkflow.state)) {
-        throw new ConflictError('Workflow is not resumable');
+      if (currentWorkflow.state === 'cancelled') {
+        throw new ConflictError('Cancelled workflows cannot be resumed');
+      }
+      if (currentWorkflow.state === 'completed') {
+        throw new ConflictError('Completed workflows cannot be resumed');
+      }
+      if (currentWorkflow.state === 'failed') {
+        throw new ConflictError('Failed workflows cannot be resumed');
       }
       if (hasCancelRequest(currentWorkflow.metadata)) {
         throw new ConflictError('Workflow cancellation is already in progress and cannot be resumed');
@@ -147,7 +153,7 @@ export class WorkflowControlService {
 }
 
 function isPausableWorkflowState(state: string) {
-  return state === 'pending' || state === 'active';
+  return state === 'active';
 }
 
 function isResumedWorkflowState(state: string) {

@@ -229,6 +229,99 @@ describe('WorkflowRailService', () => {
     ]);
   });
 
+  it('keeps a selected workflow visible even when live rail filters would otherwise exclude it', async () => {
+    const liveService = {
+      getLive: vi.fn(async () => ({
+        version: {
+          generatedAt: '2026-03-27T22:30:00.000Z',
+          latestEventId: 42,
+          token: 'mission-control:42',
+        },
+        sections: [
+          {
+            id: 'needs_action',
+            title: 'Needs Action',
+            count: 1,
+            workflows: [
+              {
+                id: 'workflow-needs-action',
+                name: 'Needs Action Workflow',
+                state: 'active',
+                lifecycle: 'planned',
+                currentStage: 'implementation',
+                workspaceName: 'Core Product',
+                playbookName: 'Delivery',
+                posture: 'needs_intervention',
+                attentionLane: 'needs_intervention',
+                pulse: {
+                  summary: 'Waiting on operator steering.',
+                  tone: 'warning',
+                  updatedAt: '2026-03-27T22:29:00.000Z',
+                },
+                metrics: {
+                  activeTaskCount: 0,
+                  activeWorkItemCount: 0,
+                  blockedWorkItemCount: 1,
+                  openEscalationCount: 0,
+                  waitingForDecisionCount: 0,
+                  failedTaskCount: 0,
+                  recoverableIssueCount: 0,
+                  lastChangedAt: '2026-03-27T22:29:00.000Z',
+                },
+              },
+            ],
+          },
+        ],
+        attentionItems: [],
+      })),
+      listWorkflowCards: vi.fn(async () => [
+        {
+          id: 'workflow-selected',
+          name: 'Fresh Workflow',
+          state: 'pending',
+          lifecycle: 'planned',
+          currentStage: 'intake',
+          workspaceName: 'Core Product',
+          playbookName: 'Intake',
+          posture: 'waiting_by_design',
+          attentionLane: 'watchlist',
+          pulse: {
+            summary: 'Queued for the next workflow event.',
+            tone: 'waiting',
+            updatedAt: '2026-03-27T22:30:00.000Z',
+          },
+          metrics: {
+            activeTaskCount: 0,
+            activeWorkItemCount: 0,
+            blockedWorkItemCount: 0,
+            openEscalationCount: 0,
+            waitingForDecisionCount: 0,
+            failedTaskCount: 0,
+            recoverableIssueCount: 0,
+            lastChangedAt: '2026-03-27T22:30:00.000Z',
+          },
+        },
+      ]),
+    };
+    const service = new WorkflowRailService(
+      liveService as never,
+      { getRecent: vi.fn() } as never,
+      { getHistory: vi.fn() } as never,
+    );
+
+    const result = await service.getRail('tenant-1', {
+      mode: 'live',
+      needsActionOnly: true,
+      selectedWorkflowId: 'workflow-selected',
+    });
+
+    expect(result.selected_workflow_id).toBe('workflow-selected');
+    expect(result.rows).toEqual([
+      expect.objectContaining({ workflow_id: 'workflow-selected' }),
+      expect.objectContaining({ workflow_id: 'workflow-needs-action' }),
+    ]);
+  });
+
   it('does not throw when a fresh workflow card is missing optional pulse or metrics fields', async () => {
     const liveService = {
       getLive: vi.fn(async () => ({

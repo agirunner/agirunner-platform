@@ -83,6 +83,31 @@ describe('WorkflowStateService', () => {
     ).toBe(false);
   });
 
+  it('marks planned workflows completed when all work items have completed even if stage rows are stale', async () => {
+    const pool = createPool([
+      workflowRow({ state: 'active' }),
+      rowSet([{ lifecycle: 'planned' }]),
+      rowSet([{ status: 'active', gate_status: 'not_requested' }]),
+      rowSet([]),
+      rowSet([{ total_work_item_count: 2, open_work_item_count: 0 }]),
+      rowSet([]),
+      rowSet([{ task_count: 2, failed_task_count: 0 }]),
+    ]);
+    const eventService = { emit: vi.fn() };
+    const service = new WorkflowStateService(pool as never, eventService as never);
+
+    const result = await service.recomputeWorkflowState('tenant-1', 'workflow-1');
+
+    expect(result).toBe('completed');
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.state_changed',
+        data: { from_state: 'active', to_state: 'completed' },
+      }),
+      undefined,
+    );
+  });
+
   it('returns pending for continuous workflows when no active work-item or gate posture remains', async () => {
     const pool = createPool([
       workflowRow({ state: 'active' }),

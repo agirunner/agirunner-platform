@@ -137,6 +137,40 @@ describe('mission control action availability', () => {
     );
   });
 
+  it('does not expose pause on workflows that have not started active work yet', () => {
+    const actions = deriveWorkflowActionAvailability({
+      workflowState: 'pending',
+      posture: 'waiting_by_design',
+    });
+
+    expect(actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'pause_workflow',
+          enabled: false,
+          disabledReason: 'Only active workflows can be paused.',
+        }),
+      ]),
+    );
+  });
+
+  it('explains when resume is permanently unavailable for cancelled workflows', () => {
+    const actions = deriveWorkflowActionAvailability({
+      workflowState: 'cancelled',
+      posture: 'cancelled',
+    });
+
+    expect(actions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'resume_workflow',
+          enabled: false,
+          disabledReason: 'Cancelled workflows cannot be resumed.',
+        }),
+      ]),
+    );
+  });
+
   it('disables all actions when the read model is stale', () => {
     const actions = deriveWorkflowActionAvailability({
       workflowState: 'active',
