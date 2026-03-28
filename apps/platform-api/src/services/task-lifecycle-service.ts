@@ -516,7 +516,7 @@ export class TaskLifecycleService {
     }
 
     const definition = parsePlaybookDefinition(workItem.definition);
-    const reopenColumnId = defaultColumnId(definition) ?? workItem.column_id;
+    const reopenColumnId = resolveReopenColumnId(definition, workItem.column_id);
     if (!reopenColumnId) {
       return;
     }
@@ -3137,6 +3137,13 @@ function activeColumnIdFor(definition: ReturnType<typeof parsePlaybookDefinition
   return definition.board.columns
     .slice(entryIndex + 1)
     .find((column) => !column.is_blocked && !column.is_terminal)?.id ?? null;
+}
+
+function resolveReopenColumnId(
+  definition: ReturnType<typeof parsePlaybookDefinition>,
+  currentColumnId: string | null,
+): string | null {
+  return activeColumnIdFor(definition) ?? defaultColumnId(definition) ?? currentColumnId;
 }
 
 interface WorkflowActivationTransition {
