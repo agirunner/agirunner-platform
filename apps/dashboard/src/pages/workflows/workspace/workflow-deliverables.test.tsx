@@ -47,9 +47,10 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Briefs (1)');
-    expect(html).toContain('Brief-backed output');
+    expect(html).toContain('Brief-backed outputs (1)');
+    expect(html).toContain('Material output is currently available only as workflow briefs.');
     expect(html).toContain('No final deliverables are available yet.');
+    expect(html).not.toContain('Briefs (1)');
   });
 
   it('shows task evidence above parent deliverables when a task is selected', () => {

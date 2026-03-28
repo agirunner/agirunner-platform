@@ -50,7 +50,7 @@ describe('WorkflowLiveConsole', () => {
             item_kind: 'operator_update',
             source_label: 'Implementation Engineer',
             headline: 'Updated retry handling.',
-            summary: 'Implementation is preparing the next validation handoff.',
+            summary: 'Execution turn completed for Implementation Engineer.',
             created_at: '2026-03-27T04:04:00.000Z',
           },
         ]),
@@ -62,12 +62,13 @@ describe('WorkflowLiveConsole', () => {
 
     expect(html).toContain('&gt;');
     expect(html).toContain('Implementation Engineer:');
-    expect(html).toContain('Updated retry handling. - Implementation is preparing the next validation handoff.');
+    expect(html).toContain('Updated retry handling.');
+    expect(html).not.toContain('Execution turn completed for Implementation Engineer.');
     expect(html).toContain('Orchestrator:');
     expect(html).toContain('Workflow reached approval milestone - A structured brief was published.');
     expect(html).not.toContain('[brief]');
     expect(html).not.toContain('border-sky-500/20');
-    expect(html).toContain('grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-start gap-x-2');
+    expect(html).toContain('grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3');
   });
 
   it('shows task scope explicitly when a task is selected', () => {

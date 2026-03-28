@@ -56,10 +56,7 @@ export function WorkflowsRail(props: {
       <div className="space-y-4 border-b border-border/70 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
-              Workflows
-            </p>
-            <h1 className="text-lg font-semibold text-foreground">Select workflow</h1>
+            <h1 className="text-lg font-semibold text-foreground">Workflows</h1>
           </div>
           <Button size="sm" onClick={props.onCreateWorkflow}>
             New Workflow

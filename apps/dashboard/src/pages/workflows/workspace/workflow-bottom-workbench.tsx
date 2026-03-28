@@ -47,26 +47,33 @@ export function WorkflowBottomWorkbench(props: {
       <div className="flex flex-wrap items-center gap-2">
         {props.selectedTaskId ? (
           <>
+            <Button type="button" size="sm" variant="ghost" onClick={props.onClearWorkItemScope}>
+              Workflow
+            </Button>
+            {props.scopedWorkItemId ? (
+              <>
+                <span className="text-xs text-muted-foreground">/</span>
+                <Button type="button" size="sm" variant="ghost" onClick={props.onClearTaskScope}>
+                  {props.selectedWorkItemTitle ?? props.scopedWorkItemId}
+                </Button>
+              </>
+            ) : null}
+            <span className="text-xs text-muted-foreground">/</span>
             <Badge variant="secondary">Task: {props.selectedTaskTitle ?? props.selectedTaskId}</Badge>
-            <Button type="button" size="sm" variant="outline" onClick={props.onClearTaskScope}>
-              Back to work item
-            </Button>
-            <Button type="button" size="sm" variant="outline" onClick={props.onClearWorkItemScope}>
-              Back to workflow
-            </Button>
           </>
         ) : props.scopedWorkItemId ? (
           <>
+            <Button type="button" size="sm" variant="ghost" onClick={props.onClearWorkItemScope}>
+              Workflow
+            </Button>
+            <span className="text-xs text-muted-foreground">/</span>
             <Badge variant="secondary">
               Work item: {props.selectedWorkItemTitle ?? props.scopedWorkItemId}
             </Badge>
-            <Button type="button" size="sm" variant="outline" onClick={props.onClearWorkItemScope}>
-              Back to workflow
-            </Button>
           </>
         ) : props.selectedWorkItemId ? (
           <Badge variant="outline">
-            Board selection: {props.selectedWorkItemTitle ?? props.selectedWorkItemId}
+            Selected on board: {props.selectedWorkItemTitle ?? props.selectedWorkItemId}
           </Badge>
         ) : (
           <Badge variant="outline">Workflow scope</Badge>

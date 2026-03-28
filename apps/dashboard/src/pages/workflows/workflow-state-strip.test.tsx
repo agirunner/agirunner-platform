@@ -37,6 +37,36 @@ describe('WorkflowStateStrip', () => {
     expect(html).not.toContain('Workspace');
   });
 
+  it('uses singular workload grammar when only one specialist task is active', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            metrics: {
+              ...createWorkflowCard().metrics,
+              activeTaskCount: 1,
+            },
+          }),
+          stickyStrip: createStickyStrip({
+            active_task_count: 1,
+          }),
+          workflowSettings: null,
+          board: createBoard(),
+          selectedScopeLabel: null,
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onVisibilityModeChange: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('1 specialist task');
+    expect(html).not.toContain('1 specialist tasks');
+  });
+
   it('keeps the sticky cards compact and uses operator-friendly workflow badges', () => {
     const html = renderToStaticMarkup(
       createElement(
@@ -65,10 +95,10 @@ describe('WorkflowStateStrip', () => {
     expect(html).toContain('Waiting for Work');
     expect(html).toContain('Ongoing');
     expect(html).not.toContain('Waiting By Design');
-    expect((html.match(/text-sm font-semibold leading-5 text-foreground/g) ?? []).length).toBeGreaterThanOrEqual(4);
+    expect((html.match(/text-\[13px\] font-semibold leading-5 text-foreground/g) ?? []).length).toBeGreaterThanOrEqual(4);
     expect(html).toContain('Live visibility');
-    expect((html.match(/rounded-2xl border border-border\/70 bg-muted\/10 p-2\.5 text-left/g) ?? [])).toHaveLength(4);
-    expect((html.match(/rounded-2xl border border-border\/70 bg-muted\/10 p-2\.5 text-left transition-colors hover:bg-muted\/20/g) ?? [])).toHaveLength(2);
+    expect((html.match(/rounded-2xl border border-border\/70 bg-muted\/10 p-2 text-left/g) ?? [])).toHaveLength(4);
+    expect((html.match(/rounded-2xl border border-border\/70 bg-muted\/10 p-2 text-left transition-colors hover:bg-muted\/20/g) ?? [])).toHaveLength(2);
     expect(html).not.toContain('Requests, responses, and safe workflow intervention.');
     expect(html).not.toContain('<p class="text-xs text-muted-foreground">Playbook • Workspace</p>');
     expect(html).not.toContain('Accepting new work');

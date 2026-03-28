@@ -36,9 +36,10 @@ export function WorkflowStateStrip(props: {
   const isOngoingWorkflow = props.workflow.lifecycle === 'ongoing';
   const needsActionCount =
     (sticky?.approvals_count ?? 0) + (sticky?.escalations_count ?? 0) + (sticky?.blocked_work_item_count ?? 0);
+  const activeSpecialistTaskCount = sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount;
 
   return (
-    <section className="space-y-2 rounded-3xl border border-border/70 bg-background/90 p-3">
+    <section className="space-y-2 rounded-2xl border border-border/70 bg-background/90 p-2.5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -103,7 +104,7 @@ export function WorkflowStateStrip(props: {
         <HeaderCard
           title="Workload"
           value={`${workload.activeWorkItemCount} active • ${workload.completedWorkItemCount} done`}
-          detail={`${sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount} specialist tasks`}
+          detail={formatSpecialistTaskLabel(activeSpecialistTaskCount)}
         />
         <HeaderCard
           title="Steering"
@@ -122,7 +123,7 @@ function HeaderCard(props: {
   detail: string;
   onClick?(): void;
 }): JSX.Element {
-  const className = 'grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-2.5 text-left';
+  const className = 'grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-2 text-left';
 
   if (!props.onClick) {
     return (
@@ -130,7 +131,7 @@ function HeaderCard(props: {
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
           {props.title}
         </p>
-        <p className="text-sm font-semibold leading-5 text-foreground">{props.value}</p>
+        <p className="text-[13px] font-semibold leading-5 text-foreground">{props.value}</p>
         <p className="text-[11px] leading-4 text-muted-foreground">{props.detail}</p>
       </div>
     );
@@ -145,10 +146,14 @@ function HeaderCard(props: {
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         {props.title}
       </p>
-      <p className="text-sm font-semibold leading-5 text-foreground">{props.value}</p>
+      <p className="text-[13px] font-semibold leading-5 text-foreground">{props.value}</p>
       <p className="text-[11px] leading-4 text-muted-foreground">{props.detail}</p>
     </button>
   );
+}
+
+function formatSpecialistTaskLabel(count: number): string {
+  return `${count} specialist task${count === 1 ? '' : 's'}`;
 }
 
 function humanizePosture(value: string | null | undefined): string {

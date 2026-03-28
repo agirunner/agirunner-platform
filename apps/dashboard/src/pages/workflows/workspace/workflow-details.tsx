@@ -30,10 +30,36 @@ export function WorkflowDetails(props: {
     : [];
   const scope = buildDetailsScope(props);
   const hasTaskInput = hasStructuredContent(props.selectedTask?.input);
+  const hasInputs =
+    workflowPackets.length > 0
+    || workItemPackets.length > 0
+    || hasTaskInput
+    || hasStructuredContent(props.workflowParameters);
 
   return (
-    <section className="grid gap-4">
-      <div className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
+    <section className="grid gap-3">
+      {hasInputs ? (
+        <div className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
+          <p className="text-sm font-semibold text-foreground">Inputs</p>
+
+          <div className="grid gap-3">
+            {hasStructuredContent(props.workflowParameters) ? (
+              <StructuredBlock label="Parameters" value={props.workflowParameters} />
+            ) : null}
+            {workflowPackets.length > 0 ? (
+              <PacketSection label="Workflow packets" packets={workflowPackets} />
+            ) : null}
+            {workItemPackets.length > 0 ? (
+              <PacketSection label="Work item packets" packets={workItemPackets} />
+            ) : null}
+            {hasTaskInput ? (
+              <StructuredBlock label="Task payload" value={props.selectedTask?.input ?? null} />
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      <div className="grid gap-2 rounded-2xl border border-border/70 bg-background/80 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline">{scope.scope_label}</Badge>
           {scope.badges.map((badge) => (
@@ -55,16 +81,13 @@ export function WorkflowDetails(props: {
         ) : null}
 
         {scope.rows.length > 0 ? (
-          <dl className="grid gap-2 sm:grid-cols-2">
+          <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-2">
             {scope.rows.map(([label, value]) => (
-              <div
-                key={label}
-                className="rounded-xl border border-border/70 bg-muted/10 px-3 py-2.5"
-              >
+              <div key={label} className="grid gap-0.5">
                 <dt className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
                   {label}
                 </dt>
-                <dd className="mt-1 text-sm text-foreground">{value}</dd>
+                <dd className="text-sm text-foreground">{value}</dd>
               </div>
             ))}
           </dl>
@@ -91,31 +114,6 @@ export function WorkflowDetails(props: {
             </div>
           </div>
         ) : null}
-      </div>
-
-      <div className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4">
-        <p className="text-sm font-semibold text-foreground">Inputs</p>
-
-        {workflowPackets.length === 0 && workItemPackets.length === 0 && !hasTaskInput && !hasStructuredContent(props.workflowParameters) ? (
-          <p className="text-sm text-muted-foreground">
-            No workflow, work item, or task inputs are recorded for the current selection.
-          </p>
-        ) : (
-          <div className="grid gap-4">
-            {hasStructuredContent(props.workflowParameters) ? (
-              <StructuredBlock label="Parameters" value={props.workflowParameters} />
-            ) : null}
-            {workflowPackets.length > 0 ? (
-              <PacketSection label="Workflow packets" packets={workflowPackets} />
-            ) : null}
-            {workItemPackets.length > 0 ? (
-              <PacketSection label="Work item packets" packets={workItemPackets} />
-            ) : null}
-            {hasTaskInput ? (
-              <StructuredBlock label="Task payload" value={props.selectedTask?.input ?? null} />
-            ) : null}
-          </div>
-        )}
       </div>
     </section>
   );

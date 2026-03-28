@@ -50,7 +50,7 @@ export function WorkflowLiveConsole(props: {
         <div>
           <p className="text-sm font-semibold text-foreground">Live Console</p>
           <p className="text-sm text-muted-foreground">
-            Streaming operator headlines and milestone briefs, logged historically for this workflow.
+            Turn updates and milestone briefs for the current workflow.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -81,7 +81,7 @@ export function WorkflowLiveConsole(props: {
 
       <div
         ref={containerRef}
-        className="max-h-[28rem] overflow-y-auto rounded-2xl border border-slate-800 bg-[#09111f] p-4 font-mono text-sm text-slate-100 shadow-inner"
+        className="max-h-[28rem] overflow-y-auto rounded-2xl border border-slate-800 bg-[#09111f] p-3 font-mono text-sm text-slate-100 shadow-inner"
         onScroll={(event) => {
           const element = event.currentTarget;
           const nextPinned = element.scrollTop <= LIVE_EDGE_THRESHOLD_PX;
@@ -131,19 +131,24 @@ function LiveConsoleEntry(props: {
       : 'text-emerald-200';
   const message = buildConsoleMessage(item.headline, item.summary);
   return (
-    <article className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-start gap-x-2 text-sm text-slate-100">
-      <span className={accentClass}>&gt;</span>
-      <span className={`font-semibold ${sourceClass}`}>{item.source_label}:</span>
-      <span className="min-w-0 break-words text-slate-100">{message}</span>
-      <span className="pl-2 text-right text-xs text-slate-500">{formatRelativeTimestamp(item.created_at)}</span>
+    <article className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 font-mono leading-6 text-sm text-slate-100">
+      <p className="min-w-0 break-words">
+        <span className={accentClass}>&gt; </span>
+        <span className={`font-semibold ${sourceClass}`}>{item.source_label}: </span>
+        <span className="text-slate-100">{message}</span>
+      </p>
+      <span className="text-right text-xs text-slate-500">{formatRelativeTimestamp(item.created_at)}</span>
     </article>
   );
 }
 
 function buildConsoleMessage(headline: string, summary: string): string {
-  const normalizedHeadline = headline.trim();
-  const normalizedSummary = summary.trim();
+  const normalizedHeadline = normalizeConsoleText(headline);
+  const normalizedSummary = normalizeConsoleText(summary);
   if (normalizedSummary.length === 0) {
+    return normalizedHeadline;
+  }
+  if (isLowSignalSummary(normalizedSummary)) {
     return normalizedHeadline;
   }
   if (normalizedSummary === normalizedHeadline) {
@@ -153,4 +158,14 @@ function buildConsoleMessage(headline: string, summary: string): string {
     return normalizedSummary;
   }
   return `${normalizedHeadline} - ${normalizedSummary}`;
+}
+
+function normalizeConsoleText(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function isLowSignalSummary(value: string): boolean {
+  return /^execution turn completed\b/i.test(value)
+    || /^turn completed\b/i.test(value)
+    || /^observed \d+ tool/i.test(value);
 }

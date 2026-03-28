@@ -94,6 +94,7 @@ describe('WorkflowsRail', () => {
 
     expect(html).toContain('flex flex-wrap items-center gap-2');
     expect(html).toContain('overflow-x-hidden');
+    expect(html).not.toContain('Select workflow');
   });
 
   it('does not show a contradictory empty state when pinned ongoing workflows are visible', () => {

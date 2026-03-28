@@ -21,22 +21,31 @@ export function WorkflowDeliverables(props: {
     props.packet.final_deliverables,
     props.packet.working_handoffs,
   );
+  const briefBackedOutputs =
+    props.packet.final_deliverables.length === 0
+    && props.packet.in_progress_deliverables.length === 0
+    && props.packet.working_handoffs.length > 0;
   const openInProgressByDefault = props.packet.final_deliverables.length === 0;
   const openBriefsByDefault =
-    props.packet.final_deliverables.length === 0
+    !briefBackedOutputs
+    && props.packet.final_deliverables.length === 0
     && props.packet.in_progress_deliverables.length === 0
     && props.packet.working_handoffs.length > 0;
   const taskEvidence = buildTaskEvidence(props.selectedTask);
   const parentDeliverablesLabel = props.selectedTask && props.selectedWorkItemTitle
     ? `Deliverables for ${props.selectedWorkItemTitle}`
     : 'Workflow deliverables';
+  const inProgressTitle = briefBackedOutputs ? 'Brief-backed outputs' : 'In Progress Deliverables';
+  const inProgressCount = briefBackedOutputs
+    ? props.packet.working_handoffs.length
+    : props.packet.in_progress_deliverables.length;
 
   return (
     <div className="grid gap-4">
       <div className="grid gap-1">
         <p className="text-sm font-semibold text-foreground">Deliverables</p>
         <p className="text-sm text-muted-foreground">
-          Final outputs stay prominent while in-progress deliverables, briefs, and inputs remain available in place.
+          Final outputs stay prominent while active deliverables, briefs, and inputs remain available in place.
         </p>
       </div>
 
@@ -86,10 +95,22 @@ export function WorkflowDeliverables(props: {
 
       <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open={openInProgressByDefault}>
         <summary className="cursor-pointer text-sm font-semibold text-foreground">
-          In Progress Deliverables ({props.packet.in_progress_deliverables.length})
+          {inProgressTitle} ({inProgressCount})
         </summary>
         <div className="mt-4 grid gap-4">
-          {props.packet.in_progress_deliverables.length === 0 ? (
+          {briefBackedOutputs ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Material output is currently available only as workflow briefs.
+              </p>
+              {props.packet.working_handoffs.map((brief) => (
+                <article key={brief.id} className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
+                  <Badge variant="outline">Brief-backed output</Badge>
+                  <WorkflowBriefRenderer brief={brief} compact />
+                </article>
+              ))}
+            </>
+          ) : props.packet.in_progress_deliverables.length === 0 ? (
             <p className="text-sm text-muted-foreground">No in-progress deliverables are attached to this workflow.</p>
           ) : (
             props.packet.in_progress_deliverables.map((deliverable) => (
@@ -99,28 +120,27 @@ export function WorkflowDeliverables(props: {
         </div>
       </details>
 
-      <details
-        className="rounded-2xl border border-border/70 bg-background/80 p-4"
-        open={openBriefsByDefault}
-      >
-        <summary className="cursor-pointer text-sm font-semibold text-foreground">
-          Briefs ({props.packet.working_handoffs.length})
-        </summary>
-        <div className="mt-4 grid gap-4">
-          {props.packet.working_handoffs.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No milestone briefs have been published yet.</p>
-          ) : (
-            props.packet.working_handoffs.map((brief) => (
-              <article key={brief.id} className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
-                {(props.packet.final_deliverables.length === 0 && props.packet.in_progress_deliverables.length === 0) ? (
-                  <Badge variant="outline">Brief-backed output</Badge>
-                ) : null}
-                <WorkflowBriefRenderer brief={brief} compact />
-              </article>
-            ))
-          )}
-        </div>
-      </details>
+      {!briefBackedOutputs ? (
+        <details
+          className="rounded-2xl border border-border/70 bg-background/80 p-4"
+          open={openBriefsByDefault}
+        >
+          <summary className="cursor-pointer text-sm font-semibold text-foreground">
+            Briefs ({props.packet.working_handoffs.length})
+          </summary>
+          <div className="mt-4 grid gap-4">
+            {props.packet.working_handoffs.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No milestone briefs have been published yet.</p>
+            ) : (
+              props.packet.working_handoffs.map((brief) => (
+                <article key={brief.id} className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
+                  <WorkflowBriefRenderer brief={brief} compact />
+                </article>
+              ))
+            )}
+          </div>
+        </details>
+      ) : null}
 
       <details className="rounded-2xl border border-border/70 bg-background/80 p-4">
         <summary className="cursor-pointer text-sm font-semibold text-foreground">
