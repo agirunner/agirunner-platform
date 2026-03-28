@@ -143,6 +143,15 @@ describe('WorkflowBoard', () => {
                     workItemTitle: 'Review incoming packet',
                     stageName: 'intake-triage',
                   },
+                  {
+                    id: 'task-follow-up',
+                    title: 'Write findings',
+                    role: 'policy-assessor',
+                    state: 'pending',
+                    workItemId: 'work-item-1',
+                    workItemTitle: 'Review incoming packet',
+                    stageName: 'intake-triage',
+                  },
                 ],
                 hasActiveOrchestratorTask: true,
               },
@@ -158,9 +167,54 @@ describe('WorkflowBoard', () => {
 
     expect(html).toContain('Tasks');
     expect(html).toContain('Assess packet');
-    expect(html).toContain('Review incoming packet');
+    expect(html).toContain('Write findings');
+    expect(html.match(/Review incoming packet/g)?.length ?? 0).toBe(1);
     expect(html).not.toContain('Task stack');
     expect(html).not.toContain('Orchestrate workflow');
+  });
+
+  it('keeps task previews visible inside work-item cards without making individual tasks selectable', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: createBoard(),
+          selectedWorkItemId: 'work-item-1',
+          selectedTaskId: 'task-specialist',
+          boardLens: 'work_items',
+          boardMode: 'active_recent_complete',
+          taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
+            [
+              'work-item-1',
+              {
+                tasks: [
+                  {
+                    id: 'task-specialist',
+                    title: 'Assess packet',
+                    role: 'policy-assessor',
+                    state: 'in_progress',
+                    workItemId: 'work-item-1',
+                    workItemTitle: 'Review incoming packet',
+                    stageName: 'intake-triage',
+                  },
+                ],
+                hasActiveOrchestratorTask: false,
+              },
+            ],
+          ]),
+          onBoardLensChange: vi.fn(),
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+          onSelectTask: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Assess packet');
+    expect(html).toContain('Tasks');
+    expect(html).not.toContain('data-task-selectable="true"');
   });
 
   it('keeps paused work in its lane and marks it as paused', () => {

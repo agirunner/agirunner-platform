@@ -62,4 +62,23 @@ describe('WorkflowBoardTaskStack', () => {
 
     expect(html).toContain('open=""');
   });
+
+  it('renders readable non-interactive task summaries when task selection is locked to work-item view', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBoardTaskStack, {
+        tasks: [
+          {
+            id: 'task-1',
+            title: 'Assess packet',
+            role: 'policy-assessor',
+            state: 'in_progress',
+          },
+        ],
+        defaultOpen: true,
+      }),
+    );
+
+    expect(html).toContain('Assess packet');
+    expect(html).not.toContain('<button');
+  });
 });

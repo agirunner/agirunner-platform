@@ -16,6 +16,7 @@ import {
   buildWorkflowsPageHref,
   describeWorkflowWorkbenchScope,
   readWorkflowsPageState,
+  resolveBoardSelectionForLens,
   resolveSelectedWorkflowId,
   resolveWorkspacePlaceholderData,
   resolveWorkflowTabScope,
@@ -110,12 +111,28 @@ export function WorkflowsPage(): JSX.Element {
     writeStoredWorkflowWorkbenchFraction(workbenchFraction);
   }, [workbenchFraction]);
 
+  useEffect(() => {
+    if (boardLens !== 'work_items' || !pageState.taskId) {
+      return;
+    }
+    patchPageState(navigate, pageState, { taskId: null });
+  }, [boardLens, navigate, pageState]);
+
+  const boardSelection = useMemo(
+    () =>
+      resolveBoardSelectionForLens(boardLens, {
+        workItemId: pageState.workItemId,
+        taskId: pageState.taskId,
+      }),
+    [boardLens, pageState.taskId, pageState.workItemId],
+  );
+
   const activeTab = pageState.tab ?? 'details';
-  const tabScope = resolveWorkflowTabScope(activeTab, pageState.workItemId, pageState.taskId);
+  const tabScope = resolveWorkflowTabScope(activeTab, boardSelection.workItemId, boardSelection.taskId);
   const scopedWorkItemId = tabScope === 'selected_work_item' || tabScope === 'selected_task'
-    ? pageState.workItemId
+    ? boardSelection.workItemId
     : null;
-  const scopedTaskId = tabScope === 'selected_task' ? pageState.taskId : null;
+  const scopedTaskId = tabScope === 'selected_task' ? boardSelection.taskId : null;
   const requestedWorkspaceScope = {
     workflowId: pageState.workflowId,
     scopeKind: tabScope,
@@ -172,21 +189,21 @@ export function WorkflowsPage(): JSX.Element {
     enabled: Boolean(pageState.workflowId),
   });
   const selectedWorkItemQuery = useQuery({
-    queryKey: ['workflows', 'work-item-detail', pageState.workflowId, pageState.workItemId],
+    queryKey: ['workflows', 'work-item-detail', pageState.workflowId, boardSelection.workItemId],
     queryFn: () =>
-      dashboardApi.getWorkflowWorkItem(pageState.workflowId as string, pageState.workItemId as string),
-    enabled: Boolean(pageState.workflowId && pageState.workItemId),
+      dashboardApi.getWorkflowWorkItem(pageState.workflowId as string, boardSelection.workItemId as string),
+    enabled: Boolean(pageState.workflowId && boardSelection.workItemId),
   });
   const selectedWorkItemTasksQuery = useQuery({
-    queryKey: ['workflows', 'work-item-tasks', pageState.workflowId, pageState.workItemId],
+    queryKey: ['workflows', 'work-item-tasks', pageState.workflowId, boardSelection.workItemId],
     queryFn: () =>
-      dashboardApi.listWorkflowWorkItemTasks(pageState.workflowId as string, pageState.workItemId as string),
-    enabled: Boolean(pageState.workflowId && pageState.workItemId),
+      dashboardApi.listWorkflowWorkItemTasks(pageState.workflowId as string, boardSelection.workItemId as string),
+    enabled: Boolean(pageState.workflowId && boardSelection.workItemId),
   });
   const selectedTaskQuery = useQuery({
-    queryKey: ['tasks', pageState.taskId],
-    queryFn: () => dashboardApi.getTask(pageState.taskId as string),
-    enabled: Boolean(pageState.taskId),
+    queryKey: ['tasks', boardSelection.taskId],
+    queryFn: () => dashboardApi.getTask(boardSelection.taskId as string),
+    enabled: Boolean(boardSelection.taskId),
   });
   const workflowSettingsQuery = useQuery({
     queryKey: ['workflow-settings', pageState.workflowId],
@@ -238,24 +255,24 @@ export function WorkflowsPage(): JSX.Element {
   const workItemTitle = useMemo(
     () =>
       selectedWorkItemQuery.data?.title
-      ?? board?.work_items.find((item) => item.id === pageState.workItemId)?.title
+      ?? board?.work_items.find((item) => item.id === boardSelection.workItemId)?.title
       ?? null,
-    [board, pageState.workItemId, selectedWorkItemQuery.data?.title],
+    [board, boardSelection.workItemId, selectedWorkItemQuery.data?.title],
   );
   const taskTitle = useMemo(() => {
     if (selectedTaskQuery.data?.title) {
       return selectedTaskQuery.data.title;
     }
-    if (!pageState.taskId) {
+    if (!boardSelection.taskId) {
       return null;
     }
     const matchingTask = (selectedWorkItemTasksQuery.data ?? []).find(
-      (task) => typeof task.id === 'string' && task.id === pageState.taskId,
+      (task) => typeof task.id === 'string' && task.id === boardSelection.taskId,
     );
     return typeof matchingTask?.title === 'string' ? matchingTask.title : null;
-  }, [pageState.taskId, selectedTaskQuery.data?.title, selectedWorkItemTasksQuery.data]);
-  const selectedScopeLabel = pageState.taskId
-    ? taskTitle ?? pageState.taskId
+  }, [boardSelection.taskId, selectedTaskQuery.data?.title, selectedWorkItemTasksQuery.data]);
+  const selectedScopeLabel = boardSelection.taskId
+    ? taskTitle ?? boardSelection.taskId
     : scopedWorkItemId
       ? workItemTitle ?? scopedWorkItemId
       : null;
@@ -425,8 +442,8 @@ export function WorkflowsPage(): JSX.Element {
                     workflowId={workflow.id}
                     board={board}
                     workflowState={workflow.state}
-                    selectedWorkItemId={pageState.workItemId}
-                    selectedTaskId={pageState.taskId}
+                    selectedWorkItemId={boardSelection.workItemId}
+                    selectedTaskId={boardSelection.taskId}
                     boardLens={boardLens}
                     boardMode={pageState.boardMode}
                     onBoardLensChange={setBoardLens}
@@ -480,10 +497,10 @@ export function WorkflowsPage(): JSX.Element {
                     workflowName={workflow.name}
                     packet={workspacePacket}
                     activeTab={activeTab}
-                    selectedWorkItemId={pageState.workItemId}
+                    selectedWorkItemId={boardSelection.workItemId}
                     scopedWorkItemId={scopedWorkItemId}
                     selectedWorkItemTitle={workItemTitle}
-                    selectedTaskId={pageState.taskId}
+                    selectedTaskId={boardSelection.taskId}
                     selectedTaskTitle={taskTitle}
                     selectedWorkItem={selectedWorkItemQuery.data ?? null}
                     selectedTask={selectedTaskQuery.data ?? null}
@@ -542,7 +559,7 @@ export function WorkflowsPage(): JSX.Element {
             workflowId={pageState.workflowId}
             lifecycle={workflow?.lifecycle}
             board={board}
-            workItemId={pageState.workItemId}
+            workItemId={boardSelection.workItemId}
           />
           <WorkflowRedriveDialog
             isOpen={isRedriveOpen}

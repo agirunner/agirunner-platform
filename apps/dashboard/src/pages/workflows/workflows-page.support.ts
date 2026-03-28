@@ -147,6 +147,25 @@ export function resolveWorkflowTabScope(
   return 'workflow';
 }
 
+export function resolveBoardSelectionForLens(
+  boardLens: WorkflowBoardLens,
+  selection: {
+    workItemId: string | null;
+    taskId: string | null;
+  },
+): {
+  workItemId: string | null;
+  taskId: string | null;
+} {
+  if (boardLens === 'work_items') {
+    return {
+      workItemId: selection.workItemId,
+      taskId: null,
+    };
+  }
+  return selection;
+}
+
 export function describeWorkflowWorkbenchScope(input: {
   scopeKind: WorkflowTabScope;
   workflowName: string | null;

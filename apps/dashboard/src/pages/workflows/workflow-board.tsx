@@ -249,7 +249,6 @@ function BoardLaneCard(props: {
               isSelected={workItem.id === props.selectedWorkItemId}
               selectedTaskId={props.selectedTaskId}
               onSelect={props.onSelectWorkItem}
-              onSelectTask={props.onSelectTask}
               />
             ))
           )}
@@ -283,7 +282,6 @@ function BoardLaneCard(props: {
                   isSelected={workItem.id === props.selectedWorkItemId}
                   selectedTaskId={props.selectedTaskId}
                   onSelect={props.onSelectWorkItem}
-                  onSelectTask={props.onSelectTask}
                   muted
                 />
               ))
@@ -303,7 +301,7 @@ function BoardWorkItemCard(props: {
   selectedTaskId: string | null;
   muted?: boolean;
   onSelect(workItemId: string): void;
-  onSelectTask(workItemId: string, taskId: string): void;
+  onSelectTask?(workItemId: string, taskId: string): void;
 }): JSX.Element {
   return (
     <article
@@ -343,7 +341,11 @@ function BoardWorkItemCard(props: {
         tasks={props.taskSummary.tasks}
         selectedTaskId={props.selectedTaskId}
         defaultOpen={!props.muted}
-        onSelectTask={(taskId) => props.onSelectTask(props.workItem.id, taskId)}
+        onSelectTask={
+          props.onSelectTask
+            ? (taskId) => props.onSelectTask?.(props.workItem.id, taskId)
+            : undefined
+        }
       />
       <span className="sr-only">Task preview</span>
     </article>
@@ -364,30 +366,71 @@ function renderTaskLaneCards(
 
   return (
     <>
-      {taskCards.map((task) => (
-        <button
-          key={task.id}
-          type="button"
-          className={cn(
-            'grid gap-2 rounded-2xl border px-4 py-3 text-left transition-colors',
-            selectedTaskId === task.id
-              ? 'border-amber-300 bg-amber-100/90 shadow-sm dark:border-amber-500/60 dark:bg-amber-500/10'
-              : 'border-border/70 bg-background/85 hover:bg-background',
-          )}
-          onClick={() => onSelectTask(task.workItemId, task.id)}
-        >
-          <div className="flex flex-wrap items-center gap-2">
-            <strong className="text-foreground">{task.title}</strong>
-            {task.stageName ? <Badge variant="outline">{humanizeToken(task.stageName)}</Badge> : null}
-            {task.role ? <Badge variant="outline">{humanizeToken(task.role)}</Badge> : null}
-            {task.state ? <Badge variant="secondary">{humanizeToken(task.state)}</Badge> : null}
-            {task.hasActiveOrchestratorTask ? <Badge variant="secondary">Orchestrator working</Badge> : null}
+      {groupTaskCardsByWorkItem(taskCards).map((group) => (
+        <section key={group.workItemId} className="grid gap-2 rounded-xl border border-border/60 bg-background/60 p-3">
+          <div className="flex min-w-0 items-center justify-between gap-2">
+            <strong className="truncate text-sm text-foreground">{group.workItemTitle}</strong>
+            {group.stageName ? <Badge variant="outline">{humanizeToken(group.stageName)}</Badge> : null}
           </div>
-          <p className="text-sm text-muted-foreground">{task.workItemTitle}</p>
-        </button>
+          <div className="grid gap-2">
+            {group.tasks.map((task) => (
+              <button
+                key={task.id}
+                type="button"
+                data-task-selectable="true"
+                className={cn(
+                  'grid gap-2 rounded-xl border px-3 py-3 text-left transition-colors',
+                  selectedTaskId === task.id
+                    ? 'border-amber-300 bg-amber-100/90 shadow-sm dark:border-amber-500/60 dark:bg-amber-500/10'
+                    : 'border-border/70 bg-background/85 hover:bg-background',
+                )}
+                onClick={() => onSelectTask(task.workItemId, task.id)}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <strong className="text-foreground">{task.title}</strong>
+                  {task.role ? <Badge variant="outline">{humanizeToken(task.role)}</Badge> : null}
+                  {task.state ? <Badge variant="secondary">{humanizeToken(task.state)}</Badge> : null}
+                  {task.hasActiveOrchestratorTask ? <Badge variant="secondary">Orchestrator working</Badge> : null}
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
       ))}
     </>
   );
+}
+
+function groupTaskCardsByWorkItem(
+  taskCards: ReturnType<typeof buildWorkflowBoardTaskCards>,
+): Array<{
+  workItemId: string;
+  workItemTitle: string;
+  stageName: string | null;
+  tasks: typeof taskCards;
+}> {
+  const groups = new Map<string, {
+    workItemId: string;
+    workItemTitle: string;
+    stageName: string | null;
+    tasks: typeof taskCards;
+  }>();
+
+  for (const task of taskCards) {
+    const existing = groups.get(task.workItemId);
+    if (existing) {
+      existing.tasks.push(task);
+      continue;
+    }
+    groups.set(task.workItemId, {
+      workItemId: task.workItemId,
+      workItemTitle: task.workItemTitle,
+      stageName: task.stageName ?? null,
+      tasks: [task],
+    });
+  }
+
+  return Array.from(groups.values());
 }
 
 function ModeButton(props: {

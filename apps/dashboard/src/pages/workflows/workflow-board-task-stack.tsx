@@ -32,21 +32,38 @@ export function WorkflowBoardTaskStack(props: {
         ) : (
           <div className="grid gap-2">
             {props.tasks.map((task) => (
-              <button
-                key={task.id}
-                type="button"
-                className={
-                  props.selectedTaskId === task.id
-                    ? 'grid gap-1 rounded-lg border border-amber-300 bg-amber-100/90 px-3 py-2 text-left text-sm dark:border-amber-500/60 dark:bg-amber-500/10'
-                    : 'grid gap-1 rounded-lg border border-transparent px-3 py-2 text-left text-sm transition-colors hover:border-border/70 hover:bg-background/70'
-                }
-                onClick={() => props.onSelectTask?.(task.id)}
-              >
-                <span className="text-foreground">{task.title}</span>
-                <span className="text-xs text-muted-foreground">
-                  {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}
-                </span>
-              </button>
+              props.onSelectTask ? (
+                <button
+                  key={task.id}
+                  type="button"
+                  data-task-selectable="true"
+                  className={
+                    props.selectedTaskId === task.id
+                      ? 'grid gap-1 rounded-lg border border-amber-300 bg-amber-100/90 px-3 py-2 text-left text-sm dark:border-amber-500/60 dark:bg-amber-500/10'
+                      : 'grid gap-1 rounded-lg border border-transparent px-3 py-2 text-left text-sm transition-colors hover:border-border/70 hover:bg-background/70'
+                  }
+                  onClick={() => props.onSelectTask(task.id)}
+                >
+                  <span className="text-foreground">{task.title}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}
+                  </span>
+                </button>
+              ) : (
+                <div
+                  key={task.id}
+                  className={
+                    props.selectedTaskId === task.id
+                      ? 'grid gap-1 rounded-lg border border-amber-300 bg-amber-100/90 px-3 py-2 text-left text-sm dark:border-amber-500/60 dark:bg-amber-500/10'
+                      : 'grid gap-1 rounded-lg border border-border/60 bg-background/60 px-3 py-2 text-left text-sm'
+                  }
+                >
+                  <span className="text-foreground">{task.title}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}
+                  </span>
+                </div>
+              )
             ))}
           </div>
         )}

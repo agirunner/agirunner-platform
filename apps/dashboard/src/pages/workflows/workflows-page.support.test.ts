@@ -4,6 +4,7 @@ import {
   describeWorkflowWorkbenchScope,
   buildWorkflowDiagnosticsHref,
   buildWorkflowsPageHref,
+  resolveBoardSelectionForLens,
   resolveWorkspacePlaceholderData,
   resolveWorkflowTabScope,
   readWorkflowsPageState,
@@ -77,6 +78,28 @@ describe('workflows page support', () => {
     expect(resolveWorkflowTabScope('live_console', 'work-item-7', 'task-4')).toBe('selected_task');
     expect(resolveWorkflowTabScope('history', 'work-item-7', 'task-4')).toBe('selected_task');
     expect(resolveWorkflowTabScope('live_console', null, null)).toBe('workflow');
+  });
+
+  it('drops task scope when the board lens returns to work items but preserves the parent work item', () => {
+    expect(
+      resolveBoardSelectionForLens('work_items', {
+        workItemId: 'work-item-7',
+        taskId: 'task-4',
+      }),
+    ).toEqual({
+      workItemId: 'work-item-7',
+      taskId: null,
+    });
+
+    expect(
+      resolveBoardSelectionForLens('tasks', {
+        workItemId: 'work-item-7',
+        taskId: 'task-4',
+      }),
+    ).toEqual({
+      workItemId: 'work-item-7',
+      taskId: 'task-4',
+    });
   });
 
   it('describes the exact workbench scope banner for workflow, work item, and task views', () => {

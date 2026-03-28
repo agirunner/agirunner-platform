@@ -56,6 +56,9 @@ describe('workflows page source', () => {
   it('keeps the previous workspace shell mounted while scoped work-item selections refetch', () => {
     const source = readSource();
     expect(source).toContain('lastWorkspacePacketRef');
+    expect(source).toContain('resolveBoardSelectionForLens');
+    expect(source).toContain("if (boardLens !== 'work_items' || !pageState.taskId) {");
+    expect(source).toContain('taskId: null');
     expect(source).toContain('const requestedWorkspaceScope = {');
     expect(source).toContain('const workspacePacket = workspaceQuery.data');
     expect(source).toContain('resolveWorkspacePlaceholderData(previous, requestedWorkspaceScope)');
