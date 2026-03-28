@@ -254,10 +254,4 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
     handleWorkspaceStream(request as never, reply as never),
   );
 
-  app.get('/api/v1/mission-control/live', auth, (request) => handleRail(request as never));
-  app.get('/api/v1/mission-control/recent', auth, (request) => handleRecent(request as never));
-  app.get('/api/v1/mission-control/history', auth, (request) => handleHistory(request as never));
-  app.get('/api/v1/mission-control/workflows/:id/workspace', auth, (request) =>
-    handleWorkspace(request as never),
-  );
 };

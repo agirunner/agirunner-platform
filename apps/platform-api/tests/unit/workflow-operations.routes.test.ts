@@ -126,4 +126,44 @@ describe('workflow operations routes v2', () => {
       },
     );
   });
+
+  it('does not expose legacy mission control route aliases after workflows cutover', async () => {
+    const { workflowOperationsRoutes } = await import('../../src/api/routes/workflow-operations.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowOperationsRailService', {
+      getRail: vi.fn(async () => ({ rows: [], selected_workflow_id: null })),
+    } as never);
+    app.decorate('workflowOperationsWorkspaceService', {
+      getWorkspace: vi.fn(async () => ({ workflow_id: 'workflow-1' })),
+    } as never);
+    app.decorate('workflowOperationsStreamService', {
+      buildRailBatch: vi.fn(async () => ({
+        cursor: 'workflow-operations:42',
+        snapshot_version: 'workflow-operations:42',
+        events: [],
+      })),
+      buildWorkspaceBatch: vi.fn(async () => ({
+        cursor: 'workflow-operations:42',
+        snapshot_version: 'workflow-operations:42',
+        events: [],
+      })),
+    } as never);
+    await app.register(workflowOperationsRoutes);
+
+    const headers = { authorization: 'Bearer test' };
+    const responses = await Promise.all([
+      app.inject({ method: 'GET', url: '/api/v1/mission-control/live', headers }),
+      app.inject({ method: 'GET', url: '/api/v1/mission-control/recent', headers }),
+      app.inject({ method: 'GET', url: '/api/v1/mission-control/history', headers }),
+      app.inject({
+        method: 'GET',
+        url: '/api/v1/mission-control/workflows/workflow-1/workspace',
+        headers,
+      }),
+    ]);
+
+    expect(responses.map((response) => response.statusCode)).toEqual([404, 404, 404, 404]);
+  });
 });
