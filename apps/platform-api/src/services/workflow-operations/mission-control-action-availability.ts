@@ -92,6 +92,16 @@ export function deriveTaskActionAvailability(
   ];
 }
 
+export function isWorkflowScopeHeaderAction(kind: MissionControlActionKind): boolean {
+  return kind === 'pause_workflow'
+    || kind === 'resume_workflow'
+    || kind === 'cancel_workflow'
+    || kind === 'add_work_item'
+    || kind === 'request_replan'
+    || kind === 'spawn_child_workflow'
+    || kind === 'redrive_workflow';
+}
+
 function canPause(
   workflowState: string,
   posture: MissionControlWorkflowPosture,

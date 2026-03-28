@@ -147,6 +147,7 @@ describe('WorkflowWorkspaceService', () => {
       expect.objectContaining({
         workflow_id: 'workflow-1',
         workflow_name: 'Release Workflow',
+        steering_available: true,
       }),
     );
     expect(result.workflow).toEqual(
@@ -194,6 +195,7 @@ describe('WorkflowWorkspaceService', () => {
     );
     expect(result.steering).toEqual(
       expect.objectContaining({
+        quick_actions: [],
         recent_interventions: [expect.objectContaining({ id: 'intervention-1' })],
         session: expect.objectContaining({
           session_id: 'session-1',
@@ -801,6 +803,12 @@ describe('WorkflowWorkspaceService', () => {
 
     expect(result.needs_action.total_count).toBe(0);
     expect(result.needs_action.items).toEqual([]);
+    expect(result.steering.quick_actions).toEqual([]);
+    expect(result.sticky_strip).toEqual(
+      expect.objectContaining({
+        steering_available: false,
+      }),
+    );
     expect(result.bottom_tabs.default_tab).toBe('details');
   });
 
@@ -1047,6 +1055,173 @@ describe('WorkflowWorkspaceService', () => {
     expect(result.history.items).toEqual([]);
     expect(result.bottom_tabs.counts.deliverables).toBe(1);
     expect(result.bottom_tabs.counts.history).toBe(0);
+  });
+
+  it('scopes fallback output descriptors to the selected work item deliverables view', async () => {
+    const workflowService = {
+      getWorkflow: vi.fn(async () => ({})),
+      getWorkflowBoard: vi.fn(async () => ({
+        columns: [{ id: 'active', is_terminal: false }],
+        work_items: [
+          {
+            id: 'work-item-1',
+            title: 'Package release',
+            stage_name: 'release',
+            column_id: 'active',
+            blocked_state: null,
+            blocked_reason: null,
+            escalation_status: null,
+            gate_status: null,
+            task_count: 1,
+            children_count: 0,
+            completed_at: null,
+          },
+          {
+            id: 'work-item-2',
+            title: 'Write blog post',
+            stage_name: 'launch',
+            column_id: 'active',
+            blocked_state: null,
+            blocked_reason: null,
+            escalation_status: null,
+            gate_status: null,
+            task_count: 1,
+            children_count: 0,
+            completed_at: null,
+          },
+        ],
+        stage_summary: [],
+      })),
+    };
+    const railService = {
+      getWorkflowCard: vi.fn(async () => ({
+        id: 'workflow-1',
+        name: 'Release Workflow',
+        posture: 'progressing',
+        pulse: { summary: 'Shipping outputs' },
+        outputDescriptors: [
+          {
+            id: 'artifact:matching',
+            title: 'artifact:workflow/release-packet.md',
+            summary: 'Release packet draft',
+            status: 'draft',
+            producedByRole: null,
+            workItemId: 'work-item-1',
+            taskId: 'task-1',
+            stageName: 'release',
+            primaryLocation: {
+              kind: 'artifact',
+              artifactId: 'artifact-1',
+              taskId: 'task-1',
+              logicalPath: 'artifact:workflow/release-packet.md',
+              previewPath: '/artifacts/tasks/task-1/artifact-1',
+              downloadPath: '/api/v1/tasks/task-1/artifacts/artifact-1',
+              contentType: 'text/markdown',
+            },
+            secondaryLocations: [],
+          },
+          {
+            id: 'artifact:other',
+            title: 'artifact:workflow/blog-post.md',
+            summary: 'Blog post draft',
+            status: 'draft',
+            producedByRole: null,
+            workItemId: 'work-item-2',
+            taskId: 'task-2',
+            stageName: 'launch',
+            primaryLocation: {
+              kind: 'artifact',
+              artifactId: 'artifact-2',
+              taskId: 'task-2',
+              logicalPath: 'artifact:workflow/blog-post.md',
+              previewPath: '/artifacts/tasks/task-2/artifact-2',
+              downloadPath: '/api/v1/tasks/task-2/artifacts/artifact-2',
+              contentType: 'text/markdown',
+            },
+            secondaryLocations: [],
+          },
+        ],
+        availableActions: [],
+        metrics: {
+          blockedWorkItemCount: 0,
+          openEscalationCount: 0,
+          failedTaskCount: 0,
+          recoverableIssueCount: 0,
+          waitingForDecisionCount: 0,
+          activeTaskCount: 2,
+          activeWorkItemCount: 2,
+          lastChangedAt: '2026-03-28T05:00:00.000Z',
+        },
+      })),
+    };
+    const liveConsoleService = {
+      getLiveConsole: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:140',
+        generated_at: '2026-03-28T05:00:00.000Z',
+        latest_event_id: 140,
+        items: [],
+        next_cursor: null,
+        live_visibility_mode: 'enhanced',
+      })),
+    };
+    const historyService = {
+      getHistory: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:140',
+        generated_at: '2026-03-28T05:00:00.000Z',
+        latest_event_id: 140,
+        groups: [],
+        items: [],
+        filters: { available: [], active: [] },
+        next_cursor: null,
+      })),
+    };
+    const deliverablesService = {
+      getDeliverables: vi.fn(async () => ({
+        final_deliverables: [],
+        in_progress_deliverables: [],
+        working_handoffs: [],
+        inputs_and_provenance: {
+          launch_packet: null,
+          supplemental_packets: [],
+          intervention_attachments: [],
+          redrive_packet: null,
+        },
+        next_cursor: null,
+        all_deliverables: [],
+      })),
+    };
+    const interventionService = {
+      listWorkflowInterventions: vi.fn(async () => []),
+    };
+    const steeringSessionService = {
+      listSessions: vi.fn(async () => []),
+      listMessages: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowWorkspaceService(
+      workflowService as never,
+      railService as never,
+      liveConsoleService as never,
+      historyService as never,
+      deliverablesService as never,
+      interventionService as never,
+      steeringSessionService as never,
+    );
+
+    const result = await service.getWorkspace('tenant-1', 'workflow-1', {
+      tabScope: 'selected_work_item',
+      workItemId: 'work-item-1',
+    });
+
+    expect(result.deliverables.in_progress_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'artifact:matching',
+        work_item_id: 'work-item-1',
+      }),
+    ]);
+    expect(result.deliverables.in_progress_deliverables).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ descriptor_id: 'artifact:other' })]),
+    );
   });
 
   it('synthesizes scoped live-console and history items for a selected blocked work item with no direct records', async () => {

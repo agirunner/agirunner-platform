@@ -43,6 +43,8 @@ interface ArtifactOutputRow {
   workflow_id: string;
   artifact_id: string;
   task_id: string;
+  work_item_id: string | null;
+  stage_name: string | null;
   logical_path: string;
   content_type: string | null;
 }
@@ -114,15 +116,24 @@ export class MissionControlLiveService {
 
     const [artifactRows, documentRows] = await Promise.all([
       this.pool.query<ArtifactOutputRow>(
-        `SELECT workflow_id, artifact_id, task_id, logical_path, content_type
+        `SELECT workflow_id, artifact_id, task_id, work_item_id, stage_name, logical_path, content_type
            FROM (
              SELECT workflow_id,
                     id AS artifact_id,
                     task_id,
+                    task_scope.work_item_id,
+                    task_scope.stage_name,
                     logical_path,
                     content_type,
                     ROW_NUMBER() OVER (PARTITION BY workflow_id ORDER BY created_at DESC) AS rn
                FROM workflow_artifacts
+               LEFT JOIN LATERAL (
+                 SELECT work_item_id, stage_name
+                   FROM tasks
+                  WHERE tenant_id = workflow_artifacts.tenant_id
+                    AND id = workflow_artifacts.task_id
+                  LIMIT 1
+               ) task_scope ON true
               WHERE tenant_id = $1
                 AND workflow_id = ANY($2::uuid[])
            ) ranked
@@ -155,6 +166,8 @@ export class MissionControlLiveService {
         id: `artifact:${row.artifact_id}`,
         artifactId: row.artifact_id,
         taskId: row.task_id,
+        workItemId: row.work_item_id,
+        stageName: row.stage_name,
         logicalPath: row.logical_path,
         contentType: row.content_type,
         status: 'draft',
@@ -257,17 +270,6 @@ export class MissionControlLiveService {
               COALESCE(recovery_summary.recoverable_issue_count, 0)::int AS recoverable_issue_count
          FROM workflows w
          LEFT JOIN LATERAL (
-           SELECT COALESCE(
-                    NULLIF(pb.definition->'board'->>'entry_column_id', ''),
-                    pb.definition->'board'->'columns'->0->>'id'
-                  ) AS entry_column_id
-             FROM playbooks pb
-            WHERE pb.tenant_id = w.tenant_id
-              AND pb.id = w.playbook_id
-              AND w.playbook_id IS NOT NULL
-            LIMIT 1
-         ) board_config ON true
-         LEFT JOIN LATERAL (
            SELECT COUNT(*) FILTER (WHERE state IN ('awaiting_approval', 'output_pending_assessment'))::int AS waiting_for_decision_count,
                   COUNT(*) FILTER (WHERE state = 'failed')::int AS failed_task_count,
                   COUNT(*) FILTER (WHERE state IN ('ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment'))::int AS active_task_count
@@ -284,20 +286,35 @@ export class MissionControlLiveService {
                         wi.blocked_state = 'blocked'
                         OR COALESCE(ws.gate_status, 'not_requested') IN ('blocked', 'request_changes', 'changes_requested', 'rejected')
                       )
-                  )::int AS blocked_work_item_count,
-                  COUNT(*) FILTER (
-                    WHERE wi.completed_at IS NULL
-                      AND board_config.entry_column_id IS NOT NULL
-                      AND wi.column_id <> board_config.entry_column_id
-                  )::int AS active_work_item_count,
-                  COUNT(*) FILTER (
-                    WHERE wi.completed_at IS NULL
-                      AND (
-                        board_config.entry_column_id IS NULL
-                        OR wi.column_id = board_config.entry_column_id
-                      )
-                  )::int AS pending_work_item_count
+                   )::int AS blocked_work_item_count,
+                   COUNT(*) FILTER (
+                     WHERE wi.completed_at IS NULL
+                       AND COALESCE(task_engagement.has_active_specialist_task, FALSE)
+                   )::int AS active_work_item_count,
+                   COUNT(*) FILTER (
+                     WHERE wi.completed_at IS NULL
+                       AND COALESCE(task_engagement.has_active_specialist_task, FALSE) = FALSE
+                       AND wi.escalation_status IS DISTINCT FROM 'open'
+                       AND wi.blocked_state IS DISTINCT FROM 'blocked'
+                       AND COALESCE(ws.gate_status, 'not_requested') NOT IN (
+                         'awaiting_approval',
+                         'blocked',
+                         'request_changes',
+                         'changes_requested',
+                         'rejected'
+                       )
+                   )::int AS pending_work_item_count
             FROM workflow_work_items wi
+            LEFT JOIN LATERAL (
+              SELECT TRUE AS has_active_specialist_task
+                FROM tasks
+               WHERE tenant_id = wi.tenant_id
+                 AND workflow_id = wi.workflow_id
+                 AND work_item_id = wi.id
+                 AND is_orchestrator_task = FALSE
+                 AND state IN ('ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment')
+               LIMIT 1
+            ) task_engagement ON true
              LEFT JOIN workflow_stages ws
                ON ws.tenant_id = wi.tenant_id
               AND ws.workflow_id = wi.workflow_id
@@ -453,7 +470,10 @@ function emptySignals(workflowId: string): WorkflowSignalRow {
 function readActivitySummary(workflow: WorkflowRow, signals: WorkflowSignalRow): string | null {
   if (workflow.current_stage) return `Active work in ${workflow.current_stage}`;
   if (signals.active_work_item_count === 0 && signals.active_task_count > 0) {
-    return 'Orchestrator working';
+    if (signals.pending_work_item_count > 0) {
+      return 'Routing new work';
+    }
+    return 'Orchestrating the next step';
   }
   if (signals.active_work_item_count > 0) return 'Active work is progressing';
   if (signals.active_task_count > 0) return 'Workflow activity is progressing';

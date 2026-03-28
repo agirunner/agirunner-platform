@@ -2,6 +2,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
+import { enqueueWorkflowActivationRecord } from './workflow-activation-record.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 
 interface WorkflowControlRow {
@@ -66,6 +67,7 @@ export class WorkflowControlService {
         throw new NotFoundError('Workflow not found');
       }
       const currentWorkflow = workflow.rows[0];
+      const pauseRequestedAt = readWorkflowMarker(currentWorkflow.metadata, 'pause_requested_at');
       if (isTerminalWorkflowState(currentWorkflow.state)) {
         throw new ConflictError('Workflow is not resumable');
       }
@@ -94,6 +96,23 @@ export class WorkflowControlService {
         actorType: identity.scope,
         actorId: identity.keyPrefix,
       });
+
+      if (state === 'pending' || state === 'active') {
+        const requestKey = pauseRequestedAt ?? 'manual';
+        await enqueueWorkflowActivationRecord(client, this.eventService, {
+          tenantId: identity.tenantId,
+          workflowId,
+          requestId: `workflow-resume:${workflowId}:${requestKey}`,
+          reason: 'workflow.resumed',
+          eventType: 'workflow.resumed',
+          payload: {
+            resumed_from_state: currentWorkflow.state,
+            resumed_to_state: state,
+          },
+          actorType: identity.scope,
+          actorId: identity.keyPrefix,
+        });
+      }
 
       await this.eventService.emit({
         tenantId: identity.tenantId,
@@ -140,17 +159,17 @@ function isTerminalWorkflowState(state: string) {
 }
 
 function hasPauseRequest(metadata: unknown) {
-  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
-    return false;
-  }
-  const value = (metadata as Record<string, unknown>).pause_requested_at;
-  return typeof value === 'string' && value.trim().length > 0;
+  return readWorkflowMarker(metadata, 'pause_requested_at') !== null;
 }
 
 function hasCancelRequest(metadata: unknown) {
+  return readWorkflowMarker(metadata, 'cancel_requested_at') !== null;
+}
+
+function readWorkflowMarker(metadata: unknown, key: string): string | null {
   if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
-    return false;
+    return null;
   }
-  const value = (metadata as Record<string, unknown>).cancel_requested_at;
-  return typeof value === 'string' && value.trim().length > 0;
+  const value = (metadata as Record<string, unknown>)[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }

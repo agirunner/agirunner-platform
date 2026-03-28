@@ -32,7 +32,11 @@ describe('WorkflowControlService', () => {
       }),
     };
     const eventService = { emit: vi.fn() };
-    const service = new WorkflowControlService(pool as never, eventService as never, { recomputeWorkflowState: vi.fn() } as never);
+    const service = new WorkflowControlService(
+      pool as never,
+      eventService as never,
+      { recomputeWorkflowState: vi.fn() } as never,
+    );
 
     const result = await service.pauseWorkflow(identity, 'workflow-1');
 
@@ -61,7 +65,11 @@ describe('WorkflowControlService', () => {
       }),
     };
     const eventService = { emit: vi.fn() };
-    const service = new WorkflowControlService(pool as never, eventService as never, { recomputeWorkflowState: vi.fn() } as never);
+    const service = new WorkflowControlService(
+      pool as never,
+      eventService as never,
+      { recomputeWorkflowState: vi.fn() } as never,
+    );
 
     const result = await service.pauseWorkflow(identity, 'workflow-1');
 
@@ -87,6 +95,12 @@ describe('WorkflowControlService', () => {
         if (sql.startsWith('UPDATE workflows')) {
           return { rowCount: 1, rows: [] };
         }
+        if (sql.startsWith('INSERT INTO workflow_activations')) {
+          return {
+            rowCount: 1,
+            rows: [{ id: 'activation-1', workflow_id: 'workflow-1', state: 'queued' }],
+          };
+        }
         throw new Error(`Unexpected SQL: ${sql}`);
       }),
       release: vi.fn(),
@@ -96,7 +110,11 @@ describe('WorkflowControlService', () => {
     };
     const eventService = { emit: vi.fn() };
     const stateService = { recomputeWorkflowState: vi.fn(async () => 'active') };
-    const service = new WorkflowControlService(pool as never, eventService as never, stateService as never);
+    const service = new WorkflowControlService(
+      pool as never,
+      eventService as never,
+      stateService as never,
+    );
 
     const result = await service.resumeWorkflow(identity, 'workflow-1');
 
@@ -117,6 +135,16 @@ describe('WorkflowControlService', () => {
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'workflow.resumed', data: { state: 'active' } }),
       client,
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO workflow_activations'),
+      expect.arrayContaining([
+        'tenant-1',
+        'workflow-1',
+        'workflow-resume:workflow-1:2026-03-12T00:00:00.000Z',
+        'workflow.resumed',
+        'workflow.resumed',
+      ]),
     );
   });
 
@@ -226,7 +254,11 @@ describe('WorkflowControlService', () => {
     };
     const eventService = { emit: vi.fn() };
     const stateService = { recomputeWorkflowState: vi.fn(async () => 'active') };
-    const service = new WorkflowControlService(pool as never, eventService as never, stateService as never);
+    const service = new WorkflowControlService(
+      pool as never,
+      eventService as never,
+      stateService as never,
+    );
 
     const result = await service.resumeWorkflow(identity, 'workflow-1');
 

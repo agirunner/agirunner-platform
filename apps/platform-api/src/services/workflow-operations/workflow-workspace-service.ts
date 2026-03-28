@@ -4,6 +4,7 @@ import type {
   MissionControlOutputLocation,
   MissionControlWorkflowCard,
 } from './mission-control-types.js';
+import { isWorkflowScopeHeaderAction } from './mission-control-action-availability.js';
 import type { WorkflowService } from '../workflow-service.js';
 import type { WorkflowDeliverablesService } from './workflow-deliverables-service.js';
 import type { WorkflowHistoryService } from './workflow-history-service.js';
@@ -160,6 +161,7 @@ export class WorkflowWorkspaceService {
       deliverables,
       workflowCard?.outputDescriptors ?? [],
       history.generated_at,
+      scopedWorkItemId ?? null,
     );
     const allDeliverables = hydratedDeliverables.all_deliverables ?? [
       ...hydratedDeliverables.final_deliverables,
@@ -168,6 +170,7 @@ export class WorkflowWorkspaceService {
     const effectiveLiveConsole = liveConsole;
     const effectiveHistory = history;
     const activeSession = sessions[0] ?? null;
+    const steeringQuickActions = filterSteeringQuickActions(workflowCard?.availableActions ?? []);
     const sessionMessages = activeSession
       ? await this.steeringSessionService.listMessages(tenantId, workflowId, activeSession.id)
       : [];
@@ -187,7 +190,13 @@ export class WorkflowWorkspaceService {
       latest_event_id: history.latest_event_id,
       snapshot_version: history.snapshot_version,
       selected_scope: selectedScope,
-      sticky_strip: workflowCard ? buildStickyStrip(workflowCard) : null,
+      sticky_strip:
+        workflowCard
+          ? buildStickyStrip(
+              workflowCard,
+              activeSession !== null || interventions.length > 0 || steeringQuickActions.some((action) => action.enabled),
+            )
+          : null,
       board: board as Record<string, unknown>,
       bottom_tabs: bottomTabs,
       needs_action: {
@@ -196,7 +205,7 @@ export class WorkflowWorkspaceService {
         default_sort: 'priority_desc',
       },
       steering: {
-        quick_actions: workflowCard?.availableActions ?? [],
+        quick_actions: steeringQuickActions,
         decision_actions: [],
         steering_state: {
           mode:
@@ -246,7 +255,7 @@ function resolveSelectedScope(input: WorkflowWorkspaceQuery): WorkflowWorkspaceP
   };
 }
 
-function buildStickyStrip(workflowCard: MissionControlWorkflowCard) {
+function buildStickyStrip(workflowCard: MissionControlWorkflowCard, steeringAvailable: boolean) {
   return {
     workflow_id: workflowCard.id,
     workflow_name: workflowCard.name,
@@ -257,8 +266,14 @@ function buildStickyStrip(workflowCard: MissionControlWorkflowCard) {
     blocked_work_item_count: workflowCard.metrics.blockedWorkItemCount,
     active_task_count: workflowCard.metrics.activeTaskCount,
     active_work_item_count: workflowCard.metrics.activeWorkItemCount,
-    steering_available: workflowCard.availableActions.some((action) => action.enabled),
+    steering_available: steeringAvailable,
   };
+}
+
+function filterSteeringQuickActions(
+  actions: MissionControlActionAvailability[],
+): MissionControlActionAvailability[] {
+  return actions.filter((action) => !isWorkflowScopeHeaderAction(action.kind));
 }
 
 function buildBottomTabs(
@@ -929,8 +944,13 @@ function mergeOutputDescriptorDeliverables(
   deliverables: Awaited<ReturnType<WorkflowDeliverablesService['getDeliverables']>>,
   outputDescriptors: MissionControlOutputDescriptor[],
   fallbackTimestamp: string,
+  scopedWorkItemId: string | null,
 ) {
-  if (outputDescriptors.length === 0) {
+  const scopedDescriptors = scopedWorkItemId
+    ? outputDescriptors.filter((descriptor) => descriptor.workItemId === scopedWorkItemId)
+    : outputDescriptors;
+
+  if (scopedDescriptors.length === 0) {
     return deliverables;
   }
 
@@ -949,7 +969,7 @@ function mergeOutputDescriptorDeliverables(
     }
   }
 
-  for (const descriptor of outputDescriptors) {
+  for (const descriptor of scopedDescriptors) {
     if (existingIds.has(descriptor.id)) {
       continue;
     }
