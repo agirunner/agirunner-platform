@@ -1013,10 +1013,10 @@ function normalizeRecord(value: unknown) {
     : {};
 }
 
-function compactRecord(value: Record<string, unknown>) {
+function compactRecord<T extends Record<string, unknown>>(value: T): T {
   return Object.fromEntries(
     Object.entries(value).filter(([, entry]) => entry !== null && entry !== undefined),
-  );
+  ) as T;
 }
 
 function readOptionalPositiveInteger(value: unknown) {
@@ -1040,16 +1040,16 @@ function assertNoTaskLocalHandoffPaths(value: unknown) {
   );
 }
 
-function normalizeTaskLocalHandoffReferences(
-  payload: ReturnType<typeof compactRecord>,
+function normalizeTaskLocalHandoffReferences<T extends Record<string, unknown>>(
+  payload: T,
 ): {
-  payload: ReturnType<typeof compactRecord>;
+  payload: T;
   wasRepaired: boolean;
 } {
   const artifactIds = Array.isArray(payload.artifact_ids) ? payload.artifact_ids : [];
   const normalization = normalizeTaskLocalHandoffValue(payload, artifactIds.length > 0);
   return {
-    payload: normalization.value as ReturnType<typeof compactRecord>,
+    payload: normalization.value as T,
     wasRepaired: normalization.wasRepaired,
   };
 }
