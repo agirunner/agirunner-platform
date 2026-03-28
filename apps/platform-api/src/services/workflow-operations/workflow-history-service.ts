@@ -1,5 +1,4 @@
 import type { MissionControlHistoryResponse } from './mission-control-types.js';
-import type { WorkflowDeliverableRecord } from '../workflow-deliverable-service.js';
 import type { WorkflowInputPacketRecord } from '../workflow-input-packet-service.js';
 import type { WorkflowInterventionRecord } from '../workflow-intervention-service.js';
 import type { WorkflowOperatorBriefRecord } from '../workflow-operator-brief-service.js';
@@ -46,14 +45,6 @@ interface InputPacketSource {
   listWorkflowInputPackets(tenantId: string, workflowId: string): Promise<WorkflowInputPacketRecord[]>;
 }
 
-interface DeliverableSource {
-  listDeliverables(
-    tenantId: string,
-    workflowId: string,
-    input?: { workItemId?: string; limit?: number },
-  ): Promise<WorkflowDeliverableRecord[]>;
-}
-
 export class WorkflowHistoryService {
   constructor(
     private readonly versionSource: VersionSource,
@@ -61,7 +52,6 @@ export class WorkflowHistoryService {
     private readonly updateSource: UpdateSource,
     private readonly interventionSource: InterventionSource,
     private readonly inputPacketSource: InputPacketSource,
-    private readonly deliverableSource: DeliverableSource,
   ) {}
 
   async getHistory(
@@ -71,7 +61,7 @@ export class WorkflowHistoryService {
   ): Promise<WorkflowHistoryPacket> {
     const limit = input.limit ?? 100;
     const fetchWindow = resolveFetchWindow(limit);
-    const [version, briefs, interventions, inputPackets, deliverables] = await Promise.all([
+    const [version, briefs, interventions, inputPackets] = await Promise.all([
       this.versionSource.getHistory(tenantId, {
         workflowId,
         limit: 1,
@@ -83,15 +73,10 @@ export class WorkflowHistoryService {
       }),
       this.interventionSource.listWorkflowInterventions(tenantId, workflowId),
       this.inputPacketSource.listWorkflowInputPackets(tenantId, workflowId),
-      this.deliverableSource.listDeliverables(tenantId, workflowId, {
-        workItemId: input.workItemId,
-        limit: fetchWindow,
-      }),
     ]);
 
     const items = [
       ...briefs.map(toBriefHistoryItem),
-      ...deliverables.map(toDeliverableHistoryItem),
       ...filterByWorkItem(interventions, input.workItemId).map(toInterventionHistoryItem),
       ...filterInputPackets(inputPackets, input.workItemId).map(toInputHistoryItem),
     ]
@@ -108,7 +93,7 @@ export class WorkflowHistoryService {
       groups: buildGroups(page.items),
       items: page.items,
       filters: {
-        available: ['briefs', 'deliverables', 'interventions', 'inputs', 'redrives'],
+        available: ['briefs', 'interventions', 'inputs', 'redrives'],
         active: [],
       },
       next_cursor: page.nextCursor,
@@ -174,27 +159,6 @@ function toInterventionHistoryItem(intervention: WorkflowInterventionRecord): Wo
     summary: readOptionalString(intervention.note) ?? readRequiredString(intervention.summary, 'Workflow intervention'),
     created_at: intervention.created_at,
     linked_target_ids: buildLinkedTargetIds(intervention),
-  };
-}
-
-function toDeliverableHistoryItem(deliverable: {
-  descriptor_id: string;
-  title: string;
-  summary_brief: string | null;
-  updated_at: string;
-  created_at: string;
-  workflow_id: string;
-  work_item_id: string | null;
-}): WorkflowHistoryItem {
-  return {
-    item_id: deliverable.descriptor_id,
-    item_kind: 'deliverable',
-    source_kind: 'deliverable',
-    source_label: 'Deliverable',
-    headline: deliverable.title,
-    summary: readOptionalString(deliverable.summary_brief) ?? deliverable.title,
-    created_at: deliverable.updated_at ?? deliverable.created_at,
-    linked_target_ids: buildLinkedTargetIds(deliverable),
   };
 }
 

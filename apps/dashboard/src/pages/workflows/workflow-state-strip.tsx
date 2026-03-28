@@ -38,15 +38,15 @@ export function WorkflowStateStrip(props: {
     (sticky?.approvals_count ?? 0) + (sticky?.escalations_count ?? 0) + (sticky?.blocked_work_item_count ?? 0);
 
   return (
-    <section className="space-y-2 rounded-3xl border border-border/70 bg-background/90 p-3.5">
+    <section className="space-y-2 rounded-3xl border border-border/70 bg-background/90 p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-base font-semibold text-foreground">{props.workflow.name}</h2>
+            <h2 className="text-sm font-semibold text-foreground">{props.workflow.name}</h2>
             <Badge variant="secondary">{postureLabel}</Badge>
             {isOngoingWorkflow ? <Badge variant="outline">Ongoing</Badge> : null}
           </div>
-          {metaLine ? <p className="text-xs text-muted-foreground">{metaLine}</p> : null}
+          {metaLine ? <p className="text-[11px] text-muted-foreground">{metaLine}</p> : null}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -65,10 +65,10 @@ export function WorkflowStateStrip(props: {
           <Button size="sm" onClick={props.onAddWork}>
             Add / Modify Work
           </Button>
-          <label className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/10 px-3 py-1.5 text-xs text-muted-foreground">
+          <label className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/10 px-2.5 py-1.5 text-[11px] text-muted-foreground">
             <span className="font-medium text-foreground">Live visibility</span>
             <select
-              className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
+              className="rounded-md border border-border bg-background px-2 py-1 text-[11px] text-foreground"
               value={visibilityValue}
               onChange={(event) =>
                 props.onVisibilityModeChange(
@@ -88,24 +88,24 @@ export function WorkflowStateStrip(props: {
         </div>
       </div>
 
-      <div className="grid gap-2 xl:grid-cols-[1.15fr_1fr_1fr_1.15fr]">
-        <StateCard
+      <div className="grid gap-2 xl:grid-cols-4">
+        <HeaderCard
           title="Workflow State"
           value={postureLabel}
-          footer={readOptionalSummary(sticky?.summary) ?? 'Current workflow posture'}
+          detail={readOptionalSummary(sticky?.summary) ?? 'Current workflow posture'}
         />
-        <ShortcutCard
+        <HeaderCard
           title="Needs Action"
           value={String(needsActionCount)}
           detail={`${sticky?.approvals_count ?? 0} approvals • ${sticky?.escalations_count ?? 0} escalations • ${sticky?.blocked_work_item_count ?? 0} blocked`}
           onClick={() => props.onTabChange('needs_action')}
         />
-        <StateCard
+        <HeaderCard
           title="Workload"
           value={`${workload.activeWorkItemCount} active • ${workload.completedWorkItemCount} done`}
-          footer={`${sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount} specialist tasks`}
+          detail={`${sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount} specialist tasks`}
         />
-        <ShortcutCard
+        <HeaderCard
           title="Steering"
           value={sticky?.steering_available ? 'Open' : 'Idle'}
           detail="Requests, responses, and intervention history"
@@ -116,39 +116,33 @@ export function WorkflowStateStrip(props: {
   );
 }
 
-function StateCard(props: {
-  title: string;
-  value: string;
-  footer: string;
-}): JSX.Element {
-  return (
-    <div className="grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-2.5">
-      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-        {props.title}
-      </p>
-      <p className="text-sm font-semibold text-foreground">{props.value}</p>
-      <p className="text-xs text-muted-foreground">{props.footer}</p>
-    </div>
-  );
-}
-
-function ShortcutCard(props: {
+function HeaderCard(props: {
   title: string;
   value: string;
   detail: string;
-  onClick(): void;
+  onClick?(): void;
 }): JSX.Element {
-  return (
-    <button
-      type="button"
-      className="grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-2.5 text-left transition-colors hover:bg-muted/20"
-      onClick={props.onClick}
-    >
+  const content = (
+    <div className="grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-2.5 text-left">
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         {props.title}
       </p>
-      <p className="text-sm font-semibold text-foreground">{props.value}</p>
-      <p className="text-xs text-muted-foreground">{props.detail}</p>
+      <p className="text-sm font-semibold leading-5 text-foreground">{props.value}</p>
+      <p className="text-[11px] leading-4 text-muted-foreground">{props.detail}</p>
+    </div>
+  );
+
+  if (!props.onClick) {
+    return content;
+  }
+
+  return (
+    <button
+      type="button"
+      className="rounded-2xl transition-colors hover:bg-muted/20"
+      onClick={props.onClick}
+    >
+      {content}
     </button>
   );
 }

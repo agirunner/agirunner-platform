@@ -10,7 +10,6 @@ import {
   resolveFormFeedbackMessage,
 } from '../../../components/forms/form-feedback.js';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../components/ui/dialog.js';
-import { Input } from '../../../components/ui/input.js';
 import { Textarea } from '../../../components/ui/textarea.js';
 import { dashboardApi } from '../../../lib/api.js';
 import { buildFileUploadPayloads } from '../../../lib/file-upload.js';
@@ -123,7 +122,7 @@ export function WorkflowRedriveDialog(props: {
               type="button"
               disabled={mutation.isPending}
               onClick={() => {
-                if (!name.trim() || !summary.trim()) {
+                if (!summary.trim()) {
                   setHasAttemptedSubmit(true);
                   return;
                 }

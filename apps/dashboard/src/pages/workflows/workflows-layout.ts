@@ -6,9 +6,10 @@ export const MAX_WORKFLOW_RAIL_WIDTH_PX = 520;
 export const DEFAULT_WORKFLOW_WORKBENCH_FRACTION = 0.5;
 export const MIN_WORKFLOW_WORKBENCH_FRACTION = 0.35;
 export const MAX_WORKFLOW_WORKBENCH_FRACTION = 0.7;
+const DEFAULT_WORKFLOW_REGION_MIN_HEIGHT_REM = 22;
 
 export function buildWorkflowsShellClassName(isRailHidden: boolean): string {
-  const baseClassName = 'flex flex-col gap-4 xl:min-h-[calc(100vh-9rem)]';
+  const baseClassName = 'flex flex-col gap-4 xl:h-[calc(100vh-9rem)]';
   if (isRailHidden) {
     return `${baseClassName} xl:block`;
   }
@@ -35,7 +36,7 @@ export function buildWorkflowWorkspaceSplitStyle(
   const footerFraction = trimFraction(clampedFraction);
   return {
     gridTemplateRows:
-      `minmax(18rem, calc((100% - 0.5rem) * ${boardFraction})) 0.5rem minmax(18rem, calc((100% - 0.5rem) * ${footerFraction}))`,
+      `minmax(${DEFAULT_WORKFLOW_REGION_MIN_HEIGHT_REM}rem, ${boardFraction}fr) 0.5rem minmax(${DEFAULT_WORKFLOW_REGION_MIN_HEIGHT_REM}rem, ${footerFraction}fr)`,
   };
 }
 

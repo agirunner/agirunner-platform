@@ -259,7 +259,6 @@ export async function buildApp() {
     workflowOperatorUpdateService,
     workflowInterventionService,
     workflowInputPacketService,
-    workflowDeliverableService,
   );
   const workflowOperationsLiveConsoleService = new WorkflowLiveConsoleService(
     workflowOperationsHistoryService,

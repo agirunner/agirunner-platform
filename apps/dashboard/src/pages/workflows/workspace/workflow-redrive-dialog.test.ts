@@ -14,4 +14,11 @@ describe('WorkflowRedriveDialog source', () => {
     expect(source).not.toContain('ChainStructuredEntryEditor');
     expect(source).not.toContain('Add parameter override');
   });
+
+  it('validates the required summary without referencing an undefined field', () => {
+    const source = readFileSync(new URL('./workflow-redrive-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('if (!summary.trim())');
+    expect(source).not.toContain('!name.trim()');
+  });
 });

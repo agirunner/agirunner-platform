@@ -28,7 +28,7 @@ export function WorkflowDetails(props: {
   const hasTaskInput = hasStructuredContent(props.selectedTask?.input);
 
   return (
-    <section className="grid gap-5 rounded-2xl border border-border/70 bg-background/80 p-4">
+    <section className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline">{scope.scope_label}</Badge>
         {scope.badges.map((badge) => (
@@ -63,7 +63,7 @@ export function WorkflowDetails(props: {
       ) : null}
 
       {scope.related_tasks.length > 0 ? (
-        <div className="grid gap-3">
+        <div className="grid gap-2">
           <p className="text-sm font-semibold text-foreground">Related tasks</p>
           <div className="grid gap-2">
             {scope.related_tasks.map((task) => (
@@ -85,8 +85,6 @@ export function WorkflowDetails(props: {
           </div>
         </div>
       ) : null}
-
-      <div className="h-px bg-border/70" />
 
       <div className="grid gap-4">
         <div className="grid gap-1">
@@ -126,9 +124,9 @@ function PacketSection(props: {
   return (
     <div className="grid gap-2">
       <p className="text-sm font-semibold text-foreground">{props.label}</p>
-      <div className="grid gap-3">
+      <div className="grid gap-2">
         {props.packets.map((packet) => (
-          <article key={packet.id} className="grid gap-3 rounded-xl border border-border/70 bg-background/70 p-3">
+          <article key={packet.id} className="grid gap-2 rounded-xl border border-border/70 bg-background/70 p-3">
             <div className="flex flex-wrap items-center gap-2">
               <strong className="text-sm text-foreground">
                 {packet.summary ?? humanizeToken(packet.packet_kind)}
@@ -140,7 +138,7 @@ function PacketSection(props: {
               <StructuredBlock label="Fields" value={packet.structured_inputs} compact />
             ) : null}
             {packet.files.length > 0 ? (
-              <div className="grid gap-2">
+              <div className="flex flex-wrap gap-2">
                 {packet.files.map((file) => (
                   <PacketFileLink key={file.id} file={file} />
                 ))}
@@ -158,7 +156,7 @@ function PacketFileLink(props: {
 }): JSX.Element {
   return (
     <a
-      className="text-sm font-medium text-accent underline-offset-4 hover:underline"
+      className="inline-flex items-center rounded-lg border border-border/70 bg-background px-2.5 py-1.5 text-sm font-medium text-accent underline-offset-4 hover:underline"
       href={props.file.download_url}
       target="_blank"
       rel="noreferrer"

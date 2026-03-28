@@ -141,6 +141,16 @@ function LiveConsoleEntry(props: {
 }
 
 function buildConsoleMessage(headline: string, summary: string): string {
-  void summary;
-  return headline;
+  const normalizedHeadline = headline.trim();
+  const normalizedSummary = summary.trim();
+  if (normalizedSummary.length === 0) {
+    return normalizedHeadline;
+  }
+  if (normalizedSummary === normalizedHeadline) {
+    return normalizedHeadline;
+  }
+  if (normalizedSummary.toLowerCase().startsWith(normalizedHeadline.toLowerCase())) {
+    return normalizedSummary;
+  }
+  return `${normalizedHeadline} - ${normalizedSummary}`;
 }

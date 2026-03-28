@@ -307,7 +307,7 @@ export function WorkflowsPage(): JSX.Element {
           </div>
         ) : null}
 
-        <div className="flex min-h-0 flex-col gap-4 xl:grid xl:grid-rows-[auto_minmax(0,1fr)]">
+        <div className="flex min-h-0 w-full flex-col gap-4 xl:grid xl:h-full xl:grid-rows-[auto_minmax(0,1fr)]">
           <div className="flex items-center justify-between gap-3">
             <Button type="button" size="sm" variant="outline" onClick={() => setIsRailHidden((current) => !current)}>
               {isRailHidden ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
@@ -321,7 +321,7 @@ export function WorkflowsPage(): JSX.Element {
           </div>
 
           {workflow && workspaceQuery.data ? (
-            <div className="flex min-h-0 flex-col gap-4 xl:min-h-0 xl:flex-1">
+            <div className="flex min-h-0 flex-col gap-4 xl:min-h-0 xl:h-full xl:flex-1">
               <div className="sticky top-0 z-10">
                 <WorkflowStateStrip
                   workflow={workflow}
@@ -349,10 +349,10 @@ export function WorkflowsPage(): JSX.Element {
               </div>
               <div
                 ref={workspaceSplitRef}
-                className="xl:grid xl:min-h-0 xl:flex-1 xl:overflow-hidden"
+                className="xl:grid xl:min-h-0 xl:h-full xl:flex-1 xl:overflow-hidden"
                 style={buildWorkflowWorkspaceSplitStyle(workbenchFraction)}
               >
-                <div className="min-h-[18rem] xl:min-h-0 xl:overflow-hidden">
+                <div className="min-h-[22rem] xl:min-h-0 xl:overflow-hidden">
                   <WorkflowBoard
                     workflowId={workflow.id}
                     board={board}
@@ -400,7 +400,7 @@ export function WorkflowsPage(): JSX.Element {
                     }}
                   />
                 </div>
-                <div className="min-h-[18rem] xl:min-h-0 xl:overflow-hidden">
+                <div className="min-h-[22rem] xl:min-h-0 xl:overflow-hidden">
                   <WorkflowBottomWorkbench
                     workflowId={workflow.id}
                     workflow={workflow}

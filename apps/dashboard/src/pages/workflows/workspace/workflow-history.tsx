@@ -76,6 +76,9 @@ function HistoryItemCard(props: {
   item: DashboardWorkflowHistoryPacket['items'][number];
 }): JSX.Element {
   const linkedWorkItemId = props.item.linked_target_ids.find((id) => id !== props.workflowId) ?? null;
+  const summary = props.item.summary.trim();
+  const headline = props.item.headline.trim();
+  const showSummary = summary.length > 0 && summary !== headline;
 
   return (
     <article className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
@@ -88,20 +91,22 @@ function HistoryItemCard(props: {
       </div>
       <div className="grid gap-1">
         <strong className="text-foreground">{props.item.headline}</strong>
-        <p className="text-sm text-muted-foreground">{props.item.summary}</p>
+        {showSummary ? <p className="text-sm text-muted-foreground">{props.item.summary}</p> : null}
       </div>
-      <div className="flex flex-wrap gap-2">
-        <Link
-          className="text-sm font-medium text-accent underline-offset-4 hover:underline"
-          to={buildWorkflowsPageHref({
-            workflowId: props.workflowId,
-            workItemId: linkedWorkItemId,
-            tab: 'history',
-          })}
-        >
-          Open workflow context
-        </Link>
-      </div>
+      {linkedWorkItemId ? (
+        <div className="flex flex-wrap gap-2">
+          <Link
+            className="text-sm font-medium text-accent underline-offset-4 hover:underline"
+            to={buildWorkflowsPageHref({
+              workflowId: props.workflowId,
+              workItemId: linkedWorkItemId,
+              tab: 'history',
+            })}
+          >
+            Open linked work item
+          </Link>
+        </div>
+      ) : null}
     </article>
   );
 }

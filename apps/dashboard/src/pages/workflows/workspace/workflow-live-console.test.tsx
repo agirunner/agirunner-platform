@@ -62,11 +62,9 @@ describe('WorkflowLiveConsole', () => {
 
     expect(html).toContain('&gt;');
     expect(html).toContain('Implementation Engineer:');
-    expect(html).toContain('Updated retry handling.');
-    expect(html).not.toContain('Implementation is preparing the next validation handoff.');
+    expect(html).toContain('Updated retry handling. - Implementation is preparing the next validation handoff.');
     expect(html).toContain('Orchestrator:');
-    expect(html).toContain('Workflow reached approval milestone');
-    expect(html).not.toContain('A structured brief was published.');
+    expect(html).toContain('Workflow reached approval milestone - A structured brief was published.');
     expect(html).not.toContain('[brief]');
     expect(html).not.toContain('border-sky-500/20');
     expect(html).toContain('grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-start gap-x-2');
