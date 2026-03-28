@@ -54,6 +54,21 @@ export function WorkflowDetails(props: {
           </p>
           <p className="text-sm text-muted-foreground">{scope.latest_status}</p>
         </div>
+        {scope.summary ? (
+          <div className="grid gap-1">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Summary
+            </p>
+            <p className="text-sm text-muted-foreground">{scope.summary}</p>
+          </div>
+        ) : null}
+        {scope.parent_work_item ? (
+          <p className="text-xs text-muted-foreground">
+            <span className="font-semibold text-foreground">Work item</span>
+            {' '}
+            {scope.parent_work_item}
+          </p>
+        ) : null}
         {scope.task_summary ? (
           <p className="text-xs text-muted-foreground">
             <span className="font-semibold text-foreground">Task summary</span>
@@ -208,6 +223,8 @@ function buildDetailsScope(props: {
 }): {
   title: string;
   latest_status: string;
+  summary: string | null;
+  parent_work_item: string | null;
   task_summary: string | null;
 } {
   if (props.scope.scopeKind === 'selected_task') {
@@ -218,6 +235,12 @@ function buildDetailsScope(props: {
         ?? props.selectedTaskId
         ?? 'Selected task',
       latest_status: buildTaskLatestStatus(props.selectedTask),
+      summary: readOptionalText(props.selectedTask?.description),
+      parent_work_item:
+        props.selectedWorkItem?.title
+        ?? props.selectedTask?.work_item_title
+        ?? props.selectedWorkItemTitle
+        ?? null,
       task_summary: null,
     };
   }
@@ -230,6 +253,10 @@ function buildDetailsScope(props: {
         ?? props.selectedWorkItemId
         ?? 'Selected work item',
       latest_status: buildWorkItemLatestStatus(props.selectedWorkItem, props.selectedWorkItemTasks),
+      summary:
+        readOptionalText(props.selectedWorkItem?.goal)
+        ?? readOptionalText(props.selectedWorkItem?.acceptance_criteria),
+      parent_work_item: null,
       task_summary: buildTaskSummary(props.selectedWorkItemTasks),
     };
   }
@@ -240,6 +267,8 @@ function buildDetailsScope(props: {
       readOptionalText(props.stickyStrip?.summary)
       ?? readOptionalText(props.workflow.pulse.summary)
       ?? 'Workflow is active.',
+    summary: null,
+    parent_work_item: null,
     task_summary: null,
   };
 }

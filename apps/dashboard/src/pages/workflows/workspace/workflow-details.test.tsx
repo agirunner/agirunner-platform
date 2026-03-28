@@ -118,6 +118,37 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Related tasks');
   });
 
+  it('keeps the selected task context compact by showing only the parent work item and task summary', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: 'task-1',
+        selectedTaskTitle: 'Verify deliverable',
+        selectedWorkItem: createWorkItem(),
+        selectedTask: createTask(),
+        selectedWorkItemTasks: [],
+        inputPackets: createPackets(),
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Verify deliverable',
+          banner: 'Task: Verify deliverable',
+        },
+      }),
+    );
+
+    expect(html).toContain('Prepare release bundle');
+    expect(html).toContain('Check the final release packet and approve it.');
+    expect(html).not.toContain('Owner role');
+    expect(html).not.toContain('Next expected actor');
+  });
+
   it('keeps scoped work-item packets visible before the selected work-item record finishes loading', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {

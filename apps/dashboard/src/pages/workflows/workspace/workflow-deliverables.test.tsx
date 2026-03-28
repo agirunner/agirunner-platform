@@ -100,11 +100,36 @@ describe('WorkflowDeliverables', () => {
 
     expect(html).toContain('Task Evidence');
     expect(html).toContain('Generate release bundle');
-    expect(html).toContain('Work Item Deliverables');
+    expect(html).toContain('Deliverables from Prepare release bundle');
     expect(html).toContain('artifact-1');
+    expect(html).toContain('No in-progress deliverables are attached to this work item.');
+    expect(html).toContain('No inputs or intervention files are attached to this work item.');
+    expect(html).not.toContain('No in-progress deliverables are attached to this task.');
+    expect(html).not.toContain('No inputs or intervention files are attached to this task.');
     expect(html).not.toContain('Parent work item');
     expect(html).not.toContain('Workflow Deliverables');
     expect(html).not.toContain('Workflow Deliverables remain available when you return to workflow scope.');
+  });
+
+  it('uses the exact selected work-item title when task scope falls back to parent deliverables', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: createPacket(),
+        selectedTask: createTask(),
+        selectedWorkItemTitle: 'Prepare release bundle',
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Generate release bundle',
+          banner: 'Task: Generate release bundle',
+        },
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Deliverables from Prepare release bundle');
+    expect(html).not.toContain('Work Item Deliverables');
   });
 });
 

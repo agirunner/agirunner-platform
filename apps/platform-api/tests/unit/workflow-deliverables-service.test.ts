@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowDeliverablesService } from '../../src/services/workflow-operations/workflow-deliverables-service.js';
 
 describe('WorkflowDeliverablesService', () => {
-  it('builds final deliverables, in-progress deliverables, working handoffs, and provenance packets', async () => {
+  it('keeps workflow-scope deliverables limited to workflow-scoped provenance packets', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => [
         {
@@ -185,9 +185,99 @@ describe('WorkflowDeliverablesService', () => {
     ]);
     expect(result.inputs_and_provenance).toEqual({
       launch_packet: expect.objectContaining({ id: 'packet-launch' }),
+      supplemental_packets: [],
+      intervention_attachments: [],
+      redrive_packet: expect.objectContaining({ id: 'packet-redrive' }),
+    });
+  });
+
+  it('keeps selected work-item deliverables limited to the selected work-item packet set', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => []),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => [
+        {
+          id: 'packet-launch',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          packet_kind: 'launch',
+          source: 'operator',
+          summary: 'Initial launch packet',
+          structured_inputs: {},
+          metadata: {},
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:30:00.000Z',
+          updated_at: '2026-03-27T22:30:00.000Z',
+          files: [],
+        },
+        {
+          id: 'packet-redrive',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          packet_kind: 'redrive_patch',
+          source: 'redrive',
+          summary: 'Retry with corrected inputs',
+          structured_inputs: {},
+          metadata: {},
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:31:00.000Z',
+          updated_at: '2026-03-27T22:31:00.000Z',
+          files: [],
+        },
+        {
+          id: 'packet-intake',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          packet_kind: 'intake',
+          source: 'operator',
+          summary: 'Added rollback notes',
+          structured_inputs: {},
+          metadata: {},
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:32:00.000Z',
+          updated_at: '2026-03-27T22:32:00.000Z',
+          files: [],
+        },
+        {
+          id: 'packet-intervention',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          packet_kind: 'intervention_attachment',
+          source: 'operator',
+          summary: 'Attached rollback notes',
+          structured_inputs: {},
+          metadata: {},
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:32:30.000Z',
+          updated_at: '2026-03-27T22:32:30.000Z',
+          files: [{ id: 'file-1', file_name: 'rollback.txt' }],
+        },
+      ]),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+    });
+
+    expect(result.inputs_and_provenance).toEqual({
+      launch_packet: null,
       supplemental_packets: [expect.objectContaining({ id: 'packet-intake' })],
       intervention_attachments: [expect.objectContaining({ id: 'packet-intervention' })],
-      redrive_packet: expect.objectContaining({ id: 'packet-redrive' }),
+      redrive_packet: null,
     });
   });
 

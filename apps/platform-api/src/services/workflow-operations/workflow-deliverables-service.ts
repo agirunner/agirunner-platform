@@ -72,7 +72,7 @@ export class WorkflowDeliverablesService {
       ),
       working_handoffs: briefs.filter(isDeliverableBrief),
       inputs_and_provenance: {
-        launch_packet: pickSinglePacket(inputPackets, 'launch'),
+        launch_packet: pickSinglePacket(inputPackets, 'launch', input.workItemId),
         supplemental_packets: filterPacketKinds(
           inputPackets,
           ['intake', 'plan_update'],
@@ -83,7 +83,7 @@ export class WorkflowDeliverablesService {
           ['intervention_attachment'],
           input.workItemId,
         ),
-        redrive_packet: pickSinglePacket(inputPackets, 'redrive_patch'),
+        redrive_packet: pickSinglePacket(inputPackets, 'redrive_patch', input.workItemId),
       },
       next_cursor: page.nextCursor,
       all_deliverables: allDeliverables,
@@ -139,8 +139,12 @@ function isDeliverableOutcomeStatus(statusKind: string | null): boolean {
 function pickSinglePacket(
   packets: WorkflowInputPacketRecord[],
   packetKind: string,
+  workItemId?: string,
 ) : WorkflowInputPacketRecord | null {
-  return packets.find((packet) => readOptionalString(packet.packet_kind) === packetKind) ?? null;
+  return packets.find((packet) =>
+    readOptionalString(packet.packet_kind) === packetKind
+    && packetMatchesScope(packet, workItemId),
+  ) ?? null;
 }
 
 function filterPacketKinds(
@@ -152,11 +156,19 @@ function filterPacketKinds(
     if (!packetKinds.includes(readOptionalString(packet.packet_kind) ?? '')) {
       return false;
     }
-    if (!workItemId) {
-      return true;
-    }
-    return readOptionalString(packet.work_item_id) === workItemId;
+    return packetMatchesScope(packet, workItemId);
   });
+}
+
+function packetMatchesScope(
+  packet: WorkflowInputPacketRecord,
+  workItemId?: string,
+): boolean {
+  const packetWorkItemId = readOptionalString(packet.work_item_id);
+  if (workItemId) {
+    return packetWorkItemId === workItemId;
+  }
+  return packetWorkItemId === null;
 }
 
 function readOptionalString(value: unknown): string | null {

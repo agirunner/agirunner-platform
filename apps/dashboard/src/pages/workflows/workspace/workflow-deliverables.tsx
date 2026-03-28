@@ -36,9 +36,11 @@ export function WorkflowDeliverables(props: {
   const taskEvidence = props.scope.scopeKind === 'selected_task'
     ? buildTaskEvidence(props.selectedTask)
     : null;
-  const parentDeliverablesLabel = props.scope.scopeKind === 'selected_task'
-    ? 'Work Item Deliverables'
-    : `${props.scope.title} Deliverables`;
+  const deliverablesSubject = readDeliverablesSubject(props.scope.scopeKind);
+  const parentDeliverablesLabel = buildParentDeliverablesLabel(
+    props.scope,
+    props.selectedWorkItemTitle,
+  );
   const inProgressTitle = briefBackedOutputs ? 'Brief-backed outputs' : 'In Progress Deliverables';
   const inProgressCount = briefBackedOutputs
     ? props.packet.working_handoffs.length
@@ -101,7 +103,7 @@ export function WorkflowDeliverables(props: {
           {briefBackedOutputs ? (
             <>
               <p className="text-sm text-muted-foreground">
-                Material output is currently available only as briefs for this {props.scope.subject}.
+                Material output is currently available only as briefs for this {deliverablesSubject}.
               </p>
               {props.packet.working_handoffs.map((brief) => (
                 <article key={brief.id} className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
@@ -111,7 +113,9 @@ export function WorkflowDeliverables(props: {
               ))}
             </>
           ) : props.packet.in_progress_deliverables.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No in-progress deliverables are attached to this {props.scope.subject}.</p>
+            <p className="text-sm text-muted-foreground">
+              No in-progress deliverables are attached to this {deliverablesSubject}.
+            </p>
           ) : (
             props.packet.in_progress_deliverables.map((deliverable) => (
               <DeliverableCard key={deliverable.descriptor_id} deliverable={deliverable} />
@@ -149,7 +153,7 @@ export function WorkflowDeliverables(props: {
         <div className="mt-4 grid gap-4">
           {inputEntries.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No inputs or intervention files are attached to this {props.scope.subject}.
+              No inputs or intervention files are attached to this {deliverablesSubject}.
             </p>
           ) : (
             inputEntries.map((entry) => (
@@ -170,6 +174,26 @@ export function WorkflowDeliverables(props: {
       </div>
     </div>
   );
+}
+
+function buildParentDeliverablesLabel(
+  scope: WorkflowWorkbenchScopeDescriptor,
+  selectedWorkItemTitle: string | null,
+): string {
+  const workItemTitle = readText(selectedWorkItemTitle);
+  if (scope.scopeKind === 'selected_task') {
+    return workItemTitle ? `Deliverables from ${workItemTitle}` : 'Work Item Deliverables';
+  }
+  if (scope.scopeKind === 'selected_work_item') {
+    return workItemTitle ? `Deliverables for ${workItemTitle}` : 'Work Item Deliverables';
+  }
+  return 'Workflow Deliverables';
+}
+
+function readDeliverablesSubject(
+  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
+): 'workflow' | 'work item' {
+  return scopeKind === 'workflow' ? 'workflow' : 'work item';
 }
 
 function DeliverableCard(props: {
