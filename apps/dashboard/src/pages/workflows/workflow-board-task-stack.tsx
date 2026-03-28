@@ -20,10 +20,10 @@ export function WorkflowBoardTaskStack(props: {
   const isOpen = hasSelectedTask || (props.defaultOpen ?? true);
 
   return (
-    <details className="rounded-xl border border-border/70 bg-muted/10 p-3" open={isOpen}>
+    <details className="rounded-lg border border-border/60 bg-muted/5 p-2.5" open={isOpen}>
       <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Task stack
+          Tasks
         </p>
       </summary>
       <div className="mt-3">

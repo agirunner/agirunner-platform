@@ -43,15 +43,13 @@ export function WorkflowStateStrip(props: {
   return (
     <section className="space-y-1.5 rounded-xl border border-border/70 bg-background/90 p-2">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-0.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-sm font-semibold text-foreground">{props.workflow.name}</h2>
-            <Badge variant={isPausedWorkflow ? 'warning' : 'secondary'}>
-              {isPausedWorkflow ? 'Workflow paused' : postureLabel}
-            </Badge>
-            {isOngoingWorkflow ? <Badge variant="outline">Ongoing</Badge> : null}
-          </div>
-          {metaLine ? <p className="text-[11px] text-muted-foreground">{metaLine}</p> : null}
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-sm font-semibold text-foreground">{props.workflow.name}</h2>
+          <Badge variant={isPausedWorkflow ? 'warning' : 'secondary'}>
+            {isPausedWorkflow ? 'Workflow paused' : postureLabel}
+          </Badge>
+          {isOngoingWorkflow ? <Badge variant="outline">Ongoing</Badge> : null}
+          {metaLine ? <span className="text-[11px] text-muted-foreground">{metaLine}</span> : null}
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
@@ -105,7 +103,7 @@ export function WorkflowStateStrip(props: {
 
       <div className="grid gap-2 lg:grid-cols-4">
         <HeaderCard
-          title="Workflow State"
+          title="State"
           value={postureLabel}
           detail={readWorkflowStateDetail(sticky?.summary, postureLabel)}
         />
@@ -116,20 +114,19 @@ export function WorkflowStateStrip(props: {
           onClick={() => props.onTabChange('needs_action')}
         />
         <HeaderCard
-          title="Workflow"
-          value={`${workload.activeWorkItemCount} active • ${workload.completedWorkItemCount} done`}
-          detail={formatWorkloadDetail({
+          title="Work Items"
+          value={String(workload.activeWorkItemCount)}
+          detail={formatWorkItemDetail(workload)}
+        />
+        <HeaderCard
+          title="Specialist Tasks"
+          value={String(activeSpecialistTaskCount)}
+          detail={formatSpecialistTaskDetail({
             activeSpecialistTaskCount,
             activeWorkItemCount: workload.activeWorkItemCount,
             lifecycle: props.workflow.lifecycle,
             posture: sticky?.posture ?? props.workflow.posture,
           })}
-        />
-        <HeaderCard
-          title="Steering"
-          value={sticky?.steering_available ? 'Open' : 'Idle'}
-          detail="Requests and responses"
-          onClick={() => props.onTabChange('steering')}
         />
       </div>
     </section>
@@ -142,7 +139,7 @@ function HeaderCard(props: {
   detail: string | null;
   onClick?(): void;
 }): JSX.Element {
-  const className = 'grid gap-0.5 rounded-lg border border-border/70 bg-muted/10 px-2 py-1.5 text-left';
+  const className = 'grid gap-1 rounded-md border border-border/60 bg-muted/5 px-2.5 py-2 text-left';
 
   if (!props.onClick) {
     return (
@@ -150,7 +147,7 @@ function HeaderCard(props: {
         <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           {props.title}
         </p>
-        <p className="min-h-4 text-[13px] font-semibold leading-4 text-foreground">{props.value}</p>
+        <p className="text-base font-semibold tracking-tight text-foreground">{props.value}</p>
         {props.detail ? <p className="text-[10px] leading-4 text-muted-foreground">{props.detail}</p> : null}
       </div>
     );
@@ -159,19 +156,32 @@ function HeaderCard(props: {
   return (
     <button
       type="button"
-      className={`${className} transition-colors hover:bg-muted/20`}
+      className={`${className} transition-colors hover:bg-muted/10`}
       onClick={props.onClick}
     >
       <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         {props.title}
       </p>
-      <p className="min-h-4 text-[13px] font-semibold leading-4 text-foreground">{props.value}</p>
+      <p className="text-base font-semibold tracking-tight text-foreground">{props.value}</p>
       {props.detail ? <p className="text-[10px] leading-4 text-muted-foreground">{props.detail}</p> : null}
     </button>
   );
 }
 
-function formatWorkloadDetail(input: {
+function formatWorkItemDetail(input: {
+  activeWorkItemCount: number;
+  completedWorkItemCount: number;
+}): string | null {
+  if (input.completedWorkItemCount > 0) {
+    return `${input.completedWorkItemCount} completed`;
+  }
+  if (input.activeWorkItemCount > 0) {
+    return 'In active lanes';
+  }
+  return 'No active work items';
+}
+
+function formatSpecialistTaskDetail(input: {
   activeSpecialistTaskCount: number;
   activeWorkItemCount: number;
   lifecycle: string | null;
@@ -187,9 +197,9 @@ function formatWorkloadDetail(input: {
     return 'Routing next step';
   }
   if (input.activeSpecialistTaskCount === 0) {
-    return null;
+    return 'No active tasks';
   }
-  return `${input.activeSpecialistTaskCount} task${input.activeSpecialistTaskCount === 1 ? '' : 's'}`;
+  return `${input.activeSpecialistTaskCount} active task${input.activeSpecialistTaskCount === 1 ? '' : 's'}`;
 }
 
 function humanizePosture(value: string | null | undefined): string {

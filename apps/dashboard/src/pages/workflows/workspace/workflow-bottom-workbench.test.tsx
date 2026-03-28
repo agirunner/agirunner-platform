@@ -44,11 +44,14 @@ describe('WorkflowBottomWorkbench', () => {
       }),
     );
 
-    expect(html).toContain('Workflow');
+    expect(html).toContain('Workflow: Workflow 1');
+    expect(html.indexOf('Workflow: Workflow 1')).toBeLessThan(html.indexOf('Details'));
     expect(html).toContain('Briefs');
     expect(html).not.toContain('Details, actions, steering, live updates, history, and deliverables stay in one place.');
     expect(html).not.toContain('History');
+    expect(html).not.toContain('Workbench Scope');
     expect(html).not.toContain('Workspace</p>');
+    expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/70 p-3');
   });
 
   it('keeps task scope visible in details while the selected records are still loading', () => {

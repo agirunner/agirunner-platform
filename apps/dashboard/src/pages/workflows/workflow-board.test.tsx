@@ -31,6 +31,7 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Workflow board');
     expect(html).toContain('All stages');
     expect(html).toContain('All lanes');
+    expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/90 p-4');
     expect(html).not.toContain('Lanes show the actual workflow flow while tasks stay subordinate');
     expect(html).not.toContain('Active stage:');
     expect(html).not.toContain('visible items');
@@ -109,7 +110,8 @@ describe('WorkflowBoard', () => {
       ),
     );
 
-    expect(html).toContain('No active work items in this lane.');
+    expect(html).toContain('Nothing active here right now.');
+    expect(html).not.toContain('No active work items in this lane.');
     expect(html).not.toContain('flex min-h-[8rem] items-center justify-center text-center');
   });
 

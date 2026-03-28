@@ -79,15 +79,15 @@ export function WorkflowDetails(props: {
       </header>
 
       {hasInputs ? (
-        <DetailSection title="Inputs">
+        <DetailSection title="Files and inputs">
           {isWorkflowScope && hasStructuredContent(props.workflowParameters) ? (
-            <StructuredBlock label="Workflow parameters" value={props.workflowParameters} />
+            <StructuredBlock label="Parameters" value={props.workflowParameters} />
           ) : null}
           {workflowPackets.length > 0 ? (
-            <PacketSection label="Workflow inputs" packets={workflowPackets} />
+            <PacketSection packets={workflowPackets} />
           ) : null}
           {workItemPackets.length > 0 ? (
-            <PacketSection label="Work item inputs" packets={workItemPackets} />
+            <PacketSection packets={workItemPackets} />
           ) : null}
           {hasTaskInput ? (
             <StructuredBlock label="Task input" value={props.selectedTask?.input ?? null} />
@@ -113,36 +113,27 @@ function DetailSection(props: {
 }
 
 function PacketSection(props: {
-  label: string;
   packets: DashboardWorkflowInputPacketRecord[];
 }): JSX.Element {
   return (
     <div className="grid gap-2">
-      <p className="text-sm font-semibold text-foreground">{props.label}</p>
-      <div className="grid gap-2">
-        {props.packets.map((packet) => (
-          <div key={packet.id} className="grid gap-2 border-l border-border/70 pl-3">
-            <div className="grid gap-1">
-              <strong className="text-sm text-foreground">
-                {packet.summary ?? humanizeToken(packet.packet_kind)}
-              </strong>
-              <p className="text-xs text-muted-foreground">
-                {humanizeToken(packet.packet_kind)} • {humanizeToken(packet.source)}
-              </p>
+      {props.packets.map((packet) => (
+        <div key={packet.id} className="grid gap-2 rounded-lg border border-border/60 bg-muted/5 p-3">
+          <strong className="text-sm text-foreground">
+            {packet.summary ?? humanizeToken(packet.packet_kind)}
+          </strong>
+          {hasStructuredContent(packet.structured_inputs) ? (
+            <StructuredBlock value={packet.structured_inputs} compact />
+          ) : null}
+          {packet.files.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {packet.files.map((file) => (
+                <PacketFileLink key={file.id} file={file} />
+              ))}
             </div>
-            {hasStructuredContent(packet.structured_inputs) ? (
-              <StructuredBlock value={packet.structured_inputs} compact />
-            ) : null}
-            {packet.files.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {packet.files.map((file) => (
-                  <PacketFileLink key={file.id} file={file} />
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ))}
-      </div>
+          ) : null}
+        </div>
+      ))}
     </div>
   );
 }

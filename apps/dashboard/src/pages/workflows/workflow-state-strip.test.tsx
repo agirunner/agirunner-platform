@@ -30,9 +30,12 @@ describe('WorkflowStateStrip', () => {
       ),
     );
 
-    expect(html).toContain('1 active • 2 done');
-    expect(html).toContain('3 tasks');
+    expect(html).toContain('Work Items');
+    expect(html).toContain('2 completed');
+    expect(html).toContain('Specialist Tasks');
+    expect(html).toContain('3 active tasks');
     expect(html).toContain('Live visibility');
+    expect(html).not.toContain('Steering');
     expect(html).not.toContain('Playbook');
     expect(html).not.toContain('Workspace');
   });
@@ -63,8 +66,8 @@ describe('WorkflowStateStrip', () => {
       ),
     );
 
-    expect(html).toContain('1 task');
-    expect(html).not.toContain('1 tasks');
+    expect(html).toContain('1 active task');
+    expect(html).not.toContain('1 active tasks');
   });
 
   it('keeps the sticky cards compact and uses operator-friendly workflow badges', () => {
@@ -101,17 +104,17 @@ describe('WorkflowStateStrip', () => {
 
     expect(html).toContain('Waiting for Work');
     expect(html).toContain('Ongoing');
-    expect(html).toContain('Steering');
-    expect(html).toContain('Open');
     expect(html).toContain('Routing next step');
+    expect(html).toContain('Specialist Tasks');
+    expect(html).toContain('Work Items');
     expect(html).not.toContain('Waiting By Design');
     expect(html).not.toContain('Workflow is waiting by design');
     expect(html).not.toContain('Awaiting Intake');
-    expect((html.match(/min-h-4 text-\[13px\] font-semibold leading-4 text-foreground/g) ?? []).length).toBeGreaterThanOrEqual(4);
+    expect((html.match(/text-base font-semibold tracking-tight text-foreground/g) ?? []).length).toBeGreaterThanOrEqual(4);
     expect(html).toContain('Live visibility');
-    expect((html.match(/rounded-lg border border-border\/70 bg-muted\/10 px-2 py-1\.5 text-left/g) ?? [])).toHaveLength(4);
-    expect((html.match(/rounded-lg border border-border\/70 bg-muted\/10 px-2 py-1\.5 text-left transition-colors hover:bg-muted\/20/g) ?? [])).toHaveLength(2);
-    expect(html).toContain('Requests and responses');
+    expect((html.match(/rounded-md border border-border\/60 bg-muted\/5 px-2\.5 py-2 text-left/g) ?? [])).toHaveLength(4);
+    expect((html.match(/rounded-md border border-border\/60 bg-muted\/5 px-2\.5 py-2 text-left transition-colors hover:bg-muted\/10/g) ?? [])).toHaveLength(1);
+    expect(html).not.toContain('Requests and responses');
     expect(html).not.toContain('<p class="text-xs text-muted-foreground">Playbook • Workspace</p>');
     expect(html).not.toContain('Accepting new work');
   });

@@ -7,6 +7,8 @@ export const DEFAULT_WORKFLOW_WORKBENCH_FRACTION = 0.5;
 export const MIN_WORKFLOW_WORKBENCH_FRACTION = 0.35;
 export const MAX_WORKFLOW_WORKBENCH_FRACTION = 0.7;
 const WORKFLOW_SPLIT_GUTTER_REM = 0.5;
+const WORKFLOW_BOARD_MIN_HEIGHT_REM = 16;
+const WORKFLOW_WORKBENCH_MIN_HEIGHT_REM = 18;
 
 export function buildWorkflowsShellClassName(isRailHidden: boolean): string {
   const baseClassName = 'flex w-full min-w-0 flex-col gap-3 lg:h-[calc(100vh-8.5rem)] lg:min-h-0 lg:overflow-hidden';
@@ -36,7 +38,7 @@ export function buildWorkflowWorkspaceSplitStyle(
   const footerWeight = trimGridWeight(clampedFraction);
   return {
     gridTemplateRows:
-      `minmax(0, ${boardWeight}fr) ${WORKFLOW_SPLIT_GUTTER_REM}rem minmax(0, ${footerWeight}fr)`,
+      `minmax(${WORKFLOW_BOARD_MIN_HEIGHT_REM}rem, ${boardWeight}fr) ${WORKFLOW_SPLIT_GUTTER_REM}rem minmax(${WORKFLOW_WORKBENCH_MIN_HEIGHT_REM}rem, ${footerWeight}fr)`,
   };
 }
 

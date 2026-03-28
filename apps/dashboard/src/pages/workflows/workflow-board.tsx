@@ -99,7 +99,7 @@ export function WorkflowBoard(props: {
   }
 
   return (
-    <section className="flex h-full min-h-0 flex-col gap-3 rounded-2xl border border-border/70 bg-background/90 p-4">
+    <section className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-base font-semibold text-foreground">Workflow board</p>
@@ -219,7 +219,7 @@ function BoardLaneCard(props: {
     && (props.lane.visibleCompletedItems.length > 0 || props.lane.hiddenCompletedCount > 0);
 
   return (
-    <article className="grid h-full min-w-0 content-start gap-3 rounded-xl border border-border/70 bg-muted/10 p-3.5">
+    <article className="grid h-full min-w-0 content-start gap-3 rounded-lg border border-border/60 bg-muted/5 p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <p className="text-sm font-semibold text-foreground">{props.lane.column.label}</p>
@@ -237,7 +237,7 @@ function BoardLaneCard(props: {
         {props.boardLens === 'tasks'
           ? renderTaskLaneCards(activeTaskCards, props.selectedTaskId, props.onSelectTask)
           : props.lane.activeItems.length === 0 ? (
-          <p className="px-1 py-1 text-sm text-muted-foreground">No active work items in this lane.</p>
+          <p className="px-1 py-1 text-sm text-muted-foreground">Nothing active here right now.</p>
         ) : (
           props.lane.activeItems.map((workItem) => (
             <BoardWorkItemCard

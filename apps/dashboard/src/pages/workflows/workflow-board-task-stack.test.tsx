@@ -19,6 +19,8 @@ describe('WorkflowBoardTaskStack', () => {
       }),
     );
 
+    expect(html).toContain('Tasks');
+    expect(html).not.toContain('Task stack');
     expect(html).toContain('Policy Assessor • In Progress');
     expect(html).not.toContain('policy-assessor • in_progress');
   });

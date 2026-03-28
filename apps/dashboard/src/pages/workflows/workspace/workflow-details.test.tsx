@@ -52,7 +52,8 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Latest status');
     expect(html).toContain('In Progress');
     expect(html).toContain('Task input');
-    expect(html).toContain('Inputs');
+    expect(html).toContain('Files and inputs');
+    expect(html).not.toContain('>Inputs<');
     expect(html).not.toContain('Workflow parameters');
     expect(html).not.toContain('Workflow inputs');
     expect(html).not.toContain('Work item inputs');
@@ -174,8 +175,9 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain('Work item inputs');
+    expect(html).toContain('Files and inputs');
     expect(html).toContain('Rollback guide');
+    expect(html).toContain('rollback.md');
     expect(html).not.toContain('Workflow inputs');
   });
 
@@ -380,7 +382,15 @@ function createPackets(): DashboardWorkflowInputPacketRecord[] {
       created_by_id: 'user-1',
       created_at: '2026-03-27T23:31:00.000Z',
       updated_at: '2026-03-27T23:31:00.000Z',
-      files: [],
+      files: [
+        {
+          id: 'file-1',
+          file_name: 'rollback.md',
+          media_type: 'text/markdown',
+          byte_size: 512,
+          download_url: '/files/rollback.md',
+        },
+      ],
     },
   ];
 }

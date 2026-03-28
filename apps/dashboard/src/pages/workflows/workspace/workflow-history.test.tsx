@@ -61,8 +61,9 @@ describe('WorkflowHistory', () => {
     expect(html).toContain('Milestone Brief');
     expect(html).toContain('Briefs');
     expect(html).toContain('Policy assessment settled revision 3');
-    expect(html).toContain('Show brief details');
+    expect(html).toContain('Open brief');
     expect(html).toContain('Open brief scope');
+    expect(html).not.toContain('ordered newest first');
     expect(html).not.toContain('input lineage');
     expect(html).not.toContain('Lifecycle Event');
   });
@@ -156,7 +157,7 @@ describe('WorkflowHistory', () => {
     );
 
     expect(html).not.toContain('Load older briefs');
-    expect(html).toContain('No historical briefs have been published for this work item yet.');
+    expect(html).toContain('No briefs published for this work item yet.');
     expect(html).not.toContain('workflow packets');
   });
 });

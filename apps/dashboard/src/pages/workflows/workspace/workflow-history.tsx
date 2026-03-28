@@ -21,7 +21,7 @@ export function WorkflowHistory(props: {
       <div className="grid gap-1">
         <p className="text-sm font-semibold text-foreground">Briefs</p>
         <p className="text-sm text-muted-foreground">
-          Milestone briefs, steering outcomes, and durable updates for this {scopeSubject}, ordered newest first.
+          Published briefs and durable updates for this {scopeSubject}.
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -34,7 +34,7 @@ export function WorkflowHistory(props: {
 
       {props.packet.groups.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
-          No historical briefs have been published for this {scopeSubject} yet.
+          No briefs published for this {scopeSubject} yet.
         </div>
       ) : (
         <div className="grid gap-4">
@@ -66,7 +66,7 @@ export function WorkflowHistory(props: {
       {props.packet.next_cursor ? (
         <div className="flex justify-end">
           <Button type="button" size="sm" variant="outline" onClick={props.onLoadMore}>
-            Load older briefs
+            Load more briefs
           </Button>
         </div>
       ) : null}
@@ -99,7 +99,7 @@ function HistoryItemCard(props: {
       <strong className="text-foreground">{props.item.headline}</strong>
       {showSummary ? (
         <details className="rounded-xl border border-border/70 bg-muted/10 p-3">
-          <summary className="cursor-pointer text-sm font-medium text-foreground">Show brief details</summary>
+          <summary className="cursor-pointer text-sm font-medium text-foreground">Open brief</summary>
           <p className="mt-3 text-sm text-muted-foreground">{props.item.summary}</p>
         </details>
       ) : null}

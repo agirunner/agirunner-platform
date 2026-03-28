@@ -47,14 +47,9 @@ export function WorkflowBottomWorkbench(props: {
   const counts = props.packet.bottom_tabs.counts;
 
   return (
-    <section className="flex h-full min-h-0 flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/70 bg-background/70 p-3">
-        <div className="grid gap-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Workbench Scope
-          </p>
-          <p className="text-sm font-semibold text-foreground">{props.scope.banner}</p>
-        </div>
+    <section className="flex h-full min-h-0 flex-col gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+        <p className="text-sm font-semibold text-foreground">{props.scope.banner}</p>
         <div className="flex flex-wrap gap-2">
           {props.scope.scopeKind === 'selected_task' ? (
             <Button type="button" size="sm" variant="ghost" onClick={props.onClearTaskScope}>
