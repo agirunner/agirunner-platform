@@ -293,6 +293,9 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
     );
     if (brief.operator_visibility.task_id) {
       lines.push(
+        'submit_handoff is the required task-completion write on this task. record_operator_brief and record_operator_update never satisfy that completion contract.',
+      );
+      lines.push(
         `Use request_id values with the pattern handoff:${brief.operator_visibility.task_id}:<handoff-slug> for submit_handoff writes on this task. Reuse the same request_id only for an intentional retry of that exact same handoff payload.`,
       );
     }
@@ -314,6 +317,9 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
         `Use ${brief.operator_visibility.record_operator_update_tool} for one tiny operator-readable headline after each eligible execution step.`,
       );
       lines.push(
+        'If you do not already have the exact scoped workflow_id, work_item_id, or task_id from this contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id. Never guess them.',
+      );
+      lines.push(
         'Operator updates and briefs are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".',
       );
       lines.push(
@@ -328,6 +334,9 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
       }
       lines.push(
         `Use ${brief.operator_visibility.record_operator_brief_tool} for material handoff or milestone summaries when the platform requests them.`,
+      );
+      lines.push(
+        'Use brief_kind "milestone" for in-flight progress or handoff summaries. Use brief_kind "terminal" only for the final workflow outcome summary.',
       );
       lines.push(
         `${brief.operator_visibility.record_operator_brief_tool} payload must include short_brief and detailed_brief_json objects.`,

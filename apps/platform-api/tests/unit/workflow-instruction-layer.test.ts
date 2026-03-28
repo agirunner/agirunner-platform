@@ -106,6 +106,10 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('- reviewer: Reviews implementation quality and correctness.');
     expect(layer!.content).toContain('## Parallelism');
     expect(layer!.content).toContain('Max active tasks: 4');
+    expect(layer!.content).toContain('send_task_message never creates or reopens a task and is not a routing mutation.');
+    expect(layer!.content).toContain(
+      'Do not describe rework as routed until create_task succeeds for a new rework task or update_task_input succeeds on the already-open task.',
+    );
     expect(layer!.content).toContain('Repository-backed workflow. Use runtime-visible continuity, task outputs, and artifacts to decide what specialist work to dispatch next.');
     expect(layer!.content).not.toContain('Inspect files, diffs, and git state before deciding.');
     expect(layer!.content).not.toContain('Human gate: yes');
@@ -295,6 +299,15 @@ describe('buildWorkflowInstructionLayer', () => {
     );
     expect(layer!.content).toContain(
       'Use operator-update:activation-1: as the stable request_id prefix for record_operator_update writes in this execution context.',
+    );
+    expect(layer!.content).toContain(
+      'Use brief_kind milestone for in-flight progress or handoff summaries and brief_kind terminal only for the final workflow outcome summary.',
+    );
+    expect(layer!.content).toContain(
+      'record_operator_brief and record_operator_update do not satisfy a required submit_handoff and do not by themselves complete a task, work item, or workflow.',
+    );
+    expect(layer!.content).toContain(
+      'If you do not have the exact scoped workflow, work-item, or task ids from the live visibility contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id.',
     );
     expect(layer!.content).toContain(
       'Example: { request_id: "operator-update:activation-1:route-reviewer", execution_context_id: "activation-1", work_item_id: "work-item-1", source_kind: "orchestrator", payload: { headline: "Orchestrator is routing the next specialist task." } }',

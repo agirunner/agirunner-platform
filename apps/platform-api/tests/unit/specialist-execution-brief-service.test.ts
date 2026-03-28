@@ -212,6 +212,9 @@ describe('buildSpecialistExecutionBrief', () => {
       'Every operator record write must include a unique request_id.',
     );
     expect(brief?.rendered_markdown).toContain(
+      'submit_handoff is the required task-completion write on this task. record_operator_brief and record_operator_update never satisfy that completion contract.',
+    );
+    expect(brief?.rendered_markdown).toContain(
       'Use request_id values with the pattern handoff:task-review-1:<handoff-slug> for submit_handoff writes on this task.',
     );
     expect(brief?.rendered_markdown).toContain(
@@ -245,6 +248,12 @@ describe('buildSpecialistExecutionBrief', () => {
     );
     expect(brief?.rendered_markdown).toContain(
       'record_operator_brief requires short_brief.headline plus detailed_brief_json.headline and status_kind, and must never be called with only linked_target_ids or an empty brief shell.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Use brief_kind "milestone" for in-flight progress or handoff summaries. Use brief_kind "terminal" only for the final workflow outcome summary.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'If you do not already have the exact scoped workflow_id, work_item_id, or task_id from this contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id. Never guess them.',
     );
     expect(brief?.rendered_markdown).toContain(
       'Brief headlines and summaries must stay human-readable, describe the real workflow progress, and use titles instead of UUIDs or internal handles whenever titles exist.',

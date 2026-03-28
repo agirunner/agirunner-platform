@@ -393,6 +393,9 @@ function formatOperatorVisibilitySection(liveVisibility: Record<string, unknown>
   lines.push(
     'Every operator record write must include a unique request_id. Reuse a request_id only for an intentional retry of the same write.',
   );
+  lines.push(
+    'record_operator_brief and record_operator_update do not satisfy a required submit_handoff and do not by themselves complete a task, work item, or workflow.',
+  );
 
   if (liveVisibility.turn_updates_required === true && recordOperatorUpdateTool) {
     if (liveVisibility.turn_update_scope === 'per_eligible_turn') {
@@ -409,6 +412,9 @@ function formatOperatorVisibilitySection(liveVisibility: Record<string, unknown>
     }
     lines.push(
       `Use ${recordOperatorUpdateTool} for one tiny operator-readable headline after each eligible execution step.`,
+    );
+    lines.push(
+      'If you do not have the exact scoped workflow, work-item, or task ids from the live visibility contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id.',
     );
     lines.push(
       'Operator updates and briefs are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".',
@@ -432,6 +438,9 @@ function formatOperatorVisibilitySection(liveVisibility: Record<string, unknown>
     }
     lines.push(
       `Use ${recordOperatorBriefTool} for material handoff or milestone summaries when the platform requests them.`,
+    );
+    lines.push(
+      'Use brief_kind milestone for in-flight progress or handoff summaries and brief_kind terminal only for the final workflow outcome summary.',
     );
     lines.push(
       `${recordOperatorBriefTool} payload must include short_brief and detailed_brief_json objects.`,
@@ -594,6 +603,8 @@ function formatPlannedHandoffSemantics() {
   return [
     'Structured handoffs capture the accepted output that justifies successor-stage routing.',
     'A handoff by itself does not authorize dispatching successor-role tasks on the current stage work item.',
+    'send_task_message never creates or reopens a task and is not a routing mutation.',
+    'Do not describe rework as routed until create_task succeeds for a new rework task or update_task_input succeeds on the already-open task.',
     'Create or move successor work into the next stage before dispatching successor-role specialists.',
     'Only actual invoked approvals, assessments, and escalations create blocking workflow state. Process prose may instruct you to invoke those controls, but there is no separate governance metadata to consult.',
     'Use the work item escalation status and structured handoffs as authoritative evidence of an active escalation; do not require direct escalation-record inspection before honoring it.',

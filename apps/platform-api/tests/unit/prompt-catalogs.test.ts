@@ -41,6 +41,12 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'record_operator_brief requires payload.short_brief.headline plus payload.detailed_brief_json.{headline,status_kind}; never send only linked_target_ids or an empty brief shell.',
     );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'record_operator_brief and record_operator_update never replace submit_handoff.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'If you do not have the exact scoped workflow_id, work_item_id, or task_id from current task context, omit those optional fields and let runtime derive canonical linkage from execution_context_id.',
+    );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('operational state such as rework counters');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before completion, ensure');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('structured handoff exists');
@@ -196,6 +202,15 @@ describe('prompt catalogs', () => {
       'record_operator_brief inputs must include short_brief.headline plus detailed_brief_json.{headline,status_kind}; never send only linked_target_ids or an empty brief shell.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Use brief_kind milestone for in-flight progress or handoff summaries and brief_kind terminal only for the final workflow outcome summary.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'record_operator_brief and record_operator_update do not satisfy a required submit_handoff and do not by themselves complete a task, work item, or workflow.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'If you do not have the exact scoped workflow, work-item, or task ids from the live visibility contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'A null predecessor handoff is normal for first-stage work or freshly seeded entry work.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('key_artifacts as { id, task_id, label, path } objects');
@@ -237,6 +252,12 @@ describe('prompt catalogs', () => {
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If request_changes reuses an already reopened task, call update_task_input with the concrete rework contract before the specialist resumes.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'send_task_message never creates or reopens a task and is not a routing mutation.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Do not describe rework as routed until create_task succeeds for a new rework task or update_task_input succeeds on the already-open task.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'A blocked work item, unresolved escalation, or unsatisfied approval or assessment requirement makes successor dispatch and completion illegal.',
