@@ -22,9 +22,15 @@ const SYSTEM_IDENTITY = {
 } as const;
 
 function createPool() {
-  return {
+  const pool = {
     query: vi.fn(),
+    connect: vi.fn(),
   };
+  pool.connect.mockImplementation(async () => ({
+    query: pool.query,
+    release: vi.fn(),
+  }));
+  return pool;
 }
 
 function createStorage() {
@@ -56,6 +62,9 @@ describe('WorkflowInputPacketService', () => {
     });
 
     pool.query.mockImplementation(async (sql: string) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+        return { rowCount: 0, rows: [] };
+      }
       if (sql.includes('FROM workflows') && sql.includes('workspace_id')) {
         return {
           rowCount: 1,
@@ -163,6 +172,9 @@ describe('WorkflowInputPacketService', () => {
 
   it('rejects packet creation when the selected work item does not belong to the workflow', async () => {
     pool.query.mockImplementation(async (sql: string) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+        return { rowCount: 0, rows: [] };
+      }
       if (sql.includes('FROM workflows') && sql.includes('workspace_id')) {
         return {
           rowCount: 1,
@@ -186,6 +198,9 @@ describe('WorkflowInputPacketService', () => {
 
   it('fallsBackToKeyPrefixWhenPersistingSystemOwnedPacketAuthorship', async () => {
     pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+        return { rowCount: 0, rows: [] };
+      }
       if (sql.includes('FROM workflows') && sql.includes('workspace_id')) {
         return {
           rowCount: 1,
@@ -227,5 +242,123 @@ describe('WorkflowInputPacketService', () => {
 
     expect(result.created_by_type).toBe('system');
     expect(result.created_by_id).toBe('admin-system');
+  });
+
+  it('cleans up stored files and rolls back when packet file persistence fails mid-request', async () => {
+    const client = {
+      query: vi.fn(),
+      release: vi.fn(),
+    };
+    const transactionalPool = {
+      connect: vi.fn(async () => client),
+      query: client.query,
+    };
+    const transactionalStorage = createStorage();
+    transactionalStorage.putObject
+      .mockResolvedValueOnce({
+        backend: 'local',
+        storageKey: 'stored/packet-file-1',
+        contentType: 'text/plain',
+        sizeBytes: 5,
+        checksumSha256: 'checksum-1',
+      })
+      .mockResolvedValueOnce({
+        backend: 'local',
+        storageKey: 'stored/packet-file-2',
+        contentType: 'text/plain',
+        sizeBytes: 6,
+        checksumSha256: 'checksum-2',
+      });
+    const transactionalService = new WorkflowInputPacketService(
+      transactionalPool as never,
+      transactionalStorage as never,
+      5,
+      1024 * 1024,
+    );
+
+    client.query.mockImplementation(async (sql: string) => {
+      if (sql === 'BEGIN' || sql === 'ROLLBACK') {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM workflows') && sql.includes('workspace_id')) {
+        return {
+          rowCount: 1,
+          rows: [{ id: 'workflow-1', workspace_id: 'workspace-1' }],
+        };
+      }
+      if (sql.includes('INSERT INTO workflow_input_packets')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'packet-rollback',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: null,
+            request_id: 'request-rollback',
+            source_intervention_id: null,
+            source_attempt_id: null,
+            packet_kind: 'launch',
+            source: 'operator',
+            summary: 'Rollback packet',
+            structured_inputs: {},
+            metadata: {},
+            created_by_kind: 'operator',
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: new Date('2026-03-28T04:00:00.000Z'),
+            updated_at: new Date('2026-03-28T04:00:00.000Z'),
+          }],
+        };
+      }
+      if (sql.includes('INSERT INTO workflow_input_packet_files') && client.query.mock.calls.filter(([statement]) => String(statement).includes('INSERT INTO workflow_input_packet_files')).length === 1) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'packet-file-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            packet_id: 'packet-rollback',
+            file_name: 'brief-1.txt',
+            description: null,
+            storage_backend: 'local',
+            storage_key: 'stored/packet-file-1',
+            content_type: 'text/plain',
+            size_bytes: 5,
+            checksum_sha256: 'checksum-1',
+            created_at: new Date('2026-03-28T04:00:00.000Z'),
+          }],
+        };
+      }
+      if (sql.includes('INSERT INTO workflow_input_packet_files')) {
+        throw new Error('insert failed');
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await expect(
+      transactionalService.createWorkflowInputPacket(IDENTITY as never, 'workflow-1', {
+        requestId: 'request-rollback',
+        packetKind: 'launch',
+        summary: 'Rollback packet',
+        files: [
+          {
+            fileName: 'brief-1.txt',
+            contentBase64: Buffer.from('first').toString('base64'),
+            contentType: 'text/plain',
+          },
+          {
+            fileName: 'brief-2.txt',
+            contentBase64: Buffer.from('second').toString('base64'),
+            contentType: 'text/plain',
+          },
+        ],
+      }),
+    ).rejects.toThrow('insert failed');
+
+    expect(transactionalPool.connect).toHaveBeenCalledTimes(1);
+    expect(client.query).toHaveBeenCalledWith('BEGIN');
+    expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+    expect(transactionalStorage.deleteObject).toHaveBeenCalledTimes(2);
+    expect(client.release).toHaveBeenCalledTimes(1);
   });
 });

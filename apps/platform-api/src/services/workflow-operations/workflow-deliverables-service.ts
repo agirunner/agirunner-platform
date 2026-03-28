@@ -64,7 +64,7 @@ export class WorkflowDeliverablesService {
     return {
       final_deliverables: allDeliverables.filter(isFinalDeliverable),
       in_progress_deliverables: allDeliverables.filter((deliverable) => !isFinalDeliverable(deliverable)),
-      working_handoffs: briefs.filter((brief) => readOptionalString(brief.brief_scope) !== 'workflow_timeline'),
+      working_handoffs: briefs.filter(isDeliverableBrief),
       inputs_and_provenance: {
         launch_packet: pickSinglePacket(inputPackets, 'launch'),
         supplemental_packets: filterPacketKinds(
@@ -83,6 +83,10 @@ export class WorkflowDeliverablesService {
       all_deliverables: allDeliverables,
     };
   }
+}
+
+function isDeliverableBrief(brief: WorkflowOperatorBriefRecord): boolean {
+  return readOptionalString(brief.brief_scope) === 'deliverable_context';
 }
 
 function isFinalDeliverable(deliverable: WorkflowDeliverableRecord): boolean {

@@ -16,7 +16,7 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Preview artifact in place');
+    expect(html).toContain('Open without leaving workflow');
     expect(html).toContain('Open in new window');
     expect(html).toContain('Deliverables');
   });
@@ -67,10 +67,10 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Task Output / Evidence');
+    expect(html).toContain('Selected Task Evidence');
     expect(html).toContain('Generate release bundle');
     expect(html).toContain('Parent work item: Prepare release bundle');
-    expect(html).toContain('Parent Work Item Deliverables');
+    expect(html).toContain('Work Item Deliverables');
     expect(html).toContain('Workflow Deliverables');
     expect(html).toContain('artifact-1');
   });

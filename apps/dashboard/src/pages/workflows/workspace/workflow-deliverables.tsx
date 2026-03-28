@@ -33,7 +33,7 @@ export function WorkflowDeliverables(props: {
     && props.packet.working_handoffs.length > 0;
   const taskEvidence = buildTaskEvidence(props.selectedTask);
   const parentDeliverablesLabel = props.selectedTask && props.selectedWorkItemTitle
-    ? 'Parent Work Item Deliverables'
+    ? 'Work Item Deliverables'
     : 'Workflow Deliverables';
   const inProgressTitle = briefBackedOutputs ? 'Brief-backed outputs' : 'In Progress Deliverables';
   const inProgressCount = briefBackedOutputs
@@ -63,7 +63,7 @@ export function WorkflowDeliverables(props: {
       {taskEvidence ? (
         <section className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">Task Output / Evidence</Badge>
+            <Badge variant="outline">Selected Task Evidence</Badge>
             <Badge variant="secondary">{props.selectedTask?.title ?? 'Selected task'}</Badge>
           </div>
           {props.selectedWorkItemTitle ? (

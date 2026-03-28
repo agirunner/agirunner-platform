@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 
@@ -19,10 +19,25 @@ export class LocalArtifactStorage implements ArtifactStorageAdapter {
   async putObject(key: string, data: Buffer, contentType: string): Promise<StoredArtifact> {
     const filePath = this.resolvePath(key);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await Promise.all([
-      fs.writeFile(filePath, data),
-      fs.writeFile(`${filePath}.content-type`, contentType),
-    ]);
+    const stagingSuffix = `${randomUUID()}.tmp`;
+    const stagedFilePath = `${filePath}.${stagingSuffix}`;
+    const stagedContentTypePath = `${filePath}.content-type.${stagingSuffix}`;
+
+    try {
+      await fs.writeFile(stagedFilePath, data);
+      await fs.writeFile(stagedContentTypePath, contentType);
+      await fs.rename(stagedFilePath, filePath);
+      await fs.rename(stagedContentTypePath, `${filePath}.content-type`);
+    } catch (error) {
+      await Promise.allSettled([
+        fs.rm(stagedFilePath, { force: true }),
+        fs.rm(stagedContentTypePath, { force: true }),
+        fs.rm(filePath, { force: true }),
+        fs.rm(`${filePath}.content-type`, { force: true }),
+      ]);
+      throw error;
+    }
+
     return {
       backend: this.backend,
       storageKey: key,

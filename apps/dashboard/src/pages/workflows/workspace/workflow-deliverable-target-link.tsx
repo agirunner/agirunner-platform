@@ -26,7 +26,7 @@ export function WorkflowDeliverableTargetLink(props: {
       {action.action_kind === 'dialog_preview' ? (
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" onClick={() => setIsPreviewOpen(true)}>
-            Preview artifact in place
+            Open without leaving workflow
           </Button>
           <a
             className="text-sm font-medium text-accent underline-offset-4 hover:underline"

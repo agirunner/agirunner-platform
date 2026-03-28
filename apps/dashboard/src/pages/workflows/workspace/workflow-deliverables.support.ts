@@ -5,7 +5,12 @@ export interface DeliverableTargetAction {
   href: string;
 }
 
-const ARTIFACT_PREVIEW_PATH_PATTERN = /^\/artifacts\/tasks\/[^/]+\/[^/]+$/;
+const IN_PLACE_TARGET_PATH_PATTERNS = [
+  /^\/artifacts\/tasks\/[^/]+\/[^/]+$/,
+  /^\/api\/v1\/tasks\/[^/]+\/artifacts\/[^/]+$/,
+  /^\/api\/v1\/workflows\/[^/]+\/input-packets\/[^/]+\/files\/[^/]+\/content$/,
+  /^\/api\/v1\/workflows\/[^/]+\/interventions\/[^/]+\/files\/[^/]+\/content$/,
+];
 
 export function resolveDeliverableTargetAction(
   target: DashboardWorkflowDeliverableTarget,
@@ -25,7 +30,7 @@ export function resolveDeliverableTargetAction(
 
 export function isInPlaceArtifactPreviewTarget(url: string): boolean {
   const normalizedPath = readNormalizedPath(url);
-  return normalizedPath !== null && ARTIFACT_PREVIEW_PATH_PATTERN.test(normalizedPath);
+  return normalizedPath !== null && IN_PLACE_TARGET_PATH_PATTERNS.some((pattern) => pattern.test(normalizedPath));
 }
 
 function readNormalizedPath(url: string): string | null {

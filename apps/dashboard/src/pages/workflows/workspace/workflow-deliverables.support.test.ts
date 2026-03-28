@@ -39,6 +39,12 @@ describe('workflow deliverables support', () => {
         'http://localhost:3000/artifacts/tasks/task-1/artifact-1?return_to=%2Fworkflows',
       ),
     ).toBe(true);
+    expect(isInPlaceArtifactPreviewTarget('/api/v1/tasks/task-1/artifacts/artifact-1')).toBe(true);
+    expect(
+      isInPlaceArtifactPreviewTarget(
+        '/api/v1/workflows/workflow-1/input-packets/packet-1/files/file-1/content',
+      ),
+    ).toBe(true);
     expect(isInPlaceArtifactPreviewTarget('https://example.invalid/repo/pull/42')).toBe(false);
   });
 });

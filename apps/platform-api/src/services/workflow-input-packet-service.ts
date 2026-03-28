@@ -106,41 +106,68 @@ export class WorkflowInputPacketService {
     identity: ApiKeyIdentity,
     workflowId: string,
     input: CreateWorkflowInputPacketInput,
-    db: DatabaseQueryable = this.pool,
+    db?: DatabaseQueryable,
   ): Promise<WorkflowInputPacketRecord> {
-    this.assertUploadCount(input.files);
-    await this.loadWorkflow(db, identity.tenantId, workflowId);
-    if (input.workItemId) {
-      await this.assertWorkItem(db, identity.tenantId, workflowId, input.workItemId);
-    }
+    const ownsTransaction = !db;
+    const client = ownsTransaction ? await this.pool.connect() : null;
+    const queryable = client ?? db ?? this.pool;
+    const storedKeys: string[] = [];
 
-    const packetId = randomUUID();
-    const packetResult = await db.query<WorkflowPacketRow>(
-      `INSERT INTO workflow_input_packets
-         (id, tenant_id, workflow_id, work_item_id, request_id, source_intervention_id, source_attempt_id, packet_kind, source, summary, structured_inputs, metadata, created_by_kind, created_by_type, created_by_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13,$14,$15)
-       RETURNING *`,
-      [
-        packetId,
-        identity.tenantId,
-        workflowId,
-        input.workItemId ?? null,
-        sanitizeOptionalText(input.requestId),
-        sanitizeOptionalText(input.sourceInterventionId),
-        sanitizeOptionalText(input.sourceAttemptId),
-        input.packetKind.trim(),
-        sanitizeOptionalText(input.source) ?? 'operator',
-        sanitizeOptionalText(input.summary),
-        sanitizeRecord(input.structuredInputs),
-        sanitizeRecord(input.metadata),
-        sanitizeOptionalText(input.createdByKind) ?? 'operator',
-        identity.ownerType,
-        resolveOperatorRecordActorId(identity),
-      ],
-    );
-    const packetRow = packetResult.rows[0];
-    const fileRows = await this.createFiles(identity, workflowId, packetRow.id, input.files, db);
-    return toWorkflowInputPacketRecord(packetRow, fileRows);
+    try {
+      if (client) {
+        await client.query('BEGIN');
+      }
+
+      this.assertUploadCount(input.files);
+      await this.loadWorkflow(queryable, identity.tenantId, workflowId);
+      if (input.workItemId) {
+        await this.assertWorkItem(queryable, identity.tenantId, workflowId, input.workItemId);
+      }
+
+      const packetId = randomUUID();
+      const packetResult = await queryable.query<WorkflowPacketRow>(
+        `INSERT INTO workflow_input_packets
+           (id, tenant_id, workflow_id, work_item_id, request_id, source_intervention_id, source_attempt_id, packet_kind, source, summary, structured_inputs, metadata, created_by_kind, created_by_type, created_by_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13,$14,$15)
+         RETURNING *`,
+        [
+          packetId,
+          identity.tenantId,
+          workflowId,
+          input.workItemId ?? null,
+          sanitizeOptionalText(input.requestId),
+          sanitizeOptionalText(input.sourceInterventionId),
+          sanitizeOptionalText(input.sourceAttemptId),
+          input.packetKind.trim(),
+          sanitizeOptionalText(input.source) ?? 'operator',
+          sanitizeOptionalText(input.summary),
+          sanitizeRecord(input.structuredInputs),
+          sanitizeRecord(input.metadata),
+          sanitizeOptionalText(input.createdByKind) ?? 'operator',
+          identity.ownerType,
+          resolveOperatorRecordActorId(identity),
+        ],
+      );
+      const packetRow = packetResult.rows[0];
+      const fileRows = await this.createFiles(identity, workflowId, packetRow.id, input.files, queryable, storedKeys);
+
+      if (client) {
+        await client.query('COMMIT');
+      }
+
+      return toWorkflowInputPacketRecord(packetRow, fileRows);
+    } catch (error) {
+      const cleanupError = await this.cleanupStoredKeys(storedKeys);
+      if (client) {
+        await client.query('ROLLBACK');
+      }
+      if (cleanupError) {
+        throw new AggregateError([error, cleanupError], 'Workflow input packet creation failed and cleanup was incomplete');
+      }
+      throw error;
+    } finally {
+      client?.release();
+    }
   }
 
   async listWorkflowInputPackets(tenantId: string, workflowId: string): Promise<WorkflowInputPacketRecord[]> {
@@ -207,6 +234,7 @@ export class WorkflowInputPacketService {
     packetId: string,
     files: WorkflowOperatorFileUploadInput[],
     db: DatabaseQueryable,
+    storedKeys: string[],
   ): Promise<WorkflowPacketFileRow[]> {
     const created: WorkflowPacketFileRow[] = [];
     for (const input of files) {
@@ -224,6 +252,7 @@ export class WorkflowInputPacketService {
         fileName,
       });
       const stored = await this.storage.putObject(storageKey, payload, contentType);
+      storedKeys.push(stored.storageKey);
       const result = await db.query<WorkflowPacketFileRow>(
         `INSERT INTO workflow_input_packet_files
            (id, tenant_id, workflow_id, packet_id, file_name, description, storage_backend, storage_key, content_type, size_bytes, checksum_sha256)
@@ -246,6 +275,23 @@ export class WorkflowInputPacketService {
       created.push(result.rows[0]);
     }
     return created;
+  }
+
+  private async cleanupStoredKeys(storedKeys: string[]): Promise<Error | null> {
+    if (storedKeys.length === 0) {
+      return null;
+    }
+
+    const results = await Promise.allSettled(
+      Array.from(new Set(storedKeys)).map(async (storageKey) => this.storage.deleteObject(storageKey)),
+    );
+    const failures = results
+      .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+      .map((result) => result.reason);
+    if (failures.length === 0) {
+      return null;
+    }
+    return new AggregateError(failures, 'Failed to clean up workflow input packet files');
   }
 
   private assertUploadCount(files: WorkflowOperatorFileUploadInput[]) {
