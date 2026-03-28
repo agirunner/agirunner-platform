@@ -35,6 +35,10 @@ describe('WorkflowDeliverables', () => {
     expect(html).not.toContain('Inputs &amp; Provenance');
     expect(html).not.toContain('<summary class="cursor-pointer text-xs');
     expect(html).not.toContain('rounded-xl border border-border/70 bg-muted/10 p-3');
+    expect(html).not.toContain('Launch Packet');
+    expect(html).not.toContain('Intake &amp; Plan Updates');
+    expect(html).not.toContain('Intervention Attachments');
+    expect(html).not.toContain('Redrive Packet');
   });
 
   it('opens briefs by default when there are no materialized deliverables yet', () => {
@@ -66,7 +70,8 @@ describe('WorkflowDeliverables', () => {
     expect(html).toContain('Task Output / Evidence');
     expect(html).toContain('Generate release bundle');
     expect(html).toContain('Parent work item: Prepare release bundle');
-    expect(html).toContain('Deliverables for Prepare release bundle');
+    expect(html).toContain('Parent Work Item Deliverables');
+    expect(html).toContain('Workflow Deliverables');
     expect(html).toContain('artifact-1');
   });
 });

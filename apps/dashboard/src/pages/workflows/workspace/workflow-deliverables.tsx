@@ -33,12 +33,13 @@ export function WorkflowDeliverables(props: {
     && props.packet.working_handoffs.length > 0;
   const taskEvidence = buildTaskEvidence(props.selectedTask);
   const parentDeliverablesLabel = props.selectedTask && props.selectedWorkItemTitle
-    ? `Deliverables for ${props.selectedWorkItemTitle}`
-    : 'Workflow deliverables';
+    ? 'Parent Work Item Deliverables'
+    : 'Workflow Deliverables';
   const inProgressTitle = briefBackedOutputs ? 'Brief-backed outputs' : 'In Progress Deliverables';
   const inProgressCount = briefBackedOutputs
     ? props.packet.working_handoffs.length
     : props.packet.in_progress_deliverables.length;
+  const inputEntries = buildInputEntries(props.packet);
 
   return (
     <div className="grid gap-4">
@@ -74,9 +75,14 @@ export function WorkflowDeliverables(props: {
         </section>
       ) : null}
 
-      {props.selectedTask && props.selectedWorkItemTitle ? (
+      <div className="grid gap-1">
         <p className="text-sm text-muted-foreground">{parentDeliverablesLabel}</p>
-      ) : null}
+        {props.selectedTask ? (
+          <p className="text-xs text-muted-foreground">
+            Workflow Deliverables remain available when you return to workflow scope.
+          </p>
+        ) : null}
+      </div>
 
       <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open>
         <summary className="cursor-pointer text-sm font-semibold text-foreground">
@@ -147,32 +153,15 @@ export function WorkflowDeliverables(props: {
           Inputs
         </summary>
         <div className="mt-4 grid gap-4">
-          <InputPacketSection
-            label="Launch Packet"
-            packets={
-              props.packet.inputs_and_provenance.launch_packet
-                ? [props.packet.inputs_and_provenance.launch_packet]
-                : []
-            }
-            emptyMessage="No launch packet is available for this workflow."
-          />
-          <InputPacketSection
-            label="Intake & Plan Updates"
-            packets={props.packet.inputs_and_provenance.supplemental_packets}
-            emptyMessage="No supplemental intake or plan-update packets are attached."
-          />
-          <InterventionAttachmentSection
-            interventions={props.packet.inputs_and_provenance.intervention_attachments}
-          />
-          <InputPacketSection
-            label="Redrive Packet"
-            packets={
-              props.packet.inputs_and_provenance.redrive_packet
-                ? [props.packet.inputs_and_provenance.redrive_packet]
-                : []
-            }
-            emptyMessage="No redrive packet is attached to this workflow."
-          />
+          {inputEntries.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No workflow inputs or intervention files are attached.
+            </p>
+          ) : (
+            inputEntries.map((entry) => (
+              <InputEntryCard key={entry.id} entry={entry} />
+            ))
+          )}
         </div>
       </details>
 
@@ -232,46 +221,64 @@ function DeliverableCard(props: {
   );
 }
 
-function InputPacketSection(props: {
-  label: string;
-  packets: DashboardWorkflowInputPacketRecord[];
-  emptyMessage: string;
-}): JSX.Element {
-  return (
-    <section className="grid gap-3">
-      <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-        {props.label} ({props.packets.length})
-      </div>
-      <div className="grid gap-3">
-        {props.packets.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{props.emptyMessage}</p>
-        ) : (
-          props.packets.map((packet) => <InputPacketCard key={packet.id} packet={packet} />)
-        )}
-      </div>
-    </section>
-  );
-}
+type DeliverableInputEntry =
+  | {
+    entry_kind: 'packet';
+    id: string;
+    label: string;
+    packet: DashboardWorkflowInputPacketRecord;
+  }
+  | {
+    entry_kind: 'intervention';
+    id: string;
+    label: string;
+    intervention: DashboardWorkflowInterventionRecord;
+  };
 
-function InputPacketCard(props: {
-  packet: DashboardWorkflowInputPacketRecord;
+function InputEntryCard(props: {
+  entry: DeliverableInputEntry;
 }): JSX.Element {
-  const structuredInputs = readStructuredEntries(props.packet.structured_inputs);
+  if (props.entry.entry_kind === 'intervention') {
+    const intervention = props.entry.intervention;
+    return (
+      <article className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <strong className="text-sm text-foreground">{intervention.summary}</strong>
+          <Badge variant="outline">{props.entry.label}</Badge>
+          <Badge variant="secondary">{humanizeToken(intervention.kind)}</Badge>
+        </div>
+        {intervention.note ? (
+          <p className="text-sm text-muted-foreground">{intervention.note}</p>
+        ) : null}
+        {intervention.files.length > 0 ? (
+          <div className="grid gap-2">
+            {intervention.files.map((file) => (
+              <PacketFileLink key={file.id} file={file} />
+            ))}
+          </div>
+        ) : null}
+      </article>
+    );
+  }
+
+  const packet = props.entry.packet;
+  const structuredInputs = readStructuredEntries(packet.structured_inputs);
   const structuredPreview = structuredInputs.length === 0
-    ? readStructuredPreview(props.packet.structured_inputs)
+    ? readStructuredPreview(packet.structured_inputs)
     : null;
 
   return (
     <article className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-3">
       <div className="flex flex-wrap items-center gap-2">
         <strong className="text-sm text-foreground">
-          {props.packet.summary ?? humanizeToken(props.packet.packet_kind)}
+          {packet.summary ?? humanizeToken(packet.packet_kind)}
         </strong>
-        <Badge variant="outline">{humanizeToken(props.packet.packet_kind)}</Badge>
+        <Badge variant="outline">{props.entry.label}</Badge>
+        <Badge variant="secondary">{humanizeToken(packet.packet_kind)}</Badge>
       </div>
       <div className="grid gap-1 text-xs text-muted-foreground">
-        <span>Created {new Date(props.packet.created_at).toLocaleString()}</span>
-        <span>{props.packet.files.length} file(s)</span>
+        <span>Created {new Date(packet.created_at).toLocaleString()}</span>
+        <span>{packet.files.length} file(s)</span>
       </div>
       {structuredInputs.length > 0 ? (
         <dl className="divide-y divide-border/60 rounded-xl border border-border/70 bg-background">
@@ -289,9 +296,9 @@ function InputPacketCard(props: {
           {structuredPreview}
         </pre>
       ) : null}
-      {props.packet.files.length > 0 ? (
+      {packet.files.length > 0 ? (
         <div className="grid gap-2">
-          {props.packet.files.map((file) => (
+          {packet.files.map((file) => (
             <PacketFileLink key={file.id} file={file} />
           ))}
         </div>
@@ -336,45 +343,6 @@ function StructuredValuePreview(props: {
   );
 }
 
-function InterventionAttachmentSection(props: {
-  interventions: DashboardWorkflowInterventionRecord[];
-}): JSX.Element {
-  return (
-    <section className="grid gap-3">
-      <div className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-        Intervention Attachments ({props.interventions.length})
-      </div>
-      <div className="grid gap-3">
-        {props.interventions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No intervention attachments are attached to this workflow.
-          </p>
-        ) : (
-          props.interventions.map((intervention) => (
-            <article
-              key={intervention.id}
-              className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-3"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <strong className="text-sm text-foreground">{intervention.summary}</strong>
-                <Badge variant="secondary">{humanizeToken(intervention.kind)}</Badge>
-              </div>
-              {intervention.note ? (
-                <p className="text-sm text-muted-foreground">{intervention.note}</p>
-              ) : null}
-              <div className="grid gap-2">
-                {intervention.files.map((file) => (
-                  <PacketFileLink key={file.id} file={file} />
-                ))}
-              </div>
-            </article>
-          ))
-        )}
-      </div>
-    </section>
-  );
-}
-
 function PacketFileLink(props: {
   file: DashboardWorkflowInputPacketFileRecord;
 }): JSX.Element {
@@ -406,6 +374,45 @@ function pickOutcomeBrief(
     }
   }
   return handoffs.find((brief) => brief.work_item_id === null) ?? null;
+}
+
+function buildInputEntries(
+  packet: DashboardWorkflowDeliverablesPacket,
+): DeliverableInputEntry[] {
+  const entries: DeliverableInputEntry[] = [];
+  if (packet.inputs_and_provenance.launch_packet) {
+    entries.push({
+      entry_kind: 'packet',
+      id: `launch:${packet.inputs_and_provenance.launch_packet.id}`,
+      label: 'Launch input',
+      packet: packet.inputs_and_provenance.launch_packet,
+    });
+  }
+  for (const supplementalPacket of packet.inputs_and_provenance.supplemental_packets) {
+    entries.push({
+      entry_kind: 'packet',
+      id: `supplemental:${supplementalPacket.id}`,
+      label: 'Additional input',
+      packet: supplementalPacket,
+    });
+  }
+  for (const intervention of packet.inputs_and_provenance.intervention_attachments) {
+    entries.push({
+      entry_kind: 'intervention',
+      id: `intervention:${intervention.id}`,
+      label: 'Intervention attachment',
+      intervention,
+    });
+  }
+  if (packet.inputs_and_provenance.redrive_packet) {
+    entries.push({
+      entry_kind: 'packet',
+      id: `redrive:${packet.inputs_and_provenance.redrive_packet.id}`,
+      label: 'Redrive input',
+      packet: packet.inputs_and_provenance.redrive_packet,
+    });
+  }
+  return entries;
 }
 
 function readPreviewText(deliverable: DashboardWorkflowDeliverableRecord): string | null {
