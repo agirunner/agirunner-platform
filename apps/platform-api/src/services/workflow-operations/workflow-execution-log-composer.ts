@@ -28,6 +28,8 @@ export function buildExecutionTurnItems(rows: LogRow[]): WorkflowLiveConsoleItem
       headline: buildExecutionTurnHeadline(row),
       summary: buildExecutionTurnSummary(row),
       created_at: normalizeTimestamp(row.created_at),
+      work_item_id: row.work_item_id,
+      task_id: row.task_id,
       linked_target_ids: buildLinkedTargetIds(row),
     }));
 }
@@ -43,6 +45,8 @@ export function buildLifecycleHistoryItems(rows: LogRow[]): WorkflowHistoryItem[
       headline: buildLifecycleHeadline(row),
       summary: buildLifecycleSummary(row),
       created_at: normalizeTimestamp(row.created_at),
+      work_item_id: row.work_item_id,
+      task_id: row.task_id,
       linked_target_ids: buildLinkedTargetIds(row),
     }));
 }

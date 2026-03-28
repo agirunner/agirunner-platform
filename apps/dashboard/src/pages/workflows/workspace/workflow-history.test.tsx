@@ -45,6 +45,8 @@ describe('WorkflowHistory', () => {
                 summary: 'Revision 3 is internally consistent and ready for the next workflow action.',
                 created_at: '2026-03-27T04:04:00.000Z',
                 linked_target_ids: ['workflow-1', 'work-item-1'],
+                work_item_id: 'work-item-1',
+                task_id: null,
               },
             ],
           },
@@ -61,6 +63,39 @@ describe('WorkflowHistory', () => {
     expect(html).toContain('Open brief scope');
     expect(html).not.toContain('input lineage');
     expect(html).not.toContain('Lifecycle Event');
+  });
+
+  it('links task-scoped briefs back into the Workflows shell with task selection intact', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        MemoryRouter,
+        undefined,
+        createElement(WorkflowHistory, {
+          workflowId: 'workflow-1',
+          packet: {
+            ...createPacket(),
+            items: [
+              {
+                item_id: 'history-1',
+                item_kind: 'milestone_brief',
+                source_kind: 'specialist',
+                source_label: 'Policy Assessor',
+                headline: 'Revision 3 still needs owner detail',
+                summary: 'Policy review sent task 4 back for another revision.',
+                created_at: '2026-03-27T04:04:00.000Z',
+                linked_target_ids: ['workflow-1', 'work-item-1', 'task-4'],
+                work_item_id: 'work-item-1',
+                task_id: 'task-4',
+              },
+            ],
+          },
+          selectedTaskId: 'task-4',
+          onLoadMore: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('/workflows/workflow-1?work_item_id=work-item-1&amp;task_id=task-4&amp;tab=history');
   });
 });
 
@@ -92,6 +127,8 @@ function createPacket(): DashboardWorkflowHistoryPacket {
         summary: 'Review the publication package.',
         created_at: '2026-03-27T04:04:00.000Z',
         linked_target_ids: ['workflow-1', 'work-item-1'],
+        work_item_id: 'work-item-1',
+        task_id: null,
       },
     ],
   };

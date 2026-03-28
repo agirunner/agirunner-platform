@@ -80,6 +80,8 @@ export interface WorkflowLiveConsoleItem {
   headline: string;
   summary: string;
   created_at: string;
+  work_item_id: string | null;
+  task_id: string | null;
   linked_target_ids: string[];
 }
 
@@ -112,6 +114,8 @@ export interface WorkflowHistoryItem {
   headline: string;
   summary: string;
   created_at: string;
+  work_item_id: string | null;
+  task_id: string | null;
   linked_target_ids: string[];
 }
 

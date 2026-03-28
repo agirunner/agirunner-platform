@@ -99,6 +99,8 @@ function createPacket(
       item_kind: 'operator_update',
       source_kind: 'specialist',
       source_label: 'Verifier',
+      work_item_id: null,
+      task_id: null,
       linked_target_ids: [],
       ...item,
     })),

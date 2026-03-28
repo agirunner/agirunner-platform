@@ -107,6 +107,8 @@ function toBriefItem(brief: WorkflowOperatorBriefRecord): WorkflowLiveConsoleIte
     headline: readHeadline(shortBrief, detailedBrief, 'Workflow brief'),
     summary: readSummary(detailedBrief, shortBrief),
     created_at: brief.created_at,
+    work_item_id: brief.work_item_id,
+    task_id: brief.task_id,
     linked_target_ids: buildLinkedTargetIds(brief),
   };
 }
@@ -121,14 +123,18 @@ function toUpdateItem(update: WorkflowOperatorUpdateRecord): WorkflowLiveConsole
     headline: readRequiredString(update.headline, 'Workflow update'),
     summary: readOptionalString(update.summary) ?? readRequiredString(update.headline, 'Workflow update'),
     created_at: update.created_at,
+    work_item_id: update.work_item_id,
+    task_id: update.task_id,
     linked_target_ids: readStringArray(update.linked_target_ids),
   };
 }
 
 function buildLinkedTargetIds(record: WorkflowOperatorBriefRecord): string[] {
-  return [record.workflow_id, record.work_item_id, record.task_id].filter(
-    (value): value is string => typeof value === 'string' && value.trim().length > 0,
-  );
+  const storedTargets = readStringArray(record.linked_target_ids);
+  if (storedTargets.length > 0) {
+    return storedTargets;
+  }
+  return [record.workflow_id, record.work_item_id, record.task_id].filter(isNonEmptyString);
 }
 
 function readHeadline(
@@ -176,7 +182,11 @@ function readStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
   }
-  return value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0);
+  return value.filter(isNonEmptyString);
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

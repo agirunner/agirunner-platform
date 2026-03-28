@@ -75,7 +75,7 @@ function HistoryItemCard(props: {
   workflowId: string;
   item: DashboardWorkflowHistoryPacket['items'][number];
 }): JSX.Element {
-  const linkedWorkItemId = props.item.linked_target_ids.find((id) => id !== props.workflowId) ?? null;
+  const scopeLink = resolveHistoryScopeLink(props.workflowId, props.item);
   const summary = props.item.summary.trim();
   const headline = props.item.headline.trim();
   const showSummary = summary.length > 0 && summary !== headline;
@@ -96,15 +96,11 @@ function HistoryItemCard(props: {
           <p className="mt-3 text-sm text-muted-foreground">{props.item.summary}</p>
         </details>
       ) : null}
-      {linkedWorkItemId ? (
+      {scopeLink ? (
         <div className="flex flex-wrap gap-2">
           <Link
             className="text-sm font-medium text-accent underline-offset-4 hover:underline"
-            to={buildWorkflowsPageHref({
-              workflowId: props.workflowId,
-              workItemId: linkedWorkItemId,
-              tab: 'history',
-            })}
+            to={scopeLink}
           >
             Open brief scope
           </Link>
@@ -116,4 +112,32 @@ function HistoryItemCard(props: {
 
 function humanizeToken(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function resolveHistoryScopeLink(
+  workflowId: string,
+  item: DashboardWorkflowHistoryPacket['items'][number],
+): string | null {
+  const workItemId = item.work_item_id ?? findLinkedTargetId(item.linked_target_ids, workflowId, item.task_id);
+  if (!workItemId) {
+    return null;
+  }
+
+  return buildWorkflowsPageHref({
+    workflowId,
+    workItemId,
+    taskId: item.task_id ?? null,
+    tab: 'history',
+  });
+}
+
+function findLinkedTargetId(
+  linkedTargetIds: string[],
+  workflowId: string,
+  taskId: string | null,
+): string | null {
+  return (
+    linkedTargetIds.find((id) => id !== workflowId && id !== taskId) ??
+    null
+  );
 }

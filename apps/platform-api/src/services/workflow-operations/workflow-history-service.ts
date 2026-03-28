@@ -77,7 +77,7 @@ export class WorkflowHistoryService {
 
     const items = [
       ...briefs.map(toBriefHistoryItem),
-      ...filterByWorkItem(interventions, input.workItemId).map(toInterventionHistoryItem),
+      ...filterInterventions(interventions, input.workItemId, input.taskId).map(toInterventionHistoryItem),
       ...filterInputPackets(inputPackets, input.workItemId).map(toInputHistoryItem),
     ]
       .sort(sortNewestFirst);
@@ -101,7 +101,14 @@ export class WorkflowHistoryService {
   }
 }
 
-function filterByWorkItem<T extends { work_item_id: string | null }>(records: T[], workItemId?: string): T[] {
+function filterInterventions<T extends { work_item_id: string | null; task_id: string | null }>(
+  records: T[],
+  workItemId?: string,
+  taskId?: string,
+): T[] {
+  if (taskId) {
+    return records.filter((record) => record.task_id === taskId);
+  }
   if (!workItemId) {
     return records;
   }
@@ -112,10 +119,7 @@ function filterInputPackets(records: WorkflowInputPacketRecord[], workItemId?: s
   if (!workItemId) {
     return records;
   }
-  return records.filter((record) => {
-    const recordWorkItemId = record.work_item_id;
-    return recordWorkItemId === null || recordWorkItemId === workItemId;
-  });
+  return records.filter((record) => record.work_item_id === workItemId);
 }
 
 function buildGroups(items: WorkflowHistoryItem[]): WorkflowHistoryGroup[] {
@@ -145,6 +149,8 @@ function toBriefHistoryItem(brief: WorkflowOperatorBriefRecord): WorkflowHistory
     headline: readOptionalString(shortBrief.headline) ?? readOptionalString(detailedBrief.headline) ?? 'Workflow brief',
     summary: readOptionalString(detailedBrief.summary) ?? readOptionalString(shortBrief.headline) ?? 'Workflow brief',
     created_at: brief.created_at,
+    work_item_id: brief.work_item_id,
+    task_id: brief.task_id,
     linked_target_ids: buildLinkedTargetIds(brief),
   };
 }
@@ -158,6 +164,8 @@ function toInterventionHistoryItem(intervention: WorkflowInterventionRecord): Wo
     headline: readRequiredString(intervention.summary, 'Workflow intervention'),
     summary: readOptionalString(intervention.note) ?? readRequiredString(intervention.summary, 'Workflow intervention'),
     created_at: intervention.created_at,
+    work_item_id: intervention.work_item_id,
+    task_id: intervention.task_id,
     linked_target_ids: buildLinkedTargetIds(intervention),
   };
 }
@@ -172,6 +180,8 @@ function toInputHistoryItem(packet: WorkflowInputPacketRecord): WorkflowHistoryI
     headline: readOptionalString(packet.summary) ?? humanizePacketKind(packetKind),
     summary: readOptionalString(packet.summary) ?? humanizePacketKind(packetKind),
     created_at: packet.created_at,
+    work_item_id: packet.work_item_id,
+    task_id: null,
     linked_target_ids: buildLinkedTargetIds(packet),
   };
 }
@@ -183,12 +193,18 @@ function buildLinkedTargetIds(
     | WorkflowInputPacketRecord
     | { workflow_id: string; work_item_id: string | null; task_id?: string | null },
 ): string[] {
+  if ('linked_target_ids' in record) {
+    const storedTargets = readStringArray(record.linked_target_ids);
+    if (storedTargets.length > 0) {
+      return storedTargets;
+    }
+  }
   const targets = [
     record.workflow_id,
     record.work_item_id,
     'task_id' in record ? record.task_id : null,
   ];
-  return targets.filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+  return targets.filter(isNonEmptyString);
 }
 
 function humanizePacketKind(packetKind: string | null): string {
@@ -196,6 +212,13 @@ function humanizePacketKind(packetKind: string | null): string {
     return 'Workflow input';
   }
   return humanizeToken(packetKind);
+}
+
+function readStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter(isNonEmptyString);
 }
 
 function readRequiredString(value: unknown, fallback: string): string {
@@ -208,6 +231,10 @@ function readOptionalString(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function isNonEmptyString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 function readSourceLabel(sourceRoleName: string | null, sourceKind: string): string {

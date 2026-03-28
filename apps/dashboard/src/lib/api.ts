@@ -586,6 +586,8 @@ export interface DashboardWorkflowLiveConsoleItem {
   headline: string;
   summary: string;
   created_at: string;
+  work_item_id: string | null;
+  task_id: string | null;
   linked_target_ids: string[];
 }
 
@@ -617,6 +619,8 @@ export interface DashboardWorkflowHistoryItem {
   headline: string;
   summary: string;
   created_at: string;
+  work_item_id: string | null;
+  task_id: string | null;
   linked_target_ids: string[];
 }
 
