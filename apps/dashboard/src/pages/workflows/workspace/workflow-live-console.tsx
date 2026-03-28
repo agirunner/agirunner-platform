@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
@@ -17,11 +17,6 @@ export function WorkflowLiveConsole(props: {
   const [isPinnedToLiveEdge, setIsPinnedToLiveEdge] = useState(true);
   const [hasQueuedUpdates, setHasQueuedUpdates] = useState(false);
   const previousItemCount = useRef(props.packet.items.length);
-
-  const sortedItems = useMemo(
-    () => [...props.packet.items].sort((left, right) => right.created_at.localeCompare(left.created_at)),
-    [props.packet.items],
-  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -81,7 +76,7 @@ export function WorkflowLiveConsole(props: {
 
       <div
         ref={containerRef}
-        className="max-h-[28rem] overflow-y-auto rounded-2xl border border-slate-800 bg-[#09111f] p-3 font-mono text-sm text-slate-100 shadow-inner"
+        className="max-h-[28rem] overflow-x-auto overflow-y-auto rounded-2xl border border-slate-800 bg-[#09111f] p-3 font-mono text-sm text-slate-100 shadow-inner"
         onScroll={(event) => {
           const element = event.currentTarget;
           const nextPinned = element.scrollTop <= LIVE_EDGE_THRESHOLD_PX;
@@ -92,19 +87,19 @@ export function WorkflowLiveConsole(props: {
         }}
       >
         <div className="grid gap-2">
-          {sortedItems.length === 0 ? (
+          {props.packet.items.length === 0 ? (
             <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-4 text-slate-300">
               No live headlines have been recorded for this workflow yet.
             </div>
           ) : (
-            sortedItems.map((item) => (
+            props.packet.items.map((item) => (
               <LiveConsoleEntry key={item.item_id} item={item} />
             ))
           )}
         </div>
       </div>
 
-      {props.packet.items.length > 0 ? (
+      {props.packet.next_cursor ? (
         <div className="flex justify-end">
           <Button type="button" size="sm" variant="outline" onClick={props.onLoadMore}>
             Load older headlines
@@ -131,7 +126,7 @@ function LiveConsoleEntry(props: {
       : 'text-emerald-200';
   return (
     <article className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 font-mono leading-6 text-sm text-slate-100">
-      <p className="min-w-0 break-words">
+      <p className="min-w-0 whitespace-nowrap">
         <span className={accentClass}>&gt; </span>
         <span className={`font-semibold ${sourceClass}`}>{item.source_label}: </span>
         <span className="text-slate-100">{normalizeConsoleText(item.headline)}</span>

@@ -6,21 +6,21 @@ import type { DashboardWorkflowLiveConsolePacket } from '../../../lib/api.js';
 import { WorkflowLiveConsole } from './workflow-live-console.js';
 
 describe('WorkflowLiveConsole', () => {
-  it('renders newest headlines first so the live edge stays at the top', () => {
+  it('preserves the server-provided newest-first order so the live edge stays at the top', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowLiveConsole, {
         packet: createPacket([
-          {
-            item_id: 'older',
-            headline: 'Older headline',
-            summary: 'Older summary',
-            created_at: '2026-03-27T04:00:00.000Z',
-          },
           {
             item_id: 'newer',
             headline: 'Newest headline',
             summary: 'Newest summary',
             created_at: '2026-03-27T04:05:00.000Z',
+          },
+          {
+            item_id: 'older',
+            headline: 'Older headline',
+            summary: 'Older summary',
+            created_at: '2026-03-27T04:00:00.000Z',
           },
         ]),
         selectedWorkItemId: null,
@@ -70,6 +70,7 @@ describe('WorkflowLiveConsole', () => {
     expect(html).not.toContain('[brief]');
     expect(html).not.toContain('border-sky-500/20');
     expect(html).toContain('grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3');
+    expect(html).toContain('whitespace-nowrap');
   });
 
   it('shows task scope explicitly when a task is selected', () => {
@@ -84,6 +85,22 @@ describe('WorkflowLiveConsole', () => {
 
     expect(html).toContain('Scoped to selected task');
     expect(html).not.toContain('Scoped to selected work item');
+  });
+
+  it('hides the older-headlines control when no more backfill cursor is available', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowLiveConsole, {
+        packet: {
+          ...createPacket([]),
+          next_cursor: null,
+        },
+        selectedWorkItemId: null,
+        selectedTaskId: null,
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).not.toContain('Load older headlines');
   });
 });
 

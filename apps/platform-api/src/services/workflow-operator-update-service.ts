@@ -117,11 +117,34 @@ export class WorkflowOperatorUpdateService {
          FROM workflow_operator_updates
         WHERE tenant_id = $1
           AND workflow_id = $2
-          AND ($3::uuid IS NULL OR work_item_id = $3)
-          AND ($4::uuid IS NULL OR task_id = $4)
+          AND (
+            ($3::uuid IS NULL AND $5::uuid IS NULL)
+            OR (
+              $3::uuid IS NOT NULL
+              AND (
+                work_item_id = $3
+                OR linked_target_ids @> jsonb_build_array($4::text)
+              )
+            )
+            OR (
+              $5::uuid IS NOT NULL
+              AND (
+                task_id = $5
+                OR linked_target_ids @> jsonb_build_array($6::text)
+              )
+            )
+          )
         ORDER BY sequence_number DESC
-        LIMIT $5`,
-      [tenantId, workflowId, input.workItemId ?? null, input.taskId ?? null, input.limit ?? 50],
+        LIMIT $7`,
+      [
+        tenantId,
+        workflowId,
+        input.workItemId ?? null,
+        input.workItemId ?? null,
+        input.taskId ?? null,
+        input.taskId ?? null,
+        input.limit ?? 50,
+      ],
     );
     return result.rows.map(toWorkflowOperatorUpdateRecord);
   }

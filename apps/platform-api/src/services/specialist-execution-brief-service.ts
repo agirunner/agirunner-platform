@@ -23,6 +23,9 @@ interface ArtifactRef extends ExecutionBriefRef {
 
 interface OperatorVisibilityContract {
   mode: string | null;
+  workflow_id: string | null;
+  work_item_id: string | null;
+  task_id: string | null;
   execution_context_id: string | null;
   source_kind: string | null;
   record_operator_brief_tool: string | null;
@@ -266,9 +269,21 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
     if (brief.operator_visibility.mode) {
       lines.push(`Live visibility mode: ${brief.operator_visibility.mode}`);
     }
+    if (brief.operator_visibility.workflow_id) {
+      lines.push(`Workflow id: ${brief.operator_visibility.workflow_id}`);
+    }
+    if (brief.operator_visibility.work_item_id) {
+      lines.push(`Work item id: ${brief.operator_visibility.work_item_id}`);
+    }
+    if (brief.operator_visibility.task_id) {
+      lines.push(`Task id: ${brief.operator_visibility.task_id}`);
+    }
     if (brief.operator_visibility.execution_context_id) {
       lines.push(`Execution context id: ${brief.operator_visibility.execution_context_id}`);
     }
+    lines.push(
+      'Every operator record write must include a unique request_id. Reuse a request_id only for an intentional retry of the same write.',
+    );
     if (brief.operator_visibility.turn_updates_required && brief.operator_visibility.record_operator_update_tool) {
       lines.push(
         `Use ${brief.operator_visibility.record_operator_update_tool} for one tiny operator-readable headline after each eligible execution step.`,
@@ -402,6 +417,9 @@ function operatorVisibilityFrom(workflow: Record<string, unknown>): OperatorVisi
   }
   return {
     mode: readString(liveVisibility.mode),
+    workflow_id: readString(liveVisibility.workflow_id),
+    work_item_id: readString(liveVisibility.work_item_id),
+    task_id: readString(liveVisibility.task_id),
     execution_context_id: readString(liveVisibility.execution_context_id),
     source_kind: readString(liveVisibility.source_kind),
     record_operator_brief_tool: readString(liveVisibility.record_operator_brief_tool),

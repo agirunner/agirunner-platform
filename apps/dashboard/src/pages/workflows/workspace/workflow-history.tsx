@@ -60,7 +60,7 @@ export function WorkflowHistory(props: {
         </div>
       )}
 
-      {props.packet.items.length > 0 ? (
+      {props.packet.next_cursor ? (
         <div className="flex justify-end">
           <Button type="button" size="sm" variant="outline" onClick={props.onLoadMore}>
             Load older briefs

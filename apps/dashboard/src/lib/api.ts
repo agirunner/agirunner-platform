@@ -2593,6 +2593,7 @@ export interface DashboardApi {
       workItemId?: string;
       taskId?: string;
       tabScope?: 'workflow' | 'selected_work_item' | 'selected_task';
+      liveConsoleLimit?: number;
       historyLimit?: number;
       deliverablesLimit?: number;
       boardMode?: string;
@@ -3608,6 +3609,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
             work_item_id: input?.workItemId,
             task_id: input?.taskId,
             tab_scope: input?.tabScope,
+            live_console_limit: input?.liveConsoleLimit,
             history_limit: input?.historyLimit,
             deliverables_limit: input?.deliverablesLimit,
             board_mode: input?.boardMode,

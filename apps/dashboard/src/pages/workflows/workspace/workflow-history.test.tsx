@@ -97,6 +97,25 @@ describe('WorkflowHistory', () => {
 
     expect(html).toContain('/workflows/workflow-1?work_item_id=work-item-1&amp;task_id=task-4&amp;tab=details');
   });
+
+  it('hides the older-briefs control when no backfill cursor is available', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        MemoryRouter,
+        undefined,
+        createElement(WorkflowHistory, {
+          workflowId: 'workflow-1',
+          packet: {
+            ...createPacket(),
+            next_cursor: null,
+          },
+          onLoadMore: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).not.toContain('Load older briefs');
+  });
 });
 
 function createPacket(): DashboardWorkflowHistoryPacket {

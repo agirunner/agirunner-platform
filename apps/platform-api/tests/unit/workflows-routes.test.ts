@@ -763,6 +763,50 @@ describe('workflow routes', () => {
     );
   });
 
+  it('falls back to task_id as the execution context when operator record routes omit execution_context_id', async () => {
+    const recordUpdateWrite = vi.fn().mockResolvedValue({
+      record_id: 'update-4',
+      sequence_number: 12,
+      deduped: false,
+      record: {
+        id: 'update-4',
+        workflow_id: 'workflow-1',
+        headline: 'Verification is reviewing rollback handling.',
+      },
+    });
+
+    app = createWorkflowRoutesApp({
+      workflowOperatorUpdateService: {
+        listUpdates: vi.fn().mockResolvedValue([]),
+        recordUpdateWrite,
+      },
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/operator-updates',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        workflow_id: 'workflow-1',
+        task_id: '00000000-0000-0000-0000-000000000301',
+        payload: {
+          headline: 'Verification is reviewing rollback handling.',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(recordUpdateWrite).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({
+        executionContextId: '00000000-0000-0000-0000-000000000301',
+        taskId: '00000000-0000-0000-0000-000000000301',
+      }),
+    );
+  });
+
   it('records steering requests through the canonical workflow-owned route and preserves session history reads', async () => {
     const listSessions = vi.fn().mockResolvedValue([
       {

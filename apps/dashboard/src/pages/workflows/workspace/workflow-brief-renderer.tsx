@@ -80,9 +80,29 @@ function BriefSectionItem(props: { item: unknown }): JSX.Element {
   }
 
   const record = asRecord(props.item);
-  const label = readText(record.label) ?? readText(record.title);
-  const value = readText(record.value) ?? readText(record.summary) ?? readText(record.text);
-  const href = readText(record.url);
+  const nestedItems = asArray(record.items);
+  if (nestedItems.length > 0) {
+    return (
+      <div className="grid gap-1">
+        {nestedItems.map((entry, index) => (
+          <BriefSectionItem key={`nested:${index}`} item={entry} />
+        ))}
+      </div>
+    );
+  }
+
+  const label =
+    readText(record.label) ??
+    readText(record.title) ??
+    readText(record.name) ??
+    readText(record.headline);
+  const value =
+    readText(record.value) ??
+    readText(record.summary) ??
+    readText(record.text) ??
+    readText(record.description) ??
+    readText(record.detail);
+  const href = readText(record.url) ?? readText(record.href);
 
   if (href) {
     return (
@@ -106,7 +126,7 @@ function BriefSectionItem(props: { item: unknown }): JSX.Element {
     );
   }
 
-  return <p className="text-sm text-muted-foreground">{JSON.stringify(record)}</p>;
+  return <></>;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

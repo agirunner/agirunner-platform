@@ -124,11 +124,34 @@ export class WorkflowOperatorBriefService {
          FROM workflow_operator_briefs
         WHERE tenant_id = $1
           AND workflow_id = $2
-          AND ($3::uuid IS NULL OR work_item_id = $3)
-          AND ($4::uuid IS NULL OR task_id = $4)
+          AND (
+            ($3::uuid IS NULL AND $5::uuid IS NULL)
+            OR (
+              $3::uuid IS NOT NULL
+              AND (
+                work_item_id = $3
+                OR linked_target_ids @> jsonb_build_array($4::text)
+              )
+            )
+            OR (
+              $5::uuid IS NOT NULL
+              AND (
+                task_id = $5
+                OR linked_target_ids @> jsonb_build_array($6::text)
+              )
+            )
+          )
         ORDER BY sequence_number DESC
-        LIMIT $5`,
-      [tenantId, workflowId, input.workItemId ?? null, input.taskId ?? null, input.limit ?? 50],
+        LIMIT $7`,
+      [
+        tenantId,
+        workflowId,
+        input.workItemId ?? null,
+        input.workItemId ?? null,
+        input.taskId ?? null,
+        input.taskId ?? null,
+        input.limit ?? 50,
+      ],
     );
     return result.rows.map(toWorkflowOperatorBriefRecord);
   }
@@ -166,16 +189,18 @@ export class WorkflowOperatorBriefService {
 
     const sequenceNumber = await this.nextSequenceNumber(identity.tenantId, workflowId);
     const shortBrief = sanitizeOperatorShortBrief(input.payload.shortBrief);
-    const detailedBriefJson = sanitizeOperatorDetailedBrief(input.payload.detailedBriefJson);
+    const effectiveStatusKind = resolveEffectiveStatusKind(
+      input.statusKind,
+      input.payload.detailedBriefJson,
+      sanitizeOptionalText(input.briefScope) ?? deriveDefaultBriefScope(executionContext, input.payload, null),
+    );
     const effectiveBriefKind = sanitizeOptionalText(input.briefKind) ?? 'milestone';
     const effectiveBriefScope =
-      sanitizeOptionalText(input.briefScope) ?? deriveDefaultBriefScope(executionContext, input.payload);
-    const effectiveStatusKind =
-      sanitizeOptionalText(input.statusKind) ??
-      sanitizeRequiredText(
-        detailedBriefJson.status_kind,
-        'Workflow operator brief status kind is required',
-      );
+      sanitizeOptionalText(input.briefScope)
+      ?? deriveDefaultBriefScope(executionContext, input.payload, effectiveStatusKind);
+    const detailedBriefJson = sanitizeOperatorDetailedBrief(
+      withDefaultStatusKind(input.payload.detailedBriefJson, effectiveStatusKind),
+    );
     const linkedTargetIds = sanitizeLinkedIdList(input.payload.linkedTargetIds);
     const inserted = await this.pool.query<WorkflowOperatorBriefRow>(
       `INSERT INTO workflow_operator_briefs
@@ -338,14 +363,62 @@ export class WorkflowOperatorBriefService {
 function deriveDefaultBriefScope(
   executionContext: ResolvedWorkflowOperatorExecutionContext,
   payload: WorkflowOperatorBriefPayloadInput,
+  statusKind: string | null,
 ): string {
   if (Array.isArray(payload.linkedDeliverables) && payload.linkedDeliverables.length > 0) {
+    return 'deliverable_context';
+  }
+  if (
+    (executionContext.workItemId || executionContext.taskId)
+    && isDeliverableOutcomeStatus(statusKind)
+  ) {
     return 'deliverable_context';
   }
   if (executionContext.workItemId || executionContext.taskId) {
     return 'work_item_handoff';
   }
   return 'workflow_timeline';
+}
+
+function isDeliverableOutcomeStatus(statusKind: string | null): boolean {
+  return statusKind === 'completed' || statusKind === 'final' || statusKind === 'approved';
+}
+
+function resolveEffectiveStatusKind(
+  inputStatusKind: string | undefined,
+  detailedBriefJson: Record<string, unknown>,
+  briefScope: string,
+): string {
+  return (
+    sanitizeOptionalText(inputStatusKind) ??
+    sanitizeOptionalText(asRecord(detailedBriefJson).status_kind) ??
+    deriveDefaultStatusKind(briefScope)
+  );
+}
+
+function deriveDefaultStatusKind(briefScope: string): string {
+  return briefScope === 'work_item_handoff' ? 'handoff' : 'in_progress';
+}
+
+function withDefaultStatusKind(
+  detailedBriefJson: Record<string, unknown>,
+  statusKind: string,
+): Record<string, unknown> {
+  const record = asRecord(detailedBriefJson);
+  if (sanitizeOptionalText(record.status_kind)) {
+    return record;
+  }
+  return {
+    ...record,
+    status_kind: statusKind,
+  };
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
 }
 
 function toWorkflowOperatorBriefRecord(row: WorkflowOperatorBriefRow): WorkflowOperatorBriefRecord {

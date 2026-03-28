@@ -10,6 +10,9 @@ describe('buildSpecialistExecutionBrief', () => {
         lifecycle: 'planned',
         live_visibility: {
           mode: 'enhanced',
+          workflow_id: 'workflow-1',
+          work_item_id: 'wi-1',
+          task_id: 'task-review-1',
           execution_context_id: 'task-review-1',
           source_kind: 'specialist',
           record_operator_brief_tool: 'record_operator_brief',
@@ -201,7 +204,13 @@ describe('buildSpecialistExecutionBrief', () => {
     expect(brief?.rendered_markdown).toContain('## Completion Expectations');
     expect(brief?.rendered_markdown).toContain('## Operator Visibility');
     expect(brief?.rendered_markdown).toContain('Live visibility mode: enhanced');
+    expect(brief?.rendered_markdown).toContain('Workflow id: workflow-1');
+    expect(brief?.rendered_markdown).toContain('Work item id: wi-1');
+    expect(brief?.rendered_markdown).toContain('Task id: task-review-1');
     expect(brief?.rendered_markdown).toContain('Execution context id: task-review-1');
+    expect(brief?.rendered_markdown).toContain(
+      'Every operator record write must include a unique request_id.',
+    );
     expect(brief?.rendered_markdown).toContain('record_operator_update');
     expect(brief?.rendered_markdown).toContain('record_operator_brief');
     expect(brief?.rendered_markdown).toContain(

@@ -141,7 +141,7 @@ export async function buildTaskContext(
     ? await loadWorkflowInputPackets(db, tenantId, String(workflowRow.id))
     : [];
   const workflowLiveVisibility = workflowRow
-    ? await loadWorkflowLiveVisibilityContext(db, tenantId, task, workflowRow)
+    ? await loadWorkflowLiveVisibilityContext(db, tenantId, contextTask, workflowRow)
     : null;
   const workflowContext = workflowRow
     ? continuousWorkflowRow
@@ -389,6 +389,9 @@ async function loadWorkflowLiveVisibilityContext(
     mode,
     source: override ? 'workflow_override' : 'agentic_settings',
     revision: asOptionalNumber(workflowRow.live_visibility_revision) ?? 0,
+    workflow_id: asOptionalString(workflowRow.id),
+    work_item_id: asOptionalString(task.work_item_id),
+    task_id: task.is_orchestrator_task === true ? null : asOptionalString(task.id),
     execution_context_id: executionContextId,
     source_kind: task.is_orchestrator_task === true ? 'orchestrator' : 'specialist',
     record_operator_brief_tool: 'record_operator_brief',

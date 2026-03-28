@@ -36,7 +36,15 @@ describe('WorkflowOperatorBriefService', () => {
         return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
       }
       if (sql.includes('FROM workflow_operator_briefs')) {
-        expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1', null, 2]);
+        expect(params).toEqual([
+          'tenant-1',
+          'workflow-1',
+          'work-item-1',
+          'work-item-1',
+          null,
+          null,
+          2,
+        ]);
         return {
           rowCount: 2,
           rows: [
@@ -104,6 +112,66 @@ describe('WorkflowOperatorBriefService', () => {
     });
 
     expect(result.map((entry) => entry.id)).toEqual(['brief-2', 'brief-1']);
+  });
+
+  it('includes linked-target workflow briefs when a scoped task or work item is selected', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows')) {
+        return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+      }
+      if (sql.includes('FROM workflow_operator_briefs')) {
+        expect(sql).toContain('linked_target_ids @>');
+        expect(params).toEqual([
+          'tenant-1',
+          'workflow-1',
+          'work-item-7',
+          'work-item-7',
+          'task-4',
+          'task-4',
+          5,
+        ]);
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 'brief-linked',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: null,
+              task_id: null,
+              request_id: 'request-linked',
+              execution_context_id: 'activation-1',
+              brief_kind: 'milestone',
+              brief_scope: 'workflow_timeline',
+              source_kind: 'orchestrator',
+              source_role_name: 'Orchestrator',
+              status_kind: 'handoff',
+              short_brief: { headline: 'Linked brief' },
+              detailed_brief_json: { headline: 'Linked brief', status_kind: 'handoff' },
+              linked_target_ids: ['workflow-1', 'work-item-7', 'task-4'],
+              sequence_number: 6,
+              related_artifact_ids: [],
+              related_output_descriptor_ids: [],
+              related_intervention_ids: [],
+              canonical_workflow_brief_id: null,
+              created_by_type: 'user',
+              created_by_id: 'user-1',
+              created_at: new Date('2026-03-27T19:00:00.000Z'),
+              updated_at: new Date('2026-03-27T19:00:00.000Z'),
+            },
+          ],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const result = await service.listBriefs('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-7',
+      taskId: 'task-4',
+      limit: 5,
+    });
+
+    expect(result.map((entry) => entry.id)).toEqual(['brief-linked']);
   });
 
   it('records nested brief payloads, validates execution identity, and materializes linked deliverables', async () => {
@@ -612,5 +680,88 @@ describe('WorkflowOperatorBriefService', () => {
     expect(result.record.brief_scope).toBe('work_item_handoff');
     expect(result.record.source_kind).toBe('specialist');
     expect(result.record.status_kind).toBe('handoff');
+  });
+
+  it('defaults completed task outputs into deliverable_context even without linked descriptors', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows')) {
+        return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+      }
+      if (sql.includes('FROM tasks')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'task-3',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-3',
+            is_orchestrator_task: false,
+            role: 'Writer',
+            state: 'completed',
+          }],
+        };
+      }
+      if (sql.includes('FROM workflow_operator_briefs') && sql.includes('request_id = $3')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM workflow_work_items')) {
+        return { rowCount: 1, rows: [{ id: 'work-item-3' }] };
+      }
+      if (sql.includes('COALESCE(MAX(sequence_number), 0) + 1')) {
+        return { rowCount: 1, rows: [{ next_sequence: 8 }] };
+      }
+      if (sql.includes('INSERT INTO workflow_operator_briefs')) {
+        expect(params?.[8]).toBe('deliverable_context');
+        expect(params?.[12]).toBe('completed');
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'brief-8',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-3',
+            task_id: 'task-3',
+            request_id: params?.[5],
+            execution_context_id: 'task-3',
+            brief_kind: 'milestone',
+            brief_scope: 'deliverable_context',
+            source_kind: 'specialist',
+            source_role_name: 'Writer',
+            status_kind: 'completed',
+            short_brief: JSON.parse(String(params?.[10])),
+            detailed_brief_json: JSON.parse(String(params?.[11])),
+            linked_target_ids: [],
+            sequence_number: 8,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: new Date('2026-03-28T03:00:00.000Z'),
+            updated_at: new Date('2026-03-28T03:00:00.000Z'),
+          }],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const result = await service.recordBriefWrite(IDENTITY as never, 'workflow-1', {
+      executionContextId: 'task-3',
+      workItemId: 'work-item-3',
+      taskId: 'task-3',
+      payload: {
+        shortBrief: {
+          headline: 'Final packet is complete.',
+        },
+        detailedBriefJson: {
+          headline: 'Final packet is complete.',
+          status_kind: 'completed',
+          summary: 'The only deliverable published for this task is the brief itself.',
+        },
+      },
+    } as never);
+
+    expect(result.record.brief_scope).toBe('deliverable_context');
+    expect(result.record.status_kind).toBe('completed');
   });
 });

@@ -37,7 +37,7 @@ const workflowInterventionCreateSchema = z.object({
 
 const workflowOperatorBriefCreateSchema = z.object({
   request_id: z.string().min(1).max(255).optional(),
-  execution_context_id: z.string().min(1).max(255),
+  execution_context_id: z.string().min(1).max(255).optional(),
   workflow_id: z.string().min(1).max(255).optional(),
   work_item_id: z.string().uuid().optional(),
   task_id: z.string().uuid().optional(),
@@ -70,7 +70,7 @@ const workflowOperatorBriefCreateSchema = z.object({
 
 const workflowOperatorUpdateCreateSchema = z.object({
   request_id: z.string().min(1).max(255).optional(),
-  execution_context_id: z.string().min(1).max(255),
+  execution_context_id: z.string().min(1).max(255).optional(),
   workflow_id: z.string().min(1).max(255).optional(),
   work_item_id: z.string().uuid().optional(),
   task_id: z.string().uuid().optional(),
@@ -108,10 +108,11 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { id: string };
-      const query = request.query as { work_item_id?: string; limit?: string };
+      const query = request.query as { work_item_id?: string; task_id?: string; limit?: string };
       return {
         data: await app.workflowOperatorBriefService.listBriefs(request.auth!.tenantId, params.id, {
           workItemId: query.work_item_id,
+          taskId: query.task_id,
           limit: query.limit ? Number(query.limit) : undefined,
         }),
       };
@@ -127,7 +128,7 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
       assertBodyWorkflowId(params.id, body.workflow_id);
       const brief = await app.workflowOperatorBriefService.recordBriefWrite(request.auth!, params.id, {
         requestId: body.request_id,
-        executionContextId: body.execution_context_id,
+        executionContextId: resolveExecutionContextId(body.execution_context_id, body.task_id),
         workItemId: body.work_item_id,
         taskId: body.task_id,
         briefKind: body.brief_kind,
@@ -165,10 +166,11 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { id: string };
-      const query = request.query as { work_item_id?: string; limit?: string };
+      const query = request.query as { work_item_id?: string; task_id?: string; limit?: string };
       return {
         data: await app.workflowOperatorUpdateService.listUpdates(request.auth!.tenantId, params.id, {
           workItemId: query.work_item_id,
+          taskId: query.task_id,
           limit: query.limit ? Number(query.limit) : undefined,
         }),
       };
@@ -184,7 +186,7 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
       assertBodyWorkflowId(params.id, body.workflow_id);
       const update = await app.workflowOperatorUpdateService.recordUpdateWrite(request.auth!, params.id, {
         requestId: body.request_id,
-        executionContextId: body.execution_context_id,
+        executionContextId: resolveExecutionContextId(body.execution_context_id, body.task_id),
         workItemId: body.work_item_id,
         taskId: body.task_id,
         sourceKind: body.source_kind,
@@ -356,4 +358,21 @@ function assertBodyWorkflowId(pathWorkflowId: string, bodyWorkflowId?: string): 
   if (bodyWorkflowId && bodyWorkflowId !== pathWorkflowId) {
     throw new SchemaValidationFailedError('Workflow id in body must match the route workflow id');
   }
+}
+
+function resolveExecutionContextId(
+  executionContextId: string | undefined,
+  taskId: string | undefined,
+): string {
+  const resolved = executionContextId?.trim() || taskId?.trim();
+  if (resolved) {
+    return resolved;
+  }
+  throw new SchemaValidationFailedError('Invalid request body', {
+    issues: {
+      fieldErrors: {
+        execution_context_id: ['execution_context_id is required unless task_id is supplied'],
+      },
+    },
+  });
 }
