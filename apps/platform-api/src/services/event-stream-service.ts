@@ -27,6 +27,7 @@ export interface StreamEvent {
 
 export class EventStreamService {
   private listenerClient: DatabaseClient | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private nextSubscriberId = 1;
   private readonly subscribers = new Map<
     number,
@@ -39,19 +40,18 @@ export class EventStreamService {
     if (this.listenerClient) {
       return;
     }
-
-    const client = await this.pool.connect();
-    await client.query('LISTEN agirunner_events');
-    client.on('notification', (msg) => {
-      if (!msg.payload) {
-        return;
-      }
-      void this.handleNotification(msg.payload);
-    });
-    this.listenerClient = client;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    await this.connectListener();
   }
 
   async stop(): Promise<void> {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     if (!this.listenerClient) {
       return;
     }
@@ -76,6 +76,56 @@ export class EventStreamService {
     return () => {
       this.subscribers.delete(id);
     };
+  }
+
+  private async connectListener(): Promise<void> {
+    const client = await this.pool.connect();
+    let released = false;
+    const releaseClient = () => {
+      if (released) {
+        return;
+      }
+      released = true;
+      client.release();
+    };
+    const scheduleReconnect = () => {
+      if (this.listenerClient !== client) {
+        releaseClient();
+        return;
+      }
+      this.listenerClient = null;
+      releaseClient();
+      if (this.reconnectTimer) {
+        return;
+      }
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectTimer = null;
+        void this.start().catch(() => {
+          scheduleReconnect();
+        });
+      }, 1_000);
+    };
+
+    try {
+      await client.query('LISTEN agirunner_events');
+    } catch (error) {
+      releaseClient();
+      throw error;
+    }
+
+    client.on('notification', (msg) => {
+      if (!msg.payload) {
+        return;
+      }
+      void this.handleNotification(msg.payload);
+    });
+    client.on('error', () => {
+      scheduleReconnect();
+    });
+    client.on('end', () => {
+      scheduleReconnect();
+    });
+    this.listenerClient = client;
   }
 
   private async handleNotification(payload: string): Promise<void> {

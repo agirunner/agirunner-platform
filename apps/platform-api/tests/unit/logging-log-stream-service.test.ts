@@ -84,6 +84,41 @@ describe('LogStreamService', () => {
       expect(mockPool.client.query).toHaveBeenCalledWith('UNLISTEN agirunner_execution_logs');
       expect(mockPool.client.release).toHaveBeenCalled();
     });
+
+    it('reconnects after the listener client errors', async () => {
+      vi.useFakeTimers();
+      const firstClient = {
+        query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+        on: vi.fn(),
+        release: vi.fn(),
+      };
+      const secondClient = {
+        query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+        on: vi.fn(),
+        release: vi.fn(),
+      };
+      const pool = {
+        query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+        connect: vi
+          .fn()
+          .mockResolvedValueOnce(firstClient)
+          .mockResolvedValueOnce(secondClient),
+      };
+      const reconnectingService = new LogStreamService(pool as never);
+
+      await reconnectingService.start();
+      const errorHandler = firstClient.on.mock.calls.find((call: unknown[]) => call[0] === 'error')?.[1] as
+        | ((error: Error) => void)
+        | undefined;
+
+      errorHandler?.(new Error('connection lost'));
+      await vi.runAllTimersAsync();
+
+      expect(pool.connect).toHaveBeenCalledTimes(2);
+      expect(firstClient.release).toHaveBeenCalledTimes(1);
+      expect(secondClient.query).toHaveBeenCalledWith('LISTEN agirunner_execution_logs');
+      vi.useRealTimers();
+    });
   });
 
   describe('subscribe', () => {

@@ -6,6 +6,10 @@ import { loadEnv } from '../config/env.js';
 import { resolveSecretEnv } from '../config/secret-env.js';
 import { createPool } from '../db/client.js';
 import { runMigrations } from '../db/migrations/run-migrations.js';
+import {
+  registerPoolErrorLogging,
+  runDatabaseStartupWithRetry,
+} from '../db/startup-resilience.js';
 import { seedDefaultTenant } from '../db/seed.js';
 import { registerErrorHandler } from '../errors/error-handler.js';
 import { startLifecycleMonitor } from '../jobs/lifecycle-monitor.js';
@@ -127,12 +131,24 @@ export async function buildApp() {
   configureProviderSecretEncryptionKey(config.WEBHOOK_ENCRYPTION_KEY);
 
   const pool = createPool(config.DATABASE_URL);
+  registerPoolErrorLogging(pool, console, 'platform database pool');
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
   const migrationsDir = path.join(currentDir, '..', 'db', 'migrations');
-  await runMigrations(pool, migrationsDir);
-  await seedDefaultTenant(pool, process.env);
-  await seedConfigTables(pool, config);
-  const platformTransportTimingDefaults = await readPlatformTransportTimingDefaults(pool);
+  await runDatabaseStartupWithRetry(async () => {
+    await runMigrations(pool, migrationsDir);
+    await seedDefaultTenant(pool, process.env);
+    await seedConfigTables(pool, config);
+  }, {
+    logger: console,
+    label: 'platform database bootstrap',
+  });
+  const platformTransportTimingDefaults = await runDatabaseStartupWithRetry(
+    () => readPlatformTransportTimingDefaults(pool),
+    {
+      logger: console,
+      label: 'platform transport timing defaults',
+    },
+  );
   const appConfig = {
     ...config,
     ...platformTransportTimingDefaults,
