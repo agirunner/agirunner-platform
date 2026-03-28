@@ -7,11 +7,17 @@ function readSource() {
 }
 
 describe('runtimes page source', () => {
-  it('reuses the structured runtime defaults surface instead of maintaining a second editor', () => {
+  it('exports the runtimes page component', async () => {
+    const module = await import('./runtimes-page.js');
+    expect(module.RuntimesPage).toBeTypeOf('function');
+  });
+
+  it('composes the runtime defaults editor with the tenant live visibility settings panel', () => {
     const source = readSource();
     expect(source).toContain("import { RuntimeDefaultsPage }");
+    expect(source).toContain("import { AgenticLiveVisibilitySettingsCard }");
     expect(source).toContain('<RuntimeDefaultsPage />');
-    expect(source).not.toContain('/api/v1/config/runtime-defaults');
-    expect(source).not.toContain("method: 'PATCH'");
+    expect(source).toContain('<AgenticLiveVisibilitySettingsCard />');
+    expect(source).not.toContain('/api/v1/agentic-settings');
   });
 });

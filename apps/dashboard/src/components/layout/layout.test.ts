@@ -2,7 +2,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { buildBreadcrumbs } from './layout.js';
+import {
+  buildBreadcrumbs,
+  buildDesktopSidebarStorageKey,
+  readDesktopSidebarCollapsedState,
+} from './layout.js';
 
 function readLayoutSource() {
   return readFileSync(resolve(import.meta.dirname, './layout.tsx'), 'utf8');
@@ -17,6 +21,41 @@ afterEach(() => {
 });
 
 describe('layout breadcrumbs', () => {
+  it('scopes desktop sidebar collapse state per tenant in localStorage', () => {
+    expect(buildDesktopSidebarStorageKey('tenant-42')).toBe(
+      'agirunner.desktop-sidebar-collapsed.tenant-42',
+    );
+    expect(buildDesktopSidebarStorageKey(null)).toBe('agirunner.desktop-sidebar-collapsed');
+  });
+
+  it('reads the persisted desktop sidebar collapse state defensively', () => {
+    expect(
+      readDesktopSidebarCollapsedState(
+        createStorage({ 'agirunner.desktop-sidebar-collapsed.tenant-42': 'true' }),
+        'tenant-42',
+      ),
+    ).toBe(true);
+    expect(
+      readDesktopSidebarCollapsedState(
+        createStorage({ 'agirunner.desktop-sidebar-collapsed.tenant-42': 'false' }),
+        'tenant-42',
+      ),
+    ).toBe(false);
+    expect(readDesktopSidebarCollapsedState(undefined, 'tenant-42')).toBe(false);
+    expect(
+      readDesktopSidebarCollapsedState(
+        createStorage({ 'agirunner.desktop-sidebar-collapsed': 'true' }),
+        null,
+      ),
+    ).toBe(true);
+    expect(
+      readDesktopSidebarCollapsedState(
+        createStorage({ 'agirunner.desktop-sidebar-collapsed.tenant-7': 'maybe' }),
+        'tenant-7',
+      ),
+    ).toBe(false);
+  });
+
   it('maps root path to Home breadcrumb', () => {
     expect(buildBreadcrumbs('/')).toEqual([{ label: 'Home' }]);
   });
@@ -303,6 +342,20 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain('bg-stone-50/85');
     expect(source).not.toContain('border-l border-border pl-2');
     expect(source).not.toContain('bg-accent/10 font-medium text-accent');
+  });
+
+  it('supports a persisted collapsed desktop icon rail without changing the mobile menu dialog', () => {
+    const source = readLayoutSource();
+    expect(source).toContain('buildDesktopSidebarStorageKey(session?.tenantId ?? null)');
+    expect(source).toContain('readDesktopSidebarCollapsedState(localStorage, session?.tenantId ?? null)');
+    expect(source).toContain('localStorage.setItem(desktopSidebarStorageKey, nextCollapsed ? \'true\' : \'false\')');
+    expect(source).toContain('Desktop navigation');
+    expect(source).toContain('Expand sidebar');
+    expect(source).toContain('Collapse sidebar');
+    expect(source).toContain('title={item.label}');
+    expect(source).toContain('aria-label={item.label}');
+    expect(source).toContain("isMobile ? 'w-64' : isDesktopSidebarCollapsed ? 'w-20' : 'w-64'");
+    expect(source).toContain('DialogTitle className="sr-only">Navigation menu');
   });
 
   it('adds an accessible default close control to the shared dialog primitive', () => {

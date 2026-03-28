@@ -75,6 +75,7 @@ export interface NavSection {
 }
 
 const WORKFLOWS_NAV_HREF = '/workflows';
+const DESKTOP_SIDEBAR_COLLAPSED_STORAGE_KEY = 'agirunner.desktop-sidebar-collapsed';
 
 export const NAV_SECTIONS: NavSection[] = [
   {
@@ -193,6 +194,30 @@ export function findNavigationItemByHref(href: string): NavItem | null {
   return null;
 }
 
+export function buildDesktopSidebarStorageKey(tenantId: string | null): string {
+  return tenantId
+    ? `${DESKTOP_SIDEBAR_COLLAPSED_STORAGE_KEY}.${tenantId}`
+    : DESKTOP_SIDEBAR_COLLAPSED_STORAGE_KEY;
+}
+
+export function readDesktopSidebarCollapsedState(
+  storage: Pick<Storage, 'getItem'> | undefined,
+  tenantId: string | null,
+): boolean {
+  if (!storage) {
+    return false;
+  }
+
+  const stored = storage.getItem(buildDesktopSidebarStorageKey(tenantId));
+  if (stored === 'true') {
+    return true;
+  }
+  if (stored === 'false') {
+    return false;
+  }
+  return false;
+}
+
 const COMMAND_PALETTE_QUICK_LINKS: CommandPaletteItem[] = NAV_SECTIONS.flatMap((section) =>
   section.items.map((item) => ({
     id: `nav:${item.href}`,
@@ -260,6 +285,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   const location = useLocation();
   const queryClient = useQueryClient();
   const session = readSession();
+  const desktopSidebarStorageKey = buildDesktopSidebarStorageKey(session?.tenantId ?? null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<DashboardSearchResult[]>([]);
@@ -271,6 +297,11 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
     readRecentCommandPaletteItems(),
   );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState(() =>
+    typeof localStorage === 'undefined'
+      ? false
+      : readDesktopSidebarCollapsedState(localStorage, session?.tenantId ?? null),
+  );
   const desktopSearchButtonRef = useRef<HTMLButtonElement | null>(null);
   const mobileMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
   const mobileSearchButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -286,6 +317,16 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (typeof localStorage === 'undefined') {
+      setIsDesktopSidebarCollapsed(false);
+      return;
+    }
+    setIsDesktopSidebarCollapsed(
+      readDesktopSidebarCollapsedState(localStorage, session?.tenantId ?? null),
+    );
+  }, [session?.tenantId]);
 
   const currentSection = useMemo(() => {
     const path = location.pathname;
@@ -398,6 +439,16 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
 
   function closeMobileMenu(): void {
     setIsMobileMenuOpen(false);
+  }
+
+  function toggleDesktopSidebar(): void {
+    setIsDesktopSidebarCollapsed((current) => {
+      const nextCollapsed = !current;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(desktopSidebarStorageKey, nextCollapsed ? 'true' : 'false');
+      }
+      return nextCollapsed;
+    });
   }
 
   function logout(): void {
@@ -569,14 +620,42 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   }
 
   function renderSidebarContent(isMobile: boolean): JSX.Element {
+    const isCollapsedDesktopRail = !isMobile && isDesktopSidebarCollapsed;
+    const desktopSidebarToggleLabel = isDesktopSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
+    const sidebarWidthClass = isMobile ? 'w-64' : isDesktopSidebarCollapsed ? 'w-20' : 'w-64';
+
     return (
-      <>
-        <div className="flex items-center justify-between border-b border-stone-200/90 px-4 py-3 dark:border-slate-800">
-          <div className="flex items-center gap-2">
+      <div className={cn('flex h-full flex-col', sidebarWidthClass)}>
+        <div
+          className={cn(
+            'flex border-b border-stone-200/90 px-4 py-3 dark:border-slate-800',
+            isCollapsedDesktopRail ? 'relative items-center justify-center' : 'items-center justify-between',
+          )}
+        >
+          <div className="flex min-w-0 items-center gap-2">
             <img src="/logo.svg" alt="" className="h-7 w-7" />
-            <span className="text-lg font-semibold">AGI Runner</span>
+            {isCollapsedDesktopRail ? null : <span className="text-lg font-semibold">AGI Runner</span>}
           </div>
-          <div className="flex items-center gap-1">
+          <div
+            className={cn(
+              'flex items-center gap-1',
+              isCollapsedDesktopRail ? 'absolute right-2 top-3 flex-col' : '',
+            )}
+          >
+            {!isMobile ? (
+              <button
+                type="button"
+                onClick={toggleDesktopSidebar}
+                className={ICON_BUTTON_CLASSES}
+                aria-label={desktopSidebarToggleLabel}
+                title={desktopSidebarToggleLabel}
+              >
+                <ChevronRight
+                  size={16}
+                  className={cn('transition-transform', !isDesktopSidebarCollapsed && 'rotate-180')}
+                />
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={onToggleTheme}
@@ -605,26 +684,41 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
             type="button"
             onClick={openSearchPalette}
             className={cn(
-              'flex w-full items-center gap-2 rounded-xl border border-stone-200 bg-white/88 px-3 py-2 text-sm text-slate-700 shadow-sm transition-[background-color,color,box-shadow] hover:bg-white hover:text-slate-950 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-100',
+              'flex w-full items-center rounded-xl border border-stone-200 bg-white/88 text-sm text-slate-700 shadow-sm transition-[background-color,color,box-shadow] hover:bg-white hover:text-slate-950 dark:border-slate-800 dark:bg-slate-900/70 dark:text-slate-300 dark:hover:bg-slate-900 dark:hover:text-slate-100',
+              isCollapsedDesktopRail ? 'justify-center px-0 py-2.5' : 'gap-2 px-3 py-2',
               FOCUS_RING_CLASSES,
             )}
             aria-haspopup="dialog"
             aria-expanded={searchOpen}
+            aria-label={isCollapsedDesktopRail ? 'Search the workspace' : undefined}
+            title={isCollapsedDesktopRail ? 'Search the workspace' : undefined}
           >
             <Search size={14} />
-            <span>Search...</span>
-            <kbd className="ml-auto hidden rounded border border-border px-1.5 py-0.5 text-xs sm:inline">
+            {isCollapsedDesktopRail ? null : <span>Search...</span>}
+            <kbd
+              className={cn(
+                'ml-auto hidden rounded border border-border px-1.5 py-0.5 text-xs sm:inline',
+                isCollapsedDesktopRail && 'hidden',
+              )}
+            >
               {'\u2318'}K
             </kbd>
           </button>
         </div>
 
-        <nav className="flex-1 overflow-y-auto px-3 py-2">
+        <nav
+          className={cn(
+            'flex-1 overflow-y-auto py-2',
+            isCollapsedDesktopRail ? 'px-2' : 'px-3',
+          )}
+          aria-label={isMobile ? 'Navigation menu' : 'Desktop navigation'}
+        >
           {NAV_SECTIONS.map((section) => (
             <NavSectionGroup
               key={section.label}
               section={section}
               isActive={currentSection === section.label}
+              isSidebarCollapsed={isCollapsedDesktopRail}
             />
           ))}
         </nav>
@@ -633,16 +727,19 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
           <button
             type="button"
             className={cn(
-              'flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm text-slate-700 transition-[background-color,color] hover:bg-white hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/80 dark:hover:text-slate-100',
+              'flex w-full items-center rounded-xl text-sm text-slate-700 transition-[background-color,color] hover:bg-white hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/80 dark:hover:text-slate-100',
+              isCollapsedDesktopRail ? 'justify-center px-0 py-2.5' : 'gap-2 px-3 py-2',
               FOCUS_RING_CLASSES,
             )}
             onClick={logout}
+            aria-label={isCollapsedDesktopRail ? 'Logout' : undefined}
+            title={isCollapsedDesktopRail ? 'Logout' : undefined}
           >
             <LogOut size={14} />
-            Logout
+            {isCollapsedDesktopRail ? null : 'Logout'}
           </button>
         </div>
-      </>
+      </div>
     );
   }
 
@@ -706,7 +803,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
         </DialogContent>
       </Dialog>
 
-      <aside className={cn('hidden w-64 flex-col lg:flex', SIDEBAR_SHELL_CLASSES)}>
+      <aside className={cn('hidden flex-col lg:flex', SIDEBAR_SHELL_CLASSES)}>
         {renderSidebarContent(false)}
       </aside>
 
@@ -883,9 +980,11 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
 function NavSectionGroup({
   section,
   isActive,
+  isSidebarCollapsed,
 }: {
   section: NavSection;
   isActive: boolean;
+  isSidebarCollapsed: boolean;
 }): JSX.Element {
   const [expanded, setExpanded] = useState(true);
 
@@ -895,6 +994,41 @@ function NavSectionGroup({
     }
   }, [isActive]);
   const Icon = section.icon;
+
+  if (isSidebarCollapsed) {
+    return (
+      <div className="mb-3">
+        <div className="sr-only">{section.label}</div>
+        <div className={cn(SIDEBAR_SECTION_GROUP_CLASSES, 'space-y-1 px-1 py-1.5')}>
+          {section.items.map((item) => (
+            <NavLink
+              key={item.href}
+              to={item.href}
+              end
+              title={item.label}
+              aria-label={item.label}
+              className={({ isActive: active }) =>
+                cn(
+                  'flex items-center justify-center rounded-lg px-0 py-2.5 transition-[background-color,color,box-shadow]',
+                  FOCUS_RING_CLASSES,
+                  isWorkflowsNavItem(item)
+                    ? active
+                      ? SIDEBAR_WORKFLOWS_ACTIVE_CLASSES
+                      : SIDEBAR_WORKFLOWS_INACTIVE_CLASSES
+                    : active
+                      ? SIDEBAR_ACTIVE_ITEM_CLASSES
+                      : SIDEBAR_INACTIVE_ITEM_CLASSES,
+                )
+              }
+            >
+              <item.icon size={15} />
+              <span className="sr-only">{item.label}</span>
+            </NavLink>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mb-1">
@@ -918,6 +1052,8 @@ function NavSectionGroup({
               key={item.href}
               to={item.href}
               end
+              title={item.label}
+              aria-label={item.label}
               className={({ isActive: active }) =>
                 cn(
                   'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color,box-shadow]',
