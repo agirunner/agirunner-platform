@@ -47,14 +47,16 @@ function createMockPool() {
           task_title: p[19],
           stage_name: p[20],
           is_orchestrator_task: p[21],
-          role: p[22],
-          actor_type: p[23],
-          actor_id: p[24],
-          actor_name: p[25],
-          resource_type: p[26],
-          resource_id: p[27],
-          resource_name: p[28],
-          created_at: p[29] ?? new Date().toISOString(),
+          execution_backend: p[22],
+          tool_owner: p[23],
+          role: p[24],
+          actor_type: p[25],
+          actor_id: p[26],
+          actor_name: p[27],
+          resource_type: p[28],
+          resource_id: p[29],
+          resource_name: p[30],
+          created_at: p[31] ?? new Date().toISOString(),
         };
         rows.push(row);
         return { rowCount: 1, rows: [row] };
@@ -415,19 +417,24 @@ describe('Logging E2E Verification', () => {
       expect(logRow.resource_name).toBe('shell_exec');
     });
 
-    it('webhookWorkItemTriggerServiceCreateGeneratesConfigLog', async () => {
+    it('workflowOperatorBriefServiceRecordGeneratesTaskLifecycleLog', async () => {
       const service = {
-        createTrigger: vi.fn().mockResolvedValue({ id: 'trig-1', name: 'GitHub Push' }),
+        recordBrief: vi.fn().mockResolvedValue({
+          id: 'brief-1',
+          workflow_id: 'wf-1',
+          brief_kind: 'milestone',
+        }),
       };
-      const wrapped = createLoggedService(service, 'WebhookWorkItemTriggerService', logService);
+      const wrapped = createLoggedService(service, 'WorkflowOperatorBriefService', logService);
 
-      await wrapped.createTrigger({ name: 'GitHub Push' });
+      await wrapped.recordBrief({ tenantId: 'tenant-1' }, 'wf-1', { requestId: 'brief-1' });
       await vi.waitFor(() => expect(pool.rows.length).toBeGreaterThan(0));
 
       const logRow = pool.rows[0];
-      expect(logRow.category).toBe('config');
-      expect(logRow.operation).toBe('config.work_item_trigger.created');
-      expect(logRow.resource_name).toBe('GitHub Push');
+      expect(logRow.category).toBe('task_lifecycle');
+      expect(logRow.operation).toBe('task_lifecycle.workflow_operator_brief.recordBrief');
+      expect(logRow.resource_type).toBe('workflow_operator_brief');
+      expect(logRow.resource_name).toBe('milestone');
     });
 
     it('agentServiceRegisterGeneratesApiLog', async () => {

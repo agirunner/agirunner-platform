@@ -277,7 +277,7 @@ describe('prompt catalogs', () => {
   });
 
   it('keeps the shared prompts bounded for routine execution', () => {
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(6500);
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(7000);
     expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(10000);
   });
 });

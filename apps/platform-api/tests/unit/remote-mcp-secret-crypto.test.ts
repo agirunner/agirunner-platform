@@ -20,9 +20,9 @@ describe('remote-mcp-secret-crypto', () => {
     expect(decryptRemoteMcpSecret(encrypted)).toBe('super-secret');
   });
 
-  it('keeps external secret references unmodified', () => {
-    expect(normalizeStoredRemoteMcpSecret('secret:provider/mcp/token')).toBe(
-      'secret:provider/mcp/token',
+  it('rejects external secret references', () => {
+    expect(() => normalizeStoredRemoteMcpSecret('secret:provider/mcp/token')).toThrow(
+      'Remote MCP secrets must be stored directly in the platform database. External secret references are not supported.',
     );
   });
 });

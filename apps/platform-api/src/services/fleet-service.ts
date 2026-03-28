@@ -17,6 +17,7 @@ import {
 const VALID_POOL_KINDS = new Set(['orchestrator', 'specialist']);
 const FLEET_ENV_SECRET_REDACTION = 'redacted://fleet-environment-secret';
 const FLEET_EVENT_SECRET_REDACTION = 'redacted://fleet-event-secret';
+const FLEET_WORKER_NOT_FOUND_MESSAGE = 'Fleet worker not found';
 const DEFAULT_SPECIALIST_CPU_LIMIT = '2';
 const DEFAULT_SPECIALIST_MEMORY_LIMIT = '256m';
 const DEFAULT_ORCHESTRATOR_CPU_LIMIT = '2';
@@ -427,7 +428,7 @@ export class FleetService {
   async getWorker(tenantId: string, id: string): Promise<FleetWorkerView> {
     const repo = new TenantScopedRepository(this.pool, tenantId);
     const row = await repo.findById<DesiredStateRow>('worker_desired_state', '*', id);
-    if (!row) throw new NotFoundError('Fleet agent not found');
+    if (!row) throw new NotFoundError(FLEET_WORKER_NOT_FOUND_MESSAGE);
 
     const actual = await this.pool.query<ActualStateRow>(
       'SELECT * FROM worker_actual_state WHERE desired_state_id = $1',
@@ -517,7 +518,7 @@ export class FleetService {
       `UPDATE worker_desired_state SET ${setClauses.join(', ')} WHERE tenant_id = $1 AND id = $2 RETURNING *`,
       values,
     );
-    if (!result.rowCount) throw new NotFoundError('Fleet agent not found');
+    if (!result.rowCount) throw new NotFoundError(FLEET_WORKER_NOT_FOUND_MESSAGE);
     return toPublicDesiredStateRow(result.rows[0]);
   }
 
@@ -526,7 +527,7 @@ export class FleetService {
       'UPDATE worker_desired_state SET enabled = false, updated_at = NOW() WHERE tenant_id = $1 AND id = $2',
       [tenantId, id],
     );
-    if (!result.rowCount) throw new NotFoundError('Fleet agent not found');
+    if (!result.rowCount) throw new NotFoundError(FLEET_WORKER_NOT_FOUND_MESSAGE);
   }
 
   async restartWorker(tenantId: string, id: string): Promise<PublicDesiredStateRow> {
@@ -535,7 +536,7 @@ export class FleetService {
        WHERE tenant_id = $1 AND id = $2 RETURNING *`,
       [tenantId, id],
     );
-    if (!result.rowCount) throw new NotFoundError('Fleet agent not found');
+    if (!result.rowCount) throw new NotFoundError(FLEET_WORKER_NOT_FOUND_MESSAGE);
     return toPublicDesiredStateRow(result.rows[0]);
   }
 
@@ -545,7 +546,7 @@ export class FleetService {
        WHERE tenant_id = $1 AND id = $2 RETURNING *`,
       [tenantId, id],
     );
-    if (!result.rowCount) throw new NotFoundError('Fleet agent not found');
+    if (!result.rowCount) throw new NotFoundError(FLEET_WORKER_NOT_FOUND_MESSAGE);
     return toPublicDesiredStateRow(result.rows[0]);
   }
 
@@ -555,7 +556,7 @@ export class FleetService {
        WHERE tenant_id = $1 AND id = $2 RETURNING *`,
       [tenantId, id],
     );
-    if (!result.rowCount) throw new NotFoundError('Fleet agent not found');
+    if (!result.rowCount) throw new NotFoundError(FLEET_WORKER_NOT_FOUND_MESSAGE);
     return toPublicDesiredStateRow(result.rows[0]);
   }
 
@@ -892,7 +893,7 @@ export class FleetService {
     const repo = new TenantScopedRepository(this.pool, tenantId);
     const row = await repo.findById<DesiredStateRow>('worker_desired_state', '*', id);
     if (!row) {
-      throw new NotFoundError('Fleet agent not found');
+      throw new NotFoundError(FLEET_WORKER_NOT_FOUND_MESSAGE);
     }
     return row;
   }

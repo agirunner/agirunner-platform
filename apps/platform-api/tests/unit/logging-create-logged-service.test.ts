@@ -357,22 +357,27 @@ describe('createLoggedService', () => {
 
   it('logsExplicitlyConfiguredMethodsWithoutMutationPrefixes', async () => {
     const service = {
-      invokeTrigger: vi.fn().mockResolvedValue({ id: 'trigger-1', name: 'Nightly Sync' }),
+      recordBrief: vi.fn().mockResolvedValue({
+        id: 'brief-1',
+        workflow_id: 'workflow-1',
+        brief_kind: 'milestone',
+      }),
     };
     const logInsert = vi.fn().mockResolvedValue(undefined);
     const logService = { insert: logInsert };
 
-    const wrapped = createLoggedService(service, 'WebhookWorkItemTriggerService', logService as never);
-    await wrapped.invokeTrigger('tenant-1', 'trigger-1');
+    const wrapped = createLoggedService(service, 'WorkflowOperatorBriefService', logService as never);
+    await wrapped.recordBrief({ tenantId: 'tenant-1' }, 'workflow-1', { requestId: 'brief-1' });
 
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     expect(logInsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        operation: 'config.work_item_trigger.invoked',
-        resourceType: 'work_item_trigger',
-        resourceId: 'trigger-1',
-        resourceName: 'Nightly Sync',
+        category: 'task_lifecycle',
+        operation: 'task_lifecycle.workflow_operator_brief.recordBrief',
+        resourceType: 'workflow_operator_brief',
+        resourceId: 'brief-1',
+        resourceName: 'milestone',
       }),
     );
   });
