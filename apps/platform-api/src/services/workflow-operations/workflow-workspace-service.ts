@@ -475,7 +475,11 @@ function buildNeedsActionItems(
         route_kind: target.target_kind === 'task' ? 'task_mutation' : 'workflow_intervention',
         method: 'POST',
       },
-      responses: buildInterventionResponses(actionKind, target),
+      responses: buildInterventionResponses(
+        actionKind,
+        target,
+        typeof intervention.work_item_id === 'string' ? intervention.work_item_id : null,
+      ),
     });
   }
   for (const action of actions) {
@@ -862,6 +866,7 @@ function buildGateResolutionResponses(gate: WorkflowGateRecord): WorkflowNeedsAc
 function buildInterventionResponses(
   actionKind: string,
   target: WorkflowNeedsActionItem['target'],
+  workItemId: string | null,
 ): WorkflowNeedsActionResponseAction[] {
   if (actionKind === 'retry_task' && target.target_kind === 'task') {
     return [buildNeedsActionResponse('retry_task', 'Retry task', target.target_id, 'task', 'none')];
@@ -875,6 +880,7 @@ function buildInterventionResponses(
         'task',
         'instructions',
         true,
+        workItemId,
       ),
     ];
   }
