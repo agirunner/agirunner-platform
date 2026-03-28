@@ -4,12 +4,29 @@ import {
 } from './runtime-defaults.schema.js';
 import type { FieldDefinition, FormValues, SectionDefinition } from './runtime-defaults.types.js';
 
+export const AGENTIC_PROMPT_WARNING_THRESHOLD_DEFAULT = 32000;
+
 export interface RuntimeDefaultsSectionSummary {
   key: string;
   title: string;
   configuredCount: number;
   fieldCount: number;
   errorCount: number;
+}
+
+export function validatePromptWarningThresholdChars(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return 'Prompt warning threshold is required.';
+  }
+  const parsed = Number(trimmed);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) {
+    return 'Prompt warning threshold must be a whole number.';
+  }
+  if (parsed < 1) {
+    return 'Prompt warning threshold must be at least 1.';
+  }
+  return null;
 }
 
 export function summarizeRuntimeDefaultSections(

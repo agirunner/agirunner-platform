@@ -94,6 +94,10 @@ describe('runtime defaults page source', () => {
     expect(pageSource).toContain('dashboardApi.updateAgenticSettings');
     expect(pageSource).toContain('fieldId="agentic-live-visibility-mode"');
     expect(pageSource).toContain('label="Live visibility mode"');
+    expect(pageSource).toContain('fieldId="agentic-prompt-warning-threshold"');
+    expect(pageSource).toContain('label="Prompt warning threshold"');
+    expect(pageSource).toContain('prompt_warning_threshold_chars');
+    expect(pageSource).toContain('additionalHasValidationErrors={Boolean(promptWarningThresholdError)}');
     expect(pageSource).toContain('connected_platform: (');
     expect(pageSource).toContain('PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS');
     expect(pageSource).toContain('RUNTIME_INLINE_SECTION_COLUMNS');
@@ -166,5 +170,12 @@ describe('runtime defaults page source', () => {
     expect(source).toContain('dashboardApi.upsertRuntimeDefault');
     expect(source).not.toContain('dashboardApi.deleteRuntimeDefault');
     expect(source).not.toContain('getAuthHeaders');
+  });
+
+  it('types tenant agentic settings with the prompt warning threshold contract', () => {
+    const source = readSource('../../lib/api.ts');
+
+    expect(source).toContain('prompt_warning_threshold_chars: number;');
+    expect(source).toContain('settings_revision: number;');
   });
 });

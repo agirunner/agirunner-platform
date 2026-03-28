@@ -973,6 +973,7 @@ export interface DashboardWorkflowSettingsPatchInput {
 
 export interface DashboardAgenticSettingsRecord {
   live_visibility_mode_default: 'standard' | 'enhanced';
+  prompt_warning_threshold_chars: number;
   scope: 'tenant';
   revision: number;
   updated_by_operator_id: string | null;
@@ -981,6 +982,7 @@ export interface DashboardAgenticSettingsRecord {
 
 export interface DashboardAgenticSettingsPatchInput {
   live_visibility_mode_default: 'standard' | 'enhanced';
+  prompt_warning_threshold_chars: number;
   settings_revision: number;
 }
 

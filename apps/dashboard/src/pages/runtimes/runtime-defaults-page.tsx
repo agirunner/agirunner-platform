@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 
 import { dashboardApi, type DashboardAgenticSettingsRecord } from '../../lib/api.js';
-import { ConfigSelectField } from './config-form-controls.js';
+import { ConfigInputField, ConfigSelectField } from './config-form-controls.js';
 import {
   FIELD_DEFINITIONS,
   PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS,
@@ -11,6 +11,10 @@ import {
   SECTION_DEFINITIONS,
 } from './runtime-defaults.schema.js';
 import { RuntimeDefaultsEditorPage } from './runtime-defaults-editor-page.js';
+import {
+  AGENTIC_PROMPT_WARNING_THRESHOLD_DEFAULT,
+  validatePromptWarningThresholdChars,
+} from './runtime-defaults-page.support.js';
 
 const AGENTIC_SETTINGS_QUERY_KEY = ['agentic-settings'];
 
@@ -27,14 +31,25 @@ export function RuntimeDefaultsPage(): JSX.Element {
   });
   const [liveVisibilityMode, setLiveVisibilityMode] =
     useState<DashboardAgenticSettingsRecord['live_visibility_mode_default']>('enhanced');
+  const [promptWarningThresholdChars, setPromptWarningThresholdChars] = useState(
+    String(AGENTIC_PROMPT_WARNING_THRESHOLD_DEFAULT),
+  );
 
   useEffect(() => {
     const nextMode = liveVisibilityQuery.data?.live_visibility_mode_default;
+    const nextPromptWarningThreshold = liveVisibilityQuery.data?.prompt_warning_threshold_chars;
     if (!nextMode) {
       return;
     }
     setLiveVisibilityMode(nextMode);
-  }, [liveVisibilityQuery.data?.live_visibility_mode_default, liveVisibilityQuery.data?.revision]);
+    if (typeof nextPromptWarningThreshold === 'number') {
+      setPromptWarningThresholdChars(String(nextPromptWarningThreshold));
+    }
+  }, [
+    liveVisibilityQuery.data?.live_visibility_mode_default,
+    liveVisibilityQuery.data?.prompt_warning_threshold_chars,
+    liveVisibilityQuery.data?.revision,
+  ]);
 
   if (liveVisibilityQuery.isLoading) {
     return (
@@ -61,6 +76,11 @@ export function RuntimeDefaultsPage(): JSX.Element {
 
   const hasLiveVisibilityChanges =
     liveVisibilityMode !== liveVisibilitySettings.live_visibility_mode_default;
+  const hasPromptWarningThresholdChanges =
+    promptWarningThresholdChars !==
+    String(liveVisibilitySettings.prompt_warning_threshold_chars);
+  const promptWarningThresholdError =
+    validatePromptWarningThresholdChars(promptWarningThresholdChars);
 
   return (
     <RuntimeDefaultsEditorPage
@@ -74,33 +94,58 @@ export function RuntimeDefaultsPage(): JSX.Element {
       sectionIdPrefix="runtime-defaults"
       successMessage="Agentic Settings saved."
       errorLabel="agentic settings"
+      additionalHasValidationErrors={Boolean(promptWarningThresholdError)}
       sectionSupplementalContent={{
         connected_platform: (
-          <ConfigSelectField
-            fieldId="agentic-live-visibility-mode"
-            label="Live visibility mode"
-            description="Default operator visibility for workflows that do not set their own override."
-            support="Standard keeps the streamlined workflow view. Enhanced enables the richer live activity view."
-            value={liveVisibilityMode}
-            options={LIVE_VISIBILITY_OPTIONS}
-            onValueChange={(value) =>
-              setLiveVisibilityMode(
-                value as DashboardAgenticSettingsRecord['live_visibility_mode_default'],
-              )
-            }
-          />
+          <div className="grid gap-4 md:grid-cols-2">
+            <ConfigSelectField
+              fieldId="agentic-live-visibility-mode"
+              label="Live visibility mode"
+              description="Default operator visibility for workflows that do not set their own override."
+              support="Standard keeps the streamlined workflow view. Enhanced enables the richer live activity view."
+              value={liveVisibilityMode}
+              options={LIVE_VISIBILITY_OPTIONS}
+              onValueChange={(value) =>
+                setLiveVisibilityMode(
+                  value as DashboardAgenticSettingsRecord['live_visibility_mode_default'],
+                )
+              }
+            />
+            <ConfigInputField
+              fieldId="agentic-prompt-warning-threshold"
+              label="Prompt warning threshold"
+              description="Character budget where assembled prompts start receiving pressure warnings."
+              support="Applies the tenant default when a workflow does not carry its own override."
+              error={promptWarningThresholdError ?? undefined}
+              inputProps={{
+                type: 'number',
+                inputMode: 'numeric',
+                min: 1,
+                step: 1,
+                value: promptWarningThresholdChars,
+                onChange: (event) => setPromptWarningThresholdChars(event.target.value),
+              }}
+            />
+          </div>
         ),
       }}
-      additionalHasChanges={hasLiveVisibilityChanges}
-      onResetAdditional={() =>
-        setLiveVisibilityMode(liveVisibilitySettings.live_visibility_mode_default)
-      }
+      additionalHasChanges={hasLiveVisibilityChanges || hasPromptWarningThresholdChanges}
+      onResetAdditional={() => {
+        setLiveVisibilityMode(liveVisibilitySettings.live_visibility_mode_default);
+        setPromptWarningThresholdChars(
+          String(liveVisibilitySettings.prompt_warning_threshold_chars),
+        );
+      }}
       onSaveAdditional={async () => {
-        if (!hasLiveVisibilityChanges) {
+        if (!hasLiveVisibilityChanges && !hasPromptWarningThresholdChanges) {
           return;
+        }
+        if (promptWarningThresholdError) {
+          throw new Error(promptWarningThresholdError);
         }
         const updated = await dashboardApi.updateAgenticSettings({
           live_visibility_mode_default: liveVisibilityMode,
+          prompt_warning_threshold_chars: Number(promptWarningThresholdChars.trim()),
           settings_revision: liveVisibilitySettings.revision,
         });
         queryClient.setQueryData(AGENTIC_SETTINGS_QUERY_KEY, updated);

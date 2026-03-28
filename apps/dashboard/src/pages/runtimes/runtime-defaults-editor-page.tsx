@@ -46,6 +46,7 @@ interface RuntimeDefaultsEditorPageProps {
   errorLabel: string;
   sectionSupplementalContent?: Partial<Record<SectionDefinition['key'], ReactNode>>;
   additionalHasChanges?: boolean;
+  additionalHasValidationErrors?: boolean;
   onResetAdditional?(): void;
   onSaveAdditional?(): Promise<void>;
 }
@@ -121,7 +122,8 @@ export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps)
     () => new Map(sectionSummaries.map((section) => [section.key, section])),
     [sectionSummaries],
   );
-  const hasValidationErrors = Object.keys(validationErrors).length > 0;
+  const hasValidationErrors =
+    Object.keys(validationErrors).length > 0 || Boolean(props.additionalHasValidationErrors);
   const primarySectionKeys = useMemo(
     () => new Set<string>(props.primarySectionKeys),
     [props.primarySectionKeys],

@@ -8,7 +8,11 @@ import {
   SECTION_DEFINITIONS,
 } from './runtime-defaults.schema.js';
 import { buildValidationErrors } from './runtime-defaults.validation.js';
-import { summarizeRuntimeDefaultSections } from './runtime-defaults-page.support.js';
+import {
+  AGENTIC_PROMPT_WARNING_THRESHOLD_DEFAULT,
+  summarizeRuntimeDefaultSections,
+  validatePromptWarningThresholdChars,
+} from './runtime-defaults-page.support.js';
 
 describe('runtime defaults page support', () => {
   it('keeps specialist agent defaults as the primary expanded section', () => {
@@ -358,5 +362,17 @@ describe('runtime defaults page support', () => {
         }),
       ]),
     );
+  });
+
+  it('validates the tenant prompt warning threshold as a positive whole number', () => {
+    expect(AGENTIC_PROMPT_WARNING_THRESHOLD_DEFAULT).toBe(32000);
+    expect(validatePromptWarningThresholdChars('')).toBe('Prompt warning threshold is required.');
+    expect(validatePromptWarningThresholdChars('0')).toBe(
+      'Prompt warning threshold must be at least 1.',
+    );
+    expect(validatePromptWarningThresholdChars('1.5')).toBe(
+      'Prompt warning threshold must be a whole number.',
+    );
+    expect(validatePromptWarningThresholdChars('32000')).toBeNull();
   });
 });
