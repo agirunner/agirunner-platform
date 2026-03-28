@@ -66,10 +66,7 @@ export function WorkflowDetails(props: {
 
         {scope.related_tasks.length > 0 ? (
           <div className="grid gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-foreground">Related tasks</p>
-              <Badge variant="outline">{scope.related_tasks.length} tasks</Badge>
-            </div>
+            <p className="text-sm font-semibold text-foreground">Related tasks</p>
             <div className="grid gap-2">
               {scope.related_tasks.map((task) => (
                 <div
@@ -131,10 +128,7 @@ function PacketSection(props: {
 }): JSX.Element {
   return (
     <div className="grid gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-foreground">{props.label}</p>
-        <Badge variant="outline">{props.packets.length} packet(s)</Badge>
-      </div>
+      <p className="text-sm font-semibold text-foreground">{props.label}</p>
       <div className="grid gap-3">
         {props.packets.map((packet) => (
           <article key={packet.id} className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-3">

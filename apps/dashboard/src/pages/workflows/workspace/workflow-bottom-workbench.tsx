@@ -44,43 +44,33 @@ export function WorkflowBottomWorkbench(props: {
 
   return (
     <section className="grid gap-4 rounded-3xl border border-border/70 bg-background/90 p-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="grid gap-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-foreground">Workspace</p>
-            {props.selectedTaskId ? (
-              <>
-                <Badge variant="secondary">
-                  Task: {props.selectedTaskTitle ?? props.selectedTaskId}
-                </Badge>
-                <Button type="button" size="sm" variant="outline" onClick={props.onClearTaskScope}>
-                  Back to work item
-                </Button>
-                <Button type="button" size="sm" variant="outline" onClick={props.onClearWorkItemScope}>
-                  Back to workflow
-                </Button>
-              </>
-            ) : props.scopedWorkItemId ? (
-              <>
-                <Badge variant="secondary">
-                  Work item: {props.selectedWorkItemTitle ?? props.scopedWorkItemId}
-                </Badge>
-                <Button type="button" size="sm" variant="outline" onClick={props.onClearWorkItemScope}>
-                  Back to workflow
-                </Button>
-              </>
-            ) : props.selectedWorkItemId ? (
-              <Badge variant="outline">
-                Board selection: {props.selectedWorkItemTitle ?? props.selectedWorkItemId}
-              </Badge>
-            ) : (
-              <Badge variant="outline">Workflow scope</Badge>
-            )}
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Details, actions, steering, live updates, history, and deliverables stay in one place.
-          </p>
-        </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {props.selectedTaskId ? (
+          <>
+            <Badge variant="secondary">Task: {props.selectedTaskTitle ?? props.selectedTaskId}</Badge>
+            <Button type="button" size="sm" variant="outline" onClick={props.onClearTaskScope}>
+              Back to work item
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={props.onClearWorkItemScope}>
+              Back to workflow
+            </Button>
+          </>
+        ) : props.scopedWorkItemId ? (
+          <>
+            <Badge variant="secondary">
+              Work item: {props.selectedWorkItemTitle ?? props.scopedWorkItemId}
+            </Badge>
+            <Button type="button" size="sm" variant="outline" onClick={props.onClearWorkItemScope}>
+              Back to workflow
+            </Button>
+          </>
+        ) : props.selectedWorkItemId ? (
+          <Badge variant="outline">
+            Board selection: {props.selectedWorkItemTitle ?? props.selectedWorkItemId}
+          </Badge>
+        ) : (
+          <Badge variant="outline">Workflow scope</Badge>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2">

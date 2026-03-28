@@ -50,6 +50,7 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Next expected action');
     expect(html).not.toContain('Workflow details');
     expect(html).not.toContain('Work item details');
+    expect(html).not.toContain('1 tasks');
   });
 });
 
