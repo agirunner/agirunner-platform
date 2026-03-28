@@ -43,7 +43,7 @@ export function WorkflowBottomWorkbench(props: {
   const counts = props.packet.bottom_tabs.counts;
 
   return (
-    <section className="flex h-full min-h-0 flex-col gap-4 rounded-3xl border border-border/70 bg-background/90 p-5">
+    <section className="flex h-full min-h-0 flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
         {props.selectedTaskId ? (
           <>

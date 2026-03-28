@@ -26,24 +26,19 @@ export function WorkflowStateStrip(props: {
   const visibilityValue = props.workflowSettings?.workflow_live_visibility_mode_override ?? '__inherit__';
   const workload = summarizeWorkload(props.board, props.workflow);
   const metaLine = [
-    props.workflow.playbookName,
-    props.workflow.workspaceName,
     `Updated ${formatRelativeTimestamp(props.workflow.metrics.lastChangedAt)}`,
-    props.selectedScopeLabel ? `Viewing ${props.selectedScopeLabel}` : null,
+    props.selectedScopeLabel ? `Focused on ${props.selectedScopeLabel}` : null,
   ].filter(Boolean).join(' • ');
   const canOpenRedrive = props.workflow.availableActions.some(
     (action) => action.kind === 'redrive_workflow' && action.enabled,
   );
   const postureLabel = humanizePosture(sticky?.posture ?? props.workflow.posture);
   const isOngoingWorkflow = props.workflow.lifecycle === 'ongoing';
-  const workloadFooter = readWorkloadFooter(
-    sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount,
-    props.workflow.metrics.failedTaskCount,
-    workload.activeWorkItemCount,
-  );
+  const needsActionCount =
+    (sticky?.approvals_count ?? 0) + (sticky?.escalations_count ?? 0) + (sticky?.blocked_work_item_count ?? 0);
 
   return (
-    <section className="space-y-3 rounded-3xl border border-border/70 bg-background/90 p-4">
+    <section className="space-y-2 rounded-3xl border border-border/70 bg-background/90 p-3.5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -70,7 +65,7 @@ export function WorkflowStateStrip(props: {
           <Button size="sm" onClick={props.onAddWork}>
             Add / Modify Work
           </Button>
-          <label className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/10 px-3 py-2 text-xs text-muted-foreground">
+          <label className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/10 px-3 py-1.5 text-xs text-muted-foreground">
             <span className="font-medium text-foreground">Live visibility</span>
             <select
               className="rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground"
@@ -97,26 +92,23 @@ export function WorkflowStateStrip(props: {
         <StateCard
           title="Workflow State"
           value={postureLabel}
-          footer={[
-            isOngoingWorkflow ? 'Accepting new work' : 'Planned flow',
-            props.workflow.state === 'paused' ? 'Paused' : null,
-          ].filter(Boolean).join(' • ')}
+          footer={readOptionalSummary(sticky?.summary) ?? 'Current workflow posture'}
         />
         <ShortcutCard
           title="Needs Action"
-          value={String((sticky?.approvals_count ?? 0) + (sticky?.escalations_count ?? 0) + (sticky?.blocked_work_item_count ?? 0))}
+          value={String(needsActionCount)}
           detail={`${sticky?.approvals_count ?? 0} approvals • ${sticky?.escalations_count ?? 0} escalations • ${sticky?.blocked_work_item_count ?? 0} blocked`}
           onClick={() => props.onTabChange('needs_action')}
         />
         <StateCard
           title="Workload"
-          value={`${workload.activeWorkItemCount} active • ${workload.completedWorkItemCount} completed`}
-          footer={workloadFooter}
+          value={`${workload.activeWorkItemCount} active • ${workload.completedWorkItemCount} done`}
+          footer={`${sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount} specialist tasks`}
         />
         <ShortcutCard
           title="Steering"
           value={sticky?.steering_available ? 'Open' : 'Idle'}
-          detail="Requests, responses, and safe workflow intervention."
+          detail="Requests, responses, and intervention history"
           onClick={() => props.onTabChange('steering')}
         />
       </div>
@@ -130,11 +122,11 @@ function StateCard(props: {
   footer: string;
 }): JSX.Element {
   return (
-    <div className="grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-3">
+    <div className="grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-2.5">
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         {props.title}
       </p>
-      <p className="text-base font-semibold text-foreground">{props.value}</p>
+      <p className="text-sm font-semibold text-foreground">{props.value}</p>
       <p className="text-xs text-muted-foreground">{props.footer}</p>
     </div>
   );
@@ -149,13 +141,13 @@ function ShortcutCard(props: {
   return (
     <button
       type="button"
-      className="grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-3 text-left transition-colors hover:bg-muted/20"
+      className="grid gap-1 rounded-2xl border border-border/70 bg-muted/10 p-2.5 text-left transition-colors hover:bg-muted/20"
       onClick={props.onClick}
     >
       <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
         {props.title}
       </p>
-      <p className="text-base font-semibold text-foreground">{props.value}</p>
+      <p className="text-sm font-semibold text-foreground">{props.value}</p>
       <p className="text-xs text-muted-foreground">{props.detail}</p>
     </button>
   );
@@ -193,13 +185,10 @@ function summarizeWorkload(
   };
 }
 
-function readWorkloadFooter(
-  activeTaskCount: number,
-  failedTaskCount: number,
-  activeWorkItemCount: number,
-): string {
-  if (activeWorkItemCount === 0 && activeTaskCount > 0) {
-    return `Orchestrator working • ${failedTaskCount} failed tasks`;
+function readOptionalSummary(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
   }
-  return `${activeTaskCount} active tasks • ${failedTaskCount} failed tasks`;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }

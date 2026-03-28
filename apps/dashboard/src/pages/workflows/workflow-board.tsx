@@ -193,7 +193,9 @@ function BoardLaneCard(props: {
 
       <div className="grid gap-3">
         {props.lane.activeItems.length === 0 ? (
-          <p className="pt-1 text-sm text-muted-foreground">No active work in this lane.</p>
+          <div className="flex min-h-[8rem] items-center justify-center text-center">
+            <p className="text-sm text-muted-foreground">No active work in this lane.</p>
+          </div>
         ) : (
           props.lane.activeItems.map((workItem) => (
             <BoardWorkItemCard

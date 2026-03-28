@@ -30,9 +30,11 @@ describe('WorkflowStateStrip', () => {
       ),
     );
 
-    expect(html).toContain('1 active • 2 completed');
-    expect(html).toContain('3 active tasks • 0 failed tasks');
+    expect(html).toContain('1 active • 2 done');
+    expect(html).toContain('3 specialist tasks');
     expect(html).toContain('Live visibility');
+    expect(html).not.toContain('Playbook');
+    expect(html).not.toContain('Workspace');
   });
 
   it('keeps the sticky cards compact and uses operator-friendly workflow badges', () => {
@@ -63,11 +65,13 @@ describe('WorkflowStateStrip', () => {
     expect(html).toContain('Waiting for Work');
     expect(html).toContain('Ongoing');
     expect(html).not.toContain('Waiting By Design');
-    expect((html.match(/text-base font-semibold text-foreground/g) ?? []).length).toBeGreaterThanOrEqual(4);
+    expect((html.match(/text-sm font-semibold text-foreground/g) ?? []).length).toBeGreaterThanOrEqual(4);
     expect(html).toContain('Live visibility');
     expect((html.match(/text-left transition-colors hover:bg-muted\/20/g) ?? [])).toHaveLength(2);
     expect(html).not.toContain('justify-between gap-3 text-sm');
     expect(html).not.toContain('<p class="text-xs text-muted-foreground">Playbook • Workspace</p>');
+    expect(html).not.toContain('Accepting new work');
+    expect(html).not.toContain('Requests, responses, and safe workflow intervention.');
   });
 });
 
