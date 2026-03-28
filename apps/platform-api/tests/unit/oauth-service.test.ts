@@ -248,6 +248,148 @@ describe('OAuthService', () => {
     global.fetch = originalFetch;
   });
 
+  it('does not mark providers for reauth on ambiguous 401 refresh failures', async () => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
+    configureProviderSecretEncryptionKey('test-encryption-key');
+
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: vi.fn(),
+      text: vi.fn().mockResolvedValue('upstream authorization temporarily unavailable'),
+    }) as never;
+
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM llm_providers WHERE id = $1 FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'provider-1',
+              auth_mode: 'oauth',
+              oauth_config: {
+                profile_id: 'openai-codex',
+                client_id: 'client-id',
+                authorize_url: 'https://auth.example.test/oauth/authorize',
+                token_url: 'https://auth.example.test/oauth/token',
+                scopes: ['openid'],
+                base_url: 'https://api.openai.test/v1',
+                endpoint_type: 'responses',
+                token_lifetime: 'expiring',
+                cost_model: 'usage',
+                extra_authorize_params: {},
+              },
+              oauth_credentials: {
+                access_token: storeOAuthToken('access-token'),
+                refresh_token: storeOAuthToken('refresh-token'),
+                expires_at: Date.now() - 60_000,
+                account_id: 'acct_123',
+                email: 'mark@example.com',
+                authorized_at: '2026-03-11T00:00:00.000Z',
+                authorized_by_user_id: 'user-1',
+                needs_reauth: false,
+              },
+            }],
+          };
+        }
+        if (sql.includes('UPDATE llm_providers') && sql.includes("'{needs_reauth}'")) {
+          throw new Error('ambiguous refresh failures must not mark provider reauth');
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = {
+      connect: vi.fn(async () => client),
+    };
+    const service = new OAuthService(pool as never);
+
+    await expect(service.resolveValidToken('provider-1')).rejects.toMatchObject({
+      code: 'SERVICE_UNAVAILABLE',
+      details: expect.objectContaining({
+        category: 'provider_oauth_refresh_unavailable',
+      }),
+    });
+
+    global.fetch = originalFetch;
+  });
+
+  it('does not mark providers for reauth when refresh fails with invalid_client', async () => {
+    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
+    configureProviderSecretEncryptionKey('test-encryption-key');
+
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      json: vi.fn(),
+      text: vi.fn().mockResolvedValue('invalid_client'),
+    }) as never;
+
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM llm_providers WHERE id = $1 FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'provider-1',
+              auth_mode: 'oauth',
+              oauth_config: {
+                profile_id: 'openai-codex',
+                client_id: 'client-id',
+                authorize_url: 'https://auth.example.test/oauth/authorize',
+                token_url: 'https://auth.example.test/oauth/token',
+                scopes: ['openid'],
+                base_url: 'https://api.openai.test/v1',
+                endpoint_type: 'responses',
+                token_lifetime: 'expiring',
+                cost_model: 'usage',
+                extra_authorize_params: {},
+              },
+              oauth_credentials: {
+                access_token: storeOAuthToken('access-token'),
+                refresh_token: storeOAuthToken('refresh-token'),
+                expires_at: Date.now() - 60_000,
+                account_id: 'acct_123',
+                email: 'mark@example.com',
+                authorized_at: '2026-03-11T00:00:00.000Z',
+                authorized_by_user_id: 'user-1',
+                needs_reauth: false,
+              },
+            }],
+          };
+        }
+        if (sql.includes('UPDATE llm_providers') && sql.includes("'{needs_reauth}'")) {
+          throw new Error('invalid_client must not force operator reauth');
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = {
+      connect: vi.fn(async () => client),
+    };
+    const service = new OAuthService(pool as never);
+
+    await expect(service.resolveValidToken('provider-1')).rejects.toMatchObject({
+      code: 'SERVICE_UNAVAILABLE',
+      details: expect.objectContaining({
+        category: 'provider_oauth_refresh_unavailable',
+      }),
+    });
+
+    global.fetch = originalFetch;
+  });
+
   it('returns only status metadata from oauth status reads', async () => {
     const pool = {
       query: vi.fn(async () => ({

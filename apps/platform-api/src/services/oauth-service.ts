@@ -14,6 +14,20 @@ import { NotFoundError, ServiceUnavailableError, ValidationError } from '../erro
 
 const EXPIRY_BUFFER_MS = 5 * 60 * 1000;
 const PROVIDER_ERROR_MAX_LENGTH = 160;
+const PROVIDER_REFRESH_REAUTH_PATTERNS = [
+  'invalid_grant',
+  'invalid refresh token',
+  'refresh token is invalid',
+  'refresh token invalid',
+  'refresh token expired',
+  'token expired',
+  'expired',
+  'revoked',
+  'reauthor',
+  're-author',
+  'consent_required',
+  'login_required',
+] as const;
 
 interface OAuthConfig {
   profile_id: string;
@@ -683,20 +697,14 @@ function buildOAuthRefreshUnavailableError(
 }
 
 function isProviderRefreshReauthStatus(status: number, rawDetail: string): boolean {
-  if (status === 401 || status === 403) {
-    return true;
-  }
-  if (status !== 400) {
+  if (status !== 400 && status !== 401 && status !== 403) {
     return false;
   }
   const normalized = rawDetail.trim().toLowerCase();
-  return (
-    normalized.includes('invalid_grant')
-    || normalized.includes('invalid_client')
-    || normalized.includes('expired')
-    || normalized.includes('revoked')
-    || normalized.includes('reauthor')
-  );
+  if (!normalized) {
+    return false;
+  }
+  return PROVIDER_REFRESH_REAUTH_PATTERNS.some((pattern) => normalized.includes(pattern));
 }
 
 function buildImportedCredentials(
