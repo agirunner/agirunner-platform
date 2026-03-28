@@ -44,7 +44,6 @@ export function WorkflowBottomWorkbench(props: {
   onLoadMoreActivity(): void;
   onLoadMoreDeliverables(): void;
 }): JSX.Element {
-  const resolvedScope = resolveWorkbenchScope(props);
   const currentTaskId =
     props.packet.bottom_tabs.current_task_id
     ?? props.packet.selected_scope.task_id
@@ -54,6 +53,21 @@ export function WorkflowBottomWorkbench(props: {
     ?? props.packet.selected_scope.work_item_id
     ?? props.scopedWorkItemId
     ?? props.selectedWorkItemId;
+  const currentTaskTitle =
+    props.selectedTask?.id === currentTaskId
+      ? props.selectedTask.title
+      : props.selectedTaskTitle;
+  const currentWorkItemTitle =
+    props.selectedWorkItem?.id === currentWorkItemId
+      ? props.selectedWorkItem.title
+      : props.selectedTask?.work_item_id === currentWorkItemId
+        ? props.selectedTask.work_item_title ?? props.selectedWorkItemTitle
+        : props.selectedWorkItemTitle;
+  const resolvedScope = resolveWorkbenchScope({
+    ...props,
+    selectedWorkItemTitle: currentWorkItemTitle,
+    selectedTaskTitle: currentTaskTitle,
+  });
   const counts = props.packet.bottom_tabs.counts;
 
   return (
@@ -127,10 +141,10 @@ export function WorkflowBottomWorkbench(props: {
             workflow={props.workflow}
             stickyStrip={props.stickyStrip}
             board={props.board}
-            selectedWorkItemId={props.selectedWorkItemId}
-            selectedWorkItemTitle={props.selectedWorkItemTitle}
-            selectedTaskId={props.selectedTaskId}
-            selectedTaskTitle={props.selectedTaskTitle}
+            selectedWorkItemId={currentWorkItemId}
+            selectedWorkItemTitle={currentWorkItemTitle}
+            selectedTaskId={currentTaskId}
+            selectedTaskTitle={currentTaskTitle}
             selectedWorkItem={props.selectedWorkItem}
             selectedTask={props.selectedTask}
             selectedWorkItemTasks={props.selectedWorkItemTasks}
@@ -184,7 +198,8 @@ export function WorkflowBottomWorkbench(props: {
           <WorkflowDeliverables
             packet={props.packet.deliverables}
             selectedTask={props.selectedTask}
-            selectedWorkItemTitle={props.selectedWorkItemTitle}
+            selectedWorkItemId={currentWorkItemId}
+            selectedWorkItemTitle={currentWorkItemTitle}
             scope={resolvedScope}
             onLoadMore={props.onLoadMoreDeliverables}
           />

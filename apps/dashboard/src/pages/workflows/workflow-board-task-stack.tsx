@@ -58,11 +58,7 @@ export function WorkflowBoardTaskStack(props: {
               ) : (
                 <div
                   key={task.id}
-                  className={
-                    props.selectedTaskId === task.id
-                      ? 'grid gap-1 rounded-lg border border-amber-300 bg-amber-100/90 px-3 py-2 text-left text-sm dark:border-amber-500/60 dark:bg-amber-500/10'
-                      : 'grid gap-1 rounded-lg border border-border/60 bg-background/60 px-3 py-2 text-left text-sm'
-                  }
+                  className="grid gap-1 rounded-lg border border-border/60 bg-background/60 px-3 py-2 text-left text-sm"
                 >
                   <span className="text-foreground">{task.title}</span>
                   <span className="text-xs text-muted-foreground">

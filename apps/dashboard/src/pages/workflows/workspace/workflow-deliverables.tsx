@@ -15,14 +15,30 @@ import { WorkflowBriefRenderer } from './workflow-brief-renderer.js';
 export function WorkflowDeliverables(props: {
   packet: DashboardWorkflowDeliverablesPacket;
   selectedTask: DashboardTaskRecord | null;
+  selectedWorkItemId: string | null;
   selectedWorkItemTitle: string | null;
   scope: WorkflowWorkbenchScopeDescriptor;
   onLoadMore(): void;
 }): JSX.Element {
+  const selectedWorkItemId = props.selectedWorkItemId ?? props.selectedTask?.work_item_id ?? null;
   const scopeCopy = buildDeliverablesScopeCopy(props.scope, props.selectedWorkItemTitle);
   const outcomeBrief = pickOutcomeBrief(
     props.packet.final_deliverables,
     props.packet.working_handoffs,
+  );
+  const taskEvidence = props.scope.scopeKind === 'selected_task'
+    ? buildTaskEvidence(props.selectedTask)
+    : null;
+  const deliverablesSubject = readDeliverablesSubject(props.scope.scopeKind);
+  const parentWorkItemLayer = buildDeliverableLayer(
+    props.packet,
+    selectedWorkItemId,
+    'work_item',
+  );
+  const workflowLayer = buildDeliverableLayer(
+    props.packet,
+    selectedWorkItemId,
+    'workflow',
   );
   const briefBackedOutputs =
     props.packet.final_deliverables.length === 0
@@ -34,10 +50,6 @@ export function WorkflowDeliverables(props: {
     && props.packet.final_deliverables.length === 0
     && props.packet.in_progress_deliverables.length === 0
     && props.packet.working_handoffs.length > 0;
-  const taskEvidence = props.scope.scopeKind === 'selected_task'
-    ? buildTaskEvidence(props.selectedTask)
-    : null;
-  const deliverablesSubject = readDeliverablesSubject(props.scope.scopeKind);
   const inProgressTitle = briefBackedOutputs ? 'Brief-backed outputs' : 'In Progress Deliverables';
   const inProgressCount = briefBackedOutputs
     ? props.packet.working_handoffs.length
@@ -78,49 +90,72 @@ export function WorkflowDeliverables(props: {
         </section>
       ) : null}
 
-      <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open>
-        <summary className="cursor-pointer text-sm font-semibold text-foreground">
-          Final deliverables ({props.packet.final_deliverables.length})
-        </summary>
-        <div className="mt-4 grid gap-4">
-          {props.packet.final_deliverables.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No final deliverables are available yet.</p>
-          ) : (
-            props.packet.final_deliverables.map((deliverable) => (
-              <DeliverableCard key={deliverable.descriptor_id} deliverable={deliverable} prominent />
-            ))
-          )}
-        </div>
-      </details>
+      {props.scope.scopeKind === 'workflow' ? (
+        <>
+          <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open>
+            <summary className="cursor-pointer text-sm font-semibold text-foreground">
+              Final deliverables ({props.packet.final_deliverables.length})
+            </summary>
+            <div className="mt-4 grid gap-4">
+              {props.packet.final_deliverables.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No final deliverables are available yet.</p>
+              ) : (
+                props.packet.final_deliverables.map((deliverable) => (
+                  <DeliverableCard key={deliverable.descriptor_id} deliverable={deliverable} prominent />
+                ))
+              )}
+            </div>
+          </details>
 
-      <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open={openInProgressByDefault}>
-        <summary className="cursor-pointer text-sm font-semibold text-foreground">
-          {briefBackedOutputs ? inProgressTitle : `In-progress deliverables (${inProgressCount})`}
-        </summary>
-        <div className="mt-4 grid gap-4">
-          {briefBackedOutputs ? (
-            <>
-              <p className="text-sm text-muted-foreground">
-                Material output is currently available only as briefs for this {deliverablesSubject}.
-              </p>
-              {props.packet.working_handoffs.map((brief) => (
-                <article key={brief.id} className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
-                  <Badge variant="outline">Brief-backed output</Badge>
-                  <WorkflowBriefRenderer brief={brief} compact />
-                </article>
-              ))}
-            </>
-          ) : props.packet.in_progress_deliverables.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No in-progress deliverables are attached to this {deliverablesSubject}.
-            </p>
-          ) : (
-            props.packet.in_progress_deliverables.map((deliverable) => (
-              <DeliverableCard key={deliverable.descriptor_id} deliverable={deliverable} />
-            ))
-          )}
-        </div>
-      </details>
+          <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open={openInProgressByDefault}>
+            <summary className="cursor-pointer text-sm font-semibold text-foreground">
+              {briefBackedOutputs ? inProgressTitle : `In-progress deliverables (${inProgressCount})`}
+            </summary>
+            <div className="mt-4 grid gap-4">
+              {briefBackedOutputs ? (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Material output is currently available only as briefs for this {deliverablesSubject}.
+                  </p>
+                  {props.packet.working_handoffs.map((brief) => (
+                    <article key={brief.id} className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
+                      <Badge variant="outline">Brief-backed output</Badge>
+                      <WorkflowBriefRenderer brief={brief} compact />
+                    </article>
+                  ))}
+                </>
+              ) : props.packet.in_progress_deliverables.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No in-progress deliverables are attached to this {deliverablesSubject}.
+                </p>
+              ) : (
+                props.packet.in_progress_deliverables.map((deliverable) => (
+                  <DeliverableCard key={deliverable.descriptor_id} deliverable={deliverable} />
+                ))
+              )}
+            </div>
+          </details>
+        </>
+      ) : (
+        <>
+          <LayerDeliverablesSection
+            title="Work item deliverables"
+            titleCount={parentWorkItemLayer.totalCount}
+            emptyMessage={
+              props.selectedWorkItemTitle
+                ? `No work item deliverables are available for ${props.selectedWorkItemTitle} yet.`
+                : 'No work item deliverables are available yet.'
+            }
+            layer={parentWorkItemLayer}
+          />
+          <LayerDeliverablesSection
+            title="Workflow deliverables"
+            titleCount={workflowLayer.totalCount}
+            emptyMessage="No workflow deliverables are available yet."
+            layer={workflowLayer}
+          />
+        </>
+      )}
 
       {!briefBackedOutputs ? (
         <details
@@ -184,22 +219,22 @@ function buildDeliverablesScopeCopy(
   const workItemTitle = readText(selectedWorkItemTitle);
   if (scope.scopeKind === 'selected_task') {
     return {
-      label: 'Task evidence + work item deliverables',
+      label: 'Task evidence + layered deliverables',
       description: [
         'Task output and evidence appears first.',
         workItemTitle
           ? `Showing work item deliverables from ${workItemTitle}.`
           : 'Showing work item deliverables from the parent work item.',
-        'Workflow deliverables stay available in workflow scope.',
+        'Workflow deliverables stay visible below the parent work item.',
       ].join(' '),
     };
   }
   if (scope.scopeKind === 'selected_work_item') {
     return {
-      label: 'Work item deliverables',
+      label: 'Work item + workflow deliverables',
       description: workItemTitle
-        ? `Showing work item deliverables for ${workItemTitle}. Workflow deliverables stay available in workflow scope.`
-        : 'Showing work item deliverables. Workflow deliverables stay available in workflow scope.',
+        ? `Showing work item deliverables for ${workItemTitle}, followed by workflow deliverables.`
+        : 'Showing work item deliverables first, followed by workflow deliverables.',
     };
   }
   return {
@@ -209,10 +244,99 @@ function buildDeliverablesScopeCopy(
   };
 }
 
+type DeliverableLayerKind = 'workflow' | 'work_item';
+
+function buildDeliverableLayer(
+  packet: DashboardWorkflowDeliverablesPacket,
+  selectedWorkItemId: string | null,
+  layer: DeliverableLayerKind,
+): {
+  finalDeliverables: DashboardWorkflowDeliverableRecord[];
+  inProgressDeliverables: DashboardWorkflowDeliverableRecord[];
+  workingHandoffs: DashboardWorkflowOperatorBriefRecord[];
+  totalCount: number;
+} {
+  const matchesLayer = (workItemId: string | null): boolean => {
+    if (layer === 'workflow') {
+      return workItemId === null;
+    }
+    if (selectedWorkItemId) {
+      return workItemId === selectedWorkItemId;
+    }
+    return workItemId !== null;
+  };
+
+  const finalDeliverables = packet.final_deliverables.filter((deliverable) =>
+    matchesLayer(deliverable.work_item_id),
+  );
+  const inProgressDeliverables = packet.in_progress_deliverables.filter((deliverable) =>
+    matchesLayer(deliverable.work_item_id),
+  );
+  const workingHandoffs = packet.working_handoffs.filter((brief) =>
+    matchesLayer(brief.work_item_id),
+  );
+
+  return {
+    finalDeliverables,
+    inProgressDeliverables,
+    workingHandoffs,
+    totalCount: finalDeliverables.length + inProgressDeliverables.length,
+  };
+}
+
 function readDeliverablesSubject(
   scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
 ): 'workflow' | 'work item' {
   return scopeKind === 'workflow' ? 'workflow' : 'work item';
+}
+
+function LayerDeliverablesSection(props: {
+  title: string;
+  titleCount: number;
+  emptyMessage: string;
+  layer: {
+    finalDeliverables: DashboardWorkflowDeliverableRecord[];
+    inProgressDeliverables: DashboardWorkflowDeliverableRecord[];
+    workingHandoffs: DashboardWorkflowOperatorBriefRecord[];
+    totalCount: number;
+  };
+}): JSX.Element {
+  const hasMaterialDeliverables =
+    props.layer.finalDeliverables.length > 0 || props.layer.inProgressDeliverables.length > 0;
+
+  return (
+    <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open>
+      <summary className="cursor-pointer text-sm font-semibold text-foreground">
+        {props.title} ({props.titleCount})
+      </summary>
+      <div className="mt-4 grid gap-4">
+        {hasMaterialDeliverables ? (
+          <>
+            {props.layer.finalDeliverables.map((deliverable) => (
+              <DeliverableCard key={deliverable.descriptor_id} deliverable={deliverable} prominent />
+            ))}
+            {props.layer.inProgressDeliverables.map((deliverable) => (
+              <DeliverableCard key={deliverable.descriptor_id} deliverable={deliverable} />
+            ))}
+          </>
+        ) : props.layer.workingHandoffs.length > 0 ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              Material output is currently available only as briefs for this layer.
+            </p>
+            {props.layer.workingHandoffs.map((brief) => (
+              <article key={brief.id} className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
+                <Badge variant="outline">Brief-backed output</Badge>
+                <WorkflowBriefRenderer brief={brief} compact />
+              </article>
+            ))}
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">{props.emptyMessage}</p>
+        )}
+      </div>
+    </details>
+  );
 }
 
 function DeliverableCard(props: {

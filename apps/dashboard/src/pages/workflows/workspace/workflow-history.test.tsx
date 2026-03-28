@@ -106,6 +106,27 @@ describe('WorkflowHistory', () => {
     expect(html).not.toContain('/workflows/workflow-1?work_item_id=work-item-1&amp;task_id=task-4&amp;tab=details');
   });
 
+  it('drops redundant scoped badges because the bottom-pane banner already carries the active scope', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        MemoryRouter,
+        undefined,
+        createElement(WorkflowHistory, {
+          workflowId: 'workflow-1',
+          packet: createPacket(),
+          selectedWorkItemId: 'work-item-1',
+          selectedTaskId: 'task-4',
+          scopeSubject: 'task',
+          onLoadMore: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Briefs');
+    expect(html).not.toContain('Scoped to selected task');
+    expect(html).not.toContain('Scoped to selected work item');
+  });
+
   it('humanizes source badges and hides raw uuid labels in briefs', () => {
     const html = renderToStaticMarkup(
       createElement(

@@ -33,7 +33,9 @@ export function WorkflowDetails(props: {
   const workflowPackets = isWorkflowScope
     ? props.inputPackets.filter((packet) => packet.work_item_id === null)
     : [];
-  const workItemPackets = isWorkItemScope && selectedWorkItemId
+  const shouldShowParentWorkItemInputs =
+    selectedWorkItemId !== null && (isWorkItemScope || (isTaskScope && !hasStructuredContent(props.selectedTask?.input)));
+  const workItemPackets = shouldShowParentWorkItemInputs && selectedWorkItemId
     ? props.inputPackets.filter((packet) => packet.work_item_id === selectedWorkItemId)
     : [];
   const scope = buildDetailsScope(props);

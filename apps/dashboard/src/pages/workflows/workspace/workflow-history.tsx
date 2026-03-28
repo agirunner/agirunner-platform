@@ -21,13 +21,6 @@ export function WorkflowHistory(props: {
           Published briefs and durable updates for this {scopeSubject}.
         </p>
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        {props.selectedTaskId ? (
-          <Badge variant="outline">Scoped to selected task</Badge>
-        ) : props.selectedWorkItemId ? (
-          <Badge variant="outline">Scoped to selected work item</Badge>
-        ) : null}
-      </div>
 
       {props.packet.groups.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">

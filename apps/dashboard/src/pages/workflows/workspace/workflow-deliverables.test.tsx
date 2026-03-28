@@ -11,6 +11,7 @@ describe('WorkflowDeliverables', () => {
       createElement(WorkflowDeliverables, {
         packet: createPacket(),
         selectedTask: null,
+        selectedWorkItemId: null,
         selectedWorkItemTitle: null,
         scope: {
           scopeKind: 'workflow',
@@ -37,6 +38,7 @@ describe('WorkflowDeliverables', () => {
       createElement(WorkflowDeliverables, {
         packet: createPacket(),
         selectedTask: null,
+        selectedWorkItemId: null,
         selectedWorkItemTitle: null,
         scope: {
           scopeKind: 'workflow',
@@ -64,6 +66,7 @@ describe('WorkflowDeliverables', () => {
       createElement(WorkflowDeliverables, {
         packet: createBriefOnlyPacket(),
         selectedTask: null,
+        selectedWorkItemId: null,
         selectedWorkItemTitle: null,
         scope: {
           scopeKind: 'workflow',
@@ -87,6 +90,7 @@ describe('WorkflowDeliverables', () => {
       createElement(WorkflowDeliverables, {
         packet: createTaskScopePacket(),
         selectedTask: createTask(),
+        selectedWorkItemId: 'work-item-1',
         selectedWorkItemTitle: 'Prepare release bundle',
         scope: {
           scopeKind: 'selected_task',
@@ -102,15 +106,14 @@ describe('WorkflowDeliverables', () => {
     expect(html).toContain('Task output and evidence');
     expect(html).toContain('Generate release bundle');
     expect(html).toContain('Showing work item deliverables from Prepare release bundle.');
-    expect(html).toContain('Workflow deliverables stay available in workflow scope.');
+    expect(html).toContain('Workflow deliverables stay visible below the parent work item.');
     expect(html).toContain('artifact-1');
-    expect(html).toContain('Final deliverables (1)');
-    expect(html).toContain('In-progress deliverables (0)');
-    expect(html).toContain('No in-progress deliverables are attached to this work item.');
+    expect(html).toContain('Work item deliverables (1)');
+    expect(html).toContain('Workflow deliverables (0)');
+    expect(html).toContain('No workflow deliverables are available yet.');
     expect(html).toContain('No inputs or intervention files are attached to this work item.');
-    expect(html).not.toContain('Parent Work Item Final Deliverables');
-    expect(html).not.toContain('Parent Work Item In Progress Deliverables');
-    expect(html).not.toContain('No in-progress deliverables are attached to this selected work item.');
+    expect(html).not.toContain('Final deliverables (1)');
+    expect(html).not.toContain('In-progress deliverables (0)');
     expect(html).not.toContain('No inputs or intervention files are attached to this selected work item.');
   });
 
@@ -119,6 +122,7 @@ describe('WorkflowDeliverables', () => {
       createElement(WorkflowDeliverables, {
         packet: createPacket(),
         selectedTask: createTask(),
+        selectedWorkItemId: 'work-item-1',
         selectedWorkItemTitle: 'Prepare release bundle',
         scope: {
           scopeKind: 'selected_task',
@@ -133,6 +137,33 @@ describe('WorkflowDeliverables', () => {
 
     expect(html).toContain('Showing work item deliverables from Prepare release bundle.');
     expect(html).not.toContain('Showing work item deliverables from Generate release bundle.');
+  });
+
+  it('separates task evidence, parent work-item deliverables, and workflow deliverables in task scope', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: createMixedScopePacket(),
+        selectedTask: createTask(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Generate release bundle',
+          banner: 'Task: Generate release bundle',
+        },
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Task output and evidence');
+    expect(html).toContain('Work item deliverables (1)');
+    expect(html).toContain('Workflow deliverables (1)');
+    expect(html).toContain('Release checklist');
+    expect(html).toContain('Program status brief');
+    expect(html).not.toContain('Final deliverables (2)');
+    expect(html).not.toContain('Workflow deliverables stay available in workflow scope.');
   });
 
   it('renders synthesized inline-summary deliverables without deprecated navigation links', () => {
@@ -183,6 +214,7 @@ describe('WorkflowDeliverables', () => {
           banner: 'Work item: workflow-intake-01',
         },
         selectedTask: null,
+        selectedWorkItemId: 'work-item-1',
         selectedWorkItemTitle: 'workflow-intake-01',
         onLoadMore: () => undefined,
       }),
@@ -363,6 +395,72 @@ function createTaskScopePacket(): DashboardWorkflowDeliverablesPacket {
         source_brief_id: null,
         created_at: '2026-03-27T06:00:00.000Z',
         updated_at: '2026-03-27T06:00:00.000Z',
+      },
+    ],
+    in_progress_deliverables: [],
+    working_handoffs: [],
+    inputs_and_provenance: {
+      launch_packet: null,
+      supplemental_packets: [],
+      intervention_attachments: [],
+      redrive_packet: null,
+    },
+    next_cursor: null,
+  };
+}
+
+function createMixedScopePacket(): DashboardWorkflowDeliverablesPacket {
+  return {
+    final_deliverables: [
+      {
+        descriptor_id: 'deliverable-work-item',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        descriptor_kind: 'artifact',
+        delivery_stage: 'final',
+        title: 'Release checklist',
+        state: 'final',
+        summary_brief: 'The work item checklist is ready.',
+        preview_capabilities: {},
+        primary_target: {
+          target_kind: 'artifact',
+          label: 'Open artifact',
+          url: 'http://localhost:3000/artifacts/tasks/task-1/checklist-1',
+          path: 'artifacts/release-checklist.md',
+          artifact_id: 'artifact-checklist-1',
+        },
+        secondary_targets: [],
+        content_preview: {
+          summary: 'Checklist summary',
+        },
+        source_brief_id: null,
+        created_at: '2026-03-27T06:00:00.000Z',
+        updated_at: '2026-03-27T06:00:00.000Z',
+      },
+      {
+        descriptor_id: 'deliverable-workflow',
+        workflow_id: 'workflow-1',
+        work_item_id: null,
+        descriptor_kind: 'artifact',
+        delivery_stage: 'final',
+        title: 'Program status brief',
+        state: 'final',
+        summary_brief: 'Workflow-wide operator status summary.',
+        preview_capabilities: {},
+        primary_target: {
+          target_kind: 'artifact',
+          label: 'Open artifact',
+          url: 'http://localhost:3000/artifacts/tasks/task-2/status-1',
+          path: 'artifacts/status-brief.md',
+          artifact_id: 'artifact-status-1',
+        },
+        secondary_targets: [],
+        content_preview: {
+          summary: 'Workflow summary',
+        },
+        source_brief_id: null,
+        created_at: '2026-03-27T06:05:00.000Z',
+        updated_at: '2026-03-27T06:05:00.000Z',
       },
     ],
     in_progress_deliverables: [],

@@ -81,4 +81,25 @@ describe('WorkflowBoardTaskStack', () => {
     expect(html).toContain('Assess packet');
     expect(html).not.toContain('<button');
   });
+
+  it('does not keep a stale task highlight when task selection is locked to work-item view', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBoardTaskStack, {
+        tasks: [
+          {
+            id: 'task-1',
+            title: 'Assess packet',
+            role: 'policy-assessor',
+            state: 'in_progress',
+          },
+        ],
+        selectedTaskId: 'task-1',
+        defaultOpen: true,
+      }),
+    );
+
+    expect(html).toContain('Assess packet');
+    expect(html).not.toContain('<button');
+    expect(html).not.toContain('border-amber-300 bg-amber-100/90');
+  });
 });
