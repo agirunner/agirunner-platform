@@ -162,7 +162,13 @@ export class HandoffService {
 
     throw new ValidationError('Task requires a structured handoff before completion', {
       reason_code: 'required_structured_handoff',
+      recoverable: true,
       recovery_hint: 'submit_required_handoff',
+      recovery: {
+        status: 'action_required',
+        reason: 'required_structured_handoff',
+        action: 'submit_required_handoff',
+      },
     });
   }
 

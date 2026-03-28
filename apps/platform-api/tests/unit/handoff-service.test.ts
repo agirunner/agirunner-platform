@@ -2086,6 +2086,12 @@ describe('HandoffService', () => {
       details: {
         reason_code: 'required_structured_handoff',
         recovery_hint: 'submit_required_handoff',
+        recoverable: true,
+        recovery: {
+          status: 'action_required',
+          reason: 'required_structured_handoff',
+          action: 'submit_required_handoff',
+        },
       },
     });
 
