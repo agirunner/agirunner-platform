@@ -1,10 +1,7 @@
-import { Link } from 'react-router-dom';
-
 import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import type { DashboardWorkflowHistoryPacket } from '../../../lib/api.js';
 import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
-import { buildWorkflowsPageHref } from '../workflows-page.support.js';
 import { formatWorkflowActivitySourceLabel } from './workflow-live-console.support.js';
 
 export function WorkflowHistory(props: {
@@ -78,7 +75,6 @@ function HistoryItemCard(props: {
   workflowId: string;
   item: DashboardWorkflowHistoryPacket['items'][number];
 }): JSX.Element {
-  const scopeLink = resolveHistoryScopeLink(props.workflowId, props.item);
   const sourceLabel = formatWorkflowActivitySourceLabel(
     props.item.source_label,
     props.item.source_kind,
@@ -103,48 +99,10 @@ function HistoryItemCard(props: {
           <p className="mt-3 text-sm text-muted-foreground">{props.item.summary}</p>
         </details>
       ) : null}
-      {scopeLink ? (
-        <div className="flex flex-wrap gap-2">
-          <Link
-            className="text-sm font-medium text-accent underline-offset-4 hover:underline"
-            to={scopeLink}
-          >
-            Open brief scope
-          </Link>
-        </div>
-      ) : null}
     </article>
   );
 }
 
 function humanizeToken(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function resolveHistoryScopeLink(
-  workflowId: string,
-  item: DashboardWorkflowHistoryPacket['items'][number],
-): string | null {
-  const workItemId = item.work_item_id ?? findLinkedTargetId(item.linked_target_ids, workflowId, item.task_id);
-  if (!workItemId) {
-    return null;
-  }
-
-  return buildWorkflowsPageHref({
-    workflowId,
-    workItemId,
-    taskId: item.task_id ?? null,
-    tab: 'details',
-  });
-}
-
-function findLinkedTargetId(
-  linkedTargetIds: string[],
-  workflowId: string,
-  taskId: string | null,
-): string | null {
-  return (
-    linkedTargetIds.find((id) => id !== workflowId && id !== taskId) ??
-    null
-  );
 }

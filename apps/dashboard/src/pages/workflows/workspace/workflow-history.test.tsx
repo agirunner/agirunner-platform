@@ -7,7 +7,7 @@ import type { DashboardWorkflowHistoryPacket } from '../../../lib/api.js';
 import { WorkflowHistory } from './workflow-history.js';
 
 describe('WorkflowHistory', () => {
-  it('keeps briefs links inside the Workflows shell and opens scoped details instead of reloading Briefs', () => {
+  it('keeps brief detail inline instead of rendering a separate scope navigation action', () => {
     const html = renderToStaticMarkup(
       createElement(
         MemoryRouter,
@@ -22,7 +22,9 @@ describe('WorkflowHistory', () => {
       ),
     );
 
-    expect(html).toContain('/workflows/workflow-1?work_item_id=work-item-1&amp;tab=details');
+    expect(html).toContain('Open brief');
+    expect(html).not.toContain('Open brief scope');
+    expect(html).not.toContain('/workflows/workflow-1?work_item_id=work-item-1&amp;tab=details');
     expect(html).not.toContain('/mission-control/');
     expect(html).not.toContain('/workflow-detail/');
   });
@@ -62,13 +64,13 @@ describe('WorkflowHistory', () => {
     expect(html).toContain('Briefs');
     expect(html).toContain('Policy assessment settled revision 3');
     expect(html).toContain('Open brief');
-    expect(html).toContain('Open brief scope');
+    expect(html).not.toContain('Open brief scope');
     expect(html).not.toContain('ordered newest first');
     expect(html).not.toContain('input lineage');
     expect(html).not.toContain('Lifecycle Event');
   });
 
-  it('links task-scoped briefs back into the Workflows shell with task selection intact', () => {
+  it('does not render a separate brief-scope link for task-scoped briefs', () => {
     const html = renderToStaticMarkup(
       createElement(
         MemoryRouter,
@@ -99,7 +101,9 @@ describe('WorkflowHistory', () => {
       ),
     );
 
-    expect(html).toContain('/workflows/workflow-1?work_item_id=work-item-1&amp;task_id=task-4&amp;tab=details');
+    expect(html).toContain('Open brief');
+    expect(html).not.toContain('Open brief scope');
+    expect(html).not.toContain('/workflows/workflow-1?work_item_id=work-item-1&amp;task_id=task-4&amp;tab=details');
   });
 
   it('humanizes source badges and hides raw uuid labels in briefs', () => {
