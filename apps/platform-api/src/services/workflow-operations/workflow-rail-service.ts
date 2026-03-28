@@ -5,6 +5,7 @@ import type {
   MissionControlRecentResponse,
   MissionControlWorkflowCard,
 } from './mission-control-types.js';
+import { readUuidOrUndefined } from '../../lib/uuid.js';
 import {
   buildWorkflowOperationsSnapshotVersion,
   type WorkflowRailMode,
@@ -101,7 +102,11 @@ export class WorkflowRailService {
     tenantId: string,
     workflowId: string,
   ): Promise<WorkflowRailRow | null> {
-    const card = await this.getWorkflowCard(tenantId, workflowId);
+    const safeWorkflowId = readUuidOrUndefined(workflowId);
+    if (!safeWorkflowId) {
+      return null;
+    }
+    const card = await this.getWorkflowCard(tenantId, safeWorkflowId);
     return card ? toRailRowFromCard(card) : null;
   }
 

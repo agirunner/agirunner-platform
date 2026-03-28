@@ -220,6 +220,73 @@ describe('workflow operations routes v2', () => {
     );
   });
 
+  it('ignores invalid selected workflow ids on rail list and stream reads instead of forwarding them', async () => {
+    const { workflowOperationsRoutes } = await import('../../src/api/routes/workflow-operations.routes.js');
+    const workflowOperationsRailService = {
+      getRail: vi.fn(async () => ({ rows: [], ongoing_rows: [], selected_workflow_id: null })),
+    };
+    const workflowOperationsWorkspaceService = {
+      getWorkspace: vi.fn(async () => ({ workflow_id: 'workflow-1' })),
+    };
+    const workflowOperationsStreamService = {
+      buildRailBatch: vi.fn(async () => ({
+        cursor: 'workflow-operations:42',
+        snapshot_version: 'workflow-operations:42',
+        events: [],
+      })),
+      buildWorkspaceBatch: vi.fn(async () => ({
+        cursor: 'workflow-operations:42',
+        snapshot_version: 'workflow-operations:42',
+        events: [],
+      })),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowOperationsRailService', workflowOperationsRailService as never);
+    app.decorate('workflowOperationsWorkspaceService', workflowOperationsWorkspaceService as never);
+    app.decorate('workflowOperationsStreamService', workflowOperationsStreamService as never);
+    app.decorate('eventStreamService', {
+      subscribe: vi.fn(() => () => undefined),
+    } as never);
+    app.decorate('logStreamService', {
+      subscribe: vi.fn(() => () => undefined),
+    } as never);
+    await app.register(workflowOperationsRoutes);
+
+    const headers = { authorization: 'Bearer test' };
+    const liveResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/operations/workflows?mode=live&workflow_id=workflow-not-a-uuid',
+      headers,
+    });
+    const railStreamResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/operations/workflows/stream?mode=live&workflow_id=workflow-not-a-uuid',
+      headers,
+    });
+
+    expect(liveResponse.statusCode).toBe(200);
+    expect(railStreamResponse.statusCode).toBe(200);
+    expect(workflowOperationsRailService.getRail).toHaveBeenCalledWith('tenant-1', {
+      mode: 'live',
+      needsActionOnly: false,
+      ongoingOnly: false,
+      search: undefined,
+      page: 1,
+      perPage: 100,
+      selectedWorkflowId: undefined,
+    });
+    expect(workflowOperationsStreamService.buildRailBatch).toHaveBeenCalledWith('tenant-1', {
+      mode: 'live',
+      needsActionOnly: false,
+      ongoingOnly: false,
+      search: undefined,
+      afterCursor: undefined,
+      selectedWorkflowId: undefined,
+    });
+  });
+
   it('does not expose legacy mission control route aliases after workflows cutover', async () => {
     const { workflowOperationsRoutes } = await import('../../src/api/routes/workflow-operations.routes.js');
 

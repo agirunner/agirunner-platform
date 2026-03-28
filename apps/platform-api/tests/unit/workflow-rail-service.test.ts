@@ -178,7 +178,7 @@ describe('WorkflowRailService', () => {
       })),
       listWorkflowCards: vi.fn(async () => [
         {
-          id: 'workflow-selected',
+          id: '00000000-0000-4000-8000-000000000123',
           name: 'Fresh Workflow',
           state: 'pending',
           lifecycle: 'planned',
@@ -213,18 +213,18 @@ describe('WorkflowRailService', () => {
 
     const result = await service.getRail('tenant-1', {
       mode: 'live',
-      selectedWorkflowId: 'workflow-selected',
+      selectedWorkflowId: '00000000-0000-4000-8000-000000000123',
       perPage: 1,
     });
 
     expect(liveService.listWorkflowCards).toHaveBeenCalledWith('tenant-1', {
-      workflowIds: ['workflow-selected'],
+      workflowIds: ['00000000-0000-4000-8000-000000000123'],
       page: 1,
       perPage: 1,
     });
-    expect(result.selected_workflow_id).toBe('workflow-selected');
+    expect(result.selected_workflow_id).toBe('00000000-0000-4000-8000-000000000123');
     expect(result.rows).toEqual([
-      expect.objectContaining({ workflow_id: 'workflow-selected' }),
+      expect.objectContaining({ workflow_id: '00000000-0000-4000-8000-000000000123' }),
       expect.objectContaining({ workflow_id: 'workflow-visible' }),
     ]);
   });
@@ -276,7 +276,7 @@ describe('WorkflowRailService', () => {
       })),
       listWorkflowCards: vi.fn(async () => [
         {
-          id: 'workflow-selected',
+          id: '00000000-0000-4000-8000-000000000456',
           name: 'Fresh Workflow',
           state: 'pending',
           lifecycle: 'planned',
@@ -312,12 +312,12 @@ describe('WorkflowRailService', () => {
     const result = await service.getRail('tenant-1', {
       mode: 'live',
       needsActionOnly: true,
-      selectedWorkflowId: 'workflow-selected',
+      selectedWorkflowId: '00000000-0000-4000-8000-000000000456',
     });
 
-    expect(result.selected_workflow_id).toBe('workflow-selected');
+    expect(result.selected_workflow_id).toBe('00000000-0000-4000-8000-000000000456');
     expect(result.rows).toEqual([
-      expect.objectContaining({ workflow_id: 'workflow-selected' }),
+      expect.objectContaining({ workflow_id: '00000000-0000-4000-8000-000000000456' }),
       expect.objectContaining({ workflow_id: 'workflow-needs-action' }),
     ]);
   });
@@ -371,6 +371,74 @@ describe('WorkflowRailService', () => {
         ],
       }),
     );
+  });
+
+  it('ignores invalid selected workflow ids instead of pinning through the live card lookup', async () => {
+    const liveService = {
+      getLive: vi.fn(async () => ({
+        version: {
+          generatedAt: '2026-03-27T22:30:00.000Z',
+          latestEventId: 42,
+          token: 'mission-control:42',
+        },
+        sections: [
+          {
+            id: 'progressing',
+            title: 'Progressing',
+            count: 1,
+            workflows: [
+              {
+                id: 'workflow-visible',
+                name: 'Visible Workflow',
+                state: 'active',
+                lifecycle: 'planned',
+                currentStage: 'delivery',
+                workspaceName: 'Core Product',
+                playbookName: 'Delivery',
+                posture: 'progressing',
+                attentionLane: 'watchlist',
+                pulse: {
+                  summary: 'Actively delivering.',
+                  tone: 'progressing',
+                  updatedAt: '2026-03-27T22:29:00.000Z',
+                },
+                metrics: {
+                  activeTaskCount: 1,
+                  activeWorkItemCount: 1,
+                  blockedWorkItemCount: 0,
+                  openEscalationCount: 0,
+                  waitingForDecisionCount: 0,
+                  failedTaskCount: 0,
+                  recoverableIssueCount: 0,
+                  lastChangedAt: '2026-03-27T22:29:00.000Z',
+                },
+              },
+            ],
+          },
+        ],
+        attentionItems: [],
+      })),
+      listWorkflowCards: vi.fn(async () => {
+        throw new Error('selected workflow lookup should be skipped for invalid ids');
+      }),
+    };
+    const service = new WorkflowRailService(
+      liveService as never,
+      { getRecent: vi.fn() } as never,
+      { getHistory: vi.fn() } as never,
+    );
+
+    const result = await service.getRail('tenant-1', {
+      mode: 'live',
+      selectedWorkflowId: 'workflow-not-a-uuid',
+      perPage: 1,
+    });
+
+    expect(liveService.listWorkflowCards).not.toHaveBeenCalled();
+    expect(result.selected_workflow_id).toBe('workflow-visible');
+    expect(result.rows).toEqual([
+      expect.objectContaining({ workflow_id: 'workflow-visible' }),
+    ]);
   });
 
   it('builds recent rail rows from recent packets when recent mode is selected', async () => {

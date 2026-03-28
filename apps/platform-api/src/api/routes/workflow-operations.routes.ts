@@ -1,6 +1,7 @@
 import type { FastifyPluginAsync } from 'fastify';
 
 import { authenticateApiKey, withAllowedScopes } from '../../auth/fastify-auth-hook.js';
+import { readUuidOrUndefined } from '../../lib/uuid.js';
 import type { WorkflowRailMode } from '../../services/workflow-operations/workflow-operations-types.js';
 
 function readPositiveInt(value: unknown, fallback: number): number {
@@ -68,7 +69,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
           search: query.search,
           page: readPositiveInt(query.page, 1),
           perPage: readPositiveInt(query.per_page, 100),
-          selectedWorkflowId: query.workflow_id,
+          selectedWorkflowId: readUuidOrUndefined(query.workflow_id),
         }),
       };
     }
@@ -163,7 +164,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
       needsActionOnly: readBooleanFlag(query.needs_action_only),
       ongoingOnly: readBooleanFlag(query.ongoing_only),
       search: query.search,
-      selectedWorkflowId: query.workflow_id,
+      selectedWorkflowId: readUuidOrUndefined(query.workflow_id),
       afterCursor: query.after_cursor,
     });
     if (!prefersSse(request)) {
@@ -179,7 +180,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
           needsActionOnly: readBooleanFlag(query.needs_action_only),
           ongoingOnly: readBooleanFlag(query.ongoing_only),
           search: query.search,
-          selectedWorkflowId: query.workflow_id,
+          selectedWorkflowId: readUuidOrUndefined(query.workflow_id),
           afterCursor: currentCursor,
         })
         .then((nextBatch) => {
