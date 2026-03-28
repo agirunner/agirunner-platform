@@ -28,6 +28,9 @@ describe('WorkflowService workflow relations', () => {
           ],
         })
         .mockResolvedValueOnce({
+          rows: [],
+        })
+        .mockResolvedValueOnce({
           rows: [
             {
               id: 'wf-child-1',

@@ -183,19 +183,19 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
         config_key: 'agent.max_mutating_steps_per_burst',
         config_value: '5',
         description:
-          'Maximum mutating tool steps the runtime executes inside one reactive burst before re-evaluating',
+          'Maximum mutating tool steps the Specialist Agent executes inside one reactive burst before re-evaluating',
       },
       {
         config_key: 'agent.max_parallel_tool_calls_per_burst',
         config_value: '8',
         description:
-          'Maximum read-only tool calls the runtime executes in parallel inside one reactive burst',
+          'Maximum read-only tool calls the Specialist Agent executes in parallel inside one reactive burst',
       },
       {
         config_key: 'agent.max_tool_steps_per_burst',
         config_value: '12',
         description:
-          'Maximum tool steps the runtime executes inside one reactive burst before re-evaluating',
+          'Maximum tool steps the Specialist Agent executes inside one reactive burst before re-evaluating',
       },
       {
         config_key: 'agent.no_file_change_threshold',
