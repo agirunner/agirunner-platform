@@ -77,11 +77,20 @@ export class WorkflowRailService {
       page: query.page ?? 1,
       perPage: query.perPage ?? 100,
     });
-    const rows = applyRailFilters(
+    const allRows = applyRailFilters(
       dedupeRows(response.sections.flatMap((section) => section.workflows.map(toRailRowFromCard))),
       query,
     );
-    return buildRailPacket('live', response.version.generatedAt, response.version.latestEventId, rows, query);
+    const ongoingRows = allRows.filter((row) => row.lifecycle === 'ongoing');
+    const primaryRows = allRows.filter((row) => row.lifecycle !== 'ongoing');
+    return buildRailPacket(
+      'live',
+      response.version.generatedAt,
+      response.version.latestEventId,
+      primaryRows,
+      ongoingRows,
+      query,
+    );
   }
 
   private async buildRecentRail(tenantId: string, query: WorkflowRailQuery): Promise<WorkflowRailPacket> {
@@ -90,7 +99,7 @@ export class WorkflowRailService {
       dedupeRows(response.packets.map(toRailRowFromPacket)),
       query,
     );
-    return buildRailPacket('recent', response.version.generatedAt, response.version.latestEventId, rows, query);
+    return buildRailPacket('recent', response.version.generatedAt, response.version.latestEventId, rows, [], query);
   }
 
   private async buildHistoryRail(tenantId: string, query: WorkflowRailQuery): Promise<WorkflowRailPacket> {
@@ -99,7 +108,7 @@ export class WorkflowRailService {
       dedupeRows(response.packets.map(toRailRowFromPacket)),
       query,
     );
-    return buildRailPacket('history', response.version.generatedAt, response.version.latestEventId, rows, query);
+    return buildRailPacket('history', response.version.generatedAt, response.version.latestEventId, rows, [], query);
   }
 }
 
@@ -108,16 +117,17 @@ function buildRailPacket(
   generatedAt: string,
   latestEventId: number | null,
   rows: WorkflowRailRow[],
+  ongoingRows: WorkflowRailRow[],
   query: WorkflowRailQuery,
 ): WorkflowRailPacket {
-  const selectedWorkflowId = selectWorkflowId(rows, query.selectedWorkflowId);
+  const selectedWorkflowId = selectWorkflowId([...rows, ...ongoingRows], query.selectedWorkflowId);
   return {
     mode,
     generated_at: generatedAt,
     latest_event_id: latestEventId,
     snapshot_version: buildWorkflowOperationsSnapshotVersion(latestEventId),
     rows,
-    ongoing_rows: rows.filter((row) => row.lifecycle === 'ongoing'),
+    ongoing_rows: ongoingRows,
     selected_workflow_id: selectedWorkflowId,
     next_cursor: null,
   };

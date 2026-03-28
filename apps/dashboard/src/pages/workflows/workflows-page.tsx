@@ -251,7 +251,7 @@ export function WorkflowsPage(): JSX.Element {
         style={buildWorkflowsShellStyle(isRailHidden, railWidthPx)}
       >
         {!isRailHidden ? (
-          <div className="overflow-hidden rounded-3xl border border-border/70 bg-stone-50/90 xl:min-h-0 dark:bg-slate-950/70">
+          <div className="overflow-hidden rounded-3xl border border-border/70 bg-stone-50/90 lg:min-h-0 dark:bg-slate-950/70">
             <WorkflowsRail
               mode={pageState.mode}
               search={pageState.search}
@@ -283,7 +283,7 @@ export function WorkflowsPage(): JSX.Element {
           </div>
         ) : null}
         {!isRailHidden ? (
-          <div className="relative hidden xl:flex items-stretch justify-center">
+          <div className="relative hidden lg:flex items-stretch justify-center">
             <button
               type="button"
               aria-label="Resize workflows rail"
@@ -306,8 +306,7 @@ export function WorkflowsPage(): JSX.Element {
             />
           </div>
         ) : null}
-
-        <div className="flex min-h-0 w-full min-w-0 flex-col gap-3 xl:grid xl:h-full xl:min-h-0 xl:grid-rows-[auto_minmax(0,1fr)] xl:overflow-hidden">
+        <div className="flex min-h-0 w-full min-w-0 flex-col gap-3 lg:grid lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
           <div className="flex items-center justify-between gap-3">
             <Button type="button" size="sm" variant="outline" onClick={() => setIsRailHidden((current) => !current)}>
               {isRailHidden ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
@@ -321,7 +320,7 @@ export function WorkflowsPage(): JSX.Element {
           </div>
 
           {workflow && workspaceQuery.data ? (
-            <div className="flex min-h-0 flex-col gap-3 xl:h-full xl:min-h-0 xl:flex-1">
+            <div className="flex min-h-0 flex-col gap-3 lg:h-full lg:min-h-0 lg:flex-1">
               <div className="sticky top-0 z-10">
                 <WorkflowStateStrip
                   workflow={workflow}
@@ -349,10 +348,10 @@ export function WorkflowsPage(): JSX.Element {
               </div>
               <div
                 ref={workspaceSplitRef}
-                className="flex min-h-0 flex-col gap-3 xl:grid xl:h-full xl:min-h-0 xl:flex-1 xl:gap-0 xl:overflow-hidden"
+                className="flex min-h-0 flex-col gap-3 lg:grid lg:h-full lg:min-h-0 lg:flex-1 lg:gap-0 lg:overflow-hidden"
                 style={buildWorkflowWorkspaceSplitStyle(workbenchFraction)}
               >
-                <div className="min-h-0 xl:overflow-hidden">
+                <div className="min-h-0 lg:overflow-hidden">
                   <WorkflowBoard
                     workflowId={workflow.id}
                     board={board}
@@ -370,7 +369,7 @@ export function WorkflowsPage(): JSX.Element {
                     }
                   />
                 </div>
-                <div className="relative hidden xl:flex items-center justify-center">
+                <div className="relative hidden lg:flex items-center justify-center">
                   <button
                     type="button"
                     aria-label="Resize workflow workbench"
@@ -400,7 +399,7 @@ export function WorkflowsPage(): JSX.Element {
                     }}
                   />
                 </div>
-                <div className="min-h-0 xl:overflow-hidden">
+                <div className="min-h-0 lg:overflow-hidden">
                   <WorkflowBottomWorkbench
                     workflowId={workflow.id}
                     workflow={workflow}

@@ -6,16 +6,16 @@ export const MAX_WORKFLOW_RAIL_WIDTH_PX = 520;
 export const DEFAULT_WORKFLOW_WORKBENCH_FRACTION = 0.5;
 export const MIN_WORKFLOW_WORKBENCH_FRACTION = 0.35;
 export const MAX_WORKFLOW_WORKBENCH_FRACTION = 0.7;
-const DEFAULT_WORKFLOW_BOARD_MIN_HEIGHT_REM = 16;
-const DEFAULT_WORKFLOW_WORKBENCH_MIN_HEIGHT_REM = 14;
+const DEFAULT_WORKFLOW_BOARD_MIN_HEIGHT_REM = 20;
+const DEFAULT_WORKFLOW_WORKBENCH_MIN_HEIGHT_REM = 20;
 const WORKFLOW_SPLIT_GUTTER_REM = 0.5;
 
 export function buildWorkflowsShellClassName(isRailHidden: boolean): string {
-  const baseClassName = 'flex w-full min-w-0 flex-col gap-3 xl:h-[calc(100vh-8.5rem)] xl:min-h-0 xl:overflow-hidden';
+  const baseClassName = 'flex w-full min-w-0 flex-col gap-3 lg:h-[calc(100vh-8.5rem)] lg:min-h-0 lg:overflow-hidden';
   if (isRailHidden) {
-    return `${baseClassName} xl:flex`;
+    return `${baseClassName} lg:flex`;
   }
-  return `${baseClassName} xl:grid`;
+  return `${baseClassName} lg:grid`;
 }
 
 export function buildWorkflowsShellStyle(

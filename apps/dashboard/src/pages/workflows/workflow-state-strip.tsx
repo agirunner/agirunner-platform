@@ -86,7 +86,7 @@ export function WorkflowStateStrip(props: {
         </div>
       </div>
 
-      <div className="grid gap-2 xl:grid-cols-4">
+      <div className="grid gap-2 lg:grid-cols-4">
         <HeaderCard
           title="Workflow State"
           value={postureLabel}

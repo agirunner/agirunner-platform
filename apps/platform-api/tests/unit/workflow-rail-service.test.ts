@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowRailService } from '../../src/services/workflow-operations/workflow-rail-service.js';
 
 describe('WorkflowRailService', () => {
-  it('builds live rail rows, ongoing rows, and a default selected workflow from live workflow cards', async () => {
+  it('builds live rail rows with ongoing workflows split into the pinned ongoing rail section', async () => {
     const liveService = {
       getLive: vi.fn(async () => ({
         version: {
@@ -64,19 +64,71 @@ describe('WorkflowRailService', () => {
         snapshot_version: 'workflow-operations:42',
         selected_workflow_id: 'workflow-1',
         ongoing_rows: [expect.objectContaining({ workflow_id: 'workflow-1' })],
-        rows: [
-          expect.objectContaining({
-            workflow_id: 'workflow-1',
-            name: 'Release Workflow',
-            posture: 'needs_decision',
-            live_summary: 'Waiting on operator approval',
-            needs_action: true,
-            workspace_name: 'Core Product',
-            playbook_name: 'Release',
-          }),
-        ],
+        rows: [],
       }),
     );
+  });
+
+  it('still auto-selects the first visible ongoing workflow when the main live list is empty', async () => {
+    const liveService = {
+      getLive: vi.fn(async () => ({
+        version: {
+          generatedAt: '2026-03-27T22:30:00.000Z',
+          latestEventId: 42,
+          token: 'mission-control:42',
+        },
+        sections: [
+          {
+            id: 'progressing',
+            title: 'Progressing',
+            count: 1,
+            workflows: [
+              {
+                id: 'workflow-ongoing',
+                name: 'Intake Workflow',
+                state: 'active',
+                lifecycle: 'ongoing',
+                currentStage: null,
+                workspaceName: 'Core Product',
+                playbookName: 'Intake',
+                posture: 'progressing',
+                pulse: {
+                  summary: 'Orchestrator is routing the first work item.',
+                  tone: 'progressing',
+                  updatedAt: '2026-03-27T22:29:00.000Z',
+                },
+                metrics: {
+                  activeTaskCount: 1,
+                  activeWorkItemCount: 0,
+                  blockedWorkItemCount: 0,
+                  openEscalationCount: 0,
+                  waitingForDecisionCount: 0,
+                  failedTaskCount: 0,
+                  recoverableIssueCount: 0,
+                  lastChangedAt: '2026-03-27T22:29:00.000Z',
+                },
+              },
+            ],
+          },
+        ],
+        attentionItems: [],
+      })),
+    };
+    const service = new WorkflowRailService(
+      liveService as never,
+      { getRecent: vi.fn() } as never,
+      { getHistory: vi.fn() } as never,
+    );
+
+    const result = await service.getRail('tenant-1', { mode: 'live' });
+
+    expect(result.rows).toEqual([]);
+    expect(result.ongoing_rows).toEqual([
+      expect.objectContaining({
+        workflow_id: 'workflow-ongoing',
+      }),
+    ]);
+    expect(result.selected_workflow_id).toBe('workflow-ongoing');
   });
 
   it('builds recent rail rows from recent packets when recent mode is selected', async () => {
