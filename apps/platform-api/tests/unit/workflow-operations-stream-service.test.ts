@@ -144,4 +144,90 @@ describe('WorkflowOperationsStreamService', () => {
       }),
     ]);
   });
+
+  it('emits append events when surface heads advance without a snapshot version change', async () => {
+    const railService = {
+      getRail: vi.fn(),
+    };
+    const workspaceService = {
+      getWorkspace: vi.fn(async () => ({
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        snapshot_version: 'workflow-operations:120',
+        workflow_id: 'workflow-1',
+        selected_scope: { scope_kind: 'workflow', work_item_id: null },
+        sticky_strip: { workflow_id: 'workflow-1' },
+        board: { lanes: [] },
+        bottom_tabs: {
+          default_tab: 'live_console',
+          current_scope_kind: 'workflow',
+          current_work_item_id: null,
+          counts: {
+            needs_action: 0,
+            steering: 0,
+            live_console_activity: 2,
+            history: 1,
+            deliverables: 0,
+          },
+        },
+        needs_action: { items: [], total_count: 0, default_sort: 'priority_desc' },
+        steering: { quick_actions: [], decision_actions: [], recent_interventions: [], session: null },
+        live_console: {
+          generated_at: '2026-03-27T22:45:00.000Z',
+          latest_event_id: 120,
+          snapshot_version: 'workflow-operations:120',
+          items: [
+            { item_id: 'console-2', created_at: '2026-03-27T22:47:00.000Z' },
+            { item_id: 'console-1', created_at: '2026-03-27T22:46:00.000Z' },
+          ],
+          next_cursor: 'console-cursor',
+          live_visibility_mode: 'enhanced',
+        },
+        history: {
+          generated_at: '2026-03-27T22:45:00.000Z',
+          latest_event_id: 120,
+          snapshot_version: 'workflow-operations:120',
+          groups: [],
+          items: [],
+          filters: { available: [], active: [] },
+          next_cursor: 'history-cursor',
+        },
+        deliverables: {
+          final_deliverables: [],
+          in_progress_deliverables: [],
+          working_handoffs: [],
+          inputs_and_provenance: {
+            launch_packet: null,
+            supplemental_packets: [],
+            intervention_attachments: [],
+            redrive_packet: null,
+          },
+          next_cursor: 'deliverables-cursor',
+        },
+        redrive_lineage: null,
+      })),
+    };
+
+    const service = new WorkflowOperationsStreamService(
+      railService as never,
+      workspaceService as never,
+    );
+
+    const result = await service.buildWorkspaceBatch('tenant-1', 'workflow-1', {
+      afterCursor: 'workflow-operations:120',
+      liveConsoleHeadCursor: '2026-03-27T22:46:00.000Z|console-1',
+      historyHeadCursor: null,
+      deliverablesHeadCursor: null,
+    });
+
+    expect(result.events).toEqual([
+      expect.objectContaining({
+        event_type: 'live_console_append',
+        payload: {
+          items: [{ item_id: 'console-2', created_at: '2026-03-27T22:47:00.000Z' }],
+          next_cursor: 'console-cursor',
+        },
+      }),
+    ]);
+  });
 });

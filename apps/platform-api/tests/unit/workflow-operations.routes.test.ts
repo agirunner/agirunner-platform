@@ -51,12 +51,19 @@ describe('workflow operations routes v2', () => {
         events: [],
       })),
     };
+    const logStreamService = {
+      subscribe: vi.fn(() => () => undefined),
+    };
 
     app = fastify();
     registerErrorHandler(app);
     app.decorate('workflowOperationsRailService', workflowOperationsRailService as never);
     app.decorate('workflowOperationsWorkspaceService', workflowOperationsWorkspaceService as never);
     app.decorate('workflowOperationsStreamService', workflowOperationsStreamService as never);
+    app.decorate('eventStreamService', {
+      subscribe: vi.fn(() => () => undefined),
+    } as never);
+    app.decorate('logStreamService', logStreamService as never);
     await app.register(workflowOperationsRoutes);
 
     const headers = { authorization: 'Bearer test' };
@@ -153,15 +160,20 @@ describe('workflow operations routes v2', () => {
         },
       })),
     };
+    const eventStreamService = {
+      subscribe: vi.fn(() => () => undefined),
+    };
+    const logStreamService = {
+      subscribe: vi.fn(() => () => undefined),
+    };
 
     app = fastify();
     registerErrorHandler(app);
     app.decorate('workflowOperationsRailService', workflowOperationsRailService as never);
     app.decorate('workflowOperationsWorkspaceService', workflowOperationsWorkspaceService as never);
     app.decorate('workflowOperationsStreamService', workflowOperationsStreamService as never);
-    app.decorate('eventStreamService', {
-      subscribe: vi.fn(() => () => undefined),
-    } as never);
+    app.decorate('eventStreamService', eventStreamService as never);
+    app.decorate('logStreamService', logStreamService as never);
     await app.register(workflowOperationsRoutes);
 
     await app.listen({ port: 0, host: '127.0.0.1' });
@@ -196,6 +208,16 @@ describe('workflow operations routes v2', () => {
     expect(workspaceResponse.headers.get('access-control-allow-origin')).toBe('http://localhost:3000');
     expect(railResponse.headers.get('access-control-allow-credentials')).toBe('true');
     expect(workspaceResponse.headers.get('access-control-allow-credentials')).toBe('true');
+    expect(eventStreamService.subscribe).toHaveBeenCalledWith(
+      'tenant-1',
+      { workflowId: 'workflow-1' },
+      expect.any(Function),
+    );
+    expect(logStreamService.subscribe).toHaveBeenCalledWith(
+      'tenant-1',
+      { workflowId: 'workflow-1', category: ['agent_loop', 'task_lifecycle'] },
+      expect.any(Function),
+    );
   });
 
   it('does not expose legacy mission control route aliases after workflows cutover', async () => {
@@ -220,6 +242,12 @@ describe('workflow operations routes v2', () => {
         snapshot_version: 'workflow-operations:42',
         events: [],
       })),
+    } as never);
+    app.decorate('eventStreamService', {
+      subscribe: vi.fn(() => () => undefined),
+    } as never);
+    app.decorate('logStreamService', {
+      subscribe: vi.fn(() => () => undefined),
     } as never);
     await app.register(workflowOperationsRoutes);
 

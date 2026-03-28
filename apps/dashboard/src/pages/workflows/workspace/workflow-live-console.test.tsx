@@ -31,6 +31,38 @@ describe('WorkflowLiveConsole', () => {
     expect(html.indexOf('Newest headline')).toBeLessThan(html.indexOf('Older headline'));
     expect(html).toContain('Load older headlines');
   });
+
+  it('renders milestone briefs distinctly from execution turns', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowLiveConsole, {
+        packet: createPacket([
+          {
+            item_id: 'brief-1',
+            item_kind: 'milestone_brief',
+            source_label: 'Orchestrator',
+            headline: 'Workflow reached approval milestone',
+            summary: 'A structured brief was published.',
+            created_at: '2026-03-27T04:05:00.000Z',
+          },
+          {
+            item_id: 'turn-1',
+            item_kind: 'execution_turn',
+            source_label: 'Implementation Engineer',
+            headline: 'Ran apply patch',
+            summary: 'turn 3 · Updated retry handling.',
+            created_at: '2026-03-27T04:04:00.000Z',
+          },
+        ]),
+        selectedWorkItemId: null,
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Milestone Brief');
+    expect(html).toContain('Execution Turn');
+    expect(html).toContain('border-emerald-500/20');
+    expect(html).toContain('border-sky-500/20');
+  });
 });
 
 function createPacket(

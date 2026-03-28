@@ -1,4 +1,5 @@
 import type { MissionControlHistoryResponse } from './mission-control-types.js';
+import type { KeysetPage, LogFilters, LogRow } from '../../logging/log-service.js';
 import type { WorkflowDeliverableRecord } from '../workflow-deliverable-service.js';
 import type { WorkflowInputPacketRecord } from '../workflow-input-packet-service.js';
 import type { WorkflowInterventionRecord } from '../workflow-intervention-service.js';
@@ -10,6 +11,7 @@ import {
   type WorkflowHistoryItem,
   type WorkflowHistoryPacket,
 } from './workflow-operations-types.js';
+import { buildLifecycleHistoryItems } from './workflow-execution-log-composer.js';
 import {
   compareCursorTargets,
   paginateOrderedItems,
@@ -55,6 +57,10 @@ interface DeliverableSource {
   ): Promise<WorkflowDeliverableRecord[]>;
 }
 
+interface LogSource {
+  listLogs(tenantId: string, filters: LogFilters): Promise<KeysetPage<LogRow>>;
+}
+
 export class WorkflowHistoryService {
   constructor(
     private readonly versionSource: VersionSource,
@@ -63,6 +69,7 @@ export class WorkflowHistoryService {
     private readonly interventionSource: InterventionSource,
     private readonly inputPacketSource: InputPacketSource,
     private readonly deliverableSource: DeliverableSource,
+    private readonly logSource: LogSource,
   ) {}
 
   async getHistory(
@@ -72,7 +79,7 @@ export class WorkflowHistoryService {
   ): Promise<WorkflowHistoryPacket> {
     const limit = input.limit ?? 100;
     const fetchWindow = resolveFetchWindow(limit);
-    const [version, briefs, updates, interventions, inputPackets, deliverables] = await Promise.all([
+    const [version, briefs, updates, interventions, inputPackets, deliverables, lifecycleLogs] = await Promise.all([
       this.versionSource.getHistory(tenantId, {
         workflowId,
         limit: 1,
@@ -91,6 +98,19 @@ export class WorkflowHistoryService {
         workItemId: input.workItemId,
         limit: fetchWindow,
       }),
+      this.logSource.listLogs(tenantId, {
+        workflowId,
+        workItemId: input.workItemId,
+        category: ['task_lifecycle'],
+        operation: [
+          'task_lifecycle.workflow.state_changed',
+          'task_lifecycle.task.claimed',
+          'task_lifecycle.task.started',
+          'task_lifecycle.task.completed',
+        ],
+        order: 'desc',
+        perPage: fetchWindow,
+      }),
     ]);
 
     const items = [
@@ -99,6 +119,7 @@ export class WorkflowHistoryService {
       ...filterByWorkItem(interventions, input.workItemId).map(toInterventionHistoryItem),
       ...filterInputPackets(inputPackets, input.workItemId).map(toInputHistoryItem),
       ...deliverables.map(toDeliverableHistoryItem),
+      ...buildLifecycleHistoryItems(lifecycleLogs.data),
     ]
       .sort(sortNewestFirst)
     const page = paginateOrderedItems(items, limit, input.after, (item) => ({

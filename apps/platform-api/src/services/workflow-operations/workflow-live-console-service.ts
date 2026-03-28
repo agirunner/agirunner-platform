@@ -1,4 +1,5 @@
 import type { MissionControlHistoryResponse } from './mission-control-types.js';
+import type { KeysetPage, LogFilters, LogRow } from '../../logging/log-service.js';
 import type { WorkflowOperatorBriefRecord } from '../workflow-operator-brief-service.js';
 import type { WorkflowOperatorUpdateRecord } from '../workflow-operator-update-service.js';
 import {
@@ -6,6 +7,7 @@ import {
   type WorkflowLiveConsoleItem,
   type WorkflowLiveConsolePacket,
 } from './workflow-operations-types.js';
+import { buildExecutionTurnItems } from './workflow-execution-log-composer.js';
 import {
   compareCursorTargets,
   paginateOrderedItems,
@@ -35,6 +37,10 @@ interface UpdateSource {
   ): Promise<WorkflowOperatorUpdateRecord[]>;
 }
 
+interface LogSource {
+  listLogs(tenantId: string, filters: LogFilters): Promise<KeysetPage<LogRow>>;
+}
+
 interface VisibilityModeSource {
   getWorkflowSettings(
     tenantId: string,
@@ -47,6 +53,7 @@ export class WorkflowLiveConsoleService {
     private readonly versionSource: VersionSource,
     private readonly briefSource: BriefSource,
     private readonly updateSource: UpdateSource,
+    private readonly logSource: LogSource,
     private readonly visibilityModeSource: VisibilityModeSource,
   ) {}
 
@@ -57,7 +64,7 @@ export class WorkflowLiveConsoleService {
   ): Promise<WorkflowLiveConsolePacket> {
     const limit = input.limit ?? 50;
     const fetchWindow = resolveFetchWindow(limit);
-    const [version, briefs, updates, workflowSettings] = await Promise.all([
+    const [version, briefs, updates, executionLogs, workflowSettings] = await Promise.all([
       this.versionSource.getHistory(tenantId, {
         workflowId,
         limit: 1,
@@ -70,10 +77,22 @@ export class WorkflowLiveConsoleService {
         workItemId: input.workItemId,
         limit: fetchWindow,
       }),
+      this.logSource.listLogs(tenantId, {
+        workflowId,
+        workItemId: input.workItemId,
+        category: ['agent_loop'],
+        operation: ['agent.think', 'agent.plan', 'agent.act', 'agent.observe', 'agent.verify'],
+        order: 'desc',
+        perPage: fetchWindow,
+      }),
       this.visibilityModeSource.getWorkflowSettings(tenantId, workflowId),
     ]);
 
-    const items = [...updates.map(toUpdateItem), ...briefs.map(toBriefItem)]
+    const items = [
+      ...updates.map(toUpdateItem),
+      ...briefs.map(toBriefItem),
+      ...buildExecutionTurnItems(executionLogs.data),
+    ]
       .sort(sortNewestFirst)
     const page = paginateOrderedItems(items, limit, input.after, (item) => ({
       timestamp: item.created_at,

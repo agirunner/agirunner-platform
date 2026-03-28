@@ -61,7 +61,7 @@ export interface WorkflowNeedsActionPacket {
 
 export interface WorkflowLiveConsoleItem {
   item_id: string;
-  item_kind: 'milestone_brief' | 'operator_update' | 'platform_notice';
+  item_kind: 'milestone_brief' | 'operator_update' | 'platform_notice' | 'execution_turn';
   source_kind: string;
   source_label: string;
   headline: string;
@@ -89,6 +89,7 @@ export interface WorkflowHistoryItem {
     | 'milestone_brief'
     | 'operator_update'
     | 'platform_notice'
+    | 'lifecycle_event'
     | 'intervention'
     | 'input'
     | 'deliverable'

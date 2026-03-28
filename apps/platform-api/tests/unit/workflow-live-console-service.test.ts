@@ -90,11 +90,23 @@ describe('WorkflowLiveConsoleService', () => {
         },
       ]),
     };
+    const logService = {
+      listLogs: vi.fn(async () => ({
+        data: [],
+        pagination: {
+          per_page: 0,
+          has_more: false,
+          next_cursor: null,
+          prev_cursor: null,
+        },
+      })),
+    };
 
     const service = new WorkflowLiveConsoleService(
       versionSource as never,
       briefService as never,
       updateService as never,
+      logService as never,
       {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
@@ -192,11 +204,23 @@ describe('WorkflowLiveConsoleService', () => {
         },
       ]),
     };
+    const logService = {
+      listLogs: vi.fn(async () => ({
+        data: [],
+        pagination: {
+          per_page: 0,
+          has_more: false,
+          next_cursor: null,
+          prev_cursor: null,
+        },
+      })),
+    };
 
     const service = new WorkflowLiveConsoleService(
       versionSource as never,
       briefService as never,
       updateService as never,
+      logService as never,
       {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
@@ -234,6 +258,17 @@ describe('WorkflowLiveConsoleService', () => {
     const updateService = {
       listUpdates: vi.fn(async () => []),
     };
+    const logService = {
+      listLogs: vi.fn(async () => ({
+        data: [],
+        pagination: {
+          per_page: 0,
+          has_more: false,
+          next_cursor: null,
+          prev_cursor: null,
+        },
+      })),
+    };
     const settingsSource = {
       getWorkflowSettings: vi.fn(async () => ({
         effective_live_visibility_mode: 'enhanced',
@@ -244,6 +279,7 @@ describe('WorkflowLiveConsoleService', () => {
       versionSource as never,
       briefService as never,
       updateService as never,
+      logService as never,
       settingsSource as never,
     );
 
@@ -253,5 +289,251 @@ describe('WorkflowLiveConsoleService', () => {
 
     expect(result.live_visibility_mode).toBe('enhanced');
     expect(settingsSource.getWorkflowSettings).toHaveBeenCalledWith('tenant-1', 'workflow-1');
+  });
+
+  it('includes newest-first execution turn items composed from agent loop logs', async () => {
+    const versionSource = {
+      getHistory: vi.fn(async () => ({
+        version: {
+          generatedAt: '2026-03-27T22:35:00.000Z',
+          latestEventId: 101,
+          token: 'mission-control:101',
+        },
+        packets: [],
+      })),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const updateService = {
+      listUpdates: vi.fn(async () => []),
+    };
+    const logService = {
+      listLogs: vi.fn(async () => ({
+        data: [
+          {
+            id: '520',
+            tenant_id: 'tenant-1',
+            trace_id: 'trace-1',
+            span_id: 'span-1',
+            parent_span_id: null,
+            source: 'runtime',
+            category: 'agent_loop',
+            level: 'info',
+            operation: 'agent.observe',
+            status: 'completed',
+            duration_ms: 20,
+            payload: {
+              summary: 'Observed the updated repository state.',
+              text_preview: 'Observed diff and validation output.',
+              iteration: 2,
+            },
+            error: null,
+            workspace_id: 'workspace-1',
+            workflow_id: 'workflow-1',
+            workflow_name: 'Workflow 1',
+            workspace_name: 'Workspace 1',
+            task_id: 'task-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'drafting',
+            activation_id: 'activation-1',
+            is_orchestrator_task: false,
+            execution_backend: 'runtime_plus_task',
+            tool_owner: 'task',
+            task_title: 'Review draft',
+            role: 'reviewer',
+            actor_type: 'worker',
+            actor_id: 'worker-1',
+            actor_name: 'Reviewer agent',
+            resource_type: null,
+            resource_id: null,
+            resource_name: null,
+            execution_environment_id: null,
+            execution_environment_name: null,
+            execution_environment_image: null,
+            execution_environment_distro: null,
+            execution_environment_package_manager: null,
+            created_at: '2026-03-27T22:36:00.000Z',
+          },
+          {
+            id: '519',
+            tenant_id: 'tenant-1',
+            trace_id: 'trace-1',
+            span_id: 'span-2',
+            parent_span_id: null,
+            source: 'runtime',
+            category: 'agent_loop',
+            level: 'info',
+            operation: 'agent.plan',
+            status: 'completed',
+            duration_ms: 18,
+            payload: {
+              summary: 'Plan the next validation steps.',
+              steps: [{ description: 'Review rollback handling' }],
+              iteration: 1,
+            },
+            error: null,
+            workspace_id: 'workspace-1',
+            workflow_id: 'workflow-1',
+            workflow_name: 'Workflow 1',
+            workspace_name: 'Workspace 1',
+            task_id: 'task-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'drafting',
+            activation_id: 'activation-1',
+            is_orchestrator_task: false,
+            execution_backend: 'runtime_plus_task',
+            tool_owner: 'task',
+            task_title: 'Review draft',
+            role: 'reviewer',
+            actor_type: 'worker',
+            actor_id: 'worker-1',
+            actor_name: 'Reviewer agent',
+            resource_type: null,
+            resource_id: null,
+            resource_name: null,
+            execution_environment_id: null,
+            execution_environment_name: null,
+            execution_environment_image: null,
+            execution_environment_distro: null,
+            execution_environment_package_manager: null,
+            created_at: '2026-03-27T22:35:30.000Z',
+          },
+        ],
+        pagination: {
+          per_page: 2,
+          has_more: false,
+          next_cursor: null,
+          prev_cursor: null,
+        },
+      })),
+    };
+
+    const service = new WorkflowLiveConsoleService(
+      versionSource as never,
+      briefService as never,
+      updateService as never,
+      logService as never,
+      {
+        getWorkflowSettings: vi.fn(async () => ({
+          effective_live_visibility_mode: 'enhanced',
+        })),
+      } as never,
+    );
+
+    const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
+      limit: 10,
+    });
+
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        item_id: 'execution-log:520',
+        item_kind: 'execution_turn',
+        source_kind: 'reviewer',
+        source_label: 'Reviewer',
+        headline: 'Observed the updated repository state.',
+      }),
+      expect.objectContaining({
+        item_id: 'execution-log:519',
+        item_kind: 'execution_turn',
+        headline: 'Plan the next validation steps.',
+      }),
+    ]);
+    expect(logService.listLogs).toHaveBeenCalledWith('tenant-1', {
+      workflowId: 'workflow-1',
+      workItemId: undefined,
+      category: ['agent_loop'],
+      operation: ['agent.think', 'agent.plan', 'agent.act', 'agent.observe', 'agent.verify'],
+      order: 'desc',
+      perPage: 500,
+    });
+  });
+
+  it('normalizes execution log timestamps before sorting live console items', async () => {
+    const versionSource = {
+      getHistory: vi.fn(async () => ({
+        version: {
+          generatedAt: '2026-03-27T22:35:00.000Z',
+          latestEventId: 101,
+          token: 'mission-control:101',
+        },
+        packets: [],
+      })),
+    };
+
+    const service = new WorkflowLiveConsoleService(
+      versionSource as never,
+      { listBriefs: vi.fn(async () => []) } as never,
+      { listUpdates: vi.fn(async () => []) } as never,
+      {
+        listLogs: vi.fn(async () => ({
+          data: [
+            {
+              id: '521',
+              tenant_id: 'tenant-1',
+              trace_id: 'trace-1',
+              span_id: 'span-1',
+              parent_span_id: null,
+              source: 'runtime',
+              category: 'agent_loop',
+              level: 'info',
+              operation: 'agent.observe',
+              status: 'completed',
+              duration_ms: null,
+              payload: {
+                summary: 'Observed repository output.',
+              },
+              error: null,
+              workspace_id: 'workspace-1',
+              workflow_id: 'workflow-1',
+              workflow_name: 'Workflow 1',
+              workspace_name: 'Workspace 1',
+              task_id: 'task-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'drafting',
+              activation_id: 'activation-1',
+              is_orchestrator_task: false,
+              execution_backend: 'runtime_plus_task',
+              tool_owner: 'task',
+              task_title: 'Review draft',
+              role: 'reviewer',
+              actor_type: 'worker',
+              actor_id: 'worker-1',
+              actor_name: 'Reviewer agent',
+              resource_type: null,
+              resource_id: null,
+              resource_name: null,
+              execution_environment_id: null,
+              execution_environment_name: null,
+              execution_environment_image: null,
+              execution_environment_distro: null,
+              execution_environment_package_manager: null,
+              created_at: new Date('2026-03-27T22:36:30.000Z'),
+            } as never,
+          ],
+          pagination: {
+            per_page: 1,
+            has_more: false,
+            next_cursor: null,
+            prev_cursor: null,
+          },
+        })),
+      } as never,
+      {
+        getWorkflowSettings: vi.fn(async () => ({
+          effective_live_visibility_mode: 'enhanced',
+        })),
+      } as never,
+    );
+
+    const result = await service.getLiveConsole('tenant-1', 'workflow-1', { limit: 10 });
+
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        item_id: 'execution-log:521',
+        item_kind: 'execution_turn',
+        created_at: '2026-03-27T22:36:30.000Z',
+      }),
+    ]);
   });
 });

@@ -1,0 +1,260 @@
+import type { LogRow } from '../../logging/log-service.js';
+
+import type { WorkflowHistoryItem, WorkflowLiveConsoleItem } from './workflow-operations-types.js';
+
+const LIVE_CONSOLE_AGENT_LOOP_OPERATIONS = new Set([
+  'agent.think',
+  'agent.plan',
+  'agent.act',
+  'agent.observe',
+  'agent.verify',
+]);
+
+const HISTORY_LIFECYCLE_OPERATIONS = new Set([
+  'task_lifecycle.workflow.state_changed',
+  'task_lifecycle.task.claimed',
+  'task_lifecycle.task.started',
+  'task_lifecycle.task.completed',
+]);
+
+export function buildExecutionTurnItems(rows: LogRow[]): WorkflowLiveConsoleItem[] {
+  return rows
+    .filter((row) => LIVE_CONSOLE_AGENT_LOOP_OPERATIONS.has(row.operation))
+    .map((row) => ({
+      item_id: `execution-log:${row.id}`,
+      item_kind: 'execution_turn',
+      source_kind: readLogSourceKind(row),
+      source_label: readLogSourceLabel(row),
+      headline: buildExecutionTurnHeadline(row),
+      summary: buildExecutionTurnSummary(row),
+      created_at: normalizeTimestamp(row.created_at),
+      linked_target_ids: buildLinkedTargetIds(row),
+    }));
+}
+
+export function buildLifecycleHistoryItems(rows: LogRow[]): WorkflowHistoryItem[] {
+  return rows
+    .filter((row) => HISTORY_LIFECYCLE_OPERATIONS.has(row.operation))
+    .map((row) => ({
+      item_id: `lifecycle-log:${row.id}`,
+      item_kind: 'lifecycle_event',
+      source_kind: readLogSourceKind(row),
+      source_label: readLogSourceLabel(row),
+      headline: buildLifecycleHeadline(row),
+      summary: buildLifecycleSummary(row),
+      created_at: normalizeTimestamp(row.created_at),
+      linked_target_ids: buildLinkedTargetIds(row),
+    }));
+}
+
+function buildExecutionTurnHeadline(row: LogRow): string {
+  const payload = asRecord(row.payload);
+  switch (row.operation) {
+    case 'agent.think':
+      return (
+        truncate(readString(payload.reasoning_summary) ?? readString(payload.approach), 180)
+        ?? 'Thinking through the next step'
+      );
+    case 'agent.plan':
+      return (
+        truncate(readString(payload.summary) ?? readFirstPlanDescription(payload.steps), 180)
+        ?? 'Planned the next execution steps'
+      );
+    case 'agent.act': {
+      const tool = readString(payload.tool);
+      if (tool) {
+        return `Ran ${humanizeToken(tool)}`;
+      }
+      return truncate(readString(payload.output_preview) ?? readString(payload.output), 180)
+        ?? 'Executed task action';
+    }
+    case 'agent.observe':
+      return (
+        truncate(readString(payload.summary) ?? readString(payload.text) ?? readString(payload.text_preview), 180)
+        ?? 'Observed execution results'
+      );
+    case 'agent.verify':
+      return (
+        truncate(readString(payload.details) ?? buildVerifyHeadline(payload), 180)
+        ?? 'Verified current progress'
+      );
+    default:
+      return humanizeToken(row.operation);
+  }
+}
+
+function buildExecutionTurnSummary(row: LogRow): string {
+  const payload = asRecord(row.payload);
+  const detail =
+    truncate(
+      readString(payload.output_preview)
+        ?? readString(payload.text_preview)
+        ?? readString(payload.summary)
+        ?? readString(payload.details)
+        ?? readString(payload.approach),
+      220,
+    );
+  const phase = readString(payload.phase);
+  const iteration = readPositiveInteger(payload.iteration);
+  const llmTurnCount = readPositiveInteger(payload.llm_turn_count);
+  const toolStepsInBurst = readPositiveInteger(payload.tool_steps_in_burst);
+  const meta = [
+    phase ? `phase ${phase}` : null,
+    iteration !== null ? `iteration ${iteration}` : null,
+    llmTurnCount !== null ? `turn ${llmTurnCount}` : null,
+    toolStepsInBurst !== null ? `${toolStepsInBurst} tool steps` : null,
+  ].filter((value): value is string => value !== null);
+  if (!detail && meta.length === 0) {
+    return humanizeToken(row.operation);
+  }
+  if (!detail) {
+    return meta.join(' · ');
+  }
+  if (meta.length === 0) {
+    return detail;
+  }
+  return `${meta.join(' · ')} · ${detail}`;
+}
+
+function buildLifecycleHeadline(row: LogRow): string {
+  const payload = asRecord(row.payload);
+  const entityName = readString(payload.entity_name) ?? row.task_title ?? 'Task';
+  const sourceLabel = readLogSourceLabel(row);
+  switch (row.operation) {
+    case 'task_lifecycle.workflow.state_changed': {
+      const nextState = readString(payload.to_state);
+      return nextState ? `Workflow moved to ${humanizeToken(nextState)}` : 'Workflow state changed';
+    }
+    case 'task_lifecycle.task.claimed':
+      return `${sourceLabel} claimed ${entityName}`;
+    case 'task_lifecycle.task.started':
+      return `${sourceLabel} started ${entityName}`;
+    case 'task_lifecycle.task.completed':
+      return `${sourceLabel} completed ${entityName}`;
+    default:
+      return humanizeToken(row.operation);
+  }
+}
+
+function buildLifecycleSummary(row: LogRow): string {
+  const payload = asRecord(row.payload);
+  if (row.operation === 'task_lifecycle.workflow.state_changed') {
+    const fromState = readString(payload.from_state);
+    const toState = readString(payload.to_state);
+    const workflowName = readString(payload.workflow_name) ?? row.workflow_name;
+    const pieces = [
+      fromState ? `from ${humanizeToken(fromState)}` : null,
+      toState ? `to ${humanizeToken(toState)}` : null,
+      workflowName ? `workflow ${workflowName}` : null,
+    ].filter((value): value is string => value !== null);
+    return pieces.length > 0 ? pieces.join(' · ') : 'Workflow state changed';
+  }
+
+  const requestId = readString(payload.request_id);
+  const method = readString(payload.method);
+  const action = readString(payload.action);
+  const pieces = [
+    action ? `action ${humanizeToken(action)}` : null,
+    method ? `via ${method}` : null,
+    requestId ? `request ${requestId}` : null,
+  ].filter((value): value is string => value !== null);
+  return pieces.length > 0 ? pieces.join(' · ') : humanizeToken(row.operation);
+}
+
+function buildVerifyHeadline(payload: Record<string, unknown>): string | null {
+  const status = readString(payload.status);
+  const decision = readString(payload.decision);
+  if (status && decision) {
+    return `Verification ${humanizeToken(status)}: ${humanizeToken(decision)}`;
+  }
+  if (status) {
+    return `Verification ${humanizeToken(status)}`;
+  }
+  if (decision) {
+    return `Verification ${humanizeToken(decision)}`;
+  }
+  return null;
+}
+
+function readFirstPlanDescription(value: unknown): string | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      continue;
+    }
+    const description = readString((entry as Record<string, unknown>).description);
+    if (description) {
+      return description;
+    }
+  }
+  return null;
+}
+
+function readLogSourceKind(row: LogRow): string {
+  return readString(row.role) ?? readString(row.actor_type) ?? row.source;
+}
+
+function readLogSourceLabel(row: LogRow): string {
+  return (
+    readHumanizedString(row.role)
+    ?? readString(row.actor_name)
+    ?? readHumanizedString(row.actor_type)
+    ?? humanizeToken(row.source)
+  );
+}
+
+function buildLinkedTargetIds(row: LogRow): string[] {
+  return [row.workflow_id, row.work_item_id, row.task_id].filter(
+    (value): value is string => typeof value === 'string' && value.trim().length > 0,
+  );
+}
+
+function normalizeTimestamp(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return '';
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+function readString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function readHumanizedString(value: unknown): string | null {
+  const parsed = readString(value);
+  return parsed ? humanizeToken(parsed) : null;
+}
+
+function readPositiveInteger(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) {
+    return null;
+  }
+  return value;
+}
+
+function truncate(value: string | null, maxLength: number): string | null {
+  if (!value) {
+    return null;
+  }
+  return value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
+}
+
+function humanizeToken(value: string): string {
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+}

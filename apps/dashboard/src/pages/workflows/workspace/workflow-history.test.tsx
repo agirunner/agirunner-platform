@@ -25,6 +25,38 @@ describe('WorkflowHistory', () => {
     expect(html).not.toContain('/mission-control/');
     expect(html).not.toContain('/workflow-detail/');
   });
+
+  it('renders lifecycle events as distinct history packets', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        MemoryRouter,
+        undefined,
+        createElement(WorkflowHistory, {
+          workflowId: 'workflow-1',
+          packet: {
+            ...createPacket(),
+            items: [
+              {
+                item_id: 'history-1',
+                item_kind: 'lifecycle_event',
+                source_kind: 'implementation_engineer',
+                source_label: 'Implementation Engineer',
+                headline: 'Implementation Engineer started Implement change',
+                summary: 'action Task Started · via workflow_runner',
+                created_at: '2026-03-27T04:04:00.000Z',
+                linked_target_ids: ['workflow-1', 'work-item-1'],
+              },
+            ],
+          },
+          selectedWorkItemId: 'work-item-1',
+          onLoadMore: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Lifecycle Event');
+    expect(html).toContain('Implementation Engineer started Implement change');
+  });
 });
 
 function createPacket(): DashboardWorkflowHistoryPacket {

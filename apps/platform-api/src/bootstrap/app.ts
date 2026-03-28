@@ -260,11 +260,17 @@ export async function buildApp() {
     workflowInterventionService,
     workflowInputPacketService,
     workflowDeliverableService,
+    {
+      listLogs: (tenantId, filters) => logService.query(tenantId, filters),
+    },
   );
   const workflowOperationsLiveConsoleService = new WorkflowLiveConsoleService(
     workflowOperationsHistoryService,
     workflowOperatorBriefService,
     workflowOperatorUpdateService,
+    {
+      listLogs: (tenantId, filters) => logService.query(tenantId, filters),
+    },
     workflowSettingsService,
   );
   const workflowOperationsDeliverablesService = new WorkflowDeliverablesService(

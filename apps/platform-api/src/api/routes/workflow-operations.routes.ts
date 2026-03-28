@@ -229,32 +229,60 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
     let currentLiveConsoleHead = batch.surface_cursors?.live_console_head ?? null;
     let currentHistoryHead = batch.surface_cursors?.history_head ?? null;
     let currentDeliverablesHead = batch.surface_cursors?.deliverables_head ?? null;
-    const unsubscribe = app.eventStreamService.subscribe(
+    let refreshInFlight = false;
+    let refreshQueued = false;
+    const refresh = () => {
+      if (refreshInFlight) {
+        refreshQueued = true;
+        return;
+      }
+      refreshInFlight = true;
+      void app.workflowOperationsStreamService
+        .buildWorkspaceBatch(request.auth!.tenantId, request.params.id, {
+          afterCursor: currentCursor,
+          boardMode: request.query.board_mode,
+          boardFilters: request.query.board_filters,
+          workItemId: request.query.work_item_id,
+          tabScope: request.query.tab_scope ?? 'workflow',
+          liveConsoleHeadCursor: currentLiveConsoleHead,
+          historyHeadCursor: currentHistoryHead,
+          deliverablesHeadCursor: currentDeliverablesHead,
+        })
+        .then((nextBatch) => {
+          currentCursor = nextBatch.cursor;
+          currentLiveConsoleHead = nextBatch.surface_cursors?.live_console_head ?? currentLiveConsoleHead;
+          currentHistoryHead = nextBatch.surface_cursors?.history_head ?? currentHistoryHead;
+          currentDeliverablesHead = nextBatch.surface_cursors?.deliverables_head ?? currentDeliverablesHead;
+          if (nextBatch.events.length > 0) {
+            writeSse(reply, nextBatch);
+          }
+        })
+        .finally(() => {
+          refreshInFlight = false;
+          if (refreshQueued) {
+            refreshQueued = false;
+            refresh();
+          }
+        });
+    };
+    const unsubscribeEvents = app.eventStreamService.subscribe(
       request.auth!.tenantId,
       { workflowId: request.params.id },
+      refresh,
+    );
+    const unsubscribeLogs = app.logStreamService.subscribe(
+      request.auth!.tenantId,
+      {
+        workflowId: request.params.id,
+        category: ['agent_loop', 'task_lifecycle'],
+      },
       () => {
-        void app.workflowOperationsStreamService
-          .buildWorkspaceBatch(request.auth!.tenantId, request.params.id, {
-            afterCursor: currentCursor,
-            boardMode: request.query.board_mode,
-            boardFilters: request.query.board_filters,
-            workItemId: request.query.work_item_id,
-            tabScope: request.query.tab_scope ?? 'workflow',
-            liveConsoleHeadCursor: currentLiveConsoleHead,
-            historyHeadCursor: currentHistoryHead,
-            deliverablesHeadCursor: currentDeliverablesHead,
-          })
-          .then((nextBatch) => {
-            currentCursor = nextBatch.cursor;
-            currentLiveConsoleHead = nextBatch.surface_cursors?.live_console_head ?? currentLiveConsoleHead;
-            currentHistoryHead = nextBatch.surface_cursors?.history_head ?? currentHistoryHead;
-            currentDeliverablesHead = nextBatch.surface_cursors?.deliverables_head ?? currentDeliverablesHead;
-            writeSse(reply, nextBatch);
-          });
+        refresh();
       },
     );
     request.raw?.on('close', () => {
-      unsubscribe();
+      unsubscribeEvents();
+      unsubscribeLogs();
       reply.raw.end();
     });
     return reply;

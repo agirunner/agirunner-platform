@@ -106,10 +106,6 @@ function buildWorkspaceEvents(
   if (requiresReset(afterCursor, workspace.latest_event_id)) {
     return [buildResetEvent(workspace.snapshot_version, workspace.workflow_id, afterCursor ?? '')];
   }
-  if (afterCursor === workspace.snapshot_version) {
-    return [];
-  }
-
   const liveConsoleItems = afterCursor
     ? filterItemsNewerThanCursor(
         workspace.live_console.items,
@@ -134,6 +130,33 @@ function buildWorkspaceEvents(
         }),
       )
     : readOrderedDeliverables(workspace);
+
+  if (afterCursor === workspace.snapshot_version) {
+    const events: WorkflowOperationsStreamEvent[] = [];
+    if (liveConsoleItems.length > 0) {
+      events.push(
+        eventEnvelope('live_console_append', workspace.snapshot_version, workspace.workflow_id, {
+          items: liveConsoleItems,
+          next_cursor: workspace.live_console.next_cursor,
+        }),
+      );
+    }
+    if (historyItems.length > 0) {
+      events.push(
+        eventEnvelope('history_append', workspace.snapshot_version, workspace.workflow_id, {
+          items: historyItems,
+          groups: buildHistoryGroups(historyItems),
+          next_cursor: workspace.history.next_cursor,
+        }),
+      );
+    }
+    for (const deliverable of deliverables) {
+      events.push(
+        eventEnvelope('deliverable_upsert', workspace.snapshot_version, workspace.workflow_id, deliverable),
+      );
+    }
+    return events;
+  }
 
   const events: WorkflowOperationsStreamEvent[] = [
     eventEnvelope('workspace_sticky_update', workspace.snapshot_version, workspace.workflow_id, workspace.sticky_strip),

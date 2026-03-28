@@ -102,6 +102,8 @@ export function WorkflowLiveConsole(props: {
                     ? 'border-amber-500/30 bg-amber-500/10'
                     : item.item_kind === 'milestone_brief'
                       ? 'border-emerald-500/20 bg-emerald-500/10'
+                      : item.item_kind === 'execution_turn'
+                        ? 'border-sky-500/20 bg-sky-500/10'
                       : 'border-slate-700 bg-slate-950/50',
                 )}
               >

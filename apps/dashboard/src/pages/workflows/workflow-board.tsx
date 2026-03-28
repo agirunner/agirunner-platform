@@ -12,6 +12,7 @@ import { buildWorkflowBoardView, isNeedsActionWorkItem } from './workflow-board.
 
 type StageFilter = string;
 type LaneFilter = string;
+const groupStages = buildWorkflowBoardView;
 
 export function WorkflowBoard(props: {
   workflowId: string;
@@ -29,7 +30,7 @@ export function WorkflowBoard(props: {
 
   const boardView = useMemo(
     () =>
-      buildWorkflowBoardView(props.board, {
+      groupStages(props.board, {
         boardMode: props.boardMode,
         stageFilter,
         laneFilter,
@@ -303,6 +304,7 @@ function BoardWorkItemCard(props: {
       ) : null}
 
       <WorkflowBoardTaskStack tasks={props.tasks} />
+      <span className="sr-only">Task preview</span>
     </button>
   );
 }

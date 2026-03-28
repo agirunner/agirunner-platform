@@ -167,6 +167,17 @@ describe('WorkflowHistoryService', () => {
         },
       ]),
     };
+    const logService = {
+      listLogs: vi.fn(async () => ({
+        data: [],
+        pagination: {
+          per_page: 0,
+          has_more: false,
+          next_cursor: null,
+          prev_cursor: null,
+        },
+      })),
+    };
 
     const service = new WorkflowHistoryService(
       versionSource as never,
@@ -175,6 +186,7 @@ describe('WorkflowHistoryService', () => {
       interventionService as never,
       inputPacketService as never,
       deliverableService as never,
+      logService as never,
     );
     const result = await service.getHistory('tenant-1', 'workflow-1', { limit: 4 });
 
@@ -265,6 +277,17 @@ describe('WorkflowHistoryService', () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => []),
     };
+    const logService = {
+      listLogs: vi.fn(async () => ({
+        data: [],
+        pagination: {
+          per_page: 0,
+          has_more: false,
+          next_cursor: null,
+          prev_cursor: null,
+        },
+      })),
+    };
 
     const service = new WorkflowHistoryService(
       versionSource as never,
@@ -273,6 +296,7 @@ describe('WorkflowHistoryService', () => {
       interventionService as never,
       inputPacketService as never,
       deliverableService as never,
+      logService as never,
     );
     const result = await service.getHistory('tenant-1', 'workflow-1', { limit: 10 });
 
@@ -358,6 +382,17 @@ describe('WorkflowHistoryService', () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => []),
     };
+    const logService = {
+      listLogs: vi.fn(async () => ({
+        data: [],
+        pagination: {
+          per_page: 0,
+          has_more: false,
+          next_cursor: null,
+          prev_cursor: null,
+        },
+      })),
+    };
 
     const service = new WorkflowHistoryService(
       versionSource as never,
@@ -366,6 +401,7 @@ describe('WorkflowHistoryService', () => {
       interventionService as never,
       inputPacketService as never,
       deliverableService as never,
+      logService as never,
     );
 
     const result = await service.getHistory('tenant-1', 'workflow-1', {
@@ -376,6 +412,208 @@ describe('WorkflowHistoryService', () => {
       expect.objectContaining({
         item_id: 'packet-2',
         item_kind: 'input',
+      }),
+    ]);
+  });
+
+  it('includes lifecycle history items when milestone briefs have not been published yet', async () => {
+    const versionSource = {
+      getHistory: vi.fn(async () => ({
+        version: {
+          generatedAt: '2026-03-27T22:40:00.000Z',
+          latestEventId: 110,
+          token: 'mission-control:110',
+        },
+        packets: [],
+      })),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const updateService = {
+      listUpdates: vi.fn(async () => []),
+    };
+    const interventionService = {
+      listWorkflowInterventions: vi.fn(async () => []),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => []),
+    };
+    const logService = {
+      listLogs: vi.fn(async () => ({
+        data: [
+          {
+            id: '610',
+            tenant_id: 'tenant-1',
+            trace_id: 'trace-1',
+            span_id: 'span-1',
+            parent_span_id: null,
+            source: 'platform',
+            category: 'task_lifecycle',
+            level: 'info',
+            operation: 'task_lifecycle.task.started',
+            status: 'completed',
+            duration_ms: 12,
+            payload: {
+              action: 'task_started',
+              method: 'workflow_runner',
+            },
+            error: null,
+            workspace_id: 'workspace-1',
+            workflow_id: 'workflow-1',
+            workflow_name: 'Workflow 1',
+            workspace_name: 'Workspace 1',
+            task_id: 'task-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'drafting',
+            activation_id: 'activation-1',
+            is_orchestrator_task: false,
+            execution_backend: 'runtime_plus_task',
+            tool_owner: 'task',
+            task_title: 'Implement change',
+            role: 'implementation_engineer',
+            actor_type: 'worker',
+            actor_id: 'worker-1',
+            actor_name: 'Implementation engineer',
+            resource_type: null,
+            resource_id: null,
+            resource_name: null,
+            execution_environment_id: null,
+            execution_environment_name: null,
+            execution_environment_image: null,
+            execution_environment_distro: null,
+            execution_environment_package_manager: null,
+            created_at: '2026-03-27T22:39:30.000Z',
+          },
+        ],
+        pagination: {
+          per_page: 1,
+          has_more: false,
+          next_cursor: null,
+          prev_cursor: null,
+        },
+      })),
+    };
+
+    const service = new WorkflowHistoryService(
+      versionSource as never,
+      briefService as never,
+      updateService as never,
+      interventionService as never,
+      inputPacketService as never,
+      deliverableService as never,
+      logService as never,
+    );
+
+    const result = await service.getHistory('tenant-1', 'workflow-1', { limit: 10 });
+
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        item_id: 'lifecycle-log:610',
+        item_kind: 'lifecycle_event',
+        source_kind: 'implementation_engineer',
+        source_label: 'Implementation Engineer',
+        headline: 'Implementation Engineer started Implement change',
+      }),
+    ]);
+    expect(logService.listLogs).toHaveBeenCalledWith('tenant-1', {
+      workflowId: 'workflow-1',
+      workItemId: undefined,
+      category: ['task_lifecycle'],
+      operation: [
+        'task_lifecycle.workflow.state_changed',
+        'task_lifecycle.task.claimed',
+        'task_lifecycle.task.started',
+        'task_lifecycle.task.completed',
+      ],
+      order: 'desc',
+      perPage: 500,
+    });
+  });
+
+  it('normalizes lifecycle log timestamps before sorting history packets', async () => {
+    const versionSource = {
+      getHistory: vi.fn(async () => ({
+        version: {
+          generatedAt: '2026-03-27T22:40:00.000Z',
+          latestEventId: 110,
+          token: 'mission-control:110',
+        },
+        packets: [],
+      })),
+    };
+
+    const service = new WorkflowHistoryService(
+      versionSource as never,
+      { listBriefs: vi.fn(async () => []) } as never,
+      { listUpdates: vi.fn(async () => []) } as never,
+      { listWorkflowInterventions: vi.fn(async () => []) } as never,
+      { listWorkflowInputPackets: vi.fn(async () => []) } as never,
+      { listDeliverables: vi.fn(async () => []) } as never,
+      {
+        listLogs: vi.fn(async () => ({
+          data: [
+            {
+              id: '611',
+              tenant_id: 'tenant-1',
+              trace_id: 'trace-1',
+              span_id: 'span-1',
+              parent_span_id: null,
+              source: 'runtime',
+              category: 'task_lifecycle',
+              level: 'info',
+              operation: 'task_lifecycle.task.started',
+              status: 'completed',
+              duration_ms: null,
+              payload: {},
+              error: null,
+              workspace_id: 'workspace-1',
+              workflow_id: 'workflow-1',
+              workflow_name: 'Workflow 1',
+              workspace_name: 'Workspace 1',
+              task_id: 'task-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'stage-1',
+              activation_id: 'activation-1',
+              is_orchestrator_task: false,
+              execution_backend: 'runtime_only',
+              tool_owner: null,
+              task_title: 'Assess change',
+              role: 'policy-assessor',
+              actor_type: 'worker',
+              actor_id: 'worker-1',
+              actor_name: 'policy-assessor-1',
+              resource_type: null,
+              resource_id: null,
+              resource_name: null,
+              execution_environment_id: null,
+              execution_environment_name: null,
+              execution_environment_image: null,
+              execution_environment_distro: null,
+              execution_environment_package_manager: null,
+              created_at: new Date('2026-03-27T22:41:00.000Z'),
+            } as never,
+          ],
+          pagination: {
+            per_page: 1,
+            has_more: false,
+            next_cursor: null,
+            prev_cursor: null,
+          },
+        })),
+      } as never,
+    );
+
+    const result = await service.getHistory('tenant-1', 'workflow-1', { limit: 10 });
+
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        item_id: 'lifecycle-log:611',
+        item_kind: 'lifecycle_event',
+        created_at: '2026-03-27T22:41:00.000Z',
       }),
     ]);
   });
