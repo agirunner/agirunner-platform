@@ -6,6 +6,7 @@ import type { DashboardWorkflowLiveConsolePacket } from '../../../lib/api.js';
 import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
 import {
   formatWorkflowActivitySourceLabel,
+  getWorkflowConsoleEntryStyle,
   normalizeWorkflowConsoleText,
 } from './workflow-live-console.support.js';
 
@@ -82,7 +83,7 @@ export function WorkflowLiveConsole(props: {
 
       <div
         ref={containerRef}
-        className="max-h-[28rem] overflow-x-auto overflow-y-auto rounded-2xl border border-slate-800 bg-[#09111f] p-3 font-mono text-sm text-slate-100 shadow-inner"
+        className="max-h-[28rem] overflow-x-hidden overflow-y-auto rounded-2xl border border-slate-800 bg-[#09111f] p-3 font-mono text-sm text-slate-100 shadow-inner"
         onScroll={(event) => {
           const element = event.currentTarget;
           const nextPinned = element.scrollTop <= LIVE_EDGE_THRESHOLD_PX;
@@ -121,24 +122,21 @@ function LiveConsoleEntry(props: {
 }): JSX.Element {
   const { item } = props;
   const sourceLabel = formatWorkflowActivitySourceLabel(item.source_label, item.source_kind);
-  const accentClass = item.item_kind === 'platform_notice'
-    ? 'text-amber-300'
-    : item.item_kind === 'milestone_brief'
-      ? 'text-emerald-300'
-      : 'text-emerald-300';
-  const sourceClass = item.item_kind === 'platform_notice'
-    ? 'text-amber-200'
-    : item.item_kind === 'milestone_brief'
-      ? 'text-emerald-200'
-      : 'text-emerald-200';
+  const entryStyle = getWorkflowConsoleEntryStyle(item.item_kind);
+
   return (
-    <article className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 font-mono leading-6 text-sm text-slate-100">
-      <p className="min-w-0 whitespace-nowrap">
-        <span className={accentClass}>&gt; </span>
-        <span className={`font-semibold ${sourceClass}`}>{sourceLabel}: </span>
+    <article
+      data-terminal-entry={entryStyle.dataKind}
+      className={`grid gap-1 border-l-2 px-3 py-2 font-mono leading-6 text-sm text-slate-100 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-3 ${entryStyle.entryClassName}`}
+    >
+      <p className="min-w-0 break-words text-slate-100">
+        <span className={entryStyle.promptClassName}>&gt; </span>
+        <span className={`font-semibold ${entryStyle.sourceClassName}`}>{sourceLabel}: </span>
         <span className="text-slate-100">{normalizeWorkflowConsoleText(item.headline)}</span>
       </p>
-      <span className="text-right text-xs text-slate-500">{formatRelativeTimestamp(item.created_at)}</span>
+      <span className="pl-[1.35rem] text-left text-xs text-slate-500 sm:pl-0 sm:text-right">
+        {formatRelativeTimestamp(item.created_at)}
+      </span>
     </article>
   );
 }

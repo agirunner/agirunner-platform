@@ -69,10 +69,16 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('Orchestrator:');
     expect(html).toContain('Workflow reached approval milestone');
     expect(html).not.toContain('A structured brief was published.');
-    expect(html).not.toContain('[brief]');
-    expect(html).not.toContain('border-sky-500/20');
-    expect(html).toContain('grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3');
-    expect(html).toContain('whitespace-nowrap');
+    expect(html).toContain('data-terminal-entry="brief"');
+    expect(html).toContain('data-terminal-entry="update"');
+    expect(html).toContain('border-l-emerald-400/70');
+    expect(html).toContain('border-l-slate-700');
+    expect(html).toContain('grid gap-1 border-l-2');
+    expect(html).toContain('sm:grid-cols-[minmax(0,1fr)_auto]');
+    expect(html).toContain('sm:items-start');
+    expect(html).toContain('sm:gap-3');
+    expect(html).toContain('break-words');
+    expect(html).toContain('overflow-x-hidden overflow-y-auto');
   });
 
   it('humanizes role labels and falls back when the provided label is a raw uuid', () => {
@@ -126,6 +132,33 @@ describe('WorkflowLiveConsole', () => {
     expect(html).not.toContain('Scoped to selected work item');
     expect(html).toContain('No live headlines have been recorded for this task yet.');
     expect(html).not.toContain('this workflow yet');
+  });
+
+  it('keeps terminal rows readable on narrow screens by wrapping the line and stacking the timestamp', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowLiveConsole, {
+        packet: createPacket([
+          {
+            item_id: 'update-1',
+            item_kind: 'operator_update',
+            source_label: 'Implementation Engineer',
+            headline:
+              'Updated retry handling for workflow deliverable promotion after orchestrator guidance changed twice in the same activation.',
+            summary: 'Execution turn completed for Implementation Engineer.',
+            created_at: '2026-03-27T04:04:00.000Z',
+          },
+        ]),
+        selectedWorkItemId: null,
+        selectedTaskId: null,
+        scopeSubject: 'workflow',
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('min-w-0 break-words text-slate-100');
+    expect(html).toContain('text-left text-xs text-slate-500');
+    expect(html).toContain('sm:text-right');
+    expect(html).toContain('overflow-x-hidden overflow-y-auto');
   });
 
   it('hides the older-headlines control when no more backfill cursor is available', () => {
