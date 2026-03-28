@@ -61,6 +61,28 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Work item details');
     expect(html).not.toContain('1 tasks');
   });
+
+  it('keeps scoped work-item packets visible before the selected work-item record finishes loading', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [],
+        inputPackets: createPackets(),
+        workflowParameters: null,
+      }),
+    );
+
+    expect(html).toContain('Work item packets');
+    expect(html).toContain('Rollback guide');
+  });
 });
 
 function createWorkflow(): DashboardMissionControlWorkflowCard {

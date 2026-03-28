@@ -23,7 +23,7 @@ export function WorkflowDetails(props: {
   inputPackets: DashboardWorkflowInputPacketRecord[];
   workflowParameters: Record<string, unknown> | null;
 }): JSX.Element {
-  const selectedWorkItemId = props.selectedWorkItem?.id ?? null;
+  const selectedWorkItemId = props.selectedWorkItem?.id ?? props.selectedWorkItemId ?? null;
   const workflowPackets = props.inputPackets.filter((packet) => packet.work_item_id === null);
   const workItemPackets = selectedWorkItemId
     ? props.inputPackets.filter((packet) => packet.work_item_id === selectedWorkItemId)

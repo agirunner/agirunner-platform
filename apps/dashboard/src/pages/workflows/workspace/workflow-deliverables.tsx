@@ -27,6 +27,9 @@ export function WorkflowDeliverables(props: {
     && props.packet.in_progress_deliverables.length === 0
     && props.packet.working_handoffs.length > 0;
   const taskEvidence = buildTaskEvidence(props.selectedTask);
+  const parentDeliverablesLabel = props.selectedTask && props.selectedWorkItemTitle
+    ? `Deliverables for ${props.selectedWorkItemTitle}`
+    : 'Workflow deliverables';
 
   return (
     <div className="grid gap-4">
@@ -60,6 +63,10 @@ export function WorkflowDeliverables(props: {
           ) : null}
           <StructuredValuePreview value={taskEvidence} />
         </section>
+      ) : null}
+
+      {props.selectedTask && props.selectedWorkItemTitle ? (
+        <p className="text-sm text-muted-foreground">{parentDeliverablesLabel}</p>
       ) : null}
 
       <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open>

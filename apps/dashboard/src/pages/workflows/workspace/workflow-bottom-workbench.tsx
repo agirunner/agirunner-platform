@@ -134,8 +134,6 @@ export function WorkflowBottomWorkbench(props: {
             workflowId={props.workflowId}
             workspaceId={props.workflow.workspaceId}
             packet={props.packet.needs_action}
-            onOpenAddWork={props.onOpenAddWork}
-            onOpenRedrive={props.onOpenRedrive}
           />
         ) : null}
         {props.activeTab === 'steering' ? (

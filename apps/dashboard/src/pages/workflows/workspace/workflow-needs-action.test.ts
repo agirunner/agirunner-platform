@@ -60,8 +60,6 @@ describe('WorkflowNeedsAction', () => {
             total_count: 1,
             default_sort: 'priority_desc',
           },
-          onOpenAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -70,5 +68,68 @@ describe('WorkflowNeedsAction', () => {
     expect(html).toContain('Approve');
     expect(html).toContain('Request changes');
     expect(html).not.toContain('Open Steering');
+  });
+
+  it('keeps workflow-level controls out of the needs-action response surface', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowNeedsAction, {
+          workflowId: 'workflow-1',
+          workspaceId: 'workspace-1',
+          packet: {
+            items: [
+              {
+                action_id: 'workflow-1:terminal',
+                action_kind: 'recover_workflow',
+                label: 'Workflow recovery',
+                summary: 'This workflow could be redriven, but workflow-level controls stay in the header.',
+                target: {
+                  target_kind: 'workflow',
+                  target_id: 'workflow-1',
+                },
+                priority: 'high',
+                requires_confirmation: true,
+                submission: {
+                  route_kind: 'workflow_mutation',
+                  method: 'POST',
+                },
+                responses: [
+                  {
+                    action_id: 'workflow-1:add-work',
+                    kind: 'add_work_item',
+                    label: 'Add / Modify Work',
+                    target: {
+                      target_kind: 'workflow',
+                      target_id: 'workflow-1',
+                    },
+                    requires_confirmation: false,
+                    prompt_kind: 'none',
+                  },
+                  {
+                    action_id: 'workflow-1:redrive',
+                    kind: 'redrive_workflow',
+                    label: 'Redrive workflow',
+                    target: {
+                      target_kind: 'workflow',
+                      target_id: 'workflow-1',
+                    },
+                    requires_confirmation: true,
+                    prompt_kind: 'none',
+                  },
+                ],
+              },
+            ],
+            total_count: 1,
+            default_sort: 'priority_desc',
+          },
+        }),
+      ),
+    );
+
+    expect(html).toContain('Workflow recovery');
+    expect(html).not.toContain('Add / Modify Work');
+    expect(html).not.toContain('Redrive workflow');
   });
 });

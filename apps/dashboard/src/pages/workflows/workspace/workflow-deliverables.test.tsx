@@ -65,6 +65,7 @@ describe('WorkflowDeliverables', () => {
     expect(html).toContain('Task Output / Evidence');
     expect(html).toContain('Generate release bundle');
     expect(html).toContain('Parent work item: Prepare release bundle');
+    expect(html).toContain('Deliverables for Prepare release bundle');
     expect(html).toContain('artifact-1');
   });
 });

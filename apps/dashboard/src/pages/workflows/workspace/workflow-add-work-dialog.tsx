@@ -12,7 +12,6 @@ import {
 } from '../../../components/forms/form-feedback.js';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../components/ui/dialog.js';
 import { Input } from '../../../components/ui/input.js';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select.js';
 import { Textarea } from '../../../components/ui/textarea.js';
 import { dashboardApi, type DashboardWorkflowBoardResponse } from '../../../lib/api.js';
 import { buildFileUploadPayloads } from '../../../lib/file-upload.js';
@@ -20,8 +19,6 @@ import { toast } from '../../../lib/toast.js';
 import { buildStructuredObject, type StructuredEntryDraft } from '../../playbook-launch/playbook-launch-support.js';
 import { WorkflowFileInput } from '../workflow-file-input.js';
 import { invalidateWorkflowsQueries } from '../workflows-query.js';
-
-type Priority = 'critical' | 'high' | 'normal' | 'low';
 
 export function WorkflowAddWorkDialog(props: {
   isOpen: boolean;
@@ -41,29 +38,15 @@ export function WorkflowAddWorkDialog(props: {
   );
   const isModifyMode = selectedWorkItem !== null;
   const [title, setTitle] = useState('');
-  const [acceptanceCriteria, setAcceptanceCriteria] = useState('');
-  const [stageName, setStageName] = useState('__auto__');
-  const [priority, setPriority] = useState<Priority>('normal');
-  const [notes, setNotes] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [structuredDrafts, setStructuredDrafts] = useState<StructuredEntryDraft[]>([]);
   const [steeringInstruction, setSteeringInstruction] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
 
-  const stageOptions = useMemo(() => {
-    const ordered = props.board?.stage_summary.map((entry) => entry.name) ?? [];
-    const workItemStages = props.board?.work_items.map((entry) => entry.stage_name) ?? [];
-    return Array.from(new Set([...ordered, ...workItemStages])).filter((entry) => entry.length > 0);
-  }, [props.board]);
-
   useEffect(() => {
     if (!props.isOpen) {
       setTitle('');
-      setAcceptanceCriteria('');
-      setStageName('__auto__');
-      setPriority('normal');
-      setNotes('');
       setFiles([]);
       setStructuredDrafts([]);
       setSteeringInstruction('');
@@ -73,10 +56,6 @@ export function WorkflowAddWorkDialog(props: {
     }
 
     setTitle(selectedWorkItem?.title ?? '');
-    setAcceptanceCriteria(selectedWorkItem?.acceptance_criteria ?? '');
-    setStageName(selectedWorkItem?.stage_name ?? '__auto__');
-    setPriority(readPriority(selectedWorkItem?.priority));
-    setNotes(selectedWorkItem?.notes ?? '');
     setFiles([]);
     setStructuredDrafts([]);
     setSteeringInstruction('');
@@ -129,10 +108,6 @@ export function WorkflowAddWorkDialog(props: {
 
       const workItem = await dashboardApi.createWorkflowWorkItem(props.workflowId, {
         title: title.trim(),
-        acceptance_criteria: acceptanceCriteria.trim() || undefined,
-        stage_name: stageName === '__auto__' ? undefined : stageName,
-        priority,
-        notes: notes.trim() || undefined,
       });
       await dashboardApi.createWorkflowInputPacket(props.workflowId, {
         packet_kind: resolvePacketKind(props.lifecycle, null),
@@ -162,7 +137,7 @@ export function WorkflowAddWorkDialog(props: {
     ? 'Update the selected work item with new inputs, files, or a built-in steering request without leaving the workflow workspace.'
     : props.lifecycle === 'ongoing'
       ? 'Add new incoming work, files, and typed inputs into this ongoing workflow.'
-      : 'Add planned work with supporting typed inputs and immutable workflow-scoped files.';
+      : 'Add another planned work item with the inputs and files the orchestrator should use next.';
 
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
@@ -186,7 +161,7 @@ export function WorkflowAddWorkDialog(props: {
           ) : (
             <>
               <label className="grid gap-2 text-sm">
-                <span className="font-medium">Title</span>
+                <span className="font-medium">Work item title</span>
                 <Input
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
@@ -195,54 +170,6 @@ export function WorkflowAddWorkDialog(props: {
                 />
                 <FieldErrorText message={titleError} />
               </label>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="grid gap-2 text-sm">
-                  <span className="font-medium">Stage</span>
-                  <Select value={stageName} onValueChange={setStageName}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Auto-route stage" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__auto__">Auto-route</SelectItem>
-                      {stageOptions.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </label>
-                <label className="grid gap-2 text-sm">
-                  <span className="font-medium">Acceptance criteria</span>
-                  <Textarea
-                    value={acceptanceCriteria}
-                    onChange={(event) => setAcceptanceCriteria(event.target.value)}
-                    className="min-h-[96px]"
-                  />
-                </label>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-[12rem_minmax(0,1fr)]">
-                <label className="grid gap-2 text-sm">
-                  <span className="font-medium">Priority</span>
-                  <Select value={priority} onValueChange={(value) => setPriority(value as Priority)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="critical">Critical</SelectItem>
-                      <SelectItem value="high">High</SelectItem>
-                      <SelectItem value="normal">Normal</SelectItem>
-                      <SelectItem value="low">Low</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </label>
-                <label className="grid gap-2 text-sm">
-                  <span className="font-medium">Operator note</span>
-                  <Textarea value={notes} onChange={(event) => setNotes(event.target.value)} className="min-h-[96px]" />
-                </label>
-              </div>
             </>
           )}
 
@@ -331,15 +258,4 @@ function buildSuccessMessage(
     return 'Workflow work updated';
   }
   return lifecycle === 'ongoing' ? 'Workflow intake added' : 'Workflow work added';
-}
-
-function readPriority(value: string | null | undefined): Priority {
-  switch (value) {
-    case 'critical':
-    case 'high':
-    case 'low':
-      return value;
-    default:
-      return 'normal';
-  }
 }

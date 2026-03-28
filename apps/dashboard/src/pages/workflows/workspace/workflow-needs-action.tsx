@@ -24,8 +24,6 @@ export function WorkflowNeedsAction(props: {
   workflowId: string;
   workspaceId?: string | null;
   packet: DashboardWorkflowNeedsActionPacket;
-  onOpenAddWork(): void;
-  onOpenRedrive(): void;
 }): JSX.Element {
   const queryClient = useQueryClient();
   const [promptAction, setPromptAction] = useState<DashboardWorkflowNeedsActionResponseAction | null>(null);
@@ -50,14 +48,6 @@ export function WorkflowNeedsAction(props: {
   const promptMeta = useMemo(() => buildPromptMeta(promptAction), [promptAction]);
 
   function handleAction(action: DashboardWorkflowNeedsActionResponseAction): void {
-    if (action.kind === 'add_work_item') {
-      props.onOpenAddWork();
-      return;
-    }
-    if (action.kind === 'redrive_workflow') {
-      props.onOpenRedrive();
-      return;
-    }
     if (action.prompt_kind !== 'none') {
       setPromptAction(action);
       setPromptValue('');
@@ -164,6 +154,8 @@ function NeedsActionCard(props: {
   isPending: boolean;
   onAction(action: DashboardWorkflowNeedsActionResponseAction): void;
 }): JSX.Element {
+  const responses = props.item.responses.filter((action) => isSupportedNeedsAction(action.kind));
+
   return (
     <article className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -179,7 +171,7 @@ function NeedsActionCard(props: {
         <p className="text-sm text-muted-foreground">{props.item.summary}</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        {props.item.responses.map((action) => (
+        {responses.map((action) => (
           <Button
             key={action.action_id}
             type="button"
@@ -222,6 +214,15 @@ async function runNeedsAction(
     default:
       throw new Error(`Unsupported needs-action response '${action.kind}'.`);
   }
+}
+
+function isSupportedNeedsAction(kind: string): boolean {
+  return kind === 'approve_task'
+    || kind === 'approve_task_output'
+    || kind === 'reject_task'
+    || kind === 'request_changes_task'
+    || kind === 'resolve_escalation'
+    || kind === 'retry_task';
 }
 
 function readSuccessMessage(actionKind: string): string {
