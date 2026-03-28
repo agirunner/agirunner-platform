@@ -23,7 +23,7 @@ const DETAIL_SECTION_KEYS = [
 const DELIVERABLE_STATES = ['draft', 'under_review', 'approved', 'superseded', 'final'] as const;
 const DELIVERABLE_STAGES = ['in_progress', 'final'] as const;
 const LIVE_VISIBILITY_MODES = ['standard', 'enhanced'] as const;
-const PREVIEW_KINDS = ['text', 'markdown', 'code', 'json', 'binary'] as const;
+const PREVIEW_KINDS = ['text', 'markdown', 'code', 'json', 'binary', 'structured_summary'] as const;
 
 export type WorkflowLiveVisibilityMode = (typeof LIVE_VISIBILITY_MODES)[number];
 
@@ -151,11 +151,17 @@ export function sanitizeDeliverableTarget(
   if (!required && Object.keys(record).length === 0) {
     return {};
   }
+  const targetKind = sanitizeRequiredText(record.target_kind, 'Workflow deliverable target kind is required');
   const sanitized: Record<string, unknown> = {
-    target_kind: sanitizeRequiredText(record.target_kind, 'Workflow deliverable target kind is required'),
+    target_kind: targetKind,
     label: sanitizeRequiredText(record.label, 'Workflow deliverable target label is required'),
-    url: sanitizeRequiredText(record.url, 'Workflow deliverable target url is required'),
   };
+  const url = sanitizeOptionalText(record.url);
+  if (url) {
+    sanitized.url = url;
+  } else if (targetKind !== 'inline_summary') {
+    throw new ValidationError('Workflow deliverable target url is required');
+  }
   const optionalKeys = ['path', 'repo_ref', 'artifact_id'] as const;
   for (const key of optionalKeys) {
     const value = sanitizeOptionalText(record[key]);

@@ -191,4 +191,81 @@ describe('WorkflowDeliverableService', () => {
       }),
     );
   });
+
+  it('accepts inline-summary deliverables without a target url', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows')) {
+        return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+      }
+      if (sql.includes('FROM workflow_output_descriptors')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('INSERT INTO workflow_output_descriptors')) {
+        expect(params?.[5]).toEqual({
+          can_inline_preview: true,
+          can_download: false,
+          can_open_external: false,
+          can_copy_path: false,
+          preview_kind: 'structured_summary',
+        });
+        expect(params?.[6]).toEqual({
+          target_kind: 'inline_summary',
+          label: 'Review completion packet',
+        });
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'descriptor-inline-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            descriptor_kind: 'handoff_packet',
+            delivery_stage: 'final',
+            title: 'Work item completion packet',
+            state: 'final',
+            summary_brief: 'Final completion summary.',
+            preview_capabilities_json: params?.[5],
+            primary_target_json: params?.[6],
+            secondary_targets_json: params?.[7],
+            content_preview_json: params?.[8],
+            source_brief_id: null,
+            created_at: new Date('2026-03-28T18:00:00.000Z'),
+            updated_at: new Date('2026-03-28T18:00:00.000Z'),
+          }],
+        };
+      }
+      if (sql.includes('FROM workflow_work_items')) {
+        return { rowCount: 1, rows: [{ id: 'work-item-1' }] };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const result = await service.upsertDeliverable(IDENTITY as never, 'workflow-1', {
+      workItemId: 'work-item-1',
+      descriptorKind: 'handoff_packet',
+      deliveryStage: 'final',
+      title: 'Work item completion packet',
+      state: 'final',
+      summaryBrief: 'Final completion summary.',
+      previewCapabilities: {
+        can_inline_preview: true,
+        can_download: false,
+        can_open_external: false,
+        can_copy_path: false,
+        preview_kind: 'structured_summary',
+      },
+      primaryTarget: {
+        target_kind: 'inline_summary',
+        label: 'Review completion packet',
+      },
+      contentPreview: {
+        summary: 'Final completion summary.',
+      },
+    });
+
+    expect(result.primary_target).toEqual({
+      target_kind: 'inline_summary',
+      label: 'Review completion packet',
+    });
+  });
 });

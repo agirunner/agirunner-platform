@@ -158,7 +158,6 @@ function buildHandoffPacketDeliverable(
     primary_target: {
       target_kind: 'inline_summary',
       label: 'Review completion packet',
-      url: '',
     },
     secondary_targets: [],
     content_preview: {

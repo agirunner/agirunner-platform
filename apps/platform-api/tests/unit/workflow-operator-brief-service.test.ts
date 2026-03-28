@@ -823,6 +823,7 @@ describe('WorkflowOperatorBriefService', () => {
     expect(result.record.brief_scope).toBe('deliverable_context');
     expect(result.record.status_kind).toBe('completed');
     expect(result.record.related_output_descriptor_ids).toEqual(['descriptor-8']);
+    const synthesizedDeliverable = deliverableService.upsertDeliverable.mock.calls[0]?.[2];
     expect(deliverableService.upsertDeliverable).toHaveBeenCalledWith(
       IDENTITY,
       'workflow-1',
@@ -833,6 +834,7 @@ describe('WorkflowOperatorBriefService', () => {
         sourceBriefId: 'brief-8',
       }),
     );
+    expect(synthesizedDeliverable?.primaryTarget).not.toHaveProperty('url');
   });
 
   it('materializes a canonical deliverable packet for finalized deliverable-context briefs without explicit linked descriptors', async () => {

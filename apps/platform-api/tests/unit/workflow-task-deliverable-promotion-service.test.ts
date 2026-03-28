@@ -43,6 +43,7 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
       created_at: '2026-03-28T20:20:00.000Z',
     });
 
+    const promotionInput = deliverableService.upsertSystemDeliverable.mock.calls[0]?.[2];
     expect(deliverableService.upsertSystemDeliverable).toHaveBeenCalledWith(
       'tenant-1',
       'workflow-1',
@@ -56,6 +57,7 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
         }),
       }),
     );
+    expect(promotionInput?.primaryTarget).not.toHaveProperty('url');
   });
 
   it('promotes an artifact-backed delivery handoff into a canonical packet that points at the artifact', async () => {

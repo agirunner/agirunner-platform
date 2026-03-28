@@ -561,7 +561,6 @@ function buildInlineSummaryTarget(): Record<string, unknown> {
   return {
     target_kind: 'inline_summary',
     label: 'Review completion packet',
-    url: '',
   };
 }
 

@@ -144,7 +144,6 @@ function buildPromotedDeliverableInput(
   const primaryTarget = artifactTargets[0] ?? {
     target_kind: 'inline_summary',
     label: 'Review completion packet',
-    url: '',
   };
   const previewSummary = buildPreviewSummary(handoff);
   return {
