@@ -31,7 +31,7 @@ export function getWorkflowControlAvailability(
 function readWorkflowActionAvailability(
   availableActions: WorkflowControlStateInput['availableActions'],
 ): WorkflowControlAvailability | null {
-  if (!availableActions || availableActions.length === 0) {
+  if (!availableActions) {
     return null;
   }
   const actionMap = new Map(availableActions.map((entry) => [entry.kind, entry.enabled]));
