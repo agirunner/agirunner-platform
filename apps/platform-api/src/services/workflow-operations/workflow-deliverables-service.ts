@@ -52,6 +52,8 @@ export class WorkflowDeliverablesService {
       }),
       this.inputPacketSource.listWorkflowInputPackets(tenantId, workflowId),
     ]);
+    const finalizedBriefIds = collectFinalizedBriefIds(briefs);
+    const finalizedDescriptorIds = collectFinalizedDescriptorIds(briefs);
 
     const orderedDeliverables = [...deliverables].sort((left, right) =>
       compareDeliverables(left, right),
@@ -62,8 +64,12 @@ export class WorkflowDeliverablesService {
     }));
     const allDeliverables = page.items;
     return {
-      final_deliverables: allDeliverables.filter(isFinalDeliverable),
-      in_progress_deliverables: allDeliverables.filter((deliverable) => !isFinalDeliverable(deliverable)),
+      final_deliverables: allDeliverables.filter((deliverable) =>
+        isFinalDeliverable(deliverable, finalizedBriefIds, finalizedDescriptorIds),
+      ),
+      in_progress_deliverables: allDeliverables.filter((deliverable) =>
+        !isFinalDeliverable(deliverable, finalizedBriefIds, finalizedDescriptorIds),
+      ),
       working_handoffs: briefs.filter(isDeliverableBrief),
       inputs_and_provenance: {
         launch_packet: pickSinglePacket(inputPackets, 'launch'),
@@ -89,11 +95,45 @@ function isDeliverableBrief(brief: WorkflowOperatorBriefRecord): boolean {
   return readOptionalString(brief.brief_scope) === 'deliverable_context';
 }
 
-function isFinalDeliverable(deliverable: WorkflowDeliverableRecord): boolean {
+function isFinalDeliverable(
+  deliverable: WorkflowDeliverableRecord,
+  finalizedBriefIds: Set<string>,
+  finalizedDescriptorIds: Set<string>,
+): boolean {
   return (
     readOptionalString(deliverable.delivery_stage) === 'final' ||
-    readOptionalString(deliverable.state) === 'final'
+    readOptionalString(deliverable.state) === 'final' ||
+    finalizedBriefIds.has(deliverable.source_brief_id ?? '') ||
+    finalizedDescriptorIds.has(deliverable.descriptor_id)
   );
+}
+
+function collectFinalizedBriefIds(briefs: WorkflowOperatorBriefRecord[]): Set<string> {
+  return new Set(
+    briefs
+      .filter((brief) => isDeliverableOutcomeStatus(readOptionalString(brief.status_kind)))
+      .map((brief) => brief.id),
+  );
+}
+
+function collectFinalizedDescriptorIds(briefs: WorkflowOperatorBriefRecord[]): Set<string> {
+  const ids = new Set<string>();
+  for (const brief of briefs) {
+    if (!isDeliverableOutcomeStatus(readOptionalString(brief.status_kind))) {
+      continue;
+    }
+    for (const descriptorId of brief.related_output_descriptor_ids ?? []) {
+      const normalizedId = readOptionalString(descriptorId);
+      if (normalizedId) {
+        ids.add(normalizedId);
+      }
+    }
+  }
+  return ids;
+}
+
+function isDeliverableOutcomeStatus(statusKind: string | null): boolean {
+  return statusKind === 'completed' || statusKind === 'final' || statusKind === 'approved';
 }
 
 function pickSinglePacket(

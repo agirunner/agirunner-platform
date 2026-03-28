@@ -7,6 +7,7 @@ import type {
   MissionControlLiveResponse,
   MissionControlLiveSection,
   MissionControlOutputDescriptor,
+  MissionControlOutputStatus,
   MissionControlReadModelVersion,
   MissionControlWorkflowCard,
 } from './mission-control-types.js';
@@ -45,6 +46,9 @@ interface ArtifactOutputRow {
   task_id: string;
   work_item_id: string | null;
   stage_name: string | null;
+  task_state: string | null;
+  work_item_completed_at: Date | string | null;
+  workflow_state: string | null;
   logical_path: string;
   content_type: string | null;
 }
@@ -116,26 +120,51 @@ export class MissionControlLiveService {
 
     const [artifactRows, documentRows] = await Promise.all([
       this.pool.query<ArtifactOutputRow>(
-        `SELECT workflow_id, artifact_id, task_id, work_item_id, stage_name, logical_path, content_type
+        `SELECT workflow_id,
+                artifact_id,
+                task_id,
+                work_item_id,
+                stage_name,
+                task_state,
+                work_item_completed_at,
+                workflow_state,
+                logical_path,
+                content_type
            FROM (
-             SELECT workflow_id,
-                    id AS artifact_id,
-                    task_id,
+             SELECT workflow_artifacts.workflow_id,
+                    workflow_artifacts.id AS artifact_id,
+                    workflow_artifacts.task_id,
                     task_scope.work_item_id,
                     task_scope.stage_name,
-                    logical_path,
-                    content_type,
-                    ROW_NUMBER() OVER (PARTITION BY workflow_id ORDER BY created_at DESC) AS rn
+                    task_scope.task_state,
+                    task_scope.work_item_completed_at,
+                    workflow_scope.state AS workflow_state,
+                    workflow_artifacts.logical_path,
+                    workflow_artifacts.content_type,
+                    ROW_NUMBER() OVER (
+                      PARTITION BY workflow_artifacts.workflow_id
+                      ORDER BY workflow_artifacts.created_at DESC
+                    ) AS rn
                FROM workflow_artifacts
                LEFT JOIN LATERAL (
-                 SELECT work_item_id, stage_name
-                   FROM tasks
-                  WHERE tenant_id = workflow_artifacts.tenant_id
-                    AND id = workflow_artifacts.task_id
+                 SELECT t.work_item_id,
+                        t.stage_name,
+                        t.state AS task_state,
+                        wi.completed_at AS work_item_completed_at
+                   FROM tasks t
+                   LEFT JOIN workflow_work_items wi
+                     ON wi.tenant_id = t.tenant_id
+                    AND wi.workflow_id = t.workflow_id
+                    AND wi.id = t.work_item_id
+                  WHERE t.tenant_id = workflow_artifacts.tenant_id
+                    AND t.id = workflow_artifacts.task_id
                   LIMIT 1
                ) task_scope ON true
-              WHERE tenant_id = $1
-                AND workflow_id = ANY($2::uuid[])
+               LEFT JOIN workflows workflow_scope
+                 ON workflow_scope.tenant_id = workflow_artifacts.tenant_id
+                AND workflow_scope.id = workflow_artifacts.workflow_id
+              WHERE workflow_artifacts.tenant_id = $1
+                AND workflow_artifacts.workflow_id = ANY($2::uuid[])
            ) ranked
           WHERE rn <= $3`,
         [tenantId, workflowIds, limitPerWorkflow],
@@ -170,7 +199,7 @@ export class MissionControlLiveService {
         stageName: row.stage_name,
         logicalPath: row.logical_path,
         contentType: row.content_type,
-        status: 'draft',
+        status: resolveArtifactOutputStatus(row),
       }));
     }
 
@@ -411,6 +440,28 @@ function buildWorkflowCard(
     },
     version,
   };
+}
+
+function resolveArtifactOutputStatus(row: ArtifactOutputRow): MissionControlOutputStatus {
+  if (readOptionalString(row.workflow_state) === 'completed' || row.work_item_completed_at != null) {
+    return 'final';
+  }
+  const taskState = readOptionalString(row.task_state);
+  if (taskState === 'output_pending_assessment' || taskState === 'awaiting_approval') {
+    return 'under_review';
+  }
+  if (taskState === 'completed') {
+    return 'approved';
+  }
+  return 'draft';
+}
+
+function readOptionalString(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 function groupWorkflowSections(workflows: MissionControlWorkflowCard[]): MissionControlLiveSection[] {

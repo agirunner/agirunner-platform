@@ -237,6 +237,8 @@ describe('MissionControlLiveService', () => {
             task_id: 'task-1',
             work_item_id: 'work-item-1',
             stage_name: 'review',
+            work_item_completed_at: null,
+            workflow_state: 'active',
             logical_path: 'deliverables/release-notes.md',
             content_type: 'text/markdown',
           },
@@ -254,6 +256,38 @@ describe('MissionControlLiveService', () => {
         id: 'artifact:artifact-1',
         workItemId: 'work-item-1',
         taskId: 'task-1',
+      }),
+    ]);
+  });
+
+  it('marks artifact output descriptors final when their parent work item is completed', async () => {
+    const pool = createSequencedPool([
+      {
+        rows: [
+          {
+            workflow_id: 'workflow-1',
+            artifact_id: 'artifact-1',
+            task_id: 'task-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'review',
+            work_item_completed_at: '2026-03-27T22:50:00.000Z',
+            workflow_state: 'active',
+            logical_path: 'deliverables/release-notes.md',
+            content_type: 'text/markdown',
+          },
+        ],
+        rowCount: 1,
+      },
+      { rows: [], rowCount: 0 },
+    ]);
+
+    const service = new MissionControlLiveService(pool as never);
+    const outputs = await service.listWorkflowOutputDescriptors('tenant-1', ['workflow-1'], 1);
+
+    expect(outputs.get('workflow-1')).toEqual([
+      expect.objectContaining({
+        id: 'artifact:artifact-1',
+        status: 'final',
       }),
     ]);
   });
