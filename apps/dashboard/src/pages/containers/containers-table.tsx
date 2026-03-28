@@ -89,7 +89,7 @@ export function ContainersTable(props: {
                 <CellText>{row.stage_name ?? '-'}</CellText>
               </DiffCell>
               <DiffCell row={row} field="task" className="py-3">
-                {renderTaskLink(row.task_id, row.task_title)}
+                {renderTaskCell(row)}
               </DiffCell>
               <DiffCell row={row} field="image" className="py-3">
                 <code
@@ -135,17 +135,32 @@ function renderWorkflowLink(
   );
 }
 
-function renderTaskLink(
-  id: string | null | undefined,
-  label: string | null | undefined,
-): ReactNode {
-  if (!id) {
+function renderTaskCell(row: SessionContainerRow): ReactNode {
+  const taskLabel = row.task_title?.trim() || row.task_id?.trim() || null;
+  if (!taskLabel) {
     return <span className="text-sm text-muted-foreground">-</span>;
   }
-  return (
-    <Link className="text-sm text-foreground hover:underline" to={buildTaskDetailHref(id)}>
-      {label ?? id}
+
+  const workflowHref = normalizeWorkflowBoardHref({ workflowId: row.workflow_id });
+  const secondaryLabel = row.workflow_name?.trim() || row.workflow_id?.trim() || null;
+  const linkHref = workflowHref ?? (row.task_id ? buildTaskDetailHref(row.task_id) : null);
+  const primaryContent = linkHref ? (
+    <Link className="text-sm text-foreground hover:underline" to={linkHref}>
+      {taskLabel}
     </Link>
+  ) : (
+    <span className="text-sm text-foreground">{taskLabel}</span>
+  );
+
+  if (!secondaryLabel) {
+    return primaryContent;
+  }
+
+  return (
+    <div className="grid gap-1">
+      {primaryContent}
+      <p className="text-xs text-muted-foreground">{secondaryLabel}</p>
+    </div>
   );
 }
 

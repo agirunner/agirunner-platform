@@ -79,4 +79,20 @@ describe('ContainersTable', () => {
     expect(html).toContain('Debian Base · debian');
     expect(html).not.toContain('apt-get');
   });
+
+  it('routes task rows back into the workflows shell and echoes workflow context under the task name', () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter initialEntries={['/']}>
+        <ContainersTable rows={[createRow()]} emptyMessage="No rows" />
+      </MemoryRouter>,
+    );
+
+    expect(html).not.toContain('href="/work/tasks/task-1"');
+    expect(html).toContain('href="/workflows/workflow-1"');
+    expect(countOccurrences(html, 'Investigate regression')).toBeGreaterThanOrEqual(2);
+  });
 });
+
+function countOccurrences(source: string, pattern: string): number {
+  return source.split(pattern).length - 1;
+}
