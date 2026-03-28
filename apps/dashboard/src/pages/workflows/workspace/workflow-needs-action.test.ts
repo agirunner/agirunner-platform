@@ -464,10 +464,25 @@ describe('WorkflowNeedsAction', () => {
     expect(source).not.toContain('DialogTitle');
   });
 
-  it('routes escalation responses through the workflow-aware dashboard api helper', () => {
+  it('routes escalation responses through the workflow work-item task api helper', () => {
     const source = readFileSync(new URL('./workflow-needs-action.tsx', import.meta.url), 'utf8');
 
-    expect(source).toContain('dashboardApi.resolveTaskEscalation(');
+    expect(source).toContain('dashboardApi.resolveWorkflowWorkItemTaskEscalation(');
     expect(source).not.toContain('dashboardApi.resolveEscalation(action.target.target_id');
+  });
+
+  it('routes workflow task review actions through workflow-backed helpers instead of raw task endpoints', () => {
+    const source = readFileSync(new URL('./workflow-needs-action.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('dashboardApi.approveWorkflowWorkItemTask(');
+    expect(source).toContain('dashboardApi.approveWorkflowWorkItemTaskOutput(');
+    expect(source).toContain('dashboardApi.rejectWorkflowWorkItemTask(');
+    expect(source).toContain('dashboardApi.requestWorkflowWorkItemTaskChanges(');
+    expect(source).toContain('dashboardApi.retryWorkflowWorkItemTask(');
+    expect(source).not.toContain('dashboardApi.approveTask(action.target.target_id');
+    expect(source).not.toContain('dashboardApi.approveTaskOutput(action.target.target_id');
+    expect(source).not.toContain('dashboardApi.rejectTask(action.target.target_id');
+    expect(source).not.toContain('dashboardApi.requestTaskChanges(action.target.target_id');
+    expect(source).not.toContain('dashboardApi.retryTask(action.target.target_id');
   });
 });

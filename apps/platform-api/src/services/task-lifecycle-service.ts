@@ -412,6 +412,10 @@ function hasMatchingAssessmentRejection(
   );
 }
 
+function isCancelledOrCompletedTask(task: Record<string, unknown>): boolean {
+  return task.state === 'cancelled' || task.state === 'completed';
+}
+
 export class TaskLifecycleService {
   constructor(private readonly deps: TaskLifecycleDependencies) {}
 
@@ -1542,6 +1546,9 @@ export class TaskLifecycleService {
     if (isFailTaskReplay(task, safeError)) {
       return this.deps.toTaskResponse(task);
     }
+    if (isCancelledOrCompletedTask(task)) {
+      return this.deps.toTaskResponse(task);
+    }
 
     const lifecyclePolicy = readPersistedLifecyclePolicy(task.metadata);
     const failure = classifyFailure(payload.error);
@@ -2135,6 +2142,9 @@ export class TaskLifecycleService {
     client?: DatabaseClient,
   ) {
     const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client));
+    if (isCancelledOrCompletedTask(task)) {
+      return this.deps.toTaskResponse(task);
+    }
     if (
       task.state === 'escalated'
       && hasMatchingManualEscalation(task, payload)
@@ -2356,6 +2366,9 @@ export class TaskLifecycleService {
     },
   ) {
     const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+    if (isCancelledOrCompletedTask(task)) {
+      return this.deps.toTaskResponse(task);
+    }
     const roleName = typeof task.role === 'string' ? task.role : '';
 
     if (!this.deps.getRoleByName) {

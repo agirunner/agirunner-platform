@@ -214,27 +214,45 @@ async function runNeedsAction(
   action: DashboardWorkflowNeedsActionResponseAction,
   promptValue: string,
 ): Promise<void> {
+  const workflowTaskContext = readWorkflowTaskContext(action);
+
   switch (action.kind) {
     case 'approve_task':
-      await dashboardApi.approveTask(action.target.target_id);
+      await dashboardApi.approveWorkflowWorkItemTask(
+        workflowId,
+        workflowTaskContext.workItemId,
+        action.target.target_id,
+      );
       return;
     case 'approve_task_output':
-      await dashboardApi.approveTaskOutput(action.target.target_id);
+      await dashboardApi.approveWorkflowWorkItemTaskOutput(
+        workflowId,
+        workflowTaskContext.workItemId,
+        action.target.target_id,
+      );
       return;
     case 'reject_task':
-      await dashboardApi.rejectTask(action.target.target_id, { feedback: promptValue.trim() });
+      await dashboardApi.rejectWorkflowWorkItemTask(
+        workflowId,
+        workflowTaskContext.workItemId,
+        action.target.target_id,
+        { feedback: promptValue.trim() },
+      );
       return;
     case 'request_changes_task':
-      await dashboardApi.requestTaskChanges(action.target.target_id, { feedback: promptValue.trim() });
+      await dashboardApi.requestWorkflowWorkItemTaskChanges(
+        workflowId,
+        workflowTaskContext.workItemId,
+        action.target.target_id,
+        { feedback: promptValue.trim() },
+      );
       return;
     case 'resolve_escalation':
-      await dashboardApi.resolveTaskEscalation(
+      await dashboardApi.resolveWorkflowWorkItemTaskEscalation(
+        workflowId,
+        workflowTaskContext.workItemId,
         action.target.target_id,
         { instructions: promptValue.trim() },
-        {
-          workflowId,
-          workItemId: action.work_item_id ?? null,
-        },
       );
       return;
     case 'approve_gate':
@@ -253,11 +271,25 @@ async function runNeedsAction(
       });
       return;
     case 'retry_task':
-      await dashboardApi.retryTask(action.target.target_id);
+      await dashboardApi.retryWorkflowWorkItemTask(
+        workflowId,
+        workflowTaskContext.workItemId,
+        action.target.target_id,
+      );
       return;
     default:
       throw new Error(`Unsupported needs-action response '${action.kind}'.`);
   }
+}
+
+function readWorkflowTaskContext(
+  action: DashboardWorkflowNeedsActionResponseAction,
+): { workItemId: string } {
+  const workItemId = action.work_item_id?.trim();
+  if (!workItemId) {
+    throw new Error('Workflow task action is missing work-item context.');
+  }
+  return { workItemId };
 }
 
 function isSupportedNeedsActionResponse(

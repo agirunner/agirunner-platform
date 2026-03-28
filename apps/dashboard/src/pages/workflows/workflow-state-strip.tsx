@@ -26,7 +26,6 @@ export function WorkflowStateStrip(props: {
   const visibilityValue = props.workflowSettings?.workflow_live_visibility_mode_override ?? '__inherit__';
   const workload = summarizeWorkload(props.board, props.workflow);
   const metaLine = `Updated ${formatRelativeTimestamp(props.workflow.metrics.lastChangedAt)}`;
-  const isWorkflowScope = props.selectedScopeLabel === null;
   const canOpenRedrive = props.workflow.availableActions.some(
     (action) => action.kind === 'redrive_workflow' && action.enabled,
   );
@@ -53,31 +52,23 @@ export function WorkflowStateStrip(props: {
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
-          {isWorkflowScope ? (
-            <>
-              <WorkflowControlActions
-                workflowId={props.workflow.id}
-                workflowState={props.workflow.state}
-                workspaceId={props.workflow.workspaceId}
-                additionalQueryKeys={[['workflows']]}
-                availableActions={props.workflow.availableActions}
-              />
-              {canOpenRedrive ? (
-                <Button size="sm" variant="outline" onClick={props.onOpenRedrive}>
-                  Redrive
-                </Button>
-              ) : null}
-              {canAddWork ? (
-                <Button size="sm" onClick={props.onAddWork}>
-                  Add / Modify Work
-                </Button>
-              ) : null}
-            </>
-          ) : (
-            <span className="rounded-lg border border-border/60 bg-background/80 px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground">
-              Workflow-level actions only
-            </span>
-          )}
+          <WorkflowControlActions
+            workflowId={props.workflow.id}
+            workflowState={props.workflow.state}
+            workspaceId={props.workflow.workspaceId}
+            additionalQueryKeys={[['workflows']]}
+            availableActions={props.workflow.availableActions}
+          />
+          {canOpenRedrive ? (
+            <Button size="sm" variant="outline" onClick={props.onOpenRedrive}>
+              Redrive
+            </Button>
+          ) : null}
+          {canAddWork ? (
+            <Button size="sm" onClick={props.onAddWork}>
+              Add / Modify Work
+            </Button>
+          ) : null}
           <label className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/10 px-2.5 py-1.5 text-[11px] text-muted-foreground">
             <span className="font-medium text-foreground">Live visibility</span>
             <select

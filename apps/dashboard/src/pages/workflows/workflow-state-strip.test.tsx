@@ -198,7 +198,7 @@ describe('WorkflowStateStrip', () => {
     expect(visibleHtml).toContain('Add / Modify Work');
   });
 
-  it('keeps workflow-only controls hidden while a narrower scope is selected', () => {
+  it('keeps workflow-only controls visible in the header while a narrower scope is selected', () => {
     const html = renderToStaticMarkup(
       createElement(
         QueryClientProvider,
@@ -252,13 +252,11 @@ describe('WorkflowStateStrip', () => {
       ),
     );
 
-    expect(html).not.toContain('Pause');
-    expect(html).not.toContain('Resume');
-    expect(html).not.toContain('Cancel');
-    expect(html).not.toContain('Redrive');
-    expect(html).not.toContain('Add / Modify Work');
-    expect(html).toContain('Workflow-level actions only');
-    expect(html).not.toContain('Workflow controls stay at workflow scope while viewing Review incoming packet.');
+    expect(html).toContain('Pause');
+    expect(html).toContain('Cancel');
+    expect(html).toContain('Redrive');
+    expect(html).toContain('Add / Modify Work');
+    expect(html).not.toContain('Workflow-level actions only');
   });
 
   it('shows an explicit paused badge and only the legal lifecycle controls for paused workflows', () => {

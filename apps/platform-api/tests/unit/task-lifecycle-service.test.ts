@@ -1170,6 +1170,53 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(client.query).not.toHaveBeenCalled();
   });
 
+  it('treats a stale task failure after cancellation as idempotent', async () => {
+    const client = {
+      query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
+      release: vi.fn(),
+    };
+    const existingTask = {
+      id: 'task-fail-after-cancel',
+      state: 'cancelled',
+      assigned_agent_id: null,
+      assigned_worker_id: null,
+      workflow_id: 'workflow-1',
+      metadata: {},
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.failTask(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'agent-1',
+      },
+      'task-fail-after-cancel',
+      {
+        error: {
+          category: 'runtime_failure',
+          message: 'late failure after cancellation',
+          recoverable: false,
+        },
+        agent_id: 'agent-1',
+      },
+    );
+
+    expect(result).toEqual(existingTask);
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
   it('treats cancellation as idempotent once the task is already completed', async () => {
     const queueWorkerCancelSignal = vi.fn(async () => 'signal-1');
     const client = {
@@ -4475,6 +4522,45 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(client.query).not.toHaveBeenCalled();
   });
 
+  it('treats a stale manual escalation after cancellation as idempotent', async () => {
+    const client = {
+      query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
+      release: vi.fn(),
+    };
+    const existingTask = {
+      id: 'task-manual-escalate-cancelled',
+      state: 'cancelled',
+      metadata: {},
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.escalateTask(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-manual-escalate-cancelled',
+      {
+        reason: 'Need operator guidance',
+      },
+    );
+
+    expect(result).toEqual(existingTask);
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
   it('treats a repeated agent escalation to another role as idempotent once the task already reflects it', async () => {
     const client = {
       query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
@@ -4582,6 +4668,56 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
 
     expect(result).toEqual(existingTask);
+    expect(pool.connect).not.toHaveBeenCalled();
+    expect(eventService.emit).not.toHaveBeenCalled();
+  });
+
+  it('treats a stale agent escalation after cancellation as idempotent', async () => {
+    const client = {
+      query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
+      release: vi.fn(),
+    };
+    const existingTask = {
+      id: 'task-agent-escalate-cancelled',
+      state: 'cancelled',
+      role: 'developer',
+      metadata: {},
+      error: null,
+    };
+    const getRoleByName = vi.fn(async () => ({
+      escalation_target: 'reviewer',
+      max_escalation_depth: 3,
+    }));
+    const pool = { connect: vi.fn(async () => client) };
+    const eventService = { emit: vi.fn() };
+    const service = new TaskLifecycleService({
+      pool: pool as never,
+      eventService: eventService as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+      toTaskResponse: (task) => task,
+      getRoleByName,
+    });
+
+    const result = await service.agentEscalate(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-agent-escalate-cancelled',
+      {
+        reason: 'Need reviewer help',
+        context_summary: 'This should no-op after cancellation.',
+      },
+    );
+
+    expect(result).toEqual(existingTask);
+    expect(getRoleByName).not.toHaveBeenCalled();
     expect(pool.connect).not.toHaveBeenCalled();
     expect(eventService.emit).not.toHaveBeenCalled();
   });
