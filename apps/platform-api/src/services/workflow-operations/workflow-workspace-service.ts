@@ -450,7 +450,7 @@ function buildBoardNeedsActionResponses(
   }
   if (actionKind === 'unblock_work_item') {
     return [
-      buildNeedsActionResponse('add_work_item', 'Add / Modify Work', target.target_id, 'workflow', 'none'),
+      buildNeedsActionResponse('add_work_item', 'Add / Modify Work', target.target_id, target.target_kind, 'none'),
     ];
   }
   return [];
@@ -608,6 +608,24 @@ function readBoardNeedsActionItems(board: Record<string, unknown>): WorkflowNeed
         submission: { route_kind: 'workflow_intervention', method: 'POST' },
         responses: [],
       });
+      continue;
+    }
+    if (isBlockedGateStatus(gateStatus)) {
+      items.push({
+        action_id: `${workItemId}:${gateStatus}`,
+        action_kind: 'unblock_work_item',
+        label: gateStatus === 'request_changes' || gateStatus === 'changes_requested'
+          ? 'Address requested changes'
+          : gateStatus === 'rejected'
+            ? 'Resolve rejection'
+            : 'Unblock work item',
+        summary: buildBlockedSummary(title, record),
+        target: { target_kind: 'work_item', target_id: workItemId },
+        priority: 'high',
+        requires_confirmation: false,
+        submission: { route_kind: 'workflow_intervention', method: 'POST' },
+        responses: [],
+      });
     }
   }
   return items;
@@ -680,6 +698,7 @@ function readActionableWorkItemStages(board: Record<string, unknown>): Set<strin
       gateStatus === 'awaiting_approval'
       || escalationStatus === 'open'
       || blockedState === 'blocked'
+      || isBlockedGateStatus(gateStatus)
     ) {
       stages.add(stageName);
     }
@@ -746,6 +765,13 @@ function buildBlockedSummary(title: string, record: Record<string, unknown>): st
     return `${title} is blocked: ${blockedReason}`;
   }
   return `${title} is blocked and needs operator intervention.`;
+}
+
+function isBlockedGateStatus(gateStatus: string | null): boolean {
+  return gateStatus === 'blocked'
+    || gateStatus === 'request_changes'
+    || gateStatus === 'changes_requested'
+    || gateStatus === 'rejected';
 }
 
 function mergeOutputDescriptorDeliverables(

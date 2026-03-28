@@ -404,6 +404,73 @@ describe('MissionControlLiveService', () => {
       }),
     ]);
   });
+
+  it('treats request-changes work items as blocked workflow attention in the live card query', async () => {
+    const pool = createSequencedPool([
+      { rows: [{ latest_event_id: 42 }], rowCount: 1 },
+      {
+        rows: [
+          {
+            id: 'workflow-1',
+            name: 'Release Workflow',
+            state: 'active',
+            lifecycle: 'planned',
+            current_stage: 'review',
+            workspace_id: 'workspace-1',
+            workspace_name: 'Core Product',
+            playbook_id: 'playbook-1',
+            playbook_name: 'Release',
+            parameters: {},
+            context: {},
+            updated_at: '2026-03-27T04:00:00.000Z',
+          },
+        ],
+        rowCount: 1,
+      },
+      {
+        rows: [
+          {
+            workflow_id: 'workflow-1',
+            waiting_for_decision_count: 0,
+            open_escalation_count: 0,
+            blocked_work_item_count: 1,
+            failed_task_count: 0,
+            active_task_count: 0,
+            active_work_item_count: 1,
+            pending_work_item_count: 1,
+            recoverable_issue_count: 0,
+          },
+        ],
+        rowCount: 1,
+      },
+      { rows: [], rowCount: 0 },
+      { rows: [], rowCount: 0 },
+    ]);
+
+    const service = new MissionControlLiveService(pool as never);
+    const response = await service.getLive('tenant-1');
+
+    expect(pool.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining("gate_status IN ('blocked', 'request_changes', 'changes_requested', 'rejected')"),
+      expect.any(Array),
+    );
+    expect(response.sections).toEqual([
+      expect.objectContaining({
+        id: 'at_risk',
+        count: 1,
+        workflows: [
+          expect.objectContaining({
+            id: 'workflow-1',
+            posture: 'needs_intervention',
+            metrics: expect.objectContaining({
+              blockedWorkItemCount: 1,
+            }),
+          }),
+        ],
+      }),
+    ]);
+  });
 });
 
 function createSequencedPool(responses: Array<{ rows: unknown[]; rowCount: number }>) {

@@ -1007,7 +1007,12 @@ function shouldProjectBoardItemToBlockedLane(item: Record<string, unknown>): boo
     return true;
   }
   const gateStatus = asOptionalString(item.gate_status);
-  return gateStatus === 'blocked' || gateStatus === 'changes_requested' || gateStatus === 'rejected';
+  return (
+    gateStatus === 'blocked'
+    || gateStatus === 'request_changes'
+    || gateStatus === 'changes_requested'
+    || gateStatus === 'rejected'
+  );
 }
 
 function toWorkflowRelationRef(workflowId: string, row?: Record<string, unknown>) {

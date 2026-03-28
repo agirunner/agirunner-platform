@@ -132,4 +132,56 @@ describe('WorkflowNeedsAction', () => {
     expect(html).not.toContain('Add / Modify Work');
     expect(html).not.toContain('Redrive workflow');
   });
+
+  it('renders add-or-modify-work responses inline for blocked work items', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowNeedsAction, {
+          workflowId: 'workflow-1',
+          workspaceId: 'workspace-1',
+          packet: {
+            items: [
+              {
+                action_id: 'work-item-1:blocked',
+                action_kind: 'unblock_work_item',
+                label: 'Address requested changes',
+                summary: 'Revise release packet is blocked: Add rollback notes before resubmitting.',
+                target: {
+                  target_kind: 'work_item',
+                  target_id: 'work-item-1',
+                },
+                priority: 'high',
+                requires_confirmation: false,
+                submission: {
+                  route_kind: 'workflow_intervention',
+                  method: 'POST',
+                },
+                responses: [
+                  {
+                    action_id: 'work-item-1:add-work',
+                    kind: 'add_work_item',
+                    label: 'Add / Modify Work',
+                    target: {
+                      target_kind: 'work_item',
+                      target_id: 'work-item-1',
+                    },
+                    requires_confirmation: false,
+                    prompt_kind: 'none',
+                  },
+                ],
+              },
+            ],
+            total_count: 1,
+            default_sort: 'priority_desc',
+          },
+        }),
+      ),
+    );
+
+    expect(html).toContain('Address requested changes');
+    expect(html).toContain('Add / Modify Work');
+    expect(html).not.toContain('Open Steering');
+  });
 });

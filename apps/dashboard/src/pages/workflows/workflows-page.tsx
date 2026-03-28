@@ -424,7 +424,12 @@ export function WorkflowsPage(): JSX.Element {
                       patchPageState(navigate, pageState, { workItemId: null, taskId: null })
                     }
                     onClearTaskScope={() => patchPageState(navigate, pageState, { taskId: null })}
-                    onOpenAddWork={() => setIsAddWorkOpen(true)}
+                    onOpenAddWork={(workItemId) => {
+                      if (workItemId !== undefined) {
+                        patchPageState(navigate, pageState, { workItemId: workItemId ?? null, taskId: null });
+                      }
+                      setIsAddWorkOpen(true);
+                    }}
                     onOpenRedrive={() => setIsRedriveOpen(true)}
                     onLoadMoreActivity={() =>
                       setActivityLimit((current) => current + ACTIVITY_PAGE_SIZE)

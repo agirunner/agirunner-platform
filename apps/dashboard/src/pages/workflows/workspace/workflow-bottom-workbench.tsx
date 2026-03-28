@@ -35,7 +35,7 @@ export function WorkflowBottomWorkbench(props: {
   onTabChange(tab: WorkflowWorkbenchTab): void;
   onClearWorkItemScope(): void;
   onClearTaskScope(): void;
-  onOpenAddWork(): void;
+  onOpenAddWork(workItemId?: string | null): void;
   onOpenRedrive(): void;
   onLoadMoreActivity(): void;
   onLoadMoreDeliverables(): void;
@@ -141,6 +141,7 @@ export function WorkflowBottomWorkbench(props: {
             workflowId={props.workflowId}
             workspaceId={props.workflow.workspaceId}
             packet={props.packet.needs_action}
+            onOpenAddWork={(workItemId) => props.onOpenAddWork(workItemId)}
           />
         ) : null}
         {props.activeTab === 'steering' ? (

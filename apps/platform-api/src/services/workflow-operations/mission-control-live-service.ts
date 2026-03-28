@@ -267,7 +267,13 @@ export class MissionControlLiveService {
          ) task_summary ON true
          LEFT JOIN LATERAL (
            SELECT COUNT(*) FILTER (WHERE completed_at IS NULL AND escalation_status = 'open')::int AS open_escalation_count,
-                  COUNT(*) FILTER (WHERE completed_at IS NULL AND blocked_state = 'blocked')::int AS blocked_work_item_count,
+                  COUNT(*) FILTER (
+                    WHERE completed_at IS NULL
+                      AND (
+                        blocked_state = 'blocked'
+                        OR gate_status IN ('blocked', 'request_changes', 'changes_requested', 'rejected')
+                      )
+                  )::int AS blocked_work_item_count,
                   COUNT(*) FILTER (WHERE completed_at IS NULL)::int AS active_work_item_count,
                   COUNT(*) FILTER (WHERE completed_at IS NULL)::int AS pending_work_item_count
              FROM workflow_work_items
