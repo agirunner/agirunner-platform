@@ -2063,22 +2063,9 @@ describe('HandoffService', () => {
     expect(query.mock.calls[3]?.[0]).toContain('UPDATE task_handoffs');
   });
 
-  it('does not derive a completion-time handoff requirement from deleted playbook governance', async () => {
+  it('requires a structured handoff before completing a workflow-linked task', async () => {
     const pool = {
-      query: vi
-        .fn()
-        .mockResolvedValueOnce({
-          rows: [{
-            definition: {
-              process_instructions: 'Developer implements and reviewer reviews.',
-              roles: ['developer', 'reviewer'],
-              board: { columns: [{ id: 'planned', label: 'Planned' }] },
-              handoff_rules: [{ from_role: 'developer', to_role: 'reviewer', required: true }],
-            },
-          }],
-          rowCount: 1,
-        })
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 }),
+      query: vi.fn().mockResolvedValueOnce({ rows: [], rowCount: 0 }),
     };
 
     const service = new HandoffService(pool as never);
@@ -2087,31 +2074,34 @@ describe('HandoffService', () => {
       service.assertRequiredTaskHandoffBeforeCompletion('tenant-1', {
         id: 'task-1',
         workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        is_orchestrator_task: false,
         role: 'developer',
+        input: {},
+        metadata: { task_kind: 'delivery' },
       }),
-    ).resolves.toBeUndefined();
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      message: 'Task requires a structured handoff before completion',
+      details: {
+        reason_code: 'required_structured_handoff',
+        recovery_hint: 'submit_required_handoff',
+      },
+    });
+
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('FROM task_handoffs'),
+      ['tenant-1', 'task-1', 0],
+    );
   });
 
-  it('does not require a fresh handoff iteration from deleted playbook governance', async () => {
+  it('accepts a matching current-attempt structured handoff before completion', async () => {
     const pool = {
       query: vi
         .fn()
         .mockResolvedValueOnce({
-          rows: [{
-            definition: {
-              process_instructions: 'Developer implements and reviewer reviews.',
-              roles: ['developer', 'reviewer'],
-              board: { columns: [{ id: 'planned', label: 'Planned' }] },
-              handoff_rules: [{ from_role: 'developer', to_role: 'reviewer', required: true }],
-            },
-          }],
+          rows: [{ id: 'handoff-1' }],
           rowCount: 1,
-        })
-        .mockImplementationOnce(async (sql: string) => {
-          if (sql.includes('task_rework_count')) {
-            return { rows: [], rowCount: 0 };
-          }
-          return { rows: [{ id: 'handoff-0' }], rowCount: 1 };
         }),
     };
 
@@ -2121,9 +2111,38 @@ describe('HandoffService', () => {
       service.assertRequiredTaskHandoffBeforeCompletion('tenant-1', {
         id: 'task-1',
         workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        is_orchestrator_task: false,
         role: 'developer',
         rework_count: 1,
+        input: {},
+        metadata: { task_kind: 'delivery' },
       }),
     ).resolves.toBeUndefined();
+
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('FROM task_handoffs'),
+      ['tenant-1', 'task-1', 1],
+    );
+  });
+
+  it('does not require a structured handoff for standalone tasks outside workflow control', async () => {
+    const pool = {
+      query: vi.fn(),
+    };
+
+    const service = new HandoffService(pool as never);
+
+    await expect(
+      service.assertRequiredTaskHandoffBeforeCompletion('tenant-1', {
+        id: 'task-standalone',
+        workflow_id: null,
+        role: 'developer',
+        input: {},
+        metadata: {},
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(pool.query).not.toHaveBeenCalled();
   });
 });

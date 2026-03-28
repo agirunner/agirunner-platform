@@ -176,8 +176,8 @@ function buildOrchestratorSections(params: {
   }
   if (params.lifecycle === 'planned') {
     sections.push(`## Handoff Semantics\n${formatPlannedHandoffSemantics()}`);
-    sections.push(`## Closure Discipline\n${plannedClosureDiscipline()}`);
   }
+  sections.push(`## Closure Discipline\n${workItemClosureDiscipline(params.lifecycle)}`);
   const closureContextSection = formatClosureContext(params.workflow);
   if (closureContextSection) {
     sections.push(`## Closure Context\n${closureContextSection}`);
@@ -414,11 +414,19 @@ function outputProtocol(repoBacked: boolean, orchestrator: boolean) {
     : 'Non-repository task. Base your completion on artifacts, outputs, and recorded evidence. Upload required artifacts before completion or escalation and leave a clear structured handoff for the next step.';
 }
 
-function plannedClosureDiscipline() {
+function workItemClosureDiscipline(lifecycle: 'planned' | 'ongoing') {
+  const lifecycleSpecificLines = lifecycle === 'ongoing'
+    ? [
+        'When the current ongoing-workflow work item satisfies its authored stage goal, board posture, continuity, and process instructions, call complete_work_item in the same activation instead of leaving accepted work open.',
+        'Do not keep accepted ongoing work items open just because the workflow itself remains available for future intake.',
+      ]
+    : [
+        'When the current planned-workflow work item satisfies its authored stage goal, board posture, continuity, and process instructions, call complete_work_item in the same activation instead of leaving accepted work open.',
+        'When every planned work item is terminal and no blocking tasks, approvals, assessments, escalations, or required follow-up remain, call complete_workflow in the same activation.',
+      ];
   return [
-    'When the current planned-workflow work item satisfies its authored stage goal, board posture, continuity, and process instructions, call complete_work_item in the same activation instead of leaving accepted work open.',
+    ...lifecycleSpecificLines,
     'Before complete_work_item or close_work_item_with_callouts, confirm closure_context.work_item_can_close_now is yes and no current-work-item specialist tasks remain open.',
-    'When every planned work item is terminal and no blocking tasks, approvals, assessments, escalations, or required follow-up remain, call complete_workflow in the same activation.',
     'When you call complete_workflow, include final_artifacts with the repo-relative deliverables or uploaded artifact paths that represent the final workflow output.',
     'When closure is legal but preferred work or advisory items remain, use complete_work_item or complete_workflow with structured completion_callouts instead of leaving the workflow open.',
     'Do not rely on board lane guesses or specialist prose to imply closure. Perform the explicit workflow mutation yourself.',

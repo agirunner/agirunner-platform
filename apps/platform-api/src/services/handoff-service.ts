@@ -27,6 +27,7 @@ import {
   enqueueAndDispatchImmediatePlaybookActivation,
   type ImmediateWorkflowActivationDispatcher,
 } from './workflow-immediate-activation.js';
+import { taskRequiresStructuredHandoff } from './workflow-task-handoff-policy.js';
 
 const HANDOFF_SECRET_REDACTION = 'redacted://handoff-secret';
 const HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_SAFETYNET = mustGetSafetynetEntry(
@@ -136,9 +137,33 @@ export class HandoffService {
     task: Record<string, unknown>,
     db: DatabaseClient | DatabasePool = this.pool,
   ) {
-    void tenantId;
-    void task;
-    void db;
+    if (!taskRequiresStructuredHandoff(task)) {
+      return;
+    }
+
+    const taskId = readOptionalString(task.id);
+    if (!taskId) {
+      return;
+    }
+
+    const taskReworkCount = readInteger(task.rework_count) ?? 0;
+    const result = await db.query<{ id: string }>(
+      `SELECT id
+         FROM task_handoffs
+        WHERE tenant_id = $1
+          AND task_id = $2
+          AND task_rework_count = $3
+        LIMIT 1`,
+      [tenantId, taskId, taskReworkCount],
+    );
+    if (result.rowCount > 0) {
+      return;
+    }
+
+    throw new ValidationError('Task requires a structured handoff before completion', {
+      reason_code: 'required_structured_handoff',
+      recovery_hint: 'submit_required_handoff',
+    });
   }
 
   async submitTaskHandoff(

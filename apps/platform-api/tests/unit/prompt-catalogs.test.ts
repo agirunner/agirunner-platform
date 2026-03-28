@@ -159,6 +159,9 @@ describe('prompt catalogs', () => {
       "call it in the same activation once the work item's playbook-defined success criteria are satisfied and no further current-work-item role work is required.",
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'In ongoing workflows, still complete accepted work items explicitly, then keep the workflow open for future intake.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'After final approval in a planned workflow, complete the accepted final-stage work item, then call complete_workflow.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(

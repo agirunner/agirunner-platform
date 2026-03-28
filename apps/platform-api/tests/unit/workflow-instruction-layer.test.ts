@@ -359,6 +359,55 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).not.toContain('## Predecessor Context');
   });
 
+  it('tells ongoing orchestrator activations to explicitly complete accepted work items', () => {
+    const layer = buildWorkflowInstructionLayer({
+      isOrchestratorTask: true,
+      workflow: {
+        lifecycle: 'ongoing',
+        active_stages: ['intake-triage'],
+        playbook: {
+          definition: {
+            lifecycle: 'ongoing',
+            process_instructions:
+              'Keep intake moving and close each intake item explicitly once the authored goal is satisfied.',
+            board: {
+              columns: [
+                { id: 'planned', label: 'Planned' },
+                { id: 'active', label: 'In Progress' },
+                { id: 'done', label: 'Done', is_terminal: true },
+              ],
+            },
+            stages: [{ name: 'intake-triage', goal: 'Triaged items are assessed and closed.' }],
+          },
+        },
+      },
+      orchestratorContext: {
+        activation: { payload: { work_item_id: 'wi-1', stage_name: 'intake-triage' } },
+        board: {
+          work_items: [
+            {
+              id: 'wi-1',
+              stage_name: 'intake-triage',
+              column_id: 'active',
+              next_expected_actor: null,
+              next_expected_action: null,
+              rework_count: 0,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(layer).not.toBeNull();
+    expect(layer!.content).toContain('## Closure Discipline');
+    expect(layer!.content).toContain(
+      'When the current ongoing-workflow work item satisfies its authored stage goal, board posture, continuity, and process instructions, call complete_work_item in the same activation instead of leaving accepted work open.',
+    );
+    expect(layer!.content).toContain(
+      'Do not keep accepted ongoing work items open just because the workflow itself remains available for future intake.',
+    );
+  });
+
   it('prefers the sole active stage over stale workflow current_stage fallback', () => {
     const layer = buildWorkflowInstructionLayer({
       isOrchestratorTask: true,

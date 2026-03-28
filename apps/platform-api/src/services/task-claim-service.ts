@@ -55,6 +55,11 @@ import {
   type SpecialistRoleCapabilities,
 } from './specialist-capability-service.js';
 import { resolveWorkspaceStorageBinding } from './workspace-storage.js';
+import {
+  taskAllowsHandoffResolution,
+  taskHandoffSatisfiesCompletion,
+  taskRequiresStructuredHandoff,
+} from './workflow-task-handoff-policy.js';
 
 const priorityCase = "CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END";
 
@@ -1573,13 +1578,12 @@ function buildRuntimeTaskCapabilities(
   task: Record<string, unknown>,
   _instructionContext: Record<string, unknown>,
 ): Record<string, unknown> {
-  const taskKind = readPresentString(isRecord(task.metadata) ? task.metadata.task_kind : null) ?? '';
-  const allowsHandoffResolution = taskKind === 'assessment' || taskKind === 'approval';
-  const requiresStructuredHandoff = allowsHandoffResolution || taskInputRequiresStructuredHandoff(task);
+  const allowsHandoffResolution = taskAllowsHandoffResolution(task);
+  const requiresStructuredHandoff = taskRequiresStructuredHandoff(task) || taskInputRequiresStructuredHandoff(task);
   return compactRecord({
     requires_structured_handoff: requiresStructuredHandoff,
     allows_handoff_resolution: allowsHandoffResolution,
-    handoff_satisfies_completion: allowsHandoffResolution,
+    handoff_satisfies_completion: taskHandoffSatisfiesCompletion(task),
     forbidden_mutation_tools: allowsHandoffResolution ? ['file_write', 'file_edit', 'git_commit', 'git_push'] : undefined,
     isolate_shell_exec_workspace: allowsHandoffResolution || undefined,
   });

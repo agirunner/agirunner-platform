@@ -287,6 +287,137 @@ describe('TaskClaimService', () => {
     });
   });
 
+  it('requires structured handoffs for workflow-linked delivery tasks without marking the handoff as terminal by itself', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-delivery-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'ready',
+              role: 'implementation-engineer',
+              title: 'Implement requested change',
+              role_config: {},
+              input: { description: 'Implement the requested change' },
+              metadata: { task_kind: 'delivery' },
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: false,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: null,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-delivery-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'claimed',
+              role: 'implementation-engineer',
+              title: 'Implement requested change',
+              role_config: {},
+              input: { description: 'Implement the requested change' },
+              metadata: { task_kind: 'delivery' },
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: false,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: null,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM agents') && sql.includes('current_task_id IS NULL')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT pb.definition')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              definition: {
+                version: '1',
+                stages: [],
+                process_instructions: 'Implement the change and submit a structured handoff.',
+                board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              },
+            }],
+          };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        return { rowCount: 0, rows: [] };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = createService(client, {
+      getTaskContext: vi.fn(async () => ({
+        instructions: '',
+        workflow: {
+          playbook: {
+            definition: {
+              process_instructions: 'Implement the change and submit a structured handoff.',
+              roles: ['implementation-engineer'],
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              stages: [],
+            },
+          },
+        },
+      })),
+    });
+
+    const claimed = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      routing_tags: ['delivery', 'role:implementation-engineer'],
+    });
+
+    expect(claimed).toMatchObject({
+      runtime_capabilities: {
+        requires_structured_handoff: true,
+        allows_handoff_resolution: false,
+        handoff_satisfies_completion: false,
+      },
+    });
+  });
+
   it('limits specialist agents to non-orchestrator tasks', async () => {
     const client = createClient('specialist');
     const service = createService(client);
