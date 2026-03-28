@@ -334,6 +334,64 @@ describe('WorkflowNeedsAction', () => {
     expect(html).toContain('3');
   });
 
+  it('shows the exact selected scope in the needs-action header while keeping action context inline', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowNeedsAction, {
+          workflowId: 'workflow-1',
+          workspaceId: 'workspace-1',
+          scopeSubject: 'task',
+          scopeLabel: 'Task: Verify deliverable',
+          packet: {
+            items: [
+              {
+                action_id: 'task-approve-1:awaiting_approval',
+                action_kind: 'review_work_item',
+                label: 'Approval required',
+                summary: 'Review release packet is waiting for operator approval on Approve release packet.',
+                target: {
+                  target_kind: 'task',
+                  target_id: 'task-approve-1',
+                },
+                priority: 'high',
+                requires_confirmation: true,
+                submission: {
+                  route_kind: 'task_mutation',
+                  method: 'POST',
+                },
+                details: [
+                  { label: 'Approval target', value: 'Approve release packet' },
+                ],
+                responses: [
+                  {
+                    action_id: 'task-approve-1:approve',
+                    kind: 'approve_task',
+                    label: 'Approve',
+                    target: {
+                      target_kind: 'task',
+                      target_id: 'task-approve-1',
+                    },
+                    requires_confirmation: false,
+                    prompt_kind: 'none',
+                  },
+                ],
+              },
+            ],
+            total_count: 1,
+            default_sort: 'priority_desc',
+          } as never,
+        }),
+      ),
+    );
+
+    expect(html).toContain('Task: Verify deliverable');
+    expect(html).toContain('Approval required');
+    expect(html).toContain('Approve release packet');
+    expect(html).not.toContain('Open Steering');
+  });
+
   it('renders escalation reason, context, and work-so-far details inside the needs-action card', () => {
     const html = renderToStaticMarkup(
       createElement(

@@ -44,19 +44,37 @@ export function WorkflowBottomWorkbench(props: {
   onLoadMoreActivity(): void;
   onLoadMoreDeliverables(): void;
 }): JSX.Element {
+  const resolvedScope = resolveWorkbenchScope(props);
+  const currentTaskId =
+    props.packet.bottom_tabs.current_task_id
+    ?? props.packet.selected_scope.task_id
+    ?? props.selectedTaskId;
+  const currentWorkItemId =
+    props.packet.bottom_tabs.current_work_item_id
+    ?? props.packet.selected_scope.work_item_id
+    ?? props.scopedWorkItemId
+    ?? props.selectedWorkItemId;
   const counts = props.packet.bottom_tabs.counts;
 
   return (
     <section className="flex h-full min-h-0 flex-col gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-        <p className="text-sm font-semibold text-foreground">{props.scope.banner}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3 px-1">
+        <div className="grid gap-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Current scope
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="outline">{humanizeScopeKind(resolvedScope.scopeKind)}</Badge>
+            <p className="text-sm font-semibold text-foreground">{resolvedScope.banner}</p>
+          </div>
+        </div>
         <div className="flex flex-wrap gap-2">
-          {props.scope.scopeKind === 'selected_task' ? (
+          {resolvedScope.scopeKind === 'selected_task' ? (
             <Button type="button" size="sm" variant="ghost" onClick={props.onClearTaskScope}>
               Show work item
             </Button>
           ) : null}
-          {props.scope.scopeKind !== 'workflow' ? (
+          {resolvedScope.scopeKind !== 'workflow' ? (
             <Button type="button" size="sm" variant="ghost" onClick={props.onClearWorkItemScope}>
               Show workflow
             </Button>
@@ -118,7 +136,7 @@ export function WorkflowBottomWorkbench(props: {
             selectedWorkItemTasks={props.selectedWorkItemTasks}
             inputPackets={props.inputPackets}
             workflowParameters={props.workflowParameters}
-            scope={props.scope}
+            scope={resolvedScope}
           />
         ) : null}
         {props.activeTab === 'needs_action' && props.workflow ? (
@@ -126,7 +144,8 @@ export function WorkflowBottomWorkbench(props: {
             workflowId={props.workflowId}
             workspaceId={props.workflow.workspaceId}
             packet={props.packet.needs_action}
-            scopeSubject={props.scope.subject}
+            scopeSubject={resolvedScope.subject}
+            scopeLabel={resolvedScope.banner}
             onOpenAddWork={(workItemId) => props.onOpenAddWork(workItemId)}
           />
         ) : null}
@@ -134,8 +153,8 @@ export function WorkflowBottomWorkbench(props: {
           <WorkflowSteering
             workflowId={props.workflowId}
             workflowName={props.workflowName}
-            selectedWorkItemId={props.scopedWorkItemId}
-            scope={props.scope}
+            selectedWorkItemId={currentWorkItemId}
+            scope={resolvedScope}
             interventions={props.packet.steering.recent_interventions}
             messages={props.packet.steering.session.messages}
             sessionId={props.packet.steering.session.session_id}
@@ -145,9 +164,9 @@ export function WorkflowBottomWorkbench(props: {
         {props.activeTab === 'live_console' ? (
           <WorkflowLiveConsole
             packet={props.packet.live_console}
-            selectedWorkItemId={props.scopedWorkItemId}
-            selectedTaskId={props.selectedTaskId}
-            scopeSubject={props.scope.subject}
+            selectedWorkItemId={currentWorkItemId}
+            selectedTaskId={currentTaskId}
+            scopeSubject={resolvedScope.subject}
             onLoadMore={props.onLoadMoreActivity}
           />
         ) : null}
@@ -155,9 +174,9 @@ export function WorkflowBottomWorkbench(props: {
           <WorkflowHistory
             workflowId={props.workflowId}
             packet={props.packet.history}
-            selectedWorkItemId={props.scopedWorkItemId}
-            selectedTaskId={props.selectedTaskId}
-            scopeSubject={props.scope.subject}
+            selectedWorkItemId={currentWorkItemId}
+            selectedTaskId={currentTaskId}
+            scopeSubject={resolvedScope.subject}
             onLoadMore={props.onLoadMoreActivity}
           />
         ) : null}
@@ -166,13 +185,69 @@ export function WorkflowBottomWorkbench(props: {
             packet={props.packet.deliverables}
             selectedTask={props.selectedTask}
             selectedWorkItemTitle={props.selectedWorkItemTitle}
-            scope={props.scope}
+            scope={resolvedScope}
             onLoadMore={props.onLoadMoreDeliverables}
           />
         ) : null}
       </div>
     </section>
   );
+}
+
+function resolveWorkbenchScope(props: {
+  packet: DashboardWorkflowWorkspacePacket;
+  workflowName: string;
+  selectedWorkItemTitle: string | null;
+  selectedTaskTitle: string | null;
+  scope: WorkflowWorkbenchScopeDescriptor;
+}): WorkflowWorkbenchScopeDescriptor {
+  const scopeKind = props.packet.bottom_tabs.current_scope_kind;
+  const workItemId =
+    props.packet.bottom_tabs.current_work_item_id
+    ?? props.packet.selected_scope.work_item_id;
+  const taskId =
+    props.packet.bottom_tabs.current_task_id
+    ?? props.packet.selected_scope.task_id;
+
+  if (scopeKind === 'selected_task') {
+    const taskName = props.selectedTaskTitle ?? taskId ?? props.scope.name;
+    return {
+      scopeKind,
+      title: 'Task',
+      subject: 'task',
+      name: taskName,
+      banner: `Task: ${taskName}`,
+    };
+  }
+
+  if (scopeKind === 'selected_work_item') {
+    const workItemName = props.selectedWorkItemTitle ?? workItemId ?? props.scope.name;
+    return {
+      scopeKind,
+      title: 'Work item',
+      subject: 'work item',
+      name: workItemName,
+      banner: `Work item: ${workItemName}`,
+    };
+  }
+
+  return {
+    scopeKind: 'workflow',
+    title: 'Workflow',
+    subject: 'workflow',
+    name: props.workflowName,
+    banner: `Workflow: ${props.workflowName}`,
+  };
+}
+
+function humanizeScopeKind(value: WorkflowWorkbenchScopeDescriptor['scopeKind']): string {
+  if (value === 'selected_task') {
+    return 'Task';
+  }
+  if (value === 'selected_work_item') {
+    return 'Work item';
+  }
+  return 'Workflow';
 }
 
 function WorkbenchTabButton(props: {

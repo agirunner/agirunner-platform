@@ -17,10 +17,12 @@ export function WorkflowNeedsAction(props: {
   workflowId: string;
   workspaceId?: string | null;
   scopeSubject?: 'workflow' | 'work item' | 'task';
+  scopeLabel?: string;
   packet: DashboardWorkflowNeedsActionPacket;
   onOpenAddWork?(workItemId: string | null): void;
 }): JSX.Element {
   const scopeSubject = props.scopeSubject ?? 'workflow';
+  const scopeLabel = props.scopeLabel ?? `This ${scopeSubject}`;
   const queryClient = useQueryClient();
   const [promptAction, setPromptAction] = useState<DashboardWorkflowNeedsActionResponseAction | null>(null);
   const [promptValue, setPromptValue] = useState('');
@@ -71,6 +73,7 @@ export function WorkflowNeedsAction(props: {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-foreground">Needs Action</p>
+          <p className="text-xs font-medium text-foreground">{scopeLabel}</p>
           <p className="text-sm text-muted-foreground">
             Prioritized actions for this {scopeSubject} that currently require an operator response.
           </p>

@@ -55,14 +55,28 @@ describe('WorkflowBottomWorkbench', () => {
   });
 
   it('keeps task scope visible in details while the selected records are still loading', () => {
+    const packet = createPacket();
     const html = renderToStaticMarkup(
       createElement(WorkflowBottomWorkbench, {
         workflowId: 'workflow-1',
-        workflow: createPacket().workflow,
-        stickyStrip: createPacket().sticky_strip,
-        board: createPacket().board,
+        workflow: packet.workflow,
+        stickyStrip: packet.sticky_strip,
+        board: packet.board,
         workflowName: 'Workflow 1',
-        packet: createPacket(),
+        packet: {
+          ...packet,
+          selected_scope: {
+            scope_kind: 'selected_task',
+            work_item_id: 'work-item-7',
+            task_id: 'task-3',
+          },
+          bottom_tabs: {
+            ...packet.bottom_tabs,
+            current_scope_kind: 'selected_task',
+            current_work_item_id: 'work-item-7',
+            current_task_id: 'task-3',
+          },
+        },
         activeTab: 'details',
         selectedWorkItemId: 'work-item-7',
         scopedWorkItemId: 'work-item-7',
@@ -226,6 +240,78 @@ describe('WorkflowBottomWorkbench', () => {
     );
 
     expect(html).toContain('Task: Verify deliverable');
+    expect(html).toContain('No live headlines have been recorded for this task yet.');
+    expect(html).not.toContain('this workflow yet');
+  });
+
+  it('derives the visible scope indicator and tab badges from the scoped packet when outer props are stale', () => {
+    const packet = createPacket();
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBottomWorkbench, {
+        workflowId: 'workflow-1',
+        workflow: packet.workflow,
+        stickyStrip: packet.sticky_strip,
+        board: packet.board,
+        workflowName: 'Workflow 1',
+        packet: {
+          ...packet,
+          selected_scope: {
+            scope_kind: 'selected_task',
+            work_item_id: 'work-item-7',
+            task_id: 'task-3',
+          },
+          bottom_tabs: {
+            ...packet.bottom_tabs,
+            current_scope_kind: 'selected_task',
+            current_work_item_id: 'work-item-7',
+            current_task_id: 'task-3',
+            counts: {
+              details: 41,
+              needs_action: 42,
+              steering: 43,
+              live_console_activity: 44,
+              history: 45,
+              deliverables: 46,
+            },
+          },
+        },
+        activeTab: 'live_console',
+        selectedWorkItemId: null,
+        scopedWorkItemId: null,
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: null,
+        selectedTaskTitle: 'Verify deliverable',
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [],
+        inputPackets: [],
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        onTabChange: vi.fn(),
+        onClearWorkItemScope: vi.fn(),
+        onClearTaskScope: vi.fn(),
+        onOpenAddWork: vi.fn(),
+        onOpenRedrive: vi.fn(),
+        onLoadMoreActivity: vi.fn(),
+        onLoadMoreDeliverables: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Current scope');
+    expect(html).toContain('Task');
+    expect(html).toContain('Verify deliverable');
+    expect(html).toContain('Show work item');
+    expect(html).toContain('Show workflow');
+    expect(html).toContain('>41<');
+    expect(html).toContain('>42<');
+    expect(html).toContain('>45<');
+    expect(html).not.toContain('Workflow: Workflow 1');
     expect(html).toContain('No live headlines have been recorded for this task yet.');
     expect(html).not.toContain('this workflow yet');
   });

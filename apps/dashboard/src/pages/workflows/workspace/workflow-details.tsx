@@ -286,7 +286,7 @@ function buildWorkItemLatestStatus(
     return blockedReason;
   }
   const summary = buildTaskSummary(tasks);
-  return summary ? `Current task load: ${summary}.` : 'Work item details are loading.';
+  return summary ?? 'Work item details are loading.';
 }
 
 function buildTaskSummary(tasks: Record<string, unknown>[]): string | null {

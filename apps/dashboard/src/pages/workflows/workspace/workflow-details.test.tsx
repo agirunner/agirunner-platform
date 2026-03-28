@@ -113,6 +113,7 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('1 active');
     expect(html).toContain('1 blocked');
     expect(html).toContain('1 completed');
+    expect(html).not.toContain('Current task load:');
     expect(html).not.toContain('Verify deliverable</span>');
     expect(html).not.toContain('Rollback validation</span>');
     expect(html).not.toContain('Archive release notes</span>');
