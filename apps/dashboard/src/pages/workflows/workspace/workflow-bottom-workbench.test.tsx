@@ -59,7 +59,7 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html.indexOf('Workflow: Workflow 1')).toBeLessThan(html.indexOf('Details'));
     expect(html).toContain('Scope');
     expect(html).toContain('>Workflow<');
-    expect(html).toContain('flex h-full min-h-[22rem] min-w-0 flex-col gap-1.5 overflow-hidden rounded-2xl bg-background/90 p-2.5 lg:min-h-0');
+    expect(html).toContain('grid h-full min-h-[22rem] min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-1.5 overflow-hidden rounded-2xl bg-background/90 p-2.5 lg:min-h-0');
     expect(html).toContain('flex min-w-0 flex-wrap items-start justify-between gap-2 px-3 py-2');
     expect(html).not.toContain('rounded-xl border border-border/70 bg-transparent px-3 py-2');
     expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/90 p-2.5 shadow-sm');
@@ -709,8 +709,51 @@ describe('WorkflowBottomWorkbench', () => {
       }),
     );
 
-    expect(html).toContain('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden');
+    expect(html).toContain('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[1.25rem] border border-border/60 bg-background/70');
+    expect(html).toContain('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-3 py-3');
     expect(html).not.toContain('min-h-0 min-w-0 flex-1 overflow-auto');
+  });
+
+  it('keeps non-console tabs inside the same full-height lower frame with their own internal scroll area', () => {
+    const packet = createPacket();
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBottomWorkbench, {
+        workflowId: 'workflow-1',
+        workflow: packet.workflow,
+        stickyStrip: packet.sticky_strip,
+        board: packet.board,
+        workflowName: 'Workflow 1',
+        packet,
+        activeTab: 'details',
+        selectedWorkItemId: null,
+        scopedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [],
+        inputPackets: [],
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        onTabChange: vi.fn(),
+        onClearWorkItemScope: vi.fn(),
+        onClearTaskScope: vi.fn(),
+        onOpenAddWork: vi.fn(),
+        onOpenRedrive: vi.fn(),
+        onLoadMoreActivity: vi.fn(),
+        onLoadMoreDeliverables: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[1.25rem] border border-border/60 bg-background/70');
+    expect(html).toContain('min-h-0 min-w-0 flex-1 overflow-y-auto px-3 py-3');
   });
 
   it('renders the deliverables tab even when the scoped deliverables packet is incomplete', () => {

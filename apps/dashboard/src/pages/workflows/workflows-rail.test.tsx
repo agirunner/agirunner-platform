@@ -14,6 +14,8 @@ describe('WorkflowsRail', () => {
     expect(source).toContain('useLayoutEffect');
     expect(source).toContain('data-workflows-rail-scroll-region="true"');
     expect(source).toContain('const persistedScrollTopRef = useRef(0);');
+    expect(source).toContain('const handleSelectWorkflow = (workflowId: string) => {');
+    expect(source).toContain('persistedScrollTopRef.current = scrollRef.current.scrollTop;');
     expect(source).toContain('persistedScrollTopRef.current = element.scrollTop;');
     expect(source).toContain('scrollRef.current.scrollTop = persistedScrollTopRef.current;');
   });
@@ -76,9 +78,10 @@ describe('WorkflowsRail', () => {
       }),
     );
 
-    expect(html).toContain('bg-sky-100');
+    expect(html).toContain('bg-sky-100/95');
     expect(html).toContain('ring-2');
-    expect(html).toContain('shadow-[0_16px_40px_rgba(14,165,233,0.28)]');
+    expect(html).toContain('ring-offset-2');
+    expect(html).toContain('shadow-[0_18px_48px_rgba(14,165,233,0.34)]');
     expect(html).toContain('text-inherit');
     expect(html).not.toContain('bg-amber-100');
   });

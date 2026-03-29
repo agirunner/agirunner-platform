@@ -6,7 +6,8 @@ export const MAX_WORKFLOW_RAIL_WIDTH_PX = 440;
 export const DEFAULT_WORKFLOW_WORKBENCH_FRACTION = 0.5;
 export const MIN_WORKFLOW_WORKBENCH_FRACTION = 0.42;
 export const MAX_WORKFLOW_WORKBENCH_FRACTION = 0.58;
-const WORKFLOWS_SHELL_HEIGHT_CLASS = 'lg:h-[calc(100dvh-6.5rem)]';
+const WORKFLOWS_SHELL_MIN_HEIGHT_CLASS = 'min-h-[calc(100dvh-8rem)]';
+const WORKFLOWS_SHELL_HEIGHT_CLASS = 'lg:h-[calc(100dvh-5.75rem)]';
 const WORKFLOW_SPLIT_GUTTER_REM = 0.5;
 
 export function buildWorkflowsShellClassName(isRailHidden: boolean): string {
@@ -16,6 +17,7 @@ export function buildWorkflowsShellClassName(isRailHidden: boolean): string {
     'min-w-0',
     'flex-col',
     'gap-1.5',
+    WORKFLOWS_SHELL_MIN_HEIGHT_CLASS,
     WORKFLOWS_SHELL_HEIGHT_CLASS,
     'lg:min-h-0',
     'lg:overflow-hidden',

@@ -66,13 +66,15 @@ export function WorkflowBottomWorkbench(props: {
   const liveConsoleCount = props.isScopeLoading
     ? undefined
     : props.packet.live_console.total_count ?? counts.live_console_activity;
-  const tabPanelClassName =
-    props.activeTab === 'live_console'
-      ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'
-      : 'min-h-0 min-w-0 flex-1 overflow-auto';
+  const tabPanelShellClassName =
+    'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[1.25rem] border border-border/60 bg-background/70';
+  const liveConsoleTabPanelContentClassName =
+    'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-3 py-3';
+  const scrollableTabPanelContentClassName =
+    'min-h-0 min-w-0 flex-1 overflow-y-auto px-3 py-3';
 
   return (
-    <section className="flex h-full min-h-[22rem] min-w-0 flex-col gap-1.5 overflow-hidden rounded-2xl bg-background/90 p-2.5 lg:min-h-0">
+    <section className="grid h-full min-h-[22rem] min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-1.5 overflow-hidden rounded-2xl bg-background/90 p-2.5 lg:min-h-0">
       <div className="flex min-w-0 flex-wrap items-start justify-between gap-2 px-3 py-2">
         <div className="grid gap-0.5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -130,83 +132,88 @@ export function WorkflowBottomWorkbench(props: {
         />
       </div>
 
-      <div className={tabPanelClassName}>
-        {props.activeTab === 'details' && props.workflow ? (
-          <WorkflowDetails
-            workflow={props.workflow}
-            stickyStrip={props.stickyStrip}
-            board={props.board}
-            selectedWorkItemId={currentWorkItemId}
-            selectedWorkItemTitle={currentWorkItemTitle}
-            selectedTaskId={null}
-            selectedTaskTitle={null}
-            selectedWorkItem={currentWorkItem}
-            selectedTask={null}
-            selectedWorkItemTasks={currentScopedTaskRows}
-            inputPackets={props.inputPackets}
-            workflowParameters={props.workflowParameters}
-            scope={resolvedScope}
-          />
-        ) : null}
-        {props.activeTab === 'needs_action' && props.workflow ? (
-          <WorkflowNeedsAction
-            workflowId={props.workflowId}
-            workspaceId={props.workflow.workspaceId}
-            packet={props.packet.needs_action}
-            scopeSubject={resolvedScope.subject}
-            scopeLabel={resolvedScope.banner}
-            onOpenAddWork={(workItemId) => props.onOpenAddWork(workItemId)}
-          />
-        ) : null}
-        {props.activeTab === 'steering' ? (
-          <WorkflowSteering
-            workflowId={props.workflowId}
-            workflowName={props.workflowName}
-            workflowState={props.workflow?.state ?? 'active'}
-            boardColumns={props.board?.columns ?? []}
-            selectedWorkItemId={currentWorkItemId}
-            selectedWorkItemTitle={currentWorkItemTitle}
-            selectedWorkItem={currentWorkItem}
-            selectedTaskId={null}
-            selectedTaskTitle={null}
-            selectedTask={null}
-            selectedWorkItemTasks={props.selectedWorkItemTasks as unknown as DashboardTaskRecord[]}
-            scope={resolvedScope}
-            interventions={props.packet.steering.recent_interventions}
-            messages={props.packet.steering.session.messages}
-            sessionId={props.packet.steering.session.session_id}
-            canAcceptRequest={props.packet.steering.steering_state.can_accept_request}
-          />
-        ) : null}
+      <div className={tabPanelShellClassName}>
         {props.activeTab === 'live_console' ? (
-          <WorkflowLiveConsole
-            packet={props.packet.live_console}
-            scopeLabel={resolvedScope.banner}
-            scopeSubject={resolvedScope.subject}
-            isScopeLoading={props.isScopeLoading}
-            onLoadMore={props.onLoadMoreActivity}
-          />
-        ) : null}
-        {props.activeTab === 'history' ? (
-          <WorkflowHistory
-            workflowId={props.workflowId}
-            packet={props.packet.history}
-            selectedWorkItemId={currentWorkItemId}
-            selectedTaskId={null}
-            scopeSubject={resolvedScope.subject}
-            onLoadMore={props.onLoadMoreActivity}
-          />
-        ) : null}
-        {props.activeTab === 'deliverables' ? (
-          <WorkflowDeliverables
-            packet={props.packet.deliverables}
-            selectedTask={null}
-            selectedWorkItemId={currentWorkItemId}
-            selectedWorkItemTitle={currentWorkItemTitle}
-            scope={resolvedScope}
-            onLoadMore={props.onLoadMoreDeliverables}
-          />
-        ) : null}
+          <div className={liveConsoleTabPanelContentClassName}>
+            <WorkflowLiveConsole
+              packet={props.packet.live_console}
+              scopeLabel={resolvedScope.banner}
+              scopeSubject={resolvedScope.subject}
+              isScopeLoading={props.isScopeLoading}
+              onLoadMore={props.onLoadMoreActivity}
+            />
+          </div>
+        ) : (
+          <div className={scrollableTabPanelContentClassName}>
+            {props.activeTab === 'details' && props.workflow ? (
+              <WorkflowDetails
+                workflow={props.workflow}
+                stickyStrip={props.stickyStrip}
+                board={props.board}
+                selectedWorkItemId={currentWorkItemId}
+                selectedWorkItemTitle={currentWorkItemTitle}
+                selectedTaskId={null}
+                selectedTaskTitle={null}
+                selectedWorkItem={currentWorkItem}
+                selectedTask={null}
+                selectedWorkItemTasks={currentScopedTaskRows}
+                inputPackets={props.inputPackets}
+                workflowParameters={props.workflowParameters}
+                scope={resolvedScope}
+              />
+            ) : null}
+            {props.activeTab === 'needs_action' && props.workflow ? (
+              <WorkflowNeedsAction
+                workflowId={props.workflowId}
+                workspaceId={props.workflow.workspaceId}
+                packet={props.packet.needs_action}
+                scopeSubject={resolvedScope.subject}
+                scopeLabel={resolvedScope.banner}
+                onOpenAddWork={(workItemId) => props.onOpenAddWork(workItemId)}
+              />
+            ) : null}
+            {props.activeTab === 'steering' ? (
+              <WorkflowSteering
+                workflowId={props.workflowId}
+                workflowName={props.workflowName}
+                workflowState={props.workflow?.state ?? 'active'}
+                boardColumns={props.board?.columns ?? []}
+                selectedWorkItemId={currentWorkItemId}
+                selectedWorkItemTitle={currentWorkItemTitle}
+                selectedWorkItem={currentWorkItem}
+                selectedTaskId={null}
+                selectedTaskTitle={null}
+                selectedTask={null}
+                selectedWorkItemTasks={props.selectedWorkItemTasks as unknown as DashboardTaskRecord[]}
+                scope={resolvedScope}
+                interventions={props.packet.steering.recent_interventions}
+                messages={props.packet.steering.session.messages}
+                sessionId={props.packet.steering.session.session_id}
+                canAcceptRequest={props.packet.steering.steering_state.can_accept_request}
+              />
+            ) : null}
+            {props.activeTab === 'history' ? (
+              <WorkflowHistory
+                workflowId={props.workflowId}
+                packet={props.packet.history}
+                selectedWorkItemId={currentWorkItemId}
+                selectedTaskId={null}
+                scopeSubject={resolvedScope.subject}
+                onLoadMore={props.onLoadMoreActivity}
+              />
+            ) : null}
+            {props.activeTab === 'deliverables' ? (
+              <WorkflowDeliverables
+                packet={props.packet.deliverables}
+                selectedTask={null}
+                selectedWorkItemId={currentWorkItemId}
+                selectedWorkItemTitle={currentWorkItemTitle}
+                scope={resolvedScope}
+                onLoadMore={props.onLoadMoreDeliverables}
+              />
+            ) : null}
+          </div>
+        )}
       </div>
     </section>
   );

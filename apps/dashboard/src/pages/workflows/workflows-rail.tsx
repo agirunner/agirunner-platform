@@ -34,6 +34,12 @@ export function WorkflowsRail(props: {
 }): JSX.Element {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const persistedScrollTopRef = useRef(0);
+  const handleSelectWorkflow = (workflowId: string) => {
+    if (scrollRef.current) {
+      persistedScrollTopRef.current = scrollRef.current.scrollTop;
+    }
+    props.onSelectWorkflow(workflowId);
+  };
   const ongoingPreviewRows = useMemo(
     () => props.ongoingRows.slice(0, ONGOING_PREVIEW_LIMIT),
     [props.ongoingRows],
@@ -140,7 +146,7 @@ export function WorkflowsRail(props: {
             <WorkflowRailRowCard
               row={props.selectedWorkflowRow}
               isSelected
-              onSelect={props.onSelectWorkflow}
+              onSelect={handleSelectWorkflow}
             />
           </div>
         </section>
@@ -162,7 +168,7 @@ export function WorkflowsRail(props: {
                 key={`ongoing:${row.workflow_id}`}
                 row={row}
                 isSelected={row.workflow_id === props.selectedWorkflowId}
-                onSelect={props.onSelectWorkflow}
+                onSelect={handleSelectWorkflow}
               />
             ))}
           </div>
@@ -194,7 +200,7 @@ export function WorkflowsRail(props: {
                 key={row.workflow_id}
                 row={row}
                 isSelected={row.workflow_id === props.selectedWorkflowId}
-                onSelect={props.onSelectWorkflow}
+                onSelect={handleSelectWorkflow}
               />
             ))
           ) : null}
@@ -222,7 +228,7 @@ function WorkflowRailRowCard(props: {
       className={cn(
         'grid w-full min-w-0 max-w-full gap-2 rounded-xl border px-3 py-3 text-left transition-[border-color,background-color,box-shadow,color] duration-150',
         props.isSelected
-          ? 'border-sky-500/90 bg-sky-100 text-sky-950 shadow-[0_16px_40px_rgba(14,165,233,0.28)] ring-2 ring-sky-300/90 dark:border-sky-300/90 dark:bg-sky-400/22 dark:text-sky-50 dark:ring-sky-300/55'
+          ? 'border-sky-600/90 bg-sky-100/95 text-sky-950 shadow-[0_18px_48px_rgba(14,165,233,0.34)] ring-2 ring-sky-300/95 ring-offset-2 ring-offset-background dark:border-sky-300/90 dark:bg-sky-400/22 dark:text-sky-50 dark:ring-sky-300/60 dark:ring-offset-slate-950'
           : 'border-border/70 bg-background/85 hover:border-border hover:bg-background',
       )}
       onClick={() => props.onSelect(props.row.workflow_id)}

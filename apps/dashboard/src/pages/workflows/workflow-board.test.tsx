@@ -523,7 +523,7 @@ describe('WorkflowBoard', () => {
       ),
     );
 
-    expect(html).toContain('max-h-[16rem] overflow-y-auto pr-1');
+    expect(html).toContain('max-h-[16rem] overflow-y-auto overscroll-contain pr-1');
     expect(html).toContain('rounded-md border border-border/50 bg-background/30');
   });
 

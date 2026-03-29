@@ -75,8 +75,8 @@ function TaskRowsContainer(props: {
   const shouldBoundHeight = props.tasks.length > 4;
 
   return (
-    <div className="mt-3 rounded-md border border-border/50 bg-background/30 p-1.5">
-      <div className={shouldBoundHeight ? 'grid max-h-[16rem] overflow-y-auto pr-1' : 'grid'}>
+    <div className="mt-3 overflow-hidden rounded-md border border-border/50 bg-background/30 p-1.5">
+      <div className={shouldBoundHeight ? 'grid max-h-[16rem] overflow-y-auto overscroll-contain pr-1' : 'grid'}>
         {props.children}
       </div>
     </div>
