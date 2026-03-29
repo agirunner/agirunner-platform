@@ -227,6 +227,40 @@ describe('workflow-execution-log-composer', () => {
     expect(items).toEqual([]);
   });
 
+  it('suppresses low-value list helpers even when they expose operator-safe args', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '22ccd',
+        operation: 'agent.act',
+        payload: {
+          tool: 'artifact_list',
+          input: {
+            limit: 20,
+          },
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
+  it('suppresses low-value task-status reads and lets observe/plan rows carry the wait state', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '22cce',
+        operation: 'agent.act',
+        payload: {
+          tool: 'read_task_status',
+          input: {
+            task_id: 'task-1',
+          },
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
   it('suppresses empty action calls when the tool payload carries no operator-meaningful args', () => {
     const items = buildExecutionTurnItems([
       createLogRow({

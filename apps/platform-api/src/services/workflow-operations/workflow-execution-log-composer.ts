@@ -810,10 +810,15 @@ function readPhaseLabel(operation: string): string {
 }
 
 const LOW_VALUE_HELPER_ACTIONS = new Set([
+  'artifact_document_read',
+  'artifact_list',
+  'artifact_read',
   'file_read',
   'file_list',
   'list_work_items',
   'list_workflow_tasks',
+  'memory_read',
+  'read_task_status',
   'read_stage_status',
 ]);
 
