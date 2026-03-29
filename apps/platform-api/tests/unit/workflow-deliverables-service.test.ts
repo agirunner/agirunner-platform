@@ -1884,9 +1884,19 @@ describe('WorkflowDeliverablesService', () => {
         descriptor_id: 'brief:brief-orchestrator-linked-2',
         work_item_id: 'work-item-2',
         delivery_stage: 'final',
+        content_preview: expect.objectContaining({
+          summary: expect.stringContaining('Promoted from workflow brief'),
+        }),
       }),
     ]);
     expect(result.in_progress_deliverables).toEqual([]);
+    expect(result.final_deliverables).not.toEqual([
+      expect.objectContaining({
+        content_preview: expect.objectContaining({
+          summary: expect.stringContaining('Produced by: Orchestrator'),
+        }),
+      }),
+    ]);
   });
 
   it('hides a superseded final packet from current deliverables when the work item is active again', async () => {

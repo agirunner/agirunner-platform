@@ -79,9 +79,10 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Brief-backed outputs');
-    expect(html).toContain('Material output is currently available only as briefs for this workflow.');
-    expect(html).toContain('No final deliverables are available yet.');
+    expect(html).toContain('Workflow deliverables (0)');
+    expect(html).toContain('Material output is currently available only as briefs for this layer.');
+    expect(html).toContain('Brief-backed output');
+    expect(html).toContain('No work item deliverables are available yet.');
     expect(html).not.toContain('Briefs (1)');
   });
 
@@ -162,10 +163,35 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Final deliverables (1)');
+    expect(html).toContain('Work item deliverables (1)');
     expect(html).toContain('workflow-intake-01 completion packet');
-    expect(html).toContain('In-progress deliverables (1)');
+    expect(html).toContain('Workflow deliverables (1)');
     expect(html).toContain('Workflow summary packet');
+  });
+
+  it('separates workflow and work-item deliverables in workflow scope so rolled-up child packets do not masquerade as workflow output', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: createTaskScopePacket(),
+        selectedTask: null,
+        selectedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Workflow deliverables (0)');
+    expect(html).toContain('Work item deliverables (1)');
+    expect(html).toContain('No workflow deliverables are available yet.');
+    expect(html).toContain('Release bundle');
+    expect(html).not.toContain('Final deliverables (1)');
   });
 
   it('keeps task scope anchored on task evidence and clearly labels the parent work-item deliverables', () => {
@@ -505,7 +531,8 @@ describe('WorkflowDeliverables', () => {
 
     expect(html).toContain('Program status brief');
     expect(html).toContain('Release checklist');
-    expect(html).toContain('Final deliverables (2)');
+    expect(html).toContain('Workflow deliverables (1)');
+    expect(html).toContain('Work item deliverables (1)');
   });
 
   it('tolerates incomplete deliverables packets and malformed records without crashing', () => {
@@ -574,7 +601,7 @@ describe('WorkflowDeliverables', () => {
     expect(html).toContain('Recovered deliverable');
     expect(html).toContain('The dashboard should still render this partial record.');
     expect(html).toContain('No inputs or intervention files are attached to this workflow.');
-    expect(html).toContain('Final deliverables (1)');
+    expect(html).toContain('Workflow deliverables (1)');
   });
 });
 

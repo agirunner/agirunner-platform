@@ -734,6 +734,9 @@ function readBriefSummary(brief: WorkflowOperatorBriefRecord): string | null {
 }
 
 function readBriefSourceLabel(brief: WorkflowOperatorBriefRecord): string | null {
+  if (isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief)) {
+    return 'Promoted from workflow brief';
+  }
   const roleName = readOptionalString(brief.source_role_name);
   return roleName ? `Produced by: ${roleName}` : null;
 }

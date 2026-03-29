@@ -31,10 +31,6 @@ export function WorkflowDeliverables(props: {
   const selectedWorkItemId = props.selectedWorkItemId ?? props.selectedTask?.work_item_id ?? null;
   const scopeCopy = buildDeliverablesScopeCopy(props.scope, props.selectedWorkItemTitle);
   const displayPacket = buildDisplayPacketForScope(packet, props.scope.scopeKind);
-  const outcomeBrief = pickOutcomeBrief(
-    displayPacket.final_deliverables,
-    displayPacket.working_handoffs,
-  );
   const taskEvidence = props.scope.scopeKind === 'selected_task'
     ? buildTaskEvidence(props.selectedTask)
     : null;
@@ -49,20 +45,24 @@ export function WorkflowDeliverables(props: {
     selectedWorkItemId,
     'workflow',
   );
+  const rolledUpWorkItemLayer = buildDeliverableLayer(
+    displayPacket,
+    null,
+    'work_item',
+  );
+  const outcomeBrief = pickOutcomeBrief(
+    workflowLayer.finalDeliverables,
+    workflowLayer.workingHandoffs,
+  );
   const briefBackedOutputs =
     displayPacket.final_deliverables.length === 0
     && displayPacket.in_progress_deliverables.length === 0
     && displayPacket.working_handoffs.length > 0;
-  const openInProgressByDefault = displayPacket.final_deliverables.length === 0;
   const openBriefsByDefault =
     !briefBackedOutputs
     && displayPacket.final_deliverables.length === 0
     && displayPacket.in_progress_deliverables.length === 0
     && displayPacket.working_handoffs.length > 0;
-  const inProgressTitle = briefBackedOutputs ? 'Brief-backed outputs' : 'In Progress Deliverables';
-  const inProgressCount = briefBackedOutputs
-    ? displayPacket.working_handoffs.length
-    : displayPacket.in_progress_deliverables.length;
   const inputEntries = buildInputEntries(displayPacket);
 
   return (
@@ -101,49 +101,19 @@ export function WorkflowDeliverables(props: {
 
       {props.scope.scopeKind === 'workflow' ? (
         <>
-          <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open>
-            <summary className="cursor-pointer text-sm font-semibold text-foreground">
-              Final deliverables ({displayPacket.final_deliverables.length})
-            </summary>
-            <div className="mt-4 grid gap-4">
-              {displayPacket.final_deliverables.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No final deliverables are available yet.</p>
-              ) : (
-                displayPacket.final_deliverables.map((deliverable) => (
-                  <DeliverableCard key={deliverable.descriptor_id} deliverable={deliverable} prominent />
-                ))
-              )}
-            </div>
-          </details>
-
-          <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open={openInProgressByDefault}>
-            <summary className="cursor-pointer text-sm font-semibold text-foreground">
-              {briefBackedOutputs ? inProgressTitle : `In-progress deliverables (${inProgressCount})`}
-            </summary>
-            <div className="mt-4 grid gap-4">
-              {briefBackedOutputs ? (
-                <>
-                  <p className="text-sm text-muted-foreground">
-                    Material output is currently available only as briefs for this {deliverablesSubject}.
-                  </p>
-                  {displayPacket.working_handoffs.map((brief) => (
-                    <article key={brief.id} className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
-                      <Badge variant="outline">Brief-backed output</Badge>
-                      <WorkflowBriefRenderer brief={brief} compact />
-                    </article>
-                  ))}
-                </>
-              ) : displayPacket.in_progress_deliverables.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No in-progress deliverables are attached to this {deliverablesSubject}.
-                </p>
-              ) : (
-                displayPacket.in_progress_deliverables.map((deliverable) => (
-                  <DeliverableCard key={deliverable.descriptor_id} deliverable={deliverable} />
-                ))
-              )}
-            </div>
-          </details>
+          <LayerDeliverablesSection
+            title="Workflow deliverables"
+            titleCount={workflowLayer.totalCount}
+            emptyMessage="No workflow deliverables are available yet."
+            layer={workflowLayer}
+          />
+          <LayerDeliverablesSection
+            title="Work item deliverables"
+            titleCount={rolledUpWorkItemLayer.totalCount}
+            description="Rolled up from work items so workflow scope stays aligned with operator-visible delivery."
+            emptyMessage="No work item deliverables are available yet."
+            layer={rolledUpWorkItemLayer}
+          />
         </>
       ) : (
         <>
@@ -177,8 +147,7 @@ export function WorkflowDeliverables(props: {
           />
         </>
       )}
-
-      {!briefBackedOutputs ? (
+      {props.scope.scopeKind !== 'workflow' && !briefBackedOutputs ? (
         <details
           className="rounded-2xl border border-border/70 bg-background/80 p-4"
           open={openBriefsByDefault}

@@ -555,7 +555,7 @@ function filterOperatorFacingInputRecord(value: Record<string, unknown>): Record
 }
 
 function shouldRenderOperatorFacingTaskInputKey(key: string): boolean {
-  const normalized = key.trim().toLowerCase();
+  const normalized = normalizeOperatorFacingTaskInputKey(key);
   if (normalized.length === 0) {
     return false;
   }
@@ -594,7 +594,7 @@ function normalizeOperatorFacingTaskInputValue(value: unknown): unknown {
 }
 
 function shouldSuppressOpaqueOperatorFacingValue(key: string, value: unknown): boolean {
-  const normalizedKey = key.trim().toLowerCase();
+  const normalizedKey = normalizeOperatorFacingTaskInputKey(key);
   if (!looksLikeInternalReferenceLabel(normalizedKey)) {
     return false;
   }
@@ -624,6 +624,14 @@ function looksLikeInternalReferenceLabel(value: string): boolean {
     value === 'activation' ||
     value === 'execution_context'
   );
+}
+
+function normalizeOperatorFacingTaskInputKey(value: string): string {
+  return value
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[\s-]+/g, '_')
+    .toLowerCase();
 }
 
 function renderStructuredValue(value: unknown): string | null {

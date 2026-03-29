@@ -231,7 +231,8 @@ describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () =
       readComponent('pages/workflows/workspace/workflow-deliverables.tsx'),
       readComponent('pages/workflows/workspace/workflow-history.tsx'),
     ].join('\n');
-    expect(source).toContain('Final deliverables');
+    expect(source).toContain('Workflow deliverables');
+    expect(source).toContain('Work item deliverables');
     expect(source).toContain('Briefs');
   });
 

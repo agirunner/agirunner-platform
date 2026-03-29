@@ -474,6 +474,49 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Task input');
   });
 
+  it('treats camelCase linkage metadata as internal task input and falls back to parent work-item inputs', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: 'task-1',
+        selectedTaskTitle: 'Verify deliverable',
+        selectedWorkItem: createWorkItem(),
+        selectedTask: {
+          ...createTask(),
+          input: {
+            artifactId: 'artifact-1',
+            executionContextId: 'execution-1',
+            subjectRevision: 2,
+            workItemId: 'work-item-1',
+          },
+        },
+        selectedWorkItemTasks: [],
+        inputPackets: createPackets(),
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Verify deliverable',
+          banner: 'Task: Verify deliverable',
+        },
+      }),
+    );
+
+    expect(html).toContain('Inputs');
+    expect(html).toContain('Rollback guide');
+    expect(html).toContain('rollback.md');
+    expect(html).not.toContain('Task input');
+    expect(html).not.toContain('Artifact Id');
+    expect(html).not.toContain('Execution Context Id');
+    expect(html).not.toContain('Subject Revision');
+    expect(html).not.toContain('Work Item Id');
+  });
+
   it('keeps scoped work-item packets visible before the selected work-item record finishes loading', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
