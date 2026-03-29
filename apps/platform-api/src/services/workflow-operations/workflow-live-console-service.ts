@@ -222,7 +222,11 @@ function readOptionalString(value: unknown): string | null {
 }
 
 function readSourceLabel(sourceRoleName: string | null, sourceKind: string): string {
-  return readOptionalString(sourceRoleName) ?? humanizeToken(sourceKind);
+  const roleName = readOptionalString(sourceRoleName);
+  if (roleName) {
+    return shouldHumanizeSourceLabel(roleName) ? humanizeToken(roleName) : roleName;
+  }
+  return humanizeToken(sourceKind);
 }
 
 function readStringArray(value: unknown): string[] {
@@ -256,6 +260,10 @@ function deriveVisibilityModeFromUpdates(
   return updates.some((update) => update.visibility_mode === 'enhanced')
     ? 'enhanced'
     : 'standard';
+}
+
+function shouldHumanizeSourceLabel(value: string): boolean {
+  return /^[a-z0-9][a-z0-9 _-]*$/.test(value) && value === value.toLowerCase();
 }
 
 function humanizeToken(value: string): string {

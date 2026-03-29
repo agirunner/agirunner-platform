@@ -153,6 +153,41 @@ describe('workflow-execution-log-composer', () => {
     );
   });
 
+  it('prefers the action-call headline when act text is generic filler', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '22a',
+        operation: 'agent.act',
+        payload: {
+          tool: 'submit_handoff',
+          text_preview: 'Advancing the task with the next verified step.',
+          input: {
+            summary: 'Triage packet is ready for policy assessment.',
+            completion: 'full',
+          },
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      'calling submit_handoff(summary="Triage packet is ready for policy assessment.", completion="full")',
+    );
+  });
+
+  it('suppresses repetitive same-state readiness narration', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '22b',
+        operation: 'agent.observe',
+        payload: {
+          text_preview: 'Intake triage remains ready for policy assessment.',
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
   it('suppresses internal operator-recording act turns so the live console shows only the resulting record', () => {
     const items = buildExecutionTurnItems([
       createLogRow({

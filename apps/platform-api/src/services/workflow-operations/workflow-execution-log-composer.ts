@@ -67,9 +67,10 @@ function buildExecutionTurnHeadline(row: LogRow): string {
         ?? buildSubjectHeadline('Planning the next step for', subject, 'Planning the next step')
       );
     case 'agent.act': {
+      const actionHeadline = buildActionInvocationHeadline(payload);
       return (
         readOperatorReadableField(payload, ['headline', 'text_preview'])
-        ?? buildActionInvocationHeadline(payload)
+        ?? actionHeadline
         ?? buildSubjectHeadline('Working through', subject, 'Working through the next execution step')
       );
     }
@@ -397,10 +398,20 @@ function readOperatorReadableField(
 
 function readOperatorReadableText(value: string | null, maxLength: number): string | null {
   const trimmed = truncate(value, maxLength);
-  if (!trimmed || looksLikeRawExecutionDump(trimmed)) {
+  if (!trimmed || looksLikeRawExecutionDump(trimmed) || looksLikeLowValueConsoleText(trimmed)) {
     return null;
   }
   return trimmed;
+}
+
+function looksLikeLowValueConsoleText(value: string): boolean {
+  return (
+    /^advancing the task with the next verified step\.?$/i.test(value)
+    || /^working through the next execution step\.?$/i.test(value)
+    || /^checking current progress\.?$/i.test(value)
+    || /\b(remains|still|continues to be|continues)\b.*\bready\b/i.test(value)
+    || /\b(remains|still|continues to be|continues)\b.*\b(suitable|supports|cleared)\b/i.test(value)
+  );
 }
 
 function looksLikeRawExecutionDump(value: string): boolean {
