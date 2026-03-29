@@ -108,7 +108,7 @@ function composePrimaryLocation(
         artifactId: input.artifactId,
         taskId: input.taskId,
         logicalPath: input.logicalPath,
-        previewPath: input.previewPath ?? `/artifacts/tasks/${input.taskId}/${input.artifactId}`,
+        previewPath: input.previewPath ?? `/api/v1/tasks/${input.taskId}/artifacts/${input.artifactId}/preview`,
         downloadPath:
           input.downloadPath ?? `/api/v1/tasks/${input.taskId}/artifacts/${input.artifactId}`,
         contentType: input.contentType ?? null,

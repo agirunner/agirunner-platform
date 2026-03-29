@@ -47,6 +47,105 @@ describe('workflow-execution-log-composer', () => {
       }),
     );
   });
+
+  it('uses plan summaries and observe previews when they are operator readable', () => {
+    const [planItem, observeItem] = buildExecutionTurnItems([
+      createLogRow({
+        id: '20',
+        operation: 'agent.plan',
+        payload: {
+          plan_summary: 'Route the approved intake item to policy assessment.',
+        },
+      }),
+      createLogRow({
+        id: '21',
+        operation: 'agent.observe',
+        payload: {
+          text_preview: 'executed 2 tools (2 succeeded, 0 failed): list_workflow_tasks, list_workflow_tasks',
+        },
+      }),
+    ]);
+
+    expect(planItem.headline).toBe('Route the approved intake item to policy assessment.');
+    expect(observeItem.headline).toBe(
+      'executed 2 tools (2 succeeded, 0 failed): list_workflow_tasks, list_workflow_tasks',
+    );
+  });
+
+  it('removes internal operator-recording tools from observe summaries', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '21a',
+        operation: 'agent.observe',
+        payload: {
+          signal_tools: ['record_operator_brief', 'submit_handoff'],
+          text_preview: 'executed 2 tools (2 succeeded, 0 failed): record_operator_brief, submit_handoff',
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe('executed 1 tool (1 succeeded, 0 failed): submit_handoff');
+    expect(item.summary).toBe('executed 1 tool (1 succeeded, 0 failed): submit_handoff');
+  });
+
+  it('formats act turns as action calls with safe args', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '22',
+        operation: 'agent.act',
+        payload: {
+          tool: 'submit_handoff',
+          input: {
+            summary: 'Triage packet is ready for policy assessment.',
+            completion: 'full',
+            work_item_id: '71a51fdc-f359-4fd9-b5d6-6df414d128f2',
+            request_id: 'handoff-1',
+            changes: ['Prepared summary', 'Prepared next action'],
+          },
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      'calling submit_handoff(summary="Triage packet is ready for policy assessment.", completion="full")',
+    );
+  });
+
+  it('suppresses internal operator-recording act turns so the live console shows only the resulting record', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '23',
+        operation: 'agent.act',
+        payload: {
+          tool: 'record_operator_update',
+          text_preview:
+            'to=record_operator_update json {"request_id":"operator-update-1","payload":{"headline":"raw leak"}}',
+          input: {
+            request_id: 'operator-update-1',
+            payload: {
+              headline: 'The workflow is waiting on approval.',
+            },
+          },
+        },
+      }),
+      createLogRow({
+        id: '24',
+        operation: 'agent.act',
+        payload: {
+          tool: 'record_operator_brief',
+          input: {
+            payload: {
+              short_brief: {
+                headline: 'Policy review is ready for operator approval.',
+              },
+            },
+          },
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
 });
 
 function createLogRow(

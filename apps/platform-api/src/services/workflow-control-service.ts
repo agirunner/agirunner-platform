@@ -4,6 +4,7 @@ import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
 import { enqueueWorkflowActivationRecord } from './workflow-activation-record.js';
 import { WorkflowStateService } from './workflow-state-service.js';
+import { stopWorkflowBoundExecution, type StopWorkflowBoundExecutionDeps } from './workflow-execution-stop-service.js';
 
 interface WorkflowControlRow {
   id: string;
@@ -16,43 +17,74 @@ export class WorkflowControlService {
     private readonly pool: DatabasePool,
     private readonly eventService: EventService,
     private readonly stateService: WorkflowStateService,
+    private readonly stopDeps?: Omit<StopWorkflowBoundExecutionDeps, 'eventService'>,
   ) {}
 
   async pauseWorkflow(identity: ApiKeyIdentity, workflowId: string) {
-    const workflow = await this.loadWorkflow(identity.tenantId, workflowId);
-    if (workflow.state === 'paused') {
-      return workflow;
-    }
-    if (!isPausableWorkflowState(workflow.state)) {
-      throw new ConflictError('Only active workflows can be paused');
-    }
-    const result = await this.pool.query<WorkflowControlRow>(
-      `UPDATE workflows
-          SET state = 'paused',
-              metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb,
-              updated_at = now()
-        WHERE tenant_id = $1
-          AND id = $2
-          AND state = 'active'
-      RETURNING id, state, metadata`,
-      [identity.tenantId, workflowId, { pause_requested_at: new Date().toISOString() }],
-    );
-    const pausedWorkflow = result.rows[0];
-    if (!pausedWorkflow) {
-      throw new ConflictError('Only active workflows can be paused');
-    }
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const workflow = await client.query<WorkflowControlRow>(
+        'SELECT id, state, metadata FROM workflows WHERE tenant_id = $1 AND id = $2 FOR UPDATE',
+        [identity.tenantId, workflowId],
+      );
+      if (!workflow.rowCount) {
+        throw new NotFoundError('Workflow not found');
+      }
+      const currentWorkflow = workflow.rows[0];
+      if (currentWorkflow.state === 'paused') {
+        await client.query('COMMIT');
+        return currentWorkflow;
+      }
+      if (!isPausableWorkflowState(currentWorkflow.state)) {
+        throw new ConflictError('Only active workflows can be paused');
+      }
 
-    await this.eventService.emit({
-      tenantId: identity.tenantId,
-      type: 'workflow.paused',
-      entityType: 'workflow',
-      entityId: workflowId,
-      actorType: identity.scope,
-      actorId: identity.keyPrefix,
-      data: {},
-    });
+      await stopWorkflowBoundExecution(
+        client,
+        {
+          eventService: this.eventService,
+          ...this.stopDeps,
+        },
+        {
+          tenantId: identity.tenantId,
+          workflowId,
+          summary: 'Workflow paused by operator.',
+          signalReason: 'manual_pause',
+          actorType: identity.scope,
+          actorId: identity.keyPrefix,
+        },
+      );
 
-    return pausedWorkflow;
+      const result = await client.query<WorkflowControlRow>(
+        `UPDATE workflows
+            SET state = 'paused',
+                metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb,
+                updated_at = now()
+          WHERE tenant_id = $1
+            AND id = $2
+        RETURNING id, state, metadata`,
+        [identity.tenantId, workflowId, { pause_requested_at: new Date().toISOString() }],
+      );
+
+      await this.eventService.emit({
+        tenantId: identity.tenantId,
+        type: 'workflow.paused',
+        entityType: 'workflow',
+        entityId: workflowId,
+        actorType: identity.scope,
+        actorId: identity.keyPrefix,
+        data: {},
+      }, client);
+
+      await client.query('COMMIT');
+      return result.rows[0];
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async resumeWorkflow(identity: ApiKeyIdentity, workflowId: string) {
@@ -140,16 +172,6 @@ export class WorkflowControlService {
     }
   }
 
-  private async loadWorkflow(tenantId: string, workflowId: string) {
-    const result = await this.pool.query<WorkflowControlRow>(
-      'SELECT id, state, metadata FROM workflows WHERE tenant_id = $1 AND id = $2 LIMIT 1',
-      [tenantId, workflowId],
-    );
-    if (!result.rowCount) {
-      throw new NotFoundError('Workflow not found');
-    }
-    return result.rows[0];
-  }
 }
 
 function isPausableWorkflowState(state: string) {
@@ -158,10 +180,6 @@ function isPausableWorkflowState(state: string) {
 
 function isResumedWorkflowState(state: string) {
   return state === 'pending' || state === 'active';
-}
-
-function isTerminalWorkflowState(state: string) {
-  return state === 'completed' || state === 'failed' || state === 'cancelled';
 }
 
 function hasPauseRequest(metadata: unknown) {

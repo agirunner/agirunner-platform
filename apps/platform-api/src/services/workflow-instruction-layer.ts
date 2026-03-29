@@ -397,30 +397,17 @@ function formatOperatorVisibilitySection(liveVisibility: Record<string, unknown>
     'record_operator_brief and record_operator_update do not satisfy a required submit_handoff and do not by themselves complete a task, work item, or workflow.',
   );
 
-  if (liveVisibility.turn_updates_required === true && recordOperatorUpdateTool) {
-    if (
-      liveVisibility.turn_update_scope === 'per_eligible_turn'
-      || liveVisibility.turn_update_scope === 'per_llm_turn'
-    ) {
-      lines.push(`Enhanced live visibility requires exactly one ${recordOperatorUpdateTool} on every llm turn before that turn can close.`);
-    }
-    const eligibleTurnGuidance = readString(liveVisibility.eligible_turn_guidance);
-    if (eligibleTurnGuidance) {
-      lines.push(eligibleTurnGuidance);
-    }
+  if (recordOperatorUpdateTool) {
     if (operatorUpdateRequestIdPrefix) {
       lines.push(
         `Use ${operatorUpdateRequestIdPrefix} as the stable request_id prefix for ${recordOperatorUpdateTool} writes in this execution context.`,
       );
     }
     lines.push(
-      `Use ${recordOperatorUpdateTool} for one tiny operator-readable headline on every llm turn.`,
+      `Use ${recordOperatorUpdateTool} for durable operator-readable workflow events such as routing, decisions, escalations, approval outcomes, meaningful wait-state changes, and workflow lifecycle changes.`,
     );
     lines.push(
-      `Treat ${recordOperatorUpdateTool} as the required turn-close step before a turn ends with a handoff, wait, or concrete next-step decision.`,
-    );
-    lines.push(
-      `If you forget the required ${recordOperatorUpdateTool}, the execution contract will send you back automatically to emit it before progress can continue.`,
+      `Do not emit ${recordOperatorUpdateTool} on every llm turn. If nothing operator-meaningful changed in the batch, do not force an extra operator update.`,
     );
     lines.push(
       'If you do not have the exact scoped workflow, work-item, or task ids from the live visibility contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id.',
@@ -428,6 +415,17 @@ function formatOperatorVisibilitySection(liveVisibility: Record<string, unknown>
     lines.push(
       'Operator updates and briefs are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".',
     );
+    lines.push(
+      'Each operator-update headline must describe the new routing decision, blocker, wait reason, handoff, approval result, or completion change. Do not repeat the same readiness sentence on adjacent updates.',
+    );
+    lines.push(
+      'Because the console already shows the role label, do not start headlines with repetitive stage-prefixed phrases. Describe the operator-visible change directly.',
+    );
+    if (mode === 'enhanced') {
+      lines.push(
+        'Enhanced live visibility streams trimmed execution output automatically. Do not manufacture synthetic per-turn operator updates just to keep the console moving.',
+      );
+    }
     lines.push(
       `Example: ${formatOperatorUpdateExample({
         requestIdPrefix: operatorUpdateRequestIdPrefix,

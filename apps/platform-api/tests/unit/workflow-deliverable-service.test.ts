@@ -32,7 +32,7 @@ describe('WorkflowDeliverableService', () => {
         return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
       }
       if (sql.includes('FROM workflow_output_descriptors')) {
-        expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 2]);
+        expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 2, false]);
         return {
           rowCount: 2,
           rows: [

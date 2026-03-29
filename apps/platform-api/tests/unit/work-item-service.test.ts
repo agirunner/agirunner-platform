@@ -11,7 +11,125 @@ vi.mock('../../src/services/safetynet/logging.js', () => ({
 import { ConflictError, ValidationError } from '../../src/errors/domain-errors.js';
 import { WorkItemService } from '../../src/services/work-item-service.js';
 
+const identity = {
+  tenantId: 'tenant-1',
+  scope: 'admin',
+  keyPrefix: 'admin-key',
+};
+
 describe('WorkItemService', () => {
+  it('rejects creating a work item for a paused workflow', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              lifecycle: 'planned',
+              state: 'paused',
+              metadata: {},
+              definition: {
+                lifecycle: 'planned',
+                board: {
+                  columns: [{ id: 'planned', label: 'Planned' }],
+                  entry_column_id: 'planned',
+                },
+                stages: [{ name: 'drafting', goal: 'Draft the brief' }],
+                roles: [],
+              },
+            }],
+          };
+        }
+        if (sql.includes('SELECT DISTINCT wi.stage_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_stages ws')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkItemService(
+      { connect: vi.fn(async () => client) } as never,
+      { emit: vi.fn() } as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(
+      service.createWorkItem(
+        {
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          keyPrefix: 'admin-key',
+        } as never,
+        'workflow-1',
+        { title: 'Should not create while paused' },
+      ),
+    ).rejects.toThrow('Workflow is paused');
+  });
+
+  it('rejects creating a work item once workflow cancellation is in progress', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              lifecycle: 'planned',
+              state: 'active',
+              metadata: { cancel_requested_at: '2026-03-28T22:45:01.630Z' },
+              definition: {
+                lifecycle: 'planned',
+                board: {
+                  columns: [{ id: 'planned', label: 'Planned' }],
+                  entry_column_id: 'planned',
+                },
+                stages: [{ name: 'drafting', goal: 'Draft the brief' }],
+                roles: [],
+              },
+            }],
+          };
+        }
+        if (sql.includes('SELECT DISTINCT wi.stage_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_stages ws')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkItemService(
+      { connect: vi.fn(async () => client) } as never,
+      { emit: vi.fn() } as never,
+      {} as never,
+      {} as never,
+    );
+
+    await expect(
+      service.createWorkItem(
+        {
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          keyPrefix: 'admin-key',
+        } as never,
+        'workflow-1',
+        { title: 'Should not create while cancelling' },
+      ),
+    ).rejects.toThrow('Workflow cancellation is already in progress');
+  });
+
   it('treats blocked assessment decisions as blocking in assessment rollups', async () => {
     const pool = {
       query: vi.fn(async (sql: string) => {

@@ -22,7 +22,7 @@ describe('mission control output descriptors', () => {
           artifactId: 'artifact-1',
           taskId: 'task-1',
           logicalPath: 'deliverables/spec.md',
-          previewPath: '/artifacts/tasks/task-1/artifact-1',
+          previewPath: '/api/v1/tasks/task-1/artifacts/artifact-1/preview',
           downloadPath: '/api/v1/tasks/task-1/artifacts/artifact-1',
           contentType: 'text/markdown',
         },

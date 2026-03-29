@@ -28,13 +28,13 @@ describe('prompt catalogs', () => {
       'Do not assume python3 or any other optional runtime is present unless the execution contract or direct verification says so.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
-      'use record_operator_update for tiny live-console headlines',
+      'Orchestrator uses record_operator_update for durable operator-readable workflow events',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
-      'every actual llm turn MUST emit exactly one concise record_operator_update before that turn can close.',
+      'Specialists MUST NOT spend extra turns creating synthetic per-turn operator updates.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
-      'Treat that operator update as the required turn-close step before handoff, wait, or completion.',
+      'Enhanced live visibility is streamed automatically from execution output and safe action-call summaries.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Operator updates and briefs are console text, not audit logs',

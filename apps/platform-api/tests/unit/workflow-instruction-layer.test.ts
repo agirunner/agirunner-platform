@@ -252,10 +252,9 @@ describe('buildWorkflowInstructionLayer', () => {
           source_kind: 'orchestrator',
           record_operator_update_tool: 'record_operator_update',
           record_operator_brief_tool: 'record_operator_brief',
-          turn_updates_required: true,
-          turn_update_scope: 'per_llm_turn',
-          eligible_turn_guidance:
-            'Emit one operator update on every actual llm turn before that turn closes so the live console stays in parity with the execution log turn count. Include the current llm_turn_count on each operator update.',
+          turn_updates_required: false,
+          turn_update_scope: null,
+          eligible_turn_guidance: null,
           operator_update_request_id_prefix: 'operator-update:activation-1:',
           operator_brief_request_id_prefix: 'operator-brief:activation-1:',
           milestone_briefs_required: true,
@@ -295,10 +294,13 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('Work item id: work-item-1');
     expect(layer!.content).toContain('Execution context id: activation-1');
     expect(layer!.content).toContain(
-      'Enhanced live visibility requires exactly one record_operator_update on every llm turn before that turn can close.',
+      'Use record_operator_update for durable operator-readable workflow events such as routing, decisions, escalations, approval outcomes, meaningful wait-state changes, and workflow lifecycle changes.',
     );
     expect(layer!.content).toContain(
-      'Treat record_operator_update as the required turn-close step before a turn ends with a handoff, wait, or concrete next-step decision.',
+      'Do not emit record_operator_update on every llm turn. If nothing operator-meaningful changed in the batch, do not force an extra operator update.',
+    );
+    expect(layer!.content).toContain(
+      'Enhanced live visibility streams trimmed execution output automatically. Do not manufacture synthetic per-turn operator updates just to keep the console moving.',
     );
     expect(layer!.content).toContain(
       'Use operator-update:activation-1: as the stable request_id prefix for record_operator_update writes in this execution context.',

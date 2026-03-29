@@ -252,6 +252,19 @@ describe('ContainerInventoryService', () => {
     expect(listQuery).toContain('active_agent_task_id');
   });
 
+  it('does not project stale orchestrator workflow or task labels when no active orchestrator task is linked', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    await service.listCurrentContainers(TENANT_ID);
+
+    const listQuery = pool.query.mock.calls[0]?.[0] as string;
+    expect(listQuery).toContain('active_heartbeat_tasks AS');
+    expect(listQuery).toContain("CASE WHEN live.kind = 'task' THEN live.live_task_id ELSE NULL END");
+    expect(listQuery).toContain("CASE WHEN live.kind = 'task' THEN live.live_workflow_id ELSE NULL END");
+    expect(listQuery).not.toContain('COALESCE(t.id, live.live_task_id, live.active_agent_task_id, live.active_task_id, live.heartbeat_task_id)');
+    expect(listQuery).not.toContain('COALESCE(w.id, live.live_workflow_id)');
+  });
+
   it('does not expose unmatched live playbook ids as linkable playbook ids', async () => {
     pool.query.mockResolvedValueOnce({
       rows: [
@@ -311,12 +324,12 @@ describe('ContainerInventoryService', () => {
     const listQuery = pool.query.mock.calls[0]?.[0] as string;
     expect(listQuery).toContain('live.active_agent_task_id');
     expect(listQuery).toContain('live.active_task_id');
-    expect(listQuery).toContain('live.heartbeat_task_id');
+    expect(listQuery).toContain('live.heartbeat_active_task_id');
     expect(listQuery).toContain('live.live_task_id');
     expect(listQuery).toContain('live.active_agent_task_id,');
     expect(listQuery).toContain('t.id = COALESCE(');
     expect(listQuery).toContain('COALESCE(');
-    expect(listQuery).not.toContain('live.heartbeat_task_id, live.active_task_id');
+    expect(listQuery).not.toContain('live.heartbeat_active_task_id, live.active_task_id');
   });
 
   it('projects plain orchestrator task titles while keeping activation metadata separate', async () => {

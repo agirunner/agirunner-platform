@@ -1392,36 +1392,6 @@ export class TaskLifecycleService {
         return;
       }
 
-      if (contract.turnUpdatesRequired) {
-        const missingTurns = await findMissingReportedTurns(
-          this.deps.pool,
-          tenantId,
-          workflowId,
-          taskId,
-          contract.executionContextId,
-          queryClient,
-        );
-        if (missingTurns.length > 0) {
-          throw new ValidationError(
-            buildMissingTurnUpdateMessage(contract, missingTurns),
-            {
-              reason_code: 'required_operator_turn_update',
-              recoverable: true,
-              recovery_hint: 'record_required_operator_update',
-              recovery: {
-                status: 'action_required',
-                reason: 'required_operator_turn_update',
-                action: 'record_operator_update',
-                execution_context_id: contract.executionContextId,
-                missing_turns: missingTurns,
-                request_id_prefix: contract.operatorUpdateRequestIdPrefix,
-                source_kind: contract.sourceKind,
-              },
-            },
-          );
-        }
-      }
-
       if (!contract.milestoneBriefsRequired) {
         return;
       }
@@ -3310,7 +3280,7 @@ async function readOperatorReportingContract(
     mode,
     executionContextId,
     sourceKind: isOrchestratorTask ? 'orchestrator' : 'specialist',
-    turnUpdatesRequired: mode === 'enhanced',
+    turnUpdatesRequired: false,
     milestoneBriefsRequired: true,
     operatorUpdateRequestIdPrefix: `operator-update:${executionContextId}:`,
     operatorBriefRequestIdPrefix: `operator-brief:${executionContextId}:`,
@@ -3319,47 +3289,6 @@ async function readOperatorReportingContract(
 
 function normalizeReportingMode(value: string | null | undefined): 'standard' | 'enhanced' {
   return value === 'standard' ? 'standard' : 'enhanced';
-}
-
-async function findMissingReportedTurns(
-  pool: DatabasePool,
-  tenantId: string,
-  workflowId: string,
-  taskId: string,
-  executionContextId: string,
-  client?: DatabaseClient,
-): Promise<number[]> {
-  const db = client ?? pool;
-  const turnResult = await db.query<{ llm_turn_count: number | null }>(
-    `SELECT DISTINCT NULLIF(payload->>'llm_turn_count', '')::integer AS llm_turn_count
-       FROM execution_logs
-      WHERE tenant_id = $1
-        AND workflow_id = $2
-        AND task_id = $3
-        AND payload ? 'llm_turn_count'`,
-    [tenantId, workflowId, taskId],
-  );
-  const observedTurns = turnResult.rows
-    .map((row) => row.llm_turn_count ?? 0)
-    .filter((value) => Number.isInteger(value) && value > 0)
-    .sort((left, right) => left - right);
-  if (observedTurns.length === 0) {
-    return [];
-  }
-  const updateResult = await db.query<{ llm_turn_count: number | null }>(
-    `SELECT DISTINCT llm_turn_count
-       FROM workflow_operator_updates
-      WHERE tenant_id = $1
-        AND workflow_id = $2
-        AND execution_context_id = $3`,
-    [tenantId, workflowId, executionContextId],
-  );
-  const reportedTurns = new Set(
-    updateResult.rows
-      .map((row) => row.llm_turn_count ?? 0)
-      .filter((value) => Number.isInteger(value) && value > 0),
-  );
-  return observedTurns.filter((value) => !reportedTurns.has(value));
 }
 
 async function hasOperatorBriefForExecutionContext(
@@ -3380,13 +3309,6 @@ async function hasOperatorBriefForExecutionContext(
     [tenantId, workflowId, executionContextId],
   );
   return (result.rowCount ?? 0) > 0;
-}
-
-function buildMissingTurnUpdateMessage(
-  contract: OperatorReportingContract,
-  missingTurns: number[],
-): string {
-  return `Enhanced live visibility requires one concise record_operator_update for every actual llm turn before completion. Missing updates for execution context ${contract.executionContextId} on turn ${missingTurns.join(', ')}. Emit one record_operator_update for each missing turn with source_kind ${contract.sourceKind} before retrying completion. Treat that operator update as the turn-close step for the missing turn. Set top-level llm_turn_count to the exact missing turn number for each recovery write. Use request_id values starting with ${contract.operatorUpdateRequestIdPrefix}.`;
 }
 
 function buildMissingMilestoneBriefMessage(contract: OperatorReportingContract): string {

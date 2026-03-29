@@ -51,6 +51,8 @@ interface ParentTaskRow {
 
 interface LinkedWorkItemRow {
   workflow_id: string;
+  workflow_state: string;
+  workflow_metadata: Record<string, unknown> | null;
   parent_work_item_id: string | null;
   branch_id: string | null;
   branch_status: 'active' | 'completed' | 'blocked' | 'terminated' | null;
@@ -61,6 +63,12 @@ interface LinkedWorkItemRow {
   owner_role: string | null;
   next_expected_actor: string | null;
   next_expected_action: string | null;
+}
+
+interface WorkflowMutationGuardRow {
+  id: string;
+  state: string;
+  metadata: Record<string, unknown> | null;
 }
 
 interface WorkflowPlaybookDefinitionRow {
@@ -112,6 +120,9 @@ export class TaskWriteService {
       : normalizedInput;
     normalizedInput = await this.applyLinkedWorkItemDefaults(identity.tenantId, normalizedInput, db);
     this.assertWorkflowTaskLinkage(normalizedInput);
+    if (!normalizedInput.work_item_id) {
+      await this.assertWorkflowAcceptsTaskMutation(identity.tenantId, normalizedInput.workflow_id ?? null, db);
+    }
     await this.assertLinkedWorkItem(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyWorkflowExecutionDefaults(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyPlaybookTaskExecutionDefaults(identity.tenantId, normalizedInput, db);
@@ -273,6 +284,47 @@ export class TaskWriteService {
     }, 'release' in db ? db : undefined);
 
     return this.deps.toTaskResponse(task);
+  }
+
+  private async assertWorkflowAcceptsTaskMutation(
+    tenantId: string,
+    workflowId: string | null,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    if (!workflowId) {
+      return;
+    }
+    const result = await db.query<WorkflowMutationGuardRow>(
+      `SELECT id, state, metadata
+         FROM workflows
+        WHERE tenant_id = $1
+          AND id = $2
+        LIMIT 1`,
+      [tenantId, workflowId],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError('Workflow not found');
+    }
+    const workflow = result.rows[0];
+    const metadata = asRecord(workflow.metadata);
+    if (typeof metadata.cancel_requested_at === 'string' && metadata.cancel_requested_at.trim().length > 0) {
+      throw new ConflictError('Workflow cancellation is already in progress');
+    }
+    if (
+      workflow.state === 'paused'
+      || (typeof metadata.pause_requested_at === 'string' && metadata.pause_requested_at.trim().length > 0)
+    ) {
+      throw new ConflictError('Workflow is paused');
+    }
+    if (workflow.state === 'cancelled') {
+      throw new ConflictError('Cancelled workflows cannot accept new tasks');
+    }
+    if (workflow.state === 'completed') {
+      throw new ConflictError('Completed workflows cannot accept new tasks');
+    }
+    if (workflow.state === 'failed') {
+      throw new ConflictError('Failed workflows cannot accept new tasks');
+    }
   }
 
   private async resolveTimeoutMinutes(
@@ -500,6 +552,7 @@ export class TaskWriteService {
       return input;
     }
     const linkedWorkItem = await this.loadLinkedWorkItem(tenantId, input.work_item_id, db);
+    this.assertLinkedWorkItemAcceptsTaskMutation(linkedWorkItem);
     return {
       ...input,
       workflow_id: input.workflow_id ?? linkedWorkItem.workflow_id,
@@ -515,6 +568,8 @@ export class TaskWriteService {
   ): Promise<LinkedWorkItemRow> {
     const result = await db.query<LinkedWorkItemRow>(
       `SELECT wi.workflow_id,
+              w.state AS workflow_state,
+              w.metadata AS workflow_metadata,
               wi.parent_work_item_id,
               wi.branch_id,
               branch.branch_status,
@@ -728,6 +783,28 @@ export class TaskWriteService {
       return;
     }
     throw new ValidationError('workflow tasks must be linked to a work item');
+  }
+
+  private assertLinkedWorkItemAcceptsTaskMutation(linkedWorkItem: LinkedWorkItemRow) {
+    const metadata = asRecord(linkedWorkItem.workflow_metadata);
+    if (typeof metadata.cancel_requested_at === 'string' && metadata.cancel_requested_at.trim().length > 0) {
+      throw new ConflictError('Workflow cancellation is already in progress');
+    }
+    if (
+      linkedWorkItem.workflow_state === 'paused'
+      || (typeof metadata.pause_requested_at === 'string' && metadata.pause_requested_at.trim().length > 0)
+    ) {
+      throw new ConflictError('Workflow is paused');
+    }
+    if (linkedWorkItem.workflow_state === 'cancelled') {
+      throw new ConflictError('Cancelled workflows cannot accept new tasks');
+    }
+    if (linkedWorkItem.workflow_state === 'completed') {
+      throw new ConflictError('Completed workflows cannot accept new tasks');
+    }
+    if (linkedWorkItem.workflow_state === 'failed') {
+      throw new ConflictError('Failed workflows cannot accept new tasks');
+    }
   }
 
   private async applyParentTaskPolicies(identity: ApiKeyIdentity, input: CreateTaskInput) {

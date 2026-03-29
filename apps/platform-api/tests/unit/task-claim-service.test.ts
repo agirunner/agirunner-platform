@@ -147,6 +147,44 @@ function runtimeDefaultQueryResult(sql: string, params?: unknown[]) {
 }
 
 describe('TaskClaimService', () => {
+  it('filters paused and cancelling workflows out of claim selection', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          expect(sql).toContain("workflows.state NOT IN ('paused', 'cancelled', 'completed', 'failed')");
+          expect(sql).toContain("workflows.metadata->>'pause_requested_at'");
+          expect(sql).toContain("workflows.metadata->>'cancel_requested_at'");
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const claimed = await createService(client as never).claimTask(identity, {
+      agent_id: 'agent-1',
+    });
+
+    expect(claimed).toBeNull();
+  });
+
   it('emits explicit runtime capabilities on claim responses', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
@@ -1437,7 +1475,6 @@ describe('TaskClaimService', () => {
       memory_read: 'runtime',
       artifact_read: 'runtime',
       record_operator_brief: 'runtime',
-      record_operator_update: 'runtime',
       shell_exec: 'task',
       web_fetch: 'task',
       grep: 'task',
@@ -1663,7 +1700,7 @@ describe('TaskClaimService', () => {
 
     expect(task?.role_config).toEqual(
       expect.objectContaining({
-        tools: ['file_read', 'native_search', 'record_operator_brief', 'record_operator_update'],
+        tools: ['file_read', 'native_search', 'record_operator_brief'],
       }),
     );
   });
@@ -1799,7 +1836,6 @@ describe('TaskClaimService', () => {
           'file_write',
           'submit_handoff',
           'record_operator_brief',
-          'record_operator_update',
         ],
       }),
     );

@@ -170,13 +170,16 @@ export class WorkflowWorkspaceService {
       selectedScope.work_item_id,
       gates,
     );
-    const hydratedDeliverables = mergeOutputDescriptorDeliverables(
-      workflowId,
-      deliverables,
-      workflowCard?.outputDescriptors ?? [],
-      history.generated_at,
-      scopedWorkItemId ?? null,
-    );
+    const hydratedDeliverables =
+      selectedScope.scope_kind === 'selected_task'
+        ? deliverables
+        : mergeOutputDescriptorDeliverables(
+            workflowId,
+            deliverables,
+            workflowCard?.outputDescriptors ?? [],
+            history.generated_at,
+            scopedWorkItemId ?? null,
+          );
     const allDeliverables = hydratedDeliverables.all_deliverables ?? [
       ...hydratedDeliverables.final_deliverables,
       ...hydratedDeliverables.in_progress_deliverables,
@@ -191,8 +194,8 @@ export class WorkflowWorkspaceService {
     const bottomTabs = buildBottomTabs(
       needsActionItems.length,
       activeSession ? 1 : 0,
-      effectiveLiveConsole.items.length,
-      effectiveHistory.items.length,
+      readPacketTotalCount(effectiveLiveConsole),
+      readPacketTotalCount(effectiveHistory),
       allDeliverables.length,
       input,
     );
@@ -333,6 +336,7 @@ function filterLiveConsoleForSelectedScope(
   return {
     ...packet,
     items: filteredItems,
+    total_count: filteredItems.length,
   };
 }
 
@@ -347,6 +351,7 @@ function filterHistoryForSelectedScope(
   return {
     ...packet,
     items: filteredItems,
+    total_count: filteredItems.length,
     groups: buildHistoryGroupsFromItems(filteredItems),
   };
 }
@@ -364,6 +369,14 @@ function matchesScopedRecord(
   }
 
   return matchesWorkItemScope(item, selectedScope.work_item_id);
+}
+
+function readPacketTotalCount(
+  packet: Pick<WorkflowWorkspacePacket['live_console'] | WorkflowWorkspacePacket['history'], 'items'> & {
+    total_count?: number;
+  },
+): number {
+  return typeof packet.total_count === 'number' ? packet.total_count : packet.items.length;
 }
 
 function matchesTaskScope(

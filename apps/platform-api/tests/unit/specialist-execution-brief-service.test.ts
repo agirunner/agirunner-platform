@@ -16,8 +16,7 @@ describe('buildSpecialistExecutionBrief', () => {
           execution_context_id: 'task-review-1',
           source_kind: 'specialist',
           record_operator_brief_tool: 'record_operator_brief',
-          record_operator_update_tool: 'record_operator_update',
-          turn_updates_required: true,
+          turn_updates_required: false,
           milestone_briefs_required: true,
         },
         variables: {
@@ -217,16 +216,6 @@ describe('buildSpecialistExecutionBrief', () => {
     expect(brief?.rendered_markdown).toContain(
       'Use request_id values with the pattern handoff:task-review-1:<handoff-slug> for submit_handoff writes on this task.',
     );
-    expect(brief?.rendered_markdown).toContain(
-      'Enhanced live visibility requires exactly one record_operator_update on every llm turn before that turn can close.',
-    );
-    expect(brief?.rendered_markdown).toContain(
-      'Treat record_operator_update as the required turn-close step before a turn ends with a handoff, wait, or concrete next-step decision.',
-    );
-    expect(brief?.rendered_markdown).toContain(
-      'Use operator-update:task-review-1: as the stable request_id prefix for record_operator_update writes in this execution context.',
-    );
-    expect(brief?.rendered_markdown).toContain('record_operator_update');
     expect(brief?.rendered_markdown).toContain('record_operator_brief');
     expect(brief?.rendered_markdown).toContain(
       'record_operator_brief payload must include short_brief and detailed_brief_json objects.',
@@ -235,28 +224,10 @@ describe('buildSpecialistExecutionBrief', () => {
       'short_brief must include a headline.',
     );
     expect(brief?.rendered_markdown).toContain(
-      'Operator updates and briefs are console text, not audit logs',
-    );
-    expect(brief?.rendered_markdown).toContain(
-      'use titles and roles when available',
-    );
-    expect(brief?.rendered_markdown).toContain(
-      '"Ran File Read", "tool_failure", or "executed 2 tools"',
-    );
-    expect(brief?.rendered_markdown).toContain(
-      'Operator updates and briefs are console text, not audit logs: keep them human-readable',
-    );
-    expect(brief?.rendered_markdown).toContain(
-      'Example: { request_id: "operator-update:task-review-1:rollback-review", execution_context_id: "task-review-1", work_item_id: "wi-1", task_id: "task-review-1", source_kind: "specialist", payload: { headline: "Reviewer is checking rollback handling.", summary: "Rollback handling is under review." } }',
-    );
-    expect(brief?.rendered_markdown).toContain(
       'record_operator_brief requires short_brief.headline plus detailed_brief_json.headline and status_kind, and must never be called with only linked_target_ids or an empty brief shell.',
     );
     expect(brief?.rendered_markdown).toContain(
       'Use brief_kind "milestone" for in-flight progress or handoff summaries. Use brief_kind "terminal" only for the final workflow outcome summary.',
-    );
-    expect(brief?.rendered_markdown).toContain(
-      'If you do not already have the exact scoped workflow_id, work_item_id, or task_id from this contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id. Never guess them.',
     );
     expect(brief?.rendered_markdown).toContain(
       'Brief headlines and summaries must stay human-readable, describe the real workflow progress, and use titles instead of UUIDs or internal handles whenever titles exist.',

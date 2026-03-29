@@ -12,7 +12,7 @@ interface DeliverableSource {
   listDeliverables(
     tenantId: string,
     workflowId: string,
-    input?: { workItemId?: string; limit?: number },
+    input?: { workItemId?: string; includeWorkflowScope?: boolean; limit?: number },
   ): Promise<WorkflowDeliverableRecord[]>;
 }
 
@@ -20,7 +20,7 @@ interface BriefSource {
   listBriefs(
     tenantId: string,
     workflowId: string,
-    input?: { workItemId?: string; limit?: number },
+    input?: { workItemId?: string; includeWorkflowScope?: boolean; limit?: number },
   ): Promise<WorkflowOperatorBriefRecord[]>;
 }
 
@@ -51,13 +51,16 @@ export class WorkflowDeliverablesService {
   ): Promise<WorkflowDeliverablesPacket & { all_deliverables: WorkflowDeliverableRecord[] }> {
     const limit = input.limit ?? 10;
     const fetchWindow = resolveFetchWindow(limit);
+    const includeWorkflowScope = Boolean(input.workItemId);
     const [deliverables, briefs, inputPackets, handoffs] = await Promise.all([
       this.deliverableSource.listDeliverables(tenantId, workflowId, {
         workItemId: input.workItemId,
+        includeWorkflowScope,
         limit: fetchWindow,
       }),
       this.briefSource.listBriefs(tenantId, workflowId, {
         workItemId: input.workItemId,
+        includeWorkflowScope,
         limit,
       }),
       this.inputPacketSource.listWorkflowInputPackets(tenantId, workflowId),

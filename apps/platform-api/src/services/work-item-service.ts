@@ -101,6 +101,8 @@ export interface GroupedWorkItemReadModel extends WorkItemReadModel {
 interface WorkflowStageContextRow {
   id: string;
   lifecycle: string | null;
+  state: string;
+  metadata: Record<string, unknown> | null;
   active_stage_name: string | null;
   definition: unknown;
 }
@@ -340,6 +342,7 @@ export class WorkItemService {
         await client.query('BEGIN');
       }
       const workflow = await this.loadWorkflowForUpdate(identity.tenantId, workflowId, client);
+      this.assertWorkflowAcceptsWorkItemMutation(workflow);
       const definition = parsePlaybookDefinition(workflow.definition);
       const stageName = resolveWorkItemStageName(input.stage_name, workflow, definition);
       if (!stageName) {
@@ -1075,6 +1078,8 @@ export class WorkItemService {
     const result = await client.query(
       `SELECT w.id,
               w.lifecycle,
+              w.state,
+              w.metadata,
               p.definition
          FROM workflows w
          JOIN playbooks p
@@ -1103,6 +1108,28 @@ export class WorkItemService {
       ...workflow,
       active_stage_name: projection.currentStage,
     } satisfies WorkflowStageContextRow;
+  }
+
+  private assertWorkflowAcceptsWorkItemMutation(workflow: WorkflowStageContextRow) {
+    const metadata = asRecord(workflow.metadata);
+    if (typeof metadata.cancel_requested_at === 'string' && metadata.cancel_requested_at.trim().length > 0) {
+      throw new ConflictError('Workflow cancellation is already in progress');
+    }
+    if (
+      workflow.state === 'paused'
+      || (typeof metadata.pause_requested_at === 'string' && metadata.pause_requested_at.trim().length > 0)
+    ) {
+      throw new ConflictError('Workflow is paused');
+    }
+    if (workflow.state === 'cancelled') {
+      throw new ConflictError('Cancelled workflows cannot accept new work items');
+    }
+    if (workflow.state === 'completed') {
+      throw new ConflictError('Completed workflows cannot accept new work items');
+    }
+    if (workflow.state === 'failed') {
+      throw new ConflictError('Failed workflows cannot accept new work items');
+    }
   }
 
   private async loadWorkItemContext(tenantId: string, workflowId: string, workItemId: string) {

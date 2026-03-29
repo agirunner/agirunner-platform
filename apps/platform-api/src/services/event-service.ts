@@ -1,4 +1,4 @@
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import type { DatabasePool, DatabaseQueryable } from '../db/database.js';
 import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 
 type EventEntityType =
@@ -21,10 +21,6 @@ interface EventInput {
   data?: Record<string, unknown>;
 }
 
-interface DbLike {
-  query: DatabasePool['query'];
-}
-
 const ACTIVATION_EVENT_PREFIX = 'workflow.activation_';
 const WORK_ITEM_EVENT_PREFIX = 'work_item.';
 const STAGE_EVENT_PREFIX = 'stage.';
@@ -44,8 +40,8 @@ export class EventService {
     private readonly pool: DatabasePool,
   ) {}
 
-  async emit(input: EventInput, client?: DatabaseClient): Promise<void> {
-    const db: DbLike = client ?? this.pool;
+  async emit(input: EventInput, client?: DatabaseQueryable): Promise<void> {
+    const db: DatabaseQueryable = client ?? this.pool;
     const data = normalizeEventData(input);
     await db.query(
       `INSERT INTO events (tenant_id, type, entity_type, entity_id, actor_type, actor_id, data)
@@ -188,4 +184,3 @@ function readString(record: Record<string, unknown>, key: string): string | unde
   const value = record[key];
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
-

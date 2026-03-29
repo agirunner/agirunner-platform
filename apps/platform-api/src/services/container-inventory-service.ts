@@ -157,6 +157,17 @@ active_agent_tasks AS (
      AND live.kind = 'orchestrator'
    ORDER BY live.container_id ASC, t.updated_at DESC
 ),
+active_heartbeat_tasks AS (
+  SELECT
+    rh.runtime_id::text AS runtime_id,
+    t.id AS heartbeat_active_task_id
+  FROM runtime_heartbeats rh
+  JOIN tasks t
+    ON t.tenant_id = $1
+   AND t.id = rh.task_id
+   AND t.state = ANY($2::task_state[])
+  WHERE rh.tenant_id = $1
+),
 live_rows AS (
   SELECT
     live.container_id,
@@ -179,7 +190,7 @@ live_rows AS (
     live.playbook_name AS live_playbook_name,
     aat.active_agent_task_id,
     awt.active_task_id,
-    rh.task_id AS heartbeat_task_id,
+    aht.heartbeat_active_task_id,
     rh.playbook_id AS heartbeat_playbook_id,
     rh.state AS heartbeat_state
   FROM live_container_inventory live
@@ -187,6 +198,8 @@ live_rows AS (
     ON aat.container_id = live.container_id
   LEFT JOIN active_worker_tasks awt
     ON awt.container_id = live.container_id
+  LEFT JOIN active_heartbeat_tasks aht
+    ON aht.runtime_id = live.runtime_id
   LEFT JOIN runtime_heartbeats rh
     ON rh.tenant_id = live.tenant_id
    AND rh.runtime_id::text = live.runtime_id
@@ -196,7 +209,15 @@ SELECT
   CASE
     WHEN live.kind = 'orchestrator' THEN 'orchestrator:' || COALESCE(NULLIF(BTRIM(live.name), ''), live.container_id)
     WHEN live.kind = 'runtime' THEN 'runtime:' || COALESCE(NULLIF(BTRIM(live.runtime_id), ''), live.container_id)
-    ELSE 'task:' || COALESCE(COALESCE(t.id, live.live_task_id, live.active_task_id, live.heartbeat_task_id)::text, live.container_id)
+    ELSE 'task:' || COALESCE(
+      COALESCE(
+        t.id,
+        CASE WHEN live.kind = 'task' THEN live.live_task_id ELSE NULL END,
+        live.active_task_id,
+        live.heartbeat_active_task_id
+      )::text,
+      live.container_id
+    )
   END AS id,
   live.kind,
   live.container_id,
@@ -216,14 +237,14 @@ SELECT
   ) AS role_name,
   p.id::text AS playbook_id,
   COALESCE(p.name, NULLIF(BTRIM(live.live_playbook_name), '')) AS playbook_name,
-  COALESCE(w.id, live.live_workflow_id) AS workflow_id,
+  COALESCE(w.id, CASE WHEN live.kind = 'task' THEN live.live_workflow_id ELSE NULL END) AS workflow_id,
   w.name AS workflow_name,
   COALESCE(
     t.id,
-    live.live_task_id,
+    CASE WHEN live.kind = 'task' THEN live.live_task_id ELSE NULL END,
     live.active_agent_task_id,
     live.active_task_id,
-    live.heartbeat_task_id
+    live.heartbeat_active_task_id
   ) AS task_id,
   live.execution_backend,
   t.execution_environment_snapshot->>'id' AS execution_environment_id,
@@ -263,14 +284,14 @@ LEFT JOIN worker_desired_state wd
 LEFT JOIN tasks t
   ON t.tenant_id = $1
  AND t.id = COALESCE(
-   live.live_task_id,
+   CASE WHEN live.kind = 'task' THEN live.live_task_id ELSE NULL END,
    live.active_agent_task_id,
    live.active_task_id,
-   live.heartbeat_task_id
+   live.heartbeat_active_task_id
  )
 LEFT JOIN workflows w
   ON w.tenant_id = $1
- AND w.id = COALESCE(live.live_workflow_id, t.workflow_id)
+ AND w.id = COALESCE(CASE WHEN live.kind = 'task' THEN live.live_workflow_id ELSE NULL END, t.workflow_id)
 LEFT JOIN playbooks p
   ON p.tenant_id = $1
  AND p.id = COALESCE(w.playbook_id, live.heartbeat_playbook_id)

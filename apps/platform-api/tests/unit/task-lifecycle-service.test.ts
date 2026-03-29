@@ -705,7 +705,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
   });
 
-  it('rejects enhanced-mode completion recoverably when a specialist task is missing a turn update', async () => {
+  it('allows enhanced-mode specialist completion to proceed without per-turn operator updates', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
@@ -723,21 +723,23 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         if (sql.includes('FROM agentic_settings')) {
           return { rowCount: 1, rows: [{ live_visibility_mode_default: 'enhanced' }] };
         }
-        if (sql.includes('FROM execution_logs')) {
-          return {
-            rowCount: 2,
-            rows: [{ llm_turn_count: 1 }, { llm_turn_count: 2 }],
-          };
-        }
-        if (sql.includes('FROM workflow_operator_updates')) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-live-1']);
-          return {
-            rowCount: 1,
-            rows: [{ llm_turn_count: 1 }],
-          };
+        if (sql.includes('FROM workflow_operator_briefs')) {
+          return { rowCount: 1, rows: [{ id: 'brief-live-1' }] };
         }
         if (sql.startsWith('UPDATE tasks SET')) {
-          throw new Error('should not update task state when a turn update is missing');
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-live-1',
+              state: 'completed',
+              workflow_id: 'workflow-1',
+              role: 'developer',
+              assigned_agent_id: null,
+              assigned_worker_id: null,
+              output: { ok: true },
+              metadata: { verification: { passed: true } },
+            }],
+          };
         }
         return { rows: [], rowCount: 0 };
       }),
@@ -764,64 +766,26 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       } as never,
     });
 
-    await expect(
-      service.completeTask(
-        {
-          id: 'agent-key',
-          tenantId: 'tenant-1',
-          scope: 'agent',
-          ownerType: 'agent',
-          ownerId: 'agent-1',
-          keyPrefix: 'ak',
-        },
-        'task-live-1',
-        {
-          output: { ok: true },
-          verification: { passed: true },
-        },
-      ),
-    ).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-      message: expect.stringContaining('every actual llm turn before completion'),
-      details: expect.objectContaining({
-        recovery: expect.objectContaining({
-          missing_turns: [2],
-        }),
-      }),
-    });
-    await expect(
-      service.completeTask(
-        {
-          id: 'agent-key',
-          tenantId: 'tenant-1',
-          scope: 'agent',
-          ownerType: 'agent',
-          ownerId: 'agent-1',
-          keyPrefix: 'ak',
-        },
-        'task-live-1',
-        {
-          output: { ok: true },
-          verification: { passed: true },
-        },
-      ),
-    ).rejects.toMatchObject({
-      message: expect.stringContaining('Set top-level llm_turn_count to the exact missing turn number for each recovery write'),
-      details: {
-        reason_code: 'required_operator_turn_update',
-        recoverable: true,
-        recovery_hint: 'record_required_operator_update',
-        recovery: expect.objectContaining({
-          action: 'record_operator_update',
-          execution_context_id: 'task-live-1',
-          missing_turns: [2],
-          source_kind: 'specialist',
-        }),
+    const result = await service.completeTask(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
       },
-    });
+      'task-live-1',
+      {
+        output: { ok: true },
+        verification: { passed: true },
+      },
+    );
+
+    expect(result.state).toBe('completed');
   });
 
-  it('uses the activation id when orchestrator completion is missing enhanced-mode turn updates', async () => {
+  it('allows enhanced-mode orchestrator completion to proceed without per-turn operator updates', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
@@ -839,21 +803,23 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         if (sql.includes('FROM agentic_settings')) {
           return { rowCount: 1, rows: [{ live_visibility_mode_default: 'enhanced' }] };
         }
-        if (sql.includes('FROM execution_logs')) {
-          return {
-            rowCount: 2,
-            rows: [{ llm_turn_count: 1 }, { llm_turn_count: 2 }],
-          };
-        }
-        if (sql.includes('FROM workflow_operator_updates')) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation-7']);
-          return {
-            rowCount: 1,
-            rows: [{ llm_turn_count: 1 }],
-          };
+        if (sql.includes('FROM workflow_operator_briefs')) {
+          return { rowCount: 1, rows: [{ id: 'brief-orchestrator-1' }] };
         }
         if (sql.startsWith('UPDATE tasks SET')) {
-          throw new Error('should not update orchestrator task state when a turn update is missing');
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orchestrator-1',
+              state: 'completed',
+              workflow_id: 'workflow-1',
+              role: 'orchestrator',
+              assigned_agent_id: null,
+              assigned_worker_id: null,
+              output: { ok: true },
+              metadata: { verification: { passed: true } },
+            }],
+          };
         }
         return { rows: [], rowCount: 0 };
       }),
@@ -880,34 +846,23 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       } as never,
     });
 
-    await expect(
-      service.completeTask(
-        {
-          id: 'agent-key',
-          tenantId: 'tenant-1',
-          scope: 'agent',
-          ownerType: 'agent',
-          ownerId: 'agent-1',
-          keyPrefix: 'ak',
-        },
-        'task-orchestrator-1',
-        {
-          output: { ok: true },
-          verification: { passed: true },
-        },
-      ),
-    ).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-      message: expect.stringContaining('Set top-level llm_turn_count to the exact missing turn number for each recovery write'),
-      details: {
-        reason_code: 'required_operator_turn_update',
-        recoverable: true,
-        recovery: expect.objectContaining({
-          execution_context_id: 'activation-7',
-          source_kind: 'orchestrator',
-        }),
+    const result = await service.completeTask(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
       },
-    });
+      'task-orchestrator-1',
+      {
+        output: { ok: true },
+        verification: { passed: true },
+      },
+    );
+
+    expect(result.state).toBe('completed');
   });
 
   it('allows standard-mode completion to proceed without per-turn operator updates', async () => {

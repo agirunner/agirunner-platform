@@ -95,7 +95,7 @@ const gitSSHKnownHostsCredentialKeys = [
   'ssh_known_hosts_ref',
   'known_hosts_ref',
 ];
-const operatorRecordToolIds = ['record_operator_brief', 'record_operator_update'] as const;
+const specialistOperatorRecordToolIds = ['record_operator_brief'] as const;
 type ClaimCredentialKind = 'llm_api_key' | 'llm_extra_headers' | 'mcp_parameter' | 'mcp_oauth';
 interface ClaimCredentialPayload {
   task_id?: string;
@@ -398,7 +398,14 @@ export class TaskClaimService {
            AND ($2::uuid IS NULL OR tasks.workflow_id = $2::uuid)
            AND ($5::uuid IS NULL OR workflows.playbook_id = $5::uuid)
            AND ${buildExecutionModeCondition(executionMode)}
-           AND (workflows.id IS NULL OR workflows.state <> 'paused')
+           AND (
+             workflows.id IS NULL
+             OR (
+               workflows.state NOT IN ('paused', 'cancelled', 'completed', 'failed')
+               AND COALESCE(NULLIF(workflows.metadata->>'pause_requested_at', ''), '') = ''
+               AND COALESCE(NULLIF(workflows.metadata->>'cancel_requested_at', ''), '') = ''
+             )
+           )
            AND (
              NOT (tasks.metadata ? 'preferred_agent_id')
              OR NULLIF(tasks.metadata->>'preferred_agent_id', '') IS NULL
@@ -1693,14 +1700,14 @@ function sanitizeClaimRoleTools(task: Record<string, unknown>): Record<string, u
     ...task,
     role_config: {
       ...roleConfig,
-      tools: appendOperatorRecordTools(tools),
+      tools: appendSpecialistOperatorRecordTools(tools),
     },
   };
 }
 
-function appendOperatorRecordTools(tools: string[]): string[] {
+function appendSpecialistOperatorRecordTools(tools: string[]): string[] {
   const merged = [...tools];
-  for (const toolId of operatorRecordToolIds) {
+  for (const toolId of specialistOperatorRecordToolIds) {
     if (!merged.includes(toolId)) {
       merged.push(toolId);
     }

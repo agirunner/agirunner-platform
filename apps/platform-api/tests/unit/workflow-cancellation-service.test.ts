@@ -84,10 +84,13 @@ describe('WorkflowCancellationService', () => {
         if (sql.startsWith('UPDATE workflow_stages')) {
           return { rowCount: 0, rows: [] };
         }
+        if (sql.includes('assigned_worker_id') && sql.includes('FROM tasks')) {
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.startsWith('UPDATE workflow_activations')) {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.includes("state IN ('claimed', 'in_progress')")) {
+        if (sql.startsWith('UPDATE execution_container_leases')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('UPDATE workflows')) {
@@ -112,8 +115,144 @@ describe('WorkflowCancellationService', () => {
 
     expect(result).toEqual(expect.objectContaining({ id: 'workflow-1', state: 'paused' }));
     expect(client.query).toHaveBeenCalledWith(
-      expect.stringContaining("state IN ('claimed', 'in_progress')"),
+      expect.stringContaining("state = ANY($3::task_state[])"),
+      ['tenant-1', 'workflow-1', ['claimed', 'in_progress']],
+    );
+  });
+
+  it('cancels active workflow tasks immediately, clears ownership, releases leases, and drains specialist runtimes', async () => {
+    const workerConnectionHub = { sendToWorker: vi.fn() };
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('SELECT id, state, metadata, lifecycle FROM workflows')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              state: 'active',
+              metadata: {},
+              lifecycle: 'planned',
+            }],
+          };
+        }
+        if (sql.includes('assigned_worker_id') && sql.includes('FROM tasks')) {
+          return {
+            rowCount: 2,
+            rows: [
+              {
+                id: 'task-specialist-1',
+                state: 'in_progress',
+                assigned_worker_id: 'worker-1',
+                is_orchestrator_task: false,
+              },
+              {
+                id: 'task-orchestrator-1',
+                state: 'claimed',
+                assigned_worker_id: null,
+                is_orchestrator_task: true,
+              },
+            ],
+          };
+        }
+        if (sql.startsWith('INSERT INTO worker_signals')) {
+          return {
+            rowCount: 1,
+            rows: [{ id: 'signal-1', created_at: new Date('2026-03-12T00:00:00.000Z') }],
+          };
+        }
+        if (sql.startsWith('UPDATE tasks')) {
+          return {
+            rowCount: 2,
+            rows: [
+              { id: 'task-specialist-1', is_orchestrator_task: false },
+              { id: 'task-orchestrator-1', is_orchestrator_task: true },
+            ],
+          };
+        }
+        if (sql.startsWith('UPDATE workflow_stage_gates')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_stages')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE execution_container_leases')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.startsWith('UPDATE runtime_heartbeats')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_activations')) {
+          return { rowCount: 1, rows: [{ id: 'activation-1' }] };
+        }
+        if (sql.startsWith('UPDATE workflows')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.startsWith('UPDATE agents')) {
+          return { rowCount: 2, rows: [] };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkflowCancellationService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'cancelled') } as never,
+      resolveCancelSignalGracePeriodMs: async () => 60_000,
+      workerConnectionHub: workerConnectionHub as never,
+      getWorkflow: vi.fn(async () => ({ id: 'workflow-1', state: 'cancelled' })),
+    });
+
+    await service.cancelWorkflow(identity as never, 'workflow-1');
+
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining("SET state = 'cancelled'"),
+      expect.arrayContaining(['tenant-1', 'workflow-1']),
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE execution_container_leases'),
       ['tenant-1', 'workflow-1'],
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO worker_signals'),
+      [
+        'tenant-1',
+        'worker-1',
+        'task-specialist-1',
+        expect.objectContaining({
+          reason: 'manual_cancel',
+          grace_period_ms: 60_000,
+        }),
+      ],
+    );
+    expect(
+      client.query.mock.calls.filter(([sql]) => String(sql).startsWith('INSERT INTO worker_signals')),
+    ).toHaveLength(1);
+    expect(workerConnectionHub.sendToWorker).toHaveBeenCalledWith(
+      'worker-1',
+      expect.objectContaining({
+        task_id: 'task-specialist-1',
+        signal_type: 'cancel_task',
+      }),
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'worker.signaled',
+        entityId: 'worker-1',
+      }),
+      client,
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE runtime_heartbeats'),
+      ['tenant-1', ['task-specialist-1']],
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE agents'),
+      ['tenant-1', ['task-specialist-1', 'task-orchestrator-1']],
     );
   });
 
@@ -143,10 +282,13 @@ describe('WorkflowCancellationService', () => {
         if (sql.startsWith('UPDATE workflow_stages')) {
           return { rowCount: 1, rows: [] };
         }
+        if (sql.includes('assigned_worker_id') && sql.includes('FROM tasks')) {
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.startsWith('UPDATE workflow_activations')) {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.includes("state IN ('claimed', 'in_progress')")) {
+        if (sql.startsWith('UPDATE execution_container_leases')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('UPDATE workflows')) {
@@ -181,7 +323,7 @@ describe('WorkflowCancellationService', () => {
 
   it('marks queued workflow activations as failed when a workflow is cancelled', async () => {
     const client = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
@@ -205,12 +347,16 @@ describe('WorkflowCancellationService', () => {
         if (sql.startsWith('UPDATE workflow_stages')) {
           return { rowCount: 0, rows: [] };
         }
+        if (sql.includes('assigned_worker_id') && sql.includes('FROM tasks')) {
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.startsWith('UPDATE workflow_activations')) {
           expect(sql).toContain("SET state = 'failed'");
-          expect(sql).toContain("Workflow cancelled by operator.");
+          expect(sql).toContain("state IN ('queued', 'processing')");
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'Workflow cancelled by operator.']);
           return { rowCount: 1, rows: [{ id: 'activation-1' }] };
         }
-        if (sql.includes("state IN ('claimed', 'in_progress')")) {
+        if (sql.startsWith('UPDATE execution_container_leases')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('UPDATE workflows')) {
@@ -235,7 +381,7 @@ describe('WorkflowCancellationService', () => {
 
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining("SET state = 'failed'"),
-      ['tenant-1', 'workflow-1'],
+      ['tenant-1', 'workflow-1', 'Workflow cancelled by operator.'],
     );
   });
 
@@ -266,10 +412,13 @@ describe('WorkflowCancellationService', () => {
           expect(sql).not.toMatch(/\bstatus\s*=\s*CASE/);
           return { rowCount: 1, rows: [] };
         }
+        if (sql.includes('assigned_worker_id') && sql.includes('FROM tasks')) {
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.startsWith('UPDATE workflow_activations')) {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.includes("state IN ('claimed', 'in_progress')")) {
+        if (sql.startsWith('UPDATE execution_container_leases')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('UPDATE workflows')) {
@@ -301,7 +450,7 @@ describe('WorkflowCancellationService', () => {
   it('cancels escalated tasks immediately during workflow cancellation', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('SELECT id, state, metadata, lifecycle FROM workflows')) {
@@ -324,10 +473,13 @@ describe('WorkflowCancellationService', () => {
         if (sql.startsWith('UPDATE workflow_stages')) {
           return { rowCount: 0, rows: [] };
         }
+        if (sql.includes('assigned_worker_id') && sql.includes('FROM tasks')) {
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.startsWith('UPDATE workflow_activations')) {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.includes("state IN ('claimed', 'in_progress')")) {
+        if (sql.startsWith('UPDATE execution_container_leases')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('UPDATE workflows')) {
@@ -352,7 +504,20 @@ describe('WorkflowCancellationService', () => {
 
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining("state = ANY($3::task_state[])"),
-      ['tenant-1', 'workflow-1', ['pending', 'ready', 'awaiting_approval', 'output_pending_assessment', 'failed', 'escalated']],
+      [
+        'tenant-1',
+        'workflow-1',
+        [
+          'pending',
+          'ready',
+          'claimed',
+          'in_progress',
+          'awaiting_approval',
+          'output_pending_assessment',
+          'failed',
+          'escalated',
+        ],
+      ],
     );
   });
 

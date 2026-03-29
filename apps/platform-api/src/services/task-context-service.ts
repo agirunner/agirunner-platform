@@ -187,7 +187,7 @@ export async function buildTaskContext(
     orchestratorContext: orchestratorContext as Record<string, unknown> | undefined,
   });
   const executionBrief = task.is_orchestrator_task
-    ? null
+    ? buildOrchestratorExecutionBrief(workflowLiveVisibility)
     : buildSpecialistExecutionBrief({
         role: asOptionalString(task.role) ?? null,
         roleConfig: asRecord(task.role_config),
@@ -231,6 +231,17 @@ export async function buildTaskContext(
       role_config: sanitizeTaskContextValue(task.role_config),
       upstream_outputs: sanitizeTaskContextValue(upstreamOutputs),
     },
+  };
+}
+
+function buildOrchestratorExecutionBrief(
+  workflowLiveVisibility: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  if (!workflowLiveVisibility) {
+    return null;
+  }
+  return {
+    operator_visibility: workflowLiveVisibility,
   };
 }
 
@@ -401,11 +412,10 @@ async function loadWorkflowLiveVisibilityContext(
     execution_context_id: executionContextId,
     source_kind: task.is_orchestrator_task === true ? 'orchestrator' : 'specialist',
     record_operator_brief_tool: 'record_operator_brief',
-    record_operator_update_tool: 'record_operator_update',
-    turn_updates_required: mode === 'enhanced',
-    turn_update_scope: 'per_llm_turn',
-    eligible_turn_guidance:
-      'Emit one operator update on every actual llm turn before that turn closes so the live console stays in parity with the execution log turn count. Include the current llm_turn_count on each operator update.',
+    record_operator_update_tool: task.is_orchestrator_task === true ? 'record_operator_update' : null,
+    turn_updates_required: false,
+    turn_update_scope: null,
+    eligible_turn_guidance: null,
     operator_update_request_id_prefix: `operator-update:${executionContextId}:`,
     operator_brief_request_id_prefix: `operator-brief:${executionContextId}:`,
     milestone_briefs_required: true,

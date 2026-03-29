@@ -1,11 +1,13 @@
 import type { MissionControlHistoryResponse } from './mission-control-types.js';
 import type { WorkflowOperatorBriefRecord } from '../workflow-operator-brief-service.js';
 import type { WorkflowOperatorUpdateRecord } from '../workflow-operator-update-service.js';
+import type { LogRow } from '../../logging/log-service.js';
 import {
   buildWorkflowOperationsSnapshotVersion,
   type WorkflowLiveConsoleItem,
   type WorkflowLiveConsolePacket,
 } from './workflow-operations-types.js';
+import { buildExecutionTurnItems } from './workflow-execution-log-composer.js';
 import {
   compareCursorTargets,
   paginateOrderedItems,
@@ -42,12 +44,28 @@ interface VisibilityModeSource {
   ): Promise<{ effective_live_visibility_mode: 'standard' | 'enhanced' }>;
 }
 
+interface ExecutionTurnSource {
+  query(
+    tenantId: string,
+    filters: {
+      workflowId: string;
+      workItemId?: string;
+      taskId?: string;
+      category: string[];
+      operation: string[];
+      order: 'desc';
+      perPage: number;
+    },
+  ): Promise<{ data: LogRow[] }>;
+}
+
 export class WorkflowLiveConsoleService {
   constructor(
     private readonly versionSource: VersionSource,
     private readonly briefSource: BriefSource,
     private readonly updateSource: UpdateSource,
     private readonly visibilityModeSource: VisibilityModeSource,
+    private readonly executionTurnSource?: ExecutionTurnSource,
   ) {}
 
   async getLiveConsole(
@@ -74,8 +92,15 @@ export class WorkflowLiveConsoleService {
       }),
       this.visibilityModeSource.getWorkflowSettings(tenantId, workflowId),
     ]);
+    const executionTurns = await this.listExecutionTurns(
+      tenantId,
+      workflowId,
+      input,
+      fetchWindow,
+      workflowSettings.effective_live_visibility_mode,
+    );
 
-    const items = [...updates.map(toUpdateItem), ...briefs.map(toBriefItem)].sort(
+    const items = [...updates.map(toUpdateItem), ...briefs.map(toBriefItem), ...executionTurns].sort(
       sortNewestFirst,
     );
     const page = paginateOrderedItems(items, limit, input.after, (item) => ({
@@ -88,12 +113,34 @@ export class WorkflowLiveConsoleService {
       latest_event_id: version.version.latestEventId,
       snapshot_version: buildWorkflowOperationsSnapshotVersion(version.version.latestEventId),
       items: page.items,
+      total_count: items.length,
       next_cursor: page.nextCursor,
       live_visibility_mode:
         workflowSettings.effective_live_visibility_mode ?? deriveVisibilityModeFromUpdates(updates),
     };
   }
 
+  private async listExecutionTurns(
+    tenantId: string,
+    workflowId: string,
+    input: { workItemId?: string; taskId?: string },
+    fetchWindow: number,
+    mode: 'standard' | 'enhanced',
+  ): Promise<WorkflowLiveConsoleItem[]> {
+    if (mode !== 'enhanced' || !this.executionTurnSource) {
+      return [];
+    }
+    const result = await this.executionTurnSource.query(tenantId, {
+      workflowId,
+      workItemId: input.workItemId,
+      taskId: input.taskId,
+      category: ['agent_loop'],
+      operation: ['agent.think', 'agent.plan', 'agent.act', 'agent.observe', 'agent.verify'],
+      order: 'desc',
+      perPage: fetchWindow,
+    });
+    return buildExecutionTurnItems(result.data);
+  }
 }
 
 function toBriefItem(brief: WorkflowOperatorBriefRecord): WorkflowLiveConsoleItem {

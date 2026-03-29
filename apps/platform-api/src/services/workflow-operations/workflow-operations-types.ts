@@ -94,6 +94,7 @@ export interface WorkflowLiveConsoleItem {
 
 export interface WorkflowLiveConsolePacket extends WorkflowOperationsSnapshot {
   items: WorkflowLiveConsoleItem[];
+  total_count: number;
   next_cursor: string | null;
   live_visibility_mode: 'standard' | 'enhanced';
 }
@@ -129,6 +130,7 @@ export interface WorkflowHistoryItem {
 export interface WorkflowHistoryPacket extends WorkflowOperationsSnapshot {
   groups: WorkflowHistoryGroup[];
   items: WorkflowHistoryItem[];
+  total_count: number;
   filters: {
     available: string[];
     active: string[];

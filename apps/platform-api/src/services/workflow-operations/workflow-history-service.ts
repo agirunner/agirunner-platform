@@ -92,6 +92,7 @@ export class WorkflowHistoryService {
       snapshot_version: buildWorkflowOperationsSnapshotVersion(version.version.latestEventId),
       groups: buildGroups(page.items),
       items: page.items,
+      total_count: items.length,
       filters: {
         available: ['briefs', 'interventions', 'inputs', 'redrives'],
         active: [],

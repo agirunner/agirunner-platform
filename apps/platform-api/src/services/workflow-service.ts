@@ -151,7 +151,11 @@ export class WorkflowService {
       workerConnectionHub: connectionHub,
       getWorkflow: this.getWorkflow.bind(this),
     });
-    this.controlService = new WorkflowControlService(pool, eventService, stateService);
+    this.controlService = new WorkflowControlService(pool, eventService, stateService, {
+      resolveCancelSignalGracePeriodMs: async (tenantId: string) =>
+        readTaskCancelSignalGracePeriodMs(pool, tenantId),
+      workerConnectionHub: connectionHub,
+    });
   }
 
   createWorkflow(identity: ApiKeyIdentity, input: CreateWorkflowInput) {

@@ -110,6 +110,7 @@ export interface RecordWorkflowOperatorBriefInput {
 export interface ListWorkflowOperatorBriefsInput {
   workItemId?: string;
   taskId?: string;
+  includeWorkflowScope?: boolean;
   limit?: number;
 }
 
@@ -144,6 +145,7 @@ export class WorkflowOperatorBriefService {
               AND (
                 work_item_id = $3
                 OR linked_target_ids @> jsonb_build_array($4::text)
+                OR ($7::boolean = true AND work_item_id IS NULL)
               )
             )
             OR (
@@ -155,7 +157,7 @@ export class WorkflowOperatorBriefService {
             )
           )
         ORDER BY sequence_number DESC
-        LIMIT $7`,
+        LIMIT $8`,
       [
         tenantId,
         workflowId,
@@ -163,6 +165,7 @@ export class WorkflowOperatorBriefService {
         input.workItemId ?? null,
         input.taskId ?? null,
         input.taskId ?? null,
+        input.includeWorkflowScope === true,
         input.limit ?? 50,
       ],
     );

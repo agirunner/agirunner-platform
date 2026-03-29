@@ -69,6 +69,7 @@ export interface UpsertWorkflowDeliverableInput {
 
 export interface ListWorkflowDeliverablesInput {
   workItemId?: string;
+  includeWorkflowScope?: boolean;
   limit?: number;
 }
 
@@ -86,10 +87,20 @@ export class WorkflowDeliverableService {
          FROM workflow_output_descriptors
         WHERE tenant_id = $1
           AND workflow_id = $2
-          AND ($3::uuid IS NULL OR work_item_id = $3)
+          AND (
+            $3::uuid IS NULL
+            OR work_item_id = $3
+            OR ($5::boolean = true AND work_item_id IS NULL)
+          )
         ORDER BY updated_at DESC, created_at DESC
         LIMIT $4`,
-      [tenantId, workflowId, input.workItemId ?? null, input.limit ?? 50],
+      [
+        tenantId,
+        workflowId,
+        input.workItemId ?? null,
+        input.limit ?? 50,
+        input.includeWorkflowScope === true,
+      ],
     );
     return result.rows.map(toWorkflowDeliverableRecord);
   }

@@ -43,6 +43,7 @@ describe('WorkflowOperatorBriefService', () => {
           'work-item-1',
           null,
           null,
+          false,
           2,
         ]);
         return {
@@ -123,6 +124,7 @@ describe('WorkflowOperatorBriefService', () => {
       }
       if (sql.includes('FROM workflow_operator_briefs')) {
         expect(sql).toContain('linked_target_ids @>');
+        expect(sql).toContain('LIMIT $8');
         expect(params).toEqual([
           'tenant-1',
           'workflow-1',
@@ -130,6 +132,7 @@ describe('WorkflowOperatorBriefService', () => {
           'work-item-7',
           'task-4',
           'task-4',
+          false,
           5,
         ]);
         return {

@@ -107,9 +107,6 @@ interface SpecialistExecutionBriefInput {
   executionEnvironmentSnapshot?: Record<string, unknown> | null;
 }
 
-const DEFAULT_PER_TURN_GUIDANCE =
-  'Emit one operator update on every actual llm turn before that turn closes so the live console stays in parity with the execution log turn count. Include the current llm_turn_count on each operator update.';
-
 export function buildSpecialistExecutionBrief(
   input: SpecialistExecutionBriefInput,
 ): SpecialistExecutionBrief | null {
@@ -299,40 +296,15 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
         `Use request_id values with the pattern handoff:${brief.operator_visibility.task_id}:<handoff-slug> for submit_handoff writes on this task. Reuse the same request_id only for an intentional retry of that exact same handoff payload.`,
       );
     }
-    if (brief.operator_visibility.turn_updates_required && brief.operator_visibility.record_operator_update_tool) {
-      if (
-        brief.operator_visibility.turn_update_scope === 'per_eligible_turn'
-        || brief.operator_visibility.turn_update_scope === 'per_llm_turn'
-      ) {
-        lines.push(
-          `Enhanced live visibility requires exactly one ${brief.operator_visibility.record_operator_update_tool} on every llm turn before that turn can close.`,
-        );
-      }
-      if (brief.operator_visibility.eligible_turn_guidance) {
-        lines.push(brief.operator_visibility.eligible_turn_guidance);
-      }
-      if (brief.operator_visibility.operator_update_request_id_prefix) {
-        lines.push(
-          `Use ${brief.operator_visibility.operator_update_request_id_prefix} as the stable request_id prefix for ${brief.operator_visibility.record_operator_update_tool} writes in this execution context.`,
-        );
-      }
+    if (brief.operator_visibility.record_operator_update_tool) {
       lines.push(
-        `Use ${brief.operator_visibility.record_operator_update_tool} for one tiny operator-readable headline on every llm turn.`,
-      );
-      lines.push(
-        `Treat ${brief.operator_visibility.record_operator_update_tool} as the required turn-close step before a turn ends with a handoff, wait, or concrete next-step decision.`,
-      );
-      lines.push(
-        `If you forget the required ${brief.operator_visibility.record_operator_update_tool}, the execution contract will automatically send you back to emit it before progress can continue.`,
+        'Enhanced live visibility is streamed automatically from execution output. Do not spend extra turns creating synthetic per-turn operator updates.',
       );
       lines.push(
         'If you do not already have the exact scoped workflow_id, work_item_id, or task_id from this contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id. Never guess them.',
       );
       lines.push(
         'Operator updates and briefs are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".',
-      );
-      lines.push(
-        `Example: { request_id: "${brief.operator_visibility.operator_update_request_id_prefix ?? 'operator-update:<execution_context_id>:'}rollback-review", execution_context_id: "${brief.operator_visibility.execution_context_id ?? '<execution_context_id>'}", work_item_id: "${brief.operator_visibility.work_item_id ?? '<work_item_id>'}", task_id: "${brief.operator_visibility.task_id ?? '<task_id>'}", source_kind: "${brief.operator_visibility.source_kind ?? 'specialist'}", payload: { headline: "Reviewer is checking rollback handling.", summary: "Rollback handling is under review." } }`,
       );
     }
     if (brief.operator_visibility.milestone_briefs_required && brief.operator_visibility.record_operator_brief_tool) {
@@ -467,7 +439,6 @@ function operatorVisibilityFrom(workflow: Record<string, unknown>): OperatorVisi
     return null;
   }
   const executionContextId = readString(liveVisibility.execution_context_id);
-  const turnUpdatesRequired = Boolean(liveVisibility.turn_updates_required);
   return {
     mode: readString(liveVisibility.mode),
     workflow_id: readString(liveVisibility.workflow_id),
@@ -477,12 +448,9 @@ function operatorVisibilityFrom(workflow: Record<string, unknown>): OperatorVisi
     source_kind: readString(liveVisibility.source_kind),
     record_operator_brief_tool: readString(liveVisibility.record_operator_brief_tool),
     record_operator_update_tool: readString(liveVisibility.record_operator_update_tool),
-    turn_updates_required: turnUpdatesRequired,
-    turn_update_scope:
-      readString(liveVisibility.turn_update_scope) ?? (turnUpdatesRequired ? 'per_llm_turn' : null),
-    eligible_turn_guidance:
-      readString(liveVisibility.eligible_turn_guidance) ??
-      (turnUpdatesRequired ? DEFAULT_PER_TURN_GUIDANCE : null),
+    turn_updates_required: false,
+    turn_update_scope: null,
+    eligible_turn_guidance: null,
     operator_update_request_id_prefix:
       readString(liveVisibility.operator_update_request_id_prefix) ??
       (executionContextId ? `operator-update:${executionContextId}:` : null),
