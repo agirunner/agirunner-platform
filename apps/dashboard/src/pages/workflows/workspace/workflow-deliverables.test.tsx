@@ -105,11 +105,13 @@ describe('WorkflowDeliverables', () => {
 
     expect(html).toContain('Task output and evidence');
     expect(html).toContain('Generate release bundle');
-    expect(html).toContain('Showing work item deliverables from Prepare release bundle.');
+    expect(html).toContain('Showing parent work item deliverables from Prepare release bundle.');
     expect(html).toContain('Workflow deliverables stay visible below the parent work item.');
     expect(html).toContain('artifact-1');
-    expect(html).toContain('Work item deliverables (1)');
+    expect(html).toContain('Parent work item deliverables (1)');
+    expect(html).toContain('Deliverables promoted from Prepare release bundle stay here.');
     expect(html).toContain('Workflow deliverables (0)');
+    expect(html).toContain('Workflow-wide deliverables stay visible below the parent work item.');
     expect(html).toContain('No workflow deliverables are available yet.');
     expect(html).toContain('No inputs or intervention files are attached to this work item.');
     expect(html).not.toContain('Final deliverables (1)');
@@ -135,8 +137,8 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Showing work item deliverables from Prepare release bundle.');
-    expect(html).not.toContain('Showing work item deliverables from Generate release bundle.');
+    expect(html).toContain('Showing parent work item deliverables from Prepare release bundle.');
+    expect(html).not.toContain('Showing parent work item deliverables from Generate release bundle.');
   });
 
   it('separates task evidence, parent work-item deliverables, and workflow deliverables in task scope', () => {
@@ -158,7 +160,7 @@ describe('WorkflowDeliverables', () => {
     );
 
     expect(html).toContain('Task output and evidence');
-    expect(html).toContain('Work item deliverables (1)');
+    expect(html).toContain('Parent work item deliverables (1)');
     expect(html).toContain('Workflow deliverables (1)');
     expect(html).toContain('Release checklist');
     expect(html).toContain('Program status brief');
@@ -185,8 +187,8 @@ describe('WorkflowDeliverables', () => {
     );
 
     expect(html).not.toContain('Outcome Brief');
-    expect(html.indexOf('Task output and evidence')).toBeLessThan(html.indexOf('Work item deliverables (1)'));
-    expect(html.indexOf('Work item deliverables (1)')).toBeLessThan(html.indexOf('Workflow deliverables (0)'));
+    expect(html.indexOf('Task output and evidence')).toBeLessThan(html.indexOf('Parent work item deliverables (1)'));
+    expect(html.indexOf('Parent work item deliverables (1)')).toBeLessThan(html.indexOf('Workflow deliverables (0)'));
     expect(html).toContain('Release bundle');
     expect(html).toContain('Release bundle brief');
   });

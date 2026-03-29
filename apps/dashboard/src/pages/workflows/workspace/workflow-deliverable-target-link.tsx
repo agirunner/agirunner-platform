@@ -28,13 +28,28 @@ export function WorkflowDeliverableTargetLink(props: {
       {renderInlineReference ? (
         <>
           <p className="text-sm font-medium text-foreground">{targetLabel}</p>
-          <p className="text-xs text-muted-foreground">Reference stays in this workflow workspace.</p>
+          <p className="text-xs text-muted-foreground">Already visible in this workflow workspace.</p>
         </>
       ) : action.action_kind === 'dialog_preview' ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" onClick={() => setIsPreviewOpen(true)}>
-            Preview inline
-          </Button>
+        <div className="grid gap-2">
+          <p className="text-sm font-medium text-foreground">{targetLabel}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button size="sm" onClick={() => setIsPreviewOpen(true)}>
+              Preview inline
+            </Button>
+            <a
+              className="text-sm font-medium text-accent underline-offset-4 hover:underline"
+              href={action.href}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {openInNewTabLabel}
+            </a>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-2">
+          <p className="text-sm font-medium text-foreground">{targetLabel}</p>
           <a
             className="text-sm font-medium text-accent underline-offset-4 hover:underline"
             href={action.href}
@@ -44,15 +59,6 @@ export function WorkflowDeliverableTargetLink(props: {
             {openInNewTabLabel}
           </a>
         </div>
-      ) : (
-        <a
-          className="text-sm font-medium text-accent underline-offset-4 hover:underline"
-          href={action.href}
-          target="_blank"
-          rel="noreferrer"
-        >
-          {targetLabel}
-        </a>
       )}
       {props.target.path || props.target.repo_ref ? (
         <p className="text-xs text-muted-foreground">{props.target.path ?? props.target.repo_ref}</p>

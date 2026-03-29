@@ -140,8 +140,15 @@ export function WorkflowDeliverables(props: {
       ) : (
         <>
           <LayerDeliverablesSection
-            title="Work item deliverables"
+            title={props.scope.scopeKind === 'selected_task' ? 'Parent work item deliverables' : 'Work item deliverables'}
             titleCount={parentWorkItemLayer.totalCount}
+            description={
+              props.scope.scopeKind === 'selected_task'
+                ? props.selectedWorkItemTitle
+                  ? `Deliverables promoted from ${props.selectedWorkItemTitle} stay here.`
+                  : 'Deliverables promoted from the parent work item stay here.'
+                : null
+            }
             emptyMessage={
               props.selectedWorkItemTitle
                 ? `No work item deliverables are available for ${props.selectedWorkItemTitle} yet.`
@@ -152,6 +159,11 @@ export function WorkflowDeliverables(props: {
           <LayerDeliverablesSection
             title="Workflow deliverables"
             titleCount={workflowLayer.totalCount}
+            description={
+              props.scope.scopeKind === 'selected_task'
+                ? 'Workflow-wide deliverables stay visible below the parent work item.'
+                : null
+            }
             emptyMessage="No workflow deliverables are available yet."
             layer={workflowLayer}
           />
@@ -236,12 +248,12 @@ function buildDeliverablesScopeCopy(
   const workItemTitle = readText(selectedWorkItemTitle);
   if (scope.scopeKind === 'selected_task') {
     return {
-      label: 'Task evidence + layered deliverables',
+      label: 'Task evidence + parent deliverables',
       description: [
         'Task output and evidence appears first.',
         workItemTitle
-          ? `Showing work item deliverables from ${workItemTitle}.`
-          : 'Showing work item deliverables from the parent work item.',
+          ? `Showing parent work item deliverables from ${workItemTitle}.`
+          : 'Showing parent work item deliverables from the parent work item.',
         'Workflow deliverables stay visible below the parent work item.',
       ].join(' '),
     };
@@ -310,6 +322,7 @@ function readDeliverablesSubject(
 function LayerDeliverablesSection(props: {
   title: string;
   titleCount: number;
+  description?: string | null;
   emptyMessage: string;
   layer: {
     finalDeliverables: DashboardWorkflowDeliverableRecord[];
@@ -327,6 +340,9 @@ function LayerDeliverablesSection(props: {
         {props.title} ({props.titleCount})
       </summary>
       <div className="mt-4 grid gap-4">
+        {props.description ? (
+          <p className="text-sm text-muted-foreground">{props.description}</p>
+        ) : null}
         {hasMaterialDeliverables ? (
           <>
             {props.layer.finalDeliverables.map((deliverable) => (
