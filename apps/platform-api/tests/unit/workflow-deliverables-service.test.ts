@@ -1715,6 +1715,127 @@ describe('WorkflowDeliverablesService', () => {
     ]);
   });
 
+  it('reclassifies a stored final work-item packet into in-progress deliverables when the work item is still incomplete', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'deliverable-current',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'workflow-intake-01 completion packet',
+          state: 'final',
+          summary_brief: 'Current completion packet.',
+          preview_capabilities: {},
+          primary_target: { target_kind: 'inline_summary', label: 'Review completion packet' },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Current completion packet.',
+          },
+          source_brief_id: null,
+          created_at: '2026-03-28T21:00:00.000Z',
+          updated_at: '2026-03-28T21:00:00.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+    const activeWorkItemSource = {
+      listIncompleteWorkItemIds: vi.fn(async () => ['work-item-1']),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+      undefined,
+      activeWorkItemSource as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+    });
+
+    expect(result.final_deliverables).toEqual([]);
+    expect(result.in_progress_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'deliverable-current',
+        work_item_id: 'work-item-1',
+        delivery_stage: 'final',
+        state: 'final',
+      }),
+    ]);
+    expect(result.all_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'deliverable-current',
+        work_item_id: 'work-item-1',
+      }),
+    ]);
+  });
+
+  it('keeps an incomplete work-item packet visible in workflow scope by reclassifying it into in-progress deliverables', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'deliverable-current',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'workflow-intake-01 completion packet',
+          state: 'final',
+          summary_brief: 'Current completion packet.',
+          preview_capabilities: {},
+          primary_target: { target_kind: 'inline_summary', label: 'Review completion packet' },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Current completion packet.',
+          },
+          source_brief_id: null,
+          created_at: '2026-03-28T21:00:00.000Z',
+          updated_at: '2026-03-28T21:00:00.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+    const activeWorkItemSource = {
+      listIncompleteWorkItemIds: vi.fn(async () => ['work-item-1']),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+      undefined,
+      activeWorkItemSource as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1');
+
+    expect(result.final_deliverables).toEqual([]);
+    expect(result.in_progress_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'deliverable-current',
+        work_item_id: 'work-item-1',
+      }),
+    ]);
+    expect(result.all_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'deliverable-current',
+      }),
+    ]);
+  });
+
   it('does not surface a synthesized final brief packet for a reopened active work item', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => []),

@@ -143,10 +143,20 @@ export class WorkflowDeliverablesService {
     const pagedDeliverables = page.items;
     return {
       final_deliverables: pagedDeliverables.filter((deliverable) =>
-        isFinalDeliverable(deliverable, finalizedBriefIds, finalizedDescriptorIds),
+        isCurrentFinalDeliverable(
+          deliverable,
+          incompleteWorkItemIdSet,
+          finalizedBriefIds,
+          finalizedDescriptorIds,
+        ),
       ),
       in_progress_deliverables: pagedDeliverables.filter((deliverable) =>
-        !isFinalDeliverable(deliverable, finalizedBriefIds, finalizedDescriptorIds),
+        !isCurrentFinalDeliverable(
+          deliverable,
+          incompleteWorkItemIdSet,
+          finalizedBriefIds,
+          finalizedDescriptorIds,
+        ),
       ),
       working_handoffs: deliverableScopeBriefs.filter(isDeliverableBrief),
       inputs_and_provenance: {
@@ -411,6 +421,18 @@ function isFinalDeliverable(
   );
 }
 
+function isCurrentFinalDeliverable(
+  deliverable: WorkflowDeliverableRecord,
+  incompleteWorkItemIds: Set<string>,
+  finalizedBriefIds: Set<string>,
+  finalizedDescriptorIds: Set<string>,
+): boolean {
+  if (!isFinalDeliverable(deliverable, finalizedBriefIds, finalizedDescriptorIds)) {
+    return false;
+  }
+  return !isIncompleteReclassifiedDeliverable(deliverable, incompleteWorkItemIds);
+}
+
 function isStoredFinalDeliverable(deliverable: WorkflowDeliverableRecord): boolean {
   return !isSupersededDeliverable(deliverable) && (
     readOptionalString(deliverable.delivery_stage) === 'final'
@@ -440,7 +462,30 @@ function shouldExposeCurrentDeliverable(
     workItemId
     && incompleteWorkItemIds.has(workItemId)
     && isFinalDeliverable(deliverable, finalizedBriefIds, finalizedDescriptorIds)
+    && !shouldKeepVisibleDuringIncompleteWorkItem(deliverable)
   );
+}
+
+function isIncompleteReclassifiedDeliverable(
+  deliverable: WorkflowDeliverableRecord,
+  incompleteWorkItemIds: Set<string>,
+): boolean {
+  const workItemId = readOptionalString(deliverable.work_item_id);
+  return Boolean(
+    workItemId
+    && incompleteWorkItemIds.has(workItemId)
+    && shouldKeepVisibleDuringIncompleteWorkItem(deliverable)
+  );
+}
+
+function shouldKeepVisibleDuringIncompleteWorkItem(
+  deliverable: WorkflowDeliverableRecord,
+): boolean {
+  if (!isStoredFinalDeliverable(deliverable)) {
+    return false;
+  }
+  const descriptorKind = readOptionalString(deliverable.descriptor_kind);
+  return descriptorKind !== 'brief_packet' && descriptorKind !== 'handoff_packet';
 }
 
 function isSupersededDeliverable(deliverable: WorkflowDeliverableRecord): boolean {
