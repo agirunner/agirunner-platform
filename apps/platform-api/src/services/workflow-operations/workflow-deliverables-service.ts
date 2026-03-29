@@ -48,12 +48,21 @@ interface HandoffSource {
   ): Promise<WorkflowDeliverableHandoffRecord[]>;
 }
 
+interface IncompleteWorkItemSource {
+  listIncompleteWorkItemIds(
+    tenantId: string,
+    workflowId: string,
+    input?: { workItemId?: string },
+  ): Promise<string[]>;
+}
+
 export class WorkflowDeliverablesService {
   constructor(
     private readonly deliverableSource: DeliverableSource,
     private readonly briefSource: BriefSource,
     private readonly inputPacketSource: InputPacketSource,
     private readonly handoffSource?: HandoffSource,
+    private readonly incompleteWorkItemSource?: IncompleteWorkItemSource,
   ) {}
 
   async getDeliverables(
@@ -65,7 +74,7 @@ export class WorkflowDeliverablesService {
     const fetchWindow = resolveFetchWindow(limit);
     const includeWorkflowScope = Boolean(input.workItemId);
     const includeAllWorkItemScopes = !input.workItemId;
-    const [deliverables, briefs, inputPackets, handoffs] = await Promise.all([
+    const [deliverables, briefs, inputPackets, handoffs, incompleteWorkItemIds] = await Promise.all([
       this.deliverableSource.listDeliverables(tenantId, workflowId, {
         workItemId: input.workItemId,
         includeWorkflowScope,
@@ -82,7 +91,11 @@ export class WorkflowDeliverablesService {
       this.handoffSource?.listLatestCompletedWorkItemHandoffs(tenantId, workflowId, {
         workItemId: input.workItemId,
       }) ?? Promise.resolve([]),
+      this.incompleteWorkItemSource?.listIncompleteWorkItemIds(tenantId, workflowId, {
+        workItemId: input.workItemId,
+      }) ?? Promise.resolve([]),
     ]);
+    const incompleteWorkItemIdSet = new Set(incompleteWorkItemIds);
     const deliverableScopeRecords = selectDeliverableScopeRecords(
       deliverables,
       input.workItemId,
@@ -114,7 +127,15 @@ export class WorkflowDeliverablesService {
     const orderedDeliverables = [...hydratedDeliverables].sort((left, right) =>
       compareDeliverables(left, right),
     );
-    const page = paginateOrderedItems(orderedDeliverables, limit, input.after, (deliverable) => ({
+    const visibleDeliverables = orderedDeliverables.filter((deliverable) =>
+      shouldExposeCurrentDeliverable(
+        deliverable,
+        incompleteWorkItemIdSet,
+        finalizedBriefIds,
+        finalizedDescriptorIds,
+      ),
+    );
+    const page = paginateOrderedItems(visibleDeliverables, limit, input.after, (deliverable) => ({
       timestamp: deliverable.updated_at ?? deliverable.created_at,
       id: deliverable.descriptor_id,
     }));
@@ -379,6 +400,9 @@ function isFinalDeliverable(
   finalizedBriefIds: Set<string>,
   finalizedDescriptorIds: Set<string>,
 ): boolean {
+  if (isSupersededDeliverable(deliverable)) {
+    return false;
+  }
   return (
     readOptionalString(deliverable.delivery_stage) === 'final' ||
     readOptionalString(deliverable.state) === 'final' ||
@@ -388,8 +412,10 @@ function isFinalDeliverable(
 }
 
 function isStoredFinalDeliverable(deliverable: WorkflowDeliverableRecord): boolean {
-  return readOptionalString(deliverable.delivery_stage) === 'final'
-    || readOptionalString(deliverable.state) === 'final';
+  return !isSupersededDeliverable(deliverable) && (
+    readOptionalString(deliverable.delivery_stage) === 'final'
+    || readOptionalString(deliverable.state) === 'final'
+  );
 }
 
 function isCanonicalFinalPacket(deliverable: WorkflowDeliverableRecord): boolean {
@@ -397,6 +423,28 @@ function isCanonicalFinalPacket(deliverable: WorkflowDeliverableRecord): boolean
     return false;
   }
   return readOptionalString(deliverable.descriptor_kind) !== 'brief_packet';
+}
+
+function shouldExposeCurrentDeliverable(
+  deliverable: WorkflowDeliverableRecord,
+  incompleteWorkItemIds: Set<string>,
+  finalizedBriefIds: Set<string>,
+  finalizedDescriptorIds: Set<string>,
+): boolean {
+  if (isSupersededDeliverable(deliverable)) {
+    return false;
+  }
+
+  const workItemId = readOptionalString(deliverable.work_item_id);
+  return !(
+    workItemId
+    && incompleteWorkItemIds.has(workItemId)
+    && isFinalDeliverable(deliverable, finalizedBriefIds, finalizedDescriptorIds)
+  );
+}
+
+function isSupersededDeliverable(deliverable: WorkflowDeliverableRecord): boolean {
+  return readOptionalString(deliverable.state) === 'superseded';
 }
 
 function collectFinalizedBriefIds(briefs: WorkflowOperatorBriefRecord[]): Set<string> {

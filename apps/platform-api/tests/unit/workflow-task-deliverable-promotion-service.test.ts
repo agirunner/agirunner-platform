@@ -336,4 +336,59 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
     expect(pool.query).not.toHaveBeenCalled();
     expect(deliverableService.upsertSystemDeliverable).not.toHaveBeenCalled();
   });
+
+  it('creates a new deliverable descriptor when reopen superseded the prior final packet', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflow_output_descriptors')) {
+          expect(sql).toContain("state <> 'superseded'");
+          return {
+            rows: [],
+            rowCount: 0,
+          };
+        }
+        if (sql.includes('FROM workflow_work_items')) {
+          return {
+            rows: [{ title: 'workflow-intake-05' }],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const deliverableService = {
+      upsertSystemDeliverable: vi.fn(async () => ({
+        descriptor_id: 'descriptor-5-new',
+      })),
+    };
+
+    const service = new WorkflowTaskDeliverablePromotionService(
+      pool as never,
+      deliverableService as never,
+    );
+
+    await service.promoteFromHandoff('tenant-1', {
+      id: 'handoff-5',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-5',
+      task_id: 'task-5',
+      role: 'policy-assessor',
+      summary: 'Approved the replacement packet after rework.',
+      completion: 'full',
+      completion_state: 'full',
+      role_data: {
+        task_kind: 'assessment',
+      },
+      artifact_ids: [],
+      created_at: '2026-03-28T20:50:00.000Z',
+    });
+
+    expect(deliverableService.upsertSystemDeliverable).toHaveBeenCalledWith(
+      'tenant-1',
+      'workflow-1',
+      expect.not.objectContaining({
+        descriptorId: expect.any(String),
+      }),
+    );
+  });
 });

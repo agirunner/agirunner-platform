@@ -84,6 +84,17 @@ describe('TaskLifecycleService work item reopen routing', () => {
             rows: [{ id: 'work-item-1' }],
           };
         }
+        if (
+          sql.includes('UPDATE workflow_output_descriptors')
+          && sql.includes("SET state = 'superseded'")
+          && sql.includes('work_item_id = $3')
+        ) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
+          return {
+            rowCount: 1,
+            rows: [{ id: 'descriptor-1' }],
+          };
+        }
         if (sql.includes('UPDATE workflow_work_items') && sql.includes('parent_work_item_id = $3')) {
           return { rows: [], rowCount: 0 };
         }
@@ -163,6 +174,15 @@ describe('TaskLifecycleService work item reopen routing', () => {
     ) as [string, unknown[]] | undefined;
 
     expect(reopenCall?.[1]).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 'done', 'done']);
+    const supersedeCall = client.query.mock.calls.find(
+      ([sql]) =>
+        typeof sql === 'string'
+        && sql.includes('UPDATE workflow_output_descriptors')
+        && sql.includes("SET state = 'superseded'")
+        && sql.includes('work_item_id = $3'),
+    ) as [string, unknown[]] | undefined;
+
+    expect(supersedeCall?.[1]).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
   });
 
   it('reopens a terminal-lane work item even when completed_at is still null', async () => {

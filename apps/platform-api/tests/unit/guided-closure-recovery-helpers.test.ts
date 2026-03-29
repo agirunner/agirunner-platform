@@ -266,6 +266,17 @@ describe('GuidedClosureRecoveryHelpersService', () => {
             }],
           };
         }
+        if (
+          sql.includes('UPDATE workflow_output_descriptors')
+          && sql.includes("SET state = 'superseded'")
+          && sql.includes('work_item_id = $3')
+        ) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-1']);
+          return {
+            rowCount: 1,
+            rows: [{ id: 'descriptor-1' }],
+          };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -291,5 +302,14 @@ describe('GuidedClosureRecoveryHelpersService', () => {
     expect(result.column_id).toBe('active');
     expect(result.completed_at).toBeNull();
     expect(eventService.emit).toHaveBeenCalledTimes(3);
+    const supersedeCall = client.query.mock.calls.find(
+      ([sql]) =>
+        typeof sql === 'string'
+        && sql.includes('UPDATE workflow_output_descriptors')
+        && sql.includes("SET state = 'superseded'")
+        && sql.includes('work_item_id = $3'),
+    ) as [string, unknown[]] | undefined;
+
+    expect(supersedeCall?.[1]).toEqual(['tenant-1', 'workflow-1', 'wi-1']);
   });
 });

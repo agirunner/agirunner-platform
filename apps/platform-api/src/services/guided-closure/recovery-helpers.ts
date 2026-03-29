@@ -15,6 +15,7 @@ import {
   normalizeCompletionCalloutsInput,
   type CompletionCallouts,
 } from './types.js';
+import { supersedeCurrentFinalDeliverablesForWorkItem } from '../workflow-deliverable-lifecycle-service.js';
 
 export interface RerunTaskWithCorrectedBriefInput {
   request_id: string;
@@ -325,6 +326,12 @@ export class GuidedClosureRecoveryHelpersService {
       ],
     );
     const reopened = updated.rows[0];
+    await supersedeCurrentFinalDeliverablesForWorkItem(
+      db,
+      identity.tenantId,
+      workflowId,
+      workItemId,
+    );
     await emitRecoveryWorkItemEvents(
       this.deps.eventService,
       identity,

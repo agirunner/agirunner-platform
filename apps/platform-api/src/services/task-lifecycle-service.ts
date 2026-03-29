@@ -52,6 +52,7 @@ import {
   type ImmediateWorkflowActivationDispatcher,
 } from './workflow-immediate-activation.js';
 import { readAssessmentSubjectLinkage } from './assessment-subject-service.js';
+import { supersedeCurrentFinalDeliverablesForWorkItem } from './workflow-deliverable-lifecycle-service.js';
 
 interface TransitionOptions {
   expectedStates: TaskState[];
@@ -557,6 +558,13 @@ export class TaskLifecycleService {
     if (!reopenResult.rowCount) {
       return;
     }
+
+    await supersedeCurrentFinalDeliverablesForWorkItem(
+      client,
+      identity.tenantId,
+      workflowId,
+      workItemId,
+    );
 
     const eventData = {
       workflow_id: workflowId,

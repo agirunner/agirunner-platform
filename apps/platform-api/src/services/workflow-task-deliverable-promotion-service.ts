@@ -86,6 +86,7 @@ export class WorkflowTaskDeliverablePromotionService {
           AND workflow_id = $2
           AND work_item_id = $3
           AND descriptor_kind IN ('deliverable_packet', 'handoff_packet')
+          AND state <> 'superseded'
         ORDER BY CASE WHEN descriptor_kind = 'deliverable_packet' THEN 0 ELSE 1 END
         LIMIT 1`,
       [tenantId, workflowId, workItemId],
