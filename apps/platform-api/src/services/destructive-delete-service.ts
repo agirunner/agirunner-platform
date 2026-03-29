@@ -5,6 +5,7 @@ import { NotFoundError } from '../errors/domain-errors.js';
 
 const TERMINAL_WORKFLOW_STATES = ['completed', 'failed', 'cancelled'] as const;
 const TERMINAL_TASK_STATES = ['completed', 'failed', 'cancelled'] as const;
+const CANCELLABLE_WORKFLOW_STATES = ['active', 'paused'] as const;
 
 export interface DeleteImpactSummary {
   workflows: number;
@@ -495,8 +496,8 @@ export class DestructiveDeleteService {
          FROM workflows
         WHERE tenant_id = $1
           AND playbook_id = ANY($2::uuid[])
-          AND state::text <> ALL($3::text[])`,
-      [tenantId, uniqueIds(playbookIds), [...TERMINAL_WORKFLOW_STATES]],
+          AND state::text = ANY($3::text[])`,
+      [tenantId, uniqueIds(playbookIds), [...CANCELLABLE_WORKFLOW_STATES]],
     );
     return result.rows.map((row) => row.id);
   }
@@ -526,8 +527,8 @@ export class DestructiveDeleteService {
          FROM workflows
         WHERE tenant_id = $1
           AND workspace_id = $2
-          AND state::text <> ALL($3::text[])`,
-      [tenantId, workspaceId, [...TERMINAL_WORKFLOW_STATES]],
+          AND state::text = ANY($3::text[])`,
+      [tenantId, workspaceId, [...CANCELLABLE_WORKFLOW_STATES]],
     );
     return result.rows.map((row) => row.id);
   }
