@@ -249,6 +249,66 @@ class LiveResultCompletenessTests(unittest.TestCase):
                 "\n".join(result.failures),
             )
 
+    def test_validate_result_file_rejects_missing_settled_output_bundle_when_outputs_exist(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            scenario_dir = Path(tmpdir) / "scenario"
+            evidence_dir = scenario_dir / "evidence"
+            evidence_dir.mkdir(parents=True)
+
+            evidence = self.build_complete_evidence(evidence_dir)
+            evidence["db_state"] = {
+                "ok": True,
+                "deliverables": [
+                    {
+                        "descriptor_id": "descriptor-1",
+                        "work_item_id": "wi-1",
+                        "descriptor_kind": "deliverable_packet",
+                        "delivery_stage": "final",
+                        "state": "final",
+                    }
+                ],
+                "completed_handoffs": [
+                    {
+                        "id": "handoff-1",
+                        "work_item_id": "wi-1",
+                        "task_id": "task-1",
+                        "role": "developer",
+                    }
+                ],
+            }
+
+            result_path = scenario_dir / "workflow-run.json"
+            result_path.write_text(
+                json.dumps(
+                    {
+                        "scenario_name": "demo",
+                        "runner_exit_code": 0,
+                        "workflow_state": "completed",
+                        "state": "completed",
+                        "verification_passed": True,
+                        "verification": {"passed": True, "failures": []},
+                        "harness_failure": False,
+                        "outcome_metrics": {
+                            "status": "passed",
+                            "success": {"output_artifact_count": 2},
+                        },
+                        "artifacts": {"ok": True, "data": {"data": []}},
+                        "produced_artifacts": [],
+                        "final_outputs": None,
+                        "evidence": evidence,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = validate_live_result.validate_result_file(result_path)
+
+            self.assertFalse(result.is_valid)
+            self.assertIn(
+                "produced_artifacts must be a non-empty list when output_artifact_count is greater than zero",
+                "\n".join(result.failures),
+            )
+
     def test_validate_result_file_rejects_missing_workspace_scope_trace_payload(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             scenario_dir = Path(tmpdir) / "scenario"

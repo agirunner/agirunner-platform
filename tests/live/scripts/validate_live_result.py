@@ -123,8 +123,10 @@ def validate_settled_result_payload(payload: dict[str, Any]) -> list[str]:
         if not isinstance(verification.get("failures"), list):
             failures.append("verification.failures must be a list")
 
-    if not isinstance(payload.get("outcome_metrics"), dict):
+    outcome_metrics = payload.get("outcome_metrics")
+    if not isinstance(outcome_metrics, dict):
         failures.append("outcome_metrics must be an object")
+        outcome_metrics = {}
 
     evidence = require_mapping(payload, "evidence", failures)
     if evidence is None:
@@ -160,7 +162,61 @@ def validate_settled_result_payload(payload: dict[str, Any]) -> list[str]:
         if key == "workspace_scope_trace":
             failures.extend(validate_workspace_scope_trace(artifact_payload))
 
+    output_artifact_count = read_output_artifact_count(outcome_metrics)
+    produced_artifacts = payload.get("produced_artifacts")
+    artifact_items = read_result_artifact_items(payload.get("artifacts"))
+    if output_artifact_count > 0:
+        if not isinstance(produced_artifacts, list) or len(produced_artifacts) == 0:
+            failures.append(
+                "produced_artifacts must be a non-empty list when output_artifact_count is greater than zero"
+            )
+        if len(artifact_items) == 0:
+            failures.append(
+                "artifacts.data.data must be a non-empty list when output_artifact_count is greater than zero"
+            )
+        elif isinstance(produced_artifacts, list) and len(produced_artifacts) != len(artifact_items):
+            failures.append("artifacts.data.data count must match produced_artifacts count")
+
+    db_state = evidence.get("db_state")
+    if isinstance(db_state, dict) and count_final_deliverables(db_state) > 0:
+        final_outputs = payload.get("final_outputs")
+        if not isinstance(final_outputs, list) or len(final_outputs) == 0:
+            failures.append(
+                "final_outputs must be a non-empty list when DB deliverables contain final outputs"
+            )
+
     return failures
+
+
+def read_output_artifact_count(outcome_metrics: dict[str, Any]) -> int:
+    success = outcome_metrics.get("success")
+    if not isinstance(success, dict):
+        return 0
+    count = success.get("output_artifact_count")
+    return count if isinstance(count, int) and count >= 0 else 0
+
+
+def read_result_artifact_items(artifacts_payload: Any) -> list[Any]:
+    if not isinstance(artifacts_payload, dict):
+        return []
+    data = artifacts_payload.get("data")
+    if not isinstance(data, dict):
+        return []
+    items = data.get("data")
+    return items if isinstance(items, list) else []
+
+
+def count_final_deliverables(db_state: dict[str, Any]) -> int:
+    deliverables = db_state.get("deliverables")
+    if not isinstance(deliverables, list):
+        return 0
+    count = 0
+    for deliverable in deliverables:
+        if not isinstance(deliverable, dict):
+            continue
+        if deliverable.get("state") == "final" or deliverable.get("delivery_stage") == "final":
+            count += 1
+    return count
 
 
 def validate_workspace_scope_trace(payload: dict[str, Any]) -> list[str]:

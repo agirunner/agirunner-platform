@@ -789,6 +789,244 @@ def _workflow_final_artifacts(workflow: dict[str, Any]) -> list[str]:
     ]
 
 
+def _normalize_output_artifact_entry(
+    artifact: dict[str, Any],
+    *,
+    task: dict[str, Any] | None = None,
+) -> dict[str, Any] | None:
+    path = str(
+        artifact.get("path")
+        or artifact.get("logical_path")
+        or artifact.get("artifact_path")
+        or ""
+    ).strip()
+    if path == "":
+        return None
+
+    task_payload = task if isinstance(task, dict) else {}
+    logical_path = str(artifact.get("logical_path") or "").strip() or Path(path).name
+    size_value = artifact.get("size_bytes", artifact.get("size"))
+    size_bytes = size_value if isinstance(size_value, int) and size_value >= 0 else None
+    created_at = (
+        artifact.get("created_at")
+        or task_payload.get("completed_at")
+        or task_payload.get("updated_at")
+        or task_payload.get("created_at")
+    )
+    normalized = {
+        "kind": str(artifact.get("kind") or "file"),
+        "artifact_id": artifact.get("id") or artifact.get("artifact_id"),
+        "task_id": task_payload.get("id") or artifact.get("task_id"),
+        "work_item_id": task_payload.get("work_item_id") or artifact.get("work_item_id"),
+        "role": task_payload.get("role") or artifact.get("role"),
+        "path": path,
+        "logical_path": logical_path,
+        "content_type": artifact.get("content_type"),
+        "size_bytes": size_bytes,
+        "created_at": created_at,
+    }
+    return normalized
+
+
+def _settled_produced_artifacts(workflow: dict[str, Any], snapshot: Any) -> list[dict[str, Any]]:
+    completed_task_artifacts: list[dict[str, Any]] = []
+    seen_paths: set[tuple[str, str]] = set()
+
+    for task in _workflow_tasks(workflow):
+        if not isinstance(task, dict):
+            continue
+        if bool(task.get("is_orchestrator_task")):
+            continue
+        if task.get("state") != "completed":
+            continue
+        output = task.get("output")
+        if not isinstance(output, dict):
+            continue
+        artifacts = output.get("artifacts")
+        if not isinstance(artifacts, list):
+            continue
+        task_id = str(task.get("id") or "").strip()
+        for artifact in artifacts:
+            if not isinstance(artifact, dict):
+                continue
+            normalized = _normalize_output_artifact_entry(artifact, task=task)
+            if normalized is None:
+                continue
+            dedupe_key = (task_id, str(normalized.get("path") or ""))
+            if dedupe_key in seen_paths:
+                continue
+            seen_paths.add(dedupe_key)
+            completed_task_artifacts.append(normalized)
+
+    if completed_task_artifacts:
+        return completed_task_artifacts
+
+    snapshot_artifacts: list[dict[str, Any]] = []
+    for artifact in _artifacts(snapshot):
+        if not isinstance(artifact, dict):
+            continue
+        normalized = _normalize_output_artifact_entry(artifact)
+        if normalized is None:
+            continue
+        snapshot_artifacts.append(normalized)
+    if snapshot_artifacts:
+        return snapshot_artifacts
+
+    return [
+        {
+            "kind": "file",
+            "artifact_id": None,
+            "task_id": None,
+            "work_item_id": None,
+            "role": None,
+            "path": artifact_path,
+            "logical_path": Path(artifact_path).name,
+            "content_type": None,
+            "size_bytes": None,
+            "created_at": None,
+        }
+        for artifact_path in _workflow_final_artifacts(workflow)
+    ]
+
+
+def _build_settled_artifacts_snapshot(
+    workflow: dict[str, Any],
+    snapshot: Any,
+) -> dict[str, Any]:
+    artifacts = _settled_produced_artifacts(workflow, snapshot)
+    unique_work_item_ids = {
+        str(artifact.get("work_item_id"))
+        for artifact in artifacts
+        if isinstance(artifact.get("work_item_id"), str) and str(artifact.get("work_item_id")).strip() != ""
+    }
+    unique_task_ids = {
+        str(artifact.get("task_id"))
+        for artifact in artifacts
+        if isinstance(artifact.get("task_id"), str) and str(artifact.get("task_id")).strip() != ""
+    }
+    unique_roles = {
+        str(artifact.get("role"))
+        for artifact in artifacts
+        if isinstance(artifact.get("role"), str) and str(artifact.get("role")).strip() != ""
+    }
+    content_types = {
+        str(artifact.get("content_type"))
+        for artifact in artifacts
+        if isinstance(artifact.get("content_type"), str)
+        and str(artifact.get("content_type")).strip() != ""
+    }
+    total_bytes = sum(
+        int(artifact.get("size_bytes"))
+        for artifact in artifacts
+        if isinstance(artifact.get("size_bytes"), int)
+    )
+    return {
+        "ok": True,
+        "data": {
+            "data": artifacts,
+            "meta": {
+                "page": 1,
+                "per_page": max(len(artifacts), 1),
+                "total": len(artifacts),
+                "total_pages": 1,
+                "has_more": False,
+                "summary": {
+                    "total_artifacts": len(artifacts),
+                    "previewable_artifacts": 0,
+                    "total_bytes": total_bytes,
+                    "workflow_count": 1 if artifacts else 0,
+                    "work_item_count": len(unique_work_item_ids),
+                    "task_count": len(unique_task_ids),
+                    "role_count": len(unique_roles),
+                },
+                "filters": {
+                    "workflows": [workflow.get("id")] if workflow.get("id") else [],
+                    "work_items": sorted(unique_work_item_ids),
+                    "tasks": sorted(unique_task_ids),
+                    "stages": [],
+                    "roles": sorted(unique_roles),
+                    "content_types": sorted(content_types),
+                },
+            },
+        },
+    }
+
+
+def _build_final_outputs(
+    workflow: dict[str, Any],
+    work_items_snapshot: Any,
+    evidence: dict[str, Any] | None,
+    produced_artifacts: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    evidence_payload = evidence if isinstance(evidence, dict) else {}
+    db_state = evidence_payload.get("db_state")
+    if not isinstance(db_state, dict):
+        return []
+
+    deliverables = db_state.get("deliverables")
+    if not isinstance(deliverables, list):
+        return []
+    completed_handoffs = db_state.get("completed_handoffs")
+    if not isinstance(completed_handoffs, list):
+        completed_handoffs = []
+
+    work_item_map = {
+        str(item.get("id")): item
+        for item in _work_items(work_items_snapshot)
+        if isinstance(item, dict) and isinstance(item.get("id"), str)
+    }
+    task_map = {
+        str(task.get("id")): task
+        for task in _workflow_tasks(workflow)
+        if isinstance(task, dict) and isinstance(task.get("id"), str)
+    }
+    handoff_by_work_item = {
+        str(handoff.get("work_item_id")): handoff
+        for handoff in completed_handoffs
+        if isinstance(handoff, dict) and isinstance(handoff.get("work_item_id"), str)
+    }
+    artifacts_by_task: dict[str, list[dict[str, Any]]] = {}
+    for artifact in produced_artifacts:
+        if not isinstance(artifact, dict):
+            continue
+        task_id = artifact.get("task_id")
+        if not isinstance(task_id, str) or task_id.strip() == "":
+            continue
+        artifacts_by_task.setdefault(task_id, []).append(artifact)
+
+    final_outputs: list[dict[str, Any]] = []
+    for deliverable in deliverables:
+        if not isinstance(deliverable, dict):
+            continue
+        if deliverable.get("state") != "final" and deliverable.get("delivery_stage") != "final":
+            continue
+        work_item_id = str(deliverable.get("work_item_id") or "").strip()
+        handoff = handoff_by_work_item.get(work_item_id, {})
+        task_id = str(handoff.get("task_id") or "").strip()
+        task = task_map.get(task_id, {})
+        work_item = work_item_map.get(work_item_id, {})
+        output_artifacts = list(artifacts_by_task.get(task_id, []))
+        final_outputs.append(
+            {
+                "descriptor_id": deliverable.get("descriptor_id"),
+                "descriptor_kind": deliverable.get("descriptor_kind"),
+                "delivery_stage": deliverable.get("delivery_stage"),
+                "state": deliverable.get("state"),
+                "work_item_id": work_item_id or None,
+                "work_item_title": work_item.get("title"),
+                "stage_name": work_item.get("stage_name"),
+                "task_id": task_id or None,
+                "task_title": task.get("title"),
+                "role": handoff.get("role") or task.get("role"),
+                "handoff_id": handoff.get("id"),
+                "handoff_created_at": handoff.get("created_at"),
+                "artifact_count": len(output_artifacts),
+                "artifacts": output_artifacts,
+            }
+        )
+    return final_outputs
+
+
 def _completed_task_output_artifact_count(workflow: dict[str, Any]) -> int:
     count = 0
     for task in _workflow_tasks(workflow):
@@ -4163,6 +4401,14 @@ def build_run_result_payload(
             execution_logs=execution_logs,
             evidence=evidence_payload,
         )
+    settled_artifacts = _build_settled_artifacts_snapshot(workflow, artifacts)
+    produced_artifacts = _settled_produced_artifacts(workflow, artifacts)
+    final_outputs = _build_final_outputs(
+        workflow,
+        work_items,
+        evidence_payload,
+        produced_artifacts,
+    )
     return {
         "workflow_id": workflow_id,
         "runner_exit_code": 0 if bool(verification_payload.get("passed")) else 1,
@@ -4185,7 +4431,9 @@ def build_run_result_payload(
         "approval_actions": approval_actions,
         "workflow_actions": workflow_actions,
         "workspace": workspace,
-        "artifacts": artifacts,
+        "artifacts": settled_artifacts,
+        "produced_artifacts": produced_artifacts,
+        "final_outputs": final_outputs,
         "fleet": fleet,
         "fleet_peaks": fleet_peaks,
         "execution_logs": execution_logs,
