@@ -339,7 +339,8 @@ describe('WorkflowBoard', () => {
 
     expect(html).toContain('Assess packet');
     expect(html).toContain('Tasks');
-    expect(html).not.toContain('<details');
+    expect(html).toContain('<details');
+    expect(html).toContain('open=""');
     expect(html).not.toContain('data-task-selectable="true"');
     expect(html).toContain('data-work-item-task-area="true"');
     expect(html).toContain('data-work-item-task-row="true"');
@@ -580,7 +581,7 @@ describe('WorkflowBoard', () => {
       ),
     );
 
-    expect(html).toContain('max-h-[16rem] overflow-y-auto overscroll-contain pr-1');
+    expect(html).toContain('max-h-[22rem] overflow-y-auto overscroll-contain pr-1');
     expect(html).toContain('rounded-md border border-border/50 bg-background/30');
   });
 

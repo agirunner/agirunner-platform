@@ -14,18 +14,21 @@ export function WorkflowBoardTaskStack(props: {
   tasks: WorkflowTaskPreview[];
   defaultOpen?: boolean;
   collapsible?: boolean;
+  laneWorkItemCount?: number;
   selectedTaskId?: string | null;
   onSelectWorkItem?(): void;
   onSelectTask?(taskId: string): void;
 }): JSX.Element {
+  const isWorkItemSelectable = Boolean(props.onSelectWorkItem);
+
   if (props.collapsible === false) {
     const content = (
-      <TaskRowsContainer tasks={props.tasks}>
-        <TaskPreviewRows tasks={props.tasks} isWorkItemSelectable={Boolean(props.onSelectWorkItem)} />
+      <TaskRowsContainer tasks={props.tasks} laneWorkItemCount={props.laneWorkItemCount}>
+        <TaskPreviewRows tasks={props.tasks} isWorkItemSelectable={isWorkItemSelectable} />
       </TaskRowsContainer>
     );
 
-    if (props.onSelectWorkItem) {
+    if (isWorkItemSelectable) {
       return (
         <button
           type="button"
@@ -46,7 +49,7 @@ export function WorkflowBoardTaskStack(props: {
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Tasks
         </p>
-        <TaskRowsContainer tasks={props.tasks}>
+        <TaskRowsContainer tasks={props.tasks} laneWorkItemCount={props.laneWorkItemCount}>
           <TaskPreviewRows tasks={props.tasks} isWorkItemSelectable={false} />
         </TaskRowsContainer>
       </section>
@@ -56,14 +59,19 @@ export function WorkflowBoardTaskStack(props: {
   const isOpen = props.defaultOpen ?? true;
 
   return (
-    <details className="rounded-lg border border-border/60 bg-muted/5 p-2.5" open={isOpen}>
+    <details
+      className="rounded-lg border border-border/60 bg-muted/5 p-2.5"
+      open={isOpen}
+      data-work-item-task-area={isWorkItemSelectable ? 'true' : undefined}
+      onClick={props.onSelectWorkItem}
+    >
       <summary className="flex cursor-pointer list-none flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Tasks
         </p>
       </summary>
-      <TaskRowsContainer tasks={props.tasks}>
-        <TaskPreviewRows tasks={props.tasks} isWorkItemSelectable={false} />
+      <TaskRowsContainer tasks={props.tasks} laneWorkItemCount={props.laneWorkItemCount}>
+        <TaskPreviewRows tasks={props.tasks} isWorkItemSelectable={isWorkItemSelectable} />
       </TaskRowsContainer>
     </details>
   );
@@ -71,13 +79,18 @@ export function WorkflowBoardTaskStack(props: {
 
 function TaskRowsContainer(props: {
   tasks: WorkflowTaskPreview[];
+  laneWorkItemCount?: number;
   children: JSX.Element;
 }): JSX.Element {
   const shouldBoundHeight = props.tasks.length > 4;
+  const maxHeightClassName =
+    props.laneWorkItemCount === 1
+      ? 'grid max-h-[22rem] overflow-y-auto overscroll-contain pr-1'
+      : 'grid max-h-[16rem] overflow-y-auto overscroll-contain pr-1';
 
   return (
     <div className="mt-3 overflow-hidden rounded-md border border-border/50 bg-background/30 p-1.5">
-      <div className={shouldBoundHeight ? 'grid max-h-[16rem] overflow-y-auto overscroll-contain pr-1' : 'grid'}>
+      <div className={shouldBoundHeight ? maxHeightClassName : 'grid'}>
         {props.children}
       </div>
     </div>

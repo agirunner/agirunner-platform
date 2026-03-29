@@ -214,6 +214,8 @@ function BoardLaneCard(props: {
   const overflowCompletedItems = props.lane.visibleCompletedItems.slice(pinnedCompletedCount);
   const collapsedCompletedCount = overflowCompletedItems.length + props.lane.hiddenCompletedCount;
   const showCompletedSection = props.boardMode !== 'active' && collapsedCompletedCount > 0;
+  const laneWorkItemCount =
+    props.lane.activeItems.length + props.lane.visibleCompletedItems.length;
 
   return (
     <article className="grid min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5">
@@ -238,6 +240,7 @@ function BoardLaneCard(props: {
                 taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
                 isSelected={workItem.id === props.selectedWorkItemId}
                 onSelect={props.onSelectWorkItem}
+                laneWorkItemCount={laneWorkItemCount}
               />
             ))}
         {pinnedCompletedItems.map((workItem) => (
@@ -248,6 +251,7 @@ function BoardLaneCard(props: {
             taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
             isSelected={workItem.id === props.selectedWorkItemId}
             onSelect={props.onSelectWorkItem}
+            laneWorkItemCount={laneWorkItemCount}
             muted
           />
         ))}
@@ -280,6 +284,7 @@ function BoardLaneCard(props: {
                     taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
                     isSelected={workItem.id === props.selectedWorkItemId}
                     onSelect={props.onSelectWorkItem}
+                    laneWorkItemCount={laneWorkItemCount}
                     muted
                   />
                 ))}
@@ -295,6 +300,7 @@ function BoardWorkItemCard(props: {
   workflowState?: string | null;
   taskSummary: WorkflowTaskPreviewSummary;
   isSelected: boolean;
+  laneWorkItemCount: number;
   muted?: boolean;
   onSelect(workItemId: string): void;
 }): JSX.Element {
@@ -383,10 +389,11 @@ function BoardWorkItemCard(props: {
       </button>
 
       {props.taskSummary.tasks.length > 0 ? (
-        // Task preview rows stay expanded here so work-item view remains informative without task-scoped clicks.
         <WorkflowBoardTaskStack
           tasks={props.taskSummary.tasks}
-          collapsible={false}
+          collapsible={!props.isSelected ? false : undefined}
+          defaultOpen={props.isSelected}
+          laneWorkItemCount={props.laneWorkItemCount}
           onSelectWorkItem={() => props.onSelect(props.workItem.id)}
         />
       ) : null}

@@ -29,6 +29,32 @@ describe('WorkflowBoardTaskStack', () => {
     expect(onSelectWorkItem).toHaveBeenCalledOnce();
   });
 
+  it('keeps the selected work-item stack collapsible, open by default, and parent-selectable', () => {
+    const onSelectWorkItem = vi.fn();
+    const element = WorkflowBoardTaskStack({
+      tasks: [
+        {
+          id: 'task-1',
+          title: 'Assess packet',
+          role: 'policy-assessor',
+          state: 'in_progress',
+        },
+      ],
+      defaultOpen: true,
+      collapsible: true,
+      onSelectWorkItem,
+    });
+
+    expect(isValidElement(element)).toBe(true);
+    expect(element.type).toBe('details');
+    expect(element.props.open).toBe(true);
+    expect(element.props['data-work-item-task-area']).toBe('true');
+
+    element.props.onClick();
+
+    expect(onSelectWorkItem).toHaveBeenCalledOnce();
+  });
+
   it('keeps task rows operator-readable inside the work-item task area', () => {
     const html = renderToStaticMarkup(
       WorkflowBoardTaskStack({
@@ -85,6 +111,24 @@ describe('WorkflowBoardTaskStack', () => {
 
     expect(html).toContain('max-h-[16rem] overflow-y-auto overscroll-contain pr-1');
     expect(html).toContain('rounded-md border border-border/50 bg-background/30');
+  });
+
+  it('shows a taller in-card task viewport when the lane only has a single work item', () => {
+    const html = renderToStaticMarkup(
+      WorkflowBoardTaskStack({
+        tasks: Array.from({ length: 6 }, (_, index) => ({
+          id: `task-${index + 1}`,
+          title: `Task ${index + 1}`,
+          role: 'policy-assessor',
+          state: index === 0 ? 'in_progress' : 'ready',
+        })),
+        collapsible: true,
+        laneWorkItemCount: 1,
+      }),
+    );
+
+    expect(html).toContain('max-h-[22rem] overflow-y-auto overscroll-contain pr-1');
+    expect(html).not.toContain('max-h-[16rem] overflow-y-auto overscroll-contain pr-1');
   });
 
   it('does not auto-open collapsed stacks from stale selected-task state anymore', () => {
