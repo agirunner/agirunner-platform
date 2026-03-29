@@ -1575,8 +1575,11 @@ describe('applyTaskCompletionSideEffects', () => {
                 stage_name: 'review',
                 column_id: 'planned',
                 completed_at: null,
-                human_gate: false,
                 gate_status: 'not_requested',
+                blocked_state: null,
+                escalation_status: null,
+                next_expected_actor: 'reviewer',
+                next_expected_action: 'handoff',
               }],
               rowCount: 1,
             };
@@ -1587,8 +1590,11 @@ describe('applyTaskCompletionSideEffects', () => {
               stage_name: 'implementation',
               column_id: 'planned',
               completed_at: null,
-              human_gate: false,
               gate_status: 'not_requested',
+              blocked_state: null,
+              escalation_status: null,
+              next_expected_actor: null,
+              next_expected_action: null,
             }],
             rowCount: 1,
           };
@@ -1610,6 +1616,20 @@ describe('applyTaskCompletionSideEffects', () => {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item']);
           return {
             rows: [{ count: 0 }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('SELECT latest_assessment.resolution AS blocking_resolution')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item']);
+          return {
+            rows: [],
+            rowCount: 0,
+          };
+        }
+        if (sql.includes('SELECT th.completion_callouts')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item']);
+          return {
+            rows: [{ completion_callouts: {} }],
             rowCount: 1,
           };
         }
@@ -1639,6 +1659,7 @@ describe('applyTaskCompletionSideEffects', () => {
             'implementation-item',
             'done',
             expect.any(Date),
+            {},
           ]);
           return {
             rows: [{ id: 'implementation-item' }],

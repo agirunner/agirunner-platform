@@ -14,6 +14,10 @@ interface WorkItemClosureCandidateRow {
   column_id: string;
   completed_at: Date | null;
   gate_status: string;
+  blocked_state: string | null;
+  escalation_status: string | null;
+  next_expected_actor: string | null;
+  next_expected_action: string | null;
 }
 
 export async function maybeAutoCloseCompletedPlannedPredecessorWorkItem(
@@ -40,20 +44,27 @@ export async function maybeAutoCloseCompletedPlannedPredecessorWorkItem(
   if (candidate.gate_status === 'awaiting_approval') {
     return false;
   }
-
-  const successorStageName = nextStageNameFor(definition, candidate.stage_name);
-  if (!successorStageName) {
+  if (
+    candidate.blocked_state === 'blocked'
+    || candidate.escalation_status === 'open'
+    || candidate.next_expected_actor
+    || candidate.next_expected_action
+  ) {
     return false;
   }
-  const successorExists = await hasImmediateSuccessor(
-    identity.tenantId,
-    workflowId,
-    workItemId,
-    successorStageName,
-    client,
-  );
-  if (!successorExists) {
-    return false;
+
+  const successorStageName = nextStageNameFor(definition, candidate.stage_name);
+  if (successorStageName) {
+    const successorExists = await hasImmediateSuccessor(
+      identity.tenantId,
+      workflowId,
+      workItemId,
+      successorStageName,
+      client,
+    );
+    if (!successorExists) {
+      return false;
+    }
   }
 
   const openTaskCount = await countNonTerminalWorkItemTasks(
@@ -65,6 +76,19 @@ export async function maybeAutoCloseCompletedPlannedPredecessorWorkItem(
   if (openTaskCount > 0) {
     return false;
   }
+  if (await hasBlockingAssessmentResolution(identity.tenantId, workflowId, workItemId, client)) {
+    return false;
+  }
+
+  const completionCallouts = await loadLatestFullWorkItemHandoffCompletionCallouts(
+    identity.tenantId,
+    workflowId,
+    workItemId,
+    client,
+  );
+  if (!completionCallouts) {
+    return false;
+  }
 
   const terminalColumnId = terminalColumnIdFor(definition) ?? candidate.column_id;
   const completedAt = new Date();
@@ -72,6 +96,7 @@ export async function maybeAutoCloseCompletedPlannedPredecessorWorkItem(
     `UPDATE workflow_work_items
         SET column_id = $4,
             completed_at = COALESCE(completed_at, $5),
+            completion_callouts = $6::jsonb,
             next_expected_actor = NULL,
             next_expected_action = NULL,
             metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state',
@@ -81,7 +106,7 @@ export async function maybeAutoCloseCompletedPlannedPredecessorWorkItem(
         AND id = $3
         AND completed_at IS NULL
     RETURNING id`,
-    [identity.tenantId, workflowId, workItemId, terminalColumnId, completedAt],
+    [identity.tenantId, workflowId, workItemId, terminalColumnId, completedAt, completionCallouts],
   );
   if (!updateResult.rowCount) {
     return false;
@@ -168,6 +193,10 @@ async function loadClosureCandidate(
     `SELECT wi.stage_name,
             wi.column_id,
             wi.completed_at,
+            wi.blocked_state,
+            wi.escalation_status,
+            wi.next_expected_actor,
+            wi.next_expected_action,
             ws.gate_status
        FROM workflow_work_items wi
        JOIN workflow_stages ws
@@ -181,6 +210,70 @@ async function loadClosureCandidate(
     [tenantId, workflowId, workItemId],
   );
   return result.rows[0] ?? null;
+}
+
+async function loadLatestFullWorkItemHandoffCompletionCallouts(
+  tenantId: string,
+  workflowId: string,
+  workItemId: string,
+  client: DatabaseClient,
+) {
+  const result = await client.query<{ completion_callouts: Record<string, unknown> | null }>(
+    `SELECT th.completion_callouts
+       FROM task_handoffs th
+      WHERE th.tenant_id = $1
+        AND th.workflow_id = $2
+        AND th.work_item_id = $3
+        AND th.completion = 'full'
+      ORDER BY th.sequence DESC, th.created_at DESC
+      LIMIT 1`,
+    [tenantId, workflowId, workItemId],
+  );
+  return result.rows[0]?.completion_callouts ?? null;
+}
+
+async function hasBlockingAssessmentResolution(
+  tenantId: string,
+  workflowId: string,
+  workItemId: string,
+  client: DatabaseClient,
+) {
+  const result = await client.query<{ blocking_resolution: string | null }>(
+    `SELECT latest_assessment.resolution AS blocking_resolution
+       FROM LATERAL (
+         SELECT th.task_id AS subject_task_id,
+                NULLIF(COALESCE(NULLIF(th.role_data->>'subject_revision', '')::int, 0), 0) AS subject_revision
+           FROM task_handoffs th
+          WHERE th.tenant_id = $1
+            AND th.workflow_id = $2
+            AND th.work_item_id = $3
+            AND th.completion = 'full'
+            AND COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'
+          ORDER BY th.sequence DESC, th.created_at DESC
+          LIMIT 1
+       ) latest_delivery
+       JOIN LATERAL (
+         SELECT assessment_handoff.resolution
+           FROM (
+             SELECT DISTINCT ON (th.role)
+                    th.role,
+                    th.resolution
+               FROM task_handoffs th
+              WHERE th.tenant_id = $1
+                AND th.workflow_id = $2
+                AND th.work_item_id = $3
+                AND COALESCE(th.role_data->>'task_kind', '') = 'assessment'
+                AND COALESCE(th.role_data->>'subject_task_id', '') = COALESCE(latest_delivery.subject_task_id::text, '')
+                AND COALESCE(NULLIF(th.role_data->>'subject_revision', '')::int, -1) = COALESCE(latest_delivery.subject_revision, -1)
+                AND th.resolution IN ('approved', 'request_changes', 'rejected', 'blocked')
+              ORDER BY th.role, th.sequence DESC, th.created_at DESC
+           ) assessment_handoff
+          WHERE assessment_handoff.resolution IN ('request_changes', 'rejected', 'blocked')
+          LIMIT 1
+       ) latest_assessment ON true`,
+    [tenantId, workflowId, workItemId],
+  );
+  return Boolean(result.rows[0]?.blocking_resolution);
 }
 
 async function hasImmediateSuccessor(
