@@ -267,7 +267,9 @@ export function WorkflowLiveConsole(props: {
                 size="sm"
                 variant={followMode === 'live' ? 'secondary' : 'ghost'}
                 data-live-console-follow-control="live"
+                data-state={followMode === 'live' ? 'active' : 'inactive'}
                 aria-pressed={followMode === 'live'}
+                title="Follow the latest terminal output"
                 className="h-7 border border-slate-700/80 bg-slate-900/80 font-mono text-[11px] uppercase tracking-[0.16em] text-slate-100 hover:bg-slate-800/80 hover:text-slate-50"
                 onClick={() => {
                   const container = containerRef.current;
@@ -287,7 +289,9 @@ export function WorkflowLiveConsole(props: {
                 size="sm"
                 variant={followMode === 'paused' ? 'secondary' : 'ghost'}
                 data-live-console-follow-control="pause"
+                data-state={followMode === 'paused' ? 'active' : 'inactive'}
                 aria-pressed={followMode === 'paused'}
+                title="Pause terminal follow mode"
                 className="h-7 border border-slate-700/80 bg-slate-900/80 font-mono text-[11px] uppercase tracking-[0.16em] text-slate-100 hover:bg-slate-800/80 hover:text-slate-50"
                 onClick={() => setFollowMode('paused')}
               >

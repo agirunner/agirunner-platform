@@ -78,8 +78,10 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('Following live');
     expect(html).toContain('data-state="active"');
     expect(html).toContain('data-state="inactive"');
-    expect(html).toContain('aria-pressed="true">Live<');
-    expect(html).toContain('aria-pressed="false">Pause<');
+    expect(html).toContain('data-live-console-follow-control="live"');
+    expect(html).toContain('data-live-console-follow-control="pause"');
+    expect(html).toContain('aria-pressed="true" title="Follow the latest terminal output">Live<');
+    expect(html).toContain('aria-pressed="false" title="Pause terminal follow mode">Pause<');
     expect(html).toContain('data-live-console-filter-count="7"');
     expect(html).toContain('data-live-console-filter-count="1"');
     expect(html).toContain('All');
@@ -112,11 +114,12 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('border-b border-slate-800/80 bg-slate-950/80');
     expect(html).toContain('inline-flex min-w-0 items-center gap-2 rounded-md border px-2.5 py-1.5');
     expect(html).toContain('grid gap-px');
-    expect(html).toContain('break-words');
+    expect(html).toContain('min-w-0 truncate text-slate-100');
     expect(html).toContain('flex min-h-0 flex-1 flex-col overflow-hidden');
     expect(html).toContain('flex min-w-0 items-center gap-3');
     expect(html).toContain('ml-auto flex shrink-0 items-center gap-1.5');
     expect(html).toContain('min-h-0 flex-1 overflow-x-hidden overflow-y-auto');
+    expect(html).not.toContain('break-words');
     expect(html).not.toContain('max-h-[28rem]');
     expect(html).not.toContain('Older lines stream in automatically as you scroll upward.');
   });
@@ -303,7 +306,7 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('Canonical brief summary.');
   });
 
-  it('keeps terminal rows readable on narrow screens by wrapping the line and stacking the timestamp', () => {
+  it('keeps terminal rows on a single line with truncation up to the timestamp column', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowLiveConsole, {
         packet: createPacket([
@@ -323,10 +326,29 @@ describe('WorkflowLiveConsole', () => {
       }),
     );
 
-    expect(html).toContain('min-w-0 break-words text-slate-100');
-    expect(html).toContain('text-left text-xs text-slate-500');
-    expect(html).toContain('sm:text-right');
+    expect(html).toContain('grid min-w-0 grid-cols-[minmax(0,1fr)_auto]');
+    expect(html).toContain('min-w-0 truncate text-slate-100');
+    expect(html).toContain('shrink-0 text-right text-xs text-slate-500');
     expect(html).toContain('overflow-x-hidden overflow-y-auto');
+    expect(html).not.toContain('break-words');
+    expect(html).not.toContain('text-left text-xs text-slate-500');
+    expect(html).not.toContain('sm:text-right');
+  });
+
+  it('labels live and pause controls so the terminal follow state stays explicit', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowLiveConsole, {
+        packet: createPacket([]),
+        scopeLabel: 'Workflow: Release workflow',
+        scopeSubject: 'workflow',
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('title="Follow the latest terminal output"');
+    expect(html).toContain('title="Pause terminal follow mode"');
+    expect(html).toContain('data-state="active"');
+    expect(html).toContain('data-state="inactive"');
   });
 
   it('hides the older-headlines control when no more backfill cursor is available', () => {
