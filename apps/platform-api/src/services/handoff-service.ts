@@ -1107,11 +1107,25 @@ function normalizeTaskLocalHandoffReferences<T extends Record<string, unknown>>(
   wasRepaired: boolean;
 } {
   const artifactIds = Array.isArray(payload.artifact_ids) ? payload.artifact_ids : [];
-  const normalization = normalizeTaskLocalHandoffValue(payload, artifactIds.length > 0);
+  const canRepairOutputPath = artifactIds.length > 0 || containsStableArtifactLogicalPath(payload);
+  const normalization = normalizeTaskLocalHandoffValue(payload, canRepairOutputPath);
   return {
     payload: normalization.value as T,
     wasRepaired: normalization.wasRepaired,
   };
+}
+
+function containsStableArtifactLogicalPath(value: unknown): boolean {
+  if (typeof value === 'string') {
+    return /\bartifact:[^\s"'`),\]]+/i.test(value);
+  }
+  if (Array.isArray(value)) {
+    return value.some((entry) => containsStableArtifactLogicalPath(entry));
+  }
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  return Object.values(value as Record<string, unknown>).some((entry) => containsStableArtifactLogicalPath(entry));
 }
 
 function normalizeTaskLocalHandoffValue(
