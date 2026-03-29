@@ -218,7 +218,7 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).toContain('Prepare release bundle');
     expect(html).toContain('Assemble final artifacts for launch.');
     expect(html).toContain('1 active task');
-    expect(html).toContain('1 active • 0 blocked • 0 completed');
+    expect(html).not.toContain('1 active • 0 blocked • 0 completed');
     expect(html).toContain('Verify deliverable');
     expect(html).toContain('Reviewer');
     expect(html).toContain('In Progress');
