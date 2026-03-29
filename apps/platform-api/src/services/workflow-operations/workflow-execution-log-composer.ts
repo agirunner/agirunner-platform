@@ -69,7 +69,7 @@ function buildExecutionTurnHeadline(row: LogRow): string {
     case 'agent.act': {
       const actionHeadline = buildActionInvocationHeadline(payload);
       return (
-        readOperatorReadableField(payload, ['headline', 'text_preview'])
+        readActText(payload, actionHeadline)
         ?? actionHeadline
         ?? buildSubjectHeadline('Working through', subject, 'Working through the next execution step')
       );
@@ -178,6 +178,21 @@ function buildActionInvocationHeadline(payload: Record<string, unknown>): string
     return null;
   }
   return `calling ${actionName}(${args.join(', ')})`;
+}
+
+function readActText(
+  payload: Record<string, unknown>,
+  actionHeadline: string | null,
+): string | null {
+  const explicitHeadline = readOperatorReadableField(payload, ['headline']);
+  if (explicitHeadline) {
+    return explicitHeadline;
+  }
+  const textPreview = readOperatorReadableField(payload, ['text_preview']);
+  if (textPreview && !looksLikeSyntheticActionPreview(textPreview, actionHeadline)) {
+    return textPreview;
+  }
+  return null;
 }
 
 function shouldRenderExecutionTurn(row: LogRow): boolean {
@@ -342,12 +357,32 @@ function formatPathRangeSummary(input: Record<string, unknown>): string | null {
   if (!path) {
     return null;
   }
+  if (isLogicalContextLabel(path)) {
+    return path;
+  }
   const offset = readOptionalNumber(input.offset);
   const limit = readOptionalNumber(input.limit);
   if (offset === null || limit === null) {
     return truncate(path, 72);
   }
   return truncate(`${path}:${offset}-${offset + limit - 1}`, 72);
+}
+
+function isLogicalContextLabel(value: string): boolean {
+  return (
+    value === 'task input'
+    || value === 'task context'
+    || value === 'workflow context'
+    || value === 'workspace context'
+    || value === 'workspace memory'
+    || value === 'execution brief'
+    || value === 'work item context'
+    || value === 'execution context'
+    || value === 'upstream context'
+    || value === 'predecessor handoff'
+    || value === 'orchestrator context'
+    || value === 'activation checkpoint'
+  );
 }
 
 function readOptionalNumber(value: unknown): number | null {
@@ -372,11 +407,19 @@ function sanitizePathLikeArg(value: string | null): string | null {
   if (!path) {
     return null;
   }
+  const contextLabel = describeLogicalContextPath(path);
+  if (contextLabel) {
+    return contextLabel;
+  }
   if (looksLikeSuppressedContextPath(path)) {
     return null;
   }
   if (path.startsWith('/tmp/workspace/')) {
     const relative = extractWorkspaceRelativePath(path);
+    const relativeContextLabel = describeLogicalContextPath(relative);
+    if (relativeContextLabel) {
+      return relativeContextLabel;
+    }
     if (!relative || looksLikeSuppressedContextPath(relative)) {
       return null;
     }
@@ -425,6 +468,57 @@ function looksLikeSuppressedContextPath(path: string): boolean {
     || path === 'workspace/context'
     || path.startsWith('workspace/context/')
   );
+}
+
+function describeLogicalContextPath(path: string | null): string | null {
+  const normalized = readString(path)?.replace(/\\/g, '/');
+  if (!normalized) {
+    return null;
+  }
+  const filename = normalized.split('/').at(-1);
+  switch (filename) {
+    case 'task-input.json':
+    case 'task-input.md':
+      return 'task input';
+    case 'task-context.json':
+    case 'current-task.json':
+    case 'current-task.md':
+      return 'task context';
+    case 'workflow-context.json':
+    case 'current-workflow.json':
+    case 'current-workflow.md':
+      return 'workflow context';
+    case 'workspace-context.json':
+    case 'workspace-context.md':
+      return 'workspace context';
+    case 'workspace-memory.json':
+    case 'workspace-memory.md':
+      return 'workspace memory';
+    case 'execution-brief.json':
+    case 'execution-brief.md':
+      return 'execution brief';
+    case 'work-item.json':
+    case 'work-item.md':
+      return 'work item context';
+    case 'execution-context.json':
+    case 'execution-context.md':
+      return 'execution context';
+    case 'upstream-context.json':
+    case 'upstream-context.md':
+      return 'upstream context';
+    case 'predecessor_handoff.json':
+    case 'predecessor-handoff.json':
+    case 'predecessor-handoff.md':
+      return 'predecessor handoff';
+    case 'orchestrator-context.json':
+    case 'orchestrator-context.md':
+      return 'orchestrator context';
+    case 'activation-checkpoint.json':
+    case 'activation-checkpoint.md':
+      return 'activation checkpoint';
+    default:
+      return null;
+  }
 }
 
 function readActionName(payload: Record<string, unknown>): string | null {
@@ -546,6 +640,20 @@ function readOperatorReadableText(value: string | null, maxLength: number): stri
     return null;
   }
   return trimmed;
+}
+
+function looksLikeSyntheticActionPreview(value: string, actionHeadline: string | null): boolean {
+  const normalized = value.trim().toLowerCase();
+  if (normalized.startsWith('calling ')) {
+    return true;
+  }
+  if (normalized === 'tool execution in progress') {
+    return true;
+  }
+  if (!actionHeadline) {
+    return false;
+  }
+  return normalized === actionHeadline.toLowerCase();
 }
 
 function looksLikeLowValueConsoleText(value: string): boolean {

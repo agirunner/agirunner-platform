@@ -209,6 +209,24 @@ describe('workflow-execution-log-composer', () => {
     expect(items).toEqual([]);
   });
 
+  it('prefers sanitized action-call args over empty synthetic calling previews', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '22cc',
+        operation: 'agent.act',
+        payload: {
+          tool: 'file_read',
+          text_preview: 'calling file_read()',
+          input: {
+            path: '/tmp/workspace/task-4df24677-e56d-42e5-9c75-d86e9d8c01cf/context/task-input.json',
+          },
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe('calling file_read(path="task input")');
+  });
+
   it('suppresses empty action calls when the tool payload carries no operator-meaningful args', () => {
     const items = buildExecutionTurnItems([
       createLogRow({
@@ -254,7 +272,7 @@ describe('workflow-execution-log-composer', () => {
   });
 
   it('suppresses file-read fallbacks when the only path is a temp workspace context path', () => {
-    const items = buildExecutionTurnItems([
+    const [item] = buildExecutionTurnItems([
       createLogRow({
         id: '22da',
         operation: 'agent.act',
@@ -269,7 +287,7 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(items).toEqual([]);
+    expect(item.headline).toBe('calling file_read(path="task context")');
   });
 
   it('formats artifact-style file actions using safe logical paths instead of temp workspace paths', () => {
