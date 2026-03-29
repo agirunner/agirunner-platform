@@ -209,6 +209,8 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Assemble final artifacts for launch.');
     expect(html).toContain('Workflow: Release Workflow');
     expect(html).toContain('Work item: Prepare release bundle');
+    expect(html.indexOf('Workflow: Release Workflow')).toBeLessThan(html.indexOf('Verify deliverable'));
+    expect(html.indexOf('Work item: Prepare release bundle')).toBeLessThan(html.indexOf('Verify deliverable'));
     expect(html).not.toContain('Check the final release packet and approve it.');
     expect(html).not.toContain('Task scope');
     expect(html).not.toContain('Owner role');
@@ -245,6 +247,46 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Release Notes');
     expect(html).toContain('Artifacts');
     expect(html).not.toContain('release-notes');
+  });
+
+  it('suppresses uuid-like task metadata even when it arrives under generic labels', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: 'task-1',
+        selectedTaskTitle: 'Verify deliverable',
+        selectedWorkItem: createWorkItem(),
+        selectedTask: {
+          ...createTask(),
+          input: {
+            artifact: '5fbbf716-98eb-4676-bfe9-039d625f52c2',
+            subject: 'e32f9632-a05c-4d14-b65b-d7275e735abb',
+            review_focus: 'confirm final packet',
+          },
+        },
+        selectedWorkItemTasks: [],
+        inputPackets: createPackets(),
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Verify deliverable',
+          banner: 'Task: Verify deliverable',
+        },
+      }),
+    );
+
+    expect(html).toContain('Review Focus');
+    expect(html).toContain('confirm final packet');
+    expect(html).not.toContain('5fbbf716-98eb-4676-bfe9-039d625f52c2');
+    expect(html).not.toContain('e32f9632-a05c-4d14-b65b-d7275e735abb');
+    expect(html).not.toContain('Artifact</dt>');
+    expect(html).not.toContain('Subject</dt>');
   });
 
   it('fills thin task scope with parent work-item inputs instead of showing an empty task-only pane', () => {

@@ -47,19 +47,26 @@ export function WorkflowDetails(props: {
     || hasTaskInput
     || (isWorkflowScope && hasStructuredContent(props.workflowParameters));
   const scopeLabel = readScopeLabel(props.scope.scopeKind);
-  const detailLines = buildDetailLines(scope);
+  const detailSections = buildDetailSections(scope, props.scope.scopeKind);
 
   return (
     <section className="grid gap-3 pb-1">
       <header className="grid gap-1 border-b border-border/60 pb-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{scopeLabel}</p>
+        {detailSections.context.length > 0 ? (
+          <div className="grid gap-1 text-sm text-muted-foreground">
+            {detailSections.context.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+        ) : null}
         <h3 className="text-base font-semibold text-foreground">{scope.title}</h3>
         {scope.summary ? (
           <p className="text-sm text-muted-foreground">{scope.summary}</p>
         ) : null}
-        {detailLines.length > 0 ? (
+        {detailSections.secondary.length > 0 ? (
           <div className="grid gap-1 text-sm text-muted-foreground">
-            {detailLines.map((line) => (
+            {detailSections.secondary.map((line) => (
               <p key={line}>{line}</p>
             ))}
           </div>
@@ -270,6 +277,34 @@ function buildDetailsScope(props: {
   };
 }
 
+function buildDetailSections(
+  input: {
+    latest_status: string;
+    workflow_name: string | null;
+    parent_work_item: string | null;
+    task_summary: string | null;
+  },
+  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
+): {
+  context: string[];
+  secondary: string[];
+} {
+  const allLines = buildDetailLines(input);
+  if (scopeKind !== 'selected_task') {
+    return {
+      context: [],
+      secondary: allLines,
+    };
+  }
+
+  const context = allLines.filter((line) => line.startsWith('Workflow:') || line.startsWith('Work item:'));
+  const secondary = allLines.filter((line) => !context.includes(line));
+  return {
+    context,
+    secondary,
+  };
+}
+
 function buildDetailLines(input: {
   latest_status: string;
   workflow_name: string | null;
@@ -430,6 +465,9 @@ function filterOperatorFacingInputRecord(value: Record<string, unknown>): Record
     if (normalizedValue === null) {
       continue;
     }
+    if (shouldSuppressOpaqueOperatorFacingValue(key, normalizedValue)) {
+      continue;
+    }
     filtered[key] = normalizedValue;
   }
   return filtered;
@@ -455,7 +493,8 @@ function shouldRenderOperatorFacingTaskInputKey(key: string): boolean {
 
 function normalizeOperatorFacingTaskInputValue(value: unknown): unknown {
   if (typeof value === 'string') {
-    return value.trim().length > 0 ? value.trim() : null;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
   }
   if (typeof value === 'number' || typeof value === 'boolean') {
     return value;
@@ -467,6 +506,34 @@ function normalizeOperatorFacingTaskInputValue(value: unknown): unknown {
     return items.length > 0 ? items : null;
   }
   return null;
+}
+
+function shouldSuppressOpaqueOperatorFacingValue(key: string, value: unknown): boolean {
+  const normalizedKey = key.trim().toLowerCase();
+  if (!looksLikeInternalReferenceLabel(normalizedKey)) {
+    return false;
+  }
+  if (typeof value === 'string') {
+    return looksLikeOpaqueIdentifier(value);
+  }
+  if (Array.isArray(value)) {
+    return value.length > 0 && value.every((entry) => typeof entry === 'string' && looksLikeOpaqueIdentifier(entry));
+  }
+  return false;
+}
+
+function looksLikeInternalReferenceLabel(value: string): boolean {
+  return value === 'artifact'
+    || value === 'artifacts'
+    || value === 'subject'
+    || value === 'subjects'
+    || value === 'task'
+    || value === 'tasks'
+    || value === 'workflow'
+    || value === 'work_item'
+    || value === 'work item'
+    || value === 'activation'
+    || value === 'execution_context';
 }
 
 function renderStructuredValue(value: unknown): string | null {
@@ -518,6 +585,10 @@ function humanizeStructuredText(value: string): string {
 
 function looksLikeMachineToken(value: string): boolean {
   return /^[a-z0-9]+(?:[_-][a-z0-9]+)*$/i.test(value);
+}
+
+function looksLikeOpaqueIdentifier(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function pluralize(value: string, count: number): string {
