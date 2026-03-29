@@ -28,8 +28,8 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('All stages');
     expect(html).toContain('All lanes');
     expect(html).toContain('flex min-w-0 flex-wrap items-center gap-2 pb-1');
-    expect(html).toContain('min-h-0 flex-1 overflow-auto pb-1');
-    expect(html).toContain('flex h-full min-h-[18rem] min-w-0 flex-col gap-2 overflow-hidden px-1 py-1 lg:min-h-0');
+    expect(html).toContain('min-h-0 flex-1 overflow-x-auto overflow-y-auto pb-1');
+    expect(html).toContain('flex h-full min-h-[15rem] min-w-0 flex-col gap-3 overflow-hidden px-3 py-3 sm:min-h-[18rem] lg:min-h-0');
     expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/90 p-2.5 shadow-sm');
     expect(html).not.toContain('rounded-2xl bg-background/90 p-2.5');
     expect(html).not.toContain('flex flex-wrap items-center justify-between gap-3');
@@ -190,7 +190,7 @@ describe('WorkflowBoard', () => {
     );
 
     expect(html).toContain(
-      'grid gap-3 md:grid-flow-col md:auto-cols-[minmax(17.5rem,1fr)] md:items-start',
+      'grid w-max min-w-full gap-3 md:grid-flow-col md:auto-cols-[minmax(18rem,1fr)] md:items-start',
     );
     expect(html).toContain(
       'grid min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5',
@@ -204,6 +204,28 @@ describe('WorkflowBoard', () => {
     expect(html).not.toContain(
       'grid h-full min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5',
     );
+  });
+
+  it('keeps the terminal lane inside a horizontally scrollable board track so done items stay reachable on desktop', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: createWideBoard(),
+          selectedWorkItemId: null,
+          boardMode: 'active_recent_complete',
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('overflow-x-auto overflow-y-auto');
+    expect(html).toContain('grid w-max min-w-full gap-3 md:grid-flow-col md:auto-cols-[minmax(18rem,1fr)] md:items-start');
+    expect(html).toContain('Terminal lane');
+    expect(html).toContain('Completed packet 1');
   });
 
   it('keeps the board work-item-first even when stale task-lens state is supplied', () => {
@@ -667,6 +689,43 @@ function createBoardWithRecentCompletion(): DashboardWorkflowBoardResponse {
         priority: 'normal',
         column_id: 'done',
         completed_at: new Date(Date.now() - 3_000).toISOString(),
+        task_count: 1,
+      },
+    ],
+    active_stages: ['intake-triage'],
+    awaiting_gate_count: 0,
+    stage_summary: [],
+  };
+}
+
+function createWideBoard(): DashboardWorkflowBoardResponse {
+  return {
+    columns: [
+      { id: 'backlog', label: 'Backlog' },
+      { id: 'planned', label: 'Planned' },
+      { id: 'active', label: 'Active' },
+      { id: 'blocked', label: 'Blocked', is_blocked: true },
+      { id: 'review', label: 'Review' },
+      { id: 'done', label: 'Done', is_terminal: true },
+    ],
+    work_items: [
+      {
+        id: 'work-item-1',
+        workflow_id: 'workflow-1',
+        stage_name: 'intake-triage',
+        title: 'Review incoming packet',
+        priority: 'normal',
+        column_id: 'active',
+        task_count: 2,
+      },
+      {
+        id: 'work-item-2',
+        workflow_id: 'workflow-1',
+        stage_name: 'delivery',
+        title: 'Completed packet 1',
+        priority: 'normal',
+        column_id: 'done',
+        completed_at: new Date().toISOString(),
         task_count: 1,
       },
     ],

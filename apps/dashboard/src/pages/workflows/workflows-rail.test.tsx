@@ -18,6 +18,7 @@ describe('WorkflowsRail', () => {
     expect(source).toContain('persistedScrollTopRef.current = scrollRef.current.scrollTop;');
     expect(source).toContain('persistedScrollTopRef.current = element.scrollTop;');
     expect(source).toContain('scrollRef.current.scrollTop = persistedScrollTopRef.current;');
+    expect(source).not.toContain('renderedRowSignature');
   });
 
   it('pins the current workflow when filters move it outside the visible rail rows', () => {
@@ -78,11 +79,12 @@ describe('WorkflowsRail', () => {
       }),
     );
 
-    expect(html).toContain('bg-sky-100/95');
+    expect(html).toContain('bg-sky-700/95');
     expect(html).toContain('ring-2');
     expect(html).toContain('ring-offset-2');
-    expect(html).toContain('shadow-[0_18px_48px_rgba(14,165,233,0.34)]');
+    expect(html).toContain('shadow-[0_22px_54px_rgba(2,132,199,0.34)]');
     expect(html).toContain('text-inherit');
+    expect(html).toContain('text-white');
     expect(html).not.toContain('bg-amber-100');
   });
 

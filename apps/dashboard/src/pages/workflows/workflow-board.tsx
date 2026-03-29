@@ -106,7 +106,7 @@ export function WorkflowBoard(props: {
   }
 
   return (
-    <section className="flex h-full min-h-[18rem] min-w-0 flex-col gap-2 overflow-hidden px-1 py-1 lg:min-h-0">
+    <section className="flex h-full min-h-[15rem] min-w-0 flex-col gap-3 overflow-hidden px-3 py-3 sm:min-h-[18rem] lg:min-h-0">
       <div className="grid gap-2">
         <div className="flex min-w-0 items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
@@ -174,8 +174,8 @@ export function WorkflowBoard(props: {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-auto pb-1">
-        <div className="grid gap-3 md:grid-flow-col md:auto-cols-[minmax(17.5rem,1fr)] md:items-start">
+      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto pb-1">
+        <div className="grid w-max min-w-full gap-3 md:grid-flow-col md:auto-cols-[minmax(18rem,1fr)] md:items-start">
           {boardView.lanes.map((lane) => (
             <BoardLaneCard
               key={lane.column.id}
