@@ -7,6 +7,8 @@ import {
   describeWorkflowConsoleEmptyState,
   describeWorkflowConsoleScope,
   filterWorkflowConsoleItems,
+  getWorkflowConsoleFollowBehavior,
+  getWorkflowConsoleEntryPrefix,
   getWorkflowConsoleEntryStyle,
   getWorkflowConsoleLineText,
   orderWorkflowConsoleItemsForDisplay,
@@ -102,6 +104,19 @@ describe('workflow live console support', () => {
     ).toBe('Summary fallback');
   });
 
+  it('reports the brief label prefix only for milestone briefs', () => {
+    expect(getWorkflowConsoleEntryPrefix(createItem({
+      item_id: 'brief-2',
+      item_kind: 'milestone_brief',
+      headline: 'Approval milestone brief published.',
+    }))).toBe('[Brief]');
+    expect(getWorkflowConsoleEntryPrefix(createItem({
+      item_id: 'turn-2',
+      item_kind: 'execution_turn',
+      headline: '[Think] Reviewed the latest handoff.',
+    }))).toBeNull();
+  });
+
   it('describes when filter counts only cover the currently loaded window', () => {
     const items = createItems();
 
@@ -160,6 +175,42 @@ describe('workflow live console support', () => {
         scrollTop: 24,
       }),
     ).toBe(false);
+  });
+
+  it('auto-follows appended entries only while live follow is enabled', () => {
+    expect(
+      getWorkflowConsoleFollowBehavior({
+        followMode: 'live',
+        prependedHistory: false,
+        appendedLiveUpdate: true,
+        hasPreviousItems: true,
+      }),
+    ).toEqual({
+      shouldScrollToBottom: true,
+      shouldQueueUpdates: false,
+    });
+    expect(
+      getWorkflowConsoleFollowBehavior({
+        followMode: 'paused',
+        prependedHistory: false,
+        appendedLiveUpdate: true,
+        hasPreviousItems: true,
+      }),
+    ).toEqual({
+      shouldScrollToBottom: false,
+      shouldQueueUpdates: true,
+    });
+    expect(
+      getWorkflowConsoleFollowBehavior({
+        followMode: 'paused',
+        prependedHistory: true,
+        appendedLiveUpdate: false,
+        hasPreviousItems: true,
+      }),
+    ).toEqual({
+      shouldScrollToBottom: false,
+      shouldQueueUpdates: false,
+    });
   });
 
   it('keeps terminal rows flat while tinting the prompt by role family', () => {

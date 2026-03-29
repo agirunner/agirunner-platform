@@ -3,20 +3,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import type { DashboardWorkflowLiveConsolePacket } from '../../../lib/api.js';
-import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
 import {
   buildWorkflowConsoleFilterDescriptors,
   describeWorkflowConsoleCoverage,
   describeWorkflowConsoleEmptyState,
   describeWorkflowConsoleScope,
   filterWorkflowConsoleItems,
-  formatWorkflowActivitySourceLabel,
-  getWorkflowConsoleLineText,
-  getWorkflowConsoleEntryStyle,
+  getWorkflowConsoleFollowBehavior,
   orderWorkflowConsoleItemsForDisplay,
   shouldPrefetchWorkflowConsoleHistory,
   type WorkflowConsoleFilter,
+  type WorkflowConsoleFollowMode,
 } from './workflow-live-console.support.js';
+import { WorkflowLiveConsoleEntry } from './workflow-live-console-entry.js';
 
 const LIVE_EDGE_THRESHOLD_PX = 48;
 const TERMINAL_SURFACE_CLASS_NAME =
@@ -47,7 +46,7 @@ export function WorkflowLiveConsole(props: {
     scrollTop: 0,
   });
   const backfillCursorRef = useRef<string | null>(null);
-  const [isPinnedToLiveEdge, setIsPinnedToLiveEdge] = useState(true);
+  const [followMode, setFollowMode] = useState<WorkflowConsoleFollowMode>('live');
   const [hasQueuedUpdates, setHasQueuedUpdates] = useState(false);
   const [isLoadingOlderHistory, setIsLoadingOlderHistory] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<WorkflowConsoleFilter>('all');
@@ -83,7 +82,6 @@ export function WorkflowLiveConsole(props: {
     }
 
     container.scrollTop = container.scrollHeight;
-    setIsPinnedToLiveEdge(true);
     setHasQueuedUpdates(false);
     setIsLoadingOlderHistory(false);
     const currentVisibleItems = visibleItemsRef.current;
@@ -119,14 +117,21 @@ export function WorkflowLiveConsole(props: {
       return;
     }
 
+    const followBehavior = getWorkflowConsoleFollowBehavior({
+      followMode,
+      prependedHistory,
+      appendedLiveUpdate,
+      hasPreviousItems: previousMetrics.lastItemId.length > 0,
+    });
+
     if (prependedHistory) {
       const scrollDelta = container.scrollHeight - previousMetrics.scrollHeight;
       container.scrollTop = previousMetrics.scrollTop + scrollDelta;
       setIsLoadingOlderHistory(false);
-    } else if (!previousMetrics.lastItemId || (appendedLiveUpdate && isPinnedToLiveEdge)) {
+    } else if (followBehavior.shouldScrollToBottom) {
       container.scrollTop = container.scrollHeight;
       setHasQueuedUpdates(false);
-    } else if (appendedLiveUpdate) {
+    } else if (followBehavior.shouldQueueUpdates) {
       setHasQueuedUpdates(true);
     }
 
@@ -136,7 +141,7 @@ export function WorkflowLiveConsole(props: {
       scrollHeight: container.scrollHeight,
       scrollTop: container.scrollTop,
     };
-  }, [isPinnedToLiveEdge, visibleItems]);
+  }, [followMode, visibleItems]);
 
   useEffect(() => {
     if (backfillCursorRef.current !== props.packet.next_cursor) {
@@ -156,29 +161,68 @@ export function WorkflowLiveConsole(props: {
         </div>
         <div className="flex items-center gap-2">
           {scopeSubject !== 'workflow' ? <Badge variant="outline">{props.scopeLabel}</Badge> : null}
-          {hasQueuedUpdates ? (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => {
-                const container = containerRef.current;
-                if (!container) {
-                  return;
-                }
-                container.scrollTop = container.scrollHeight;
-                setIsPinnedToLiveEdge(true);
-                setHasQueuedUpdates(false);
-              }}
-            >
-              Jump to latest
-            </Button>
-          ) : null}
         </div>
       </div>
 
-      <div data-live-console-surface="terminal" className={TERMINAL_SURFACE_CLASS_NAME}>
+      <div
+        data-live-console-surface="terminal"
+        data-live-console-follow-mode={followMode}
+        className={TERMINAL_SURFACE_CLASS_NAME}
+      >
         <div className={TERMINAL_TOOLBAR_CLASS_NAME}>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={followMode === 'live' ? 'secondary' : 'ghost'}
+                data-live-console-follow-control="live"
+                aria-pressed={followMode === 'live'}
+                className="h-7 border border-slate-700/80 bg-slate-900/80 font-mono text-[11px] uppercase tracking-[0.16em] text-slate-100 hover:bg-slate-800/80 hover:text-slate-50"
+                onClick={() => {
+                  const container = containerRef.current;
+                  if (!container) {
+                    return;
+                  }
+                  container.scrollTop = container.scrollHeight;
+                  setFollowMode('live');
+                  setHasQueuedUpdates(false);
+                }}
+              >
+                Live
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={followMode === 'paused' ? 'secondary' : 'ghost'}
+                data-live-console-follow-control="pause"
+                aria-pressed={followMode === 'paused'}
+                className="h-7 border border-slate-700/80 bg-slate-900/80 font-mono text-[11px] uppercase tracking-[0.16em] text-slate-100 hover:bg-slate-800/80 hover:text-slate-50"
+                onClick={() => setFollowMode('paused')}
+              >
+                Pause
+              </Button>
+            </div>
+            {hasQueuedUpdates ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="h-7 border border-slate-700/80 bg-slate-900/70 font-mono text-[11px] uppercase tracking-[0.16em] text-slate-200 hover:bg-slate-800/80 hover:text-slate-50"
+                onClick={() => {
+                  const container = containerRef.current;
+                  if (!container) {
+                    return;
+                  }
+                  container.scrollTop = container.scrollHeight;
+                  setHasQueuedUpdates(false);
+                }}
+              >
+                Jump to latest
+              </Button>
+            ) : null}
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
             {filterDescriptors.map((descriptor) => {
               const isSelected = selectedFilter === descriptor.filter;
               return (
@@ -212,11 +256,10 @@ export function WorkflowLiveConsole(props: {
           className="max-h-[28rem] overflow-x-hidden overflow-y-auto bg-transparent px-0 py-2 font-mono text-sm text-slate-100"
           onScroll={(event) => {
             const element = event.currentTarget;
-            const nextPinned =
+            const isNearLiveEdge =
               element.scrollHeight - element.clientHeight - element.scrollTop <=
               LIVE_EDGE_THRESHOLD_PX;
-            setIsPinnedToLiveEdge(nextPinned);
-            if (nextPinned) {
+            if (isNearLiveEdge) {
               setHasQueuedUpdates(false);
             }
             scrollMetricsRef.current.scrollHeight = element.scrollHeight;
@@ -239,36 +282,11 @@ export function WorkflowLiveConsole(props: {
                 {describeWorkflowConsoleEmptyState(selectedFilter, props.scopeLabel)}
               </div>
             ) : (
-              visibleItems.map((item) => <LiveConsoleEntry key={item.item_id} item={item} />)
+              visibleItems.map((item) => <WorkflowLiveConsoleEntry key={item.item_id} item={item} />)
             )}
           </div>
         </div>
       </div>
     </div>
-  );
-}
-
-function LiveConsoleEntry(props: {
-  item: DashboardWorkflowLiveConsolePacket['items'][number];
-}): JSX.Element {
-  const { item } = props;
-  const sourceLabel = formatWorkflowActivitySourceLabel(item.source_label, item.source_kind);
-  const entryStyle = getWorkflowConsoleEntryStyle(item.item_kind, item.source_kind);
-
-  return (
-    <article
-      data-terminal-entry={entryStyle.dataKind}
-      data-terminal-source={item.source_kind}
-      className={`grid gap-1 px-4 py-2 font-mono leading-6 text-sm text-slate-100 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-3 ${entryStyle.entryClassName}`}
-    >
-      <p className="min-w-0 break-words text-slate-100">
-        <span className={entryStyle.promptClassName}>&gt; </span>
-        <span className={`font-semibold ${entryStyle.sourceClassName}`}>{sourceLabel}: </span>
-        <span className="text-slate-100">{getWorkflowConsoleLineText(item)}</span>
-      </p>
-      <span className="pl-[1.35rem] text-left text-xs text-slate-500 sm:pl-0 sm:text-right">
-        {formatRelativeTimestamp(item.created_at)}
-      </span>
-    </article>
   );
 }

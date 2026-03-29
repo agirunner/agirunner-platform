@@ -40,6 +40,7 @@ const WORKFLOW_CONSOLE_ROLE_TONES = {
 
 export type WorkflowConsoleFilter = 'all' | 'turn_updates' | 'briefs';
 export type WorkflowConsoleScopeSubject = 'workflow' | 'work item' | 'task';
+export type WorkflowConsoleFollowMode = 'live' | 'paused';
 
 const WORKFLOW_CONSOLE_FILTER_LABELS: Record<WorkflowConsoleFilter, string> = {
   all: 'All',
@@ -66,6 +67,15 @@ export function getWorkflowConsoleLineText(item: DashboardWorkflowLiveConsoleIte
     return canonicalHeadline;
   }
   return normalizeWorkflowConsoleText(item.summary);
+}
+
+export function getWorkflowConsoleEntryPrefix(
+  item: DashboardWorkflowLiveConsoleItem,
+): '[Brief]' | null {
+  if (item.item_kind === 'milestone_brief') {
+    return '[Brief]';
+  }
+  return null;
 }
 
 export function buildWorkflowConsoleFilterDescriptors(items: DashboardWorkflowLiveConsoleItem[]): Array<{
@@ -148,6 +158,35 @@ export function shouldPrefetchWorkflowConsoleHistory(input: {
     return false;
   }
   return input.scrollTop <= WORKFLOW_CONSOLE_PREFETCH_THRESHOLD_PX;
+}
+
+export function getWorkflowConsoleFollowBehavior(input: {
+  followMode: WorkflowConsoleFollowMode;
+  prependedHistory: boolean;
+  appendedLiveUpdate: boolean;
+  hasPreviousItems: boolean;
+}): {
+  shouldScrollToBottom: boolean;
+  shouldQueueUpdates: boolean;
+} {
+  if (input.prependedHistory || !input.appendedLiveUpdate) {
+    return {
+      shouldScrollToBottom: !input.hasPreviousItems,
+      shouldQueueUpdates: false,
+    };
+  }
+
+  if (input.followMode === 'live' || !input.hasPreviousItems) {
+    return {
+      shouldScrollToBottom: true,
+      shouldQueueUpdates: false,
+    };
+  }
+
+  return {
+    shouldScrollToBottom: false,
+    shouldQueueUpdates: true,
+  };
 }
 
 export function getWorkflowConsoleEntryStyle(itemKind: string, sourceKind: string): {

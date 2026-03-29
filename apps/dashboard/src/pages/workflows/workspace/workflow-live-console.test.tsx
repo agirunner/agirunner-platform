@@ -70,13 +70,19 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('data-live-console-filter="all"');
     expect(html).toContain('data-live-console-filter="turn_updates"');
     expect(html).toContain('data-live-console-filter="briefs"');
+    expect(html).toContain('data-live-console-follow-mode="live"');
+    expect(html).toContain('data-live-console-follow-control="live"');
+    expect(html).toContain('data-live-console-follow-control="pause"');
     expect(html).toContain('data-state="active"');
     expect(html).toContain('data-state="inactive"');
+    expect(html).toContain('aria-pressed="true">Live<');
+    expect(html).toContain('aria-pressed="false">Pause<');
     expect(html).toContain('data-live-console-filter-count="3"');
     expect(html).toContain('data-live-console-filter-count="1"');
     expect(html).toContain('All');
     expect(html).toContain('Turn updates');
     expect(html).toContain('Briefs');
+    expect(html).toContain('[Brief]');
     expect(html).toContain('>1<');
     expect(html).toContain('>3<');
     expect(html).toContain('aria-pressed="true"');
@@ -85,6 +91,9 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('Updated retry handling.');
     expect(html).not.toContain('Execution turn completed for Implementation Engineer.');
     expect(html).toContain('Orchestrator:');
+    expect(html).toContain(
+      'Orchestrator: </span><span class="font-semibold text-emerald-200">[Brief] </span>',
+    );
     expect(html).toContain('Workflow reached approval milestone');
     expect(html).not.toContain('A structured brief was published.');
     expect(html).toContain('Platform:');
