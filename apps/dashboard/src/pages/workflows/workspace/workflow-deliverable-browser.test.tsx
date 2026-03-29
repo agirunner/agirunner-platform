@@ -34,10 +34,10 @@ describe('WorkflowDeliverableBrowser', () => {
       }),
     );
 
-    expect(html).toContain('Produced artifacts (1)');
-    expect(html).toContain('Download artifact');
+    expect(html).toContain('Files in this deliverable (1)');
+    expect(html).toContain('Download file');
     expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
-    expect(html).not.toContain('Canonical deliverable targets');
+    expect(html).not.toContain('Other deliverable targets');
   });
 
   it('renders inline-only canonical targets for non-artifact deliverables', () => {
@@ -68,7 +68,7 @@ describe('WorkflowDeliverableBrowser', () => {
       }),
     );
 
-    expect(html).toContain('Canonical deliverable targets');
+    expect(html).toContain('Other deliverable targets');
     expect(html).toContain('Workflow record (Workflow)');
     expect(html).toContain('Already visible in this workflow workspace.');
     expect(html).toContain('records/workflow-completion.md');
@@ -103,7 +103,7 @@ describe('WorkflowDeliverableBrowser', () => {
       }),
     );
 
-    expect(html).toContain('Download artifact');
+    expect(html).toContain('Download file');
     expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/download');
     expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
     expect(html).not.toContain(

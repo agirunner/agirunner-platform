@@ -24,8 +24,8 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Produced artifacts (1)');
-    expect(html).toContain('Download artifact');
+    expect(html).toContain('Files in this deliverable (1)');
+    expect(html).toContain('Download file');
     expect(html).toContain('<iframe');
     expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
     expect(html).not.toContain('/artifacts/tasks/task-1/artifact-1');
@@ -80,10 +80,10 @@ describe('WorkflowDeliverables', () => {
     );
 
     expect(html).toContain('Workflow deliverables (0)');
-    expect(html).toContain('Material output is currently available only as briefs for this layer.');
-    expect(html).toContain('Brief-backed output');
+    expect(html).toContain('Working briefs are currently the only material output for this layer.');
+    expect(html).toContain('Working brief');
     expect(html).toContain('No work item deliverables are available yet.');
-    expect(html).not.toContain('Briefs (1)');
+    expect(html).not.toContain('Working briefs (1)');
   });
 
   it('keeps rolled-up work-item finals visible in workflow scope alongside workflow-scoped packets', () => {
@@ -308,6 +308,8 @@ describe('WorkflowDeliverables', () => {
     );
     expect(html).toContain('Release bundle');
     expect(html).toContain('Release bundle brief');
+    expect(html).toContain('Working briefs (1)');
+    expect(html).not.toContain('Briefs (1)');
   });
 
   it('reclassifies final packets out of the in-progress bucket for selected task scope', () => {
@@ -627,7 +629,7 @@ describe('WorkflowDeliverables', () => {
 
     expect(html).toContain('Release bundle');
     expect(html).toContain('Operators should stay on the deliverables tab for this packet.');
-    expect(html).not.toContain('Produced artifacts');
+    expect(html).not.toContain('Files in this deliverable');
     expect(html).not.toContain('href="/workflows/workflow-1/deliverables/deliverable-inline-only"');
     expect(html).not.toContain('Open artifact in new tab');
   });
@@ -672,9 +674,9 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Produced artifacts (25)');
+    expect(html).toContain('Files in this deliverable (25)');
     expect(html).toContain('Artifact 25');
-    expect(html).not.toContain('Produced artifacts (20)');
+    expect(html).not.toContain('Files in this deliverable (20)');
   });
 
   it('keeps work-item scope on brief-backed outputs when no materialized deliverables exist for the selected work item', () => {
@@ -763,7 +765,7 @@ describe('WorkflowDeliverables', () => {
     );
 
     expect(html).toContain('Work item deliverables (0)');
-    expect(html).toContain('Material output is currently available only as briefs for this layer.');
+    expect(html).toContain('Working briefs are currently the only material output for this layer.');
     expect(html).toContain('workflow-intake-01 is approved and ready to remain open.');
     expect(html).toContain('Workflow deliverables (1)');
     expect(html).toContain('Workflow release brief');

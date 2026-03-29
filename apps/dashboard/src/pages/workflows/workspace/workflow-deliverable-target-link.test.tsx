@@ -46,8 +46,8 @@ describe('WorkflowDeliverableTargetLink', () => {
       }),
     );
 
-    expect(html).toContain('Open artifact (Artifact)');
-    expect(html).toContain('Canonical target');
+    expect(html).toContain('release-bundle.zip (Artifact)');
+    expect(html).toContain('Reference target');
     expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
     expect(html).not.toContain('/artifacts/tasks/task-1/artifact-1');
     expect(html).not.toContain('return_to=');
@@ -85,7 +85,7 @@ describe('WorkflowDeliverableTargetLink', () => {
     );
 
     expect(html).toContain('Launch packet (Input Packet File)');
-    expect(html).toContain('Canonical target');
+    expect(html).toContain('Reference target');
     expect(html).toContain('/api/v1/workflows/workflow-1/input-packets/packet-1/files/file-1/content');
     expect(html).not.toContain('return_to=');
     expect(html).not.toContain('<a');
@@ -98,7 +98,7 @@ describe('WorkflowDeliverableTargetLink', () => {
       }),
     );
 
-    expect(html).toContain('Linked output');
+    expect(html).toContain('Deliverable target');
     expect(html).toContain('Already visible in this workflow workspace.');
     expect(html).not.toContain('href=');
   });

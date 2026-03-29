@@ -7,6 +7,7 @@ import type {
 import {
   hasMeaningfulDeliverableTarget,
   isBrowserDeliverableTarget,
+  readDeliverableTargetDisplayLabel,
   resolveDeliverableTargetHref,
   sanitizeDeliverableTarget,
   sanitizeDeliverableTargets,
@@ -48,10 +49,11 @@ export function WorkflowDeliverableBrowser(props: {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="grid gap-1">
               <p className="text-sm font-semibold text-foreground">
-                Produced artifacts ({artifactTargets.length})
+                Files in this deliverable ({artifactTargets.length})
               </p>
               <p className="text-xs text-muted-foreground">
-                Preview and download artifacts directly from this deliverable.
+                Preview supported files here and download the selected file without leaving
+                Workflows.
               </p>
             </div>
             {selectedTarget ? (
@@ -60,7 +62,7 @@ export function WorkflowDeliverableBrowser(props: {
                 href={selectedTarget.downloadHref}
                 download
               >
-                Download artifact
+                Download file
               </a>
             ) : null}
           </div>
@@ -68,7 +70,7 @@ export function WorkflowDeliverableBrowser(props: {
             <div
               className="flex max-w-full gap-2 overflow-x-auto pb-1"
               role="tablist"
-              aria-label="Deliverable artifacts"
+              aria-label="Deliverable files"
             >
               {artifactTargets.map((target) => (
                 <button
@@ -101,7 +103,7 @@ export function WorkflowDeliverableBrowser(props: {
                 </div>
               ) : (
                 <p className="rounded-xl border border-dashed border-border/70 bg-background/80 px-3 py-6 text-sm text-muted-foreground">
-                  Preview is unavailable for this artifact. Use download from this browser.
+                  Preview is unavailable for this file. Download it from Deliverables.
                 </p>
               )}
               <div id={browserId} className="text-xs text-muted-foreground">
@@ -118,9 +120,10 @@ export function WorkflowDeliverableBrowser(props: {
       {externalTargets.length > 0 ? (
         <section className="grid gap-3 rounded-xl border border-border/70 bg-background/70 p-3">
           <div className="grid gap-1">
-            <p className="text-sm font-semibold text-foreground">Canonical deliverable targets</p>
+            <p className="text-sm font-semibold text-foreground">Other deliverable targets</p>
             <p className="text-xs text-muted-foreground">
-              Non-artifact outputs stay visible here without navigating away from Workflows.
+              Repository outputs and other reference targets stay visible here without leaving
+              Workflows.
             </p>
           </div>
           <div className="grid gap-3">
@@ -233,17 +236,7 @@ function serializeHref(parsed: URL): string {
 }
 
 function readTargetLabel(target: DashboardWorkflowDeliverableTarget): string {
-  const label = target.label.trim();
-  if (label.length > 0 && !isGenericArtifactLabel(label)) {
-    return label;
-  }
-
-  const pathLabel = readTargetPathLabel(target.path) ?? readTargetPathLabel(target.repo_ref);
-  if (pathLabel) {
-    return pathLabel;
-  }
-
-  return label.length > 0 ? label : 'Artifact';
+  return readDeliverableTargetDisplayLabel(target, 'File');
 }
 
 function readArtifactIdentityKey(
@@ -251,32 +244,4 @@ function readArtifactIdentityKey(
   downloadHref: string,
 ): string {
   return target.artifact_id ?? target.path ?? target.repo_ref ?? downloadHref;
-}
-
-function isGenericArtifactLabel(label: string): boolean {
-  const normalized = label.trim().toLowerCase();
-  return (
-    normalized === 'artifact' ||
-    normalized === 'open artifact' ||
-    normalized === 'download artifact' ||
-    normalized === 'preview artifact' ||
-    normalized === 'preview inline' ||
-    normalized === 'open' ||
-    normalized === 'download'
-  );
-}
-
-function readTargetPathLabel(value: string | null): string | null {
-  if (!value) {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return null;
-  }
-
-  const normalized = trimmed.replace(/^artifact:[^/]+\//, '');
-  const segments = normalized.split('/').filter((segment) => segment.length > 0);
-  return segments.at(-1) ?? trimmed;
 }

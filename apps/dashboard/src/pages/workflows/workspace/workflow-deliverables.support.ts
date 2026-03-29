@@ -96,6 +96,25 @@ export function resolveDeliverableTargetHref(
   return href.trim().length > 0 ? href : null;
 }
 
+export function readDeliverableTargetDisplayLabel(
+  target: DashboardWorkflowDeliverableTarget,
+  fallbackLabel: string,
+): string {
+  const label = target.label.trim();
+  if (label.length > 0 && !isGenericDeliverableTargetLabel(label)) {
+    return label;
+  }
+
+  const pathLabel =
+    readDeliverableTargetLocationLabel(target.path) ??
+    readDeliverableTargetLocationLabel(target.repo_ref);
+  if (pathLabel) {
+    return pathLabel;
+  }
+
+  return label.length > 0 ? label : fallbackLabel;
+}
+
 export function isBrowserDeliverableTarget(target: DashboardWorkflowDeliverableTarget): boolean {
   const href = resolveDeliverableTargetHref(target);
   if (href === null || !isInPlaceArtifactPreviewTarget(href)) {
@@ -204,6 +223,37 @@ function serializeTargetUrl(parsed: URL): string {
   return parsed.origin === DASHBOARD_ORIGIN
     ? `${parsed.pathname}${parsed.search}${parsed.hash}`
     : parsed.toString();
+}
+
+function isGenericDeliverableTargetLabel(label: string): boolean {
+  const normalized = label.trim().toLowerCase();
+  return (
+    normalized === 'artifact' ||
+    normalized === 'open artifact' ||
+    normalized === 'download artifact' ||
+    normalized === 'preview artifact' ||
+    normalized === 'preview inline' ||
+    normalized === 'file' ||
+    normalized === 'open file' ||
+    normalized === 'download file' ||
+    normalized === 'open' ||
+    normalized === 'download'
+  );
+}
+
+function readDeliverableTargetLocationLabel(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  const normalized = trimmed.replace(/^artifact:[^/]+\//, '');
+  const segments = normalized.split('/').filter((segment) => segment.length > 0);
+  return segments.at(-1) ?? trimmed;
 }
 
 function normalizeDeliverableRecords(value: unknown): DashboardWorkflowDeliverableRecord[] {

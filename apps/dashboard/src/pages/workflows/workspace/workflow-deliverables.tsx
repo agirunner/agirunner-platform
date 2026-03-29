@@ -142,12 +142,12 @@ export function WorkflowDeliverables(props: {
           open={openBriefsByDefault}
         >
           <summary className="cursor-pointer text-sm font-semibold text-foreground">
-            Briefs ({displayPacket.working_handoffs.length})
+            Working briefs ({displayPacket.working_handoffs.length})
           </summary>
           <div className="mt-4 grid gap-4">
             {displayPacket.working_handoffs.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No milestone briefs have been published yet.
+                No working briefs have been published yet.
               </p>
             ) : (
               displayPacket.working_handoffs.map((brief) => (
@@ -334,14 +334,14 @@ function LayerDeliverablesSection(props: {
         ) : props.layer.workingHandoffs.length > 0 ? (
           <>
             <p className="text-sm text-muted-foreground">
-              Material output is currently available only as briefs for this layer.
+              Working briefs are currently the only material output for this layer.
             </p>
             {props.layer.workingHandoffs.map((brief) => (
               <article
                 key={brief.id}
                 className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4"
               >
-                <Badge variant="outline">Brief-backed output</Badge>
+                <Badge variant="outline">Working brief</Badge>
                 <WorkflowBriefRenderer brief={brief} compact />
               </article>
             ))}

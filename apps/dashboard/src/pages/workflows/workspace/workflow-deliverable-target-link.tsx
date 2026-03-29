@@ -1,5 +1,6 @@
 import type { DashboardWorkflowDeliverableTarget } from '../../../lib/api.js';
 import {
+  readDeliverableTargetDisplayLabel,
   resolveDeliverableTargetAction,
   sanitizeDeliverableTarget,
 } from './workflow-deliverables.support.js';
@@ -17,7 +18,7 @@ export function WorkflowDeliverableTargetLink(props: {
       {action.action_kind === 'inline_reference' ? (
         <p className="text-xs text-muted-foreground">Already visible in this workflow workspace.</p>
       ) : (
-        <p className="text-xs text-muted-foreground">Canonical target</p>
+        <p className="text-xs text-muted-foreground">Reference target</p>
       )}
       {readTargetLocations(target, action.href).map((location) => (
         <p
@@ -36,7 +37,7 @@ function humanizeToken(value: string): string {
 }
 
 function readTargetLabel(target: DashboardWorkflowDeliverableTarget): string {
-  return target.label.length > 0 ? target.label : 'Linked output';
+  return readDeliverableTargetDisplayLabel(target, 'Deliverable target');
 }
 
 function buildTargetLabel(target: DashboardWorkflowDeliverableTarget): string {
