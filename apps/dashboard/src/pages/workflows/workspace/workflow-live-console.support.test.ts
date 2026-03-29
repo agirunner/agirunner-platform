@@ -222,8 +222,8 @@ describe('workflow live console support', () => {
         hasPreviousItems: true,
       }),
     ).toEqual({
-      shouldScrollToBottom: false,
-      shouldQueueUpdates: true,
+      shouldScrollToBottom: true,
+      shouldQueueUpdates: false,
     });
     expect(
       getWorkflowConsoleFollowBehavior({

@@ -168,6 +168,106 @@ describe('WorkflowLiveConsoleService', () => {
     expect(result.total_count).toBe(1);
   });
 
+  it('keeps orchestrator execution rows that target the selected task even when their raw task id differs', async () => {
+    const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
+      versionSource: unknown,
+      briefSource: unknown,
+      updateSource: unknown,
+      visibilityModeSource: unknown,
+      executionTurnSource: unknown,
+    ) => WorkflowLiveConsoleService;
+    const executionTurnSource = {
+      query: vi.fn(async (_tenantId, filters) => {
+        if (!filters.category.includes('llm')) {
+          return { data: [] };
+        }
+        if (filters.taskId) {
+          return { data: [] };
+        }
+        return {
+          data: [
+            {
+              id: 'orchestrator-log-1',
+              source: 'runtime',
+              category: 'llm',
+              level: 'info',
+              operation: 'llm.chat_stream',
+              status: 'completed',
+              payload: {
+                phase: 'act',
+                llm_turn_count: 4,
+                response_tool_calls: [
+                  {
+                    name: 'submit_handoff',
+                    input: {
+                      work_item_id: 'work-item-1',
+                      task_id: 'task-1',
+                      summary: 'Verified the queued task and submitted the orchestrator handoff.',
+                      completion: 'full',
+                    },
+                  },
+                ],
+              },
+              workflow_id: 'workflow-1',
+              workflow_name: 'Workflow 1',
+              work_item_id: 'work-item-1',
+              task_id: 'orchestrator-task-1',
+              stage_name: 'review',
+              is_orchestrator_task: true,
+              task_title: 'Orchestrate workflow',
+              role: 'orchestrator',
+              actor_type: 'runtime',
+              actor_name: 'Orchestrator',
+              resource_name: null,
+              created_at: '2026-03-28T07:59:30.000Z',
+            },
+          ],
+        };
+      }),
+    };
+    const service = new ServiceCtor(
+      {
+        getHistory: vi.fn(async () => ({
+          version: {
+            generatedAt: '2026-03-28T08:00:00.000Z',
+            latestEventId: 77,
+            token: 'mission-control:77',
+          },
+          packets: [],
+        })),
+      } as never,
+      {
+        listBriefs: vi.fn(async () => []),
+      } as never,
+      {
+        listUpdates: vi.fn(async () => []),
+      } as never,
+      {
+        getWorkflowSettings: vi.fn(async () => ({
+          effective_live_visibility_mode: 'enhanced',
+        })),
+      } as never,
+      executionTurnSource as never,
+    );
+
+    const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+      taskId: 'task-1',
+      limit: 10,
+    });
+
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        item_id: 'execution-log:orchestrator-log-1',
+        source_label: 'Orchestrator',
+        work_item_id: 'work-item-1',
+        task_id: 'task-1',
+        scope_binding: 'structured_target',
+      }),
+    ]);
+    expect(result.total_count).toBe(1);
+  });
+
   it('normalizes Date-backed execution timestamps before sorting enhanced live-console rows', async () => {
     const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
       versionSource: unknown,

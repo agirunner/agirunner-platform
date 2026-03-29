@@ -209,7 +209,7 @@ describe('buildSpecialistExecutionBrief', () => {
       'submit_handoff is the required task-completion write on this task. record_operator_brief never satisfies that completion contract.',
     );
     expect(brief?.rendered_markdown).toContain(
-      'Use request_id values with the pattern handoff:task-review-1:<handoff-slug> for submit_handoff writes on this task.',
+      'Use request_id values with the pattern handoff:task-review-1:r0:<handoff-slug> for submit_handoff writes on this task.',
     );
     expect(brief?.rendered_markdown).toContain('record_operator_brief');
     expect(brief?.rendered_markdown).toContain(
@@ -292,6 +292,20 @@ describe('buildSpecialistExecutionBrief', () => {
     });
 
     expect(initial?.refresh_key).not.toBe(updated?.refresh_key);
+  });
+
+  it('renders handoff request_id guidance with the current rework count', () => {
+    const brief = buildSpecialistExecutionBrief({
+      ...buildInput(),
+      workItem: {
+        ...buildInput().workItem,
+        rework_count: 3,
+      },
+    });
+
+    expect(brief?.rendered_markdown).toContain(
+      'Use request_id values with the pattern handoff:task-review-1:r3:<handoff-slug> for submit_handoff writes on this task.',
+    );
   });
 
   it('changes refresh_key when active workflow controls change', () => {

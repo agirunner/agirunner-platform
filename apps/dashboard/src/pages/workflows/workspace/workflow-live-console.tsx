@@ -30,6 +30,8 @@ const TERMINAL_FILTER_INACTIVE_CLASS_NAME =
   'border-slate-800/90 bg-transparent text-slate-400 hover:border-slate-600/80 hover:text-slate-100';
 const TERMINAL_FILTER_COUNT_CLASS_NAME =
   'rounded-sm border border-slate-600/80 bg-slate-900/80 px-1.5 py-0 font-mono text-[11px] leading-5 text-slate-200';
+const TERMINAL_FOLLOW_STATUS_BASE_CLASS_NAME =
+  'inline-flex items-center gap-2 rounded-md border border-slate-800/90 bg-slate-950/70 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-[0.16em] text-slate-300';
 
 export function WorkflowLiveConsole(props: {
   packet: DashboardWorkflowLiveConsolePacket;
@@ -175,8 +177,65 @@ export function WorkflowLiveConsole(props: {
         className={TERMINAL_SURFACE_CLASS_NAME}
       >
         <div className={TERMINAL_TOOLBAR_CLASS_NAME}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div
+            data-live-console-control-row="terminal-controls"
+            className="flex flex-wrap items-center justify-between gap-3"
+          >
             <div className="flex flex-wrap gap-2">
+              {filterDescriptors.map((descriptor) => {
+                const isSelected = selectedFilter === descriptor.filter;
+                return (
+                  <button
+                    key={descriptor.filter}
+                    type="button"
+                    data-live-console-filter={descriptor.filter}
+                    data-state={isSelected ? 'active' : 'inactive'}
+                    className={`${TERMINAL_FILTER_BASE_CLASS_NAME} ${isSelected ? TERMINAL_FILTER_ACTIVE_CLASS_NAME : TERMINAL_FILTER_INACTIVE_CLASS_NAME}`}
+                    aria-pressed={isSelected}
+                    onClick={() => setSelectedFilter(descriptor.filter)}
+                  >
+                    <span className="truncate">{descriptor.label}</span>
+                    <span
+                      data-live-console-filter-count={String(descriptor.count)}
+                      className={TERMINAL_FILTER_COUNT_CLASS_NAME}
+                    >
+                      {descriptor.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+              <span
+                data-live-console-follow-status={followMode}
+                className={TERMINAL_FOLLOW_STATUS_BASE_CLASS_NAME}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`inline-block size-2 rounded-full ${followMode === 'live' ? 'bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.65)]' : 'bg-amber-300 shadow-[0_0_10px_rgba(252,211,77,0.45)]'}`}
+                />
+                {followMode === 'live' ? 'Following live' : 'Paused'}
+              </span>
+              {hasQueuedUpdates ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 border border-slate-700/80 bg-slate-900/70 font-mono text-[11px] uppercase tracking-[0.16em] text-slate-200 hover:bg-slate-800/80 hover:text-slate-50"
+                  onClick={() => {
+                    const container = containerRef.current;
+                    if (!container) {
+                      return;
+                    }
+                    container.scrollTop = container.scrollHeight;
+                    setHasQueuedUpdates(false);
+                    isAtLiveEdgeRef.current = true;
+                    setFollowMode('live');
+                  }}
+                >
+                  New updates
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 size="sm"
@@ -209,49 +268,6 @@ export function WorkflowLiveConsole(props: {
                 Pause
               </Button>
             </div>
-            {hasQueuedUpdates ? (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="h-7 border border-slate-700/80 bg-slate-900/70 font-mono text-[11px] uppercase tracking-[0.16em] text-slate-200 hover:bg-slate-800/80 hover:text-slate-50"
-                onClick={() => {
-                  const container = containerRef.current;
-                  if (!container) {
-                    return;
-                  }
-                  container.scrollTop = container.scrollHeight;
-                  setHasQueuedUpdates(false);
-                  isAtLiveEdgeRef.current = true;
-                }}
-              >
-                New updates
-              </Button>
-            ) : null}
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {filterDescriptors.map((descriptor) => {
-              const isSelected = selectedFilter === descriptor.filter;
-              return (
-                <button
-                  key={descriptor.filter}
-                  type="button"
-                  data-live-console-filter={descriptor.filter}
-                  data-state={isSelected ? 'active' : 'inactive'}
-                  className={`${TERMINAL_FILTER_BASE_CLASS_NAME} ${isSelected ? TERMINAL_FILTER_ACTIVE_CLASS_NAME : TERMINAL_FILTER_INACTIVE_CLASS_NAME}`}
-                  aria-pressed={isSelected}
-                  onClick={() => setSelectedFilter(descriptor.filter)}
-                >
-                  <span className="truncate">{descriptor.label}</span>
-                  <span
-                    data-live-console-filter-count={String(descriptor.count)}
-                    className={TERMINAL_FILTER_COUNT_CLASS_NAME}
-                  >
-                    {descriptor.count}
-                  </span>
-                </button>
-              );
-            })}
           </div>
           {coverageMessage ? (
             <p className="mt-2 text-xs text-slate-400">{coverageMessage}</p>

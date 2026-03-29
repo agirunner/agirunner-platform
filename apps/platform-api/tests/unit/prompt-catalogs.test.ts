@@ -58,7 +58,12 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Rejected attempts do not count');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not duplicate unchanged handoffs');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('unique request_id');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Use request_id values with the pattern handoff:<task_id>:<handoff-slug>');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Include the current task rework_count (or equivalent attempt discriminator) in submit_handoff request_id values',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'handoff:<task_id>:r<rework_count>:<handoff-slug>',
+    );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Completion is rejected without a structured handoff');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not use submit_handoff for scratch progress');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('submit_handoff requires the completion string field.');

@@ -197,7 +197,7 @@ export function buildSpecialistExecutionBrief(
     rendered_markdown: '',
   };
   brief.refresh_key = hashCanonicalJson(refreshInputsFrom(brief, workItem, predecessorHandoff));
-  brief.rendered_markdown = renderBrief(brief);
+  brief.rendered_markdown = renderBrief(brief, workItem);
   return brief;
 }
 
@@ -235,7 +235,10 @@ function buildAssessmentOutputExpectations(
   return lines;
 }
 
-function renderBrief(brief: SpecialistExecutionBrief): string {
+function renderBrief(
+  brief: SpecialistExecutionBrief,
+  workItem: Record<string, unknown>,
+): string {
   const lines: string[] = [];
   if (brief.workflow_brief.goal || brief.workflow_brief.launch_inputs.length > 0) {
     lines.push('## Workflow Brief');
@@ -291,11 +294,12 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
       'Every operator record write must include a unique request_id. Reuse a request_id only for an intentional retry of the same write.',
     );
     if (brief.operator_visibility.task_id) {
+      const reworkCount = readNonNegativeInteger(workItem.rework_count);
       lines.push(
         'submit_handoff is the required task-completion write on this task. record_operator_brief never satisfies that completion contract.',
       );
       lines.push(
-        `Use request_id values with the pattern handoff:${brief.operator_visibility.task_id}:<handoff-slug> for submit_handoff writes on this task. Reuse the same request_id only for an intentional retry of that exact same handoff payload.`,
+        `Use request_id values with the pattern handoff:${brief.operator_visibility.task_id}:r${reworkCount}:<handoff-slug> for submit_handoff writes on this task. Include the current rework count so later rework attempts do not collide with earlier handoffs. Reuse the same request_id only for an intentional retry of that exact same handoff payload.`,
       );
     }
     lines.push(

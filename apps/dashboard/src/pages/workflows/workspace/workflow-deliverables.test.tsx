@@ -417,6 +417,67 @@ describe('WorkflowDeliverables', () => {
     expect(html).not.toContain('Open artifact in new tab');
   });
 
+  it('keeps deprecated workflow deliverable targets inline so the deliverables tab does not send operators to removed surfaces', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: {
+          final_deliverables: [
+            {
+              descriptor_id: 'deliverable-inline-only',
+              workflow_id: 'workflow-1',
+              work_item_id: null,
+              descriptor_kind: 'artifact',
+              delivery_stage: 'final',
+              title: 'Release bundle',
+              state: 'final',
+              summary_brief: 'The release bundle is already rendered in this surface.',
+              preview_capabilities: {},
+              primary_target: {
+                target_kind: 'artifact',
+                label: 'Release bundle',
+                url: '/workflows/workflow-1/deliverables/deliverable-inline-only',
+                path: 'artifacts/release-bundle.zip',
+              },
+              secondary_targets: [],
+              content_preview: {
+                summary: 'Operators should stay on the deliverables tab for this packet.',
+              },
+              source_brief_id: null,
+              created_at: '2026-03-28T20:20:00.000Z',
+              updated_at: '2026-03-28T20:20:00.000Z',
+            },
+          ],
+          in_progress_deliverables: [],
+          working_handoffs: [],
+          inputs_and_provenance: {
+            launch_packet: null,
+            supplemental_packets: [],
+            intervention_attachments: [],
+            redrive_packet: null,
+          },
+          next_cursor: null,
+        },
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        selectedTask: null,
+        selectedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        onLoadMore: () => undefined,
+      }),
+    );
+
+    expect(html).toContain('Release bundle');
+    expect(html).toContain('Operators should stay on the deliverables tab for this packet.');
+    expect(html).toContain('Already visible in this workflow workspace.');
+    expect(html).not.toContain('href="/workflows/workflow-1/deliverables/deliverable-inline-only"');
+    expect(html).not.toContain('Open artifact in new tab');
+  });
+
   it('keeps work-item scope on brief-backed outputs when no materialized deliverables exist for the selected work item', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {

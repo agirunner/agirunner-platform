@@ -54,6 +54,25 @@ describe('WorkflowDeliverableTargetLink', () => {
     expect(html).not.toContain('return_to=');
   });
 
+  it('renders deprecated workflow deliverable routes inline instead of linking to removed dashboard surfaces', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverableTargetLink, {
+        target: {
+          target_kind: 'artifact',
+          label: 'Release bundle',
+          url: '/workflows/workflow-1/deliverables/deliverable-1',
+          path: 'artifacts/release-bundle.zip',
+        },
+        primary: true,
+      }),
+    );
+
+    expect(html).toContain('Release bundle');
+    expect(html).toContain('Already visible in this workflow workspace.');
+    expect(html).not.toContain('href="/workflows/workflow-1/deliverables/deliverable-1"');
+    expect(html).not.toContain('Open artifact in new tab');
+  });
+
   it('renders workflow file targets as direct links without preview-dialog affordances', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverableTargetLink, {

@@ -9,8 +9,8 @@ import type {
 } from '../../../lib/api.js';
 
 export interface DeliverableTargetAction {
-  action_kind: 'external_link';
-  href: string;
+  action_kind: 'inline_reference' | 'external_link';
+  href?: string;
 }
 
 const DASHBOARD_ORIGIN = 'http://dashboard.local';
@@ -19,6 +19,9 @@ const IN_PLACE_TARGET_PATH_PATTERNS = [
   /^\/api\/v1\/tasks\/[^/]+\/artifacts\/[^/]+(?:\/preview|\/permalink)?$/,
   /^\/api\/v1\/workflows\/[^/]+\/input-packets\/[^/]+\/files\/[^/]+\/content$/,
   /^\/api\/v1\/workflows\/[^/]+\/interventions\/[^/]+\/files\/[^/]+\/content$/,
+];
+const DEPRECATED_WORKSPACE_TARGET_PATH_PATTERNS = [
+  /^\/workflows\/[^/]+\/deliverables\/[^/]+$/,
 ];
 const DEPRECATED_NAVIGATION_PARAM_NAMES = ['return_to', 'return_source'];
 
@@ -79,9 +82,15 @@ export function hasMeaningfulDeliverableTarget(target: DashboardWorkflowDelivera
 export function resolveDeliverableTargetAction(
   target: DashboardWorkflowDeliverableTarget,
 ): DeliverableTargetAction {
+  const href = normalizeDeliverableTargetUrl(target.url);
+  if (!hasActionableDeliverableHref(target, href)) {
+    return {
+      action_kind: 'inline_reference',
+    };
+  }
   return {
     action_kind: 'external_link',
-    href: normalizeDeliverableTargetUrl(target.url),
+    href,
   };
 }
 
@@ -120,6 +129,29 @@ function normalizeDeliverableTargetUrl(url: string): string {
   } catch {
     return url;
   }
+}
+
+function hasActionableDeliverableHref(
+  target: DashboardWorkflowDeliverableTarget,
+  href: string,
+): boolean {
+  if (href.trim().length === 0) {
+    return false;
+  }
+  if (
+    target.target_kind === 'workflow'
+    || target.target_kind === 'work_item'
+    || target.target_kind === 'task'
+    || target.target_kind === 'inline_summary'
+  ) {
+    return false;
+  }
+
+  const normalizedPath = readNormalizedPath(href);
+  if (normalizedPath === null) {
+    return true;
+  }
+  return !DEPRECATED_WORKSPACE_TARGET_PATH_PATTERNS.some((pattern) => pattern.test(normalizedPath));
 }
 
 function rewriteDeprecatedArtifactPreviewPath(parsed: URL): void {

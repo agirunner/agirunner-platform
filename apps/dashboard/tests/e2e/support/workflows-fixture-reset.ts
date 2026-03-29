@@ -3,7 +3,7 @@ import { ADMIN_API_KEY, PLATFORM_API_URL } from './platform-env.js';
 const FIXTURE_WORKSPACE_SLUG_PREFIX = 'workflows-';
 const FIXTURE_PLAYBOOK_SLUG_PREFIXES = ['planned-workflows-', 'ongoing-workflows-'] as const;
 const TERMINAL_WORKFLOW_STATES = new Set(['completed', 'failed', 'cancelled']);
-const PAGE_SIZE = 500;
+const PAGE_SIZE = 100;
 
 interface ApiRecord {
   id: string;

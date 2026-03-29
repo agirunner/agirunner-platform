@@ -7,8 +7,6 @@ export const DEFAULT_WORKFLOW_WORKBENCH_FRACTION = 0.5;
 export const MIN_WORKFLOW_WORKBENCH_FRACTION = 0.42;
 export const MAX_WORKFLOW_WORKBENCH_FRACTION = 0.58;
 const WORKFLOW_SPLIT_GUTTER_REM = 0.5;
-const WORKFLOW_BOARD_MIN_HEIGHT_REM = 20;
-const WORKFLOW_WORKBENCH_MIN_HEIGHT_REM = 20;
 
 export function buildWorkflowsShellClassName(isRailHidden: boolean): string {
   const baseClassName = 'flex w-full min-w-0 flex-col gap-2 lg:h-[calc(100vh-8.5rem)] lg:min-h-0 lg:overflow-hidden';
@@ -53,7 +51,7 @@ export function buildWorkflowWorkspaceSplitClassName(): string {
     'lg:h-full',
     'lg:gap-0',
     'lg:overflow-hidden',
-    `lg:grid-rows-[minmax(${WORKFLOW_BOARD_MIN_HEIGHT_REM}rem,var(--workflow-board-track))_${WORKFLOW_SPLIT_GUTTER_REM}rem_minmax(${WORKFLOW_WORKBENCH_MIN_HEIGHT_REM}rem,var(--workflow-workbench-track))]`,
+    `lg:grid-rows-[minmax(0,var(--workflow-board-track))_${WORKFLOW_SPLIT_GUTTER_REM}rem_minmax(0,var(--workflow-workbench-track))]`,
   ].join(' ');
 }
 

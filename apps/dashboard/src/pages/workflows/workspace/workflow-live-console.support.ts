@@ -184,10 +184,7 @@ export function getWorkflowConsoleFollowBehavior(input: {
     };
   }
 
-  if (
-    !input.hasPreviousItems
-    || (input.followMode === 'live' && input.isAtLiveEdge)
-  ) {
+  if (!input.hasPreviousItems || input.followMode === 'live') {
     return {
       shouldScrollToBottom: true,
       shouldQueueUpdates: false,

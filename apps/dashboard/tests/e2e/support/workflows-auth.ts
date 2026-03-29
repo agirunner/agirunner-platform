@@ -7,7 +7,7 @@ export async function loginToWorkflows(page: Page): Promise<void> {
   await page.getByLabel('API Key').fill(ADMIN_API_KEY);
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page).toHaveURL(/\/workflows/);
-  await expect(page.getByText('Select workflow')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Workflows' })).toBeVisible();
 }
 
 export async function loginToWorkflowsWithPrefill(page: Page): Promise<void> {

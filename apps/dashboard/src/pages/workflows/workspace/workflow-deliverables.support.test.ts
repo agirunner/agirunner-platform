@@ -62,6 +62,18 @@ describe('workflow deliverables support', () => {
     });
   });
 
+  it('classifies deprecated workflow deliverable routes as inline references instead of actionable links', () => {
+    expect(
+      resolveDeliverableTargetAction({
+        target_kind: 'artifact',
+        label: 'Release bundle',
+        url: '/workflows/workflow-1/deliverables/deliverable-1',
+      }),
+    ).toEqual({
+      action_kind: 'inline_reference',
+    });
+  });
+
   it('recognizes artifact preview paths regardless of origin style', () => {
     expect(isInPlaceArtifactPreviewTarget('/artifacts/tasks/task-1/artifact-1')).toBe(true);
     expect(
@@ -91,8 +103,7 @@ describe('workflow deliverables support', () => {
     });
     expect(hasMeaningfulDeliverableTarget(normalized)).toBe(false);
     expect(resolveDeliverableTargetAction(normalized)).toEqual({
-      action_kind: 'external_link',
-      href: '',
+      action_kind: 'inline_reference',
     });
   });
 });

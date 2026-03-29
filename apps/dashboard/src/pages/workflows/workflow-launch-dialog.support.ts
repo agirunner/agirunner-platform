@@ -1,4 +1,5 @@
 import type { DashboardPlaybookRecord, DashboardWorkspaceRecord } from '../../lib/api.js';
+import type { ComboboxItem } from '../../components/log-viewer/ui/searchable-combobox.js';
 import type { LaunchParameterSpec } from '../playbook-launch/playbook-launch-support.js';
 
 export interface WorkflowLaunchDialogValidationResult {
@@ -10,6 +11,15 @@ export interface WorkflowLaunchDialogValidationResult {
   };
   blockingIssues: string[];
   isValid: boolean;
+}
+
+export function buildWorkflowLaunchComboboxItems(
+  records: Array<Pick<DashboardPlaybookRecord, 'id' | 'name'> | Pick<DashboardWorkspaceRecord, 'id' | 'name'>>,
+): ComboboxItem[] {
+  return records.map((record) => ({
+    id: record.id,
+    label: record.name,
+  }));
 }
 
 export function resolveDefaultWorkflowLaunchWorkspaceId(

@@ -25,7 +25,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Repository-backed images do not guarantee python3, bash, jq, or any other optional runtime. Probe or install them first.
 - Do not assume python3 or any other optional runtime is present unless the execution contract or direct verification says so.
 - Before completion, ensure one structured handoff exists with a unique request_id; Rejected attempts do not count; Do not duplicate unchanged handoffs.
-- Use request_id values with the pattern handoff:<task_id>:<handoff-slug>; reuse it only for an intentional retry of that exact same handoff payload.
+- Use request_id values with the pattern handoff:<task_id>:r<rework_count>:<handoff-slug>. Include the current task rework_count (or equivalent attempt discriminator) in submit_handoff request_id values so later rework attempts do not collide with earlier handoffs. Reuse it only for an intentional retry of that exact same handoff payload.
 - Completion is rejected without a structured handoff.
 - Do not use submit_handoff for scratch progress.
 - submit_handoff requires the completion string field. Use completion: full or completion: blocked; never send completed: true or other stale boolean variants.

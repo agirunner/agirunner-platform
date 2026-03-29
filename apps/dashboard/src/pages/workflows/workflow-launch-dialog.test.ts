@@ -7,7 +7,7 @@ describe('WorkflowLaunchDialog source', () => {
     const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
 
     expect(source).not.toContain('setSelectedPlaybookId(playbooks[0].id)');
-    expect(source).toContain('SelectValue placeholder="Select playbook"');
+    expect(source).toContain('placeholder="Select playbook"');
   });
 
   it('removes budget guardrail fields from the workflow launch modal', () => {
@@ -40,5 +40,15 @@ describe('WorkflowLaunchDialog source', () => {
     expect(source).toContain('function clearLaunchFeedback()');
     expect(source).toContain('clearLaunchFeedback();');
     expect(source).toContain('setErrorMessage(null);');
+  });
+
+  it('uses searchable comboboxes for playbook and workspace selection', () => {
+    const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('SearchableCombobox');
+    expect(source).toContain('searchPlaceholder="Search playbooks..."');
+    expect(source).toContain('searchPlaceholder="Search workspaces..."');
+    expect(source).not.toContain('<SelectTrigger');
+    expect(source).not.toContain('<SelectContent');
   });
 });

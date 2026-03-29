@@ -139,11 +139,12 @@ export class WorkflowLiveConsoleService {
     if (mode !== 'enhanced' || !this.executionTurnSource) {
       return [];
     }
+    const executionQueryScope = resolveExecutionTurnQueryScope(input);
     const [agentLoopRows, llmRows] = await Promise.all([
       this.executionTurnSource.query(tenantId, {
         workflowId,
-        workItemId: input.workItemId,
-        taskId: input.taskId,
+        workItemId: executionQueryScope.workItemId,
+        taskId: executionQueryScope.taskId,
         category: ['agent_loop'],
         operation: ['agent.observe', 'agent.think', 'agent.plan', 'agent.act', 'agent.verify'],
         order: 'desc',
@@ -151,8 +152,8 @@ export class WorkflowLiveConsoleService {
       }),
       this.executionTurnSource.query(tenantId, {
         workflowId,
-        workItemId: input.workItemId,
-        taskId: input.taskId,
+        workItemId: executionQueryScope.workItemId,
+        taskId: executionQueryScope.taskId,
         category: ['llm'],
         operation: ['llm.chat_stream'],
         order: 'desc',
@@ -258,6 +259,25 @@ function sortLogRowsNewestFirst(left: LogRow, right: LogRow): number {
     { timestamp: left.created_at, id: left.id },
     { timestamp: right.created_at, id: right.id },
   );
+}
+
+function resolveExecutionTurnQueryScope(input: {
+  workItemId?: string;
+  taskId?: string;
+}): {
+  workItemId?: string;
+  taskId?: string;
+} {
+  if (input.workItemId && input.taskId) {
+    return {
+      workItemId: input.workItemId,
+    };
+  }
+
+  return {
+    workItemId: input.workItemId,
+    taskId: input.taskId,
+  };
 }
 
 function sortNewestFirst(left: WorkflowLiveConsoleItem, right: WorkflowLiveConsoleItem): number {

@@ -75,6 +75,9 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('data-live-console-follow-mode="live"');
     expect(html).toContain('data-live-console-follow-control="live"');
     expect(html).toContain('data-live-console-follow-control="pause"');
+    expect(html).toContain('data-live-console-control-row="terminal-controls"');
+    expect(html).toContain('data-live-console-follow-status="live"');
+    expect(html).toContain('Following live');
     expect(html).toContain('data-state="active"');
     expect(html).toContain('data-state="inactive"');
     expect(html).toContain('aria-pressed="true">Live<');

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Rocket } from 'lucide-react';
 
+import { SearchableCombobox } from '../../components/log-viewer/ui/searchable-combobox.js';
 import { Button } from '../../components/ui/button.js';
 import {
   DEFAULT_FORM_VALIDATION_MESSAGE,
@@ -9,7 +10,6 @@ import {
   resolveFormFeedbackMessage,
 } from '../../components/forms/form-feedback.js';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog.js';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { dashboardApi } from '../../lib/api.js';
 import { buildFileUploadPayloads } from '../../lib/file-upload.js';
@@ -21,6 +21,7 @@ import {
 import { invalidateWorkflowsQueries } from './workflows-query.js';
 import { WorkflowFileInput } from './workflow-file-input.js';
 import {
+  buildWorkflowLaunchComboboxItems,
   resolveDefaultWorkflowLaunchWorkspaceId,
   validateWorkflowLaunchDialogDraft,
 } from './workflow-launch-dialog.support.js';
@@ -52,6 +53,8 @@ export function WorkflowLaunchDialog(props: {
 
   const playbooks = playbooksQuery.data?.data?.filter((playbook) => playbook.is_active !== false) ?? [];
   const workspaces = workspacesQuery.data?.data?.filter((workspace) => workspace.is_active !== false) ?? [];
+  const playbookItems = useMemo(() => buildWorkflowLaunchComboboxItems(playbooks), [playbooks]);
+  const workspaceItems = useMemo(() => buildWorkflowLaunchComboboxItems(workspaces), [workspaces]);
   const selectedPlaybook = useMemo(
     () => playbooks.find((playbook) => playbook.id === selectedPlaybookId) ?? null,
     [playbooks, selectedPlaybookId],
@@ -156,29 +159,19 @@ export function WorkflowLaunchDialog(props: {
           <div className="grid gap-4 md:grid-cols-2">
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Playbook</span>
-              <Select
-                value={selectedPlaybookId}
-                onValueChange={(value) => {
+              <SearchableCombobox
+                items={playbookItems}
+                value={selectedPlaybookId || null}
+                onChange={(value) => {
                   clearLaunchFeedback();
-                  setSelectedPlaybookId(value);
+                  setSelectedPlaybookId(value ?? '');
                 }}
-              >
-                <SelectTrigger
-                  className={
-                    playbookError ? 'border-red-300 focus-visible:ring-red-500' : undefined
-                  }
-                  aria-invalid={Boolean(playbookError)}
-                >
-                  <SelectValue placeholder="Select playbook" />
-                </SelectTrigger>
-                <SelectContent>
-                  {playbooks.map((playbook) => (
-                    <SelectItem key={playbook.id} value={playbook.id}>
-                      {playbook.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select playbook"
+                searchPlaceholder="Search playbooks..."
+                allGroupLabel="Playbooks"
+                isLoading={playbooksQuery.isLoading}
+                className={playbookError ? 'border-red-300 focus:ring-red-500' : undefined}
+              />
               {playbookError ? (
                 <p className="text-xs text-red-600 dark:text-red-400">{playbookError}</p>
               ) : null}
@@ -186,29 +179,19 @@ export function WorkflowLaunchDialog(props: {
 
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Workspace</span>
-              <Select
-                value={workspaceId}
-                onValueChange={(value) => {
+              <SearchableCombobox
+                items={workspaceItems}
+                value={workspaceId || null}
+                onChange={(value) => {
                   clearLaunchFeedback();
-                  setWorkspaceId(value);
+                  setWorkspaceId(value ?? '');
                 }}
-              >
-                <SelectTrigger
-                  className={
-                    workspaceError ? 'border-red-300 focus-visible:ring-red-500' : undefined
-                  }
-                  aria-invalid={Boolean(workspaceError)}
-                >
-                  <SelectValue placeholder="Select workspace" />
-                </SelectTrigger>
-                <SelectContent>
-                  {workspaces.map((workspace) => (
-                    <SelectItem key={workspace.id} value={workspace.id}>
-                      {workspace.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="Select workspace"
+                searchPlaceholder="Search workspaces..."
+                allGroupLabel="Workspaces"
+                isLoading={workspacesQuery.isLoading}
+                className={workspaceError ? 'border-red-300 focus:ring-red-500' : undefined}
+              />
               {workspaceError ? (
                 <p className="text-xs text-red-600 dark:text-red-400">{workspaceError}</p>
               ) : null}

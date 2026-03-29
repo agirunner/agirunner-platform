@@ -1,9 +1,25 @@
 import { describe, expect, it } from 'vitest';
 
 import type { DashboardPlaybookRecord, DashboardWorkspaceRecord } from '../../lib/api.js';
-import { resolveDefaultWorkflowLaunchWorkspaceId, validateWorkflowLaunchDialogDraft } from './workflow-launch-dialog.support.js';
+import {
+  buildWorkflowLaunchComboboxItems,
+  resolveDefaultWorkflowLaunchWorkspaceId,
+  validateWorkflowLaunchDialogDraft,
+} from './workflow-launch-dialog.support.js';
 
 describe('workflow-launch-dialog.support', () => {
+  it('builds combobox items from operator-facing names so launch selectors can filter by name', () => {
+    expect(
+      buildWorkflowLaunchComboboxItems([
+        createPlaybook({ id: 'playbook-2', name: 'Release Readiness' }),
+        createPlaybook({ id: 'playbook-1', name: 'Incident Review' }),
+      ]),
+    ).toEqual([
+      { id: 'playbook-2', label: 'Release Readiness' },
+      { id: 'playbook-1', label: 'Incident Review' },
+    ]);
+  });
+
   it('preselects the only available workspace', () => {
     const workspaces: DashboardWorkspaceRecord[] = [
       { id: 'workspace-1', name: 'Primary Workspace', slug: 'primary-workspace' },
@@ -60,7 +76,7 @@ describe('workflow-launch-dialog.support', () => {
   });
 });
 
-function createPlaybook(): DashboardPlaybookRecord {
+function createPlaybook(overrides: Partial<DashboardPlaybookRecord> = {}): DashboardPlaybookRecord {
   return {
     id: 'playbook-1',
     name: 'Release Readiness',
@@ -69,5 +85,6 @@ function createPlaybook(): DashboardPlaybookRecord {
     lifecycle: 'planned',
     version: 1,
     definition: {},
+    ...overrides,
   };
 }

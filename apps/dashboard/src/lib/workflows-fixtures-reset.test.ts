@@ -65,7 +65,7 @@ describe('resetWorkflowsState', () => {
           { id: 'fixture-workspace', slug: 'workflows-fixture-123' },
           { id: 'live-workspace', slug: 'sdlc-parallel-assessors-mixed-outcomes-20260329012241' },
         ],
-        meta: { page: 1, per_page: 500, pages: 1, total: 2 },
+        meta: { page: 1, per_page: 100, pages: 1, total: 2 },
       }),
       jsonResponse({
         data: [
@@ -83,7 +83,7 @@ describe('resetWorkflowsState', () => {
             state: 'active',
           },
         ],
-        meta: { page: 1, per_page: 500, pages: 1, total: 1 },
+        meta: { page: 1, per_page: 100, pages: 1, total: 1 },
       }),
     ]);
 
@@ -94,9 +94,9 @@ describe('resetWorkflowsState', () => {
     expect(execFileSyncMock).not.toHaveBeenCalled();
     expect(fetchMock).toHaveBeenCalledTimes(3);
     const calls = fetchCalls(fetchMock);
-    expect(String(calls[0]?.[0] ?? '')).toContain('/api/v1/workspaces');
+    expect(String(calls[0]?.[0] ?? '')).toContain('/api/v1/workspaces?page=1&per_page=100');
     expect(String(calls[1]?.[0] ?? '')).toContain('/api/v1/playbooks');
-    expect(String(calls[2]?.[0] ?? '')).toContain('/api/v1/workflows');
+    expect(String(calls[2]?.[0] ?? '')).toContain('/api/v1/workflows?page=1&per_page=100');
   });
 
   it('cleans up only seeded fixture workspaces and playbooks through the API', async () => {
@@ -106,7 +106,7 @@ describe('resetWorkflowsState', () => {
           { id: 'fixture-workspace', slug: 'workflows-fixture-123' },
           { id: 'live-workspace', slug: 'shared-live-run' },
         ],
-        meta: { page: 1, per_page: 500, pages: 1, total: 2 },
+        meta: { page: 1, per_page: 100, pages: 1, total: 2 },
       }),
       jsonResponse({
         data: [
@@ -132,7 +132,7 @@ describe('resetWorkflowsState', () => {
             state: 'completed',
           },
         ],
-        meta: { page: 1, per_page: 500, pages: 1, total: 2 },
+        meta: { page: 1, per_page: 100, pages: 1, total: 2 },
       }),
       jsonResponse({ data: { id: 'fixture-workspace', deleted: true } }),
       jsonResponse({ data: { id: 'fixture-playbook-planned', deleted: true } }),

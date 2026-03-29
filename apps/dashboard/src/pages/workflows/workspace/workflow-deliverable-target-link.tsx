@@ -13,12 +13,11 @@ export function WorkflowDeliverableTargetLink(props: {
   const targetLabel = props.primary
     ? readTargetLabel(target)
     : buildSecondaryTargetLabel(target);
-  const renderInlineReference = shouldRenderInlineReference(target);
   const openInNewTabLabel = buildOpenInNewTabLabel(target.target_kind);
 
   return (
     <div className="grid gap-2">
-      {renderInlineReference ? (
+      {action.action_kind === 'inline_reference' ? (
         <>
           <p className="text-sm font-medium text-foreground">{targetLabel}</p>
           <p className="text-xs text-muted-foreground">Already visible in this workflow workspace.</p>
@@ -69,13 +68,4 @@ function buildOpenInNewTabLabel(targetKind: DashboardWorkflowDeliverableTarget['
     return 'Open file in new tab';
   }
   return `Open ${humanizeToken(targetKind).toLowerCase()} in new tab`;
-}
-
-function shouldRenderInlineReference(target: DashboardWorkflowDeliverableTarget): boolean {
-  if (target.url.trim().length === 0) {
-    return true;
-  }
-  return target.target_kind === 'workflow'
-    || target.target_kind === 'work_item'
-    || target.target_kind === 'task';
 }
