@@ -4976,6 +4976,125 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
   });
 
+  it('completes an escalated task when the current rework attempt already has a persisted handoff', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM task_handoffs') && sql.includes('task_rework_count = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{ id: 'handoff-r3', created_at: new Date('2026-03-29T11:51:42.408Z') }],
+          };
+        }
+        if (sql.startsWith('UPDATE tasks SET')) {
+          expect(sql).toContain('completed_at = now()');
+          expect(sql).not.toContain('output = NULL');
+          expect(values?.[2]).toBe('completed');
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'escalated-task',
+                state: 'completed',
+                workflow_id: 'wf-human',
+                work_item_id: 'wi-human',
+                stage_name: 'review',
+                input: {
+                  escalation_resolution: {
+                    instructions: 'Use the persisted handoff and settle the task.',
+                    context: { source: 'ops' },
+                  },
+                },
+                metadata: {
+                  escalation_awaiting_human: null,
+                },
+                is_orchestrator_task: true,
+              },
+            ],
+          };
+        }
+        if (sql.includes('FROM workflow_subject_escalations') && sql.includes("status = 'open'")) {
+          return {
+            rowCount: 1,
+            rows: [{ id: 'escalation-open', status: 'open' }],
+          };
+        }
+        if (sql.startsWith('UPDATE workflow_subject_escalations')) {
+          return { rows: [], rowCount: 1 };
+        }
+        if (sql.includes('SELECT COUNT(*)::int AS count')) {
+          return { rowCount: 1, rows: [{ count: 0 }] };
+        }
+        if (sql.includes('UPDATE workflow_work_items') && sql.includes('escalation_status = NULL')) {
+          return { rows: [], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const eventService = { emit: vi.fn().mockResolvedValue(undefined) };
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'escalated-task',
+        state: 'escalated',
+        workflow_id: 'wf-human',
+        work_item_id: 'wi-human',
+        stage_name: 'review',
+        rework_count: 3,
+        input: {},
+        metadata: {
+          escalation_awaiting_human: true,
+        },
+        is_orchestrator_task: true,
+      }),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.resolveEscalation(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'escalated-task',
+      {
+        instructions: 'Use the persisted handoff and settle the task.',
+        context: { source: 'ops' },
+      },
+    );
+
+    expect(result).toMatchObject({
+      id: 'escalated-task',
+      state: 'completed',
+    });
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE tasks SET'),
+      expect.arrayContaining(['tenant-1', 'escalated-task', 'completed']),
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.state_changed',
+        entityId: 'escalated-task',
+        data: expect.objectContaining({
+          from_state: 'escalated',
+          to_state: 'completed',
+          reason: 'escalation_resolved',
+        }),
+      }),
+      client,
+    );
+  });
+
   it('reopens an escalated source task in pending when escalation resolution would exceed playbook capacity', async () => {
     const eventService = { emit: vi.fn() };
     const parallelismService = {
