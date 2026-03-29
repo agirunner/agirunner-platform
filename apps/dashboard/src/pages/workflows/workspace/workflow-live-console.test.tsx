@@ -33,9 +33,7 @@ describe('WorkflowLiveConsole', () => {
 
     expect(html.indexOf('Older headline')).toBeLessThan(html.indexOf('Newest headline'));
     expect(html).not.toContain('Load older headlines');
-    expect(html).toContain(
-      'Showing the latest 2 loaded lines out of 7 total. Older lines stream in automatically as you scroll upward.',
-    );
+    expect(html).not.toContain('Older lines stream in automatically as you scroll upward.');
   });
 
   it('renders updates and briefs as single-line terminal entries', () => {
@@ -112,15 +110,15 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('border-slate-700/80');
     expect(html).toContain('rounded-xl border border-slate-900/90 bg-[#08111f]');
     expect(html).toContain('border-b border-slate-800/80 bg-slate-950/80');
-    expect(html).toContain(
-      'inline-flex min-w-0 items-center gap-2 rounded-md border px-2.5 py-1.5',
-    );
+    expect(html).toContain('inline-flex min-w-0 items-center gap-2 rounded-md border px-2.5 py-1.5');
     expect(html).toContain('grid gap-px');
     expect(html).toContain('break-words');
-    expect(html).toContain('overflow-x-hidden overflow-y-auto');
-    expect(html).toContain(
-      'Showing the latest 3 loaded lines out of 7 total. Older lines stream in automatically as you scroll upward.',
-    );
+    expect(html).toContain('flex min-h-0 flex-1 flex-col overflow-hidden');
+    expect(html).toContain('flex min-w-0 items-center gap-3');
+    expect(html).toContain('ml-auto flex shrink-0 items-center gap-1.5');
+    expect(html).toContain('min-h-0 flex-1 overflow-x-hidden overflow-y-auto');
+    expect(html).not.toContain('max-h-[28rem]');
+    expect(html).not.toContain('Older lines stream in automatically as you scroll upward.');
   });
 
   it('prefers packet-provided filter totals over the loaded window counts', () => {

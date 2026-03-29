@@ -5,7 +5,6 @@ import { Button } from '../../../components/ui/button.js';
 import type { DashboardWorkflowLiveConsolePacket } from '../../../lib/api.js';
 import {
   buildWorkflowConsoleFilterDescriptorsWithCounts,
-  describeWorkflowConsoleCoverage,
   describeWorkflowConsoleEmptyState,
   describeWorkflowConsoleScope,
   filterWorkflowConsoleItems,
@@ -67,15 +66,6 @@ export function WorkflowLiveConsole(props: {
   const visibleItems = useMemo(
     () => orderWorkflowConsoleItemsForDisplay(filterWorkflowConsoleItems(consoleItems, selectedFilter)),
     [consoleItems, selectedFilter],
-  );
-  const coverageMessage = useMemo(
-    () =>
-      describeWorkflowConsoleCoverage(
-        consoleItems,
-        props.packet.next_cursor,
-        props.packet.total_count,
-      ),
-    [consoleItems, props.packet.next_cursor, props.packet.total_count],
   );
 
   useEffect(() => {
@@ -162,8 +152,8 @@ export function WorkflowLiveConsole(props: {
 
   if (props.isScopeLoading) {
     return (
-      <div className="grid gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex h-full min-h-0 flex-col gap-3">
+        <div className="flex min-w-0 items-center justify-between gap-3">
           <div className="grid gap-1">
             <p className="text-sm font-semibold text-foreground">Live Console</p>
             <p className="text-sm text-muted-foreground">
@@ -178,7 +168,7 @@ export function WorkflowLiveConsole(props: {
         <div
           data-live-console-surface="terminal"
           data-live-console-loading="true"
-          className={TERMINAL_SURFACE_CLASS_NAME}
+          className={`${TERMINAL_SURFACE_CLASS_NAME} flex min-h-0 flex-1 flex-col overflow-hidden`}
         >
           <div className={TERMINAL_TOOLBAR_CLASS_NAME}>
             <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">
@@ -194,8 +184,8 @@ export function WorkflowLiveConsole(props: {
   }
 
   return (
-    <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="flex min-w-0 items-center justify-between gap-3">
         <div className="grid gap-1">
           <p className="text-sm font-semibold text-foreground">Live Console</p>
           <p className="text-sm text-muted-foreground">
@@ -210,14 +200,14 @@ export function WorkflowLiveConsole(props: {
       <div
         data-live-console-surface="terminal"
         data-live-console-follow-mode={followMode}
-        className={TERMINAL_SURFACE_CLASS_NAME}
+        className={`${TERMINAL_SURFACE_CLASS_NAME} flex min-h-0 flex-1 flex-col overflow-hidden`}
       >
         <div className={TERMINAL_TOOLBAR_CLASS_NAME}>
           <div
             data-live-console-control-row="terminal-controls"
-            className="flex flex-wrap items-center justify-between gap-3"
+            className="flex min-w-0 items-center gap-3"
           >
-            <div className="flex flex-wrap gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1 md:pb-0">
               {filterDescriptors.map((descriptor) => {
                 const isSelected = selectedFilter === descriptor.filter;
                 return (
@@ -241,7 +231,7 @@ export function WorkflowLiveConsole(props: {
                 );
               })}
             </div>
-            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+            <div className="ml-auto flex shrink-0 items-center gap-1.5">
               <span
                 data-live-console-follow-status={followMode}
                 className={TERMINAL_FOLLOW_STATUS_BASE_CLASS_NAME}
@@ -305,14 +295,11 @@ export function WorkflowLiveConsole(props: {
               </Button>
             </div>
           </div>
-          {coverageMessage ? (
-            <p className="mt-2 text-xs text-slate-400">{coverageMessage}</p>
-          ) : null}
         </div>
 
         <div
           ref={containerRef}
-          className="max-h-[28rem] overflow-x-hidden overflow-y-auto bg-transparent px-0 py-2 font-mono text-sm text-slate-100"
+          className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto bg-transparent px-0 py-2 font-mono text-sm text-slate-100"
           onScroll={(event) => {
             const element = event.currentTarget;
             const scrollBehavior = getWorkflowConsoleScrollBehavior({

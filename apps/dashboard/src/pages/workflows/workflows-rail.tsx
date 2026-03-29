@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -31,6 +31,7 @@ export function WorkflowsRail(props: {
   onCreateWorkflow(): void;
 }): JSX.Element {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const persistedScrollTopRef = useRef(0);
   const ongoingPreviewRows = useMemo(
     () => props.ongoingRows.slice(0, ONGOING_PREVIEW_LIMIT),
     [props.ongoingRows],
@@ -62,6 +63,13 @@ export function WorkflowsRail(props: {
     [props.selectedWorkflowId, renderedRows],
   );
   const shouldShowMainEmptyState = renderedRows.length === 0;
+
+  useEffect(() => {
+    if (!scrollRef.current) {
+      return;
+    }
+    scrollRef.current.scrollTop = persistedScrollTopRef.current;
+  }, [props.selectedWorkflowId, props.mode, props.ongoingOnly, renderedRows.length, selectedVisible]);
 
   return (
     <aside className="flex h-full min-h-0 w-full flex-col overflow-x-hidden border-r border-border/70 bg-stone-50/90 dark:bg-slate-950/70">
@@ -151,9 +159,11 @@ export function WorkflowsRail(props: {
 
       <div
         ref={scrollRef}
+        data-workflows-rail-scroll-region="true"
         className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-3"
         onScroll={(event) => {
           const element = event.currentTarget;
+          persistedScrollTopRef.current = element.scrollTop;
           const nearBottom =
             element.scrollTop + element.clientHeight >= element.scrollHeight - 120;
           if (nearBottom && props.hasNextPage && !props.isLoading) {
@@ -198,9 +208,9 @@ function WorkflowRailRowCard(props: {
     <button
       type="button"
       className={cn(
-        'grid w-full min-w-0 max-w-full gap-2 rounded-xl border px-3 py-3 text-left transition-colors',
+        'grid w-full min-w-0 max-w-full gap-2 rounded-xl border px-3 py-3 text-left transition-[border-color,background-color,box-shadow,color] duration-150',
         props.isSelected
-          ? 'border-amber-300 bg-amber-100/90 shadow-sm dark:border-amber-500/60 dark:bg-amber-500/10'
+          ? 'border-sky-400/80 bg-sky-100 text-sky-950 shadow-[0_10px_30px_rgba(14,165,233,0.2)] dark:border-sky-300/70 dark:bg-sky-400/15 dark:text-sky-50'
           : 'border-border/70 bg-background/85 hover:border-border hover:bg-background',
       )}
       onClick={() => props.onSelect(props.row.workflow_id)}

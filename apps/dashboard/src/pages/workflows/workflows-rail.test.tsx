@@ -1,4 +1,6 @@
 import { createElement } from 'react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -6,6 +8,15 @@ import type { DashboardWorkflowRailRow } from '../../lib/api.js';
 import { WorkflowsRail } from './workflows-rail.js';
 
 describe('WorkflowsRail', () => {
+  it('preserves the operator rail scroll position when selection changes', () => {
+    const source = readFileSync(resolve(__dirname, './workflows-rail.tsx'), 'utf8');
+
+    expect(source).toContain('data-workflows-rail-scroll-region="true"');
+    expect(source).toContain('const persistedScrollTopRef = useRef(0);');
+    expect(source).toContain('persistedScrollTopRef.current = element.scrollTop;');
+    expect(source).toContain('scrollRef.current.scrollTop = persistedScrollTopRef.current;');
+  });
+
   it('pins the current workflow when filters move it outside the visible rail rows', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowsRail, {
