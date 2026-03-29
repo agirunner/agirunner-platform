@@ -83,25 +83,23 @@ export class WorkflowDeliverablesService {
         workItemId: input.workItemId,
       }) ?? Promise.resolve([]),
     ]);
-    const scopedBriefs = filterRecordsForRequestedScope(
-      briefs,
-      input.workItemId,
-      (brief) => readOptionalString(brief.work_item_id),
-    );
     const deliverableScopeRecords = selectDeliverableScopeRecords(
       deliverables,
       input.workItemId,
       (deliverable) => deliverable.work_item_id,
+      isStoredFinalDeliverable,
     );
     const deliverableScopeBriefs = selectDeliverableScopeRecords(
       briefs,
       input.workItemId,
       (brief) => readOptionalString(brief.work_item_id),
+      (brief) => isDeliverableOutcomeStatus(readOptionalString(brief.status_kind)),
     );
     const scopedHandoffs = selectDeliverableScopeRecords(
       handoffs,
       input.workItemId,
       (handoff) => handoff.work_item_id,
+      () => true,
     );
     const finalizedBriefIds = collectFinalizedBriefIds(deliverableScopeBriefs);
     const finalizedDescriptorIds = collectFinalizedDescriptorIds(deliverableScopeBriefs);
@@ -129,7 +127,7 @@ export class WorkflowDeliverablesService {
       in_progress_deliverables: pagedDeliverables.filter((deliverable) =>
         !isFinalDeliverable(deliverable, finalizedBriefIds, finalizedDescriptorIds),
       ),
-      working_handoffs: scopedBriefs.filter(isDeliverableBrief),
+      working_handoffs: deliverableScopeBriefs.filter(isDeliverableBrief),
       inputs_and_provenance: {
         launch_packet: pickSinglePacket(inputPackets, 'launch', input.workItemId),
         supplemental_packets: filterPacketKinds(
@@ -169,12 +167,18 @@ function selectDeliverableScopeRecords<T>(
   records: T[],
   workItemId: string | undefined,
   readWorkItemId: (record: T) => string | null,
+  shouldIncludeChildScopeRecord: (record: T) => boolean,
 ): T[] {
-  if (!workItemId) {
-    const workflowScopedRecords = records.filter((record) => readWorkItemId(record) === null);
-    return workflowScopedRecords.length > 0 ? workflowScopedRecords : records;
+  if (workItemId) {
+    return filterRecordsForRequestedScope(records, workItemId, readWorkItemId);
   }
-  return filterRecordsForRequestedScope(records, workItemId, readWorkItemId);
+
+  const workflowRollupRecords = records.filter((record) => {
+    const recordWorkItemId = readWorkItemId(record);
+    return recordWorkItemId === null || shouldIncludeChildScopeRecord(record);
+  });
+
+  return workflowRollupRecords.length > 0 ? workflowRollupRecords : records;
 }
 
 function appendSynthesizedHandoffDeliverables(

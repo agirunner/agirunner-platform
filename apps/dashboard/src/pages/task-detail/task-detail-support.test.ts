@@ -4,6 +4,7 @@ import {
   buildTaskNextStep,
   normalizeTaskState,
   parseJsonObject,
+  readCanonicalFinalDeliverables,
   readClarificationAnswers,
   readClarificationHistory,
   readAssessmentSignals,
@@ -109,5 +110,30 @@ describe('task detail lifecycle support', () => {
     expect(buildTaskNextStep({ state: 'queued' } as never).detail).toBe(
       'Use the workflow scope, current status, and step packet to decide the safest next operator action.',
     );
+  });
+
+  it('reads canonical final deliverables from completion-style output packets', () => {
+    expect(
+      readCanonicalFinalDeliverables({
+        summary: 'Workflow is complete.',
+        final_artifacts: ['deliverables/release-notes.md', 'artifacts/result.json'],
+      }),
+    ).toEqual({
+      summary: 'Workflow is complete.',
+      deliverables: ['deliverables/release-notes.md', 'artifacts/result.json'],
+    });
+
+    expect(
+      readCanonicalFinalDeliverables({
+        summary: 'Workflow is complete.',
+        final_artifacts: ['deliverables/release-notes.md', '', 42],
+      }),
+    ).toEqual({
+      summary: 'Workflow is complete.',
+      deliverables: ['deliverables/release-notes.md'],
+    });
+
+    expect(readCanonicalFinalDeliverables({ final_artifacts: [] })).toBeNull();
+    expect(readCanonicalFinalDeliverables('plain text output')).toBeNull();
   });
 });

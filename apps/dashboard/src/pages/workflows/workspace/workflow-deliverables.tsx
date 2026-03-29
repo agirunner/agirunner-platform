@@ -232,18 +232,9 @@ export function WorkflowDeliverables(props: {
 
 function buildDisplayPacketForScope(
   packet: DashboardWorkflowDeliverablesPacket,
-  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
+  _scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
 ): DashboardWorkflowDeliverablesPacket {
-  if (scopeKind !== 'workflow') {
-    return packet;
-  }
-
-  return {
-    ...packet,
-    final_deliverables: packet.final_deliverables.filter((deliverable) => deliverable.work_item_id === null),
-    in_progress_deliverables: packet.in_progress_deliverables.filter((deliverable) => deliverable.work_item_id === null),
-    working_handoffs: packet.working_handoffs.filter((brief) => brief.work_item_id === null),
-  };
+  return packet;
 }
 
 function buildDeliverablesScopeCopy(
@@ -488,7 +479,7 @@ function InputEntryCard(props: {
         <Badge variant="secondary">{humanizeToken(packet.packet_kind)}</Badge>
       </div>
       <div className="grid gap-1 text-xs text-muted-foreground">
-        <span>Created {new Date(packet.created_at).toLocaleString()}</span>
+        <span>Created {formatEntryTimestamp(packet.created_at)}</span>
         <span>{packet.files.length} file(s)</span>
       </div>
       {structuredInputs.length > 0 ? (
@@ -572,6 +563,14 @@ function PacketFileLink(props: {
       </p>
     </div>
   );
+}
+
+function formatEntryTimestamp(value: string): string {
+  const millis = new Date(value).getTime();
+  if (!Number.isFinite(millis)) {
+    return 'Unknown time';
+  }
+  return new Date(millis).toLocaleString();
 }
 
 function pickOutcomeBrief(

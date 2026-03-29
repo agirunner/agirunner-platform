@@ -33,7 +33,7 @@ describe('secondary task detail page source', () => {
     const source = readSource();
     expect(source).toContain('TaskDetailArtifactsPanel');
     expect(source).toContain('Artifact evidence packet');
-    expect(source).toContain('Open preview workspace');
+    expect(source).toContain('Open artifact preview');
     expect(source).toContain('Download-first files');
   });
 });

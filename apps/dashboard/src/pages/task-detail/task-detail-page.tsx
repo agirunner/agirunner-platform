@@ -33,6 +33,7 @@ import {
 import {
   buildTaskNextStep,
   readAssessmentSignals,
+  readCanonicalFinalDeliverables,
   readReworkDetails,
 } from './task-detail-support.js';
 import {
@@ -560,8 +561,27 @@ function OutputSection({ output }: { output: unknown }): JSX.Element {
     return <p className="text-sm text-muted">No output available.</p>;
   }
 
+  const canonicalFinalDeliverables = readCanonicalFinalDeliverables(output);
+
   return (
     <div className="space-y-4">
+      {canonicalFinalDeliverables ? (
+        <section className="rounded-xl border border-border/70 bg-surface p-4">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted">
+            Canonical final deliverables
+          </p>
+          {canonicalFinalDeliverables.summary ? (
+            <p className="mt-2 text-sm leading-6 text-muted">
+              {canonicalFinalDeliverables.summary}
+            </p>
+          ) : null}
+          <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-foreground">
+            {canonicalFinalDeliverables.deliverables.map((deliverable) => (
+              <li key={deliverable}>{deliverable}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <div className="rounded-xl bg-border/10 p-4">
         {renderOutputPreview(output)}
       </div>

@@ -1,11 +1,9 @@
 import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Download, FileText, Loader2, Package } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
 import { dashboardApi, type DashboardTaskArtifactRecord } from '../../lib/api.js';
 import {
-  buildArtifactPermalink,
   describeArtifactPreview,
   MAX_INLINE_ARTIFACT_PREVIEW_BYTES,
 } from '../../components/artifact-preview/artifact-preview-support.js';
@@ -92,6 +90,8 @@ function ArtifactReviewCard(props: {
   artifact: DashboardTaskArtifactRecord;
 }): JSX.Element {
   const preview = describeArtifact(props.artifact);
+  const actionHref = buildArtifactActionHref(props.artifact, preview.canInline);
+  const actionLabel = preview.canInline ? 'Open artifact preview' : 'Download artifact';
   return (
     <article className="rounded-xl border border-border/70 bg-card/70 p-4 shadow-sm">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -113,9 +113,9 @@ function ArtifactReviewCard(props: {
         </div>
         <div className="flex flex-wrap gap-2 sm:justify-end">
           <Button asChild size="sm">
-            <Link to={buildArtifactPermalink(props.artifact.task_id, props.artifact.id)}>
-              Open preview workspace
-            </Link>
+            <a href={actionHref} target="_blank" rel="noreferrer">
+              {actionLabel}
+            </a>
           </Button>
         </div>
       </div>
@@ -169,12 +169,12 @@ function summarizeArtifacts(artifacts: DashboardTaskArtifactRecord[]) {
     latestArtifactLabel: `Latest ${formatRelativeTime(latestArtifact.created_at)}`,
     nextStepTitle:
       previewReadyCount > 0
-        ? 'Start with the preview workspace'
-        : 'Open the artifact workspace for download review',
+        ? 'Open the artifact preview directly'
+        : 'Open the artifact download directly',
     nextStepDetail:
       previewReadyCount > 0
         ? 'Open the most relevant previewable file first so you can validate the rendered output before dropping into raw payloads or downloads.'
-        : 'This step only has binary or oversized files right now. Use the preview workspace to inspect metadata first, then download the source file if needed.',
+        : 'This step only has binary or oversized files right now. Open the direct download target for the source file.',
   };
 }
 
@@ -189,10 +189,20 @@ function describeArtifact(artifact: DashboardTaskArtifactRecord) {
   return {
     canInline,
     statusLabel: canInline ? 'Inline preview ready' : 'Download-only artifact',
-      reviewGuidance: canInline
-      ? 'Start with the preview workspace so rendered output, raw payload, and download stay in one operator evidence flow.'
-      : 'Use the preview workspace to inspect metadata and route to a safe download for this file.',
+    reviewGuidance: canInline
+      ? 'Open the artifact preview directly so rendered output, raw payload, and download stay in one operator evidence flow.'
+      : 'Open the direct download target for this file.',
   };
+}
+
+function buildArtifactActionHref(
+  artifact: DashboardTaskArtifactRecord,
+  canInline: boolean,
+): string {
+  if (canInline) {
+    return `/api/v1/tasks/${encodeURIComponent(artifact.task_id)}/artifacts/${encodeURIComponent(artifact.id)}/preview`;
+  }
+  return artifact.access_url?.trim() || artifact.download_url;
 }
 
 function formatArtifactFileSize(bytes: number): string {

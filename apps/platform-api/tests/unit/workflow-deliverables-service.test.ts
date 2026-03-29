@@ -1389,6 +1389,111 @@ describe('WorkflowDeliverablesService', () => {
     expect(result.in_progress_deliverables).toEqual([]);
   });
 
+  it('keeps final work-item deliverables visible in workflow scope even when workflow-scoped packets also exist', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'deliverable-workflow-1',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'brief_packet',
+          delivery_stage: 'in_progress',
+          title: 'Workflow summary packet',
+          state: 'under_review',
+          summary_brief: 'Workflow review is still in progress.',
+          preview_capabilities: {},
+          primary_target: { target_kind: 'inline_summary', label: 'Review workflow packet' },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Workflow review is still in progress.',
+          },
+          source_brief_id: 'brief-workflow-1',
+          created_at: '2026-03-28T20:55:00.000Z',
+          updated_at: '2026-03-28T20:55:00.000Z',
+        },
+        {
+          descriptor_id: 'deliverable-work-item-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'workflow-intake-01 completion packet',
+          state: 'final',
+          summary_brief: 'Work item packet is final and ready for operator review.',
+          preview_capabilities: {},
+          primary_target: { target_kind: 'inline_summary', label: 'Review completion packet' },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Work item packet is final and ready for operator review.',
+          },
+          source_brief_id: null,
+          created_at: '2026-03-28T21:00:00.000Z',
+          updated_at: '2026-03-28T21:00:00.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => [
+        {
+          id: 'brief-workflow-1',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          task_id: null,
+          request_id: 'request-workflow-1',
+          execution_context_id: 'execution-workflow-1',
+          brief_kind: 'milestone',
+          brief_scope: 'deliverable_context',
+          source_kind: 'orchestrator',
+          source_role_name: 'Orchestrator',
+          status_kind: 'in_progress',
+          short_brief: { headline: 'Workflow summary packet' },
+          detailed_brief_json: {
+            headline: 'Workflow summary packet',
+            status_kind: 'in_progress',
+          },
+          linked_target_ids: [],
+          sequence_number: 6,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: ['deliverable-workflow-1'],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-28T20:55:00.000Z',
+          updated_at: '2026-03-28T20:55:00.000Z',
+        },
+      ]),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1');
+
+    expect(result.final_deliverables).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          descriptor_id: 'deliverable-work-item-1',
+          work_item_id: 'work-item-1',
+        }),
+      ]),
+    );
+    expect(result.in_progress_deliverables).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          descriptor_id: 'deliverable-workflow-1',
+          work_item_id: null,
+        }),
+      ]),
+    );
+  });
+
   it('suppresses an orchestrator brief packet when the same work item already has a canonical final packet', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => [

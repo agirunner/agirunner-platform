@@ -85,6 +85,89 @@ describe('WorkflowDeliverables', () => {
     expect(html).not.toContain('Briefs (1)');
   });
 
+  it('keeps rolled-up work-item finals visible in workflow scope alongside workflow-scoped packets', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: {
+          final_deliverables: [
+            {
+              descriptor_id: 'deliverable-work-item-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              descriptor_kind: 'deliverable_packet',
+              delivery_stage: 'final',
+              title: 'workflow-intake-01 completion packet',
+              state: 'final',
+              summary_brief: 'Final work item packet.',
+              preview_capabilities: {},
+              primary_target: {
+                target_kind: 'inline_summary',
+                label: 'Review completion packet',
+                url: '',
+              },
+              secondary_targets: [],
+              content_preview: {
+                summary: 'Final work item packet.',
+              },
+              source_brief_id: null,
+              created_at: '2026-03-28T21:00:00.000Z',
+              updated_at: '2026-03-28T21:00:00.000Z',
+            },
+          ],
+          in_progress_deliverables: [
+            {
+              descriptor_id: 'deliverable-workflow-1',
+              workflow_id: 'workflow-1',
+              work_item_id: null,
+              descriptor_kind: 'brief_packet',
+              delivery_stage: 'in_progress',
+              title: 'Workflow summary packet',
+              state: 'under_review',
+              summary_brief: 'Workflow review is still in progress.',
+              preview_capabilities: {},
+              primary_target: {
+                target_kind: 'inline_summary',
+                label: 'Review workflow packet',
+                url: '',
+              },
+              secondary_targets: [],
+              content_preview: {
+                summary: 'Workflow review is still in progress.',
+              },
+              source_brief_id: null,
+              created_at: '2026-03-28T20:55:00.000Z',
+              updated_at: '2026-03-28T20:55:00.000Z',
+            },
+          ],
+          working_handoffs: [],
+          inputs_and_provenance: {
+            launch_packet: null,
+            supplemental_packets: [],
+            intervention_attachments: [],
+            redrive_packet: null,
+          },
+          next_cursor: null,
+        },
+        selectedTask: null,
+        selectedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Final deliverables (1)');
+    expect(html).toContain('workflow-intake-01 completion packet');
+    expect(html).toContain('In-progress deliverables (1)');
+    expect(html).toContain('Workflow summary packet');
+  });
+
   it('keeps task scope anchored on task evidence and clearly labels the parent work-item deliverables', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
@@ -400,7 +483,7 @@ describe('WorkflowDeliverables', () => {
     expect(html).toContain('Workflow release brief');
   });
 
-  it('filters leaked work-item deliverables out of workflow scope', () => {
+  it('keeps rolled-up work-item deliverables visible in workflow scope', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: {
@@ -421,8 +504,8 @@ describe('WorkflowDeliverables', () => {
     );
 
     expect(html).toContain('Program status brief');
-    expect(html).not.toContain('Release checklist');
-    expect(html).toContain('Final deliverables (1)');
+    expect(html).toContain('Release checklist');
+    expect(html).toContain('Final deliverables (2)');
   });
 
   it('tolerates incomplete deliverables packets and malformed records without crashing', () => {

@@ -25,6 +25,11 @@ export interface TaskAssessmentSignals {
   escalationAwaitingHuman: boolean;
 }
 
+export interface CanonicalFinalDeliverablesPacket {
+  summary: string | null;
+  deliverables: string[];
+}
+
 export function parseJsonObject(value: string, errorMessage: string) {
   try {
     const parsed = JSON.parse(value);
@@ -95,6 +100,23 @@ export function readAssessmentSignals(task: Task | null): TaskAssessmentSignals 
   };
 }
 
+export function readCanonicalFinalDeliverables(
+  output: unknown,
+): CanonicalFinalDeliverablesPacket | null {
+  const packet = asRecord(output);
+  const deliverables = Array.from(new Set([
+    ...readStringArray(packet.final_artifacts),
+    ...readStringArray(packet.final_deliverables),
+  ]));
+  if (deliverables.length === 0) {
+    return null;
+  }
+  return {
+    summary: readString(packet.summary) ?? null,
+    deliverables,
+  };
+}
+
 export function buildTaskNextStep(task: TaskWithStatus | null): TaskNextStep {
   const state = normalizeTaskState(task?.state ?? task?.status);
   if (state === 'awaiting_approval') {
@@ -158,4 +180,14 @@ function readString(value: unknown) {
 
 function readNumber(value: unknown) {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function readStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .filter((entry): entry is string => typeof entry === 'string')
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
 }

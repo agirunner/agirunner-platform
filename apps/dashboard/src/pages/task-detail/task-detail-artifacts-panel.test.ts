@@ -16,7 +16,7 @@ describe('task detail artifacts panel source', () => {
     expect(source).toContain('Artifacts recorded');
     expect(source).toContain('Inline preview ready');
     expect(source).toContain('Download-first files');
-    expect(source).toContain('Open preview workspace');
+    expect(source).toContain('Open artifact preview');
     expect(source).toContain('No artifacts published for this step yet.');
   });
 
@@ -24,7 +24,7 @@ describe('task detail artifacts panel source', () => {
     const source = readSource();
     expect(source).toContain('grid gap-3 md:grid-cols-3');
     expect(source).toContain('sm:flex-row sm:items-start sm:justify-between');
-    expect(source).toContain('Start with the preview workspace');
+    expect(source).toContain('Open the artifact preview directly');
     expect(source).toContain('Download-only artifact');
     expect(source).toContain('Created {formatRelativeTime(');
   });
