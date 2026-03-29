@@ -119,6 +119,67 @@ describe('WorkflowBoard', () => {
     expect(html).not.toContain('grid min-h-[10rem] place-items-center text-center');
   });
 
+  it('omits the empty task shell when a work item has no task previews yet', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: createBoard(),
+          selectedWorkItemId: 'work-item-1',
+          selectedTaskId: null,
+          boardLens: 'work_items',
+          boardMode: 'active_recent_complete',
+          taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
+            [
+              'work-item-1',
+              {
+                tasks: [],
+                hasActiveOrchestratorTask: false,
+              },
+            ],
+          ]),
+          onBoardLensChange: vi.fn(),
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+          onSelectTask: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Review incoming packet');
+    expect(html).not.toContain('No task previews available yet.');
+    expect(html).not.toContain('Task preview');
+    expect(html.match(/>Tasks</g)?.length ?? 0).toBe(1);
+  });
+
+  it('keeps sparse lanes content-sized instead of stretching them to the full board height', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: createBoard(),
+          selectedWorkItemId: null,
+          selectedTaskId: null,
+          boardLens: 'work_items',
+          boardMode: 'active_recent_complete',
+          onBoardLensChange: vi.fn(),
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+          onSelectTask: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('grid gap-3 md:grid-flow-col md:auto-cols-[minmax(17.5rem,1fr)] md:items-start');
+    expect(html).toContain('grid min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5');
+    expect(html).not.toContain('grid min-h-full gap-3 md:grid-flow-col md:auto-cols-[minmax(17.5rem,1fr)]');
+    expect(html).not.toContain('grid h-full min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5');
+  });
+
   it('supports a task lens that renders only specialist tasks as first-class cards', () => {
     const html = renderToStaticMarkup(
       createElement(

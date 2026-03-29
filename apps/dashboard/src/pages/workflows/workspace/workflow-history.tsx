@@ -1,4 +1,3 @@
-import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import type { DashboardWorkflowHistoryPacket } from '../../../lib/api.js';
 import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
@@ -14,7 +13,6 @@ export function WorkflowHistory(props: {
 }): JSX.Element {
   const scopeSubject = props.scopeSubject ?? 'workflow';
   const displayGroups = getHistoryDisplayGroups(props.packet);
-  const shouldShowTypeChip = countDistinctItemKinds(displayGroups) > 1;
 
   return (
     <div className="grid gap-4">
@@ -26,9 +24,9 @@ export function WorkflowHistory(props: {
       </div>
 
       {displayGroups.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
+        <p className="px-1 text-sm text-muted-foreground">
           No briefs published for this {scopeSubject} yet.
-        </div>
+        </p>
       ) : (
         <div className="grid gap-4">
           {displayGroups.map((group) => (
@@ -44,7 +42,6 @@ export function WorkflowHistory(props: {
                   <HistoryItemCard
                     key={item.item_id}
                     item={item}
-                    showTypeChip={shouldShowTypeChip}
                   />
                 ))}
               </div>
@@ -66,7 +63,6 @@ export function WorkflowHistory(props: {
 
 function HistoryItemCard(props: {
   item: DashboardWorkflowHistoryPacket['items'][number];
-  showTypeChip: boolean;
 }): JSX.Element {
   const sourceLabel = formatWorkflowActivitySourceLabel(
     props.item.source_label,
@@ -79,13 +75,11 @@ function HistoryItemCard(props: {
 
   return (
     <article className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        {props.showTypeChip ? <Badge variant="outline">{humanizeToken(props.item.item_kind)}</Badge> : null}
-        <Badge variant="secondary">{sourceLabel}</Badge>
-        <span className="text-xs text-muted-foreground">
-          {formatRelativeTimestamp(props.item.created_at)}
-        </span>
-      </div>
+      <p className="text-xs font-medium text-muted-foreground">
+        {sourceLabel}
+        {' · '}
+        {formatRelativeTimestamp(props.item.created_at)}
+      </p>
       <strong className="text-foreground">{displayHeadline}</strong>
       {showSummary ? <p className="text-sm text-muted-foreground">{summary}</p> : null}
     </article>
@@ -109,14 +103,4 @@ function getHistoryDisplayGroups(packet: DashboardWorkflowHistoryPacket): Array<
     }))
     .filter((group) => group.items.length > 0)
     .sort((left, right) => right.anchor_at.localeCompare(left.anchor_at));
-}
-
-function countDistinctItemKinds(
-  groups: Array<{ items: DashboardWorkflowHistoryPacket['items'] }>,
-): number {
-  return new Set(groups.flatMap((group) => group.items.map((item) => item.item_kind))).size;
-}
-
-function humanizeToken(value: string): string {
-  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }

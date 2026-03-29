@@ -137,15 +137,9 @@ function PacketSection(props: {
     <div className="grid gap-3 divide-y divide-border/60">
       {props.packets.map((packet) => (
         <div key={packet.id} className="grid gap-2 pt-3 first:pt-0">
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <strong className="text-sm text-foreground">
-              {packet.summary ?? humanizeToken(packet.packet_kind)}
-            </strong>
-            <span className="text-xs text-muted-foreground">
-              {humanizeToken(packet.packet_kind)}
-              {' input'}
-            </span>
-          </div>
+          <strong className="text-sm text-foreground">
+            {packet.summary ?? humanizeToken(packet.packet_kind)}
+          </strong>
           {hasStructuredContent(packet.structured_inputs) ? (
             <StructuredBlock value={packet.structured_inputs} compact />
           ) : null}

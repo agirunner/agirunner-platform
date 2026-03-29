@@ -290,11 +290,13 @@ describe('WorkflowHistory', () => {
       ),
     );
 
-    expect(html).toContain('Milestone Brief');
-    expect(html).toContain('Operator Update');
+    expect(html).not.toContain('Milestone Brief');
+    expect(html).not.toContain('Operator Update');
+    expect(html).toContain('Reviewer');
+    expect(html).toContain('Verifier');
   });
 
-  it('hides the older-briefs control when no backfill cursor is available', () => {
+  it('uses plain inline empty-state copy when no briefs are available', () => {
     const html = renderToStaticMarkup(
       createElement(
         MemoryRouter,
@@ -315,6 +317,7 @@ describe('WorkflowHistory', () => {
 
     expect(html).not.toContain('Load older briefs');
     expect(html).toContain('No briefs published for this work item yet.');
+    expect(html).not.toContain('rounded-2xl border border-dashed border-border/70 bg-background/60 p-4');
     expect(html).not.toContain('workflow packets');
   });
 });

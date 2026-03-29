@@ -173,7 +173,7 @@ export function WorkflowBoard(props: {
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto pb-1">
-        <div className="grid min-h-full gap-3 md:grid-flow-col md:auto-cols-[minmax(17.5rem,1fr)]">
+        <div className="grid gap-3 md:grid-flow-col md:auto-cols-[minmax(17.5rem,1fr)] md:items-start">
           {boardView.lanes.map((lane) => (
             <BoardLaneCard
               key={lane.column.id}
@@ -224,7 +224,7 @@ function BoardLaneCard(props: {
     && (props.lane.visibleCompletedItems.length > 0 || props.lane.hiddenCompletedCount > 0);
 
   return (
-    <article className="grid h-full min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5">
+    <article className="grid min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">{props.lane.column.label}</p>
@@ -340,17 +340,18 @@ function BoardWorkItemCard(props: {
         ) : null}
       </button>
 
-      <WorkflowBoardTaskStack
-        tasks={props.taskSummary.tasks}
-        selectedTaskId={props.selectedTaskId}
-        collapsible={false}
-        onSelectTask={
-          props.onSelectTask
-            ? (taskId) => props.onSelectTask?.(props.workItem.id, taskId)
-            : undefined
-        }
-      />
-      <span className="sr-only">Task preview</span>
+      {props.taskSummary.tasks.length > 0 ? (
+        <WorkflowBoardTaskStack
+          tasks={props.taskSummary.tasks}
+          selectedTaskId={props.selectedTaskId}
+          collapsible={false}
+          onSelectTask={
+            props.onSelectTask
+              ? (taskId) => props.onSelectTask?.(props.workItem.id, taskId)
+              : undefined
+          }
+        />
+      ) : null}
     </article>
   );
 }

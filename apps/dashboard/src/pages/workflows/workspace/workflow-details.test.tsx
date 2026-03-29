@@ -176,6 +176,7 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Launch inputs');
     expect(html).toContain('Launch packet');
     expect(html).toContain('release/2026.03');
+    expect(html).not.toContain('Launch Packet input');
     expect(html).not.toContain('Latest status');
     expect(html).not.toContain('Workflow scope');
     expect(html).not.toContain('Rollback guide');
