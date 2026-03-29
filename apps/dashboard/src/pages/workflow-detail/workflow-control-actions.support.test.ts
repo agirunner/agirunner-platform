@@ -54,4 +54,28 @@ describe('workflow control action availability', () => {
       canCancel: false,
     });
   });
+
+  it('ignores non-workflow scoped action rows when deciding header controls', () => {
+    expect(
+      getWorkflowControlAvailability({
+        state: 'active',
+        availableActions: [
+          {
+            kind: 'pause_workflow',
+            scope: 'task',
+            enabled: true,
+          },
+          {
+            kind: 'cancel_workflow',
+            scope: 'work_item',
+            enabled: true,
+          },
+        ],
+      }),
+    ).toEqual({
+      canPause: false,
+      canResume: false,
+      canCancel: false,
+    });
+  });
 });

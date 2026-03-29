@@ -2,6 +2,7 @@ interface WorkflowControlStateInput {
   state?: string | null;
   availableActions?: Array<{
     kind: string;
+    scope?: string;
     enabled: boolean;
   }>;
 }
@@ -34,7 +35,11 @@ function readWorkflowActionAvailability(
   if (!availableActions) {
     return null;
   }
-  const actionMap = new Map(availableActions.map((entry) => [entry.kind, entry.enabled]));
+  const actionMap = new Map(
+    availableActions
+      .filter((entry) => (entry.scope?.trim().toLowerCase() ?? 'workflow') === 'workflow')
+      .map((entry) => [entry.kind, entry.enabled]),
+  );
   return {
     canPause: actionMap.get('pause_workflow') ?? false,
     canResume: actionMap.get('resume_workflow') ?? false,

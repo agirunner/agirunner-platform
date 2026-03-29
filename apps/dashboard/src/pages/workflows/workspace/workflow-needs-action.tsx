@@ -12,6 +12,7 @@ import type {
 import { dashboardApi } from '../../../lib/api.js';
 import { toast } from '../../../lib/toast.js';
 import { invalidateWorkflowsQueries } from '../workflows-query.js';
+import { resolveNeedsActionWorkflowTaskContext } from './workflow-needs-action.support.js';
 
 export function WorkflowNeedsAction(props: {
   workflowId: string;
@@ -29,21 +30,23 @@ export function WorkflowNeedsAction(props: {
   const [promptError, setPromptError] = useState<string | null>(null);
 
   const mutation = useMutation({
-    mutationFn: async (action: DashboardWorkflowNeedsActionResponseAction) =>
-      runNeedsAction(props.workflowId, action, promptValue),
-    onSuccess: async (_result, action) => {
+    mutationFn: async (input: {
+      item: DashboardWorkflowNeedsActionItem;
+      action: DashboardWorkflowNeedsActionResponseAction;
+    }) => runNeedsAction(props.workflowId, input.item, input.action, promptValue),
+    onSuccess: async (_result, input) => {
       await invalidateWorkflowsQueries(queryClient, props.workflowId, props.workspaceId);
       setPromptAction(null);
       setPromptValue('');
       setPromptError(null);
-      toast.success(readSuccessMessage(action.kind));
+      toast.success(readSuccessMessage(input.action.kind));
     },
     onError: (error) => {
       setPromptError(error instanceof Error ? error.message : 'Failed to apply operator action.');
     },
   });
 
-  function handleAction(action: DashboardWorkflowNeedsActionResponseAction): void {
+  function handleAction(item: DashboardWorkflowNeedsActionItem, action: DashboardWorkflowNeedsActionResponseAction): void {
     if (action.kind === 'add_work_item') {
       props.onOpenAddWork?.(action.target.target_kind === 'work_item' ? action.target.target_id : null);
       return;
@@ -54,7 +57,7 @@ export function WorkflowNeedsAction(props: {
       setPromptError(null);
       return;
     }
-    mutation.mutate(action);
+    mutation.mutate({ item, action });
   }
 
   function handlePromptSubmit(): void {
@@ -66,7 +69,14 @@ export function WorkflowNeedsAction(props: {
       setPromptError(promptMeta.requiredMessage);
       return;
     }
-    mutation.mutate(promptAction);
+    const promptItem = props.packet.items.find((item) =>
+      item.responses.some((action) => action.action_id === promptAction.action_id),
+    );
+    if (!promptItem) {
+      setPromptError('The selected operator action is no longer available.');
+      return;
+    }
+    mutation.mutate({ item: promptItem, action: promptAction });
   }
 
   return (
@@ -95,7 +105,7 @@ export function WorkflowNeedsAction(props: {
               promptValue={promptValue}
               promptError={promptError}
               isPending={mutation.isPending}
-              onAction={handleAction}
+              onAction={(action) => handleAction(item, action)}
               onPromptChange={setPromptValue}
               onPromptCancel={() => {
                 if (mutation.isPending) {
@@ -211,50 +221,59 @@ function NeedsActionCard(props: {
 
 async function runNeedsAction(
   workflowId: string,
+  item: DashboardWorkflowNeedsActionItem,
   action: DashboardWorkflowNeedsActionResponseAction,
   promptValue: string,
 ): Promise<void> {
-  const workflowTaskContext = readWorkflowTaskContext(action);
-
   switch (action.kind) {
-    case 'approve_task':
+    case 'approve_task': {
+      const workflowTaskContext = resolveNeedsActionWorkflowTaskContext({ item, action });
       await dashboardApi.approveWorkflowWorkItemTask(
         workflowId,
         workflowTaskContext.workItemId,
-        action.target.target_id,
+        workflowTaskContext.taskId,
       );
       return;
-    case 'approve_task_output':
+    }
+    case 'approve_task_output': {
+      const workflowTaskContext = resolveNeedsActionWorkflowTaskContext({ item, action });
       await dashboardApi.approveWorkflowWorkItemTaskOutput(
         workflowId,
         workflowTaskContext.workItemId,
-        action.target.target_id,
+        workflowTaskContext.taskId,
       );
       return;
-    case 'reject_task':
+    }
+    case 'reject_task': {
+      const workflowTaskContext = resolveNeedsActionWorkflowTaskContext({ item, action });
       await dashboardApi.rejectWorkflowWorkItemTask(
         workflowId,
         workflowTaskContext.workItemId,
-        action.target.target_id,
+        workflowTaskContext.taskId,
         { feedback: promptValue.trim() },
       );
       return;
-    case 'request_changes_task':
+    }
+    case 'request_changes_task': {
+      const workflowTaskContext = resolveNeedsActionWorkflowTaskContext({ item, action });
       await dashboardApi.requestWorkflowWorkItemTaskChanges(
         workflowId,
         workflowTaskContext.workItemId,
-        action.target.target_id,
+        workflowTaskContext.taskId,
         { feedback: promptValue.trim() },
       );
       return;
-    case 'resolve_escalation':
+    }
+    case 'resolve_escalation': {
+      const workflowTaskContext = resolveNeedsActionWorkflowTaskContext({ item, action });
       await dashboardApi.resolveWorkflowWorkItemTaskEscalation(
         workflowId,
         workflowTaskContext.workItemId,
-        action.target.target_id,
+        workflowTaskContext.taskId,
         { instructions: promptValue.trim() },
       );
       return;
+    }
     case 'approve_gate':
       await dashboardApi.actOnWorkflowGate(workflowId, action.target.target_id, { action: 'approve' });
       return;
@@ -270,26 +289,18 @@ async function runNeedsAction(
         feedback: promptValue.trim(),
       });
       return;
-    case 'retry_task':
+    case 'retry_task': {
+      const workflowTaskContext = resolveNeedsActionWorkflowTaskContext({ item, action });
       await dashboardApi.retryWorkflowWorkItemTask(
         workflowId,
         workflowTaskContext.workItemId,
-        action.target.target_id,
+        workflowTaskContext.taskId,
       );
       return;
+    }
     default:
       throw new Error(`Unsupported needs-action response '${action.kind}'.`);
   }
-}
-
-function readWorkflowTaskContext(
-  action: DashboardWorkflowNeedsActionResponseAction,
-): { workItemId: string } {
-  const workItemId = action.work_item_id?.trim();
-  if (!workItemId) {
-    throw new Error('Workflow task action is missing work-item context.');
-  }
-  return { workItemId };
 }
 
 function isSupportedNeedsActionResponse(

@@ -231,16 +231,17 @@ describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () =
       readComponent('pages/workflows/workspace/workflow-deliverables.tsx'),
       readComponent('pages/workflows/workspace/workflow-history.tsx'),
     ].join('\n');
-    expect(source).toContain('Final Deliverables');
-    expect(source).toContain('History');
+    expect(source).toContain('Final deliverables');
+    expect(source).toContain('Briefs');
   });
 
-  it('workflow steering exposes workflow interventions and add-work or redrive actions', () => {
+  it('workflow steering keeps interventions in-tab without duplicating header workflow actions', () => {
     const source = readComponent('pages/workflows/workspace/workflow-steering.tsx');
     expect(source).toContain('createWorkflowSteeringRequest');
     expect(source).toContain('createWorkflowInputPacket');
-    expect(source).toContain('onOpenAddWork');
-    expect(source).toContain('onOpenRedrive');
+    expect(source).toContain('Steering history');
+    expect(source).not.toContain('onOpenAddWork');
+    expect(source).not.toContain('onOpenRedrive');
   });
 });
 
