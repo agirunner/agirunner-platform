@@ -26,6 +26,7 @@ interface ArtifactRow {
 
 interface ExistingDescriptorRow {
   id: string;
+  work_item_id: string | null;
 }
 
 interface WorkflowOperatorBriefRow {
@@ -341,16 +342,30 @@ export class WorkflowOperatorBriefService {
       return existingIds;
     }
     if (explicitDeliverables.length === 0 && shouldSynthesizePacket) {
-      const existingDescriptorId = await this.loadExistingDescriptorId(identity.tenantId, workflowId, briefRow.id);
-      if (existingDescriptorId) {
-        return [existingDescriptorId];
+      const attributedWorkItemId = await this.resolveDeliverableWorkItemId(
+        identity.tenantId,
+        workflowId,
+        briefRow,
+      );
+      const existingDescriptor = await this.loadExistingDescriptor(identity.tenantId, workflowId, briefRow.id);
+      if (
+        existingDescriptor
+        && normalizeNullableText(existingDescriptor.work_item_id) === normalizeNullableText(attributedWorkItemId)
+      ) {
+        return [existingDescriptor.id];
       }
     } else if (existingIds.length > 0) {
       return existingIds;
     }
+    const synthesizedDeliverable =
+      explicitDeliverables.length === 0
+        ? await this.buildSynthesizedDeliverable(identity.tenantId, workflowId, briefRow)
+        : null;
     const deliverables = explicitDeliverables.length > 0
       ? explicitDeliverables
-      : [await this.buildSynthesizedDeliverable(identity, workflowId, briefRow)];
+      : synthesizedDeliverable
+        ? [synthesizedDeliverable]
+        : [];
     if (deliverables.length === 0) {
       return [];
     }
@@ -366,19 +381,27 @@ export class WorkflowOperatorBriefService {
   }
 
   private async buildSynthesizedDeliverable(
-    identity: ApiKeyIdentity,
+    tenantId: string,
     workflowId: string,
     briefRow: WorkflowOperatorBriefRow,
-  ): Promise<UpsertWorkflowDeliverableInput> {
-    const [descriptorId, artifacts] = await Promise.all([
-      this.loadExistingDescriptorId(identity.tenantId, workflowId, briefRow.id),
-      this.loadArtifacts(identity.tenantId, workflowId, sanitizeLinkedIdList(briefRow.related_artifact_ids)),
+  ): Promise<UpsertWorkflowDeliverableInput | null> {
+    const attributedWorkItemId = await this.resolveDeliverableWorkItemId(tenantId, workflowId, briefRow);
+    if (isWorkflowScopedOrchestratorBriefLinkedToChildScope(briefRow) && !attributedWorkItemId) {
+      return null;
+    }
+    const [existingDescriptor, artifacts] = await Promise.all([
+      this.loadExistingDescriptor(tenantId, workflowId, briefRow.id),
+      this.loadArtifacts(tenantId, workflowId, sanitizeLinkedIdList(briefRow.related_artifact_ids)),
     ]);
     const artifactTargets = artifacts.map((artifact, index) => buildArtifactTarget(artifact, index === 0));
     const headline = readBriefHeadline(briefRow);
     return {
-      descriptorId,
-      workItemId: briefRow.work_item_id ?? undefined,
+      descriptorId:
+        existingDescriptor
+        && normalizeNullableText(existingDescriptor.work_item_id) === normalizeNullableText(attributedWorkItemId)
+          ? existingDescriptor.id
+          : undefined,
+      workItemId: attributedWorkItemId,
       descriptorKind: 'brief_packet',
       deliveryStage: 'final',
       title: headline,
@@ -396,13 +419,13 @@ export class WorkflowOperatorBriefService {
     };
   }
 
-  private async loadExistingDescriptorId(
+  private async loadExistingDescriptor(
     tenantId: string,
     workflowId: string,
     sourceBriefId: string,
-  ): Promise<string | undefined> {
+  ): Promise<ExistingDescriptorRow | null> {
     const result = await this.pool.query<ExistingDescriptorRow>(
-      `SELECT id
+      `SELECT id, work_item_id
          FROM workflow_output_descriptors
         WHERE tenant_id = $1
           AND workflow_id = $2
@@ -410,7 +433,7 @@ export class WorkflowOperatorBriefService {
         LIMIT 1`,
       [tenantId, workflowId, sourceBriefId],
     );
-    return result.rows[0]?.id;
+    return result.rows[0] ?? null;
   }
 
   private async loadArtifacts(
@@ -490,6 +513,53 @@ export class WorkflowOperatorBriefService {
       throw new ValidationError('Workflow operator brief work item must belong to the selected workflow');
     }
   }
+
+  private async resolveDeliverableWorkItemId(
+    tenantId: string,
+    workflowId: string,
+    briefRow: WorkflowOperatorBriefRow,
+  ): Promise<string | undefined> {
+    const directWorkItemId = sanitizeOptionalText(briefRow.work_item_id);
+    if (directWorkItemId) {
+      return directWorkItemId;
+    }
+
+    const linkedTargetIds = sanitizeLinkedIdList(briefRow.linked_target_ids).filter(
+      (targetId) => targetId !== briefRow.workflow_id,
+    );
+    if (linkedTargetIds.length === 0) {
+      return undefined;
+    }
+
+    const directTargets = await this.pool.query<{ id: string }>(
+      `SELECT id
+         FROM workflow_work_items
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id::text = ANY($3::text[])
+        LIMIT 2`,
+      [tenantId, workflowId, linkedTargetIds],
+    );
+    if (directTargets.rowCount === 1) {
+      return directTargets.rows[0]?.id;
+    }
+
+    const taskTargets = await this.pool.query<{ work_item_id: string }>(
+      `SELECT DISTINCT work_item_id
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id::text = ANY($3::text[])
+          AND work_item_id IS NOT NULL
+        LIMIT 2`,
+      [tenantId, workflowId, linkedTargetIds],
+    );
+    if (taskTargets.rowCount === 1) {
+      return sanitizeOptionalText(taskTargets.rows[0]?.work_item_id) ?? undefined;
+    }
+
+    return undefined;
+  }
 }
 
 function deriveDefaultBriefScope(
@@ -560,7 +630,7 @@ function shouldMaterializeDeliverablePacket(brief: WorkflowOperatorBriefRow): bo
   if (!isDeliverableOutcomeStatus(sanitizeOptionalText(brief.status_kind))) {
     return false;
   }
-  return !isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief);
+  return true;
 }
 
 function isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief: WorkflowOperatorBriefRow): boolean {
@@ -683,4 +753,8 @@ function sanitizeOptionalPositiveInteger(value: number | undefined): number | nu
     return null;
   }
   return value;
+}
+
+function normalizeNullableText(value: string | null | undefined): string | null {
+  return sanitizeOptionalText(value) ?? null;
 }

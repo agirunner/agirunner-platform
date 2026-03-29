@@ -1375,7 +1375,10 @@ describe('WorkflowOperatorBriefService', () => {
     expect(result.record.related_output_descriptor_ids).toEqual(['descriptor-11']);
   });
 
-  it('does not materialize a workflow-level deliverable packet from an orchestrator brief that only links to a work item target', async () => {
+  it('materializes a work-item deliverable packet from an orchestrator brief that only links to a work item target', async () => {
+    deliverableService.upsertDeliverable.mockResolvedValue({
+      descriptor_id: 'descriptor-12',
+    });
     pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
       if (sql.includes('FROM workflows')) {
         return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
@@ -1435,6 +1438,58 @@ describe('WorkflowOperatorBriefService', () => {
           }],
         };
       }
+      if (sql.includes('FROM workflow_work_items') && sql.includes('id::text = ANY($3::text[])')) {
+        expect(params).toEqual(['tenant-1', 'workflow-1', ['work-item-11', 'task-11']]);
+        return {
+          rowCount: 1,
+          rows: [{ id: 'work-item-11' }],
+        };
+      }
+      if (sql.includes('FROM workflow_output_descriptors') && sql.includes('source_brief_id = $3')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('UPDATE workflow_operator_briefs')) {
+        expect(params?.[0]).toBe(JSON.stringify(['descriptor-12']));
+        expect(params?.[2]).toBe('tenant-1');
+        expect(params?.[3]).toBe('workflow-1');
+        expect(params?.[4]).toBe('brief-12');
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'brief-12',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: null,
+            task_id: null,
+            request_id: 'request-12',
+            execution_context_id: 'activation-11',
+            brief_kind: 'milestone',
+            brief_scope: 'deliverable_context',
+            source_kind: 'orchestrator',
+            source_role_name: 'Orchestrator',
+            llm_turn_count: null,
+            status_kind: 'completed',
+            short_brief: {
+              headline: 'workflow-intake-11 completion packet',
+            },
+            detailed_brief_json: {
+              headline: 'workflow-intake-11 completion packet',
+              status_kind: 'completed',
+              summary: 'The orchestrator observed closure after the specialist completed the packet.',
+            },
+            linked_target_ids: ['work-item-11', 'task-11'],
+            sequence_number: 12,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: ['descriptor-12'],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: new Date('2026-03-28T12:00:00.000Z'),
+            updated_at: new Date('2026-03-28T12:00:00.000Z'),
+          }],
+        };
+      }
       throw new Error(`Unexpected SQL: ${sql}`);
     });
 
@@ -1456,8 +1511,16 @@ describe('WorkflowOperatorBriefService', () => {
     } as never);
 
     expect(result.record.work_item_id).toBeNull();
-    expect(result.record.related_output_descriptor_ids).toEqual([]);
-    expect(deliverableService.upsertDeliverable).not.toHaveBeenCalled();
+    expect(result.record.related_output_descriptor_ids).toEqual(['descriptor-12']);
+    expect(deliverableService.upsertDeliverable).toHaveBeenCalledWith(
+      IDENTITY,
+      'workflow-1',
+      expect.objectContaining({
+        descriptorKind: 'brief_packet',
+        workItemId: 'work-item-11',
+        sourceBriefId: 'brief-12',
+      }),
+    );
   });
 
   it('persists llm turn count on recorded operator briefs', async () => {

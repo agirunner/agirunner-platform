@@ -615,6 +615,7 @@ describe('WorkflowDeliverablesService', () => {
     expect(result.final_deliverables).toEqual([
       expect.objectContaining({ descriptor_id: 'deliverable-1' }),
     ]);
+    expect(result.all_deliverables).toHaveLength(2);
     expect(result.next_cursor).toBe('2026-03-27T22:35:00.000Z|deliverable-1');
   });
 
@@ -1332,5 +1333,66 @@ describe('WorkflowDeliverablesService', () => {
         source_role_name: 'Orchestrator',
       }),
     ]);
+  });
+
+  it('attributes a workflow-scoped orchestrator completion brief to the targeted work item', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => []),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => [
+        {
+          id: 'brief-orchestrator-linked-2',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          task_id: null,
+          request_id: 'request-orchestrator-linked-2',
+          execution_context_id: 'activation-4',
+          brief_kind: 'milestone',
+          brief_scope: 'deliverable_context',
+          source_kind: 'orchestrator',
+          source_role_name: 'Orchestrator',
+          status_kind: 'completed',
+          short_brief: { headline: 'workflow-intake-02 completion packet' },
+          detailed_brief_json: {
+            headline: 'workflow-intake-02 completion packet',
+            summary: 'The orchestrator observed closure after the specialist completed the packet.',
+            status_kind: 'completed',
+          },
+          linked_target_ids: ['workflow-1', 'work-item-2'],
+          sequence_number: 4,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: [],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-28T20:44:00.000Z',
+          updated_at: '2026-03-28T20:44:00.000Z',
+        },
+      ]),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-2',
+    });
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'brief:brief-orchestrator-linked-2',
+        work_item_id: 'work-item-2',
+        delivery_stage: 'final',
+      }),
+    ]);
+    expect(result.in_progress_deliverables).toEqual([]);
   });
 });

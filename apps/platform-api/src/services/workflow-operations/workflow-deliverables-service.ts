@@ -110,12 +110,13 @@ export class WorkflowDeliverablesService {
       timestamp: deliverable.updated_at ?? deliverable.created_at,
       id: deliverable.descriptor_id,
     }));
-    const allDeliverables = page.items;
+    const allDeliverables = orderedDeliverables;
+    const pagedDeliverables = page.items;
     return {
-      final_deliverables: allDeliverables.filter((deliverable) =>
+      final_deliverables: pagedDeliverables.filter((deliverable) =>
         isFinalDeliverable(deliverable, finalizedBriefIds, finalizedDescriptorIds),
       ),
-      in_progress_deliverables: allDeliverables.filter((deliverable) =>
+      in_progress_deliverables: pagedDeliverables.filter((deliverable) =>
         !isFinalDeliverable(deliverable, finalizedBriefIds, finalizedDescriptorIds),
       ),
       working_handoffs: scopedBriefs.filter(isDeliverableBrief),
@@ -273,6 +274,7 @@ function buildHandoffPacketDeliverable(
 function buildBriefPacketDeliverable(
   brief: WorkflowOperatorBriefRecord,
 ): WorkflowDeliverableRecord {
+  const workItemId = resolveDeliverableWorkItemId(brief);
   const headline = readBriefHeadline(brief);
   const summary = readBriefSummary(brief);
   const previewText = [headline, summary, readBriefSourceLabel(brief)]
@@ -282,7 +284,7 @@ function buildBriefPacketDeliverable(
   return {
     descriptor_id: `brief:${brief.id}`,
     workflow_id: brief.workflow_id,
-    work_item_id: brief.work_item_id,
+    work_item_id: workItemId,
     descriptor_kind: 'brief_packet',
     delivery_stage: 'final',
     title: headline,
@@ -314,10 +316,14 @@ function isDeliverableBrief(brief: WorkflowOperatorBriefRecord): boolean {
 }
 
 function shouldSynthesizeBriefDeliverable(brief: WorkflowOperatorBriefRecord): boolean {
+  const attributedWorkItemId = resolveDeliverableWorkItemId(brief);
   return (
     isDeliverableBrief(brief)
     && isDeliverableOutcomeStatus(readOptionalString(brief.status_kind))
-    && !isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief)
+    && (
+      !isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief)
+      || attributedWorkItemId !== null
+    )
   );
 }
 
@@ -386,6 +392,20 @@ function isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief: WorkflowOper
     const normalizedTargetId = readOptionalString(targetId);
     return normalizedTargetId !== null && normalizedTargetId !== brief.workflow_id;
   });
+}
+
+function resolveDeliverableWorkItemId(brief: WorkflowOperatorBriefRecord): string | null {
+  const storedWorkItemId = readOptionalString(brief.work_item_id);
+  if (storedWorkItemId) {
+    return storedWorkItemId;
+  }
+  if (!isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief)) {
+    return null;
+  }
+  const candidateIds = (brief.linked_target_ids ?? [])
+    .map((targetId) => readOptionalString(targetId))
+    .filter((targetId): targetId is string => targetId !== null && targetId !== brief.workflow_id);
+  return candidateIds.length === 1 ? candidateIds[0] : null;
 }
 
 function pickSinglePacket(
