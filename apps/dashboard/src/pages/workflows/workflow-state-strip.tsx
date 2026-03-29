@@ -23,13 +23,16 @@ export function WorkflowStateStrip(props: {
   onVisibilityModeChange(nextMode: 'standard' | 'enhanced' | null): void;
 }): JSX.Element {
   const sticky = props.stickyStrip;
+  const workflowScopedActions = props.workflow.availableActions.filter(
+    (action) => action.scope === 'workflow',
+  );
   const visibilityValue = props.workflowSettings?.workflow_live_visibility_mode_override ?? '__inherit__';
   const workload = summarizeWorkload(props.board, props.workflow);
   const metaLine = `Updated ${formatRelativeTimestamp(props.workflow.metrics.lastChangedAt)}`;
-  const canOpenRedrive = props.workflow.availableActions.some(
+  const canOpenRedrive = workflowScopedActions.some(
     (action) => action.kind === 'redrive_workflow' && action.enabled,
   );
-  const canAddWork = props.workflow.availableActions.some(
+  const canAddWork = workflowScopedActions.some(
     (action) => action.kind === 'add_work_item' && action.enabled,
   );
   const postureLabel = humanizePosture(sticky?.posture ?? props.workflow.posture);
@@ -40,7 +43,7 @@ export function WorkflowStateStrip(props: {
   const activeSpecialistTaskCount = sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount;
 
   return (
-    <section className="space-y-1.5 rounded-lg border border-border/70 bg-background/90 p-2">
+    <section className="space-y-1 rounded-xl border border-border/70 bg-background/90 p-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <h2 className="truncate text-sm font-semibold text-foreground">{props.workflow.name}</h2>
@@ -57,7 +60,7 @@ export function WorkflowStateStrip(props: {
             workflowState={props.workflow.state}
             workspaceId={props.workflow.workspaceId}
             additionalQueryKeys={[['workflows']]}
-            availableActions={props.workflow.availableActions}
+            availableActions={workflowScopedActions}
           />
           {canOpenRedrive ? (
             <Button size="sm" variant="outline" onClick={props.onOpenRedrive}>
@@ -130,7 +133,7 @@ function HeaderCard(props: {
   detail: string | null;
   onClick?(): void;
 }): JSX.Element {
-  const className = 'grid gap-0.5 rounded-lg border border-border/50 bg-background/80 px-2.5 py-2 text-left shadow-none';
+  const className = 'grid gap-0.5 rounded-lg border border-border/50 bg-background/80 px-2 py-1.5 text-left shadow-none';
 
   if (!props.onClick) {
     return (
@@ -138,7 +141,7 @@ function HeaderCard(props: {
         <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
           {props.title}
         </p>
-        <p className="text-base font-semibold tracking-tight text-foreground sm:text-lg">{props.value}</p>
+        <p className="text-sm font-semibold leading-5 text-foreground sm:text-base">{props.value}</p>
         {props.detail ? <p className="text-[10px] leading-4 text-muted-foreground">{props.detail}</p> : null}
       </div>
     );
@@ -153,7 +156,7 @@ function HeaderCard(props: {
       <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         {props.title}
       </p>
-      <p className="text-base font-semibold tracking-tight text-foreground sm:text-lg">{props.value}</p>
+      <p className="text-sm font-semibold leading-5 text-foreground sm:text-base">{props.value}</p>
       {props.detail ? <p className="text-[10px] leading-4 text-muted-foreground">{props.detail}</p> : null}
     </button>
   );

@@ -72,13 +72,16 @@ export function WorkflowBottomWorkbench(props: {
   const liveConsoleCount = props.packet.live_console.total_count ?? counts.live_console_activity;
 
   return (
-    <section className="flex h-full min-h-0 min-w-0 flex-col gap-1.5">
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-muted/5 px-3 py-2">
+    <section className="flex h-full min-h-[22rem] min-w-0 flex-col gap-1.5 overflow-hidden lg:min-h-0">
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-2 rounded-xl border border-border/70 bg-muted/5 px-3 py-2">
         <div className="grid gap-0.5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            {`Showing ${resolvedScope.title}`}
+            Scope
           </p>
-          <p className="text-sm font-semibold text-foreground">{resolvedScope.banner}</p>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Badge variant="outline">{resolvedScope.title}</Badge>
+            <p className="text-sm font-semibold text-foreground">{resolvedScope.banner}</p>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           {resolvedScope.scopeKind === 'selected_task' ? (

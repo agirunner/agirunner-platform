@@ -74,6 +74,7 @@ export function WorkflowsPage(): JSX.Element {
   const [deliverablesLimit, setDeliverablesLimit] = useState(DELIVERABLES_PAGE_SIZE);
   const [isLaunchOpen, setIsLaunchOpen] = useState(false);
   const [isAddWorkOpen, setIsAddWorkOpen] = useState(false);
+  const [addWorkTargetWorkItemId, setAddWorkTargetWorkItemId] = useState<string | null>(null);
   const [isRedriveOpen, setIsRedriveOpen] = useState(false);
   const [isRailHidden, setIsRailHidden] = useState(readStoredWorkflowRailHidden());
   const [railWidthPx, setRailWidthPx] = useState(
@@ -416,7 +417,10 @@ export function WorkflowsPage(): JSX.Element {
                   board={board}
                   selectedScopeLabel={selectedScopeLabel}
                   onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
-                  onAddWork={() => setIsAddWorkOpen(true)}
+                  onAddWork={() => {
+                    setAddWorkTargetWorkItemId(null);
+                    setIsAddWorkOpen(true);
+                  }}
                   onOpenRedrive={() => setIsRedriveOpen(true)}
                   onVisibilityModeChange={async (nextMode) => {
                     const currentSettings = workflowSettingsQuery.data;
@@ -438,27 +442,25 @@ export function WorkflowsPage(): JSX.Element {
                 className={buildWorkflowWorkspaceSplitClassName()}
                 style={buildWorkflowWorkspaceSplitStyle(workbenchFraction)}
               >
-                <div className="min-h-0 min-w-0 overflow-hidden">
-                  <WorkflowBoard
-                    workflowId={workflow.id}
-                    board={board}
-                    workflowState={workflow.state}
-                    selectedWorkItemId={boardSelection.workItemId}
-                    selectedTaskId={boardSelection.taskId}
-                    boardLens={boardLens}
-                    boardMode={pageState.boardMode}
-                    onBoardLensChange={setBoardLens}
-                    onBoardModeChange={(boardMode) =>
-                      patchPageState(navigate, pageState, { boardMode })
-                    }
-                    onSelectWorkItem={(workItemId) =>
-                      patchPageState(navigate, pageState, { workItemId, taskId: null })
-                    }
-                    onSelectTask={(workItemId, taskId) =>
-                      patchPageState(navigate, pageState, { workItemId, taskId })
-                    }
-                  />
-                </div>
+                <WorkflowBoard
+                  workflowId={workflow.id}
+                  board={board}
+                  workflowState={workflow.state}
+                  selectedWorkItemId={boardSelection.workItemId}
+                  selectedTaskId={boardSelection.taskId}
+                  boardLens={boardLens}
+                  boardMode={pageState.boardMode}
+                  onBoardLensChange={setBoardLens}
+                  onBoardModeChange={(boardMode) =>
+                    patchPageState(navigate, pageState, { boardMode })
+                  }
+                  onSelectWorkItem={(workItemId) =>
+                    patchPageState(navigate, pageState, { workItemId, taskId: null })
+                  }
+                  onSelectTask={(workItemId, taskId) =>
+                    patchPageState(navigate, pageState, { workItemId, taskId })
+                  }
+                />
                 <div className="relative hidden lg:flex items-center justify-center">
                   <button
                     type="button"
@@ -489,46 +491,45 @@ export function WorkflowsPage(): JSX.Element {
                     }}
                   />
                 </div>
-                <div className="min-h-0 min-w-0 overflow-hidden">
-                  <WorkflowBottomWorkbench
-                    workflowId={workflow.id}
-                    workflow={workflow}
-                    stickyStrip={workspacePacket.sticky_strip}
-                    board={board}
-                    workflowName={workflow.name}
-                    packet={workspacePacket}
-                    activeTab={activeTab}
-                    selectedWorkItemId={boardSelection.workItemId}
-                    scopedWorkItemId={scopedWorkItemId}
-                    selectedWorkItemTitle={workItemTitle}
-                    selectedTaskId={boardSelection.taskId}
-                    selectedTaskTitle={taskTitle}
-                    selectedWorkItem={selectedWorkItemQuery.data ?? null}
-                    selectedTask={selectedTaskQuery.data ?? null}
-                    selectedWorkItemTasks={selectedWorkItemTasksQuery.data ?? []}
-                    inputPackets={inputPacketsQuery.data ?? []}
-                    workflowParameters={(workflowDetailQuery.data?.parameters as Record<string, unknown> | null | undefined) ?? null}
-                    scope={workbenchScope}
-                    onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
-                    onClearWorkItemScope={() =>
-                      patchPageState(navigate, pageState, { workItemId: null, taskId: null })
+                <WorkflowBottomWorkbench
+                  workflowId={workflow.id}
+                  workflow={workflow}
+                  stickyStrip={workspacePacket.sticky_strip}
+                  board={board}
+                  workflowName={workflow.name}
+                  packet={workspacePacket}
+                  activeTab={activeTab}
+                  selectedWorkItemId={boardSelection.workItemId}
+                  scopedWorkItemId={scopedWorkItemId}
+                  selectedWorkItemTitle={workItemTitle}
+                  selectedTaskId={boardSelection.taskId}
+                  selectedTaskTitle={taskTitle}
+                  selectedWorkItem={selectedWorkItemQuery.data ?? null}
+                  selectedTask={selectedTaskQuery.data ?? null}
+                  selectedWorkItemTasks={selectedWorkItemTasksQuery.data ?? []}
+                  inputPackets={inputPacketsQuery.data ?? []}
+                  workflowParameters={(workflowDetailQuery.data?.parameters as Record<string, unknown> | null | undefined) ?? null}
+                  scope={workbenchScope}
+                  onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
+                  onClearWorkItemScope={() =>
+                    patchPageState(navigate, pageState, { workItemId: null, taskId: null })
+                  }
+                  onClearTaskScope={() => patchPageState(navigate, pageState, { taskId: null })}
+                  onOpenAddWork={(workItemId) => {
+                    if (workItemId !== undefined) {
+                      patchPageState(navigate, pageState, { workItemId: workItemId ?? null, taskId: null });
                     }
-                    onClearTaskScope={() => patchPageState(navigate, pageState, { taskId: null })}
-                    onOpenAddWork={(workItemId) => {
-                      if (workItemId !== undefined) {
-                        patchPageState(navigate, pageState, { workItemId: workItemId ?? null, taskId: null });
-                      }
-                      setIsAddWorkOpen(true);
-                    }}
-                    onOpenRedrive={() => setIsRedriveOpen(true)}
-                    onLoadMoreActivity={() =>
-                      setActivityLimit((current) => current + ACTIVITY_PAGE_SIZE)
-                    }
-                    onLoadMoreDeliverables={() =>
-                      setDeliverablesLimit((current) => current + DELIVERABLES_PAGE_SIZE)
-                    }
-                  />
-                </div>
+                    setAddWorkTargetWorkItemId(workItemId ?? null);
+                    setIsAddWorkOpen(true);
+                  }}
+                  onOpenRedrive={() => setIsRedriveOpen(true)}
+                  onLoadMoreActivity={() =>
+                    setActivityLimit((current) => current + ACTIVITY_PAGE_SIZE)
+                  }
+                  onLoadMoreDeliverables={() =>
+                    setDeliverablesLimit((current) => current + DELIVERABLES_PAGE_SIZE)
+                  }
+                />
               </div>
             </div>
           ) : (
@@ -556,11 +557,16 @@ export function WorkflowsPage(): JSX.Element {
         <>
           <WorkflowAddWorkDialog
             isOpen={isAddWorkOpen}
-            onOpenChange={setIsAddWorkOpen}
+            onOpenChange={(open) => {
+              setIsAddWorkOpen(open);
+              if (!open) {
+                setAddWorkTargetWorkItemId(null);
+              }
+            }}
             workflowId={pageState.workflowId}
             lifecycle={workflow?.lifecycle}
             board={board}
-            workItemId={boardSelection.workItemId}
+            workItemId={addWorkTargetWorkItemId}
           />
           <WorkflowRedriveDialog
             isOpen={isRedriveOpen}

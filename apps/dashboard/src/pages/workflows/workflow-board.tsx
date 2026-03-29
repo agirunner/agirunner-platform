@@ -99,7 +99,7 @@ export function WorkflowBoard(props: {
   }
 
   return (
-    <section className="flex h-full min-h-0 flex-col gap-2">
+    <section className="flex h-full min-h-[18rem] min-w-0 flex-col gap-2 overflow-hidden lg:min-h-0">
       <div className="grid gap-2">
         <div className="flex min-w-0 items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
@@ -134,7 +134,7 @@ export function WorkflowBoard(props: {
             onClick={() => props.onBoardModeChange('all')}
           />
           <select
-            className="shrink-0 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+            className="min-w-[11rem] flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground sm:flex-none"
             value={stageFilter}
             onChange={(event) => setStageFilter(event.target.value)}
           >
@@ -146,7 +146,7 @@ export function WorkflowBoard(props: {
             ))}
           </select>
           <select
-            className="shrink-0 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+            className="min-w-[11rem] flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground sm:flex-none"
             value={laneFilter}
             onChange={(event) => setLaneFilter(event.target.value)}
           >
@@ -171,7 +171,7 @@ export function WorkflowBoard(props: {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-x-auto pb-1">
+      <div className="min-h-0 flex-1 overflow-auto pb-1">
         <div className="grid min-h-full gap-3 md:grid-flow-col md:auto-cols-[minmax(17.5rem,1fr)]">
           {boardView.lanes.map((lane) => (
             <BoardLaneCard
@@ -397,9 +397,7 @@ function renderTaskLaneCards(
 
 function renderLaneEmptyState(message: string): JSX.Element {
   return (
-    <div className="grid min-h-[10rem] place-items-center text-center">
-      <p className="text-sm text-muted-foreground">{message}</p>
-    </div>
+    <p className="px-1 pb-1 text-sm text-muted-foreground">{message}</p>
   );
 }
 

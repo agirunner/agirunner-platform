@@ -57,7 +57,8 @@ describe('WorkflowBottomWorkbench', () => {
 
     expect(html).toContain('Workflow: Workflow 1');
     expect(html.indexOf('Workflow: Workflow 1')).toBeLessThan(html.indexOf('Details'));
-    expect(html).toContain('Showing Workflow');
+    expect(html).toContain('Scope');
+    expect(html).toContain('>Workflow<');
     expect(html).not.toContain('Current scope');
     expect(html).toContain('Briefs');
     expect(html).toContain('Needs Action</span><div');
@@ -122,7 +123,8 @@ describe('WorkflowBottomWorkbench', () => {
 
     expect(html).toContain('Task: Verify deliverable');
     expect(html).toContain('Verify deliverable');
-    expect(html).toContain('Showing Task');
+    expect(html).toContain('Scope');
+    expect(html).toContain('>Task<');
     expect(html).toContain('Show work item');
     expect(html).toContain('Show workflow');
     expect(html).not.toContain('Selected on board');
@@ -258,6 +260,7 @@ describe('WorkflowBottomWorkbench', () => {
 
     expect(html).toContain('Task: Verify deliverable');
     expect(html).toContain('Live Console');
+    expect(html).toContain('Scope');
     expect(html).not.toContain('this workflow yet');
   });
 
@@ -320,7 +323,8 @@ describe('WorkflowBottomWorkbench', () => {
       }),
     );
 
-    expect(html).toContain('Showing Task');
+    expect(html).toContain('Scope');
+    expect(html).toContain('>Task<');
     expect(html).toContain('Verify deliverable');
     expect(html).toContain('Show work item');
     expect(html).toContain('Show workflow');

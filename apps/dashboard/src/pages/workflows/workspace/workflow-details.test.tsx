@@ -49,11 +49,13 @@ describe('WorkflowDetails', () => {
     );
 
     expect(html).toContain('Verify deliverable');
-    expect(html).toContain('Latest status');
-    expect(html).toContain('In Progress');
+    expect(html).toContain('Task');
+    expect(html).toContain('In Progress for Reviewer');
     expect(html).toContain('Task input');
     expect(html).toContain('Inputs');
+    expect(html).toContain('Work item: Prepare release bundle');
     expect(html).not.toContain('Task scope');
+    expect(html).not.toContain('Latest status');
     expect(html).not.toContain('Work item scope');
     expect(html).not.toContain('Workflow scope');
     expect(html).not.toContain('Launch packet');
@@ -106,12 +108,13 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain('Latest status');
-    expect(html).toContain('Tasks');
+    expect(html).toContain('Work item');
     expect(html).toContain('1 active');
     expect(html).toContain('1 blocked');
     expect(html).toContain('1 completed');
     expect(html).not.toContain('Work item scope');
+    expect(html).not.toContain('Latest status');
+    expect(html).not.toContain('Tasks</span>');
     expect(html).not.toContain('Current task load:');
     expect(html).not.toContain('Verify deliverable</span>');
     expect(html).not.toContain('Rollback validation</span>');
@@ -147,10 +150,12 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain('Latest status');
+    expect(html).toContain('Workflow');
+    expect(html).toContain('Release bundle is being assembled.');
     expect(html).toContain('Launch inputs');
     expect(html).toContain('Launch packet');
     expect(html).toContain('release/2026.03');
+    expect(html).not.toContain('Latest status');
     expect(html).not.toContain('Workflow scope');
     expect(html).not.toContain('Rollback guide');
     expect(html).not.toContain('rollback.md');
@@ -184,6 +189,7 @@ describe('WorkflowDetails', () => {
 
     expect(html).toContain('Prepare release bundle');
     expect(html).toContain('Check the final release packet and approve it.');
+    expect(html).toContain('Work item: Prepare release bundle');
     expect(html).not.toContain('Task scope');
     expect(html).not.toContain('Owner role');
     expect(html).not.toContain('Next expected actor');

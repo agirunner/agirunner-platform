@@ -45,19 +45,24 @@ export function WorkflowDetails(props: {
     || workItemPackets.length > 0
     || hasTaskInput
     || (isWorkflowScope && hasStructuredContent(props.workflowParameters));
+  const scopeLabel = readScopeLabel(props.scope.scopeKind);
+  const detailLines = buildDetailLines(scope);
 
   return (
     <section className="grid gap-3 pb-1">
-      <header className="grid gap-1.5 border-b border-border/60 pb-3">
+      <header className="grid gap-1 border-b border-border/60 pb-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{scopeLabel}</p>
         <h3 className="text-base font-semibold text-foreground">{scope.title}</h3>
         {scope.summary ? (
           <p className="text-sm text-muted-foreground">{scope.summary}</p>
         ) : null}
-        <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-          <ScopeMeta label="Latest status" value={scope.latest_status} />
-          {scope.parent_work_item ? <ScopeMeta label="Work item" value={scope.parent_work_item} /> : null}
-          {scope.task_summary ? <ScopeMeta label="Tasks" value={scope.task_summary} /> : null}
-        </div>
+        {detailLines.length > 0 ? (
+          <div className="grid gap-1 text-sm text-muted-foreground">
+            {detailLines.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+        ) : null}
       </header>
 
       {hasInputs ? (
@@ -77,19 +82,6 @@ export function WorkflowDetails(props: {
         </DetailSection>
       ) : null}
     </section>
-  );
-}
-
-function ScopeMeta(props: {
-  label: string;
-  value: string;
-}): JSX.Element {
-  return (
-    <p>
-      <span className="font-semibold text-foreground">{props.label}</span>
-      {': '}
-      {props.value}
-    </p>
   );
 }
 
@@ -268,6 +260,31 @@ function buildDetailsScope(props: {
     parent_work_item: null,
     task_summary: null,
   };
+}
+
+function buildDetailLines(input: {
+  latest_status: string;
+  parent_work_item: string | null;
+  task_summary: string | null;
+}): string[] {
+  const lines = [input.latest_status];
+  if (input.parent_work_item) {
+    lines.push(`Work item: ${input.parent_work_item}`);
+  }
+  if (input.task_summary) {
+    lines.push(input.task_summary);
+  }
+  return lines.filter((line) => line.trim().length > 0);
+}
+
+function readScopeLabel(scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind']): string {
+  if (scopeKind === 'selected_task') {
+    return 'Task';
+  }
+  if (scopeKind === 'selected_work_item') {
+    return 'Work item';
+  }
+  return 'Workflow';
 }
 
 function buildTaskLatestStatus(task: DashboardTaskRecord | null): string {

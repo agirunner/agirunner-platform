@@ -32,7 +32,7 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('All stages');
     expect(html).toContain('All lanes');
     expect(html).toContain('flex min-w-0 flex-wrap items-center gap-2 pb-1');
-    expect(html).toContain('min-h-0 flex-1 overflow-x-auto pb-1');
+    expect(html).toContain('min-h-0 flex-1 overflow-auto pb-1');
     expect(html).not.toContain('flex flex-wrap items-center justify-between gap-3');
     expect(html).not.toContain('Lanes show the actual workflow flow while tasks stay subordinate');
     expect(html).not.toContain('Active stage:');
@@ -114,9 +114,9 @@ describe('WorkflowBoard', () => {
     );
 
     expect(html).toContain('Nothing active here right now.');
-    expect(html).toContain('grid min-h-[10rem] place-items-center text-center');
+    expect(html).toContain('px-1 pb-1 text-sm text-muted-foreground');
     expect(html).not.toContain('No active work items in this lane.');
-    expect(html).not.toContain('flex min-h-[8rem] items-center justify-center text-center');
+    expect(html).not.toContain('grid min-h-[10rem] place-items-center text-center');
   });
 
   it('supports a task lens that renders only specialist tasks as first-class cards', () => {

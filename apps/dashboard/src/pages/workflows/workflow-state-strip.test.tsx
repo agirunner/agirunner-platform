@@ -110,10 +110,10 @@ describe('WorkflowStateStrip', () => {
     expect(html).not.toContain('Waiting By Design');
     expect(html).not.toContain('Workflow is waiting by design');
     expect(html).not.toContain('Awaiting Intake');
-    expect((html.match(/text-base font-semibold tracking-tight text-foreground sm:text-lg/g) ?? []).length).toBeGreaterThanOrEqual(4);
+    expect((html.match(/text-sm font-semibold leading-5 text-foreground sm:text-base/g) ?? []).length).toBeGreaterThanOrEqual(4);
     expect(html).toContain('Live visibility');
-    expect((html.match(/rounded-lg border border-border\/50 bg-background\/80 px-2.5 py-2 text-left shadow-none/g) ?? [])).toHaveLength(4);
-    expect((html.match(/rounded-lg border border-border\/50 bg-background\/80 px-2.5 py-2 text-left shadow-none transition-colors hover:bg-muted\/10/g) ?? [])).toHaveLength(1);
+    expect((html.match(/rounded-lg border border-border\/50 bg-background\/80 px-2 py-1.5 text-left shadow-none/g) ?? [])).toHaveLength(4);
+    expect((html.match(/rounded-lg border border-border\/50 bg-background\/80 px-2 py-1.5 text-left shadow-none transition-colors hover:bg-muted\/10/g) ?? [])).toHaveLength(1);
     expect(html).not.toContain('Requests and responses');
     expect(html).not.toContain('<p class="text-xs text-muted-foreground">Playbook • Workspace</p>');
     expect(html).not.toContain('Accepting new work');
@@ -196,6 +196,66 @@ describe('WorkflowStateStrip', () => {
 
     expect(hiddenHtml).not.toContain('Add / Modify Work');
     expect(visibleHtml).toContain('Add / Modify Work');
+  });
+
+  it('keeps workflow header actions hidden when the platform only authorizes narrower scopes', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            availableActions: [
+              {
+                kind: 'pause_workflow',
+                scope: 'task',
+                enabled: true,
+                confirmationLevel: 'immediate',
+                stale: false,
+                disabledReason: null,
+              },
+              {
+                kind: 'cancel_workflow',
+                scope: 'work_item',
+                enabled: true,
+                confirmationLevel: 'high_impact_confirm',
+                stale: false,
+                disabledReason: null,
+              },
+              {
+                kind: 'redrive_workflow',
+                scope: 'task',
+                enabled: true,
+                confirmationLevel: 'high_impact_confirm',
+                stale: false,
+                disabledReason: null,
+              },
+              {
+                kind: 'add_work_item',
+                scope: 'work_item',
+                enabled: true,
+                confirmationLevel: 'standard_confirm',
+                stale: false,
+                disabledReason: null,
+              },
+            ],
+          }),
+          stickyStrip: createStickyStrip(),
+          workflowSettings: null,
+          board: createBoard(),
+          selectedScopeLabel: 'Task: Verify deliverable',
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onVisibilityModeChange: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).not.toContain('Pause');
+    expect(html).not.toContain('Cancel');
+    expect(html).not.toContain('Redrive');
+    expect(html).not.toContain('Add / Modify Work');
   });
 
   it('keeps workflow-only controls visible in the header while a narrower scope is selected', () => {
