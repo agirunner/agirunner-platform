@@ -1227,6 +1227,239 @@ describe('WorkflowOperatorBriefService', () => {
     expect(result.record.related_output_descriptor_ids).toEqual(['descriptor-10']);
   });
 
+  it('rebuilds a finalized deliverable packet when a replayed brief points at a stale descriptor id', async () => {
+    deliverableService.upsertDeliverable.mockResolvedValue({
+      descriptor_id: 'descriptor-11',
+    });
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows')) {
+        return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+      }
+      if (sql.includes('FROM tasks')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'task-11',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-11',
+            is_orchestrator_task: false,
+            role: 'Writer',
+            state: 'completed',
+          }],
+        };
+      }
+      if (sql.includes('FROM workflow_work_items')) {
+        return { rowCount: 1, rows: [{ id: 'work-item-11' }] };
+      }
+      if (sql.includes('FROM workflow_operator_briefs') && sql.includes('request_id = $3')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'brief-11',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-11',
+            task_id: 'task-11',
+            request_id: 'request-11',
+            execution_context_id: 'task-11',
+            brief_kind: 'milestone',
+            brief_scope: 'deliverable_context',
+            source_kind: 'specialist',
+            source_role_name: 'Writer',
+            llm_turn_count: null,
+            status_kind: 'completed',
+            short_brief: { headline: 'Replayable final packet.' },
+            detailed_brief_json: {
+              headline: 'Replayable final packet.',
+              status_kind: 'completed',
+              summary: 'The brief still points at a stale descriptor id.',
+            },
+            linked_target_ids: [],
+            sequence_number: 11,
+            related_artifact_ids: ['artifact-11'],
+            related_output_descriptor_ids: ['descriptor-stale'],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: new Date('2026-03-28T11:00:00.000Z'),
+            updated_at: new Date('2026-03-28T11:00:00.000Z'),
+          }],
+        };
+      }
+      if (sql.includes('FROM workflow_output_descriptors') && sql.includes('source_brief_id = $3')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM workflow_artifacts')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'artifact-11',
+            task_id: 'task-11',
+            logical_path: 'artifact:workflow/output/rebuilt-final-packet.md',
+            content_type: 'text/markdown',
+          }],
+        };
+      }
+      if (sql.includes('UPDATE workflow_operator_briefs')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'brief-11',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-11',
+            task_id: 'task-11',
+            request_id: 'request-11',
+            execution_context_id: 'task-11',
+            brief_kind: 'milestone',
+            brief_scope: 'deliverable_context',
+            source_kind: 'specialist',
+            source_role_name: 'Writer',
+            llm_turn_count: null,
+            status_kind: 'completed',
+            short_brief: { headline: 'Replayable final packet.' },
+            detailed_brief_json: {
+              headline: 'Replayable final packet.',
+              status_kind: 'completed',
+              summary: 'The brief still points at a stale descriptor id.',
+            },
+            linked_target_ids: [],
+            sequence_number: 11,
+            related_artifact_ids: ['artifact-11'],
+            related_output_descriptor_ids: ['descriptor-11'],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: new Date('2026-03-28T11:00:00.000Z'),
+            updated_at: new Date('2026-03-28T11:00:00.000Z'),
+          }],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const result = await service.recordBriefWrite(IDENTITY as never, 'workflow-1', {
+      requestId: 'request-11',
+      executionContextId: 'task-11',
+      workItemId: 'work-item-11',
+      taskId: 'task-11',
+      relatedArtifactIds: ['artifact-11'],
+      payload: {
+        shortBrief: {
+          headline: 'Replayable final packet.',
+        },
+        detailedBriefJson: {
+          headline: 'Replayable final packet.',
+          status_kind: 'completed',
+          summary: 'The brief still points at a stale descriptor id.',
+        },
+      },
+    } as never);
+
+    expect(result.deduped).toBe(true);
+    expect(deliverableService.upsertDeliverable).toHaveBeenCalledWith(
+      IDENTITY,
+      'workflow-1',
+      expect.objectContaining({
+        sourceBriefId: 'brief-11',
+        descriptorKind: 'brief_packet',
+        workItemId: 'work-item-11',
+        primaryTarget: expect.objectContaining({
+          artifact_id: 'artifact-11',
+          url: '/api/v1/tasks/task-11/artifacts/artifact-11/preview',
+        }),
+      }),
+    );
+    expect(result.record.related_output_descriptor_ids).toEqual(['descriptor-11']);
+  });
+
+  it('does not materialize a workflow-level deliverable packet from an orchestrator brief that only links to a work item target', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows')) {
+        return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+      }
+      if (sql.includes('FROM tasks')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('FROM workflow_activations')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'activation-11',
+            workflow_id: 'workflow-1',
+            activation_id: 'activation-11',
+            state: 'running',
+            consumed_at: null,
+          }],
+        };
+      }
+      if (sql.includes('FROM workflow_operator_briefs') && sql.includes('request_id = $3')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('COALESCE(MAX(sequence_number), 0) + 1')) {
+        return { rowCount: 1, rows: [{ next_sequence: 12 }] };
+      }
+      if (sql.includes('INSERT INTO workflow_operator_briefs')) {
+        expect(params?.[3]).toBeNull();
+        expect(params?.[13]).toBe(JSON.stringify(['work-item-11', 'task-11']));
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'brief-12',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: null,
+            task_id: null,
+            request_id: params?.[5],
+            execution_context_id: 'activation-11',
+            brief_kind: 'milestone',
+            brief_scope: 'deliverable_context',
+            source_kind: 'orchestrator',
+            source_role_name: 'Orchestrator',
+            llm_turn_count: null,
+            status_kind: 'completed',
+            short_brief: JSON.parse(String(params?.[10])),
+            detailed_brief_json: JSON.parse(String(params?.[11])),
+            linked_target_ids: ['work-item-11', 'task-11'],
+            sequence_number: 12,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: new Date('2026-03-28T12:00:00.000Z'),
+            updated_at: new Date('2026-03-28T12:00:00.000Z'),
+          }],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const result = await service.recordBriefWrite(IDENTITY as never, 'workflow-1', {
+      requestId: 'request-12',
+      executionContextId: 'activation-11',
+      sourceKind: 'orchestrator',
+      payload: {
+        shortBrief: {
+          headline: 'workflow-intake-11 completion packet',
+        },
+        detailedBriefJson: {
+          headline: 'workflow-intake-11 completion packet',
+          status_kind: 'completed',
+          summary: 'The orchestrator observed closure after the specialist completed the packet.',
+        },
+        linkedTargetIds: ['work-item-11', 'task-11'],
+      },
+    } as never);
+
+    expect(result.record.work_item_id).toBeNull();
+    expect(result.record.related_output_descriptor_ids).toEqual([]);
+    expect(deliverableService.upsertDeliverable).not.toHaveBeenCalled();
+  });
+
   it('persists llm turn count on recorded operator briefs', async () => {
     pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
       if (sql.includes('FROM workflows')) {

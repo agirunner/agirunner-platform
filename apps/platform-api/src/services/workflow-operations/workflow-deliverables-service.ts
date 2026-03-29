@@ -314,7 +314,11 @@ function isDeliverableBrief(brief: WorkflowOperatorBriefRecord): boolean {
 }
 
 function shouldSynthesizeBriefDeliverable(brief: WorkflowOperatorBriefRecord): boolean {
-  return isDeliverableBrief(brief) && isDeliverableOutcomeStatus(readOptionalString(brief.status_kind));
+  return (
+    isDeliverableBrief(brief)
+    && isDeliverableOutcomeStatus(readOptionalString(brief.status_kind))
+    && !isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief)
+  );
 }
 
 function isFinalDeliverable(
@@ -369,6 +373,19 @@ function isOrchestratorBrief(brief: WorkflowOperatorBriefRecord): boolean {
 
 function isOrchestratorRole(value: string | null | undefined): boolean {
   return readOptionalString(value)?.toLowerCase() === 'orchestrator';
+}
+
+function isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief: WorkflowOperatorBriefRecord): boolean {
+  if (readOptionalString(brief.work_item_id) !== null) {
+    return false;
+  }
+  if (!isOrchestratorBrief(brief)) {
+    return false;
+  }
+  return (brief.linked_target_ids ?? []).some((targetId) => {
+    const normalizedTargetId = readOptionalString(targetId);
+    return normalizedTargetId !== null && normalizedTargetId !== brief.workflow_id;
+  });
 }
 
 function pickSinglePacket(

@@ -332,14 +332,25 @@ export class WorkflowOperatorBriefService {
       return [];
     }
     const existingIds = sanitizeLinkedIdList(briefRow.related_output_descriptor_ids);
-    if (existingIds.length > 0) {
+    const explicitDeliverables =
+      Array.isArray(payload.linkedDeliverables) && payload.linkedDeliverables.length > 0
+        ? payload.linkedDeliverables
+        : [];
+    const shouldSynthesizePacket = shouldMaterializeDeliverablePacket(briefRow);
+    if (explicitDeliverables.length === 0 && !shouldSynthesizePacket) {
       return existingIds;
     }
-    const deliverables = Array.isArray(payload.linkedDeliverables) && payload.linkedDeliverables.length > 0
-      ? payload.linkedDeliverables
-      : shouldMaterializeDeliverablePacket(briefRow)
-        ? [await this.buildSynthesizedDeliverable(identity, workflowId, briefRow)]
-        : [];
+    if (explicitDeliverables.length === 0 && shouldSynthesizePacket) {
+      const existingDescriptorId = await this.loadExistingDescriptorId(identity.tenantId, workflowId, briefRow.id);
+      if (existingDescriptorId) {
+        return [existingDescriptorId];
+      }
+    } else if (existingIds.length > 0) {
+      return existingIds;
+    }
+    const deliverables = explicitDeliverables.length > 0
+      ? explicitDeliverables
+      : [await this.buildSynthesizedDeliverable(identity, workflowId, briefRow)];
     if (deliverables.length === 0) {
       return [];
     }
@@ -543,7 +554,32 @@ function asRecord(value: unknown): Record<string, unknown> {
 }
 
 function shouldMaterializeDeliverablePacket(brief: WorkflowOperatorBriefRow): boolean {
-  return brief.brief_scope === 'deliverable_context' && isDeliverableOutcomeStatus(sanitizeOptionalText(brief.status_kind));
+  if (brief.brief_scope !== 'deliverable_context') {
+    return false;
+  }
+  if (!isDeliverableOutcomeStatus(sanitizeOptionalText(brief.status_kind))) {
+    return false;
+  }
+  return !isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief);
+}
+
+function isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief: WorkflowOperatorBriefRow): boolean {
+  if (sanitizeOptionalText(brief.work_item_id)) {
+    return false;
+  }
+  if (!isOrchestratorBrief(brief)) {
+    return false;
+  }
+  const workflowId = sanitizeOptionalText(brief.workflow_id);
+  return sanitizeLinkedIdList(brief.linked_target_ids).some((targetId) => targetId !== workflowId);
+}
+
+function isOrchestratorBrief(brief: WorkflowOperatorBriefRow): boolean {
+  return isOrchestratorRole(brief.source_kind) || isOrchestratorRole(brief.source_role_name);
+}
+
+function isOrchestratorRole(value: string | null | undefined): boolean {
+  return sanitizeOptionalText(value)?.toLowerCase() === 'orchestrator';
 }
 
 function readBriefHeadline(brief: WorkflowOperatorBriefRow): string {

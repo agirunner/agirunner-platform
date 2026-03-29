@@ -1274,4 +1274,63 @@ describe('WorkflowDeliverablesService', () => {
     expect(result.final_deliverables).toEqual([]);
     expect(result.in_progress_deliverables).toEqual([]);
   });
+
+  it('does not synthesize a workflow final deliverable from an orchestrator brief that only targets a work item', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => []),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => [
+        {
+          id: 'brief-orchestrator-linked-1',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          task_id: null,
+          request_id: 'request-orchestrator-linked-1',
+          execution_context_id: 'activation-3',
+          brief_kind: 'milestone',
+          brief_scope: 'deliverable_context',
+          source_kind: 'orchestrator',
+          source_role_name: 'Orchestrator',
+          status_kind: 'completed',
+          short_brief: { headline: 'workflow-intake-01 completion packet' },
+          detailed_brief_json: {
+            headline: 'workflow-intake-01 completion packet',
+            summary: 'The orchestrator observed closure after the specialist completed the packet.',
+            status_kind: 'completed',
+          },
+          linked_target_ids: ['work-item-1', 'task-1'],
+          sequence_number: 3,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: [],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-28T20:43:00.000Z',
+          updated_at: '2026-03-28T20:43:00.000Z',
+        },
+      ]),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1');
+
+    expect(result.final_deliverables).toEqual([]);
+    expect(result.in_progress_deliverables).toEqual([]);
+    expect(result.working_handoffs).toEqual([
+      expect.objectContaining({
+        id: 'brief-orchestrator-linked-1',
+        source_role_name: 'Orchestrator',
+      }),
+    ]);
+  });
 });
