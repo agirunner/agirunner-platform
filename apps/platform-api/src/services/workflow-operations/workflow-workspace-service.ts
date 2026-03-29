@@ -634,18 +634,6 @@ function filterBriefsForSelectedScope(
   selectedScope: WorkflowWorkspacePacket['selected_scope'],
 ): WorkflowWorkspacePacket['briefs'] {
   const filteredItems = packet.items.filter((item) => matchesScopedRecord(item, selectedScope));
-  if (process.env.DEBUG_WORKFLOW_BRIEFS === '1') {
-    console.log('DEBUG_WORKFLOW_BRIEFS', {
-      selectedScope,
-      items: packet.items.map((item) => ({
-        brief_id: item.brief_id,
-        work_item_id: item.work_item_id,
-        task_id: item.task_id,
-        linked_target_ids: item.linked_target_ids,
-        matched: matchesScopedRecord(item, selectedScope),
-      })),
-    });
-  }
   if (filteredItems.length === packet.items.length) {
     return packet;
   }
