@@ -209,6 +209,29 @@ describe('workflow-execution-log-composer', () => {
     expect(items).toEqual([]);
   });
 
+  it('suppresses empty action calls when the tool payload carries no operator-meaningful args', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '22ca',
+        operation: 'agent.act',
+        payload: {
+          tool: 'submit_handoff',
+          input: {},
+        },
+      }),
+      createLogRow({
+        id: '22cb',
+        operation: 'agent.act',
+        payload: {
+          tool: 'shell_exec',
+          input: {},
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
   it('formats file reads using the path-range summary style from the log viewer', () => {
     const [item] = buildExecutionTurnItems([
       createLogRow({
@@ -259,6 +282,20 @@ describe('workflow-execution-log-composer', () => {
               },
             },
           },
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
+  it('suppresses runtime budget markers that are not useful operator-facing updates', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '25',
+        operation: 'agent.observe',
+        payload: {
+          text_preview: 'burst_budget:max_tool_steps',
         },
       }),
     ]);

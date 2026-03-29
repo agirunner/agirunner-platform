@@ -175,10 +175,7 @@ function buildActionInvocationHeadline(payload: Record<string, unknown>): string
   }
   const args = summarizeActionArgs(actionName, asRecord(payload.input));
   if (args.length === 0) {
-    if (shouldSuppressEmptyActionInvocation(actionName)) {
-      return null;
-    }
-    return `calling ${actionName}()`;
+    return null;
   }
   return `calling ${actionName}(${args.join(', ')})`;
 }
@@ -278,18 +275,6 @@ function summarizeToolSpecificArgs(actionName: string, input: Record<string, unk
     default:
       return [];
   }
-}
-
-function shouldSuppressEmptyActionInvocation(actionName: string): boolean {
-  return new Set([
-    'file_read',
-    'file_write',
-    'file_edit',
-    'file_list',
-    'artifact_upload',
-    'artifact_read',
-    'artifact_document_read',
-  ]).has(actionName);
 }
 
 function renderActionArg(key: string, value: unknown): string | null {
@@ -486,6 +471,7 @@ function looksLikeLowValueConsoleText(value: string): boolean {
     /^advancing the task with the next verified step\.?$/i.test(value)
     || /^working through the next execution step\.?$/i.test(value)
     || /^checking current progress\.?$/i.test(value)
+    || /^burst_budget:/i.test(value)
     || /\b(remains|still|continues to be|continues)\b.*\bready\b/i.test(value)
     || /\b(remains|still|continues to be|continues)\b.*\b(suitable|supports|cleared)\b/i.test(value)
   );
