@@ -119,16 +119,18 @@ function appendSynthesizedHandoffDeliverables(
     return deliverables;
   }
   const records = [...deliverables];
-  const existingWorkItemIds = new Set(
+  const existingFinalWorkItemIds = new Set(
     deliverables
+      .filter(isStoredFinalDeliverable)
       .map((deliverable) => readOptionalString(deliverable.work_item_id))
       .filter((workItemId): workItemId is string => workItemId !== null),
   );
   for (const handoff of handoffs) {
-    if (existingWorkItemIds.has(handoff.work_item_id)) {
+    if (existingFinalWorkItemIds.has(handoff.work_item_id)) {
       continue;
     }
     records.push(buildHandoffPacketDeliverable(handoff));
+    existingFinalWorkItemIds.add(handoff.work_item_id);
   }
   return records;
 }
@@ -143,9 +145,10 @@ function appendSynthesizedBriefDeliverables(
       .map((deliverable) => readOptionalString(deliverable.source_brief_id))
       .filter((briefId): briefId is string => briefId !== null),
   );
-  const existingPacketScopes = new Set(
+  const existingFinalPacketScopes = new Set(
     deliverables
       .filter(isPacketLikeDeliverable)
+      .filter(isStoredFinalDeliverable)
       .map((deliverable) => buildDeliverableScopeKey(readOptionalString(deliverable.work_item_id))),
   );
 
@@ -157,11 +160,11 @@ function appendSynthesizedBriefDeliverables(
       continue;
     }
     const scopeKey = buildDeliverableScopeKey(readOptionalString(brief.work_item_id));
-    if (existingPacketScopes.has(scopeKey)) {
+    if (existingFinalPacketScopes.has(scopeKey)) {
       continue;
     }
     records.push(buildBriefPacketDeliverable(brief));
-    existingPacketScopes.add(scopeKey);
+    existingFinalPacketScopes.add(scopeKey);
   }
 
   return records;
@@ -267,6 +270,11 @@ function isFinalDeliverable(
     finalizedBriefIds.has(deliverable.source_brief_id ?? '') ||
     finalizedDescriptorIds.has(deliverable.descriptor_id)
   );
+}
+
+function isStoredFinalDeliverable(deliverable: WorkflowDeliverableRecord): boolean {
+  return readOptionalString(deliverable.delivery_stage) === 'final'
+    || readOptionalString(deliverable.state) === 'final';
 }
 
 function collectFinalizedBriefIds(briefs: WorkflowOperatorBriefRecord[]): Set<string> {

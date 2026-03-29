@@ -862,4 +862,163 @@ describe('WorkflowDeliverablesService', () => {
       expect.objectContaining({ id: 'brief-1' }),
     ]);
   });
+
+  it('keeps a finalized brief-backed deliverable when the same work item already has an in-progress packet', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'handoff-packet-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          descriptor_kind: 'handoff_packet',
+          delivery_stage: 'in_progress',
+          title: 'workflow-intake-01 handoff packet',
+          state: 'draft',
+          summary_brief: 'Intermediate delivery packet.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'inline_summary',
+            label: 'Review handoff packet',
+          },
+          secondary_targets: [],
+          content_preview: {},
+          source_brief_id: null,
+          created_at: '2026-03-27T22:39:00.000Z',
+          updated_at: '2026-03-27T22:39:00.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => [
+        {
+          id: 'brief-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: 'task-1',
+          request_id: 'request-1',
+          execution_context_id: 'task-1',
+          brief_kind: 'milestone',
+          brief_scope: 'deliverable_context',
+          source_kind: 'specialist',
+          source_role_name: 'Policy Assessor',
+          status_kind: 'approved',
+          short_brief: { headline: 'workflow-intake-01 is approved and ready to remain open.' },
+          detailed_brief_json: {
+            headline: 'workflow-intake-01 is approved and ready to remain open.',
+            summary: 'The finalized brief should still materialize a final packet for this work item.',
+            status_kind: 'approved',
+          },
+          linked_target_ids: [],
+          sequence_number: 6,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: [],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:40:00.000Z',
+          updated_at: '2026-03-27T22:40:00.000Z',
+        },
+      ]),
+    };
+    const inputPacketService = { listWorkflowInputPackets: vi.fn(async () => []) };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+    });
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'brief:brief-1',
+        work_item_id: 'work-item-1',
+        delivery_stage: 'final',
+      }),
+    ]);
+    expect(result.in_progress_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'handoff-packet-1',
+        work_item_id: 'work-item-1',
+        delivery_stage: 'in_progress',
+      }),
+    ]);
+  });
+
+  it('keeps a synthesized final handoff packet when the same work item already has an in-progress deliverable', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'handoff-packet-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          descriptor_kind: 'handoff_packet',
+          delivery_stage: 'in_progress',
+          title: 'workflow-intake-01 handoff packet',
+          state: 'draft',
+          summary_brief: 'Intermediate delivery packet.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'inline_summary',
+            label: 'Review handoff packet',
+          },
+          secondary_targets: [],
+          content_preview: {},
+          source_brief_id: null,
+          created_at: '2026-03-27T22:39:00.000Z',
+          updated_at: '2026-03-27T22:39:00.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const inputPacketService = { listWorkflowInputPackets: vi.fn(async () => []) };
+    const handoffSource = {
+      listLatestCompletedWorkItemHandoffs: vi.fn(async () => [
+        {
+          id: 'handoff-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          work_item_title: 'workflow-intake-01',
+          summary: 'workflow-intake-01 is approved and ready to remain open.',
+          completion: 'full',
+          resolution: 'approved',
+          decision_state: 'approved',
+          role: 'policy-assessor',
+          created_at: '2026-03-27T22:40:00.000Z',
+        },
+      ]),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+      handoffSource as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+    });
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'handoff:handoff-1',
+        work_item_id: 'work-item-1',
+        delivery_stage: 'final',
+      }),
+    ]);
+    expect(result.in_progress_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'handoff-packet-1',
+        work_item_id: 'work-item-1',
+        delivery_stage: 'in_progress',
+      }),
+    ]);
+  });
 });

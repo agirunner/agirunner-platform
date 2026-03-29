@@ -1242,9 +1242,12 @@ function mergeOutputDescriptorDeliverables(
   const allDeliverables = [
     ...(deliverables.all_deliverables ?? [...finalDeliverables, ...inProgressDeliverables]),
   ];
+  const dedupeCandidates = scopedWorkItemId
+    ? allDeliverables.filter((deliverable) => readOptionalString(deliverable.work_item_id) === scopedWorkItemId)
+    : allDeliverables;
   const existingIds = new Set<string>();
   const existingArtifactIds = new Set<string>();
-  for (const deliverable of allDeliverables) {
+  for (const deliverable of dedupeCandidates) {
     const descriptorId = readOptionalString(
       (deliverable as unknown as Record<string, unknown>).descriptor_id,
     );
