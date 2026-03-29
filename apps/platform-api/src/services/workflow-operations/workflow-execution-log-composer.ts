@@ -1008,7 +1008,167 @@ function readActionName(payload: Record<string, unknown>): string | null {
 }
 
 function readObserveText(payload: Record<string, unknown>): string | null {
-  return readOperatorReadableField(payload, ['headline', 'summary', 'details', 'text_preview']);
+  return (
+    readOperatorReadableField(payload, ['headline', 'summary', 'details', 'text_preview'])
+    ?? buildObservedExecutionText(payload)
+  );
+}
+
+function buildObservedExecutionText(payload: Record<string, unknown>): string | null {
+  const waitingReason = readWaitingObservationReason(payload);
+  if (waitingReason) {
+    return waitingReason;
+  }
+
+  const observedExecution = readObservedExecutionDetails(payload);
+  const toolTargets = observedExecution.targets;
+  if (!toolTargets) {
+    return null;
+  }
+
+  const errorsCount = observedExecution.errorsCount;
+  if (errorsCount > 0) {
+    return `Observed errors while handling ${toolTargets}.`;
+  }
+  if (payload.signal_mutation === true) {
+    return `Observed updates from ${toolTargets}.`;
+  }
+  return `Observed current results from ${toolTargets}.`;
+}
+
+function readWaitingObservationReason(payload: Record<string, unknown>): string | null {
+  const explicitReason = readOperatorReadableText(
+    readString(payload.waiting_on_workflow_event_reason),
+    180,
+  );
+  if (explicitReason) {
+    return capitalizeSentence(explicitReason);
+  }
+  if (payload.waiting_on_active_work === true) {
+    return 'Observed the workflow waiting on active work.';
+  }
+  return null;
+}
+
+function readObservedToolTargets(payload: Record<string, unknown>): string | null {
+  const targets = readStringArray(payload.signal_tools)
+    .map(humanizeObservedToolName)
+    .filter((value): value is string => value !== null);
+  if (targets.length === 0) {
+    return null;
+  }
+  return joinNaturalLanguageTargets(targets);
+}
+
+function readObservedExecutionDetails(payload: Record<string, unknown>): {
+  targets: string | null;
+  errorsCount: number;
+} {
+  const directTargets = readObservedToolTargets(payload);
+  const directErrorsCount = readOptionalNumber(payload.errors_count) ?? 0;
+  if (directTargets) {
+    return {
+      targets: directTargets,
+      errorsCount: directErrorsCount,
+    };
+  }
+
+  const rawSummary = readString(payload.summary) ?? readString(payload.text_preview);
+  const parsed = rawSummary ? parseObservedExecutionSummary(rawSummary) : null;
+  if (!parsed) {
+    return {
+      targets: null,
+      errorsCount: directErrorsCount,
+    };
+  }
+
+  return {
+    targets: joinNaturalLanguageTargets(
+      parsed.toolNames
+        .map(humanizeObservedToolName)
+        .filter((value): value is string => value !== null),
+    ),
+    errorsCount: parsed.errorsCount ?? directErrorsCount,
+  };
+}
+
+function parseObservedExecutionSummary(value: string): {
+  toolNames: string[];
+  errorsCount: number | null;
+} | null {
+  const match = value.match(
+    /^executed\s+\d+\s+tools?\s+\(\d+\s+succeeded,\s+(\d+)\s+failed\):\s+(.+?)(?:\.\s+errors:|$)/i,
+  );
+  if (!match) {
+    return null;
+  }
+  const [, failedCountText, toolListText] = match;
+  const toolNames = toolListText
+    .split(',')
+    .map((entry) => readString(entry))
+    .filter((entry): entry is string => entry !== null);
+  return {
+    toolNames,
+    errorsCount: Number.parseInt(failedCountText, 10),
+  };
+}
+
+function humanizeObservedToolName(toolName: string): string | null {
+  switch (toolName) {
+    case 'record_operator_brief':
+    case 'record_operator_update':
+    case 'file_read':
+    case 'file_write':
+    case 'file_edit':
+    case 'file_list':
+    case 'artifact_document_read':
+    case 'artifact_list':
+    case 'artifact_read':
+    case 'grep':
+    case 'memory_read':
+      return null;
+    case 'read_latest_handoff':
+      return 'latest handoff';
+    case 'read_work_item_continuity':
+      return 'work item continuity';
+    case 'read_stage_status':
+      return 'stage status';
+    case 'read_task_status':
+      return 'task status';
+    case 'read_task_output':
+      return 'task output';
+    case 'read_task_events':
+      return 'task events';
+    case 'list_workflow_tasks':
+    case 'list_work_items':
+      return null;
+    case 'create_task':
+      return 'task creation';
+    case 'submit_handoff':
+      return null;
+    case 'complete_work_item':
+      return 'work item completion';
+    case 'complete_workflow':
+      return 'workflow completion';
+    default: {
+      const normalized = humanizeToken(toolName).toLowerCase();
+      return normalized.length > 0 ? normalized : null;
+    }
+  }
+}
+
+function joinNaturalLanguageTargets(values: string[]): string | null {
+  const uniqueValues = Array.from(new Set(values));
+  if (uniqueValues.length === 0) {
+    return null;
+  }
+  if (uniqueValues.length === 1) {
+    return uniqueValues[0] ?? null;
+  }
+  if (uniqueValues.length === 2) {
+    return `${uniqueValues[0]} and ${uniqueValues[1]}`;
+  }
+  return `${uniqueValues.slice(0, -1).join(', ')}, and ${uniqueValues.at(-1)}`;
 }
 
 function readVerifyText(payload: Record<string, unknown>): string | null {

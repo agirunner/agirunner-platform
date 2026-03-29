@@ -929,13 +929,20 @@ describe('workflow-execution-log-composer', () => {
     expect(ascending.map((item) => item.item_id)).toEqual([
       'execution-log:31c-1',
       'execution-log:31c-2',
+      'execution-log:31c-4',
       'execution-log:31c-5',
       'execution-log:31c-7',
     ]);
-    expect(ascending[3]?.headline).toContain(
-      'Retry the blueprint dispatch with a schema-valid task payload',
+    expect(ascending[2]?.headline).toBe(
+      '[Observe] Observed errors while handling task creation.',
     );
     expect(ascending[3]?.headline).toContain(
+      'The task is not blocked permanently; the failed create_task call is recoverable',
+    );
+    expect(ascending[4]?.headline).toContain(
+      'Retry the blueprint dispatch with a schema-valid task payload',
+    );
+    expect(ascending[4]?.headline).toContain(
       'Close this activation cleanly',
     );
   });
@@ -953,6 +960,50 @@ describe('workflow-execution-log-composer', () => {
 
     expect(item.headline).toBe('[Observe] Policy review is ready for operator approval.');
     expect(item.summary).toBe('Policy review is ready for operator approval.');
+  });
+
+  it('humanizes runtime observe rows for successful state checks', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '32a',
+        operation: 'runtime.loop.observe',
+        payload: {
+          phase: 'observe',
+          summary:
+            'executed 2 tools (2 succeeded, 0 failed): read_latest_handoff, read_work_item_continuity',
+          signal_tools: ['read_latest_handoff', 'read_work_item_continuity'],
+          signal_mutation: false,
+          errors_count: 0,
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      '[Observe] Observed current results from latest handoff and work item continuity.',
+    );
+    expect(item.summary).toBe(
+      'Observed current results from latest handoff and work item continuity.',
+    );
+  });
+
+  it('humanizes runtime observe rows for failed mutations', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '32b',
+        operation: 'runtime.loop.observe',
+        payload: {
+          phase: 'observe',
+          summary:
+            'executed 1 tools (0 succeeded, 1 failed): create_task. errors: create_task: validation failed',
+          signal_tools: ['create_task'],
+          signal_mutation: true,
+          errors_count: 1,
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe('[Observe] Observed errors while handling task creation.');
+    expect(item.summary).toBe('Observed errors while handling task creation.');
   });
 
   it('suppresses adjacent normalized rows when they repeat the same state with no new detail', () => {

@@ -77,6 +77,13 @@ function shouldExcludeForSiblingWorkItem(
   if (item.item_kind === 'milestone_brief' && item.linked_target_ids.includes(selectedWorkItemId)) {
     return false;
   }
+  if (
+    item.item_kind === 'execution_turn'
+    && item.scope_binding === 'structured_target'
+    && item.work_item_id === selectedWorkItemId
+  ) {
+    return false;
+  }
   return referencesSiblingWorkItem(item, selectedWorkItemId, workflowWorkItemIds);
 }
 

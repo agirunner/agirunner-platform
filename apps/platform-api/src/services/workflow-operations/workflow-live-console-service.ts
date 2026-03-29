@@ -144,11 +144,14 @@ export class WorkflowLiveConsoleService {
     if (mode !== 'enhanced' || !this.executionTurnSource) {
       return [];
     }
+    const executionScope = shouldFilterSelectedScope(input)
+      ? { workItemId: undefined, taskId: undefined }
+      : input;
     const [agentLoopRows, llmRows] = await Promise.all([
       this.fetchRelevantExecutionRows(tenantId, {
         workflowId,
-        workItemId: input.workItemId,
-        taskId: input.taskId,
+        workItemId: executionScope.workItemId,
+        taskId: executionScope.taskId,
         category: [...ENHANCED_EXECUTION_LOG_CATEGORIES],
         operation: [...ENHANCED_AGENT_LOOP_OPERATIONS],
         order: 'desc',
@@ -156,8 +159,8 @@ export class WorkflowLiveConsoleService {
       }),
       this.fetchRelevantExecutionRows(tenantId, {
         workflowId,
-        workItemId: input.workItemId,
-        taskId: input.taskId,
+        workItemId: executionScope.workItemId,
+        taskId: executionScope.taskId,
         category: ['llm'],
         operation: ['llm.chat_stream'],
         order: 'desc',

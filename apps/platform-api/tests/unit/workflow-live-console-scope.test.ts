@@ -74,6 +74,29 @@ describe('workflow live console scope', () => {
 
     expect(result.map((item) => item.item_id)).toEqual(['dispatch-brief']);
   });
+
+  it('keeps structured-target execution turns whose primary target is the selected work item', () => {
+    const items = [
+      createItem({
+        item_id: 'selected-work-item-turn',
+        work_item_id: 'work-item-1',
+        linked_target_ids: ['workflow-1', 'work-item-0', 'work-item-1'],
+        scope_binding: 'structured_target',
+      }),
+    ];
+
+    const result = filterLiveConsoleItemsForSelectedScope(
+      items,
+      {
+        scope_kind: 'selected_work_item',
+        work_item_id: 'work-item-1',
+        task_id: null,
+      },
+      ['work-item-0', 'work-item-1'],
+    );
+
+    expect(result.map((item) => item.item_id)).toEqual(['selected-work-item-turn']);
+  });
 });
 
 function createItem(
