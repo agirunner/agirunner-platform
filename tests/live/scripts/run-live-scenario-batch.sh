@@ -43,6 +43,7 @@ fi
 shared_bootstrap_script="${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/scripts/prepare-live-test-shared-environment.sh}"
 scenario_runner="${LIVE_TEST_SCENARIO_RUNNER:-${LIVE_TEST_ROOT}/scripts/run-live-scenario.sh}"
 scenario_bootstrap_script="${LIVE_TEST_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/scripts/prepare-live-test-run.sh}"
+result_validator="${LIVE_TEST_RESULT_VALIDATOR:-${LIVE_TEST_ROOT}/scripts/validate_live_result.py}"
 artifacts_dir="${LIVE_TEST_ARTIFACTS_DIR:-$(default_live_test_artifacts_dir)}"
 shared_context_file="${LIVE_TEST_SHARED_CONTEXT_FILE:-${artifacts_dir}/bootstrap/context.json}"
 batch_artifacts_dir="${artifacts_dir}/batch"
@@ -54,6 +55,7 @@ require_live_test_dir "${scenario_root}" "live test scenario directory"
 require_live_test_file "${shared_bootstrap_script}" "shared live test bootstrap script"
 require_live_test_file "${scenario_runner}" "scenario runner"
 require_live_test_file "${scenario_bootstrap_script}" "scenario bootstrap script"
+require_live_test_file "${result_validator}" "live test result validator"
 
 declare -a scenarios=()
 if (( $# > 0 )); then
@@ -62,7 +64,9 @@ elif [[ "${failed_only}" == "true" ]]; then
   while IFS= read -r scenario_name; do
     [[ -n "${scenario_name}" ]] || continue
     scenarios+=("${scenario_name}")
-  done < <(list_live_test_failing_scenarios "${scenario_root}" "${artifacts_dir}" "${tracker_file}")
+  done < <(
+    python3 "${result_validator}" failing-scenarios "${scenario_root}" "${artifacts_dir}" "${tracker_file}"
+  )
 else
   while IFS= read -r scenario_name; do
     [[ -n "${scenario_name}" ]] || continue
@@ -116,6 +120,7 @@ launch_scenario() {
       LIVE_TEST_SHARED_CONTEXT_FILE="${shared_context_file}" \
       LIVE_TEST_SHARED_BOOTSTRAP_KEY="${LIVE_TEST_SHARED_BOOTSTRAP_KEY}" \
       LIVE_TEST_BOOTSTRAP_SCRIPT="${scenario_bootstrap_script}" \
+      LIVE_TEST_RESULT_VALIDATOR="${result_validator}" \
       LIVE_TEST_QUIET_STATUS=true \
       "${scenario_runner}" "${scenario_arg}"
   ) >"${log_file}" 2>&1 &
@@ -182,7 +187,7 @@ done
 
 log_live_test "Completed ${completed} scenario(s): ${passed} passed, ${failed} failed"
 IFS=$'\t' read -r matrix_passed matrix_remaining matrix_total < <(
-  count_live_test_matrix_status "${scenario_root}" "${artifacts_dir}" "${tracker_file}"
+  python3 "${result_validator}" matrix-status "${scenario_root}" "${artifacts_dir}" "${tracker_file}"
 )
 log_live_test "Matrix status: ${matrix_passed} passed, ${matrix_remaining} remaining, ${matrix_total} total"
 if (( failed > 0 )); then

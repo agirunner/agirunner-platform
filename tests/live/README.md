@@ -395,6 +395,8 @@ Per-scenario validation procedure:
    - review closure callouts, recoverable mutation counts, loop counts, token counts, env usage, and hygiene summary
 11. only after all checks agree, record the scenario verdict in the campaign matrix
 
+The harness validates the finalized `workflow-run.json` bundle before reporting success. If the result artifact is missing, malformed, or missing any required settled evidence payload or evidence file, the runner rewrites the verdict as an explicit `harness_failure` and exits non-zero.
+
 This validation procedure applies to single-scenario runs and to every scenario inside a batch run.
 
 ## Pass Criteria
@@ -403,6 +405,7 @@ A scenario passes only when all of the following are true:
 
 - the runner exits with code `0`
 - `workflow-run.json` exists
+- `workflow-run.json` is a complete settled result bundle, not a partial JSON stub
 - the final artifact reports `verification_passed = true`
 - the final artifact reports the scenario’s expected terminal workflow state
 - output exists in the form expected by that scenario
@@ -420,6 +423,7 @@ When a run does not pass, classify it before fixing anything:
 
 - harness failure
   - runner died before producing a final settled result
+  - or the finalized result artifact was malformed or missing required settled evidence
 - product failure
   - workflow or task state did not settle correctly
 - recoverable noise

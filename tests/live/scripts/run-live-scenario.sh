@@ -51,6 +51,86 @@ finalize_live_test_result() {
 EOF
 }
 
+validate_live_test_result_json() {
+  python3 "${LIVE_TEST_RESULT_VALIDATOR}" validate "${LIVE_TEST_SCENARIO_RUN_FILE}"
+}
+
+write_harness_failure_result() {
+  local exit_code="$1"
+  local invalid_result_file="${2:-}"
+  local failures_json
+
+  shift 2 || true
+  failures_json="$(python3 - "$@" <<'PY'
+import json
+import sys
+
+print(json.dumps(sys.argv[1:]))
+PY
+)"
+
+  mkdir -p "$(dirname "${LIVE_TEST_SCENARIO_RUN_FILE}")"
+  cat >"${LIVE_TEST_SCENARIO_RUN_FILE}" <<EOF
+{
+  "scenario_name": "$(json_escape "${LIVE_TEST_SCENARIO_NAME}")",
+  "harness_failure": true,
+  "verification": {
+    "passed": false,
+    "failures": ${failures_json}
+  },
+  "harness": {
+    "phase": "$(json_escape "${LIVE_TEST_RUN_PHASE:-unknown}")",
+    "exit_code": ${exit_code},
+    "result_file": "$(json_escape "${LIVE_TEST_SCENARIO_RUN_FILE}")",
+    "tmp_result_file": "$(json_escape "${LIVE_TEST_SCENARIO_RUN_TMP_FILE}")",
+    "invalid_result_file": "$(json_escape "${invalid_result_file}")"
+  }
+}
+EOF
+}
+
+fail_loud_on_incomplete_result() {
+  local validation_json
+  local validation_file
+  local invalid_result_file=""
+  local -a validation_failures=()
+
+  validation_json="$(validate_live_test_result_json)"
+  if python3 - "${validation_json}" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+raise SystemExit(0 if payload.get("is_valid") else 1)
+PY
+  then
+    return 0
+  fi
+
+  validation_file="${LIVE_TEST_SCENARIO_DIR}/workflow-run.validation.json"
+  printf '%s\n' "${validation_json}" >"${validation_file}"
+
+  if [[ -f "${LIVE_TEST_SCENARIO_RUN_FILE}" ]]; then
+    invalid_result_file="${LIVE_TEST_SCENARIO_DIR}/workflow-run.incomplete.json"
+    cp "${LIVE_TEST_SCENARIO_RUN_FILE}" "${invalid_result_file}"
+  fi
+
+  mapfile -t validation_failures < <(
+    python3 - "${validation_json}" <<'PY'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+for failure in payload.get("failures", []):
+    print(str(failure))
+PY
+  )
+
+  rm -f "${LIVE_TEST_SCENARIO_RUN_FILE}"
+  write_harness_failure_result 1 "${invalid_result_file}" "${validation_failures[@]}"
+  return 1
+}
+
 require_live_test_shared_bootstrap() {
   local shared_bootstrap_script="$1"
   local shared_context_file="$2"
@@ -127,6 +207,7 @@ LIVE_TEST_BOOTSTRAP_CONTEXT_FILE="${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE:-${LIVE_TES
 LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/scripts/prepare-live-test-shared-environment.sh}"
 LIVE_TEST_BOOTSTRAP_SCRIPT="${LIVE_TEST_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/scripts/prepare-live-test-run.sh}"
 LIVE_TEST_START_WORKFLOW_SCRIPT="${LIVE_TEST_START_WORKFLOW_SCRIPT:-${LIVE_TEST_ROOT}/lib/run_workflow_scenario.py}"
+LIVE_TEST_RESULT_VALIDATOR="${LIVE_TEST_RESULT_VALIDATOR:-${LIVE_TEST_ROOT}/scripts/validate_live_result.py}"
 LIVE_TEST_SCENARIO_RUN_TMP_FILE="${LIVE_TEST_SCENARIO_RUN_TMP_FILE:-${LIVE_TEST_SCENARIO_RUN_FILE}.tmp}"
 LIVE_TEST_SCENARIO_RUN_STDOUT_FILE="${LIVE_TEST_SCENARIO_RUN_STDOUT_FILE:-${LIVE_TEST_SCENARIO_RUN_TMP_FILE}.stdout}"
 LIVE_TEST_RUN_PHASE="bootstrap"
@@ -137,6 +218,7 @@ load_live_test_env "${LIVE_TEST_ENV_FILE}"
 PLATFORM_API_BASE_URL="${PLATFORM_API_BASE_URL:-http://127.0.0.1:${PLATFORM_API_PORT:-8080}}"
 LIVE_TEST_REMOTE_MCP_FIXTURE_URL="${LIVE_TEST_REMOTE_MCP_FIXTURE_URL:-http://127.0.0.1:${LIVE_TEST_REMOTE_MCP_FIXTURE_PORT:-18080}/health}"
 require_live_test_value "DEFAULT_ADMIN_API_KEY" "${DEFAULT_ADMIN_API_KEY:-}"
+require_live_test_file "${LIVE_TEST_RESULT_VALIDATOR}" "live test result validator"
 log_scenario_status "START ${LIVE_TEST_SCENARIO_NAME}"
 
 mkdir -p "${LIVE_TEST_SCENARIO_DIR}" "${LIVE_TEST_SCENARIO_TRACE_DIR}"
@@ -181,6 +263,11 @@ fi
 
 if [[ -s "${LIVE_TEST_SCENARIO_RUN_TMP_FILE}" ]]; then
   mv "${LIVE_TEST_SCENARIO_RUN_TMP_FILE}" "${LIVE_TEST_SCENARIO_RUN_FILE}"
+fi
+
+if ! fail_loud_on_incomplete_result; then
+  log_scenario_status "FAIL ${LIVE_TEST_SCENARIO_NAME}"
+  exit 1
 fi
 
 LIVE_TEST_RUN_PHASE="complete"
