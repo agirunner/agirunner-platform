@@ -3980,11 +3980,12 @@ describe('WorkflowWorkspaceService', () => {
 
     expect(result.live_console.items.map((item) => item.item_id)).toEqual([
       'same-item-brief',
+      'cross-work-item-brief',
       'ambiguous-orchestrator-turn',
       'selected-structured-turn',
     ]);
-    expect(result.live_console.total_count).toBe(3);
-    expect(result.bottom_tabs.counts.live_console_activity).toBe(3);
+    expect(result.live_console.total_count).toBe(4);
+    expect(result.bottom_tabs.counts.live_console_activity).toBe(4);
   });
 
   it('filters task-scoped live console and briefs to task-linked records before computing counts', async () => {
