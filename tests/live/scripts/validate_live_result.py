@@ -215,7 +215,18 @@ def validate_scope_entry(scope_key: str, expected_kind: str, payload: dict[str, 
         live_console = require_mapping(workspace_api, "live_console", failures, prefix=f"{scope_key}.workspace_api.")
         if live_console is not None:
             require_list(live_console, "brief_ids", failures, prefix=f"{scope_key}.workspace_api.live_console.")
-            require_list(live_console, "update_ids", failures, prefix=f"{scope_key}.workspace_api.live_console.")
+            require_list(
+                live_console,
+                "execution_turn_ids",
+                failures,
+                prefix=f"{scope_key}.workspace_api.live_console.",
+            )
+            require_list(
+                live_console,
+                "execution_turn_items",
+                failures,
+                prefix=f"{scope_key}.workspace_api.live_console.",
+            )
             require_mapping(
                 live_console,
                 "item_kind_counts",
@@ -240,7 +251,6 @@ def validate_scope_entry(scope_key: str, expected_kind: str, payload: dict[str, 
     db_payload = require_mapping(payload, "db", failures, prefix=f"{scope_key}.")
     if db_payload is not None:
         require_list(db_payload, "brief_ids", failures, prefix=f"{scope_key}.db.")
-        require_list(db_payload, "update_ids", failures, prefix=f"{scope_key}.db.")
         require_list(db_payload, "all_descriptor_ids", failures, prefix=f"{scope_key}.db.")
 
     enhanced_live_console = require_mapping(payload, "enhanced_live_console", failures, prefix=f"{scope_key}.")

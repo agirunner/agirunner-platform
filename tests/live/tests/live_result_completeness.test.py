@@ -70,7 +70,17 @@ class LiveResultCompletenessTests(unittest.TestCase):
     ) -> dict[str, object]:
         live_console_ids = {
             "brief_ids": ["brief-1"],
-            "update_ids": ["update-1"],
+            "execution_turn_ids": ["111"],
+            "execution_turn_items": [
+                {
+                    "log_id": "111",
+                    "item_id": "execution-log:111",
+                    "headline": "[Think] Inspect the seeded workflow state before routing work.",
+                    "summary": "Inspect the seeded workflow state before routing work.",
+                    "task_id": task_id,
+                    "work_item_id": work_item_id,
+                }
+            ],
         }
         deliverable_ids = {
             "all_descriptor_ids": ["descriptor-1", "brief-1", "handoff-1"],
@@ -95,11 +105,10 @@ class LiveResultCompletenessTests(unittest.TestCase):
                 "live_console": {
                     "item_kind_counts": {
                         "milestone_brief": 1,
-                        "operator_update": 1,
+                        "execution_turn": 1,
                     },
                     "tracked_item_kind_counts": {
                         "milestone_brief": 1,
-                        "operator_update": 1,
                     },
                     **live_console_ids,
                 },
@@ -116,10 +125,8 @@ class LiveResultCompletenessTests(unittest.TestCase):
                 **live_console_ids,
                 **deliverable_ids,
                 "all_descriptor_ids": ["descriptor-1", "brief-1", "handoff-1"],
-                "update_ids": ["update-1"],
                 "update_item_kind_counts": {
                     "milestone_brief": 1,
-                    "operator_update": 1,
                 },
                 "deliverable_descriptor_kind_counts": {
                     "report": 1,
@@ -135,9 +142,11 @@ class LiveResultCompletenessTests(unittest.TestCase):
                         "log_id": "111",
                         "operation": "agent.think",
                         "phase": "think",
+                        "phase_label": "Think",
                         "surface_expected": True,
-                        "surface_kind": "prose",
-                        "headline_preview": "Inspect the seeded workflow state before routing work.",
+                        "surface_kind": "execution_turn",
+                        "expected_headline": "[Think] Inspect the seeded workflow state before routing work.",
+                        "expected_summary": "Inspect the seeded workflow state before routing work.",
                         "task_id": task_id,
                         "work_item_id": work_item_id,
                     },
@@ -145,23 +154,18 @@ class LiveResultCompletenessTests(unittest.TestCase):
                         "log_id": "112",
                         "operation": "agent.act",
                         "phase": "act",
+                        "phase_label": "Act",
                         "surface_expected": False,
-                        "surface_kind": "action_call",
-                        "headline_preview": "calling list_work_items(stage_name=\"intake-triage\")",
+                        "surface_kind": "execution_turn",
+                        "expected_headline": None,
+                        "expected_summary": None,
                         "suppression_reason": "low_value_read_only_tool",
                         "task_id": task_id,
                         "work_item_id": work_item_id,
                     },
                 ],
                 "actual_rows": [
-                    {
-                        "log_id": "111",
-                        "item_id": "execution-log:111",
-                        "headline": "Inspect the seeded workflow state before routing work.",
-                        "summary": "Working through the next step for Workflow task.",
-                        "task_id": task_id,
-                        "work_item_id": work_item_id,
-                    }
+                    live_console_ids["execution_turn_items"][0]
                 ],
                 "passed": True,
                 "failures": [],
@@ -414,6 +418,51 @@ class LiveResultCompletenessTests(unittest.TestCase):
                 "\n".join(result.failures),
             )
 
+    def test_validate_result_file_requires_execution_turn_ids_in_workspace_scope_trace(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            scenario_dir = Path(tmpdir) / "scenario"
+            evidence_dir = scenario_dir / "evidence"
+            evidence_dir.mkdir(parents=True)
+
+            workspace_scope_trace = self.build_workspace_scope_trace()
+            selected_task_scope = workspace_scope_trace["selected_task_scope"]
+            assert isinstance(selected_task_scope, dict)
+            workspace_api = selected_task_scope["workspace_api"]
+            assert isinstance(workspace_api, dict)
+            live_console = workspace_api["live_console"]
+            assert isinstance(live_console, dict)
+            live_console.pop("execution_turn_ids", None)
+            evidence = self.build_complete_evidence(
+                evidence_dir,
+                workspace_scope_trace=workspace_scope_trace,
+            )
+
+            result_path = scenario_dir / "workflow-run.json"
+            result_path.write_text(
+                json.dumps(
+                    {
+                        "scenario_name": "demo",
+                        "runner_exit_code": 0,
+                        "workflow_state": "completed",
+                        "state": "completed",
+                        "verification_passed": True,
+                        "verification": {"passed": True, "failures": []},
+                        "harness_failure": False,
+                        "outcome_metrics": {"status": "passed"},
+                        "evidence": evidence,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = validate_live_result.validate_result_file(result_path)
+
+            self.assertFalse(result.is_valid)
+            self.assertIn(
+                "selected_task_scope.workspace_api.live_console.execution_turn_ids must be a list",
+                "\n".join(result.failures),
+            )
+
     def test_validate_result_file_accepts_explicit_harness_failure_payload(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             result_path = Path(tmpdir) / "workflow-run.json"
@@ -466,6 +515,136 @@ class LiveResultCompletenessTests(unittest.TestCase):
 
         self.assertFalse(result["passed"])
         self.assertIn("execution-log:111", "\n".join(result["failures"]))
+
+    def test_reconcile_enhanced_live_console_accepts_phase_prefixed_and_humanized_rows(self) -> None:
+        result = workflow_scope_trace.reconcile_enhanced_live_console(
+            execution_logs={
+                "data": [
+                    {
+                        "id": "111",
+                        "operation": "agent.think",
+                        "task_id": "task-1",
+                        "work_item_id": "wi-1",
+                        "payload": {
+                            "phase": "think",
+                            "approach": "approach: Confirm the current work item state before dispatching.",
+                        },
+                    },
+                    {
+                        "id": "112",
+                        "operation": "agent.act",
+                        "task_id": "task-1",
+                        "work_item_id": "wi-1",
+                        "payload": {
+                            "phase": "act",
+                            "tool": "create_task",
+                            "input": {
+                                "title": "Assess workflows-intake-01 triage readiness",
+                                "role": "policy-assessor",
+                            },
+                        },
+                    },
+                ]
+            },
+            execution_turn_items=[
+                {
+                    "log_id": "111",
+                    "item_id": "execution-log:111",
+                    "headline": "[Think] Confirm the current work item state before dispatching.",
+                    "summary": "Confirm the current work item state before dispatching.",
+                    "task_id": "task-1",
+                    "work_item_id": "wi-1",
+                },
+                {
+                    "log_id": "112",
+                    "item_id": "execution-log:112",
+                    "headline": "[Act] Creating a task: Assess workflows-intake-01 triage readiness",
+                    "summary": "Creating a task: Assess workflows-intake-01 triage readiness",
+                    "task_id": "task-1",
+                    "work_item_id": "wi-1",
+                },
+            ],
+            effective_mode="enhanced",
+            scope_kind="selected_task",
+            work_item_id="wi-1",
+            task_id="task-1",
+        )
+
+        self.assertTrue(result["passed"])
+        self.assertEqual([], result["failures"])
+
+    def test_reconcile_enhanced_live_console_accepts_literal_action_fallback_inside_act_line(self) -> None:
+        result = workflow_scope_trace.reconcile_enhanced_live_console(
+            execution_logs={
+                "data": [
+                    {
+                        "id": "211",
+                        "operation": "agent.act",
+                        "task_id": "task-1",
+                        "work_item_id": "wi-1",
+                        "payload": {
+                            "phase": "act",
+                            "tool": "shell_exec",
+                            "input": {
+                                "command": "pytest tests/unit",
+                            },
+                        },
+                    }
+                ]
+            },
+            execution_turn_items=[
+                {
+                    "log_id": "211",
+                    "item_id": "execution-log:211",
+                    "headline": '[Act] calling shell_exec(command="pytest tests/unit")',
+                    "summary": 'calling shell_exec(command="pytest tests/unit")',
+                    "task_id": "task-1",
+                    "work_item_id": "wi-1",
+                }
+            ],
+            effective_mode="enhanced",
+            scope_kind="selected_task",
+            work_item_id="wi-1",
+            task_id="task-1",
+        )
+
+        self.assertTrue(result["passed"])
+        self.assertEqual([], result["failures"])
+
+    def test_reconcile_enhanced_live_console_flags_scope_mismatch_for_surfaced_row(self) -> None:
+        result = workflow_scope_trace.reconcile_enhanced_live_console(
+            execution_logs={
+                "data": [
+                    {
+                        "id": "311",
+                        "operation": "agent.plan",
+                        "task_id": "task-1",
+                        "work_item_id": "wi-1",
+                        "payload": {
+                            "phase": "plan",
+                            "plan_summary": "Check whether the current intake item is ready for closure.",
+                        },
+                    }
+                ]
+            },
+            execution_turn_items=[
+                {
+                    "log_id": "311",
+                    "item_id": "execution-log:311",
+                    "headline": "[Plan] Check whether the current intake item is ready for closure.",
+                    "summary": "Check whether the current intake item is ready for closure.",
+                    "task_id": "task-2",
+                    "work_item_id": "wi-1",
+                }
+            ],
+            effective_mode="enhanced",
+            scope_kind="selected_task",
+            work_item_id="wi-1",
+            task_id="task-1",
+        )
+
+        self.assertFalse(result["passed"])
+        self.assertIn("task scope mismatch", "\n".join(result["failures"]))
 
     def test_reconcile_enhanced_live_console_flags_suppressed_read_only_actions(self) -> None:
         result = workflow_scope_trace.reconcile_enhanced_live_console(
