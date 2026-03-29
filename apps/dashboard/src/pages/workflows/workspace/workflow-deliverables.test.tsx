@@ -166,6 +166,31 @@ describe('WorkflowDeliverables', () => {
     expect(html).not.toContain('Workflow deliverables stay available in workflow scope.');
   });
 
+  it('keeps task scope ordered even when a deliverable is backed by a brief', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: createTaskScopePacketWithWorkItemBrief(),
+        selectedTask: createTask(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Generate release bundle',
+          banner: 'Task: Generate release bundle',
+        },
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).not.toContain('Outcome Brief');
+    expect(html.indexOf('Task output and evidence')).toBeLessThan(html.indexOf('Work item deliverables (1)'));
+    expect(html.indexOf('Work item deliverables (1)')).toBeLessThan(html.indexOf('Workflow deliverables (0)'));
+    expect(html).toContain('Release bundle');
+    expect(html).toContain('Release bundle brief');
+  });
+
   it('renders synthesized inline-summary deliverables without deprecated navigation links', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
@@ -557,6 +582,81 @@ function createMixedScopePacket(): DashboardWorkflowDeliverablesPacket {
     ],
     in_progress_deliverables: [],
     working_handoffs: [],
+    inputs_and_provenance: {
+      launch_packet: null,
+      supplemental_packets: [],
+      intervention_attachments: [],
+      redrive_packet: null,
+    },
+    next_cursor: null,
+  };
+}
+
+function createTaskScopePacketWithWorkItemBrief(): DashboardWorkflowDeliverablesPacket {
+  return {
+    final_deliverables: [
+      {
+        descriptor_id: 'deliverable-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        descriptor_kind: 'artifact',
+        delivery_stage: 'final',
+        title: 'Release bundle',
+        state: 'final',
+        summary_brief: 'The release bundle is ready for operator review.',
+        preview_capabilities: {},
+        primary_target: {
+          target_kind: 'artifact',
+          label: 'Open artifact',
+          url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-1',
+          path: 'artifacts/release-bundle.zip',
+          artifact_id: 'artifact-1',
+        },
+        secondary_targets: [],
+        content_preview: {
+          summary: 'Release notes and bundle metadata are available.',
+        },
+        source_brief_id: 'brief-1',
+        created_at: '2026-03-27T06:00:00.000Z',
+        updated_at: '2026-03-27T06:00:00.000Z',
+      },
+    ],
+    in_progress_deliverables: [],
+    working_handoffs: [
+      {
+        id: 'brief-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        task_id: 'task-1',
+        request_id: 'request-1',
+        execution_context_id: 'task-1',
+        brief_kind: 'milestone',
+        brief_scope: 'deliverable_context',
+        source_kind: 'specialist',
+        source_role_name: 'Reviewer',
+        status_kind: 'completed',
+        short_brief: {
+          headline: 'Release bundle brief',
+        },
+        detailed_brief_json: {
+          headline: 'Release bundle brief',
+          summary: 'The reviewer confirmed the release bundle details inline.',
+          sections: {
+            deliverables: ['Release bundle is ready for operator review.'],
+          },
+        },
+        linked_target_ids: [],
+        sequence_number: 1,
+        related_artifact_ids: [],
+        related_output_descriptor_ids: [],
+        related_intervention_ids: [],
+        canonical_workflow_brief_id: null,
+        created_by_type: 'agent',
+        created_by_id: 'agent-1',
+        created_at: '2026-03-28T08:00:00.000Z',
+        updated_at: '2026-03-28T08:00:00.000Z',
+      },
+    ],
     inputs_and_provenance: {
       launch_packet: null,
       supplemental_packets: [],

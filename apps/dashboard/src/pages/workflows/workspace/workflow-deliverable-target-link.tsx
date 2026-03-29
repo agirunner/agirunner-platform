@@ -20,11 +20,17 @@ export function WorkflowDeliverableTargetLink(props: {
   const targetLabel = props.primary
     ? props.target.label
     : `${props.target.label} (${humanizeToken(props.target.target_kind)})`;
+  const renderInlineReference = shouldRenderInlineReference(props.target);
   const openInNewTabLabel = buildOpenInNewTabLabel(props.target.target_kind);
 
   return (
     <div className="grid gap-2">
-      {action.action_kind === 'dialog_preview' ? (
+      {renderInlineReference ? (
+        <>
+          <p className="text-sm font-medium text-foreground">{targetLabel}</p>
+          <p className="text-xs text-muted-foreground">Reference stays in this workflow workspace.</p>
+        </>
+      ) : action.action_kind === 'dialog_preview' ? (
         <div className="flex flex-wrap items-center gap-2">
           <Button size="sm" onClick={() => setIsPreviewOpen(true)}>
             Preview inline
@@ -85,4 +91,13 @@ function buildOpenInNewTabLabel(targetKind: DashboardWorkflowDeliverableTarget['
     return 'Open file in new tab';
   }
   return `Open ${humanizeToken(targetKind).toLowerCase()} in new tab`;
+}
+
+function shouldRenderInlineReference(target: DashboardWorkflowDeliverableTarget): boolean {
+  if (target.url.trim().length === 0) {
+    return true;
+  }
+  return target.target_kind === 'workflow'
+    || target.target_kind === 'work_item'
+    || target.target_kind === 'task';
 }

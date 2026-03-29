@@ -68,7 +68,7 @@ export function WorkflowDeliverables(props: {
         </p>
       </div>
 
-      {outcomeBrief ? (
+      {props.scope.scopeKind === 'workflow' && outcomeBrief ? (
         <section className="grid gap-4 rounded-2xl border border-emerald-300/60 bg-emerald-50/60 p-4 dark:border-emerald-800/60 dark:bg-emerald-950/20">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="success">Outcome Brief</Badge>
