@@ -1772,6 +1772,64 @@ describe('WorkflowDeliverablesService', () => {
     ]);
   });
 
+  it('drops empty malformed secondary target entries while preserving real targets', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'deliverable-target-3',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Workflow completion packet',
+          state: 'final',
+          summary_brief: 'Stored mixed target shapes were malformed.',
+          preview_capabilities: {},
+          primary_target: ['not-an-object'],
+          secondary_targets: [
+            'not-an-object',
+            null,
+            {
+              target_kind: 'artifact',
+              label: 'Artifact',
+              url: '/artifacts/tasks/task-36/artifact-36',
+            },
+          ],
+          content_preview: {},
+          source_brief_id: null,
+          created_at: '2026-03-28T21:21:00.000Z',
+          updated_at: '2026-03-28T21:21:00.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1');
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'deliverable-target-3',
+        primary_target: {},
+        secondary_targets: [
+          expect.objectContaining({
+            url: '/api/v1/tasks/task-36/artifacts/artifact-36/preview',
+          }),
+        ],
+      }),
+    ]);
+  });
+
   it('suppresses an orchestrator brief packet when the same work item already has a canonical final packet', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => [

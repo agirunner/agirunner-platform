@@ -632,11 +632,14 @@ function normalizeDeliverableTargets(
 
 function normalizeDeliverableTargetList(value: unknown): Record<string, unknown>[] {
   if (Array.isArray(value)) {
-    return value.map(asTargetRecord).map(normalizeDeliverableTarget);
+    return value
+      .map(asTargetRecord)
+      .filter(hasTargetFields)
+      .map(normalizeDeliverableTarget);
   }
 
   const singleTarget = asTargetRecord(value);
-  return Object.keys(singleTarget).length > 0 ? [normalizeDeliverableTarget(singleTarget)] : [];
+  return hasTargetFields(singleTarget) ? [normalizeDeliverableTarget(singleTarget)] : [];
 }
 
 function asTargetRecord(value: unknown): Record<string, unknown> {
@@ -644,6 +647,10 @@ function asTargetRecord(value: unknown): Record<string, unknown> {
     return {};
   }
   return value as Record<string, unknown>;
+}
+
+function hasTargetFields(target: Record<string, unknown>): boolean {
+  return Object.keys(target).length > 0;
 }
 
 function normalizeDeliverableTarget(target: Record<string, unknown>): Record<string, unknown> {
