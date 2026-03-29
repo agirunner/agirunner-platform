@@ -1799,6 +1799,12 @@ describe('WorkflowActivationDispatchService', () => {
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('If a stage already awaits approval, do not request another gate');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('record_operator_brief');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
+            'Every orchestrator activation MUST finish with submit_handoff before task completion',
+          );
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
+            'Before attempting completion, perform a final self-check: if submit_handoff has not succeeded in this activation yet',
+          );
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
             'Standard live visibility comes from canonical workflow events and required briefs, not from an extra model-authored operator-update tool.',
           );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(

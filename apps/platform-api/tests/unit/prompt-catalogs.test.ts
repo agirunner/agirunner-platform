@@ -57,6 +57,12 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('structured handoff exists');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Rejected attempts do not count');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not duplicate unchanged handoffs');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'For orchestrator activations, a milestone brief never ends the activation by itself.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'If the activation made no workflow mutation, still leave a concise submit_handoff',
+    );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('unique request_id');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Include the current task rework_count (or equivalent attempt discriminator) in submit_handoff request_id values',
@@ -65,6 +71,9 @@ describe('prompt catalogs', () => {
       'handoff:<task_id>:r<rework_count>:<handoff-slug>',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Completion is rejected without a structured handoff');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'If platform rejects completion because a structured handoff is required, treat that as a correction to submit the missing handoff immediately',
+    );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not use submit_handoff for scratch progress');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('submit_handoff requires the completion string field.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
@@ -228,6 +237,15 @@ describe('prompt catalogs', () => {
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'record_operator_brief does not satisfy a required submit_handoff and does not by itself complete a task, work item, or workflow.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Every orchestrator activation MUST finish with submit_handoff before task completion, including noop, return-to-pending, and wait-state activations.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'record_operator_brief is optional operator-facing narrative. It never replaces the orchestrator handoff, and it is not a completion write.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Before attempting completion, perform a final self-check: if submit_handoff has not succeeded in this activation yet, do it now instead of ending on a brief or tool mutation alone.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If you do not have the exact scoped workflow, work-item, or task ids from the live visibility contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id.',
