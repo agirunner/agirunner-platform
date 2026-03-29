@@ -59,6 +59,10 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html.indexOf('Workflow: Workflow 1')).toBeLessThan(html.indexOf('Details'));
     expect(html).toContain('Scope');
     expect(html).toContain('>Workflow<');
+    expect(html).toContain('flex h-full min-h-[22rem] min-w-0 flex-col gap-1.5 overflow-hidden rounded-2xl bg-background/90 p-2.5 lg:min-h-0');
+    expect(html).toContain('flex min-w-0 flex-wrap items-start justify-between gap-2 px-3 py-2');
+    expect(html).not.toContain('rounded-xl border border-border/70 bg-transparent px-3 py-2');
+    expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/90 p-2.5 shadow-sm');
     expect(html).not.toContain('Current scope');
     expect(html).toContain('Briefs');
     expect(html).toContain('Needs Action</span><div');

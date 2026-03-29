@@ -29,6 +29,8 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('All lanes');
     expect(html).toContain('flex min-w-0 flex-wrap items-center gap-2 pb-1');
     expect(html).toContain('min-h-0 flex-1 overflow-auto pb-1');
+    expect(html).toContain('flex h-full min-h-[18rem] min-w-0 flex-col gap-2 overflow-hidden rounded-2xl bg-background/90 p-2.5 lg:min-h-0');
+    expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/90 p-2.5 shadow-sm');
     expect(html).not.toContain('flex flex-wrap items-center justify-between gap-3');
     expect(html).not.toContain('Lanes show the actual workflow flow while tasks stay subordinate');
     expect(html).not.toContain('Active stage:');
@@ -188,6 +190,9 @@ describe('WorkflowBoard', () => {
     );
     expect(html).toContain(
       'grid min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5',
+    );
+    expect(html).not.toContain(
+      'flex h-full min-h-[18rem] min-w-0 flex-col gap-2 overflow-hidden rounded-2xl border border-border/70 bg-background/90 p-2.5 shadow-sm lg:min-h-0',
     );
     expect(html).not.toContain(
       'grid min-h-full gap-3 md:grid-flow-col md:auto-cols-[minmax(17.5rem,1fr)]',

@@ -70,7 +70,7 @@ export function WorkflowStateStrip(props: {
           </div>
         </section>
 
-        <section className="grid gap-3 border-t border-border/60 pt-4 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0">
+        <section className="grid gap-3 xl:pl-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Steering
           </p>
@@ -123,7 +123,7 @@ export function WorkflowStateStrip(props: {
         </section>
       </div>
 
-      <div className="grid gap-3 border-t border-border/60 pt-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 pt-1 md:grid-cols-2 xl:grid-cols-4">
         <HeaderCard
           title="State"
           value={postureLabel}
