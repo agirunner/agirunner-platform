@@ -1,9 +1,7 @@
 import { createHash } from 'node:crypto';
 
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
-import {
-  type SpecialistRoleCapabilities,
-} from './specialist-capability-service.js';
+import { type SpecialistRoleCapabilities } from './specialist-capability-service.js';
 import { roleConfigOwnsRepositorySurface } from './tool-tag-service.js';
 
 interface ExecutionBriefRef {
@@ -30,7 +28,6 @@ interface OperatorVisibilityContract {
   source_kind: string | null;
   record_operator_brief_tool: string | null;
   record_operator_update_tool: string | null;
-  turn_updates_required: boolean;
   turn_update_scope: string | null;
   eligible_turn_guidance: string | null;
   operator_update_request_id_prefix: string | null;
@@ -135,7 +132,8 @@ export function buildSpecialistExecutionBrief(
   const operatorVisibility = operatorVisibilityFrom(workflow);
   const stageName = readString(workItem.stage_name) ?? readString(workflow.current_stage);
   const stage = definition.stages.find((entry) => entry.name === stageName) ?? null;
-  const boardColumn = definition.board.columns.find((entry) => entry.id === readString(workItem.column_id)) ?? null;
+  const boardColumn =
+    definition.board.columns.find((entry) => entry.id === readString(workItem.column_id)) ?? null;
   const workflowBrief = compactWorkflowBriefVariables(asRecord(workflow.variables));
   const repoBacked = isRepositoryBacked(workspace, workflow, taskInput, roleConfig);
   const assessmentOutputExpectations = buildAssessmentOutputExpectations(
@@ -177,14 +175,15 @@ export function buildSpecialistExecutionBrief(
       next_expected_actor: readString(workItem.next_expected_actor),
       next_expected_action: readString(workItem.next_expected_action),
     },
-    predecessor_handoff_summary: Object.keys(predecessorHandoff).length === 0
-      ? null
-      : {
-          id: readString(predecessorHandoff.id),
-          role: readString(predecessorHandoff.role),
-          summary: readString(predecessorHandoff.summary),
-          successor_context: readString(predecessorHandoff.successor_context),
-    },
+    predecessor_handoff_summary:
+      Object.keys(predecessorHandoff).length === 0
+        ? null
+        : {
+            id: readString(predecessorHandoff.id),
+            role: readString(predecessorHandoff.role),
+            summary: readString(predecessorHandoff.summary),
+            successor_context: readString(predecessorHandoff.successor_context),
+          },
     work_item_continuity_summary: continuitySummaryFrom(workItem),
     assessment_output_expectations: assessmentOutputExpectations,
     repo_status_summary: repoBacked
@@ -214,13 +213,17 @@ function buildAssessmentOutputExpectations(
   const action = readString(workItem.next_expected_action);
   if (action === 'assess' && actor) {
     lines.push(`Expected review actor: ${actor}.`);
-    lines.push(`${actor} is expected to assess the current output before the work item moves forward.`);
+    lines.push(
+      `${actor} is expected to assess the current output before the work item moves forward.`,
+    );
   } else if (action === 'approve') {
     lines.push('A human approval step is currently active for this work item.');
   } else if (action === 'handoff' && actor) {
     lines.push(`Prepare a clear successor handoff for ${actor}.`);
   } else if (action === 'rework' && actor) {
-    lines.push(`The current output is in rework for ${actor}. Address the requested changes directly.`);
+    lines.push(
+      `The current output is in rework for ${actor}. Address the requested changes directly.`,
+    );
   }
   void role;
   lines.push(
@@ -252,7 +255,8 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
   lines.push(`Lifecycle: ${brief.current_focus.lifecycle}`);
   if (brief.current_focus.stage_name) lines.push(`Stage: ${brief.current_focus.stage_name}`);
   if (brief.current_focus.stage_goal) lines.push(`Stage goal: ${brief.current_focus.stage_goal}`);
-  if (brief.current_focus.board_position) lines.push(`Board position: ${brief.current_focus.board_position}`);
+  if (brief.current_focus.board_position)
+    lines.push(`Board position: ${brief.current_focus.board_position}`);
   if (brief.predecessor_handoff_summary?.summary) {
     lines.push('', '## Predecessor Context');
     lines.push(`Summary: ${brief.predecessor_handoff_summary.summary}`);
@@ -307,7 +311,10 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
         'Operator updates and briefs are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".',
       );
     }
-    if (brief.operator_visibility.milestone_briefs_required && brief.operator_visibility.record_operator_brief_tool) {
+    if (
+      brief.operator_visibility.milestone_briefs_required &&
+      brief.operator_visibility.record_operator_brief_tool
+    ) {
       if (brief.operator_visibility.operator_brief_request_id_prefix) {
         lines.push(
           `Use ${brief.operator_visibility.operator_brief_request_id_prefix} as the stable request_id prefix for ${brief.operator_visibility.record_operator_brief_tool} writes in this execution context.`,
@@ -341,7 +348,9 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
     }
   }
   lines.push('', '## Path Discipline');
-  lines.push(pathDisciplineGuidance(brief.repo_status_summary.startsWith('Repository-backed task.')));
+  lines.push(
+    pathDisciplineGuidance(brief.repo_status_summary.startsWith('Repository-backed task.')),
+  );
   if (brief.execution_environment_contract?.agent_hint) {
     lines.push('', '## Execution Environment Contract');
     lines.push(brief.execution_environment_contract.agent_hint);
@@ -433,7 +442,9 @@ function refreshInputsFrom(
   };
 }
 
-function operatorVisibilityFrom(workflow: Record<string, unknown>): OperatorVisibilityContract | null {
+function operatorVisibilityFrom(
+  workflow: Record<string, unknown>,
+): OperatorVisibilityContract | null {
   const liveVisibility = asRecord(workflow.live_visibility);
   if (Object.keys(liveVisibility).length === 0) {
     return null;
@@ -448,7 +459,6 @@ function operatorVisibilityFrom(workflow: Record<string, unknown>): OperatorVisi
     source_kind: readString(liveVisibility.source_kind),
     record_operator_brief_tool: readString(liveVisibility.record_operator_brief_tool),
     record_operator_update_tool: readString(liveVisibility.record_operator_update_tool),
-    turn_updates_required: false,
     turn_update_scope: null,
     eligible_turn_guidance: null,
     operator_update_request_id_prefix:
@@ -478,14 +488,19 @@ function summarizeRemoteMcpServers(capabilities: SpecialistRoleCapabilities | nu
 
 function selectLikelyRelevantFiles(predecessorHandoff: Record<string, unknown>) {
   const changes = Array.isArray(predecessorHandoff.changes) ? predecessorHandoff.changes : [];
-  return [...new Set(
-    changes
-      .map((entry) => readString(asRecord(entry).path))
-      .filter((entry): entry is string => Boolean(entry)),
-  )].sort();
+  return [
+    ...new Set(
+      changes
+        .map((entry) => readString(asRecord(entry).path))
+        .filter((entry): entry is string => Boolean(entry)),
+    ),
+  ].sort();
 }
 
-function selectRelevantMemoryRefs(workspace: Record<string, unknown>, hints: Array<string | null | undefined>): MemoryRef[] {
+function selectRelevantMemoryRefs(
+  workspace: Record<string, unknown>,
+  hints: Array<string | null | undefined>,
+): MemoryRef[] {
   const memory = asRecord(workspace.memory);
   const keys = readStringArray(asRecord(workspace.memory_index).keys);
   const tokens = buildHintTokens(hints);
@@ -505,31 +520,43 @@ function selectRelevantMemoryRefs(workspace: Record<string, unknown>, hints: Arr
     }));
 }
 
-function selectRelevantArtifactRefs(workspace: Record<string, unknown>, hints: Array<string | null | undefined>): ArtifactRef[] {
+function selectRelevantArtifactRefs(
+  workspace: Record<string, unknown>,
+  hints: Array<string | null | undefined>,
+): ArtifactRef[] {
   const items = Array.isArray(asRecord(workspace.artifact_index).items)
-    ? asRecord(workspace.artifact_index).items as unknown[]
+    ? (asRecord(workspace.artifact_index).items as unknown[])
     : [];
   const tokens = buildHintTokens(hints);
   return items
-    .map((entry): { artifact_id: string; logical_path: string; title: string | null; score: number } => {
-      const record = asRecord(entry);
-      const logicalPath = readString(record.logical_path) ?? '';
-      return {
-        artifact_id: readString(record.artifact_id) ?? '',
-        logical_path: logicalPath,
-        title: logicalPath || null,
-        score: scoreMatch([logicalPath], tokens),
-      };
-    })
+    .map(
+      (
+        entry,
+      ): { artifact_id: string; logical_path: string; title: string | null; score: number } => {
+        const record = asRecord(entry);
+        const logicalPath = readString(record.logical_path) ?? '';
+        return {
+          artifact_id: readString(record.artifact_id) ?? '',
+          logical_path: logicalPath,
+          title: logicalPath || null,
+          score: scoreMatch([logicalPath], tokens),
+        };
+      },
+    )
     .filter((entry) => entry.artifact_id.length > 0 && entry.score > 0)
-    .sort((left, right) => right.score - left.score || left.logical_path.localeCompare(right.logical_path))
+    .sort(
+      (left, right) =>
+        right.score - left.score || left.logical_path.localeCompare(right.logical_path),
+    )
     .slice(0, 5)
-    .map((entry): ArtifactRef => ({
-      artifact_id: entry.artifact_id,
-      logical_path: entry.logical_path,
-      title: entry.title,
-      reason: `Matched current task context on "${bestReasonToken([entry.logical_path], tokens)}".`,
-    }));
+    .map(
+      (entry): ArtifactRef => ({
+        artifact_id: entry.artifact_id,
+        logical_path: entry.logical_path,
+        title: entry.title,
+        reason: `Matched current task context on "${bestReasonToken([entry.logical_path], tokens)}".`,
+      }),
+    );
 }
 
 function compactWorkflowBriefVariables(variables: Record<string, unknown>) {
@@ -599,11 +626,17 @@ function buildHintTokens(hints: Array<string | null | undefined>) {
     'doc',
     'src',
   ]);
-  return [...new Set(
-    hints
-      .flatMap((value) => String(value ?? '').toLowerCase().split(/[^a-z0-9]+/))
-      .filter((token) => token.length >= 4 && !stopWords.has(token)),
-  )];
+  return [
+    ...new Set(
+      hints
+        .flatMap((value) =>
+          String(value ?? '')
+            .toLowerCase()
+            .split(/[^a-z0-9]+/),
+        )
+        .filter((token) => token.length >= 4 && !stopWords.has(token)),
+    ),
+  ];
 }
 
 function scoreMatch(values: Array<string | null>, tokens: string[]) {
@@ -634,9 +667,9 @@ function isRepositoryBacked(
   }
   const repository = asRecord(taskInput.repository);
   return Boolean(
-    readString(workspace.repository_url)
-      ?? readString(asRecord(workflow.variables).repository_url)
-      ?? readString(repository.repository_url),
+    readString(workspace.repository_url) ??
+      readString(asRecord(workflow.variables).repository_url) ??
+      readString(repository.repository_url),
   );
 }
 
@@ -653,18 +686,23 @@ function normalizeStrings(value: unknown) {
 }
 
 function summarizeValue(value: unknown) {
-  if (typeof value === 'string' && value.trim().length > 0) return truncateInlineValue(value.trim(), 160);
+  if (typeof value === 'string' && value.trim().length > 0)
+    return truncateInlineValue(value.trim(), 160);
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   return null;
 }
 
 function isSecretLikeKey(key: string) {
-  return /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts|webhook_url)/i.test(key);
+  return /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts|webhook_url)/i.test(
+    key,
+  );
 }
 
 function isSecretLikeValue(value: unknown) {
   if (typeof value !== 'string') return false;
-  return /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}$)/i.test(value.trim());
+  return /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}$)/i.test(
+    value.trim(),
+  );
 }
 
 function truncateInlineValue(value: string, maxLength: number) {

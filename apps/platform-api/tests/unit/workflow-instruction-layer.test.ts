@@ -83,16 +83,24 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Stage Routing');
     expect(layer!.content).toContain('Successor stage after acceptance: verification');
     expect(layer!.content).toContain('## Stage Name Contract');
-    expect(layer!.content).toContain('Use only these exact authored stage_name values when routing work: implementation, review, verification.');
+    expect(layer!.content).toContain(
+      'Use only these exact authored stage_name values when routing work: implementation, review, verification.',
+    );
     expect(layer!.content).toContain('## Active Continuity');
     expect(layer!.content).toContain('Next expected actor: human');
     expect(layer!.content).toContain('Next expected action: approve');
-    expect(layer!.content).toContain('Continuity status: A publication specialist is packaging artifacts.');
+    expect(layer!.content).toContain(
+      'Continuity status: A publication specialist is packaging artifacts.',
+    );
     expect(layer!.content).toContain('Blocked state: awaiting_decision');
     expect(layer!.content).toContain('## Pending Dispatches');
-    expect(layer!.content).toContain('Dispatch qa for verify on work item wi-2 (verification) titled "Verify the change".');
+    expect(layer!.content).toContain(
+      'Dispatch qa for verify on work item wi-2 (verification) titled "Verify the change".',
+    );
     expect(layer!.content).toContain('## Handoff Semantics');
-    expect(layer!.content).toContain('Only actual invoked approvals, assessments, and escalations create blocking workflow state.');
+    expect(layer!.content).toContain(
+      'Only actual invoked approvals, assessments, and escalations create blocking workflow state.',
+    );
     expect(layer!.content).toContain('## Closure Discipline');
     expect(layer!.content).toContain('call complete_work_item in the same activation');
     expect(layer!.content).toContain('call complete_workflow in the same activation');
@@ -106,11 +114,15 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('- reviewer: Reviews implementation quality and correctness.');
     expect(layer!.content).toContain('## Parallelism');
     expect(layer!.content).toContain('Max active tasks: 4');
-    expect(layer!.content).toContain('send_task_message never creates or reopens a task and is not a routing mutation.');
+    expect(layer!.content).toContain(
+      'send_task_message never creates or reopens a task and is not a routing mutation.',
+    );
     expect(layer!.content).toContain(
       'Do not describe rework as routed until create_task succeeds for a new rework task or update_task_input succeeds on the already-open task.',
     );
-    expect(layer!.content).toContain('Repository-backed workflow. Use runtime-visible continuity, task outputs, and artifacts to decide what specialist work to dispatch next.');
+    expect(layer!.content).toContain(
+      'Repository-backed workflow. Use runtime-visible continuity, task outputs, and artifacts to decide what specialist work to dispatch next.',
+    );
     expect(layer!.content).not.toContain('Inspect files, diffs, and git state before deciding.');
     expect(layer!.content).not.toContain('Human gate: yes');
   });
@@ -133,7 +145,11 @@ describe('buildWorkflowInstructionLayer', () => {
               ],
             },
             stages: [
-              { name: 'review', goal: 'Review the accepted change', involves: ['reviewer', 'brand-reviewer'] },
+              {
+                name: 'review',
+                goal: 'Review the accepted change',
+                involves: ['reviewer', 'brand-reviewer'],
+              },
             ],
           },
         },
@@ -164,12 +180,12 @@ describe('buildWorkflowInstructionLayer', () => {
             },
           ],
         },
-          closure_context: {
-            workflow_can_close_now: false,
-            work_item_can_close_now: false,
-            active_blocking_controls: [],
-            active_advisory_controls: [
-              {
+        closure_context: {
+          workflow_can_close_now: false,
+          work_item_can_close_now: false,
+          active_blocking_controls: [],
+          active_advisory_controls: [
+            {
               kind: 'escalation',
               id: 'esc-1',
               closure_effect: 'advisory',
@@ -183,12 +199,12 @@ describe('buildWorkflowInstructionLayer', () => {
               subject: 'brand-reviewer',
             },
           ],
-            closure_readiness: 'can_close_with_callouts',
-            open_specialist_task_count: 1,
-            open_specialist_task_roles: ['editorial-policy-assessor'],
-            recent_recovery_outcomes: [
-              {
-                recovery_class: 'predecessor_missing_handoff',
+          closure_readiness: 'can_close_with_callouts',
+          open_specialist_task_count: 1,
+          open_specialist_task_roles: ['editorial-policy-assessor'],
+          recent_recovery_outcomes: [
+            {
+              recovery_class: 'predecessor_missing_handoff',
               suggested_next_actions: [
                 {
                   action_code: 'rerun_predecessor_for_handoff',
@@ -227,13 +243,21 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('Workflow can close now: no');
     expect(layer!.content).toContain('Open specialist tasks on current work item: 1');
     expect(layer!.content).toContain('Open specialist task roles: editorial-policy-assessor');
-    expect(layer!.content).toContain('Advisory control escalation esc-1: Editorial escalation remains advisory.');
-    expect(layer!.content).toContain('Preferred obligation brand-reviewer (stage_role_contribution): unmet');
+    expect(layer!.content).toContain(
+      'Advisory control escalation esc-1: Editorial escalation remains advisory.',
+    );
+    expect(layer!.content).toContain(
+      'Preferred obligation brand-reviewer (stage_role_contribution): unmet',
+    );
     expect(layer!.content).toContain('Recent recovery predecessor_missing_handoff');
     expect(layer!.content).toContain('Attempt counts by work item: wi-1=2');
     expect(layer!.content).toContain('Attempt counts by role: reviewer=1, brand-reviewer=0');
-    expect(layer!.content).toContain('Recent failure brand-reviewer on task-brand-1: workspace dependency missing');
-    expect(layer!.content).toContain('Retry window: available at 2026-03-24T10:15:00.000Z after 60 seconds');
+    expect(layer!.content).toContain(
+      'Recent failure brand-reviewer on task-brand-1: workspace dependency missing',
+    );
+    expect(layer!.content).toContain(
+      'Retry window: available at 2026-03-24T10:15:00.000Z after 60 seconds',
+    );
     expect(layer!.content).toContain('Reroute candidates: brand-reviewer, editor');
   });
 
@@ -252,7 +276,6 @@ describe('buildWorkflowInstructionLayer', () => {
           source_kind: 'orchestrator',
           record_operator_update_tool: 'record_operator_update',
           record_operator_brief_tool: 'record_operator_brief',
-          turn_updates_required: false,
           turn_update_scope: null,
           eligible_turn_guidance: null,
           operator_update_request_id_prefix: 'operator-update:activation-1:',
@@ -390,8 +413,12 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer).not.toBeNull();
     expect(layer!.content).toContain('## Stage Role Coverage');
     expect(layer!.content).toContain('- author: completed task recorded on the current work item.');
-    expect(layer!.content).toContain('- quality-assessor: completed current-subject assessment recorded on the current work item.');
-    expect(layer!.content).toContain('- brand-assessor: no current task or recorded contribution yet on the current work item.');
+    expect(layer!.content).toContain(
+      '- quality-assessor: completed current-subject assessment recorded on the current work item.',
+    );
+    expect(layer!.content).toContain(
+      '- brand-assessor: no current task or recorded contribution yet on the current work item.',
+    );
     expect(layer!.content).toContain(
       'An open escalation or other restrictive same-stage finding does not by itself satisfy the remaining current-stage roles.',
     );
@@ -439,7 +466,9 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Workflow Mode: ongoing');
     expect(layer!.content).toContain('## Progress Model\nStage-and-board driven');
     expect(layer!.content).toContain('## Completion Boundaries');
-    expect(layer!.content).toContain('Submitting a handoff does not itself close the work item or workflow.');
+    expect(layer!.content).toContain(
+      'Submitting a handoff does not itself close the work item or workflow.',
+    );
     expect(layer!.content).toContain('## Output Protocol\nNon-repository task.');
     expect(layer!.content).not.toContain('## Workflow Brief');
     expect(layer!.content).not.toContain('## Predecessor Context');
@@ -548,7 +577,11 @@ describe('buildWorkflowInstructionLayer', () => {
             },
             stages: [
               { name: 'draft-package', goal: 'Prepare the release package', involves: ['editor'] },
-              { name: 'publication-release', goal: 'Release the package', involves: ['publisher', 'release-coordinator'] },
+              {
+                name: 'publication-release',
+                goal: 'Release the package',
+                involves: ['publisher', 'release-coordinator'],
+              },
             ],
           },
         },
@@ -570,7 +603,9 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Current Stage\npublication-release');
     expect(layer!.content).toContain('## Successor Seeding');
     expect(layer!.content).toContain('This stage was entered from "draft-package"');
-    expect(layer!.content).toContain('Starter roles for "publication-release": publisher, release-coordinator.');
+    expect(layer!.content).toContain(
+      'Starter roles for "publication-release": publisher, release-coordinator.',
+    );
   });
 
   it('keeps specialist output protocol non-repository when only runtime-owned tools are allowed', () => {
@@ -578,7 +613,13 @@ describe('buildWorkflowInstructionLayer', () => {
       isOrchestratorTask: false,
       role: 'planning-analyst',
       roleConfig: {
-        tools: ['memory_read', 'memory_search', 'memory_write', 'submit_handoff', 'read_predecessor_handoff'],
+        tools: [
+          'memory_read',
+          'memory_search',
+          'memory_write',
+          'submit_handoff',
+          'read_predecessor_handoff',
+        ],
       },
       workflow: {
         lifecycle: 'planned',

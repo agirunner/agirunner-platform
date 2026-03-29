@@ -129,8 +129,10 @@ export async function buildTaskContext(
     : null;
   const workspaceInstructions = await loadWorkspaceInstructions(db, tenantId, task, workflowRow);
   const platformInstructions = await loadPlatformInstructions(db, tenantId);
-  const assembledPromptWarningThresholdChars =
-    await readTenantAssembledPromptWarningThreshold(db, tenantId);
+  const assembledPromptWarningThresholdChars = await readTenantAssembledPromptWarningThreshold(
+    db,
+    tenantId,
+  );
   const orchestratorPrompt = task.is_orchestrator_task
     ? await loadOrchestratorPrompt(db, tenantId)
     : undefined;
@@ -198,7 +200,8 @@ export async function buildTaskContext(
         predecessorHandoff,
         taskInput: asRecord(task.input),
         executionEnvironmentSnapshot:
-          task.execution_environment_snapshot && typeof task.execution_environment_snapshot === 'object'
+          task.execution_environment_snapshot &&
+          typeof task.execution_environment_snapshot === 'object'
             ? (task.execution_environment_snapshot as Record<string, unknown>)
             : null,
       });
@@ -310,9 +313,12 @@ function readActivationEventAnchor(
   for (const entry of events) {
     const event = asRecord(entry);
     const payload = asRecord(event.payload);
-    const workItemId = asOptionalString(event.work_item_id) ?? asOptionalString(payload.work_item_id) ?? null;
-    const stageName = asOptionalString(event.stage_name) ?? asOptionalString(payload.stage_name) ?? null;
-    const triggeringTaskId = asOptionalString(event.task_id) ?? asOptionalString(payload.task_id) ?? null;
+    const workItemId =
+      asOptionalString(event.work_item_id) ?? asOptionalString(payload.work_item_id) ?? null;
+    const stageName =
+      asOptionalString(event.stage_name) ?? asOptionalString(payload.stage_name) ?? null;
+    const triggeringTaskId =
+      asOptionalString(event.task_id) ?? asOptionalString(payload.task_id) ?? null;
     const eventType = asOptionalString(event.type) ?? asOptionalString(event.event_type) ?? null;
     if (!workItemId && !stageName && !triggeringTaskId) {
       continue;
@@ -412,8 +418,8 @@ async function loadWorkflowLiveVisibilityContext(
     execution_context_id: executionContextId,
     source_kind: task.is_orchestrator_task === true ? 'orchestrator' : 'specialist',
     record_operator_brief_tool: 'record_operator_brief',
-    record_operator_update_tool: task.is_orchestrator_task === true ? 'record_operator_update' : null,
-    turn_updates_required: false,
+    record_operator_update_tool:
+      task.is_orchestrator_task === true ? 'record_operator_update' : null,
     turn_update_scope: null,
     eligible_turn_guidance: null,
     operator_update_request_id_prefix: `operator-update:${executionContextId}:`,
@@ -446,8 +452,10 @@ async function readTenantAssembledPromptWarningThreshold(
       WHERE tenant_id = $1`,
     [tenantId],
   );
-  return readPositiveInteger(result.rows[0]?.assembled_prompt_warning_threshold_chars)
-    ?? DEFAULT_ASSEMBLED_PROMPT_WARNING_THRESHOLD_CHARS;
+  return (
+    readPositiveInteger(result.rows[0]?.assembled_prompt_warning_threshold_chars) ??
+    DEFAULT_ASSEMBLED_PROMPT_WARNING_THRESHOLD_CHARS
+  );
 }
 
 function readLiveVisibilityMode(value: unknown): 'standard' | 'enhanced' | null {
@@ -467,9 +475,7 @@ function isContinuousWorkflowRow(
   return workflowRow.lifecycle === 'ongoing';
 }
 
-function normalizeWorkItemStage(
-  row: Record<string, unknown>,
-): Record<string, unknown> & {
+function normalizeWorkItemStage(row: Record<string, unknown>): Record<string, unknown> & {
   stage_name: string | null;
   continuity?: Record<string, unknown>;
 } {
@@ -490,7 +496,7 @@ async function loadWorkItemContext(
   }
 
   const result = await db.query(
-      `SELECT id,
+    `SELECT id,
             stage_name,
             column_id,
             title,
@@ -567,7 +573,9 @@ async function loadWorkspaceContext(
     return workspace;
   }
 
-  const memoryScope = new WorkspaceMemoryScopeService(db as DatabaseQueryable & { query: DatabaseQueryable['query'] });
+  const memoryScope = new WorkspaceMemoryScopeService(
+    db as DatabaseQueryable & { query: DatabaseQueryable['query'] },
+  );
   const [visibleMemory, memoryIndex, artifactIndex] = await Promise.all([
     memoryScope.filterVisibleTaskMemory({
       tenantId,
@@ -664,16 +672,24 @@ async function loadWorkflowRelations(
     [tenantId, relatedIds],
   );
   const relatedById = new Map(
-    relatedRes.rows.map((row) => [String((row as Record<string, unknown>).id), row as Record<string, unknown>]),
+    relatedRes.rows.map((row) => [
+      String((row as Record<string, unknown>).id),
+      row as Record<string, unknown>,
+    ]),
   );
-  const children = childIds.map((childId) => toWorkflowRelationRef(childId, relatedById.get(childId)));
+  const children = childIds.map((childId) =>
+    toWorkflowRelationRef(childId, relatedById.get(childId)),
+  );
   return {
     parent: parentId ? toWorkflowRelationRef(parentId, relatedById.get(parentId)) : null,
     children,
     latest_child_workflow_id: asOptionalString(metadata.latest_child_workflow_id) ?? null,
     child_status_counts: {
       total: children.length,
-      active: children.filter((child) => child.state === 'pending' || child.state === 'active' || child.state === 'paused').length,
+      active: children.filter(
+        (child) =>
+          child.state === 'pending' || child.state === 'active' || child.state === 'paused',
+      ).length,
       completed: children.filter((child) => child.state === 'completed').length,
       failed: children.filter((child) => child.state === 'failed').length,
       cancelled: children.filter((child) => child.state === 'cancelled').length,
@@ -771,7 +787,10 @@ async function loadWorkflowInputPackets(
   }));
 }
 
-async function loadOrchestratorPrompt(db: DatabaseQueryable, tenantId: string): Promise<string | undefined> {
+async function loadOrchestratorPrompt(
+  db: DatabaseQueryable,
+  tenantId: string,
+): Promise<string | undefined> {
   const result = await db.query<{ prompt: string }>(
     'SELECT prompt FROM orchestrator_config WHERE tenant_id = $1',
     [tenantId],
@@ -935,13 +954,10 @@ function buildRoleInstructionContent(
   roleConfig: Record<string, unknown>,
   specialistCapabilities?: SpecialistRoleCapabilities,
 ): string | undefined {
-  const instructions = asOptionalString(roleConfig.system_prompt)
-    ?? asOptionalString(roleConfig.instructions)
-    ?? null;
+  const instructions =
+    asOptionalString(roleConfig.system_prompt) ?? asOptionalString(roleConfig.instructions) ?? null;
   const description =
-    asOptionalString(roleConfig.description)
-    ?? specialistCapabilities?.description
-    ?? null;
+    asOptionalString(roleConfig.description) ?? specialistCapabilities?.description ?? null;
   const sections: string[] = [];
   if (description) {
     sections.push(`Role description: ${description}`);
@@ -949,9 +965,7 @@ function buildRoleInstructionContent(
   if (instructions) {
     sections.push(instructions);
   }
-  const skillSection = buildSpecialistSkillInstructionSection(
-    specialistCapabilities?.skills ?? [],
-  );
+  const skillSection = buildSpecialistSkillInstructionSection(specialistCapabilities?.skills ?? []);
   if (skillSection) {
     sections.push(skillSection);
   }
@@ -976,17 +990,14 @@ const LAYER_HEADERS: Record<string, string> = {
  * Flatten instruction layers into a single system prompt string.
  * The task layer is excluded — the runtime reads it separately from `input`.
  */
-export function flattenInstructionLayers(
-  layers: Record<string, unknown>,
-): string {
-  const layerOrder = 'orchestrator' in layers
-    ? ['platform', 'orchestrator', 'workflow', 'workspace']
-    : ['platform', 'role', 'workflow', 'workspace'];
+export function flattenInstructionLayers(layers: Record<string, unknown>): string {
+  const layerOrder =
+    'orchestrator' in layers
+      ? ['platform', 'orchestrator', 'workflow', 'workspace']
+      : ['platform', 'role', 'workflow', 'workspace'];
   const sections: string[] = [];
   for (const name of layerOrder) {
-    const layer = layers[name] as
-      | { content?: string }
-      | undefined;
+    const layer = layers[name] as { content?: string } | undefined;
     if (!layer?.content) continue;
     sections.push(`${LAYER_HEADERS[name]}\n${layer.content}`);
   }
@@ -1005,20 +1016,16 @@ export function summarizeTaskContextAttachments(
   const predecessorResolution = asRecord(task.predecessor_handoff_resolution);
   const contextAnchor = asRecord(task.context_anchor);
   const recentHandoffs = Array.isArray(task.recent_handoffs)
-    ? task.recent_handoffs as unknown[]
+    ? (task.recent_handoffs as unknown[])
     : [];
   const workItem = asRecord(task.work_item);
   const memoryIndex = asRecord(workspace.memory_index);
   const artifactIndex = asRecord(workspace.artifact_index);
-  const memoryKeys = Array.isArray(memoryIndex.keys)
-    ? memoryIndex.keys as unknown[]
-    : [];
+  const memoryKeys = Array.isArray(memoryIndex.keys) ? (memoryIndex.keys as unknown[]) : [];
   const artifactItems = Array.isArray(artifactIndex.items)
-    ? artifactIndex.items as unknown[]
+    ? (artifactIndex.items as unknown[])
     : [];
-  const documents = Array.isArray(context.documents)
-    ? context.documents as unknown[]
-    : [];
+  const documents = Array.isArray(context.documents) ? (context.documents as unknown[]) : [];
   const orchestrator = asRecord(context.orchestrator);
   const executionBrief = asRecord(context.execution_brief);
   const lastActivationCheckpoint = asRecord(orchestrator.last_activation_checkpoint);
@@ -1027,7 +1034,8 @@ export function summarizeTaskContextAttachments(
 
   return {
     agent_profile_present: Object.keys(agentProfile).length > 0,
-    agent_profile_hash: Object.keys(agentProfile).length > 0 ? hashCanonicalJson(agentProfile) : null,
+    agent_profile_hash:
+      Object.keys(agentProfile).length > 0 ? hashCanonicalJson(agentProfile) : null,
     agent_profile_instructions_present: agentProfileInstructions.length > 0,
     agent_profile_instructions_hash:
       agentProfileInstructions.length > 0 ? hashCanonicalJson(agentProfileInstructions) : null,
@@ -1049,7 +1057,8 @@ export function summarizeTaskContextAttachments(
     workspace_artifact_index_count: artifactItems.length,
     workspace_artifact_more_available: artifactIndex.more_available === true,
     execution_brief_present: Object.keys(executionBrief).length > 0,
-    execution_brief_hash: Object.keys(executionBrief).length > 0 ? hashCanonicalJson(executionBrief) : null,
+    execution_brief_hash:
+      Object.keys(executionBrief).length > 0 ? hashCanonicalJson(executionBrief) : null,
     document_count: documents.length,
     instruction_context_version: TASK_CONTEXT_LOG_VERSION,
     instruction_layers_hash: hashCanonicalJson(instructionLayers),
@@ -1064,8 +1073,9 @@ function readSuppressedLayers(value: unknown): string[] {
     return [];
   }
   return Array.isArray((value as Record<string, unknown>).suppress_layers)
-    ? ((value as Record<string, unknown>).suppress_layers as unknown[])
-        .filter((entry): entry is string => typeof entry === 'string')
+    ? ((value as Record<string, unknown>).suppress_layers as unknown[]).filter(
+        (entry): entry is string => typeof entry === 'string',
+      )
     : [];
 }
 
@@ -1228,5 +1238,9 @@ function truncateOutput(output: unknown): unknown {
   if (serialized.length <= UPSTREAM_OUTPUT_MAX_BYTES) {
     return output;
   }
-  return { _truncated: true, _original_size: serialized.length, summary: serialized.slice(0, UPSTREAM_OUTPUT_MAX_BYTES) };
+  return {
+    _truncated: true,
+    _original_size: serialized.length,
+    summary: serialized.slice(0, UPSTREAM_OUTPUT_MAX_BYTES),
+  };
 }

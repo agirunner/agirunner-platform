@@ -16,7 +16,6 @@ describe('buildSpecialistExecutionBrief', () => {
           execution_context_id: 'task-review-1',
           source_kind: 'specialist',
           record_operator_brief_tool: 'record_operator_brief',
-          turn_updates_required: false,
           milestone_briefs_required: true,
         },
         variables: {
@@ -35,9 +34,7 @@ describe('buildSpecialistExecutionBrief', () => {
                 { id: 'done', label: 'Done', is_terminal: true },
               ],
             },
-            stages: [
-              { name: 'implementation', goal: 'Build the refresh-token fix' },
-            ],
+            stages: [{ name: 'implementation', goal: 'Build the refresh-token fix' }],
           },
         },
       },
@@ -189,9 +186,7 @@ describe('buildSpecialistExecutionBrief', () => {
     );
     expect(brief?.likely_relevant_files).toEqual(['docs/release-notes.md', 'src/auth/refresh.ts']);
     expect(brief?.relevant_memory_refs).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ key: 'release_note' }),
-      ]),
+      expect.arrayContaining([expect.objectContaining({ key: 'release_note' })]),
     );
     expect(brief?.relevant_artifact_refs).toEqual([
       expect.objectContaining({
@@ -220,9 +215,7 @@ describe('buildSpecialistExecutionBrief', () => {
     expect(brief?.rendered_markdown).toContain(
       'record_operator_brief payload must include short_brief and detailed_brief_json objects.',
     );
-    expect(brief?.rendered_markdown).toContain(
-      'short_brief must include a headline.',
-    );
+    expect(brief?.rendered_markdown).toContain('short_brief must include a headline.');
     expect(brief?.rendered_markdown).toContain(
       'record_operator_brief requires short_brief.headline plus detailed_brief_json.headline and status_kind, and must never be called with only linked_target_ids or an empty brief shell.',
     );
