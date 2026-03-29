@@ -60,7 +60,7 @@ describe('WorkflowsRail', () => {
     expect(html).not.toContain('stays pinned while you browse other rail results');
   });
 
-  it('uses a stronger selected row treatment without reverting inner text to the default muted palette', () => {
+  it('uses a clearly stronger selected row treatment without reverting inner text to the default muted palette', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowsRail, {
         mode: 'live',
@@ -84,10 +84,11 @@ describe('WorkflowsRail', () => {
       }),
     );
 
-    expect(html).toContain('border-sky-500/80');
+    expect(html).toContain('border-sky-600/90');
     expect(html).toContain('bg-sky-100/95');
-    expect(html).toContain('ring-1');
-    expect(html).toContain('shadow-[0_12px_28px_rgba(8,47,73,0.18)]');
+    expect(html).toContain('ring-2');
+    expect(html).toContain('ring-sky-400/70');
+    expect(html).toContain('shadow-[0_16px_36px_rgba(8,47,73,0.22)]');
     expect(html).toContain('text-sky-950');
     expect(html).toContain('text-sky-900/75');
     expect(html).not.toContain('ring-offset-2');

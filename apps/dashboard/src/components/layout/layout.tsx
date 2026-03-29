@@ -83,7 +83,7 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: Gauge,
     items: [
       {
-        label: 'Mission Control',
+        label: 'Workflows',
         href: WORKFLOWS_NAV_HREF,
         icon: LayoutDashboard,
         keywords: [

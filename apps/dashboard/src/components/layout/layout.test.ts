@@ -162,32 +162,30 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("href: '/design/specialists'");
   });
 
-  it('labels the workflows nav item as Mission Control and keeps it on the shared active nav treatment', () => {
+  it('keeps Mission Control as the parent nav label while exposing Workflows as the inner item', () => {
     const source = readLayoutSource();
 
-    expect(source.match(/label: 'Mission Control'/g)).toHaveLength(2);
-    expect(source).not.toContain("label: 'Workflows',");
+    expect(source.match(/label: 'Mission Control'/g)).toHaveLength(1);
+    expect(source).toContain("label: 'Workflows',");
     expect(source).toContain('active ? SIDEBAR_ACTIVE_ITEM_CLASSES : SIDEBAR_INACTIVE_ITEM_CLASSES');
+    expect(source).toContain('isActive ? SIDEBAR_SECTION_ACTIVE_CLASSES : SIDEBAR_SECTION_INACTIVE_CLASSES');
     expect(source).not.toContain('bg-amber');
     expect(source).not.toContain('bg-yellow');
   });
 
-  it('renders Mission Control as a single nav row instead of a highlighted parent button plus duplicate child item', () => {
+  it('renders Mission Control like the other expandable nav groups instead of collapsing it into a single row', () => {
     const source = readLayoutSource();
 
+    expect(source).toContain("label: 'Mission Control'");
+    expect(source).toContain("label: 'Workflows'");
     expect(source).toContain(
       'const rendersAsSingleItem = section.items.length === 1 && section.items[0]?.label === section.label;',
     );
     expect(source).toContain('const singleItem = rendersAsSingleItem ? section.items[0] : null;');
-    expect(source).toContain('if (isSidebarCollapsed && rendersAsSingleItem && singleItem) {');
-    expect(source).toContain('if (rendersAsSingleItem && singleItem) {');
-    expect(source).toContain('title={singleItem.label}');
-    expect(source).toContain('aria-label={singleItem.label}');
-    expect(source).toContain('singleItem.icon');
-    expect(source).not.toContain(
-      "if (rendersAsSingleItem && singleItem) {\n    return (\n      <div className=\"mb-1\">\n        <div className={SIDEBAR_SECTION_GROUP_CLASSES}>",
-    );
-    expect(source).not.toContain('Mission Control</span>\n        <ChevronRight');
+    expect(source).toContain('<span className="flex-1 text-left">{section.label}</span>');
+    expect(source).toContain('<ChevronRight size={14} className={cn(\'transition-transform\', expanded && \'rotate-90\')} />');
+    expect(source).toContain('{item.label}');
+    expect(source).not.toContain("label: 'Mission Control',\n        href: WORKFLOWS_NAV_HREF,");
   });
 
   it('uses distinct icons for playbooks, environments, live diagnostics, webhooks, and agentic settings', () => {
@@ -306,9 +304,10 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain('keywords: item.keywords');
   });
 
-  it('keeps Mission Control as a single primary nav item instead of separate live board, workflows, tasks, and action queue links', () => {
+  it('keeps Mission Control scoped to the workflows route without restoring separate live board, tasks, or action queue links', () => {
     const source = readLayoutSource();
     expect(source).toContain("label: 'Mission Control'");
+    expect(source).toContain("label: 'Workflows'");
     expect(source).toContain('WORKFLOWS_NAV_HREF');
     expect(source).toContain("const WORKFLOWS_NAV_HREF = '/workflows'");
     expect(source).not.toContain('SIDEBAR_WORKFLOWS_ACTIVE_CLASSES');

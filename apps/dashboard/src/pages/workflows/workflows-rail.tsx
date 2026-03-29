@@ -240,7 +240,7 @@ function WorkflowRailRowCard(props: {
       className={cn(
         'grid w-full min-w-0 max-w-full gap-2 rounded-xl border px-3 py-3 text-left transition-[border-color,background-color,box-shadow,color] duration-150',
         props.isSelected
-          ? 'border-sky-500/80 bg-sky-100/95 text-sky-950 shadow-[0_12px_28px_rgba(8,47,73,0.18)] ring-1 ring-sky-300/80 dark:border-sky-300/70 dark:bg-sky-400/15 dark:text-sky-50 dark:ring-sky-300/35'
+          ? 'border-sky-600/90 bg-sky-100/95 text-sky-950 shadow-[0_16px_36px_rgba(8,47,73,0.22)] ring-2 ring-sky-400/70 dark:border-sky-300/80 dark:bg-sky-400/20 dark:text-sky-50 dark:ring-sky-300/40'
           : 'border-border/70 bg-background/85 hover:border-border hover:bg-background',
       )}
       onClick={() => props.onSelect(props.row.workflow_id)}
