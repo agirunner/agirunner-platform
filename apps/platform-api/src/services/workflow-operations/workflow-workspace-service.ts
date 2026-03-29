@@ -93,7 +93,12 @@ interface WorkflowBoardNeedsActionItem extends WorkflowNeedsActionItem {
   subject_label?: string | null;
 }
 
-type WorkspaceDeliverablesPacket = WorkflowWorkspacePacket['deliverables'] & {
+type WorkspaceDeliverablesPacket = Omit<
+  WorkflowWorkspacePacket['deliverables'],
+  'final_deliverables' | 'in_progress_deliverables'
+> & {
+  final_deliverables: WorkflowDeliverableRecord[];
+  in_progress_deliverables: WorkflowDeliverableRecord[];
   all_deliverables?: WorkflowDeliverableRecord[];
 };
 
@@ -174,12 +179,13 @@ export class WorkflowWorkspaceService {
       selectedScope.work_item_id,
       gates,
     );
-    const allDeliverables = deliverables.all_deliverables ?? [
-      ...deliverables.final_deliverables,
-      ...deliverables.in_progress_deliverables,
+    const normalizedDeliverables = normalizeWorkspaceDeliverablesPacket(deliverables);
+    const allDeliverables = normalizedDeliverables.all_deliverables ?? [
+      ...normalizedDeliverables.final_deliverables,
+      ...normalizedDeliverables.in_progress_deliverables,
     ];
     const workspaceDeliverables = buildWorkspaceDeliverablesPacket(
-      deliverables,
+      normalizedDeliverables,
       workflowCard?.outputDescriptors ?? [],
       workflowId,
       selectedScope,
@@ -293,6 +299,17 @@ function buildWorkspaceDeliverablesPacket(
     final_deliverables: mergedFinalDeliverables,
     in_progress_deliverables: mergedInProgressDeliverables,
     all_deliverables: [...mergedFinalDeliverables, ...mergedInProgressDeliverables],
+  };
+}
+
+function normalizeWorkspaceDeliverablesPacket(
+  deliverables: WorkflowWorkspacePacket['deliverables'],
+): WorkspaceDeliverablesPacket {
+  return {
+    ...deliverables,
+    final_deliverables: deliverables.final_deliverables as WorkflowDeliverableRecord[],
+    in_progress_deliverables: deliverables.in_progress_deliverables as WorkflowDeliverableRecord[],
+    all_deliverables: (deliverables as WorkspaceDeliverablesPacket).all_deliverables,
   };
 }
 
