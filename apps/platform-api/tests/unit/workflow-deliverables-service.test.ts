@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowDeliverablesService } from '../../src/services/workflow-operations/workflow-deliverables-service.js';
 
 describe('WorkflowDeliverablesService', () => {
-  it('keeps workflow-scope deliverables limited to workflow-scoped provenance packets', async () => {
+  it('keeps workflow-scope deliverables limited to workflow-scoped canonical records even when sources leak work-item rows', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => [
         {
@@ -19,7 +19,7 @@ describe('WorkflowDeliverablesService', () => {
           primary_target: {},
           secondary_targets: [],
           content_preview: {},
-          source_brief_id: 'brief-2',
+          source_brief_id: 'brief-1',
           created_at: '2026-03-27T22:35:00.000Z',
           updated_at: '2026-03-27T22:35:00.000Z',
         },
@@ -47,6 +47,34 @@ describe('WorkflowDeliverablesService', () => {
         {
           id: 'brief-1',
           workflow_id: 'workflow-1',
+          work_item_id: null,
+          task_id: null,
+          request_id: 'request-0',
+          execution_context_id: 'execution-0',
+          brief_kind: 'milestone',
+          brief_scope: 'deliverable_context',
+          source_kind: 'orchestrator',
+          source_role_name: 'Orchestrator',
+          status_kind: 'completed',
+          short_brief: { headline: 'Workflow packet is available for review.' },
+          detailed_brief_json: {
+            headline: 'Workflow packet is available for review.',
+            status_kind: 'completed',
+          },
+          linked_target_ids: [],
+          sequence_number: 5,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: ['deliverable-1'],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:34:30.000Z',
+          updated_at: '2026-03-27T22:34:30.000Z',
+        },
+        {
+          id: 'brief-2',
+          workflow_id: 'workflow-1',
           work_item_id: 'work-item-1',
           task_id: null,
           request_id: 'request-1',
@@ -73,7 +101,7 @@ describe('WorkflowDeliverablesService', () => {
           updated_at: '2026-03-27T22:33:00.000Z',
         },
         {
-          id: 'brief-2',
+          id: 'brief-3',
           workflow_id: 'workflow-1',
           work_item_id: 'work-item-1',
           task_id: 'task-2',
@@ -177,9 +205,7 @@ describe('WorkflowDeliverablesService', () => {
     expect(result.final_deliverables).toEqual([
       expect.objectContaining({ descriptor_id: 'deliverable-1' }),
     ]);
-    expect(result.in_progress_deliverables).toEqual([
-      expect.objectContaining({ descriptor_id: 'deliverable-2' }),
-    ]);
+    expect(result.in_progress_deliverables).toEqual([]);
     expect(result.working_handoffs).toEqual([
       expect.objectContaining({ id: 'brief-1' }),
     ]);
@@ -648,7 +674,9 @@ describe('WorkflowDeliverablesService', () => {
       inputPacketService as never,
     );
 
-    const result = await service.getDeliverables('tenant-1', 'workflow-1');
+    const result = await service.getDeliverables('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+    });
 
     expect(result.final_deliverables).toEqual([
       expect.objectContaining({ descriptor_id: 'deliverable-1' }),
@@ -723,7 +751,9 @@ describe('WorkflowDeliverablesService', () => {
       handoffSource as never,
     );
 
-    const result = await service.getDeliverables('tenant-1', 'workflow-1');
+    const result = await service.getDeliverables('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+    });
 
     expect(result.final_deliverables).toEqual(
       expect.arrayContaining([

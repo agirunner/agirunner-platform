@@ -68,11 +68,26 @@ export class WorkflowDeliverablesService {
         workItemId: input.workItemId,
       }) ?? Promise.resolve([]),
     ]);
-    const finalizedBriefIds = collectFinalizedBriefIds(briefs);
-    const finalizedDescriptorIds = collectFinalizedDescriptorIds(briefs);
-    const hydratedDeliverables = appendSynthesizedBriefDeliverables(
-      appendSynthesizedHandoffDeliverables(deliverables, handoffs),
+    const scopedDeliverables = filterRecordsForRequestedScope(
+      deliverables,
+      input.workItemId,
+      (deliverable) => deliverable.work_item_id,
+    );
+    const scopedBriefs = filterRecordsForRequestedScope(
       briefs,
+      input.workItemId,
+      (brief) => readOptionalString(brief.work_item_id),
+    );
+    const scopedHandoffs = filterRecordsForRequestedScope(
+      handoffs,
+      input.workItemId,
+      (handoff) => handoff.work_item_id,
+    );
+    const finalizedBriefIds = collectFinalizedBriefIds(scopedBriefs);
+    const finalizedDescriptorIds = collectFinalizedDescriptorIds(scopedBriefs);
+    const hydratedDeliverables = appendSynthesizedBriefDeliverables(
+      appendSynthesizedHandoffDeliverables(scopedDeliverables, scopedHandoffs),
+      scopedBriefs,
     );
 
     const orderedDeliverables = [...hydratedDeliverables].sort((left, right) =>
@@ -90,7 +105,7 @@ export class WorkflowDeliverablesService {
       in_progress_deliverables: allDeliverables.filter((deliverable) =>
         !isFinalDeliverable(deliverable, finalizedBriefIds, finalizedDescriptorIds),
       ),
-      working_handoffs: briefs.filter(isDeliverableBrief),
+      working_handoffs: scopedBriefs.filter(isDeliverableBrief),
       inputs_and_provenance: {
         launch_packet: pickSinglePacket(inputPackets, 'launch', input.workItemId),
         supplemental_packets: filterPacketKinds(
@@ -109,6 +124,21 @@ export class WorkflowDeliverablesService {
       all_deliverables: allDeliverables,
     };
   }
+}
+
+function filterRecordsForRequestedScope<T>(
+  records: T[],
+  workItemId: string | undefined,
+  readWorkItemId: (record: T) => string | null,
+): T[] {
+  if (!workItemId) {
+    return records.filter((record) => readWorkItemId(record) === null);
+  }
+
+  return records.filter((record) => {
+    const recordWorkItemId = readWorkItemId(record);
+    return recordWorkItemId === null || recordWorkItemId === workItemId;
+  });
 }
 
 function appendSynthesizedHandoffDeliverables(
