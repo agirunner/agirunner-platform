@@ -257,6 +257,9 @@ describe('buildSpecialistExecutionBrief', () => {
       'Prefer artifact_document_read for readable text artifacts.',
     );
     expect(brief?.rendered_markdown).toContain(
+      'Do not arbitrarily cap artifact_list, file_list, memory/history, or similar discovery reads to 20 entries.',
+    );
+    expect(brief?.rendered_markdown).toContain(
       'Repository-backed task. Use Specialist Execution tools for repository, filesystem, shell, web fetch, and artifact upload work. The image already includes repo checkout and git, but optional runtimes such as python3, bash, jq, or language-specific CLIs may be absent; probe them first or install them before chaining them into commands.',
     );
     expect(brief?.rendered_markdown).toContain('## Execution Environment Contract');

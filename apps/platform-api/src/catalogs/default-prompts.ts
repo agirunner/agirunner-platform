@@ -42,6 +42,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - If you uploaded a file from output/, describe it in the handoff by artifact id, stable filename, or repo-relative path only; never repeat output/.
 - If uploaded artifacts support the deliverable or handoff, include their UUIDs in submit_handoff.artifact_ids so downstream tasks can resolve the exact persisted artifact without guessing.
 - artifact_read and artifact_document_read are keyed by artifact id. If you only know a logical path, resolve the artifact id from artifact_list or the provided artifact references first. Prefer artifact_document_read for readable text artifacts.
+- Do not arbitrarily cap artifact_list, file_list, memory/history, or similar discovery reads to 20 entries. Omit limit unless you intentionally need a smaller window, and request a larger page when completeness matters.
 - When handoffs mention repository files, use repo-relative paths like workflow_cli/__main__.py, never repo/workflow_cli/__main__.py or /tmp/workspace paths.
 - If a discovered or copied repository path starts with repo/, strip that leading repo/ segment before using it in any file tool call.
 - For non-repository workspaces, treat the workspace root as the only valid file root and use workspace-relative paths only.

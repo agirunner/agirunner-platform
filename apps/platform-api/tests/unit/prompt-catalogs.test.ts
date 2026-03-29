@@ -80,6 +80,9 @@ describe('prompt catalogs', () => {
       'Prefer artifact_document_read for readable text artifacts.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Do not arbitrarily cap artifact_list, file_list, memory/history, or similar discovery reads to 20 entries.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'When handoffs mention repository files, use repo-relative paths like workflow_cli/__main__.py, never repo/workflow_cli/__main__.py or /tmp/workspace paths.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(

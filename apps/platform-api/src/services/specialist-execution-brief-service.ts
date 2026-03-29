@@ -357,6 +357,9 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
   lines.push(
     'artifact_read and artifact_document_read are keyed by artifact id. If you only know a logical path, resolve the artifact id from artifact_list or the provided artifact references first. Prefer artifact_document_read for readable text artifacts.',
   );
+  lines.push(
+    'Do not arbitrarily cap artifact_list, file_list, memory/history, or similar discovery reads to 20 entries. Omit limit unless you intentionally need a smaller window, and request a larger page when completeness matters.',
+  );
   if (brief.execution_environment_contract?.agent_hint) {
     lines.push('', '## Execution Environment Contract');
     lines.push(brief.execution_environment_contract.agent_hint);
