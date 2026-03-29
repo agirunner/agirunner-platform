@@ -304,36 +304,34 @@ export function WorkflowsPage(): JSX.Element {
         style={buildWorkflowsShellStyle(isRailHidden, railWidthPx)}
       >
         {!isRailHidden ? (
-          <div className="h-full overflow-visible rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm lg:min-h-0 lg:overflow-hidden dark:bg-slate-950/65">
-            <WorkflowsRail
-              mode={pageState.mode}
-              search={pageState.search}
-              needsActionOnly={pageState.needsActionOnly}
-              ongoingOnly={pageState.ongoingOnly}
-              rows={railPacket?.rows ?? []}
-              ongoingRows={railPacket?.ongoing_rows ?? []}
-              selectedWorkflowId={pageState.workflowId}
-              selectedWorkflowRow={selectedWorkflowRow}
-              hasNextPage={hasMoreRailRows}
-              isLoading={railQuery.isLoading}
-              onModeChange={(mode) => patchPageState(navigate, pageState, { mode, tab: null })}
-              onSearchChange={(search) => patchPageState(navigate, pageState, { search })}
-              onNeedsActionOnlyChange={(needsActionOnly) =>
-                patchPageState(navigate, pageState, { needsActionOnly })
-              }
-              onShowAllOngoing={() =>
-                patchPageState(navigate, pageState, { ongoingOnly: true })
-              }
-              onClearOngoingFilter={() =>
-                patchPageState(navigate, pageState, { ongoingOnly: false })
-              }
-              onSelectWorkflow={(workflowId) =>
-                patchPageState(navigate, pageState, { workflowId, workItemId: null })
-              }
-              onLoadMore={() => setRailLimit((current) => current + RAIL_PAGE_SIZE)}
-              onCreateWorkflow={() => setIsLaunchOpen(true)}
-            />
-          </div>
+          <WorkflowsRail
+            mode={pageState.mode}
+            search={pageState.search}
+            needsActionOnly={pageState.needsActionOnly}
+            ongoingOnly={pageState.ongoingOnly}
+            rows={railPacket?.rows ?? []}
+            ongoingRows={railPacket?.ongoing_rows ?? []}
+            selectedWorkflowId={pageState.workflowId}
+            selectedWorkflowRow={selectedWorkflowRow}
+            hasNextPage={hasMoreRailRows}
+            isLoading={railQuery.isLoading}
+            onModeChange={(mode) => patchPageState(navigate, pageState, { mode, tab: null })}
+            onSearchChange={(search) => patchPageState(navigate, pageState, { search })}
+            onNeedsActionOnlyChange={(needsActionOnly) =>
+              patchPageState(navigate, pageState, { needsActionOnly })
+            }
+            onShowAllOngoing={() =>
+              patchPageState(navigate, pageState, { ongoingOnly: true })
+            }
+            onClearOngoingFilter={() =>
+              patchPageState(navigate, pageState, { ongoingOnly: false })
+            }
+            onSelectWorkflow={(workflowId) =>
+              patchPageState(navigate, pageState, { workflowId, workItemId: null })
+            }
+            onLoadMore={() => setRailLimit((current) => current + RAIL_PAGE_SIZE)}
+            onCreateWorkflow={() => setIsLaunchOpen(true)}
+          />
         ) : null}
         {!isRailHidden ? (
           <div className="relative hidden lg:flex items-stretch justify-center">
@@ -359,7 +357,7 @@ export function WorkflowsPage(): JSX.Element {
             />
           </div>
         ) : null}
-        <div className="grid min-h-[calc(100dvh-11rem)] w-full min-w-0 gap-2 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
+        <div className="grid min-h-[calc(100dvh-10rem)] w-full min-w-0 gap-2 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
           <section
             data-workflows-top-strip="true"
             className="grid gap-2 rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm dark:bg-slate-950/65"

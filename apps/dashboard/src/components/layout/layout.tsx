@@ -977,6 +977,8 @@ function NavSectionGroup({
   isSidebarCollapsed: boolean;
 }): JSX.Element {
   const [expanded, setExpanded] = useState(true);
+  const rendersAsSingleItem = section.items.length === 1 && section.items[0]?.label === section.label;
+  const singleItem = rendersAsSingleItem ? section.items[0] : null;
 
   useEffect(() => {
     if (isActive) {
@@ -1009,6 +1011,31 @@ function NavSectionGroup({
               <span className="sr-only">{item.label}</span>
             </NavLink>
           ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (rendersAsSingleItem && singleItem) {
+    return (
+      <div className="mb-1">
+        <div className={SIDEBAR_SECTION_GROUP_CLASSES}>
+          <NavLink
+            to={singleItem.href}
+            end
+            title={singleItem.label}
+            aria-label={singleItem.label}
+            className={({ isActive: active }) =>
+              cn(
+                'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color,box-shadow]',
+                FOCUS_RING_CLASSES,
+                active ? SIDEBAR_ACTIVE_ITEM_CLASSES : SIDEBAR_INACTIVE_ITEM_CLASSES,
+              )
+            }
+          >
+            <singleItem.icon size={13} />
+            {singleItem.label}
+          </NavLink>
         </div>
       </div>
     );

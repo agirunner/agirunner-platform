@@ -172,6 +172,20 @@ describe('layout breadcrumbs', () => {
     expect(source).not.toContain('bg-yellow');
   });
 
+  it('renders Mission Control as a single nav row instead of a highlighted parent button plus duplicate child item', () => {
+    const source = readLayoutSource();
+
+    expect(source).toContain(
+      'const rendersAsSingleItem = section.items.length === 1 && section.items[0]?.label === section.label;',
+    );
+    expect(source).toContain('const singleItem = rendersAsSingleItem ? section.items[0] : null;');
+    expect(source).toContain('if (rendersAsSingleItem && singleItem) {');
+    expect(source).toContain('title={singleItem.label}');
+    expect(source).toContain('aria-label={singleItem.label}');
+    expect(source).toContain('singleItem.icon');
+    expect(source).not.toContain('Mission Control</span>\n        <ChevronRight');
+  });
+
   it('uses distinct icons for playbooks, environments, live diagnostics, webhooks, and agentic settings', () => {
     const source = readLayoutSource();
     expect(source).toContain("{ label: 'Playbooks', href: '/design/playbooks', icon: FileText }");

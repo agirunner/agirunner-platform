@@ -13,16 +13,16 @@ describe('buildWorkflowsShellClassName', () => {
   it('uses a single-column shell when the workflow rail is hidden', () => {
     expect(buildWorkflowsShellClassName(true)).toContain('lg:flex');
     expect(buildWorkflowsShellClassName(true)).toContain('gap-1.5');
-    expect(buildWorkflowsShellClassName(true)).toContain('min-h-[calc(100dvh-8rem)]');
-    expect(buildWorkflowsShellClassName(true)).toContain('lg:h-[calc(100dvh-5.75rem)]');
+    expect(buildWorkflowsShellClassName(true)).toContain('min-h-[calc(100dvh-7rem)]');
+    expect(buildWorkflowsShellClassName(true)).toContain('lg:h-[calc(100dvh-4.75rem)]');
     expect(buildWorkflowsShellClassName(true)).not.toContain('xl:grid-cols-[22rem_minmax(0,1fr)]');
   });
 
   it('uses the two-column shell when the workflow rail is visible', () => {
     expect(buildWorkflowsShellClassName(false)).toContain('lg:grid');
     expect(buildWorkflowsShellClassName(false)).toContain('gap-1.5');
-    expect(buildWorkflowsShellClassName(false)).toContain('min-h-[calc(100dvh-8rem)]');
-    expect(buildWorkflowsShellClassName(false)).toContain('lg:h-[calc(100dvh-5.75rem)]');
+    expect(buildWorkflowsShellClassName(false)).toContain('min-h-[calc(100dvh-7rem)]');
+    expect(buildWorkflowsShellClassName(false)).toContain('lg:h-[calc(100dvh-4.75rem)]');
     expect(buildWorkflowsShellClassName(false)).not.toContain('xl:grid-cols-[22rem_minmax(0,1fr)]');
   });
 

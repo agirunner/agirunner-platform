@@ -106,7 +106,7 @@ export function WorkflowBoard(props: {
   }
 
   return (
-    <section className="flex h-full min-h-[18rem] min-w-0 flex-col gap-2 overflow-hidden rounded-2xl bg-background/90 p-2.5 lg:min-h-0">
+    <section className="flex h-full min-h-[18rem] min-w-0 flex-col gap-2 overflow-hidden px-1 py-1 lg:min-h-0">
       <div className="grid gap-2">
         <div className="flex min-w-0 items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">

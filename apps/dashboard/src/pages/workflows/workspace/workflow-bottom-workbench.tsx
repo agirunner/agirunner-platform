@@ -66,16 +66,15 @@ export function WorkflowBottomWorkbench(props: {
   const liveConsoleCount = props.isScopeLoading
     ? undefined
     : props.packet.live_console.total_count ?? counts.live_console_activity;
-  const tabPanelShellClassName =
-    'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[1.25rem] border border-border/60 bg-background/70';
+  const tabPanelShellClassName = 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden';
   const liveConsoleTabPanelContentClassName =
     'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-3 py-3';
   const scrollableTabPanelContentClassName =
     'min-h-0 min-w-0 flex-1 overflow-y-auto px-3 py-3';
 
   return (
-    <section className="grid h-full min-h-[22rem] min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-1.5 overflow-hidden rounded-2xl bg-background/90 p-2.5 lg:min-h-0">
-      <div className="flex min-w-0 flex-wrap items-start justify-between gap-2 px-3 py-2">
+    <section className="grid h-full min-h-[22rem] min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2 overflow-hidden px-1 py-1 lg:min-h-0">
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-2 px-2 py-1.5">
         <div className="grid gap-0.5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Scope

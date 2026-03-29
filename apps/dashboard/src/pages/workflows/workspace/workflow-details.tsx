@@ -180,6 +180,7 @@ function CompactTaskList(props: {
   tasks: Array<{
     id: string;
     title: string;
+    role: string | null;
     state: string;
   }>;
 }): JSX.Element {
@@ -205,6 +206,9 @@ function CompactTaskList(props: {
           >
             <div className="min-w-0">
               <p className="truncate text-sm text-foreground">{task.title}</p>
+              {task.role ? (
+                <p className="text-xs text-muted-foreground">{task.role}</p>
+              ) : null}
             </div>
             <span className="shrink-0 text-xs text-muted-foreground">{task.state}</span>
           </li>
@@ -343,16 +347,19 @@ function readTaskCounts(tasks: Record<string, unknown>[]): {
 function readCompactTaskRows(tasks: Record<string, unknown>[]): Array<{
   id: string;
   title: string;
+  role: string | null;
   state: string;
 }> {
   return tasks
     .map((task, index) => {
       const id = readOptionalText(task.id) ?? `task-${index}`;
       const title = readOptionalText(task.title) ?? id;
+      const role = humanizeOptionalToken(readOptionalText(task.role));
       const state = humanizeToken(readOptionalText(task.state) ?? 'pending');
       return {
         id,
         title,
+        role,
         state,
       };
     })
@@ -553,6 +560,10 @@ function readOptionalText(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function humanizeOptionalToken(value: string | null): string | null {
+  return value ? humanizeToken(value) : null;
 }
 
 function humanizeToken(value: string): string {
