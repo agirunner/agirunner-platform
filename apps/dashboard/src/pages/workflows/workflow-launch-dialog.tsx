@@ -6,6 +6,7 @@ import { SearchableCombobox } from '../../components/log-viewer/ui/searchable-co
 import { Button } from '../../components/ui/button.js';
 import {
   DEFAULT_FORM_VALIDATION_MESSAGE,
+  FieldErrorText,
   FormFeedbackMessage,
   resolveFormFeedbackMessage,
 } from '../../components/forms/form-feedback.js';
@@ -135,7 +136,7 @@ export function WorkflowLaunchDialog(props: {
     serverError: errorMessage,
     showValidation: hasAttemptedSubmit,
     isValid: validation.isValid,
-    validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
+    validationMessage: validation.blockingIssues[0] ?? DEFAULT_FORM_VALIDATION_MESSAGE,
   });
 
   function clearLaunchFeedback(): void {
@@ -169,9 +170,7 @@ export function WorkflowLaunchDialog(props: {
                 isLoading={playbooksQuery.isLoading}
                 className={playbookError ? 'border-red-300 focus:ring-red-500' : undefined}
               />
-              {playbookError ? (
-                <p className="text-xs text-red-600 dark:text-red-400">{playbookError}</p>
-              ) : null}
+              <FieldErrorText message={playbookError} />
             </label>
 
             <label className="grid gap-2 text-sm">
@@ -189,9 +188,7 @@ export function WorkflowLaunchDialog(props: {
                 isLoading={workspacesQuery.isLoading}
                 className={workspaceError ? 'border-red-300 focus:ring-red-500' : undefined}
               />
-              {workspaceError ? (
-                <p className="text-xs text-red-600 dark:text-red-400">{workspaceError}</p>
-              ) : null}
+              <FieldErrorText message={workspaceError} />
             </label>
           </div>
 
@@ -208,36 +205,33 @@ export function WorkflowLaunchDialog(props: {
               placeholder="Release readiness"
               aria-invalid={Boolean(workflowNameError)}
             />
-            {workflowNameError ? (
-              <p className="text-xs text-red-600 dark:text-red-400">{workflowNameError}</p>
-            ) : null}
+            <FieldErrorText message={workflowNameError} />
           </label>
 
           {launchDefinition.parameterSpecs.length > 0 ? (
-            <div className="grid gap-4">
-              {launchDefinition.parameterSpecs.map((spec) => (
-                <label key={spec.slug} className="grid gap-2 text-sm">
-                  <span className="font-medium">{spec.title}</span>
-                  <Textarea
-                    value={parameterDrafts[spec.slug] ?? ''}
-                    onChange={(event) => {
-                      clearLaunchFeedback();
-                      setParameterDrafts((current) => ({ ...current, [spec.slug]: event.target.value }));
-                    }}
-                    rows={2}
-                    className="min-h-[64px]"
-                    placeholder={spec.required ? 'Required launch input' : 'Optional launch input'}
-                    aria-invalid={Boolean(
-                      hasAttemptedSubmit && spec.required && !(parameterDrafts[spec.slug]?.trim()),
-                    )}
-                  />
-                  {hasAttemptedSubmit && spec.required && !(parameterDrafts[spec.slug]?.trim()) ? (
-                    <p className="text-xs text-red-600 dark:text-red-400">
-                      {`Enter a value for ${spec.title}.`}
-                    </p>
-                  ) : null}
-                </label>
-              ))}
+            <div className="grid gap-3">
+              {launchDefinition.parameterSpecs.map((spec) => {
+                const parameterError = hasAttemptedSubmit
+                  ? validation.parameterErrors[spec.slug]
+                  : undefined;
+                return (
+                  <label key={spec.slug} className="grid gap-2 text-sm">
+                    <span className="font-medium">{spec.title}</span>
+                    <Textarea
+                      value={parameterDrafts[spec.slug] ?? ''}
+                      onChange={(event) => {
+                        clearLaunchFeedback();
+                        setParameterDrafts((current) => ({ ...current, [spec.slug]: event.target.value }));
+                      }}
+                      rows={2}
+                      className="min-h-[64px]"
+                      placeholder={spec.required ? 'Required launch input' : 'Optional launch input'}
+                      aria-invalid={Boolean(parameterError)}
+                    />
+                    <FieldErrorText message={parameterError} />
+                  </label>
+                );
+              })}
             </div>
           ) : null}
 

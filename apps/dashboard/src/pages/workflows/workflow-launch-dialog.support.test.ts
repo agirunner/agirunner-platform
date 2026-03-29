@@ -53,6 +53,15 @@ describe('workflow-launch-dialog.support', () => {
     expect(result.fieldErrors.workspace).toBe('Select a workspace before launching a workflow.');
     expect(result.fieldErrors.workflowName).toBe('Workflow name is required before launch.');
     expect(result.fieldErrors.parameters).toBe("Enter a value for required launch input 'Goal'.");
+    expect(result.parameterErrors).toEqual({
+      goal: 'Enter a value for Goal.',
+    });
+    expect(result.blockingIssues).toEqual([
+      'Select a playbook before launching a workflow.',
+      'Select a workspace before launching a workflow.',
+      'Workflow name is required before launch.',
+      "Enter a value for required launch input 'Goal'.",
+    ]);
   });
 
   it('accepts a complete launch draft', () => {
@@ -70,6 +79,7 @@ describe('workflow-launch-dialog.support', () => {
 
     expect(result).toEqual({
       fieldErrors: {},
+      parameterErrors: {},
       blockingIssues: [],
       isValid: true,
     });

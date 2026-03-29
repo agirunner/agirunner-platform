@@ -9,6 +9,7 @@ export interface WorkflowLaunchDialogValidationResult {
     workflowName?: string;
     parameters?: string;
   };
+  parameterErrors: Record<string, string>;
   blockingIssues: string[];
   isValid: boolean;
 }
@@ -48,6 +49,7 @@ export function validateWorkflowLaunchDialogDraft(input: {
   parameterDrafts: Record<string, string>;
 }): WorkflowLaunchDialogValidationResult {
   const fieldErrors: WorkflowLaunchDialogValidationResult['fieldErrors'] = {};
+  const parameterErrors: Record<string, string> = {};
 
   if (!input.selectedPlaybook) {
     fieldErrors.playbook = 'Select a playbook before launching a workflow.';
@@ -70,10 +72,20 @@ export function validateWorkflowLaunchDialogDraft(input: {
   if (missingRequired) {
     fieldErrors.parameters = `Enter a value for required launch input '${missingRequired.title}'.`;
   }
+  for (const spec of input.parameterSpecs) {
+    if (!spec.required) {
+      continue;
+    }
+    if ((input.parameterDrafts[spec.slug]?.trim().length ?? 0) > 0) {
+      continue;
+    }
+    parameterErrors[spec.slug] = `Enter a value for ${spec.title}.`;
+  }
 
   const blockingIssues = Object.values(fieldErrors).filter((value): value is string => Boolean(value));
   return {
     fieldErrors,
+    parameterErrors,
     blockingIssues,
     isValid: blockingIssues.length === 0,
   };

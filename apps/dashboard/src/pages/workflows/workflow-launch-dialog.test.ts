@@ -42,6 +42,14 @@ describe('WorkflowLaunchDialog source', () => {
     expect(source).toContain('setErrorMessage(null);');
   });
 
+  it('surfaces the first blocking validation issue in the form feedback and uses support-driven launch input errors', () => {
+    const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('validation.blockingIssues[0] ?? DEFAULT_FORM_VALIDATION_MESSAGE');
+    expect(source).toContain('validation.parameterErrors[spec.slug]');
+    expect(source).not.toContain("{`Enter a value for ${spec.title}.`}");
+  });
+
   it('uses searchable comboboxes for playbook and workspace selection', () => {
     const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
 
