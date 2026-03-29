@@ -62,8 +62,6 @@ describe('workflows page source', () => {
     const source = readSource();
     expect(source).toContain('lastWorkspacePacketRef');
     expect(source).toContain('resolveBoardSelectionForLens');
-    expect(source).toContain("if (boardLens !== 'work_items' || !pageState.taskId) {");
-    expect(source).toContain('taskId: null');
     expect(source).toContain('const requestedWorkspaceScope = {');
     expect(source).toContain('const workspacePacket = workspaceQuery.data');
     expect(source).toContain('resolveWorkspacePlaceholderData(previous, requestedWorkspaceScope)');
@@ -79,9 +77,17 @@ describe('workflows page source', () => {
     expect(source).toContain('patchPageState(navigate, pageState, { workItemId, taskId })');
     expect(source).toContain('selectedTaskId={boardSelection.taskId}');
     expect(source).toContain('selectedTask={selectedTaskQuery.data ?? null}');
-    expect(source).toContain('onClearTaskScope={() => patchPageState(navigate, pageState, { taskId: null })}');
-    expect(source).toContain('onClearWorkItemScope={() =>');
+    expect(source).toContain("const handleBoardLensChange = (nextLens: 'work_items' | 'tasks') => {");
+    expect(source).toContain("if (nextLens === 'work_items' && pageState.taskId) {");
+    expect(source).toContain('setBoardLens(nextLens);');
+    expect(source).toContain('onBoardLensChange={handleBoardLensChange}');
+    expect(source).toContain("const handleClearTaskScope = () => {");
+    expect(source).toContain('onClearTaskScope={handleClearTaskScope}');
+    expect(source).toContain("const handleClearWorkItemScope = () => {");
+    expect(source).toContain('onClearWorkItemScope={handleClearWorkItemScope}');
+    expect(source).toContain("setBoardLens('work_items');");
     expect(source).toContain('patchPageState(navigate, pageState, { workItemId: null, taskId: null })');
+    expect(source).toContain('patchPageState(navigate, pageState, { taskId: null })');
   });
 
   it('separates workflow add-work launches from the current board selection so task scope does not force modify mode', () => {

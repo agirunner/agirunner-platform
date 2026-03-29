@@ -113,12 +113,22 @@ export function WorkflowsPage(): JSX.Element {
     writeStoredWorkflowWorkbenchFraction(workbenchFraction);
   }, [workbenchFraction]);
 
-  useEffect(() => {
-    if (boardLens !== 'work_items' || !pageState.taskId) {
-      return;
+  const handleBoardLensChange = (nextLens: 'work_items' | 'tasks') => {
+    setBoardLens(nextLens);
+    if (nextLens === 'work_items' && pageState.taskId) {
+      patchPageState(navigate, pageState, { taskId: null });
     }
+  };
+
+  const handleClearTaskScope = () => {
+    setBoardLens('work_items');
     patchPageState(navigate, pageState, { taskId: null });
-  }, [boardLens, navigate, pageState]);
+  };
+
+  const handleClearWorkItemScope = () => {
+    setBoardLens('work_items');
+    patchPageState(navigate, pageState, { workItemId: null, taskId: null });
+  };
 
   const boardSelection = useMemo(
     () =>
@@ -450,7 +460,7 @@ export function WorkflowsPage(): JSX.Element {
                   selectedTaskId={boardSelection.taskId}
                   boardLens={boardLens}
                   boardMode={pageState.boardMode}
-                  onBoardLensChange={setBoardLens}
+                  onBoardLensChange={handleBoardLensChange}
                   onBoardModeChange={(boardMode) =>
                     patchPageState(navigate, pageState, { boardMode })
                   }
@@ -511,10 +521,8 @@ export function WorkflowsPage(): JSX.Element {
                   workflowParameters={(workflowDetailQuery.data?.parameters as Record<string, unknown> | null | undefined) ?? null}
                   scope={workbenchScope}
                   onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
-                  onClearWorkItemScope={() =>
-                    patchPageState(navigate, pageState, { workItemId: null, taskId: null })
-                  }
-                  onClearTaskScope={() => patchPageState(navigate, pageState, { taskId: null })}
+                  onClearWorkItemScope={handleClearWorkItemScope}
+                  onClearTaskScope={handleClearTaskScope}
                   onOpenAddWork={(workItemId) => {
                     if (workItemId !== undefined) {
                       patchPageState(navigate, pageState, { workItemId: workItemId ?? null, taskId: null });
