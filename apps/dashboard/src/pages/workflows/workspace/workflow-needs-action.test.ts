@@ -73,7 +73,7 @@ describe('WorkflowNeedsAction', () => {
     expect(html).not.toContain('Open Steering');
   });
 
-  it('keeps workflow-level controls out of the needs-action response surface', () => {
+  it('renders workflow-level controls inline when workflow scope is actionable', () => {
     const html = renderToStaticMarkup(
       createElement(
         QueryClientProvider,
@@ -128,14 +128,19 @@ describe('WorkflowNeedsAction', () => {
             ],
             total_count: 1,
             default_sort: 'priority_desc',
-          },
+            scope_summary: {
+              workflow_total_count: 1,
+              selected_scope_total_count: 1,
+              scoped_away_workflow_count: 0,
+            },
+          } as never,
         }),
       ),
     );
 
     expect(html).toContain('Workflow recovery');
-    expect(html).not.toContain('Add / Modify Work');
-    expect(html).not.toContain('Redrive workflow');
+    expect(html).toContain('Add / Modify Work');
+    expect(html).toContain('Redrive workflow');
   });
 
   it('renders add-or-modify-work responses inline for blocked work items', () => {
@@ -268,7 +273,12 @@ describe('WorkflowNeedsAction', () => {
             items: [],
             total_count: 0,
             default_sort: 'priority_desc',
-          },
+            scope_summary: {
+              workflow_total_count: 0,
+              selected_scope_total_count: 0,
+              scoped_away_workflow_count: 0,
+            },
+          } as never,
         }),
       ),
     );
@@ -276,6 +286,34 @@ describe('WorkflowNeedsAction', () => {
     expect(html).toContain('Nothing in this work item requires operator action right now.');
     expect(html).not.toContain('Nothing in this workflow requires operator action right now.');
     expect(html).not.toContain('Nothing in this task requires operator action right now.');
+  });
+
+  it('explains when workflow-level action exists outside the selected work item scope', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowNeedsAction, {
+          workflowId: 'workflow-1',
+          workspaceId: 'workspace-1',
+          scopeSubject: 'work item',
+          scopeLabel: 'Work item: Prepare release bundle',
+          packet: {
+            items: [],
+            total_count: 0,
+            default_sort: 'priority_desc',
+            scope_summary: {
+              workflow_total_count: 1,
+              selected_scope_total_count: 0,
+              scoped_away_workflow_count: 1,
+            },
+          } as never,
+        }),
+      ),
+    );
+
+    expect(html).toContain('Nothing in this work item requires operator action right now.');
+    expect(html).toContain('1 workflow-level action remains available in workflow scope.');
   });
 
   it('renders approval context details inline for approval cards', () => {

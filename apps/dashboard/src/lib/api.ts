@@ -548,6 +548,8 @@ export interface DashboardWorkflowNeedsActionItem {
   label: string;
   summary: string;
   details?: DashboardWorkflowNeedsActionDetail[];
+  work_item_id?: string | null;
+  task_id?: string | null;
   target: {
     target_kind: 'workflow' | 'work_item' | 'task';
     target_id: string;
@@ -559,6 +561,12 @@ export interface DashboardWorkflowNeedsActionItem {
     method: 'POST';
   };
   responses: DashboardWorkflowNeedsActionResponseAction[];
+}
+
+export interface DashboardWorkflowNeedsActionScopeSummary {
+  workflow_total_count: number;
+  selected_scope_total_count: number;
+  scoped_away_workflow_count: number;
 }
 
 export interface DashboardWorkflowNeedsActionDetail {
@@ -583,6 +591,7 @@ export interface DashboardWorkflowNeedsActionPacket {
   items: DashboardWorkflowNeedsActionItem[];
   total_count: number;
   default_sort: 'priority_desc';
+  scope_summary?: DashboardWorkflowNeedsActionScopeSummary;
 }
 
 export interface DashboardWorkflowLiveConsoleItem {

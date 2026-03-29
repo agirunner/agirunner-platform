@@ -188,7 +188,7 @@ export class WorkflowWorkspaceService {
         loadWorkflowGates(this.gateActionSource, tenantId, workflowId),
       ]);
 
-    const needsActionItems = buildNeedsActionItems(
+    const allNeedsActionItems = buildNeedsActionItems(
       workflowId,
       board as Record<string, unknown>,
       workflowCard?.availableActions ?? [],
@@ -197,6 +197,7 @@ export class WorkflowWorkspaceService {
       selectedScope.work_item_id,
       gates,
     );
+    const needsAction = buildNeedsActionPacket(allNeedsActionItems, selectedScope);
     const normalizedDeliverables = normalizeWorkspaceDeliverablesPacket(deliverables);
     const allDeliverables = normalizedDeliverables.all_deliverables ?? [
       ...normalizedDeliverables.final_deliverables,
@@ -229,7 +230,7 @@ export class WorkflowWorkspaceService {
       ? await this.steeringSessionService.listMessages(tenantId, workflowId, activeSession.id)
       : [];
     const bottomTabs = buildBottomTabs(
-      needsActionItems.length,
+      needsAction.total_count,
       activeSession ? 1 : 0,
       readPacketTotalCount(effectiveLiveConsole),
       readPacketTotalCount(effectiveBriefs),
@@ -254,11 +255,7 @@ export class WorkflowWorkspaceService {
           : null,
       board: board as Record<string, unknown>,
       bottom_tabs: bottomTabs,
-      needs_action: {
-        items: needsActionItems,
-        total_count: needsActionItems.length,
-        default_sort: 'priority_desc',
-      },
+      needs_action: needsAction,
       steering: {
         quick_actions: steeringQuickActions,
         decision_actions: [],
@@ -639,6 +636,60 @@ function buildBottomTabs(
   };
 }
 
+function buildNeedsActionPacket(
+  items: WorkflowNeedsActionItem[],
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+): WorkflowWorkspacePacket['needs_action'] {
+  const visibleItems = filterNeedsActionItemsForSelectedScope(items, selectedScope);
+  return {
+    items: visibleItems,
+    total_count: visibleItems.length,
+    default_sort: 'priority_desc',
+    scope_summary: {
+      workflow_total_count: items.length,
+      selected_scope_total_count: visibleItems.length,
+      scoped_away_workflow_count: countScopedAwayWorkflowActions(items, visibleItems, selectedScope),
+    },
+  };
+}
+
+function filterNeedsActionItemsForSelectedScope(
+  items: WorkflowNeedsActionItem[],
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+): WorkflowNeedsActionItem[] {
+  if (selectedScope.scope_kind === 'workflow') {
+    return items;
+  }
+
+  return items.filter((item) => matchesNeedsActionScope(item, selectedScope));
+}
+
+function matchesNeedsActionScope(
+  item: WorkflowNeedsActionItem,
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+): boolean {
+  if (selectedScope.scope_kind === 'selected_task') {
+    return item.task_id === selectedScope.task_id;
+  }
+
+  return item.work_item_id === selectedScope.work_item_id;
+}
+
+function countScopedAwayWorkflowActions(
+  allItems: WorkflowNeedsActionItem[],
+  visibleItems: WorkflowNeedsActionItem[],
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+): number {
+  if (selectedScope.scope_kind === 'workflow') {
+    return 0;
+  }
+
+  const visibleActionIds = new Set(visibleItems.map((item) => item.action_id));
+  return allItems.filter(
+    (item) => item.target.target_kind === 'workflow' && !visibleActionIds.has(item.action_id),
+  ).length;
+}
+
 function filterLiveConsoleForSelectedScope(
   packet: WorkflowWorkspacePacket['live_console'],
   selectedScope: WorkflowWorkspacePacket['selected_scope'],
@@ -805,6 +856,8 @@ function buildNeedsActionItems(
     items.push({
       ...publicItem,
       ...presentation,
+      work_item_id: directTask?.work_item_id ?? readNeedsActionWorkItemId(boardItem.target),
+      task_id: directTask?.id ?? readNeedsActionTaskId(boardItem.target),
       target: directTask ? { target_kind: 'task', target_id: directTask.id } : boardItem.target,
       submission: {
         route_kind: directTask ? 'task_mutation' : boardItem.submission.route_kind,
@@ -823,6 +876,8 @@ function buildNeedsActionItems(
     items.push({
       ...publicItem,
       ...presentation,
+      work_item_id: null,
+      task_id: null,
       responses: buildBoardNeedsActionResponses(stageItem.action_kind, stageItem.target, null, gate),
     });
   }
@@ -841,6 +896,8 @@ function buildNeedsActionItems(
       action_kind: actionKind,
       label: humanizeActionKind(actionKind),
       summary: intervention.summary,
+      work_item_id: readInterventionWorkItemId(intervention, target),
+      task_id: target.target_kind === 'task' ? target.target_id : null,
       target,
       priority: 'high',
       requires_confirmation: false,
@@ -859,22 +916,43 @@ function buildNeedsActionItems(
     if (!isNeedsActionQuickAction(action)) {
       continue;
     }
+    const target = resolveActionTarget(action.scope, workflowId, interventions, selectedWorkItemId);
     items.push({
       action_id: `${workflowId}:${action.kind}`,
       action_kind: action.kind,
       label: humanizeActionKind(action.kind),
       summary: action.disabledReason ?? humanizeActionKind(action.kind),
-      target: resolveActionTarget(action.scope, workflowId, interventions, selectedWorkItemId),
+      work_item_id: readNeedsActionWorkItemId(target),
+      task_id: readNeedsActionTaskId(target),
+      target,
       priority: action.scope === 'workflow' ? 'medium' : 'high',
       requires_confirmation: action.confirmationLevel !== 'immediate',
       submission: {
         route_kind: 'workflow_mutation',
         method: 'POST',
       },
-      responses: buildQuickActionResponses(action.kind, resolveActionTarget(action.scope, workflowId, interventions, selectedWorkItemId)),
+      responses: buildQuickActionResponses(action.kind, target),
     });
   }
   return items.sort(compareNeedsActionPriority);
+}
+
+function readNeedsActionWorkItemId(target: WorkflowNeedsActionItem['target']): string | null {
+  return target.target_kind === 'work_item' ? target.target_id : null;
+}
+
+function readNeedsActionTaskId(target: WorkflowNeedsActionItem['target']): string | null {
+  return target.target_kind === 'task' ? target.target_id : null;
+}
+
+function readInterventionWorkItemId(
+  intervention: WorkflowInterventionRecord,
+  target: WorkflowNeedsActionItem['target'],
+): string | null {
+  if (typeof intervention.work_item_id === 'string') {
+    return intervention.work_item_id;
+  }
+  return readNeedsActionWorkItemId(target);
 }
 
 async function loadWorkflowGates(
@@ -1342,7 +1420,10 @@ function isActionableIntervention(intervention: WorkflowInterventionRecord): boo
 }
 
 function isNeedsActionQuickAction(action: MissionControlActionAvailability): boolean {
-  return false;
+  if (!action.enabled) {
+    return false;
+  }
+  return action.kind === 'add_work_item' || action.kind === 'redrive_workflow';
 }
 
 function readBoardNeedsActionItems(board: Record<string, unknown>): WorkflowBoardNeedsActionItem[] {

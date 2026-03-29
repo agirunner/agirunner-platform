@@ -25,6 +25,11 @@ export function WorkflowNeedsAction(props: {
   const normalizedScope = normalizeNeedsActionScope(props.scopeSubject, props.scopeLabel);
   const scopeSubject = normalizedScope.subject;
   const scopeLabel = normalizedScope.label;
+  const scopeSummary = props.packet.scope_summary ?? {
+    workflow_total_count: props.packet.total_count,
+    selected_scope_total_count: props.packet.total_count,
+    scoped_away_workflow_count: 0,
+  };
   const queryClient = useQueryClient();
   const [promptAction, setPromptAction] = useState<DashboardWorkflowNeedsActionResponseAction | null>(null);
   const [promptValue, setPromptValue] = useState('');
@@ -94,7 +99,12 @@ export function WorkflowNeedsAction(props: {
 
       {props.packet.items.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
-          Nothing in this {scopeSubject} requires operator action right now.
+          <p>Nothing in this {scopeSubject} requires operator action right now.</p>
+          {scopeSummary.scoped_away_workflow_count > 0 && scopeSubject !== 'workflow' ? (
+            <p className="mt-2">
+              {readScopedAwayWorkflowMessage(scopeSummary.scoped_away_workflow_count)}
+            </p>
+          ) : null}
         </div>
       ) : (
         <div className="grid gap-3">
@@ -336,6 +346,9 @@ async function runNeedsAction(
       );
       return;
     }
+    case 'redrive_workflow':
+      await dashboardApi.redriveWorkflow(workflowId, { request_id: crypto.randomUUID() });
+      return;
     default:
       throw new Error(`Unsupported needs-action response '${action.kind}'.`);
   }
@@ -345,11 +358,12 @@ function isSupportedNeedsActionResponse(
   action: DashboardWorkflowNeedsActionResponseAction,
 ): boolean {
   if (action.kind === 'add_work_item') {
-    return action.target.target_kind === 'work_item';
+    return action.target.target_kind === 'workflow' || action.target.target_kind === 'work_item';
   }
   return action.kind === 'approve_task'
     || action.kind === 'approve_task_output'
     || action.kind === 'approve_gate'
+    || action.kind === 'redrive_workflow'
     || action.kind === 'reject_task'
     || action.kind === 'reject_gate'
     || action.kind === 'request_changes_task'
@@ -364,6 +378,8 @@ function readSuccessMessage(actionKind: string): string {
       return 'Approval recorded';
     case 'approve_task_output':
       return 'Output approval recorded';
+    case 'redrive_workflow':
+      return 'Workflow redrive requested';
     case 'reject_task':
       return 'Rejection recorded';
     case 'approve_gate':
@@ -381,6 +397,13 @@ function readSuccessMessage(actionKind: string): string {
     default:
       return 'Operator action applied';
   }
+}
+
+function readScopedAwayWorkflowMessage(scopedAwayWorkflowCount: number): string {
+  if (scopedAwayWorkflowCount === 1) {
+    return '1 workflow-level action remains available in workflow scope.';
+  }
+  return `${scopedAwayWorkflowCount} workflow-level actions remain available in workflow scope.`;
 }
 
 function buildPromptMeta(

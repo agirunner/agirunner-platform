@@ -42,6 +42,8 @@ export interface WorkflowNeedsActionItem {
   label: string;
   summary: string;
   details?: WorkflowNeedsActionDetail[];
+  work_item_id?: string | null;
+  task_id?: string | null;
   target: {
     target_kind: 'workflow' | 'work_item' | 'task';
     target_id: string;
@@ -53,6 +55,12 @@ export interface WorkflowNeedsActionItem {
     method: 'POST';
   };
   responses: WorkflowNeedsActionResponseAction[];
+}
+
+export interface WorkflowNeedsActionScopeSummary {
+  workflow_total_count: number;
+  selected_scope_total_count: number;
+  scoped_away_workflow_count: number;
 }
 
 export interface WorkflowNeedsActionDetail {
@@ -77,6 +85,7 @@ export interface WorkflowNeedsActionPacket {
   items: WorkflowNeedsActionItem[];
   total_count: number;
   default_sort: 'priority_desc';
+  scope_summary?: WorkflowNeedsActionScopeSummary;
 }
 
 export interface WorkflowLiveConsoleItem {
