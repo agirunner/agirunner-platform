@@ -12,12 +12,17 @@ describe('WorkflowsRail', () => {
     const source = readFileSync(resolve(__dirname, './workflows-rail.tsx'), 'utf8');
 
     expect(source).toContain('useLayoutEffect');
+    expect(source).toContain('const selectionRestoreFrameRef = useRef<number | null>(null);');
     expect(source).toContain('data-workflows-rail-scroll-region="true"');
     expect(source).toContain('const persistedScrollTopRef = useRef(0);');
     expect(source).toContain('const handleSelectWorkflow = (workflowId: string) => {');
     expect(source).toContain('persistedScrollTopRef.current = scrollRef.current.scrollTop;');
     expect(source).toContain('persistedScrollTopRef.current = element.scrollTop;');
     expect(source).toContain('scrollRef.current.scrollTop = persistedScrollTopRef.current;');
+    expect(source).toContain(
+      'selectionRestoreFrameRef.current = window.requestAnimationFrame(() => {',
+    );
+    expect(source).toContain('window.cancelAnimationFrame(selectionRestoreFrameRef.current);');
     expect(source).not.toContain('renderedRowSignature');
   });
 
@@ -79,10 +84,10 @@ describe('WorkflowsRail', () => {
       }),
     );
 
-    expect(html).toContain('bg-sky-700/95');
+    expect(html).toContain('bg-sky-800');
     expect(html).toContain('ring-2');
     expect(html).toContain('ring-offset-2');
-    expect(html).toContain('shadow-[0_22px_54px_rgba(2,132,199,0.34)]');
+    expect(html).toContain('shadow-[0_24px_60px_rgba(8,47,73,0.42)]');
     expect(html).toContain('text-inherit');
     expect(html).toContain('text-white');
     expect(html).not.toContain('bg-amber-100');

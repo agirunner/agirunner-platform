@@ -987,6 +987,30 @@ function NavSectionGroup({
   }, [isActive]);
   const Icon = section.icon;
 
+  if (isSidebarCollapsed && rendersAsSingleItem && singleItem) {
+    return (
+      <div className="mb-3">
+        <div className="sr-only">{section.label}</div>
+        <NavLink
+          to={singleItem.href}
+          end
+          title={singleItem.label}
+          aria-label={singleItem.label}
+          className={({ isActive: active }) =>
+            cn(
+              'flex items-center justify-center rounded-lg px-0 py-2.5 transition-[background-color,color,box-shadow]',
+              FOCUS_RING_CLASSES,
+              active ? SIDEBAR_ACTIVE_ITEM_CLASSES : SIDEBAR_INACTIVE_ITEM_CLASSES,
+            )
+          }
+        >
+          <singleItem.icon size={15} />
+          <span className="sr-only">{singleItem.label}</span>
+        </NavLink>
+      </div>
+    );
+  }
+
   if (isSidebarCollapsed) {
     return (
       <div className="mb-3">
@@ -1019,24 +1043,22 @@ function NavSectionGroup({
   if (rendersAsSingleItem && singleItem) {
     return (
       <div className="mb-1">
-        <div className={SIDEBAR_SECTION_GROUP_CLASSES}>
-          <NavLink
-            to={singleItem.href}
-            end
-            title={singleItem.label}
-            aria-label={singleItem.label}
-            className={({ isActive: active }) =>
-              cn(
-                'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color,box-shadow]',
-                FOCUS_RING_CLASSES,
-                active ? SIDEBAR_ACTIVE_ITEM_CLASSES : SIDEBAR_INACTIVE_ITEM_CLASSES,
-              )
-            }
-          >
-            <singleItem.icon size={13} />
-            {singleItem.label}
-          </NavLink>
-        </div>
+        <NavLink
+          to={singleItem.href}
+          end
+          title={singleItem.label}
+          aria-label={singleItem.label}
+          className={({ isActive: active }) =>
+            cn(
+              'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color,box-shadow]',
+              FOCUS_RING_CLASSES,
+              active ? SIDEBAR_ACTIVE_ITEM_CLASSES : SIDEBAR_INACTIVE_ITEM_CLASSES,
+            )
+          }
+        >
+          <singleItem.icon size={13} />
+          {singleItem.label}
+        </NavLink>
       </div>
     );
   }

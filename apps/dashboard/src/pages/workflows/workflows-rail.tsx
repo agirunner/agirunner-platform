@@ -34,6 +34,7 @@ export function WorkflowsRail(props: {
 }): JSX.Element {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const persistedScrollTopRef = useRef(0);
+  const selectionRestoreFrameRef = useRef<number | null>(null);
   const handleSelectWorkflow = (workflowId: string) => {
     if (scrollRef.current) {
       persistedScrollTopRef.current = scrollRef.current.scrollTop;
@@ -71,7 +72,33 @@ export function WorkflowsRail(props: {
     if (!scrollRef.current) {
       return;
     }
-    scrollRef.current.scrollTop = persistedScrollTopRef.current;
+
+    const restoreScrollPosition = () => {
+      if (!scrollRef.current) {
+        return;
+      }
+      scrollRef.current.scrollTop = persistedScrollTopRef.current;
+    };
+
+    restoreScrollPosition();
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (selectionRestoreFrameRef.current !== null) {
+      window.cancelAnimationFrame(selectionRestoreFrameRef.current);
+    }
+    selectionRestoreFrameRef.current = window.requestAnimationFrame(() => {
+      restoreScrollPosition();
+      selectionRestoreFrameRef.current = null;
+    });
+
+    return () => {
+      if (selectionRestoreFrameRef.current !== null) {
+        window.cancelAnimationFrame(selectionRestoreFrameRef.current);
+        selectionRestoreFrameRef.current = null;
+      }
+    };
   }, [props.selectedWorkflowId, selectedVisible]);
 
   return (
@@ -213,7 +240,7 @@ function WorkflowRailRowCard(props: {
       className={cn(
         'grid w-full min-w-0 max-w-full gap-2 rounded-xl border px-3 py-3 text-left transition-[border-color,background-color,box-shadow,color] duration-150',
         props.isSelected
-          ? 'border-sky-700/95 bg-sky-700/95 text-white shadow-[0_22px_54px_rgba(2,132,199,0.34)] ring-2 ring-sky-300/70 ring-offset-2 ring-offset-background dark:border-sky-300/90 dark:bg-sky-300/30 dark:text-sky-50 dark:ring-sky-200/35 dark:ring-offset-slate-950'
+          ? 'border-sky-800 bg-sky-800 text-white shadow-[0_24px_60px_rgba(8,47,73,0.42)] ring-2 ring-sky-300/80 ring-offset-2 ring-offset-background dark:border-sky-200/90 dark:bg-sky-300/35 dark:text-sky-50 dark:ring-sky-100/45 dark:ring-offset-slate-950'
           : 'border-border/70 bg-background/85 hover:border-border hover:bg-background',
       )}
       onClick={() => props.onSelect(props.row.workflow_id)}

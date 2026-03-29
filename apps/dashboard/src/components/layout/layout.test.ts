@@ -179,10 +179,14 @@ describe('layout breadcrumbs', () => {
       'const rendersAsSingleItem = section.items.length === 1 && section.items[0]?.label === section.label;',
     );
     expect(source).toContain('const singleItem = rendersAsSingleItem ? section.items[0] : null;');
+    expect(source).toContain('if (isSidebarCollapsed && rendersAsSingleItem && singleItem) {');
     expect(source).toContain('if (rendersAsSingleItem && singleItem) {');
     expect(source).toContain('title={singleItem.label}');
     expect(source).toContain('aria-label={singleItem.label}');
     expect(source).toContain('singleItem.icon');
+    expect(source).not.toContain(
+      "if (rendersAsSingleItem && singleItem) {\n    return (\n      <div className=\"mb-1\">\n        <div className={SIDEBAR_SECTION_GROUP_CLASSES}>",
+    );
     expect(source).not.toContain('Mission Control</span>\n        <ChevronRight');
   });
 
