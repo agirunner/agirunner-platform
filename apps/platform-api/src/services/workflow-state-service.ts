@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import type { LogService } from '../logging/log-service.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { EventService } from './event-service.js';
@@ -229,16 +230,41 @@ export class WorkflowStateService {
     workflowId: string,
     db: DatabaseClient | DatabasePool,
   ): Promise<WorkflowPosture> {
-    const workflowResult = await db.query<{ lifecycle: string | null }>(
-      `SELECT lifecycle
-         FROM workflows
-        WHERE tenant_id = $1
-          AND id = $2`,
+    const workflowResult = await db.query<{ lifecycle: string | null; definition?: unknown }>(
+      `SELECT w.lifecycle, p.definition
+         FROM workflows w
+         LEFT JOIN playbooks p
+           ON p.tenant_id = w.tenant_id
+          AND p.id = w.playbook_id
+        WHERE w.tenant_id = $1
+          AND w.id = $2`,
       [tenantId, workflowId],
     );
 
     const normalizedLifecycle: WorkflowPosture['lifecycle'] =
       workflowResult.rows[0]?.lifecycle === 'ongoing' ? 'ongoing' : 'planned';
+    const terminalColumnIds = readTerminalColumnIds(workflowResult.rows[0]?.definition);
+    const loadWorkItemCounts = () =>
+      normalizedLifecycle === 'ongoing'
+        ? db.query<{ total_work_item_count: number; open_work_item_count: number }>(
+          `SELECT COUNT(*)::int AS total_work_item_count,
+                  COUNT(*) FILTER (
+                    WHERE completed_at IS NULL
+                      AND COALESCE(column_id = ANY($3::text[]), FALSE) = FALSE
+                  )::int AS open_work_item_count
+             FROM workflow_work_items
+            WHERE tenant_id = $1
+              AND workflow_id = $2`,
+          [tenantId, workflowId, terminalColumnIds],
+        )
+        : db.query<{ total_work_item_count: number; open_work_item_count: number }>(
+          `SELECT COUNT(*)::int AS total_work_item_count,
+                  COUNT(*) FILTER (WHERE completed_at IS NULL)::int AS open_work_item_count
+             FROM workflow_work_items
+            WHERE tenant_id = $1
+              AND workflow_id = $2`,
+          [tenantId, workflowId],
+        );
     const [stageResult, orchestratorResult, workItemResult] = await Promise.all([
       db.query<{ status: string; gate_status: string }>(
         'SELECT status, gate_status FROM workflow_stages WHERE tenant_id = $1 AND workflow_id = $2',
@@ -254,12 +280,7 @@ export class WorkflowStateService {
           LIMIT 1`,
         [tenantId, workflowId],
       ),
-      db.query<{ total_work_item_count: number; open_work_item_count: number }>(
-        `SELECT COUNT(*)::int AS total_work_item_count,
-                COUNT(*) FILTER (WHERE completed_at IS NULL)::int AS open_work_item_count
-           FROM workflow_work_items WHERE tenant_id = $1 AND workflow_id = $2`,
-        [tenantId, workflowId],
-      ),
+      loadWorkItemCounts(),
     ]);
 
     return buildWorkflowPosture(
@@ -349,6 +370,16 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function readOptionalString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readTerminalColumnIds(definition: unknown): string[] {
+  try {
+    return parsePlaybookDefinition(definition).board.columns
+      .filter((column) => Boolean(column.is_terminal))
+      .map((column) => column.id);
+  } catch {
+    return [];
+  }
 }
 
 function deriveContinuousWorkflowState(posture: ContinuousWorkflowPosture) {

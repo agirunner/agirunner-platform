@@ -129,13 +129,72 @@ describe('WorkflowStateService', () => {
       undefined,
     );
     expect(String(pool.query.mock.calls[1]?.[0] ?? '').replace(/\s+/g, ' ')).toContain(
-      'SELECT lifecycle',
+      'SELECT w.lifecycle, p.definition',
     );
     expect(
       pool.query.mock.calls
         .map((call) => String(call[0] ?? ''))
         .some((sql) => sql.includes('SELECT current_stage')),
     ).toBe(false);
+  });
+
+  it('returns pending for continuous workflows when current work items already sit in terminal columns', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('WHERE w.tenant_id = $1 AND w.id = $2')) {
+          return workflowRow({ state: 'active' });
+        }
+        if ((sql.includes('SELECT w.lifecycle')) || (sql.includes('SELECT lifecycle') && sql.includes('FROM workflows'))) {
+          if (sql.includes('JOIN playbooks p')) {
+            return rowSet([{
+              lifecycle: 'ongoing',
+              definition: {
+                lifecycle: 'ongoing',
+                board: {
+                  columns: [
+                    { id: 'queued', label: 'Queued' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [],
+                roles: [],
+              },
+            }]);
+          }
+          return rowSet([{ lifecycle: 'ongoing' }]);
+        }
+        if (sql.includes('SELECT status, gate_status FROM workflow_stages')) {
+          return rowSet([]);
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = true')) {
+          return rowSet([]);
+        }
+        if (sql.includes('FROM workflow_work_items')) {
+          if (sql.includes('column_id') && sql.includes('ANY')) {
+            expect(params).toEqual(['tenant-1', 'workflow-1', ['done']]);
+            return rowSet([{ total_work_item_count: 2, open_work_item_count: 0 }]);
+          }
+          return rowSet([{ total_work_item_count: 2, open_work_item_count: 2 }]);
+        }
+        if (sql.includes('UPDATE workflows')) {
+          return rowSet([]);
+        }
+        throw new Error(`Unexpected query: ${sql}`);
+      }),
+    };
+    const eventService = { emit: vi.fn() };
+    const service = new WorkflowStateService(pool as never, eventService as never);
+
+    const result = await service.recomputeWorkflowState('tenant-1', 'workflow-1');
+
+    expect(result).toBe('pending');
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.state_changed',
+        data: { from_state: 'active', to_state: 'pending' },
+      }),
+      undefined,
+    );
   });
 
   it('returns active for continuous workflows when a stage gate is awaiting approval', async () => {
