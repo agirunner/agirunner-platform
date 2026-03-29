@@ -613,6 +613,75 @@ describe('workflow-execution-log-composer', () => {
 
     expect(items.map((item) => item.item_id)).toEqual(['execution-log:33']);
   });
+
+  it('keeps distinct think and plan rows even when they share the same operator-facing summary', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '35',
+        operation: 'agent.think',
+        payload: {
+          reasoning_summary: 'Route the approved intake item to policy assessment.',
+        },
+      }),
+      createLogRow({
+        id: '36',
+        operation: 'agent.plan',
+        payload: {
+          plan_summary: 'Route the approved intake item to policy assessment.',
+        },
+      }),
+    ]);
+
+    expect(items.map((item) => item.headline)).toEqual([
+      '[Think] Route the approved intake item to policy assessment.',
+      '[Plan] Route the approved intake item to policy assessment.',
+    ]);
+  });
+
+  it('coalesces short same-phase bursts into a single normalized line', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '37',
+        operation: 'agent.plan',
+        payload: {
+          plan_summary: 'Check whether the previous policy findings are still unresolved.',
+        },
+      }),
+      createLogRow({
+        id: '38',
+        operation: 'agent.plan',
+        payload: {
+          plan_summary: 'If they are, send the packet back for rework instead of routing it forward.',
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      '[Plan] Check whether the previous policy findings are still unresolved. If they are, send the packet back for rework instead of routing it forward.',
+    );
+    expect(item.summary).toBe(
+      'Check whether the previous policy findings are still unresolved. If they are, send the packet back for rework instead of routing it forward.',
+    );
+  });
+
+  it('prefers a humanized action summary over raw tool syntax when both are present', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '39',
+        operation: 'agent.act',
+        payload: {
+          tool: 'artifact_upload',
+          text_preview: 'artifact_upload(path="output/release-packet.md")',
+          input: {
+            logical_path: 'output/release-packet.md',
+          },
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe('[Act] Uploading output/release-packet.md.');
+    expect(item.summary).toBe('Uploading output/release-packet.md.');
+  });
 });
 
 function createLogRow(

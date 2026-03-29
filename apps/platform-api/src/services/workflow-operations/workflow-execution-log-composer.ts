@@ -39,7 +39,12 @@ export function buildExecutionTurnItems(rows: LogRow[]): WorkflowLiveConsoleItem
       linked_target_ids: scope.linkedTargetIds,
       scope_binding: scope.binding,
     };
-    if (shouldSuppressAdjacentExecutionItem(items.at(-1), item)) {
+    const previousItem = items.at(-1);
+    if (shouldSuppressAdjacentExecutionItem(previousItem, item)) {
+      continue;
+    }
+    if (shouldCoalesceAdjacentExecutionItem(previousItem, item)) {
+      coalesceExecutionTurnItem(previousItem!, item);
       continue;
     }
     items.push(item);
@@ -207,22 +212,25 @@ function readActText(
   payload: Record<string, unknown>,
   actionHeadline: string | null,
 ): string | null {
+  const actionName = readActionName(payload);
   const explicitHeadline = readOperatorReadableField(payload, ['headline']);
-  if (explicitHeadline) {
+  if (explicitHeadline && !looksLikeSyntheticActionPreview(explicitHeadline, actionHeadline, actionName)) {
     return explicitHeadline;
   }
   const textPreview = readOperatorReadableField(payload, ['text_preview']);
-  if (textPreview && !looksLikeSyntheticActionPreview(textPreview, actionHeadline)) {
+  if (textPreview && !looksLikeSyntheticActionPreview(textPreview, actionHeadline, actionName)) {
     return textPreview;
   }
   return null;
 }
 
 function readActSummary(payload: Record<string, unknown>): string | null {
+  const humanizedActionHeadline = buildHumanizedActionHeadline(payload);
+  const actionHeadline = humanizedActionHeadline ?? buildActionInvocationHeadline(payload);
   return (
-    readActText(payload, null)
-    ?? buildHumanizedActionHeadline(payload)
-    ?? buildActionInvocationHeadline(payload)
+    readActText(payload, actionHeadline)
+    ?? humanizedActionHeadline
+    ?? actionHeadline
   );
 }
 
@@ -876,12 +884,22 @@ function normalizeConsoleText(value: string | null): string | null {
   return normalized.length > 0 ? normalized : null;
 }
 
-function looksLikeSyntheticActionPreview(value: string, actionHeadline: string | null): boolean {
+function looksLikeSyntheticActionPreview(
+  value: string,
+  actionHeadline: string | null,
+  actionName: string | null,
+): boolean {
   const normalized = value.trim().toLowerCase();
   if (normalized.startsWith('calling ')) {
     return true;
   }
   if (normalized === 'tool execution in progress') {
+    return true;
+  }
+  if (actionName && normalized === `${actionName.toLowerCase()}()`) {
+    return true;
+  }
+  if (actionName && normalized.startsWith(`${actionName.toLowerCase()}(`)) {
     return true;
   }
   if (!actionHeadline) {
@@ -949,7 +967,101 @@ function shouldSuppressAdjacentExecutionItem(
   if (!previousSummary || !currentSummary || previousSummary !== currentSummary) {
     return false;
   }
-  return true;
+  if (!hasMatchingExecutionContext(previousItem, currentItem)) {
+    return false;
+  }
+
+  const previousPhase = readExecutionItemPhase(previousItem);
+  const currentPhase = readExecutionItemPhase(currentItem);
+  if (!previousPhase || !currentPhase) {
+    return false;
+  }
+  if (previousPhase === currentPhase) {
+    return true;
+  }
+  return previousPhase === 'Verify' || currentPhase === 'Verify';
+}
+
+function shouldCoalesceAdjacentExecutionItem(
+  previousItem: WorkflowLiveConsoleItem | undefined,
+  currentItem: WorkflowLiveConsoleItem,
+): boolean {
+  if (!previousItem || !hasMatchingExecutionContext(previousItem, currentItem)) {
+    return false;
+  }
+
+  const previousPhase = readExecutionItemPhase(previousItem);
+  const currentPhase = readExecutionItemPhase(currentItem);
+  if (!previousPhase || previousPhase !== currentPhase || previousPhase === 'Act') {
+    return false;
+  }
+
+  if (!occurredWithinBurstWindow(previousItem.created_at, currentItem.created_at)) {
+    return false;
+  }
+
+  const previousSummary = normalizeExecutionComparisonText(previousItem.summary);
+  const currentSummary = normalizeExecutionComparisonText(currentItem.summary);
+  if (!previousSummary || !currentSummary || previousSummary === currentSummary) {
+    return false;
+  }
+
+  return mergeExecutionTurnText(previousItem.summary, currentItem.summary) !== null;
+}
+
+function coalesceExecutionTurnItem(
+  previousItem: WorkflowLiveConsoleItem,
+  currentItem: WorkflowLiveConsoleItem,
+): void {
+  const phase = readExecutionItemPhase(previousItem);
+  const mergedText = mergeExecutionTurnText(previousItem.summary, currentItem.summary);
+  if (!phase || !mergedText) {
+    return;
+  }
+
+  previousItem.summary = mergedText;
+  previousItem.headline = formatExecutionPhaseLabelHeadline(phase, mergedText);
+  previousItem.created_at = currentItem.created_at;
+  previousItem.linked_target_ids = dedupeIds([
+    ...previousItem.linked_target_ids,
+    ...currentItem.linked_target_ids,
+  ]);
+}
+
+function hasMatchingExecutionContext(
+  previousItem: WorkflowLiveConsoleItem,
+  currentItem: WorkflowLiveConsoleItem,
+): boolean {
+  return (
+    previousItem.source_kind === currentItem.source_kind
+    && previousItem.source_label === currentItem.source_label
+    && previousItem.scope_binding === currentItem.scope_binding
+    && previousItem.work_item_id === currentItem.work_item_id
+    && previousItem.task_id === currentItem.task_id
+  );
+}
+
+function occurredWithinBurstWindow(previousTimestamp: string, currentTimestamp: string): boolean {
+  const previousTime = Date.parse(previousTimestamp);
+  const currentTime = Date.parse(currentTimestamp);
+  if (!Number.isFinite(previousTime) || !Number.isFinite(currentTime)) {
+    return false;
+  }
+  return currentTime >= previousTime && currentTime - previousTime <= EXECUTION_BURST_WINDOW_MS;
+}
+
+function mergeExecutionTurnText(previousSummary: string, currentSummary: string): string | null {
+  const previousText = normalizeExecutionComparisonText(previousSummary);
+  const currentText = normalizeExecutionComparisonText(currentSummary);
+  if (!previousText || !currentText || previousText === currentText) {
+    return null;
+  }
+
+  const mergedText = readOperatorReadableText(`${previousText} ${currentText}`, 180);
+  if (!mergedText || mergedText === previousText) {
+    return null;
+  }
+  return mergedText;
 }
 
 function normalizeExecutionComparisonText(value: string): string | null {
@@ -960,8 +1072,17 @@ function stripExecutionPhasePrefix(value: string): string {
   return value.replace(/^\[[^\]]+\]\s*/, '');
 }
 
+function readExecutionItemPhase(item: WorkflowLiveConsoleItem): string | null {
+  const match = item.headline.match(/^\[([^\]]+)\]\s+/);
+  return match?.[1] ?? null;
+}
+
 function formatExecutionPhaseHeadline(operation: string, headline: string): string {
   return `[${readPhaseLabel(operation)}] ${headline}`;
+}
+
+function formatExecutionPhaseLabelHeadline(phase: string, headline: string): string {
+  return `[${phase}] ${headline}`;
 }
 
 function readPhaseLabel(operation: string): string {
@@ -1003,6 +1124,8 @@ const LOW_VALUE_HELPER_ACTIONS = new Set([
 const LITERAL_ACTION_FALLBACK_ACTIONS = new Set([
   'shell_exec',
 ]);
+
+const EXECUTION_BURST_WINDOW_MS = 15_000;
 
 function truncate(value: string | null, maxLength: number): string | null {
   if (!value) {
