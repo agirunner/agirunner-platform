@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import json
 import re
+import subprocess
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
 
@@ -54,6 +57,11 @@ FORBIDDEN_SURFACED_FRAGMENTS = (
     "\"request_id\":",
 )
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
+COMPOSE_EXECUTION_TURN_ROWS_SCRIPT = (
+    REPO_ROOT / "tests" / "live" / "scripts" / "compose-execution-turn-rows.ts"
+)
+
 
 def build_workspace_scope_trace(
     client: ApiClient,
@@ -65,6 +73,7 @@ def build_workspace_scope_trace(
 ) -> dict[str, Any]:
     db_payload = db_state if isinstance(db_state, dict) else {}
     effective_mode = read_effective_live_visibility_mode(db_payload)
+    composed_execution_turn_rows = load_composed_execution_turn_rows(execution_logs)
     candidate = select_scope_candidate(workflow, db_payload)
     if candidate is None:
         failure = "unable to select a non-orchestrator task with a work item for workspace scope reconciliation"
@@ -78,6 +87,7 @@ def build_workspace_scope_trace(
             workflow_id=workflow_id,
             db_state=db_payload,
             execution_logs=execution_logs,
+            composed_execution_turn_rows=composed_execution_turn_rows,
             effective_mode=effective_mode,
             scope_key="workflow_scope",
             scope_kind="workflow",
@@ -89,6 +99,7 @@ def build_workspace_scope_trace(
             workflow_id=workflow_id,
             db_state=db_payload,
             execution_logs=execution_logs,
+            composed_execution_turn_rows=composed_execution_turn_rows,
             effective_mode=effective_mode,
             scope_key="selected_work_item_scope",
             scope_kind="selected_work_item",
@@ -100,6 +111,7 @@ def build_workspace_scope_trace(
             workflow_id=workflow_id,
             db_state=db_payload,
             execution_logs=execution_logs,
+            composed_execution_turn_rows=composed_execution_turn_rows,
             effective_mode=effective_mode,
             scope_key="selected_task_scope",
             scope_kind="selected_task",
@@ -161,6 +173,7 @@ def reconcile_scope(
     workflow_id: str,
     db_state: dict[str, Any],
     execution_logs: dict[str, Any] | None,
+    composed_execution_turn_rows: list[dict[str, Any]] | None,
     effective_mode: str,
     scope_key: str,
     scope_kind: str,
@@ -183,6 +196,7 @@ def reconcile_scope(
     )
     enhanced_live_console = reconcile_enhanced_live_console(
         execution_logs=execution_logs,
+        composed_execution_turn_rows=composed_execution_turn_rows,
         execution_turn_items=api_summary["live_console"]["execution_turn_items"],
         effective_mode=effective_mode,
         scope_kind=scope_kind,
@@ -426,6 +440,7 @@ def compare_scope_summary(
 def reconcile_enhanced_live_console(
     *,
     execution_logs: dict[str, Any] | None,
+    composed_execution_turn_rows: list[dict[str, Any]] | None = None,
     execution_turn_items: list[dict[str, Any]],
     effective_mode: str,
     scope_kind: str,
@@ -446,6 +461,7 @@ def reconcile_enhanced_live_console(
 
     expected_rows = expected_enhanced_live_console_rows(
         execution_logs=execution_logs,
+        composed_execution_turn_rows=composed_execution_turn_rows,
         scope_kind=scope_kind,
         work_item_id=work_item_id,
         task_id=task_id,
@@ -505,10 +521,24 @@ def reconcile_enhanced_live_console(
 def expected_enhanced_live_console_rows(
     *,
     execution_logs: dict[str, Any] | None,
+    composed_execution_turn_rows: list[dict[str, Any]] | None,
     scope_kind: str,
     work_item_id: str | None,
     task_id: str | None,
 ) -> list[dict[str, Any]]:
+    if composed_execution_turn_rows is not None:
+        rows: list[dict[str, Any]] = []
+        for row in composed_execution_turn_rows:
+            normalized = normalize_composed_execution_turn_row(row)
+            if enhanced_row_matches_scope(
+                normalized,
+                scope_kind=scope_kind,
+                work_item_id=work_item_id,
+                task_id=task_id,
+            ):
+                rows.append(normalized)
+        return rows
+
     rows: list[dict[str, Any]] = []
     for row in execution_log_rows(execution_logs):
         normalized = compose_expected_execution_turn_row(row)
@@ -542,6 +572,74 @@ def summarize_execution_turn_items(records: list[dict[str, Any]]) -> list[dict[s
             }
         )
     return items
+
+
+def load_composed_execution_turn_rows(execution_logs: dict[str, Any] | None) -> list[dict[str, Any]] | None:
+    if not isinstance(execution_logs, dict):
+        return None
+
+    precomposed = execution_logs.get("composed_execution_turn_rows")
+    if isinstance(precomposed, list):
+        return [dict(item) for item in precomposed if isinstance(item, dict)]
+
+    raw_rows = execution_log_rows(execution_logs)
+    if len(raw_rows) == 0:
+        return []
+
+    if not COMPOSE_EXECUTION_TURN_ROWS_SCRIPT.is_file():
+        return None
+
+    try:
+        result = subprocess.run(
+            [
+                "corepack",
+                "pnpm",
+                "exec",
+                "tsx",
+                str(COMPOSE_EXECUTION_TURN_ROWS_SCRIPT),
+            ],
+            cwd=REPO_ROOT,
+            input=json.dumps({"rows": raw_rows}),
+            text=True,
+            capture_output=True,
+            check=True,
+        )
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        return None
+
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+
+    items = payload.get("items")
+    if not isinstance(items, list):
+        return None
+    return [dict(item) for item in items if isinstance(item, dict)]
+
+
+def normalize_composed_execution_turn_row(row: dict[str, Any]) -> dict[str, Any]:
+    linked_target_ids = [
+        value
+        for value in as_list(row.get("linked_target_ids"))
+        if isinstance(value, str) and value.strip() != ""
+    ]
+    return {
+        "log_id": read_string(row.get("log_id")),
+        "item_id": read_string(row.get("item_id")),
+        "headline": read_string(row.get("headline")),
+        "summary": read_string(row.get("summary")),
+        "task_id": read_string(row.get("task_id")),
+        "work_item_id": read_string(row.get("work_item_id")),
+        "scope_binding": read_string(row.get("scope_binding")),
+        "linked_target_ids": linked_target_ids,
+        "surface_expected": True,
+        "surface_kind": "execution_turn",
+        "expected_headline": read_string(row.get("headline")),
+        "expected_summary": read_string(row.get("summary")),
+        "tool_name": None,
+        "suppression_reason": None,
+    }
 
 
 def compose_expected_execution_turn_row(row: dict[str, Any]) -> dict[str, Any] | None:
