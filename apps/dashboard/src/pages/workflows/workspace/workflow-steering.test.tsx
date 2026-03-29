@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 
 import type {
   DashboardTaskRecord,
+  DashboardWorkflowInterventionRecord,
   DashboardWorkflowSteeringMessageRecord,
   DashboardWorkflowWorkItemRecord,
 } from '../../../lib/api.js';
@@ -18,13 +19,15 @@ import {
 } from './workflow-steering.js';
 
 describe('WorkflowSteering', () => {
-  it('renders task-scoped steering copy from the current workbench scope', () => {
+  it('normalizes stale task-scoped steering copy back to the selected work item', () => {
     const html = renderSteering();
-    expect(html).toContain('Task: Verify deliverable');
-    expect(html).toContain('Record durable requests, responses, and attachments for this task.');
-    expect(html).toContain('Guide Verify deliverable toward the next legal action.');
-    expect(html).toContain('Targeting task: Verify deliverable');
-    expect(html).toContain('No steering history exists for this task yet.');
+    expect(html).toContain('Work item: Prepare release bundle');
+    expect(html).toContain('Record durable requests, responses, and attachments for this work item.');
+    expect(html).toContain('Guide Prepare release bundle toward the next legal action.');
+    expect(html).toContain('Targeting work item: Prepare release bundle');
+    expect(html).toContain('No steering history exists for this work item yet.');
+    expect(html).not.toContain('Task: Verify deliverable');
+    expect(html).not.toContain('this task');
   });
 
   it('defaults workflow-scoped steering to workflow targeting while keeping narrower pickers explicit', () => {
@@ -47,13 +50,10 @@ describe('WorkflowSteering', () => {
     expect(html).not.toContain('Select a target');
   });
 
-  it('offers active child tasks as explicit workflow-scope steering targets and filters paused work', () => {
+  it('offers only the eligible selected work item as an explicit workflow-scope steering target', () => {
     const options = buildWorkflowSteeringTargets(
       createTargetContext({
         scope: createScope('workflow'),
-        selectedTaskId: null,
-        selectedTaskTitle: null,
-        selectedTask: null,
         selectedWorkItemTasks: [
           createTask({
             id: 'task-1',
@@ -69,16 +69,15 @@ describe('WorkflowSteering', () => {
     expect(options.map((option) => option.label)).toEqual([
       'Workflow: Workflow 1',
       'Work item: Prepare release bundle',
-      'Task: Verify deliverable',
     ]);
   });
 
-  it('builds task-targeted steering requests with the task id in the payload', () => {
+  it('normalizes stale task-scoped steering requests to the selected work item payload', () => {
     expect(createRequestPayload(createTarget('selected_task'))).toEqual({
       request_id: 'request-1',
       request: 'Keep the rollout limited to the current scope.',
       work_item_id: 'work-item-7',
-      task_id: 'task-3',
+      task_id: undefined,
       linked_input_packet_ids: [],
       session_id: 'session-1',
     });
@@ -141,25 +140,28 @@ describe('WorkflowSteering', () => {
     expect(options.map((option) => option.label)).toEqual(['Workflow: Workflow 1']);
   });
 
-  it('reports a clear disabled reason when the selected task is paused', () => {
-    const pausedTask = createPausedTask();
+  it('reports a clear disabled reason when stale task scope resolves to a completed work item', () => {
+    const completedWorkItem = createWorkItem({
+      completed_at: '2026-03-28T04:00:00.000Z',
+      column_id: 'done',
+    });
     const target = createTarget('selected_task', {
-      selectedTask: pausedTask,
-      selectedWorkItemTasks: [pausedTask],
+      boardColumns: doneColumns(),
+      selectedWorkItem: completedWorkItem,
     });
     expect(
       describeSteeringTargetDisabledReason({
         workflowState: 'active',
-        boardColumns: activeColumns(),
+        boardColumns: doneColumns(),
         target,
-        selectedWorkItem: createWorkItem(),
-        selectedTask: pausedTask,
-        selectedWorkItemTasks: [pausedTask],
+        selectedWorkItem: completedWorkItem,
+        selectedTask: createPausedTask(),
+        selectedWorkItemTasks: [],
       }),
-    ).toBe('This task is paused. Resume it or choose another target before steering.');
+    ).toBe('This work item is already completed or cancelled. Historical work cannot be steered.');
   });
 
-  it('reports a clear disabled reason when the workflow is paused even if the selected task itself is still active', () => {
+  it('reports a clear disabled reason when the workflow is paused even if stale task scope is still present', () => {
     const activeTask = createTask();
     const target = createTarget('selected_task', {
       workflowState: 'paused',
@@ -204,7 +206,7 @@ describe('WorkflowSteering', () => {
     ).toBe('This work item is already completed or cancelled. Historical work cannot be steered.');
   });
 
-  it('reports a clear disabled reason when the selected task belongs to a cancelled workflow', () => {
+  it('reports a clear disabled reason when stale task scope belongs to a cancelled workflow', () => {
     const activeTask = createTask();
     const target = createTarget('selected_task', {
       workflowState: 'cancelled',
@@ -303,6 +305,33 @@ describe('WorkflowSteering', () => {
         [],
       ),
     ).toHaveLength(1);
+  });
+
+  it('suppresses intervention rows that only echo the same steering request text', () => {
+    const entries = buildSteeringHistory(
+      [
+        createMessage({
+          id: 'message-1',
+          source_kind: 'operator',
+          message_kind: 'operator_request',
+          headline: 'Tighten the approval brief.',
+          body: 'Keep the scope narrow.',
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-28T04:00:00.000Z',
+        }),
+      ],
+      [
+        createIntervention({
+          id: 'intervention-1',
+          summary: 'Tighten the approval brief.',
+          note: 'Keep the scope narrow.',
+        }),
+      ],
+    );
+
+    expect(entries).toHaveLength(1);
+    expect(entries[0]?.title).toBe('Tighten the approval brief.');
   });
 });
 
@@ -436,6 +465,27 @@ function createMessage(
     linked_intervention_id: null,
     linked_input_packet_id: null,
     linked_operator_update_id: null,
+    ...overrides,
+  };
+}
+
+function createIntervention(
+  overrides: Pick<DashboardWorkflowInterventionRecord, 'id' | 'summary' | 'note'>,
+): DashboardWorkflowInterventionRecord {
+  return {
+    workflow_id: 'workflow-1',
+    work_item_id: 'work-item-7',
+    task_id: null,
+    kind: 'steering_request',
+    origin: 'operator',
+    status: 'applied',
+    structured_action: {},
+    metadata: {},
+    created_by_type: 'user',
+    created_by_id: 'user-1',
+    created_at: '2026-03-28T04:00:01.000Z',
+    updated_at: '2026-03-28T04:00:01.000Z',
+    files: [],
     ...overrides,
   };
 }

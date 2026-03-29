@@ -15,6 +15,8 @@ describe('WorkflowNeedsAction', () => {
         createElement(WorkflowNeedsAction, {
           workflowId: 'workflow-1',
           workspaceId: 'workspace-1',
+          scopeSubject: 'work item',
+          scopeLabel: 'Work item: workflows-intake-02',
           packet: {
             items: [
               {
@@ -79,6 +81,8 @@ describe('WorkflowNeedsAction', () => {
         createElement(WorkflowNeedsAction, {
           workflowId: 'workflow-1',
           workspaceId: 'workspace-1',
+          scopeSubject: 'work item',
+          scopeLabel: 'Work item: workflows-intake-02',
           packet: {
             items: [
               {
@@ -142,6 +146,8 @@ describe('WorkflowNeedsAction', () => {
         createElement(WorkflowNeedsAction, {
           workflowId: 'workflow-1',
           workspaceId: 'workspace-1',
+          scopeSubject: 'work item',
+          scopeLabel: 'Work item: workflows-intake-02',
           packet: {
             items: [
               {
@@ -249,7 +255,7 @@ describe('WorkflowNeedsAction', () => {
     expect(html).toContain('Request changes');
   });
 
-  it('renders the empty state for the exact current scope instead of defaulting to workflow copy', () => {
+  it('normalizes stale task empty-state copy back to the selected work item scope', () => {
     const html = renderToStaticMarkup(
       createElement(
         QueryClientProvider,
@@ -267,8 +273,9 @@ describe('WorkflowNeedsAction', () => {
       ),
     );
 
-    expect(html).toContain('Nothing in this task requires operator action right now.');
+    expect(html).toContain('Nothing in this work item requires operator action right now.');
     expect(html).not.toContain('Nothing in this workflow requires operator action right now.');
+    expect(html).not.toContain('Nothing in this task requires operator action right now.');
   });
 
   it('renders approval context details inline for approval cards', () => {
@@ -334,7 +341,7 @@ describe('WorkflowNeedsAction', () => {
     expect(html).toContain('3');
   });
 
-  it('shows the exact selected scope in the needs-action header while keeping action context inline', () => {
+  it('keeps task-backed actions visually scoped to the selected work item', () => {
     const html = renderToStaticMarkup(
       createElement(
         QueryClientProvider,
@@ -342,8 +349,8 @@ describe('WorkflowNeedsAction', () => {
         createElement(WorkflowNeedsAction, {
           workflowId: 'workflow-1',
           workspaceId: 'workspace-1',
-          scopeSubject: 'task',
-          scopeLabel: 'Task: Verify deliverable',
+          scopeSubject: 'work item',
+          scopeLabel: 'Work item: Prepare release bundle',
           packet: {
             items: [
               {
@@ -386,9 +393,11 @@ describe('WorkflowNeedsAction', () => {
       ),
     );
 
-    expect(html).toContain('Task: Verify deliverable');
+    expect(html).toContain('Work item: Prepare release bundle');
     expect(html).toContain('Approval required');
     expect(html).toContain('Approve release packet');
+    expect(html).toContain('Scope: Work Item');
+    expect(html).not.toContain('Scope: Task');
     expect(html).not.toContain('Open Steering');
   });
 
@@ -400,6 +409,8 @@ describe('WorkflowNeedsAction', () => {
         createElement(WorkflowNeedsAction, {
           workflowId: 'workflow-1',
           workspaceId: 'workspace-1',
+          scopeSubject: 'work item',
+          scopeLabel: 'Work item: workflows-intake-02',
           packet: {
             items: [
               {
@@ -451,6 +462,8 @@ describe('WorkflowNeedsAction', () => {
     );
 
     expect(html).toContain('submit_handoff replay mismatch conflict');
+    expect(html).toContain('Scope: Work Item');
+    expect(html).not.toContain('Scope: Task');
     expect(html).toContain('Context');
     expect(html).toContain('item content is ready for policy review, summary file already written');
     expect(html).toContain('Work so far');

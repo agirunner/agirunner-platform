@@ -22,8 +22,9 @@ export function WorkflowNeedsAction(props: {
   packet: DashboardWorkflowNeedsActionPacket;
   onOpenAddWork?(workItemId: string | null): void;
 }): JSX.Element {
-  const scopeSubject = props.scopeSubject ?? 'workflow';
-  const scopeLabel = props.scopeLabel ?? `This ${scopeSubject}`;
+  const normalizedScope = normalizeNeedsActionScope(props.scopeSubject, props.scopeLabel);
+  const scopeSubject = normalizedScope.subject;
+  const scopeLabel = normalizedScope.label;
   const queryClient = useQueryClient();
   const [promptAction, setPromptAction] = useState<DashboardWorkflowNeedsActionResponseAction | null>(null);
   const [promptValue, setPromptValue] = useState('');
@@ -101,6 +102,7 @@ export function WorkflowNeedsAction(props: {
             <NeedsActionCard
               key={item.action_id}
               item={item}
+              visibleScopeSubject={scopeSubject}
               activePromptActionId={promptAction?.action_id ?? null}
               promptValue={promptValue}
               promptError={promptError}
@@ -126,6 +128,7 @@ export function WorkflowNeedsAction(props: {
 
 function NeedsActionCard(props: {
   item: DashboardWorkflowNeedsActionItem;
+  visibleScopeSubject: 'workflow' | 'work item';
   activePromptActionId: string | null;
   promptValue: string;
   promptError: string | null;
@@ -138,12 +141,17 @@ function NeedsActionCard(props: {
   const responses = props.item.responses.filter(isSupportedNeedsActionResponse);
   const activePromptAction = responses.find((action) => action.action_id === props.activePromptActionId) ?? null;
   const promptMeta = buildPromptMeta(activePromptAction);
+  const visibleTargetKind = describeNeedsActionVisibleTargetKind(
+    props.visibleScopeSubject,
+    props.item.target.target_kind,
+  );
+  const actionTargetKind = humanizeToken(props.item.target.target_kind);
 
   return (
     <article className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
       <div className="flex flex-wrap items-center gap-2">
         <strong className="text-foreground">{props.item.label}</strong>
-        <Badge variant="warning">{humanizeToken(props.item.target.target_kind)}</Badge>
+        <Badge variant="warning">{humanizeToken(visibleTargetKind)}</Badge>
         <Badge variant="secondary">{humanizePriority(props.item.priority)} priority</Badge>
         {props.item.requires_confirmation ? <Badge variant="outline">Confirm</Badge> : null}
       </div>
@@ -153,9 +161,12 @@ function NeedsActionCard(props: {
         </p>
         <p className="text-sm text-muted-foreground">{props.item.summary}</p>
         <p className="text-xs text-muted-foreground">
-          Scope: {humanizeToken(props.item.target.target_kind)}
+          Scope: {humanizeToken(visibleTargetKind)}
           {props.item.requires_confirmation ? ' • Requires confirmation' : ''}
         </p>
+        {visibleTargetKind !== props.item.target.target_kind ? (
+          <p className="text-xs text-muted-foreground">Action target: {actionTargetKind}</p>
+        ) : null}
       </div>
       {props.item.details && props.item.details.length > 0 ? (
         <dl className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-3">
@@ -217,6 +228,33 @@ function NeedsActionCard(props: {
       ) : null}
     </article>
   );
+}
+
+function normalizeNeedsActionScope(
+  scopeSubject: 'workflow' | 'work item' | 'task' | undefined,
+  scopeLabel: string | undefined,
+): { subject: 'workflow' | 'work item'; label: string } {
+  if (scopeSubject === 'task') {
+    return {
+      subject: 'work item',
+      label: scopeLabel?.startsWith('Work item:') ? scopeLabel : 'This work item',
+    };
+  }
+  const subject = scopeSubject ?? 'workflow';
+  return {
+    subject,
+    label: scopeLabel ?? `This ${subject}`,
+  };
+}
+
+function describeNeedsActionVisibleTargetKind(
+  visibleScopeSubject: 'workflow' | 'work item',
+  actionTargetKind: DashboardWorkflowNeedsActionItem['target']['target_kind'],
+): DashboardWorkflowNeedsActionItem['target']['target_kind'] {
+  if (visibleScopeSubject === 'work item' && actionTargetKind === 'task') {
+    return 'work_item';
+  }
+  return actionTargetKind;
 }
 
 async function runNeedsAction(

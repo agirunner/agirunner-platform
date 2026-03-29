@@ -52,11 +52,12 @@ export function WorkflowSteering(props: {
   const [request, setRequest] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const normalizedScope = normalizeSteeringScope(props);
   const targetOptions = useMemo(
-    () => buildWorkflowSteeringTargets(props),
+    () => buildWorkflowSteeringTargets({ ...props, scope: normalizedScope }),
     [
       props.boardColumns,
-      props.scope,
+      normalizedScope,
       props.selectedTask,
       props.selectedTaskId,
       props.selectedTaskTitle,
@@ -68,25 +69,22 @@ export function WorkflowSteering(props: {
       props.workflowState,
     ],
   );
-  const isScopeLocked = props.scope.scopeKind !== 'workflow';
+  const isScopeLocked = normalizedScope.scopeKind !== 'workflow';
   const workflowTarget = targetOptions.find((option) => option.scopeKind === 'workflow') ?? null;
   const workflowScopeWorkItemTargets = targetOptions.filter(
     (option) => option.scopeKind === 'selected_work_item',
   );
-  const workflowScopeTaskTargets = targetOptions.filter(
-    (option) => option.scopeKind === 'selected_task',
-  );
   const lockedTargetValue = isScopeLocked ? (targetOptions[0]?.value ?? '') : '';
   const initialTargetKind = isScopeLocked ? (targetOptions[0]?.scopeKind ?? 'workflow') : 'workflow';
   const initialTargetValue = isScopeLocked ? lockedTargetValue : (workflowTarget?.value ?? '');
-  const [selectedTargetKind, setSelectedTargetKind] = useState<
-    'workflow' | 'selected_work_item' | 'selected_task'
-  >(initialTargetKind);
+  const [selectedTargetKind, setSelectedTargetKind] = useState<'workflow' | 'selected_work_item'>(
+    initialTargetKind === 'selected_work_item' ? 'selected_work_item' : 'workflow',
+  );
   const [selectedTargetValue, setSelectedTargetValue] = useState(initialTargetValue);
 
   useEffect(() => {
     if (isScopeLocked) {
-      setSelectedTargetKind(targetOptions[0]?.scopeKind ?? 'workflow');
+      setSelectedTargetKind(targetOptions[0]?.scopeKind === 'selected_work_item' ? 'selected_work_item' : 'workflow');
       setSelectedTargetValue(lockedTargetValue);
       return;
     }
@@ -94,7 +92,6 @@ export function WorkflowSteering(props: {
       getAvailableTargetKinds({
         workflowTarget,
         workflowScopeWorkItemTargets,
-        workflowScopeTaskTargets,
       }).includes(currentKind)
         ? currentKind
         : 'workflow',
@@ -103,7 +100,6 @@ export function WorkflowSteering(props: {
     isScopeLocked,
     lockedTargetValue,
     targetOptions,
-    workflowScopeTaskTargets,
     workflowScopeWorkItemTargets,
     workflowTarget,
   ]);
@@ -116,18 +112,13 @@ export function WorkflowSteering(props: {
       setSelectedTargetValue(workflowTarget?.value ?? '');
       return;
     }
-
-    const filteredTargets =
-      selectedTargetKind === 'selected_work_item'
-        ? workflowScopeWorkItemTargets
-        : workflowScopeTaskTargets;
+    const filteredTargets = workflowScopeWorkItemTargets;
     setSelectedTargetValue((currentValue) =>
       filteredTargets.some((option) => option.value === currentValue) ? currentValue : '',
     );
   }, [
     isScopeLocked,
     selectedTargetKind,
-    workflowScopeTaskTargets,
     workflowScopeWorkItemTargets,
     workflowTarget,
   ]);
@@ -147,10 +138,8 @@ export function WorkflowSteering(props: {
     ? `Guide ${selectedTarget.name} toward the next legal action.`
     : selectedTargetKind === 'selected_work_item'
       ? 'Choose a work item target above before writing a request.'
-      : selectedTargetKind === 'selected_task'
-        ? 'Choose a task target above before writing a request.'
-        : 'Choose a steering target above before writing a request.';
-  const attachmentSubject = selectedTarget?.subject ?? props.scope.subject;
+      : 'Choose a steering target above before writing a request.';
+  const attachmentSubject = selectedTarget?.subject ?? normalizedScope.subject;
 
   const requestMutation = useMutation({
     mutationFn: async () => {
@@ -200,13 +189,13 @@ export function WorkflowSteering(props: {
     <div className="grid gap-4">
       <section className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">{props.scope.banner}</Badge>
+          <Badge variant="outline">{normalizedScope.banner}</Badge>
           {props.sessionId ? <Badge variant="secondary">Open session</Badge> : null}
         </div>
         <div className="grid gap-1">
           <p className="text-sm font-semibold text-foreground">Steering request</p>
           <p className="text-sm text-muted-foreground">
-            Record durable requests, responses, and attachments for this {props.scope.subject}.
+            Record durable requests, responses, and attachments for this {normalizedScope.subject}.
           </p>
         </div>
         <div className="grid gap-2">
@@ -235,16 +224,13 @@ export function WorkflowSteering(props: {
                   value={selectedTargetKind}
                   className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
                   onChange={(event) =>
-                    setSelectedTargetKind(
-                      event.target.value as 'workflow' | 'selected_work_item' | 'selected_task',
-                    )
+                    setSelectedTargetKind(event.target.value as 'workflow' | 'selected_work_item')
                   }
                 >
                   {workflowTarget ? <option value="workflow">Workflow</option> : null}
                   {workflowScopeWorkItemTargets.length > 0 ? (
                     <option value="selected_work_item">Work item</option>
                   ) : null}
-                  {workflowScopeTaskTargets.length > 0 ? <option value="selected_task">Task</option> : null}
                 </select>
               </div>
               {selectedTargetKind === 'selected_work_item' ? (
@@ -254,16 +240,6 @@ export function WorkflowSteering(props: {
                   placeholder="Select a work item"
                   value={selectedTargetValue}
                   options={workflowScopeWorkItemTargets}
-                  onChange={setSelectedTargetValue}
-                />
-              ) : null}
-              {selectedTargetKind === 'selected_task' ? (
-                <TargetSelect
-                  id="workflow-steering-target"
-                  label="Specific task"
-                  placeholder="Select a task"
-                  value={selectedTargetValue}
-                  options={workflowScopeTaskTargets}
                   onChange={setSelectedTargetValue}
                 />
               ) : null}
@@ -303,12 +279,12 @@ export function WorkflowSteering(props: {
         <div className="grid gap-1">
           <p className="text-sm font-semibold text-foreground">Steering history</p>
           <p className="text-sm text-muted-foreground">
-            Review prior steering requests, responses, and interventions for this {props.scope.subject}.
+            Review prior steering requests, responses, and interventions for this {normalizedScope.subject}.
           </p>
         </div>
         {historyEntries.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
-            No steering history exists for this {props.scope.subject} yet.
+            No steering history exists for this {normalizedScope.subject} yet.
           </div>
         ) : (
           <div className="grid gap-3">
@@ -362,14 +338,22 @@ export function buildSteeringHistory(
         createdAt: message.created_at,
       };
     });
-  const interventionEntries = interventions.map<SteeringHistoryEntry>((intervention) => ({
-    id: `intervention:${intervention.id}`,
-    title: intervention.summary,
-    body: intervention.note,
-    badge: humanizeToken(intervention.kind),
-    variant: 'warning',
-    createdAt: intervention.created_at,
-  }));
+  const messageEchoKeys = new Set(
+    messageEntries.map((entry) => buildSteeringHistoryEchoKey(entry.title, entry.body)),
+  );
+  const interventionEntries = interventions
+    .filter((intervention) =>
+      intervention.kind !== 'steering_request'
+      || !messageEchoKeys.has(buildSteeringHistoryEchoKey(intervention.summary, intervention.note)),
+    )
+    .map<SteeringHistoryEntry>((intervention) => ({
+      id: `intervention:${intervention.id}`,
+      title: intervention.summary,
+      body: intervention.note,
+      badge: humanizeToken(intervention.kind),
+      variant: 'warning',
+      createdAt: intervention.created_at,
+    }));
   return [...messageEntries, ...interventionEntries].sort((left, right) =>
     right.createdAt.localeCompare(left.createdAt),
   );
@@ -418,19 +402,40 @@ function readSteeringHistoryDisplayText(value: string | null | undefined): strin
 function getAvailableTargetKinds(input: {
   workflowTarget: ReturnType<typeof buildWorkflowSteeringTargets>[number] | null;
   workflowScopeWorkItemTargets: ReturnType<typeof buildWorkflowSteeringTargets>;
-  workflowScopeTaskTargets: ReturnType<typeof buildWorkflowSteeringTargets>;
-}): Array<'workflow' | 'selected_work_item' | 'selected_task'> {
-  const kinds: Array<'workflow' | 'selected_work_item' | 'selected_task'> = [];
+}): Array<'workflow' | 'selected_work_item'> {
+  const kinds: Array<'workflow' | 'selected_work_item'> = [];
   if (input.workflowTarget) {
     kinds.push('workflow');
   }
   if (input.workflowScopeWorkItemTargets.length > 0) {
     kinds.push('selected_work_item');
   }
-  if (input.workflowScopeTaskTargets.length > 0) {
-    kinds.push('selected_task');
-  }
   return kinds;
+}
+
+function normalizeSteeringScope(props: Pick<
+  Parameters<typeof WorkflowSteering>[0],
+  'scope' | 'selectedWorkItemTitle' | 'selectedWorkItem' | 'selectedTask'
+>): WorkflowWorkbenchScopeDescriptor {
+  if (props.scope.scopeKind !== 'selected_task') {
+    return props.scope;
+  }
+  const workItemName =
+    props.selectedWorkItemTitle
+    ?? props.selectedWorkItem?.title
+    ?? props.selectedTask?.work_item_title
+    ?? 'Selected work item';
+  return {
+    scopeKind: 'selected_work_item',
+    title: 'Work item',
+    subject: 'work item',
+    name: workItemName,
+    banner: `Work item: ${workItemName}`,
+  };
+}
+
+function buildSteeringHistoryEchoKey(title: string, body: string | null): string {
+  return `${normalizeSteeringHistoryText(title) ?? ''}::${normalizeSteeringHistoryText(body) ?? ''}`;
 }
 
 function TargetSelect(props: {
