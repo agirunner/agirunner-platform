@@ -147,16 +147,28 @@ export class WorkflowLiveConsoleService {
     if (mode !== 'enhanced' || !this.executionTurnSource) {
       return [];
     }
-    const result = await this.executionTurnSource.query(tenantId, {
-      workflowId,
-      workItemId: input.workItemId,
-      taskId: input.taskId,
-      category: ['agent_loop'],
-      operation: ['agent.think', 'agent.plan', 'agent.act', 'agent.observe', 'agent.verify'],
-      order: 'desc',
-      perPage: fetchWindow,
-    });
-    return buildExecutionTurnItems(result.data);
+    const [agentLoopRows, llmRows] = await Promise.all([
+      this.executionTurnSource.query(tenantId, {
+        workflowId,
+        workItemId: input.workItemId,
+        taskId: input.taskId,
+        category: ['agent_loop'],
+        operation: ['agent.observe', 'agent.think', 'agent.plan', 'agent.act', 'agent.verify'],
+        order: 'desc',
+        perPage: fetchWindow,
+      }),
+      this.executionTurnSource.query(tenantId, {
+        workflowId,
+        workItemId: input.workItemId,
+        taskId: input.taskId,
+        category: ['llm'],
+        operation: ['llm.chat_stream'],
+        order: 'desc',
+        perPage: fetchWindow,
+      }),
+    ]);
+    const rows = [...agentLoopRows.data, ...llmRows.data].sort(sortLogRowsNewestFirst);
+    return buildExecutionTurnItems(rows);
   }
 }
 
@@ -264,6 +276,13 @@ function asRecord(value: unknown): Record<string, unknown> {
     return {};
   }
   return value as Record<string, unknown>;
+}
+
+function sortLogRowsNewestFirst(left: LogRow, right: LogRow): number {
+  return compareCursorTargets(
+    { timestamp: left.created_at, id: left.id },
+    { timestamp: right.created_at, id: right.id },
+  );
 }
 
 function sortNewestFirst(left: WorkflowLiveConsoleItem, right: WorkflowLiveConsoleItem): number {

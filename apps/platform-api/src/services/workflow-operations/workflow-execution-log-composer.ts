@@ -8,6 +8,7 @@ const LIVE_CONSOLE_AGENT_LOOP_OPERATIONS = new Set([
   'agent.act',
   'agent.observe',
   'agent.verify',
+  'llm.chat_stream',
 ]);
 
 const HISTORY_LIFECYCLE_OPERATIONS = new Set([
@@ -21,24 +22,10 @@ export function buildExecutionTurnItems(rows: LogRow[]): WorkflowLiveConsoleItem
   const items: WorkflowLiveConsoleItem[] = [];
 
   for (const row of rows) {
-    if (!LIVE_CONSOLE_AGENT_LOOP_OPERATIONS.has(row.operation) || !shouldRenderExecutionTurn(row)) {
+    const item = buildExecutionTurnItem(row);
+    if (!item) {
       continue;
     }
-    const scope = resolveExecutionTurnScope(row);
-
-    const item: WorkflowLiveConsoleItem = {
-      item_id: `execution-log:${row.id}`,
-      item_kind: 'execution_turn',
-      source_kind: readLogSourceKind(row),
-      source_label: readLogSourceLabel(row),
-      headline: buildExecutionTurnHeadline(row),
-      summary: buildExecutionTurnSummary(row),
-      created_at: normalizeTimestamp(row.created_at),
-      work_item_id: scope.workItemId,
-      task_id: scope.taskId,
-      linked_target_ids: scope.linkedTargetIds,
-      scope_binding: scope.binding,
-    };
     const previousItem = items.at(-1);
     if (shouldSuppressAdjacentExecutionItem(previousItem, item)) {
       continue;
@@ -51,6 +38,33 @@ export function buildExecutionTurnItems(rows: LogRow[]): WorkflowLiveConsoleItem
   }
 
   return items;
+}
+
+function buildExecutionTurnItem(row: LogRow): WorkflowLiveConsoleItem | null {
+  if (!LIVE_CONSOLE_AGENT_LOOP_OPERATIONS.has(row.operation)) {
+    return null;
+  }
+  if (row.operation === 'llm.chat_stream') {
+    return buildLLMExecutionTurnItem(row);
+  }
+  if (!shouldRenderExecutionTurn(row)) {
+    return null;
+  }
+
+  const scope = resolveExecutionTurnScope(row);
+  return {
+    item_id: `execution-log:${row.id}`,
+    item_kind: 'execution_turn',
+    source_kind: readLogSourceKind(row),
+    source_label: readLogSourceLabel(row),
+    headline: buildExecutionTurnHeadline(row),
+    summary: buildExecutionTurnSummary(row),
+    created_at: normalizeTimestamp(row.created_at),
+    work_item_id: scope.workItemId,
+    task_id: scope.taskId,
+    linked_target_ids: scope.linkedTargetIds,
+    scope_binding: scope.binding,
+  };
 }
 
 export function buildLifecycleHistoryItems(rows: LogRow[]): WorkflowHistoryItem[] {
@@ -68,6 +82,38 @@ export function buildLifecycleHistoryItems(rows: LogRow[]): WorkflowHistoryItem[
       task_id: row.task_id,
       linked_target_ids: buildLinkedTargetIds(row),
     }));
+}
+
+function buildLLMExecutionTurnItem(row: LogRow): WorkflowLiveConsoleItem | null {
+  if (row.status !== 'completed') {
+    return null;
+  }
+
+  const payload = asRecord(row.payload);
+  const phase = readLLMExecutionPhase(payload);
+  if (!phase) {
+    return null;
+  }
+
+  const summary = buildLLMExecutionTurnSummary(phase, payload);
+  if (!summary) {
+    return null;
+  }
+
+  const scope = resolveExecutionTurnScope(row);
+  return {
+    item_id: `execution-log:${row.id}`,
+    item_kind: 'execution_turn',
+    source_kind: readLogSourceKind(row),
+    source_label: readLogSourceLabel(row),
+    headline: formatExecutionPhaseHeadline(`agent.${phase}`, summary),
+    summary,
+    created_at: normalizeTimestamp(row.created_at),
+    work_item_id: scope.workItemId,
+    task_id: scope.taskId,
+    linked_target_ids: scope.linkedTargetIds,
+    scope_binding: scope.binding,
+  };
 }
 
 function buildExecutionTurnHeadline(row: LogRow): string {
@@ -126,6 +172,40 @@ function buildExecutionTurnSummary(row: LogRow): string {
     return humanizeToken(row.operation);
   }
   return detail;
+}
+
+function buildLLMExecutionTurnSummary(
+  phase: 'think' | 'plan' | 'act' | 'verify',
+  payload: Record<string, unknown>,
+): string | null {
+  switch (phase) {
+    case 'think':
+      return (
+        readLoggedResponseField(payload, ['approach', 'reasoning_summary', 'headline'])
+        ?? readLoggedResponseText(payload, 180)
+      );
+    case 'plan':
+      return (
+        readLoggedResponseField(payload, ['summary', 'plan_summary', 'headline'])
+        ?? readOperatorReadableText(readFirstPlanDescription(readLoggedResponseFieldValue(payload, 'steps')), 180)
+        ?? readLoggedResponseText(payload, 180)
+      );
+    case 'act': {
+      const prose = readLoggedResponseField(payload, ['headline', 'summary', 'details'])
+        ?? readLoggedResponseText(payload, 180);
+      if (prose && !looksLikeSyntheticLoggedToolCall(prose, payload)) {
+        return prose;
+      }
+      return buildLoggedToolCallSummary(payload);
+    }
+    case 'verify':
+      return (
+        readLoggedResponseField(payload, ['reason', 'summary', 'headline'])
+        ?? readLoggedResponseText(payload, 180)
+      );
+    default:
+      return null;
+  }
 }
 
 function buildLifecycleHeadline(row: LogRow): string {
@@ -671,6 +751,148 @@ function readPlanText(payload: Record<string, unknown>): string | null {
   );
 }
 
+function readLLMExecutionPhase(
+  payload: Record<string, unknown>,
+): 'think' | 'plan' | 'act' | 'verify' | null {
+  const phase = readString(payload.phase);
+  if (
+    phase === 'think'
+    || phase === 'plan'
+    || phase === 'act'
+    || phase === 'verify'
+  ) {
+    return phase;
+  }
+  return null;
+}
+
+function readLoggedResponseField(
+  payload: Record<string, unknown>,
+  keys: string[],
+): string | null {
+  const parsed = readLoggedResponseRecord(payload);
+  if (!parsed) {
+    return null;
+  }
+  return readOperatorReadableField(parsed, keys);
+}
+
+function readLoggedResponseFieldValue(
+  payload: Record<string, unknown>,
+  key: string,
+): unknown {
+  const parsed = readLoggedResponseRecord(payload);
+  return parsed?.[key];
+}
+
+function readLoggedResponseText(payload: Record<string, unknown>, maxLength: number): string | null {
+  const rawResponse =
+    readString(stripMarkdownCodeFences(readString(payload.response_text)))
+    ?? readString(stripMarkdownCodeFences(readString(payload.response_summary)));
+  return readOperatorReadableText(rawResponse, maxLength);
+}
+
+function readLoggedResponseRecord(payload: Record<string, unknown>): Record<string, unknown> | null {
+  const rawResponse =
+    readString(stripMarkdownCodeFences(readString(payload.response_text)))
+    ?? readString(stripMarkdownCodeFences(readString(payload.response_summary)));
+  if (!rawResponse) {
+    return null;
+  }
+
+  const directRecord = tryParseJSONObject(rawResponse);
+  if (directRecord) {
+    return directRecord;
+  }
+
+  const firstBrace = rawResponse.indexOf('{');
+  const lastBrace = rawResponse.lastIndexOf('}');
+  if (firstBrace < 0 || lastBrace <= firstBrace) {
+    return null;
+  }
+  return tryParseJSONObject(rawResponse.slice(firstBrace, lastBrace + 1));
+}
+
+function tryParseJSONObject(value: string): Record<string, unknown> | null {
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    return asRecord(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function stripMarkdownCodeFences(value: string | null): string | null {
+  const parsed = readString(value);
+  if (!parsed) {
+    return null;
+  }
+  const fenceMatch = parsed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (!fenceMatch?.[1]) {
+    return parsed;
+  }
+  return fenceMatch[1].trim();
+}
+
+function readLoggedToolCalls(payload: Record<string, unknown>): Array<{
+  name: string;
+  input: Record<string, unknown>;
+}> {
+  const toolCalls = payload.response_tool_calls;
+  if (!Array.isArray(toolCalls)) {
+    return [];
+  }
+
+  const parsedCalls: Array<{ name: string; input: Record<string, unknown> }> = [];
+  for (const entry of toolCalls) {
+    const record = asRecord(entry);
+    const name = readString(record.name);
+    if (!name) {
+      continue;
+    }
+    parsedCalls.push({
+      name,
+      input: asRecord(record.input),
+    });
+  }
+  return parsedCalls;
+}
+
+function buildLoggedToolCallSummary(payload: Record<string, unknown>): string | null {
+  const renderedCalls = readLoggedToolCalls(payload)
+    .map(({ name, input }) => buildActionHeadline({ tool: name, input }) ?? buildActionInvocationHeadline({
+      tool: name,
+      input,
+    }))
+    .filter((value): value is string => value !== null);
+
+  if (renderedCalls.length === 0) {
+    return null;
+  }
+  return readOperatorReadableText(renderedCalls.join('; '), 180);
+}
+
+function looksLikeSyntheticLoggedToolCall(
+  value: string,
+  payload: Record<string, unknown>,
+): boolean {
+  const normalized = value.trim().toLowerCase();
+  if (normalized.startsWith('calling ')) {
+    return true;
+  }
+  const toolCalls = readLoggedToolCalls(payload);
+  if (toolCalls.length === 0) {
+    return false;
+  }
+  return toolCalls.some(({ name, input }) => {
+    const actionHeadline = buildActionHeadline({ tool: name, input }) ?? buildActionInvocationHeadline({
+      tool: name,
+      input,
+    });
+    return looksLikeSyntheticActionPreview(value, actionHeadline, name);
+  });
+}
+
 function readFirstPlanDescription(value: unknown): string | null {
   if (!Array.isArray(value)) {
     return null;
@@ -707,7 +929,7 @@ function resolveExecutionTurnScope(row: LogRow): {
   linkedTargetIds: string[];
 } {
   const payload = asRecord(row.payload);
-  const targets = extractStructuredTargetIds(asRecord(payload.input));
+  const targets = extractStructuredTargetIds(readStructuredTargetPayload(row, payload));
   if (targets.workItemIds.length === 0 && targets.taskIds.length === 0) {
     return {
       binding: 'execution_context',
@@ -726,6 +948,18 @@ function resolveExecutionTurnScope(row: LogRow): {
       ...targets.workItemIds,
       ...targets.taskIds,
     ]),
+  };
+}
+
+function readStructuredTargetPayload(
+  row: LogRow,
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  if (row.operation !== 'llm.chat_stream') {
+    return asRecord(payload.input);
+  }
+  return {
+    response_tool_calls: payload.response_tool_calls,
   };
 }
 
@@ -909,6 +1143,10 @@ function looksLikeSyntheticActionPreview(
 }
 
 function looksLikeLowValueConsoleText(value: string): boolean {
+  const helperCallMatch = value.match(/^calling\s+([a-z0-9_]+)\(/i);
+  if (helperCallMatch?.[1] && isLowValueHelperAction(helperCallMatch[1])) {
+    return true;
+  }
   return (
     /^advancing the task with the next verified step\.?$/i.test(value)
     || /^working through the next execution step\.?$/i.test(value)

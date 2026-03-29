@@ -22,7 +22,15 @@ function matchesLiveConsoleScope(
   workflowWorkItemIds: ReadonlySet<string>,
 ): boolean {
   if (selectedScope.scope_kind === 'selected_task') {
-    return matchesSelectedTaskScope(item, selectedScope, workflowWorkItemIds);
+    return matchesSelectedTaskScope(
+      item,
+      {
+        scope_kind: 'selected_task',
+        work_item_id: selectedScope.work_item_id,
+        task_id: selectedScope.task_id,
+      },
+      workflowWorkItemIds,
+    );
   }
 
   const selectedWorkItemId = selectedScope.work_item_id;
@@ -41,7 +49,10 @@ function matchesLiveConsoleScope(
 
 function matchesSelectedTaskScope(
   item: WorkflowLiveConsoleItem,
-  selectedScope: Extract<WorkflowWorkspacePacket['selected_scope'], { scope_kind: 'selected_task' }>,
+  selectedScope: WorkflowWorkspacePacket['selected_scope'] & {
+    scope_kind: 'selected_task';
+    task_id: string | null;
+  },
   workflowWorkItemIds: ReadonlySet<string>,
 ): boolean {
   const taskId = selectedScope.task_id;

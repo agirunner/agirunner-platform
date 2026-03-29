@@ -64,39 +64,55 @@ describe('WorkflowLiveConsoleService', () => {
       executionTurnSource: unknown,
     ) => WorkflowLiveConsoleService;
     const executionTurnSource = {
-      query: vi.fn(async () => ({
-        data: [
-          {
-            id: 'log-1',
-            source: 'runtime',
-            category: 'agent_loop',
-            level: 'debug',
-            operation: 'agent.plan',
-            status: 'completed',
-            payload: {
-              summary: 'Drafting the policy assessment handoff.',
+      query: vi.fn(async (_tenantId, filters) => {
+        if (filters.category.includes('llm')) {
+          return {
+            data: [
+              {
+                id: 'log-1',
+                source: 'runtime',
+                category: 'llm',
+                level: 'info',
+                operation: 'llm.chat_stream',
+                status: 'completed',
+                payload: {
+                  phase: 'plan',
+                  response_text: JSON.stringify({
+                    summary: 'Drafting the policy assessment handoff.',
+                  }),
+                },
+                workflow_id: 'workflow-1',
+                workflow_name: 'Workflow 1',
+                work_item_id: 'work-item-1',
+                task_id: 'task-1',
+                stage_name: 'review',
+                is_orchestrator_task: false,
+                task_title: 'Assess policy readiness',
+                role: 'policy-assessor',
+                actor_type: 'runtime',
+                actor_name: 'Policy Assessor',
+                resource_name: null,
+                created_at: '2026-03-28T07:58:30.000Z',
+              },
+            ],
+            pagination: {
+              per_page: 10,
+              has_more: false,
+              next_cursor: null,
+              prev_cursor: null,
             },
-            workflow_id: 'workflow-1',
-            workflow_name: 'Workflow 1',
-            work_item_id: 'work-item-1',
-            task_id: 'task-1',
-            stage_name: 'review',
-            is_orchestrator_task: false,
-            task_title: 'Assess policy readiness',
-            role: 'policy-assessor',
-            actor_type: 'runtime',
-            actor_name: 'Policy Assessor',
-            resource_name: null,
-            created_at: '2026-03-28T07:58:30.000Z',
+          };
+        }
+        return {
+          data: [],
+          pagination: {
+            per_page: 10,
+            has_more: false,
+            next_cursor: null,
+            prev_cursor: null,
           },
-        ],
-        pagination: {
-          per_page: 10,
-          has_more: false,
-          next_cursor: null,
-          prev_cursor: null,
-        },
-      })),
+        };
+      }),
     };
     const service = new ServiceCtor(
       {
@@ -129,7 +145,7 @@ describe('WorkflowLiveConsoleService', () => {
       limit: 10,
     });
 
-    expect(executionTurnSource.query).toHaveBeenCalled();
+    expect(executionTurnSource.query).toHaveBeenCalledTimes(2);
     expect(result.items).toEqual([
       expect.objectContaining({
         item_kind: 'execution_turn',

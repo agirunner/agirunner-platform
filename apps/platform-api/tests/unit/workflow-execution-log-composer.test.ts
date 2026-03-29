@@ -682,6 +682,131 @@ describe('workflow-execution-log-composer', () => {
     expect(item.headline).toBe('[Act] Uploading output/release-packet.md.');
     expect(item.summary).toBe('Uploading output/release-packet.md.');
   });
+
+  it('builds think, plan, and verify rows from llm chat stream responses', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '40',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'think',
+          response_text: JSON.stringify({
+            approach: 'Check whether the latest approval is already persisted.',
+          }),
+        },
+      }),
+      createLogRow({
+        id: '41',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'plan',
+          response_text: JSON.stringify({
+            summary: 'Route the approved intake item to policy assessment.',
+          }),
+        },
+      }),
+      createLogRow({
+        id: '42',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'verify',
+          response_text: JSON.stringify({
+            decision: 'continue',
+            reason: 'The policy assessment is still waiting on approval.',
+          }),
+        },
+      }),
+    ]);
+
+    expect(items.map((item) => item.headline)).toEqual([
+      '[Think] Check whether the latest approval is already persisted.',
+      '[Plan] Route the approved intake item to policy assessment.',
+      '[Verify] The policy assessment is still waiting on approval.',
+    ]);
+  });
+
+  it('falls back to logged tool calls for llm act turns when no usable prose exists', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '43',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'act',
+          response_tool_calls: [
+            {
+              name: 'submit_handoff',
+              input: {
+                summary: 'Triage packet is ready for policy assessment.',
+                completion: 'full',
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      '[Act] Submitting the handoff: Triage packet is ready for policy assessment.',
+    );
+  });
+
+  it('suppresses llm act turns when they only call low-value helper reads', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '44',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'act',
+          response_text: 'calling file_read()',
+          response_tool_calls: [
+            {
+              name: 'file_read',
+              input: {
+                path: '/tmp/workspace/task-1/context/task-input.json',
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
+  it('derives llm execution-turn scope from structured tool-call targets', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '45',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        work_item_id: null,
+        task_id: null,
+        payload: {
+          phase: 'act',
+          response_tool_calls: [
+            {
+              name: 'create_task',
+              input: {
+                target_type: 'work_item',
+                target_id: 'work-item-9',
+                task_id: 'task-44',
+                title: 'Assess the triage packet',
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(item.work_item_id).toBe('work-item-9');
+    expect(item.task_id).toBe('task-44');
+    expect(item.scope_binding).toBe('structured_target');
+  });
 });
 
 function createLogRow(
