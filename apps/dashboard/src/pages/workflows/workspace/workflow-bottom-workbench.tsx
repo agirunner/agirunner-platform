@@ -36,6 +36,7 @@ export function WorkflowBottomWorkbench(props: {
   inputPackets: DashboardWorkflowInputPacketRecord[];
   workflowParameters: Record<string, unknown> | null;
   scope: WorkflowWorkbenchScopeDescriptor;
+  isScopeLoading?: boolean;
   onTabChange(tab: WorkflowWorkbenchTab): void;
   onClearWorkItemScope(): void;
   onClearTaskScope(): void;
@@ -89,7 +90,9 @@ export function WorkflowBottomWorkbench(props: {
     selectedTaskTitle: currentTaskTitle,
   });
   const counts = props.packet.bottom_tabs.counts;
-  const liveConsoleCount = props.packet.live_console.total_count ?? counts.live_console_activity;
+  const liveConsoleCount = props.isScopeLoading
+    ? undefined
+    : props.packet.live_console.total_count ?? counts.live_console_activity;
 
   return (
     <section className="flex h-full min-h-[22rem] min-w-0 flex-col gap-1.5 overflow-hidden lg:min-h-0">
@@ -208,6 +211,7 @@ export function WorkflowBottomWorkbench(props: {
             packet={props.packet.live_console}
             scopeLabel={resolvedScope.banner}
             scopeSubject={resolvedScope.subject}
+            isScopeLoading={props.isScopeLoading}
             onLoadMore={props.onLoadMoreActivity}
           />
         ) : null}

@@ -470,6 +470,72 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).not.toContain('this workflow yet');
   });
 
+  it('shows a loading state instead of placeholder zero-row live console content while scope data refetches', () => {
+    const packet = createPacket();
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBottomWorkbench, {
+        workflowId: 'workflow-1',
+        workflow: packet.workflow,
+        stickyStrip: packet.sticky_strip,
+        board: packet.board,
+        workflowName: 'Workflow 1',
+        packet: {
+          ...packet,
+          selected_scope: {
+            scope_kind: 'selected_task',
+            work_item_id: 'work-item-7',
+            task_id: 'task-3',
+          },
+          bottom_tabs: {
+            ...packet.bottom_tabs,
+            current_scope_kind: 'selected_task',
+            current_work_item_id: 'work-item-7',
+            current_task_id: 'task-3',
+            counts: {
+              ...packet.bottom_tabs.counts,
+              live_console_activity: 0,
+            },
+          },
+          live_console: {
+            ...packet.live_console,
+            total_count: 0,
+            items: [],
+          },
+        },
+        activeTab: 'live_console',
+        selectedWorkItemId: 'work-item-7',
+        scopedWorkItemId: 'work-item-7',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: 'task-3',
+        selectedTaskTitle: 'Verify deliverable',
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [],
+        inputPackets: [],
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Verify deliverable',
+          banner: 'Task: Verify deliverable',
+        },
+        isScopeLoading: true,
+        onTabChange: vi.fn(),
+        onClearWorkItemScope: vi.fn(),
+        onClearTaskScope: vi.fn(),
+        onOpenAddWork: vi.fn(),
+        onOpenRedrive: vi.fn(),
+        onLoadMoreActivity: vi.fn(),
+        onLoadMoreDeliverables: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Loading live console for Task: Verify deliverable.');
+    expect(html).not.toContain('No live console entries recorded for Task: Verify deliverable yet.');
+    expect(html).not.toContain('data-live-console-filter="all"');
+  });
+
   it('derives the visible scope indicator and tab badges from the scoped packet when outer props are stale', () => {
     const packet = createPacket();
     const html = renderToStaticMarkup(

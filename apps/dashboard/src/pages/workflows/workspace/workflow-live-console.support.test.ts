@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { DashboardWorkflowLiveConsoleItem } from '../../../lib/api.js';
 import {
   buildWorkflowConsoleFilterDescriptors,
+  buildWorkflowConsoleFilterDescriptorsWithCounts,
   describeWorkflowConsoleCoverage,
   describeWorkflowConsoleEmptyState,
   describeWorkflowConsoleScope,
@@ -12,6 +13,7 @@ import {
   getWorkflowConsoleEntryStyle,
   getWorkflowConsoleLineText,
   orderWorkflowConsoleItemsForDisplay,
+  resolveWorkflowConsoleFilterCounts,
   shouldPrefetchWorkflowConsoleHistory,
 } from './workflow-live-console.support.js';
 
@@ -24,6 +26,68 @@ describe('workflow live console support', () => {
       { filter: 'turn_updates', label: 'Turn updates', count: 2 },
       { filter: 'briefs', label: 'Briefs', count: 1 },
     ]);
+  });
+
+  it('prefers packet-provided filter totals while preserving loaded-item filtering', () => {
+    const items = createItems();
+    const packet = {
+      generated_at: '2026-03-27T04:05:00.000Z',
+      latest_event_id: 42,
+      snapshot_version: 'workflow-operations:42',
+      next_cursor: 'cursor-1',
+      total_count: 137,
+      items,
+      counts: {
+        all: 137,
+        turn_updates: 101,
+        briefs: 36,
+      },
+    };
+
+    const counts = resolveWorkflowConsoleFilterCounts(
+      packet as Parameters<typeof resolveWorkflowConsoleFilterCounts>[0],
+      items,
+    );
+
+    expect(counts).toEqual({
+      all: 137,
+      turn_updates: 101,
+      briefs: 36,
+    });
+    expect(buildWorkflowConsoleFilterDescriptorsWithCounts(items, counts)).toEqual([
+      { filter: 'all', label: 'All', count: 137 },
+      { filter: 'turn_updates', label: 'Turn updates', count: 101 },
+      { filter: 'briefs', label: 'Briefs', count: 36 },
+    ]);
+    expect(filterWorkflowConsoleItems(items, 'all').map((item) => item.item_id)).toEqual([
+      'update-1',
+      'brief-1',
+      'notice-1',
+      'turn-1',
+    ]);
+  });
+
+  it('falls back to packet total_count for the all badge when per-filter totals are absent', () => {
+    const items = createItems();
+    const packet = {
+      generated_at: '2026-03-27T04:05:00.000Z',
+      latest_event_id: 42,
+      snapshot_version: 'workflow-operations:42',
+      next_cursor: 'cursor-1',
+      total_count: 9,
+      items,
+    };
+
+    expect(
+      resolveWorkflowConsoleFilterCounts(
+        packet as Parameters<typeof resolveWorkflowConsoleFilterCounts>[0],
+        items,
+      ),
+    ).toEqual({
+      all: 9,
+      turn_updates: 2,
+      briefs: 1,
+    });
   });
 
   it('drops deprecated operator-update items from live-console filters and counts', () => {

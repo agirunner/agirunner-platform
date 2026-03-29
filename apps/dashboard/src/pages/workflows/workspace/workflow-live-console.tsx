@@ -4,7 +4,7 @@ import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import type { DashboardWorkflowLiveConsolePacket } from '../../../lib/api.js';
 import {
-  buildWorkflowConsoleFilterDescriptors,
+  buildWorkflowConsoleFilterDescriptorsWithCounts,
   describeWorkflowConsoleCoverage,
   describeWorkflowConsoleEmptyState,
   describeWorkflowConsoleScope,
@@ -12,6 +12,7 @@ import {
   getWorkflowConsoleVisibleItems,
   getWorkflowConsoleFollowBehavior,
   orderWorkflowConsoleItemsForDisplay,
+  resolveWorkflowConsoleFilterCounts,
   shouldPrefetchWorkflowConsoleHistory,
   type WorkflowConsoleFilter,
   type WorkflowConsoleFollowMode,
@@ -37,6 +38,7 @@ export function WorkflowLiveConsole(props: {
   packet: DashboardWorkflowLiveConsolePacket;
   scopeLabel: string;
   scopeSubject?: 'workflow' | 'work item' | 'task';
+  isScopeLoading?: boolean;
   onLoadMore(): void;
 }): JSX.Element {
   const scopeSubject = props.scopeSubject ?? 'workflow';
@@ -55,9 +57,13 @@ export function WorkflowLiveConsole(props: {
   const [isLoadingOlderHistory, setIsLoadingOlderHistory] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<WorkflowConsoleFilter>('all');
   const consoleItems = useMemo(() => getWorkflowConsoleVisibleItems(props.packet.items), [props.packet.items]);
+  const filterCounts = useMemo(
+    () => resolveWorkflowConsoleFilterCounts(props.packet, props.packet.items),
+    [props.packet],
+  );
   const filterDescriptors = useMemo(
-    () => buildWorkflowConsoleFilterDescriptors(consoleItems),
-    [consoleItems],
+    () => buildWorkflowConsoleFilterDescriptorsWithCounts(consoleItems, filterCounts),
+    [consoleItems, filterCounts],
   );
   const visibleItems = useMemo(
     () => orderWorkflowConsoleItemsForDisplay(filterWorkflowConsoleItems(consoleItems, selectedFilter)),
@@ -156,6 +162,39 @@ export function WorkflowLiveConsole(props: {
       setIsLoadingOlderHistory(false);
     }
   }, [props.packet.next_cursor]);
+
+  if (props.isScopeLoading) {
+    return (
+      <div className="grid gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="grid gap-1">
+            <p className="text-sm font-semibold text-foreground">Live Console</p>
+            <p className="text-sm text-muted-foreground">
+              {describeWorkflowConsoleScope(scopeSubject, props.scopeLabel)}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            {scopeSubject !== 'workflow' ? <Badge variant="outline">{props.scopeLabel}</Badge> : null}
+          </div>
+        </div>
+
+        <div
+          data-live-console-surface="terminal"
+          data-live-console-loading="true"
+          className={TERMINAL_SURFACE_CLASS_NAME}
+        >
+          <div className={TERMINAL_TOOLBAR_CLASS_NAME}>
+            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-slate-400">
+              Refreshing scope
+            </p>
+          </div>
+          <div className="px-4 py-5 font-mono text-sm text-slate-300">
+            {`Loading live console for ${props.scopeLabel}.`}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-4">

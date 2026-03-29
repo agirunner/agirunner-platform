@@ -82,14 +82,14 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('data-state="inactive"');
     expect(html).toContain('aria-pressed="true">Live<');
     expect(html).toContain('aria-pressed="false">Pause<');
-    expect(html).toContain('data-live-console-filter-count="3"');
+    expect(html).toContain('data-live-console-filter-count="7"');
     expect(html).toContain('data-live-console-filter-count="1"');
     expect(html).toContain('All');
     expect(html).toContain('Turn updates');
     expect(html).toContain('Briefs');
     expect(html).toContain('[Brief]');
     expect(html).toContain('>1<');
-    expect(html).toContain('>3<');
+    expect(html).toContain('>7<');
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('&gt;');
     expect(html).toContain('Implementation Engineer:');
@@ -121,6 +121,62 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain(
       'Showing the latest 3 loaded lines out of 7 total. Older lines stream in automatically as you scroll upward.',
     );
+  });
+
+  it('prefers packet-provided filter totals over the loaded window counts', () => {
+    const packet = createPacket(
+      [
+        {
+          item_id: 'brief-1',
+          item_kind: 'milestone_brief',
+          source_label: 'Orchestrator',
+          headline: 'Workflow reached approval milestone',
+          summary: 'A structured brief was published.',
+          created_at: '2026-03-27T04:05:00.000Z',
+        },
+        {
+          item_id: 'update-1',
+          item_kind: 'execution_turn',
+          source_label: 'Implementation Engineer',
+          headline: 'Updated retry handling.',
+          summary: 'Execution turn completed for Implementation Engineer.',
+          created_at: '2026-03-27T04:04:00.000Z',
+        },
+      ],
+      { includePlatformNotice: true },
+    ) as DashboardWorkflowLiveConsolePacket & {
+      counts: {
+        all: number;
+        turn_updates: number;
+        briefs: number;
+      };
+    };
+
+    packet.total_count = 137;
+    packet.counts = {
+      all: 137,
+      turn_updates: 101,
+      briefs: 36,
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowLiveConsole, {
+        packet,
+        scopeLabel: 'Workflow: Release workflow',
+        scopeSubject: 'workflow',
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('data-live-console-filter="all"');
+    expect(html).toContain('data-live-console-filter-count="137"');
+    expect(html).toContain('data-live-console-filter="turn_updates"');
+    expect(html).toContain('data-live-console-filter-count="101"');
+    expect(html).toContain('data-live-console-filter="briefs"');
+    expect(html).toContain('data-live-console-filter-count="36"');
+    expect(html).not.toContain('data-live-console-filter-count="3"');
+    expect(html).not.toContain('data-live-console-filter-count="2"');
+    expect(html).not.toContain('data-live-console-filter-count="1"');
   });
 
   it('humanizes role labels and falls back when the provided label is a raw uuid', () => {

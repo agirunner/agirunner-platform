@@ -65,6 +65,10 @@ describe('workflows page source', () => {
     expect(source).toContain('const requestedWorkspaceScope = {');
     expect(source).toContain('const workspacePacket = workspaceQuery.data');
     expect(source).toContain('resolveWorkspacePlaceholderData(previous, requestedWorkspaceScope)');
+    expect(source).toContain('const isScopeLoading =');
+    expect(source).toContain('workspaceQuery.isPlaceholderData');
+    expect(source).toContain('!workspacePacketMatchesScope(lastWorkspacePacketRef.current, requestedWorkspaceScope)');
+    expect(source).toContain('isScopeLoading={isScopeLoading}');
     expect(source).toContain('lastWorkspacePacketRef.current ?? undefined');
     expect(source).toContain('requestedWorkspaceScope');
     expect(source).not.toContain('workflow && workspaceQuery.data ? (');

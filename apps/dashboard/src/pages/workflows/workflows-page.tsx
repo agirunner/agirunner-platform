@@ -18,6 +18,7 @@ import {
   readWorkflowsPageState,
   resolveBoardSelectionForLens,
   resolveSelectedWorkflowId,
+  workspacePacketMatchesScope,
   resolveWorkspacePlaceholderData,
   resolveWorkflowTabScope,
   type WorkflowsPageState,
@@ -258,6 +259,10 @@ export function WorkflowsPage(): JSX.Element {
       requestedWorkspaceScope,
     )
     ?? null;
+  const isScopeLoading =
+    workspaceQuery.isPlaceholderData &&
+    lastWorkspacePacketRef.current !== null &&
+    !workspacePacketMatchesScope(lastWorkspacePacketRef.current, requestedWorkspaceScope);
   const workflow = workspacePacket?.workflow ?? null;
   const board = workspacePacket?.board ?? null;
   const selectedWorkflowRow = useMemo(
@@ -520,6 +525,7 @@ export function WorkflowsPage(): JSX.Element {
                   inputPackets={inputPacketsQuery.data ?? []}
                   workflowParameters={(workflowDetailQuery.data?.parameters as Record<string, unknown> | null | undefined) ?? null}
                   scope={workbenchScope}
+                  isScopeLoading={isScopeLoading}
                   onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
                   onClearWorkItemScope={handleClearWorkItemScope}
                   onClearTaskScope={handleClearTaskScope}

@@ -1,4 +1,7 @@
-import type { DashboardWorkflowLiveConsoleItem } from '../../../lib/api.js';
+import type {
+  DashboardWorkflowLiveConsoleItem,
+  DashboardWorkflowLiveConsolePacket,
+} from '../../../lib/api.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const WORKFLOW_CONSOLE_PREFETCH_THRESHOLD_PX = 96;
@@ -41,6 +44,7 @@ const WORKFLOW_CONSOLE_ROLE_TONES = {
 export type WorkflowConsoleFilter = 'all' | 'turn_updates' | 'briefs';
 export type WorkflowConsoleScopeSubject = 'workflow' | 'work item' | 'task';
 export type WorkflowConsoleFollowMode = 'live' | 'paused';
+export type WorkflowConsoleFilterCounts = Record<WorkflowConsoleFilter, number>;
 
 const WORKFLOW_CONSOLE_FILTER_LABELS: Record<WorkflowConsoleFilter, string> = {
   all: 'All',
@@ -84,15 +88,46 @@ export function getWorkflowConsoleVisibleItems(
   return items.filter((item) => item.item_kind !== 'operator_update');
 }
 
+export function resolveWorkflowConsoleFilterCounts(
+  packet: DashboardWorkflowLiveConsolePacket,
+  items: DashboardWorkflowLiveConsoleItem[],
+): WorkflowConsoleFilterCounts {
+  const visibleItems = getWorkflowConsoleVisibleItems(items);
+  const derivedCounts: WorkflowConsoleFilterCounts = {
+    all: visibleItems.length,
+    turn_updates: visibleItems.filter(isWorkflowConsoleTurnUpdate).length,
+    briefs: visibleItems.filter(isWorkflowConsoleBrief).length,
+  };
+  const packetCounts = readWorkflowConsoleFilterCounts(packet);
+
+  return {
+    all: packetCounts.all ?? normalizeConsoleCount(packet.total_count) ?? derivedCounts.all,
+    turn_updates: packetCounts.turn_updates ?? derivedCounts.turn_updates,
+    briefs: packetCounts.briefs ?? derivedCounts.briefs,
+  };
+}
+
 export function buildWorkflowConsoleFilterDescriptors(items: DashboardWorkflowLiveConsoleItem[]): Array<{
   filter: WorkflowConsoleFilter;
   label: string;
   count: number;
 }> {
+  return buildWorkflowConsoleFilterDescriptorsWithCounts(items, null);
+}
+
+export function buildWorkflowConsoleFilterDescriptorsWithCounts(
+  items: DashboardWorkflowLiveConsoleItem[],
+  counts: Partial<WorkflowConsoleFilterCounts> | null,
+): Array<{
+  filter: WorkflowConsoleFilter;
+  label: string;
+  count: number;
+}> {
+  const resolvedCounts = counts ?? {};
   return (Object.keys(WORKFLOW_CONSOLE_FILTER_LABELS) as WorkflowConsoleFilter[]).map((filter) => ({
     filter,
     label: WORKFLOW_CONSOLE_FILTER_LABELS[filter],
-    count: filterWorkflowConsoleItems(items, filter).length,
+    count: resolvedCounts[filter] ?? filterWorkflowConsoleItems(items, filter).length,
   }));
 }
 
@@ -240,6 +275,36 @@ function isWorkflowConsoleTurnUpdate(item: DashboardWorkflowLiveConsoleItem): bo
 function readNonEmptyText(value: string): string | null {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function readWorkflowConsoleFilterCounts(
+  packet: DashboardWorkflowLiveConsolePacket,
+): Partial<WorkflowConsoleFilterCounts> {
+  const rawPacket = packet as unknown as Record<string, unknown>;
+  const rawCounts =
+    readRecord(rawPacket.counts) ??
+    readRecord(rawPacket.filter_counts) ??
+    readRecord(rawPacket.filterCounts);
+
+  if (!rawCounts) {
+    return {};
+  }
+
+  return {
+    all: normalizeConsoleCount(rawCounts.all),
+    turn_updates: normalizeConsoleCount(rawCounts.turn_updates),
+    briefs: normalizeConsoleCount(rawCounts.briefs),
+  };
+}
+
+function readRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function normalizeConsoleCount(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 function humanizeToken(value: string): string {

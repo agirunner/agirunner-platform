@@ -305,7 +305,7 @@ function readOptionalValue(value: string | null): string | null {
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function workspacePacketMatchesScope(
+export function workspacePacketMatchesScope(
   packet: DashboardWorkflowWorkspacePacket,
   request: RequestedWorkspaceScope,
 ): boolean {
