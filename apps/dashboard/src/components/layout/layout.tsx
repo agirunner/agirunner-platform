@@ -79,7 +79,7 @@ const DESKTOP_SIDEBAR_COLLAPSED_STORAGE_KEY = 'agirunner.desktop-sidebar-collaps
 
 export const NAV_SECTIONS: NavSection[] = [
   {
-    label: 'Workflows',
+    label: 'Mission Control',
     icon: Gauge,
     items: [
       {

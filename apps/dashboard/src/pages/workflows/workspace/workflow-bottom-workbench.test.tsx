@@ -958,7 +958,9 @@ describe('WorkflowBottomWorkbench', () => {
                 preview_capabilities: {},
                 primary_target: {} as never,
                 secondary_targets: [],
-                content_preview: 'Embedded release summary without a target URL.',
+                content_preview: {
+                  summary: 'Embedded release summary without a target URL.',
+                },
                 source_brief_id: null,
                 created_at: '2026-03-28T03:00:00.000Z',
                 updated_at: '2026-03-28T03:00:00.000Z',

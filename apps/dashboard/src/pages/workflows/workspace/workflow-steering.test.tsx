@@ -292,8 +292,8 @@ describe('WorkflowSteering', () => {
             id: 'message-2',
             source_kind: 'platform',
             message_kind: 'steering_response',
-            headline: null,
-            body: null,
+            headline: undefined,
+            body: undefined,
             content: 'Steering request recorded',
             created_by_type: 'system',
             created_by_id: 'system-1',
@@ -423,6 +423,7 @@ function createMessage(
     | 'message_kind'
     | 'headline'
     | 'body'
+    | 'content'
     | 'created_by_type'
     | 'created_by_id'
     | 'created_at'

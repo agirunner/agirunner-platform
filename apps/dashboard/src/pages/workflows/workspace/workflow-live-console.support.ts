@@ -362,12 +362,23 @@ function readWorkflowConsoleFilterCounts(
     return {};
   }
 
-  return {
-    all: normalizeConsoleCount(rawCounts.all),
-    turn_updates: normalizeConsoleCount(rawCounts.turn_updates)
-      ?? normalizeConsoleCount(rawCounts.turnUpdates),
-    briefs: normalizeConsoleCount(rawCounts.briefs),
-  };
+  const counts: Partial<WorkflowConsoleFilterCounts> = {};
+  const allCount = normalizeConsoleCount(rawCounts.all);
+  const turnUpdatesCount =
+    normalizeConsoleCount(rawCounts.turn_updates) ?? normalizeConsoleCount(rawCounts.turnUpdates);
+  const briefsCount = normalizeConsoleCount(rawCounts.briefs);
+
+  if (allCount !== null) {
+    counts.all = allCount;
+  }
+  if (turnUpdatesCount !== null) {
+    counts.turn_updates = turnUpdatesCount;
+  }
+  if (briefsCount !== null) {
+    counts.briefs = briefsCount;
+  }
+
+  return counts;
 }
 
 function readWorkflowConsoleTotalCount(packet: DashboardWorkflowLiveConsolePacket): number | null {
