@@ -1650,6 +1650,55 @@ describe('workflow-execution-log-composer', () => {
     );
   });
 
+  it('collapses reporting-heavy think lines down to the underlying workflow fact', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '44ed',
+        operation: 'agent.think',
+        payload: {
+          reasoning_summary:
+            'I will record the release-pass wait-state and then submit a structured orchestrator handoff summarizing that implementation is cleared and release packaging is now in progress.',
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      '[Think] Implementation is cleared and release packaging is now in progress.',
+    );
+    expect(item.summary).toBe('Implementation is cleared and release packaging is now in progress.');
+  });
+
+  it('suppresses generic reporting-capture tails that do not contain a useful workflow fact', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '44ee0',
+        operation: 'agent.think',
+        payload: {
+          reasoning_summary:
+            'I will use the verified approved implementation evidence to record a milestone brief, confirm the release-pass work item state, and leave a structured handoff that captures the progression and next recommended action.',
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
+  it('suppresses verify rows whose only next step is internal handoff bookkeeping', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '44ee',
+        operation: 'agent.verify',
+        payload: {
+          status: 'continue',
+          summary:
+            'The activation has now verified that release-pass work item is active and already has an in-progress release coordinator task, so the correct next step is to record the wait-state/operator brief and submit the orchestrator handoff for this activation rather than ending yet.',
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
   it('derives llm execution-turn scope from structured tool-call targets', () => {
     const [item] = buildExecutionTurnItems([
       createLogRow({

@@ -1486,10 +1486,10 @@ function readOperatorReadableField(
 
 function readOperatorReadableText(value: string | null, maxLength: number): string | null {
   const normalized = normalizeConsoleText(value);
-  const trimmed = truncate(normalized, maxLength);
-  if (!trimmed || looksLikeRawExecutionDump(trimmed) || looksLikeLowValueConsoleText(trimmed)) {
+  if (!normalized || looksLikeRawExecutionDump(normalized) || looksLikeLowValueConsoleText(normalized)) {
     return null;
   }
+  const trimmed = truncate(normalized, maxLength);
   return trimmed;
 }
 
@@ -1567,6 +1567,8 @@ function looksLikeLowValueConsoleText(value: string): boolean {
     || /\bterminal structured tool submit_handoff completed the task\b/i.test(value)
     || /\bonly remaining action in this activation is to submit the orchestrator handoff\b/i.test(value)
     || /\bcheckpoint is recorded; the only remaining action in this activation is to submit the orchestrator handoff\b/i.test(value)
+    || /\bprogression and next recommended action\b/i.test(value)
+    || /\bcorrect next step is to record\b.*\b(?:handoff|brief)\b/i.test(value)
     || /\b(remains|still|continues to be|continues)\b.*\bready\b/i.test(value)
     || /\b(remains|still|continues to be|continues)\b.*\b(suitable|supports|cleared)\b/i.test(value)
   );
@@ -1914,6 +1916,11 @@ function sanitizeOperatorIdentifiers(value: string): string {
 }
 
 function stripReportingBoilerplate(value: string): string {
+  const capturedReportingFact = extractReportingFact(value);
+  if (capturedReportingFact) {
+    return capturedReportingFact;
+  }
+
   const stripped = value
     .replace(/^I will record that\s*/i, '')
     .replace(
@@ -1964,6 +1971,25 @@ function stripToolCallScaffolding(value: string): string {
   return value
     .replace(/\s*to=[a-z0-9_.:-]+[\s\S]*$/i, '')
     .trim();
+}
+
+function extractReportingFact(value: string): string | null {
+  const match = value.match(
+    /\b(?:record|submit|leave)\b[\s\S]*?\b(?:summarizing that|stating that|captures?)\s+(.+)$/i,
+  );
+  if (!match?.[1]) {
+    return null;
+  }
+  const rawFact = readString(match[1]) ?? null;
+  const fact = rawFact?.replace(/[.]+$/g, '') ?? null;
+  if (!fact) {
+    return null;
+  }
+  if (/^(?:the )?progression and next recommended action$/i.test(fact)) {
+    return null;
+  }
+  const sentence = capitalizeSentence(fact);
+  return rawFact?.endsWith('.') ? `${sentence}.` : sentence;
 }
 
 function truncate(value: string | null, maxLength: number): string | null {
