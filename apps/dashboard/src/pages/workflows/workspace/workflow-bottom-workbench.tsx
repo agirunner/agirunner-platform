@@ -267,7 +267,7 @@ function resolveScopedTaskRecord(
   taskId: string,
 ): DashboardTaskRecord | null {
   const record = tasks.find((task) => typeof task.id === 'string' && task.id === taskId);
-  return record ? (record as DashboardTaskRecord) : null;
+  return record ? (record as unknown as DashboardTaskRecord) : null;
 }
 
 function WorkbenchTabButton(props: {

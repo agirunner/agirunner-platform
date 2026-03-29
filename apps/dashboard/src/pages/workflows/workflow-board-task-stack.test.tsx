@@ -39,6 +39,10 @@ describe('WorkflowBoardTaskStack', () => {
             role: 'policy-assessor',
             state: 'in_progress',
             recentUpdate: 'Reviewing the packet before handing it off.',
+            operatorSummary: [
+              'Requested deliverable: Confirm the approval packet is complete.',
+              'Success criteria: Capture open risks before the final handoff.',
+            ],
           },
           {
             id: 'task-2',
@@ -58,6 +62,8 @@ describe('WorkflowBoardTaskStack', () => {
     expect(html).toContain('Policy Assessor • In Progress');
     expect(html).toContain('Ready next');
     expect(html).toContain('Queued once the assessor finishes.');
+    expect(html).toContain('Requested deliverable: Confirm the approval packet is complete.');
+    expect(html).toContain('Success criteria: Capture open risks before the final handoff.');
     expect(html).toContain('data-work-item-task-area="true"');
     expect(html).toContain('data-work-item-task-row="true"');
     expect(html).not.toContain('data-task-selectable="true"');

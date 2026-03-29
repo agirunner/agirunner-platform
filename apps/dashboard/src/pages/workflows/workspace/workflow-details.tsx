@@ -8,6 +8,7 @@ import type {
   DashboardWorkflowWorkItemRecord,
 } from '../../../lib/api.js';
 import type { WorkflowWorkbenchScopeDescriptor } from '../workflows-page.support.js';
+import { readOperatorFacingEntries } from '../workflow-operator-input-summary.js';
 
 export function WorkflowDetails(props: {
   workflow: DashboardMissionControlWorkflowCard;
@@ -31,10 +32,9 @@ export function WorkflowDetails(props: {
   const workflowPackets = isWorkflowScope
     ? props.inputPackets.filter((packet) => packet.work_item_id === null)
     : [];
-  const latestTaskContext = isWorkItemScope
-    ? readOperatorFacingTaskInput(props.selectedTask?.input)
-    : null;
-  const hasLatestTaskContext = isWorkItemScope && hasStructuredContent(latestTaskContext);
+  const latestTaskContextEntries = isWorkItemScope
+    ? readOperatorFacingEntries(props.selectedTask?.input ?? null)
+    : [];
   const shouldShowParentWorkItemInputs = isWorkItemScope && Boolean(selectedWorkItemId);
   const compactTaskRows = isWorkItemScope ? readCompactTaskRows(props.selectedWorkItemTasks) : [];
   const workItemPackets =
@@ -42,7 +42,14 @@ export function WorkflowDetails(props: {
       ? props.inputPackets.filter((packet) => packet.work_item_id === selectedWorkItemId)
       : [];
   const scope = buildDetailsScope({ ...props, scope: normalizedScope });
-  const hasLaunchInputs = isWorkflowScope && hasStructuredContent(props.workflowParameters);
+  const basicEntries = buildBasicEntries({ ...props, board: props.board, scope: normalizedScope });
+  const inputGroups = buildInputGroups({
+    isWorkflowScope,
+    latestTaskContextEntries,
+    workflowParameters: props.workflowParameters,
+    workflowPackets,
+    workItemPackets,
+  });
   const hasTaskDetails = compactTaskRows.length > 0;
 
   return (
@@ -60,56 +67,75 @@ export function WorkflowDetails(props: {
         ) : null}
       </header>
 
-      {hasLatestTaskContext || hasLaunchInputs || workflowPackets.length > 0 || workItemPackets.length > 0 ? (
-        <div className="grid gap-3">
-          {hasLatestTaskContext ? (
-            <StructuredBlock label="Current context" value={latestTaskContext} />
-          ) : null}
-          {hasLaunchInputs ? (
-            <StructuredBlock label="Launch inputs" value={props.workflowParameters} />
-          ) : null}
-          {workflowPackets.length > 0 ? <PacketSection packets={workflowPackets} /> : null}
-          {workItemPackets.length > 0 ? <PacketSection packets={workItemPackets} /> : null}
-        </div>
+      {basicEntries.length > 0 ? (
+        <DetailSection title="Basics">
+          <EntryList entries={basicEntries} />
+        </DetailSection>
+      ) : null}
+
+      {inputGroups.length > 0 ? (
+        <DetailSection title="Inputs">
+          <div className="grid gap-3">
+            {inputGroups.map((group) => (
+              <InputGroup
+                key={group.key}
+                title={group.title}
+                entries={group.entries}
+                files={group.files}
+              />
+            ))}
+          </div>
+        </DetailSection>
       ) : null}
 
       {isWorkItemScope && hasTaskDetails ? (
-        <div className="grid gap-2 border-t border-border/60 pt-2">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Tasks
-          </p>
+        <DetailSection title="Tasks">
           <CompactTaskList tasks={compactTaskRows} />
-        </div>
+        </DetailSection>
       ) : null}
     </section>
   );
 }
 
-function PacketSection(props: { packets: DashboardWorkflowInputPacketRecord[] }): JSX.Element {
+function DetailSection(props: {
+  title: string;
+  children: JSX.Element;
+}): JSX.Element {
   return (
-    <div className="grid gap-3">
-      {props.packets.map((packet) => (
-        <div key={packet.id} className="grid gap-1.5 border-t border-border/60 pt-2 first:border-t-0 first:pt-0">
-          <strong className="text-sm text-foreground">
-            {packet.summary ?? humanizeToken(packet.packet_kind)}
-          </strong>
-          {hasStructuredContent(packet.structured_inputs) ? (
-            <StructuredBlock value={packet.structured_inputs} compact />
-          ) : null}
-          {packet.files.length > 0 ? (
-            <div className="grid gap-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-                Attached files
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {packet.files.map((file) => (
-                  <PacketFileLink key={file.id} file={file} />
-                ))}
-              </div>
-            </div>
-          ) : null}
+    <div className="grid gap-2 border-t border-border/60 pt-2">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        {props.title}
+      </p>
+      {props.children}
+    </div>
+  );
+}
+
+function InputGroup(props: {
+  title: string;
+  entries: Array<[string, string]>;
+  files: DashboardWorkflowInputPacketFileRecord[];
+}): JSX.Element {
+  if (props.entries.length === 0 && props.files.length === 0) {
+    return <></>;
+  }
+
+  return (
+    <div className="grid gap-1.5 border-t border-border/60 pt-2 first:border-t-0 first:pt-0">
+      <strong className="text-sm text-foreground">{props.title}</strong>
+      {props.entries.length > 0 ? <EntryList entries={props.entries} compact /> : null}
+      {props.files.length > 0 ? (
+        <div className="grid gap-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Attached files
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {props.files.map((file) => (
+              <PacketFileLink key={file.id} file={file} />
+            ))}
+          </div>
         </div>
-      ))}
+      ) : null}
     </div>
   );
 }
@@ -127,51 +153,31 @@ function PacketFileLink(props: { file: DashboardWorkflowInputPacketFileRecord })
   );
 }
 
-function StructuredBlock(props: {
-  label?: string;
-  value: unknown;
+function EntryList(props: {
+  entries: Array<[string, string]>;
   compact?: boolean;
 }): JSX.Element {
-  const entries = readStructuredEntries(props.value);
-  const rendered = readStructuredPreview(props.value);
-  if (entries.length === 0 && !rendered) {
+  if (props.entries.length === 0) {
     return <></>;
   }
 
   return (
     <div className="grid gap-1.5">
-      {props.label ? (
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          {props.label}
-        </p>
-      ) : null}
-      {entries.length > 0 ? (
-        <dl className="divide-y divide-border/60">
-          {entries.map(([label, value]) => (
-            <div
-              key={label}
-              className="grid gap-1 py-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-start sm:gap-2.5"
-            >
-              <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                {label}
-              </dt>
-              <dd className={props.compact ? 'text-xs text-foreground' : 'text-sm text-foreground'}>
-                {value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      ) : rendered ? (
-        <pre
-          className={
-            props.compact
-              ? 'overflow-x-auto rounded-md border border-border/70 p-2 text-xs text-foreground'
-              : 'overflow-x-auto rounded-md border border-border/70 p-2 text-sm text-foreground'
-          }
-        >
-          {rendered}
-        </pre>
-      ) : null}
+      <dl className="divide-y divide-border/60">
+        {props.entries.map(([label, value]) => (
+          <div
+            key={label}
+            className="grid gap-1 py-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-start sm:gap-2.5"
+          >
+            <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              {label}
+            </dt>
+            <dd className={props.compact ? 'text-xs text-foreground' : 'text-sm text-foreground'}>
+              {value}
+            </dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }
@@ -216,6 +222,97 @@ function CompactTaskList(props: {
       </ul>
     </div>
   );
+}
+
+function buildBasicEntries(props: {
+  workflow: DashboardMissionControlWorkflowCard;
+  board: DashboardWorkflowBoardResponse | null;
+  selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
+  scope: WorkflowWorkbenchScopeDescriptor;
+}): Array<[string, string]> {
+  if (props.scope.scopeKind === 'workflow') {
+    return [
+      readBasicEntry('Workflow state', humanizeOptionalToken(props.workflow.state)),
+      readBasicEntry('Lifecycle', humanizeOptionalToken(props.workflow.lifecycle)),
+      readBasicEntry('Active stage', humanizeOptionalToken(props.workflow.currentStage)),
+      readBasicEntry('Posture', humanizeOptionalToken(props.workflow.posture)),
+    ].filter((entry): entry is [string, string] => Boolean(entry));
+  }
+
+  return [
+    readBasicEntry('Stage', humanizeOptionalToken(props.selectedWorkItem?.stage_name ?? null)),
+    readBasicEntry(
+      'Lane',
+      resolveBoardColumnLabel(props.board, props.selectedWorkItem?.column_id)
+      ?? humanizeOptionalToken(props.selectedWorkItem?.column_id ?? null),
+    ),
+    readBasicEntry('Priority', humanizeOptionalToken(props.selectedWorkItem?.priority ?? null)),
+    readBasicEntry('Owner role', humanizeOptionalToken(props.selectedWorkItem?.owner_role ?? null)),
+    readBasicEntry('Next actor', humanizeOptionalToken(props.selectedWorkItem?.next_expected_actor ?? null)),
+    readBasicEntry('Gate status', humanizeOptionalToken(props.selectedWorkItem?.gate_status ?? null)),
+    readBasicEntry('Escalation', humanizeOptionalToken(props.selectedWorkItem?.escalation_status ?? null)),
+  ].filter((entry): entry is [string, string] => Boolean(entry));
+}
+
+function buildInputGroups(props: {
+  isWorkflowScope: boolean;
+  latestTaskContextEntries: Array<[string, string]>;
+  workflowParameters: Record<string, unknown> | null;
+  workflowPackets: DashboardWorkflowInputPacketRecord[];
+  workItemPackets: DashboardWorkflowInputPacketRecord[];
+}): Array<{
+  key: string;
+  title: string;
+  entries: Array<[string, string]>;
+  files: DashboardWorkflowInputPacketFileRecord[];
+}> {
+  const groups: Array<{
+    key: string;
+    title: string;
+    entries: Array<[string, string]>;
+    files: DashboardWorkflowInputPacketFileRecord[];
+  }> = [];
+
+  if (props.latestTaskContextEntries.length > 0) {
+    groups.push({
+      key: 'current-context',
+      title: 'Current context',
+      entries: props.latestTaskContextEntries,
+      files: [],
+    });
+  }
+
+  const launchInputEntries = props.isWorkflowScope
+    ? readOperatorFacingEntries(props.workflowParameters)
+    : [];
+  if (launchInputEntries.length > 0) {
+    groups.push({
+      key: 'launch-inputs',
+      title: 'Launch inputs',
+      entries: launchInputEntries,
+      files: [],
+    });
+  }
+
+  for (const packet of props.workflowPackets) {
+    groups.push({
+      key: packet.id,
+      title: packet.summary ?? humanizeToken(packet.packet_kind),
+      entries: readOperatorFacingEntries(packet.structured_inputs),
+      files: packet.files,
+    });
+  }
+
+  for (const packet of props.workItemPackets) {
+    groups.push({
+      key: packet.id,
+      title: packet.summary ?? humanizeToken(packet.packet_kind),
+      entries: readOperatorFacingEntries(packet.structured_inputs),
+      files: packet.files,
+    });
+  }
+
+  return groups.filter((group) => group.entries.length > 0 || group.files.length > 0);
 }
 
 function buildDetailsScope(props: {
@@ -366,194 +463,6 @@ function readCompactTaskRows(tasks: Record<string, unknown>[]): Array<{
     .filter((task) => task.title.trim().length > 0);
 }
 
-function hasStructuredContent(value: unknown): boolean {
-  return readStructuredPreview(value) !== null;
-}
-
-function readStructuredPreview(value: unknown): string | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null;
-  }
-  const rendered = JSON.stringify(value, null, 2);
-  return rendered === '{}' ? null : rendered;
-}
-
-function readStructuredEntries(value: unknown): Array<[string, string]> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return [];
-  }
-  const entries = Object.entries(value as Record<string, unknown>);
-  const rendered: Array<[string, string]> = [];
-  for (const [key, entryValue] of entries) {
-    const text = renderStructuredValue(entryValue);
-    if (!text) {
-      continue;
-    }
-    rendered.push([humanizeStructuredLabel(key), text]);
-  }
-  return rendered;
-}
-
-function readOperatorFacingTaskInput(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null;
-  }
-  const filtered = filterOperatorFacingInputRecord(value as Record<string, unknown>);
-  return Object.keys(filtered).length > 0 ? filtered : null;
-}
-
-function filterOperatorFacingInputRecord(value: Record<string, unknown>): Record<string, unknown> {
-  const filtered: Record<string, unknown> = {};
-  for (const [key, entryValue] of Object.entries(value)) {
-    if (!shouldRenderOperatorFacingTaskInputKey(key)) {
-      continue;
-    }
-    const normalizedValue = normalizeOperatorFacingTaskInputValue(entryValue);
-    if (normalizedValue === null) {
-      continue;
-    }
-    if (shouldSuppressOpaqueOperatorFacingValue(key, normalizedValue)) {
-      continue;
-    }
-    filtered[key] = normalizedValue;
-  }
-  return filtered;
-}
-
-function shouldRenderOperatorFacingTaskInputKey(key: string): boolean {
-  const normalized = normalizeOperatorFacingTaskInputKey(key);
-  if (normalized.length === 0) {
-    return false;
-  }
-  if (
-    normalized === 'slug' ||
-    normalized === 'slugs' ||
-    normalized.endsWith('_slug') ||
-    normalized.endsWith('_slugs')
-  ) {
-    return false;
-  }
-  if (
-    normalized === 'subject_revision' ||
-    normalized === 'activation_id' ||
-    normalized === 'execution_context_id'
-  ) {
-    return false;
-  }
-  if (normalized.endsWith('_id') || normalized.endsWith('_ids')) {
-    return false;
-  }
-  return true;
-}
-
-function normalizeOperatorFacingTaskInputValue(value: unknown): unknown {
-  if (typeof value === 'string') {
-    const trimmed = sanitizeOperatorFacingString(value);
-    return trimmed.length > 0 ? trimmed : null;
-  }
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    const items = value
-      .map((entry) => normalizeOperatorFacingTaskInputValue(entry))
-      .filter((entry) => entry !== null);
-    return items.length > 0 ? items : null;
-  }
-  if (value && typeof value === 'object') {
-    const filtered = filterOperatorFacingInputRecord(value as Record<string, unknown>);
-    return Object.keys(filtered).length > 0 ? filtered : null;
-  }
-  return null;
-}
-
-function shouldSuppressOpaqueOperatorFacingValue(key: string, value: unknown): boolean {
-  const normalizedKey = normalizeOperatorFacingTaskInputKey(key);
-  if (!looksLikeInternalReferenceLabel(normalizedKey)) {
-    return false;
-  }
-  if (typeof value === 'string') {
-    return looksLikeOpaqueReferenceValue(value);
-  }
-  if (Array.isArray(value)) {
-    return (
-      value.length > 0 &&
-      value.every((entry) => typeof entry === 'string' && looksLikeOpaqueReferenceValue(entry))
-    );
-  }
-  return false;
-}
-
-function looksLikeInternalReferenceLabel(value: string): boolean {
-  return (
-    value === 'artifact' ||
-    value === 'artifacts' ||
-    value === 'subject' ||
-    value === 'subjects' ||
-    value === 'task' ||
-    value === 'tasks' ||
-    value === 'workflow' ||
-    value === 'work_item' ||
-    value === 'work item' ||
-    value === 'activation' ||
-    value === 'execution_context'
-  );
-}
-
-function normalizeOperatorFacingTaskInputKey(value: string): string {
-  return value
-    .trim()
-    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-    .replace(/[\s-]+/g, '_')
-    .toLowerCase();
-}
-
-function sanitizeOperatorFacingString(value: string): string {
-  const trimmed = value.trim();
-  if (trimmed.length === 0) {
-    return '';
-  }
-  return stripCredentialedUrl(trimmed);
-}
-
-function stripCredentialedUrl(value: string): string {
-  try {
-    const parsed = new URL(value);
-    if (!parsed.username && !parsed.password) {
-      return value;
-    }
-    parsed.username = '';
-    parsed.password = '';
-    return parsed.toString();
-  } catch {
-    return value;
-  }
-}
-
-function renderStructuredValue(value: unknown): string | null {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? humanizeStructuredText(trimmed) : null;
-  }
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  if (Array.isArray(value)) {
-    const items = value
-      .map((entry) => renderStructuredValue(entry))
-      .filter((entry): entry is string => Boolean(entry));
-    return items.length > 0 ? items.join(' • ') : null;
-  }
-  if (value && typeof value === 'object') {
-    const entries = readStructuredEntries(value);
-    if (entries.length === 0) {
-      return null;
-    }
-    return entries.map(([label, text]) => `${label}: ${text}`).join(' • ');
-  }
-  return null;
-}
-
 function readOptionalText(value: unknown): string | null {
   if (typeof value !== 'string') {
     return null;
@@ -570,35 +479,18 @@ function humanizeToken(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
-function humanizeStructuredLabel(value: string): string {
-  const normalized = value.trim().toLowerCase();
-  if (normalized === 'deliverable') {
-    return 'Requested deliverable';
+function readBasicEntry(label: string, value: string | null): [string, string] | null {
+  return value ? [label, value] : null;
+}
+
+function resolveBoardColumnLabel(
+  board: DashboardWorkflowBoardResponse | null,
+  columnId: string | null | undefined,
+): string | null {
+  if (!board || !columnId) {
+    return null;
   }
-  if (normalized === 'acceptance_criteria') {
-    return 'Success criteria';
-  }
-  return humanizeToken(value);
-}
-
-function humanizeStructuredText(value: string): string {
-  if (!looksLikeMachineToken(value)) {
-    return value;
-  }
-  return humanizeToken(value);
-}
-
-function looksLikeMachineToken(value: string): boolean {
-  return /^[a-z0-9]+(?:[_-][a-z0-9]+)*$/i.test(value);
-}
-
-function looksLikeOpaqueIdentifier(value: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
-}
-
-function looksLikeOpaqueReferenceValue(value: string): boolean {
-  return looksLikeOpaqueIdentifier(value)
-    || /^[a-z0-9]+(?:[_-][a-z0-9]+)+$/i.test(value);
+  return board.columns.find((column) => column.id === columnId)?.label ?? null;
 }
 
 function pluralize(value: string, count: number): string {

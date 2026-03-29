@@ -37,10 +37,16 @@ describe('WorkflowDetails', () => {
     );
     expect(html).toContain('Release Workflow');
     expect(html).toContain('Check the final release packet and approve it.');
+    expect(html).toContain('Basics');
+    expect(html).toContain('Stage');
+    expect(html).toContain('Release');
+    expect(html).toContain('Priority');
+    expect(html).toContain('High');
+    expect(html).toContain('Owner role');
+    expect(html).toContain('Release Manager');
+    expect(html).toContain('Inputs');
     expect(html).toContain('Rollback guide');
     expect(html).toContain('rollback.md');
-    expect(html).not.toContain('Basics');
-    expect(html).not.toContain('Inputs');
     expect(html).not.toContain(
       '<h3 class="text-base font-semibold text-foreground">Verify deliverable</h3>',
     );
@@ -79,6 +85,7 @@ describe('WorkflowDetails', () => {
     );
 
     expect(html).toContain('Current context');
+    expect(html).toContain('Inputs');
     expect(html).toContain('Requested deliverable');
     expect(html).toContain(
       'A full policy assessment handoff with readiness decision, evidence, and rework guidance.',
@@ -116,6 +123,13 @@ describe('WorkflowDetails', () => {
 
     expect(html).toContain('Prepare release bundle');
     expect(html).toContain('Assemble final artifacts for launch.');
+    expect(html).toContain('Basics');
+    expect(html).toContain('Stage');
+    expect(html).toContain('Priority');
+    expect(html).toContain('High');
+    expect(html).toContain('Owner role');
+    expect(html).toContain('Release Manager');
+    expect(html).toContain('Inputs');
     expect(html).toContain('1 blocked task');
     expect(html).toContain('Rollback guide');
     expect(html).toContain('rollback.md');
@@ -126,17 +140,8 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Archive release notes');
     expect(html).toContain('Completed');
     expect(html.match(/1 blocked task/g)?.length ?? 0).toBe(1);
-    expect(html).not.toContain('Reviewer');
-    expect(html).not.toContain('Release Manager');
-    expect(html).not.toContain('Approve release packet');
-    expect(html).not.toContain('reviewer');
     expect(html).not.toContain('Release notes and approval summary are attached.');
-    expect(html).not.toContain('1 active');
-    expect(html).not.toContain('1 completed');
     expect(html).not.toContain('1 active • 1 blocked • 1 completed');
-    expect(html).not.toContain('Basics');
-    expect(html).not.toContain('Inputs');
-    expect(html).not.toContain('Related tasks');
   });
 
   it('bounds long work-item task lists inside a themed internal scroll area', () => {
@@ -189,12 +194,16 @@ describe('WorkflowDetails', () => {
 
     expect(html).toContain('Release Workflow');
     expect(html).toContain('Release bundle is being assembled.');
+    expect(html).toContain('Basics');
+    expect(html).toContain('Workflow state');
+    expect(html).toContain('Active');
+    expect(html).toContain('Lifecycle');
+    expect(html).toContain('Planned');
+    expect(html).toContain('Inputs');
     expect(html).toContain('Launch inputs');
     expect(html).toContain('Launch packet');
     expect(html).toContain('release/2026.03');
     expect(html).toContain('launch-summary.pdf');
-    expect(html).not.toContain('Basics');
-    expect(html).not.toContain('Inputs');
     expect(html).not.toContain('Prepare release bundle');
     expect(html).not.toContain('Rollback guide');
     expect(html).not.toContain('rollback.md');

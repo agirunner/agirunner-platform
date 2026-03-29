@@ -1,4 +1,5 @@
 import type { WorkflowTaskPreview } from './workflow-board-task-stack.js';
+import { buildOperatorFacingSummaryLines } from './workflow-operator-input-summary.js';
 
 export interface WorkflowTaskPreviewSummary {
   tasks: WorkflowTaskPreview[];
@@ -45,6 +46,7 @@ function buildTaskPreview(
   if (!id) {
     return [];
   }
+  const operatorSummary = buildOperatorFacingSummaryLines(entry.input);
   return [
     {
       id,
@@ -52,6 +54,7 @@ function buildTaskPreview(
       role: typeof entry.role === 'string' ? entry.role : null,
       state: readState(entry),
       recentUpdate: readRecentUpdate(entry),
+      ...(operatorSummary.length > 0 ? { operatorSummary } : {}),
       workItemId,
       workItemTitle: context?.workItemTitle ?? null,
       stageName: context?.stageName ?? null,

@@ -4,6 +4,7 @@ export interface WorkflowTaskPreview {
   role: string | null;
   state: string | null;
   recentUpdate?: string | null;
+  operatorSummary?: string[];
   workItemId?: string | null;
   workItemTitle?: string | null;
   stageName?: string | null;
@@ -109,6 +110,11 @@ function TaskPreviewRows(props: {
           {task.recentUpdate ? (
             <span className="text-xs text-muted-foreground">{task.recentUpdate}</span>
           ) : null}
+          {task.operatorSummary?.map((summaryLine) => (
+            <span key={summaryLine} className="text-xs text-muted-foreground">
+              {summaryLine}
+            </span>
+          ))}
         </div>
       ))}
     </div>
