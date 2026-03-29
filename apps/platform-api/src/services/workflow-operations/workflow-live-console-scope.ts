@@ -40,9 +40,6 @@ function matchesLiveConsoleScope(
   if (referencesSiblingWorkItem(item, selectedWorkItemId, workflowWorkItemIds)) {
     return false;
   }
-  if (isAmbiguousScopedOrchestratorTurn(item)) {
-    return false;
-  }
 
   return item.work_item_id === selectedWorkItemId || item.linked_target_ids.includes(selectedWorkItemId);
 }
@@ -76,13 +73,5 @@ function referencesSiblingWorkItem(
 ): boolean {
   return item.linked_target_ids.some(
     (targetId) => workflowWorkItemIds.has(targetId) && targetId !== selectedWorkItemId,
-  );
-}
-
-function isAmbiguousScopedOrchestratorTurn(item: WorkflowLiveConsoleItem): boolean {
-  return (
-    item.item_kind === 'execution_turn'
-    && item.source_kind === 'orchestrator'
-    && item.scope_binding === 'execution_context'
   );
 }

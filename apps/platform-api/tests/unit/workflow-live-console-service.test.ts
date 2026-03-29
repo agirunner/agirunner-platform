@@ -964,6 +964,29 @@ describe('WorkflowLiveConsoleService', () => {
             created_at: '2026-03-28T07:58:30.000Z',
           },
           {
+            id: 'log-same-item-execution-context',
+            source: 'runtime',
+            category: 'agent_loop',
+            level: 'debug',
+            operation: 'agent.plan',
+            status: 'completed',
+            payload: {
+              headline: 'Confirm the selected work item is ready before routing implementation.',
+            },
+            workflow_id: 'workflow-1',
+            workflow_name: 'Workflow 1',
+            work_item_id: 'work-item-1',
+            task_id: 'orchestrator-task-1',
+            stage_name: 'triage',
+            is_orchestrator_task: true,
+            task_title: 'Orchestrate intake workflow',
+            role: 'orchestrator',
+            actor_type: 'worker',
+            actor_name: 'Orchestrator',
+            resource_name: null,
+            created_at: '2026-03-28T07:58:45.000Z',
+          },
+          {
             id: 'log-selected',
             source: 'runtime',
             category: 'agent_loop',
@@ -1033,7 +1056,11 @@ describe('WorkflowLiveConsoleService', () => {
         item_id: 'execution-log:log-selected',
         headline: '[Act] Creating a task: Assess workflows-intake-01 triage readiness',
       }),
+      expect.objectContaining({
+        item_id: 'execution-log:log-same-item-execution-context',
+        headline: '[Plan] Confirm the selected work item is ready before routing implementation.',
+      }),
     ]);
-    expect(result.total_count).toBe(1);
+    expect(result.total_count).toBe(2);
   });
 });
