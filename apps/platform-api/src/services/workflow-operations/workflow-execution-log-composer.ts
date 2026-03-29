@@ -1051,7 +1051,7 @@ function readPlanText(payload: Record<string, unknown>): string | null {
   if (plannedActionSummary) {
     return plannedActionSummary;
   }
-  return readOperatorReadableText(readFirstPlanDescription(payload.steps), 180);
+  return readOperatorReadableText(readFirstMeaningfulPlanDescription(payload.steps), 180);
 }
 
 function readLLMExecutionPhase(
@@ -1073,19 +1073,27 @@ function readLoggedResponseField(
   payload: Record<string, unknown>,
   keys: string[],
 ): string | null {
-  const parsed = readLoggedResponseRecord(payload);
-  if (!parsed) {
-    return null;
+  const parsedRecords = readLoggedResponseRecords(payload);
+  for (const parsed of parsedRecords) {
+    const value = readOperatorReadableField(parsed, keys);
+    if (value) {
+      return value;
+    }
   }
-  return readOperatorReadableField(parsed, keys);
+  return null;
 }
 
 function readLoggedResponseFieldValue(
   payload: Record<string, unknown>,
   key: string,
 ): unknown {
-  const parsed = readLoggedResponseRecord(payload);
-  return parsed?.[key];
+  const parsedRecords = readLoggedResponseRecords(payload);
+  for (const parsed of parsedRecords) {
+    if (Object.hasOwn(parsed, key)) {
+      return parsed[key];
+    }
+  }
+  return undefined;
 }
 
 function readLoggedResponseText(payload: Record<string, unknown>, maxLength: number): string | null {
@@ -1095,33 +1103,28 @@ function readLoggedResponseText(payload: Record<string, unknown>, maxLength: num
   return readOperatorReadableText(rawResponse, maxLength);
 }
 
-function readLoggedResponseRecord(payload: Record<string, unknown>): Record<string, unknown> | null {
+function readLoggedResponseRecords(payload: Record<string, unknown>): Record<string, unknown>[] {
   const rawResponse =
     readString(stripMarkdownCodeFences(readString(payload.response_text)))
     ?? readString(stripMarkdownCodeFences(readString(payload.response_summary)));
   if (!rawResponse) {
-    return null;
+    return [];
   }
 
+  const parsedRecords: Record<string, unknown>[] = [];
   const directRecord = tryParseJSONObject(rawResponse);
   if (directRecord) {
-    return directRecord;
+    parsedRecords.push(directRecord);
   }
 
-  const firstObjectSegment = extractFirstJSONObjectSegment(rawResponse);
-  if (firstObjectSegment) {
-    const firstRecord = tryParseJSONObject(firstObjectSegment);
-    if (firstRecord) {
-      return firstRecord;
+  for (const segment of extractJSONObjectSegments(rawResponse)) {
+    const record = tryParseJSONObject(segment);
+    if (record) {
+      parsedRecords.push(record);
     }
   }
 
-  const firstBrace = rawResponse.indexOf('{');
-  const lastBrace = rawResponse.lastIndexOf('}');
-  if (firstBrace < 0 || lastBrace <= firstBrace) {
-    return null;
-  }
-  return tryParseJSONObject(rawResponse.slice(firstBrace, lastBrace + 1));
+  return dedupeResponseRecords(parsedRecords);
 }
 
 function tryParseJSONObject(value: string): Record<string, unknown> | null {
@@ -1133,15 +1136,17 @@ function tryParseJSONObject(value: string): Record<string, unknown> | null {
   }
 }
 
-function extractFirstJSONObjectSegment(value: string): string | null {
+function extractJSONObjectSegments(value: string): string[] {
   const start = value.indexOf('{');
   if (start < 0) {
-    return null;
+    return [];
   }
 
+  const segments: string[] = [];
   let depth = 0;
   let inString = false;
   let escaped = false;
+  let segmentStart = start;
   for (let index = start; index < value.length; index += 1) {
     const character = value[index];
     if (character === undefined) {
@@ -1163,18 +1168,29 @@ function extractFirstJSONObjectSegment(value: string): string | null {
       continue;
     }
     if (character === '{') {
+      if (depth === 0) {
+        segmentStart = index;
+      }
       depth += 1;
       continue;
     }
     if (character === '}') {
       depth -= 1;
       if (depth === 0) {
-        return value.slice(start, index + 1);
+        segments.push(value.slice(segmentStart, index + 1));
       }
     }
   }
 
-  return null;
+  return segments;
+}
+
+function dedupeResponseRecords(records: Record<string, unknown>[]): Record<string, unknown>[] {
+  const uniqueRecords = new Map<string, Record<string, unknown>>();
+  for (const record of records) {
+    uniqueRecords.set(JSON.stringify(record), record);
+  }
+  return [...uniqueRecords.values()];
 }
 
 function stripMarkdownCodeFences(value: string | null): string | null {
@@ -1490,6 +1506,7 @@ function normalizeConsoleText(value: string | null): string | null {
     .replace(/\bwork_item_id\b/gi, 'work item');
 
   normalized = sanitizeOperatorIdentifiers(normalized);
+  normalized = stripToolCallScaffolding(normalized);
   normalized = stripReportingBoilerplate(normalized);
 
   let previous = '';
@@ -1557,6 +1574,28 @@ function looksLikeLowValueConsoleText(value: string): boolean {
 
 function looksLikePlannedActionPlaceholder(value: string): boolean {
   return /^execute\s+[a-z0-9_]+$/i.test(value.trim());
+}
+
+function readFirstMeaningfulPlanDescription(value: unknown): string | null {
+  if (!Array.isArray(value)) {
+    return null;
+  }
+  for (const entry of value) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      continue;
+    }
+    const record = entry as Record<string, unknown>;
+    const tool = readString(record.tool);
+    if (tool && (isToolSpecificFallbackOnlyAction(tool) || isLowValueHelperAction(tool))) {
+      continue;
+    }
+    const description = readString(record.description);
+    if (!description || looksLikePlannedActionPlaceholder(description)) {
+      continue;
+    }
+    return description;
+  }
+  return null;
 }
 
 function looksLikeRawExecutionDump(value: string): boolean {
@@ -1919,6 +1958,12 @@ function stripReportingBoilerplate(value: string): string {
     return stripped.replace(/^[a-z]/, (match) => match.toUpperCase());
   }
   return stripped;
+}
+
+function stripToolCallScaffolding(value: string): string {
+  return value
+    .replace(/\s*to=[a-z0-9_.:-]+[\s\S]*$/i, '')
+    .trim();
 }
 
 function truncate(value: string | null, maxLength: number): string | null {

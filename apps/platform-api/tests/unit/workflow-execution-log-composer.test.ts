@@ -1155,6 +1155,29 @@ describe('workflow-execution-log-composer', () => {
     );
   });
 
+  it('suppresses runtime plan placeholders when the only planned step is a low-value helper read', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '43ga',
+        operation: 'runtime.loop.plan',
+        payload: {
+          phase: 'plan',
+          steps: [
+            {
+              description: 'Execute artifact_read',
+              tool: 'artifact_read',
+              input: {
+                artifact_id: 'artifact-1',
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
   it('hydrates llm phase rows from separate response rows for the same turn', () => {
     const items = buildExecutionTurnItems([
       createLogRow({
@@ -1357,6 +1380,29 @@ describe('workflow-execution-log-composer', () => {
     expect(item.summary).toBe(
       'Inspect the active implementation work item and its task continuity first so the next mutation targets the exact stale blocker instead of guessing.',
     );
+  });
+
+  it('prefers a later meaningful json object over leading tool-call scaffolding in llm think turns', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '49e',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'think',
+          response_text:
+            'to=list_work_items ＿wrapperjson {"request_id":"operator-update-1","payload":{"headline":"raw leak"}}{"approach":"I found two existing intake items, so the next step is to route specialist work on one of them rather than create a new item."}',
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      '[Think] I found two existing intake items, so the next step is to route specialist work on one of them rather than create a new item.',
+    );
+    expect(item.summary).toBe(
+      'I found two existing intake items, so the next step is to route specialist work on one of them rather than create a new item.',
+    );
+    expect(item.summary).not.toContain('to=list_work_items');
   });
 
   it('suppresses llm act turns when they only contain helper-read fallbacks', () => {
