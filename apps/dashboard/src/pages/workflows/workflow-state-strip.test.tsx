@@ -120,7 +120,8 @@ describe('WorkflowStateStrip', () => {
     expect(html).not.toContain('Workflow is waiting by design');
     expect(html).not.toContain('Awaiting Intake');
     expect(html).toContain('Live visibility');
-    expect(html).toContain('rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm');
+    expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm');
+    expect(html).not.toContain('shadow-sm');
     expect(html).not.toContain('rounded-xl border border-border/70 bg-muted/5 px-2.5 py-2 text-left shadow-none');
     expect(html).not.toContain('label class="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/10 px-2.5 py-1.5 text-[11px] text-muted-foreground"');
     expect(html).not.toContain('Requests and responses');

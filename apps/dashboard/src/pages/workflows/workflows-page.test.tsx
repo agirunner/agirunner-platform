@@ -44,7 +44,8 @@ describe('workflows page source', () => {
     expect(source).toContain('cursor-row-resize');
     expect(source).toContain('overflow-visible rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm lg:min-h-0 lg:overflow-hidden dark:bg-slate-950/65');
     expect(source).toContain('rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm dark:bg-slate-950/65');
-    expect(source).toContain('min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm dark:bg-slate-950/65');
+    expect(source).toContain('data-workflows-board-frame="true"\n                className="min-h-0 min-w-0"');
+    expect(source).toContain('data-workflows-workbench-frame="true"\n                className="min-h-0 min-w-0"');
     expect(source).toContain('lg:h-full lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden');
     expect(source).not.toContain('bg-transparent p-1.5');
     expect(source).not.toContain('<div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm">');
@@ -116,5 +117,18 @@ describe('workflows page source', () => {
     expect(source).toContain('data-workflows-workbench-frame="true"');
     expect(source).toContain('bg-stone-100/80 p-2 shadow-sm');
     expect(source).not.toContain('data-workflows-top-strip="true"\n            className="grid gap-2 rounded-[1.75rem] border border-border/70 bg-transparent p-1.5"');
+  });
+
+  it('avoids nested shell frames around the board and lower panel sections', () => {
+    const source = readSource();
+
+    expect(source).toContain('data-workflows-board-frame="true"');
+    expect(source).toContain('data-workflows-workbench-frame="true"');
+    expect(source).toContain('data-workflows-board-frame="true"\n                className="min-h-0 min-w-0"');
+    expect(source).toContain('data-workflows-workbench-frame="true"\n                className="min-h-0 min-w-0"');
+    expect(source).toContain('data-workflows-workbench-frame="true"\n              className="min-h-0 min-w-0"');
+    expect(source).not.toContain('data-workflows-board-frame="true"\n                className="min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm dark:bg-slate-950/65"');
+    expect(source).not.toContain('data-workflows-workbench-frame="true"\n                className="min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm dark:bg-slate-950/65"');
+    expect(source).not.toContain('data-workflows-workbench-frame="true"\n              className="min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm dark:bg-slate-950/65"');
   });
 });

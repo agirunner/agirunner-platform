@@ -46,9 +46,9 @@ export function WorkflowStateStrip(props: {
   const visibilityControlId = `workflow-live-visibility-${props.workflow.id}`;
 
   return (
-    <div className="grid gap-3">
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.95fr)]">
-        <section className="grid gap-3 rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm">
+    <div className="grid gap-4">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.95fr)] xl:gap-6">
+        <section className="grid gap-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Workflow
           </p>
@@ -70,7 +70,7 @@ export function WorkflowStateStrip(props: {
           </div>
         </section>
 
-        <section className="grid gap-3 rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm">
+        <section className="grid gap-3 border-t border-border/60 pt-4 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Steering
           </p>
@@ -123,7 +123,7 @@ export function WorkflowStateStrip(props: {
         </section>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 border-t border-border/60 pt-4 md:grid-cols-2 xl:grid-cols-4">
         <HeaderCard
           title="State"
           value={postureLabel}
@@ -161,8 +161,7 @@ function HeaderCard(props: {
   detail: string | null;
   onClick?(): void;
 }): JSX.Element {
-  const className =
-    'grid gap-1 rounded-2xl border border-border/70 bg-background/95 p-3 text-left shadow-sm';
+  const className = 'grid gap-1 rounded-xl px-3 py-2 text-left';
 
   if (!props.onClick) {
     return (

@@ -418,7 +418,7 @@ export function WorkflowsPage(): JSX.Element {
             >
               <section
                 data-workflows-board-frame="true"
-                className="min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm dark:bg-slate-950/65"
+                className="min-h-0 min-w-0"
               >
                 <WorkflowBoard
                   workflowId={workflow.id}
@@ -466,7 +466,7 @@ export function WorkflowsPage(): JSX.Element {
               </div>
               <section
                 data-workflows-workbench-frame="true"
-                className="min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm dark:bg-slate-950/65"
+                className="min-h-0 min-w-0"
               >
                 <WorkflowBottomWorkbench
                   workflowId={workflow.id}
@@ -510,7 +510,7 @@ export function WorkflowsPage(): JSX.Element {
           ) : (
             <section
               data-workflows-workbench-frame="true"
-              className="min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm dark:bg-slate-950/65"
+              className="min-h-0 min-w-0"
             >
               <EmptyWorkspaceState
                 hasWorkflows={((railPacket?.rows.length ?? 0) + (railPacket?.ongoing_rows.length ?? 0)) > 0}
