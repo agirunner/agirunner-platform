@@ -168,6 +168,125 @@ describe('WorkflowLiveConsoleService', () => {
     expect(result.total_count).toBe(1);
   });
 
+  it('normalizes Date-backed execution timestamps before sorting enhanced live-console rows', async () => {
+    const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
+      versionSource: unknown,
+      briefSource: unknown,
+      updateSource: unknown,
+      visibilityModeSource: unknown,
+      executionTurnSource: unknown,
+    ) => WorkflowLiveConsoleService;
+    const executionTurnSource = {
+      query: vi.fn(async (_tenantId, filters) => {
+        if (filters.category.includes('llm')) {
+          return {
+            data: [
+              {
+                id: 'log-date',
+                source: 'runtime',
+                category: 'llm',
+                level: 'info',
+                operation: 'llm.chat_stream',
+                status: 'completed',
+                payload: {
+                  phase: 'plan',
+                  response_text: JSON.stringify({
+                    summary: 'Finish the active release task.',
+                  }),
+                },
+                workflow_id: 'workflow-1',
+                workflow_name: 'Workflow 1',
+                work_item_id: 'work-item-1',
+                task_id: 'task-1',
+                stage_name: 'implementation',
+                is_orchestrator_task: false,
+                task_title: 'Implement release audit',
+                role: 'mixed-delivery-engineer',
+                actor_type: 'runtime',
+                actor_name: 'Mixed Delivery Engineer',
+                resource_name: null,
+                created_at: new Date('2026-03-28T07:58:30.000Z'),
+              },
+              {
+                id: 'log-string',
+                source: 'runtime',
+                category: 'llm',
+                level: 'info',
+                operation: 'llm.chat_stream',
+                status: 'completed',
+                payload: {
+                  phase: 'think',
+                  response_text: JSON.stringify({
+                    approach: 'Check whether the final release checklist is already complete.',
+                  }),
+                },
+                workflow_id: 'workflow-1',
+                workflow_name: 'Workflow 1',
+                work_item_id: 'work-item-1',
+                task_id: 'task-1',
+                stage_name: 'implementation',
+                is_orchestrator_task: false,
+                task_title: 'Implement release audit',
+                role: 'mixed-delivery-engineer',
+                actor_type: 'runtime',
+                actor_name: 'Mixed Delivery Engineer',
+                resource_name: null,
+                created_at: '2026-03-28T07:58:00.000Z',
+              },
+            ],
+          };
+        }
+        return { data: [] };
+      }),
+    };
+    const service = new ServiceCtor(
+      {
+        getHistory: vi.fn(async () => ({
+          version: {
+            generatedAt: '2026-03-28T08:00:00.000Z',
+            latestEventId: 77,
+            token: 'mission-control:77',
+          },
+          packets: [],
+        })),
+      } as never,
+      {
+        listBriefs: vi.fn(async () => []),
+      } as never,
+      {
+        listUpdates: vi.fn(async () => []),
+      } as never,
+      {
+        getWorkflowSettings: vi.fn(async () => ({
+          effective_live_visibility_mode: 'enhanced',
+        })),
+      } as never,
+      executionTurnSource as never,
+    );
+
+    await expect(
+      service.getLiveConsole('tenant-1', 'workflow-1', {
+        workItemId: 'work-item-1',
+        taskId: 'task-1',
+        limit: 10,
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        total_count: 2,
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            item_id: 'execution-log:log-date',
+            headline: '[Plan] Finish the active release task.',
+          }),
+          expect.objectContaining({
+            item_id: 'execution-log:log-string',
+            headline: '[Think] Check whether the final release checklist is already complete.',
+          }),
+        ]),
+      }),
+    );
+  });
+
   it('keeps standard live visibility limited to durable records even when execution logs are available', async () => {
     const executionTurnSource = {
       query: vi.fn(async () => ({

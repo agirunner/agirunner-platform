@@ -1,5 +1,5 @@
 interface CursorTarget {
-  timestamp: string;
+  timestamp: string | Date;
   id: string;
 }
 
@@ -75,11 +75,14 @@ export function readFirstItemCursor<T>(
 }
 
 export function compareCursorTargets(left: CursorTarget, right: CursorTarget): number {
-  return right.timestamp.localeCompare(left.timestamp) || right.id.localeCompare(left.id);
+  return (
+    normalizeCursorTimestamp(right.timestamp).localeCompare(normalizeCursorTimestamp(left.timestamp))
+    || right.id.localeCompare(left.id)
+  );
 }
 
 export function encodeCursor(target: CursorTarget): string {
-  return `${target.timestamp}|${target.id}`;
+  return `${normalizeCursorTimestamp(target.timestamp)}|${target.id}`;
 }
 
 export function parseCursor(cursor: string | undefined): CursorTarget | null {
@@ -104,4 +107,8 @@ export function requireCursorTarget(
     throw new Error(message);
   }
   return target;
+}
+
+function normalizeCursorTimestamp(value: string | Date): string {
+  return value instanceof Date ? value.toISOString() : value;
 }
