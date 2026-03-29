@@ -600,6 +600,7 @@ export interface DashboardWorkflowLiveConsoleItem {
 
 export interface DashboardWorkflowLiveConsolePacket extends DashboardWorkflowOperationsSnapshot {
   items: DashboardWorkflowLiveConsoleItem[];
+  total_count?: number;
   next_cursor: string | null;
 }
 

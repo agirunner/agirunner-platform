@@ -71,4 +71,15 @@ describe('workflows page source', () => {
     expect(source).not.toContain('workflow && workspaceQuery.data ? (');
     expect(source).not.toContain('placeholderData: (previous) => previous');
   });
+
+  it('wires task clicks into task-scoped bottom-pane state and clears only task scope when returning to work-item view', () => {
+    const source = readSource();
+    expect(source).toContain("onSelectTask={(workItemId, taskId) =>");
+    expect(source).toContain('patchPageState(navigate, pageState, { workItemId, taskId })');
+    expect(source).toContain('selectedTaskId={boardSelection.taskId}');
+    expect(source).toContain('selectedTask={selectedTaskQuery.data ?? null}');
+    expect(source).toContain('onClearTaskScope={() => patchPageState(navigate, pageState, { taskId: null })}');
+    expect(source).toContain('onClearWorkItemScope={() =>');
+    expect(source).toContain('patchPageState(navigate, pageState, { workItemId: null, taskId: null })');
+  });
 });

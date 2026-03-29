@@ -49,9 +49,6 @@ export function WorkflowDetails(props: {
   return (
     <section className="grid gap-3 pb-1">
       <header className="grid gap-1.5 border-b border-border/60 pb-3">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          {scope.scope_label}
-        </p>
         <h3 className="text-base font-semibold text-foreground">{scope.title}</h3>
         {scope.summary ? (
           <p className="text-sm text-muted-foreground">{scope.summary}</p>
@@ -221,7 +218,6 @@ function buildDetailsScope(props: {
   selectedWorkItemTasks: Record<string, unknown>[];
   scope: WorkflowWorkbenchScopeDescriptor;
 }): {
-  scope_label: string;
   title: string;
   latest_status: string;
   summary: string | null;
@@ -230,7 +226,6 @@ function buildDetailsScope(props: {
 } {
   if (props.scope.scopeKind === 'selected_task') {
     return {
-      scope_label: 'Task scope',
       title:
         props.selectedTask?.title
         ?? props.selectedTaskTitle
@@ -249,7 +244,6 @@ function buildDetailsScope(props: {
 
   if (props.scope.scopeKind === 'selected_work_item') {
     return {
-      scope_label: 'Work item scope',
       title:
         props.selectedWorkItem?.title
         ?? props.selectedWorkItemTitle
@@ -265,7 +259,6 @@ function buildDetailsScope(props: {
   }
 
   return {
-    scope_label: 'Workflow scope',
     title: props.workflow.name,
     latest_status:
       readOptionalText(props.stickyStrip?.summary)

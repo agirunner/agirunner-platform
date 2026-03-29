@@ -69,18 +69,16 @@ export function WorkflowBottomWorkbench(props: {
     selectedTaskTitle: currentTaskTitle,
   });
   const counts = props.packet.bottom_tabs.counts;
+  const liveConsoleCount = props.packet.live_console.total_count ?? counts.live_console_activity;
 
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col gap-1.5">
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 px-1">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-border/70 bg-muted/5 px-3 py-2">
         <div className="grid gap-0.5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Current scope
+            {`Showing ${resolvedScope.title}`}
           </p>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">{humanizeScopeKind(resolvedScope.scopeKind)}</Badge>
-            <p className="text-sm font-semibold text-foreground">{resolvedScope.banner}</p>
-          </div>
+          <p className="text-sm font-semibold text-foreground">{resolvedScope.banner}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {resolvedScope.scopeKind === 'selected_task' ? (
@@ -99,7 +97,6 @@ export function WorkflowBottomWorkbench(props: {
       <div className="flex min-w-0 flex-wrap gap-2">
         <WorkbenchTabButton
           label="Details"
-          count={counts.details}
           isActive={props.activeTab === 'details'}
           onClick={() => props.onTabChange('details')}
         />
@@ -117,7 +114,7 @@ export function WorkflowBottomWorkbench(props: {
         />
         <WorkbenchTabButton
           label="Live Console"
-          count={counts.live_console_activity}
+          count={liveConsoleCount}
           isActive={props.activeTab === 'live_console'}
           onClick={() => props.onTabChange('live_console')}
         />
@@ -178,8 +175,7 @@ export function WorkflowBottomWorkbench(props: {
         {props.activeTab === 'live_console' ? (
           <WorkflowLiveConsole
             packet={props.packet.live_console}
-            selectedWorkItemId={currentWorkItemId}
-            selectedTaskId={currentTaskId}
+            scopeLabel={resolvedScope.banner}
             scopeSubject={resolvedScope.subject}
             onLoadMore={props.onLoadMoreActivity}
           />
@@ -255,19 +251,9 @@ function resolveWorkbenchScope(props: {
   };
 }
 
-function humanizeScopeKind(value: WorkflowWorkbenchScopeDescriptor['scopeKind']): string {
-  if (value === 'selected_task') {
-    return 'Task';
-  }
-  if (value === 'selected_work_item') {
-    return 'Work item';
-  }
-  return 'Workflow';
-}
-
 function WorkbenchTabButton(props: {
   label: string;
-  count: number;
+  count?: number;
   isActive: boolean;
   onClick(): void;
 }): JSX.Element {
@@ -282,7 +268,9 @@ function WorkbenchTabButton(props: {
       onClick={props.onClick}
     >
       <span>{props.label}</span>
-      {props.count > 0 ? <Badge variant={props.isActive ? 'secondary' : 'outline'}>{props.count}</Badge> : null}
+      {props.count && props.count > 0 ? (
+        <Badge variant={props.isActive ? 'secondary' : 'outline'}>{props.count}</Badge>
+      ) : null}
     </button>
   );
 }

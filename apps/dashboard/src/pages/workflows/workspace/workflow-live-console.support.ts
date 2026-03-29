@@ -1,3 +1,5 @@
+import type { DashboardWorkflowLiveConsoleItem } from '../../../lib/api.js';
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const WORKFLOW_CONSOLE_ENTRY_STYLES = {
@@ -18,6 +20,14 @@ const WORKFLOW_CONSOLE_ENTRY_STYLES = {
   },
 } as const;
 
+export type WorkflowConsoleFilter = 'all' | 'turn_updates' | 'briefs';
+
+const WORKFLOW_CONSOLE_FILTER_LABELS: Record<WorkflowConsoleFilter, string> = {
+  all: 'All',
+  turn_updates: 'Turn updates',
+  briefs: 'Briefs',
+};
+
 export function formatWorkflowActivitySourceLabel(sourceLabel: string, sourceKind: string): string {
   const normalizedLabel = readNonEmptyText(sourceLabel);
   if (normalizedLabel && !UUID_RE.test(normalizedLabel)) {
@@ -29,6 +39,58 @@ export function formatWorkflowActivitySourceLabel(sourceLabel: string, sourceKin
 
 export function normalizeWorkflowConsoleText(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
+}
+
+export function buildWorkflowConsoleFilterDescriptors(items: DashboardWorkflowLiveConsoleItem[]): Array<{
+  filter: WorkflowConsoleFilter;
+  label: string;
+  count: number;
+}> {
+  return (Object.keys(WORKFLOW_CONSOLE_FILTER_LABELS) as WorkflowConsoleFilter[]).map((filter) => ({
+    filter,
+    label: WORKFLOW_CONSOLE_FILTER_LABELS[filter],
+    count: filterWorkflowConsoleItems(items, filter).length,
+  }));
+}
+
+export function filterWorkflowConsoleItems(
+  items: DashboardWorkflowLiveConsoleItem[],
+  filter: WorkflowConsoleFilter,
+): DashboardWorkflowLiveConsoleItem[] {
+  if (filter === 'all') {
+    return items;
+  }
+  if (filter === 'briefs') {
+    return items.filter(isWorkflowConsoleBrief);
+  }
+  return items.filter((item) => !isWorkflowConsoleBrief(item));
+}
+
+export function describeWorkflowConsoleEmptyState(
+  filter: WorkflowConsoleFilter,
+  scopeLabel: string,
+): string {
+  if (filter === 'briefs') {
+    return `No briefs recorded for ${scopeLabel} yet.`;
+  }
+  if (filter === 'turn_updates') {
+    return `No turn updates recorded for ${scopeLabel} yet.`;
+  }
+  return `No live console entries recorded for ${scopeLabel} yet.`;
+}
+
+export function describeWorkflowConsoleCoverage(
+  items: DashboardWorkflowLiveConsoleItem[],
+  nextCursor: string | null,
+  totalCount?: number | null,
+): string | null {
+  if (!nextCursor || items.length === 0) {
+    return null;
+  }
+  const headlineLabel = items.length === 1 ? 'headline' : 'headlines';
+  const hasExpandedTotal = typeof totalCount === 'number' && totalCount > items.length;
+  const totalSegment = hasExpandedTotal ? ` out of ${totalCount} total` : '';
+  return `Showing the latest ${items.length} loaded ${headlineLabel}${totalSegment}. Filter counts reflect the current window until you load older headlines.`;
 }
 
 export function getWorkflowConsoleEntryStyle(itemKind: string): {
@@ -55,6 +117,10 @@ export function getWorkflowConsoleEntryStyle(itemKind: string): {
     dataKind: 'update',
     ...WORKFLOW_CONSOLE_ENTRY_STYLES.update,
   };
+}
+
+function isWorkflowConsoleBrief(item: DashboardWorkflowLiveConsoleItem): boolean {
+  return item.item_kind === 'milestone_brief';
 }
 
 function readNonEmptyText(value: string): string | null {

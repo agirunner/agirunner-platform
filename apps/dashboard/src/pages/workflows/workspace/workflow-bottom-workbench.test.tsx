@@ -7,15 +7,26 @@ import type { DashboardWorkflowWorkspacePacket } from '../../../lib/api.js';
 import { WorkflowBottomWorkbench } from './workflow-bottom-workbench.js';
 
 describe('WorkflowBottomWorkbench', () => {
-  it('keeps the shell header compact without the redundant workspace explainer copy', () => {
+  it('renders an explicit scope banner above the tabs and hides the details count badge', () => {
+    const packet = {
+      ...createPacket(),
+      bottom_tabs: {
+        ...createPacket().bottom_tabs,
+        counts: {
+          ...createPacket().bottom_tabs.counts,
+          details: 1,
+          needs_action: 2,
+        },
+      },
+    };
     const html = renderToStaticMarkup(
       createElement(WorkflowBottomWorkbench, {
         workflowId: 'workflow-1',
-        workflow: createPacket().workflow,
-        stickyStrip: createPacket().sticky_strip,
-        board: createPacket().board,
+        workflow: packet.workflow,
+        stickyStrip: packet.sticky_strip,
+        board: packet.board,
         workflowName: 'Workflow 1',
-        packet: createPacket(),
+        packet,
         activeTab: 'details',
         selectedWorkItemId: null,
         scopedWorkItemId: null,
@@ -46,7 +57,11 @@ describe('WorkflowBottomWorkbench', () => {
 
     expect(html).toContain('Workflow: Workflow 1');
     expect(html.indexOf('Workflow: Workflow 1')).toBeLessThan(html.indexOf('Details'));
+    expect(html).toContain('Showing Workflow');
+    expect(html).not.toContain('Current scope');
     expect(html).toContain('Briefs');
+    expect(html).toContain('Needs Action</span><div');
+    expect(html).not.toContain('Details</span><div');
     expect(html).not.toContain('Details, actions, steering, live updates, history, and deliverables stay in one place.');
     expect(html).not.toContain('History');
     expect(html).not.toContain('Workbench Scope');
@@ -107,12 +122,14 @@ describe('WorkflowBottomWorkbench', () => {
 
     expect(html).toContain('Task: Verify deliverable');
     expect(html).toContain('Verify deliverable');
+    expect(html).toContain('Showing Task');
     expect(html).toContain('Show work item');
     expect(html).toContain('Show workflow');
     expect(html).not.toContain('Selected on board');
     expect(html).not.toContain('Back to work item');
     expect(html).not.toContain('Back to workflow');
     expect(html).not.toContain('Workflow 1</h3>');
+    expect(html).not.toContain('Current scope');
   });
 
   it('keeps steering focused on requests and history instead of header-control reminders', () => {
@@ -240,7 +257,7 @@ describe('WorkflowBottomWorkbench', () => {
     );
 
     expect(html).toContain('Task: Verify deliverable');
-    expect(html).toContain('No live headlines have been recorded for this task yet.');
+    expect(html).toContain('Live Console');
     expect(html).not.toContain('this workflow yet');
   });
 
@@ -303,17 +320,71 @@ describe('WorkflowBottomWorkbench', () => {
       }),
     );
 
-    expect(html).toContain('Current scope');
-    expect(html).toContain('Task');
+    expect(html).toContain('Showing Task');
     expect(html).toContain('Verify deliverable');
     expect(html).toContain('Show work item');
     expect(html).toContain('Show workflow');
-    expect(html).toContain('>41<');
     expect(html).toContain('>42<');
     expect(html).toContain('>45<');
+    expect(html).not.toContain('>41<');
     expect(html).not.toContain('Workflow: Workflow 1');
-    expect(html).toContain('No live headlines have been recorded for this task yet.');
+    expect(html).toContain('Live Console');
     expect(html).not.toContain('this workflow yet');
+  });
+
+  it('prefers the scoped live-console total count over the paged 50-row window in the tab badge', () => {
+    const packet = createPacket();
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBottomWorkbench, {
+        workflowId: 'workflow-1',
+        workflow: packet.workflow,
+        stickyStrip: packet.sticky_strip,
+        board: packet.board,
+        workflowName: 'Workflow 1',
+        packet: {
+          ...packet,
+          bottom_tabs: {
+            ...packet.bottom_tabs,
+            counts: {
+              ...packet.bottom_tabs.counts,
+              live_console_activity: 50,
+            },
+          },
+          live_console: {
+            ...packet.live_console,
+            total_count: 137,
+          },
+        },
+        activeTab: 'details',
+        selectedWorkItemId: null,
+        scopedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [],
+        inputPackets: [],
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        onTabChange: vi.fn(),
+        onClearWorkItemScope: vi.fn(),
+        onClearTaskScope: vi.fn(),
+        onOpenAddWork: vi.fn(),
+        onOpenRedrive: vi.fn(),
+        onLoadMoreActivity: vi.fn(),
+        onLoadMoreDeliverables: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('>137<');
+    expect(html).not.toContain('>50<');
   });
 });
 

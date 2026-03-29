@@ -48,11 +48,14 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain('Task scope');
     expect(html).toContain('Verify deliverable');
+    expect(html).toContain('Latest status');
     expect(html).toContain('In Progress');
     expect(html).toContain('Task input');
     expect(html).toContain('Inputs');
+    expect(html).not.toContain('Task scope');
+    expect(html).not.toContain('Work item scope');
+    expect(html).not.toContain('Workflow scope');
     expect(html).not.toContain('Launch packet');
     expect(html).not.toContain('Rollback guide');
     expect(html).not.toContain('release/2026.03');
@@ -103,11 +106,12 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain('Work item scope');
+    expect(html).toContain('Latest status');
     expect(html).toContain('Tasks');
     expect(html).toContain('1 active');
     expect(html).toContain('1 blocked');
     expect(html).toContain('1 completed');
+    expect(html).not.toContain('Work item scope');
     expect(html).not.toContain('Current task load:');
     expect(html).not.toContain('Verify deliverable</span>');
     expect(html).not.toContain('Rollback validation</span>');
@@ -143,10 +147,11 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain('Workflow scope');
+    expect(html).toContain('Latest status');
     expect(html).toContain('Launch inputs');
     expect(html).toContain('Launch packet');
     expect(html).toContain('release/2026.03');
+    expect(html).not.toContain('Workflow scope');
     expect(html).not.toContain('Rollback guide');
     expect(html).not.toContain('rollback.md');
     expect(html).not.toContain('Task input');
@@ -177,9 +182,9 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain('Task scope');
     expect(html).toContain('Prepare release bundle');
     expect(html).toContain('Check the final release packet and approve it.');
+    expect(html).not.toContain('Task scope');
     expect(html).not.toContain('Owner role');
     expect(html).not.toContain('Next expected actor');
   });

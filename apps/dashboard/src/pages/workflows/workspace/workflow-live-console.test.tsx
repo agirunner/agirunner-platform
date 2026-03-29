@@ -23,8 +23,7 @@ describe('WorkflowLiveConsole', () => {
             created_at: '2026-03-27T04:00:00.000Z',
           },
         ]),
-        selectedWorkItemId: null,
-        selectedTaskId: null,
+        scopeLabel: 'Workflow: Release workflow',
         scopeSubject: 'workflow',
         onLoadMore: vi.fn(),
       }),
@@ -55,13 +54,18 @@ describe('WorkflowLiveConsole', () => {
             created_at: '2026-03-27T04:04:00.000Z',
           },
         ]),
-        selectedWorkItemId: null,
-        selectedTaskId: null,
+        scopeLabel: 'Workflow: Release workflow',
         scopeSubject: 'workflow',
         onLoadMore: vi.fn(),
       }),
     );
 
+    expect(html).toContain('All');
+    expect(html).toContain('Turn updates');
+    expect(html).toContain('Briefs');
+    expect(html).toContain('>2<');
+    expect(html).toContain('>1<');
+    expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('&gt;');
     expect(html).toContain('Implementation Engineer:');
     expect(html).toContain('Updated retry handling.');
@@ -69,6 +73,7 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('Orchestrator:');
     expect(html).toContain('Workflow reached approval milestone');
     expect(html).not.toContain('A structured brief was published.');
+    expect(html).toContain('Workflow: Release workflow');
     expect(html).toContain('data-terminal-entry="brief"');
     expect(html).toContain('data-terminal-entry="update"');
     expect(html).toContain('border-l-emerald-400/70');
@@ -79,6 +84,9 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('sm:gap-3');
     expect(html).toContain('break-words');
     expect(html).toContain('overflow-x-hidden overflow-y-auto');
+    expect(html).toContain(
+      'Showing the latest 2 loaded headlines out of 7 total. Filter counts reflect the current window until you load older headlines.',
+    );
   });
 
   it('humanizes role labels and falls back when the provided label is a raw uuid', () => {
@@ -104,8 +112,7 @@ describe('WorkflowLiveConsole', () => {
             created_at: '2026-03-27T04:03:00.000Z',
           },
         ]),
-        selectedWorkItemId: null,
-        selectedTaskId: null,
+        scopeLabel: 'Workflow: Release workflow',
         scopeSubject: 'workflow',
         onLoadMore: vi.fn(),
       }),
@@ -121,16 +128,14 @@ describe('WorkflowLiveConsole', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowLiveConsole, {
         packet: createPacket([]),
-        selectedWorkItemId: 'work-item-1',
-        selectedTaskId: 'task-1',
+        scopeLabel: 'Task: Verify deliverable',
         scopeSubject: 'task',
         onLoadMore: vi.fn(),
       }),
     );
 
-    expect(html).toContain('Scoped to selected task');
-    expect(html).not.toContain('Scoped to selected work item');
-    expect(html).toContain('No live headlines have been recorded for this task yet.');
+    expect(html).toContain('Task: Verify deliverable');
+    expect(html).toContain('No live console entries recorded for Task: Verify deliverable yet.');
     expect(html).not.toContain('this workflow yet');
   });
 
@@ -148,8 +153,7 @@ describe('WorkflowLiveConsole', () => {
             created_at: '2026-03-27T04:04:00.000Z',
           },
         ]),
-        selectedWorkItemId: null,
-        selectedTaskId: null,
+        scopeLabel: 'Workflow: Release workflow',
         scopeSubject: 'workflow',
         onLoadMore: vi.fn(),
       }),
@@ -168,14 +172,14 @@ describe('WorkflowLiveConsole', () => {
           ...createPacket([]),
           next_cursor: null,
         },
-        selectedWorkItemId: null,
-        selectedTaskId: null,
+        scopeLabel: 'Workflow: Release workflow',
         scopeSubject: 'workflow',
         onLoadMore: vi.fn(),
       }),
     );
 
     expect(html).not.toContain('Load older headlines');
+    expect(html).not.toContain('Filter counts reflect the current window until you load older headlines.');
   });
 });
 
@@ -187,6 +191,7 @@ function createPacket(
     latest_event_id: 42,
     snapshot_version: 'workflow-operations:42',
     next_cursor: 'cursor-1',
+    total_count: 7,
     items: items.map((item) => ({
       item_kind: 'operator_update',
       source_kind: 'specialist',

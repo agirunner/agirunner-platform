@@ -1,21 +1,25 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import type { DashboardWorkflowLiveConsolePacket } from '../../../lib/api.js';
 import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
 import {
+  buildWorkflowConsoleFilterDescriptors,
+  describeWorkflowConsoleCoverage,
+  describeWorkflowConsoleEmptyState,
+  filterWorkflowConsoleItems,
   formatWorkflowActivitySourceLabel,
   getWorkflowConsoleEntryStyle,
   normalizeWorkflowConsoleText,
+  type WorkflowConsoleFilter,
 } from './workflow-live-console.support.js';
 
 const LIVE_EDGE_THRESHOLD_PX = 48;
 
 export function WorkflowLiveConsole(props: {
   packet: DashboardWorkflowLiveConsolePacket;
-  selectedWorkItemId: string | null;
-  selectedTaskId: string | null;
+  scopeLabel: string;
   scopeSubject?: 'workflow' | 'work item' | 'task';
   onLoadMore(): void;
 }): JSX.Element {
@@ -23,7 +27,20 @@ export function WorkflowLiveConsole(props: {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [isPinnedToLiveEdge, setIsPinnedToLiveEdge] = useState(true);
   const [hasQueuedUpdates, setHasQueuedUpdates] = useState(false);
-  const previousItemCount = useRef(props.packet.items.length);
+  const [selectedFilter, setSelectedFilter] = useState<WorkflowConsoleFilter>('all');
+  const filterDescriptors = useMemo(
+    () => buildWorkflowConsoleFilterDescriptors(props.packet.items),
+    [props.packet.items],
+  );
+  const visibleItems = useMemo(
+    () => filterWorkflowConsoleItems(props.packet.items, selectedFilter),
+    [props.packet.items, selectedFilter],
+  );
+  const coverageMessage = useMemo(
+    () => describeWorkflowConsoleCoverage(props.packet.items, props.packet.next_cursor, props.packet.total_count),
+    [props.packet.items, props.packet.next_cursor, props.packet.total_count],
+  );
+  const previousVisibleItemCount = useRef(visibleItems.length);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -31,8 +48,8 @@ export function WorkflowLiveConsole(props: {
       return;
     }
 
-    const itemCountIncreased = props.packet.items.length > previousItemCount.current;
-    previousItemCount.current = props.packet.items.length;
+    const itemCountIncreased = visibleItems.length > previousVisibleItemCount.current;
+    previousVisibleItemCount.current = visibleItems.length;
     if (!itemCountIncreased) {
       return;
     }
@@ -44,23 +61,19 @@ export function WorkflowLiveConsole(props: {
     }
 
     setHasQueuedUpdates(true);
-  }, [isPinnedToLiveEdge, props.packet.items.length]);
+  }, [isPinnedToLiveEdge, visibleItems.length]);
 
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
+        <div className="grid gap-1">
           <p className="text-sm font-semibold text-foreground">Live Console</p>
           <p className="text-sm text-muted-foreground">
-            Turn updates and milestone briefs for this {scopeSubject}.
+            Turn updates and milestone briefs for {props.scopeLabel}.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          {props.selectedTaskId ? (
-            <Badge variant="outline">Scoped to selected task</Badge>
-          ) : props.selectedWorkItemId ? (
-            <Badge variant="outline">Scoped to selected work item</Badge>
-          ) : null}
+          {scopeSubject !== 'workflow' ? <Badge variant="outline">{props.scopeLabel}</Badge> : null}
           {hasQueuedUpdates ? (
             <Button
               type="button"
@@ -81,6 +94,27 @@ export function WorkflowLiveConsole(props: {
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        {filterDescriptors.map((descriptor) => (
+          <Button
+            key={descriptor.filter}
+            type="button"
+            size="sm"
+            variant={selectedFilter === descriptor.filter ? 'secondary' : 'outline'}
+            aria-pressed={selectedFilter === descriptor.filter}
+            onClick={() => setSelectedFilter(descriptor.filter)}
+          >
+            <span>{descriptor.label}</span>
+            <Badge variant={selectedFilter === descriptor.filter ? 'secondary' : 'outline'}>
+              {descriptor.count}
+            </Badge>
+          </Button>
+        ))}
+      </div>
+      {coverageMessage ? (
+        <p className="text-xs text-muted-foreground">{coverageMessage}</p>
+      ) : null}
+
       <div
         ref={containerRef}
         className="max-h-[28rem] overflow-x-hidden overflow-y-auto rounded-2xl border border-slate-800 bg-[#09111f] p-3 font-mono text-sm text-slate-100 shadow-inner"
@@ -94,12 +128,12 @@ export function WorkflowLiveConsole(props: {
         }}
       >
         <div className="grid gap-2">
-          {props.packet.items.length === 0 ? (
+          {visibleItems.length === 0 ? (
             <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-4 text-slate-300">
-              No live headlines have been recorded for this {scopeSubject} yet.
+              {describeWorkflowConsoleEmptyState(selectedFilter, props.scopeLabel)}
             </div>
           ) : (
-            props.packet.items.map((item) => (
+            visibleItems.map((item) => (
               <LiveConsoleEntry key={item.item_id} item={item} />
             ))
           )}
