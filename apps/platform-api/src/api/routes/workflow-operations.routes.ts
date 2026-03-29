@@ -26,6 +26,17 @@ function writeSse(reply: { raw: NodeJS.WritableStream & { write: (chunk: string)
   reply.raw.write(`data: ${JSON.stringify(data)}\n\n`);
 }
 
+function logWorkflowStreamRefreshFailure(
+  request: { log?: { error: (payload: object, message: string) => void } },
+  streamKind: 'rail' | 'workspace',
+  error: unknown,
+): void {
+  request.log?.error(
+    { err: error instanceof Error ? error : new Error(String(error)) },
+    `Failed to refresh workflow ${streamKind} stream batch.`,
+  );
+}
+
 function applyWorkflowStreamHeaders(
   request: { headers: Record<string, unknown> },
   reply: {
@@ -190,6 +201,9 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
         .then((nextBatch) => {
           currentCursor = nextBatch.cursor;
           writeSse(reply, nextBatch);
+        })
+        .catch((error: unknown) => {
+          logWorkflowStreamRefreshFailure(request, 'rail', error);
         });
       void event;
     });
@@ -269,6 +283,9 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
           if (nextBatch.events.length > 0) {
             writeSse(reply, nextBatch);
           }
+        })
+        .catch((error: unknown) => {
+          logWorkflowStreamRefreshFailure(request, 'workspace', error);
         })
         .finally(() => {
           refreshInFlight = false;

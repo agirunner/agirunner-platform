@@ -223,6 +223,153 @@ describe('workflow operations routes v2', () => {
     );
   });
 
+  it('keeps workspace streams open when an async refresh batch build rejects', async () => {
+    const { workflowOperationsRoutes } = await import('../../src/api/routes/workflow-operations.routes.js');
+    const workflowOperationsRailService = {
+      getRail: vi.fn(async () => ({ rows: [], selected_workflow_id: null })),
+    };
+    const workflowOperationsWorkspaceService = {
+      getWorkspace: vi.fn(async () => ({ workflow_id: 'workflow-1' })),
+    };
+    let refreshCallback: (() => void) | undefined;
+    const workflowOperationsStreamService = {
+      buildRailBatch: vi.fn(async () => ({
+        generated_at: '2026-03-29T00:00:00.000Z',
+        latest_event_id: 42,
+        cursor: 'workflow-operations:42',
+        snapshot_version: 'workflow-operations:42',
+        events: [],
+      })),
+      buildWorkspaceBatch: vi
+        .fn()
+        .mockResolvedValueOnce({
+          generated_at: '2026-03-29T00:00:00.000Z',
+          latest_event_id: 42,
+          cursor: 'workflow-operations:42',
+          snapshot_version: 'workflow-operations:42',
+          events: [],
+          surface_cursors: {
+            live_console_head: null,
+            briefs_head: null,
+            history_head: null,
+            deliverables_head: null,
+          },
+        })
+        .mockRejectedValueOnce(new Error('refresh failed')),
+    };
+    const eventStreamService = {
+      subscribe: vi.fn((_tenantId: string, _filters: object, callback: () => void) => {
+        refreshCallback = callback;
+        return () => undefined;
+      }),
+    };
+    const logStreamService = {
+      subscribe: vi.fn(() => () => undefined),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowOperationsRailService', workflowOperationsRailService as never);
+    app.decorate('workflowOperationsWorkspaceService', workflowOperationsWorkspaceService as never);
+    app.decorate('workflowOperationsStreamService', workflowOperationsStreamService as never);
+    app.decorate('eventStreamService', eventStreamService as never);
+    app.decorate('logStreamService', logStreamService as never);
+    await app.register(workflowOperationsRoutes);
+
+    await app.listen({ port: 0, host: '127.0.0.1' });
+    const address = app.server.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Failed to resolve test server address.');
+    }
+
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/v1/operations/workflows/workflow-1/stream`, {
+      headers: {
+        authorization: 'Bearer test',
+        accept: 'text/event-stream',
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(refreshCallback).toBeTypeOf('function');
+
+    refreshCallback?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(workflowOperationsStreamService.buildWorkspaceBatch).toHaveBeenCalledTimes(2);
+
+    response.body?.cancel().catch(() => undefined);
+  });
+
+  it('keeps rail streams open when an async refresh batch build rejects', async () => {
+    const { workflowOperationsRoutes } = await import('../../src/api/routes/workflow-operations.routes.js');
+    const workflowOperationsRailService = {
+      getRail: vi.fn(async () => ({ rows: [], selected_workflow_id: null })),
+    };
+    const workflowOperationsWorkspaceService = {
+      getWorkspace: vi.fn(async () => ({ workflow_id: 'workflow-1' })),
+    };
+    let refreshCallback: (() => void) | undefined;
+    const workflowOperationsStreamService = {
+      buildRailBatch: vi
+        .fn()
+        .mockResolvedValueOnce({
+          generated_at: '2026-03-29T00:00:00.000Z',
+          latest_event_id: 42,
+          cursor: 'workflow-operations:42',
+          snapshot_version: 'workflow-operations:42',
+          events: [],
+        })
+        .mockRejectedValueOnce(new Error('refresh failed')),
+      buildWorkspaceBatch: vi.fn(async () => ({
+        generated_at: '2026-03-29T00:00:00.000Z',
+        latest_event_id: 42,
+        cursor: 'workflow-operations:42',
+        snapshot_version: 'workflow-operations:42',
+        events: [],
+      })),
+    };
+    const eventStreamService = {
+      subscribe: vi.fn((_tenantId: string, _filters: object, callback: () => void) => {
+        refreshCallback = callback;
+        return () => undefined;
+      }),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowOperationsRailService', workflowOperationsRailService as never);
+    app.decorate('workflowOperationsWorkspaceService', workflowOperationsWorkspaceService as never);
+    app.decorate('workflowOperationsStreamService', workflowOperationsStreamService as never);
+    app.decorate('eventStreamService', eventStreamService as never);
+    app.decorate('logStreamService', {
+      subscribe: vi.fn(() => () => undefined),
+    } as never);
+    await app.register(workflowOperationsRoutes);
+
+    await app.listen({ port: 0, host: '127.0.0.1' });
+    const address = app.server.address();
+    if (!address || typeof address === 'string') {
+      throw new Error('Failed to resolve test server address.');
+    }
+
+    const response = await fetch(`http://127.0.0.1:${address.port}/api/v1/operations/workflows/stream?mode=live`, {
+      headers: {
+        authorization: 'Bearer test',
+        accept: 'text/event-stream',
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(refreshCallback).toBeTypeOf('function');
+
+    refreshCallback?.();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(workflowOperationsStreamService.buildRailBatch).toHaveBeenCalledTimes(2);
+
+    response.body?.cancel().catch(() => undefined);
+  });
+
   it('ignores invalid selected workflow ids on rail list and stream reads instead of forwarding them', async () => {
     const { workflowOperationsRoutes } = await import('../../src/api/routes/workflow-operations.routes.js');
     const workflowOperationsRailService = {
