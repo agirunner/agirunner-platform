@@ -1049,8 +1049,8 @@ describe('workflow-execution-log-composer', () => {
     );
   });
 
-  it('renders sanitized file_read args for llm act fallback rows', () => {
-    const [item] = buildExecutionTurnItems([
+  it('suppresses low-value file_read helper turns even when safe args are available', () => {
+    const items = buildExecutionTurnItems([
       createLogRow({
         id: '43e',
         category: 'llm',
@@ -1071,8 +1071,7 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(item.headline).toBe('[Act] calling file_read(path="task input")');
-    expect(item.summary).toBe('calling file_read(path="task input")');
+    expect(items).toEqual([]);
   });
 
   it('suppresses raw agent act rows when the same turn already has an llm act phase row', () => {
@@ -1360,8 +1359,8 @@ describe('workflow-execution-log-composer', () => {
     );
   });
 
-  it('renders llm act turns with sanitized helper-read args when no better prose exists', () => {
-    const [item] = buildExecutionTurnItems([
+  it('suppresses llm act turns when they only contain helper-read fallbacks', () => {
+    const items = buildExecutionTurnItems([
       createLogRow({
         id: '44',
         category: 'llm',
@@ -1381,12 +1380,11 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(item.headline).toBe('[Act] calling file_read(path="task input")');
-    expect(item.summary).toBe('calling file_read(path="task input")');
+    expect(items).toEqual([]);
   });
 
-  it('suppresses environment probes but keeps the remaining hydrated read call with args', () => {
-    const [item] = buildExecutionTurnItems([
+  it('suppresses environment probes and helper-read leftovers when no operator-meaningful act remains', () => {
+    const items = buildExecutionTurnItems([
       createLogRow({
         id: '44f',
         category: 'llm',
@@ -1438,8 +1436,7 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(item.headline).toBe('[Act] calling file_read(path="README.md:1-200")');
-    expect(item.summary).toBe('calling file_read(path="README.md:1-200")');
+    expect(items).toEqual([]);
   });
 
   it('suppresses llm think, plan, and verify turns that only narrate reporting bookkeeping', () => {

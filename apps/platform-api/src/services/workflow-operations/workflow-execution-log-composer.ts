@@ -678,10 +678,7 @@ function canRenderLiteralActionFallback(actionName: string): boolean {
   if (LITERAL_ACTION_FALLBACK_ACTIONS.has(actionName)) {
     return true;
   }
-  if (isToolSpecificFallbackOnlyAction(actionName)) {
-    return true;
-  }
-  if (isLowValueHelperAction(actionName)) {
+  if (isToolSpecificFallbackOnlyAction(actionName) || isLowValueHelperAction(actionName)) {
     return false;
   }
   return /^(create|submit|update|write|edit|delete|approve|reject|reassign|assign|claim|start|complete|finish|close|open|upload|request|dispatch|resume|pause|retry|reroute|set|mark)_/i.test(
