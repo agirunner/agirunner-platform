@@ -1405,7 +1405,7 @@ describe('WorkflowWorkspaceService', () => {
     );
   });
 
-  it('includes blocker detail in needs-action summaries and falls back to workflow output descriptors for deliverables', async () => {
+  it('includes blocker detail in needs-action summaries without polluting deliverables from workflow cards', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -1531,14 +1531,9 @@ describe('WorkflowWorkspaceService', () => {
         summary: 'Review final approval packet is blocked: Waiting on legal sign-off before launch packaging can start.',
       }),
     ]);
-    expect(result.deliverables.in_progress_deliverables).toEqual([
-      expect.objectContaining({
-        descriptor_id: 'artifact:1',
-        title: 'artifact:workflow/release-packet.md',
-      }),
-    ]);
+    expect(result.deliverables.in_progress_deliverables).toEqual([]);
     expect(result.history.items).toEqual([]);
-    expect(result.bottom_tabs.counts.deliverables).toBe(1);
+    expect(result.bottom_tabs.counts.deliverables).toBe(0);
     expect(result.bottom_tabs.counts.history).toBe(0);
   });
 
@@ -1698,18 +1693,10 @@ describe('WorkflowWorkspaceService', () => {
       workItemId: 'work-item-1',
     });
 
-    expect(result.deliverables.in_progress_deliverables).toEqual([
-      expect.objectContaining({
-        descriptor_id: 'artifact:matching',
-        work_item_id: 'work-item-1',
-      }),
-    ]);
-    expect(result.deliverables.in_progress_deliverables).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ descriptor_id: 'artifact:other' })]),
-    );
+    expect(result.deliverables.in_progress_deliverables).toEqual([]);
   });
 
-  it('keeps a selected work-item fallback deliverable even when workflow scope already points at the same artifact', async () => {
+  it('keeps selected work-item deliverables limited to the canonical packet payload', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -1889,12 +1876,11 @@ describe('WorkflowWorkspaceService', () => {
         descriptor_id: 'workflow-deliverable',
         work_item_id: null,
       }),
-      expect.objectContaining({
-        descriptor_id: 'artifact:matching',
-        work_item_id: 'work-item-1',
-      }),
     ]);
-    expect(result.bottom_tabs.counts.deliverables).toBe(2);
+    expect(result.deliverables.final_deliverables).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ descriptor_id: 'artifact:matching' })]),
+    );
+    expect(result.bottom_tabs.counts.deliverables).toBe(1);
   });
 
   it('keeps selected task scope free of raw output-descriptor fallback deliverables', async () => {

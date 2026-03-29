@@ -1,7 +1,5 @@
 import type {
   MissionControlActionAvailability,
-  MissionControlOutputDescriptor,
-  MissionControlOutputLocation,
   MissionControlWorkflowCard,
 } from './mission-control-types.js';
 import { isWorkflowScopeHeaderAction } from './mission-control-action-availability.js';
@@ -170,19 +168,9 @@ export class WorkflowWorkspaceService {
       selectedScope.work_item_id,
       gates,
     );
-    const hydratedDeliverables =
-      selectedScope.scope_kind === 'selected_task'
-        ? deliverables
-        : mergeOutputDescriptorDeliverables(
-            workflowId,
-            deliverables,
-            workflowCard?.outputDescriptors ?? [],
-            history.generated_at,
-            scopedWorkItemId ?? null,
-          );
-    const allDeliverables = hydratedDeliverables.all_deliverables ?? [
-      ...hydratedDeliverables.final_deliverables,
-      ...hydratedDeliverables.in_progress_deliverables,
+    const allDeliverables = deliverables.all_deliverables ?? [
+      ...deliverables.final_deliverables,
+      ...deliverables.in_progress_deliverables,
     ];
     const effectiveLiveConsole = filterLiveConsoleForSelectedScope(liveConsole, selectedScope);
     const effectiveHistory = filterHistoryForSelectedScope(history, selectedScope);
@@ -244,7 +232,7 @@ export class WorkflowWorkspaceService {
       },
       live_console: effectiveLiveConsole,
       history: effectiveHistory,
-      deliverables: hydratedDeliverables,
+      deliverables,
       redrive_lineage: readRedriveLineage(workflow),
     };
   }
@@ -1220,197 +1208,6 @@ function isBlockedGateStatus(gateStatus: string | null): boolean {
     || gateStatus === 'request_changes'
     || gateStatus === 'changes_requested'
     || gateStatus === 'rejected';
-}
-
-function mergeOutputDescriptorDeliverables(
-  workflowId: string,
-  deliverables: Awaited<ReturnType<WorkflowDeliverablesService['getDeliverables']>>,
-  outputDescriptors: MissionControlOutputDescriptor[],
-  fallbackTimestamp: string,
-  scopedWorkItemId: string | null,
-) {
-  const scopedDescriptors = scopedWorkItemId
-    ? outputDescriptors.filter((descriptor) => descriptor.workItemId === scopedWorkItemId)
-    : outputDescriptors;
-
-  if (scopedDescriptors.length === 0) {
-    return deliverables;
-  }
-
-  const finalDeliverables = [...deliverables.final_deliverables];
-  const inProgressDeliverables = [...deliverables.in_progress_deliverables];
-  const allDeliverables = [
-    ...(deliverables.all_deliverables ?? [...finalDeliverables, ...inProgressDeliverables]),
-  ];
-  const dedupeCandidates = scopedWorkItemId
-    ? allDeliverables.filter((deliverable) => readOptionalString(deliverable.work_item_id) === scopedWorkItemId)
-    : allDeliverables;
-  const existingIds = new Set<string>();
-  const existingArtifactIds = new Set<string>();
-  for (const deliverable of dedupeCandidates) {
-    const descriptorId = readOptionalString(
-      (deliverable as unknown as Record<string, unknown>).descriptor_id,
-    );
-    if (descriptorId) {
-      existingIds.add(descriptorId);
-    }
-    const targets = collectDeliverableTargets(deliverable as unknown as Record<string, unknown>);
-    for (const target of targets) {
-      const artifactId = readOptionalString(target.artifact_id);
-      if (artifactId) {
-        existingArtifactIds.add(artifactId);
-      }
-    }
-  }
-
-  for (const descriptor of scopedDescriptors) {
-    if (existingIds.has(descriptor.id)) {
-      continue;
-    }
-    if (
-      descriptor.primaryLocation.kind === 'artifact'
-      && existingArtifactIds.has(descriptor.primaryLocation.artifactId)
-    ) {
-      continue;
-    }
-    const mapped = mapOutputDescriptorDeliverable(workflowId, descriptor, fallbackTimestamp);
-    allDeliverables.push(mapped);
-    if (mapped.delivery_stage === 'final') {
-      finalDeliverables.push(mapped);
-    } else {
-      inProgressDeliverables.push(mapped);
-    }
-  }
-
-  return {
-    ...deliverables,
-    final_deliverables: finalDeliverables,
-    in_progress_deliverables: inProgressDeliverables,
-    all_deliverables: allDeliverables,
-  };
-}
-
-function mapOutputDescriptorDeliverable(
-  workflowId: string,
-  descriptor: MissionControlOutputDescriptor,
-  fallbackTimestamp: string,
-) {
-  return {
-    descriptor_id: descriptor.id,
-    workflow_id: workflowId,
-    work_item_id: descriptor.workItemId,
-    descriptor_kind: descriptor.primaryLocation.kind,
-    delivery_stage: descriptor.status === 'final' ? 'final' : 'in_progress',
-    title: descriptor.title,
-    state: descriptor.status,
-    summary_brief: descriptor.summary,
-    preview_capabilities: buildOutputPreviewCapabilities(descriptor.primaryLocation),
-    primary_target: mapOutputLocationTarget(descriptor.primaryLocation, true),
-    secondary_targets: descriptor.secondaryLocations.map((location) =>
-      mapOutputLocationTarget(location, false),
-    ),
-    content_preview: {},
-    source_brief_id: null,
-    created_at: fallbackTimestamp,
-    updated_at: fallbackTimestamp,
-  };
-}
-
-function collectDeliverableTargets(deliverable: Record<string, unknown>) {
-  const targets: Array<Record<string, unknown>> = [];
-  const primaryTarget =
-    deliverable.primary_target && typeof deliverable.primary_target === 'object' && !Array.isArray(deliverable.primary_target)
-      ? deliverable.primary_target as Record<string, unknown>
-      : null;
-  if (primaryTarget) {
-    targets.push(primaryTarget);
-  }
-  const secondaryTargets = Array.isArray(deliverable.secondary_targets)
-    ? deliverable.secondary_targets.filter(
-      (target): target is Record<string, unknown> =>
-        Boolean(target) && typeof target === 'object' && !Array.isArray(target),
-    )
-    : [];
-  return targets.concat(secondaryTargets);
-}
-
-function buildOutputPreviewCapabilities(location: MissionControlOutputLocation): Record<string, unknown> {
-  if (location.kind === 'artifact') {
-    const previewKind = location.contentType?.includes('markdown')
-      ? 'markdown'
-      : location.contentType?.includes('json')
-        ? 'json'
-        : 'text';
-    return {
-      can_inline_preview: Boolean(location.previewPath),
-      can_download: Boolean(location.downloadPath),
-      can_open_external: false,
-      can_copy_path: Boolean(location.logicalPath),
-      preview_kind: previewKind,
-    };
-  }
-  return {
-    can_inline_preview: false,
-    can_download: false,
-    can_open_external: true,
-    can_copy_path: 'path' in location ? Boolean(location.path) : false,
-  };
-}
-
-function mapOutputLocationTarget(location: MissionControlOutputLocation, primary: boolean) {
-  switch (location.kind) {
-    case 'artifact':
-      return {
-        target_kind: 'artifact',
-        label: primary ? 'Open artifact' : 'Artifact',
-        url: resolveArtifactPreviewUrl(location),
-        path: location.logicalPath,
-        artifact_id: location.artifactId,
-      };
-    case 'repository':
-      return {
-        target_kind: 'repository',
-        label: primary ? 'Open repository output' : 'Repository output',
-        url: location.pullRequestUrl ?? location.commitUrl ?? location.branchUrl ?? location.repository,
-        repo_ref: location.pullRequestUrl ?? location.commitSha ?? location.branch ?? location.repository,
-      };
-    case 'workflow_document':
-      return {
-        target_kind: 'workflow_document',
-        label: primary ? 'Open workflow document' : 'Workflow document',
-        url: location.location,
-        path: location.logicalName,
-        artifact_id: location.artifactId,
-      };
-    case 'external_url':
-      return {
-        target_kind: 'external_url',
-        label: primary ? 'Open link' : 'External link',
-        url: location.url,
-      };
-    case 'host_directory':
-      return {
-        target_kind: 'host_directory',
-        label: primary ? 'Open host output' : 'Host output',
-        url: location.path,
-        path: location.path,
-      };
-  }
-}
-
-function resolveArtifactPreviewUrl(
-  location: Extract<MissionControlOutputLocation, { kind: 'artifact' }>,
-): string | undefined {
-  if (location.previewPath?.trim()) {
-    return location.previewPath.replace(
-      /^\/artifacts\/tasks\/([^/]+)\/([^/]+)$/,
-      '/api/v1/tasks/$1/artifacts/$2/preview',
-    );
-  }
-  if (location.downloadPath?.trim()) {
-    return `${location.downloadPath.replace(/\/$/, '')}/preview`;
-  }
-  return undefined;
 }
 
 function readRedriveLineage(workflow: Record<string, unknown>): Record<string, unknown> | null {

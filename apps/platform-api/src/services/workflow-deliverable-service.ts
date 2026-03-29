@@ -82,16 +82,13 @@ export class WorkflowDeliverableService {
     input: ListWorkflowDeliverablesInput = {},
   ): Promise<WorkflowDeliverableRecord[]> {
     await this.assertWorkflow(tenantId, workflowId);
+    const whereClause = buildDeliverableScopeWhereClause(input);
     const result = await this.pool.query<WorkflowDeliverableRow>(
       `SELECT *
          FROM workflow_output_descriptors
         WHERE tenant_id = $1
           AND workflow_id = $2
-          AND (
-            $3::uuid IS NULL
-            OR work_item_id = $3
-            OR ($5::boolean = true AND work_item_id IS NULL)
-          )
+          AND ${whereClause}
         ORDER BY updated_at DESC, created_at DESC
         LIMIT $4`,
       [
@@ -233,6 +230,18 @@ export class WorkflowDeliverableService {
 
     return toWorkflowDeliverableRecord(result.rows[0]);
   }
+}
+
+function buildDeliverableScopeWhereClause(input: ListWorkflowDeliverablesInput): string {
+  if (!input.workItemId) {
+    return 'work_item_id IS NULL';
+  }
+
+  if (input.includeWorkflowScope === true) {
+    return '(work_item_id = $3 OR work_item_id IS NULL)';
+  }
+
+  return 'work_item_id = $3';
 }
 
 function toWorkflowDeliverableRecord(row: WorkflowDeliverableRow): WorkflowDeliverableRecord {

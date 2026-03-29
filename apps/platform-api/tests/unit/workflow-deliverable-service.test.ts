@@ -86,6 +86,41 @@ describe('WorkflowDeliverableService', () => {
     expect(result.map((entry) => entry.descriptor_id)).toEqual(['descriptor-2', 'descriptor-1']);
   });
 
+  it('queries workflow scope using only workflow-level descriptors', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows')) {
+        return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+      }
+      if (sql.includes('FROM workflow_output_descriptors')) {
+        expect(sql).toContain('AND work_item_id IS NULL');
+        expect(params).toEqual(['tenant-1', 'workflow-1', null, 50, false]);
+        return { rowCount: 0, rows: [] };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await service.listDeliverables('tenant-1', 'workflow-1');
+  });
+
+  it('queries selected work-item scope with workflow-level rollup when requested', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows')) {
+        return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+      }
+      if (sql.includes('FROM workflow_output_descriptors')) {
+        expect(sql).toContain('AND (work_item_id = $3 OR work_item_id IS NULL)');
+        expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 50, true]);
+        return { rowCount: 0, rows: [] };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await service.listDeliverables('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+      includeWorkflowScope: true,
+    });
+  });
+
   it('upserts in-progress and final deliverables with typed preview and target contracts', async () => {
     pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
       if (sql.includes('FROM workflows')) {
