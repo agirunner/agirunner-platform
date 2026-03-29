@@ -179,7 +179,7 @@ export function WorkflowLiveConsole(props: {
 
   if (props.isScopeLoading) {
     return (
-      <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
         <div className="flex min-w-0 items-center justify-between gap-3">
           <div className="grid gap-1">
             <p className="text-sm font-semibold text-foreground">Live Console</p>
@@ -211,7 +211,7 @@ export function WorkflowLiveConsole(props: {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       <div className="flex min-w-0 items-center justify-between gap-3">
         <div className="grid gap-1">
           <p className="text-sm font-semibold text-foreground">Live Console</p>
@@ -227,7 +227,7 @@ export function WorkflowLiveConsole(props: {
       <div
         data-live-console-surface="terminal"
         data-live-console-follow-mode={followMode}
-        className={`${TERMINAL_SURFACE_CLASS_NAME} flex min-h-0 flex-1 flex-col overflow-hidden`}
+        className={`${TERMINAL_SURFACE_CLASS_NAME} flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden`}
       >
         <div className={TERMINAL_TOOLBAR_CLASS_NAME}>
           <div

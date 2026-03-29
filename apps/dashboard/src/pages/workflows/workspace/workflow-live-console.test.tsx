@@ -120,7 +120,7 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('gap-2 border-b border-slate-950/90 px-4 py-2 font-mono text-sm leading-6 text-slate-100');
     expect(html).toContain('min-w-0 truncate text-slate-100');
     expect(html).toContain('shrink-0 pl-2 text-right text-xs text-slate-500');
-    expect(html).toContain('flex min-h-0 flex-1 flex-col overflow-hidden');
+    expect(html).toContain('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden');
     expect(html).toContain('flex shrink-0 items-center justify-end gap-1.5');
     expect(html).toContain('min-h-0 flex-1 overflow-x-hidden overflow-y-auto');
     expect(html).not.toContain('break-words');
@@ -440,6 +440,50 @@ describe('WorkflowLiveConsole', () => {
 
     expect(html).toContain('Visible execution turn.');
     expect(html).not.toContain('Legacy operator update that should stay hidden.');
+    expect(html).toContain('data-live-console-filter-count="1"');
+  });
+
+  it('sanitizes literal fallback action rows and suppresses empty helper tool calls', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowLiveConsole, {
+        packet: createPacket([
+          {
+            item_id: 'update-shell',
+            item_kind: 'execution_turn',
+            source_label: 'Implementation Engineer',
+            headline:
+              '[Act] calling shell_exec(command="pytest tests/unit", request_id="request-1", task_id="task-1")',
+            summary: 'Working through the next execution step.',
+            created_at: '2026-03-27T04:05:00.000Z',
+          },
+          {
+            item_id: 'update-empty',
+            item_kind: 'execution_turn',
+            source_label: 'Implementation Engineer',
+            headline: 'calling shell_exec()',
+            summary: 'Working through the next execution step.',
+            created_at: '2026-03-27T04:04:00.000Z',
+          },
+          {
+            item_id: 'update-helper',
+            item_kind: 'execution_turn',
+            source_label: 'Implementation Engineer',
+            headline: 'calling file_read(path="task input")',
+            summary: 'Working through the next execution step.',
+            created_at: '2026-03-27T04:03:00.000Z',
+          },
+        ]),
+        scopeLabel: 'Workflow: Release workflow',
+        scopeSubject: 'workflow',
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('calling shell_exec(command=&quot;pytest tests/unit&quot;)');
+    expect(html).not.toContain('request_id=');
+    expect(html).not.toContain('task_id=');
+    expect(html).not.toContain('calling shell_exec()');
+    expect(html).not.toContain('calling file_read(');
     expect(html).toContain('data-live-console-filter-count="1"');
   });
 

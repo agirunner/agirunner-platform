@@ -2,6 +2,11 @@ import type {
   DashboardWorkflowLiveConsoleItem,
   DashboardWorkflowLiveConsolePacket,
 } from '../../../lib/api.js';
+import {
+  getWorkflowConsoleLineText as readWorkflowConsoleLineText,
+  hasWorkflowConsoleLineText,
+  normalizeWorkflowConsoleText as readWorkflowConsoleText,
+} from './workflow-live-console-line.support.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const WORKFLOW_CONSOLE_PREFETCH_THRESHOLD_PX = 96;
@@ -63,15 +68,11 @@ export function formatWorkflowActivitySourceLabel(sourceLabel: string, sourceKin
 }
 
 export function normalizeWorkflowConsoleText(value: string): string {
-  return value.replace(/\s+/g, ' ').trim();
+  return readWorkflowConsoleText(value);
 }
 
 export function getWorkflowConsoleLineText(item: DashboardWorkflowLiveConsoleItem): string {
-  const canonicalHeadline = normalizeWorkflowConsoleText(item.headline);
-  if (canonicalHeadline.length > 0) {
-    return canonicalHeadline;
-  }
-  return normalizeWorkflowConsoleText(item.summary);
+  return readWorkflowConsoleLineText(item);
 }
 
 export function getWorkflowConsoleEntryPrefix(
@@ -86,7 +87,9 @@ export function getWorkflowConsoleEntryPrefix(
 export function getWorkflowConsoleVisibleItems(
   items: DashboardWorkflowLiveConsoleItem[],
 ): DashboardWorkflowLiveConsoleItem[] {
-  return items.filter((item) => item.item_kind !== 'operator_update');
+  return items.filter(
+    (item) => item.item_kind !== 'operator_update' && hasWorkflowConsoleLineText(item),
+  );
 }
 
 export function resolveWorkflowConsoleFilterCounts(

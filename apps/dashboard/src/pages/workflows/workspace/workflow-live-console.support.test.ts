@@ -220,6 +220,49 @@ describe('workflow live console support', () => {
     ).toBe('Summary fallback');
   });
 
+  it('sanitizes literal fallback action rows down to meaningful operator-readable args', () => {
+    expect(
+      getWorkflowConsoleLineText(
+        createItem({
+          item_id: 'update-4',
+          headline:
+            '[Act] calling shell_exec(command="pytest tests/unit", request_id="request-1", task_id="task-1")',
+          summary: 'Working through the next execution step.',
+        }),
+      ),
+    ).toBe('calling shell_exec(command="pytest tests/unit")');
+  });
+
+  it('suppresses empty and low-value fallback action rows from live-console visibility', () => {
+    const items = [
+      createItem({
+        item_id: 'update-shell',
+        headline:
+          '[Act] calling shell_exec(command="pytest tests/unit", request_id="request-1")',
+        summary: 'Working through the next execution step.',
+      }),
+      createItem({
+        item_id: 'update-empty',
+        headline: 'calling shell_exec()',
+        summary: 'Working through the next execution step.',
+      }),
+      createItem({
+        item_id: 'update-read-only',
+        headline: 'calling file_read(path="task input")',
+        summary: 'Working through the next execution step.',
+      }),
+    ];
+
+    expect(filterWorkflowConsoleItems(items, 'all').map((item) => item.item_id)).toEqual([
+      'update-shell',
+    ]);
+    expect(buildWorkflowConsoleFilterDescriptors(items)).toEqual([
+      { filter: 'all', label: 'All', count: 1 },
+      { filter: 'turn_updates', label: 'Turn updates', count: 1 },
+      { filter: 'briefs', label: 'Briefs', count: 0 },
+    ]);
+  });
+
   it('reports the brief label prefix only for milestone briefs', () => {
     expect(getWorkflowConsoleEntryPrefix(createItem({
       item_id: 'brief-2',
