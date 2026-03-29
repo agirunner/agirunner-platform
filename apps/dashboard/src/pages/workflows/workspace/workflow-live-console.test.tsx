@@ -51,7 +51,7 @@ describe('WorkflowLiveConsole', () => {
             },
             {
               item_id: 'update-1',
-              item_kind: 'operator_update',
+              item_kind: 'execution_turn',
               source_label: 'Implementation Engineer',
               headline: 'Updated retry handling.',
               summary: 'Execution turn completed for Implementation Engineer.',
@@ -124,7 +124,7 @@ describe('WorkflowLiveConsole', () => {
         packet: createPacket([
           {
             item_id: 'update-1',
-            item_kind: 'operator_update',
+            item_kind: 'execution_turn',
             source_kind: 'specialist',
             source_label: 'implementation_engineer',
             headline: 'Updated retry handling.',
@@ -133,7 +133,7 @@ describe('WorkflowLiveConsole', () => {
           },
           {
             item_id: 'update-2',
-            item_kind: 'operator_update',
+            item_kind: 'execution_turn',
             source_kind: 'orchestrator',
             source_label: '771908c8-0634-467a-b41d-6dd4a6798d7d',
             headline: 'Published workflow update.',
@@ -197,7 +197,7 @@ describe('WorkflowLiveConsole', () => {
         packet: createPacket([
           {
             item_id: 'update-1',
-            item_kind: 'operator_update',
+            item_kind: 'execution_turn',
             source_label: 'Implementation Engineer',
             headline:
               'Updated retry handling for workflow deliverable promotion after orchestrator guidance changed twice in the same activation.',
@@ -240,7 +240,7 @@ describe('WorkflowLiveConsole', () => {
         packet: createPacket([
           {
             item_id: 'update-1',
-            item_kind: 'operator_update',
+            item_kind: 'execution_turn',
             source_kind: 'orchestrator',
             source_label: 'Orchestrator',
             headline: 'Routed policy assessment.',
@@ -249,7 +249,7 @@ describe('WorkflowLiveConsole', () => {
           },
           {
             item_id: 'update-2',
-            item_kind: 'operator_update',
+            item_kind: 'execution_turn',
             source_kind: 'specialist',
             source_label: 'Policy Assessor',
             headline: 'Reviewed the intake packet.',
@@ -269,6 +269,38 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('text-emerald-300');
     expect(html).not.toContain('rounded-xl border border-slate-700 bg-slate-950/40 p-4');
   });
+
+  it('suppresses deprecated operator updates from the rendered console and filter counts', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowLiveConsole, {
+        packet: createPacket([
+          {
+            item_id: 'legacy-update-1',
+            item_kind: 'operator_update',
+            source_label: 'Legacy Writer',
+            headline: 'Legacy operator update that should stay hidden.',
+            summary: 'Legacy operator update that should stay hidden.',
+            created_at: '2026-03-27T04:03:30.000Z',
+          },
+          {
+            item_id: 'turn-1',
+            item_kind: 'execution_turn',
+            source_label: 'Verifier',
+            headline: 'Visible execution turn.',
+            summary: 'Visible execution turn.',
+            created_at: '2026-03-27T04:04:00.000Z',
+          },
+        ]),
+        scopeLabel: 'Workflow: Release workflow',
+        scopeSubject: 'workflow',
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Visible execution turn.');
+    expect(html).not.toContain('Legacy operator update that should stay hidden.');
+    expect(html).toContain('data-live-console-filter-count="1"');
+  });
 });
 
 function createPacket(
@@ -284,7 +316,7 @@ function createPacket(
   },
 ): DashboardWorkflowLiveConsolePacket {
   const baseItems: DashboardWorkflowLiveConsolePacket['items'] = items.map((item) => ({
-    item_kind: 'operator_update',
+    item_kind: 'execution_turn',
     source_kind: 'specialist',
     source_label: 'Verifier',
     work_item_id: null,

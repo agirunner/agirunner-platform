@@ -9,6 +9,7 @@ import {
   describeWorkflowConsoleEmptyState,
   describeWorkflowConsoleScope,
   filterWorkflowConsoleItems,
+  getWorkflowConsoleVisibleItems,
   getWorkflowConsoleFollowBehavior,
   orderWorkflowConsoleItemsForDisplay,
   shouldPrefetchWorkflowConsoleHistory,
@@ -50,25 +51,23 @@ export function WorkflowLiveConsole(props: {
   const [hasQueuedUpdates, setHasQueuedUpdates] = useState(false);
   const [isLoadingOlderHistory, setIsLoadingOlderHistory] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<WorkflowConsoleFilter>('all');
+  const consoleItems = useMemo(() => getWorkflowConsoleVisibleItems(props.packet.items), [props.packet.items]);
   const filterDescriptors = useMemo(
-    () => buildWorkflowConsoleFilterDescriptors(props.packet.items),
-    [props.packet.items],
+    () => buildWorkflowConsoleFilterDescriptors(consoleItems),
+    [consoleItems],
   );
   const visibleItems = useMemo(
-    () =>
-      orderWorkflowConsoleItemsForDisplay(
-        filterWorkflowConsoleItems(props.packet.items, selectedFilter),
-      ),
-    [props.packet.items, selectedFilter],
+    () => orderWorkflowConsoleItemsForDisplay(filterWorkflowConsoleItems(consoleItems, selectedFilter)),
+    [consoleItems, selectedFilter],
   );
   const coverageMessage = useMemo(
     () =>
       describeWorkflowConsoleCoverage(
-        props.packet.items,
+        consoleItems,
         props.packet.next_cursor,
         props.packet.total_count,
       ),
-    [props.packet.items, props.packet.next_cursor, props.packet.total_count],
+    [consoleItems, props.packet.next_cursor, props.packet.total_count],
   );
 
   useEffect(() => {

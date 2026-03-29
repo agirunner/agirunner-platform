@@ -78,6 +78,12 @@ export function getWorkflowConsoleEntryPrefix(
   return null;
 }
 
+export function getWorkflowConsoleVisibleItems(
+  items: DashboardWorkflowLiveConsoleItem[],
+): DashboardWorkflowLiveConsoleItem[] {
+  return items.filter((item) => item.item_kind !== 'operator_update');
+}
+
 export function buildWorkflowConsoleFilterDescriptors(items: DashboardWorkflowLiveConsoleItem[]): Array<{
   filter: WorkflowConsoleFilter;
   label: string;
@@ -94,13 +100,14 @@ export function filterWorkflowConsoleItems(
   items: DashboardWorkflowLiveConsoleItem[],
   filter: WorkflowConsoleFilter,
 ): DashboardWorkflowLiveConsoleItem[] {
+  const visibleItems = getWorkflowConsoleVisibleItems(items);
   if (filter === 'all') {
-    return items;
+    return visibleItems;
   }
   if (filter === 'briefs') {
-    return items.filter(isWorkflowConsoleBrief);
+    return visibleItems.filter(isWorkflowConsoleBrief);
   }
-  return items.filter(isWorkflowConsoleTurnUpdate);
+  return visibleItems.filter(isWorkflowConsoleTurnUpdate);
 }
 
 export function describeWorkflowConsoleScope(

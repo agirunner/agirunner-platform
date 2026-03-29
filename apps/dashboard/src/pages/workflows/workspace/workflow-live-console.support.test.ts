@@ -26,6 +26,29 @@ describe('workflow live console support', () => {
     ]);
   });
 
+  it('drops deprecated operator-update items from live-console filters and counts', () => {
+    const items = [
+      createItem({
+        item_id: 'legacy-update-1',
+        item_kind: 'operator_update',
+        headline: 'Legacy operator update that should stay hidden.',
+      }),
+      ...createItems(),
+    ];
+
+    expect(buildWorkflowConsoleFilterDescriptors(items)).toEqual([
+      { filter: 'all', label: 'All', count: 4 },
+      { filter: 'turn_updates', label: 'Turn updates', count: 2 },
+      { filter: 'briefs', label: 'Briefs', count: 1 },
+    ]);
+    expect(filterWorkflowConsoleItems(items, 'all').map((item) => item.item_id)).toEqual([
+      'update-1',
+      'brief-1',
+      'notice-1',
+      'turn-1',
+    ]);
+  });
+
   it('filters the scoped console stream for turn updates and briefs', () => {
     const items = createItems();
 
@@ -236,7 +259,7 @@ function createItems(): DashboardWorkflowLiveConsoleItem[] {
   return [
     createItem({
       item_id: 'update-1',
-      item_kind: 'operator_update',
+      item_kind: 'execution_turn',
       headline: 'Implementation updated retry handling.',
     }),
     createItem({
@@ -262,7 +285,7 @@ function createItem(
     Pick<DashboardWorkflowLiveConsoleItem, 'item_id' | 'headline'>,
 ): DashboardWorkflowLiveConsoleItem {
   return {
-    item_kind: 'operator_update',
+    item_kind: 'execution_turn',
     source_kind: 'specialist',
     source_label: 'Verifier',
     summary: 'Summary',
