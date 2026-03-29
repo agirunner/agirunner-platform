@@ -7,7 +7,6 @@ import {
   buildWorkflowDiagnosticsHref,
   buildWorkflowsPageHref,
   resolveHeaderAddWorkTargetWorkItemId,
-  resolveBoardSelectionForLens,
   resolveWorkspacePlaceholderData,
   resolveWorkflowTabScope,
   readWorkflowsPageState,
@@ -19,7 +18,6 @@ describe('workflows page support', () => {
       mode: 'live',
       workflowId: null,
       workItemId: null,
-      taskId: null,
       tab: null,
       search: '',
       needsActionOnly: false,
@@ -40,7 +38,6 @@ describe('workflows page support', () => {
       mode: 'recent',
       workflowId: 'workflow-9',
       workItemId: 'work-item-2',
-      taskId: 'task-4',
       tab: 'history',
       search: 'release',
       needsActionOnly: true,
@@ -55,7 +52,6 @@ describe('workflows page support', () => {
         mode: 'recent',
         workflowId: 'workflow-2',
         workItemId: 'work-item-7',
-        taskId: 'task-2',
         tab: 'deliverables',
         search: 'release readiness',
         needsActionOnly: true,
@@ -63,46 +59,24 @@ describe('workflows page support', () => {
         boardMode: 'all',
       }),
     ).toBe(
-      '/workflows/workflow-2?mode=recent&work_item_id=work-item-7&task_id=task-2&tab=deliverables&search=release+readiness&needs_action_only=1&ongoing_only=1&board_mode=all',
+      '/workflows/workflow-2?mode=recent&work_item_id=work-item-7&tab=deliverables&search=release+readiness&needs_action_only=1&ongoing_only=1&board_mode=all',
     );
     expect(buildWorkflowsPageHref({})).toBe('/workflows');
   });
 
-  it('uses the same exact scope across every workbench tab based on the current selection', () => {
+  it('uses workflow or work-item scope only across every workbench tab', () => {
     expect(resolveWorkflowTabScope('details', 'work-item-7', null)).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('needs_action', 'work-item-7', null)).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('steering', 'work-item-7', null)).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('live_console', 'work-item-7', null)).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('history', 'work-item-7', null)).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('deliverables', 'work-item-7', null)).toBe('selected_work_item');
-    expect(resolveWorkflowTabScope('details', 'work-item-7', 'task-4')).toBe('selected_task');
-    expect(resolveWorkflowTabScope('needs_action', 'work-item-7', 'task-4')).toBe('selected_task');
-    expect(resolveWorkflowTabScope('steering', 'work-item-7', 'task-4')).toBe('selected_task');
-    expect(resolveWorkflowTabScope('live_console', 'work-item-7', 'task-4')).toBe('selected_task');
-    expect(resolveWorkflowTabScope('history', 'work-item-7', 'task-4')).toBe('selected_task');
+    expect(resolveWorkflowTabScope('details', 'work-item-7', 'task-4')).toBe('selected_work_item');
+    expect(resolveWorkflowTabScope('needs_action', 'work-item-7', 'task-4')).toBe('selected_work_item');
+    expect(resolveWorkflowTabScope('steering', 'work-item-7', 'task-4')).toBe('selected_work_item');
+    expect(resolveWorkflowTabScope('live_console', 'work-item-7', 'task-4')).toBe('selected_work_item');
+    expect(resolveWorkflowTabScope('history', 'work-item-7', 'task-4')).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('live_console', null, null)).toBe('workflow');
-  });
-
-  it('drops task scope when the board lens returns to work items but preserves the parent work item', () => {
-    expect(
-      resolveBoardSelectionForLens('work_items', {
-        workItemId: 'work-item-7',
-        taskId: 'task-4',
-      }),
-    ).toEqual({
-      workItemId: 'work-item-7',
-      taskId: null,
-    });
-
-    expect(
-      resolveBoardSelectionForLens('tasks', {
-        workItemId: 'work-item-7',
-        taskId: 'task-4',
-      }),
-    ).toEqual({
-      workItemId: 'work-item-7',
-      taskId: 'task-4',
-    });
   });
 
   it('opens header add-or-modify in modify mode only for explicit work-item scope', () => {
@@ -112,12 +86,6 @@ describe('workflows page support', () => {
         workItemId: 'work-item-7',
       }),
     ).toBe('work-item-7');
-    expect(
-      resolveHeaderAddWorkTargetWorkItemId({
-        scopeKind: 'selected_task',
-        workItemId: 'work-item-7',
-      }),
-    ).toBeNull();
     expect(
       resolveHeaderAddWorkTargetWorkItemId({
         scopeKind: 'workflow',
@@ -135,27 +103,19 @@ describe('workflows page support', () => {
     ).toBe('Modify Work');
     expect(
       describeHeaderAddWorkLabel({
-        scopeKind: 'selected_task',
-        lifecycle: 'ongoing',
-      }),
-    ).toBe('Add Intake');
-    expect(
-      describeHeaderAddWorkLabel({
         scopeKind: 'workflow',
         lifecycle: 'planned',
       }),
     ).toBe('Add Work');
   });
 
-  it('describes the exact workbench scope banner for workflow, work item, and task views', () => {
+  it('describes the exact workbench scope banner for workflow and work item views only', () => {
     expect(
       describeWorkflowWorkbenchScope({
         scopeKind: 'workflow',
         workflowName: 'Release Workflow',
         workItemId: null,
         workItemTitle: null,
-        taskId: null,
-        taskTitle: null,
       }),
     ).toMatchObject({
       scopeKind: 'workflow',
@@ -169,29 +129,12 @@ describe('workflows page support', () => {
         workflowName: 'Release Workflow',
         workItemId: 'work-item-7',
         workItemTitle: 'Prepare release bundle',
-        taskId: null,
-        taskTitle: null,
       }),
     ).toMatchObject({
       scopeKind: 'selected_work_item',
       title: 'Work item',
       subject: 'work item',
       banner: 'Work item: Prepare release bundle',
-    });
-    expect(
-      describeWorkflowWorkbenchScope({
-        scopeKind: 'selected_task',
-        workflowName: 'Release Workflow',
-        workItemId: 'work-item-7',
-        workItemTitle: 'Prepare release bundle',
-        taskId: 'task-3',
-        taskTitle: 'Verify deliverable',
-      }),
-    ).toMatchObject({
-      scopeKind: 'selected_task',
-      title: 'Task',
-      subject: 'task',
-      banner: 'Task: Verify deliverable',
     });
   });
 

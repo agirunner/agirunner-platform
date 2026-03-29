@@ -17,13 +17,9 @@ describe('WorkflowBoard', () => {
           workflowId: 'workflow-1',
           board: createBoard(),
           selectedWorkItemId: null,
-          selectedTaskId: null,
-          boardLens: 'work_items',
           boardMode: 'active_recent_complete',
-          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
-          onSelectTask: vi.fn(),
         }),
       ),
     );
@@ -48,13 +44,9 @@ describe('WorkflowBoard', () => {
           workflowId: 'workflow-1',
           board: createBoard(),
           selectedWorkItemId: null,
-          selectedTaskId: null,
-          boardLens: 'work_items',
           boardMode: 'active_recent_complete',
-          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
-          onSelectTask: vi.fn(),
         }),
       ),
     );
@@ -76,13 +68,9 @@ describe('WorkflowBoard', () => {
           workflowId: 'workflow-1',
           board: createBoardWithRecentCompletion(),
           selectedWorkItemId: null,
-          selectedTaskId: null,
-          boardLens: 'work_items',
           boardMode: 'active_recent_complete',
-          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
-          onSelectTask: vi.fn(),
         }),
       ),
     );
@@ -111,13 +99,9 @@ describe('WorkflowBoard', () => {
           workflowId: 'workflow-1',
           board: createBoard(),
           selectedWorkItemId: null,
-          selectedTaskId: null,
-          boardLens: 'work_items',
           boardMode: 'active_recent_complete',
-          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
-          onSelectTask: vi.fn(),
         }),
       ),
     );
@@ -137,8 +121,6 @@ describe('WorkflowBoard', () => {
           workflowId: 'workflow-1',
           board: createBoard(),
           selectedWorkItemId: 'work-item-1',
-          selectedTaskId: null,
-          boardLens: 'work_items',
           boardMode: 'active_recent_complete',
           taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
             [
@@ -149,10 +131,8 @@ describe('WorkflowBoard', () => {
               },
             ],
           ]),
-          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
-          onSelectTask: vi.fn(),
         }),
       ),
     );
@@ -172,13 +152,9 @@ describe('WorkflowBoard', () => {
           workflowId: 'workflow-1',
           board: createBoard(),
           selectedWorkItemId: null,
-          selectedTaskId: null,
-          boardLens: 'work_items',
           boardMode: 'active_recent_complete',
-          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
-          onSelectTask: vi.fn(),
         }),
       ),
     );
@@ -206,8 +182,6 @@ describe('WorkflowBoard', () => {
           workflowId: 'workflow-1',
           board: createBoard(),
           selectedWorkItemId: 'work-item-1',
-          selectedTaskId: 'task-specialist',
-          boardLens: 'tasks',
           boardMode: 'active_recent_complete',
           taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
             [
@@ -237,15 +211,13 @@ describe('WorkflowBoard', () => {
               },
             ],
           ]),
-          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
-          onSelectTask: vi.fn(),
         }),
       ),
     );
 
-    expect(html).not.toContain('>Tasks<');
+    expect(html).toContain('>Tasks<');
     expect(html).not.toContain('>Work items<');
     expect(html).toContain('Assess packet');
     expect(html).toContain('Write findings');
@@ -263,8 +235,6 @@ describe('WorkflowBoard', () => {
           workflowId: 'workflow-1',
           board: createBoard(),
           selectedWorkItemId: 'work-item-1',
-          selectedTaskId: 'task-specialist',
-          boardLens: 'work_items',
           boardMode: 'active_recent_complete',
           taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
             [
@@ -285,10 +255,8 @@ describe('WorkflowBoard', () => {
               },
             ],
           ]),
-          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
-          onSelectTask: vi.fn(),
         }),
       ),
     );
@@ -309,8 +277,6 @@ describe('WorkflowBoard', () => {
           workflowId: 'workflow-1',
           board: createBoard(),
           selectedWorkItemId: 'work-item-1',
-          selectedTaskId: null,
-          boardLens: 'work_items',
           boardMode: 'active_recent_complete',
           taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
             [
@@ -332,10 +298,8 @@ describe('WorkflowBoard', () => {
               },
             ],
           ]),
-          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
-          onSelectTask: vi.fn(),
         }),
       ),
     );
@@ -363,8 +327,6 @@ describe('WorkflowBoard', () => {
             ],
           },
           selectedWorkItemId: 'work-item-1',
-          selectedTaskId: null,
-          boardLens: 'work_items',
           boardMode: 'active_recent_complete',
           taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
             [
@@ -385,10 +347,8 @@ describe('WorkflowBoard', () => {
               },
             ],
           ]),
-          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
-          onSelectTask: vi.fn(),
         }),
       ),
     );
@@ -411,8 +371,6 @@ describe('WorkflowBoard', () => {
           workflowId: 'workflow-1',
           board: createBoard(),
           selectedWorkItemId: 'work-item-1',
-          selectedTaskId: null,
-          boardLens: 'work_items',
           boardMode: 'active_recent_complete',
           taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
             [
@@ -433,10 +391,8 @@ describe('WorkflowBoard', () => {
               },
             ],
           ]),
-          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
-          onSelectTask: vi.fn(),
         }),
       ),
     );
@@ -454,8 +410,6 @@ describe('WorkflowBoard', () => {
           workflowId: 'workflow-1',
           board: createBoard(),
           selectedWorkItemId: 'work-item-1',
-          selectedTaskId: null,
-          boardLens: 'work_items',
           boardMode: 'active_recent_complete',
           taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
             [
@@ -488,10 +442,8 @@ describe('WorkflowBoard', () => {
               },
             ],
           ]),
-          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
-          onSelectTask: vi.fn(),
         }),
       ),
     );
@@ -517,14 +469,10 @@ describe('WorkflowBoard', () => {
           workflowId: 'workflow-1',
           board: createBoard(),
           selectedWorkItemId: null,
-          selectedTaskId: null,
-          boardLens: 'work_items',
           boardMode: 'active_recent_complete',
           workflowState: 'paused',
-          onBoardLensChange: vi.fn(),
           onBoardModeChange: vi.fn(),
           onSelectWorkItem: vi.fn(),
-          onSelectTask: vi.fn(),
         }),
       ),
     );

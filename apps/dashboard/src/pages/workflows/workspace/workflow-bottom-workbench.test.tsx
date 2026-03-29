@@ -70,7 +70,7 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/70 p-3');
   });
 
-  it('keeps task scope visible in details while the selected records are still loading', () => {
+  it('collapses task-scoped packets back to the parent work item in the workbench header', () => {
     const packet = createPacket();
     const html = renderToStaticMarkup(
       createElement(WorkflowBottomWorkbench, {
@@ -121,12 +121,14 @@ describe('WorkflowBottomWorkbench', () => {
       }),
     );
 
-    expect(html).toContain('Task: Verify deliverable');
-    expect(html).toContain('Verify deliverable');
+    expect(html).toContain('Work item: Prepare release bundle');
+    expect(html).toContain('Prepare release bundle');
     expect(html).toContain('Scope');
-    expect(html).toContain('>Task<');
-    expect(html).toContain('Show work item');
+    expect(html).toContain('>Work item<');
     expect(html).toContain('Show workflow');
+    expect(html).not.toContain('Task: Verify deliverable');
+    expect(html).not.toContain('>Task<');
+    expect(html).not.toContain('Show work item');
     expect(html).not.toContain('Selected on board');
     expect(html).not.toContain('Back to work item');
     expect(html).not.toContain('Back to workflow');
@@ -213,12 +215,14 @@ describe('WorkflowBottomWorkbench', () => {
       }),
     );
 
-    expect(html).toContain('Verify deliverable');
     expect(html).toContain('Prepare release bundle');
     expect(html).toContain('Assemble final artifacts for launch.');
-    expect(html).toContain('Requested deliverable');
-    expect(html).toContain('Confirm the final release packet is complete and operator-ready.');
-    expect(html).toContain('In Progress for Reviewer');
+    expect(html).toContain('1 active task');
+    expect(html).toContain('1 active • 0 blocked • 0 completed');
+    expect(html).toContain('Verify deliverable');
+    expect(html).toContain('Reviewer');
+    expect(html).toContain('In Progress');
+    expect(html).not.toContain('Requested deliverable');
     expect(html).not.toContain('Task details are loading.');
   });
 
@@ -351,7 +355,7 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).not.toContain('Steering scope');
   });
 
-  it('shows the locked task steering target when the workbench is task-scoped', () => {
+  it('locks steering to the parent work item when the packet arrives task-scoped', () => {
     const packet = createPacket();
     const html = renderToStaticMarkup(
       createElement(
@@ -406,10 +410,10 @@ describe('WorkflowBottomWorkbench', () => {
       ),
     );
 
-    expect(html).toContain('Targeting task: Verify deliverable');
+    expect(html).toContain('Targeting work item: Prepare release bundle');
   });
 
-  it('renders the live console empty state for the exact selected scope shown in the banner', () => {
+  it('renders the live console empty state for the normalized work-item scope shown in the banner', () => {
     const packet = createPacket();
     const html = renderToStaticMarkup(
       createElement(WorkflowBottomWorkbench, {
@@ -464,13 +468,13 @@ describe('WorkflowBottomWorkbench', () => {
       }),
     );
 
-    expect(html).toContain('Task: Verify deliverable');
+    expect(html).toContain('Work item: Prepare release bundle');
     expect(html).toContain('Live Console');
     expect(html).toContain('Scope');
     expect(html).not.toContain('this workflow yet');
   });
 
-  it('shows a loading state instead of placeholder zero-row live console content while scope data refetches', () => {
+  it('shows a loading state for the normalized work-item live console while scope data refetches', () => {
     const packet = createPacket();
     const html = renderToStaticMarkup(
       createElement(WorkflowBottomWorkbench, {
@@ -531,12 +535,12 @@ describe('WorkflowBottomWorkbench', () => {
       }),
     );
 
-    expect(html).toContain('Loading live console for Task: Verify deliverable.');
-    expect(html).not.toContain('No live console entries recorded for Task: Verify deliverable yet.');
+    expect(html).toContain('Loading live console for Work item: Prepare release bundle.');
+    expect(html).not.toContain('No live console entries recorded for Work item: Prepare release bundle yet.');
     expect(html).not.toContain('data-live-console-filter="all"');
   });
 
-  it('derives the visible scope indicator and tab badges from the scoped packet when outer props are stale', () => {
+  it('derives the visible work-item scope indicator and tab badges from the scoped packet when outer props are stale', () => {
     const packet = createPacket();
     const html = renderToStaticMarkup(
       createElement(WorkflowBottomWorkbench, {
@@ -596,9 +600,9 @@ describe('WorkflowBottomWorkbench', () => {
     );
 
     expect(html).toContain('Scope');
-    expect(html).toContain('>Task<');
-    expect(html).toContain('Verify deliverable');
-    expect(html).toContain('Show work item');
+    expect(html).toContain('>Work item<');
+    expect(html).toContain('Prepare release bundle');
+    expect(html).not.toContain('Show work item');
     expect(html).toContain('Show workflow');
     expect(html).toContain('>42<');
     expect(html).toContain('>45<');
@@ -792,7 +796,7 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).toContain('No inputs or intervention files are attached to this workflow.');
   });
 
-  it('keeps task-scoped deliverables aligned with the resolved current task when outer props are stale', () => {
+  it('keeps deliverables aligned with the normalized work-item scope when outer props are stale', () => {
     const packet = createPacket();
     const html = renderToStaticMarkup(
       createElement(WorkflowBottomWorkbench, {
@@ -899,13 +903,13 @@ describe('WorkflowBottomWorkbench', () => {
       }),
     );
 
-    expect(html).toContain('Task output and evidence');
-    expect(html).toContain('Verify deliverable');
-    expect(html).toContain('Task evidence should stay visible while task details refetch.');
-    expect(html).toContain('Parent work item deliverables (1)');
+    expect(html).toContain('Work item deliverables (1)');
+    expect(html).toContain('Release checklist');
+    expect(html).not.toContain('Task output and evidence');
+    expect(html).not.toContain('Parent work item deliverables (1)');
   });
 
-  it('renders embedded text-only deliverables inline when task scope resolves ahead of missing target payloads', () => {
+  it('renders embedded text-only deliverables inline when task-scoped packets normalize to work-item deliverables', () => {
     const packet = createPacket();
     const html = renderToStaticMarkup(
       createElement(WorkflowBottomWorkbench, {
@@ -1010,7 +1014,7 @@ describe('WorkflowBottomWorkbench', () => {
 
     expect(html).toContain('Release summary packet');
     expect(html).toContain('Embedded release summary without a target URL.');
-    expect(html).toContain('Parent work item deliverables (1)');
+    expect(html).toContain('Work item deliverables (1)');
     expect(html).not.toContain('Open artifact in new tab');
   });
 });

@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  readStoredWorkflowBoardLens,
   readStoredWorkflowRailWidth,
   readStoredWorkflowWorkbenchFraction,
-  writeStoredWorkflowBoardLens,
   writeStoredWorkflowRailWidth,
   writeStoredWorkflowWorkbenchFraction,
 } from './workflows-page.storage.js';
@@ -34,16 +32,6 @@ describe('workflows page storage', () => {
 
     writeStoredWorkflowWorkbenchFraction(null);
     expect(readStoredWorkflowWorkbenchFraction()).toBeNull();
-  });
-
-  it('persists and restores the workflow board lens preference', () => {
-    storage.clear();
-
-    writeStoredWorkflowBoardLens('tasks');
-    expect(readStoredWorkflowBoardLens()).toBe('tasks');
-
-    writeStoredWorkflowBoardLens(null);
-    expect(readStoredWorkflowBoardLens()).toBeNull();
   });
 });
 

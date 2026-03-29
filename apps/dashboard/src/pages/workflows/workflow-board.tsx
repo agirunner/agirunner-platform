@@ -14,11 +14,10 @@ import {
   summarizeTaskPreviewsForWorkItem,
   type WorkflowTaskPreviewSummary,
 } from './workflow-board-task-preview.js';
-import type { WorkflowBoardLens, WorkflowBoardMode } from './workflows-page.support.js';
+import type { WorkflowBoardMode } from './workflows-page.support.js';
 import {
   buildWorkflowBoardActiveTaskSummary,
   buildWorkflowBoardWorkItemSummary,
-  buildWorkflowBoardTaskCards,
   buildWorkflowBoardView,
   isNeedsActionWorkItem,
 } from './workflow-board.support.js';
@@ -32,14 +31,10 @@ export function WorkflowBoard(props: {
   board: DashboardWorkflowBoardResponse | null;
   workflowState?: string | null;
   selectedWorkItemId: string | null;
-  selectedTaskId: string | null;
-  boardLens: WorkflowBoardLens;
   boardMode: WorkflowBoardMode;
   taskPreviewSummaries?: Map<string, WorkflowTaskPreviewSummary>;
-  onBoardLensChange(nextLens: WorkflowBoardLens): void;
   onBoardModeChange(nextMode: WorkflowBoardMode): void;
   onSelectWorkItem(workItemId: string): void;
-  onSelectTask(workItemId: string, taskId: string): void;
 }): JSX.Element {
   const [stageFilter, setStageFilter] = useState<StageFilter>('__all__');
   const [laneFilter, setLaneFilter] = useState<LaneFilter>('__all__');
@@ -184,13 +179,10 @@ export function WorkflowBoard(props: {
             <BoardLaneCard
               key={lane.column.id}
               lane={lane}
-              boardLens={props.boardLens}
               boardMode={props.boardMode}
               workflowState={props.workflowState}
               selectedWorkItemId={props.selectedWorkItemId}
-              selectedTaskId={props.selectedTaskId}
               onSelectWorkItem={props.onSelectWorkItem}
-              onSelectTask={props.onSelectTask}
               tasksByWorkItem={tasksByWorkItem}
             />
           ))}
@@ -208,28 +200,15 @@ export function WorkflowBoard(props: {
 
 function BoardLaneCard(props: {
   lane: ReturnType<typeof buildWorkflowBoardView>['lanes'][number];
-  boardLens: WorkflowBoardLens;
   boardMode: WorkflowBoardMode;
   workflowState?: string | null;
   selectedWorkItemId: string | null;
-  selectedTaskId: string | null;
   onSelectWorkItem(workItemId: string): void;
-  onSelectTask(workItemId: string, taskId: string): void;
   tasksByWorkItem: Map<string, WorkflowTaskPreviewSummary>;
 }): JSX.Element {
   const pinnedCompletedCount = props.boardMode === 'active_recent_complete' ? 2 : 0;
-  const activeTaskCards = useMemo(
-    () => buildWorkflowBoardTaskCards(props.lane.activeItems, props.tasksByWorkItem),
-    [props.lane.activeItems, props.tasksByWorkItem],
-  );
-  const completedTaskCards = useMemo(
-    () => buildWorkflowBoardTaskCards(props.lane.visibleCompletedItems, props.tasksByWorkItem),
-    [props.lane.visibleCompletedItems, props.tasksByWorkItem],
-  );
   const pinnedCompletedItems = props.lane.visibleCompletedItems.slice(0, pinnedCompletedCount);
   const overflowCompletedItems = props.lane.visibleCompletedItems.slice(pinnedCompletedCount);
-  const pinnedCompletedTaskCards = completedTaskCards.slice(0, pinnedCompletedCount);
-  const overflowCompletedTaskCards = completedTaskCards.slice(pinnedCompletedCount);
   const collapsedCompletedCount = overflowCompletedItems.length + props.lane.hiddenCompletedCount;
   const showCompletedSection =
     props.boardMode !== 'active' &&
@@ -248,40 +227,30 @@ function BoardLaneCard(props: {
       </div>
 
       <div className="grid gap-3">
-        {props.boardLens === 'tasks'
-          ? renderTaskLaneCards(activeTaskCards, props.selectedTaskId, props.onSelectTask)
-          : props.lane.activeItems.length === 0
-            ? renderLaneEmptyState('Nothing active here right now.')
-            : props.lane.activeItems.map((workItem) => (
-                <BoardWorkItemCard
-                  key={workItem.id}
-                  workItem={workItem}
-                  workflowState={props.workflowState}
-                  taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
-                  isSelected={workItem.id === props.selectedWorkItemId}
-                  selectedTaskId={props.selectedTaskId}
-                  onSelect={props.onSelectWorkItem}
-                />
-              ))}
+        {props.lane.activeItems.length === 0
+          ? renderLaneEmptyState('Nothing active here right now.')
+          : props.lane.activeItems.map((workItem) => (
+              <BoardWorkItemCard
+                key={workItem.id}
+                workItem={workItem}
+                workflowState={props.workflowState}
+                taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
+                isSelected={workItem.id === props.selectedWorkItemId}
+                onSelect={props.onSelectWorkItem}
+              />
+            ))}
         {props.boardMode === 'active_recent_complete'
-          ? props.boardLens === 'tasks'
-            ? renderTaskLaneCards(
-                pinnedCompletedTaskCards,
-                props.selectedTaskId,
-                props.onSelectTask,
-              )
-            : pinnedCompletedItems.map((workItem) => (
-                <BoardWorkItemCard
-                  key={workItem.id}
-                  workItem={workItem}
-                  workflowState={props.workflowState}
-                  taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
-                  isSelected={workItem.id === props.selectedWorkItemId}
-                  selectedTaskId={props.selectedTaskId}
-                  onSelect={props.onSelectWorkItem}
-                  muted
-                />
-              ))
+          ? pinnedCompletedItems.map((workItem) => (
+              <BoardWorkItemCard
+                key={workItem.id}
+                workItem={workItem}
+                workflowState={props.workflowState}
+                taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
+                isSelected={workItem.id === props.selectedWorkItemId}
+                onSelect={props.onSelectWorkItem}
+                muted
+              />
+            ))
           : null}
       </div>
 
@@ -297,35 +266,25 @@ function BoardLaneCard(props: {
               : ''}
           </summary>
           <div className="mt-3 grid gap-3">
-            {props.boardLens === 'tasks'
-              ? renderTaskLaneCards(
-                  props.boardMode === 'active_recent_complete'
-                    ? overflowCompletedTaskCards
-                    : completedTaskCards,
-                  props.selectedTaskId,
-                  props.onSelectTask,
-                  'No completed specialist tasks match the current visibility window.',
+            {(props.boardMode === 'active_recent_complete'
+              ? overflowCompletedItems
+              : props.lane.visibleCompletedItems).length === 0
+              ? renderLaneEmptyState(
+                  'No completed work items match the current visibility window.',
                 )
               : (props.boardMode === 'active_recent_complete'
                   ? overflowCompletedItems
-                  : props.lane.visibleCompletedItems).length === 0
-                ? renderLaneEmptyState(
-                    'No completed work items match the current visibility window.',
-                  )
-                : (props.boardMode === 'active_recent_complete'
-                    ? overflowCompletedItems
-                    : props.lane.visibleCompletedItems).map((workItem) => (
-                    <BoardWorkItemCard
-                      key={workItem.id}
-                      workItem={workItem}
-                      workflowState={props.workflowState}
-                      taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
-                      isSelected={workItem.id === props.selectedWorkItemId}
-                      selectedTaskId={props.selectedTaskId}
-                      onSelect={props.onSelectWorkItem}
-                      muted
-                    />
-                  ))}
+                  : props.lane.visibleCompletedItems).map((workItem) => (
+                  <BoardWorkItemCard
+                    key={workItem.id}
+                    workItem={workItem}
+                    workflowState={props.workflowState}
+                    taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
+                    isSelected={workItem.id === props.selectedWorkItemId}
+                    onSelect={props.onSelectWorkItem}
+                    muted
+                  />
+                ))}
           </div>
         </details>
       ) : null}
@@ -338,10 +297,8 @@ function BoardWorkItemCard(props: {
   workflowState?: string | null;
   taskSummary: WorkflowTaskPreviewSummary;
   isSelected: boolean;
-  selectedTaskId: string | null;
   muted?: boolean;
   onSelect(workItemId: string): void;
-  onSelectTask?(workItemId: string, taskId: string): void;
 }): JSX.Element {
   const currentStateSummary = buildWorkflowBoardWorkItemSummary(props.workItem, props.taskSummary);
   const activeTaskSummary = buildWorkflowBoardActiveTaskSummary(props.taskSummary);
@@ -423,113 +380,16 @@ function BoardWorkItemCard(props: {
         // Task preview rows stay expanded here so work-item view remains informative without task-scoped clicks.
         <WorkflowBoardTaskStack
           tasks={props.taskSummary.tasks}
-          selectedTaskId={props.selectedTaskId}
           collapsible={false}
           onSelectWorkItem={() => props.onSelect(props.workItem.id)}
-          onSelectTask={
-            props.onSelectTask
-              ? (taskId) => props.onSelectTask?.(props.workItem.id, taskId)
-              : undefined
-          }
         />
       ) : null}
     </article>
   );
 }
 
-function renderTaskLaneCards(
-  taskCards: ReturnType<typeof buildWorkflowBoardTaskCards>,
-  selectedTaskId: string | null,
-  onSelectTask: (workItemId: string, taskId: string) => void,
-  emptyMessage = 'No specialist tasks in this lane.',
-): JSX.Element {
-  if (taskCards.length === 0) {
-    return renderLaneEmptyState(emptyMessage);
-  }
-
-  return (
-    <>
-      {groupTaskCardsByWorkItem(taskCards).map((group) => (
-        <section
-          key={group.workItemId}
-          className="grid gap-2 rounded-xl border border-border/60 bg-background/60 p-3"
-        >
-          <div className="flex min-w-0 items-center justify-between gap-2">
-            <strong className="truncate text-sm text-foreground">{group.workItemTitle}</strong>
-            {group.stageName ? (
-              <Badge variant="outline">{humanizeToken(group.stageName)}</Badge>
-            ) : null}
-          </div>
-          <div className="grid gap-2">
-            {group.tasks.map((task) => (
-              <button
-                key={task.id}
-                type="button"
-                data-task-selectable="true"
-                className={cn(
-                  'grid gap-2 rounded-xl border px-3 py-3 text-left transition-colors',
-                  selectedTaskId === task.id
-                    ? 'border-amber-300 bg-amber-100/90 shadow-sm dark:border-amber-500/60 dark:bg-amber-500/10'
-                    : 'border-border/70 bg-background/85 hover:bg-background',
-                )}
-                onClick={() => onSelectTask(task.workItemId, task.id)}
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <strong className="text-foreground">{task.title}</strong>
-                  {task.role ? <Badge variant="outline">{humanizeToken(task.role)}</Badge> : null}
-                  {task.state ? (
-                    <Badge variant="secondary">{humanizeToken(task.state)}</Badge>
-                  ) : null}
-                  {task.hasActiveOrchestratorTask ? (
-                    <Badge variant="secondary">Orchestrator working</Badge>
-                  ) : null}
-                </div>
-              </button>
-            ))}
-          </div>
-        </section>
-      ))}
-    </>
-  );
-}
-
 function renderLaneEmptyState(message: string): JSX.Element {
   return <p className="px-1 pb-1 text-sm text-muted-foreground">{message}</p>;
-}
-
-function groupTaskCardsByWorkItem(
-  taskCards: ReturnType<typeof buildWorkflowBoardTaskCards>,
-): Array<{
-  workItemId: string;
-  workItemTitle: string;
-  stageName: string | null;
-  tasks: typeof taskCards;
-}> {
-  const groups = new Map<
-    string,
-    {
-      workItemId: string;
-      workItemTitle: string;
-      stageName: string | null;
-      tasks: typeof taskCards;
-    }
-  >();
-
-  for (const task of taskCards) {
-    const existing = groups.get(task.workItemId);
-    if (existing) {
-      existing.tasks.push(task);
-      continue;
-    }
-    groups.set(task.workItemId, {
-      workItemId: task.workItemId,
-      workItemTitle: task.workItemTitle,
-      stageName: task.stageName ?? null,
-      tasks: [task],
-    });
-  }
-
-  return Array.from(groups.values());
 }
 
 function ModeButton(props: { isActive: boolean; label: string; onClick(): void }): JSX.Element {

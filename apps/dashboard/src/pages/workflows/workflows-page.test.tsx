@@ -19,7 +19,6 @@ describe('workflows page source', () => {
     expect(source).toContain('WorkflowStateStrip');
     expect(source).toContain('WorkflowBoard');
     expect(source).toContain('WorkflowBottomWorkbench');
-    expect(source).toContain("taskId: null");
     expect(source).toContain('WorkflowLaunchDialog');
     expect(source).toContain('WorkflowAddWorkDialog');
     expect(source).toContain('WorkflowRedriveDialog');
@@ -60,7 +59,6 @@ describe('workflows page source', () => {
   it('keeps the previous workspace shell mounted while scoped work-item selections refetch', () => {
     const source = readSource();
     expect(source).toContain('lastWorkspacePacketRef');
-    expect(source).toContain('resolveBoardSelectionForLens');
     expect(source).toContain('const requestedWorkspaceScope = {');
     expect(source).toContain('const workspacePacket = workspaceQuery.data');
     expect(source).toContain('resolveWorkspacePlaceholderData(previous, requestedWorkspaceScope)');
@@ -76,17 +74,18 @@ describe('workflows page source', () => {
 
   it('treats board task clicks as parent work-item selection and removes the task lens toggle', () => {
     const source = readSource();
-    expect(source).toContain("resolveBoardSelectionForLens('work_items'");
+    expect(source).not.toContain("resolveBoardSelectionForLens('work_items'");
     expect(source).toContain('selectedTaskId={null}');
     expect(source).toContain('selectedTask={null}');
     expect(source).toContain('selectedTaskTitle={null}');
-    expect(source).toContain('onBoardLensChange={() => undefined}');
-    expect(source).toContain("onSelectTask={(workItemId) =>");
-    expect(source).toContain('patchPageState(navigate, pageState, { workItemId, taskId: null })');
-    expect(source).toContain('onClearTaskScope={() => undefined}');
+    expect(source).not.toContain('boardLens="work_items"');
+    expect(source).not.toContain('onBoardLensChange={() => undefined}');
+    expect(source).not.toContain("onSelectTask={(workItemId) =>");
+    expect(source).not.toContain('taskId: pageState.taskId');
+    expect(source).not.toContain('onClearTaskScope={() => undefined}');
     expect(source).toContain("const handleClearWorkItemScope = () => {");
     expect(source).toContain('onClearWorkItemScope={handleClearWorkItemScope}');
-    expect(source).toContain('patchPageState(navigate, pageState, { workItemId: null, taskId: null })');
+    expect(source).toContain('patchPageState(navigate, pageState, { workItemId: null })');
     expect(source).not.toContain("label=\"Tasks\"");
   });
 

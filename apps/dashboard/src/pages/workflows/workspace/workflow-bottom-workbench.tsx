@@ -39,16 +39,12 @@ export function WorkflowBottomWorkbench(props: {
   isScopeLoading?: boolean;
   onTabChange(tab: WorkflowWorkbenchTab): void;
   onClearWorkItemScope(): void;
-  onClearTaskScope(): void;
+  onClearTaskScope?(): void;
   onOpenAddWork(workItemId?: string | null): void;
   onOpenRedrive(): void;
   onLoadMoreActivity(): void;
   onLoadMoreDeliverables(): void;
 }): JSX.Element {
-  const currentTaskId =
-    props.packet.bottom_tabs.current_task_id
-    ?? props.packet.selected_scope.task_id
-    ?? props.selectedTaskId;
   const currentWorkItemId =
     props.packet.bottom_tabs.current_work_item_id
     ?? props.packet.selected_scope.work_item_id
@@ -58,36 +54,13 @@ export function WorkflowBottomWorkbench(props: {
     props.selectedWorkItem?.id === currentWorkItemId
       ? props.selectedWorkItem
       : props.board?.work_items.find((workItem) => workItem.id === currentWorkItemId) ?? null;
-  const currentTask =
-    props.selectedTask?.id === currentTaskId
-      ? props.selectedTask
-      : (props.selectedWorkItemTasks as unknown as DashboardTaskRecord[]).find(
-          (task) => task.id === currentTaskId,
-        ) ?? null;
-  const currentTaskTitle =
-    props.selectedTask?.id === currentTaskId
-      ? props.selectedTask.title
-      : currentTask?.title
-        ?? props.selectedTaskTitle;
-  const currentWorkItemTitle =
-    props.selectedWorkItem?.id === currentWorkItemId
-      ? props.selectedWorkItem.title
-      : currentWorkItem?.title
-        ?? (props.selectedTask?.work_item_id === currentWorkItemId
-          ? props.selectedTask.work_item_title ?? props.selectedWorkItemTitle
-          : props.selectedWorkItemTitle);
-  const currentScopedTaskRows = shouldUseScopedTaskRows({
-    currentWorkItemId,
-    currentTask,
-    selectedWorkItemId: props.selectedWorkItemId,
-    selectedWorkItem: props.selectedWorkItem,
-  })
-    ? props.selectedWorkItemTasks
-    : [];
+  const currentWorkItemTitle = props.selectedWorkItem?.id === currentWorkItemId
+    ? props.selectedWorkItem.title
+    : currentWorkItem?.title ?? props.selectedWorkItemTitle;
+  const currentScopedTaskRows = currentWorkItemId ? props.selectedWorkItemTasks : [];
   const resolvedScope = resolveWorkbenchScope({
     ...props,
     selectedWorkItemTitle: currentWorkItemTitle,
-    selectedTaskTitle: currentTaskTitle,
   });
   const counts = props.packet.bottom_tabs.counts;
   const liveConsoleCount = props.isScopeLoading
@@ -107,11 +80,6 @@ export function WorkflowBottomWorkbench(props: {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {resolvedScope.scopeKind === 'selected_task' ? (
-            <Button type="button" size="sm" variant="ghost" onClick={props.onClearTaskScope}>
-              Show work item
-            </Button>
-          ) : null}
           {resolvedScope.scopeKind !== 'workflow' ? (
             <Button type="button" size="sm" variant="ghost" onClick={props.onClearWorkItemScope}>
               Show workflow
@@ -166,10 +134,10 @@ export function WorkflowBottomWorkbench(props: {
             board={props.board}
             selectedWorkItemId={currentWorkItemId}
             selectedWorkItemTitle={currentWorkItemTitle}
-            selectedTaskId={currentTaskId}
-            selectedTaskTitle={currentTaskTitle}
+            selectedTaskId={null}
+            selectedTaskTitle={null}
             selectedWorkItem={currentWorkItem}
-            selectedTask={currentTask}
+            selectedTask={null}
             selectedWorkItemTasks={currentScopedTaskRows}
             inputPackets={props.inputPackets}
             workflowParameters={props.workflowParameters}
@@ -195,9 +163,9 @@ export function WorkflowBottomWorkbench(props: {
             selectedWorkItemId={currentWorkItemId}
             selectedWorkItemTitle={currentWorkItemTitle}
             selectedWorkItem={currentWorkItem}
-            selectedTaskId={currentTaskId}
-            selectedTaskTitle={currentTaskTitle}
-            selectedTask={currentTask}
+            selectedTaskId={null}
+            selectedTaskTitle={null}
+            selectedTask={null}
             selectedWorkItemTasks={props.selectedWorkItemTasks as unknown as DashboardTaskRecord[]}
             scope={resolvedScope}
             interventions={props.packet.steering.recent_interventions}
@@ -220,7 +188,7 @@ export function WorkflowBottomWorkbench(props: {
             workflowId={props.workflowId}
             packet={props.packet.history}
             selectedWorkItemId={currentWorkItemId}
-            selectedTaskId={currentTaskId}
+            selectedTaskId={null}
             scopeSubject={resolvedScope.subject}
             onLoadMore={props.onLoadMoreActivity}
           />
@@ -228,7 +196,7 @@ export function WorkflowBottomWorkbench(props: {
         {props.activeTab === 'deliverables' ? (
           <WorkflowDeliverables
             packet={props.packet.deliverables}
-            selectedTask={currentTask}
+            selectedTask={null}
             selectedWorkItemId={currentWorkItemId}
             selectedWorkItemTitle={currentWorkItemTitle}
             scope={resolvedScope}
@@ -240,54 +208,21 @@ export function WorkflowBottomWorkbench(props: {
   );
 }
 
-function shouldUseScopedTaskRows(input: {
-  currentWorkItemId: string | null;
-  currentTask: DashboardTaskRecord | null;
-  selectedWorkItemId: string | null;
-  selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
-}): boolean {
-  if (!input.currentWorkItemId) {
-    return false;
-  }
-  if (input.currentTask?.work_item_id === input.currentWorkItemId) {
-    return true;
-  }
-  if (input.selectedWorkItem?.id === input.currentWorkItemId) {
-    return true;
-  }
-  return input.selectedWorkItemId === input.currentWorkItemId;
-}
-
 function resolveWorkbenchScope(props: {
   packet: DashboardWorkflowWorkspacePacket;
   workflowName: string;
   selectedWorkItemTitle: string | null;
-  selectedTaskTitle: string | null;
   scope: WorkflowWorkbenchScopeDescriptor;
 }): WorkflowWorkbenchScopeDescriptor {
   const scopeKind = props.packet.bottom_tabs.current_scope_kind;
   const workItemId =
     props.packet.bottom_tabs.current_work_item_id
     ?? props.packet.selected_scope.work_item_id;
-  const taskId =
-    props.packet.bottom_tabs.current_task_id
-    ?? props.packet.selected_scope.task_id;
 
-  if (scopeKind === 'selected_task') {
-    const taskName = props.selectedTaskTitle ?? taskId ?? props.scope.name;
-    return {
-      scopeKind,
-      title: 'Task',
-      subject: 'task',
-      name: taskName,
-      banner: `Task: ${taskName}`,
-    };
-  }
-
-  if (scopeKind === 'selected_work_item') {
+  if (scopeKind === 'selected_work_item' || scopeKind === 'selected_task') {
     const workItemName = props.selectedWorkItemTitle ?? workItemId ?? props.scope.name;
     return {
-      scopeKind,
+      scopeKind: 'selected_work_item',
       title: 'Work item',
       subject: 'work item',
       name: workItemName,

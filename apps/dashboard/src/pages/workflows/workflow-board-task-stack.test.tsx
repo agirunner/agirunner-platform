@@ -44,7 +44,7 @@ describe('WorkflowBoardTaskStack', () => {
     expect(html).not.toContain('open=""');
   });
 
-  it('opens the stack when it contains the selected task', () => {
+  it('does not auto-open collapsed stacks from stale selected-task state anymore', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowBoardTaskStack, {
         tasks: [
@@ -60,7 +60,7 @@ describe('WorkflowBoardTaskStack', () => {
       }),
     );
 
-    expect(html).toContain('open=""');
+    expect(html).not.toContain('open=""');
   });
 
   it('lets work-item view task summaries reselect the parent work item without enabling task scope', () => {

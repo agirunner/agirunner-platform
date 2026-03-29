@@ -1,7 +1,6 @@
 import type { DashboardWorkflowWorkspacePacket } from '../../lib/api.js';
 
 export type WorkflowPageMode = 'live' | 'recent';
-export type WorkflowBoardLens = 'work_items' | 'tasks';
 export type WorkflowWorkbenchTab =
   | 'details'
   | 'needs_action'
@@ -16,7 +15,7 @@ export interface RequestedWorkspaceScope {
   workflowId: string | null;
   scopeKind: WorkflowTabScope;
   workItemId: string | null;
-  taskId: string | null;
+  taskId?: string | null;
 }
 
 export interface WorkflowWorkbenchScopeDescriptor {
@@ -31,7 +30,6 @@ export interface WorkflowsPageState {
   mode: WorkflowPageMode;
   workflowId: string | null;
   workItemId: string | null;
-  taskId: string | null;
   tab: WorkflowWorkbenchTab | null;
   search: string;
   needsActionOnly: boolean;
@@ -43,7 +41,6 @@ const DEFAULT_STATE: WorkflowsPageState = {
   mode: 'live',
   workflowId: null,
   workItemId: null,
-  taskId: null,
   tab: null,
   search: '',
   needsActionOnly: false,
@@ -62,9 +59,6 @@ export function readWorkflowsPageState(
     workItemId:
       readOptionalValue(searchParams.get('work_item_id')) ??
       readOptionalValue(searchParams.get('work_item')),
-    taskId:
-      readOptionalValue(searchParams.get('task_id')) ??
-      readOptionalValue(searchParams.get('task')),
     tab: readTab(searchParams.get('tab')),
     search:
       readOptionalValue(searchParams.get('search')) ??
@@ -94,9 +88,6 @@ export function buildWorkflowsPageSearchParams(
   }
   if (nextState.workItemId) {
     next.set('work_item_id', nextState.workItemId);
-  }
-  if (nextState.taskId) {
-    next.set('task_id', nextState.taskId);
   }
   if (nextState.tab) {
     next.set('tab', nextState.tab);
@@ -136,34 +127,12 @@ export function buildWorkflowsPageHref(
 export function resolveWorkflowTabScope(
   _activeTab: WorkflowWorkbenchTab | null,
   workItemId: string | null,
-  taskId: string | null,
+  _taskId: string | null,
 ): WorkflowTabScope {
-  if (taskId) {
-    return 'selected_task';
-  }
   if (workItemId) {
     return 'selected_work_item';
   }
   return 'workflow';
-}
-
-export function resolveBoardSelectionForLens(
-  boardLens: WorkflowBoardLens,
-  selection: {
-    workItemId: string | null;
-    taskId: string | null;
-  },
-): {
-  workItemId: string | null;
-  taskId: string | null;
-} {
-  if (boardLens === 'work_items') {
-    return {
-      workItemId: selection.workItemId,
-      taskId: null,
-    };
-  }
-  return selection;
 }
 
 export function resolveHeaderAddWorkTargetWorkItemId(input: {
@@ -191,19 +160,7 @@ export function describeWorkflowWorkbenchScope(input: {
   workflowName: string | null;
   workItemId: string | null;
   workItemTitle: string | null;
-  taskId: string | null;
-  taskTitle: string | null;
 }): WorkflowWorkbenchScopeDescriptor {
-  if (input.scopeKind === 'selected_task') {
-    const name = input.taskTitle ?? input.taskId ?? 'Selected task';
-    return {
-      scopeKind: input.scopeKind,
-      title: 'Task',
-      subject: 'task',
-      name,
-      banner: `Task: ${name}`,
-    };
-  }
   if (input.scopeKind === 'selected_work_item') {
     const name = input.workItemTitle ?? input.workItemId ?? 'Selected work item';
     return {
@@ -227,9 +184,6 @@ export function describeWorkflowWorkbenchScope(input: {
 export function capitalizeWorkflowWorkbenchScopeSubject(
   subject: WorkflowWorkbenchScopeDescriptor['subject'],
 ): WorkflowWorkbenchScopeDescriptor['title'] {
-  if (subject === 'task') {
-    return 'Task';
-  }
   if (subject === 'work item') {
     return 'Work item';
   }
@@ -332,10 +286,10 @@ export function workspacePacketMatchesScope(
   return (
     packet.selected_scope.scope_kind === request.scopeKind &&
     packet.selected_scope.work_item_id === request.workItemId &&
-    packet.selected_scope.task_id === request.taskId &&
+    packet.selected_scope.task_id === null &&
     packet.bottom_tabs.current_scope_kind === request.scopeKind &&
     packet.bottom_tabs.current_work_item_id === request.workItemId &&
-    packet.bottom_tabs.current_task_id === request.taskId
+    packet.bottom_tabs.current_task_id === null
   );
 }
 
@@ -348,13 +302,13 @@ function buildScopedWorkspacePlaceholder(
     selected_scope: {
       scope_kind: request.scopeKind,
       work_item_id: request.workItemId,
-      task_id: request.taskId,
+      task_id: null,
     },
     bottom_tabs: {
       ...previous.bottom_tabs,
       current_scope_kind: request.scopeKind,
       current_work_item_id: request.workItemId,
-      current_task_id: request.taskId,
+      current_task_id: null,
       counts: buildEmptyBottomTabCounts(),
     },
     steering: {
@@ -414,9 +368,6 @@ function buildEmptyBottomTabCounts() {
 function resolveSteeringScopeMode(
   request: RequestedWorkspaceScope,
 ): DashboardWorkflowWorkspacePacket['steering']['steering_state']['mode'] {
-  if (request.taskId) {
-    return 'selected_task';
-  }
   if (request.workItemId) {
     return 'selected_work_item';
   }
