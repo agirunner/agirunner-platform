@@ -625,9 +625,25 @@ function normalizeDeliverableTargets(
 ): WorkflowDeliverableRecord {
   return {
     ...deliverable,
-    primary_target: normalizeDeliverableTarget(deliverable.primary_target),
-    secondary_targets: deliverable.secondary_targets.map(normalizeDeliverableTarget),
+    primary_target: normalizeDeliverableTarget(asTargetRecord(deliverable.primary_target)),
+    secondary_targets: normalizeDeliverableTargetList(deliverable.secondary_targets),
   };
+}
+
+function normalizeDeliverableTargetList(value: unknown): Record<string, unknown>[] {
+  if (Array.isArray(value)) {
+    return value.map(asTargetRecord).map(normalizeDeliverableTarget);
+  }
+
+  const singleTarget = asTargetRecord(value);
+  return Object.keys(singleTarget).length > 0 ? [normalizeDeliverableTarget(singleTarget)] : [];
+}
+
+function asTargetRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
 }
 
 function normalizeDeliverableTarget(target: Record<string, unknown>): Record<string, unknown> {
