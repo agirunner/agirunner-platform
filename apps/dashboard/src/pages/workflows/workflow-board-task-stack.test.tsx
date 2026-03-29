@@ -63,7 +63,7 @@ describe('WorkflowBoardTaskStack', () => {
     expect(html).toContain('open=""');
   });
 
-  it('renders readable non-interactive task summaries when task selection is locked to work-item view', () => {
+  it('lets work-item view task summaries reselect the parent work item without enabling task scope', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowBoardTaskStack, {
         tasks: [
@@ -76,13 +76,15 @@ describe('WorkflowBoardTaskStack', () => {
         ],
         collapsible: false,
         defaultOpen: true,
+        onSelectWorkItem: () => undefined,
       }),
     );
 
     expect(html).toContain('Assess packet');
     expect(html).not.toContain('<details');
     expect(html).not.toContain('<summary');
-    expect(html).not.toContain('<button');
+    expect(html).toContain('data-work-item-selectable="true"');
+    expect(html).not.toContain('data-task-selectable="true"');
   });
 
   it('surfaces active task ownership and task-ready context in non-interactive work-item rows', () => {
@@ -106,6 +108,7 @@ describe('WorkflowBoardTaskStack', () => {
         ],
         collapsible: false,
         defaultOpen: true,
+        onSelectWorkItem: () => undefined,
       }),
     );
 
@@ -113,7 +116,8 @@ describe('WorkflowBoardTaskStack', () => {
     expect(html).toContain('Reviewing the latest packet before filing the handoff.');
     expect(html).toContain('Ready next');
     expect(html).toContain('Queued once the assessor finishes.');
-    expect(html).not.toContain('<button');
+    expect(html).toContain('data-work-item-selectable="true"');
+    expect(html).not.toContain('data-task-selectable="true"');
   });
 
   it('does not keep a stale task highlight when task selection is locked to work-item view', () => {
@@ -129,11 +133,14 @@ describe('WorkflowBoardTaskStack', () => {
         ],
         selectedTaskId: 'task-1',
         defaultOpen: true,
+        collapsible: false,
+        onSelectWorkItem: () => undefined,
       }),
     );
 
     expect(html).toContain('Assess packet');
-    expect(html).not.toContain('<button');
+    expect(html).toContain('data-work-item-selectable="true"');
+    expect(html).not.toContain('data-task-selectable="true"');
     expect(html).not.toContain('border-amber-300 bg-amber-100/90');
   });
 });

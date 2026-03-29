@@ -67,7 +67,7 @@ describe('WorkflowBoard', () => {
     expect(html).not.toContain('1 active • 0 completed');
   });
 
-  it('keeps recent completions collapsed by default so they do not consume the active board space', () => {
+  it('keeps the two most recent completions visible while collapsing older overflow by default', () => {
     const html = renderToStaticMarkup(
       createElement(
         QueryClientProvider,
@@ -88,6 +88,13 @@ describe('WorkflowBoard', () => {
     );
 
     expect(html).toContain('Recent completions');
+    expect(html).toContain('Completed packet 1');
+    expect(html).toContain('Completed packet 2');
+    expect(html.indexOf('Completed packet 1')).toBeLessThan(html.indexOf('Recent completions'));
+    expect(html.indexOf('Completed packet 2')).toBeLessThan(html.indexOf('Recent completions'));
+    expect(html.indexOf('Completed packet 3')).toBeGreaterThan(html.indexOf('Recent completions'));
+    expect(html.indexOf('Completed packet 4')).toBeGreaterThan(html.indexOf('Recent completions'));
+    expect(html).toContain('2 older hidden');
     expect(html).not.toContain(
       '<details class="rounded-2xl border border-border/70 bg-background/70 p-3" open="">',
     );
@@ -289,6 +296,7 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Tasks');
     expect(html).not.toContain('<details');
     expect(html).not.toContain('data-task-selectable="true"');
+    expect(html).toContain('data-work-item-selectable="true"');
   });
 
   it('shows recent task update context inside expanded work-item task summaries by default', () => {
@@ -334,6 +342,7 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Assess packet');
     expect(html).toContain('Waiting on the final evidence packet before review can finish.');
     expect(html).not.toContain('data-task-selectable="true"');
+    expect(html).toContain('data-work-item-selectable="true"');
   });
 
   it('shows a compact current-state summary from live task progress instead of raw goal text', () => {
@@ -495,6 +504,7 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Queued behind the architecture pass.');
     expect(html).not.toContain('>2 tasks<');
     expect(html).not.toContain('data-task-selectable="true"');
+    expect(html).toContain('data-work-item-selectable="true"');
   });
 
   it('keeps paused work in its lane and marks it as paused', () => {
@@ -569,11 +579,41 @@ function createBoardWithRecentCompletion(): DashboardWorkflowBoardResponse {
         id: 'work-item-2',
         workflow_id: 'workflow-1',
         stage_name: 'intake-triage',
-        title: 'Completed packet',
+        title: 'Completed packet 1',
         priority: 'normal',
         column_id: 'done',
         completed_at: new Date().toISOString(),
         task_count: 3,
+      },
+      {
+        id: 'work-item-3',
+        workflow_id: 'workflow-1',
+        stage_name: 'intake-triage',
+        title: 'Completed packet 2',
+        priority: 'normal',
+        column_id: 'done',
+        completed_at: new Date(Date.now() - 1_000).toISOString(),
+        task_count: 2,
+      },
+      {
+        id: 'work-item-4',
+        workflow_id: 'workflow-1',
+        stage_name: 'intake-triage',
+        title: 'Completed packet 3',
+        priority: 'normal',
+        column_id: 'done',
+        completed_at: new Date(Date.now() - 2_000).toISOString(),
+        task_count: 2,
+      },
+      {
+        id: 'work-item-5',
+        workflow_id: 'workflow-1',
+        stage_name: 'intake-triage',
+        title: 'Completed packet 4',
+        priority: 'normal',
+        column_id: 'done',
+        completed_at: new Date(Date.now() - 3_000).toISOString(),
+        task_count: 1,
       },
     ],
     active_stages: ['intake-triage'],

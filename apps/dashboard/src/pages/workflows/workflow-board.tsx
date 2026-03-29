@@ -227,6 +227,7 @@ function BoardLaneCard(props: {
   onSelectTask(workItemId: string, taskId: string): void;
   tasksByWorkItem: Map<string, WorkflowTaskPreviewSummary>;
 }): JSX.Element {
+  const pinnedCompletedCount = props.boardMode === 'active_recent_complete' ? 2 : 0;
   const activeTaskCards = useMemo(
     () => buildWorkflowBoardTaskCards(props.lane.activeItems, props.tasksByWorkItem),
     [props.lane.activeItems, props.tasksByWorkItem],
@@ -235,9 +236,14 @@ function BoardLaneCard(props: {
     () => buildWorkflowBoardTaskCards(props.lane.visibleCompletedItems, props.tasksByWorkItem),
     [props.lane.visibleCompletedItems, props.tasksByWorkItem],
   );
+  const pinnedCompletedItems = props.lane.visibleCompletedItems.slice(0, pinnedCompletedCount);
+  const overflowCompletedItems = props.lane.visibleCompletedItems.slice(pinnedCompletedCount);
+  const pinnedCompletedTaskCards = completedTaskCards.slice(0, pinnedCompletedCount);
+  const overflowCompletedTaskCards = completedTaskCards.slice(pinnedCompletedCount);
+  const collapsedCompletedCount = overflowCompletedItems.length + props.lane.hiddenCompletedCount;
   const showCompletedSection =
     props.boardMode !== 'active' &&
-    (props.lane.visibleCompletedItems.length > 0 || props.lane.hiddenCompletedCount > 0);
+    (collapsedCompletedCount > 0 || props.boardMode === 'all');
 
   return (
     <article className="grid min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5">
@@ -267,6 +273,26 @@ function BoardLaneCard(props: {
                   onSelect={props.onSelectWorkItem}
                 />
               ))}
+        {props.boardMode === 'active_recent_complete'
+          ? props.boardLens === 'tasks'
+            ? renderTaskLaneCards(
+                pinnedCompletedTaskCards,
+                props.selectedTaskId,
+                props.onSelectTask,
+              )
+            : pinnedCompletedItems.map((workItem) => (
+                <BoardWorkItemCard
+                  key={workItem.id}
+                  workItem={workItem}
+                  workflowState={props.workflowState}
+                  taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
+                  isSelected={workItem.id === props.selectedWorkItemId}
+                  selectedTaskId={props.selectedTaskId}
+                  onSelect={props.onSelectWorkItem}
+                  muted
+                />
+              ))
+          : null}
       </div>
 
       {showCompletedSection ? (
@@ -276,23 +302,29 @@ function BoardLaneCard(props: {
         >
           <summary className="cursor-pointer text-sm font-medium text-foreground">
             {props.boardMode === 'all' ? 'Completed work' : 'Recent completions'}
-            {props.lane.hiddenCompletedCount > 0
-              ? ` • ${props.lane.hiddenCompletedCount} older hidden`
+            {collapsedCompletedCount > 0
+              ? ` • ${collapsedCompletedCount} older hidden`
               : ''}
           </summary>
           <div className="mt-3 grid gap-3">
             {props.boardLens === 'tasks'
               ? renderTaskLaneCards(
-                  completedTaskCards,
+                  props.boardMode === 'active_recent_complete'
+                    ? overflowCompletedTaskCards
+                    : completedTaskCards,
                   props.selectedTaskId,
                   props.onSelectTask,
                   'No completed specialist tasks match the current visibility window.',
                 )
-              : props.lane.visibleCompletedItems.length === 0
+              : (props.boardMode === 'active_recent_complete'
+                  ? overflowCompletedItems
+                  : props.lane.visibleCompletedItems).length === 0
                 ? renderLaneEmptyState(
                     'No completed work items match the current visibility window.',
                   )
-                : props.lane.visibleCompletedItems.map((workItem) => (
+                : (props.boardMode === 'active_recent_complete'
+                    ? overflowCompletedItems
+                    : props.lane.visibleCompletedItems).map((workItem) => (
                     <BoardWorkItemCard
                       key={workItem.id}
                       workItem={workItem}
@@ -403,6 +435,7 @@ function BoardWorkItemCard(props: {
           tasks={props.taskSummary.tasks}
           selectedTaskId={props.selectedTaskId}
           collapsible={false}
+          onSelectWorkItem={() => props.onSelect(props.workItem.id)}
           onSelectTask={
             props.onSelectTask
               ? (taskId) => props.onSelectTask?.(props.workItem.id, taskId)

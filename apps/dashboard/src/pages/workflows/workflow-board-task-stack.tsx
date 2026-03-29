@@ -15,15 +15,26 @@ export function WorkflowBoardTaskStack(props: {
   defaultOpen?: boolean;
   collapsible?: boolean;
   onSelectTask?(taskId: string): void;
+  onSelectWorkItem?(): void;
 }): JSX.Element {
   if (props.collapsible === false) {
     return (
       <section className="rounded-lg border border-border/60 bg-muted/5 p-2.5">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Tasks
-        </p>
+        {props.onSelectWorkItem ? (
+          <button
+            type="button"
+            className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground"
+            onClick={() => props.onSelectWorkItem?.()}
+          >
+            Tasks
+          </button>
+        ) : (
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Tasks
+          </p>
+        )}
         <div className="mt-3">
-          <TaskPreviewRows tasks={props.tasks} />
+          <TaskPreviewRows tasks={props.tasks} onSelectWorkItem={props.onSelectWorkItem} />
         </div>
       </section>
     );
@@ -56,6 +67,7 @@ function TaskPreviewRows(props: {
   tasks: WorkflowTaskPreview[];
   selectedTaskId?: string | null;
   onSelectTask?(taskId: string): void;
+  onSelectWorkItem?(): void;
 }): JSX.Element {
   if (props.tasks.length === 0) {
     return <p className="text-sm text-muted-foreground">No task previews available yet.</p>;
@@ -82,6 +94,25 @@ function TaskPreviewRows(props: {
               onSelectTask(task.id);
             }}
           >
+            <span className="text-foreground">{task.title}</span>
+            <span className="text-xs text-muted-foreground">
+              {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}
+            </span>
+            {task.recentUpdate ? (
+              <span className="text-xs text-muted-foreground">{task.recentUpdate}</span>
+            ) : null}
+          </button>
+        ) : props.onSelectWorkItem ? (
+          <button
+            key={task.id}
+            type="button"
+            data-work-item-selectable="true"
+            className={buildStaticTaskRowClassName(task.state)}
+            onClick={() => props.onSelectWorkItem?.()}
+          >
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              {describeTaskRowLead(task.state)}
+            </span>
             <span className="text-foreground">{task.title}</span>
             <span className="text-xs text-muted-foreground">
               {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}

@@ -200,7 +200,9 @@ function buildLaneView(
   boardMode: WorkflowBoardMode,
 ): WorkflowBoardLaneView {
   const activeItems = workItems.filter((workItem) => !isColumnCompletedWorkItem(column, workItem));
-  const completedItems = workItems.filter((workItem) => isColumnCompletedWorkItem(column, workItem));
+  const completedItems = workItems
+    .filter((workItem) => isColumnCompletedWorkItem(column, workItem))
+    .sort(compareCompletedWorkItemsNewestFirst);
   const visibleCompletedItems =
     boardMode === 'all'
       ? completedItems
@@ -215,6 +217,27 @@ function buildLaneView(
     hiddenCompletedCount: Math.max(completedItems.length - visibleCompletedItems.length, 0),
     totalFilteredCount: workItems.length,
   };
+}
+
+function compareCompletedWorkItemsNewestFirst(
+  left: DashboardWorkflowWorkItemRecord,
+  right: DashboardWorkflowWorkItemRecord,
+): number {
+  return readCompletedTimestamp(right) - readCompletedTimestamp(left);
+}
+
+function readCompletedTimestamp(workItem: DashboardWorkflowWorkItemRecord): number {
+  const completedAt = workItem.completed_at ? Date.parse(workItem.completed_at) : Number.NaN;
+  if (!Number.isNaN(completedAt)) {
+    return completedAt;
+  }
+  const updatedAt = 'updated_at' in workItem && typeof workItem.updated_at === 'string'
+    ? Date.parse(workItem.updated_at)
+    : Number.NaN;
+  if (!Number.isNaN(updatedAt)) {
+    return updatedAt;
+  }
+  return 0;
 }
 
 function isColumnCompletedWorkItem(
