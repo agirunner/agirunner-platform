@@ -22,7 +22,10 @@ describe('WorkflowHistory', () => {
       ),
     );
 
-    expect(html).toContain('Open brief');
+    expect(html).toContain('Review the publication package.');
+    expect(html).not.toContain('<details');
+    expect(html).not.toContain('<summary');
+    expect(html).not.toContain('Open brief');
     expect(html).not.toContain('Open brief scope');
     expect(html).not.toContain('/workflows/workflow-1?work_item_id=work-item-1&amp;tab=details');
     expect(html).not.toContain('/mission-control/');
@@ -60,10 +63,11 @@ describe('WorkflowHistory', () => {
       ),
     );
 
-    expect(html).toContain('Milestone Brief');
     expect(html).toContain('Briefs');
     expect(html).toContain('Policy assessment settled revision 3');
-    expect(html).toContain('Open brief');
+    expect(html).toContain('Revision 3 is internally consistent and ready for the next workflow action.');
+    expect(html).not.toContain('Milestone Brief');
+    expect(html).not.toContain('Open brief');
     expect(html).not.toContain('Open brief scope');
     expect(html).not.toContain('ordered newest first');
     expect(html).not.toContain('input lineage');
@@ -101,7 +105,8 @@ describe('WorkflowHistory', () => {
       ),
     );
 
-    expect(html).toContain('Open brief');
+    expect(html).toContain('Policy review sent task 4 back for another revision.');
+    expect(html).not.toContain('Open brief');
     expect(html).not.toContain('Open brief scope');
     expect(html).not.toContain('/workflows/workflow-1?work_item_id=work-item-1&amp;task_id=task-4&amp;tab=details');
   });
@@ -160,6 +165,133 @@ describe('WorkflowHistory', () => {
 
     expect(html).toContain('Policy Reviewer');
     expect(html).not.toContain('771908c8-0634-467a-b41d-6dd4a6798d7d');
+  });
+
+  it('renders the newest brief groups and entries first', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        MemoryRouter,
+        undefined,
+        createElement(WorkflowHistory, {
+          workflowId: 'workflow-1',
+          packet: {
+            ...createPacket(),
+            groups: [
+              {
+                group_id: '2026-03-26',
+                label: '2026-03-26',
+                anchor_at: '2026-03-26T00:00:00.000Z',
+                item_ids: ['history-older'],
+              },
+              {
+                group_id: '2026-03-27',
+                label: '2026-03-27',
+                anchor_at: '2026-03-27T00:00:00.000Z',
+                item_ids: ['history-middle', 'history-newest'],
+              },
+            ],
+            items: [
+              {
+                item_id: 'history-older',
+                item_kind: 'operator_update',
+                source_kind: 'specialist',
+                source_label: 'Verifier',
+                headline: 'Older headline',
+                summary: 'Older summary',
+                created_at: '2026-03-26T04:04:00.000Z',
+                linked_target_ids: ['workflow-1'],
+                work_item_id: null,
+                task_id: null,
+              },
+              {
+                item_id: 'history-middle',
+                item_kind: 'operator_update',
+                source_kind: 'specialist',
+                source_label: 'Verifier',
+                headline: 'Middle headline',
+                summary: 'Middle summary',
+                created_at: '2026-03-27T04:04:00.000Z',
+                linked_target_ids: ['workflow-1'],
+                work_item_id: null,
+                task_id: null,
+              },
+              {
+                item_id: 'history-newest',
+                item_kind: 'operator_update',
+                source_kind: 'specialist',
+                source_label: 'Verifier',
+                headline: 'Newest headline',
+                summary: 'Newest summary',
+                created_at: '2026-03-27T04:05:00.000Z',
+                linked_target_ids: ['workflow-1'],
+                work_item_id: null,
+                task_id: null,
+              },
+            ],
+          },
+          scopeSubject: 'workflow',
+          onLoadMore: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html.indexOf('2026-03-27')).toBeLessThan(html.indexOf('2026-03-26'));
+    expect(html.indexOf('Newest headline')).toBeLessThan(html.indexOf('Middle headline'));
+    expect(html.indexOf('Middle headline')).toBeLessThan(html.indexOf('Older headline'));
+  });
+
+  it('shows the brief type chip only when multiple visible brief kinds are present', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        MemoryRouter,
+        undefined,
+        createElement(WorkflowHistory, {
+          workflowId: 'workflow-1',
+          packet: {
+            ...createPacket(),
+            items: [
+              {
+                item_id: 'history-1',
+                item_kind: 'milestone_brief',
+                source_kind: 'specialist',
+                source_label: 'Reviewer',
+                headline: 'Milestone brief headline',
+                summary: 'Milestone brief summary',
+                created_at: '2026-03-27T04:05:00.000Z',
+                linked_target_ids: ['workflow-1'],
+                work_item_id: null,
+                task_id: null,
+              },
+              {
+                item_id: 'history-2',
+                item_kind: 'operator_update',
+                source_kind: 'specialist',
+                source_label: 'Verifier',
+                headline: 'Operator update headline',
+                summary: 'Operator update summary',
+                created_at: '2026-03-27T04:04:00.000Z',
+                linked_target_ids: ['workflow-1'],
+                work_item_id: null,
+                task_id: null,
+              },
+            ],
+            groups: [
+              {
+                group_id: '2026-03-27',
+                label: '2026-03-27',
+                anchor_at: '2026-03-27T00:00:00.000Z',
+                item_ids: ['history-1', 'history-2'],
+              },
+            ],
+          },
+          scopeSubject: 'workflow',
+          onLoadMore: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Milestone Brief');
+    expect(html).toContain('Operator Update');
   });
 
   it('hides the older-briefs control when no backfill cursor is available', () => {

@@ -13,6 +13,9 @@ export function WorkflowHistory(props: {
   onLoadMore(): void;
 }): JSX.Element {
   const scopeSubject = props.scopeSubject ?? 'workflow';
+  const displayGroups = getHistoryDisplayGroups(props.packet);
+  const shouldShowTypeChip = countDistinctItemKinds(displayGroups) > 1;
+
   return (
     <div className="grid gap-4">
       <div className="grid gap-1">
@@ -22,13 +25,13 @@ export function WorkflowHistory(props: {
         </p>
       </div>
 
-      {props.packet.groups.length === 0 ? (
+      {displayGroups.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
           No briefs published for this {scopeSubject} yet.
         </div>
       ) : (
         <div className="grid gap-4">
-          {props.packet.groups.map((group) => (
+          {displayGroups.map((group) => (
             <section key={group.group_id} className="grid gap-3">
               <div className="flex items-center gap-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
@@ -37,16 +40,13 @@ export function WorkflowHistory(props: {
                 <div className="h-px flex-1 bg-border/70" />
               </div>
               <div className="grid gap-3">
-                {group.item_ids
-                  .map((itemId) => props.packet.items.find((entry) => entry.item_id === itemId))
-                  .filter((item): item is NonNullable<typeof item> => Boolean(item))
-                  .map((item) => (
-                    <HistoryItemCard
-                      key={item.item_id}
-                      workflowId={props.workflowId}
-                      item={item}
-                    />
-                  ))}
+                {group.items.map((item) => (
+                  <HistoryItemCard
+                    key={item.item_id}
+                    item={item}
+                    showTypeChip={shouldShowTypeChip}
+                  />
+                ))}
               </div>
             </section>
           ))}
@@ -65,8 +65,8 @@ export function WorkflowHistory(props: {
 }
 
 function HistoryItemCard(props: {
-  workflowId: string;
   item: DashboardWorkflowHistoryPacket['items'][number];
+  showTypeChip: boolean;
 }): JSX.Element {
   const sourceLabel = formatWorkflowActivitySourceLabel(
     props.item.source_label,
@@ -74,26 +74,47 @@ function HistoryItemCard(props: {
   );
   const summary = props.item.summary.trim();
   const headline = props.item.headline.trim();
-  const showSummary = summary.length > 0 && summary !== headline;
+  const displayHeadline = headline || summary;
+  const showSummary = summary.length > 0 && summary !== displayHeadline;
 
   return (
     <article className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline">{humanizeToken(props.item.item_kind)}</Badge>
+        {props.showTypeChip ? <Badge variant="outline">{humanizeToken(props.item.item_kind)}</Badge> : null}
         <Badge variant="secondary">{sourceLabel}</Badge>
         <span className="text-xs text-muted-foreground">
           {formatRelativeTimestamp(props.item.created_at)}
         </span>
       </div>
-      <strong className="text-foreground">{props.item.headline}</strong>
-      {showSummary ? (
-        <details className="rounded-xl border border-border/70 bg-muted/10 p-3">
-          <summary className="cursor-pointer text-sm font-medium text-foreground">Open brief</summary>
-          <p className="mt-3 text-sm text-muted-foreground">{props.item.summary}</p>
-        </details>
-      ) : null}
+      <strong className="text-foreground">{displayHeadline}</strong>
+      {showSummary ? <p className="text-sm text-muted-foreground">{summary}</p> : null}
     </article>
   );
+}
+
+function getHistoryDisplayGroups(packet: DashboardWorkflowHistoryPacket): Array<
+  DashboardWorkflowHistoryPacket['groups'][number] & {
+    items: DashboardWorkflowHistoryPacket['items'];
+  }
+> {
+  const itemsById = new Map(packet.items.map((item) => [item.item_id, item] as const));
+
+  return [...packet.groups]
+    .map((group) => ({
+      ...group,
+      items: group.item_ids
+        .map((itemId) => itemsById.get(itemId))
+        .filter((item): item is DashboardWorkflowHistoryPacket['items'][number] => Boolean(item))
+        .sort((left, right) => right.created_at.localeCompare(left.created_at)),
+    }))
+    .filter((group) => group.items.length > 0)
+    .sort((left, right) => right.anchor_at.localeCompare(left.anchor_at));
+}
+
+function countDistinctItemKinds(
+  groups: Array<{ items: DashboardWorkflowHistoryPacket['items'] }>,
+): number {
+  return new Set(groups.flatMap((group) => group.items.map((item) => item.item_kind))).size;
 }
 
 function humanizeToken(value: string): string {
