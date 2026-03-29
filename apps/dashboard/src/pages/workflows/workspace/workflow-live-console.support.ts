@@ -1,20 +1,38 @@
 import type { DashboardWorkflowLiveConsoleItem } from '../../../lib/api.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const WORKFLOW_CONSOLE_PREFETCH_THRESHOLD_PX = 96;
 
 const WORKFLOW_CONSOLE_ENTRY_STYLES = {
   brief: {
-    entryClassName: 'border-l-emerald-400/70 bg-emerald-500/5',
-    promptClassName: 'text-emerald-300',
-    sourceClassName: 'text-emerald-100',
+    entryClassName: 'border-l border-emerald-400/40',
   },
   notice: {
-    entryClassName: 'border-l-amber-400/70 bg-amber-500/5',
+    entryClassName: 'border-l border-amber-400/40',
+  },
+  update: {
+    entryClassName: 'border-l border-slate-700/80',
+  },
+} as const;
+
+const WORKFLOW_CONSOLE_ROLE_TONES = {
+  orchestrator: {
+    promptClassName: 'text-sky-300',
+    sourceClassName: 'text-sky-100',
+  },
+  platform: {
     promptClassName: 'text-amber-300',
     sourceClassName: 'text-amber-100',
   },
-  update: {
-    entryClassName: 'border-l-slate-700 bg-slate-950/70',
+  operator: {
+    promptClassName: 'text-violet-300',
+    sourceClassName: 'text-violet-100',
+  },
+  specialist: {
+    promptClassName: 'text-emerald-300',
+    sourceClassName: 'text-emerald-100',
+  },
+  default: {
     promptClassName: 'text-cyan-300',
     sourceClassName: 'text-slate-100',
   },
@@ -109,22 +127,43 @@ export function describeWorkflowConsoleCoverage(
   if (!nextCursor || items.length === 0) {
     return null;
   }
-  const headlineLabel = items.length === 1 ? 'headline' : 'headlines';
+  const lineLabel = items.length === 1 ? 'line' : 'lines';
   const hasExpandedTotal = typeof totalCount === 'number' && totalCount > items.length;
   const totalSegment = hasExpandedTotal ? ` out of ${totalCount} total` : '';
-  return `Showing the latest ${items.length} loaded ${headlineLabel}${totalSegment}. Filter counts reflect the current window until you load older headlines.`;
+  return `Showing the latest ${items.length} loaded ${lineLabel}${totalSegment}. Older lines stream in automatically as you scroll upward.`;
 }
 
-export function getWorkflowConsoleEntryStyle(itemKind: string): {
+export function orderWorkflowConsoleItemsForDisplay(
+  items: DashboardWorkflowLiveConsoleItem[],
+): DashboardWorkflowLiveConsoleItem[] {
+  return [...items].reverse();
+}
+
+export function shouldPrefetchWorkflowConsoleHistory(input: {
+  hasNextCursor: boolean;
+  isLoadingOlderHistory: boolean;
+  scrollTop: number;
+}): boolean {
+  if (!input.hasNextCursor || input.isLoadingOlderHistory) {
+    return false;
+  }
+  return input.scrollTop <= WORKFLOW_CONSOLE_PREFETCH_THRESHOLD_PX;
+}
+
+export function getWorkflowConsoleEntryStyle(itemKind: string, sourceKind: string): {
   dataKind: 'brief' | 'notice' | 'update';
   entryClassName: string;
   promptClassName: string;
   sourceClassName: string;
 } {
+  const roleTone = WORKFLOW_CONSOLE_ROLE_TONES[sourceKind as keyof typeof WORKFLOW_CONSOLE_ROLE_TONES]
+    ?? WORKFLOW_CONSOLE_ROLE_TONES.default;
+
   if (itemKind === 'milestone_brief') {
     return {
       dataKind: 'brief',
       ...WORKFLOW_CONSOLE_ENTRY_STYLES.brief,
+      ...roleTone,
     };
   }
 
@@ -132,12 +171,14 @@ export function getWorkflowConsoleEntryStyle(itemKind: string): {
     return {
       dataKind: 'notice',
       ...WORKFLOW_CONSOLE_ENTRY_STYLES.notice,
+      ...WORKFLOW_CONSOLE_ROLE_TONES.platform,
     };
   }
 
   return {
     dataKind: 'update',
     ...WORKFLOW_CONSOLE_ENTRY_STYLES.update,
+    ...roleTone,
   };
 }
 

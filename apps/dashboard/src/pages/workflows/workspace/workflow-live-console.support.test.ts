@@ -7,7 +7,10 @@ import {
   describeWorkflowConsoleEmptyState,
   describeWorkflowConsoleScope,
   filterWorkflowConsoleItems,
+  getWorkflowConsoleEntryStyle,
   getWorkflowConsoleLineText,
+  orderWorkflowConsoleItemsForDisplay,
+  shouldPrefetchWorkflowConsoleHistory,
 } from './workflow-live-console.support.js';
 
 describe('workflow live console support', () => {
@@ -87,12 +90,78 @@ describe('workflow live console support', () => {
     const items = createItems();
 
     expect(describeWorkflowConsoleCoverage(items, 'cursor-2', 9)).toBe(
-      'Showing the latest 4 loaded headlines out of 9 total. Filter counts reflect the current window until you load older headlines.',
+      'Showing the latest 4 loaded lines out of 9 total. Older lines stream in automatically as you scroll upward.',
     );
     expect(describeWorkflowConsoleCoverage(items, 'cursor-2', null)).toBe(
-      'Showing the latest 4 loaded headlines. Filter counts reflect the current window until you load older headlines.',
+      'Showing the latest 4 loaded lines. Older lines stream in automatically as you scroll upward.',
     );
     expect(describeWorkflowConsoleCoverage(items, null, 9)).toBeNull();
+  });
+
+  it('orders the terminal stream oldest-first so newer lines append at the bottom', () => {
+    expect(
+      orderWorkflowConsoleItemsForDisplay([
+        createItem({
+          item_id: 'newest',
+          headline: 'Newest line',
+          created_at: '2026-03-28T03:05:00.000Z',
+        }),
+        createItem({
+          item_id: 'older',
+          headline: 'Older line',
+          created_at: '2026-03-28T03:00:00.000Z',
+        }),
+      ]).map((item) => item.item_id),
+    ).toEqual(['older', 'newest']);
+  });
+
+  it('requests older console history before the user hits the absolute top edge', () => {
+    expect(
+      shouldPrefetchWorkflowConsoleHistory({
+        hasNextCursor: true,
+        isLoadingOlderHistory: false,
+        scrollTop: 72,
+      }),
+    ).toBe(true);
+    expect(
+      shouldPrefetchWorkflowConsoleHistory({
+        hasNextCursor: true,
+        isLoadingOlderHistory: false,
+        scrollTop: 192,
+      }),
+    ).toBe(false);
+    expect(
+      shouldPrefetchWorkflowConsoleHistory({
+        hasNextCursor: false,
+        isLoadingOlderHistory: false,
+        scrollTop: 24,
+      }),
+    ).toBe(false);
+    expect(
+      shouldPrefetchWorkflowConsoleHistory({
+        hasNextCursor: true,
+        isLoadingOlderHistory: true,
+        scrollTop: 24,
+      }),
+    ).toBe(false);
+  });
+
+  it('keeps terminal rows flat while tinting the prompt by role family', () => {
+    expect(getWorkflowConsoleEntryStyle('operator_update', 'orchestrator')).toMatchObject({
+      dataKind: 'update',
+      promptClassName: 'text-sky-300',
+      sourceClassName: 'text-sky-100',
+    });
+    expect(getWorkflowConsoleEntryStyle('operator_update', 'specialist')).toMatchObject({
+      dataKind: 'update',
+      promptClassName: 'text-emerald-300',
+      sourceClassName: 'text-emerald-100',
+    });
+    expect(getWorkflowConsoleEntryStyle('platform_notice', 'platform')).toMatchObject({
+      dataKind: 'notice',
+      promptClassName: 'text-amber-300',
+      sourceClassName: 'text-amber-100',
+    });
   });
 });
 

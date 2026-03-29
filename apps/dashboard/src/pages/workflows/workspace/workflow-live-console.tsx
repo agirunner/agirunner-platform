@@ -13,6 +13,8 @@ import {
   formatWorkflowActivitySourceLabel,
   getWorkflowConsoleLineText,
   getWorkflowConsoleEntryStyle,
+  orderWorkflowConsoleItemsForDisplay,
+  shouldPrefetchWorkflowConsoleHistory,
   type WorkflowConsoleFilter,
 } from './workflow-live-console.support.js';
 
@@ -26,22 +28,29 @@ export function WorkflowLiveConsole(props: {
 }): JSX.Element {
   const scopeSubject = props.scopeSubject ?? 'workflow';
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const scrollMetricsRef = useRef({
+    firstItemId: '',
+    lastItemId: '',
+    scrollHeight: 0,
+    scrollTop: 0,
+  });
+  const backfillCursorRef = useRef<string | null>(null);
   const [isPinnedToLiveEdge, setIsPinnedToLiveEdge] = useState(true);
   const [hasQueuedUpdates, setHasQueuedUpdates] = useState(false);
+  const [isLoadingOlderHistory, setIsLoadingOlderHistory] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<WorkflowConsoleFilter>('all');
   const filterDescriptors = useMemo(
     () => buildWorkflowConsoleFilterDescriptors(props.packet.items),
     [props.packet.items],
   );
   const visibleItems = useMemo(
-    () => filterWorkflowConsoleItems(props.packet.items, selectedFilter),
+    () => orderWorkflowConsoleItemsForDisplay(filterWorkflowConsoleItems(props.packet.items, selectedFilter)),
     [props.packet.items, selectedFilter],
   );
   const coverageMessage = useMemo(
     () => describeWorkflowConsoleCoverage(props.packet.items, props.packet.next_cursor, props.packet.total_count),
     [props.packet.items, props.packet.next_cursor, props.packet.total_count],
   );
-  const previousVisibleItemCount = useRef(visibleItems.length);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -49,20 +58,47 @@ export function WorkflowLiveConsole(props: {
       return;
     }
 
-    const itemCountIncreased = visibleItems.length > previousVisibleItemCount.current;
-    previousVisibleItemCount.current = visibleItems.length;
-    if (!itemCountIncreased) {
+    const previousMetrics = scrollMetricsRef.current;
+    const firstItemId = visibleItems[0]?.item_id ?? '';
+    const lastItemId = visibleItems[visibleItems.length - 1]?.item_id ?? '';
+    const prependedHistory = firstItemId !== previousMetrics.firstItemId && lastItemId === previousMetrics.lastItemId;
+    const appendedLiveUpdate = lastItemId !== previousMetrics.lastItemId && firstItemId === previousMetrics.firstItemId;
+
+    if (visibleItems.length === 0) {
+      scrollMetricsRef.current = {
+        firstItemId,
+        lastItemId,
+        scrollHeight: container.scrollHeight,
+        scrollTop: container.scrollTop,
+      };
       return;
     }
 
-    if (isPinnedToLiveEdge) {
-      container.scrollTop = 0;
+    if (prependedHistory) {
+      const scrollDelta = container.scrollHeight - previousMetrics.scrollHeight;
+      container.scrollTop = previousMetrics.scrollTop + scrollDelta;
+      setIsLoadingOlderHistory(false);
+    } else if (!previousMetrics.lastItemId || (appendedLiveUpdate && isPinnedToLiveEdge)) {
+      container.scrollTop = container.scrollHeight;
       setHasQueuedUpdates(false);
-      return;
+    } else if (appendedLiveUpdate) {
+      setHasQueuedUpdates(true);
     }
 
-    setHasQueuedUpdates(true);
-  }, [isPinnedToLiveEdge, visibleItems.length]);
+    scrollMetricsRef.current = {
+      firstItemId,
+      lastItemId,
+      scrollHeight: container.scrollHeight,
+      scrollTop: container.scrollTop,
+    };
+  }, [isPinnedToLiveEdge, visibleItems]);
+
+  useEffect(() => {
+    if (backfillCursorRef.current !== props.packet.next_cursor) {
+      backfillCursorRef.current = props.packet.next_cursor;
+      setIsLoadingOlderHistory(false);
+    }
+  }, [props.packet.next_cursor]);
 
   return (
     <div className="grid gap-4">
@@ -84,12 +120,12 @@ export function WorkflowLiveConsole(props: {
                 if (!container) {
                   return;
                 }
-                container.scrollTop = 0;
+                container.scrollTop = container.scrollHeight;
                 setIsPinnedToLiveEdge(true);
                 setHasQueuedUpdates(false);
               }}
             >
-              New updates
+              Jump to latest
             </Button>
           ) : null}
         </div>
@@ -118,19 +154,32 @@ export function WorkflowLiveConsole(props: {
 
       <div
         ref={containerRef}
-        className="max-h-[28rem] overflow-x-hidden overflow-y-auto rounded-2xl border border-slate-800 bg-[#09111f] p-3 font-mono text-sm text-slate-100 shadow-inner"
+        className="max-h-[28rem] overflow-x-hidden overflow-y-auto border border-slate-800 bg-[#09111f] px-0 py-2 font-mono text-sm text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
         onScroll={(event) => {
           const element = event.currentTarget;
-          const nextPinned = element.scrollTop <= LIVE_EDGE_THRESHOLD_PX;
+          const nextPinned =
+            element.scrollHeight - element.clientHeight - element.scrollTop <= LIVE_EDGE_THRESHOLD_PX;
           setIsPinnedToLiveEdge(nextPinned);
           if (nextPinned) {
             setHasQueuedUpdates(false);
           }
+          scrollMetricsRef.current.scrollHeight = element.scrollHeight;
+          scrollMetricsRef.current.scrollTop = element.scrollTop;
+          if (
+            shouldPrefetchWorkflowConsoleHistory({
+              hasNextCursor: props.packet.next_cursor !== null,
+              isLoadingOlderHistory,
+              scrollTop: element.scrollTop,
+            })
+          ) {
+            setIsLoadingOlderHistory(true);
+            props.onLoadMore();
+          }
         }}
       >
-        <div className="grid gap-2">
+        <div className="grid gap-0">
           {visibleItems.length === 0 ? (
-            <div className="rounded-xl border border-slate-700 bg-slate-950/40 p-4 text-slate-300">
+            <div className="px-4 py-5 text-slate-300">
               {describeWorkflowConsoleEmptyState(selectedFilter, props.scopeLabel)}
             </div>
           ) : (
@@ -140,14 +189,6 @@ export function WorkflowLiveConsole(props: {
           )}
         </div>
       </div>
-
-      {props.packet.next_cursor ? (
-        <div className="flex justify-end">
-          <Button type="button" size="sm" variant="outline" onClick={props.onLoadMore}>
-            Load older headlines
-          </Button>
-        </div>
-      ) : null}
     </div>
   );
 }
@@ -157,12 +198,13 @@ function LiveConsoleEntry(props: {
 }): JSX.Element {
   const { item } = props;
   const sourceLabel = formatWorkflowActivitySourceLabel(item.source_label, item.source_kind);
-  const entryStyle = getWorkflowConsoleEntryStyle(item.item_kind);
+  const entryStyle = getWorkflowConsoleEntryStyle(item.item_kind, item.source_kind);
 
   return (
     <article
       data-terminal-entry={entryStyle.dataKind}
-      className={`grid gap-1 border-l-2 px-3 py-2 font-mono leading-6 text-sm text-slate-100 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-3 ${entryStyle.entryClassName}`}
+      data-terminal-source={item.source_kind}
+      className={`grid gap-1 px-4 py-2 font-mono leading-6 text-sm text-slate-100 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start sm:gap-3 ${entryStyle.entryClassName}`}
     >
       <p className="min-w-0 break-words text-slate-100">
         <span className={entryStyle.promptClassName}>&gt; </span>

@@ -6,7 +6,7 @@ import type { DashboardWorkflowLiveConsolePacket } from '../../../lib/api.js';
 import { WorkflowLiveConsole } from './workflow-live-console.js';
 
 describe('WorkflowLiveConsole', () => {
-  it('preserves the server-provided newest-first order so the live edge stays at the top', () => {
+  it('renders the terminal oldest-first so the newest lines append at the bottom', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowLiveConsole, {
         packet: createPacket([
@@ -29,8 +29,11 @@ describe('WorkflowLiveConsole', () => {
       }),
     );
 
-    expect(html.indexOf('Newest headline')).toBeLessThan(html.indexOf('Older headline'));
-    expect(html).toContain('Load older headlines');
+    expect(html.indexOf('Older headline')).toBeLessThan(html.indexOf('Newest headline'));
+    expect(html).not.toContain('Load older headlines');
+    expect(html).toContain(
+      'Showing the latest 2 loaded lines out of 7 total. Older lines stream in automatically as you scroll upward.',
+    );
   });
 
   it('renders updates and briefs as single-line terminal entries', () => {
@@ -80,16 +83,16 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('data-terminal-entry="brief"');
     expect(html).toContain('data-terminal-entry="update"');
     expect(html).toContain('data-terminal-entry="notice"');
-    expect(html).toContain('border-l-emerald-400/70');
-    expect(html).toContain('border-l-slate-700');
-    expect(html).toContain('grid gap-1 border-l-2');
+    expect(html).toContain('border-emerald-400/40');
+    expect(html).toContain('border-slate-700/80');
+    expect(html).toContain('grid gap-1 px-4 py-2');
     expect(html).toContain('sm:grid-cols-[minmax(0,1fr)_auto]');
     expect(html).toContain('sm:items-start');
     expect(html).toContain('sm:gap-3');
     expect(html).toContain('break-words');
     expect(html).toContain('overflow-x-hidden overflow-y-auto');
     expect(html).toContain(
-      'Showing the latest 3 loaded headlines out of 7 total. Filter counts reflect the current window until you load older headlines.',
+      'Showing the latest 3 loaded lines out of 7 total. Older lines stream in automatically as you scroll upward.',
     );
   });
 
@@ -206,7 +209,43 @@ describe('WorkflowLiveConsole', () => {
     );
 
     expect(html).not.toContain('Load older headlines');
-    expect(html).not.toContain('Filter counts reflect the current window until you load older headlines.');
+    expect(html).not.toContain('Older lines stream in automatically as you scroll upward.');
+  });
+
+  it('keeps terminal rows flat while tinting orchestrator and specialist roles differently', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowLiveConsole, {
+        packet: createPacket([
+          {
+            item_id: 'update-1',
+            item_kind: 'operator_update',
+            source_kind: 'orchestrator',
+            source_label: 'Orchestrator',
+            headline: 'Routed policy assessment.',
+            summary: 'Routed policy assessment.',
+            created_at: '2026-03-27T04:04:00.000Z',
+          },
+          {
+            item_id: 'update-2',
+            item_kind: 'operator_update',
+            source_kind: 'specialist',
+            source_label: 'Policy Assessor',
+            headline: 'Reviewed the intake packet.',
+            summary: 'Reviewed the intake packet.',
+            created_at: '2026-03-27T04:05:00.000Z',
+          },
+        ]),
+        scopeLabel: 'Workflow: Release workflow',
+        scopeSubject: 'workflow',
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('data-terminal-source="orchestrator"');
+    expect(html).toContain('data-terminal-source="specialist"');
+    expect(html).toContain('text-sky-300');
+    expect(html).toContain('text-emerald-300');
+    expect(html).not.toContain('rounded-xl border border-slate-700 bg-slate-950/40 p-4');
   });
 });
 
@@ -216,7 +255,7 @@ function createPacket(
     includePlatformNotice?: boolean;
   },
 ): DashboardWorkflowLiveConsolePacket {
-  const baseItems = items.map((item) => ({
+  const baseItems: DashboardWorkflowLiveConsolePacket['items'] = items.map((item) => ({
     item_kind: 'operator_update',
     source_kind: 'specialist',
     source_label: 'Verifier',
@@ -225,7 +264,7 @@ function createPacket(
     linked_target_ids: [],
     ...item,
   }));
-  const allItems = options?.includePlatformNotice
+  const allItems: DashboardWorkflowLiveConsolePacket['items'] = options?.includePlatformNotice
     ? [
         ...baseItems,
         {
