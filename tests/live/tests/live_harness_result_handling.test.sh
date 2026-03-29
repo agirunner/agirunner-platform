@@ -259,10 +259,24 @@ for key in required_keys:
                 "selection": {"work_item_id": None, "task_id": None},
                 "workspace_api": {
                     "selected_scope": {"scope_kind": "workflow", "work_item_id": None, "task_id": None},
-                    "live_console": {"brief_ids": [], "update_ids": [], "item_kind_counts": {}},
+                    "live_console": {
+                        "brief_ids": [],
+                        "update_ids": [],
+                        "execution_turn_ids": [],
+                        "execution_turn_items": [],
+                        "item_kind_counts": {}
+                    },
                     "deliverables": {"all_descriptor_ids": [], "descriptor_kind_counts": {}},
                 },
                 "db": {"brief_ids": [], "update_ids": [], "all_descriptor_ids": []},
+                "enhanced_live_console": {
+                    "applicable": True,
+                    "effective_mode": "enhanced",
+                    "expected_rows": [],
+                    "actual_rows": [],
+                    "passed": True,
+                    "failures": []
+                },
                 "reconciliation": {"passed": True, "failures": []},
             },
             "selected_work_item_scope": {
@@ -270,10 +284,24 @@ for key in required_keys:
                 "selection": {"work_item_id": "wi-1", "task_id": None},
                 "workspace_api": {
                     "selected_scope": {"scope_kind": "selected_work_item", "work_item_id": "wi-1", "task_id": None},
-                    "live_console": {"brief_ids": ["brief-1"], "update_ids": ["update-1"], "item_kind_counts": {"milestone_brief": 1, "operator_update": 1}},
+                    "live_console": {
+                        "brief_ids": ["brief-1"],
+                        "update_ids": ["update-1"],
+                        "execution_turn_ids": ["111"],
+                        "execution_turn_items": [{"log_id": "111", "item_id": "execution-log:111", "headline": "Inspect the work item.", "summary": "Working through the next step for Workflow task.", "task_id": None, "work_item_id": "wi-1"}],
+                        "item_kind_counts": {"milestone_brief": 1, "operator_update": 1, "execution_turn": 1}
+                    },
                     "deliverables": {"all_descriptor_ids": ["descriptor-1"], "descriptor_kind_counts": {"report": 1}},
                 },
                 "db": {"brief_ids": ["brief-1"], "update_ids": ["update-1"], "all_descriptor_ids": ["descriptor-1"]},
+                "enhanced_live_console": {
+                    "applicable": True,
+                    "effective_mode": "enhanced",
+                    "expected_rows": [{"log_id": "111", "operation": "agent.think", "phase": "think", "surface_expected": True, "surface_kind": "prose", "headline_preview": "Inspect the work item.", "task_id": None, "work_item_id": "wi-1"}],
+                    "actual_rows": [{"log_id": "111", "item_id": "execution-log:111", "headline": "Inspect the work item.", "summary": "Working through the next step for Workflow task.", "task_id": None, "work_item_id": "wi-1"}],
+                    "passed": True,
+                    "failures": []
+                },
                 "reconciliation": {"passed": True, "failures": []},
             },
             "selected_task_scope": {
@@ -281,10 +309,24 @@ for key in required_keys:
                 "selection": {"work_item_id": "wi-1", "task_id": "task-1"},
                 "workspace_api": {
                     "selected_scope": {"scope_kind": "selected_task", "work_item_id": "wi-1", "task_id": "task-1"},
-                    "live_console": {"brief_ids": ["brief-1"], "update_ids": ["update-1"], "item_kind_counts": {"milestone_brief": 1, "operator_update": 1}},
+                    "live_console": {
+                        "brief_ids": ["brief-1"],
+                        "update_ids": ["update-1"],
+                        "execution_turn_ids": ["222"],
+                        "execution_turn_items": [{"log_id": "222", "item_id": "execution-log:222", "headline": "Inspect the task.", "summary": "Working through the next step for Workflow task.", "task_id": "task-1", "work_item_id": "wi-1"}],
+                        "item_kind_counts": {"milestone_brief": 1, "operator_update": 1, "execution_turn": 1}
+                    },
                     "deliverables": {"all_descriptor_ids": ["descriptor-1"], "descriptor_kind_counts": {"report": 1}},
                 },
                 "db": {"brief_ids": ["brief-1"], "update_ids": ["update-1"], "all_descriptor_ids": ["descriptor-1"]},
+                "enhanced_live_console": {
+                    "applicable": True,
+                    "effective_mode": "enhanced",
+                    "expected_rows": [{"log_id": "222", "operation": "agent.think", "phase": "think", "surface_expected": True, "surface_kind": "prose", "headline_preview": "Inspect the task.", "task_id": "task-1", "work_item_id": "wi-1"}],
+                    "actual_rows": [{"log_id": "222", "item_id": "execution-log:222", "headline": "Inspect the task.", "summary": "Working through the next step for Workflow task.", "task_id": "task-1", "work_item_id": "wi-1"}],
+                    "passed": True,
+                    "failures": []
+                },
                 "reconciliation": {"passed": True, "failures": []},
             },
         }

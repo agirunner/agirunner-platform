@@ -9,9 +9,12 @@ from pathlib import Path
 
 
 LIVE_SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+LIVE_LIB = Path(__file__).resolve().parents[1] / "lib"
 sys.path.insert(0, str(LIVE_SCRIPTS))
+sys.path.insert(0, str(LIVE_LIB))
 
 import validate_live_result  # noqa: E402
+import workflow_scope_trace  # noqa: E402
 
 
 class LiveResultCompletenessTests(unittest.TestCase):
@@ -123,6 +126,45 @@ class LiveResultCompletenessTests(unittest.TestCase):
                     "brief_packet": 1,
                     "handoff_packet": 1,
                 },
+            },
+            "enhanced_live_console": {
+                "applicable": True,
+                "effective_mode": "enhanced",
+                "expected_rows": [
+                    {
+                        "log_id": "111",
+                        "operation": "agent.think",
+                        "phase": "think",
+                        "surface_expected": True,
+                        "surface_kind": "prose",
+                        "headline_preview": "Inspect the seeded workflow state before routing work.",
+                        "task_id": task_id,
+                        "work_item_id": work_item_id,
+                    },
+                    {
+                        "log_id": "112",
+                        "operation": "agent.act",
+                        "phase": "act",
+                        "surface_expected": False,
+                        "surface_kind": "action_call",
+                        "headline_preview": "calling list_work_items(stage_name=\"intake-triage\")",
+                        "suppression_reason": "low_value_read_only_tool",
+                        "task_id": task_id,
+                        "work_item_id": work_item_id,
+                    },
+                ],
+                "actual_rows": [
+                    {
+                        "log_id": "111",
+                        "item_id": "execution-log:111",
+                        "headline": "Inspect the seeded workflow state before routing work.",
+                        "summary": "Working through the next step for Workflow task.",
+                        "task_id": task_id,
+                        "work_item_id": work_item_id,
+                    }
+                ],
+                "passed": True,
+                "failures": [],
             },
             "reconciliation": {
                 "passed": True,
@@ -324,6 +366,54 @@ class LiveResultCompletenessTests(unittest.TestCase):
                 "\n".join(result.failures),
             )
 
+    def test_validate_result_file_rejects_failed_enhanced_live_console_reconciliation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            scenario_dir = Path(tmpdir) / "scenario"
+            evidence_dir = scenario_dir / "evidence"
+            evidence_dir.mkdir(parents=True)
+
+            workspace_scope_trace = self.build_workspace_scope_trace()
+            selected_task_scope = workspace_scope_trace["selected_task_scope"]
+            assert isinstance(selected_task_scope, dict)
+            selected_task_scope["enhanced_live_console"] = {
+                "applicable": True,
+                "effective_mode": "enhanced",
+                "expected_rows": [],
+                "actual_rows": [],
+                "passed": False,
+                "failures": ["selected_task_scope missing expected enhanced turn line execution-log:111"],
+            }
+            evidence = self.build_complete_evidence(
+                evidence_dir,
+                workspace_scope_trace=workspace_scope_trace,
+            )
+
+            result_path = scenario_dir / "workflow-run.json"
+            result_path.write_text(
+                json.dumps(
+                    {
+                        "scenario_name": "demo",
+                        "runner_exit_code": 0,
+                        "workflow_state": "completed",
+                        "state": "completed",
+                        "verification_passed": True,
+                        "verification": {"passed": True, "failures": []},
+                        "harness_failure": False,
+                        "outcome_metrics": {"status": "passed"},
+                        "evidence": evidence,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = validate_live_result.validate_result_file(result_path)
+
+            self.assertFalse(result.is_valid)
+            self.assertIn(
+                "selected_task_scope missing expected enhanced turn line execution-log:111",
+                "\n".join(result.failures),
+            )
+
     def test_validate_result_file_accepts_explicit_harness_failure_payload(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             result_path = Path(tmpdir) / "workflow-run.json"
@@ -350,6 +440,103 @@ class LiveResultCompletenessTests(unittest.TestCase):
 
             self.assertTrue(result.is_valid)
             self.assertEqual([], result.failures)
+
+    def test_reconcile_enhanced_live_console_flags_missing_expected_rows(self) -> None:
+        result = workflow_scope_trace.reconcile_enhanced_live_console(
+            execution_logs={
+                "data": [
+                    {
+                        "id": "111",
+                        "operation": "agent.think",
+                        "task_id": "task-1",
+                        "work_item_id": "wi-1",
+                        "payload": {
+                            "phase": "think",
+                            "approach": "Inspect the current task state before acting.",
+                        },
+                    }
+                ]
+            },
+            execution_turn_items=[],
+            effective_mode="enhanced",
+            scope_kind="selected_task",
+            work_item_id="wi-1",
+            task_id="task-1",
+        )
+
+        self.assertFalse(result["passed"])
+        self.assertIn("execution-log:111", "\n".join(result["failures"]))
+
+    def test_reconcile_enhanced_live_console_flags_suppressed_read_only_actions(self) -> None:
+        result = workflow_scope_trace.reconcile_enhanced_live_console(
+            execution_logs={
+                "data": [
+                    {
+                        "id": "222",
+                        "operation": "agent.act",
+                        "task_id": "task-1",
+                        "work_item_id": "wi-1",
+                        "payload": {
+                            "phase": "act",
+                            "tool": "file_read",
+                            "input": {"path": "task input"},
+                        },
+                    }
+                ]
+            },
+            execution_turn_items=[
+                {
+                    "log_id": "222",
+                    "item_id": "execution-log:222",
+                    "headline": "calling file_read(path=\"task input\")",
+                    "summary": "Working through the next step for Task.",
+                    "task_id": "task-1",
+                    "work_item_id": "wi-1",
+                }
+            ],
+            effective_mode="enhanced",
+            scope_kind="selected_task",
+            work_item_id="wi-1",
+            task_id="task-1",
+        )
+
+        self.assertFalse(result["passed"])
+        self.assertIn("suppressed", "\n".join(result["failures"]))
+
+    def test_reconcile_enhanced_live_console_flags_forbidden_wrapper_leakage(self) -> None:
+        result = workflow_scope_trace.reconcile_enhanced_live_console(
+            execution_logs={
+                "data": [
+                    {
+                        "id": "333",
+                        "operation": "agent.think",
+                        "task_id": "task-1",
+                        "work_item_id": "wi-1",
+                        "payload": {
+                            "phase": "think",
+                            "approach": "Confirm the current work item state before routing.",
+                        },
+                    }
+                ]
+            },
+            execution_turn_items=[
+                {
+                    "log_id": "333",
+                    "item_id": "execution-log:333",
+                    "headline": "to=record_operator_update {\"request_id\":\"bad\"}",
+                    "summary": "Working through the next step for Task.",
+                    "task_id": "task-1",
+                    "work_item_id": "wi-1",
+                }
+            ],
+            effective_mode="enhanced",
+            scope_kind="selected_task",
+            work_item_id="wi-1",
+            task_id="task-1",
+        )
+
+        self.assertFalse(result["passed"])
+        self.assertIn("forbidden", "\n".join(result["failures"]))
 
 
 if __name__ == "__main__":

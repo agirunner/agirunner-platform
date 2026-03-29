@@ -246,6 +246,16 @@ SELECT jsonb_build_object(
     SELECT to_jsonb(workflow_row)
     FROM (
       SELECT id, state, playbook_id, workspace_id, created_at, updated_at, completed_at
+           , live_visibility_mode_override
+           , COALESCE(
+               live_visibility_mode_override,
+               (
+                 SELECT live_visibility_mode_default
+                 FROM agentic_settings settings
+                 WHERE settings.tenant_id = workflows.tenant_id
+               ),
+               'enhanced'
+             ) AS effective_live_visibility_mode
       FROM workflows
       WHERE id = {workflow}
     ) workflow_row
@@ -298,7 +308,7 @@ SELECT jsonb_build_object(
   'operator_briefs',
   COALESCE(
     (
-      SELECT jsonb_agg(to_jsonb(brief_row) ORDER BY brief_row.sequence_number DESC)
+      SELECT jsonb_agg(to_jsonb(brief_row) ORDER BY COALESCE(brief_row.updated_at, brief_row.created_at) DESC, brief_row.id DESC)
       FROM (
         SELECT
           id,
@@ -322,7 +332,7 @@ SELECT jsonb_build_object(
   'operator_updates',
   COALESCE(
     (
-      SELECT jsonb_agg(to_jsonb(update_row) ORDER BY update_row.sequence_number DESC)
+      SELECT jsonb_agg(to_jsonb(update_row) ORDER BY update_row.created_at DESC, update_row.id DESC)
       FROM (
         SELECT
           id,
@@ -4595,6 +4605,7 @@ def main() -> None:
         workflow_id=workflow_id,
         workflow=latest_workflow,
         db_state=db_state_snapshot,
+        execution_logs=execution_logs_snapshot,
     )
     evidence_payload = {
         "db_state": db_state_snapshot,

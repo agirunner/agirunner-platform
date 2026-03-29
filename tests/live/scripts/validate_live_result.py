@@ -243,6 +243,37 @@ def validate_scope_entry(scope_key: str, expected_kind: str, payload: dict[str, 
         require_list(db_payload, "update_ids", failures, prefix=f"{scope_key}.db.")
         require_list(db_payload, "all_descriptor_ids", failures, prefix=f"{scope_key}.db.")
 
+    enhanced_live_console = require_mapping(payload, "enhanced_live_console", failures, prefix=f"{scope_key}.")
+    if enhanced_live_console is not None:
+        if not isinstance(enhanced_live_console.get("applicable"), bool):
+            failures.append(f"{scope_key}.enhanced_live_console.applicable must be a boolean")
+        if enhanced_live_console.get("applicable") is True:
+            require_non_empty_string(
+                enhanced_live_console,
+                "effective_mode",
+                failures,
+                prefix=f"{scope_key}.enhanced_live_console.",
+            )
+        require_list(
+            enhanced_live_console,
+            "expected_rows",
+            failures,
+            prefix=f"{scope_key}.enhanced_live_console.",
+        )
+        require_list(
+            enhanced_live_console,
+            "actual_rows",
+            failures,
+            prefix=f"{scope_key}.enhanced_live_console.",
+        )
+        if enhanced_live_console.get("passed") is not True:
+            failures.append(f"{scope_key}.enhanced_live_console.passed must be true")
+        failure_list = enhanced_live_console.get("failures")
+        if not isinstance(failure_list, list):
+            failures.append(f"{scope_key}.enhanced_live_console.failures must be a list")
+        else:
+            failures.extend(read_failure_messages(failure_list, prefix=f"{scope_key}.enhanced_live_console"))
+
     reconciliation = require_mapping(payload, "reconciliation", failures, prefix=f"{scope_key}.")
     if reconciliation is not None:
         if reconciliation.get("passed") is not True:
