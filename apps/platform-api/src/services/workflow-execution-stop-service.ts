@@ -27,6 +27,11 @@ interface CancelledWorkflowTaskRow {
   is_orchestrator_task: boolean;
 }
 
+interface WorkerSignalRow {
+  id: string;
+  created_at: Date;
+}
+
 export interface StopWorkflowBoundExecutionInput {
   tenantId: string;
   workflowId: string;
@@ -115,6 +120,13 @@ export async function stopWorkflowBoundExecution(
     }
   }
 
+  await queueDrainSignalsForSpecialistWorkers(
+    db,
+    deps,
+    input,
+    activeTasks.rows,
+  );
+
   const cancelledTasks = await db.query<CancelledWorkflowTaskRow>(
     `UPDATE tasks
         SET state = 'cancelled',
@@ -200,4 +212,57 @@ export async function stopWorkflowBoundExecution(
     signalledTaskCount,
     cancelledActivationCount: cancelledActivations.rowCount ?? 0,
   };
+}
+
+async function queueDrainSignalsForSpecialistWorkers(
+  db: DatabaseQueryable,
+  deps: StopWorkflowBoundExecutionDeps,
+  input: StopWorkflowBoundExecutionInput,
+  activeTasks: ActiveWorkflowTaskRow[],
+): Promise<void> {
+  const workerIds = uniqueSpecialistWorkerIds(activeTasks);
+  for (const workerId of workerIds) {
+    const signalPayload = {
+      reason: 'workflow_stopped',
+      workflow_id: input.workflowId,
+    };
+    const signalResult = await db.query<WorkerSignalRow>(
+      `INSERT INTO worker_signals (tenant_id, worker_id, signal_type, task_id, data)
+       VALUES ($1, $2, 'set_draining', NULL, $3)
+       RETURNING id, created_at`,
+      [input.tenantId, workerId, signalPayload],
+    );
+    const signal = signalResult.rows[0];
+    deps.workerConnectionHub?.sendToWorker(workerId, {
+      type: 'worker.signal',
+      signal_id: signal.id,
+      signal_type: 'set_draining',
+      task_id: null,
+      data: signalPayload,
+      issued_at: signal.created_at,
+    });
+    await deps.eventService.emit(
+      {
+        tenantId: input.tenantId,
+        type: 'worker.signaled',
+        entityType: 'worker',
+        entityId: workerId,
+        actorType: input.actorType,
+        actorId: input.actorId,
+        data: { signal_type: 'set_draining', task_id: null },
+      },
+      db,
+    );
+  }
+}
+
+function uniqueSpecialistWorkerIds(activeTasks: ActiveWorkflowTaskRow[]): string[] {
+  return Array.from(
+    new Set(
+      activeTasks
+        .filter((task) => task.is_orchestrator_task !== true)
+        .map((task) => task.assigned_worker_id?.trim() ?? '')
+        .filter((workerId) => workerId.length > 0),
+    ),
+  );
 }

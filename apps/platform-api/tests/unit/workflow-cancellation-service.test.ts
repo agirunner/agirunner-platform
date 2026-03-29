@@ -258,26 +258,45 @@ describe('WorkflowCancellationService', () => {
       expect.stringContaining('UPDATE execution_container_leases'),
       ['tenant-1', 'workflow-1'],
     );
-    expect(client.query).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO worker_signals'),
-      [
-        'tenant-1',
-        'worker-1',
-        'task-specialist-1',
-        expect.objectContaining({
-          reason: 'manual_cancel',
-          grace_period_ms: 60_000,
-        }),
-      ],
+    const workerSignalCalls = client.query.mock.calls.filter(
+      ([sql]) => String(sql).startsWith('INSERT INTO worker_signals'),
     );
-    expect(
-      client.query.mock.calls.filter(([sql]) => String(sql).startsWith('INSERT INTO worker_signals')),
-    ).toHaveLength(1);
+    expect(workerSignalCalls).toHaveLength(2);
+    expect(workerSignalCalls[0]?.[0]).toContain("'cancel_task'");
+    expect(workerSignalCalls[0]?.[1]).toEqual([
+      'tenant-1',
+      'worker-1',
+      'task-specialist-1',
+      expect.objectContaining({
+        reason: 'manual_cancel',
+        grace_period_ms: 60_000,
+      }),
+    ]);
+    expect(workerSignalCalls[1]?.[0]).toContain("'set_draining'");
+    expect(workerSignalCalls[1]?.[1]).toEqual([
+      'tenant-1',
+      'worker-1',
+      {
+        reason: 'workflow_stopped',
+        workflow_id: 'workflow-1',
+      },
+    ]);
     expect(workerConnectionHub.sendToWorker).toHaveBeenCalledWith(
       'worker-1',
       expect.objectContaining({
         task_id: 'task-specialist-1',
         signal_type: 'cancel_task',
+      }),
+    );
+    expect(workerConnectionHub.sendToWorker).toHaveBeenCalledWith(
+      'worker-1',
+      expect.objectContaining({
+        task_id: null,
+        signal_type: 'set_draining',
+        data: {
+          reason: 'workflow_stopped',
+          workflow_id: 'workflow-1',
+        },
       }),
     );
     expect(eventService.emit).toHaveBeenCalledWith(
