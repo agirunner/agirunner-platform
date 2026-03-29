@@ -160,7 +160,7 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Review incoming packet');
     expect(html).not.toContain('No task previews available yet.');
     expect(html).not.toContain('Task preview');
-    expect(html.match(/>Tasks</g)?.length ?? 0).toBe(1);
+    expect(html).not.toContain('>Tasks<');
   });
 
   it('keeps sparse lanes content-sized instead of stretching them to the full board height', () => {
@@ -197,7 +197,7 @@ describe('WorkflowBoard', () => {
     );
   });
 
-  it('supports a task lens that renders only specialist tasks as first-class cards', () => {
+  it('keeps the board work-item-first even when stale task-lens state is supplied', () => {
     const html = renderToStaticMarkup(
       createElement(
         QueryClientProvider,
@@ -245,7 +245,8 @@ describe('WorkflowBoard', () => {
       ),
     );
 
-    expect(html).toContain('Tasks');
+    expect(html).not.toContain('>Tasks<');
+    expect(html).not.toContain('>Work items<');
     expect(html).toContain('Assess packet');
     expect(html).toContain('Write findings');
     expect(html.match(/Review incoming packet/g)?.length ?? 0).toBe(1);

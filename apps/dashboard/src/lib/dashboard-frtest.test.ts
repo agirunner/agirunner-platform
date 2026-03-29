@@ -362,6 +362,7 @@ describe('FR-427: dashboard navigation and layout', () => {
 
   it('layout includes navigation links to the shipped major sections with the refreshed IA groups', () => {
     const source = readComponent('components/layout/layout.tsx');
+    expect(source).toContain('Mission Control');
     expect(source).toContain('Workflows');
     expect(source).toContain('Work Design');
     expect(source).toContain('Platform');

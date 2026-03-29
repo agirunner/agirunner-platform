@@ -280,6 +280,7 @@ describe('layout breadcrumbs', () => {
 
   it('keeps Workflows as a single primary nav item instead of separate live board, workflows, tasks, and action queue links', () => {
     const source = readLayoutSource();
+    expect(source).toContain("label: 'Mission Control'");
     expect(source).toContain("label: 'Workflows'");
     expect(source).toContain('WORKFLOWS_NAV_HREF');
     expect(source).toContain("const WORKFLOWS_NAV_HREF = '/workflows'");

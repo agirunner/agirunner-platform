@@ -45,7 +45,7 @@ export function WorkflowStateStrip(props: {
   const activeSpecialistTaskCount = sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount;
 
   return (
-    <section className="space-y-1 rounded-xl border border-border/70 bg-background/90 p-2">
+    <section className="space-y-1 rounded-2xl border border-border/70 bg-stone-50/90 p-2.5 shadow-sm dark:bg-slate-950/70">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <h2 className="truncate text-sm font-semibold text-foreground">{props.workflow.name}</h2>
@@ -98,7 +98,7 @@ export function WorkflowStateStrip(props: {
         </div>
       </div>
 
-      <div className="grid gap-1.5 lg:grid-cols-4">
+      <div className="grid gap-2 lg:grid-cols-4">
         <HeaderCard
           title="State"
           value={postureLabel}
@@ -136,7 +136,7 @@ function HeaderCard(props: {
   detail: string | null;
   onClick?(): void;
 }): JSX.Element {
-  const className = 'grid gap-0.5 rounded-lg border border-border/50 bg-background/80 px-2 py-1.5 text-left shadow-none';
+  const className = 'grid gap-0.5 rounded-xl border border-border/70 bg-muted/5 px-2.5 py-2 text-left shadow-none';
 
   if (!props.onClick) {
     return (

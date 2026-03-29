@@ -95,8 +95,8 @@ export function WorkflowBottomWorkbench(props: {
     : props.packet.live_console.total_count ?? counts.live_console_activity;
 
   return (
-    <section className="flex h-full min-h-[22rem] min-w-0 flex-col gap-1.5 overflow-hidden lg:min-h-0">
-      <div className="flex min-w-0 flex-wrap items-start justify-between gap-2 rounded-xl border border-border/70 bg-muted/5 px-3 py-2">
+    <section className="flex h-full min-h-[22rem] min-w-0 flex-col gap-1.5 overflow-hidden rounded-2xl border border-border/70 bg-background/90 p-2.5 shadow-sm lg:min-h-0">
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-2 rounded-xl border border-border/70 bg-transparent px-3 py-2">
         <div className="grid gap-0.5">
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Scope
