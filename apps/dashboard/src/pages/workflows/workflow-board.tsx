@@ -206,7 +206,7 @@ function BoardLaneCard(props: {
   onSelectWorkItem(workItemId: string): void;
   tasksByWorkItem: Map<string, WorkflowTaskPreviewSummary>;
 }): JSX.Element {
-  const pinnedCompletedCount = props.boardMode === 'active_recent_complete' ? 2 : 0;
+  const pinnedCompletedCount = readPinnedCompletedCount(props.lane.column.is_terminal, props.boardMode);
   const pinnedCompletedItems = props.lane.visibleCompletedItems.slice(0, pinnedCompletedCount);
   const overflowCompletedItems = props.lane.visibleCompletedItems.slice(pinnedCompletedCount);
   const collapsedCompletedCount = overflowCompletedItems.length + props.lane.hiddenCompletedCount;
@@ -239,19 +239,17 @@ function BoardLaneCard(props: {
                 onSelect={props.onSelectWorkItem}
               />
             ))}
-        {props.boardMode === 'active_recent_complete'
-          ? pinnedCompletedItems.map((workItem) => (
-              <BoardWorkItemCard
-                key={workItem.id}
-                workItem={workItem}
-                workflowState={props.workflowState}
-                taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
-                isSelected={workItem.id === props.selectedWorkItemId}
-                onSelect={props.onSelectWorkItem}
-                muted
-              />
-            ))
-          : null}
+        {pinnedCompletedItems.map((workItem) => (
+          <BoardWorkItemCard
+            key={workItem.id}
+            workItem={workItem}
+            workflowState={props.workflowState}
+            taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
+            isSelected={workItem.id === props.selectedWorkItemId}
+            onSelect={props.onSelectWorkItem}
+            muted
+          />
+        ))}
       </div>
 
       {showCompletedSection ? (
@@ -260,7 +258,7 @@ function BoardLaneCard(props: {
           open={props.boardMode === 'all'}
         >
           <summary className="cursor-pointer text-sm font-medium text-foreground">
-            {props.boardMode === 'all' ? 'Completed work' : 'Recent completions'}
+            {props.lane.column.is_terminal ? 'Recent completions' : 'Completed work'}
             {collapsedCompletedCount > 0
               ? ` • ${collapsedCompletedCount} older hidden`
               : ''}
@@ -302,6 +300,7 @@ function BoardWorkItemCard(props: {
 }): JSX.Element {
   const currentStateSummary = buildWorkflowBoardWorkItemSummary(props.workItem, props.taskSummary);
   const activeTaskSummary = buildWorkflowBoardActiveTaskSummary(props.taskSummary);
+  const taskStatusSummary = buildTaskStatusSummary(props.taskSummary);
   const activeTaskCountSuffix =
     activeTaskSummary && activeTaskSummary.activeTaskCount > 1
       ? ` +${activeTaskSummary.activeTaskCount - 1} more active`
@@ -369,6 +368,10 @@ function BoardWorkItemCard(props: {
           </div>
         ) : null}
 
+        {!activeTaskSummary && taskStatusSummary ? (
+          <p className="text-xs text-muted-foreground">{taskStatusSummary}</p>
+        ) : null}
+
         {props.workItem.blocked_reason || props.workItem.gate_decision_feedback ? (
           <div className="rounded-xl border border-amber-300/60 bg-amber-50/70 p-3 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">
             {props.workItem.blocked_reason ?? props.workItem.gate_decision_feedback}
@@ -390,6 +393,19 @@ function BoardWorkItemCard(props: {
 
 function renderLaneEmptyState(message: string): JSX.Element {
   return <p className="px-1 pb-1 text-sm text-muted-foreground">{message}</p>;
+}
+
+function readPinnedCompletedCount(
+  isTerminalLane: boolean | null | undefined,
+  boardMode: WorkflowBoardMode,
+): number {
+  if (!isTerminalLane || boardMode === 'active') {
+    return 0;
+  }
+  if (boardMode === 'all') {
+    return 1;
+  }
+  return 2;
 }
 
 function ModeButton(props: { isActive: boolean; label: string; onClick(): void }): JSX.Element {
@@ -435,6 +451,44 @@ function emptyTaskSummary(): WorkflowTaskPreviewSummary {
     tasks: [],
     hasActiveOrchestratorTask: false,
   };
+}
+
+function buildTaskStatusSummary(taskSummary: WorkflowTaskPreviewSummary): string | null {
+  if (taskSummary.tasks.length === 0) {
+    return null;
+  }
+
+  let activeCount = 0;
+  let readyCount = 0;
+  let blockedCount = 0;
+  let completedCount = 0;
+
+  for (const task of taskSummary.tasks) {
+    if (task.state === 'ready') {
+      readyCount += 1;
+      continue;
+    }
+    if (task.state === 'failed') {
+      blockedCount += 1;
+      continue;
+    }
+    if (task.state === 'completed') {
+      completedCount += 1;
+      continue;
+    }
+    if (task.state === 'claimed' || task.state === 'in_progress' || task.state === 'awaiting_approval') {
+      activeCount += 1;
+    }
+  }
+
+  const segments = [
+    activeCount > 0 ? `${activeCount} working` : null,
+    readyCount > 0 ? `${readyCount} ready next` : null,
+    blockedCount > 0 ? `${blockedCount} blocked` : null,
+    completedCount > 0 ? `${completedCount} completed` : null,
+  ].filter(Boolean);
+
+  return segments.length > 0 ? segments.join(' • ') : null;
 }
 
 function isPausedWorkflowWorkItem(

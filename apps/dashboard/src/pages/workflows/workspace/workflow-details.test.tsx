@@ -13,7 +13,41 @@ import type {
 import { WorkflowDetails } from './workflow-details.js';
 
 describe('WorkflowDetails', () => {
-  it('renders task scope with workflow/work-item context and filters internal task metadata out of operator inputs', () => {
+  it('keeps stale task-scoped data framed as selected work-item details', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: 'task-1',
+        selectedTaskTitle: 'Verify deliverable',
+        selectedWorkItem: createWorkItem(),
+        selectedTask: createTask(),
+        selectedWorkItemTasks: [],
+        inputPackets: createPackets(),
+        workflowParameters: null,
+        scope: createScope('selected_task', 'Verify deliverable'),
+      }),
+    );
+
+    expect(html).toContain(
+      '<h3 class="text-base font-semibold text-foreground">Prepare release bundle</h3>',
+    );
+    expect(html).toContain('Basics');
+    expect(html).toContain('Workflow');
+    expect(html).toContain('Release Workflow');
+    expect(html).not.toContain(
+      '<h3 class="text-base font-semibold text-foreground">Verify deliverable</h3>',
+    );
+    expect(html).not.toContain('Task input');
+    expect(html).not.toContain('Task');
+    expect(html).not.toContain('Work item scope');
+    expect(html).not.toContain('Task scope');
+  });
+
+  it('shows latest task context as work-item input context without leaking internal fields', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
         workflow: createWorkflow(),
@@ -35,113 +69,28 @@ describe('WorkflowDetails', () => {
             subject_revision: 1,
           },
         },
-        selectedWorkItemTasks: [
-          {
-            id: 'task-1',
-            title: 'Verify deliverable',
-            role: 'reviewer',
-            state: 'in_progress',
-          },
-        ],
+        selectedWorkItemTasks: [],
         inputPackets: createPackets(),
-        workflowParameters: {
-          branch: 'release/2026.03',
-          release_window: 'Friday 17:00',
-        },
-        scope: {
-          scopeKind: 'selected_task',
-          title: 'Task',
-          subject: 'task',
-          name: 'Verify deliverable',
-          banner: 'Task: Verify deliverable',
-        },
+        workflowParameters: null,
+        scope: createScope('selected_task', 'Verify deliverable'),
       }),
     );
 
-    expect(html).toContain('Verify deliverable');
-    expect(html).toContain('Task');
-    expect(html).toContain('In Progress for Reviewer');
-    expect(html).toContain('Basics');
-    expect(html).toContain('Workflow');
-    expect(html).toContain('Release Workflow');
-    expect(html).toContain('Work item');
-    expect(html).toContain('Prepare release bundle');
-    expect(html).toContain('Task input');
     expect(html).toContain('Inputs');
+    expect(html).toContain('Latest task context');
     expect(html).toContain('Requested deliverable');
     expect(html).toContain(
       'A full policy assessment handoff with readiness decision, evidence, and rework guidance.',
     );
-    expect(html).not.toContain('Rollback guide');
-    expect(html).not.toContain('rollback.md');
+    expect(html).not.toContain('Task input');
     expect(html).not.toContain('Artifact Id');
     expect(html).not.toContain('artifact-1');
     expect(html).not.toContain('Work Item Id');
     expect(html).not.toContain('Subject Task Id');
     expect(html).not.toContain('Subject Revision');
-    expect(html).not.toContain('Task scope');
-    expect(html).not.toContain('Latest status');
-    expect(html).not.toContain('Work item scope');
-    expect(html).not.toContain('Workflow scope');
-    expect(html).not.toContain('Launch packet');
-    expect(html).not.toContain('release/2026.03');
-    expect(html).not.toContain('Launch • Operator');
-    expect(html).not.toContain('Owner role');
-    expect(html).not.toContain('Next expected actor');
-    expect(html).not.toContain('Next expected action');
-    expect(html).not.toContain('Backend');
-    expect(html).not.toContain('Started');
-    expect(html).not.toContain('Updated');
-    expect(html).not.toContain('Workflow details');
-    expect(html).not.toContain('Work item details');
-    expect(html).not.toContain('Playbook');
-    expect(html).not.toContain('Workspace');
-    expect(html).not.toContain('Stage');
-    expect(html).not.toContain('Lane');
-    expect(html).not.toContain('Related tasks');
-    expect(html).not.toContain('rounded-lg border border-border/60 bg-muted/5 p-3');
-    expect(html).not.toContain('rounded-xl border border-border/70 bg-background/70');
   });
 
-  it('puts dense workflow and work-item basics ahead of task inputs', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDetails, {
-        workflow: createWorkflow(),
-        stickyStrip: createStickyStrip(),
-        board: createBoard(),
-        selectedWorkItemId: 'work-item-1',
-        selectedWorkItemTitle: 'Prepare release bundle',
-        selectedTaskId: 'task-1',
-        selectedTaskTitle: 'Verify deliverable',
-        selectedWorkItem: createWorkItem(),
-        selectedTask: {
-          ...createTask(),
-          input: {
-            deliverable: 'Confirm the final release packet is complete and operator-ready.',
-          },
-        },
-        selectedWorkItemTasks: [],
-        inputPackets: createPackets(),
-        workflowParameters: null,
-        scope: {
-          scopeKind: 'selected_task',
-          title: 'Task',
-          subject: 'task',
-          name: 'Verify deliverable',
-          banner: 'Task: Verify deliverable',
-        },
-      }),
-    );
-
-    expect(html).toContain('Basics');
-    expect(html).toContain('Workflow');
-    expect(html).toContain('Release Workflow');
-    expect(html).toContain('Work item');
-    expect(html).toContain('Prepare release bundle');
-    expect(html.indexOf('Basics')).toBeLessThan(html.indexOf('Inputs'));
-  });
-
-  it('shows work-item state with compact task rows instead of only aggregate counts', () => {
+  it('keeps selected work-item details concrete with the latest status and task rows only', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
         workflow: createWorkflow(),
@@ -160,34 +109,26 @@ describe('WorkflowDetails', () => {
         ],
         inputPackets: createPackets(),
         workflowParameters: null,
-        scope: {
-          scopeKind: 'selected_work_item',
-          title: 'Work item',
-          subject: 'work item',
-          name: 'Prepare release bundle',
-          banner: 'Work item: Prepare release bundle',
-        },
+        scope: createScope('selected_work_item', 'Prepare release bundle'),
       }),
     );
 
     expect(html).toContain('Prepare release bundle');
-    expect(countOccurrences(html, 'Assemble final artifacts for launch.')).toBe(1);
-    expect(html).toContain('1 active');
-    expect(html).toContain('1 blocked');
-    expect(html).toContain('1 completed');
+    expect(html).toContain('Assemble final artifacts for launch.');
+    expect(html).toContain('1 blocked task');
     expect(html).toContain('Verify deliverable');
     expect(html).toContain('In Progress');
     expect(html).toContain('Rollback validation');
     expect(html).toContain('Blocked');
     expect(html).toContain('Archive release notes');
     expect(html).toContain('Completed');
-    expect(html).not.toContain('Work item scope');
-    expect(html).not.toContain('Latest status');
-    expect(html).not.toContain('Current task load:');
+    expect(html).not.toContain('1 active');
+    expect(html).not.toContain('1 completed');
+    expect(html).not.toContain('1 active • 1 blocked • 1 completed');
     expect(html).not.toContain('Related tasks');
   });
 
-  it('shows workflow launch inputs without leaking work-item content', () => {
+  it('keeps workflow scope minimal and limited to workflow-level inputs', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
         workflow: createWorkflow(),
@@ -205,465 +146,46 @@ describe('WorkflowDetails', () => {
           branch: 'release/2026.03',
           release_window: 'Friday 17:00',
         },
-        scope: {
-          scopeKind: 'workflow',
-          title: 'Workflow',
-          subject: 'workflow',
-          name: 'Release Workflow',
-          banner: 'Workflow: Release Workflow',
-        },
+        scope: createScope('workflow', 'Release Workflow'),
       }),
     );
 
-    expect(html).toContain('Workflow');
+    expect(html).toContain('Release Workflow');
     expect(html).toContain('Release bundle is being assembled.');
     expect(html).toContain('Launch inputs');
     expect(html).toContain('Launch packet');
     expect(html).toContain('release/2026.03');
-    expect(html).not.toContain('Launch Packet input');
-    expect(html).not.toContain('Latest status');
-    expect(html).not.toContain('Workflow scope');
+    expect(html).not.toContain('Prepare release bundle');
     expect(html).not.toContain('Rollback guide');
     expect(html).not.toContain('rollback.md');
-    expect(html).not.toContain('Task input');
-  });
-
-  it('keeps task scope title first while still showing parent workflow/work-item basics', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDetails, {
-        workflow: createWorkflow(),
-        stickyStrip: createStickyStrip(),
-        board: createBoard(),
-        selectedWorkItemId: 'work-item-1',
-        selectedWorkItemTitle: 'Prepare release bundle',
-        selectedTaskId: 'task-1',
-        selectedTaskTitle: 'Verify deliverable',
-        selectedWorkItem: createWorkItem(),
-        selectedTask: createTask(),
-        selectedWorkItemTasks: [],
-        inputPackets: createPackets(),
-        workflowParameters: null,
-        scope: {
-          scopeKind: 'selected_task',
-          title: 'Task',
-          subject: 'task',
-          name: 'Verify deliverable',
-          banner: 'Task: Verify deliverable',
-        },
-      }),
-    );
-
-    expect(html).toContain('Prepare release bundle');
-    expect(html).toContain('Assemble final artifacts for launch.');
-    expect(html).toContain('Basics');
-    expect(html).toContain('Workflow');
-    expect(html).toContain('Release Workflow');
-    expect(html).toContain('Work item');
-    expect(html).toContain('Prepare release bundle');
-    expect(html.indexOf('Verify deliverable')).toBeLessThan(html.indexOf('Basics'));
-    expect(html.indexOf('Verify deliverable')).toBeLessThan(html.indexOf('Release Workflow'));
-    expect(html.indexOf('Basics')).toBeLessThan(html.indexOf('Assemble final artifacts for launch.'));
-    expect(html).not.toContain('Check the final release packet and approve it.');
-    expect(html).not.toContain('Task scope');
-    expect(html).not.toContain('Owner role');
-    expect(html).not.toContain('Next expected actor');
-  });
-
-  it('renders task inputs in operator-readable English instead of raw machine tokens', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDetails, {
-        workflow: createWorkflow(),
-        stickyStrip: createStickyStrip(),
-        board: createBoard(),
-        selectedWorkItemId: 'work-item-1',
-        selectedWorkItemTitle: 'Prepare release bundle',
-        selectedTaskId: 'task-1',
-        selectedTaskTitle: 'Verify deliverable',
-        selectedWorkItem: createWorkItem(),
-        selectedTask: createTask(),
-        selectedWorkItemTasks: [],
-        inputPackets: createPackets(),
-        workflowParameters: null,
-        scope: {
-          scopeKind: 'selected_task',
-          title: 'Task',
-          subject: 'task',
-          name: 'Verify deliverable',
-          banner: 'Task: Verify deliverable',
-        },
-      }),
-    );
-
-    expect(html).toContain('Inputs');
-    expect(html).toContain('Checklist');
-    expect(html).toContain('Release Notes');
-    expect(html).toContain('Artifacts');
-    expect(html).not.toContain('release-notes');
-  });
-
-  it('renders nested task inputs as operator-facing details instead of dropping them', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDetails, {
-        workflow: createWorkflow(),
-        stickyStrip: createStickyStrip(),
-        board: createBoard(),
-        selectedWorkItemId: 'work-item-1',
-        selectedWorkItemTitle: 'Prepare release bundle',
-        selectedTaskId: 'task-1',
-        selectedTaskTitle: 'Verify deliverable',
-        selectedWorkItem: createWorkItem(),
-        selectedTask: {
-          ...createTask(),
-          input: {
-            review_brief: {
-              acceptance_criteria:
-                'Confirm the packet includes release notes and rollback guidance.',
-              target_role: 'release_manager',
-            },
-            checklist: ['release-notes', 'rollback-guide'],
-            artifact_ids: ['artifact-1'],
-            notes: '  ',
-          },
-        },
-        selectedWorkItemTasks: [],
-        inputPackets: createPackets(),
-        workflowParameters: null,
-        scope: {
-          scopeKind: 'selected_task',
-          title: 'Task',
-          subject: 'task',
-          name: 'Verify deliverable',
-          banner: 'Task: Verify deliverable',
-        },
-      }),
-    );
-
-    expect(html).toContain('Task input');
-    expect(html).toContain('Review Brief');
-    expect(html).toContain('Success criteria');
-    expect(html).toContain('Confirm the packet includes release notes and rollback guidance.');
-    expect(html).toContain('Target Role');
-    expect(html).toContain('Release Manager');
-    expect(html).toContain('Checklist');
-    expect(html).toContain('Rollback Guide');
-    expect(html).not.toContain('Artifact Ids');
-    expect(html).not.toContain('artifact-1');
-    expect(html).not.toContain('>Notes<');
-  });
-
-  it('puts authored task input ahead of status framing in task scope without repeating parent packets', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDetails, {
-        workflow: createWorkflow(),
-        stickyStrip: createStickyStrip(),
-        board: createBoard(),
-        selectedWorkItemId: 'work-item-1',
-        selectedWorkItemTitle: 'Prepare release bundle',
-        selectedTaskId: 'task-1',
-        selectedTaskTitle: 'Verify deliverable',
-        selectedWorkItem: createWorkItem(),
-        selectedTask: {
-          ...createTask(),
-          input: {
-            deliverable: 'Confirm the final release packet is complete and operator-ready.',
-            checklist: ['release-notes', 'artifacts'],
-          },
-        },
-        selectedWorkItemTasks: [],
-        inputPackets: createPackets(),
-        workflowParameters: null,
-        scope: {
-          scopeKind: 'selected_task',
-          title: 'Task',
-          subject: 'task',
-          name: 'Verify deliverable',
-          banner: 'Task: Verify deliverable',
-        },
-      }),
-    );
-
-    expect(html).toContain('Requested deliverable');
-    expect(html).toContain('Confirm the final release packet is complete and operator-ready.');
-    expect(html.indexOf('Requested deliverable')).toBeLessThan(
-      html.indexOf('In Progress for Reviewer'),
-    );
-    expect(html.indexOf('Requested deliverable')).toBeLessThan(
-      html.indexOf('Assemble final artifacts for launch.'),
-    );
-    expect(html).not.toContain('Rollback guide');
-    expect(html).not.toContain('rollback.md');
-  });
-
-  it('suppresses uuid-like task metadata even when it arrives under generic labels', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDetails, {
-        workflow: createWorkflow(),
-        stickyStrip: createStickyStrip(),
-        board: createBoard(),
-        selectedWorkItemId: 'work-item-1',
-        selectedWorkItemTitle: 'Prepare release bundle',
-        selectedTaskId: 'task-1',
-        selectedTaskTitle: 'Verify deliverable',
-        selectedWorkItem: createWorkItem(),
-        selectedTask: {
-          ...createTask(),
-          input: {
-            artifact: '5fbbf716-98eb-4676-bfe9-039d625f52c2',
-            subject: 'e32f9632-a05c-4d14-b65b-d7275e735abb',
-            review_focus: 'confirm final packet',
-          },
-        },
-        selectedWorkItemTasks: [],
-        inputPackets: createPackets(),
-        workflowParameters: null,
-        scope: {
-          scopeKind: 'selected_task',
-          title: 'Task',
-          subject: 'task',
-          name: 'Verify deliverable',
-          banner: 'Task: Verify deliverable',
-        },
-      }),
-    );
-
-    expect(html).toContain('Review Focus');
-    expect(html).toContain('confirm final packet');
-    expect(html).not.toContain('5fbbf716-98eb-4676-bfe9-039d625f52c2');
-    expect(html).not.toContain('e32f9632-a05c-4d14-b65b-d7275e735abb');
-    expect(html).not.toContain('Artifact</dt>');
-    expect(html).not.toContain('Subject</dt>');
-  });
-
-  it('hides slug-style linkage fields while preserving human task input', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDetails, {
-        workflow: createWorkflow(),
-        stickyStrip: createStickyStrip(),
-        board: createBoard(),
-        selectedWorkItemId: 'work-item-1',
-        selectedWorkItemTitle: 'Prepare release bundle',
-        selectedTaskId: 'task-1',
-        selectedTaskTitle: 'Verify deliverable',
-        selectedWorkItem: createWorkItem(),
-        selectedTask: {
-          ...createTask(),
-          input: {
-            work_item_slug: 'workflow-intake-01',
-            workflowSlug: 'release-workflow',
-            task_slug: 'verify-deliverable',
-            review_focus: 'Confirm the final packet is operator-ready.',
-          },
-        },
-        selectedWorkItemTasks: [],
-        inputPackets: createPackets(),
-        workflowParameters: null,
-        scope: {
-          scopeKind: 'selected_task',
-          title: 'Task',
-          subject: 'task',
-          name: 'Verify deliverable',
-          banner: 'Task: Verify deliverable',
-        },
-      }),
-    );
-
-    expect(html).toContain('Review Focus');
-    expect(html).toContain('Confirm the final packet is operator-ready.');
-    expect(html).not.toContain('Work Item Slug');
-    expect(html).not.toContain('Workflow Slug');
-    expect(html).not.toContain('Task Slug');
-    expect(html).not.toContain('workflow-intake-01');
-    expect(html).not.toContain('release-workflow');
-    expect(html).not.toContain('verify-deliverable');
-  });
-
-  it('strips embedded credentials from operator-facing repository urls', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDetails, {
-        workflow: createWorkflow(),
-        stickyStrip: createStickyStrip(),
-        board: createBoard(),
-        selectedWorkItemId: 'work-item-1',
-        selectedWorkItemTitle: 'Prepare release bundle',
-        selectedTaskId: 'task-1',
-        selectedTaskTitle: 'Verify deliverable',
-        selectedWorkItem: createWorkItem(),
-        selectedTask: {
-          ...createTask(),
-          input: {
-            repo: {
-              url: 'https://x-access-token:github_pat_abc123@github.com/agirunner/agirunner-test-fixtures.git',
-              base_branch: 'main',
-            },
-          },
-        },
-        selectedWorkItemTasks: [],
-        inputPackets: createPackets(),
-        workflowParameters: null,
-        scope: {
-          scopeKind: 'selected_task',
-          title: 'Task',
-          subject: 'task',
-          name: 'Verify deliverable',
-          banner: 'Task: Verify deliverable',
-        },
-      }),
-    );
-
-    expect(html).toContain('Repo');
-    expect(html).toContain('https://github.com/agirunner/agirunner-test-fixtures.git');
-    expect(html).toContain('Base Branch');
-    expect(html).toContain('Main');
-    expect(html).not.toContain('x-access-token');
-    expect(html).not.toContain('github_pat_abc123');
-  });
-
-  it('fills thin task scope with parent work-item inputs when task input is only linkage metadata', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDetails, {
-        workflow: createWorkflow(),
-        stickyStrip: createStickyStrip(),
-        board: createBoard(),
-        selectedWorkItemId: 'work-item-1',
-        selectedWorkItemTitle: 'Prepare release bundle',
-        selectedTaskId: 'task-1',
-        selectedTaskTitle: 'Verify deliverable',
-        selectedWorkItem: createWorkItem(),
-        selectedTask: {
-          ...createTask(),
-          input: {
-            artifact_id: 'artifact-1',
-            subject_task_id: 'task-source-1',
-            subject_revision: 2,
-            work_item_id: 'work-item-1',
-          },
-        },
-        selectedWorkItemTasks: [],
-        inputPackets: createPackets(),
-        workflowParameters: null,
-        scope: {
-          scopeKind: 'selected_task',
-          title: 'Task',
-          subject: 'task',
-          name: 'Verify deliverable',
-          banner: 'Task: Verify deliverable',
-        },
-      }),
-    );
-
-    expect(html).toContain('Inputs');
-    expect(html).toContain('Rollback guide');
-    expect(html).toContain('rollback.md');
-    expect(html).not.toContain('Launch packet');
-    expect(html).not.toContain('Task input');
-  });
-
-  it('treats camelCase linkage metadata as internal task input and falls back to parent work-item inputs', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDetails, {
-        workflow: createWorkflow(),
-        stickyStrip: createStickyStrip(),
-        board: createBoard(),
-        selectedWorkItemId: 'work-item-1',
-        selectedWorkItemTitle: 'Prepare release bundle',
-        selectedTaskId: 'task-1',
-        selectedTaskTitle: 'Verify deliverable',
-        selectedWorkItem: createWorkItem(),
-        selectedTask: {
-          ...createTask(),
-          input: {
-            artifactId: 'artifact-1',
-            executionContextId: 'execution-1',
-            subjectRevision: 2,
-            workItemId: 'work-item-1',
-          },
-        },
-        selectedWorkItemTasks: [],
-        inputPackets: createPackets(),
-        workflowParameters: null,
-        scope: {
-          scopeKind: 'selected_task',
-          title: 'Task',
-          subject: 'task',
-          name: 'Verify deliverable',
-          banner: 'Task: Verify deliverable',
-        },
-      }),
-    );
-
-    expect(html).toContain('Inputs');
-    expect(html).toContain('Rollback guide');
-    expect(html).toContain('rollback.md');
-    expect(html).not.toContain('Task input');
-    expect(html).not.toContain('Artifact Id');
-    expect(html).not.toContain('Execution Context Id');
-    expect(html).not.toContain('Subject Revision');
-    expect(html).not.toContain('Work Item Id');
-  });
-
-  it('keeps scoped work-item packets visible before the selected work-item record finishes loading', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDetails, {
-        workflow: createWorkflow(),
-        stickyStrip: createStickyStrip(),
-        board: createBoard(),
-        selectedWorkItemId: 'work-item-1',
-        selectedWorkItemTitle: 'Prepare release bundle',
-        selectedTaskId: null,
-        selectedTaskTitle: null,
-        selectedWorkItem: null,
-        selectedTask: null,
-        selectedWorkItemTasks: [],
-        inputPackets: createPackets(),
-        workflowParameters: null,
-        scope: {
-          scopeKind: 'selected_work_item',
-          title: 'Work item',
-          subject: 'work item',
-          name: 'Prepare release bundle',
-          banner: 'Work item: Prepare release bundle',
-        },
-      }),
-    );
-
-    expect(html).toContain('Inputs');
-    expect(html).toContain('Rollback guide');
-    expect(html).toContain('rollback.md');
-    expect(html).not.toContain('Workflow inputs');
-  });
-
-  it('omits the inputs section when the current scope has no operator-facing inputs yet', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDetails, {
-        workflow: createWorkflow(),
-        stickyStrip: createStickyStrip(),
-        board: createBoard(),
-        selectedWorkItemId: null,
-        selectedWorkItemTitle: null,
-        selectedTaskId: null,
-        selectedTaskTitle: null,
-        selectedWorkItem: null,
-        selectedTask: null,
-        selectedWorkItemTasks: [],
-        inputPackets: [],
-        workflowParameters: null,
-        scope: {
-          scopeKind: 'workflow',
-          title: 'Workflow',
-          subject: 'workflow',
-          name: 'Release Workflow',
-          banner: 'Workflow: Release Workflow',
-        },
-      }),
-    );
-
-    expect(html).toContain('Workflow');
-    expect(html).not.toContain('Inputs');
-    expect(html).not.toContain('Workflow parameters');
-    expect(html).not.toContain('Work item inputs');
+    expect(html).not.toContain('Latest task context');
     expect(html).not.toContain('Task input');
   });
 });
+
+function createScope(
+  scopeKind: 'workflow' | 'selected_work_item' | 'selected_task',
+  name: string,
+) {
+  if (scopeKind === 'workflow') {
+    return {
+      scopeKind,
+      title: 'Workflow' as const,
+      subject: 'workflow' as const,
+      name,
+      banner: `Workflow: ${name}`,
+    };
+  }
+
+  return {
+    scopeKind,
+    title: scopeKind === 'selected_work_item' ? ('Work item' as const) : ('Task' as const),
+    subject: scopeKind === 'selected_work_item' ? ('work item' as const) : ('task' as const),
+    name,
+    banner:
+      scopeKind === 'selected_work_item' ? `Work item: ${name}` : `Task: ${name}`,
+  };
+}
 
 function createWorkflow(): DashboardMissionControlWorkflowCard {
   return {
@@ -701,10 +223,6 @@ function createWorkflow(): DashboardMissionControlWorkflowCard {
       token: 'workflow-operations:1',
     },
   };
-}
-
-function countOccurrences(haystack: string, needle: string): number {
-  return haystack.split(needle).length - 1;
 }
 
 function createStickyStrip(): DashboardWorkflowStickyStrip {

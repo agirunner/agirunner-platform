@@ -161,10 +161,10 @@ export function describeWorkflowWorkbenchScope(input: {
   workItemId: string | null;
   workItemTitle: string | null;
 }): WorkflowWorkbenchScopeDescriptor {
-  if (input.scopeKind === 'selected_work_item') {
+  if (input.scopeKind !== 'workflow' && (input.workItemTitle ?? input.workItemId)) {
     const name = input.workItemTitle ?? input.workItemId ?? 'Selected work item';
     return {
-      scopeKind: input.scopeKind,
+      scopeKind: 'selected_work_item',
       title: 'Work item',
       subject: 'work item',
       name,

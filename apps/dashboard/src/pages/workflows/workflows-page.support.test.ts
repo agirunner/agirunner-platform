@@ -138,6 +138,22 @@ describe('workflows page support', () => {
     });
   });
 
+  it('normalizes stale task-scoped banner input back to the selected work item', () => {
+    expect(
+      describeWorkflowWorkbenchScope({
+        scopeKind: 'selected_task',
+        workflowName: 'Release Workflow',
+        workItemId: 'work-item-7',
+        workItemTitle: 'Prepare release bundle',
+      }),
+    ).toMatchObject({
+      scopeKind: 'selected_work_item',
+      title: 'Work item',
+      subject: 'work item',
+      banner: 'Work item: Prepare release bundle',
+    });
+  });
+
   it('builds workflow-scoped diagnostics hrefs for live evidence', () => {
     expect(buildWorkflowDiagnosticsHref({ workflowId: 'workflow-2' })).toBe(
       '/diagnostics/live-logs?workflow=workflow-2',

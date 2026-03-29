@@ -28,21 +28,15 @@ export function WorkflowDetails(props: {
 }): JSX.Element {
   const selectedWorkItemId = props.selectedWorkItem?.id ?? props.selectedWorkItemId ?? null;
   const isWorkflowScope = props.scope.scopeKind === 'workflow';
-  const isWorkItemScope = props.scope.scopeKind === 'selected_work_item';
-  const isTaskScope = props.scope.scopeKind === 'selected_task';
+  const isWorkItemScope = !isWorkflowScope;
   const workflowPackets = isWorkflowScope
     ? props.inputPackets.filter((packet) => packet.work_item_id === null)
     : [];
-  const operatorFacingTaskInput = isTaskScope
+  const latestTaskContext = isWorkItemScope
     ? readOperatorFacingTaskInput(props.selectedTask?.input)
     : null;
-  const hasTaskInput = isTaskScope && hasStructuredContent(operatorFacingTaskInput);
-  const shouldShowParentWorkItemInputs = shouldShowParentWorkItemPackets({
-    isWorkItemScope,
-    isTaskScope,
-    selectedWorkItemId,
-    hasTaskInput,
-  });
+  const hasLatestTaskContext = isWorkItemScope && hasStructuredContent(latestTaskContext);
+  const shouldShowParentWorkItemInputs = isWorkItemScope && Boolean(selectedWorkItemId);
   const compactTaskRows = isWorkItemScope ? readCompactTaskRows(props.selectedWorkItemTasks) : [];
   const workItemPackets =
     shouldShowParentWorkItemInputs && selectedWorkItemId
@@ -52,10 +46,10 @@ export function WorkflowDetails(props: {
   const hasInputs =
     workflowPackets.length > 0 ||
     workItemPackets.length > 0 ||
-    hasTaskInput ||
+    hasLatestTaskContext ||
     (isWorkflowScope && hasStructuredContent(props.workflowParameters));
   const detailSections = buildDetailSections(scope);
-  const hasSupportingDetails = detailSections.secondary.length > 0 || compactTaskRows.length > 0;
+  const hasSupportingDetails = detailSections.supporting.length > 0 || compactTaskRows.length > 0;
 
   return (
     <section className="grid gap-2.5 pb-1">
@@ -71,8 +65,8 @@ export function WorkflowDetails(props: {
 
       {hasInputs ? (
         <DetailSection title="Inputs">
-          {hasTaskInput ? (
-            <StructuredBlock label="Task input" value={operatorFacingTaskInput} />
+          {hasLatestTaskContext ? (
+            <StructuredBlock label="Latest task context" value={latestTaskContext} />
           ) : null}
           {isWorkflowScope && hasStructuredContent(props.workflowParameters) ? (
             <StructuredBlock label="Launch inputs" value={props.workflowParameters} />
@@ -84,7 +78,7 @@ export function WorkflowDetails(props: {
 
       {hasSupportingDetails ? (
         <div className="grid gap-1 border-t border-border/60 pt-2 text-sm text-muted-foreground">
-          {detailSections.secondary.map((line) => (
+          {detailSections.supporting.map((line) => (
             <p key={line}>{line}</p>
           ))}
           {compactTaskRows.length > 0 ? <CompactTaskList tasks={compactTaskRows} /> : null}
@@ -92,21 +86,6 @@ export function WorkflowDetails(props: {
       ) : null}
     </section>
   );
-}
-
-function shouldShowParentWorkItemPackets(input: {
-  isWorkItemScope: boolean;
-  isTaskScope: boolean;
-  selectedWorkItemId: string | null;
-  hasTaskInput: boolean;
-}): boolean {
-  if (!input.selectedWorkItemId) {
-    return false;
-  }
-  if (input.isWorkItemScope) {
-    return true;
-  }
-  return input.isTaskScope && !input.hasTaskInput;
 }
 
 function DetailSection(props: { title: string; children: ReactNode }): JSX.Element {
@@ -283,45 +262,26 @@ function buildDetailsScope(props: {
   latest_status: string;
   workflow_name: string | null;
   summary: string | null;
-  parent_work_item: string | null;
-  task_summary: string | null;
+  supporting_context: string | null;
 } {
-  if (props.scope.scopeKind === 'selected_task') {
-    return {
-      title:
-        props.selectedTask?.title ??
-        props.selectedTaskTitle ??
-        props.selectedTaskId ??
-        'Selected task',
-      latest_status: buildTaskLatestStatus(props.selectedTask),
-      workflow_name: props.workflow.name,
-      summary:
-        readOptionalText(props.selectedWorkItem?.goal) ??
-        readOptionalText(props.selectedWorkItem?.acceptance_criteria) ??
-        readOptionalText(props.selectedTask?.description),
-      parent_work_item:
-        props.selectedWorkItem?.title ??
-        props.selectedTask?.work_item_title ??
-        props.selectedWorkItemTitle ??
-        null,
-      task_summary: null,
-    };
-  }
-
-  if (props.scope.scopeKind === 'selected_work_item') {
+  if (props.scope.scopeKind !== 'workflow') {
     return {
       title:
         props.selectedWorkItem?.title ??
         props.selectedWorkItemTitle ??
         props.selectedWorkItemId ??
         'Selected work item',
-      latest_status: buildWorkItemLatestStatus(props.selectedWorkItem, props.selectedWorkItemTasks),
+      latest_status: buildWorkItemLatestStatus(
+        props.selectedWorkItem,
+        props.selectedWorkItemTasks,
+        props.selectedTask,
+      ),
       workflow_name: props.workflow.name,
       summary:
         readOptionalText(props.selectedWorkItem?.goal) ??
-        readOptionalText(props.selectedWorkItem?.acceptance_criteria),
-      parent_work_item: null,
-      task_summary: buildTaskSummary(props.selectedWorkItemTasks),
+        readOptionalText(props.selectedWorkItem?.acceptance_criteria) ??
+        readOptionalText(props.selectedTask?.description),
+      supporting_context: readOptionalText(props.selectedWorkItem?.acceptance_criteria),
     };
   }
 
@@ -333,8 +293,7 @@ function buildDetailsScope(props: {
       'Workflow is active.',
     workflow_name: null,
     summary: null,
-    parent_work_item: null,
-    task_summary: null,
+    supporting_context: null,
   };
 }
 
@@ -343,42 +302,35 @@ function buildDetailSections(
     latest_status: string;
     workflow_name: string | null;
     summary: string | null;
-    parent_work_item: string | null;
-    task_summary: string | null;
+    supporting_context: string | null;
   },
 ): {
   context: Array<{ label: string; value: string }>;
-  secondary: string[];
+  supporting: string[];
 } {
   const context = buildBasicDetails(input);
   return {
     context,
-    secondary: buildSupportingLines(input),
+    supporting: buildSupportingLines(input),
   };
 }
 
 function buildBasicDetails(
   input: {
     workflow_name: string | null;
-    parent_work_item: string | null;
   },
 ): Array<{ label: string; value: string }> {
   const details: Array<{ label: string; value: string }> = [];
   if (input.workflow_name) {
     details.push({ label: 'Workflow', value: input.workflow_name });
   }
-  if (input.parent_work_item) {
-    details.push({ label: 'Work item', value: input.parent_work_item });
-  }
   return details;
 }
 
 function buildSupportingLines(input: {
   latest_status: string;
-  workflow_name: string | null;
   summary: string | null;
-  parent_work_item: string | null;
-  task_summary: string | null;
+  supporting_context: string | null;
 }): string[] {
   const lines: string[] = [];
   if (input.summary) {
@@ -387,15 +339,19 @@ function buildSupportingLines(input: {
   if (input.latest_status && input.latest_status !== input.summary) {
     lines.push(input.latest_status);
   }
-  if (input.task_summary) {
-    lines.push(input.task_summary);
+  if (
+    input.supporting_context &&
+    input.supporting_context !== input.summary &&
+    input.supporting_context !== input.latest_status
+  ) {
+    lines.push(input.supporting_context);
   }
   return lines.filter((line) => line.trim().length > 0);
 }
 
-function buildTaskLatestStatus(task: DashboardTaskRecord | null): string {
+function buildTaskLatestStatus(task: DashboardTaskRecord | null): string | null {
   if (!task) {
-    return 'Task details are loading.';
+    return null;
   }
   const parts = [humanizeToken(task.state)];
   const role = readOptionalText(task.role);
@@ -408,6 +364,7 @@ function buildTaskLatestStatus(task: DashboardTaskRecord | null): string {
 function buildWorkItemLatestStatus(
   workItem: DashboardWorkflowWorkItemRecord | null,
   tasks: Record<string, unknown>[],
+  latestTask: DashboardTaskRecord | null,
 ): string {
   const blockedReason =
     readOptionalText(workItem?.blocked_reason) ??
@@ -415,20 +372,11 @@ function buildWorkItemLatestStatus(
   if (blockedReason) {
     return blockedReason;
   }
-  return buildTaskHeadline(tasks) ?? 'Work item details are loading.';
-}
-
-function buildTaskSummary(tasks: Record<string, unknown>[]): string | null {
-  const counts = readTaskCounts(tasks);
-  if (!counts) {
-    return null;
+  const latestTaskStatus = buildTaskLatestStatus(latestTask);
+  if (latestTaskStatus) {
+    return latestTaskStatus;
   }
-  const segments = [
-    `${counts.activeCount} active`,
-    `${counts.blockedCount} blocked`,
-    `${counts.completedCount} completed`,
-  ];
-  return segments.join(' • ');
+  return buildTaskHeadline(tasks) ?? 'Work item details are loading.';
 }
 
 function buildTaskHeadline(tasks: Record<string, unknown>[]): string | null {

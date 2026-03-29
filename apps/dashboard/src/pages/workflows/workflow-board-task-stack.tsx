@@ -18,24 +18,36 @@ export function WorkflowBoardTaskStack(props: {
   onSelectTask?(taskId: string): void;
 }): JSX.Element {
   if (props.collapsible === false) {
+    const content = (
+      <TaskRowsContainer tasks={props.tasks}>
+        <TaskPreviewRows tasks={props.tasks} isWorkItemSelectable={Boolean(props.onSelectWorkItem)} />
+      </TaskRowsContainer>
+    );
+
+    if (props.onSelectWorkItem) {
+      return (
+        <button
+          type="button"
+          data-work-item-task-area="true"
+          className="grid w-full gap-3 rounded-lg border border-border/60 bg-muted/5 p-2.5 text-left transition-colors hover:bg-muted/10"
+          onClick={() => props.onSelectWorkItem?.()}
+        >
+          <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Tasks
+          </span>
+          {content}
+        </button>
+      );
+    }
+
     return (
       <section className="rounded-lg border border-border/60 bg-muted/5 p-2.5">
-        {props.onSelectWorkItem ? (
-          <button
-            type="button"
-            className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground"
-            onClick={() => props.onSelectWorkItem?.()}
-          >
-            Tasks
-          </button>
-        ) : (
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Tasks
-          </p>
-        )}
-        <div className="mt-3">
-          <TaskPreviewRows tasks={props.tasks} onSelectWorkItem={props.onSelectWorkItem} />
-        </div>
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          Tasks
+        </p>
+        <TaskRowsContainer tasks={props.tasks}>
+          <TaskPreviewRows tasks={props.tasks} isWorkItemSelectable={false} />
+        </TaskRowsContainer>
       </section>
     );
   }
@@ -49,16 +61,31 @@ export function WorkflowBoardTaskStack(props: {
           Tasks
         </p>
       </summary>
-      <div className="mt-3">
-        <TaskPreviewRows tasks={props.tasks} onSelectWorkItem={props.onSelectWorkItem} />
-      </div>
+      <TaskRowsContainer tasks={props.tasks}>
+        <TaskPreviewRows tasks={props.tasks} isWorkItemSelectable={false} />
+      </TaskRowsContainer>
     </details>
+  );
+}
+
+function TaskRowsContainer(props: {
+  tasks: WorkflowTaskPreview[];
+  children: JSX.Element;
+}): JSX.Element {
+  const shouldBoundHeight = props.tasks.length > 4;
+
+  return (
+    <div className="mt-3 rounded-md border border-border/50 bg-background/30 p-1.5">
+      <div className={shouldBoundHeight ? 'grid max-h-[16rem] overflow-y-auto pr-1' : 'grid'}>
+        {props.children}
+      </div>
+    </div>
   );
 }
 
 function TaskPreviewRows(props: {
   tasks: WorkflowTaskPreview[];
-  onSelectWorkItem?(): void;
+  isWorkItemSelectable: boolean;
 }): JSX.Element {
   if (props.tasks.length === 0) {
     return <p className="text-sm text-muted-foreground">No task previews available yet.</p>;
@@ -66,44 +93,24 @@ function TaskPreviewRows(props: {
 
   return (
     <div className="grid gap-2">
-      {props.tasks.map((task) =>
-        props.onSelectWorkItem ? (
-          <button
-            key={task.id}
-            type="button"
-            data-work-item-selectable="true"
-            className={buildStaticTaskRowClassName(task.state)}
-            onClick={() => props.onSelectWorkItem?.()}
-          >
-            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              {describeTaskRowLead(task.state)}
-            </span>
-            <span className="text-foreground">{task.title}</span>
-            <span className="text-xs text-muted-foreground">
-              {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}
-            </span>
-            {task.recentUpdate ? (
-              <span className="text-xs text-muted-foreground">{task.recentUpdate}</span>
-            ) : null}
-          </button>
-        ) : (
-          <div
-            key={task.id}
-            className={buildStaticTaskRowClassName(task.state)}
-          >
-            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-              {describeTaskRowLead(task.state)}
-            </span>
-            <span className="text-foreground">{task.title}</span>
-            <span className="text-xs text-muted-foreground">
-              {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}
-            </span>
-            {task.recentUpdate ? (
-              <span className="text-xs text-muted-foreground">{task.recentUpdate}</span>
-            ) : null}
-          </div>
-        ),
-      )}
+      {props.tasks.map((task) => (
+        <div
+          key={task.id}
+          data-work-item-task-row={props.isWorkItemSelectable ? 'true' : undefined}
+          className={buildStaticTaskRowClassName(task.state)}
+        >
+          <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            {describeTaskRowLead(task.state)}
+          </span>
+          <span className="text-foreground">{task.title}</span>
+          <span className="text-xs text-muted-foreground">
+            {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}
+          </span>
+          {task.recentUpdate ? (
+            <span className="text-xs text-muted-foreground">{task.recentUpdate}</span>
+          ) : null}
+        </div>
+      ))}
     </div>
   );
 }

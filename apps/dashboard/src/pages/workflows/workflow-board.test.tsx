@@ -90,6 +90,30 @@ describe('WorkflowBoard', () => {
     expect(html).not.toContain('flex min-h-[8rem] items-center justify-center text-center');
   });
 
+  it('keeps the newest done item pinned while older done items move into the recent completions bucket in all mode', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: createBoardWithRecentCompletion(),
+          selectedWorkItemId: null,
+          boardMode: 'all',
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Recent completions');
+    expect(html.indexOf('Completed packet 1')).toBeLessThan(html.indexOf('Recent completions'));
+    expect(html.indexOf('Completed packet 2')).toBeGreaterThan(html.indexOf('Recent completions'));
+    expect(html.indexOf('Completed packet 3')).toBeGreaterThan(html.indexOf('Recent completions'));
+    expect(html.indexOf('Completed packet 4')).toBeGreaterThan(html.indexOf('Recent completions'));
+    expect(html).toContain('3 older hidden');
+  });
+
   it('renders empty-lane copy inline instead of as a centered pseudo-card', () => {
     const html = renderToStaticMarkup(
       createElement(
@@ -265,7 +289,8 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Tasks');
     expect(html).not.toContain('<details');
     expect(html).not.toContain('data-task-selectable="true"');
-    expect(html).toContain('data-work-item-selectable="true"');
+    expect(html).toContain('data-work-item-task-area="true"');
+    expect(html).toContain('data-work-item-task-row="true"');
   });
 
   it('shows recent task update context inside expanded work-item task summaries by default', () => {
@@ -307,7 +332,7 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Assess packet');
     expect(html).toContain('Waiting on the final evidence packet before review can finish.');
     expect(html).not.toContain('data-task-selectable="true"');
-    expect(html).toContain('data-work-item-selectable="true"');
+    expect(html).toContain('data-work-item-task-area="true"');
   });
 
   it('shows a compact current-state summary from live task progress instead of raw goal text', () => {
@@ -457,7 +482,44 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Queued behind the architecture pass.');
     expect(html).not.toContain('>2 tasks<');
     expect(html).not.toContain('data-task-selectable="true"');
-    expect(html).toContain('data-work-item-selectable="true"');
+    expect(html).toContain('data-work-item-task-area="true"');
+  });
+
+  it('bounds large task stacks inside work-item cards instead of letting the card grow forever', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: createBoard(),
+          selectedWorkItemId: 'work-item-1',
+          boardMode: 'active_recent_complete',
+          taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
+            [
+              'work-item-1',
+              {
+                tasks: Array.from({ length: 6 }, (_, index) => ({
+                  id: `task-${index + 1}`,
+                  title: `Task ${index + 1}`,
+                  role: 'policy-assessor',
+                  state: index === 0 ? 'in_progress' : 'ready',
+                  workItemId: 'work-item-1',
+                  workItemTitle: 'Review incoming packet',
+                  stageName: 'intake-triage',
+                })),
+                hasActiveOrchestratorTask: false,
+              },
+            ],
+          ]),
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('max-h-[16rem] overflow-y-auto pr-1');
+    expect(html).toContain('rounded-md border border-border/50 bg-background/30');
   });
 
   it('keeps paused work in its lane and marks it as paused', () => {
