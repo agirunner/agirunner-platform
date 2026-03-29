@@ -53,16 +53,6 @@ export function WorkflowBottomWorkbench(props: {
     ?? props.packet.selected_scope.work_item_id
     ?? props.scopedWorkItemId
     ?? props.selectedWorkItemId;
-  const currentTaskTitle =
-    props.selectedTask?.id === currentTaskId
-      ? props.selectedTask.title
-      : props.selectedTaskTitle;
-  const currentWorkItemTitle =
-    props.selectedWorkItem?.id === currentWorkItemId
-      ? props.selectedWorkItem.title
-      : props.selectedTask?.work_item_id === currentWorkItemId
-        ? props.selectedTask.work_item_title ?? props.selectedWorkItemTitle
-        : props.selectedWorkItemTitle;
   const currentWorkItem =
     props.selectedWorkItem?.id === currentWorkItemId
       ? props.selectedWorkItem
@@ -73,6 +63,26 @@ export function WorkflowBottomWorkbench(props: {
       : (props.selectedWorkItemTasks as unknown as DashboardTaskRecord[]).find(
           (task) => task.id === currentTaskId,
         ) ?? null;
+  const currentTaskTitle =
+    props.selectedTask?.id === currentTaskId
+      ? props.selectedTask.title
+      : currentTask?.title
+        ?? props.selectedTaskTitle;
+  const currentWorkItemTitle =
+    props.selectedWorkItem?.id === currentWorkItemId
+      ? props.selectedWorkItem.title
+      : currentWorkItem?.title
+        ?? (props.selectedTask?.work_item_id === currentWorkItemId
+          ? props.selectedTask.work_item_title ?? props.selectedWorkItemTitle
+          : props.selectedWorkItemTitle);
+  const currentScopedTaskRows = shouldUseScopedTaskRows({
+    currentWorkItemId,
+    currentTask,
+    selectedWorkItemId: props.selectedWorkItemId,
+    selectedWorkItem: props.selectedWorkItem,
+  })
+    ? props.selectedWorkItemTasks
+    : [];
   const resolvedScope = resolveWorkbenchScope({
     ...props,
     selectedWorkItemTitle: currentWorkItemTitle,
@@ -155,9 +165,9 @@ export function WorkflowBottomWorkbench(props: {
             selectedWorkItemTitle={currentWorkItemTitle}
             selectedTaskId={currentTaskId}
             selectedTaskTitle={currentTaskTitle}
-            selectedWorkItem={props.selectedWorkItem}
-            selectedTask={props.selectedTask}
-            selectedWorkItemTasks={props.selectedWorkItemTasks}
+            selectedWorkItem={currentWorkItem}
+            selectedTask={currentTask}
+            selectedWorkItemTasks={currentScopedTaskRows}
             inputPackets={props.inputPackets}
             workflowParameters={props.workflowParameters}
             scope={resolvedScope}
@@ -224,6 +234,24 @@ export function WorkflowBottomWorkbench(props: {
       </div>
     </section>
   );
+}
+
+function shouldUseScopedTaskRows(input: {
+  currentWorkItemId: string | null;
+  currentTask: DashboardTaskRecord | null;
+  selectedWorkItemId: string | null;
+  selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
+}): boolean {
+  if (!input.currentWorkItemId) {
+    return false;
+  }
+  if (input.currentTask?.work_item_id === input.currentWorkItemId) {
+    return true;
+  }
+  if (input.selectedWorkItem?.id === input.currentWorkItemId) {
+    return true;
+  }
+  return input.selectedWorkItemId === input.currentWorkItemId;
 }
 
 function resolveWorkbenchScope(props: {

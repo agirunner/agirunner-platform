@@ -126,8 +126,8 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain('Work item');
     expect(html).toContain('Prepare release bundle');
+    expect(countOccurrences(html, 'Assemble final artifacts for launch.')).toBe(1);
     expect(html).toContain('1 active');
     expect(html).toContain('1 blocked');
     expect(html).toContain('1 completed');
@@ -183,7 +183,7 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Task input');
   });
 
-  it('keeps task scope anchored on the parent work item before task-specific detail', () => {
+  it('keeps task scope title first while still showing parent workflow/work-item basics', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
         workflow: createWorkflow(),
@@ -212,8 +212,8 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Assemble final artifacts for launch.');
     expect(html).toContain('Workflow: Release Workflow');
     expect(html).toContain('Work item: Prepare release bundle');
-    expect(html.indexOf('Workflow: Release Workflow')).toBeLessThan(html.indexOf('Verify deliverable'));
-    expect(html.indexOf('Work item: Prepare release bundle')).toBeLessThan(html.indexOf('Verify deliverable'));
+    expect(html.indexOf('Verify deliverable')).toBeLessThan(html.indexOf('Workflow: Release Workflow'));
+    expect(html.indexOf('Verify deliverable')).toBeLessThan(html.indexOf('Work item: Prepare release bundle'));
     expect(html).not.toContain('Check the final release packet and approve it.');
     expect(html).not.toContain('Task scope');
     expect(html).not.toContain('Owner role');
@@ -519,6 +519,10 @@ function createWorkflow(): DashboardMissionControlWorkflowCard {
       token: 'workflow-operations:1',
     },
   };
+}
+
+function countOccurrences(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1;
 }
 
 function createStickyStrip(): DashboardWorkflowStickyStrip {

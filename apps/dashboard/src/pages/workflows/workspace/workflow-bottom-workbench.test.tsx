@@ -134,6 +134,94 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).not.toContain('Current scope');
   });
 
+  it('uses the resolved current work-item and task records when details scope moves ahead of outer props', () => {
+    const packet = createPacket();
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBottomWorkbench, {
+        workflowId: 'workflow-1',
+        workflow: packet.workflow,
+        stickyStrip: packet.sticky_strip,
+        board: {
+          columns: packet.board?.columns ?? [],
+          work_items: [
+            {
+              id: 'work-item-7',
+              workflow_id: 'workflow-1',
+              stage_name: 'release',
+              title: 'Prepare release bundle',
+              goal: 'Assemble final artifacts for launch.',
+              column_id: 'in_progress',
+              priority: 'normal',
+            },
+          ],
+          active_stages: packet.board?.active_stages ?? [],
+          awaiting_gate_count: packet.board?.awaiting_gate_count ?? 0,
+          stage_summary: packet.board?.stage_summary ?? [],
+        },
+        workflowName: 'Workflow 1',
+        packet: {
+          ...packet,
+          selected_scope: {
+            scope_kind: 'selected_task',
+            work_item_id: 'work-item-7',
+            task_id: 'task-3',
+          },
+          bottom_tabs: {
+            ...packet.bottom_tabs,
+            current_scope_kind: 'selected_task',
+            current_work_item_id: 'work-item-7',
+            current_task_id: 'task-3',
+          },
+        },
+        activeTab: 'details',
+        selectedWorkItemId: null,
+        scopedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [
+          {
+            id: 'task-3',
+            title: 'Verify deliverable',
+            role: 'reviewer',
+            state: 'in_progress',
+            work_item_id: 'work-item-7',
+            work_item_title: 'Prepare release bundle',
+            input: {
+              deliverable: 'Confirm the final release packet is complete and operator-ready.',
+            },
+          },
+        ],
+        inputPackets: [],
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        onTabChange: vi.fn(),
+        onClearWorkItemScope: vi.fn(),
+        onClearTaskScope: vi.fn(),
+        onOpenAddWork: vi.fn(),
+        onOpenRedrive: vi.fn(),
+        onLoadMoreActivity: vi.fn(),
+        onLoadMoreDeliverables: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Verify deliverable');
+    expect(html).toContain('Prepare release bundle');
+    expect(html).toContain('Assemble final artifacts for launch.');
+    expect(html).toContain('Requested deliverable');
+    expect(html).toContain('Confirm the final release packet is complete and operator-ready.');
+    expect(html).toContain('In Progress for Reviewer');
+    expect(html).not.toContain('Task details are loading.');
+  });
+
   it('shows the work item scope banner above the tabs when the workbench is scoped to a work item', () => {
     const packet = createPacket();
     const html = renderToStaticMarkup(

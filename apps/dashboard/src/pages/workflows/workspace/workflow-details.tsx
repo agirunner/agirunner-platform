@@ -51,17 +51,18 @@ export function WorkflowDetails(props: {
     || workItemPackets.length > 0
     || hasTaskInput
     || (isWorkflowScope && hasStructuredContent(props.workflowParameters));
-  const scopeLabel = readScopeLabel(props.scope.scopeKind);
   const detailSections = buildDetailSections(scope, props.scope.scopeKind);
   const hasSupportingDetails =
-    Boolean(scope.summary)
-    || detailSections.secondary.length > 0
+    detailSections.secondary.length > 0
     || compactTaskRows.length > 0;
 
   return (
     <section className="grid gap-3 pb-1">
       <header className="grid gap-1 border-b border-border/60 pb-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{scopeLabel}</p>
+        <h3 className="text-base font-semibold text-foreground">{scope.title}</h3>
+        {scope.summary ? (
+          <p className="text-sm text-muted-foreground">{scope.summary}</p>
+        ) : null}
         {detailSections.context.length > 0 ? (
           <div className="grid gap-1 text-sm text-muted-foreground">
             {detailSections.context.map((line) => (
@@ -69,7 +70,6 @@ export function WorkflowDetails(props: {
             ))}
           </div>
         ) : null}
-        <h3 className="text-base font-semibold text-foreground">{scope.title}</h3>
       </header>
 
       {hasInputs ? (
@@ -91,7 +91,6 @@ export function WorkflowDetails(props: {
 
       {hasSupportingDetails ? (
         <div className="grid gap-1 border-t border-border/60 pt-2 text-sm text-muted-foreground">
-          {scope.summary ? <p>{scope.summary}</p> : null}
           {detailSections.secondary.map((line) => (
             <p key={line}>{line}</p>
           ))}
@@ -381,16 +380,6 @@ function buildDetailLines(input: {
     lines.push(input.task_summary);
   }
   return lines.filter((line) => line.trim().length > 0);
-}
-
-function readScopeLabel(scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind']): string {
-  if (scopeKind === 'selected_task') {
-    return 'Task';
-  }
-  if (scopeKind === 'selected_work_item') {
-    return 'Work item';
-  }
-  return 'Workflow';
 }
 
 function buildTaskLatestStatus(task: DashboardTaskRecord | null): string {
