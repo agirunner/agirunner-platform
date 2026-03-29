@@ -59,18 +59,23 @@ function createItem(
     linked_target_ids: string[];
   },
 ): Parameters<typeof filterLiveConsoleItemsForSelectedScope>[0][number] {
+  const {
+    item_id,
+    linked_target_ids,
+    ...rest
+  } = overrides;
   return {
-    item_id: overrides.item_id,
+    item_id,
     item_kind: 'execution_turn',
     source_kind: 'orchestrator',
     source_label: 'Orchestrator',
-    headline: overrides.item_id,
-    summary: overrides.item_id,
+    headline: item_id,
+    summary: item_id,
     created_at: '2026-03-29T13:30:00.000Z',
     work_item_id: 'work-item-1',
     task_id: null,
-    linked_target_ids: overrides.linked_target_ids,
+    linked_target_ids,
     scope_binding: 'structured_target',
-    ...overrides,
+    ...rest,
   };
 }

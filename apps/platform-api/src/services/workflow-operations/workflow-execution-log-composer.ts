@@ -534,10 +534,11 @@ function buildActionInvocationHeadline(payload: Record<string, unknown>): string
     ?? readString(payload.tool)
     ?? readString(payload.action)
     ?? readString(payload.command);
-  if (!actionName || !canRenderLiteralActionFallback(actionName)) {
+  const input = asRecord(payload.input);
+  if (!actionName || !canRenderLiteralActionFallback(actionName) || shouldSuppressActionInvocation(actionName, input)) {
     return null;
   }
-  const args = summarizeActionArgs(actionName, asRecord(payload.input));
+  const args = summarizeActionArgs(actionName, input);
   if (args.length === 0) {
     return null;
   }
@@ -581,7 +582,8 @@ function shouldRenderExecutionTurn(row: LogRow): boolean {
       return readPlanText(payload) !== null;
     case 'agent.act': {
       const actionName = readActionName(payload);
-      if (isSuppressedActionName(actionName)) {
+      const actionInput = asRecord(payload.input);
+      if (isSuppressedActionName(actionName) || shouldSuppressActionInvocation(actionName, actionInput)) {
         return false;
       }
       if (isLowValueHelperAction(actionName)) {
@@ -754,6 +756,16 @@ function isSuppressedActionName(value: string | null): boolean {
   return value === 'record_operator_update' || value === 'record_operator_brief';
 }
 
+function shouldSuppressActionInvocation(
+  actionName: string | null,
+  input: Record<string, unknown>,
+): boolean {
+  if (actionName !== 'shell_exec') {
+    return false;
+  }
+  return isLowValueShellCommand(readString(input.command));
+}
+
 function buildHumanizedActionHeadline(payload: Record<string, unknown>): string | null {
   const actionName = readActionName(payload);
   const input = asRecord(payload.input);
@@ -784,9 +796,28 @@ function buildHumanizedActionHeadline(payload: Record<string, unknown>): string 
       }
       return null;
     }
+    case 'shell_exec':
+      return buildHumanizedShellExecHeadline(readString(input.command));
     default:
       return null;
   }
+}
+
+function buildHumanizedShellExecHeadline(command: string | null): string | null {
+  const normalized = normalizeShellCommand(command);
+  if (!normalized || isLowValueShellCommand(normalized)) {
+    return null;
+  }
+  if (looksLikePythonInstallCommand(normalized)) {
+    return 'Installing Python 3 in the task environment.';
+  }
+  if (looksLikeVerificationScriptCommand(normalized)) {
+    return 'Running the verification script.';
+  }
+  if (looksLikeRepositoryScanCommand(normalized)) {
+    return 'Inspecting the repository files.';
+  }
+  return null;
 }
 
 function readActionPath(input: Record<string, unknown>): string | null {
@@ -1179,16 +1210,21 @@ function readLoggedToolCalls(payload: Record<string, unknown>): Array<{
 
 function buildLoggedToolCallSummary(payload: Record<string, unknown>): string | null {
   const renderedCalls = readLoggedToolCalls(payload)
-    .map(({ name, input }) => buildActionHeadline({ tool: name, input }) ?? buildActionInvocationHeadline({
-      tool: name,
-      input,
-    }))
+    .map(({ name, input }) => {
+      if (shouldSuppressActionInvocation(name, input)) {
+        return null;
+      }
+      return buildActionHeadline({ tool: name, input }) ?? buildActionInvocationHeadline({
+        tool: name,
+        input,
+      });
+    })
     .filter((value): value is string => value !== null);
 
   if (renderedCalls.length === 0) {
     return null;
   }
-  return readOperatorReadableText(renderedCalls.join('; '), 180);
+  return readOperatorReadableText(joinActionHeadlines(renderedCalls), 180);
 }
 
 function looksLikeSyntheticLoggedToolCall(
@@ -1705,8 +1741,90 @@ const EXECUTION_BURST_WINDOW_MS = 15_000;
 const UUID_PATTERN =
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi;
 
+function normalizeShellCommand(command: string | null): string | null {
+  const parsed = readString(command);
+  if (!parsed) {
+    return null;
+  }
+  return parsed.replace(/\s+/g, ' ').trim();
+}
+
+function splitShellCommandSegments(command: string): string[] {
+  return command
+    .split(/\s*(?:&&|;|\|\|)\s*/)
+    .map((segment) => segment.trim())
+    .filter((segment) => segment.length > 0);
+}
+
+function stripShellRedirections(segment: string): string {
+  return segment
+    .replace(/\s+\d?>\/[^ ]+/g, '')
+    .replace(/\s+\d?>&\d+/g, '')
+    .replace(/\s+2>&1/g, '')
+    .trim();
+}
+
+function isLowValueShellCommand(command: string | null): boolean {
+  const normalized = normalizeShellCommand(command);
+  if (!normalized) {
+    return false;
+  }
+  const segments = splitShellCommandSegments(normalized);
+  if (segments.length === 0) {
+    return false;
+  }
+  return segments.every((segment) =>
+    isLowValueShellVersionProbe(segment) || isLowValueShellSuccessMarker(segment),
+  );
+}
+
+function isLowValueShellVersionProbe(segment: string): boolean {
+  return /^(bash|python3?|node|npm|pnpm|git)\s+--version\b/i.test(stripShellRedirections(segment));
+}
+
+function isLowValueShellSuccessMarker(segment: string): boolean {
+  return /^printf\s+['"][a-z0-9_\\n -]+['"]$/i.test(stripShellRedirections(segment));
+}
+
+function looksLikePythonInstallCommand(command: string): boolean {
+  return /\bapt-get\b.*\binstall\b.*\bpython3\b/i.test(command);
+}
+
+function looksLikeVerificationScriptCommand(command: string): boolean {
+  return /(^|[;&|]\s*)\.?\/?scripts\/verify\.sh\b/i.test(command);
+}
+
+function looksLikeRepositoryScanCommand(command: string): boolean {
+  return /\bfind\.?\s+-maxdepth\b/i.test(command) || /\bfind\s+\.\s+-maxdepth\b/i.test(command);
+}
+
 function capitalizeSentence(value: string): string {
   return value.length === 0 ? value : value[0].toUpperCase() + value.slice(1);
+}
+
+function joinActionHeadlines(headlines: string[]): string {
+  if (headlines.length === 1) {
+    return headlines[0]!;
+  }
+  return headlines
+    .map((headline, index) => normalizeJoinedActionHeadline(headline, index === 0, index === headlines.length - 1))
+    .join('; ');
+}
+
+function normalizeJoinedActionHeadline(
+  headline: string,
+  isFirst: boolean,
+  isLast: boolean,
+): string {
+  const trimmed = headline.trim();
+  const withoutTrailingPunctuation = trimmed.replace(/[.!?]+$/g, '');
+  const normalized = isLast ? withoutTrailingPunctuation : withoutTrailingPunctuation;
+  if (isFirst) {
+    return isLast ? `${normalized}.` : normalized;
+  }
+  const lowered =
+    normalized.length === 0 ? normalized : normalized[0]!.toLowerCase() + normalized.slice(1);
+  return isLast ? `${lowered}.` : lowered;
 }
 
 function sanitizeOperatorIdentifiers(value: string): string {

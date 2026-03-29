@@ -588,6 +588,62 @@ describe('workflow-execution-log-composer', () => {
     expect(item.headline).toBe('[Act] calling shell_exec(command="pytest tests/unit")');
   });
 
+  it('humanizes common shell_exec act turns from llm chat stream tool calls', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '29a',
+        operation: 'llm.chat_stream',
+        status: 'completed',
+        payload: {
+          phase: 'act',
+          llm_turn_count: 2,
+          response_tool_calls: [
+            {
+              name: 'shell_exec',
+              input: {
+                command: 'apt-get update && apt-get install -y python3',
+              },
+            },
+            {
+              name: 'shell_exec',
+              input: {
+                command: './scripts/verify.sh',
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(items.map((item) => item.headline)).toEqual([
+      '[Act] Installing Python 3 in the task environment; running the verification script.',
+    ]);
+  });
+
+  it('suppresses low-value shell_exec environment checks from llm chat stream tool calls', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '29b',
+        operation: 'llm.chat_stream',
+        status: 'completed',
+        payload: {
+          phase: 'act',
+          llm_turn_count: 3,
+          response_tool_calls: [
+            {
+              name: 'shell_exec',
+              input: {
+                command: 'bash --version >/tmp/bash_version.txt 2>&1 && python3 --version >/tmp/python_version.txt 2>&1',
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
   it('suppresses internal operator-recording act turns so the live console shows only the resulting record', () => {
     const items = buildExecutionTurnItems([
       createLogRow({
@@ -1246,6 +1302,62 @@ describe('workflow-execution-log-composer', () => {
               name: 'file_read',
               input: {
                 path: '/tmp/workspace/task-1/context/task-input.json',
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
+  it('suppresses hydrated llm act rows when the only non-read tool call is an environment probe with a success marker', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '44f',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        status: 'completed',
+        role: 'spawn-agent-synthesis-specialist',
+        task_id: 'task-44f',
+        work_item_id: 'work-item-44f',
+        activation_id: 'activation-44f',
+        created_at: '2026-03-28T10:03:01.000Z',
+        payload: {
+          phase: 'act',
+          llm_turn_count: 7,
+          prompt_summary: 'Inspect the repository and verify Python availability before deeper work.',
+        },
+      }),
+      createLogRow({
+        id: '44g',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        status: 'completed',
+        role: 'spawn-agent-synthesis-specialist',
+        task_id: 'task-44f',
+        work_item_id: 'work-item-44f',
+        activation_id: 'activation-44f',
+        created_at: '2026-03-28T10:03:02.000Z',
+        payload: {
+          llm_turn_count: 7,
+          response_tool_calls: [
+            {
+              name: 'shell_exec',
+              input: {
+                command:
+                  "bash --version >/tmp/bash_version.txt 2>&1 && python3 --version >/tmp/python3_version.txt 2>&1 && printf 'bash_ok\\npython3_ok\\n'",
+                timeout: 30,
+                max_output: 4000,
+              },
+            },
+            {
+              name: 'file_read',
+              input: {
+                path: 'README.md',
+                limit: 200,
+                offset: 1,
               },
             },
           ],
