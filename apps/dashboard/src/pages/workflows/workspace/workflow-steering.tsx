@@ -259,20 +259,22 @@ interface SteeringHistoryEntry {
   createdAt: string;
 }
 
-function buildSteeringHistory(
+export function buildSteeringHistory(
   messages: DashboardWorkflowSteeringMessageRecord[],
   interventions: DashboardWorkflowInterventionRecord[],
 ): SteeringHistoryEntry[] {
-  const messageEntries = messages.map<SteeringHistoryEntry>((message) => ({
-    id: `message:${message.id}`,
-    title:
-      message.headline ??
-      humanizeToken(message.message_kind ?? message.source_kind ?? 'steering_message'),
-    body: message.body ?? message.content ?? null,
-    badge: humanizeToken(message.source_kind ?? 'operator'),
-    variant: message.source_kind === 'platform' ? 'secondary' : 'outline',
-    createdAt: message.created_at,
-  }));
+  const messageEntries = messages
+    .filter((message) => !isSteeringHistoryAcknowledgement(message))
+    .map<SteeringHistoryEntry>((message) => ({
+      id: `message:${message.id}`,
+      title:
+        message.headline ??
+        humanizeToken(message.message_kind ?? message.source_kind ?? 'steering_message'),
+      body: message.body ?? message.content ?? null,
+      badge: humanizeToken(message.source_kind ?? 'operator'),
+      variant: message.source_kind === 'platform' ? 'secondary' : 'outline',
+      createdAt: message.created_at,
+    }));
   const interventionEntries = interventions.map<SteeringHistoryEntry>((intervention) => ({
     id: `intervention:${intervention.id}`,
     title: intervention.summary,
@@ -284,6 +286,12 @@ function buildSteeringHistory(
   return [...messageEntries, ...interventionEntries].sort((left, right) =>
     right.createdAt.localeCompare(left.createdAt),
   );
+}
+
+function isSteeringHistoryAcknowledgement(message: DashboardWorkflowSteeringMessageRecord): boolean {
+  return message.source_kind === 'platform'
+    && message.message_kind === 'steering_response'
+    && message.headline === 'Steering request recorded';
 }
 
 function humanizeToken(value: string): string {

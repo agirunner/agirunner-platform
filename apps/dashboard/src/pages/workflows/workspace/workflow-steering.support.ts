@@ -137,7 +137,7 @@ export function describeSteeringTargetDisabledReason(input: {
       return 'This task is paused. Resume it or choose another target before steering.';
     }
     if (isTerminalTask(task)) {
-      return 'This task is already completed or cancelled. Choose another target before steering.';
+      return 'This task is already completed or cancelled. Historical work cannot be steered.';
     }
     return null;
   }
@@ -147,7 +147,7 @@ export function describeSteeringTargetDisabledReason(input: {
       return 'This work item is paused. Resume it or choose another target before steering.';
     }
     if (isTerminalWorkItem(input.selectedWorkItem, input.boardColumns)) {
-      return 'This work item is already completed or terminal. Choose another target before steering.';
+      return 'This work item is already completed or cancelled. Historical work cannot be steered.';
     }
   }
 
