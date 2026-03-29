@@ -161,7 +161,7 @@ describe('WorkflowSteering', () => {
     ).toBe('This work item is already completed or cancelled. Historical work cannot be steered.');
   });
 
-  it('reports a clear disabled reason when the workflow is paused even if stale task scope is still present', () => {
+  it('reports the scoped work-item reason when paused task scope normalizes back to the parent work item', () => {
     const activeTask = createTask();
     const target = createTarget('selected_task', {
       workflowState: 'paused',
@@ -177,7 +177,7 @@ describe('WorkflowSteering', () => {
         selectedTask: activeTask,
         selectedWorkItemTasks: [activeTask],
       }),
-    ).toBe('This workflow is paused. Resume it or choose another target before steering.');
+    ).toBe('This work item is paused. Resume it or choose another target before steering.');
   });
 
   it('reports a clear disabled reason when the selected work item is completed', () => {
@@ -223,6 +223,62 @@ describe('WorkflowSteering', () => {
         selectedWorkItemTasks: [activeTask],
       }),
     ).toBe('This workflow is cancelled. Historical work cannot be steered.');
+  });
+
+  it('shows the specific paused work-item reason and removes steering controls for paused scoped work', () => {
+    const html = renderSteering({
+      workflowState: 'paused',
+      scope: createScope('selected_work_item'),
+      selectedTaskId: null,
+      selectedTaskTitle: null,
+      selectedTask: null,
+      selectedWorkItemTasks: [],
+    });
+
+    expect(html).toContain('This work item is paused. Resume it or choose another target before steering.');
+    expect(html).not.toContain('Steering requests are unavailable for this workflow right now.');
+    expect(html).not.toContain('Steering attachments');
+    expect(html).not.toContain('Record steering request</button>');
+  });
+
+  it('shows the specific workflow paused reason and removes steering controls for paused workflow scope', () => {
+    const html = renderSteering({
+      workflowState: 'paused',
+      scope: createScope('workflow'),
+      selectedWorkItemId: null,
+      selectedWorkItemTitle: null,
+      selectedWorkItem: null,
+      selectedTaskId: null,
+      selectedTaskTitle: null,
+      selectedTask: null,
+      selectedWorkItemTasks: [],
+      canAcceptRequest: false,
+    });
+
+    expect(html).toContain('This workflow is paused. Resume it or choose another target before steering.');
+    expect(html).not.toContain('Steering requests are unavailable for this workflow right now.');
+    expect(html).not.toContain('Steering attachments');
+    expect(html).not.toContain('Record steering request</button>');
+  });
+
+  it('removes steering controls for completed scoped work items', () => {
+    const completedWorkItem = createWorkItem({
+      completed_at: '2026-03-28T04:00:00.000Z',
+      column_id: 'done',
+    });
+    const html = renderSteering({
+      boardColumns: doneColumns(),
+      scope: createScope('selected_work_item'),
+      selectedWorkItem: completedWorkItem,
+      selectedTaskId: null,
+      selectedTaskTitle: null,
+      selectedTask: null,
+      selectedWorkItemTasks: [],
+    });
+
+    expect(html).toContain('This work item is already completed or cancelled. Historical work cannot be steered.');
+    expect(html).not.toContain('Steering attachments');
+    expect(html).not.toContain('Record steering request</button>');
   });
 
   it('omits request-recorded acknowledgements from steering history', () => {

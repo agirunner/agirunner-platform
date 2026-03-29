@@ -113,11 +113,6 @@ export function describeSteeringTargetDisabledReason(input: {
   selectedTask: DashboardTaskRecord | null;
   selectedWorkItemTasks: DashboardTaskRecord[];
 }): string | null {
-  const workflowDisabledReason = describeWorkflowTargetDisabledReason(input.workflowState);
-  if (workflowDisabledReason) {
-    return workflowDisabledReason;
-  }
-
   if (input.target.scopeKind === 'selected_task') {
     if (input.selectedWorkItem) {
       if (isPausedWorkItem(input.workflowState, input.selectedWorkItem, input.boardColumns)) {
@@ -127,7 +122,7 @@ export function describeSteeringTargetDisabledReason(input: {
         return 'This work item is already completed or cancelled. Historical work cannot be steered.';
       }
     }
-    return null;
+    return describeWorkflowTargetDisabledReason(input.workflowState);
   }
 
   if (input.target.scopeKind === 'selected_work_item' && input.selectedWorkItem) {
@@ -137,9 +132,10 @@ export function describeSteeringTargetDisabledReason(input: {
     if (isTerminalWorkItem(input.selectedWorkItem, input.boardColumns)) {
       return 'This work item is already completed or cancelled. Historical work cannot be steered.';
     }
+    return describeWorkflowTargetDisabledReason(input.workflowState);
   }
 
-  return null;
+  return describeWorkflowTargetDisabledReason(input.workflowState);
 }
 
 export function buildSteeringAttachmentSummary(target: WorkflowSteeringTargetOption): string {
@@ -161,13 +157,13 @@ export function getWorkflowSteeringDisabledReason(input: {
   selectedTask: DashboardTaskRecord | null;
   selectedWorkItemTasks: DashboardTaskRecord[];
 }): string | null {
-  if (!input.canAcceptRequest) {
-    return 'Steering requests are unavailable for this workflow right now.';
-  }
   if (!input.target) {
-    return 'Choose a steering target before recording a request.';
+    return input.canAcceptRequest
+      ? 'Choose a steering target before recording a request.'
+      : describeWorkflowTargetDisabledReason(input.workflowState)
+        ?? 'Steering requests are unavailable for this workflow right now.';
   }
-  return describeSteeringTargetDisabledReason({
+  const targetDisabledReason = describeSteeringTargetDisabledReason({
     workflowState: input.workflowState,
     boardColumns: input.boardColumns,
     target: input.target,
@@ -175,6 +171,13 @@ export function getWorkflowSteeringDisabledReason(input: {
     selectedTask: input.selectedTask,
     selectedWorkItemTasks: input.selectedWorkItemTasks,
   });
+  if (targetDisabledReason) {
+    return targetDisabledReason;
+  }
+  if (!input.canAcceptRequest) {
+    return 'Steering requests are unavailable for this workflow right now.';
+  }
+  return null;
 }
 
 function buildWorkItemTargetOption(

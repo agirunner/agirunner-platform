@@ -140,6 +140,7 @@ export function WorkflowSteering(props: {
       ? 'Choose a work item target above before writing a request.'
       : 'Choose a steering target above before writing a request.';
   const attachmentSubject = selectedTarget?.subject ?? normalizedScope.subject;
+  const isSelectedTargetUnavailable = selectedTarget !== null && disabledReason !== null;
 
   const requestMutation = useMutation({
     mutationFn: async () => {
@@ -246,33 +247,48 @@ export function WorkflowSteering(props: {
             </div>
           )}
         </div>
-        <Textarea
-          value={request}
-          onChange={(event) => setRequest(event.target.value)}
-          className="min-h-[144px]"
-          placeholder={requestPlaceholder}
-        />
-        <WorkflowFileInput
-          files={files}
-          onChange={setFiles}
-          label="Steering attachments"
-          description={`Attach files for this ${attachmentSubject} that should be referenced by the steering request.`}
-        />
-        {disabledReason ? <p className="text-sm text-destructive">{disabledReason}</p> : null}
+        {isSelectedTargetUnavailable ? (
+          <div className="grid gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-3">
+            <p className="text-sm font-medium text-foreground">
+              Steering is unavailable for this {selectedTarget.subject}.
+            </p>
+            <p className="text-sm text-destructive">{disabledReason}</p>
+          </div>
+        ) : (
+          <>
+            <Textarea
+              value={request}
+              onChange={(event) => setRequest(event.target.value)}
+              className="min-h-[144px]"
+              placeholder={requestPlaceholder}
+            />
+            <WorkflowFileInput
+              files={files}
+              onChange={setFiles}
+              label="Steering attachments"
+              description={`Attach files for this ${attachmentSubject} that should be referenced by the steering request.`}
+            />
+          </>
+        )}
+        {!isSelectedTargetUnavailable && disabledReason ? (
+          <p className="text-sm text-destructive">{disabledReason}</p>
+        ) : null}
         {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
-        <div className="flex justify-end">
-          <Button
-            type="button"
-            disabled={
-              requestMutation.isPending ||
-              disabledReason !== null ||
-              request.trim().length === 0
-            }
-            onClick={() => requestMutation.mutate()}
-          >
-            {requestMutation.isPending ? 'Recording…' : 'Record steering request'}
-          </Button>
-        </div>
+        {isSelectedTargetUnavailable ? null : (
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              disabled={
+                requestMutation.isPending ||
+                disabledReason !== null ||
+                request.trim().length === 0
+              }
+              onClick={() => requestMutation.mutate()}
+            >
+              {requestMutation.isPending ? 'Recording…' : 'Record steering request'}
+            </Button>
+          </div>
+        )}
       </section>
 
       <section className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4">
