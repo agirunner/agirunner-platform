@@ -113,6 +113,78 @@ assert any("missing required evidence payload" in failure for failure in payload
 PY
 }
 
+test_run_live_scenario_clears_stale_evidence_and_fails_when_runner_emits_no_result() {
+  local temp_root
+  temp_root="$(mktemp -d)"
+  trap 'rm -rf "${temp_root}"' RETURN
+
+  make_test_env "${temp_root}"
+  write_noop_bootstrap_scripts "${temp_root}"
+
+  cat >"${temp_root}/scenarios/demo.json" <<'EOF'
+{
+  "name": "demo",
+  "profile": "demo",
+  "workflow": {
+    "name": "Demo workflow",
+    "goal": "Exercise missing-result handling."
+  },
+  "workspace": {
+    "storage": {
+      "type": "workspace_artifacts"
+    }
+  }
+}
+EOF
+
+  mkdir -p "${temp_root}/results/demo/evidence"
+  cat >"${temp_root}/results/demo/evidence/db-state.json" <<'EOF'
+{"stale":true}
+EOF
+
+  cat >"${temp_root}/scripts/runner.py" <<'EOF'
+#!/usr/bin/env python3
+from pathlib import Path
+import os
+
+Path(os.environ["LIVE_TEST_SCENARIO_RUN_TMP_FILE"]).unlink(missing_ok=True)
+EOF
+  chmod +x "${temp_root}/scripts/runner.py"
+
+  set +e
+  LIVE_TEST_ENV_FILE="${temp_root}/env/local.env" \
+    LIVE_TEST_ARTIFACTS_DIR="${temp_root}/results" \
+    LIVE_TEST_SHARED_CONTEXT_FILE="${temp_root}/results/bootstrap/context.json" \
+    LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${temp_root}/scripts/shared-bootstrap.sh" \
+    LIVE_TEST_BOOTSTRAP_SCRIPT="${temp_root}/scripts/bootstrap.sh" \
+    LIVE_TEST_START_WORKFLOW_SCRIPT="${temp_root}/scripts/runner.py" \
+    "${RUN_SCENARIO_SCRIPT}" "${temp_root}/scenarios/demo.json"
+  status=$?
+  set -e
+
+  if [[ "${status}" -eq 0 ]]; then
+    echo "expected missing workflow-run artifact to fail loud" >&2
+    exit 1
+  fi
+
+  if [[ -e "${temp_root}/results/demo/evidence/db-state.json" ]]; then
+    echo "expected stale evidence to be cleared before the new run" >&2
+    exit 1
+  fi
+
+  python3 - "${temp_root}/results/demo/workflow-run.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+assert payload["harness_failure"] is True, payload
+assert payload["verification"]["passed"] is False, payload
+assert payload["harness"]["exit_code"] == 1, payload
+assert any("workflow-run.json not found" in failure for failure in payload["verification"]["failures"]), payload
+PY
+}
+
 test_batch_failed_only_reruns_missing_and_incomplete_results() {
   local temp_root
   temp_root="$(mktemp -d)"
@@ -230,4 +302,5 @@ EOF
 }
 
 test_run_live_scenario_marks_incomplete_result_as_harness_failure
+test_run_live_scenario_clears_stale_evidence_and_fails_when_runner_emits_no_result
 test_batch_failed_only_reruns_missing_and_incomplete_results

@@ -101,7 +101,7 @@ import json
 import sys
 
 payload = json.loads(sys.argv[1])
-raise SystemExit(0 if payload.get("is_valid") else 1)
+raise SystemExit(0 if payload.get("is_valid") and payload.get("is_passing") else 1)
 PY
   then
     return 0
@@ -221,8 +221,8 @@ require_live_test_value "DEFAULT_ADMIN_API_KEY" "${DEFAULT_ADMIN_API_KEY:-}"
 require_live_test_file "${LIVE_TEST_RESULT_VALIDATOR}" "live test result validator"
 log_scenario_status "START ${LIVE_TEST_SCENARIO_NAME}"
 
+rm -rf "${LIVE_TEST_SCENARIO_DIR}"
 mkdir -p "${LIVE_TEST_SCENARIO_DIR}" "${LIVE_TEST_SCENARIO_TRACE_DIR}"
-rm -rf "${LIVE_TEST_SCENARIO_TRACE_DIR}"
 
 export LIVE_TEST_ARTIFACTS_DIR
 export LIVE_TEST_SHARED_CONTEXT_FILE
