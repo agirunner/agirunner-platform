@@ -10,59 +10,7 @@ import {
   POSTGRES_DB,
   POSTGRES_USER,
 } from './platform-env.js';
-
-const RESET_TABLES = [
-  'agents',
-  'container_images',
-  'events',
-  'execution_logs',
-  'fleet_events',
-  'integration_actions',
-  'integration_adapter_deliveries',
-  'integration_adapters',
-  'integration_resource_links',
-  'oauth_states',
-  'orchestrator_config',
-  'orchestrator_grants',
-  'orchestrator_task_messages',
-  'platform_instructions',
-  'playbooks',
-  'workspace_artifact_files',
-  'workspace_spec_versions',
-  'workspaces',
-  'role_definitions',
-  'runtime_heartbeats',
-  'scheduled_work_item_trigger_invocations',
-  'scheduled_work_item_triggers',
-  'task_handoffs',
-  'tasks',
-  'task_tool_results',
-  'tool_tags',
-  'user_identities',
-  'users',
-  'webhook_deliveries',
-  'webhook_work_item_trigger_invocations',
-  'webhook_work_item_triggers',
-  'webhooks',
-  'worker_actual_state',
-  'worker_desired_state',
-  'worker_signals',
-  'workers',
-  'workflow_activations',
-  'workflow_artifacts',
-  'workflow_documents',
-  'workflow_input_packet_files',
-  'workflow_input_packets',
-  'workflow_intervention_files',
-  'workflow_interventions',
-  'workflow_steering_messages',
-  'workflow_steering_sessions',
-  'workflow_stage_gates',
-  'workflow_stages',
-  'workflow_tool_results',
-  'workflow_work_items',
-  'workflows',
-] as const;
+import { resetWorkflowsState } from './workflows-fixture-reset.js';
 
 interface ApiRecord {
   id: string;
@@ -312,13 +260,6 @@ async function updateAgenticSettings(mode: 'standard' | 'enhanced'): Promise<voi
     method: 'PATCH',
     body: { live_visibility_mode_default: mode, settings_revision: current.revision },
   });
-}
-
-async function resetWorkflowsState(): Promise<void> {
-  runPsql(`
-    DELETE FROM public.api_keys WHERE tenant_id = '${DEFAULT_TENANT_ID}' AND key_prefix <> 'ar_admin_def';
-    TRUNCATE TABLE ${RESET_TABLES.map((table) => `public.${table}`).join(', ')} RESTART IDENTITY CASCADE;
-  `);
 }
 
 async function apiRequest<T>(path: string, init: { method?: string; body?: Record<string, unknown> } = {}): Promise<T> {
