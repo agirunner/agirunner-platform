@@ -1,5 +1,6 @@
 import type {
   MissionControlActionAvailability,
+  MissionControlOutputDescriptor,
   MissionControlWorkflowCard,
 } from './mission-control-types.js';
 import { isWorkflowScopeHeaderAction } from './mission-control-action-availability.js';
@@ -92,6 +93,10 @@ interface WorkflowBoardNeedsActionItem extends WorkflowNeedsActionItem {
   subject_label?: string | null;
 }
 
+type WorkspaceDeliverablesPacket = WorkflowWorkspacePacket['deliverables'] & {
+  all_deliverables?: WorkflowDeliverableRecord[];
+};
+
 export class WorkflowWorkspaceService {
   constructor(
     private readonly workflowService: Pick<WorkflowService, 'getWorkflow' | 'getWorkflowBoard'>,
@@ -173,6 +178,17 @@ export class WorkflowWorkspaceService {
       ...deliverables.final_deliverables,
       ...deliverables.in_progress_deliverables,
     ];
+    const workspaceDeliverables = buildWorkspaceDeliverablesPacket(
+      deliverables,
+      workflowCard?.outputDescriptors ?? [],
+      workflowId,
+      selectedScope,
+      board as Record<string, unknown>,
+    );
+    const currentDeliverables = workspaceDeliverables.all_deliverables ?? [
+      ...workspaceDeliverables.final_deliverables,
+      ...workspaceDeliverables.in_progress_deliverables,
+    ];
     const effectiveLiveConsole = filterLiveConsoleForSelectedScope(
       liveConsole,
       selectedScope,
@@ -189,7 +205,7 @@ export class WorkflowWorkspaceService {
       activeSession ? 1 : 0,
       readPacketTotalCount(effectiveLiveConsole),
       readPacketTotalCount(effectiveHistory),
-      allDeliverables.length,
+      currentDeliverables.length,
       input,
     );
 
@@ -237,10 +253,221 @@ export class WorkflowWorkspaceService {
       },
       live_console: effectiveLiveConsole,
       history: effectiveHistory,
-      deliverables,
+      deliverables: workspaceDeliverables,
       redrive_lineage: readRedriveLineage(workflow),
     };
   }
+}
+
+function buildWorkspaceDeliverablesPacket(
+  deliverables: WorkspaceDeliverablesPacket,
+  outputDescriptors: MissionControlOutputDescriptor[],
+  workflowId: string,
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+  board: Record<string, unknown>,
+): WorkspaceDeliverablesPacket {
+  const visibleDeliverables = [
+    ...deliverables.final_deliverables,
+    ...deliverables.in_progress_deliverables,
+  ];
+  const fallbackDeliverables = visibleDeliverables.length === 0
+    ? buildFallbackOutputDescriptorDeliverables(
+        outputDescriptors,
+        workflowId,
+        selectedScope,
+        visibleDeliverables,
+        board,
+      )
+    : [];
+  const mergedFinalDeliverables = [
+    ...deliverables.final_deliverables,
+    ...fallbackDeliverables.filter(isFinalWorkspaceDeliverable),
+  ];
+  const mergedInProgressDeliverables = [
+    ...deliverables.in_progress_deliverables,
+    ...fallbackDeliverables.filter((deliverable) => !isFinalWorkspaceDeliverable(deliverable)),
+  ];
+
+  return {
+    ...deliverables,
+    final_deliverables: mergedFinalDeliverables,
+    in_progress_deliverables: mergedInProgressDeliverables,
+    all_deliverables: [...mergedFinalDeliverables, ...mergedInProgressDeliverables],
+  };
+}
+
+function buildFallbackOutputDescriptorDeliverables(
+  outputDescriptors: MissionControlOutputDescriptor[],
+  workflowId: string,
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+  visibleDeliverables: WorkflowDeliverableRecord[],
+  board: Record<string, unknown>,
+): WorkflowDeliverableRecord[] {
+  const visibleIdentityKeys = new Set(
+    visibleDeliverables.map(readDeliverableIdentityKey).filter((key): key is string => key !== null),
+  );
+  const blockedWorkItemIds = readBlockedWorkItemIds(board);
+  const fallbackDeliverables: WorkflowDeliverableRecord[] = [];
+  const emittedKeys = new Set<string>();
+
+  for (const descriptor of selectScopedOutputDescriptors(outputDescriptors, selectedScope)) {
+    if (descriptor.workItemId && blockedWorkItemIds.has(descriptor.workItemId)) {
+      continue;
+    }
+    const fallbackDeliverable = composeFallbackDeliverableFromOutputDescriptor(workflowId, descriptor);
+    const identityKey = readDeliverableIdentityKey(fallbackDeliverable);
+    if (!identityKey || visibleIdentityKeys.has(identityKey) || emittedKeys.has(identityKey)) {
+      continue;
+    }
+    fallbackDeliverables.push(fallbackDeliverable);
+    emittedKeys.add(identityKey);
+  }
+
+  return fallbackDeliverables;
+}
+
+function selectScopedOutputDescriptors(
+  outputDescriptors: MissionControlOutputDescriptor[],
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+): MissionControlOutputDescriptor[] {
+  if (selectedScope.scope_kind === 'workflow') {
+    return outputDescriptors;
+  }
+  if (!selectedScope.work_item_id) {
+    return [];
+  }
+  return outputDescriptors.filter((descriptor) =>
+    descriptor.workItemId === null || descriptor.workItemId === selectedScope.work_item_id,
+  );
+}
+
+function readBlockedWorkItemIds(board: Record<string, unknown>): Set<string> {
+  const blockedIds = new Set<string>();
+  const workItems = Array.isArray(board.work_items) ? board.work_items : [];
+  for (const workItem of workItems) {
+    const record = asRecord(workItem);
+    const workItemId = readOptionalString(record.id);
+    if (!workItemId) {
+      continue;
+    }
+    const blockedState = readOptionalString(record.blocked_state);
+    const gateStatus = readOptionalString(record.gate_status);
+    if (blockedState === 'blocked' || isBlockedGateStatus(gateStatus)) {
+      blockedIds.add(workItemId);
+    }
+  }
+  return blockedIds;
+}
+
+function composeFallbackDeliverableFromOutputDescriptor(
+  workflowId: string,
+  descriptor: MissionControlOutputDescriptor,
+): WorkflowDeliverableRecord {
+  return {
+    descriptor_id: `output:${descriptor.id}`,
+    workflow_id: workflowId,
+    work_item_id: descriptor.workItemId,
+    descriptor_kind: descriptor.primaryLocation.kind,
+    delivery_stage: isFinalOutputDescriptorStatus(descriptor.status) ? 'final' : 'in_progress',
+    title: descriptor.title,
+    state: descriptor.status,
+    summary_brief: descriptor.summary,
+    preview_capabilities: {},
+    primary_target: composeFallbackPrimaryTarget(descriptor),
+    secondary_targets: [],
+    content_preview: descriptor.summary ? { summary: descriptor.summary } : {},
+    source_brief_id: null,
+    created_at: '',
+    updated_at: '',
+  };
+}
+
+function composeFallbackPrimaryTarget(
+  descriptor: MissionControlOutputDescriptor,
+): Record<string, unknown> {
+  const location = descriptor.primaryLocation;
+  switch (location.kind) {
+    case 'artifact':
+      return {
+        target_kind: 'artifact',
+        label: 'Open artifact',
+        url: normalizeArtifactPreviewUrl(location.previewPath, location.taskId, location.artifactId),
+        path: location.logicalPath,
+        artifact_id: location.artifactId,
+      };
+    case 'repository':
+      return {
+        target_kind: 'repository',
+        label: 'Open repository output',
+        url:
+          location.pullRequestUrl
+          ?? location.branchUrl
+          ?? location.commitUrl
+          ?? location.repository,
+        repo_ref: location.branch ?? location.commitSha ?? location.repository,
+      };
+    case 'workflow_document':
+      return {
+        target_kind: 'workflow_document',
+        label: 'Open workflow document',
+        url: location.location,
+        path: location.logicalName,
+        artifact_id: location.artifactId,
+      };
+    case 'external_url':
+      return {
+        target_kind: 'external_url',
+        label: 'Open link',
+        url: location.url,
+      };
+    case 'host_directory':
+      return {
+        target_kind: 'host_directory',
+        label: 'Open host directory',
+        path: location.path,
+      };
+  }
+}
+
+function normalizeArtifactPreviewUrl(
+  previewPath: string | null,
+  taskId: string,
+  artifactId: string,
+): string {
+  const normalizedPreviewPath = readOptionalString(previewPath);
+  if (!normalizedPreviewPath) {
+    return `/api/v1/tasks/${encodeURIComponent(taskId)}/artifacts/${encodeURIComponent(artifactId)}/preview`;
+  }
+  const deprecatedMatch = normalizedPreviewPath.match(/^\/artifacts\/tasks\/([^/]+)\/([^/?#]+)$/);
+  if (!deprecatedMatch) {
+    return normalizedPreviewPath;
+  }
+  return `/api/v1/tasks/${encodeURIComponent(deprecatedMatch[1])}/artifacts/${encodeURIComponent(deprecatedMatch[2])}/preview`;
+}
+
+function isFinalWorkspaceDeliverable(deliverable: WorkflowDeliverableRecord): boolean {
+  return deliverable.delivery_stage === 'final' || deliverable.state === 'final';
+}
+
+function isFinalOutputDescriptorStatus(status: MissionControlOutputDescriptor['status']): boolean {
+  return status === 'approved' || status === 'final';
+}
+
+function readDeliverableIdentityKey(deliverable: WorkflowDeliverableRecord): string | null {
+  const primaryTarget = asRecord(deliverable.primary_target);
+  const artifactId = readOptionalString(primaryTarget.artifact_id);
+  if (artifactId) {
+    return `artifact:${artifactId}`;
+  }
+  const targetUrl = readOptionalString(primaryTarget.url);
+  if (targetUrl) {
+    return `url:${targetUrl}`;
+  }
+  const targetPath = readOptionalString(primaryTarget.path);
+  if (targetPath) {
+    return `path:${targetPath}`;
+  }
+  return null;
 }
 
 function resolveSelectedScope(input: WorkflowWorkspaceQuery): WorkflowWorkspacePacket['selected_scope'] {
