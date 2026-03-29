@@ -7,7 +7,6 @@ import {
 } from './workflow-operations-types.js';
 import {
   paginateOrderedItems,
-  resolveFetchWindow,
 } from './workflow-packet-cursors.js';
 
 interface VersionSource {
@@ -21,7 +20,7 @@ interface BriefSource {
   listBriefs(
     tenantId: string,
     workflowId: string,
-    input?: { workItemId?: string; taskId?: string; limit?: number },
+    input?: { workItemId?: string; taskId?: string; limit?: number; unbounded?: boolean },
   ): Promise<WorkflowOperatorBriefRecord[]>;
 }
 
@@ -37,7 +36,6 @@ export class WorkflowBriefsService {
     input: { limit?: number; workItemId?: string; taskId?: string; after?: string } = {},
   ): Promise<WorkflowBriefsPacket> {
     const limit = input.limit ?? 50;
-    const fetchWindow = resolveFetchWindow(limit);
     const [version, briefs] = await Promise.all([
       this.versionSource.getHistory(tenantId, {
         workflowId,
@@ -46,7 +44,7 @@ export class WorkflowBriefsService {
       this.briefSource.listBriefs(tenantId, workflowId, {
         workItemId: input.workItemId,
         taskId: input.taskId,
-        limit: fetchWindow,
+        unbounded: true,
       }),
     ]);
     const items = briefs.map(toWorkflowBriefItem).sort(sortNewestFirst);

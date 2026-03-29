@@ -148,7 +148,7 @@ describe('WorkflowBriefsService', () => {
     expect(briefSource.listBriefs).toHaveBeenCalledWith('tenant-1', 'workflow-1', {
       workItemId: 'work-item-1',
       taskId: 'task-1',
-      limit: 500,
+      unbounded: true,
     });
   });
 });

@@ -159,7 +159,7 @@ describe('WorkflowLiveConsoleService', () => {
       limit: 10,
     });
 
-    expect(executionTurnSource.query).toHaveBeenCalledTimes(2);
+    expect(executionTurnSource.query).toHaveBeenCalledTimes(4);
     expect(result.items).toEqual([
       expect.objectContaining({
         item_kind: 'execution_turn',
@@ -1518,5 +1518,211 @@ describe('WorkflowLiveConsoleService', () => {
       }),
     ]);
     expect(result.total_count).toBe(2);
+  });
+
+  it('passes selected scope filters through to execution-log queries', async () => {
+    const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
+      versionSource: unknown,
+      briefSource: unknown,
+      updateSource: unknown,
+      visibilityModeSource: unknown,
+      executionTurnSource: unknown,
+      workflowBoardSource?: unknown,
+    ) => WorkflowLiveConsoleService;
+    const executionTurnSource = {
+      query: vi.fn(async () => ({
+        data: [],
+        pagination: {
+          has_more: false,
+          next_cursor: null,
+          prev_cursor: null,
+          per_page: 500,
+        },
+      })),
+    };
+    const service = new ServiceCtor(
+      {
+        getHistory: vi.fn(async () => ({
+          version: {
+            generatedAt: '2026-03-28T08:00:00.000Z',
+            latestEventId: 77,
+            token: 'mission-control:77',
+          },
+          packets: [],
+        })),
+      } as never,
+      {
+        listBriefs: vi.fn(async () => []),
+      } as never,
+      {
+        listUpdates: vi.fn(async () => []),
+      } as never,
+      {
+        getWorkflowSettings: vi.fn(async () => ({
+          effective_live_visibility_mode: 'enhanced',
+        })),
+      } as never,
+      executionTurnSource as never,
+    );
+
+    await service.getLiveConsole('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+      taskId: 'task-1',
+      limit: 10,
+    });
+
+    expect(executionTurnSource.query).toHaveBeenNthCalledWith(
+      1,
+      'tenant-1',
+      expect.objectContaining({
+        workflowId: 'workflow-1',
+        workItemId: 'work-item-1',
+        taskId: 'task-1',
+      }),
+    );
+    expect(executionTurnSource.query).toHaveBeenNthCalledWith(
+      2,
+      'tenant-1',
+      expect.objectContaining({
+        workflowId: 'workflow-1',
+        workItemId: 'work-item-1',
+        taskId: 'task-1',
+      }),
+    );
+  });
+
+  it('aggregates execution-turn rows across log pages before computing totals', async () => {
+    const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
+      versionSource: unknown,
+      briefSource: unknown,
+      updateSource: unknown,
+      visibilityModeSource: unknown,
+      executionTurnSource: unknown,
+    ) => WorkflowLiveConsoleService;
+    const executionTurnSource = {
+      query: vi.fn(async (_tenantId, filters) => {
+        if (filters.category.includes('llm')) {
+          if (!filters.cursor) {
+            return {
+              data: [
+                {
+                  id: 'log-1',
+                  source: 'runtime',
+                  category: 'llm',
+                  level: 'info',
+                  operation: 'llm.chat_stream',
+                  status: 'completed',
+                  payload: {
+                    phase: 'plan',
+                    response_text: JSON.stringify({ summary: 'First scoped turn.' }),
+                  },
+                  workflow_id: 'workflow-1',
+                  workflow_name: 'Workflow 1',
+                  work_item_id: 'work-item-1',
+                  task_id: 'task-1',
+                  stage_name: 'review',
+                  is_orchestrator_task: false,
+                  task_title: 'Assess policy readiness',
+                  role: 'policy-assessor',
+                  actor_type: 'runtime',
+                  actor_name: 'Policy Assessor',
+                  resource_name: null,
+                  created_at: '2026-03-28T07:58:30.000Z',
+                },
+              ],
+              pagination: {
+                has_more: true,
+                next_cursor: 'cursor-2',
+                prev_cursor: null,
+                per_page: 1,
+              },
+            };
+          }
+          return {
+            data: [
+              {
+                id: 'log-2',
+                source: 'runtime',
+                category: 'llm',
+                level: 'info',
+                operation: 'llm.chat_stream',
+                status: 'completed',
+                payload: {
+                  phase: 'verify',
+                  response_text: JSON.stringify({ summary: 'Second scoped turn.' }),
+                },
+                workflow_id: 'workflow-1',
+                workflow_name: 'Workflow 1',
+                work_item_id: 'work-item-1',
+                task_id: 'task-1',
+                stage_name: 'review',
+                is_orchestrator_task: false,
+                task_title: 'Assess policy readiness',
+                role: 'policy-assessor',
+                actor_type: 'runtime',
+                actor_name: 'Policy Assessor',
+                resource_name: null,
+                created_at: '2026-03-28T07:57:30.000Z',
+              },
+            ],
+            pagination: {
+              has_more: false,
+              next_cursor: null,
+              prev_cursor: null,
+              per_page: 1,
+            },
+          };
+        }
+        return {
+          data: [],
+          pagination: {
+            has_more: false,
+            next_cursor: null,
+            prev_cursor: null,
+            per_page: 1,
+          },
+        };
+      }),
+    };
+    const service = new ServiceCtor(
+      {
+        getHistory: vi.fn(async () => ({
+          version: {
+            generatedAt: '2026-03-28T08:00:00.000Z',
+            latestEventId: 77,
+            token: 'mission-control:77',
+          },
+          packets: [],
+        })),
+      } as never,
+      {
+        listBriefs: vi.fn(async () => []),
+      } as never,
+      {
+        listUpdates: vi.fn(async () => []),
+      } as never,
+      {
+        getWorkflowSettings: vi.fn(async () => ({
+          effective_live_visibility_mode: 'enhanced',
+        })),
+      } as never,
+      executionTurnSource as never,
+    );
+
+    const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+      taskId: 'task-1',
+      limit: 1,
+    });
+
+    expect(result.total_count).toBe(2);
+    expect(result.counts).toEqual({
+      all: 2,
+      turn_updates: 2,
+      briefs: 0,
+    });
+    expect(result.items).toHaveLength(1);
+    expect(result.next_cursor).not.toBeNull();
+    expect(executionTurnSource.query).toHaveBeenCalledTimes(6);
   });
 });

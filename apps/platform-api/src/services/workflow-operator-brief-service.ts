@@ -114,6 +114,7 @@ export interface ListWorkflowOperatorBriefsInput {
   includeWorkflowScope?: boolean;
   includeAllWorkItemScopes?: boolean;
   limit?: number;
+  unbounded?: boolean;
 }
 
 export interface WorkflowOperatorBriefWriteResult {
@@ -135,6 +136,7 @@ export class WorkflowOperatorBriefService {
     input: ListWorkflowOperatorBriefsInput = {},
   ): Promise<WorkflowOperatorBriefRecord[]> {
     await this.assertWorkflow(tenantId, workflowId);
+    const shouldApplyLimit = input.unbounded !== true;
     if (input.includeAllWorkItemScopes === true && !input.workItemId && !input.taskId) {
       const result = await this.pool.query<WorkflowOperatorBriefRow>(
         `SELECT *
@@ -142,12 +144,17 @@ export class WorkflowOperatorBriefService {
           WHERE tenant_id = $1
             AND workflow_id = $2
           ORDER BY sequence_number DESC
-          LIMIT $3`,
-        [
-          tenantId,
-          workflowId,
-          input.limit ?? 50,
-        ],
+          ${shouldApplyLimit ? 'LIMIT $3' : ''}`,
+        shouldApplyLimit
+          ? [
+            tenantId,
+            workflowId,
+            input.limit ?? 50,
+          ]
+          : [
+            tenantId,
+            workflowId,
+          ],
       );
       return result.rows.map(toWorkflowOperatorBriefRecord);
     }
@@ -175,17 +182,27 @@ export class WorkflowOperatorBriefService {
             )
           )
         ORDER BY sequence_number DESC
-        LIMIT $8`,
-      [
-        tenantId,
-        workflowId,
-        input.workItemId ?? null,
-        input.workItemId ?? null,
-        input.taskId ?? null,
-        input.taskId ?? null,
-        input.includeWorkflowScope === true,
-        input.limit ?? 50,
-      ],
+        ${shouldApplyLimit ? 'LIMIT $8' : ''}`,
+      shouldApplyLimit
+        ? [
+          tenantId,
+          workflowId,
+          input.workItemId ?? null,
+          input.workItemId ?? null,
+          input.taskId ?? null,
+          input.taskId ?? null,
+          input.includeWorkflowScope === true,
+          input.limit ?? 50,
+        ]
+        : [
+          tenantId,
+          workflowId,
+          input.workItemId ?? null,
+          input.workItemId ?? null,
+          input.taskId ?? null,
+          input.taskId ?? null,
+          input.includeWorkflowScope === true,
+        ],
     );
     return result.rows.map(toWorkflowOperatorBriefRecord);
   }

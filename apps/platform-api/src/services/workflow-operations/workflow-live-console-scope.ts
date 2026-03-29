@@ -37,7 +37,7 @@ function matchesLiveConsoleScope(
   if (!selectedWorkItemId) {
     return false;
   }
-  if (referencesSiblingWorkItem(item, selectedWorkItemId, workflowWorkItemIds)) {
+  if (shouldExcludeForSiblingWorkItem(item, selectedWorkItemId, workflowWorkItemIds)) {
     return false;
   }
 
@@ -63,10 +63,21 @@ function matchesSelectedTaskScope(
     return false;
   }
   const selectedWorkItemId = selectedScope.work_item_id;
-  if (selectedWorkItemId && referencesSiblingWorkItem(item, selectedWorkItemId, workflowWorkItemIds)) {
+  if (selectedWorkItemId && shouldExcludeForSiblingWorkItem(item, selectedWorkItemId, workflowWorkItemIds)) {
     return false;
   }
   return true;
+}
+
+function shouldExcludeForSiblingWorkItem(
+  item: WorkflowLiveConsoleItem,
+  selectedWorkItemId: string,
+  workflowWorkItemIds: ReadonlySet<string>,
+): boolean {
+  if (item.item_kind === 'milestone_brief' && item.linked_target_ids.includes(selectedWorkItemId)) {
+    return false;
+  }
+  return referencesSiblingWorkItem(item, selectedWorkItemId, workflowWorkItemIds);
 }
 
 function referencesSiblingWorkItem(

@@ -14,7 +14,6 @@ import { buildExecutionTurnItems } from './workflow-execution-log-composer.js';
 import {
   compareCursorTargets,
   paginateOrderedItems,
-  resolveFetchWindow,
 } from './workflow-packet-cursors.js';
 
 interface VersionSource {
@@ -28,7 +27,7 @@ interface BriefSource {
   listBriefs(
     tenantId: string,
     workflowId: string,
-    input?: { workItemId?: string; taskId?: string; limit?: number },
+    input?: { workItemId?: string; taskId?: string; limit?: number; unbounded?: boolean },
   ): Promise<WorkflowOperatorBriefRecord[]>;
 }
 
@@ -54,12 +53,14 @@ interface ExecutionTurnSource {
       workflowId: string;
       workItemId?: string;
       taskId?: string;
+      isOrchestratorTask?: boolean;
+      cursor?: string;
       category: string[];
       operation: string[];
       order: 'desc';
       perPage: number;
     },
-  ): Promise<{ data: LogRow[] }>;
+  ): Promise<{ data: LogRow[]; pagination?: { has_more: boolean; next_cursor: string | null } }>;
 }
 
 interface WorkflowBoardSource {
@@ -96,7 +97,6 @@ export class WorkflowLiveConsoleService {
     input: { limit?: number; workItemId?: string; taskId?: string; after?: string } = {},
   ): Promise<WorkflowLiveConsolePacket> {
     const limit = input.limit ?? 50;
-    const fetchWindow = resolveFetchWindow(limit);
     const [version, briefs, workflowSettings, workflowBoard] = await Promise.all([
       this.versionSource.getHistory(tenantId, {
         workflowId,
@@ -105,7 +105,7 @@ export class WorkflowLiveConsoleService {
       this.briefSource.listBriefs(tenantId, workflowId, {
         workItemId: input.workItemId,
         taskId: input.taskId,
-        limit: fetchWindow,
+        unbounded: true,
       }),
       this.visibilityModeSource.getWorkflowSettings(tenantId, workflowId),
       shouldFilterSelectedScope(input) && this.workflowBoardSource
@@ -116,7 +116,6 @@ export class WorkflowLiveConsoleService {
       tenantId,
       workflowId,
       input,
-      fetchWindow,
       workflowSettings.effective_live_visibility_mode,
     );
 
@@ -149,31 +148,99 @@ export class WorkflowLiveConsoleService {
     tenantId: string,
     workflowId: string,
     input: { workItemId?: string; taskId?: string },
-    fetchWindow: number,
     mode: 'standard' | 'enhanced',
   ): Promise<WorkflowLiveConsoleItem[]> {
     if (mode !== 'enhanced' || !this.executionTurnSource) {
       return [];
     }
     const [agentLoopRows, llmRows] = await Promise.all([
-      this.executionTurnSource.query(tenantId, {
+      this.fetchRelevantExecutionRows(tenantId, {
         workflowId,
+        workItemId: input.workItemId,
+        taskId: input.taskId,
         category: [...ENHANCED_EXECUTION_LOG_CATEGORIES],
         operation: [...ENHANCED_AGENT_LOOP_OPERATIONS],
         order: 'desc',
-        perPage: fetchWindow,
+        perPage: 500,
       }),
-      this.executionTurnSource.query(tenantId, {
+      this.fetchRelevantExecutionRows(tenantId, {
         workflowId,
+        workItemId: input.workItemId,
+        taskId: input.taskId,
         category: ['llm'],
         operation: ['llm.chat_stream'],
         order: 'desc',
-        perPage: fetchWindow,
+        perPage: 500,
       }),
     ]);
-    const rows = [...agentLoopRows.data, ...llmRows.data].sort(sortLogRowsNewestFirst);
+    const rows = [...agentLoopRows, ...llmRows].sort(sortLogRowsNewestFirst);
     return buildExecutionTurnItems(rows);
   }
+
+  private async fetchRelevantExecutionRows(
+    tenantId: string,
+    filters: {
+      workflowId: string;
+      workItemId?: string;
+      taskId?: string;
+      category: string[];
+      operation: string[];
+      order: 'desc';
+      perPage: number;
+    },
+  ): Promise<LogRow[]> {
+    const scopedRows = await this.fetchExecutionRows(tenantId, filters);
+    if (!filters.workItemId && !filters.taskId) {
+      return scopedRows;
+    }
+    const orchestratorRows = await this.fetchExecutionRows(tenantId, {
+      ...filters,
+      workItemId: undefined,
+      taskId: undefined,
+      isOrchestratorTask: true,
+    });
+    return dedupeExecutionRows([...scopedRows, ...orchestratorRows]);
+  }
+
+  private async fetchExecutionRows(
+    tenantId: string,
+    filters: {
+      workflowId: string;
+      workItemId?: string;
+      taskId?: string;
+      isOrchestratorTask?: boolean;
+      category: string[];
+      operation: string[];
+      order: 'desc';
+      perPage: number;
+    },
+  ): Promise<LogRow[]> {
+    if (!this.executionTurnSource) {
+      return [];
+    }
+    const rows: LogRow[] = [];
+    let cursor: string | undefined;
+    for (;;) {
+      const page = await this.executionTurnSource.query(tenantId, {
+        ...filters,
+        cursor,
+      });
+      rows.push(...page.data);
+      if (!page.pagination?.has_more || !page.pagination.next_cursor) {
+        break;
+      }
+      cursor = page.pagination.next_cursor;
+    }
+    return rows;
+  }
+}
+
+function dedupeExecutionRows(rows: LogRow[]): LogRow[] {
+  const uniqueRows = new Map<string, LogRow>();
+  for (const row of rows) {
+    uniqueRows.set(row.id, row);
+  }
+  return [...uniqueRows.values()];
 }
 
 function toBriefItem(brief: WorkflowOperatorBriefRecord): WorkflowLiveConsoleItem {
