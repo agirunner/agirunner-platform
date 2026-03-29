@@ -1,5 +1,6 @@
 import type { DatabaseQueryable } from '../db/database.js';
 import type { EventService } from './event-service.js';
+import { reconcileStoppedWorkItemColumns } from './workflow-stop-work-item-reconciliation.js';
 import type { WorkerConnectionHub } from './worker-connection-hub.js';
 
 const CANCELLABLE_WORKFLOW_TASK_STATES = [
@@ -25,6 +26,7 @@ interface ActiveWorkflowTaskRow {
 interface CancelledWorkflowTaskRow {
   id: string;
   is_orchestrator_task: boolean;
+  work_item_id: string | null;
 }
 
 interface WorkerSignalRow {
@@ -150,7 +152,7 @@ export async function stopWorkflowBoundExecution(
       WHERE tenant_id = $1
         AND workflow_id = $2
         AND state = ANY($3::task_state[])
-    RETURNING id, is_orchestrator_task`,
+    RETURNING id, is_orchestrator_task, work_item_id`,
     [input.tenantId, input.workflowId, [...CANCELLABLE_WORKFLOW_TASK_STATES]],
   );
 
@@ -190,6 +192,8 @@ export async function stopWorkflowBoundExecution(
       [input.tenantId, activeSpecialistTaskIds],
     );
   }
+
+  await reconcileStoppedWorkItemColumns(db, deps.eventService, input, cancelledTasks.rows);
 
   const cancelledActivations = await db.query(
     `UPDATE workflow_activations
