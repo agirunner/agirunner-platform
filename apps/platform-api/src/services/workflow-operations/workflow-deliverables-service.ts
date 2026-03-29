@@ -131,20 +131,12 @@ export class WorkflowDeliverablesService {
     );
     const finalizedBriefIds = collectFinalizedBriefIds(deliverableScopeBriefs);
     const finalizedDescriptorIds = collectFinalizedDescriptorIds(deliverableScopeBriefs);
-    const deliverableScopeRecords = selectDeliverableScopeRecords(
+    const deliverableScopeRecords = selectDeliverableScopeDeliverables(
       deliverables,
       input.workItemId,
-      (deliverable) =>
-        resolveAttributedDeliverableWorkItemId(
-          deliverable,
-          deliverableWorkItemAttribution,
-        ),
-      (deliverable) =>
-        shouldRollUpChildScopeDeliverable(
-          deliverable,
-          finalizedBriefIds,
-          finalizedDescriptorIds,
-        ),
+      deliverableWorkItemAttribution,
+      finalizedBriefIds,
+      finalizedDescriptorIds,
     );
     const hydratedDeliverables = suppressShadowedOrchestratorBriefPackets(
       appendSynthesizedBriefDeliverables(
@@ -248,6 +240,40 @@ function selectDeliverableScopeRecords<T>(
   });
 
   return workflowRollupRecords.length > 0 ? workflowRollupRecords : records;
+}
+
+function selectDeliverableScopeDeliverables(
+  deliverables: WorkflowDeliverableRecord[],
+  workItemId: string | undefined,
+  attribution: DeliverableWorkItemAttribution,
+  finalizedBriefIds: Set<string>,
+  finalizedDescriptorIds: Set<string>,
+): WorkflowDeliverableRecord[] {
+  if (!workItemId) {
+    return selectDeliverableScopeRecords(
+      deliverables,
+      undefined,
+      (deliverable) =>
+        resolveAttributedDeliverableWorkItemId(deliverable, attribution),
+      (deliverable) =>
+        shouldRollUpChildScopeDeliverable(
+          deliverable,
+          finalizedBriefIds,
+          finalizedDescriptorIds,
+        ),
+    );
+  }
+
+  return deliverables.filter((deliverable) => {
+    const attributedWorkItemId = resolveAttributedDeliverableWorkItemId(
+      deliverable,
+      attribution,
+    );
+    if (attributedWorkItemId === workItemId) {
+      return true;
+    }
+    return readRollupSourceWorkItemId(deliverable) === workItemId;
+  });
 }
 
 function appendSynthesizedHandoffDeliverables(
@@ -790,10 +816,10 @@ function suppressMirroredWorkflowRollupDuplicates(
   return deliverables.filter((deliverable) => {
     const workItemId = readOptionalString(deliverable.work_item_id);
     if (selectedWorkItemId) {
-      return !(
-        workItemId === null
-        && readRollupSourceWorkItemId(deliverable) === selectedWorkItemId
-      );
+      if (workItemId !== null) {
+        return true;
+      }
+      return readRollupSourceWorkItemId(deliverable) === selectedWorkItemId;
     }
     return !(workItemId !== null && workflowRollupSources.has(deliverable.descriptor_id));
   });

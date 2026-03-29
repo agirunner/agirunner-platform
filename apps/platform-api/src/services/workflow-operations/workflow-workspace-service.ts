@@ -396,7 +396,8 @@ function filterWorkspaceDeliverablesForSelectedScope(
     };
   }
   const matchesSelectedWorkItem = (deliverable: WorkflowDeliverableRecord): boolean =>
-    deliverable.work_item_id === selectedWorkItemId;
+    deliverable.work_item_id === selectedWorkItemId
+      || readDeliverableRollupSourceWorkItemId(deliverable) === selectedWorkItemId;
   return {
     ...deliverables,
     final_deliverables: deliverables.final_deliverables.filter(matchesSelectedWorkItem),
@@ -550,6 +551,14 @@ function readDeliverableIdentityKey(deliverable: WorkflowDeliverableRecord): str
     return `path:${targetPath}`;
   }
   return null;
+}
+
+function readDeliverableRollupSourceWorkItemId(
+  deliverable: WorkflowDeliverableRecord,
+): string | null {
+  return readOptionalString(
+    asRecord(deliverable.content_preview).rollup_source_work_item_id,
+  );
 }
 
 function resolveSelectedScope(input: WorkflowWorkspaceQuery): WorkflowWorkspacePacket['selected_scope'] {
