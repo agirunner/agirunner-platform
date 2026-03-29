@@ -117,8 +117,10 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
       tab_scope?: 'workflow' | 'selected_work_item' | 'selected_task';
       live_console_after?: string;
       live_console_limit?: string;
+      briefs_after?: string;
       history_after?: string;
       deliverables_after?: string;
+      briefs_limit?: string;
       history_limit?: string;
       deliverables_limit?: string;
       output_limit?: string;
@@ -135,6 +137,8 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
         tabScope: query.tab_scope ?? 'workflow',
         liveConsoleAfter: query.live_console_after,
         liveConsoleLimit: readPositiveInt(query.live_console_limit, 50),
+        briefsAfter: query.briefs_after,
+        briefsLimit: readPositiveInt(query.briefs_limit, 50),
         historyAfter: query.history_after,
         deliverablesAfter: query.deliverables_after,
         historyLimit: readPositiveInt(query.history_limit, 50),
@@ -232,6 +236,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
     writeSse(reply, batch);
     let currentCursor = batch.cursor;
     let currentLiveConsoleHead = batch.surface_cursors?.live_console_head ?? null;
+    let currentBriefsHead = batch.surface_cursors?.briefs_head ?? null;
     let currentHistoryHead = batch.surface_cursors?.history_head ?? null;
     let currentDeliverablesHead = batch.surface_cursors?.deliverables_head ?? null;
     let refreshInFlight = false;
@@ -251,12 +256,14 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
           taskId: request.query.task_id,
           tabScope: request.query.tab_scope ?? 'workflow',
           liveConsoleHeadCursor: currentLiveConsoleHead,
+          briefsHeadCursor: currentBriefsHead,
           historyHeadCursor: currentHistoryHead,
           deliverablesHeadCursor: currentDeliverablesHead,
         })
         .then((nextBatch) => {
           currentCursor = nextBatch.cursor;
           currentLiveConsoleHead = nextBatch.surface_cursors?.live_console_head ?? currentLiveConsoleHead;
+          currentBriefsHead = nextBatch.surface_cursors?.briefs_head ?? currentBriefsHead;
           currentHistoryHead = nextBatch.surface_cursors?.history_head ?? currentHistoryHead;
           currentDeliverablesHead = nextBatch.surface_cursors?.deliverables_head ?? currentDeliverablesHead;
           if (nextBatch.events.length > 0) {

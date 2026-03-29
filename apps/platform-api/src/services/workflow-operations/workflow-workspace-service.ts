@@ -20,6 +20,7 @@ import type {
 } from '../workflow-steering-session-service.js';
 import type {
   WorkflowBottomTabsPacket,
+  WorkflowBriefItem,
   WorkflowHistoryItem,
   WorkflowNeedsActionDetail,
   WorkflowNeedsActionItem,
@@ -36,9 +37,11 @@ interface WorkflowWorkspaceQuery {
   taskId?: string;
   tabScope?: 'workflow' | 'selected_work_item' | 'selected_task';
   liveConsoleLimit?: number;
+  briefsLimit?: number;
   historyLimit?: number;
   deliverablesLimit?: number;
   liveConsoleAfter?: string;
+  briefsAfter?: string;
   historyAfter?: string;
   deliverablesAfter?: string;
 }
@@ -116,6 +119,13 @@ export class WorkflowWorkspaceService {
     >,
     private readonly taskActionSource?: TaskActionSource,
     private readonly gateActionSource?: GateActionSource,
+    private readonly briefsService?: {
+      getBriefs(
+        tenantId: string,
+        workflowId: string,
+        input?: { limit?: number; workItemId?: string; taskId?: string; after?: string },
+      ): Promise<WorkflowWorkspacePacket['briefs']>;
+    },
   ) {}
 
   async getWorkspace(
@@ -136,6 +146,7 @@ export class WorkflowWorkspaceService {
       board,
       workflowCard,
       liveConsole,
+      briefs,
       history,
       deliverables,
       interventions,
@@ -153,6 +164,12 @@ export class WorkflowWorkspaceService {
           taskId: scopedTaskId ?? undefined,
           after: input.liveConsoleAfter,
         }),
+        this.briefsService?.getBriefs(tenantId, workflowId, {
+          limit: input.briefsLimit,
+          workItemId: scopedWorkItemId ?? undefined,
+          taskId: scopedTaskId ?? undefined,
+          after: input.briefsAfter,
+        }) ?? Promise.resolve(null),
         this.historyService.getHistory(tenantId, workflowId, {
           limit: input.historyLimit,
           workItemId: scopedWorkItemId ?? undefined,
@@ -200,6 +217,10 @@ export class WorkflowWorkspaceService {
       selectedScope,
       readBoardWorkItemIds(board as Record<string, unknown>),
     );
+    const effectiveBriefs = filterBriefsForSelectedScope(
+      briefs ?? buildEmptyBriefsPacket(history),
+      selectedScope,
+    );
     const effectiveHistory = filterHistoryForSelectedScope(history, selectedScope);
     const activeSession = sessions[0] ?? null;
     const steeringQuickActions = filterSteeringQuickActions(workflowCard?.availableActions ?? []);
@@ -210,6 +231,7 @@ export class WorkflowWorkspaceService {
       needsActionItems.length,
       activeSession ? 1 : 0,
       readPacketTotalCount(effectiveLiveConsole),
+      readPacketTotalCount(effectiveBriefs),
       readPacketTotalCount(effectiveHistory),
       currentDeliverables.length,
       input,
@@ -258,6 +280,7 @@ export class WorkflowWorkspaceService {
         },
       },
       live_console: effectiveLiveConsole,
+      briefs: effectiveBriefs,
       history: effectiveHistory,
       deliverables: workspaceDeliverables,
       redrive_lineage: readRedriveLineage(workflow),
@@ -534,6 +557,7 @@ function buildBottomTabs(
   needsActionCount: number,
   steeringCount: number,
   liveConsoleCount: number,
+  briefsCount: number,
   historyCount: number,
   deliverablesCount: number,
   input: WorkflowWorkspaceQuery,
@@ -556,6 +580,7 @@ function buildBottomTabs(
       needs_action: needsActionCount,
       steering: steeringCount,
       live_console_activity: liveConsoleCount,
+      briefs: briefsCount,
       history: historyCount,
       deliverables: deliverablesCount,
     },
@@ -604,8 +629,38 @@ function filterHistoryForSelectedScope(
   };
 }
 
+function filterBriefsForSelectedScope(
+  packet: WorkflowWorkspacePacket['briefs'],
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+): WorkflowWorkspacePacket['briefs'] {
+  const filteredItems = packet.items.filter((item) => matchesScopedRecord(item, selectedScope));
+  if (process.env.DEBUG_WORKFLOW_BRIEFS === '1') {
+    console.log('DEBUG_WORKFLOW_BRIEFS', {
+      selectedScope,
+      items: packet.items.map((item) => ({
+        brief_id: item.brief_id,
+        work_item_id: item.work_item_id,
+        task_id: item.task_id,
+        linked_target_ids: item.linked_target_ids,
+        matched: matchesScopedRecord(item, selectedScope),
+      })),
+    });
+  }
+  if (filteredItems.length === packet.items.length) {
+    return packet;
+  }
+  return {
+    ...packet,
+    items: filteredItems,
+    total_count: filteredItems.length,
+  };
+}
+
 function matchesScopedRecord(
-  item: Pick<WorkflowLiveConsoleItem | WorkflowHistoryItem, 'work_item_id' | 'task_id' | 'linked_target_ids'>,
+  item: Pick<
+    WorkflowLiveConsoleItem | WorkflowHistoryItem | WorkflowBriefItem,
+    'work_item_id' | 'task_id' | 'linked_target_ids'
+  >,
   selectedScope: WorkflowWorkspacePacket['selected_scope'],
 ): boolean {
   if (selectedScope.scope_kind === 'workflow') {
@@ -620,11 +675,27 @@ function matchesScopedRecord(
 }
 
 function readPacketTotalCount(
-  packet: Pick<WorkflowWorkspacePacket['live_console'] | WorkflowWorkspacePacket['history'], 'items'> & {
+  packet: Pick<
+    WorkflowWorkspacePacket['live_console'] | WorkflowWorkspacePacket['briefs'] | WorkflowWorkspacePacket['history'],
+    'items'
+  > & {
     total_count?: number;
   },
 ): number {
   return typeof packet.total_count === 'number' ? packet.total_count : packet.items.length;
+}
+
+function buildEmptyBriefsPacket(
+  snapshot: Pick<WorkflowWorkspacePacket['history'], 'generated_at' | 'latest_event_id' | 'snapshot_version'>,
+): WorkflowWorkspacePacket['briefs'] {
+  return {
+    generated_at: snapshot.generated_at,
+    latest_event_id: snapshot.latest_event_id,
+    snapshot_version: snapshot.snapshot_version,
+    items: [],
+    total_count: 0,
+    next_cursor: null,
+  };
 }
 
 function matchesTaskScope(

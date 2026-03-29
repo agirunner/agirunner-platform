@@ -24,6 +24,7 @@ describe('WorkflowOperationsStreamService', () => {
             needs_action: 1,
             steering: 1,
             live_console_activity: 2,
+            briefs: 2,
             history: 3,
             deliverables: 4,
           },
@@ -46,6 +47,14 @@ describe('WorkflowOperationsStreamService', () => {
           items: [{ item_id: 'history-1', created_at: '2026-03-27T22:46:00.000Z' }],
           filters: { available: [], active: [] },
           next_cursor: 'history-cursor',
+        },
+        briefs: {
+          generated_at: '2026-03-27T22:45:00.000Z',
+          latest_event_id: 120,
+          snapshot_version: 'workflow-operations:120',
+          items: [{ brief_id: 'brief-1', created_at: '2026-03-27T22:46:30.000Z' }],
+          total_count: 1,
+          next_cursor: 'briefs-cursor',
         },
         deliverables: {
           final_deliverables: [{ descriptor_id: 'deliverable-1', created_at: '2026-03-27T22:46:00.000Z', updated_at: '2026-03-27T22:47:00.000Z' }],
@@ -71,6 +80,7 @@ describe('WorkflowOperationsStreamService', () => {
     const result = await service.buildWorkspaceBatch('tenant-1', 'workflow-1', {
       afterCursor: 'workflow-operations:119',
       liveConsoleHeadCursor: '2026-03-27T22:46:00.000Z|console-1',
+      briefsHeadCursor: '2026-03-27T22:46:30.000Z|brief-1',
       historyHeadCursor: '2026-03-27T22:46:00.000Z|history-1',
       deliverablesHeadCursor: '2026-03-27T22:47:00.000Z|deliverable-1',
     });
@@ -78,6 +88,7 @@ describe('WorkflowOperationsStreamService', () => {
     expect(result.cursor).toBe('workflow-operations:120');
     expect(result.surface_cursors).toEqual({
       live_console_head: '2026-03-27T22:46:00.000Z|console-1',
+      briefs_head: '2026-03-27T22:46:30.000Z|brief-1',
       history_head: '2026-03-27T22:46:00.000Z|history-1',
       deliverables_head: '2026-03-27T22:47:00.000Z|deliverable-1',
     });
@@ -92,6 +103,13 @@ describe('WorkflowOperationsStreamService', () => {
         payload: {
           items: [],
           next_cursor: 'console-cursor',
+        },
+      }),
+      expect.objectContaining({
+        event_type: 'briefs_append',
+        payload: {
+          items: [],
+          next_cursor: 'briefs-cursor',
         },
       }),
       expect.objectContaining({
@@ -208,6 +226,7 @@ describe('WorkflowOperationsStreamService', () => {
             needs_action: 0,
             steering: 0,
             live_console_activity: 2,
+            briefs: 1,
             history: 1,
             deliverables: 0,
           },
@@ -234,6 +253,17 @@ describe('WorkflowOperationsStreamService', () => {
           filters: { available: [], active: [] },
           next_cursor: 'history-cursor',
         },
+        briefs: {
+          generated_at: '2026-03-27T22:45:00.000Z',
+          latest_event_id: 120,
+          snapshot_version: 'workflow-operations:120',
+          items: [
+            { brief_id: 'brief-2', created_at: '2026-03-27T22:48:00.000Z' },
+            { brief_id: 'brief-1', created_at: '2026-03-27T22:46:30.000Z' },
+          ],
+          total_count: 2,
+          next_cursor: 'briefs-cursor',
+        },
         deliverables: {
           final_deliverables: [],
           in_progress_deliverables: [],
@@ -258,6 +288,7 @@ describe('WorkflowOperationsStreamService', () => {
     const result = await service.buildWorkspaceBatch('tenant-1', 'workflow-1', {
       afterCursor: 'workflow-operations:120',
       liveConsoleHeadCursor: '2026-03-27T22:46:00.000Z|console-1',
+      briefsHeadCursor: '2026-03-27T22:46:30.000Z|brief-1',
       historyHeadCursor: null,
       deliverablesHeadCursor: null,
     });
@@ -268,6 +299,13 @@ describe('WorkflowOperationsStreamService', () => {
         payload: {
           items: [{ item_id: 'console-2', created_at: '2026-03-27T22:47:00.000Z' }],
           next_cursor: 'console-cursor',
+        },
+      }),
+      expect.objectContaining({
+        event_type: 'briefs_append',
+        payload: {
+          items: [{ brief_id: 'brief-2', created_at: '2026-03-27T22:48:00.000Z' }],
+          next_cursor: 'briefs-cursor',
         },
       }),
     ]);

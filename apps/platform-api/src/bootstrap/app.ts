@@ -41,6 +41,7 @@ import { MissionControlLiveService } from '../services/workflow-operations/missi
 import { MissionControlRecentService } from '../services/workflow-operations/mission-control-recent-service.js';
 import { WorkflowDeliverablesService } from '../services/workflow-operations/workflow-deliverables-service.js';
 import { WorkflowHistoryService } from '../services/workflow-operations/workflow-history-service.js';
+import { WorkflowBriefsService } from '../services/workflow-operations/workflow-briefs-service.js';
 import { WorkflowLiveConsoleService } from '../services/workflow-operations/workflow-live-console-service.js';
 import { WorkflowOperationsStreamService } from '../services/workflow-operations/workflow-operations-stream-service.js';
 import { WorkflowRailService } from '../services/workflow-operations/workflow-rail-service.js';
@@ -280,6 +281,10 @@ export async function buildApp() {
     workflowInterventionService,
     workflowInputPacketService,
   );
+  const workflowOperationsBriefsService = new WorkflowBriefsService(
+    workflowOperationsHistoryService,
+    workflowOperatorBriefService,
+  );
   const workflowOperationsLiveConsoleService = new WorkflowLiveConsoleService(
     workflowOperationsHistoryService,
     workflowOperatorBriefService,
@@ -307,6 +312,7 @@ export async function buildApp() {
     workflowSteeringSessionService,
     taskService,
     approvalQueueService,
+    workflowOperationsBriefsService,
   );
   const workflowOperationsStreamService = new WorkflowOperationsStreamService(
     workflowOperationsRailService,

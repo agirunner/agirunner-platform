@@ -139,6 +139,42 @@ export interface WorkflowHistoryPacket extends WorkflowOperationsSnapshot {
   next_cursor: string | null;
 }
 
+export interface WorkflowBriefItem {
+  brief_id: string;
+  workflow_id: string;
+  work_item_id: string | null;
+  task_id: string | null;
+  request_id: string;
+  execution_context_id: string;
+  brief_kind: string;
+  brief_scope: string;
+  source_kind: string;
+  source_label: string;
+  source_role_name: string | null;
+  headline: string;
+  summary: string;
+  llm_turn_count: number | null;
+  status_kind: string;
+  short_brief: Record<string, unknown>;
+  detailed_brief_json: Record<string, unknown>;
+  linked_target_ids: string[];
+  sequence_number: number;
+  related_artifact_ids: string[];
+  related_output_descriptor_ids: string[];
+  related_intervention_ids: string[];
+  canonical_workflow_brief_id: string | null;
+  created_by_type: string;
+  created_by_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkflowBriefsPacket extends WorkflowOperationsSnapshot {
+  items: WorkflowBriefItem[];
+  total_count: number;
+  next_cursor: string | null;
+}
+
 export interface WorkflowDeliverablesPacket {
   final_deliverables: unknown[];
   in_progress_deliverables: unknown[];
@@ -183,7 +219,7 @@ export interface WorkflowStickyStrip {
 }
 
 export interface WorkflowBottomTabsPacket {
-  default_tab: 'details' | 'needs_action' | 'steering' | 'live_console' | 'history' | 'deliverables';
+  default_tab: 'details' | 'needs_action' | 'steering' | 'live_console' | 'briefs' | 'history' | 'deliverables';
   current_scope_kind: 'workflow' | 'selected_work_item' | 'selected_task';
   current_work_item_id: string | null;
   current_task_id: string | null;
@@ -192,6 +228,7 @@ export interface WorkflowBottomTabsPacket {
     needs_action: number;
     steering: number;
     live_console_activity: number;
+    briefs: number;
     history: number;
     deliverables: number;
   };
@@ -211,6 +248,7 @@ export interface WorkflowWorkspacePacket extends WorkflowOperationsSnapshot {
   needs_action: WorkflowNeedsActionPacket;
   steering: WorkflowSteeringPacket;
   live_console: WorkflowLiveConsolePacket;
+  briefs: WorkflowBriefsPacket;
   history: WorkflowHistoryPacket;
   deliverables: WorkflowDeliverablesPacket;
   redrive_lineage: Record<string, unknown> | null;
@@ -228,6 +266,7 @@ export interface WorkflowOperationsStreamBatch extends WorkflowOperationsSnapsho
   cursor: string;
   surface_cursors?: {
     live_console_head: string | null;
+    briefs_head: string | null;
     history_head: string | null;
     deliverables_head: string | null;
   };

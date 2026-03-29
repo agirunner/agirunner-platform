@@ -2,6 +2,17 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { WorkflowWorkspaceService } from '../../src/services/workflow-operations/workflow-workspace-service.js';
 
+const briefsService = {
+  getBriefs: vi.fn(async () => ({
+    snapshot_version: 'workflow-operations:120',
+    generated_at: '2026-03-27T22:45:00.000Z',
+    latest_event_id: 120,
+    items: [],
+    total_count: 0,
+    next_cursor: null,
+  })),
+};
+
 describe('WorkflowWorkspaceService', () => {
   it('composes the workflow workspace packet with spec-aligned sub-packets', async () => {
     const workflowService = {
@@ -70,6 +81,44 @@ describe('WorkflowWorkspaceService', () => {
         },
         next_cursor: null,
         all_deliverables: [{ descriptor_id: 'deliverable-1', title: 'Release Notes' }],
+      })),
+    };
+    const briefsService = {
+      getBriefs: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:120',
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        items: [{
+          brief_id: 'brief-1',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          task_id: null,
+          request_id: 'request-1',
+          execution_context_id: 'execution-1',
+          brief_kind: 'milestone',
+          brief_scope: 'workflow_timeline',
+          source_kind: 'orchestrator',
+          source_label: 'Orchestrator',
+          source_role_name: 'Orchestrator',
+          headline: 'Ready for approval',
+          summary: 'Review required.',
+          llm_turn_count: null,
+          status_kind: 'handoff',
+          short_brief: { headline: 'Ready for approval' },
+          detailed_brief_json: { summary: 'Review required.' },
+          linked_target_ids: ['workflow-1'],
+          sequence_number: 6,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: [],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:44:00.000Z',
+          updated_at: '2026-03-27T22:44:00.000Z',
+        }],
+        total_count: 1,
+        next_cursor: null,
       })),
     };
     const interventionService = {
@@ -141,6 +190,8 @@ describe('WorkflowWorkspaceService', () => {
       interventionService as never,
       steeringSessionService as never,
       taskService as never,
+      undefined,
+      briefsService as never,
     );
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1');
@@ -171,6 +222,7 @@ describe('WorkflowWorkspaceService', () => {
           needs_action: 1,
           steering: 1,
           live_console_activity: 1,
+          briefs: 1,
           history: 1,
           deliverables: 1,
         }),
@@ -214,6 +266,11 @@ describe('WorkflowWorkspaceService', () => {
     expect(result.history).toEqual(
       expect.objectContaining({
         items: [expect.objectContaining({ item_id: 'history-1' })],
+      }),
+    );
+    expect(result.briefs).toEqual(
+      expect.objectContaining({
+        items: [expect.objectContaining({ brief_id: 'brief-1' })],
       }),
     );
     expect(result.deliverables).toEqual(
@@ -294,6 +351,16 @@ describe('WorkflowWorkspaceService', () => {
         all_deliverables: [],
       })),
     };
+    const briefsService = {
+      getBriefs: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:120',
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        items: [{ brief_id: 'brief-1' }, { brief_id: 'brief-2' }],
+        total_count: 17,
+        next_cursor: 'cursor:briefs',
+      })),
+    };
     const interventionService = {
       listWorkflowInterventions: vi.fn(async () => []),
     };
@@ -310,13 +377,18 @@ describe('WorkflowWorkspaceService', () => {
       deliverablesService as never,
       interventionService as never,
       steeringSessionService as never,
+      undefined,
+      undefined,
+      briefsService as never,
     );
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1');
 
     expect(result.live_console.items).toHaveLength(2);
     expect(result.history.items).toHaveLength(1);
+    expect(result.briefs.items).toHaveLength(2);
     expect(result.bottom_tabs.counts.live_console_activity).toBe(44);
+    expect(result.bottom_tabs.counts.briefs).toBe(17);
     expect(result.bottom_tabs.counts.history).toBe(61);
   });
 
@@ -378,6 +450,75 @@ describe('WorkflowWorkspaceService', () => {
         },
         next_cursor: null,
         all_deliverables: [],
+      })),
+    };
+    const briefsService = {
+      getBriefs: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:120',
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        items: [
+          {
+            brief_id: 'brief-work-item',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: null,
+            request_id: 'request-1',
+            execution_context_id: 'execution-1',
+            brief_kind: 'milestone',
+            brief_scope: 'workflow_timeline',
+            source_kind: 'specialist',
+            source_label: 'Verifier',
+            source_role_name: 'Verifier',
+            headline: 'Work-item brief',
+            summary: 'Work-item brief',
+            llm_turn_count: null,
+            status_kind: 'handoff',
+            short_brief: { headline: 'Work-item brief' },
+            detailed_brief_json: { summary: 'Work-item brief' },
+            linked_target_ids: ['workflow-1', 'work-item-1'],
+            sequence_number: 2,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-27T22:45:00.000Z',
+            updated_at: '2026-03-27T22:45:00.000Z',
+          },
+          {
+            brief_id: 'brief-task',
+            workflow_id: 'workflow-1',
+            work_item_id: null,
+            task_id: null,
+            request_id: 'request-2',
+            execution_context_id: 'execution-2',
+            brief_kind: 'milestone',
+            brief_scope: 'workflow_timeline',
+            source_kind: 'orchestrator',
+            source_label: 'Orchestrator',
+            source_role_name: 'Orchestrator',
+            headline: 'Task brief',
+            summary: 'Task brief',
+            llm_turn_count: null,
+            status_kind: 'handoff',
+            short_brief: { headline: 'Task brief' },
+            detailed_brief_json: { summary: 'Task brief' },
+            linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
+            sequence_number: 1,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-27T22:44:00.000Z',
+            updated_at: '2026-03-27T22:44:00.000Z',
+          },
+        ],
+        total_count: 2,
+        next_cursor: null,
       })),
     };
     const interventionService = {
@@ -504,6 +645,75 @@ describe('WorkflowWorkspaceService', () => {
         },
         next_cursor: null,
         all_deliverables: [],
+      })),
+    };
+    const briefsService = {
+      getBriefs: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:120',
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        items: [
+          {
+            brief_id: 'brief-work-item',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: null,
+            request_id: 'request-1',
+            execution_context_id: 'execution-1',
+            brief_kind: 'milestone',
+            brief_scope: 'workflow_timeline',
+            source_kind: 'specialist',
+            source_label: 'Verifier',
+            source_role_name: 'Verifier',
+            headline: 'Work-item brief',
+            summary: 'Work-item brief',
+            llm_turn_count: null,
+            status_kind: 'handoff',
+            short_brief: { headline: 'Work-item brief' },
+            detailed_brief_json: { summary: 'Work-item brief' },
+            linked_target_ids: ['workflow-1', 'work-item-1'],
+            sequence_number: 2,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-27T22:45:00.000Z',
+            updated_at: '2026-03-27T22:45:00.000Z',
+          },
+          {
+            brief_id: 'brief-task',
+            workflow_id: 'workflow-1',
+            work_item_id: null,
+            task_id: null,
+            request_id: 'request-2',
+            execution_context_id: 'execution-2',
+            brief_kind: 'milestone',
+            brief_scope: 'workflow_timeline',
+            source_kind: 'orchestrator',
+            source_label: 'Orchestrator',
+            source_role_name: 'Orchestrator',
+            headline: 'Task brief',
+            summary: 'Task brief',
+            llm_turn_count: null,
+            status_kind: 'handoff',
+            short_brief: { headline: 'Task brief' },
+            detailed_brief_json: { summary: 'Task brief' },
+            linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
+            sequence_number: 1,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-27T22:44:00.000Z',
+            updated_at: '2026-03-27T22:44:00.000Z',
+          },
+        ],
+        total_count: 2,
+        next_cursor: null,
       })),
     };
     const interventionService = {
@@ -638,6 +848,75 @@ describe('WorkflowWorkspaceService', () => {
         },
         next_cursor: null,
         all_deliverables: [],
+      })),
+    };
+    const briefsService = {
+      getBriefs: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:120',
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        items: [
+          {
+            brief_id: 'brief-work-item',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: null,
+            request_id: 'request-1',
+            execution_context_id: 'execution-1',
+            brief_kind: 'milestone',
+            brief_scope: 'workflow_timeline',
+            source_kind: 'specialist',
+            source_label: 'Verifier',
+            source_role_name: 'Verifier',
+            headline: 'Work-item brief',
+            summary: 'Work-item brief',
+            llm_turn_count: null,
+            status_kind: 'handoff',
+            short_brief: { headline: 'Work-item brief' },
+            detailed_brief_json: { summary: 'Work-item brief' },
+            linked_target_ids: ['workflow-1', 'work-item-1'],
+            sequence_number: 2,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-27T22:45:00.000Z',
+            updated_at: '2026-03-27T22:45:00.000Z',
+          },
+          {
+            brief_id: 'brief-task',
+            workflow_id: 'workflow-1',
+            work_item_id: null,
+            task_id: null,
+            request_id: 'request-2',
+            execution_context_id: 'execution-2',
+            brief_kind: 'milestone',
+            brief_scope: 'workflow_timeline',
+            source_kind: 'orchestrator',
+            source_label: 'Orchestrator',
+            source_role_name: 'Orchestrator',
+            headline: 'Task brief',
+            summary: 'Task brief',
+            llm_turn_count: null,
+            status_kind: 'handoff',
+            short_brief: { headline: 'Task brief' },
+            detailed_brief_json: { summary: 'Task brief' },
+            linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
+            sequence_number: 1,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-27T22:44:00.000Z',
+            updated_at: '2026-03-27T22:44:00.000Z',
+          },
+        ],
+        total_count: 2,
+        next_cursor: null,
       })),
     };
     const interventionService = {
@@ -886,6 +1165,75 @@ describe('WorkflowWorkspaceService', () => {
         all_deliverables: [],
       })),
     };
+    const briefsService = {
+      getBriefs: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:120',
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        items: [
+          {
+            brief_id: 'brief-work-item',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: null,
+            request_id: 'request-1',
+            execution_context_id: 'execution-1',
+            brief_kind: 'milestone',
+            brief_scope: 'workflow_timeline',
+            source_kind: 'specialist',
+            source_label: 'Verifier',
+            source_role_name: 'Verifier',
+            headline: 'Work-item brief',
+            summary: 'Work-item brief',
+            llm_turn_count: null,
+            status_kind: 'handoff',
+            short_brief: { headline: 'Work-item brief' },
+            detailed_brief_json: { summary: 'Work-item brief' },
+            linked_target_ids: ['workflow-1', 'work-item-1'],
+            sequence_number: 2,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-27T22:45:00.000Z',
+            updated_at: '2026-03-27T22:45:00.000Z',
+          },
+          {
+            brief_id: 'brief-task',
+            workflow_id: 'workflow-1',
+            work_item_id: null,
+            task_id: null,
+            request_id: 'request-2',
+            execution_context_id: 'execution-2',
+            brief_kind: 'milestone',
+            brief_scope: 'workflow_timeline',
+            source_kind: 'orchestrator',
+            source_label: 'Orchestrator',
+            source_role_name: 'Orchestrator',
+            headline: 'Task brief',
+            summary: 'Task brief',
+            llm_turn_count: null,
+            status_kind: 'handoff',
+            short_brief: { headline: 'Task brief' },
+            detailed_brief_json: { summary: 'Task brief' },
+            linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
+            sequence_number: 1,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-27T22:44:00.000Z',
+            updated_at: '2026-03-27T22:44:00.000Z',
+          },
+        ],
+        total_count: 2,
+        next_cursor: null,
+      })),
+    };
     const interventionService = {
       listWorkflowInterventions: vi.fn(async () => []),
     };
@@ -1028,6 +1376,75 @@ describe('WorkflowWorkspaceService', () => {
         },
         next_cursor: null,
         all_deliverables: [],
+      })),
+    };
+    const briefsService = {
+      getBriefs: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:120',
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        items: [
+          {
+            brief_id: 'brief-work-item',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: null,
+            request_id: 'request-1',
+            execution_context_id: 'execution-1',
+            brief_kind: 'milestone',
+            brief_scope: 'workflow_timeline',
+            source_kind: 'specialist',
+            source_label: 'Verifier',
+            source_role_name: 'Verifier',
+            headline: 'Work-item brief',
+            summary: 'Work-item brief',
+            llm_turn_count: null,
+            status_kind: 'handoff',
+            short_brief: { headline: 'Work-item brief' },
+            detailed_brief_json: { summary: 'Work-item brief' },
+            linked_target_ids: ['workflow-1', 'work-item-1'],
+            sequence_number: 2,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-27T22:45:00.000Z',
+            updated_at: '2026-03-27T22:45:00.000Z',
+          },
+          {
+            brief_id: 'brief-task',
+            workflow_id: 'workflow-1',
+            work_item_id: null,
+            task_id: null,
+            request_id: 'request-2',
+            execution_context_id: 'execution-2',
+            brief_kind: 'milestone',
+            brief_scope: 'workflow_timeline',
+            source_kind: 'orchestrator',
+            source_label: 'Orchestrator',
+            source_role_name: 'Orchestrator',
+            headline: 'Task brief',
+            summary: 'Task brief',
+            llm_turn_count: null,
+            status_kind: 'handoff',
+            short_brief: { headline: 'Task brief' },
+            detailed_brief_json: { summary: 'Task brief' },
+            linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
+            sequence_number: 1,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-27T22:44:00.000Z',
+            updated_at: '2026-03-27T22:44:00.000Z',
+          },
+        ],
+        total_count: 2,
+        next_cursor: null,
       })),
     };
     const interventionService = {
@@ -1184,6 +1601,75 @@ describe('WorkflowWorkspaceService', () => {
         },
         next_cursor: null,
         all_deliverables: [],
+      })),
+    };
+    const briefsService = {
+      getBriefs: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:120',
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        items: [
+          {
+            brief_id: 'brief-work-item',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: null,
+            request_id: 'request-1',
+            execution_context_id: 'execution-1',
+            brief_kind: 'milestone',
+            brief_scope: 'workflow_timeline',
+            source_kind: 'specialist',
+            source_label: 'Verifier',
+            source_role_name: 'Verifier',
+            headline: 'Work-item brief',
+            summary: 'Work-item brief',
+            llm_turn_count: null,
+            status_kind: 'handoff',
+            short_brief: { headline: 'Work-item brief' },
+            detailed_brief_json: { summary: 'Work-item brief' },
+            linked_target_ids: ['workflow-1', 'work-item-1'],
+            sequence_number: 2,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-27T22:45:00.000Z',
+            updated_at: '2026-03-27T22:45:00.000Z',
+          },
+          {
+            brief_id: 'brief-task',
+            workflow_id: 'workflow-1',
+            work_item_id: null,
+            task_id: null,
+            request_id: 'request-2',
+            execution_context_id: 'execution-2',
+            brief_kind: 'milestone',
+            brief_scope: 'workflow_timeline',
+            source_kind: 'orchestrator',
+            source_label: 'Orchestrator',
+            source_role_name: 'Orchestrator',
+            headline: 'Task brief',
+            summary: 'Task brief',
+            llm_turn_count: null,
+            status_kind: 'handoff',
+            short_brief: { headline: 'Task brief' },
+            detailed_brief_json: { summary: 'Task brief' },
+            linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
+            sequence_number: 1,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-27T22:44:00.000Z',
+            updated_at: '2026-03-27T22:44:00.000Z',
+          },
+        ],
+        total_count: 2,
+        next_cursor: null,
       })),
     };
     const interventionService = {
@@ -1352,6 +1838,9 @@ describe('WorkflowWorkspaceService', () => {
       deliverablesService as never,
       interventionService as never,
       steeringSessionService as never,
+      undefined,
+      undefined,
+      briefsService as never,
     );
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1');
@@ -1458,6 +1947,9 @@ describe('WorkflowWorkspaceService', () => {
       deliverablesService as never,
       interventionService as never,
       steeringSessionService as never,
+      undefined,
+      undefined,
+      briefsService as never,
     );
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1');
@@ -1564,6 +2056,9 @@ describe('WorkflowWorkspaceService', () => {
       deliverablesService as never,
       interventionService as never,
       steeringSessionService as never,
+      undefined,
+      undefined,
+      briefsService as never,
     );
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1');
@@ -1666,6 +2161,9 @@ describe('WorkflowWorkspaceService', () => {
       deliverablesService as never,
       interventionService as never,
       steeringSessionService as never,
+      undefined,
+      undefined,
+      briefsService as never,
     );
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1');
@@ -1798,6 +2296,9 @@ describe('WorkflowWorkspaceService', () => {
       deliverablesService as never,
       interventionService as never,
       steeringSessionService as never,
+      undefined,
+      undefined,
+      briefsService as never,
     );
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1');
@@ -1963,6 +2464,9 @@ describe('WorkflowWorkspaceService', () => {
       deliverablesService as never,
       interventionService as never,
       steeringSessionService as never,
+      undefined,
+      undefined,
+      briefsService as never,
     );
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1', {
@@ -2119,6 +2623,73 @@ describe('WorkflowWorkspaceService', () => {
       listSessions: vi.fn(async () => []),
       listMessages: vi.fn(async () => []),
     };
+    briefsService.getBriefs = vi.fn(async () => ({
+      snapshot_version: 'workflow-operations:120',
+      generated_at: '2026-03-27T22:45:00.000Z',
+      latest_event_id: 120,
+      items: [
+        {
+          brief_id: 'brief-work-item',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: null,
+          request_id: 'request-1',
+          execution_context_id: 'execution-1',
+          brief_kind: 'milestone',
+          brief_scope: 'workflow_timeline',
+          source_kind: 'specialist',
+          source_label: 'Verifier',
+          source_role_name: 'Verifier',
+          headline: 'Work-item brief',
+          summary: 'Work-item brief',
+          llm_turn_count: null,
+          status_kind: 'handoff',
+          short_brief: { headline: 'Work-item brief' },
+          detailed_brief_json: { summary: 'Work-item brief' },
+          linked_target_ids: ['workflow-1', 'work-item-1'],
+          sequence_number: 2,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: [],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:45:00.000Z',
+          updated_at: '2026-03-27T22:45:00.000Z',
+        },
+        {
+          brief_id: 'brief-task',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          task_id: null,
+          request_id: 'request-2',
+          execution_context_id: 'execution-2',
+          brief_kind: 'milestone',
+          brief_scope: 'workflow_timeline',
+          source_kind: 'orchestrator',
+          source_label: 'Orchestrator',
+          source_role_name: 'Orchestrator',
+          headline: 'Task brief',
+          summary: 'Task brief',
+          llm_turn_count: null,
+          status_kind: 'handoff',
+          short_brief: { headline: 'Task brief' },
+          detailed_brief_json: { summary: 'Task brief' },
+          linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
+          sequence_number: 1,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: [],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:44:00.000Z',
+          updated_at: '2026-03-27T22:44:00.000Z',
+        },
+      ],
+      total_count: 2,
+      next_cursor: null,
+    }));
 
     const service = new WorkflowWorkspaceService(
       workflowService as never,
@@ -2128,6 +2699,9 @@ describe('WorkflowWorkspaceService', () => {
       deliverablesService as never,
       interventionService as never,
       steeringSessionService as never,
+      undefined,
+      undefined,
+      briefsService as never,
     );
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1', {
@@ -2260,6 +2834,73 @@ describe('WorkflowWorkspaceService', () => {
       listSessions: vi.fn(async () => []),
       listMessages: vi.fn(async () => []),
     };
+    briefsService.getBriefs = vi.fn(async () => ({
+      snapshot_version: 'workflow-operations:120',
+      generated_at: '2026-03-27T22:45:00.000Z',
+      latest_event_id: 120,
+      items: [
+        {
+          brief_id: 'brief-work-item',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: null,
+          request_id: 'request-1',
+          execution_context_id: 'execution-1',
+          brief_kind: 'milestone',
+          brief_scope: 'workflow_timeline',
+          source_kind: 'specialist',
+          source_label: 'Verifier',
+          source_role_name: 'Verifier',
+          headline: 'Work-item brief',
+          summary: 'Work-item brief',
+          llm_turn_count: null,
+          status_kind: 'handoff',
+          short_brief: { headline: 'Work-item brief' },
+          detailed_brief_json: { summary: 'Work-item brief' },
+          linked_target_ids: ['workflow-1', 'work-item-1'],
+          sequence_number: 2,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: [],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:45:00.000Z',
+          updated_at: '2026-03-27T22:45:00.000Z',
+        },
+        {
+          brief_id: 'brief-task',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          task_id: null,
+          request_id: 'request-2',
+          execution_context_id: 'execution-2',
+          brief_kind: 'milestone',
+          brief_scope: 'workflow_timeline',
+          source_kind: 'orchestrator',
+          source_label: 'Orchestrator',
+          source_role_name: 'Orchestrator',
+          headline: 'Task brief',
+          summary: 'Task brief',
+          llm_turn_count: null,
+          status_kind: 'handoff',
+          short_brief: { headline: 'Task brief' },
+          detailed_brief_json: { summary: 'Task brief' },
+          linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
+          sequence_number: 1,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: [],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:44:00.000Z',
+          updated_at: '2026-03-27T22:44:00.000Z',
+        },
+      ],
+      total_count: 2,
+      next_cursor: null,
+    }));
 
     const service = new WorkflowWorkspaceService(
       workflowService as never,
@@ -2269,6 +2910,9 @@ describe('WorkflowWorkspaceService', () => {
       deliverablesService as never,
       interventionService as never,
       steeringSessionService as never,
+      undefined,
+      undefined,
+      briefsService as never,
     );
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1', {
@@ -3246,6 +3890,75 @@ describe('WorkflowWorkspaceService', () => {
         all_deliverables: [],
       })),
     };
+    const taskBriefsService = {
+      getBriefs: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:120',
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        items: [
+          {
+            brief_id: 'brief-work-item',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: null,
+            request_id: 'request-1',
+            execution_context_id: 'execution-1',
+            brief_kind: 'milestone',
+            brief_scope: 'workflow_timeline',
+            source_kind: 'specialist',
+            source_label: 'Verifier',
+            source_role_name: 'Verifier',
+            headline: 'Work-item brief',
+            summary: 'Work-item brief',
+            llm_turn_count: null,
+            status_kind: 'handoff',
+            short_brief: { headline: 'Work-item brief' },
+            detailed_brief_json: { summary: 'Work-item brief' },
+            linked_target_ids: ['workflow-1', 'work-item-1'],
+            sequence_number: 2,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-27T22:45:00.000Z',
+            updated_at: '2026-03-27T22:45:00.000Z',
+          },
+          {
+            brief_id: 'brief-task',
+            workflow_id: 'workflow-1',
+            work_item_id: null,
+            task_id: null,
+            request_id: 'request-2',
+            execution_context_id: 'execution-2',
+            brief_kind: 'milestone',
+            brief_scope: 'workflow_timeline',
+            source_kind: 'orchestrator',
+            source_label: 'Orchestrator',
+            source_role_name: 'Orchestrator',
+            headline: 'Task brief',
+            summary: 'Task brief',
+            llm_turn_count: null,
+            status_kind: 'handoff',
+            short_brief: { headline: 'Task brief' },
+            detailed_brief_json: { summary: 'Task brief' },
+            linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
+            sequence_number: 1,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-27T22:44:00.000Z',
+            updated_at: '2026-03-27T22:44:00.000Z',
+          },
+        ],
+        total_count: 2,
+        next_cursor: null,
+      })),
+    };
     const interventionService = {
       listWorkflowInterventions: vi.fn(async () => []),
     };
@@ -3262,6 +3975,9 @@ describe('WorkflowWorkspaceService', () => {
       deliverablesService as never,
       interventionService as never,
       steeringSessionService as never,
+      undefined,
+      undefined,
+      taskBriefsService as never,
     );
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1', {
@@ -3271,6 +3987,7 @@ describe('WorkflowWorkspaceService', () => {
     });
 
     expect(result.live_console.items.map((item) => item.item_id)).toEqual(['task-linked']);
+    expect(result.briefs.items.map((item) => item.brief_id)).toEqual(['brief-task']);
     expect(result.history.items.map((item) => item.item_id)).toEqual(['history-task']);
     expect(result.history.groups).toEqual([
       expect.objectContaining({
@@ -3278,6 +3995,7 @@ describe('WorkflowWorkspaceService', () => {
       }),
     ]);
     expect(result.bottom_tabs.counts.live_console_activity).toBe(1);
+    expect(result.bottom_tabs.counts.briefs).toBe(1);
     expect(result.bottom_tabs.counts.history).toBe(1);
   });
 });

@@ -74,7 +74,7 @@ describe('workflow operations routes v2', () => {
     });
     const workspaceResponse = await app.inject({
       method: 'GET',
-      url: '/api/v1/operations/workflows/workflow-1/workspace?work_item_id=work-item-1&tab_scope=selected_work_item&live_console_after=console-cursor&history_after=history-cursor&deliverables_after=deliverables-cursor&live_console_limit=20&history_limit=30&deliverables_limit=8',
+      url: '/api/v1/operations/workflows/workflow-1/workspace?work_item_id=work-item-1&tab_scope=selected_work_item&live_console_after=console-cursor&briefs_after=briefs-cursor&history_after=history-cursor&deliverables_after=deliverables-cursor&live_console_limit=20&briefs_limit=15&history_limit=30&deliverables_limit=8',
       headers,
     });
     const railStreamResponse = await app.inject({
@@ -106,11 +106,14 @@ describe('workflow operations routes v2', () => {
       boardMode: undefined,
       boardFilters: undefined,
       workItemId: 'work-item-1',
+      taskId: undefined,
       tabScope: 'selected_work_item',
       liveConsoleAfter: 'console-cursor',
+      briefsAfter: 'briefs-cursor',
       historyAfter: 'history-cursor',
       deliverablesAfter: 'deliverables-cursor',
       liveConsoleLimit: 20,
+      briefsLimit: 15,
       historyLimit: 30,
       deliverablesLimit: 8,
     });

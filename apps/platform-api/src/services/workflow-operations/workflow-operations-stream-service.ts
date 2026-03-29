@@ -19,6 +19,7 @@ interface WorkspaceBatchQuery {
   taskId?: string;
   tabScope?: 'workflow' | 'selected_work_item' | 'selected_task';
   liveConsoleHeadCursor?: string | null;
+  briefsHeadCursor?: string | null;
   historyHeadCursor?: string | null;
   deliverablesHeadCursor?: string | null;
 }
@@ -69,6 +70,10 @@ export class WorkflowOperationsStreamService {
         live_console_head: readFirstItemCursor(workspace.live_console.items, (item) => ({
           timestamp: item.created_at,
           id: item.item_id,
+        })),
+        briefs_head: readFirstItemCursor(readBriefItems(workspace), (item) => ({
+          timestamp: item.created_at,
+          id: item.brief_id,
         })),
         history_head: readFirstItemCursor(workspace.history.items, (item) => ({
           timestamp: item.created_at,
@@ -127,6 +132,13 @@ function buildWorkspaceEvents(
         (item) => ({ timestamp: item.created_at, id: item.item_id }),
       )
     : workspace.history.items;
+  const briefItems = afterCursor
+    ? filterItemsNewerThanCursor(
+        readBriefItems(workspace),
+        query.briefsHeadCursor,
+        (item) => ({ timestamp: item.created_at, id: item.brief_id }),
+      )
+    : readBriefItems(workspace);
   const deliverables = afterCursor
     ? filterItemsNewerThanCursor(
         readOrderedDeliverables(workspace),
@@ -157,6 +169,14 @@ function buildWorkspaceEvents(
         }),
       );
     }
+    if (briefItems.length > 0) {
+      events.push(
+        eventEnvelope('briefs_append', workspace.snapshot_version, workspace.workflow_id, {
+          items: briefItems,
+          next_cursor: readBriefsPacket(workspace).next_cursor,
+        }),
+      );
+    }
     for (const deliverable of deliverables) {
       events.push(
         eventEnvelope('deliverable_upsert', workspace.snapshot_version, workspace.workflow_id, deliverable),
@@ -179,6 +199,10 @@ function buildWorkspaceEvents(
     eventEnvelope('live_console_append', workspace.snapshot_version, workspace.workflow_id, {
       items: liveConsoleItems,
       next_cursor: workspace.live_console.next_cursor,
+    }),
+    eventEnvelope('briefs_append', workspace.snapshot_version, workspace.workflow_id, {
+      items: briefItems,
+      next_cursor: readBriefsPacket(workspace).next_cursor,
     }),
     eventEnvelope('history_append', workspace.snapshot_version, workspace.workflow_id, {
       items: historyItems,
@@ -229,6 +253,27 @@ function readOrderedDeliverables(
         id: String(right.descriptor_id ?? ''),
       },
     ));
+}
+
+function readBriefItems(
+  workspace: Awaited<ReturnType<WorkflowWorkspaceService['getWorkspace']>>,
+): Array<{ brief_id: string; created_at: string }> {
+  return readBriefsPacket(workspace).items;
+}
+
+function readBriefsPacket(
+  workspace: Awaited<ReturnType<WorkflowWorkspaceService['getWorkspace']>>,
+): {
+  items: Array<{ brief_id: string; created_at: string }>;
+  next_cursor: string | null;
+} {
+  const fallback = {
+    items: [],
+    next_cursor: null,
+  };
+  return workspace && typeof workspace === 'object' && 'briefs' in workspace && workspace.briefs
+    ? workspace.briefs
+    : fallback;
 }
 
 function requiresReset(afterCursor: string | undefined, latestEventId: number | null): boolean {
