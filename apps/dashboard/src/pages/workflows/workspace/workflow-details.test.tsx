@@ -125,6 +125,7 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Blocked');
     expect(html).toContain('Archive release notes');
     expect(html).toContain('Completed');
+    expect(html.match(/1 blocked task/g)?.length ?? 0).toBe(1);
     expect(html).not.toContain('Reviewer');
     expect(html).not.toContain('Release Manager');
     expect(html).not.toContain('Approve release packet');
@@ -136,6 +137,32 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Basics');
     expect(html).not.toContain('Inputs');
     expect(html).not.toContain('Related tasks');
+  });
+
+  it('bounds long work-item task lists inside a themed internal scroll area', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: createWorkItem(),
+        selectedTask: null,
+        selectedWorkItemTasks: Array.from({ length: 6 }, (_, index) => ({
+          id: `task-${index + 1}`,
+          title: `Task ${index + 1}`,
+          state: index === 0 ? 'in_progress' : 'ready',
+        })),
+        inputPackets: createPackets(),
+        workflowParameters: null,
+        scope: createScope('selected_work_item', 'Prepare release bundle'),
+      }),
+    );
+
+    expect(html).toContain('max-h-[16rem] overflow-y-auto overscroll-contain rounded-md border border-border/60 bg-muted/5 p-1.5');
   });
 
   it('keeps workflow scope minimal and limited to workflow-level status, inputs, and uploaded files', () => {

@@ -75,14 +75,9 @@ export function WorkflowDetails(props: {
 
       {isWorkItemScope && hasTaskDetails ? (
         <div className="grid gap-2 border-t border-border/60 pt-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-              Tasks
-            </p>
-            <p className="text-sm text-muted-foreground">
-              {buildTaskHeadline(props.selectedWorkItemTasks) ?? `${compactTaskRows.length} ${pluralize('task', compactTaskRows.length)}`}
-            </p>
-          </div>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Tasks
+          </p>
           <CompactTaskList tasks={compactTaskRows} />
         </div>
       ) : null}
@@ -192,20 +187,30 @@ function CompactTaskList(props: {
     return <></>;
   }
 
+  const shouldBoundHeight = props.tasks.length > 4;
+
   return (
-    <ul className="grid divide-y divide-border/60">
-      {props.tasks.map((task) => (
-        <li
-          key={task.id}
-          className="flex items-start justify-between gap-3 py-2 first:pt-0 last:pb-0"
-        >
-          <div className="min-w-0">
-            <p className="truncate text-sm text-foreground">{task.title}</p>
-          </div>
-          <span className="shrink-0 text-xs text-muted-foreground">{task.state}</span>
-        </li>
-      ))}
-    </ul>
+    <div
+      className={
+        shouldBoundHeight
+          ? 'max-h-[16rem] overflow-y-auto overscroll-contain rounded-md border border-border/60 bg-muted/5 p-1.5'
+          : undefined
+      }
+    >
+      <ul className="grid divide-y divide-border/60">
+        {props.tasks.map((task) => (
+          <li
+            key={task.id}
+            className="flex items-start justify-between gap-3 py-2 first:pt-0 last:pb-0"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm text-foreground">{task.title}</p>
+            </div>
+            <span className="shrink-0 text-xs text-muted-foreground">{task.state}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

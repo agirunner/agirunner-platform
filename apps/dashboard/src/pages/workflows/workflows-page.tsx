@@ -107,6 +107,10 @@ export function WorkflowsPage(): JSX.Element {
     writeStoredWorkflowWorkbenchFraction(workbenchFraction);
   }, [workbenchFraction]);
 
+  const handleSelectWorkItem = (workItemId: string) => {
+    patchPageState(navigate, pageState, { workItemId, tab: 'details' });
+  };
+
   const handleClearWorkItemScope = () => {
     patchPageState(navigate, pageState, { workItemId: null });
   };
@@ -429,9 +433,7 @@ export function WorkflowsPage(): JSX.Element {
                   onBoardModeChange={(boardMode) =>
                     patchPageState(navigate, pageState, { boardMode })
                   }
-                  onSelectWorkItem={(workItemId) =>
-                    patchPageState(navigate, pageState, { workItemId })
-                  }
+                  onSelectWorkItem={handleSelectWorkItem}
                 />
               </section>
               <div className="relative hidden lg:flex items-center justify-center">

@@ -86,13 +86,13 @@ describe('WorkflowBoard', () => {
     expect(html.indexOf('Completed packet 4')).toBeGreaterThan(html.indexOf('Recent completions'));
     expect(html).toContain('2 older hidden');
     expect(html).not.toContain(
-      '<details class="rounded-2xl border border-border/70 bg-background/70 p-3" open="">',
+      '<details class="rounded-lg border border-border/70 bg-background/70 p-3" open="">',
     );
     expect(html).not.toContain('>3 tasks<');
     expect(html).not.toContain('flex min-h-[8rem] items-center justify-center text-center');
   });
 
-  it('keeps the newest done item pinned while older done items move into the recent completions bucket in all mode', () => {
+  it('keeps the two newest done items pinned while older done items move into the recent completions bucket in all mode', () => {
     const html = renderToStaticMarkup(
       createElement(
         QueryClientProvider,
@@ -110,10 +110,13 @@ describe('WorkflowBoard', () => {
 
     expect(html).toContain('Recent completions');
     expect(html.indexOf('Completed packet 1')).toBeLessThan(html.indexOf('Recent completions'));
-    expect(html.indexOf('Completed packet 2')).toBeGreaterThan(html.indexOf('Recent completions'));
+    expect(html.indexOf('Completed packet 2')).toBeLessThan(html.indexOf('Recent completions'));
     expect(html.indexOf('Completed packet 3')).toBeGreaterThan(html.indexOf('Recent completions'));
     expect(html.indexOf('Completed packet 4')).toBeGreaterThan(html.indexOf('Recent completions'));
-    expect(html).toContain('3 older hidden');
+    expect(html).toContain('2 older hidden');
+    expect(html).not.toContain(
+      '<details class="rounded-lg border border-border/70 bg-background/70 p-3" open="">',
+    );
   });
 
   it('renders empty-lane copy inline instead of as a centered pseudo-card', () => {

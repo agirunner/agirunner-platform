@@ -90,9 +90,12 @@ describe('workflows page source', () => {
     expect(source).not.toContain("onSelectTask={(workItemId) =>");
     expect(source).not.toContain('taskId: pageState.taskId');
     expect(source).not.toContain('onClearTaskScope={() => undefined}');
+    expect(source).toContain('const handleSelectWorkItem = (workItemId: string) => {');
+    expect(source).toContain("patchPageState(navigate, pageState, { workItemId, tab: 'details' })");
     expect(source).toContain("const handleClearWorkItemScope = () => {");
     expect(source).toContain('onClearWorkItemScope={handleClearWorkItemScope}');
     expect(source).toContain('patchPageState(navigate, pageState, { workItemId: null })');
+    expect(source).toContain('onSelectWorkItem={handleSelectWorkItem}');
     expect(source).not.toContain("label=\"Tasks\"");
   });
 

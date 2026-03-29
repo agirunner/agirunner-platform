@@ -211,9 +211,7 @@ function BoardLaneCard(props: {
   const pinnedCompletedItems = props.lane.visibleCompletedItems.slice(0, pinnedCompletedCount);
   const overflowCompletedItems = props.lane.visibleCompletedItems.slice(pinnedCompletedCount);
   const collapsedCompletedCount = overflowCompletedItems.length + props.lane.hiddenCompletedCount;
-  const showCompletedSection =
-    props.boardMode !== 'active' &&
-    (collapsedCompletedCount > 0 || props.boardMode === 'all');
+  const showCompletedSection = props.boardMode !== 'active' && collapsedCompletedCount > 0;
 
   return (
     <article className="grid min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5">
@@ -256,7 +254,6 @@ function BoardLaneCard(props: {
       {showCompletedSection ? (
         <details
           className="rounded-lg border border-border/70 bg-background/70 p-3"
-          open={props.boardMode === 'all'}
         >
           <summary className="cursor-pointer text-sm font-medium text-foreground">
             {props.lane.column.is_terminal ? 'Recent completions' : 'Completed work'}
@@ -405,9 +402,6 @@ function readPinnedCompletedCount(
 ): number {
   if (!isTerminalLane || boardMode === 'active') {
     return 0;
-  }
-  if (boardMode === 'all') {
-    return 1;
   }
   return 2;
 }
