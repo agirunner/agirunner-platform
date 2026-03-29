@@ -14,6 +14,42 @@ const IN_PLACE_TARGET_PATH_PATTERNS = [
 ];
 const DEPRECATED_NAVIGATION_PARAM_NAMES = ['return_to', 'return_source'];
 
+export function sanitizeDeliverableTarget(
+  target: Partial<DashboardWorkflowDeliverableTarget> | null | undefined,
+): DashboardWorkflowDeliverableTarget {
+  return {
+    target_kind: readTargetText(target?.target_kind),
+    label: readTargetText(target?.label),
+    url: readTargetText(target?.url),
+    path: readOptionalTargetText(target?.path),
+    repo_ref: readOptionalTargetText(target?.repo_ref),
+    artifact_id: readOptionalTargetText(target?.artifact_id),
+  };
+}
+
+export function sanitizeDeliverableTargets(value: unknown): DashboardWorkflowDeliverableTarget[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry) =>
+      sanitizeDeliverableTarget(
+        entry && typeof entry === 'object'
+          ? entry as Partial<DashboardWorkflowDeliverableTarget>
+          : null,
+      ))
+    .filter(hasMeaningfulDeliverableTarget);
+}
+
+export function hasMeaningfulDeliverableTarget(target: DashboardWorkflowDeliverableTarget): boolean {
+  return target.target_kind.length > 0
+    || target.label.length > 0
+    || target.url.length > 0
+    || Boolean(target.path)
+    || Boolean(target.repo_ref)
+    || Boolean(target.artifact_id);
+}
+
 export function resolveDeliverableTargetAction(
   target: DashboardWorkflowDeliverableTarget,
 ): DeliverableTargetAction {
@@ -90,4 +126,16 @@ function serializeTargetUrl(parsed: URL): string {
   return parsed.origin === DASHBOARD_ORIGIN
     ? `${parsed.pathname}${parsed.search}${parsed.hash}`
     : parsed.toString();
+}
+
+function readTargetText(value: unknown): string {
+  return typeof value === 'string' ? value : '';
+}
+
+function readOptionalTargetText(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }

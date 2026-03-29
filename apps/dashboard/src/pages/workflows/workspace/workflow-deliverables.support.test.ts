@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  hasMeaningfulDeliverableTarget,
   isInPlaceArtifactPreviewTarget,
   resolveDeliverableTargetAction,
+  sanitizeDeliverableTarget,
 } from './workflow-deliverables.support.js';
 
 describe('workflow deliverables support', () => {
@@ -60,5 +62,23 @@ describe('workflow deliverables support', () => {
       ),
     ).toBe(true);
     expect(isInPlaceArtifactPreviewTarget('https://example.invalid/repo/pull/42')).toBe(false);
+  });
+
+  it('normalizes malformed targets instead of throwing when target fields are missing', () => {
+    const normalized = sanitizeDeliverableTarget({} as never);
+
+    expect(normalized).toEqual({
+      target_kind: '',
+      label: '',
+      url: '',
+      path: null,
+      repo_ref: null,
+      artifact_id: null,
+    });
+    expect(hasMeaningfulDeliverableTarget(normalized)).toBe(false);
+    expect(resolveDeliverableTargetAction(normalized)).toEqual({
+      action_kind: 'external_link',
+      href: '',
+    });
   });
 });

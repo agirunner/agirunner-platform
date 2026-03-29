@@ -253,6 +253,61 @@ describe('WorkflowDeliverables', () => {
     expect(html).not.toContain('Preview inline');
   });
 
+  it('renders malformed deliverable targets without crashing the tab', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: {
+          final_deliverables: [
+            {
+              descriptor_id: 'deliverable-malformed',
+              workflow_id: 'workflow-1',
+              work_item_id: null,
+              descriptor_kind: 'artifact',
+              delivery_stage: 'final',
+              title: 'Workflow summary packet',
+              state: 'final',
+              summary_brief: 'A malformed target should not take down the tab.',
+              preview_capabilities: {},
+              primary_target: {} as never,
+              secondary_targets: [{} as never],
+              content_preview: {
+                summary: 'The summary still renders even when target payloads are malformed.',
+              },
+              source_brief_id: null,
+              created_at: '2026-03-28T20:20:00.000Z',
+              updated_at: '2026-03-28T20:20:00.000Z',
+            },
+          ],
+          in_progress_deliverables: [],
+          working_handoffs: [],
+          inputs_and_provenance: {
+            launch_packet: null,
+            supplemental_packets: [],
+            intervention_attachments: [],
+            redrive_packet: null,
+          },
+          next_cursor: null,
+        },
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        selectedTask: null,
+        selectedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        onLoadMore: () => undefined,
+      }),
+    );
+
+    expect(html).toContain('Workflow summary packet');
+    expect(html).toContain('The summary still renders even when target payloads are malformed.');
+    expect(html).not.toContain('Preview inline');
+    expect(html).not.toContain('Open artifact in new tab');
+  });
+
   it('keeps work-item scope on brief-backed outputs when no materialized deliverables exist for the selected work item', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {

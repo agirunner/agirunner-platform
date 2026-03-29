@@ -1,6 +1,7 @@
 import { Badge } from '../../../components/ui/badge.js';
 import type {
   DashboardTaskRecord,
+  DashboardWorkflowDeliverableTarget,
   DashboardWorkflowDeliverableRecord,
   DashboardWorkflowDeliverablesPacket,
   DashboardWorkflowInputPacketFileRecord,
@@ -11,6 +12,11 @@ import type {
 import type { WorkflowWorkbenchScopeDescriptor } from '../workflows-page.support.js';
 import { WorkflowDeliverableTargetLink } from './workflow-deliverable-target-link.js';
 import { WorkflowBriefRenderer } from './workflow-brief-renderer.js';
+import {
+  hasMeaningfulDeliverableTarget,
+  sanitizeDeliverableTarget,
+  sanitizeDeliverableTargets,
+} from './workflow-deliverables.support.js';
 
 export function WorkflowDeliverables(props: {
   packet: DashboardWorkflowDeliverablesPacket;
@@ -377,6 +383,11 @@ function DeliverableCard(props: {
   prominent?: boolean;
 }): JSX.Element {
   const previewText = readPreviewText(props.deliverable);
+  const primaryTarget = sanitizeDeliverableTarget(props.deliverable.primary_target);
+  const secondaryTargets = sanitizeDeliverableTargets(props.deliverable.secondary_targets);
+  const shouldRenderPrimaryTarget =
+    hasMeaningfulDeliverableTarget(primaryTarget)
+    && primaryTarget.target_kind !== 'inline_summary';
 
   return (
     <article
@@ -399,15 +410,15 @@ function DeliverableCard(props: {
           {previewText}
         </pre>
       ) : null}
-      {shouldRenderTargets(props.deliverable) ? (
+      {shouldRenderTargets(primaryTarget, secondaryTargets) ? (
         <div className="grid gap-2">
-          {props.deliverable.primary_target.target_kind !== 'inline_summary' ? (
+          {shouldRenderPrimaryTarget ? (
             <WorkflowDeliverableTargetLink
-              target={props.deliverable.primary_target}
+              target={primaryTarget}
               primary
             />
           ) : null}
-          {props.deliverable.secondary_targets.map((target, index) => (
+          {secondaryTargets.map((target, index) => (
             <WorkflowDeliverableTargetLink
               key={`${props.deliverable.descriptor_id}:secondary:${index}`}
               target={target}
@@ -623,11 +634,14 @@ function readPreviewText(deliverable: DashboardWorkflowDeliverableRecord): strin
   );
 }
 
-function shouldRenderTargets(deliverable: DashboardWorkflowDeliverableRecord): boolean {
-  if (deliverable.primary_target.target_kind !== 'inline_summary') {
+function shouldRenderTargets(
+  primaryTarget: DashboardWorkflowDeliverableTarget,
+  secondaryTargets: DashboardWorkflowDeliverableTarget[],
+): boolean {
+  if (hasMeaningfulDeliverableTarget(primaryTarget) && primaryTarget.target_kind !== 'inline_summary') {
     return true;
   }
-  return deliverable.secondary_targets.length > 0;
+  return secondaryTargets.length > 0;
 }
 
 function buildTaskEvidence(task: DashboardTaskRecord | null): unknown {

@@ -9,19 +9,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../../../components/ui/dialog.js';
-import { resolveDeliverableTargetAction } from './workflow-deliverables.support.js';
+import {
+  resolveDeliverableTargetAction,
+  sanitizeDeliverableTarget,
+} from './workflow-deliverables.support.js';
 
 export function WorkflowDeliverableTargetLink(props: {
   target: DashboardWorkflowDeliverableTarget;
   primary?: boolean;
 }): JSX.Element {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const action = resolveDeliverableTargetAction(props.target);
+  const target = sanitizeDeliverableTarget(props.target);
+  const action = resolveDeliverableTargetAction(target);
   const targetLabel = props.primary
-    ? props.target.label
-    : `${props.target.label} (${humanizeToken(props.target.target_kind)})`;
-  const renderInlineReference = shouldRenderInlineReference(props.target);
-  const openInNewTabLabel = buildOpenInNewTabLabel(props.target.target_kind);
+    ? readTargetLabel(target)
+    : buildSecondaryTargetLabel(target);
+  const renderInlineReference = shouldRenderInlineReference(target);
+  const openInNewTabLabel = buildOpenInNewTabLabel(target.target_kind);
 
   return (
     <div className="grid gap-2">
@@ -60,8 +64,8 @@ export function WorkflowDeliverableTargetLink(props: {
           </a>
         </div>
       )}
-      {props.target.path || props.target.repo_ref ? (
-        <p className="text-xs text-muted-foreground">{props.target.path ?? props.target.repo_ref}</p>
+      {target.path || target.repo_ref ? (
+        <p className="text-xs text-muted-foreground">{target.path ?? target.repo_ref}</p>
       ) : null}
       <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
         <DialogContent className="max-h-[88vh] max-w-6xl overflow-hidden p-0">
@@ -89,7 +93,21 @@ function humanizeToken(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
+function readTargetLabel(target: DashboardWorkflowDeliverableTarget): string {
+  return target.label.length > 0 ? target.label : 'Linked output';
+}
+
+function buildSecondaryTargetLabel(target: DashboardWorkflowDeliverableTarget): string {
+  const label = readTargetLabel(target);
+  return target.target_kind.length > 0
+    ? `${label} (${humanizeToken(target.target_kind)})`
+    : label;
+}
+
 function buildOpenInNewTabLabel(targetKind: DashboardWorkflowDeliverableTarget['target_kind']): string {
+  if (targetKind.length === 0) {
+    return 'Open target in new tab';
+  }
   if (targetKind === 'artifact') {
     return 'Open artifact in new tab';
   }
