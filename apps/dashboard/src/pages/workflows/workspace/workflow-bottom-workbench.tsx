@@ -63,6 +63,16 @@ export function WorkflowBottomWorkbench(props: {
       : props.selectedTask?.work_item_id === currentWorkItemId
         ? props.selectedTask.work_item_title ?? props.selectedWorkItemTitle
         : props.selectedWorkItemTitle;
+  const currentWorkItem =
+    props.selectedWorkItem?.id === currentWorkItemId
+      ? props.selectedWorkItem
+      : props.board?.work_items.find((workItem) => workItem.id === currentWorkItemId) ?? null;
+  const currentTask =
+    props.selectedTask?.id === currentTaskId
+      ? props.selectedTask
+      : (props.selectedWorkItemTasks as unknown as DashboardTaskRecord[]).find(
+          (task) => task.id === currentTaskId,
+        ) ?? null;
   const resolvedScope = resolveWorkbenchScope({
     ...props,
     selectedWorkItemTitle: currentWorkItemTitle,
@@ -167,7 +177,15 @@ export function WorkflowBottomWorkbench(props: {
           <WorkflowSteering
             workflowId={props.workflowId}
             workflowName={props.workflowName}
+            workflowState={props.workflow?.state ?? 'active'}
+            boardColumns={props.board?.columns ?? []}
             selectedWorkItemId={currentWorkItemId}
+            selectedWorkItemTitle={currentWorkItemTitle}
+            selectedWorkItem={currentWorkItem}
+            selectedTaskId={currentTaskId}
+            selectedTaskTitle={currentTaskTitle}
+            selectedTask={currentTask}
+            selectedWorkItemTasks={props.selectedWorkItemTasks as unknown as DashboardTaskRecord[]}
             scope={resolvedScope}
             interventions={props.packet.steering.recent_interventions}
             messages={props.packet.steering.session.messages}

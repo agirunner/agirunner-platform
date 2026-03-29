@@ -1,25 +1,47 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import { Textarea } from '../../../components/ui/textarea.js';
 import type {
+  DashboardTaskRecord,
+  DashboardWorkflowBoardColumn,
   DashboardWorkflowInterventionRecord,
   DashboardWorkflowSteeringMessageRecord,
+  DashboardWorkflowWorkItemRecord,
 } from '../../../lib/api.js';
 import { dashboardApi } from '../../../lib/api.js';
 import { buildFileUploadPayloads } from '../../../lib/file-upload.js';
 import { toast } from '../../../lib/toast.js';
 import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
+import {
+  buildSteeringAttachmentSummary,
+  buildWorkflowSteeringRequestInput,
+  buildWorkflowSteeringTargets,
+  getWorkflowSteeringDisabledReason,
+} from './workflow-steering.support.js';
 import { WorkflowFileInput } from '../workflow-file-input.js';
 import { invalidateWorkflowsQueries } from '../workflows-query.js';
 import type { WorkflowWorkbenchScopeDescriptor } from '../workflows-page.support.js';
+export {
+  buildWorkflowSteeringRequestInput,
+  buildWorkflowSteeringTargets,
+  describeSteeringTargetDisabledReason,
+} from './workflow-steering.support.js';
 
 export function WorkflowSteering(props: {
   workflowId: string;
   workflowName: string;
+  workflowState: string;
+  boardColumns: DashboardWorkflowBoardColumn[];
   selectedWorkItemId: string | null;
+  selectedWorkItemTitle: string | null;
+  selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
+  selectedTaskId: string | null;
+  selectedTaskTitle: string | null;
+  selectedTask: DashboardTaskRecord | null;
+  selectedWorkItemTasks: DashboardTaskRecord[];
   scope: WorkflowWorkbenchScopeDescriptor;
   interventions: DashboardWorkflowInterventionRecord[];
   messages: DashboardWorkflowSteeringMessageRecord[];
@@ -30,29 +52,78 @@ export function WorkflowSteering(props: {
   const [request, setRequest] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const targetOptions = useMemo(
+    () => buildWorkflowSteeringTargets(props),
+    [
+      props.boardColumns,
+      props.scope,
+      props.selectedTask,
+      props.selectedTaskId,
+      props.selectedTaskTitle,
+      props.selectedWorkItem,
+      props.selectedWorkItemId,
+      props.selectedWorkItemTasks,
+      props.selectedWorkItemTitle,
+      props.workflowName,
+      props.workflowState,
+    ],
+  );
+  const isScopeLocked = props.scope.scopeKind !== 'workflow';
+  const lockedTargetValue = isScopeLocked ? (targetOptions[0]?.value ?? '') : '';
+  const [selectedTargetValue, setSelectedTargetValue] = useState(lockedTargetValue);
+
+  useEffect(() => {
+    if (isScopeLocked) {
+      setSelectedTargetValue(lockedTargetValue);
+      return;
+    }
+    setSelectedTargetValue((currentValue) =>
+      targetOptions.some((option) => option.value === currentValue) ? currentValue : '',
+    );
+  }, [isScopeLocked, lockedTargetValue, targetOptions]);
+
+  const selectedTarget =
+    targetOptions.find((option) => option.value === selectedTargetValue) ?? null;
+  const disabledReason = getWorkflowSteeringDisabledReason({
+    canAcceptRequest: props.canAcceptRequest,
+    workflowState: props.workflowState,
+    boardColumns: props.boardColumns,
+    target: selectedTarget,
+    selectedWorkItem: props.selectedWorkItem,
+    selectedTask: props.selectedTask,
+    selectedWorkItemTasks: props.selectedWorkItemTasks,
+  });
+  const requestPlaceholder = selectedTarget
+    ? `Guide ${selectedTarget.name} toward the next legal action.`
+    : 'Choose a steering target above before writing a request.';
+  const attachmentSubject = selectedTarget?.subject ?? props.scope.subject;
 
   const requestMutation = useMutation({
     mutationFn: async () => {
+      if (!selectedTarget) {
+        throw new Error('Choose a steering target before recording a request.');
+      }
       const linkedInputPacketIds: string[] = [];
       if (files.length > 0) {
         const packet = await dashboardApi.createWorkflowInputPacket(props.workflowId, {
           packet_kind: 'supplemental',
-          work_item_id: props.selectedWorkItemId ?? undefined,
-          summary: props.selectedWorkItemId
-            ? `Steering attachments for ${props.selectedWorkItemId}`
-            : 'Workflow steering attachments',
+          work_item_id: selectedTarget.workItemId ?? undefined,
+          summary: buildSteeringAttachmentSummary(selectedTarget),
           files: await buildFileUploadPayloads(files),
         });
         linkedInputPacketIds.push(packet.id);
       }
 
-      return dashboardApi.createWorkflowSteeringRequest(props.workflowId, {
-        request_id: crypto.randomUUID(),
-        request: request.trim(),
-        work_item_id: props.selectedWorkItemId ?? undefined,
-        linked_input_packet_ids: linkedInputPacketIds,
-        session_id: props.sessionId ?? undefined,
-      });
+      return dashboardApi.createWorkflowSteeringRequest(
+        props.workflowId,
+        buildWorkflowSteeringRequestInput({
+          requestId: crypto.randomUUID(),
+          request: request.trim(),
+          sessionId: props.sessionId,
+          target: selectedTarget,
+          linkedInputPacketIds,
+        }),
+      );
     },
     onSuccess: async () => {
       await invalidateWorkflowsQueries(queryClient, props.workflowId);
@@ -84,25 +155,57 @@ export function WorkflowSteering(props: {
             Record durable requests, responses, and attachments for this {props.scope.subject}.
           </p>
         </div>
+        <div className="grid gap-2">
+          <div className="grid gap-1">
+            <label className="text-sm font-medium text-foreground" htmlFor="workflow-steering-target">
+              Steering target
+            </label>
+            <p className="text-sm text-muted-foreground">
+              {isScopeLocked
+                ? 'This steering request is locked to the current workbench scope.'
+                : 'Choose where this workflow-level steering request should land.'}
+            </p>
+          </div>
+          {isScopeLocked ? (
+            <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-sm text-foreground">
+              {selectedTarget ? `Targeting ${selectedTarget.subject}: ${selectedTarget.name}` : 'No steering target selected.'}
+            </div>
+          ) : (
+            <select
+              id="workflow-steering-target"
+              value={selectedTargetValue}
+              className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+              onChange={(event) => setSelectedTargetValue(event.target.value)}
+            >
+              <option value="">Select a target</option>
+              {targetOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
         <Textarea
           value={request}
           onChange={(event) => setRequest(event.target.value)}
           className="min-h-[144px]"
-          placeholder={`Guide ${props.scope.name} toward the next legal action.`}
+          placeholder={requestPlaceholder}
         />
         <WorkflowFileInput
           files={files}
           onChange={setFiles}
           label="Steering attachments"
-          description={`Attach files for this ${props.scope.subject} that should be referenced by the steering request.`}
+          description={`Attach files for this ${attachmentSubject} that should be referenced by the steering request.`}
         />
+        {disabledReason ? <p className="text-sm text-destructive">{disabledReason}</p> : null}
         {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
         <div className="flex justify-end">
           <Button
             type="button"
             disabled={
               requestMutation.isPending ||
-              !props.canAcceptRequest ||
+              disabledReason !== null ||
               request.trim().length === 0
             }
             onClick={() => requestMutation.mutate()}
