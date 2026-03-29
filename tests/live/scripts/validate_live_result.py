@@ -20,6 +20,7 @@ REQUIRED_SETTLED_EVIDENCE_KEYS = (
     "runtime_cleanup",
     "docker_log_rotation",
     "scenario_outcome_metrics",
+    "workspace_scope_trace",
 )
 
 
@@ -145,6 +146,9 @@ def validate_settled_result_payload(payload: dict[str, Any]) -> list[str]:
         if not candidate.is_file():
             failures.append(f"missing evidence artifact file for {key}: {candidate}")
             continue
+        if candidate.stat().st_size <= 0:
+            failures.append(f"evidence artifact file for {key} is empty: {candidate}")
+            continue
         try:
             artifact_payload = json.loads(candidate.read_text(encoding="utf-8"))
         except Exception as error:
@@ -152,7 +156,102 @@ def validate_settled_result_payload(payload: dict[str, Any]) -> list[str]:
             continue
         if not isinstance(artifact_payload, dict):
             failures.append(f"evidence artifact for {key} must contain a JSON object")
+            continue
+        if key == "workspace_scope_trace":
+            failures.extend(validate_workspace_scope_trace(artifact_payload))
 
+    return failures
+
+
+def validate_workspace_scope_trace(payload: dict[str, Any]) -> list[str]:
+    failures: list[str] = []
+    if payload.get("ok") is not True:
+        failures.append("workspace_scope_trace.ok must be true")
+    require_non_empty_string(payload, "selected_work_item_id", failures, prefix="workspace_scope_trace.")
+    require_non_empty_string(payload, "selected_task_id", failures, prefix="workspace_scope_trace.")
+
+    root_failures = payload.get("failures")
+    if root_failures is None:
+        failures.append("workspace_scope_trace.failures must be a list")
+    elif not isinstance(root_failures, list):
+        failures.append("workspace_scope_trace.failures must be a list")
+    else:
+        failures.extend(read_failure_messages(root_failures, prefix="workspace_scope_trace"))
+
+    for scope_key, expected_kind in (
+        ("workflow_scope", "workflow"),
+        ("selected_work_item_scope", "selected_work_item"),
+        ("selected_task_scope", "selected_task"),
+    ):
+        scope_payload = require_mapping(payload, scope_key, failures, prefix="workspace_scope_trace.")
+        if scope_payload is None:
+            continue
+        failures.extend(validate_scope_entry(scope_key, expected_kind, scope_payload))
+
+    return failures
+
+
+def validate_scope_entry(scope_key: str, expected_kind: str, payload: dict[str, Any]) -> list[str]:
+    failures: list[str] = []
+    actual_kind = payload.get("scope_kind")
+    if actual_kind != expected_kind:
+        failures.append(f"{scope_key}.scope_kind must be {expected_kind}")
+
+    selection = require_mapping(payload, "selection", failures, prefix=f"{scope_key}.")
+    if selection is not None:
+        if expected_kind == "workflow":
+            if selection.get("work_item_id") is not None:
+                failures.append(f"{scope_key}.selection.work_item_id must be null")
+            if selection.get("task_id") is not None:
+                failures.append(f"{scope_key}.selection.task_id must be null")
+        else:
+            require_non_empty_string(selection, "work_item_id", failures, prefix=f"{scope_key}.selection.")
+            if expected_kind == "selected_task":
+                require_non_empty_string(selection, "task_id", failures, prefix=f"{scope_key}.selection.")
+
+    workspace_api = require_mapping(payload, "workspace_api", failures, prefix=f"{scope_key}.")
+    if workspace_api is not None:
+        require_mapping(workspace_api, "selected_scope", failures, prefix=f"{scope_key}.workspace_api.")
+        live_console = require_mapping(workspace_api, "live_console", failures, prefix=f"{scope_key}.workspace_api.")
+        if live_console is not None:
+            require_list(live_console, "brief_ids", failures, prefix=f"{scope_key}.workspace_api.live_console.")
+            require_list(live_console, "update_ids", failures, prefix=f"{scope_key}.workspace_api.live_console.")
+            require_mapping(
+                live_console,
+                "item_kind_counts",
+                failures,
+                prefix=f"{scope_key}.workspace_api.live_console.",
+            )
+        deliverables = require_mapping(workspace_api, "deliverables", failures, prefix=f"{scope_key}.workspace_api.")
+        if deliverables is not None:
+            require_list(
+                deliverables,
+                "all_descriptor_ids",
+                failures,
+                prefix=f"{scope_key}.workspace_api.deliverables.",
+            )
+            require_mapping(
+                deliverables,
+                "descriptor_kind_counts",
+                failures,
+                prefix=f"{scope_key}.workspace_api.deliverables.",
+            )
+
+    db_payload = require_mapping(payload, "db", failures, prefix=f"{scope_key}.")
+    if db_payload is not None:
+        require_list(db_payload, "brief_ids", failures, prefix=f"{scope_key}.db.")
+        require_list(db_payload, "update_ids", failures, prefix=f"{scope_key}.db.")
+        require_list(db_payload, "all_descriptor_ids", failures, prefix=f"{scope_key}.db.")
+
+    reconciliation = require_mapping(payload, "reconciliation", failures, prefix=f"{scope_key}.")
+    if reconciliation is not None:
+        if reconciliation.get("passed") is not True:
+            failures.append(f"{scope_key}.reconciliation.passed must be true")
+        failure_list = reconciliation.get("failures")
+        if not isinstance(failure_list, list):
+            failures.append(f"{scope_key}.reconciliation.failures must be a list")
+        else:
+            failures.extend(read_failure_messages(failure_list, prefix=scope_key))
     return failures
 
 
@@ -180,6 +279,30 @@ def require_non_empty_string(
     value = payload.get(key)
     if not isinstance(value, str) or value.strip() == "":
         failures.append(f"{prefix}{key} must be a non-empty string")
+
+
+def require_list(
+    payload: dict[str, Any],
+    key: str,
+    failures: list[str],
+    *,
+    prefix: str = "",
+) -> list[Any] | None:
+    value = payload.get(key)
+    if not isinstance(value, list):
+        failures.append(f"{prefix}{key} must be a list")
+        return None
+    return value
+
+
+def read_failure_messages(values: list[Any], *, prefix: str) -> list[str]:
+    failures: list[str] = []
+    for value in values:
+        if isinstance(value, str) and value.strip() != "":
+            failures.append(value.strip())
+        else:
+            failures.append(f"{prefix}.failures must contain only non-empty strings")
+    return failures
 
 
 def scenario_names_from_inputs(scenario_root: Path, tracker_file: str) -> list[str]:

@@ -27,6 +27,7 @@ from specialist_capability_proof import (
     build_capability_proof,
     evaluate_capability_expectations,
 )
+from workflow_scope_trace import build_workspace_scope_trace
 from workflow_efficiency import (
     collect_execution_logs,
     evaluate_efficiency_expectations,
@@ -251,11 +252,12 @@ SELECT jsonb_build_object(
   ),
   'tasks',
   COALESCE(
-    (
-      SELECT jsonb_agg(to_jsonb(task_row) ORDER BY task_row.created_at)
+      (
+        SELECT jsonb_agg(to_jsonb(task_row) ORDER BY task_row.created_at)
       FROM (
         SELECT
           id,
+          work_item_id,
           role,
           state,
           stage_name,
@@ -290,6 +292,92 @@ SELECT jsonb_build_object(
         FROM workflow_work_items
         WHERE workflow_id = {workflow}
       ) work_item_row
+    ),
+    '[]'::jsonb
+  ),
+  'operator_briefs',
+  COALESCE(
+    (
+      SELECT jsonb_agg(to_jsonb(brief_row) ORDER BY brief_row.sequence_number DESC)
+      FROM (
+        SELECT
+          id,
+          work_item_id,
+          task_id,
+          brief_scope,
+          status_kind,
+          source_kind,
+          source_role_name,
+          linked_target_ids,
+          related_output_descriptor_ids,
+          created_at,
+          updated_at
+        FROM workflow_operator_briefs
+        WHERE workflow_id = {workflow}
+      ) brief_row
+    ),
+    '[]'::jsonb
+  ),
+  'operator_updates',
+  COALESCE(
+    (
+      SELECT jsonb_agg(to_jsonb(update_row) ORDER BY update_row.sequence_number DESC)
+      FROM (
+        SELECT
+          id,
+          work_item_id,
+          task_id,
+          update_kind,
+          linked_target_ids,
+          created_at
+        FROM workflow_operator_updates
+        WHERE workflow_id = {workflow}
+      ) update_row
+    ),
+    '[]'::jsonb
+  ),
+  'deliverables',
+  COALESCE(
+    (
+      SELECT jsonb_agg(to_jsonb(deliverable_row) ORDER BY COALESCE(deliverable_row.updated_at, deliverable_row.created_at) DESC)
+      FROM (
+        SELECT
+          id AS descriptor_id,
+          work_item_id,
+          descriptor_kind,
+          delivery_stage,
+          state,
+          source_brief_id,
+          created_at,
+          updated_at
+        FROM workflow_output_descriptors
+        WHERE workflow_id = {workflow}
+      ) deliverable_row
+    ),
+    '[]'::jsonb
+  ),
+  'completed_handoffs',
+  COALESCE(
+    (
+      SELECT jsonb_agg(to_jsonb(handoff_row) ORDER BY handoff_row.work_item_id, handoff_row.created_at DESC)
+      FROM (
+        SELECT DISTINCT ON (th.work_item_id)
+          th.id,
+          th.work_item_id,
+          th.task_id,
+          th.role,
+          th.created_at
+        FROM task_handoffs th
+        JOIN workflow_work_items wi
+          ON wi.workflow_id = th.workflow_id
+         AND wi.id = th.work_item_id
+        WHERE th.workflow_id = {workflow}
+          AND wi.completed_at IS NOT NULL
+        ORDER BY th.work_item_id,
+                 CASE WHEN th.role = 'orchestrator' THEN 1 ELSE 0 END,
+                 th.sequence DESC,
+                 th.created_at DESC
+      ) handoff_row
     ),
     '[]'::jsonb
   )
@@ -1595,6 +1683,7 @@ def write_evidence_artifacts(trace_dir: str, evidence: dict[str, Any]) -> dict[s
         "runtime_cleanup": "runtime-cleanup.json",
         "docker_log_rotation": "docker-log-rotation.json",
         "scenario_outcome_metrics": "scenario-outcome-metrics.json",
+        "workspace_scope_trace": "workspace-scope-trace.json",
     }
     written: dict[str, str] = {}
     for key, file_name in file_names.items():
@@ -4499,6 +4588,12 @@ def main() -> None:
         approval_actions=approval_actions,
     )
     db_state_snapshot = collect_db_state_snapshot(trace, workflow_id=workflow_id)
+    workspace_scope_trace = build_workspace_scope_trace(
+        client,
+        workflow_id=workflow_id,
+        workflow=latest_workflow,
+        db_state=db_state_snapshot,
+    )
     evidence_payload = {
         "db_state": db_state_snapshot,
         "execution_environment_usage": summarize_execution_environment_usage(
@@ -4511,6 +4606,7 @@ def main() -> None:
         "container_observations": finalize_container_observations(live_container_observations),
         "runtime_cleanup": runtime_cleanup_evidence,
         "docker_log_rotation": docker_log_rotation_evidence,
+        "workspace_scope_trace": workspace_scope_trace,
     }
     remote_mcp_fixture_activity = summarize_remote_mcp_fixture_activity(
         before_snapshot=initial_remote_mcp_fixture_snapshot,

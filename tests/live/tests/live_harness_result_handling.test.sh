@@ -243,11 +243,53 @@ required_keys = [
     "runtime_cleanup",
     "docker_log_rotation",
     "scenario_outcome_metrics",
+    "workspace_scope_trace",
 ]
 evidence = {}
 artifacts = {}
 for key in required_keys:
-    payload = {"ok": True, "key": key}
+    if key == "workspace_scope_trace":
+        payload = {
+            "ok": True,
+            "failures": [],
+            "selected_work_item_id": "wi-1",
+            "selected_task_id": "task-1",
+            "workflow_scope": {
+                "scope_kind": "workflow",
+                "selection": {"work_item_id": None, "task_id": None},
+                "workspace_api": {
+                    "selected_scope": {"scope_kind": "workflow", "work_item_id": None, "task_id": None},
+                    "live_console": {"brief_ids": [], "update_ids": [], "item_kind_counts": {}},
+                    "deliverables": {"all_descriptor_ids": [], "descriptor_kind_counts": {}},
+                },
+                "db": {"brief_ids": [], "update_ids": [], "all_descriptor_ids": []},
+                "reconciliation": {"passed": True, "failures": []},
+            },
+            "selected_work_item_scope": {
+                "scope_kind": "selected_work_item",
+                "selection": {"work_item_id": "wi-1", "task_id": None},
+                "workspace_api": {
+                    "selected_scope": {"scope_kind": "selected_work_item", "work_item_id": "wi-1", "task_id": None},
+                    "live_console": {"brief_ids": ["brief-1"], "update_ids": ["update-1"], "item_kind_counts": {"milestone_brief": 1, "operator_update": 1}},
+                    "deliverables": {"all_descriptor_ids": ["descriptor-1"], "descriptor_kind_counts": {"report": 1}},
+                },
+                "db": {"brief_ids": ["brief-1"], "update_ids": ["update-1"], "all_descriptor_ids": ["descriptor-1"]},
+                "reconciliation": {"passed": True, "failures": []},
+            },
+            "selected_task_scope": {
+                "scope_kind": "selected_task",
+                "selection": {"work_item_id": "wi-1", "task_id": "task-1"},
+                "workspace_api": {
+                    "selected_scope": {"scope_kind": "selected_task", "work_item_id": "wi-1", "task_id": "task-1"},
+                    "live_console": {"brief_ids": ["brief-1"], "update_ids": ["update-1"], "item_kind_counts": {"milestone_brief": 1, "operator_update": 1}},
+                    "deliverables": {"all_descriptor_ids": ["descriptor-1"], "descriptor_kind_counts": {"report": 1}},
+                },
+                "db": {"brief_ids": ["brief-1"], "update_ids": ["update-1"], "all_descriptor_ids": ["descriptor-1"]},
+                "reconciliation": {"passed": True, "failures": []},
+            },
+        }
+    else:
+        payload = {"ok": True, "key": key}
     path = evidence_dir / f"{key}.json"
     path.write_text(json.dumps(payload), encoding="utf-8")
     evidence[key] = payload
