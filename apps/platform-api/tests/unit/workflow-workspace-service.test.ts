@@ -4743,6 +4743,18 @@ describe('WorkflowWorkspaceService', () => {
             scope_binding: 'structured_target',
           },
           {
+            item_id: 'selected-notice',
+            item_kind: 'platform_notice',
+            source_kind: 'platform',
+            source_label: 'Platform',
+            headline: 'Selected notice',
+            summary: 'Selected notice',
+            created_at: '2026-03-27T22:43:30.000Z',
+            work_item_id: null,
+            task_id: null,
+            linked_target_ids: ['workflow-1', 'work-item-1'],
+          },
+          {
             item_id: 'other-turn',
             item_kind: 'execution_turn',
             source_kind: 'specialist',
@@ -4755,10 +4767,10 @@ describe('WorkflowWorkspaceService', () => {
             linked_target_ids: ['workflow-1', 'work-item-2'],
           },
         ],
-        total_count: 3,
+        total_count: 4,
         counts: {
-          all: 3,
-          turn_updates: 2,
+          all: 4,
+          turn_updates: 3,
           briefs: 1,
         },
         next_cursor: null,
@@ -4821,11 +4833,12 @@ describe('WorkflowWorkspaceService', () => {
     expect(result.live_console.items.map((item) => item.item_id)).toEqual([
       'selected-brief',
       'selected-turn',
+      'selected-notice',
     ]);
-    expect(result.live_console.total_count).toBe(2);
+    expect(result.live_console.total_count).toBe(3);
     expect(result.live_console.counts).toEqual({
-      all: 2,
-      turn_updates: 1,
+      all: 3,
+      turn_updates: 2,
       briefs: 1,
     });
   });

@@ -2,6 +2,11 @@ import type { DashboardWorkflowLiveConsoleItem } from '../../../lib/api.js';
 
 const ACTION_INVOCATION_RE = /^calling\s+([a-z0-9_.-]+)\((.*)\)$/i;
 const EXECUTION_PHASE_PREFIX_RE = /^\[[^\]]+\]\s*/;
+const RAW_OPERATOR_RECORD_WRAPPER_RE =
+  /^(?:calling\s+)?(?:to=)?record_operator_(?:update|brief)\b/i;
+const STRUCTURED_ACTION_ARG_RE =
+  /["']?([a-z0-9_.-]+)["']?\s*:\s*(?:"([^"]*)"|'([^']*)'|([^,}\]]+))/gi;
+const SYNTHETIC_SOURCE_PREFIX_RE = /^([^:\n]{1,64}):\s*(.+)$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 const SUPPRESSED_READ_ONLY_ACTION_TOOLS = new Set([
@@ -45,6 +50,22 @@ const MEANINGLESS_ACTION_ARG_KEYS = new Set([
   'turn_id',
   'work_item_id',
   'workflow_id',
+]);
+
+const SAFE_STRUCTURED_ACTION_ARG_KEYS = new Set([
+  'command',
+  'completion',
+  'decision',
+  'feedback',
+  'headline',
+  'instructions',
+  'logical_path',
+  'path',
+  'role',
+  'stage_name',
+  'status',
+  'summary',
+  'title',
 ]);
 
 const LOW_VALUE_CONSOLE_PATTERNS = [
@@ -91,8 +112,14 @@ export function hasWorkflowConsoleLineText(item: DashboardWorkflowLiveConsoleIte
 }
 
 function formatWorkflowConsoleLineText(value: string): string {
-  const normalized = stripExecutionPhasePrefix(normalizeWorkflowConsoleText(value));
-  if (normalized.length === 0 || looksLikeLowValueConsoleText(normalized)) {
+  const normalized = stripSyntheticSourcePrefix(
+    stripExecutionPhasePrefix(normalizeWorkflowConsoleText(value)),
+  );
+  if (
+    normalized.length === 0
+    || looksLikeLowValueConsoleText(normalized)
+    || looksLikeRawOperatorRecordWrapper(normalized)
+  ) {
     return '';
   }
 
@@ -127,7 +154,9 @@ function formatActionInvocation(actionName: string, rawArgs: string): string {
     return '';
   }
 
-  const args = splitActionArgs(rawArgs).filter(isMeaningfulActionArgument);
+  const args = splitActionArgs(rawArgs)
+    .flatMap(formatActionArgument)
+    .slice(0, 3);
   if (args.length === 0) {
     return '';
   }
@@ -193,19 +222,28 @@ function pushActionArg(args: string[], value: string): void {
   }
 }
 
-function isMeaningfulActionArgument(argument: string): boolean {
+function formatActionArgument(argument: string): string[] {
   const [rawKey, ...valueParts] = argument.split('=');
   if (valueParts.length === 0) {
-    return isMeaningfulActionValue(argument);
+    return isMeaningfulActionValue(argument) ? [argument.trim()] : [];
   }
 
-  const key = rawKey.trim().toLowerCase();
+  const key = rawKey.trim();
+  const normalizedKey = key.toLowerCase();
   const value = valueParts.join('=').trim();
-  if (MEANINGLESS_ACTION_ARG_KEYS.has(key)) {
-    return false;
+  if (MEANINGLESS_ACTION_ARG_KEYS.has(normalizedKey)) {
+    return [];
   }
 
-  return isMeaningfulActionValue(value);
+  const structuredArgs = formatStructuredActionArguments(value);
+  if (structuredArgs.length > 0) {
+    return structuredArgs;
+  }
+  if (!isMeaningfulActionValue(value)) {
+    return [];
+  }
+
+  return [`${key}=${value}`];
 }
 
 function isMeaningfulActionValue(value: string): boolean {
@@ -229,8 +267,79 @@ function stripExecutionPhasePrefix(value: string): string {
   return value.replace(EXECUTION_PHASE_PREFIX_RE, '').trim();
 }
 
+function stripSyntheticSourcePrefix(value: string): string {
+  const match = SYNTHETIC_SOURCE_PREFIX_RE.exec(value);
+  const remainder = match?.[2]?.trim();
+  if (!remainder) {
+    return value;
+  }
+  if (
+    remainder.startsWith('calling ')
+    || remainder.startsWith('to=')
+    || remainder.startsWith('{')
+    || remainder.startsWith('[')
+  ) {
+    return remainder;
+  }
+  return value;
+}
+
 function looksLikeLowValueConsoleText(value: string): boolean {
   return LOW_VALUE_CONSOLE_PATTERNS.some((pattern) => pattern.test(value));
+}
+
+function looksLikeRawOperatorRecordWrapper(value: string): boolean {
+  return RAW_OPERATOR_RECORD_WRAPPER_RE.test(value);
+}
+
+function formatStructuredActionArguments(value: string): string[] {
+  const trimmed = value.trim();
+  if (!looksLikeStructuredActionValue(trimmed)) {
+    return [];
+  }
+
+  const renderedArgs: string[] = [];
+  const seenArgs = new Set<string>();
+  STRUCTURED_ACTION_ARG_RE.lastIndex = 0;
+  for (const match of trimmed.matchAll(STRUCTURED_ACTION_ARG_RE)) {
+    const rawKey = match[1]?.trim().toLowerCase();
+    const rawValue = match[2] ?? match[3] ?? match[4] ?? '';
+    if (
+      !rawKey
+      || !SAFE_STRUCTURED_ACTION_ARG_KEYS.has(rawKey)
+      || MEANINGLESS_ACTION_ARG_KEYS.has(rawKey)
+    ) {
+      continue;
+    }
+
+    const normalizedValue = stripWrappingQuotes(rawValue.trim());
+    if (!isMeaningfulActionValue(normalizedValue)) {
+      continue;
+    }
+
+    const renderedArg = `${rawKey}=${quoteActionValue(normalizedValue)}`;
+    if (seenArgs.has(renderedArg)) {
+      continue;
+    }
+    seenArgs.add(renderedArg);
+    renderedArgs.push(renderedArg);
+  }
+
+  return renderedArgs;
+}
+
+function looksLikeStructuredActionValue(value: string): boolean {
+  return (
+    (value.startsWith('{') && value.endsWith('}'))
+    || (value.startsWith('[') && value.endsWith(']'))
+  );
+}
+
+function quoteActionValue(value: string): string {
+  if (/^-?\d+(?:\.\d+)?$/.test(value) || /^(?:true|false)$/i.test(value)) {
+    return value;
+  }
+  return `"${value.replace(/"/g, '\\"')}"`;
 }
 
 function stripWrappingQuotes(value: string): string {

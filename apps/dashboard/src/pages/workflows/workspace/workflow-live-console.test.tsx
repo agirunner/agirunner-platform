@@ -85,7 +85,7 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('aria-pressed="true" title="Follow the latest terminal output">Live<');
     expect(html).toContain('aria-pressed="false" title="Pause terminal follow mode">Pause<');
     expect(html).toContain('data-live-console-filter-count="7"');
-    expect(html).toContain('data-live-console-filter-count="1"');
+    expect(html).toContain('data-live-console-filter-count="2"');
     expect(html).toContain('All');
     expect(html).toContain('Turn updates');
     expect(html).toContain('Briefs');

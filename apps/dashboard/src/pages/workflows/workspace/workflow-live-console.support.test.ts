@@ -25,7 +25,7 @@ describe('workflow live console support', () => {
 
     expect(buildWorkflowConsoleFilterDescriptors(items)).toEqual([
       { filter: 'all', label: 'All', count: 4 },
-      { filter: 'turn_updates', label: 'Turn updates', count: 2 },
+      { filter: 'turn_updates', label: 'Turn updates', count: 3 },
       { filter: 'briefs', label: 'Briefs', count: 1 },
     ]);
   });
@@ -87,7 +87,7 @@ describe('workflow live console support', () => {
       ),
     ).toEqual({
       all: 9,
-      turn_updates: 2,
+      turn_updates: 3,
       briefs: 1,
     });
   });
@@ -131,7 +131,7 @@ describe('workflow live console support', () => {
 
     expect(buildWorkflowConsoleFilterDescriptors(items)).toEqual([
       { filter: 'all', label: 'All', count: 4 },
-      { filter: 'turn_updates', label: 'Turn updates', count: 2 },
+      { filter: 'turn_updates', label: 'Turn updates', count: 3 },
       { filter: 'briefs', label: 'Briefs', count: 1 },
     ]);
     expect(filterWorkflowConsoleItems(items, 'all').map((item) => item.item_id)).toEqual([
@@ -147,6 +147,7 @@ describe('workflow live console support', () => {
 
     expect(filterWorkflowConsoleItems(items, 'turn_updates').map((item) => item.item_id)).toEqual([
       'update-1',
+      'notice-1',
       'turn-1',
     ]);
     expect(filterWorkflowConsoleItems(items, 'briefs').map((item) => item.item_id)).toEqual([
@@ -233,6 +234,19 @@ describe('workflow live console support', () => {
     ).toBe('calling shell_exec(command="pytest tests/unit")');
   });
 
+  it('extracts safe nested args from structured action-call fallbacks', () => {
+    expect(
+      getWorkflowConsoleLineText(
+        createItem({
+          item_id: 'update-structured-action',
+          headline:
+            'calling submit_handoff(input={"summary":"Ready for operator review.","completion":"full","work_item_id":"work-item-1"})',
+          summary: 'Working through the next execution step.',
+        }),
+      ),
+    ).toBe('calling submit_handoff(summary="Ready for operator review.", completion="full")');
+  });
+
   it('suppresses empty and low-value fallback action rows from live-console visibility', () => {
     const items = [
       createItem({
@@ -261,6 +275,24 @@ describe('workflow live console support', () => {
       { filter: 'turn_updates', label: 'Turn updates', count: 1 },
       { filter: 'briefs', label: 'Briefs', count: 0 },
     ]);
+  });
+
+  it('suppresses prefixed raw operator-record wrappers leaked into console text', () => {
+    const items = [
+      createItem({
+        item_id: 'update-raw-wrapper',
+        headline:
+          'Orchestrator: to=record_operator_update json {"request_id":"operator-update-1","payload":{"headline":"raw leak"}}',
+        summary: 'Working through the next execution step.',
+      }),
+      createItem({
+        item_id: 'update-prefixed-read',
+        headline: 'Policy Assessor: calling file_read(path="task input")',
+        summary: 'Working through the next execution step.',
+      }),
+    ];
+
+    expect(filterWorkflowConsoleItems(items, 'all')).toEqual([]);
   });
 
   it('reports the brief label prefix only for milestone briefs', () => {

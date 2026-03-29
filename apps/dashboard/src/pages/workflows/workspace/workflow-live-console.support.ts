@@ -344,7 +344,7 @@ function isWorkflowConsoleBrief(item: DashboardWorkflowLiveConsoleItem): boolean
 }
 
 function isWorkflowConsoleTurnUpdate(item: DashboardWorkflowLiveConsoleItem): boolean {
-  return item.item_kind === 'execution_turn';
+  return item.item_kind === 'execution_turn' || item.item_kind === 'platform_notice';
 }
 
 function readNonEmptyText(value: string): string | null {
