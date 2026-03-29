@@ -436,7 +436,9 @@ function shouldRollUpChildScopeBrief(
   brief: WorkflowOperatorBriefRecord,
   linkedWorkItemIds: Set<string>,
 ): boolean {
-  return isDeliverableOutcomeStatus(readOptionalString(brief.status_kind))
+  const statusKind = readOptionalString(brief.status_kind);
+  return isDeliverableBrief(brief)
+    && (statusKind === 'in_progress' || isDeliverableOutcomeStatus(statusKind))
     && resolveDeliverableWorkItemId(brief, linkedWorkItemIds) !== null;
 }
 

@@ -1581,6 +1581,108 @@ describe('WorkflowDeliverablesService', () => {
     expect(result.in_progress_deliverables).toEqual([]);
   });
 
+  it('rolls up in-progress child deliverable briefs into workflow-scope working handoffs', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => []),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => [
+        {
+          id: 'brief-workflow-deliverable-1',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          task_id: null,
+          request_id: 'request-workflow-deliverable-1',
+          execution_context_id: 'activation-1',
+          brief_kind: 'milestone',
+          brief_scope: 'deliverable_context',
+          source_kind: 'orchestrator',
+          source_role_name: 'Orchestrator',
+          status_kind: 'in_progress',
+          short_brief: { headline: 'Workflow packet is still being assembled.' },
+          detailed_brief_json: {
+            headline: 'Workflow packet is still being assembled.',
+            summary: 'The workflow-level deliverable brief should not suppress the child working handoff.',
+            status_kind: 'in_progress',
+          },
+          linked_target_ids: ['workflow-1'],
+          sequence_number: 12,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: [],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'agent',
+          created_by_id: 'agent-1',
+          created_at: '2026-03-29T15:16:00.000Z',
+          updated_at: '2026-03-29T15:16:00.000Z',
+        },
+        {
+          id: 'brief-work-item-in-progress-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: 'task-1',
+          request_id: 'request-work-item-in-progress-1',
+          execution_context_id: 'task-1',
+          brief_kind: 'milestone',
+          brief_scope: 'deliverable_context',
+          source_kind: 'specialist',
+          source_role_name: 'Policy Assessor',
+          status_kind: 'in_progress',
+          short_brief: { headline: 'Policy assessment packet is being prepared.' },
+          detailed_brief_json: {
+            headline: 'Policy assessment packet is being prepared.',
+            summary: 'The specialist has not finalized the deliverable yet, but the working handoff already exists.',
+            status_kind: 'in_progress',
+          },
+          linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
+          sequence_number: 11,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: [],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'agent',
+          created_by_id: 'agent-1',
+          created_at: '2026-03-29T15:17:00.000Z',
+          updated_at: '2026-03-29T15:17:00.000Z',
+        },
+      ]),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+    const workItemSource = {
+      listIncompleteWorkItemIds: vi.fn(async () => ['work-item-1']),
+      listExistingWorkItemIds: vi.fn(async () => ['work-item-1']),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+      undefined,
+      workItemSource as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1');
+
+    expect(result.final_deliverables).toEqual([]);
+    expect(result.in_progress_deliverables).toEqual([]);
+    expect(result.working_handoffs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'brief-workflow-deliverable-1',
+          work_item_id: null,
+          status_kind: 'in_progress',
+        }),
+        expect.objectContaining({
+          id: 'brief-work-item-in-progress-1',
+          work_item_id: 'work-item-1',
+          status_kind: 'in_progress',
+        }),
+      ]),
+    );
+  });
+
   it('rolls up final work-item deliverables into workflow scope when no workflow-scoped deliverable exists', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => [

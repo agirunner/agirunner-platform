@@ -66,6 +66,20 @@ interface WorkflowBoardSource {
   getWorkflowBoard(tenantId: string, workflowId: string): Promise<Record<string, unknown>>;
 }
 
+const ENHANCED_EXECUTION_LOG_CATEGORIES = ['agent_loop', 'task_lifecycle'] as const;
+
+const ENHANCED_AGENT_LOOP_OPERATIONS = [
+  'agent.think',
+  'agent.plan',
+  'agent.act',
+  'agent.observe',
+  'agent.verify',
+  'runtime.loop.think',
+  'runtime.loop.plan',
+  'runtime.loop.observe',
+  'runtime.loop.verify',
+] as const;
+
 export class WorkflowLiveConsoleService {
   constructor(
     private readonly versionSource: VersionSource,
@@ -141,21 +155,16 @@ export class WorkflowLiveConsoleService {
     if (mode !== 'enhanced' || !this.executionTurnSource) {
       return [];
     }
-    const executionQueryScope = resolveExecutionTurnQueryScope(input);
     const [agentLoopRows, llmRows] = await Promise.all([
       this.executionTurnSource.query(tenantId, {
         workflowId,
-        workItemId: executionQueryScope.workItemId,
-        taskId: executionQueryScope.taskId,
-        category: ['agent_loop'],
-        operation: ['agent.observe'],
+        category: [...ENHANCED_EXECUTION_LOG_CATEGORIES],
+        operation: [...ENHANCED_AGENT_LOOP_OPERATIONS],
         order: 'desc',
         perPage: fetchWindow,
       }),
       this.executionTurnSource.query(tenantId, {
         workflowId,
-        workItemId: executionQueryScope.workItemId,
-        taskId: executionQueryScope.taskId,
         category: ['llm'],
         operation: ['llm.chat_stream'],
         order: 'desc',
@@ -261,25 +270,6 @@ function sortLogRowsNewestFirst(left: LogRow, right: LogRow): number {
     { timestamp: left.created_at, id: left.id },
     { timestamp: right.created_at, id: right.id },
   );
-}
-
-function resolveExecutionTurnQueryScope(input: {
-  workItemId?: string;
-  taskId?: string;
-}): {
-  workItemId?: string;
-  taskId?: string;
-} {
-  if (input.workItemId && input.taskId) {
-    return {
-      workItemId: input.workItemId,
-    };
-  }
-
-  return {
-    workItemId: input.workItemId,
-    taskId: input.taskId,
-  };
 }
 
 function sortNewestFirst(left: WorkflowLiveConsoleItem, right: WorkflowLiveConsoleItem): number {
