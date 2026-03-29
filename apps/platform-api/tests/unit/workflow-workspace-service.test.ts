@@ -3019,7 +3019,7 @@ describe('WorkflowWorkspaceService', () => {
     expect(result.bottom_tabs.counts.deliverables).toBe(0);
   });
 
-  it('keeps selected work-item deliverables limited to the canonical packet payload', async () => {
+  it('drops workflow-scoped records from selected work-item deliverables and falls back to the selected work-item output descriptor', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -3196,13 +3196,14 @@ describe('WorkflowWorkspaceService', () => {
 
     expect(result.deliverables.final_deliverables).toEqual([
       expect.objectContaining({
-        descriptor_id: 'workflow-deliverable',
-        work_item_id: null,
+        descriptor_id: 'output:artifact:matching',
+        work_item_id: 'work-item-1',
       }),
     ]);
     expect(result.deliverables.final_deliverables).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ descriptor_id: 'artifact:matching' })]),
+      expect.arrayContaining([expect.objectContaining({ descriptor_id: 'workflow-deliverable' })]),
     );
+    expect(result.deliverables.in_progress_deliverables).toEqual([]);
     expect(result.bottom_tabs.counts.deliverables).toBe(1);
   });
 

@@ -9,6 +9,7 @@ import {
   describeWorkflowConsoleScope,
   filterWorkflowConsoleItems,
   getWorkflowConsoleFollowBehavior,
+  getWorkflowConsoleScrollBehavior,
   getWorkflowConsoleEntryPrefix,
   getWorkflowConsoleEntryStyle,
   getWorkflowConsoleLineText,
@@ -290,6 +291,42 @@ describe('workflow live console support', () => {
         scrollTop: 24,
       }),
     ).toBe(false);
+  });
+
+  it('pins live follow to the bottom instead of prefetching when the operator scrolls upward in live mode', () => {
+    expect(
+      getWorkflowConsoleScrollBehavior({
+        followMode: 'live',
+        hasNextCursor: true,
+        isLoadingOlderHistory: false,
+        scrollTop: 72,
+        scrollHeight: 800,
+        clientHeight: 200,
+      }),
+    ).toEqual({
+      isAtLiveEdge: false,
+      shouldClearQueuedUpdates: false,
+      shouldPrefetchHistory: false,
+      shouldStickToLiveEdge: true,
+    });
+  });
+
+  it('allows scroll-triggered history prefetch once live follow is paused', () => {
+    expect(
+      getWorkflowConsoleScrollBehavior({
+        followMode: 'paused',
+        hasNextCursor: true,
+        isLoadingOlderHistory: false,
+        scrollTop: 72,
+        scrollHeight: 800,
+        clientHeight: 200,
+      }),
+    ).toEqual({
+      isAtLiveEdge: false,
+      shouldClearQueuedUpdates: false,
+      shouldPrefetchHistory: true,
+      shouldStickToLiveEdge: false,
+    });
   });
 
   it('auto-follows appended entries only while live follow is enabled', () => {

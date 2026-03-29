@@ -5,6 +5,7 @@ import type {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const WORKFLOW_CONSOLE_PREFETCH_THRESHOLD_PX = 96;
+const WORKFLOW_CONSOLE_LIVE_EDGE_THRESHOLD_PX = 48;
 
 const WORKFLOW_CONSOLE_ENTRY_STYLES = {
   brief: {
@@ -200,6 +201,47 @@ export function shouldPrefetchWorkflowConsoleHistory(input: {
     return false;
   }
   return input.scrollTop <= WORKFLOW_CONSOLE_PREFETCH_THRESHOLD_PX;
+}
+
+export function isWorkflowConsoleAtLiveEdge(input: {
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+}): boolean {
+  return (
+    input.scrollHeight - input.clientHeight - input.scrollTop <=
+    WORKFLOW_CONSOLE_LIVE_EDGE_THRESHOLD_PX
+  );
+}
+
+export function getWorkflowConsoleScrollBehavior(input: {
+  followMode: WorkflowConsoleFollowMode;
+  hasNextCursor: boolean;
+  isLoadingOlderHistory: boolean;
+  scrollTop: number;
+  scrollHeight: number;
+  clientHeight: number;
+}): {
+  isAtLiveEdge: boolean;
+  shouldClearQueuedUpdates: boolean;
+  shouldPrefetchHistory: boolean;
+  shouldStickToLiveEdge: boolean;
+} {
+  const isAtLiveEdge = isWorkflowConsoleAtLiveEdge(input);
+  const shouldStickToLiveEdge = input.followMode === 'live' && !isAtLiveEdge;
+
+  return {
+    isAtLiveEdge,
+    shouldClearQueuedUpdates: isAtLiveEdge,
+    shouldPrefetchHistory:
+      !shouldStickToLiveEdge &&
+      shouldPrefetchWorkflowConsoleHistory({
+        hasNextCursor: input.hasNextCursor,
+        isLoadingOlderHistory: input.isLoadingOlderHistory,
+        scrollTop: input.scrollTop,
+      }),
+    shouldStickToLiveEdge,
+  };
 }
 
 export function getWorkflowConsoleFollowBehavior(input: {

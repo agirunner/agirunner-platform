@@ -9,6 +9,8 @@ import {
 } from './workflow-packet-cursors.js';
 
 const CANONICAL_DELIVERABLE_PACKET_KIND = 'deliverable_packet';
+const ROLLUP_SOURCE_DESCRIPTOR_ID_KEY = 'rollup_source_descriptor_id';
+const ROLLUP_SOURCE_WORK_ITEM_ID_KEY = 'rollup_source_work_item_id';
 
 interface DeliverableSource {
   listDeliverables(
@@ -111,6 +113,10 @@ export class WorkflowDeliverablesService {
     ) ?? [];
     const incompleteWorkItemIdSet = new Set(incompleteWorkItemIds);
     const linkedWorkItemIdSet = new Set(linkedWorkItemIds);
+    const deliverableWorkItemAttribution = buildDeliverableWorkItemAttribution(
+      briefs,
+      linkedWorkItemIdSet,
+    );
     const deliverableScopeBriefs = selectDeliverableScopeRecords(
       briefs,
       input.workItemId,
@@ -128,7 +134,11 @@ export class WorkflowDeliverablesService {
     const deliverableScopeRecords = selectDeliverableScopeRecords(
       deliverables,
       input.workItemId,
-      (deliverable) => deliverable.work_item_id,
+      (deliverable) =>
+        resolveAttributedDeliverableWorkItemId(
+          deliverable,
+          deliverableWorkItemAttribution,
+        ),
       (deliverable) =>
         shouldRollUpChildScopeDeliverable(
           deliverable,
@@ -145,7 +155,10 @@ export class WorkflowDeliverablesService {
       deliverableScopeBriefs,
     );
 
-    const normalizedDeliverables = hydratedDeliverables.map(normalizeDeliverableTargets);
+    const normalizedDeliverables = suppressMirroredWorkflowRollupDuplicates(
+      hydratedDeliverables.map(normalizeDeliverableTargets),
+      input.workItemId,
+    );
 
     const orderedDeliverables = [...normalizedDeliverables].sort((left, right) =>
       compareDeliverables(left, right),
@@ -215,7 +228,7 @@ function filterRecordsForRequestedScope<T>(
 
   return records.filter((record) => {
     const recordWorkItemId = readWorkItemId(record);
-    return recordWorkItemId === null || recordWorkItemId === workItemId;
+    return recordWorkItemId === workItemId;
   });
 }
 
@@ -628,6 +641,65 @@ function resolveDeliverableWorkItemId(
   return candidateIds.length === 1 ? candidateIds[0] : null;
 }
 
+interface DeliverableWorkItemAttribution {
+  readonly byBriefId: ReadonlyMap<string, string>;
+  readonly byDescriptorId: ReadonlyMap<string, string>;
+}
+
+function buildDeliverableWorkItemAttribution(
+  briefs: WorkflowOperatorBriefRecord[],
+  linkedWorkItemIds: Set<string>,
+): DeliverableWorkItemAttribution {
+  const byBriefId = new Map<string, string>();
+  const byDescriptorAssignments = new Map<string, string | null>();
+  for (const brief of briefs) {
+    const workItemId = resolveDeliverableWorkItemId(brief, linkedWorkItemIds);
+    if (!workItemId) {
+      continue;
+    }
+    byBriefId.set(brief.id, workItemId);
+    for (const descriptorId of brief.related_output_descriptor_ids ?? []) {
+      const normalizedDescriptorId = readOptionalString(descriptorId);
+      if (!normalizedDescriptorId) {
+        continue;
+      }
+      const currentAssignment = byDescriptorAssignments.get(normalizedDescriptorId);
+      if (currentAssignment === undefined) {
+        byDescriptorAssignments.set(normalizedDescriptorId, workItemId);
+        continue;
+      }
+      if (currentAssignment !== workItemId) {
+        byDescriptorAssignments.set(normalizedDescriptorId, null);
+      }
+    }
+  }
+  const byDescriptorId = new Map<string, string>();
+  for (const [descriptorId, workItemId] of byDescriptorAssignments.entries()) {
+    if (workItemId) {
+      byDescriptorId.set(descriptorId, workItemId);
+    }
+  }
+  return { byBriefId, byDescriptorId };
+}
+
+function resolveAttributedDeliverableWorkItemId(
+  deliverable: WorkflowDeliverableRecord,
+  attribution: DeliverableWorkItemAttribution,
+): string | null {
+  const storedWorkItemId = readOptionalString(deliverable.work_item_id);
+  if (storedWorkItemId) {
+    return storedWorkItemId;
+  }
+  const sourceBriefId = readOptionalString(deliverable.source_brief_id);
+  if (sourceBriefId) {
+    const attributedWorkItemId = attribution.byBriefId.get(sourceBriefId);
+    if (attributedWorkItemId) {
+      return attributedWorkItemId;
+    }
+  }
+  return attribution.byDescriptorId.get(deliverable.descriptor_id) ?? null;
+}
+
 function collectLinkedTargetCandidateIds(briefs: WorkflowOperatorBriefRecord[]): string[] {
   const candidateIds = new Set<string>();
   for (const brief of briefs) {
@@ -705,6 +777,28 @@ function normalizeArtifactPreviewUrl(url: string | null): string | null {
   return serializeNormalizedUrl(parsed);
 }
 
+function suppressMirroredWorkflowRollupDuplicates(
+  deliverables: WorkflowDeliverableRecord[],
+  selectedWorkItemId?: string,
+): WorkflowDeliverableRecord[] {
+  const workflowRollupSources = new Set(
+    deliverables
+      .filter((deliverable) => readOptionalString(deliverable.work_item_id) === null)
+      .map(readRollupSourceDescriptorId)
+      .filter((descriptorId): descriptorId is string => descriptorId !== null),
+  );
+  return deliverables.filter((deliverable) => {
+    const workItemId = readOptionalString(deliverable.work_item_id);
+    if (selectedWorkItemId) {
+      return !(
+        workItemId === null
+        && readRollupSourceWorkItemId(deliverable) === selectedWorkItemId
+      );
+    }
+    return !(workItemId !== null && workflowRollupSources.has(deliverable.descriptor_id));
+  });
+}
+
 function serializeNormalizedUrl(parsed: URL): string {
   return parsed.origin === 'http://dashboard.local'
     ? `${parsed.pathname}${parsed.search}${parsed.hash}`
@@ -744,6 +838,14 @@ function packetMatchesScope(
     return packetWorkItemId === workItemId;
   }
   return packetWorkItemId === null;
+}
+
+function readRollupSourceDescriptorId(deliverable: WorkflowDeliverableRecord): string | null {
+  return readOptionalString(asRecord(deliverable.content_preview)[ROLLUP_SOURCE_DESCRIPTOR_ID_KEY]);
+}
+
+function readRollupSourceWorkItemId(deliverable: WorkflowDeliverableRecord): string | null {
+  return readOptionalString(asRecord(deliverable.content_preview)[ROLLUP_SOURCE_WORK_ITEM_ID_KEY]);
 }
 
 function readOptionalString(value: unknown): string | null {

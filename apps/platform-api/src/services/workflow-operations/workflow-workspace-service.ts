@@ -307,9 +307,10 @@ function buildWorkspaceDeliverablesPacket(
   selectedScope: WorkflowWorkspacePacket['selected_scope'],
   board: Record<string, unknown>,
 ): WorkspaceDeliverablesPacket {
+  const scopedDeliverables = filterWorkspaceDeliverablesForSelectedScope(deliverables, selectedScope);
   const visibleDeliverables = [
-    ...deliverables.final_deliverables,
-    ...deliverables.in_progress_deliverables,
+    ...scopedDeliverables.final_deliverables,
+    ...scopedDeliverables.in_progress_deliverables,
   ];
   const fallbackDeliverables = visibleDeliverables.length === 0
     ? buildFallbackOutputDescriptorDeliverables(
@@ -321,16 +322,16 @@ function buildWorkspaceDeliverablesPacket(
       )
     : [];
   const mergedFinalDeliverables = [
-    ...deliverables.final_deliverables,
+    ...scopedDeliverables.final_deliverables,
     ...fallbackDeliverables.filter(isFinalWorkspaceDeliverable),
   ];
   const mergedInProgressDeliverables = [
-    ...deliverables.in_progress_deliverables,
+    ...scopedDeliverables.in_progress_deliverables,
     ...fallbackDeliverables.filter((deliverable) => !isFinalWorkspaceDeliverable(deliverable)),
   ];
 
   return {
-    ...deliverables,
+    ...scopedDeliverables,
     final_deliverables: mergedFinalDeliverables,
     in_progress_deliverables: mergedInProgressDeliverables,
     all_deliverables: [...mergedFinalDeliverables, ...mergedInProgressDeliverables],
@@ -378,6 +379,32 @@ function buildFallbackOutputDescriptorDeliverables(
   return fallbackDeliverables;
 }
 
+function filterWorkspaceDeliverablesForSelectedScope(
+  deliverables: WorkspaceDeliverablesPacket,
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+): WorkspaceDeliverablesPacket {
+  if (selectedScope.scope_kind !== 'selected_work_item') {
+    return deliverables;
+  }
+  const selectedWorkItemId = selectedScope.work_item_id;
+  if (!selectedWorkItemId) {
+    return {
+      ...deliverables,
+      final_deliverables: [],
+      in_progress_deliverables: [],
+      all_deliverables: [],
+    };
+  }
+  const matchesSelectedWorkItem = (deliverable: WorkflowDeliverableRecord): boolean =>
+    deliverable.work_item_id === selectedWorkItemId;
+  return {
+    ...deliverables,
+    final_deliverables: deliverables.final_deliverables.filter(matchesSelectedWorkItem),
+    in_progress_deliverables: deliverables.in_progress_deliverables.filter(matchesSelectedWorkItem),
+    all_deliverables: (deliverables.all_deliverables ?? []).filter(matchesSelectedWorkItem),
+  };
+}
+
 function selectScopedOutputDescriptors(
   outputDescriptors: MissionControlOutputDescriptor[],
   selectedScope: WorkflowWorkspacePacket['selected_scope'],
@@ -392,7 +419,7 @@ function selectScopedOutputDescriptors(
     return [];
   }
   return outputDescriptors.filter((descriptor) =>
-    descriptor.workItemId === null || descriptor.workItemId === selectedScope.work_item_id,
+    descriptor.workItemId === selectedScope.work_item_id,
   );
 }
 

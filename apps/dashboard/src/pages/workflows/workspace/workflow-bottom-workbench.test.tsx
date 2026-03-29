@@ -904,6 +904,113 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).toContain('Task evidence should stay visible while task details refetch.');
     expect(html).toContain('Parent work item deliverables (1)');
   });
+
+  it('renders embedded text-only deliverables inline when task scope resolves ahead of missing target payloads', () => {
+    const packet = createPacket();
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBottomWorkbench, {
+        workflowId: 'workflow-1',
+        workflow: packet.workflow,
+        stickyStrip: packet.sticky_strip,
+        board: {
+          columns: packet.board?.columns ?? [],
+          work_items: [
+            {
+              id: 'work-item-7',
+              workflow_id: 'workflow-1',
+              stage_name: 'release',
+              title: 'Prepare release bundle',
+              goal: 'Assemble final artifacts for launch.',
+              column_id: 'in_progress',
+              priority: 'normal',
+            },
+          ],
+          active_stages: packet.board?.active_stages ?? [],
+          awaiting_gate_count: packet.board?.awaiting_gate_count ?? 0,
+          stage_summary: packet.board?.stage_summary ?? [],
+        },
+        workflowName: 'Workflow 1',
+        packet: {
+          ...packet,
+          selected_scope: {
+            scope_kind: 'selected_task',
+            work_item_id: 'work-item-7',
+            task_id: 'task-3',
+          },
+          bottom_tabs: {
+            ...packet.bottom_tabs,
+            current_scope_kind: 'selected_task',
+            current_work_item_id: 'work-item-7',
+            current_task_id: 'task-3',
+          },
+          deliverables: {
+            ...packet.deliverables,
+            final_deliverables: [
+              {
+                descriptor_id: 'deliverable-embedded-text',
+                workflow_id: 'workflow-1',
+                work_item_id: 'work-item-7',
+                descriptor_kind: 'handoff_packet',
+                delivery_stage: 'final',
+                title: 'Release summary packet',
+                state: 'final',
+                summary_brief: null,
+                preview_capabilities: {},
+                primary_target: {} as never,
+                secondary_targets: [],
+                content_preview: 'Embedded release summary without a target URL.',
+                source_brief_id: null,
+                created_at: '2026-03-28T03:00:00.000Z',
+                updated_at: '2026-03-28T03:00:00.000Z',
+              },
+            ],
+          },
+        },
+        activeTab: 'deliverables',
+        selectedWorkItemId: null,
+        scopedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [
+          {
+            id: 'task-3',
+            title: 'Verify deliverable',
+            role: 'reviewer',
+            state: 'in_progress',
+            work_item_id: 'work-item-7',
+            work_item_title: 'Prepare release bundle',
+            output: {
+              summary: 'Task evidence should stay visible while task details refetch.',
+            },
+          },
+        ],
+        inputPackets: [],
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        onTabChange: vi.fn(),
+        onClearWorkItemScope: vi.fn(),
+        onClearTaskScope: vi.fn(),
+        onOpenAddWork: vi.fn(),
+        onOpenRedrive: vi.fn(),
+        onLoadMoreActivity: vi.fn(),
+        onLoadMoreDeliverables: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Release summary packet');
+    expect(html).toContain('Embedded release summary without a target URL.');
+    expect(html).toContain('Parent work item deliverables (1)');
+    expect(html).not.toContain('Open artifact in new tab');
+  });
 });
 
 function createPacket(): DashboardWorkflowWorkspacePacket {
