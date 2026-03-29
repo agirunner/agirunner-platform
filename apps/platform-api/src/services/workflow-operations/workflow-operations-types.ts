@@ -90,6 +90,7 @@ export interface WorkflowLiveConsoleItem {
   work_item_id: string | null;
   task_id: string | null;
   linked_target_ids: string[];
+  scope_binding?: 'record' | 'structured_target' | 'execution_context';
 }
 
 export interface WorkflowLiveConsolePacket extends WorkflowOperationsSnapshot {

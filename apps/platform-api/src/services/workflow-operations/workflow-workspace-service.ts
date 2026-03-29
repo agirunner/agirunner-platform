@@ -26,6 +26,7 @@ import type {
   WorkflowLiveConsoleItem,
   WorkflowWorkspacePacket,
 } from './workflow-operations-types.js';
+import { filterLiveConsoleItemsForSelectedScope } from './workflow-live-console-scope.js';
 
 interface WorkflowWorkspaceQuery {
   boardMode?: string;
@@ -172,7 +173,11 @@ export class WorkflowWorkspaceService {
       ...deliverables.final_deliverables,
       ...deliverables.in_progress_deliverables,
     ];
-    const effectiveLiveConsole = filterLiveConsoleForSelectedScope(liveConsole, selectedScope);
+    const effectiveLiveConsole = filterLiveConsoleForSelectedScope(
+      liveConsole,
+      selectedScope,
+      readBoardWorkItemIds(board as Record<string, unknown>),
+    );
     const effectiveHistory = filterHistoryForSelectedScope(history, selectedScope);
     const activeSession = sessions[0] ?? null;
     const steeringQuickActions = filterSteeringQuickActions(workflowCard?.availableActions ?? []);
@@ -316,8 +321,9 @@ function buildBottomTabs(
 function filterLiveConsoleForSelectedScope(
   packet: WorkflowWorkspacePacket['live_console'],
   selectedScope: WorkflowWorkspacePacket['selected_scope'],
+  workflowWorkItemIds: string[],
 ): WorkflowWorkspacePacket['live_console'] {
-  const filteredItems = packet.items.filter((item) => matchesScopedRecord(item, selectedScope));
+  const filteredItems = filterLiveConsoleItemsForSelectedScope(packet.items, selectedScope, workflowWorkItemIds);
   if (filteredItems.length === packet.items.length) {
     return packet;
   }
@@ -326,6 +332,16 @@ function filterLiveConsoleForSelectedScope(
     items: filteredItems,
     total_count: filteredItems.length,
   };
+}
+
+function readBoardWorkItemIds(board: Record<string, unknown>): string[] {
+  const workItems = board.work_items;
+  if (!Array.isArray(workItems)) {
+    return [];
+  }
+  return workItems
+    .map((item) => readOptionalString(asRecord(item).id))
+    .filter((workItemId): workItemId is string => workItemId !== null);
 }
 
 function filterHistoryForSelectedScope(

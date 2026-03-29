@@ -634,4 +634,117 @@ describe('WorkflowLiveConsoleService', () => {
     ]);
     expect(result.total_count).toBe(2);
   });
+
+  it('excludes orchestrator execution turns that target a sibling work item from selected work-item scope', async () => {
+    const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
+      versionSource: unknown,
+      briefSource: unknown,
+      updateSource: unknown,
+      visibilityModeSource: unknown,
+      executionTurnSource: unknown,
+      workflowBoardSource: unknown,
+    ) => WorkflowLiveConsoleService;
+    const executionTurnSource = {
+      query: vi.fn(async () => ({
+        data: [
+          {
+            id: 'log-sibling',
+            source: 'runtime',
+            category: 'agent_loop',
+            level: 'debug',
+            operation: 'agent.act',
+            status: 'completed',
+            payload: {
+              tool: 'create_task',
+              input: {
+                title: 'Triage workflows-intake-02',
+                work_item_id: 'work-item-2',
+              },
+            },
+            workflow_id: 'workflow-1',
+            workflow_name: 'Workflow 1',
+            work_item_id: 'work-item-1',
+            task_id: 'orchestrator-task-1',
+            stage_name: 'triage',
+            is_orchestrator_task: true,
+            task_title: 'Orchestrate intake workflow',
+            role: 'orchestrator',
+            actor_type: 'worker',
+            actor_name: 'Orchestrator',
+            resource_name: null,
+            created_at: '2026-03-28T07:58:30.000Z',
+          },
+          {
+            id: 'log-selected',
+            source: 'runtime',
+            category: 'agent_loop',
+            level: 'debug',
+            operation: 'agent.act',
+            status: 'completed',
+            payload: {
+              tool: 'create_task',
+              input: {
+                title: 'Assess workflows-intake-01 triage readiness',
+                work_item_id: 'work-item-1',
+              },
+            },
+            workflow_id: 'workflow-1',
+            workflow_name: 'Workflow 1',
+            work_item_id: 'work-item-1',
+            task_id: 'orchestrator-task-1',
+            stage_name: 'triage',
+            is_orchestrator_task: true,
+            task_title: 'Orchestrate intake workflow',
+            role: 'orchestrator',
+            actor_type: 'worker',
+            actor_name: 'Orchestrator',
+            resource_name: null,
+            created_at: '2026-03-28T07:59:00.000Z',
+          },
+        ],
+      })),
+    };
+    const service = new ServiceCtor(
+      {
+        getHistory: vi.fn(async () => ({
+          version: {
+            generatedAt: '2026-03-28T08:00:00.000Z',
+            latestEventId: 77,
+            token: 'mission-control:77',
+          },
+          packets: [],
+        })),
+      } as never,
+      {
+        listBriefs: vi.fn(async () => []),
+      } as never,
+      {
+        listUpdates: vi.fn(async () => []),
+      } as never,
+      {
+        getWorkflowSettings: vi.fn(async () => ({
+          effective_live_visibility_mode: 'enhanced',
+        })),
+      } as never,
+      executionTurnSource as never,
+      {
+        getWorkflowBoard: vi.fn(async () => ({
+          work_items: [{ id: 'work-item-1' }, { id: 'work-item-2' }],
+        })),
+      } as never,
+    );
+
+    const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+      limit: 10,
+    });
+
+    expect(result.items).toEqual([
+      expect.objectContaining({
+        item_id: 'execution-log:log-selected',
+        headline: '[Act] Creating a task: Assess workflows-intake-01 triage readiness',
+      }),
+    ]);
+    expect(result.total_count).toBe(1);
+  });
 });
