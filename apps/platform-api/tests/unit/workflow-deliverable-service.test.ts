@@ -32,7 +32,8 @@ describe('WorkflowDeliverableService', () => {
         return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
       }
       if (sql.includes('FROM workflow_output_descriptors')) {
-        expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 2, false]);
+        expect(sql).toContain('LIMIT $4');
+        expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 2]);
         return {
           rowCount: 2,
           rows: [
@@ -93,7 +94,8 @@ describe('WorkflowDeliverableService', () => {
       }
       if (sql.includes('FROM workflow_output_descriptors')) {
         expect(sql).toContain('AND work_item_id IS NULL');
-        expect(params).toEqual(['tenant-1', 'workflow-1', null, 50, false]);
+        expect(sql).toContain('LIMIT $3');
+        expect(params).toEqual(['tenant-1', 'workflow-1', 50]);
         return { rowCount: 0, rows: [] };
       }
       throw new Error(`Unexpected SQL: ${sql}`);
@@ -109,7 +111,8 @@ describe('WorkflowDeliverableService', () => {
       }
       if (sql.includes('FROM workflow_output_descriptors')) {
         expect(sql).toContain('AND (work_item_id = $3 OR work_item_id IS NULL)');
-        expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 50, true]);
+        expect(sql).toContain('LIMIT $4');
+        expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1', 50]);
         return { rowCount: 0, rows: [] };
       }
       throw new Error(`Unexpected SQL: ${sql}`);

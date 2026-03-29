@@ -82,22 +82,16 @@ export class WorkflowDeliverableService {
     input: ListWorkflowDeliverablesInput = {},
   ): Promise<WorkflowDeliverableRecord[]> {
     await this.assertWorkflow(tenantId, workflowId);
-    const whereClause = buildDeliverableScopeWhereClause(input);
+    const scopeQuery = buildDeliverableScopeQuery(input);
     const result = await this.pool.query<WorkflowDeliverableRow>(
       `SELECT *
          FROM workflow_output_descriptors
         WHERE tenant_id = $1
           AND workflow_id = $2
-          AND ${whereClause}
+          AND ${scopeQuery.whereClause}
         ORDER BY updated_at DESC, created_at DESC
-        LIMIT $4`,
-      [
-        tenantId,
-        workflowId,
-        input.workItemId ?? null,
-        input.limit ?? 50,
-        input.includeWorkflowScope === true,
-      ],
+        LIMIT $${scopeQuery.limitParamIndex}`,
+      [tenantId, workflowId, ...scopeQuery.params, input.limit ?? 50],
     );
     return result.rows.map(toWorkflowDeliverableRecord);
   }
@@ -232,16 +226,32 @@ export class WorkflowDeliverableService {
   }
 }
 
-function buildDeliverableScopeWhereClause(input: ListWorkflowDeliverablesInput): string {
+function buildDeliverableScopeQuery(input: ListWorkflowDeliverablesInput): {
+  whereClause: string;
+  params: string[];
+  limitParamIndex: number;
+} {
   if (!input.workItemId) {
-    return 'work_item_id IS NULL';
+    return {
+      whereClause: 'work_item_id IS NULL',
+      params: [],
+      limitParamIndex: 3,
+    };
   }
 
   if (input.includeWorkflowScope === true) {
-    return '(work_item_id = $3 OR work_item_id IS NULL)';
+    return {
+      whereClause: '(work_item_id = $3 OR work_item_id IS NULL)',
+      params: [input.workItemId],
+      limitParamIndex: 4,
+    };
   }
 
-  return 'work_item_id = $3';
+  return {
+    whereClause: 'work_item_id = $3',
+    params: [input.workItemId],
+    limitParamIndex: 4,
+  };
 }
 
 function toWorkflowDeliverableRecord(row: WorkflowDeliverableRow): WorkflowDeliverableRecord {
