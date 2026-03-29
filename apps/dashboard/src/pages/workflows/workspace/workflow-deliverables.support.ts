@@ -24,6 +24,7 @@ const DEPRECATED_WORKSPACE_TARGET_PATH_PATTERNS = [
   /^\/workflows\/[^/]+\/deliverables\/[^/]+$/,
 ];
 const DEPRECATED_NAVIGATION_PARAM_NAMES = ['return_to', 'return_source'];
+const DOWNLOADABLE_TARGET_KINDS = new Set(['artifact', 'input_packet_file', 'intervention_file']);
 
 export function normalizeDeliverablesPacket(
   packet: Partial<DashboardWorkflowDeliverablesPacket> | null | undefined,
@@ -77,6 +78,12 @@ export function hasMeaningfulDeliverableTarget(target: DashboardWorkflowDelivera
     || Boolean(target.path)
     || Boolean(target.repo_ref)
     || Boolean(target.artifact_id);
+}
+
+export function isDownloadableDeliverableTarget(
+  target: DashboardWorkflowDeliverableTarget,
+): boolean {
+  return DOWNLOADABLE_TARGET_KINDS.has(target.target_kind);
 }
 
 export function resolveDeliverableTargetAction(

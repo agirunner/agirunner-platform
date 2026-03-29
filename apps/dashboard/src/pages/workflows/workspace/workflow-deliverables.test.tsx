@@ -6,7 +6,7 @@ import type { DashboardTaskRecord, DashboardWorkflowDeliverablesPacket } from '.
 import { WorkflowDeliverables } from './workflow-deliverables.js';
 
 describe('WorkflowDeliverables', () => {
-  it('offers direct artifact open actions without workflow-navigation copy or deprecated routes', () => {
+  it('renders an in-page artifact browser instead of external open actions', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createPacket(),
@@ -24,12 +24,12 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Open artifact in new tab');
+    expect(html).toContain('Produced artifacts (1)');
+    expect(html).toContain('Download artifact');
+    expect(html).toContain('<iframe');
     expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
     expect(html).not.toContain('/artifacts/tasks/task-1/artifact-1');
-    expect(html).not.toContain('Open without leaving workflow');
-    expect(html).not.toContain('Open in new window');
-    expect(html).not.toContain('Preview inline');
+    expect(html).not.toContain('Open artifact in new tab');
     expect(html).toContain('Deliverables');
   });
 
@@ -438,8 +438,8 @@ describe('WorkflowDeliverables', () => {
 
     expect(html).toContain('workflow-intake-01 completion packet');
     expect(html).toContain('Approved the intake packet and confirmed it satisfies the readiness criteria.');
+    expect(html).toContain('Approved the intake packet and confirmed it satisfies the readiness criteria.');
     expect(html).not.toContain('Open artifact in new tab');
-    expect(html).not.toContain('Preview inline');
   });
 
   it('renders malformed deliverable targets without crashing the tab', () => {
@@ -493,7 +493,6 @@ describe('WorkflowDeliverables', () => {
 
     expect(html).toContain('Workflow summary packet');
     expect(html).toContain('The summary still renders even when target payloads are malformed.');
-    expect(html).not.toContain('Preview inline');
     expect(html).not.toContain('Open artifact in new tab');
   });
 
@@ -553,9 +552,54 @@ describe('WorkflowDeliverables', () => {
 
     expect(html).toContain('Release bundle');
     expect(html).toContain('Operators should stay on the deliverables tab for this packet.');
-    expect(html).toContain('Already visible in this workflow workspace.');
+    expect(html).not.toContain('Produced artifacts');
     expect(html).not.toContain('href="/workflows/workflow-1/deliverables/deliverable-inline-only"');
     expect(html).not.toContain('Open artifact in new tab');
+  });
+
+  it('shows every artifact target inside the deliverables browser without truncating the list', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: {
+          final_deliverables: [
+            {
+              ...createPacket().final_deliverables[0],
+              secondary_targets: Array.from({ length: 24 }, (_, index) => ({
+                target_kind: 'artifact',
+                label: `Artifact ${index + 2}`,
+                url: `http://localhost:3000/artifacts/tasks/task-1/artifact-${index + 2}`,
+                path: `artifacts/release-bundle-${index + 2}.zip`,
+                artifact_id: `artifact-${index + 2}`,
+              })),
+            },
+          ],
+          in_progress_deliverables: [],
+          working_handoffs: [],
+          inputs_and_provenance: {
+            launch_packet: null,
+            supplemental_packets: [],
+            intervention_attachments: [],
+            redrive_packet: null,
+          },
+          next_cursor: null,
+        },
+        selectedTask: null,
+        selectedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Produced artifacts (25)');
+    expect(html).toContain('Artifact 25');
+    expect(html).not.toContain('Produced artifacts (20)');
   });
 
   it('keeps work-item scope on brief-backed outputs when no materialized deliverables exist for the selected work item', () => {

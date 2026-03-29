@@ -43,15 +43,15 @@ describe('WorkflowDeliverableTargetLink', () => {
           path: 'artifacts/release-bundle.zip',
           artifact_id: 'artifact-1',
         },
-        primary: true,
       }),
     );
 
-    expect(html).toContain('Open artifact');
-    expect(html).toContain('Open artifact in new tab');
+    expect(html).toContain('Open artifact (Artifact)');
+    expect(html).toContain('Open target');
     expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
     expect(html).not.toContain('/artifacts/tasks/task-1/artifact-1');
     expect(html).not.toContain('return_to=');
+    expect(html).not.toContain('target="_blank"');
   });
 
   it('renders deprecated workflow deliverable routes inline instead of linking to removed dashboard surfaces', () => {
@@ -63,7 +63,6 @@ describe('WorkflowDeliverableTargetLink', () => {
           url: '/workflows/workflow-1/deliverables/deliverable-1',
           path: 'artifacts/release-bundle.zip',
         },
-        primary: true,
       }),
     );
 
@@ -86,10 +85,10 @@ describe('WorkflowDeliverableTargetLink', () => {
     );
 
     expect(html).toContain('Launch packet (Input Packet File)');
-    expect(html).toContain('Open file in new tab');
+    expect(html).toContain('Open target');
     expect(html).toContain('/api/v1/workflows/workflow-1/input-packets/packet-1/files/file-1/content');
-    expect(html).not.toContain('Preview inline');
     expect(html).not.toContain('return_to=');
+    expect(html).not.toContain('target="_blank"');
   });
 
   it('renders malformed direct targets without throwing', () => {

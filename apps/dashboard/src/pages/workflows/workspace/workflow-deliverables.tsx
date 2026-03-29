@@ -10,7 +10,7 @@ import type {
   DashboardWorkflowOperatorBriefRecord,
 } from '../../../lib/api.js';
 import type { WorkflowWorkbenchScopeDescriptor } from '../workflows-page.support.js';
-import { WorkflowDeliverableTargetLink } from './workflow-deliverable-target-link.js';
+import { WorkflowDeliverableBrowser } from './workflow-deliverable-browser.js';
 import { WorkflowBriefRenderer } from './workflow-brief-renderer.js';
 import {
   hasMeaningfulDeliverableTarget,
@@ -364,11 +364,6 @@ function DeliverableCard(props: {
   prominent?: boolean;
 }): JSX.Element {
   const previewText = readPreviewText(props.deliverable);
-  const primaryTarget = sanitizeDeliverableTarget(props.deliverable.primary_target);
-  const secondaryTargets = sanitizeDeliverableTargets(props.deliverable.secondary_targets);
-  const shouldRenderPrimaryTarget =
-    hasMeaningfulDeliverableTarget(primaryTarget)
-    && primaryTarget.target_kind !== 'inline_summary';
 
   return (
     <article
@@ -391,22 +386,7 @@ function DeliverableCard(props: {
           {previewText}
         </pre>
       ) : null}
-      {shouldRenderTargets(primaryTarget, secondaryTargets) ? (
-        <div className="grid gap-2">
-          {shouldRenderPrimaryTarget ? (
-            <WorkflowDeliverableTargetLink
-              target={primaryTarget}
-              primary
-            />
-          ) : null}
-          {secondaryTargets.map((target, index) => (
-            <WorkflowDeliverableTargetLink
-              key={`${props.deliverable.descriptor_id}:secondary:${index}`}
-              target={target}
-            />
-          ))}
-        </div>
-      ) : null}
+      <WorkflowDeliverableBrowser deliverable={props.deliverable} />
     </article>
   );
 }
@@ -621,16 +601,6 @@ function readPreviewText(deliverable: DashboardWorkflowDeliverableRecord): strin
     readText(preview.summary) ??
     readText(preview.snippet)
   );
-}
-
-function shouldRenderTargets(
-  primaryTarget: DashboardWorkflowDeliverableTarget,
-  secondaryTargets: DashboardWorkflowDeliverableTarget[],
-): boolean {
-  if (hasMeaningfulDeliverableTarget(primaryTarget) && primaryTarget.target_kind !== 'inline_summary') {
-    return true;
-  }
-  return secondaryTargets.length > 0;
 }
 
 function buildTaskEvidence(task: DashboardTaskRecord | null): unknown {

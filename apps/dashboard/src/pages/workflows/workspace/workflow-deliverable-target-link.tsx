@@ -6,14 +6,10 @@ import {
 
 export function WorkflowDeliverableTargetLink(props: {
   target: DashboardWorkflowDeliverableTarget;
-  primary?: boolean;
 }): JSX.Element {
   const target = sanitizeDeliverableTarget(props.target);
   const action = resolveDeliverableTargetAction(target);
-  const targetLabel = props.primary
-    ? readTargetLabel(target)
-    : buildSecondaryTargetLabel(target);
-  const openInNewTabLabel = buildOpenInNewTabLabel(target.target_kind);
+  const targetLabel = buildTargetLabel(target);
 
   return (
     <div className="grid gap-2">
@@ -28,10 +24,8 @@ export function WorkflowDeliverableTargetLink(props: {
           <a
             className="text-sm font-medium text-accent underline-offset-4 hover:underline"
             href={action.href}
-            target="_blank"
-            rel="noreferrer"
           >
-            {openInNewTabLabel}
+            Open target
           </a>
         </div>
       )}
@@ -50,22 +44,9 @@ function readTargetLabel(target: DashboardWorkflowDeliverableTarget): string {
   return target.label.length > 0 ? target.label : 'Linked output';
 }
 
-function buildSecondaryTargetLabel(target: DashboardWorkflowDeliverableTarget): string {
+function buildTargetLabel(target: DashboardWorkflowDeliverableTarget): string {
   const label = readTargetLabel(target);
   return target.target_kind.length > 0
     ? `${label} (${humanizeToken(target.target_kind)})`
     : label;
-}
-
-function buildOpenInNewTabLabel(targetKind: DashboardWorkflowDeliverableTarget['target_kind']): string {
-  if (targetKind.length === 0) {
-    return 'Open target in new tab';
-  }
-  if (targetKind === 'artifact') {
-    return 'Open artifact in new tab';
-  }
-  if (targetKind === 'input_packet_file' || targetKind === 'intervention_file') {
-    return 'Open file in new tab';
-  }
-  return `Open ${humanizeToken(targetKind).toLowerCase()} in new tab`;
 }
