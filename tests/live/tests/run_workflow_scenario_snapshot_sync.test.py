@@ -14,6 +14,51 @@ import run_workflow_scenario  # noqa: E402
 
 
 class ExecutionLogSnapshotSyncTests(unittest.TestCase):
+    def test_accepts_positional_client_with_keyword_only_evidence_inputs(self) -> None:
+        execution_logs_snapshot = {"data": [{"id": "3509"}]}
+        workspace_scope_trace = {
+            "workflow_scope": {
+                "workspace_api": {
+                    "live_console": {
+                        "execution_turn_ids": ["3509"],
+                    }
+                }
+            }
+        }
+        client = object()
+
+        with (
+            patch.object(
+                run_workflow_scenario,
+                "collect_execution_logs",
+                return_value=execution_logs_snapshot,
+            ) as collect_logs,
+            patch.object(
+                run_workflow_scenario,
+                "build_workspace_scope_trace",
+                return_value=workspace_scope_trace,
+            ) as build_scope_trace,
+        ):
+            execution_logs, reconciled_trace = (
+                run_workflow_scenario.collect_consistent_workspace_scope_evidence(
+                    client,
+                    workflow_id="workflow-123",
+                    workflow={"id": "workflow-123"},
+                    db_state_snapshot={"ok": True},
+                )
+            )
+
+        self.assertEqual(execution_logs_snapshot, execution_logs)
+        self.assertEqual(workspace_scope_trace, reconciled_trace)
+        collect_logs.assert_called_once_with(client, workflow_id="workflow-123")
+        build_scope_trace.assert_called_once_with(
+            client,
+            workflow_id="workflow-123",
+            workflow={"id": "workflow-123"},
+            db_state={"ok": True},
+            execution_logs=execution_logs_snapshot,
+        )
+
     def test_collects_fresh_execution_logs_when_workspace_scope_surfaces_later_rows(self) -> None:
         initial_logs = {"data": [{"id": "3509"}]}
         refreshed_logs = {"data": [{"id": "3509"}, {"id": "7323"}]}

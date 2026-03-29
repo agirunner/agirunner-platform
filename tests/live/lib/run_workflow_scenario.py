@@ -1744,8 +1744,8 @@ def _max_workspace_scope_execution_log_id(workspace_scope_trace: Any) -> int | N
 
 
 def collect_consistent_workspace_scope_evidence(
-    *,
     client: ApiClient,
+    *,
     workflow_id: str,
     workflow: dict[str, Any],
     db_state_snapshot: dict[str, Any],
