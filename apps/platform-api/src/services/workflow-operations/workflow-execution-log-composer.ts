@@ -20,9 +20,10 @@ const HISTORY_LIFECYCLE_OPERATIONS = new Set([
 
 export function buildExecutionTurnItems(rows: LogRow[]): WorkflowLiveConsoleItem[] {
   const items: WorkflowLiveConsoleItem[] = [];
-  const preferredLLMPhaseKeys = collectPreferredLLMPhaseKeys(rows);
+  const hydratedRows = hydrateLLMPhaseRows(rows);
+  const preferredLLMPhaseKeys = collectPreferredLLMPhaseKeys(hydratedRows);
 
-  for (const row of rows) {
+  for (const row of hydratedRows) {
     const item = buildExecutionTurnItem(row, preferredLLMPhaseKeys);
     if (!item) {
       continue;
@@ -39,6 +40,72 @@ export function buildExecutionTurnItems(rows: LogRow[]): WorkflowLiveConsoleItem
   }
 
   return items;
+}
+
+function hydrateLLMPhaseRows(rows: LogRow[]): LogRow[] {
+  const responseRowsByTurnKey = collectLLMResponseRowsByTurnKey(rows);
+  return rows.map((row) => hydrateLLMPhaseRow(row, responseRowsByTurnKey));
+}
+
+function collectLLMResponseRowsByTurnKey(rows: LogRow[]): Map<string, LogRow> {
+  const responseRows = new Map<string, LogRow>();
+  for (const row of rows) {
+    if (row.operation !== 'llm.chat_stream') {
+      continue;
+    }
+    const payload = asRecord(row.payload);
+    if (readLLMExecutionPhase(payload)) {
+      continue;
+    }
+    if (!hasLoggedResponseContent(payload)) {
+      continue;
+    }
+    const key = buildLLMResponseCompanionKey(row, payload);
+    if (!key) {
+      continue;
+    }
+    const existing = responseRows.get(key);
+    if (!existing || compareLogRowsByCreatedAt(existing, row) > 0) {
+      responseRows.set(key, row);
+    }
+  }
+  return responseRows;
+}
+
+function hydrateLLMPhaseRow(
+  row: LogRow,
+  responseRowsByTurnKey: Map<string, LogRow>,
+): LogRow {
+  if (row.operation !== 'llm.chat_stream') {
+    return row;
+  }
+  const payload = asRecord(row.payload);
+  if (!readLLMExecutionPhase(payload) || hasLoggedResponseContent(payload)) {
+    return row;
+  }
+  const companionKey = buildLLMResponseCompanionKey(row, payload);
+  if (!companionKey) {
+    return row;
+  }
+  const companionRow = responseRowsByTurnKey.get(companionKey);
+  if (!companionRow) {
+    return row;
+  }
+  const companionPayload = asRecord(companionRow.payload);
+  return {
+    ...row,
+    payload: {
+      ...companionPayload,
+      ...payload,
+      response_text: readString(payload.response_text) ?? readString(companionPayload.response_text),
+      response_summary: readString(payload.response_summary)
+        ?? readString(companionPayload.response_summary),
+      response_tool_calls:
+        Array.isArray(payload.response_tool_calls) && payload.response_tool_calls.length > 0
+          ? payload.response_tool_calls
+          : companionPayload.response_tool_calls,
+    },
+  };
 }
 
 function buildExecutionTurnItem(
@@ -135,6 +202,23 @@ function buildExecutionPhaseKey(
   ].join(':');
 }
 
+function buildLLMResponseCompanionKey(
+  row: LogRow,
+  payload: Record<string, unknown>,
+): string | null {
+  const turnOrdinal = readExecutionTurnOrdinal(payload);
+  if (!turnOrdinal) {
+    return null;
+  }
+  return [
+    row.activation_id ?? '',
+    readString(row.role) ?? '',
+    turnOrdinal,
+    row.task_id ?? '',
+    row.work_item_id ?? '',
+  ].join(':');
+}
+
 function readExecutionTurnOrdinal(payload: Record<string, unknown>): string | null {
   const llmTurnCount = readOptionalNumber(payload.llm_turn_count);
   if (llmTurnCount !== null) {
@@ -145,6 +229,23 @@ function readExecutionTurnOrdinal(payload: Record<string, unknown>): string | nu
     return `burst:${burstId}`;
   }
   return null;
+}
+
+function hasLoggedResponseContent(payload: Record<string, unknown>): boolean {
+  return (
+    readString(payload.response_text) !== null
+    || readString(payload.response_summary) !== null
+    || (Array.isArray(payload.response_tool_calls) && payload.response_tool_calls.length > 0)
+  );
+}
+
+function compareLogRowsByCreatedAt(left: LogRow, right: LogRow): number {
+  const leftTimestamp = normalizeTimestamp(left.created_at);
+  const rightTimestamp = normalizeTimestamp(right.created_at);
+  if (leftTimestamp === rightTimestamp) {
+    return left.id.localeCompare(right.id);
+  }
+  return leftTimestamp.localeCompare(rightTimestamp);
 }
 
 export function buildLifecycleHistoryItems(rows: LogRow[]): WorkflowHistoryItem[] {
