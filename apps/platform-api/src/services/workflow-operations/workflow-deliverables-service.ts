@@ -8,6 +8,8 @@ import {
   resolveFetchWindow,
 } from './workflow-packet-cursors.js';
 
+const CANONICAL_DELIVERABLE_PACKET_KIND = 'deliverable_packet';
+
 interface DeliverableSource {
   listDeliverables(
     tenantId: string,
@@ -62,7 +64,7 @@ export class WorkflowDeliverablesService {
     const limit = input.limit ?? 10;
     const fetchWindow = resolveFetchWindow(limit);
     const includeWorkflowScope = Boolean(input.workItemId);
-    const includeAllWorkItemScopes = !input.workItemId;
+    const includeAllWorkItemScopes = false;
     const [deliverables, briefs, inputPackets, handoffs] = await Promise.all([
       this.deliverableSource.listDeliverables(tenantId, workflowId, {
         workItemId: input.workItemId,
@@ -146,7 +148,7 @@ function filterRecordsForRequestedScope<T>(
   readWorkItemId: (record: T) => string | null,
 ): T[] {
   if (!workItemId) {
-    return records;
+    return records.filter((record) => readWorkItemId(record) === null);
   }
 
   return records.filter((record) => {
@@ -453,7 +455,9 @@ function readOptionalString(value: unknown): string | null {
 
 function isPacketLikeDeliverable(deliverable: WorkflowDeliverableRecord): boolean {
   const descriptorKind = readOptionalString(deliverable.descriptor_kind);
-  return descriptorKind === 'handoff_packet' || descriptorKind === 'brief_packet';
+  return descriptorKind === 'handoff_packet'
+    || descriptorKind === 'brief_packet'
+    || descriptorKind === CANONICAL_DELIVERABLE_PACKET_KIND;
 }
 
 function buildDeliverableScopeKey(workItemId: string | null): string {

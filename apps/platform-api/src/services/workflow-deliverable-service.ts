@@ -197,7 +197,9 @@ export class WorkflowDeliverableService {
     const result = exists.rowCount
       ? await this.pool.query<WorkflowDeliverableRow>(
           `UPDATE workflow_output_descriptors
-              SET delivery_stage = $2,
+              SET work_item_id = $12,
+                  descriptor_kind = $13,
+                  delivery_stage = $2,
                   title = $3,
                   state = $4,
                   summary_brief = $5,
@@ -209,8 +211,6 @@ export class WorkflowDeliverableService {
                   updated_at = now()
             WHERE tenant_id = $1
               AND workflow_id = $11
-              AND work_item_id IS NOT DISTINCT FROM $12
-              AND descriptor_kind = $13
               AND id = $14
           RETURNING *`,
           params,

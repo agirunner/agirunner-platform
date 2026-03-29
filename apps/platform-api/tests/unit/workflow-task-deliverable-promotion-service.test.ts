@@ -5,16 +5,22 @@ import { WorkflowTaskDeliverablePromotionService } from '../../src/services/work
 describe('WorkflowTaskDeliverablePromotionService', () => {
   it('promotes a delivery handoff without artifacts into a canonical inline-summary work-item deliverable', async () => {
     const pool = {
-      query: vi
-        .fn()
-        .mockResolvedValueOnce({
-          rows: [{ id: 'descriptor-1' }],
-          rowCount: 1,
-        })
-        .mockResolvedValueOnce({
-          rows: [{ title: 'workflows-intake-01' }],
-          rowCount: 1,
-        }),
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflow_output_descriptors')) {
+          expect(sql).toContain("descriptor_kind IN ('deliverable_packet', 'handoff_packet')");
+          return {
+            rows: [{ id: 'descriptor-1' }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM workflow_work_items')) {
+          return {
+            rows: [{ title: 'workflows-intake-01' }],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
     };
     const deliverableService = {
       upsertSystemDeliverable: vi.fn(async () => ({
@@ -53,7 +59,7 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
       expect.objectContaining({
         descriptorId: 'descriptor-1',
         workItemId: 'work-item-1',
-        descriptorKind: 'handoff_packet',
+        descriptorKind: 'deliverable_packet',
         title: 'workflows-intake-01 completion packet',
         primaryTarget: expect.objectContaining({
           target_kind: 'inline_summary',
@@ -117,7 +123,7 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
       'workflow-1',
       expect.objectContaining({
         workItemId: 'work-item-2',
-        descriptorKind: 'handoff_packet',
+        descriptorKind: 'deliverable_packet',
         primaryTarget: expect.objectContaining({
           target_kind: 'artifact',
           artifact_id: 'artifact-1',
@@ -182,7 +188,7 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
       expect.objectContaining({
         descriptorId: 'descriptor-3',
         workItemId: 'work-item-3',
-        descriptorKind: 'handoff_packet',
+        descriptorKind: 'deliverable_packet',
         deliveryStage: 'final',
         state: 'final',
         title: 'workflow-intake-03 completion packet',
@@ -252,7 +258,7 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
       expect.objectContaining({
         descriptorId: 'descriptor-4',
         workItemId: 'work-item-4',
-        descriptorKind: 'handoff_packet',
+        descriptorKind: 'deliverable_packet',
         deliveryStage: 'final',
         state: 'final',
         title: 'workflow-intake-04 completion packet',

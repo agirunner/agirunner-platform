@@ -1,6 +1,8 @@
 import type { DatabaseQueryable } from '../db/database.js';
 import type { UpsertWorkflowDeliverableInput, WorkflowDeliverableRecord, WorkflowDeliverableService } from './workflow-deliverable-service.js';
 
+const CANONICAL_DELIVERABLE_PACKET_KIND = 'deliverable_packet';
+
 interface ArtifactRow {
   id: string;
   task_id: string;
@@ -83,7 +85,8 @@ export class WorkflowTaskDeliverablePromotionService {
         WHERE tenant_id = $1
           AND workflow_id = $2
           AND work_item_id = $3
-          AND descriptor_kind = 'handoff_packet'
+          AND descriptor_kind IN ('deliverable_packet', 'handoff_packet')
+        ORDER BY CASE WHEN descriptor_kind = 'deliverable_packet' THEN 0 ELSE 1 END
         LIMIT 1`,
       [tenantId, workflowId, workItemId],
     );
@@ -155,7 +158,7 @@ function buildPromotedDeliverableInput(
   return {
     descriptorId: existingDescriptor?.id,
     workItemId: handoff.work_item_id ?? undefined,
-    descriptorKind: 'handoff_packet',
+    descriptorKind: CANONICAL_DELIVERABLE_PACKET_KIND,
     deliveryStage: progress,
     title: `${workItemTitle ?? 'Work item'} ${progress === 'final' ? 'completion' : 'handoff'} packet`,
     state: progress === 'final' ? 'final' : 'draft',

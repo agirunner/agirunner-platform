@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowDeliverablesService } from '../../src/services/workflow-operations/workflow-deliverables-service.js';
 
 describe('WorkflowDeliverablesService', () => {
-  it('rolls canonical work-item deliverables into workflow scope while keeping task-only records out', async () => {
+  it('keeps workflow scope limited to workflow-level deliverables while preserving selected work-item finals elsewhere', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => [
         {
@@ -205,12 +205,12 @@ describe('WorkflowDeliverablesService', () => {
     expect(result.final_deliverables).toEqual([
       expect.objectContaining({ descriptor_id: 'deliverable-1', work_item_id: null }),
     ]);
-    expect(result.in_progress_deliverables).toEqual([
-      expect.objectContaining({ descriptor_id: 'deliverable-2', work_item_id: 'work-item-1' }),
+    expect(result.in_progress_deliverables).toEqual([]);
+    expect(result.all_deliverables).toEqual([
+      expect.objectContaining({ descriptor_id: 'deliverable-1', work_item_id: null }),
     ]);
     expect(result.working_handoffs).toEqual([
       expect.objectContaining({ id: 'brief-1' }),
-      expect.objectContaining({ id: 'brief-2' }),
     ]);
     expect(result.working_handoffs).not.toEqual([
       expect.arrayContaining([expect.objectContaining({ id: 'brief-3' })]),
