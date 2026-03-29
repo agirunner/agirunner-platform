@@ -55,46 +55,52 @@ export function buildLifecycleHistoryItems(rows: LogRow[]): WorkflowHistoryItem[
 function buildExecutionTurnHeadline(row: LogRow): string {
   const payload = asRecord(row.payload);
   const subject = readExecutionSubject(row);
-  switch (row.operation) {
-    case 'agent.think':
-      return (
-        readThinkText(payload)
-        ?? buildSubjectHeadline('Thinking through the next step for', subject, 'Thinking through the next step')
-      );
-    case 'agent.plan':
-      return (
-        readPlanText(payload)
-        ?? buildSubjectHeadline('Planning the next step for', subject, 'Planning the next step')
-      );
-    case 'agent.act': {
-      const actionHeadline = buildActionInvocationHeadline(payload);
-      return (
-        readActText(payload, actionHeadline)
-        ?? actionHeadline
-        ?? buildSubjectHeadline('Working through', subject, 'Working through the next execution step')
-      );
+  const headline = (() => {
+    switch (row.operation) {
+      case 'agent.think':
+        return (
+          readThinkText(payload)
+          ?? buildSubjectHeadline('Thinking through the next step for', subject, 'Thinking through the next step')
+        );
+      case 'agent.plan':
+        return (
+          readPlanText(payload)
+          ?? buildSubjectHeadline('Planning the next step for', subject, 'Planning the next step')
+        );
+      case 'agent.act': {
+        const actionHeadline = buildActionHeadline(payload);
+        return (
+          readActText(payload, actionHeadline)
+          ?? actionHeadline
+          ?? buildSubjectHeadline('Working through', subject, 'Working through the next execution step')
+        );
+      }
+      case 'agent.observe':
+        return (
+          readObserveText(payload)
+          ?? buildSubjectHeadline('Checking results for', subject, 'Checking execution results')
+        );
+      case 'agent.verify':
+        return (
+          readVerifyText(payload)
+          ?? readOperatorReadableText(buildVerifyHeadline(payload), 180)
+          ?? buildSubjectHeadline('Checking', subject, 'Checking current progress')
+        );
+      default:
+        return humanizeToken(row.operation);
     }
-    case 'agent.observe':
-      return (
-        readObserveText(payload)
-        ?? buildSubjectHeadline('Checking results for', subject, 'Checking execution results')
-      );
-    case 'agent.verify':
-      return (
-        readVerifyText(payload)
-        ?? readOperatorReadableText(buildVerifyHeadline(payload), 180)
-        ?? buildSubjectHeadline('Checking', subject, 'Checking current progress')
-      );
-    default:
-      return humanizeToken(row.operation);
-  }
+  })();
+  return formatExecutionPhaseHeadline(row.operation, headline);
 }
 
 function buildExecutionTurnSummary(row: LogRow): string {
   const payload = asRecord(row.payload);
   const subject = readExecutionSubject(row);
   const detail =
-    readObserveText(payload)
+    readActSummary(payload)
+    ?? readPlanText(payload)
+    ?? readThinkText(payload)
+    ?? readObserveText(payload)
     ?? readVerifyText(payload)
     ?? readOperatorReadableField(payload, ['summary', 'details', 'reasoning_summary', 'approach'])
     ?? buildExecutionTurnFallbackSummary(row.operation, subject);
@@ -164,6 +170,10 @@ function buildVerifyHeadline(payload: Record<string, unknown>): string | null {
   return null;
 }
 
+function buildActionHeadline(payload: Record<string, unknown>): string | null {
+  return buildHumanizedActionHeadline(payload) ?? buildActionInvocationHeadline(payload);
+}
+
 function buildActionInvocationHeadline(payload: Record<string, unknown>): string | null {
   const actionName =
     readString(payload.mcp_tool_name)
@@ -195,6 +205,14 @@ function readActText(
   return null;
 }
 
+function readActSummary(payload: Record<string, unknown>): string | null {
+  return (
+    readActText(payload, null)
+    ?? buildHumanizedActionHeadline(payload)
+    ?? buildActionInvocationHeadline(payload)
+  );
+}
+
 function shouldRenderExecutionTurn(row: LogRow): boolean {
   const payload = asRecord(row.payload);
   switch (row.operation) {
@@ -202,18 +220,25 @@ function shouldRenderExecutionTurn(row: LogRow): boolean {
       return readThinkText(payload) !== null;
     case 'agent.plan':
       return readPlanText(payload) !== null;
-    case 'agent.act':
+    case 'agent.act': {
+      const actionName = readActionName(payload);
+      if (isSuppressedActionName(actionName)) {
+        return false;
+      }
+      if (isLowValueHelperAction(actionName) && readActText(payload, null) === null) {
+        return false;
+      }
       return (
-        !isSuppressedActionName(readActionName(payload))
-        && (
+        (
           readOperatorReadableField(payload, ['headline', 'text_preview']) !== null
-          || buildActionInvocationHeadline(payload) !== null
+          || buildActionHeadline(payload) !== null
         )
       );
+    }
     case 'agent.observe':
       return readObserveText(payload) !== null;
     case 'agent.verify':
-      return readVerifyText(payload) !== null;
+      return isMeaningfulVerify(payload);
     default:
       return true;
   }
@@ -280,6 +305,10 @@ function isToolSpecificFallbackOnlyAction(actionName: string): boolean {
     || actionName === 'artifact_read'
     || actionName === 'artifact_document_read'
   );
+}
+
+function isLowValueHelperAction(actionName: string | null): boolean {
+  return actionName !== null && LOW_VALUE_HELPER_ACTIONS.has(actionName);
 }
 
 function summarizeToolSpecificArgs(actionName: string, input: Record<string, unknown>): string[] {
@@ -350,6 +379,42 @@ function normalizeActionArgText(key: string, value: string): string | null {
 
 function isSuppressedActionName(value: string | null): boolean {
   return value === 'record_operator_update' || value === 'record_operator_brief';
+}
+
+function buildHumanizedActionHeadline(payload: Record<string, unknown>): string | null {
+  const actionName = readActionName(payload);
+  const input = asRecord(payload.input);
+  switch (actionName) {
+    case 'submit_handoff': {
+      const summary = readOperatorReadableText(readString(input.summary), 140);
+      return summary ? `Submitting the handoff: ${summary}` : null;
+    }
+    case 'artifact_upload': {
+      const path = readActionPath(input);
+      return path ? `Uploading ${path}.` : null;
+    }
+    case 'create_task': {
+      const role = readHumanizedString(input.role);
+      const title = readOperatorReadableText(readString(input.title), 120);
+      if (title) {
+        return `Creating a task: ${title}`;
+      }
+      if (role) {
+        return `Creating a task for ${role}.`;
+      }
+      return null;
+    }
+    default:
+      return null;
+  }
+}
+
+function readActionPath(input: Record<string, unknown>): string | null {
+  return readFirstString([
+    sanitizePathLikeArg(readString(input.logical_path)),
+    sanitizePathLikeArg(readString(input.path)),
+    sanitizePathLikeArg(readString(input.artifact_name)),
+  ]);
 }
 
 function formatPathRangeSummary(input: Record<string, unknown>): string | null {
@@ -538,6 +603,30 @@ function readVerifyText(payload: Record<string, unknown>): string | null {
   return readOperatorReadableField(payload, ['headline', 'summary', 'details']);
 }
 
+function isMeaningfulVerify(payload: Record<string, unknown>): boolean {
+  const text = readVerifyText(payload);
+  if (!text) {
+    return false;
+  }
+  const status = readString(payload.status);
+  const decision = readString(payload.decision);
+  if (isMeaningfulVerifyToken(status) || isMeaningfulVerifyToken(decision)) {
+    return true;
+  }
+  return /\b(blocked|waiting|wait|rework|request changes|approved|rejected|failed|complete|completed)\b/i.test(
+    text,
+  );
+}
+
+function isMeaningfulVerifyToken(value: string | null): boolean {
+  if (!value) {
+    return false;
+  }
+  return /^(blocked|waiting|wait|rework|request_changes|approved|rejected|failed|complete|completed)$/i.test(
+    value,
+  );
+}
+
 function readThinkText(payload: Record<string, unknown>): string | null {
   return readOperatorReadableField(payload, ['headline', 'reasoning_summary', 'approach']);
 }
@@ -698,6 +787,35 @@ function buildExecutionTurnFallbackSummary(operation: string, subject: string | 
   }
   return `Working through the next step for ${subject}.`;
 }
+
+function formatExecutionPhaseHeadline(operation: string, headline: string): string {
+  return `[${readPhaseLabel(operation)}] ${headline}`;
+}
+
+function readPhaseLabel(operation: string): string {
+  switch (operation) {
+    case 'agent.think':
+      return 'Think';
+    case 'agent.plan':
+      return 'Plan';
+    case 'agent.act':
+      return 'Act';
+    case 'agent.observe':
+      return 'Observe';
+    case 'agent.verify':
+      return 'Verify';
+    default:
+      return humanizeToken(operation);
+  }
+}
+
+const LOW_VALUE_HELPER_ACTIONS = new Set([
+  'file_read',
+  'file_list',
+  'list_work_items',
+  'list_workflow_tasks',
+  'read_stage_status',
+]);
 
 function truncate(value: string | null, maxLength: number): string | null {
   if (!value) {

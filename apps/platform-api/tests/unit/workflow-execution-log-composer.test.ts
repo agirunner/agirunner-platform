@@ -73,7 +73,7 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(items).toHaveLength(1);
-    expect(items[0]!.headline).toBe('Route the approved intake item to policy assessment.');
+    expect(items[0]!.headline).toBe('[Plan] Route the approved intake item to policy assessment.');
   });
 
   it('suppresses observe turns that only report internal operator mutations', () => {
@@ -155,7 +155,7 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(item.headline).toBe(
-      'calling submit_handoff(summary="Triage packet is ready for policy assessment.", completion="full")',
+      '[Act] Submitting the handoff: Triage packet is ready for policy assessment.',
     );
   });
 
@@ -176,7 +176,7 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(item.headline).toBe(
-      'calling submit_handoff(summary="Triage packet is ready for policy assessment.", completion="full")',
+      '[Act] Submitting the handoff: Triage packet is ready for policy assessment.',
     );
   });
 
@@ -209,8 +209,8 @@ describe('workflow-execution-log-composer', () => {
     expect(items).toEqual([]);
   });
 
-  it('prefers sanitized action-call args over empty synthetic calling previews', () => {
-    const [item] = buildExecutionTurnItems([
+  it('suppresses low-value helper reads instead of surfacing empty tool-call fallbacks', () => {
+    const items = buildExecutionTurnItems([
       createLogRow({
         id: '22cc',
         operation: 'agent.act',
@@ -224,7 +224,7 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(item.headline).toBe('calling file_read(path="task input")');
+    expect(items).toEqual([]);
   });
 
   it('suppresses empty action calls when the tool payload carries no operator-meaningful args', () => {
@@ -250,8 +250,8 @@ describe('workflow-execution-log-composer', () => {
     expect(items).toEqual([]);
   });
 
-  it('formats file reads using the path-range summary style from the log viewer', () => {
-    const [item] = buildExecutionTurnItems([
+  it('suppresses file reads even when a safe path-range summary can be derived', () => {
+    const items = buildExecutionTurnItems([
       createLogRow({
         id: '22d',
         operation: 'agent.act',
@@ -266,13 +266,11 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(item.headline).toBe(
-      'calling file_read(path="output/workflows-intake-01-triage-packet.md:1-200")',
-    );
+    expect(items).toEqual([]);
   });
 
-  it('suppresses file-read fallbacks when the only path is a temp workspace context path', () => {
-    const [item] = buildExecutionTurnItems([
+  it('suppresses file reads when the only path is a temp workspace context path', () => {
+    const items = buildExecutionTurnItems([
       createLogRow({
         id: '22da',
         operation: 'agent.act',
@@ -287,10 +285,10 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(item.headline).toBe('calling file_read(path="task context")');
+    expect(items).toEqual([]);
   });
 
-  it('formats artifact-style file actions using safe logical paths instead of temp workspace paths', () => {
+  it('humanizes artifact uploads instead of exposing raw tool syntax', () => {
     const [item] = buildExecutionTurnItems([
       createLogRow({
         id: '22db',
@@ -306,7 +304,7 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(item.headline).toBe('calling artifact_upload(path="output/release-packet.md")');
+    expect(item.headline).toBe('[Act] Uploading output/release-packet.md.');
   });
 
   it('suppresses action fallbacks when only temp-path and id args are present', () => {
@@ -347,14 +345,61 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(item.headline).toContain(
-      'calling submit_handoff(summary="Completed the intake-triage deliverable for workflows-intake-01."',
-    );
-    expect(item.headline).toContain(
-      'successor_context="Current subject state is documented in the uploaded triage packet.',
+    expect(item.headline).toBe(
+      '[Act] Submitting the handoff: Completed the intake-triage deliverable for workflows-intake-01.',
     );
     expect(item.headline).not.toContain('/tmp/workspace/');
     expect(item.headline).not.toContain('context/current-task.md');
+  });
+
+  it('adds normalized phase labels for think, observe, and meaningful verify rows', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '26',
+        operation: 'agent.think',
+        payload: {
+          reasoning_summary: 'Check whether the existing intake item already has unresolved findings.',
+        },
+      }),
+      createLogRow({
+        id: '27',
+        operation: 'agent.observe',
+        payload: {
+          summary: 'The policy-assessor task is already in progress for workflows-intake-01.',
+        },
+      }),
+      createLogRow({
+        id: '28',
+        operation: 'agent.verify',
+        payload: {
+          status: 'blocked',
+          summary: 'The handoff is blocked until the required target URL is available.',
+        },
+      }),
+    ]);
+
+    expect(items.map((item) => item.headline)).toEqual([
+      '[Think] Check whether the existing intake item already has unresolved findings.',
+      '[Observe] The policy-assessor task is already in progress for workflows-intake-01.',
+      '[Verify] The handoff is blocked until the required target URL is available.',
+    ]);
+  });
+
+  it('falls back to calling syntax only when a meaningful action cannot be humanized', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '29',
+        operation: 'agent.act',
+        payload: {
+          tool: 'shell_exec',
+          input: {
+            command: 'pytest tests/unit',
+          },
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe('[Act] calling shell_exec(command="pytest tests/unit")');
   });
 
   it('suppresses internal operator-recording act turns so the live console shows only the resulting record', () => {
