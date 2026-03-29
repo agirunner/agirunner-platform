@@ -19,15 +19,14 @@ import {
 } from './workflow-steering.js';
 
 describe('WorkflowSteering', () => {
-  it('normalizes stale task-scoped steering copy back to the selected work item', () => {
+  it('keeps task-scoped steering locked to the selected task', () => {
     const html = renderSteering();
-    expect(html).toContain('Work item: Prepare release bundle');
-    expect(html).toContain('Record durable requests, responses, and attachments for this work item.');
-    expect(html).toContain('Guide Prepare release bundle toward the next legal action.');
-    expect(html).toContain('Targeting work item: Prepare release bundle');
-    expect(html).toContain('No steering history exists for this work item yet.');
-    expect(html).not.toContain('Task: Verify deliverable');
-    expect(html).not.toContain('this task');
+    expect(html).toContain('Task: Verify deliverable');
+    expect(html).toContain('Record durable requests, responses, and attachments for this task.');
+    expect(html).toContain('Guide Verify deliverable toward the next legal action.');
+    expect(html).toContain('Targeting task: Verify deliverable');
+    expect(html).toContain('No steering history exists for this task yet.');
+    expect(html).not.toContain('Targeting work item: Prepare release bundle');
   });
 
   it('defaults workflow-scoped steering to workflow targeting while keeping narrower pickers explicit', () => {
@@ -50,7 +49,7 @@ describe('WorkflowSteering', () => {
     expect(html).not.toContain('Select a target');
   });
 
-  it('offers only the eligible selected work item as an explicit workflow-scope steering target', () => {
+  it('offers the eligible selected work item and selected task as explicit workflow-scope steering targets', () => {
     const options = buildWorkflowSteeringTargets(
       createTargetContext({
         scope: createScope('workflow'),
@@ -69,15 +68,16 @@ describe('WorkflowSteering', () => {
     expect(options.map((option) => option.label)).toEqual([
       'Workflow: Workflow 1',
       'Work item: Prepare release bundle',
+      'Task: Verify deliverable',
     ]);
   });
 
-  it('normalizes stale task-scoped steering requests to the selected work item payload', () => {
+  it('builds task-targeted steering requests with both task and work item ids in the payload', () => {
     expect(createRequestPayload(createTarget('selected_task'))).toEqual({
       request_id: 'request-1',
       request: 'Keep the rollout limited to the current scope.',
       work_item_id: 'work-item-7',
-      task_id: undefined,
+      task_id: 'task-3',
       linked_input_packet_ids: [],
       session_id: 'session-1',
     });
@@ -103,7 +103,7 @@ describe('WorkflowSteering', () => {
     });
   });
 
-  it('excludes paused and terminal narrower targets from the workflow target picker', () => {
+  it('excludes paused and terminal narrower work-item and task targets from the workflow target picker', () => {
     const pausedTask = createPausedTask();
     const options = buildWorkflowSteeringTargets(
       createTargetContext({
@@ -161,23 +161,22 @@ describe('WorkflowSteering', () => {
     ).toBe('This work item is already completed or cancelled. Historical work cannot be steered.');
   });
 
-  it('reports the scoped work-item reason when paused task scope normalizes back to the parent work item', () => {
+  it('reports the specific paused-task reason when task scope is paused', () => {
     const activeTask = createTask();
     const target = createTarget('selected_task', {
-      workflowState: 'paused',
-      selectedTask: activeTask,
-      selectedWorkItemTasks: [activeTask],
+      selectedTask: createTask({ state: 'paused' as DashboardTaskRecord['state'] }),
+      selectedWorkItemTasks: [createTask({ state: 'paused' as DashboardTaskRecord['state'] })],
     });
     expect(
       describeSteeringTargetDisabledReason({
-        workflowState: 'paused',
+        workflowState: 'active',
         boardColumns: activeColumns(),
         target,
         selectedWorkItem: createWorkItem(),
-        selectedTask: activeTask,
-        selectedWorkItemTasks: [activeTask],
+        selectedTask: createTask({ state: 'paused' as DashboardTaskRecord['state'] }),
+        selectedWorkItemTasks: [createTask({ state: 'paused' as DashboardTaskRecord['state'] })],
       }),
-    ).toBe('This work item is paused. Resume it or choose another target before steering.');
+    ).toBe('This task is paused. Resume it or choose another target before steering.');
   });
 
   it('reports a clear disabled reason when the selected work item is completed', () => {
@@ -237,6 +236,19 @@ describe('WorkflowSteering', () => {
 
     expect(html).toContain('This work item is paused. Resume it or choose another target before steering.');
     expect(html).not.toContain('Steering requests are unavailable for this workflow right now.');
+    expect(html).not.toContain('Steering attachments');
+    expect(html).not.toContain('Record steering request</button>');
+  });
+
+  it('shows the specific paused-task reason and removes steering controls for paused task scope', () => {
+    const pausedTask = createTask({ state: 'paused' as DashboardTaskRecord['state'] });
+    const html = renderSteering({
+      scope: createScope('selected_task'),
+      selectedTask: pausedTask,
+      selectedWorkItemTasks: [pausedTask],
+    });
+
+    expect(html).toContain('This task is paused. Resume it or choose another target before steering.');
     expect(html).not.toContain('Steering attachments');
     expect(html).not.toContain('Record steering request</button>');
   });

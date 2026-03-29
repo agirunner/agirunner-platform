@@ -331,7 +331,7 @@ describe('WorkflowSteeringSessionService', () => {
         return {
           rowCount: 1,
           rows: [{
-            id: params?.[6] === 'steering_response' ? 'message-2' : 'message-1',
+            id: 'message-1',
             tenant_id: 'tenant-1',
             workflow_id: 'workflow-1',
             work_item_id: 'work-item-1',
@@ -387,6 +387,8 @@ describe('WorkflowSteeringSessionService', () => {
         snapshot_version: 'snapshot-7',
         linked_intervention_ids: ['intervention-1'],
         linked_input_packet_ids: ['packet-1'],
+        request_message_id: 'message-1',
+        response_message_id: null,
       }),
     );
   });
@@ -453,7 +455,7 @@ describe('WorkflowSteeringSessionService', () => {
         return {
           rowCount: 1,
           rows: [{
-            id: params?.[6] === 'steering_response' ? 'message-2' : 'message-1',
+            id: 'message-1',
             tenant_id: 'tenant-1',
             workflow_id: 'workflow-1',
             work_item_id: 'work-item-1',
@@ -505,6 +507,8 @@ describe('WorkflowSteeringSessionService', () => {
         resulting_work_item_id: 'work-item-1',
         linked_intervention_ids: ['intervention-task-1'],
         linked_input_packet_ids: ['packet-task-1'],
+        request_message_id: 'message-1',
+        response_message_id: null,
       }),
     );
   });

@@ -35,15 +35,16 @@ export function buildWorkflowSteeringTargets(
   input: WorkflowSteeringTargetContext,
 ): WorkflowSteeringTargetOption[] {
   if (input.scope.scopeKind === 'selected_task') {
-    const selectedWorkItemName =
-      input.selectedWorkItemTitle
-      ?? input.selectedWorkItem?.title
-      ?? input.selectedTask?.work_item_title
-      ?? 'Selected work item';
+    const selectedTaskName =
+      input.selectedTaskTitle
+      ?? input.selectedTask?.title
+      ?? input.scope.name
+      ?? 'Selected task';
     return [
-      buildScopedWorkItemTargetOption(
+      buildTaskTargetOption(
         input.selectedWorkItemId ?? input.selectedTask?.work_item_id ?? null,
-        selectedWorkItemName,
+        input.selectedTaskId ?? input.selectedTask?.id ?? null,
+        selectedTaskName,
       ),
     ];
   }
@@ -85,6 +86,11 @@ export function buildWorkflowSteeringTargets(
     );
   }
 
+  const workflowScopeTaskTargets = buildWorkflowScopeTaskTargets(input);
+  if (workflowScopeTaskTargets.length > 0) {
+    options.push(...workflowScopeTaskTargets);
+  }
+
   return options;
 }
 
@@ -122,6 +128,16 @@ export function describeSteeringTargetDisabledReason(input: {
         return 'This work item is already completed or cancelled. Historical work cannot be steered.';
       }
     }
+    const scopedTask =
+      input.selectedTask?.id === input.target.taskId
+        ? input.selectedTask
+        : input.selectedWorkItemTasks.find((task) => task.id === input.target.taskId) ?? null;
+    if (scopedTask && isPausedTask(scopedTask)) {
+      return 'This task is paused. Resume it or choose another target before steering.';
+    }
+    if (scopedTask && isTerminalTask(scopedTask)) {
+      return 'This task is already completed or cancelled. Historical work cannot be steered.';
+    }
     return describeWorkflowTargetDisabledReason(input.workflowState);
   }
 
@@ -140,7 +156,7 @@ export function describeSteeringTargetDisabledReason(input: {
 
 export function buildSteeringAttachmentSummary(target: WorkflowSteeringTargetOption): string {
   if (target.scopeKind === 'selected_task') {
-    return `Steering attachments for work item: ${target.name}`;
+    return `Steering attachments for task: ${target.name}`;
   }
   if (target.scopeKind === 'selected_work_item') {
     return `Steering attachments for work item: ${target.name}`;
@@ -196,20 +212,38 @@ function buildWorkItemTargetOption(
   };
 }
 
-function buildScopedWorkItemTargetOption(
+function buildTaskTargetOption(
   workItemId: string | null,
+  taskId: string | null,
   name: string,
 ): WorkflowSteeringTargetOption {
   return {
-    value: `work-item:${workItemId ?? 'current'}`,
-    scopeKind: 'selected_work_item',
-    subject: 'work item',
+    value: `task:${taskId ?? 'current'}`,
+    scopeKind: 'selected_task',
+    subject: 'task',
     name,
-    label: `Work item: ${name}`,
-    banner: `Work item: ${name}`,
+    label: `Task: ${name}`,
+    banner: `Task: ${name}`,
     workItemId,
-    taskId: null,
+    taskId,
   };
+}
+
+function buildWorkflowScopeTaskTargets(
+  input: WorkflowSteeringTargetContext,
+): WorkflowSteeringTargetOption[] {
+  if (hasWorkflowDisabledTargets(input.workflowState) || !input.selectedWorkItemId) {
+    return [];
+  }
+  return input.selectedWorkItemTasks
+    .filter((task) => !isPausedTask(task) && !isTerminalTask(task))
+    .map((task) =>
+      buildTaskTargetOption(
+        task.work_item_id ?? input.selectedWorkItemId ?? null,
+        task.id,
+        task.title ?? 'Selected task',
+      ),
+    );
 }
 
 function shouldIncludeWorkflowScopeWorkItemTarget(
@@ -253,6 +287,14 @@ function isTerminalWorkItem(
     return true;
   }
   return boardColumns.some((column) => column.id === workItem.column_id && column.is_terminal);
+}
+
+function isPausedTask(task: DashboardTaskRecord): boolean {
+  return String(task.state) === 'paused';
+}
+
+function isTerminalTask(task: DashboardTaskRecord): boolean {
+  return task.state === 'completed' || task.state === 'cancelled';
 }
 
 function hasWorkflowDisabledTargets(workflowState: string): boolean {

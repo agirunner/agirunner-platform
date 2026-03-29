@@ -260,15 +260,6 @@ export class WorkflowSteeringSessionService {
       linkedInputPacketIds: dedupeNonEmptyStrings(input.linkedInputPacketIds),
       baseSnapshotVersion: input.baseSnapshotVersion,
     });
-    const responseMessage = await this.appendMessage(identity, workflowId, session.id, {
-      workItemId: toOptionalString(scopedWorkItemId),
-      sourceKind: 'platform',
-      messageKind: 'steering_response',
-      headline: 'Steering request recorded',
-      body: buildResponseBody(scopedWorkItemId, input.taskId, input.linkedInputPacketIds ?? []),
-      linkedInterventionId: linkedIntervention?.id ?? undefined,
-      linkedInputPacketId: firstArrayValue(input.linkedInputPacketIds),
-    });
 
     return {
       outcome: 'applied',
@@ -284,7 +275,7 @@ export class WorkflowSteeringSessionService {
       redrive_lineage: null,
       steering_session_id: session.id,
       request_message_id: requestMessage.id,
-      response_message_id: responseMessage.id,
+      response_message_id: null,
       linked_intervention_ids: linkedIntervention ? [linkedIntervention.id] : [],
       linked_input_packet_ids: dedupeNonEmptyStrings(input.linkedInputPacketIds),
     };
@@ -516,24 +507,6 @@ function deriveMessageHeadline(request: string): string {
 function deriveMessageBody(request: string): string | undefined {
   const trimmed = sanitizeRequiredText(request, 'Steering request is required');
   return trimmed.length > 255 ? trimmed : undefined;
-}
-
-function buildResponseBody(
-  workItemId: string | null,
-  taskId: string | undefined,
-  linkedInputPacketIds: string[],
-): string {
-  const scope =
-    taskId != null
-      ? 'Scoped to the selected task.'
-      : workItemId != null
-        ? 'Scoped to the selected work item.'
-        : 'Scoped to the workflow.';
-  const linkedInputs =
-    linkedInputPacketIds.length > 0
-      ? `Linked input packets: ${linkedInputPacketIds.length}.`
-      : 'No linked input packets were supplied.';
-  return `${scope} ${linkedInputs} Use direct workflow, work-item, or task actions to apply control changes.`;
 }
 
 function firstArrayValue(values?: string[]): string | undefined {

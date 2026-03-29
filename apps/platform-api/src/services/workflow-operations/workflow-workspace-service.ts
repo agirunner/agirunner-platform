@@ -226,7 +226,8 @@ export class WorkflowWorkspaceService {
       selectedScope,
     );
     const effectiveHistory = filterHistoryForSelectedScope(history, selectedScope);
-    const activeSession = sessions[0] ?? null;
+    const scopedInterventions = filterSteeringInterventionsForSelectedScope(interventions, selectedScope);
+    const activeSession = selectSteeringSessionForSelectedScope(sessions, selectedScope);
     const steeringQuickActions = filterSteeringQuickActions(workflowCard?.availableActions ?? []);
     const sessionMessages = activeSession
       ? await this.steeringSessionService.listMessages(tenantId, workflowId, activeSession.id)
@@ -252,7 +253,7 @@ export class WorkflowWorkspaceService {
         workflowCard
           ? buildStickyStrip(
               workflowCard,
-              activeSession !== null || interventions.length > 0 || steeringQuickActions.some((action) => action.enabled),
+              sessions.length > 0 || interventions.length > 0 || steeringQuickActions.some((action) => action.enabled),
             )
           : null,
       board: board as Record<string, unknown>,
@@ -272,7 +273,7 @@ export class WorkflowWorkspaceService {
           active_session_id: activeSession ? String(activeSession.id) : null,
           last_summary: workflowCard?.pulse.summary ?? null,
         },
-        recent_interventions: interventions.slice(0, 10),
+        recent_interventions: scopedInterventions.slice(0, 10),
         session: {
           session_id: activeSession ? String(activeSession.id) : null,
           status: readSessionStatus(activeSession),
@@ -286,6 +287,35 @@ export class WorkflowWorkspaceService {
       redrive_lineage: readRedriveLineage(workflow),
     };
   }
+}
+
+function selectSteeringSessionForSelectedScope(
+  sessions: WorkflowSteeringSessionRecord[],
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+): WorkflowSteeringSessionRecord | null {
+  if (selectedScope.scope_kind === 'workflow') {
+    return sessions.find((session) => (session.work_item_id ?? null) === null) ?? null;
+  }
+  const scopedWorkItemId = selectedScope.work_item_id;
+  if (!scopedWorkItemId) {
+    return null;
+  }
+  return sessions.find((session) => (session.work_item_id ?? null) === scopedWorkItemId) ?? null;
+}
+
+function filterSteeringInterventionsForSelectedScope(
+  interventions: WorkflowInterventionRecord[],
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+): WorkflowInterventionRecord[] {
+  if (selectedScope.scope_kind === 'workflow') {
+    return interventions.filter((intervention) => intervention.work_item_id === null && intervention.task_id === null);
+  }
+  if (selectedScope.scope_kind === 'selected_task') {
+    return interventions.filter((intervention) => intervention.task_id === selectedScope.task_id);
+  }
+  return interventions.filter((intervention) =>
+    intervention.work_item_id === selectedScope.work_item_id && intervention.task_id === null,
+  );
 }
 
 function canAcceptWorkflowSteering(workflowCard: MissionControlWorkflowCard | null): boolean {
