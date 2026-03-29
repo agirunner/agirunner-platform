@@ -73,6 +73,7 @@ export class WorkflowCancellationService {
           actorId: identity.keyPrefix,
         },
       );
+      await clearStoppedRuntimeHeartbeatTasks(client, identity.tenantId, stopResult.activeTaskIds);
 
       await client.query(
         `UPDATE workflows
@@ -173,4 +174,26 @@ function hasCancellationRequest(metadata: unknown) {
 
 function isCancellableWorkflowState(state: unknown) {
   return state === 'active' || state === 'paused';
+}
+
+async function clearStoppedRuntimeHeartbeatTasks(
+  client: { query: DatabasePool['query'] },
+  tenantId: string,
+  taskIds: string[],
+) {
+  if (taskIds.length === 0) {
+    return;
+  }
+
+  await client.query(
+    `UPDATE runtime_heartbeats
+        SET task_id = NULL,
+            state = CASE
+              WHEN pool_kind = 'specialist' THEN 'draining'
+              ELSE 'idle'
+            END
+      WHERE tenant_id = $1
+        AND task_id = ANY($2::uuid[])`,
+    [tenantId, taskIds],
+  );
 }

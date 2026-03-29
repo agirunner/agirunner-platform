@@ -40,7 +40,7 @@ export class WorkflowControlService {
         throw new ConflictError('Only active workflows can be paused');
       }
 
-      await stopWorkflowBoundExecution(
+      const stopResult = await stopWorkflowBoundExecution(
         client,
         {
           eventService: this.eventService,
@@ -55,6 +55,7 @@ export class WorkflowControlService {
           actorId: identity.keyPrefix,
         },
       );
+      await clearStoppedRuntimeHeartbeatTasks(client, identity.tenantId, stopResult.activeTaskIds);
 
       const result = await client.query<WorkflowControlRow>(
         `UPDATE workflows
@@ -195,4 +196,25 @@ function readWorkflowMarker(metadata: unknown, key: string): string | null {
   }
   const value = (metadata as Record<string, unknown>)[key];
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+async function clearStoppedRuntimeHeartbeatTasks(
+  client: { query: DatabasePool['query'] },
+  tenantId: string,
+  taskIds: string[],
+) {
+  if (taskIds.length === 0) {
+    return;
+  }
+  await client.query(
+    `UPDATE runtime_heartbeats
+        SET task_id = NULL,
+            state = CASE
+              WHEN pool_kind = 'specialist' THEN 'draining'
+              ELSE 'idle'
+            END
+      WHERE tenant_id = $1
+        AND task_id = ANY($2::uuid[])`,
+    [tenantId, taskIds],
+  );
 }

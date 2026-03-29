@@ -120,6 +120,12 @@ describe('WorkflowControlService', () => {
         if (sql.startsWith('UPDATE execution_container_leases')) {
           return { rowCount: 1, rows: [] };
         }
+        if (
+          sql.startsWith('UPDATE runtime_heartbeats')
+          && sql.includes('SET task_id = NULL')
+        ) {
+          return { rowCount: 2, rows: [] };
+        }
         if (sql.startsWith('UPDATE runtime_heartbeats')) {
           return { rowCount: 1, rows: [] };
         }
@@ -188,6 +194,10 @@ describe('WorkflowControlService', () => {
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE runtime_heartbeats'),
       ['tenant-1', ['task-specialist-1']],
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('SET task_id = NULL'),
+      ['tenant-1', ['task-specialist-1', 'task-orchestrator-1']],
     );
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE workflow_activations'),
