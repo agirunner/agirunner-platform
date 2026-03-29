@@ -46,9 +46,9 @@ export function WorkflowStateStrip(props: {
   const visibilityControlId = `workflow-live-visibility-${props.workflow.id}`;
 
   return (
-    <div className="grid gap-4">
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.95fr)] xl:gap-6">
-        <section className="grid gap-3">
+    <div className="grid gap-3 sm:gap-4">
+      <div className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.95fr)] xl:gap-6">
+        <section className="grid gap-2.5 sm:gap-3">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Workflow
           </p>
@@ -70,7 +70,7 @@ export function WorkflowStateStrip(props: {
           </div>
         </section>
 
-        <section className="grid gap-3 xl:pl-2">
+        <section className="grid gap-2.5 sm:gap-3 xl:pl-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Controls
           </p>
@@ -123,7 +123,7 @@ export function WorkflowStateStrip(props: {
         </section>
       </div>
 
-      <div className="grid gap-3 pt-1 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-2 pt-0.5 sm:gap-3 sm:pt-1 md:grid-cols-2 xl:grid-cols-4">
         <HeaderCard
           title="State"
           value={postureLabel}

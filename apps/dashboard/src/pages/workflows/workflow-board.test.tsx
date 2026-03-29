@@ -29,7 +29,7 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('All lanes');
     expect(html).toContain('flex min-w-0 flex-wrap items-center gap-2 pb-1');
     expect(html).toContain('min-h-0 flex-1 overflow-x-auto overflow-y-auto pb-1');
-    expect(html).toContain('flex h-full min-h-[13rem] min-w-0 flex-col gap-3 overflow-hidden px-3 py-3 sm:min-h-[15rem] lg:min-h-0');
+    expect(html).toContain('flex h-full min-h-[11rem] min-w-0 flex-col gap-2.5 overflow-hidden px-2.5 py-2.5 sm:min-h-[15rem] sm:gap-3 sm:px-3 sm:py-3 lg:min-h-0');
     expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/90 p-2.5 shadow-sm');
     expect(html).not.toContain('rounded-2xl bg-background/90 p-2.5');
     expect(html).not.toContain('flex flex-wrap items-center justify-between gap-3');
@@ -222,9 +222,10 @@ describe('WorkflowBoard', () => {
       ),
     );
 
-    expect(html).toContain('min-h-[13rem]');
+    expect(html).toContain('min-h-[11rem]');
     expect(html).toContain('sm:min-h-[15rem]');
     expect(html).not.toContain('sm:min-h-[18rem]');
+    expect(html).not.toContain('min-h-[13rem]');
   });
 
   it('keeps the terminal lane inside a horizontally scrollable board track so done items stay reachable on desktop', () => {

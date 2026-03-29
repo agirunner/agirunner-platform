@@ -56,12 +56,14 @@ describe('WorkflowBottomWorkbench', () => {
     );
 
     expect(html).toContain('Workflow: Workflow 1');
+    expect(html).toContain('Workflow Workbench');
+    expect(html.indexOf('Workflow Workbench')).toBeLessThan(html.indexOf('Scope'));
     expect(html.indexOf('Workflow: Workflow 1')).toBeLessThan(html.indexOf('Details'));
     expect(html).toContain('Scope');
     expect(html).toContain('>Workflow<');
     expect(html).toContain('grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-0 overflow-hidden');
     expect(html).toContain('flex min-w-0 flex-wrap items-start justify-between gap-2 border-b border-border/60 px-4 py-3');
-    expect(html).toContain('flex min-w-0 flex-wrap gap-2 border-b border-border/60 px-4 py-2.5');
+    expect(html).toContain('flex min-w-0 gap-2 overflow-x-auto border-b border-border/60 px-4 py-2.5 pb-3 sm:flex-wrap sm:overflow-visible sm:pb-2.5');
     expect(html).toContain('flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-4 py-4');
     expect(html).toContain('flex min-h-full min-w-0 flex-1 flex-col');
     expect(html).toContain('border-sky-300 bg-sky-100/90');
@@ -719,7 +721,7 @@ describe('WorkflowBottomWorkbench', () => {
 
     expect(html).toContain('flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden');
     expect(html).toContain('flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 py-4');
-    expect(html).toContain('border-b border-border/60 px-4 py-2.5');
+    expect(html).toContain('overflow-x-auto border-b border-border/60 px-4 py-2.5 pb-3 sm:flex-wrap sm:overflow-visible sm:pb-2.5');
     expect(html).not.toContain('rounded-[1.25rem] border border-border/60 bg-background/70');
     expect(html).not.toContain('min-h-0 min-w-0 flex-1 overflow-auto');
   });

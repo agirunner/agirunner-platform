@@ -102,8 +102,8 @@ export function WorkflowsRail(props: {
   }, [props.selectedWorkflowId, selectedVisible]);
 
   return (
-    <aside className="flex h-full max-h-[24rem] min-h-0 w-full flex-col overflow-hidden rounded-[1.25rem] border border-border/70 bg-background/95 shadow-sm dark:bg-slate-950/85 lg:max-h-none">
-      <div className="space-y-3 border-b border-border/70 px-4 py-4">
+    <aside className="flex h-full max-h-[18rem] min-h-0 w-full flex-col overflow-hidden rounded-[1.25rem] border border-border/70 bg-background/95 shadow-sm dark:bg-slate-950/85 sm:max-h-[24rem] lg:max-h-none">
+      <div className="space-y-3 border-b border-border/70 px-3 py-3 sm:px-4 sm:py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h1 className="text-lg font-semibold text-foreground">Workflows</h1>
@@ -165,7 +165,7 @@ export function WorkflowsRail(props: {
       ) : null}
 
       {props.mode === 'live' && !props.ongoingOnly && ongoingPreviewRows.length > 0 ? (
-        <section className="space-y-3 border-b border-border/70 px-4 py-4">
+        <section className="space-y-3 border-b border-border/70 px-3 py-3 sm:px-4 sm:py-4">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm font-semibold text-foreground">Ongoing</p>
             {props.ongoingRows.length > ONGOING_PREVIEW_LIMIT ? (

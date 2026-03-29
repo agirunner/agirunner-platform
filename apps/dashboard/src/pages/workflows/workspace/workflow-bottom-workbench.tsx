@@ -87,6 +87,7 @@ export function WorkflowBottomWorkbench(props: {
     <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-0 overflow-hidden">
       <div className="flex min-w-0 flex-wrap items-start justify-between gap-2 border-b border-border/60 px-4 py-3">
         <div className="grid gap-0.5">
+          <p className="text-sm font-semibold text-foreground">Workflow Workbench</p>
           <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Scope
           </p>
@@ -104,7 +105,7 @@ export function WorkflowBottomWorkbench(props: {
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-wrap gap-2 border-b border-border/60 px-4 py-2.5">
+      <div className="flex min-w-0 gap-2 overflow-x-auto border-b border-border/60 px-4 py-2.5 pb-3 sm:flex-wrap sm:overflow-visible sm:pb-2.5">
         <WorkbenchTabButton
           label="Details"
           isActive={props.activeTab === 'details'}
@@ -281,8 +282,8 @@ function WorkbenchTabButton(props: {
       type="button"
       className={
         props.isActive
-          ? 'flex items-center gap-2 rounded-xl border border-sky-300 bg-sky-100/90 px-3 py-1.5 text-xs font-semibold text-sky-950 shadow-sm dark:border-sky-400/60 dark:bg-sky-400/15 dark:text-sky-50'
-          : 'flex items-center gap-2 rounded-xl border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-background'
+          ? 'flex shrink-0 items-center gap-2 rounded-xl border border-sky-300 bg-sky-100/90 px-3 py-1.5 text-xs font-semibold text-sky-950 shadow-sm dark:border-sky-400/60 dark:bg-sky-400/15 dark:text-sky-50'
+          : 'flex shrink-0 items-center gap-2 rounded-xl border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-background'
       }
       onClick={props.onClick}
     >
