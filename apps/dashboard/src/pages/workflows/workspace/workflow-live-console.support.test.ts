@@ -233,6 +233,40 @@ describe('workflow live console support', () => {
     }))).toBeNull();
   });
 
+  it('keeps live mode pinned to the bottom until pause allows upward history prefetch', () => {
+    expect(
+      getWorkflowConsoleScrollBehavior({
+        followMode: 'live',
+        hasNextCursor: true,
+        isLoadingOlderHistory: false,
+        scrollTop: 0,
+        scrollHeight: 1_200,
+        clientHeight: 500,
+      }),
+    ).toEqual({
+      isAtLiveEdge: false,
+      shouldClearQueuedUpdates: false,
+      shouldPrefetchHistory: false,
+      shouldStickToLiveEdge: true,
+    });
+
+    expect(
+      getWorkflowConsoleScrollBehavior({
+        followMode: 'paused',
+        hasNextCursor: true,
+        isLoadingOlderHistory: false,
+        scrollTop: 0,
+        scrollHeight: 1_200,
+        clientHeight: 500,
+      }),
+    ).toEqual({
+      isAtLiveEdge: false,
+      shouldClearQueuedUpdates: false,
+      shouldPrefetchHistory: true,
+      shouldStickToLiveEdge: false,
+    });
+  });
+
   it('describes when filter counts only cover the currently loaded window', () => {
     const items = createItems();
 

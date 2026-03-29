@@ -9,13 +9,13 @@ const WORKFLOW_CONSOLE_LIVE_EDGE_THRESHOLD_PX = 48;
 
 const WORKFLOW_CONSOLE_ENTRY_STYLES = {
   brief: {
-    entryClassName: 'border-l border-emerald-400/40',
+    entryClassName: 'border-l-2 border-emerald-400/40 bg-emerald-500/[0.08]',
   },
   notice: {
-    entryClassName: 'border-l border-amber-400/40',
+    entryClassName: 'border-l-2 border-amber-400/40 bg-amber-500/[0.08]',
   },
   update: {
-    entryClassName: 'border-l border-slate-700/80',
+    entryClassName: 'border-l-2 border-slate-700/80 bg-slate-950/40',
   },
 } as const;
 

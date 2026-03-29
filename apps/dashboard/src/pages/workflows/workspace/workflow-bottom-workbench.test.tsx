@@ -667,6 +667,48 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).not.toContain('>50<');
   });
 
+  it('keeps the lower tab frame as a stretching flex column so the live console can fill it', () => {
+    const packet = createPacket();
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBottomWorkbench, {
+        workflowId: 'workflow-1',
+        workflow: packet.workflow,
+        stickyStrip: packet.sticky_strip,
+        board: packet.board,
+        workflowName: 'Workflow 1',
+        packet,
+        activeTab: 'live_console',
+        selectedWorkItemId: null,
+        scopedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [],
+        inputPackets: [],
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        onTabChange: vi.fn(),
+        onClearWorkItemScope: vi.fn(),
+        onClearTaskScope: vi.fn(),
+        onOpenAddWork: vi.fn(),
+        onOpenRedrive: vi.fn(),
+        onLoadMoreActivity: vi.fn(),
+        onLoadMoreDeliverables: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden');
+    expect(html).not.toContain('min-h-0 min-w-0 flex-1 overflow-auto');
+  });
+
   it('renders the deliverables tab even when the scoped deliverables packet is incomplete', () => {
     const packet = createPacket();
 

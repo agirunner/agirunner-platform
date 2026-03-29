@@ -15,6 +15,7 @@ import {
   orderWorkflowConsoleItemsForDisplay,
   resolveWorkflowConsoleWindowChange,
   resolveWorkflowConsoleFilterCounts,
+  shouldPrefetchWorkflowConsoleHistory,
   type WorkflowConsoleFilter,
   type WorkflowConsoleFollowMode,
 } from './workflow-live-console.support.js';
@@ -67,6 +68,13 @@ export function WorkflowLiveConsole(props: {
     () => orderWorkflowConsoleItemsForDisplay(filterWorkflowConsoleItems(consoleItems, selectedFilter)),
     [consoleItems, selectedFilter],
   );
+  const requestOlderHistory = () => {
+    if (isLoadingOlderHistory || props.packet.next_cursor === null) {
+      return;
+    }
+    setIsLoadingOlderHistory(true);
+    props.onLoadMore();
+  };
 
   useEffect(() => {
     visibleItemsRef.current = visibleItems;
@@ -150,6 +158,25 @@ export function WorkflowLiveConsole(props: {
     }
   }, [props.packet.next_cursor]);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const shouldPreloadHistory =
+      container.scrollHeight <= container.clientHeight ||
+      shouldPrefetchWorkflowConsoleHistory({
+        hasNextCursor: props.packet.next_cursor !== null,
+        isLoadingOlderHistory,
+        scrollTop: container.scrollTop,
+      });
+
+    if (shouldPreloadHistory) {
+      requestOlderHistory();
+    }
+  }, [isLoadingOlderHistory, props.packet.next_cursor, visibleItems.length]);
+
   if (props.isScopeLoading) {
     return (
       <div className="flex h-full min-h-0 flex-col gap-3">
@@ -205,7 +232,7 @@ export function WorkflowLiveConsole(props: {
         <div className={TERMINAL_TOOLBAR_CLASS_NAME}>
           <div
             data-live-console-control-row="terminal-controls"
-            className="flex min-w-0 items-center gap-3"
+            className="flex min-w-0 items-center justify-between gap-3"
           >
             <div className="flex min-w-0 flex-1 items-center gap-2 overflow-x-auto pb-1 md:pb-0">
               {filterDescriptors.map((descriptor) => {
@@ -231,7 +258,7 @@ export function WorkflowLiveConsole(props: {
                 );
               })}
             </div>
-            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <div className="flex shrink-0 items-center justify-end gap-1.5">
               <span
                 data-live-console-follow-status={followMode}
                 className={TERMINAL_FOLLOW_STATUS_BASE_CLASS_NAME}
@@ -329,8 +356,7 @@ export function WorkflowLiveConsole(props: {
             scrollMetricsRef.current.scrollHeight = element.scrollHeight;
             scrollMetricsRef.current.scrollTop = element.scrollTop;
             if (scrollBehavior.shouldPrefetchHistory) {
-              setIsLoadingOlderHistory(true);
-              props.onLoadMore();
+              requestOlderHistory();
             }
           }}
         >

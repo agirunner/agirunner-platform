@@ -66,6 +66,10 @@ export function WorkflowBottomWorkbench(props: {
   const liveConsoleCount = props.isScopeLoading
     ? undefined
     : props.packet.live_console.total_count ?? counts.live_console_activity;
+  const tabPanelClassName =
+    props.activeTab === 'live_console'
+      ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'
+      : 'min-h-0 min-w-0 flex-1 overflow-auto';
 
   return (
     <section className="flex h-full min-h-[22rem] min-w-0 flex-col gap-1.5 overflow-hidden rounded-2xl border border-border/70 bg-background/90 p-2.5 shadow-sm lg:min-h-0">
@@ -126,7 +130,7 @@ export function WorkflowBottomWorkbench(props: {
         />
       </div>
 
-      <div className="min-h-0 min-w-0 flex-1 overflow-auto">
+      <div className={tabPanelClassName}>
         {props.activeTab === 'details' && props.workflow ? (
           <WorkflowDetails
             workflow={props.workflow}
