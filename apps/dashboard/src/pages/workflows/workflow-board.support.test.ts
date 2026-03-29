@@ -5,7 +5,10 @@ import type {
   DashboardWorkflowBoardResponse,
   DashboardWorkflowWorkItemRecord,
 } from '../../lib/api.js';
-import { buildWorkflowBoardView } from './workflow-board.support.js';
+import {
+  buildWorkflowBoardView,
+  buildWorkflowBoardWorkItemSummary,
+} from './workflow-board.support.js';
 
 const BOARD_COLUMNS: DashboardWorkflowBoardColumn[] = [
   { id: 'planned', label: 'Planned' },
@@ -178,6 +181,48 @@ describe('buildWorkflowBoardView', () => {
     expect(view.lanes.find((lane) => lane.column.id === 'planned')?.activeItems.map((item) => item.id)).toEqual([
       'request-changes-item',
     ]);
+  });
+
+  it('prefers the top task headline over raw goal text for compact work-item summaries', () => {
+    const summary = buildWorkflowBoardWorkItemSummary(
+      createWorkItem({
+        id: 'work-1',
+        column_id: 'active',
+        stage_name: 'delivery',
+        goal: 'Restate the entire request payload instead of showing the latest progress.',
+      }),
+      {
+        tasks: [
+          {
+            id: 'task-1',
+            title: 'Reviewer packet is ready for approval',
+            role: 'reviewer',
+            state: 'in_progress',
+          },
+        ],
+        hasActiveOrchestratorTask: false,
+      },
+    );
+
+    expect(summary).toBe('In Progress: Reviewer packet is ready for approval');
+  });
+
+  it('falls back to the next expected action when no task headline is available', () => {
+    const summary = buildWorkflowBoardWorkItemSummary(
+      createWorkItem({
+        id: 'work-2',
+        column_id: 'active',
+        stage_name: 'delivery',
+        next_expected_actor: 'reviewer',
+        next_expected_action: 'approve the release packet',
+      }),
+      {
+        tasks: [],
+        hasActiveOrchestratorTask: false,
+      },
+    );
+
+    expect(summary).toBe('Reviewer should approve the release packet.');
   });
 });
 

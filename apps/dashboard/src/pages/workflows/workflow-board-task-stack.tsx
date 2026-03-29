@@ -12,8 +12,22 @@ export function WorkflowBoardTaskStack(props: {
   tasks: WorkflowTaskPreview[];
   selectedTaskId?: string | null;
   defaultOpen?: boolean;
+  collapsible?: boolean;
   onSelectTask?(taskId: string): void;
 }): JSX.Element {
+  if (props.collapsible === false) {
+    return (
+      <section className="rounded-lg border border-border/60 bg-muted/5 p-2.5">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          Tasks
+        </p>
+        <div className="mt-3">
+          <TaskPreviewRows tasks={props.tasks} />
+        </div>
+      </section>
+    );
+  }
+
   const hasSelectedTask = props.selectedTaskId
     ? props.tasks.some((task) => task.id === props.selectedTaskId)
     : false;
@@ -27,50 +41,64 @@ export function WorkflowBoardTaskStack(props: {
         </p>
       </summary>
       <div className="mt-3">
-        {props.tasks.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No task previews available yet.</p>
-        ) : (
-          <div className="grid gap-2">
-            {props.tasks.map((task) => (
-              props.onSelectTask ? (
-                <button
-                  key={task.id}
-                  type="button"
-                  data-task-selectable="true"
-                  className={
-                    props.selectedTaskId === task.id
-                      ? 'grid gap-1 rounded-lg border border-amber-300 bg-amber-100/90 px-3 py-2 text-left text-sm dark:border-amber-500/60 dark:bg-amber-500/10'
-                      : 'grid gap-1 rounded-lg border border-transparent px-3 py-2 text-left text-sm transition-colors hover:border-border/70 hover:bg-background/70'
-                  }
-                  onClick={() => {
-                    const onSelectTask = props.onSelectTask;
-                    if (!onSelectTask) {
-                      return;
-                    }
-                    onSelectTask(task.id);
-                  }}
-                >
-                  <span className="text-foreground">{task.title}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}
-                  </span>
-                </button>
-              ) : (
-                <div
-                  key={task.id}
-                  className="grid gap-1 rounded-lg border border-border/60 bg-background/60 px-3 py-2 text-left text-sm"
-                >
-                  <span className="text-foreground">{task.title}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}
-                  </span>
-                </div>
-              )
-            ))}
-          </div>
-        )}
+        <TaskPreviewRows
+          tasks={props.tasks}
+          onSelectTask={props.onSelectTask}
+          selectedTaskId={props.selectedTaskId}
+        />
       </div>
     </details>
+  );
+}
+
+function TaskPreviewRows(props: {
+  tasks: WorkflowTaskPreview[];
+  selectedTaskId?: string | null;
+  onSelectTask?(taskId: string): void;
+}): JSX.Element {
+  if (props.tasks.length === 0) {
+    return <p className="text-sm text-muted-foreground">No task previews available yet.</p>;
+  }
+
+  return (
+    <div className="grid gap-2">
+      {props.tasks.map((task) => (
+        props.onSelectTask ? (
+          <button
+            key={task.id}
+            type="button"
+            data-task-selectable="true"
+            className={
+              props.selectedTaskId === task.id
+                ? 'grid gap-1 rounded-lg border border-amber-300 bg-amber-100/90 px-3 py-2 text-left text-sm dark:border-amber-500/60 dark:bg-amber-500/10'
+                : 'grid gap-1 rounded-lg border border-transparent px-3 py-2 text-left text-sm transition-colors hover:border-border/70 hover:bg-background/70'
+            }
+            onClick={() => {
+              const onSelectTask = props.onSelectTask;
+              if (!onSelectTask) {
+                return;
+              }
+              onSelectTask(task.id);
+            }}
+          >
+            <span className="text-foreground">{task.title}</span>
+            <span className="text-xs text-muted-foreground">
+              {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}
+            </span>
+          </button>
+        ) : (
+          <div
+            key={task.id}
+            className="grid gap-1 rounded-lg border border-border/60 bg-background/60 px-3 py-2 text-left text-sm"
+          >
+            <span className="text-foreground">{task.title}</span>
+            <span className="text-xs text-muted-foreground">
+              {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}
+            </span>
+          </div>
+        )
+      ))}
+    </div>
   );
 }
 

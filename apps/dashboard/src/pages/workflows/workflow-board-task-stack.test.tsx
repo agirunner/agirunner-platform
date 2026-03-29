@@ -74,11 +74,14 @@ describe('WorkflowBoardTaskStack', () => {
             state: 'in_progress',
           },
         ],
+        collapsible: false,
         defaultOpen: true,
       }),
     );
 
     expect(html).toContain('Assess packet');
+    expect(html).not.toContain('<details');
+    expect(html).not.toContain('<summary');
     expect(html).not.toContain('<button');
   });
 

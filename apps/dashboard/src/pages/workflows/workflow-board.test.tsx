@@ -216,7 +216,62 @@ describe('WorkflowBoard', () => {
 
     expect(html).toContain('Assess packet');
     expect(html).toContain('Tasks');
+    expect(html).not.toContain('<details');
     expect(html).not.toContain('data-task-selectable="true"');
+  });
+
+  it('shows a compact current-state summary from live task progress instead of raw goal text', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: {
+            ...createBoard(),
+            work_items: [
+              {
+                ...createBoard().work_items[0],
+                goal: 'Compile the full intake record, restate the packet request, and keep the old background visible.',
+              },
+            ],
+          },
+          selectedWorkItemId: 'work-item-1',
+          selectedTaskId: null,
+          boardLens: 'work_items',
+          boardMode: 'active_recent_complete',
+          taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
+            [
+              'work-item-1',
+              {
+                tasks: [
+                  {
+                    id: 'task-specialist',
+                    title: 'Approval packet ready for reviewer handoff',
+                    role: 'policy-assessor',
+                    state: 'in_progress',
+                    workItemId: 'work-item-1',
+                    workItemTitle: 'Review incoming packet',
+                    stageName: 'intake-triage',
+                  },
+                ],
+                hasActiveOrchestratorTask: false,
+              },
+            ],
+          ]),
+          onBoardLensChange: vi.fn(),
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+          onSelectTask: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('In Progress: Approval packet ready for reviewer handoff');
+    expect(html).not.toContain(
+      'Compile the full intake record, restate the packet request, and keep the old background visible.',
+    );
+    expect(html).not.toContain('>2 tasks<');
   });
 
   it('keeps paused work in its lane and marks it as paused', () => {

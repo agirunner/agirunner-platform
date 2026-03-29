@@ -156,6 +156,18 @@ export function buildWorkflowBoardTaskCards(
   });
 }
 
+export function buildWorkflowBoardWorkItemSummary(
+  workItem: DashboardWorkflowWorkItemRecord,
+  taskSummary: WorkflowTaskPreviewSummary,
+): string | null {
+  return (
+    readPrimaryTaskSummary(taskSummary)
+    ?? readNextExpectedSummary(workItem)
+    ?? readSummaryText(workItem.notes)
+    ?? readSummaryText(workItem.goal)
+  );
+}
+
 function resolveDisplayColumnId(workItem: DashboardWorkflowWorkItemRecord): string {
   return workItem.column_id;
 }
@@ -199,4 +211,66 @@ function isRecentlyCompleted(value: string | null | undefined): boolean {
     return false;
   }
   return Date.now() - timestamp <= 1000 * 60 * 60 * 24;
+}
+
+function readPrimaryTaskSummary(taskSummary: WorkflowTaskPreviewSummary): string | null {
+  const primaryTask = taskSummary.tasks[0];
+  if (!primaryTask) {
+    return null;
+  }
+  const title = readSummaryText(primaryTask.title);
+  if (!title) {
+    return null;
+  }
+  const state = humanizeToken(primaryTask.state);
+  return state ? `${state}: ${title}` : title;
+}
+
+function readNextExpectedSummary(workItem: DashboardWorkflowWorkItemRecord): string | null {
+  const nextActor = humanizeToken(workItem.next_expected_actor);
+  const nextAction = readSummaryText(workItem.next_expected_action);
+  if (nextActor && nextAction) {
+    return `${nextActor} should ${lowercaseFirstCharacter(nextAction)}.`;
+  }
+  if (nextAction) {
+    return `Next: ${nextAction}`;
+  }
+  if (nextActor) {
+    return `${nextActor} is the next expected actor.`;
+  }
+  return null;
+}
+
+function readSummaryText(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const normalized = value.replace(/\s+/g, ' ').trim();
+  if (!normalized) {
+    return null;
+  }
+  return truncateSummary(normalized, 140);
+}
+
+function truncateSummary(value: string, maxLength: number): string {
+  if (value.length <= maxLength) {
+    return value;
+  }
+  return `${value.slice(0, maxLength - 3).trimEnd()}...`;
+}
+
+function lowercaseFirstCharacter(value: string): string {
+  if (!value) {
+    return value;
+  }
+  return value.charAt(0).toLowerCase() + value.slice(1);
+}
+
+function humanizeToken(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  return value
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (character) => character.toUpperCase());
 }

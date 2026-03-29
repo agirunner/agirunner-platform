@@ -10,6 +10,7 @@ import { WorkflowBoardTaskStack } from './workflow-board-task-stack.js';
 import { summarizeTaskPreviewsForWorkItem, type WorkflowTaskPreviewSummary } from './workflow-board-task-preview.js';
 import type { WorkflowBoardLens, WorkflowBoardMode } from './workflows-page.support.js';
 import {
+  buildWorkflowBoardWorkItemSummary,
   buildWorkflowBoardTaskCards,
   buildWorkflowBoardView,
   isNeedsActionWorkItem,
@@ -299,6 +300,8 @@ function BoardWorkItemCard(props: {
   onSelect(workItemId: string): void;
   onSelectTask?(workItemId: string, taskId: string): void;
 }): JSX.Element {
+  const currentStateSummary = buildWorkflowBoardWorkItemSummary(props.workItem, props.taskSummary);
+
   return (
     <article
       className={cn(
@@ -326,6 +329,10 @@ function BoardWorkItemCard(props: {
           {props.taskSummary.hasActiveOrchestratorTask ? <Badge variant="secondary">Orchestrator working</Badge> : null}
         </div>
 
+        {currentStateSummary ? (
+          <p className="text-sm leading-6 text-muted-foreground">{currentStateSummary}</p>
+        ) : null}
+
         {props.workItem.blocked_reason || props.workItem.gate_decision_feedback ? (
           <div className="rounded-xl border border-amber-300/60 bg-amber-50/70 p-3 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">
             {props.workItem.blocked_reason ?? props.workItem.gate_decision_feedback}
@@ -336,7 +343,7 @@ function BoardWorkItemCard(props: {
       <WorkflowBoardTaskStack
         tasks={props.taskSummary.tasks}
         selectedTaskId={props.selectedTaskId}
-        defaultOpen={!props.muted}
+        collapsible={false}
         onSelectTask={
           props.onSelectTask
             ? (taskId) => props.onSelectTask?.(props.workItem.id, taskId)
