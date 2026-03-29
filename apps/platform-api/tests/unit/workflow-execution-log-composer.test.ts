@@ -15,6 +15,12 @@ describe('workflow-execution-log-composer', () => {
         actor_name: 'Policy Assessor',
         work_item_id: 'work-item-7',
         task_id: 'task-4',
+        payload: {
+          tool: 'create_task',
+          input: {
+            role: 'policy-assessor',
+          },
+        },
       }),
     ]);
 
@@ -186,6 +192,42 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(items).toEqual([]);
+  });
+
+  it('suppresses empty helper action calls with no meaningful args', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '22c',
+        operation: 'agent.act',
+        payload: {
+          tool: 'file_read',
+          input: {},
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
+  it('formats file reads using the path-range summary style from the log viewer', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '22d',
+        operation: 'agent.act',
+        payload: {
+          tool: 'file_read',
+          input: {
+            path: 'output/workflows-intake-01-triage-packet.md',
+            offset: 1,
+            limit: 200,
+          },
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      'calling file_read(path="output/workflows-intake-01-triage-packet.md:1-200")',
+    );
   });
 
   it('suppresses internal operator-recording act turns so the live console shows only the resulting record', () => {

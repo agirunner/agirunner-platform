@@ -173,8 +173,11 @@ function buildActionInvocationHeadline(payload: Record<string, unknown>): string
   if (!actionName) {
     return null;
   }
-  const args = summarizeActionArgs(asRecord(payload.input));
+  const args = summarizeActionArgs(actionName, asRecord(payload.input));
   if (args.length === 0) {
+    if (shouldSuppressEmptyActionInvocation(actionName)) {
+      return null;
+    }
     return `calling ${actionName}()`;
   }
   return `calling ${actionName}(${args.join(', ')})`;
@@ -188,7 +191,13 @@ function shouldRenderExecutionTurn(row: LogRow): boolean {
     case 'agent.plan':
       return readPlanText(payload) !== null;
     case 'agent.act':
-      return !isSuppressedActionName(readActionName(payload));
+      return (
+        !isSuppressedActionName(readActionName(payload))
+        && (
+          readOperatorReadableField(payload, ['headline', 'text_preview']) !== null
+          || buildActionInvocationHeadline(payload) !== null
+        )
+      );
     case 'agent.observe':
       return readObserveText(payload) !== null;
     case 'agent.verify':
@@ -213,7 +222,12 @@ function buildSubjectHeadline(prefix: string, subject: string | null, fallback: 
   return `${prefix} ${subject}`;
 }
 
-function summarizeActionArgs(input: Record<string, unknown>): string[] {
+function summarizeActionArgs(actionName: string, input: Record<string, unknown>): string[] {
+  const specializedArgs = summarizeToolSpecificArgs(actionName, input);
+  if (specializedArgs.length > 0) {
+    return specializedArgs;
+  }
+
   const preferredKeys = ['summary', 'headline', 'title', 'role', 'completion', 'decision', 'stage_name'];
   const summaries: string[] = [];
   for (const key of preferredKeys) {
@@ -239,6 +253,43 @@ function summarizeActionArgs(input: Record<string, unknown>): string[] {
     }
   }
   return summaries;
+}
+
+function summarizeToolSpecificArgs(actionName: string, input: Record<string, unknown>): string[] {
+  switch (actionName) {
+    case 'file_read': {
+      const pathRange = formatPathRangeSummary(input);
+      return pathRange ? [`path="${pathRange.replace(/"/g, "'")}"`] : [];
+    }
+    case 'file_write':
+    case 'file_edit':
+    case 'file_list':
+    case 'artifact_upload':
+    case 'artifact_read':
+    case 'artifact_document_read': {
+      const pathLike = readFirstString([
+        readString(input.path),
+        readString(input.logical_path),
+        readString(input.artifact_name),
+        readString(input.artifact_id),
+      ]);
+      return pathLike ? [`path="${truncate(pathLike, 72)?.replace(/"/g, "'")}"`] : [];
+    }
+    default:
+      return [];
+  }
+}
+
+function shouldSuppressEmptyActionInvocation(actionName: string): boolean {
+  return new Set([
+    'file_read',
+    'file_write',
+    'file_edit',
+    'file_list',
+    'artifact_upload',
+    'artifact_read',
+    'artifact_document_read',
+  ]).has(actionName);
 }
 
 function renderActionArg(key: string, value: unknown): string | null {
@@ -281,6 +332,32 @@ function normalizeActionArgText(value: string): string | null {
 
 function isSuppressedActionName(value: string | null): boolean {
   return value === 'record_operator_update' || value === 'record_operator_brief';
+}
+
+function formatPathRangeSummary(input: Record<string, unknown>): string | null {
+  const path = readString(input.path);
+  if (!path) {
+    return null;
+  }
+  const offset = readOptionalNumber(input.offset);
+  const limit = readOptionalNumber(input.limit);
+  if (offset === null || limit === null) {
+    return truncate(path, 72);
+  }
+  return truncate(`${path}:${offset}-${offset + limit - 1}`, 72);
+}
+
+function readOptionalNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function readFirstString(values: Array<string | null>): string | null {
+  for (const value of values) {
+    if (value) {
+      return value;
+    }
+  }
+  return null;
 }
 
 function readActionName(payload: Record<string, unknown>): string | null {
