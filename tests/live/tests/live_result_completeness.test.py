@@ -125,7 +125,7 @@ class LiveResultCompletenessTests(unittest.TestCase):
                 **live_console_ids,
                 **deliverable_ids,
                 "all_descriptor_ids": ["descriptor-1", "brief-1", "handoff-1"],
-                "update_item_kind_counts": {
+                "record_item_kind_counts": {
                     "milestone_brief": 1,
                 },
                 "deliverable_descriptor_kind_counts": {

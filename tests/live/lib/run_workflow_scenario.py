@@ -329,25 +329,6 @@ SELECT jsonb_build_object(
     ),
     '[]'::jsonb
   ),
-  'operator_updates',
-  COALESCE(
-    (
-      SELECT jsonb_agg(to_jsonb(update_row) ORDER BY update_row.created_at DESC, update_row.id DESC)
-      FROM (
-        SELECT
-          id,
-          work_item_id,
-          task_id,
-          update_kind,
-          linked_target_ids,
-          sequence_number,
-          created_at
-        FROM workflow_operator_updates
-        WHERE workflow_id = {workflow}
-      ) update_row
-    ),
-    '[]'::jsonb
-  ),
   'deliverables',
   COALESCE(
     (

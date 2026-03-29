@@ -69,7 +69,7 @@ export class WorkflowLiveConsoleService {
   constructor(
     private readonly versionSource: VersionSource,
     private readonly briefSource: BriefSource,
-    private readonly updateSource: UpdateSource,
+    _deprecatedUpdateSource: UpdateSource,
     private readonly visibilityModeSource: VisibilityModeSource,
     private readonly executionTurnSource?: ExecutionTurnSource,
     private readonly workflowBoardSource?: WorkflowBoardSource,
@@ -82,17 +82,12 @@ export class WorkflowLiveConsoleService {
   ): Promise<WorkflowLiveConsolePacket> {
     const limit = input.limit ?? 50;
     const fetchWindow = resolveFetchWindow(limit);
-    const [version, briefs, updates, workflowSettings, workflowBoard] = await Promise.all([
+    const [version, briefs, workflowSettings, workflowBoard] = await Promise.all([
       this.versionSource.getHistory(tenantId, {
         workflowId,
         limit: 1,
       }),
       this.briefSource.listBriefs(tenantId, workflowId, {
-        workItemId: input.workItemId,
-        taskId: input.taskId,
-        limit: fetchWindow,
-      }),
-      this.updateSource.listUpdates(tenantId, workflowId, {
         workItemId: input.workItemId,
         taskId: input.taskId,
         limit: fetchWindow,
@@ -110,9 +105,7 @@ export class WorkflowLiveConsoleService {
       workflowSettings.effective_live_visibility_mode,
     );
 
-    const items = [...updates.map(toUpdateItem), ...briefs.map(toBriefItem), ...executionTurns].sort(
-      sortNewestFirst,
-    );
+    const items = [...briefs.map(toBriefItem), ...executionTurns].sort(sortNewestFirst);
     const scopedItems = shouldFilterSelectedScope(input)
       ? filterLiveConsoleItemsForSelectedScope(
           items,
@@ -132,8 +125,7 @@ export class WorkflowLiveConsoleService {
       items: page.items,
       total_count: scopedItems.length,
       next_cursor: page.nextCursor,
-      live_visibility_mode:
-        workflowSettings.effective_live_visibility_mode ?? deriveVisibilityModeFromUpdates(updates),
+      live_visibility_mode: workflowSettings.effective_live_visibility_mode,
     };
   }
 
@@ -186,23 +178,6 @@ function toBriefItem(brief: WorkflowOperatorBriefRecord): WorkflowLiveConsoleIte
     work_item_id: brief.work_item_id,
     task_id: brief.task_id,
     linked_target_ids: buildLinkedTargetIds(brief),
-    scope_binding: 'record',
-  };
-}
-
-function toUpdateItem(update: WorkflowOperatorUpdateRecord): WorkflowLiveConsoleItem {
-  const updateKind = readOptionalString(update.update_kind);
-  return {
-    item_id: update.id,
-    item_kind: updateKind === 'platform_notice' ? 'platform_notice' : 'operator_update',
-    source_kind: update.source_kind,
-    source_label: readSourceLabel(update.source_role_name, update.source_kind),
-    headline: readRequiredString(update.headline, 'Workflow update'),
-    summary: readOptionalString(update.summary) ?? readRequiredString(update.headline, 'Workflow update'),
-    created_at: update.created_at,
-    work_item_id: update.work_item_id,
-    task_id: update.task_id,
-    linked_target_ids: readStringArray(update.linked_target_ids),
     scope_binding: 'record',
   };
 }
@@ -290,14 +265,6 @@ function sortNewestFirst(left: WorkflowLiveConsoleItem, right: WorkflowLiveConso
     { timestamp: left.created_at, id: left.item_id },
     { timestamp: right.created_at, id: right.item_id },
   );
-}
-
-function deriveVisibilityModeFromUpdates(
-  updates: WorkflowOperatorUpdateRecord[],
-): 'standard' | 'enhanced' {
-  return updates.some((update) => update.visibility_mode === 'enhanced')
-    ? 'enhanced'
-    : 'standard';
 }
 
 function shouldFilterSelectedScope(input: { workItemId?: string; taskId?: string }): boolean {

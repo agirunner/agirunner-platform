@@ -4,25 +4,34 @@ import { WorkflowLiveConsoleService } from '../../src/services/workflow-operatio
 
 describe('WorkflowLiveConsoleService', () => {
   it('reports the full live-console total even when pagination trims the current page', async () => {
-    const updates = Array.from({ length: 12 }, (_, index) => ({
-      id: `update-${index + 1}`,
+    const briefs = Array.from({ length: 12 }, (_, index) => ({
+      id: `brief-${index + 1}`,
       workflow_id: 'workflow-1',
       work_item_id: 'work-item-1',
       task_id: null,
-      request_id: `update-request-${index + 1}`,
+      request_id: `brief-request-${index + 1}`,
       execution_context_id: 'activation-1',
-      source_kind: 'orchestrator',
+      brief_kind: 'milestone',
+      brief_scope: 'workflow_timeline',
+      source_kind: 'specialist',
       source_role_name: 'Orchestrator',
-      update_kind: 'turn_update',
-      headline: `Update ${index + 1}`,
-      summary: `Summary ${index + 1}`,
+      status_kind: 'in_progress',
+      short_brief: { headline: `Brief ${index + 1}` },
+      detailed_brief_json: {
+        headline: `Brief ${index + 1}`,
+        summary: `Summary ${index + 1}`,
+        status_kind: 'in_progress',
+      },
       linked_target_ids: ['workflow-1', 'work-item-1'],
-      visibility_mode: 'enhanced',
-      promoted_brief_id: null,
       sequence_number: 12 - index,
+      related_artifact_ids: [],
+      related_output_descriptor_ids: [],
+      related_intervention_ids: [],
+      canonical_workflow_brief_id: null,
       created_by_type: 'agent',
       created_by_id: 'agent-1',
       created_at: `2026-03-28T08:${String(index).padStart(2, '0')}:00.000Z`,
+      updated_at: `2026-03-28T08:${String(index).padStart(2, '0')}:00.000Z`,
     }));
     const service = new WorkflowLiveConsoleService(
       {
@@ -36,10 +45,10 @@ describe('WorkflowLiveConsoleService', () => {
         })),
       } as never,
       {
-        listBriefs: vi.fn(async () => []),
+        listBriefs: vi.fn(async () => briefs),
       } as never,
       {
-        listUpdates: vi.fn(async () => updates),
+        listUpdates: vi.fn(async () => []),
       } as never,
       {
         getWorkflowSettings: vi.fn(async () => ({
@@ -201,7 +210,37 @@ describe('WorkflowLiveConsoleService', () => {
         })),
       } as never,
       {
-        listBriefs: vi.fn(async () => []),
+        listBriefs: vi.fn(async () => [
+          {
+            id: 'brief-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: 'task-1',
+            request_id: 'brief-request',
+            execution_context_id: 'task-1',
+            brief_kind: 'milestone',
+            brief_scope: 'work_item_handoff',
+            source_kind: 'specialist',
+            source_role_name: 'Policy Assessor',
+            status_kind: 'in_progress',
+            short_brief: { headline: 'Policy assessment is ready for operator review.' },
+            detailed_brief_json: {
+              headline: 'Policy assessment is ready for operator review.',
+              summary: 'The approval packet is ready.',
+              status_kind: 'in_progress',
+            },
+            linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
+            sequence_number: 4,
+            related_artifact_ids: [],
+            related_output_descriptor_ids: [],
+            related_intervention_ids: [],
+            canonical_workflow_brief_id: null,
+            created_by_type: 'agent',
+            created_by_id: 'agent-2',
+            created_at: '2026-03-28T07:59:00.000Z',
+            updated_at: '2026-03-28T07:59:00.000Z',
+          },
+        ]),
       } as never,
       {
         listUpdates: vi.fn(async () => [
@@ -245,14 +284,14 @@ describe('WorkflowLiveConsoleService', () => {
     expect(result.live_visibility_mode).toBe('standard');
     expect(result.items).toEqual([
       expect.objectContaining({
-        item_id: 'update-1',
-        item_kind: 'operator_update',
+        item_id: 'brief-1',
+        item_kind: 'milestone_brief',
         headline: 'Policy assessment is ready for operator review.',
       }),
     ]);
   });
 
-  it('prefers operator updates over execution-turn fallbacks when updates exist', async () => {
+  it('ignores deprecated operator updates when briefs already cover the same scope', async () => {
     const service = new WorkflowLiveConsoleService(
       {
         getHistory: vi.fn(async () => ({
@@ -335,20 +374,9 @@ describe('WorkflowLiveConsoleService', () => {
     });
 
     expect(result.snapshot_version).toBe('workflow-operations:77');
-    expect(result.total_count).toBe(2);
-    expect(result.items.map((item) => item.item_id)).toEqual([
-      'update-1',
-      'brief-1',
-    ]);
+    expect(result.total_count).toBe(1);
+    expect(result.items.map((item) => item.item_id)).toEqual(['brief-1']);
     expect(result.items[0]).toEqual(
-      expect.objectContaining({
-        item_kind: 'operator_update',
-        headline: 'Verifier is checking rollback handling.',
-        summary: 'Rollback handling is under review.',
-        source_label: 'Verifier',
-      }),
-    );
-    expect(result.items[1]).toEqual(
       expect.objectContaining({
         item_kind: 'milestone_brief',
         headline: 'Approval brief published',
@@ -357,7 +385,46 @@ describe('WorkflowLiveConsoleService', () => {
     );
   });
 
-  it('humanizes token-like source role labels for briefs and updates', async () => {
+  it('humanizes token-like source role labels for briefs and execution turns', async () => {
+    const executionTurnSource = {
+      query: vi.fn(async (_tenantId, filters) => {
+        if (filters.category.includes('llm')) {
+          return {
+            data: [
+              {
+                id: 'log-1',
+                source: 'runtime',
+                category: 'llm',
+                level: 'info',
+                operation: 'llm.chat_stream',
+                status: 'completed',
+                payload: {
+                  phase: 'plan',
+                  response_text: JSON.stringify({
+                    summary: 'Review the current packet before deciding next routing.',
+                  }),
+                },
+                workflow_id: 'workflow-1',
+                workflow_name: 'Workflow 1',
+                work_item_id: 'work-item-1',
+                task_id: 'task-1',
+                stage_name: 'review',
+                is_orchestrator_task: false,
+                task_title: 'Assess policy readiness',
+                role: 'policy-assessor',
+                actor_type: 'runtime',
+                actor_name: 'policy-assessor',
+                resource_name: null,
+                created_at: '2026-03-28T07:59:00.000Z',
+              },
+            ],
+          };
+        }
+        return {
+          data: [],
+        };
+      }),
+    };
     const service = new WorkflowLiveConsoleService(
       {
         getHistory: vi.fn(async () => ({
@@ -403,34 +470,14 @@ describe('WorkflowLiveConsoleService', () => {
         ]),
       } as never,
       {
-        listUpdates: vi.fn(async () => [
-          {
-            id: 'update-1',
-            workflow_id: 'workflow-1',
-            work_item_id: 'work-item-1',
-            task_id: 'task-1',
-            request_id: 'update-request',
-            execution_context_id: 'task-1',
-            source_kind: 'specialist',
-            source_role_name: 'policy-assessor',
-            update_kind: 'turn_update',
-            headline: 'Verifier is checking rollback handling.',
-            summary: 'Rollback handling is under review.',
-            linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
-            visibility_mode: 'enhanced',
-            promoted_brief_id: null,
-            sequence_number: 4,
-            created_by_type: 'agent',
-            created_by_id: 'agent-2',
-            created_at: '2026-03-28T07:59:00.000Z',
-          },
-        ]),
+        listUpdates: vi.fn(async () => []),
       } as never,
       {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
         })),
       } as never,
+      executionTurnSource as never,
     );
 
     const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
@@ -555,6 +602,51 @@ describe('WorkflowLiveConsoleService', () => {
   });
 
   it('exposes explicit work-item and task ids for live-console entries', async () => {
+    const executionTurnSource = {
+      query: vi.fn(async (_tenantId, filters) => {
+        if (filters.category.includes('llm')) {
+          return {
+            data: [
+              {
+                id: 'log-1',
+                source: 'runtime',
+                category: 'llm',
+                level: 'info',
+                operation: 'llm.chat_stream',
+                status: 'completed',
+                payload: {
+                  phase: 'act',
+                  response_tool_calls: [
+                    {
+                      name: 'submit_handoff',
+                      input: {
+                        summary: 'Owner handoff detail is still missing.',
+                        completion: 'full',
+                      },
+                    },
+                  ],
+                },
+                workflow_id: 'workflow-1',
+                workflow_name: 'Workflow 1',
+                work_item_id: 'work-item-44',
+                task_id: 'task-11',
+                stage_name: 'review',
+                is_orchestrator_task: false,
+                task_title: 'Assess policy readiness',
+                role: 'policy-assessor',
+                actor_type: 'runtime',
+                actor_name: 'Policy Assessor',
+                resource_name: null,
+                created_at: '2026-03-28T07:59:00.000Z',
+              },
+            ],
+          };
+        }
+        return {
+          data: [],
+        };
+      }),
+    };
     const service = new WorkflowLiveConsoleService(
       {
         getHistory: vi.fn(async () => ({
@@ -600,34 +692,14 @@ describe('WorkflowLiveConsoleService', () => {
         ]),
       } as never,
       {
-        listUpdates: vi.fn(async () => [
-          {
-            id: 'update-1',
-            workflow_id: 'workflow-1',
-            work_item_id: 'work-item-44',
-            task_id: 'task-11',
-            request_id: 'update-request',
-            execution_context_id: 'task-11',
-            source_kind: 'specialist',
-            source_role_name: 'Policy Assessor',
-            update_kind: 'turn_update',
-            headline: 'Reviewing owner handoff detail.',
-            summary: 'Owner handoff detail is still missing.',
-            linked_target_ids: ['workflow-1', 'work-item-44', 'task-11'],
-            visibility_mode: 'enhanced',
-            promoted_brief_id: null,
-            sequence_number: 7,
-            created_by_type: 'agent',
-            created_by_id: 'agent-1',
-            created_at: '2026-03-28T07:59:00.000Z',
-          },
-        ]),
+        listUpdates: vi.fn(async () => []),
       } as never,
       {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
         })),
       } as never,
+      executionTurnSource as never,
     );
 
     const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
@@ -638,7 +710,7 @@ describe('WorkflowLiveConsoleService', () => {
 
     expect(result.items).toEqual([
       expect.objectContaining({
-        item_id: 'update-1',
+        item_id: 'execution-log:log-1',
         work_item_id: 'work-item-44',
         task_id: 'task-11',
       }),

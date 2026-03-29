@@ -271,7 +271,6 @@ def summarize_workspace_packet(packet: dict[str, Any]) -> dict[str, Any]:
             "item_kind_counts": count_by_key(live_console_items, "item_kind"),
             "tracked_item_kind_counts": tracked_live_console_counts(live_console_items),
             "brief_ids": sorted(read_ids(live_console_items, kind="milestone_brief")),
-            "update_ids": sorted(read_ids(live_console_items, kinds={"operator_update", "platform_notice"})),
             "execution_turn_ids": sorted(
                 item["log_id"]
                 for item in execution_turn_items
@@ -299,7 +298,6 @@ def summarize_db_scope(
     task_id: str | None,
 ) -> dict[str, Any]:
     briefs = filter_console_records(as_list(db_state.get("operator_briefs")), scope_kind, work_item_id, task_id)
-    updates = filter_console_records(as_list(db_state.get("operator_updates")), scope_kind, work_item_id, task_id)
     deliverables = filter_deliverable_records(as_list(db_state.get("deliverables")), scope_kind, work_item_id)
     deliverable_briefs = filter_deliverable_records(as_list(db_state.get("operator_briefs")), scope_kind, work_item_id)
     handoffs = filter_deliverable_records(as_list(db_state.get("completed_handoffs")), scope_kind, work_item_id)
@@ -368,10 +366,8 @@ def summarize_db_scope(
     )
     return {
         "brief_ids": sorted(read_ids(briefs)),
-        "update_ids": sorted(read_ids(updates)),
-        "update_item_kind_counts": {
+        "record_item_kind_counts": {
             "milestone_brief": len(read_ids(briefs)),
-            **count_update_item_kinds(updates),
         },
         "deliverable_context_brief_ids": sorted(read_ids(deliverable_context_briefs)),
         "stored_descriptor_ids": stored_deliverable_ids,
@@ -410,15 +406,13 @@ def compare_scope_summary(
         failures.append(f"{scope_key} selected task mismatch")
 
     compare_id_family(failures, scope_key, "live console brief ids", api_summary["live_console"]["brief_ids"], db_summary["brief_ids"])
-    if effective_mode != "enhanced":
-        compare_id_family(failures, scope_key, "live console update ids", api_summary["live_console"]["update_ids"], db_summary["update_ids"])
-        compare_counts(
-            failures,
-            scope_key,
-            "live console payload families",
-            api_summary["live_console"]["tracked_item_kind_counts"],
-            db_summary["update_item_kind_counts"],
-        )
+    compare_counts(
+        failures,
+        scope_key,
+        "live console payload families",
+        api_summary["live_console"]["tracked_item_kind_counts"],
+        db_summary["record_item_kind_counts"],
+    )
     compare_id_family(failures, scope_key, "deliverable descriptor ids", api_summary["deliverables"]["all_descriptor_ids"], db_summary["all_descriptor_ids"])
     compare_id_family(failures, scope_key, "deliverable final ids", api_summary["deliverables"]["final_descriptor_ids"], db_summary["final_descriptor_ids"])
     compare_id_family(failures, scope_key, "deliverable in-progress ids", api_summary["deliverables"]["in_progress_descriptor_ids"], db_summary["in_progress_descriptor_ids"])
@@ -1384,20 +1378,11 @@ def matches_work_item_scope(record: dict[str, Any], work_item_id: str | None) ->
     return read_string(record.get("work_item_id")) == work_item_id or work_item_id in read_string_list(record.get("linked_target_ids"))
 
 
-def count_update_item_kinds(updates: list[dict[str, Any]]) -> dict[str, int]:
-    counts: dict[str, int] = {}
-    for record in updates:
-        update_kind = read_string(record.get("update_kind"))
-        key = "platform_notice" if update_kind == "platform_notice" else "operator_update"
-        counts[key] = counts.get(key, 0) + 1
-    return counts
-
-
 def tracked_live_console_counts(records: list[dict[str, Any]]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for record in records:
         item_kind = read_string(record.get("item_kind"))
-        if item_kind not in {"milestone_brief", "operator_update", "platform_notice"}:
+        if item_kind != "milestone_brief":
             continue
         counts[item_kind] = counts.get(item_kind, 0) + 1
     return counts

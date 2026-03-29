@@ -25,16 +25,11 @@ class BuildDbStateQueryTests(unittest.TestCase):
             ),
         )
 
-    def test_db_state_query_selects_update_sequence_number_for_ordering(self) -> None:
+    def test_db_state_query_omits_deprecated_operator_updates(self) -> None:
         sql = run_workflow_scenario.build_db_state_query("workflow-123")
 
-        self.assertRegex(
-            sql,
-            re.compile(
-                r"'operator_updates'.*?SELECT\s+id,.*?sequence_number,.*?FROM workflow_operator_updates",
-                re.DOTALL,
-            ),
-        )
+        self.assertNotIn("'operator_updates'", sql)
+        self.assertNotIn("FROM workflow_operator_updates", sql)
 
 
 if __name__ == "__main__":
