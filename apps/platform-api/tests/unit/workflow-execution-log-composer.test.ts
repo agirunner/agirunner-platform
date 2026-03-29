@@ -154,6 +154,14 @@ describe('workflow-execution-log-composer', () => {
             'Emit the required milestone operator brief for the completed intake-item closure checkpoint, then reassess completion.',
         },
       }),
+      createLogRow({
+        id: '21cc',
+        operation: 'agent.plan',
+        payload: {
+          plan_summary:
+            'Finish this heartbeat activation by submitting the required structured handoff now that the stale wait state has been corrected and the new policy assessment task is active.',
+        },
+      }),
     ]);
 
     expect(items).toEqual([]);
@@ -291,6 +299,16 @@ describe('workflow-execution-log-composer', () => {
         operation: 'agent.act',
         payload: {
           tool: 'read_work_item_continuity',
+          input: {
+            work_item_id: 'work-item-1',
+          },
+        },
+      }),
+      createLogRow({
+        id: '22ccg',
+        operation: 'agent.act',
+        payload: {
+          tool: 'read_latest_handoff',
           input: {
             work_item_id: 'work-item-1',
           },

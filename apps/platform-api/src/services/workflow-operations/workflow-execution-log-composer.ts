@@ -753,7 +753,8 @@ function looksLikeLowValueConsoleText(value: string): boolean {
     || /^burst_budget:/i.test(value)
     || /\brecord the .*?(milestone|terminal|closure|operator-visible).*?\b(brief|update)\b/i.test(value)
     || /\bemit the required .*?\b(brief|update)\b/i.test(value)
-    || /\bsubmit the required structured handoff\b/i.test(value)
+    || /\bsubmitt?(?:ing)? the required structured handoff\b/i.test(value)
+    || /\bfinish this (?:heartbeat )?activation\b.*\bstructured handoff\b/i.test(value)
     || /\b(remains|still|continues to be|continues)\b.*\bready\b/i.test(value)
     || /\b(remains|still|continues to be|continues)\b.*\b(suitable|supports|cleared)\b/i.test(value)
   );
@@ -823,6 +824,7 @@ const LOW_VALUE_HELPER_ACTIONS = new Set([
   'list_workflow_tasks',
   'memory_read',
   'read_predecessor_handoff',
+  'read_latest_handoff',
   'read_task_status',
   'read_task_output',
   'read_task_events',
