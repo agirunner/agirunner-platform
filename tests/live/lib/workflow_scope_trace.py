@@ -484,6 +484,7 @@ def reconcile_enhanced_live_console(
         for row in actual_rows
         if read_string(row.get("log_id")) is not None
     }
+    raw_capture_horizon = read_execution_log_horizon(execution_logs)
     failures: list[str] = []
 
     for expected in expected_rows:
@@ -505,6 +506,8 @@ def reconcile_enhanced_live_console(
             continue
         expected = expected_by_id.get(log_id)
         if expected is None:
+            if execution_log_id_is_beyond_horizon(log_id, raw_capture_horizon):
+                continue
             failures.append(f"execution-log:{log_id} surfaced unexpectedly without a raw loop-phase source")
             continue
         if expected.get("surface_expected") is not True:
@@ -1578,6 +1581,27 @@ def execution_log_rows(logs: Any) -> list[dict[str, Any]]:
         data = logs.get("data")
         return as_list(data)
     return as_list(logs)
+
+
+def read_execution_log_horizon(logs: Any) -> int | None:
+    numeric_ids = [
+        numeric_id
+        for row in execution_log_rows(logs)
+        if (numeric_id := parse_execution_log_numeric_id(row.get("id"))) is not None
+    ]
+    return max(numeric_ids) if numeric_ids else None
+
+
+def execution_log_id_is_beyond_horizon(log_id: str, horizon: int | None) -> bool:
+    numeric_id = parse_execution_log_numeric_id(log_id)
+    return horizon is not None and numeric_id is not None and numeric_id > horizon
+
+
+def parse_execution_log_numeric_id(value: Any) -> int | None:
+    parsed = read_string(value)
+    if parsed is None or not parsed.isdigit():
+        return None
+    return int(parsed)
 
 
 def read_string(value: Any) -> str | None:

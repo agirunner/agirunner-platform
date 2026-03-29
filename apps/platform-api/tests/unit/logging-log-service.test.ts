@@ -973,6 +973,28 @@ describe('LogService', () => {
       expect(result.pagination.next_cursor).toBeTruthy();
     });
 
+    it('preserves microsecond cursor precision across keyset pages', async () => {
+      const pool = createMockPool();
+      const fakeRows = Array.from({ length: 11 }, (_, index) => ({
+        id: String(index),
+        created_at: `2026-03-09T12:00:${String(index).padStart(2, '0')}.454Z`,
+        cursor_created_at:
+          index === 9
+            ? '2026-03-09T12:00:09.454911Z'
+            : `2026-03-09T12:00:${String(index).padStart(2, '0')}.454000Z`,
+      }));
+      pool.query.mockResolvedValue({ rows: fakeRows, rowCount: 11 });
+      const service = new LogService(pool as never);
+
+      const result = await service.query('tenant-1', { perPage: 10 });
+
+      expect(result.pagination.next_cursor).toBeTruthy();
+      expect(decodeCursor(result.pagination.next_cursor as string)).toEqual({
+        id: '9',
+        createdAt: '2026-03-09T12:00:09.454911Z',
+      });
+    });
+
     it('setsHasMoreFalseWhenExactPageSize', async () => {
       const pool = createMockPool();
       const fakeRows = Array.from({ length: 10 }, (_, i) => ({

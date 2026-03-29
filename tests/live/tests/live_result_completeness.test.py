@@ -745,6 +745,49 @@ class LiveResultCompletenessTests(unittest.TestCase):
         self.assertFalse(result["passed"])
         self.assertIn("forbidden", "\n".join(result["failures"]))
 
+    def test_reconcile_enhanced_live_console_ignores_surfaced_rows_beyond_stale_raw_capture_horizon(self) -> None:
+        result = workflow_scope_trace.reconcile_enhanced_live_console(
+            execution_logs={
+                "data": [
+                    {
+                        "id": "111",
+                        "operation": "agent.think",
+                        "task_id": "task-1",
+                        "work_item_id": "wi-1",
+                        "payload": {
+                            "phase": "think",
+                            "approach": "Inspect the current work item state before routing.",
+                        },
+                    }
+                ]
+            },
+            execution_turn_items=[
+                {
+                    "log_id": "111",
+                    "item_id": "execution-log:111",
+                    "headline": "[Think] Inspect the current work item state before routing.",
+                    "summary": "Inspect the current work item state before routing.",
+                    "task_id": "task-1",
+                    "work_item_id": "wi-1",
+                },
+                {
+                    "log_id": "222",
+                    "item_id": "execution-log:222",
+                    "headline": "[Observe] The latest policy assessment is still pending.",
+                    "summary": "The latest policy assessment is still pending.",
+                    "task_id": "task-1",
+                    "work_item_id": "wi-1",
+                },
+            ],
+            effective_mode="enhanced",
+            scope_kind="selected_task",
+            work_item_id="wi-1",
+            task_id="task-1",
+        )
+
+        self.assertTrue(result["passed"])
+        self.assertEqual([], result["failures"])
+
     def test_workflow_scope_db_summary_rolls_up_work_item_deliverables(self) -> None:
         summary = workflow_scope_trace.summarize_db_scope(
             {

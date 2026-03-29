@@ -85,6 +85,7 @@ export interface LogRow {
   execution_environment_distro: string | null;
   execution_environment_package_manager: string | null;
   created_at: string;
+  cursor_created_at?: string | null;
 }
 
 export interface LogFilters {
@@ -313,7 +314,9 @@ const LOG_SELECT_COLUMNS = `l.id, l.tenant_id, l.trace_id, l.span_id, l.parent_s
               AS execution_environment_distro,
             task_ctx.execution_environment_snapshot->'verified_metadata'->>'package_manager'
               AS execution_environment_package_manager,
-            l.created_at`;
+            l.created_at,
+            to_char(l.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
+              AS cursor_created_at`;
 
 const LOG_FROM_SQL = `FROM execution_logs l
        LEFT JOIN tasks task_ctx
@@ -445,7 +448,7 @@ export class LogService {
     let nextCursor: string | null = null;
     if (hasMore && data.length > 0) {
       const last = data[data.length - 1];
-      nextCursor = encodeCursor(String(last.id), last.created_at);
+      nextCursor = encodeCursor(String(last.id), last.cursor_created_at ?? last.created_at);
     }
 
     return {
