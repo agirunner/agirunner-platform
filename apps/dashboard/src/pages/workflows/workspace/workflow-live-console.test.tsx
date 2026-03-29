@@ -110,8 +110,6 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('data-terminal-entry="brief"');
     expect(html).toContain('data-terminal-entry="update"');
     expect(html).toContain('data-terminal-entry="notice"');
-    expect(html).toContain('border-emerald-400/40');
-    expect(html).toContain('border-slate-700/80');
     expect(html).toContain('rounded-xl border border-slate-900/90 bg-[#08111f]');
     expect(html).toContain('border-b border-slate-800/80 bg-slate-950/80');
     expect(html).toContain('border-t border-slate-900/90 bg-slate-950/70');
@@ -119,7 +117,9 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('flex min-w-0 items-center justify-between gap-3');
     expect(html).toContain('grid gap-px');
     expect(html).toContain('grid-cols-[max-content_minmax(0,1fr)_max-content]');
-    expect(html).toContain('min-w-0 truncate pr-2 text-slate-100');
+    expect(html).toContain('gap-2 border-b border-slate-950/90 px-4 py-2 font-mono text-sm leading-6 text-slate-100');
+    expect(html).toContain('min-w-0 truncate text-slate-100');
+    expect(html).toContain('shrink-0 pl-2 text-right text-xs text-slate-500');
     expect(html).toContain('flex min-h-0 flex-1 flex-col overflow-hidden');
     expect(html).toContain('flex shrink-0 items-center justify-end gap-1.5');
     expect(html).toContain('min-h-0 flex-1 overflow-x-hidden overflow-y-auto');
@@ -333,8 +333,8 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('grid min-w-0 grid-cols-[max-content_minmax(0,1fr)_max-content]');
     expect(html).toContain('border-b border-slate-950/90');
     expect(html).toContain('self-start text-emerald-300');
-    expect(html).toContain('min-w-0 truncate pr-2 text-slate-100');
-    expect(html).toContain('shrink-0 text-right text-xs text-slate-500');
+    expect(html).toContain('min-w-0 truncate text-slate-100');
+    expect(html).toContain('shrink-0 pl-2 text-right text-xs text-slate-500');
     expect(html).toContain('overflow-x-hidden overflow-y-auto');
     expect(html).not.toContain('break-words');
     expect(html).not.toContain('text-left text-xs text-slate-500');
@@ -407,7 +407,7 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('data-terminal-source="specialist"');
     expect(html).toContain('text-sky-300');
     expect(html).toContain('text-emerald-300');
-    expect(html).toContain('bg-slate-950/40');
+    expect(html).toContain('bg-transparent');
     expect(html).not.toContain('rounded-xl border border-slate-700 bg-slate-950/40 p-4');
   });
 
