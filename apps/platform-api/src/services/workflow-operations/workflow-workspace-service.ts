@@ -410,7 +410,7 @@ function selectScopedOutputDescriptors(
   selectedScope: WorkflowWorkspacePacket['selected_scope'],
 ): MissionControlOutputDescriptor[] {
   if (selectedScope.scope_kind === 'workflow') {
-    return outputDescriptors;
+    return outputDescriptors.filter((descriptor) => descriptor.workItemId === null);
   }
   if (selectedScope.scope_kind === 'selected_task') {
     return [];

@@ -2588,7 +2588,7 @@ describe('WorkflowWorkspaceService', () => {
     expect(result.bottom_tabs.counts.deliverables).toBe(1);
   });
 
-  it('uses workflow output descriptor fallback when visible deliverables are empty in workflow scope', async () => {
+  it('does not use work-item output descriptor fallback when workflow-scope deliverables are empty', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -2801,23 +2801,10 @@ describe('WorkflowWorkspaceService', () => {
       tabScope: 'workflow',
     });
 
-    expect(result.deliverables.final_deliverables).toEqual([
-      expect.objectContaining({
-        descriptor_id: 'output:artifact:release-design',
-        work_item_id: 'work-item-1',
-        primary_target: expect.objectContaining({
-          target_kind: 'artifact',
-          artifact_id: 'artifact-1',
-          url: '/api/v1/tasks/task-1/artifacts/artifact-1/preview',
-        }),
-      }),
-    ]);
-    expect((result.deliverables as { all_deliverables?: Array<{ descriptor_id: string }> }).all_deliverables).toEqual([
-      expect.objectContaining({
-        descriptor_id: 'output:artifact:release-design',
-      }),
-    ]);
-    expect(result.bottom_tabs.counts.deliverables).toBe(1);
+    expect(result.deliverables.final_deliverables).toEqual([]);
+    expect(result.deliverables.in_progress_deliverables).toEqual([]);
+    expect((result.deliverables as { all_deliverables?: Array<{ descriptor_id: string }> }).all_deliverables).toEqual([]);
+    expect(result.bottom_tabs.counts.deliverables).toBe(0);
   });
 
   it('does not use selected work-item output descriptor fallback in task scope when canonical deliverables are empty', async () => {
