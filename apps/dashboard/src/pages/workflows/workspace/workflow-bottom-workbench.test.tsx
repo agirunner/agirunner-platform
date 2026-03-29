@@ -725,6 +725,119 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).toContain('Deliverables tab should render instead of tripping the workspace fallback.');
     expect(html).toContain('No inputs or intervention files are attached to this workflow.');
   });
+
+  it('keeps task-scoped deliverables aligned with the resolved current task when outer props are stale', () => {
+    const packet = createPacket();
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBottomWorkbench, {
+        workflowId: 'workflow-1',
+        workflow: packet.workflow,
+        stickyStrip: packet.sticky_strip,
+        board: {
+          columns: packet.board?.columns ?? [],
+          work_items: [
+            {
+              id: 'work-item-7',
+              workflow_id: 'workflow-1',
+              stage_name: 'release',
+              title: 'Prepare release bundle',
+              goal: 'Assemble final artifacts for launch.',
+              column_id: 'in_progress',
+              priority: 'normal',
+            },
+          ],
+          active_stages: packet.board?.active_stages ?? [],
+          awaiting_gate_count: packet.board?.awaiting_gate_count ?? 0,
+          stage_summary: packet.board?.stage_summary ?? [],
+        },
+        workflowName: 'Workflow 1',
+        packet: {
+          ...packet,
+          selected_scope: {
+            scope_kind: 'selected_task',
+            work_item_id: 'work-item-7',
+            task_id: 'task-3',
+          },
+          bottom_tabs: {
+            ...packet.bottom_tabs,
+            current_scope_kind: 'selected_task',
+            current_work_item_id: 'work-item-7',
+            current_task_id: 'task-3',
+          },
+          deliverables: {
+            ...packet.deliverables,
+            final_deliverables: [
+              {
+                descriptor_id: 'deliverable-1',
+                workflow_id: 'workflow-1',
+                work_item_id: 'work-item-7',
+                descriptor_kind: 'artifact',
+                delivery_stage: 'final',
+                title: 'Release checklist',
+                state: 'final',
+                summary_brief: 'Operator-ready release checklist.',
+                preview_capabilities: {},
+                primary_target: {
+                  target_kind: 'artifact',
+                  label: 'Open artifact in new tab',
+                  url: '/api/v1/tasks/task-3/artifacts/artifact-1/preview',
+                },
+                secondary_targets: [],
+                content_preview: {
+                  summary: 'Checklist is ready for the operator.',
+                },
+                source_brief_id: null,
+                created_at: '2026-03-28T03:00:00.000Z',
+                updated_at: '2026-03-28T03:00:00.000Z',
+              },
+            ],
+          },
+        },
+        activeTab: 'deliverables',
+        selectedWorkItemId: null,
+        scopedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [
+          {
+            id: 'task-3',
+            title: 'Verify deliverable',
+            role: 'reviewer',
+            state: 'in_progress',
+            work_item_id: 'work-item-7',
+            work_item_title: 'Prepare release bundle',
+            output: {
+              summary: 'Task evidence should stay visible while task details refetch.',
+            },
+          },
+        ],
+        inputPackets: [],
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        onTabChange: vi.fn(),
+        onClearWorkItemScope: vi.fn(),
+        onClearTaskScope: vi.fn(),
+        onOpenAddWork: vi.fn(),
+        onOpenRedrive: vi.fn(),
+        onLoadMoreActivity: vi.fn(),
+        onLoadMoreDeliverables: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Task output and evidence');
+    expect(html).toContain('Verify deliverable');
+    expect(html).toContain('Task evidence should stay visible while task details refetch.');
+    expect(html).toContain('Parent work item deliverables (1)');
+  });
 });
 
 function createPacket(): DashboardWorkflowWorkspacePacket {
