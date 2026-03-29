@@ -310,6 +310,7 @@ SELECT jsonb_build_object(
           source_role_name,
           linked_target_ids,
           related_output_descriptor_ids,
+          sequence_number,
           created_at,
           updated_at
         FROM workflow_operator_briefs
@@ -329,6 +330,7 @@ SELECT jsonb_build_object(
           task_id,
           update_kind,
           linked_target_ids,
+          sequence_number,
           created_at
         FROM workflow_operator_updates
         WHERE workflow_id = {workflow}
