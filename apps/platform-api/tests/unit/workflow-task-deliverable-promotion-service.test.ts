@@ -193,6 +193,76 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
     );
   });
 
+  it('promotes a completed assessment handoff into the final work-item deliverable with specialist attribution', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'descriptor-4',
+            delivery_stage: 'in_progress',
+            state: 'draft',
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{ title: 'workflow-intake-04' }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'artifact-4',
+            task_id: 'task-4',
+            logical_path: 'artifact:workflow/output/workflow-intake-04-assessment.md',
+            content_type: 'text/markdown',
+          }],
+          rowCount: 1,
+        }),
+    };
+    const deliverableService = {
+      upsertSystemDeliverable: vi.fn(async () => ({
+        descriptor_id: 'descriptor-4',
+      })),
+    };
+
+    const service = new WorkflowTaskDeliverablePromotionService(
+      pool as never,
+      deliverableService as never,
+    );
+
+    await service.promoteFromHandoff('tenant-1', {
+      id: 'handoff-4',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-4',
+      task_id: 'task-4',
+      role: 'policy-assessor',
+      summary: 'Policy assessment is complete and ready for operator review.',
+      completion: 'full',
+      completion_state: 'full',
+      role_data: {
+        task_kind: 'assessment',
+      },
+      artifact_ids: ['artifact-4'],
+      created_at: '2026-03-28T20:35:00.000Z',
+    });
+
+    expect(deliverableService.upsertSystemDeliverable).toHaveBeenCalledWith(
+      'tenant-1',
+      'workflow-1',
+      expect.objectContaining({
+        descriptorId: 'descriptor-4',
+        workItemId: 'work-item-4',
+        descriptorKind: 'handoff_packet',
+        deliveryStage: 'final',
+        state: 'final',
+        title: 'workflow-intake-04 completion packet',
+        contentPreview: expect.objectContaining({
+          summary: expect.stringContaining('Produced by: Policy Assessor'),
+        }),
+      }),
+    );
+  });
+
   it('does not promote blocked handoffs into deliverables', async () => {
     const pool = {
       query: vi.fn(),

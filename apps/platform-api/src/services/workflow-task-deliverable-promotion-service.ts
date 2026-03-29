@@ -187,7 +187,7 @@ function resolveDeliverableProgress(
   ) {
     return 'final';
   }
-  return readOptionalString(handoff.role_data?.task_kind) === 'delivery' ? 'final' : 'in_progress';
+  return 'final';
 }
 
 function buildPreviewSummary(handoff: WorkflowTaskDeliverablePromotionHandoff): string {

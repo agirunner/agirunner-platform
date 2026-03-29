@@ -191,6 +191,9 @@ function appendSynthesizedBriefDeliverables(
     if (!shouldSynthesizeBriefDeliverable(brief)) {
       continue;
     }
+    if (isOrchestratorBrief(brief) && readOptionalString(brief.work_item_id) !== null) {
+      continue;
+    }
     if (existingBriefIds.has(brief.id)) {
       continue;
     }

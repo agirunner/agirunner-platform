@@ -342,6 +342,31 @@ describe('WorkflowDeliverables', () => {
     expect(html).toContain('Workflow deliverables (1)');
     expect(html).toContain('Workflow release brief');
   });
+
+  it('filters leaked work-item deliverables out of workflow scope', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: {
+          ...createMixedScopePacket(),
+        },
+        selectedTask: null,
+        selectedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Program status brief');
+    expect(html).not.toContain('Release checklist');
+    expect(html).toContain('Final deliverables (1)');
+  });
 });
 
 function createPacket(): DashboardWorkflowDeliverablesPacket {
@@ -393,22 +418,22 @@ function createBriefOnlyPacket(): DashboardWorkflowDeliverablesPacket {
       {
         id: 'brief-1',
         workflow_id: 'workflow-1',
-        work_item_id: 'work-item-1',
-        task_id: 'task-1',
+        work_item_id: null,
+        task_id: null,
         request_id: 'request-1',
-        execution_context_id: 'task-1',
+        execution_context_id: 'activation-1',
         brief_kind: 'milestone',
         brief_scope: 'deliverable_context',
-        source_kind: 'specialist',
-        source_role_name: 'Reviewer',
+        source_kind: 'orchestrator',
+        source_role_name: 'Orchestrator',
         status_kind: 'completed',
         short_brief: {
-          headline: 'Review packet is complete',
+          headline: 'Workflow review packet is complete',
         },
         detailed_brief_json: {
-          headline: 'Review packet is complete',
+          headline: 'Workflow review packet is complete',
           status_kind: 'completed',
-          summary: 'The reviewer published a completed brief but no formal deliverable descriptor yet exists.',
+          summary: 'The orchestrator published a completed workflow brief but no formal deliverable descriptor yet exists.',
         },
         linked_target_ids: [],
         sequence_number: 1,
