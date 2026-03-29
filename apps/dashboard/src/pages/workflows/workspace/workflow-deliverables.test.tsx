@@ -244,6 +244,7 @@ describe('WorkflowDeliverables', () => {
               primary_target: {
                 target_kind: 'inline_summary',
                 label: 'Review summary',
+                url: '/workflows/workflow-1/deliverables/deliverable-1',
               },
               secondary_targets: [],
               content_preview: {
