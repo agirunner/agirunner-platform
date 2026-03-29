@@ -23,8 +23,9 @@ const HISTORY_LIFECYCLE_OPERATIONS = new Set([
 ]);
 
 export function buildExecutionTurnItems(rows: LogRow[]): WorkflowLiveConsoleItem[] {
+  const orderedRows = [...rows].sort(compareLogRowsByCreatedAt);
   const items: WorkflowLiveConsoleItem[] = [];
-  const hydratedRows = hydrateLLMPhaseRows(rows);
+  const hydratedRows = hydrateLLMPhaseRows(orderedRows);
   const preferredLLMPhaseKeys = collectPreferredLLMPhaseKeys(hydratedRows);
   const preferredRuntimeLoopKeys = collectPreferredRuntimeLoopKeys(hydratedRows);
 
@@ -1274,7 +1275,7 @@ function looksLikeSyntheticLoggedToolCall(
   value: string,
   payload: Record<string, unknown>,
 ): boolean {
-  const normalized = value.trim().toLowerCase();
+  const normalized = stripSyntheticActionSourcePrefix(value).toLowerCase();
   if (normalized.startsWith('calling ')) {
     return true;
   }
@@ -1289,6 +1290,10 @@ function looksLikeSyntheticLoggedToolCall(
     });
     return looksLikeSyntheticActionPreview(value, actionHeadline, name);
   });
+}
+
+function stripSyntheticActionSourcePrefix(value: string): string {
+  return value.replace(/^[^:\n]{1,64}:\s*/, '').trim();
 }
 
 function readFirstPlanDescription(value: unknown): string | null {
@@ -1968,6 +1973,9 @@ function stripReportingBoilerplate(value: string): string {
 }
 
 function stripToolCallScaffolding(value: string): string {
+  if (/^\s*[^:\n]{1,64}:\s*to=[a-z0-9_.:-]+[\s\S]*$/i.test(value)) {
+    return '';
+  }
   return value
     .replace(/\s*to=[a-z0-9_.:-]+[\s\S]*$/i, '')
     .trim();
