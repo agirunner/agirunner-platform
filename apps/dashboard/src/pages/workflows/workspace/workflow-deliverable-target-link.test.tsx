@@ -47,7 +47,7 @@ describe('WorkflowDeliverableTargetLink', () => {
     );
 
     expect(html).toContain('release-bundle.zip (Artifact)');
-    expect(html).toContain('Reference target');
+    expect(html).toContain('Canonical target');
     expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
     expect(html).not.toContain('/artifacts/tasks/task-1/artifact-1');
     expect(html).not.toContain('return_to=');
@@ -85,9 +85,27 @@ describe('WorkflowDeliverableTargetLink', () => {
     );
 
     expect(html).toContain('Launch packet (Input Packet File)');
-    expect(html).toContain('Reference target');
+    expect(html).toContain('Canonical target');
     expect(html).toContain('/api/v1/workflows/workflow-1/input-packets/packet-1/files/file-1/content');
     expect(html).not.toContain('return_to=');
+    expect(html).not.toContain('<a');
+  });
+
+  it('renders repository references as canonical targets without auto-navigation', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverableTargetLink, {
+        target: {
+          target_kind: 'repo_reference',
+          label: 'Release repository',
+          url: 'https://github.com/example/release-audit/pull/42',
+          repo_ref: 'github.com/example/release-audit/pull/42',
+        },
+      }),
+    );
+
+    expect(html).toContain('Release repository (Repo Reference)');
+    expect(html).toContain('Canonical target');
+    expect(html).toContain('github.com/example/release-audit/pull/42');
     expect(html).not.toContain('<a');
   });
 

@@ -34,7 +34,7 @@ describe('WorkflowDeliverableBrowser', () => {
       }),
     );
 
-    expect(html).toContain('Files in this deliverable (1)');
+    expect(html).toContain('Targets in this deliverable (1)');
     expect(html).toContain('Download file');
     expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
     expect(html).not.toContain('Other deliverable targets');
@@ -68,7 +68,7 @@ describe('WorkflowDeliverableBrowser', () => {
       }),
     );
 
-    expect(html).toContain('Other deliverable targets');
+    expect(html).toContain('Targets in this deliverable (1)');
     expect(html).toContain('Workflow record (Workflow)');
     expect(html).toContain('Already visible in this workflow workspace.');
     expect(html).toContain('records/workflow-completion.md');
@@ -152,5 +152,48 @@ describe('WorkflowDeliverableBrowser', () => {
     expect(html).toContain('release-summary.md');
     expect(html).not.toContain('>Open artifact<');
     expect(html).not.toContain('>Artifact<');
+  });
+
+  it('shows one unified target chooser when a deliverable mixes artifact and repository targets', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverableBrowser, {
+        deliverable: {
+          descriptor_id: 'deliverable-mixed-targets-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Release output set',
+          state: 'final',
+          summary_brief: 'Artifacts and repository references should stay in one browser.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'artifact',
+            label: 'Open artifact',
+            url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-1',
+            path: 'artifacts/releases/release-bundle.zip',
+            artifact_id: 'artifact-1',
+          },
+          secondary_targets: [
+            {
+              target_kind: 'repo_reference',
+              label: 'Release repository',
+              url: 'https://github.com/example/release-audit/pull/42',
+              repo_ref: 'github.com/example/release-audit/pull/42',
+            },
+          ],
+          content_preview: {},
+          source_brief_id: null,
+          created_at: '2026-03-29T00:00:00.000Z',
+          updated_at: '2026-03-29T00:00:00.000Z',
+        },
+      }),
+    );
+
+    expect(html).toContain('Targets in this deliverable (2)');
+    expect(html).toContain('release-bundle.zip');
+    expect(html).toContain('>Release repository<');
+    expect(html).not.toContain('Files in this deliverable (1)');
+    expect(html).not.toContain('Other deliverable targets');
   });
 });

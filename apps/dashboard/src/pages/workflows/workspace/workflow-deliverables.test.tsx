@@ -24,7 +24,7 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Files in this deliverable (1)');
+    expect(html).toContain('Targets in this deliverable (1)');
     expect(html).toContain('Download file');
     expect(html).toContain('<iframe');
     expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
@@ -459,6 +459,75 @@ describe('WorkflowDeliverables', () => {
     expect(html).not.toContain('Open artifact in new tab');
   });
 
+  it('keeps workflow and work-item deliverables on the same in-tab browser treatment for mixed targets', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: {
+          final_deliverables: [
+            {
+              descriptor_id: 'deliverable-mixed-targets-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              descriptor_kind: 'deliverable_packet',
+              delivery_stage: 'final',
+              title: 'Release audit bundle',
+              state: 'final',
+              summary_brief: 'Review the built artifact and the release repository from here.',
+              preview_capabilities: {},
+              primary_target: {
+                target_kind: 'artifact',
+                label: 'Open artifact',
+                url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-1',
+                path: 'artifacts/releases/release-audit.zip',
+                artifact_id: 'artifact-1',
+              },
+              secondary_targets: [
+                {
+                  target_kind: 'repo_reference',
+                  label: 'Release repository',
+                  url: 'https://github.com/example/release-audit/pull/42',
+                  repo_ref: 'github.com/example/release-audit/pull/42',
+                },
+              ],
+              content_preview: {
+                summary: 'Release audit bundle is ready for operator review.',
+              },
+              source_brief_id: null,
+              created_at: '2026-03-29T00:00:00.000Z',
+              updated_at: '2026-03-29T00:00:00.000Z',
+            },
+          ],
+          in_progress_deliverables: [],
+          working_handoffs: [],
+          inputs_and_provenance: {
+            launch_packet: null,
+            supplemental_packets: [],
+            intervention_attachments: [],
+            redrive_packet: null,
+          },
+          next_cursor: null,
+        },
+        scope: {
+          scopeKind: 'selected_work_item',
+          title: 'Work item',
+          subject: 'work item',
+          name: 'Release audit',
+          banner: 'Work item: Release audit',
+        },
+        selectedTask: null,
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Release audit',
+        onLoadMore: () => undefined,
+      }),
+    );
+
+    expect(html).toContain('Work item deliverables (1)');
+    expect(html).toContain('Targets in this deliverable (2)');
+    expect(html).toContain('>Release repository<');
+    expect(html).toContain('Review the selected artifact or canonical target here without leaving Workflows.');
+    expect(html).not.toContain('Other deliverable targets');
+  });
+
   it('does not duplicate inline preview text when the summary and preview body are the same', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
@@ -674,7 +743,7 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Files in this deliverable (25)');
+    expect(html).toContain('Targets in this deliverable (25)');
     expect(html).toContain('Artifact 25');
     expect(html).not.toContain('Files in this deliverable (20)');
   });

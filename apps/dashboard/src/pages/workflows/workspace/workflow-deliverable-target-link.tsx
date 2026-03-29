@@ -18,7 +18,7 @@ export function WorkflowDeliverableTargetLink(props: {
       {action.action_kind === 'inline_reference' ? (
         <p className="text-xs text-muted-foreground">Already visible in this workflow workspace.</p>
       ) : (
-        <p className="text-xs text-muted-foreground">Reference target</p>
+        <p className="text-xs text-muted-foreground">Canonical target</p>
       )}
       {readTargetLocations(target, action.href).map((location) => (
         <p
