@@ -3355,7 +3355,11 @@ function resolveReopenColumnId(input: {
   workflowState: string | null;
   workflowMetadata: unknown;
 }): string | null {
-  if (input.workflowState === 'paused' || hasPendingWorkflowCancel(input.workflowMetadata)) {
+  if (
+    input.workflowState === 'paused'
+    || input.workflowState === 'cancelled'
+    || hasPendingWorkflowCancel(input.workflowMetadata)
+  ) {
     return input.currentColumnId;
   }
 

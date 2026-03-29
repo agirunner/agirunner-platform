@@ -12,6 +12,12 @@ interface WorkflowControlRow {
   metadata?: Record<string, unknown> | null;
 }
 
+interface ReopenedTaskRow {
+  id: string;
+  state: string;
+  work_item_id: string | null;
+}
+
 export class WorkflowControlService {
   constructor(
     private readonly pool: DatabasePool,
@@ -36,10 +42,14 @@ export class WorkflowControlService {
         await client.query('COMMIT');
         return currentWorkflow;
       }
+      if (hasCancelRequest(currentWorkflow.metadata)) {
+        throw new ConflictError('Workflow cancellation is already in progress and cannot be paused');
+      }
       if (!isPausableWorkflowState(currentWorkflow.state)) {
         throw new ConflictError('Only active workflows can be paused');
       }
 
+      const pauseRequestedAt = new Date().toISOString();
       const stopResult = await stopWorkflowBoundExecution(
         client,
         {
@@ -56,6 +66,12 @@ export class WorkflowControlService {
         },
       );
       await clearStoppedRuntimeHeartbeatTasks(client, identity.tenantId, stopResult.activeTaskIds);
+      const pauseMetadata: Record<string, unknown> = {
+        pause_requested_at: pauseRequestedAt,
+      };
+      if (stopResult.cancelledSpecialistTaskIds.length > 0) {
+        pauseMetadata.pause_reopen_task_ids = stopResult.cancelledSpecialistTaskIds;
+      }
 
       const result = await client.query<WorkflowControlRow>(
         `UPDATE workflows
@@ -65,7 +81,7 @@ export class WorkflowControlService {
           WHERE tenant_id = $1
             AND id = $2
         RETURNING id, state, metadata`,
-        [identity.tenantId, workflowId, { pause_requested_at: new Date().toISOString() }],
+        [identity.tenantId, workflowId, pauseMetadata],
       );
 
       await this.eventService.emit({
@@ -101,6 +117,7 @@ export class WorkflowControlService {
       }
       const currentWorkflow = workflow.rows[0];
       const pauseRequestedAt = readWorkflowMarker(currentWorkflow.metadata, 'pause_requested_at');
+      const pauseReopenTaskIds = readWorkflowTaskIds(currentWorkflow.metadata, 'pause_reopen_task_ids');
       if (currentWorkflow.state === 'cancelled') {
         throw new ConflictError('Cancelled workflows cannot be resumed');
       }
@@ -123,11 +140,21 @@ export class WorkflowControlService {
 
       await client.query(
         `UPDATE workflows
-            SET metadata = COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at',
+            SET metadata = ((COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at') - 'pause_reopen_task_ids'),
                 updated_at = now()
           WHERE tenant_id = $1
             AND id = $2`,
         [identity.tenantId, workflowId],
+      );
+
+      await reopenPauseCancelledSpecialistTasks(
+        client,
+        this.eventService,
+        identity.tenantId,
+        workflowId,
+        pauseReopenTaskIds,
+        identity.scope,
+        identity.keyPrefix,
       );
 
       const state = await this.stateService.recomputeWorkflowState(identity.tenantId, workflowId, client, {
@@ -198,6 +225,17 @@ function readWorkflowMarker(metadata: unknown, key: string): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
+function readWorkflowTaskIds(metadata: unknown, key: string): string[] {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return [];
+  }
+  const value = (metadata as Record<string, unknown>)[key];
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((taskId): taskId is string => typeof taskId === 'string' && taskId.trim().length > 0);
+}
+
 async function clearStoppedRuntimeHeartbeatTasks(
   client: { query: DatabasePool['query'] },
   tenantId: string,
@@ -217,4 +255,67 @@ async function clearStoppedRuntimeHeartbeatTasks(
         AND task_id = ANY($2::uuid[])`,
     [tenantId, taskIds],
   );
+}
+
+async function reopenPauseCancelledSpecialistTasks(
+  client: { query: DatabasePool['query'] },
+  eventService: EventService,
+  tenantId: string,
+  workflowId: string,
+  taskIds: string[],
+  actorType: string,
+  actorId: string,
+) {
+  if (taskIds.length === 0) {
+    return;
+  }
+
+  const reopenedTasks = await client.query<ReopenedTaskRow>(
+    `UPDATE tasks t
+        SET state = 'ready',
+            state_changed_at = now(),
+            completed_at = NULL,
+            assigned_agent_id = NULL,
+            assigned_worker_id = NULL,
+            claimed_at = NULL,
+            started_at = NULL
+       FROM workflow_work_items wi
+      WHERE t.tenant_id = $1
+        AND t.workflow_id = $2
+        AND t.tenant_id = wi.tenant_id
+        AND t.workflow_id = wi.workflow_id
+        AND t.work_item_id = wi.id
+        AND t.id = ANY($3::uuid[])
+        AND t.is_orchestrator_task = FALSE
+        AND t.state = 'cancelled'
+        AND t.completed_at IS NULL
+        AND t.error IS NULL
+        AND COALESCE(t.metadata->>'task_kind', 'delivery') = 'delivery'
+        AND wi.completed_at IS NULL
+        AND wi.blocked_state IS DISTINCT FROM 'blocked'
+        AND wi.escalation_status IS DISTINCT FROM 'open'
+    RETURNING t.id, t.state, t.work_item_id`,
+    [tenantId, workflowId, taskIds],
+  );
+
+  for (const task of reopenedTasks.rows) {
+    await eventService.emit(
+      {
+        tenantId,
+        type: 'task.state_changed',
+        entityType: 'task',
+        entityId: task.id,
+        actorType,
+        actorId,
+        data: {
+          from_state: 'cancelled',
+          to_state: task.state,
+          reason: 'workflow_resumed',
+          workflow_id: workflowId,
+          work_item_id: task.work_item_id,
+        },
+      },
+      client,
+    );
+  }
 }

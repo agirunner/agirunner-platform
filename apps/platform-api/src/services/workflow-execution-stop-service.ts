@@ -51,6 +51,7 @@ export interface StopWorkflowBoundExecutionDeps {
 
 export interface StopWorkflowBoundExecutionResult {
   cancelledTaskIds: string[];
+  cancelledSpecialistTaskIds: string[];
   activeTaskIds: string[];
   activeSpecialistTaskIds: string[];
   signalledTaskCount: number;
@@ -157,6 +158,9 @@ export async function stopWorkflowBoundExecution(
   );
 
   const cancelledTaskIds = cancelledTasks.rows.map((row) => row.id);
+  const cancelledSpecialistTaskIds = cancelledTasks.rows
+    .filter((row) => row.is_orchestrator_task !== true)
+    .map((row) => row.id);
   const activeTaskIds = activeTasks.rows.map((row) => row.id);
   const activeSpecialistTaskIds = activeTasks.rows
     .filter((row) => row.is_orchestrator_task !== true)
@@ -211,6 +215,7 @@ export async function stopWorkflowBoundExecution(
 
   return {
     cancelledTaskIds,
+    cancelledSpecialistTaskIds,
     activeTaskIds,
     activeSpecialistTaskIds,
     signalledTaskCount,

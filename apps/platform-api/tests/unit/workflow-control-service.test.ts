@@ -40,7 +40,11 @@ describe('WorkflowControlService', () => {
         if (sql.startsWith('UPDATE workflows')) {
           return {
             rowCount: 1,
-            rows: [{ id: 'workflow-1', state: 'paused', metadata: { pause_requested_at: '2026-03-12T00:00:00.000Z' } }],
+            rows: [{
+              id: 'workflow-1',
+              state: 'paused',
+              metadata: { pause_requested_at: '2026-03-12T00:00:00.000Z' },
+            }],
           };
         }
         throw new Error(`Unexpected SQL: ${sql}`);
@@ -66,7 +70,13 @@ describe('WorkflowControlService', () => {
     );
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining("metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb"),
-      expect.arrayContaining(['tenant-1', 'workflow-1', expect.objectContaining({ pause_requested_at: expect.any(String) })]),
+      expect.arrayContaining([
+        'tenant-1',
+        'workflow-1',
+        expect.objectContaining({
+          pause_requested_at: expect.any(String),
+        }),
+      ]),
     );
   });
 
@@ -138,7 +148,14 @@ describe('WorkflowControlService', () => {
         if (sql.startsWith('UPDATE workflows')) {
           return {
             rowCount: 1,
-            rows: [{ id: 'workflow-1', state: 'paused', metadata: { pause_requested_at: '2026-03-12T00:00:00.000Z' } }],
+            rows: [{
+              id: 'workflow-1',
+              state: 'paused',
+              metadata: {
+                pause_requested_at: '2026-03-12T00:00:00.000Z',
+                pause_reopen_task_ids: ['task-specialist-1'],
+              },
+            }],
           };
         }
         throw new Error(`Unexpected SQL: ${sql}`);
@@ -204,6 +221,15 @@ describe('WorkflowControlService', () => {
           reason: 'workflow_stopped',
           workflow_id: 'workflow-1',
         },
+      }),
+    );
+    const pauseMetadata = client.query.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.startsWith('UPDATE workflows'),
+    )?.[1]?.[2] as Record<string, unknown> | undefined;
+    expect(pauseMetadata).toEqual(
+      expect.objectContaining({
+        pause_requested_at: expect.any(String),
+        pause_reopen_task_ids: ['task-specialist-1'],
       }),
     );
     expect(client.query).toHaveBeenCalledWith(
@@ -301,6 +327,41 @@ describe('WorkflowControlService', () => {
     expect(client.query).toHaveBeenCalledWith('ROLLBACK');
   });
 
+  it('rejects pause requests for workflows that are already cancelling', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('SELECT id, state, metadata FROM workflows')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              state: 'active',
+              metadata: { cancel_requested_at: '2026-03-12T00:00:00.000Z' },
+            }],
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      connect: vi.fn(async () => client),
+    };
+    const service = new WorkflowControlService(
+      pool as never,
+      { emit: vi.fn() } as never,
+      { recomputeWorkflowState: vi.fn() } as never,
+    );
+
+    await expect(service.pauseWorkflow(identity, 'workflow-1')).rejects.toThrow(
+      'Workflow cancellation is already in progress and cannot be paused',
+    );
+    expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+  });
+
   it('resumes paused workflows by clearing the pause marker before recomputing state', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
@@ -308,7 +369,20 @@ describe('WorkflowControlService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('SELECT id, state, metadata FROM workflows')) {
-          return { rowCount: 1, rows: [{ id: 'workflow-1', state: 'paused', metadata: { pause_requested_at: '2026-03-12T00:00:00.000Z' } }] };
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              state: 'paused',
+              metadata: {
+                pause_requested_at: '2026-03-12T00:00:00.000Z',
+                pause_reopen_task_ids: [],
+              },
+            }],
+          };
+        }
+        if (sql.startsWith('UPDATE tasks t') && sql.includes("t.id = ANY($3::uuid[])")) {
+          return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('UPDATE workflows')) {
           return { rowCount: 1, rows: [] };
@@ -338,14 +412,14 @@ describe('WorkflowControlService', () => {
 
     expect(result).toEqual({ id: 'workflow-1', state: 'active' });
     expect(client.query).toHaveBeenCalledWith(
-      expect.stringContaining("metadata = COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at'"),
+      expect.stringContaining("metadata = ((COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at') - 'pause_reopen_task_ids')"),
       ['tenant-1', 'workflow-1'],
     );
     const workflowUpdateSql = client.query.mock.calls.find(
       ([sql]) =>
         typeof sql === 'string' &&
         sql.startsWith('UPDATE workflows') &&
-        String(sql).includes("metadata = COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at'"),
+        String(sql).includes("metadata = ((COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at') - 'pause_reopen_task_ids')"),
     )?.[0];
     expect(workflowUpdateSql).toBeDefined();
     expect(String(workflowUpdateSql)).not.toContain("SET state = 'pending'");
@@ -371,6 +445,93 @@ describe('WorkflowControlService', () => {
         'workflow.resumed',
         'workflow.resumed',
       ]),
+    );
+  });
+
+  it('reopens pause-cancelled specialist delivery tasks from the current pause window before resuming', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('SELECT id, state, metadata FROM workflows')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              state: 'paused',
+              metadata: {
+                pause_requested_at: '2026-03-12T00:00:00.000Z',
+                pause_reopen_task_ids: ['task-reopened-after-resume'],
+              },
+            }],
+          };
+        }
+        if (
+          sql.startsWith('UPDATE tasks')
+          && sql.includes("SET state = 'ready'")
+          && sql.includes("t.id = ANY($3::uuid[])")
+        ) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            ['task-reopened-after-resume'],
+          ]);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-reopened-after-resume',
+              state: 'ready',
+              work_item_id: 'work-item-1',
+            }],
+          };
+        }
+        if (sql.startsWith('UPDATE workflows')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.startsWith('INSERT INTO workflow_activations')) {
+          return {
+            rowCount: 1,
+            rows: [{ id: 'activation-1', workflow_id: 'workflow-1', state: 'queued' }],
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      connect: vi.fn(async () => client),
+    };
+    const eventService = { emit: vi.fn() };
+    const stateService = { recomputeWorkflowState: vi.fn(async () => 'active') };
+    const service = new WorkflowControlService(
+      pool as never,
+      eventService as never,
+      stateService as never,
+    );
+
+    const result = await service.resumeWorkflow(identity, 'workflow-1');
+
+    expect(result).toEqual({ id: 'workflow-1', state: 'active' });
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('t.id = ANY($3::uuid[])'),
+      ['tenant-1', 'workflow-1', ['task-reopened-after-resume']],
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.state_changed',
+        entityId: 'task-reopened-after-resume',
+        data: expect.objectContaining({
+          from_state: 'cancelled',
+          to_state: 'ready',
+          reason: 'workflow_resumed',
+        }),
+      }),
+      client,
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'workflow.resumed', data: { state: 'active' } }),
+      client,
     );
   });
 
