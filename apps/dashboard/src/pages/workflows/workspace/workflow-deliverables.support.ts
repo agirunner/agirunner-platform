@@ -20,9 +20,7 @@ const IN_PLACE_TARGET_PATH_PATTERNS = [
   /^\/api\/v1\/workflows\/[^/]+\/input-packets\/[^/]+\/files\/[^/]+\/content$/,
   /^\/api\/v1\/workflows\/[^/]+\/interventions\/[^/]+\/files\/[^/]+\/content$/,
 ];
-const DEPRECATED_WORKSPACE_TARGET_PATH_PATTERNS = [
-  /^\/workflows\/[^/]+\/deliverables\/[^/]+$/,
-];
+const DEPRECATED_WORKSPACE_TARGET_PATH_PATTERNS = [/^\/workflows\/[^/]+\/deliverables\/[^/]+$/];
 const DEPRECATED_NAVIGATION_PARAM_NAMES = ['return_to', 'return_source'];
 const DOWNLOADABLE_TARGET_KINDS = new Set(['artifact', 'input_packet_file', 'intervention_file']);
 
@@ -65,19 +63,24 @@ export function sanitizeDeliverableTargets(value: unknown): DashboardWorkflowDel
     .map((entry) =>
       sanitizeDeliverableTarget(
         entry && typeof entry === 'object'
-          ? entry as Partial<DashboardWorkflowDeliverableTarget>
+          ? (entry as Partial<DashboardWorkflowDeliverableTarget>)
           : null,
-      ))
+      ),
+    )
     .filter(hasMeaningfulDeliverableTarget);
 }
 
-export function hasMeaningfulDeliverableTarget(target: DashboardWorkflowDeliverableTarget): boolean {
-  return target.target_kind.length > 0
-    || target.label.length > 0
-    || target.url.length > 0
-    || Boolean(target.path)
-    || Boolean(target.repo_ref)
-    || Boolean(target.artifact_id);
+export function hasMeaningfulDeliverableTarget(
+  target: DashboardWorkflowDeliverableTarget,
+): boolean {
+  return (
+    target.target_kind.length > 0 ||
+    target.label.length > 0 ||
+    target.url.length > 0 ||
+    Boolean(target.path) ||
+    Boolean(target.repo_ref) ||
+    Boolean(target.artifact_id)
+  );
 }
 
 export function isDownloadableDeliverableTarget(
@@ -86,10 +89,25 @@ export function isDownloadableDeliverableTarget(
   return DOWNLOADABLE_TARGET_KINDS.has(target.target_kind);
 }
 
+export function resolveDeliverableTargetHref(
+  target: DashboardWorkflowDeliverableTarget,
+): string | null {
+  const href = normalizeDeliverableTargetUrl(target.url);
+  return href.trim().length > 0 ? href : null;
+}
+
+export function isBrowserDeliverableTarget(target: DashboardWorkflowDeliverableTarget): boolean {
+  const href = resolveDeliverableTargetHref(target);
+  if (href === null || !isInPlaceArtifactPreviewTarget(href)) {
+    return false;
+  }
+  return isDownloadableDeliverableTarget(target) || target.artifact_id !== null;
+}
+
 export function resolveDeliverableTargetAction(
   target: DashboardWorkflowDeliverableTarget,
 ): DeliverableTargetAction {
-  const href = normalizeDeliverableTargetUrl(target.url);
+  const href = resolveDeliverableTargetHref(target) ?? target.url;
   if (!hasActionableDeliverableHref(target, href)) {
     return {
       action_kind: 'inline_reference',
@@ -103,7 +121,10 @@ export function resolveDeliverableTargetAction(
 
 export function isInPlaceArtifactPreviewTarget(url: string): boolean {
   const normalizedPath = readNormalizedPath(url);
-  return normalizedPath !== null && IN_PLACE_TARGET_PATH_PATTERNS.some((pattern) => pattern.test(normalizedPath));
+  return (
+    normalizedPath !== null &&
+    IN_PLACE_TARGET_PATH_PATTERNS.some((pattern) => pattern.test(normalizedPath))
+  );
 }
 
 function readNormalizedPath(url: string): string | null {
@@ -146,10 +167,10 @@ function hasActionableDeliverableHref(
     return false;
   }
   if (
-    target.target_kind === 'workflow'
-    || target.target_kind === 'work_item'
-    || target.target_kind === 'task'
-    || target.target_kind === 'inline_summary'
+    target.target_kind === 'workflow' ||
+    target.target_kind === 'work_item' ||
+    target.target_kind === 'task' ||
+    target.target_kind === 'inline_summary'
   ) {
     return false;
   }
@@ -170,8 +191,7 @@ function rewriteDeprecatedArtifactPreviewPath(parsed: URL): void {
   }
 
   const [, taskId, artifactId, suffix] = match;
-  parsed.pathname =
-    `/api/v1/tasks/${encodeURIComponent(taskId)}/artifacts/${encodeURIComponent(artifactId)}/${suffix ?? 'preview'}`;
+  parsed.pathname = `/api/v1/tasks/${encodeURIComponent(taskId)}/artifacts/${encodeURIComponent(artifactId)}/${suffix ?? 'preview'}`;
 }
 
 function stripDeprecatedNavigationParams(parsed: URL): void {
@@ -193,7 +213,10 @@ function normalizeDeliverableRecords(value: unknown): DashboardWorkflowDeliverab
   return value.map((entry, index) => normalizeDeliverableRecord(entry, index));
 }
 
-function normalizeDeliverableRecord(value: unknown, index: number): DashboardWorkflowDeliverableRecord {
+function normalizeDeliverableRecord(
+  value: unknown,
+  index: number,
+): DashboardWorkflowDeliverableRecord {
   const record = asRecord(value);
   const descriptorId = readTargetText(record.descriptor_id) || `deliverable-${index + 1}`;
   return {
@@ -301,7 +324,10 @@ function normalizePacketFiles(value: unknown): DashboardWorkflowInputPacketFileR
   return value.map((entry, index) => normalizePacketFile(entry, index));
 }
 
-function normalizePacketFile(value: unknown, index: number): DashboardWorkflowInputPacketFileRecord {
+function normalizePacketFile(
+  value: unknown,
+  index: number,
+): DashboardWorkflowInputPacketFileRecord {
   const record = asRecord(value);
   const fileId = readTargetText(record.id) || `file-${index + 1}`;
   return {
@@ -354,7 +380,7 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function asPartialTarget(value: unknown): Partial<DashboardWorkflowDeliverableTarget> | null {
   return Object.keys(asRecord(value)).length > 0
-    ? asRecord(value) as Partial<DashboardWorkflowDeliverableTarget>
+    ? (asRecord(value) as Partial<DashboardWorkflowDeliverableTarget>)
     : null;
 }
 

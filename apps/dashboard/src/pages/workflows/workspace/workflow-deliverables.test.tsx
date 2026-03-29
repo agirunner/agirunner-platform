@@ -225,7 +225,9 @@ describe('WorkflowDeliverables', () => {
     expect(html).toContain('No inputs or intervention files are attached to this work item.');
     expect(html).not.toContain('Final deliverables (1)');
     expect(html).not.toContain('In-progress deliverables (0)');
-    expect(html).not.toContain('No inputs or intervention files are attached to this selected work item.');
+    expect(html).not.toContain(
+      'No inputs or intervention files are attached to this selected work item.',
+    );
   });
 
   it('uses the exact selected work-item title when task scope falls back to parent deliverables', () => {
@@ -247,7 +249,9 @@ describe('WorkflowDeliverables', () => {
     );
 
     expect(html).toContain('Showing parent work item deliverables from Prepare release bundle.');
-    expect(html).not.toContain('Showing parent work item deliverables from Generate release bundle.');
+    expect(html).not.toContain(
+      'Showing parent work item deliverables from Generate release bundle.',
+    );
   });
 
   it('separates task evidence, parent work-item deliverables, and workflow deliverables in task scope', () => {
@@ -296,8 +300,12 @@ describe('WorkflowDeliverables', () => {
     );
 
     expect(html).not.toContain('Outcome Brief');
-    expect(html.indexOf('Task output and evidence')).toBeLessThan(html.indexOf('Parent work item deliverables (1)'));
-    expect(html.indexOf('Parent work item deliverables (1)')).toBeLessThan(html.indexOf('Workflow deliverables (0)'));
+    expect(html.indexOf('Task output and evidence')).toBeLessThan(
+      html.indexOf('Parent work item deliverables (1)'),
+    );
+    expect(html.indexOf('Parent work item deliverables (1)')).toBeLessThan(
+      html.indexOf('Workflow deliverables (0)'),
+    );
     expect(html).toContain('Release bundle');
     expect(html).toContain('Release bundle brief');
   });
@@ -396,7 +404,10 @@ describe('WorkflowDeliverables', () => {
               title: 'workflow-intake-01 completion packet',
               state: 'final',
               summary_brief: 'workflow-intake-01 is approved and ready to remain open.',
-              preview_capabilities: { can_inline_preview: true, preview_kind: 'structured_summary' },
+              preview_capabilities: {
+                can_inline_preview: true,
+                preview_kind: 'structured_summary',
+              },
               primary_target: {
                 target_kind: 'inline_summary',
                 label: 'Review completion packet',
@@ -437,9 +448,73 @@ describe('WorkflowDeliverables', () => {
     );
 
     expect(html).toContain('workflow-intake-01 completion packet');
-    expect(html).toContain('Approved the intake packet and confirmed it satisfies the readiness criteria.');
-    expect(html).toContain('Approved the intake packet and confirmed it satisfies the readiness criteria.');
+    expect(html).toContain(
+      'Approved the intake packet and confirmed it satisfies the readiness criteria.',
+    );
+    expect(html).toContain(
+      'Approved the intake packet and confirmed it satisfies the readiness criteria.',
+    );
     expect(html).not.toContain('Open artifact in new tab');
+  });
+
+  it('does not duplicate inline preview text when the summary and preview body are the same', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: {
+          final_deliverables: [
+            {
+              descriptor_id: 'deliverable-inline-duplicate-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              descriptor_kind: 'handoff_packet',
+              delivery_stage: 'final',
+              title: 'Implementation completion packet',
+              state: 'final',
+              summary_brief: 'Delivered the final implementation summary.',
+              preview_capabilities: {
+                can_inline_preview: true,
+                preview_kind: 'structured_summary',
+              },
+              primary_target: {
+                target_kind: 'inline_summary',
+                label: 'Review completion packet',
+                url: '',
+              },
+              secondary_targets: [],
+              content_preview: {
+                summary: 'Delivered the final implementation summary.',
+              },
+              source_brief_id: null,
+              created_at: '2026-03-28T20:20:00.000Z',
+              updated_at: '2026-03-28T20:20:00.000Z',
+            },
+          ],
+          in_progress_deliverables: [],
+          working_handoffs: [],
+          inputs_and_provenance: {
+            launch_packet: null,
+            supplemental_packets: [],
+            intervention_attachments: [],
+            redrive_packet: null,
+          },
+          next_cursor: null,
+        },
+        scope: {
+          scopeKind: 'selected_work_item',
+          title: 'Work item',
+          subject: 'work item',
+          name: 'workflow-intake-01',
+          banner: 'Work item: workflow-intake-01',
+        },
+        selectedTask: null,
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'workflow-intake-01',
+        onLoadMore: () => undefined,
+      }),
+    );
+
+    expect(html).toContain('Delivered the final implementation summary.');
+    expect(html.split('Delivered the final implementation summary.')).toHaveLength(2);
   });
 
   it('renders malformed deliverable targets without crashing the tab', () => {
@@ -854,7 +929,8 @@ function createBriefOnlyPacket(): DashboardWorkflowDeliverablesPacket {
         detailed_brief_json: {
           headline: 'Workflow review packet is complete',
           status_kind: 'completed',
-          summary: 'The orchestrator published a completed workflow brief but no formal deliverable descriptor yet exists.',
+          summary:
+            'The orchestrator published a completed workflow brief but no formal deliverable descriptor yet exists.',
         },
         linked_target_ids: [],
         sequence_number: 1,

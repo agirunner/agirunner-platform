@@ -31,38 +31,25 @@ export function WorkflowDeliverables(props: {
   const selectedWorkItemId = props.selectedWorkItemId ?? props.selectedTask?.work_item_id ?? null;
   const scopeCopy = buildDeliverablesScopeCopy(props.scope, props.selectedWorkItemTitle);
   const displayPacket = buildDisplayPacketForScope(packet, props.scope.scopeKind);
-  const taskEvidence = props.scope.scopeKind === 'selected_task'
-    ? buildTaskEvidence(props.selectedTask)
-    : null;
+  const taskEvidence =
+    props.scope.scopeKind === 'selected_task' ? buildTaskEvidence(props.selectedTask) : null;
   const deliverablesSubject = readDeliverablesSubject(props.scope.scopeKind);
-  const parentWorkItemLayer = buildDeliverableLayer(
-    displayPacket,
-    selectedWorkItemId,
-    'work_item',
-  );
-  const workflowLayer = buildDeliverableLayer(
-    displayPacket,
-    selectedWorkItemId,
-    'workflow',
-  );
-  const rolledUpWorkItemLayer = buildDeliverableLayer(
-    displayPacket,
-    null,
-    'work_item',
-  );
+  const parentWorkItemLayer = buildDeliverableLayer(displayPacket, selectedWorkItemId, 'work_item');
+  const workflowLayer = buildDeliverableLayer(displayPacket, selectedWorkItemId, 'workflow');
+  const rolledUpWorkItemLayer = buildDeliverableLayer(displayPacket, null, 'work_item');
   const outcomeBrief = pickOutcomeBrief(
     workflowLayer.finalDeliverables,
     workflowLayer.workingHandoffs,
   );
   const briefBackedOutputs =
-    displayPacket.final_deliverables.length === 0
-    && displayPacket.in_progress_deliverables.length === 0
-    && displayPacket.working_handoffs.length > 0;
+    displayPacket.final_deliverables.length === 0 &&
+    displayPacket.in_progress_deliverables.length === 0 &&
+    displayPacket.working_handoffs.length > 0;
   const openBriefsByDefault =
-    !briefBackedOutputs
-    && displayPacket.final_deliverables.length === 0
-    && displayPacket.in_progress_deliverables.length === 0
-    && displayPacket.working_handoffs.length > 0;
+    !briefBackedOutputs &&
+    displayPacket.final_deliverables.length === 0 &&
+    displayPacket.in_progress_deliverables.length === 0 &&
+    displayPacket.working_handoffs.length > 0;
   const inputEntries = buildInputEntries(displayPacket);
 
   return (
@@ -72,9 +59,7 @@ export function WorkflowDeliverables(props: {
           <p className="text-sm font-semibold text-foreground">Deliverables</p>
           <Badge variant="outline">{scopeCopy.label}</Badge>
         </div>
-        <p className="text-sm text-muted-foreground">
-          {scopeCopy.description}
-        </p>
+        <p className="text-sm text-muted-foreground">{scopeCopy.description}</p>
       </div>
 
       {props.scope.scopeKind === 'workflow' && outcomeBrief ? (
@@ -118,7 +103,11 @@ export function WorkflowDeliverables(props: {
       ) : (
         <>
           <LayerDeliverablesSection
-            title={props.scope.scopeKind === 'selected_task' ? 'Parent work item deliverables' : 'Work item deliverables'}
+            title={
+              props.scope.scopeKind === 'selected_task'
+                ? 'Parent work item deliverables'
+                : 'Work item deliverables'
+            }
             titleCount={parentWorkItemLayer.totalCount}
             description={
               props.scope.scopeKind === 'selected_task'
@@ -157,10 +146,15 @@ export function WorkflowDeliverables(props: {
           </summary>
           <div className="mt-4 grid gap-4">
             {displayPacket.working_handoffs.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No milestone briefs have been published yet.</p>
+              <p className="text-sm text-muted-foreground">
+                No milestone briefs have been published yet.
+              </p>
             ) : (
               displayPacket.working_handoffs.map((brief) => (
-                <article key={brief.id} className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
+                <article
+                  key={brief.id}
+                  className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4"
+                >
                   <WorkflowBriefRenderer brief={brief} compact />
                 </article>
               ))
@@ -170,18 +164,14 @@ export function WorkflowDeliverables(props: {
       ) : null}
 
       <details className="rounded-2xl border border-border/70 bg-background/80 p-4">
-        <summary className="cursor-pointer text-sm font-semibold text-foreground">
-          Inputs
-        </summary>
+        <summary className="cursor-pointer text-sm font-semibold text-foreground">Inputs</summary>
         <div className="mt-4 grid gap-4">
           {inputEntries.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No inputs or intervention files are attached to this {deliverablesSubject}.
             </p>
           ) : (
-            inputEntries.map((entry) => (
-              <InputEntryCard key={entry.id} entry={entry} />
-            ))
+            inputEntries.map((entry) => <InputEntryCard key={entry.id} entry={entry} />)
           )}
         </div>
       </details>
@@ -207,22 +197,20 @@ function buildDisplayPacketForScope(
     return packet;
   }
 
-  const deliverables = [
-    ...packet.final_deliverables,
-    ...packet.in_progress_deliverables,
-  ];
+  const deliverables = [...packet.final_deliverables, ...packet.in_progress_deliverables];
   return {
     ...packet,
     final_deliverables: deliverables.filter(isExplicitlyFinalDeliverable),
-    in_progress_deliverables: deliverables.filter((deliverable) => !isExplicitlyFinalDeliverable(deliverable)),
+    in_progress_deliverables: deliverables.filter(
+      (deliverable) => !isExplicitlyFinalDeliverable(deliverable),
+    ),
   };
 }
 
-function isExplicitlyFinalDeliverable(
-  deliverable: DashboardWorkflowDeliverableRecord,
-): boolean {
-  return readText(deliverable.delivery_stage) === 'final'
-    || readText(deliverable.state) === 'final';
+function isExplicitlyFinalDeliverable(deliverable: DashboardWorkflowDeliverableRecord): boolean {
+  return (
+    readText(deliverable.delivery_stage) === 'final' || readText(deliverable.state) === 'final'
+  );
 }
 
 function buildDeliverablesScopeCopy(
@@ -333,7 +321,11 @@ function LayerDeliverablesSection(props: {
         {hasMaterialDeliverables ? (
           <>
             {props.layer.finalDeliverables.map((deliverable) => (
-              <DeliverableCard key={deliverable.descriptor_id} deliverable={deliverable} prominent />
+              <DeliverableCard
+                key={deliverable.descriptor_id}
+                deliverable={deliverable}
+                prominent
+              />
             ))}
             {props.layer.inProgressDeliverables.map((deliverable) => (
               <DeliverableCard key={deliverable.descriptor_id} deliverable={deliverable} />
@@ -345,7 +337,10 @@ function LayerDeliverablesSection(props: {
               Material output is currently available only as briefs for this layer.
             </p>
             {props.layer.workingHandoffs.map((brief) => (
-              <article key={brief.id} className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4">
+              <article
+                key={brief.id}
+                className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4"
+              >
                 <Badge variant="outline">Brief-backed output</Badge>
                 <WorkflowBriefRenderer brief={brief} compact />
               </article>
@@ -364,6 +359,9 @@ function DeliverableCard(props: {
   prominent?: boolean;
 }): JSX.Element {
   const previewText = readPreviewText(props.deliverable);
+  const summaryBrief = props.deliverable.summary_brief?.trim() ?? null;
+  const shouldRenderPreviewText =
+    previewText !== null && previewText.trim().length > 0 && previewText.trim() !== summaryBrief;
 
   return (
     <article
@@ -381,7 +379,7 @@ function DeliverableCard(props: {
       {props.deliverable.summary_brief ? (
         <p className="text-sm text-muted-foreground">{props.deliverable.summary_brief}</p>
       ) : null}
-      {previewText ? (
+      {shouldRenderPreviewText ? (
         <pre className="overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-foreground">
           {previewText}
         </pre>
@@ -393,21 +391,19 @@ function DeliverableCard(props: {
 
 type DeliverableInputEntry =
   | {
-    entry_kind: 'packet';
-    id: string;
-    label: string;
-    packet: DashboardWorkflowInputPacketRecord;
-  }
+      entry_kind: 'packet';
+      id: string;
+      label: string;
+      packet: DashboardWorkflowInputPacketRecord;
+    }
   | {
-    entry_kind: 'intervention';
-    id: string;
-    label: string;
-    intervention: DashboardWorkflowInterventionRecord;
-  };
+      entry_kind: 'intervention';
+      id: string;
+      label: string;
+      intervention: DashboardWorkflowInterventionRecord;
+    };
 
-function InputEntryCard(props: {
-  entry: DeliverableInputEntry;
-}): JSX.Element {
+function InputEntryCard(props: { entry: DeliverableInputEntry }): JSX.Element {
   if (props.entry.entry_kind === 'intervention') {
     const intervention = props.entry.intervention;
     return (
@@ -433,9 +429,8 @@ function InputEntryCard(props: {
 
   const packet = props.entry.packet;
   const structuredInputs = readStructuredEntries(packet.structured_inputs);
-  const structuredPreview = structuredInputs.length === 0
-    ? readStructuredPreview(packet.structured_inputs)
-    : null;
+  const structuredPreview =
+    structuredInputs.length === 0 ? readStructuredPreview(packet.structured_inputs) : null;
 
   return (
     <article className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-3">
@@ -453,7 +448,10 @@ function InputEntryCard(props: {
       {structuredInputs.length > 0 ? (
         <dl className="divide-y divide-border/60 rounded-xl border border-border/70 bg-background">
           {structuredInputs.map(([label, value]) => (
-            <div key={label} className="grid gap-1 px-3 py-2 sm:grid-cols-[10rem_minmax(0,1fr)] sm:items-start sm:gap-3">
+            <div
+              key={label}
+              className="grid gap-1 px-3 py-2 sm:grid-cols-[10rem_minmax(0,1fr)] sm:items-start sm:gap-3"
+            >
               <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 {label}
               </dt>
@@ -477,13 +475,10 @@ function InputEntryCard(props: {
   );
 }
 
-function StructuredValuePreview(props: {
-  value: unknown;
-}): JSX.Element | null {
+function StructuredValuePreview(props: { value: unknown }): JSX.Element | null {
   const structuredEntries = readStructuredEntries(props.value);
-  const structuredPreview = structuredEntries.length === 0
-    ? readStructuredPreview(props.value)
-    : null;
+  const structuredPreview =
+    structuredEntries.length === 0 ? readStructuredPreview(props.value) : null;
   if (structuredEntries.length === 0 && !structuredPreview) {
     return null;
   }
@@ -513,9 +508,7 @@ function StructuredValuePreview(props: {
   );
 }
 
-function PacketFileLink(props: {
-  file: DashboardWorkflowInputPacketFileRecord;
-}): JSX.Element {
+function PacketFileLink(props: { file: DashboardWorkflowInputPacketFileRecord }): JSX.Element {
   return (
     <div className="grid gap-1">
       <a
@@ -553,9 +546,7 @@ function pickOutcomeBrief(
   return handoffs.find((brief) => brief.work_item_id === null) ?? null;
 }
 
-function buildInputEntries(
-  packet: DashboardWorkflowDeliverablesPacket,
-): DeliverableInputEntry[] {
+function buildInputEntries(packet: DashboardWorkflowDeliverablesPacket): DeliverableInputEntry[] {
   const entries: DeliverableInputEntry[] = [];
   if (packet.inputs_and_provenance.launch_packet) {
     entries.push({

@@ -6,8 +6,8 @@ import type {
 } from '../../../lib/api.js';
 import {
   hasMeaningfulDeliverableTarget,
-  isDownloadableDeliverableTarget,
-  resolveDeliverableTargetAction,
+  isBrowserDeliverableTarget,
+  resolveDeliverableTargetHref,
   sanitizeDeliverableTarget,
   sanitizeDeliverableTargets,
 } from './workflow-deliverables.support.js';
@@ -27,12 +27,15 @@ export function WorkflowDeliverableBrowser(props: {
   deliverable: DashboardWorkflowDeliverableRecord;
 }): JSX.Element | null {
   const artifactTargets = readArtifactTargets(props.deliverable);
-  const externalTargets = readExternalTargets(props.deliverable, new Set(artifactTargets.map((target) => target.key)));
+  const externalTargets = readExternalTargets(props.deliverable);
   const browserId = useId();
   const [selectedTargetKey, setSelectedTargetKey] = useState<string | null>(
     artifactTargets[0]?.key ?? null,
   );
-  const selectedTarget = artifactTargets.find((target) => target.key === selectedTargetKey) ?? artifactTargets[0] ?? null;
+  const selectedTarget =
+    artifactTargets.find((target) => target.key === selectedTargetKey) ??
+    artifactTargets[0] ??
+    null;
 
   if (!selectedTarget && externalTargets.length === 0) {
     return null;
@@ -102,7 +105,10 @@ export function WorkflowDeliverableBrowser(props: {
                 </p>
               )}
               <div id={browserId} className="text-xs text-muted-foreground">
-                {selectedTarget.target.path ?? selectedTarget.target.repo_ref ?? selectedTarget.previewHref ?? selectedTarget.downloadHref}
+                {selectedTarget.target.path ??
+                  selectedTarget.target.repo_ref ??
+                  selectedTarget.previewHref ??
+                  selectedTarget.downloadHref}
               </div>
             </div>
           ) : null}
@@ -131,33 +137,38 @@ export function WorkflowDeliverableBrowser(props: {
 function readArtifactTargets(
   deliverable: DashboardWorkflowDeliverableRecord,
 ): ResolvedArtifactTarget[] {
+  const seenArtifactKeys = new Set<string>();
+
   return readResolvedTargets(deliverable)
-    .filter((target) => isDownloadableDeliverableTarget(target.target))
+    .filter((target) => isBrowserDeliverableTarget(target.target))
     .flatMap((target) => {
-      const action = resolveDeliverableTargetAction(target.target);
-      if (action.action_kind !== 'external_link' || !action.href) {
+      const href = resolveDeliverableTargetHref(target.target);
+      if (!href) {
         return [];
       }
-      return [{
-        ...target,
-        previewHref: resolveArtifactPreviewHref(action.href),
-        downloadHref: resolveArtifactDownloadHref(action.href),
-      }];
+      const downloadHref = resolveArtifactDownloadHref(href);
+      const artifactKey = readArtifactIdentityKey(target.target, downloadHref);
+      if (seenArtifactKeys.has(artifactKey)) {
+        return [];
+      }
+      seenArtifactKeys.add(artifactKey);
+      return [
+        {
+          ...target,
+          previewHref: resolveArtifactPreviewHref(href),
+          downloadHref,
+        },
+      ];
     });
 }
 
-function readExternalTargets(
-  deliverable: DashboardWorkflowDeliverableRecord,
-  artifactTargetKeys: Set<string>,
-): ResolvedTarget[] {
-  return readResolvedTargets(deliverable).filter((target) =>
-    !artifactTargetKeys.has(target.key),
+function readExternalTargets(deliverable: DashboardWorkflowDeliverableRecord): ResolvedTarget[] {
+  return readResolvedTargets(deliverable).filter(
+    (target) => !isBrowserDeliverableTarget(target.target),
   );
 }
 
-function readResolvedTargets(
-  deliverable: DashboardWorkflowDeliverableRecord,
-): ResolvedTarget[] {
+function readResolvedTargets(deliverable: DashboardWorkflowDeliverableRecord): ResolvedTarget[] {
   const targets = [
     sanitizeDeliverableTarget(deliverable.primary_target),
     ...sanitizeDeliverableTargets(deliverable.secondary_targets),
@@ -198,10 +209,7 @@ function resolveArtifactDownloadHref(href: string): string {
   return rewriteArtifactTransportPath(href, 'download') ?? href;
 }
 
-function rewriteArtifactTransportPath(
-  href: string,
-  mode: 'preview' | 'download',
-): string | null {
+function rewriteArtifactTransportPath(href: string, mode: 'preview' | 'download'): string | null {
   try {
     const parsed = new URL(href, 'http://dashboard.local');
     const taskArtifactMatch = parsed.pathname.match(
@@ -226,5 +234,49 @@ function serializeHref(parsed: URL): string {
 
 function readTargetLabel(target: DashboardWorkflowDeliverableTarget): string {
   const label = target.label.trim();
+  if (label.length > 0 && !isGenericArtifactLabel(label)) {
+    return label;
+  }
+
+  const pathLabel = readTargetPathLabel(target.path) ?? readTargetPathLabel(target.repo_ref);
+  if (pathLabel) {
+    return pathLabel;
+  }
+
   return label.length > 0 ? label : 'Artifact';
+}
+
+function readArtifactIdentityKey(
+  target: DashboardWorkflowDeliverableTarget,
+  downloadHref: string,
+): string {
+  return target.artifact_id ?? target.path ?? target.repo_ref ?? downloadHref;
+}
+
+function isGenericArtifactLabel(label: string): boolean {
+  const normalized = label.trim().toLowerCase();
+  return (
+    normalized === 'artifact' ||
+    normalized === 'open artifact' ||
+    normalized === 'download artifact' ||
+    normalized === 'preview artifact' ||
+    normalized === 'preview inline' ||
+    normalized === 'open' ||
+    normalized === 'download'
+  );
+}
+
+function readTargetPathLabel(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  const normalized = trimmed.replace(/^artifact:[^/]+\//, '');
+  const segments = normalized.split('/').filter((segment) => segment.length > 0);
+  return segments.at(-1) ?? trimmed;
 }
