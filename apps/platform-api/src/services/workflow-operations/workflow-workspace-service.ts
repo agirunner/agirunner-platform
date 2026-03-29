@@ -396,7 +396,8 @@ function filterWorkspaceDeliverablesForSelectedScope(
     };
   }
   const matchesSelectedWorkItem = (deliverable: WorkflowDeliverableRecord): boolean =>
-    deliverable.work_item_id === selectedWorkItemId
+    deliverable.work_item_id === null
+      || deliverable.work_item_id === selectedWorkItemId
       || readDeliverableRollupSourceWorkItemId(deliverable) === selectedWorkItemId;
   return {
     ...deliverables,

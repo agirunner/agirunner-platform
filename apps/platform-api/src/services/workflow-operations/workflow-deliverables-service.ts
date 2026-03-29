@@ -220,7 +220,7 @@ function filterRecordsForRequestedScope<T>(
 
   return records.filter((record) => {
     const recordWorkItemId = readWorkItemId(record);
-    return recordWorkItemId === workItemId;
+    return recordWorkItemId === null || recordWorkItemId === workItemId;
   });
 }
 
@@ -269,6 +269,9 @@ function selectDeliverableScopeDeliverables(
       deliverable,
       attribution,
     );
+    if (attributedWorkItemId === null) {
+      return true;
+    }
     if (attributedWorkItemId === workItemId) {
       return true;
     }
@@ -819,7 +822,10 @@ function suppressMirroredWorkflowRollupDuplicates(
       if (workItemId !== null) {
         return true;
       }
-      return readRollupSourceWorkItemId(deliverable) === selectedWorkItemId;
+      return (
+        readRollupSourceWorkItemId(deliverable) === null
+        || readRollupSourceWorkItemId(deliverable) === selectedWorkItemId
+      );
     }
     return !(workItemId !== null && workflowRollupSources.has(deliverable.descriptor_id));
   });
