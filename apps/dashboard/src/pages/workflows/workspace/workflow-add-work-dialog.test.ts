@@ -74,4 +74,12 @@ describe('WorkflowAddWorkDialog source', () => {
     expect(source).toContain('clearFormFeedback();');
     expect(source).toContain('setErrorMessage(null);');
   });
+
+  it('links modify mode to the workflow workspace without exposing an inert workspace selector', () => {
+    const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('Edit workflow workspace');
+    expect(source).toContain('to={`/design/workspaces/${props.workflowWorkspaceId}`}');
+    expect(source).not.toContain('SearchableCombobox');
+  });
 });

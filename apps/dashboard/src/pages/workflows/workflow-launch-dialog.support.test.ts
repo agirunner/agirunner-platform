@@ -8,15 +8,15 @@ import {
 } from './workflow-launch-dialog.support.js';
 
 describe('workflow-launch-dialog.support', () => {
-  it('builds combobox items from operator-facing names so launch selectors can filter by name', () => {
+  it('builds combobox items from operator-facing names and slugs so launch selectors can filter by either', () => {
     expect(
       buildWorkflowLaunchComboboxItems([
         createPlaybook({ id: 'playbook-2', name: 'Release Readiness' }),
-        createPlaybook({ id: 'playbook-1', name: 'Incident Review' }),
+        createPlaybook({ id: 'playbook-1', name: 'Incident Review', slug: 'incident-review' }),
       ]),
     ).toEqual([
-      { id: 'playbook-2', label: 'Release Readiness' },
-      { id: 'playbook-1', label: 'Incident Review' },
+      { id: 'playbook-2', label: 'Release Readiness', subtitle: 'release-readiness' },
+      { id: 'playbook-1', label: 'Incident Review', subtitle: 'incident-review' },
     ]);
   });
 

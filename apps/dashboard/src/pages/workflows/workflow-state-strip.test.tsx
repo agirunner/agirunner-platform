@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -11,6 +12,13 @@ import type {
 import { WorkflowStateStrip } from './workflow-state-strip.js';
 
 describe('WorkflowStateStrip', () => {
+  it('renders the add-work CTA from a passed label instead of a hardcoded generic header label', () => {
+    const source = readFileSync(new URL('./workflow-state-strip.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('props.addWorkLabel');
+    expect(source).not.toContain('Add / Modify Work');
+  });
+
   it('shows active stage posture and workload shape from the board', () => {
     const html = renderToStaticMarkup(
       createElement(
@@ -194,8 +202,43 @@ describe('WorkflowStateStrip', () => {
       ),
     );
 
-    expect(hiddenHtml).not.toContain('Add / Modify Work');
-    expect(visibleHtml).toContain('Add / Modify Work');
+    expect(hiddenHtml).not.toContain('Add Intake');
+    expect(visibleHtml).toContain('Add Intake');
+  });
+
+  it('defaults the header CTA to Add Work for planned workflows when no scope-specific label is passed', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            lifecycle: 'planned',
+            availableActions: [
+              {
+                kind: 'add_work_item',
+                scope: 'workflow',
+                enabled: true,
+                confirmationLevel: 'standard_confirm',
+                stale: false,
+                disabledReason: null,
+              },
+            ],
+          }),
+          stickyStrip: createStickyStrip(),
+          workflowSettings: null,
+          board: createBoard(),
+          selectedScopeLabel: null,
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onVisibilityModeChange: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Add Work');
+    expect(html).not.toContain('Add Intake');
   });
 
   it('keeps workflow header actions hidden when the platform only authorizes narrower scopes', () => {
@@ -258,6 +301,106 @@ describe('WorkflowStateStrip', () => {
     expect(html).not.toContain('Add / Modify Work');
   });
 
+  it('shows Resume instead of Pause for paused workflows and hides Resume once the workflow is cancelled', () => {
+    const pausedHtml = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            state: 'paused',
+            posture: 'paused',
+            availableActions: [
+              {
+                kind: 'pause_workflow',
+                scope: 'workflow',
+                enabled: false,
+                confirmationLevel: 'immediate',
+                stale: false,
+                disabledReason: 'Only active workflows can be paused.',
+              },
+              {
+                kind: 'resume_workflow',
+                scope: 'workflow',
+                enabled: true,
+                confirmationLevel: 'immediate',
+                stale: false,
+                disabledReason: null,
+              },
+              {
+                kind: 'cancel_workflow',
+                scope: 'workflow',
+                enabled: true,
+                confirmationLevel: 'high_impact_confirm',
+                stale: false,
+                disabledReason: null,
+              },
+            ],
+          }),
+          stickyStrip: createStickyStrip({ posture: 'paused' }),
+          workflowSettings: null,
+          board: createBoard(),
+          selectedScopeLabel: null,
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onVisibilityModeChange: vi.fn(),
+        }),
+      ),
+    );
+    const cancelledHtml = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            state: 'cancelled',
+            posture: 'cancelled',
+            availableActions: [
+              {
+                kind: 'pause_workflow',
+                scope: 'workflow',
+                enabled: false,
+                confirmationLevel: 'immediate',
+                stale: false,
+                disabledReason: 'Only active workflows can be paused.',
+              },
+              {
+                kind: 'resume_workflow',
+                scope: 'workflow',
+                enabled: false,
+                confirmationLevel: 'immediate',
+                stale: false,
+                disabledReason: 'Cancelled workflows cannot be resumed.',
+              },
+              {
+                kind: 'cancel_workflow',
+                scope: 'workflow',
+                enabled: false,
+                confirmationLevel: 'high_impact_confirm',
+                stale: false,
+                disabledReason: 'Action is not available in the current workflow state.',
+              },
+            ],
+          }),
+          stickyStrip: createStickyStrip({ posture: 'cancelled' }),
+          workflowSettings: null,
+          board: createBoard(),
+          selectedScopeLabel: null,
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onVisibilityModeChange: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(pausedHtml).toContain('Resume</button>');
+    expect(pausedHtml).not.toContain('>Pause</button>');
+    expect(cancelledHtml).not.toContain('>Resume</button>');
+    expect(cancelledHtml).not.toContain('>Pause</button>');
+  });
+
   it('keeps workflow-only controls visible in the header while a narrower scope is selected', () => {
     const html = renderToStaticMarkup(
       createElement(
@@ -304,6 +447,7 @@ describe('WorkflowStateStrip', () => {
           workflowSettings: null,
           board: createBoard(),
           selectedScopeLabel: 'Review incoming packet',
+          addWorkLabel: 'Modify Work',
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
@@ -315,7 +459,7 @@ describe('WorkflowStateStrip', () => {
     expect(html).toContain('Pause');
     expect(html).toContain('Cancel');
     expect(html).toContain('Redrive');
-    expect(html).toContain('Add / Modify Work');
+    expect(html).toContain('Modify Work');
     expect(html).not.toContain('Workflow-level actions only');
   });
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Rocket } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { SearchableCombobox } from '../../components/log-viewer/ui/searchable-combobox.js';
 import { Button } from '../../components/ui/button.js';
@@ -172,6 +173,14 @@ export function WorkflowLaunchDialog(props: {
                 isLoading={playbooksQuery.isLoading}
                 className={playbookError ? 'border-red-300 focus:ring-red-500' : undefined}
               />
+              {selectedPlaybookId ? (
+                <Link
+                  to={`/design/playbooks/${selectedPlaybookId}`}
+                  className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  Edit selected playbook
+                </Link>
+              ) : null}
               {playbookError ? (
                 <p className="text-xs text-red-600 dark:text-red-400">{playbookError}</p>
               ) : null}
@@ -192,6 +201,14 @@ export function WorkflowLaunchDialog(props: {
                 isLoading={workspacesQuery.isLoading}
                 className={workspaceError ? 'border-red-300 focus:ring-red-500' : undefined}
               />
+              {workspaceId ? (
+                <Link
+                  to={`/design/workspaces/${workspaceId}`}
+                  className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  Edit selected workspace
+                </Link>
+              ) : null}
               {workspaceError ? (
                 <p className="text-xs text-red-600 dark:text-red-400">{workspaceError}</p>
               ) : null}
@@ -218,6 +235,12 @@ export function WorkflowLaunchDialog(props: {
 
           {launchDefinition.parameterSpecs.length > 0 ? (
             <div className="grid gap-3">
+              <div className="grid gap-1">
+                <h3 className="text-sm font-medium">Launch inputs</h3>
+                <p className="text-sm text-muted-foreground">
+                  Provide the operator-authored inputs defined by the selected playbook.
+                </p>
+              </div>
               {launchDefinition.parameterSpecs.map((spec) => (
                 <label key={spec.slug} className="grid gap-2 text-sm">
                   <span className="font-medium">{spec.title}</span>

@@ -166,6 +166,26 @@ export function resolveBoardSelectionForLens(
   return selection;
 }
 
+export function resolveHeaderAddWorkTargetWorkItemId(input: {
+  scopeKind: WorkflowTabScope;
+  workItemId: string | null;
+}): string | null {
+  if (input.scopeKind !== 'selected_work_item') {
+    return null;
+  }
+  return input.workItemId;
+}
+
+export function describeHeaderAddWorkLabel(input: {
+  scopeKind: WorkflowTabScope;
+  lifecycle: string | null | undefined;
+}): 'Add Intake' | 'Add Work' | 'Modify Work' {
+  if (input.scopeKind === 'selected_work_item') {
+    return 'Modify Work';
+  }
+  return input.lifecycle === 'ongoing' ? 'Add Intake' : 'Add Work';
+}
+
 export function describeWorkflowWorkbenchScope(input: {
   scopeKind: WorkflowTabScope;
   workflowName: string | null;

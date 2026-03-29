@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { Button } from '../../../components/ui/button.js';
 import { DEFAULT_FORM_VALIDATION_MESSAGE, FieldErrorText, FormFeedbackMessage, resolveFormFeedbackMessage } from '../../../components/forms/form-feedback.js';
@@ -26,6 +27,7 @@ export function WorkflowAddWorkDialog(props: {
   lifecycle: string | null | undefined;
   board: DashboardWorkflowBoardResponse | null;
   workItemId: string | null;
+  workflowWorkspaceId?: string | null;
 }): JSX.Element {
   const queryClient = useQueryClient();
   const selectedWorkItem =
@@ -148,9 +150,24 @@ export function WorkflowAddWorkDialog(props: {
         </DialogHeader>
         <div className="grid gap-4">
           {isModifyMode ? (
-            <p className="text-sm text-muted-foreground">
-              Modifying the parent work item <span className="font-medium text-foreground">{selectedWorkItem.title}</span> with new operator-authored context only.
-            </p>
+            <div className="grid gap-3">
+              <p className="text-sm text-muted-foreground">
+                Modifying the parent work item <span className="font-medium text-foreground">{selectedWorkItem.title}</span> with new operator-authored context only.
+              </p>
+              <div className="grid gap-2 text-sm">
+                {props.workflowWorkspaceId ? (
+                  <Link
+                    to={`/design/workspaces/${props.workflowWorkspaceId}`}
+                    className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                  >
+                    Edit workflow workspace
+                  </Link>
+                ) : null}
+                <p className="text-xs text-muted-foreground">
+                  Open the workspace detail view if you need to adjust shared context before saving this work update.
+                </p>
+              </div>
+            </div>
           ) : (
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Work item title</span>

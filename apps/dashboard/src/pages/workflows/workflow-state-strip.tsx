@@ -17,6 +17,7 @@ export function WorkflowStateStrip(props: {
   workflowSettings: DashboardWorkflowSettingsRecord | null;
   board: DashboardWorkflowBoardResponse | null;
   selectedScopeLabel: string | null;
+  addWorkLabel?: string;
   onTabChange(tab: WorkflowWorkbenchTab): void;
   onAddWork(): void;
   onOpenRedrive(): void;
@@ -38,6 +39,7 @@ export function WorkflowStateStrip(props: {
   const postureLabel = humanizePosture(sticky?.posture ?? props.workflow.posture);
   const isPausedWorkflow = props.workflow.state === 'paused' || sticky?.posture === 'paused';
   const isOngoingWorkflow = props.workflow.lifecycle === 'ongoing';
+  const addWorkLabel = props.addWorkLabel ?? (isOngoingWorkflow ? 'Add Intake' : 'Add Work');
   const needsActionCount =
     (sticky?.approvals_count ?? 0) + (sticky?.escalations_count ?? 0) + (sticky?.blocked_work_item_count ?? 0);
   const activeSpecialistTaskCount = sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount;
@@ -70,7 +72,7 @@ export function WorkflowStateStrip(props: {
           ) : null}
           {canAddWork ? (
             <Button size="sm" onClick={props.onAddWork}>
-              Add / Modify Work
+              {addWorkLabel}
             </Button>
           ) : null}
           <label className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/10 px-2.5 py-1.5 text-[11px] text-muted-foreground">

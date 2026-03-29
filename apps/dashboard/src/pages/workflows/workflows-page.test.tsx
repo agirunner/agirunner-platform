@@ -94,12 +94,16 @@ describe('workflows page source', () => {
     expect(source).toContain('patchPageState(navigate, pageState, { taskId: null })');
   });
 
-  it('separates workflow add-work launches from the current board selection so task scope does not force modify mode', () => {
+  it('opens header add-or-modify in modify mode for selected work items but not for selected tasks', () => {
     const source = readSource();
 
     expect(source).toContain('const [addWorkTargetWorkItemId, setAddWorkTargetWorkItemId] = useState<string | null>(null);');
+    expect(source).toContain('describeHeaderAddWorkLabel');
+    expect(source).toContain('resolveHeaderAddWorkTargetWorkItemId');
     expect(source).toContain('onAddWork={() => {');
-    expect(source).toContain('setAddWorkTargetWorkItemId(null);');
+    expect(source).toContain('scopeKind: tabScope');
+    expect(source).toContain('workItemId: boardSelection.workItemId');
+    expect(source).toContain('addWorkLabel={describeHeaderAddWorkLabel({');
     expect(source).toContain('workItemId={addWorkTargetWorkItemId}');
     expect(source).not.toContain('workItemId={boardSelection.workItemId}');
   });

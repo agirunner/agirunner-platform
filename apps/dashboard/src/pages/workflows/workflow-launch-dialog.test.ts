@@ -21,6 +21,7 @@ describe('WorkflowLaunchDialog source', () => {
   it('keeps operator-authored strings in compact textareas and flattens launch inputs', () => {
     const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
 
+    expect(source).toContain('Launch inputs');
     expect(source.match(/rows=\{2\}/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(source).not.toContain('ChainParameterField');
     expect(source).not.toContain('Launch input groups');
@@ -50,5 +51,14 @@ describe('WorkflowLaunchDialog source', () => {
     expect(source).toContain('searchPlaceholder="Search workspaces..."');
     expect(source).not.toContain('<SelectTrigger');
     expect(source).not.toContain('<SelectContent');
+  });
+
+  it('auto-selects the sole remaining workspace through the shared launch helper instead of hardcoding a first-row default', () => {
+    const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain(
+      "setWorkspaceId((current) => resolveDefaultWorkflowLaunchWorkspaceId(workspaces, current));",
+    );
+    expect(source).not.toContain('setWorkspaceId(workspaces[0].id)');
   });
 });

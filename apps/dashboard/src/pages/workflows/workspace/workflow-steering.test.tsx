@@ -27,7 +27,7 @@ describe('WorkflowSteering', () => {
     expect(html).toContain('No steering history exists for this task yet.');
   });
 
-  it('requires an explicit target choice before workflow-scoped steering can be submitted', () => {
+  it('defaults workflow-scoped steering to workflow targeting while keeping narrower pickers explicit', () => {
     const html = renderSteering({
       selectedWorkItemId: null,
       selectedWorkItemTitle: null,
@@ -39,8 +39,12 @@ describe('WorkflowSteering', () => {
       scope: createScope('workflow'),
     });
     expect(html).toContain('Steering target');
-    expect(html).toContain('Choose a steering target before recording a request.');
-    expect(html).toContain('Select a target');
+    expect(html).toContain('Choose where this workflow-level steering request should land.');
+    expect(html).toContain('Guide Workflow 1 toward the next legal action.');
+    expect(html).toContain('Target kind');
+    expect(html).toContain('Workflow');
+    expect(html).not.toContain('Choose a steering target before recording a request.');
+    expect(html).not.toContain('Select a target');
   });
 
   it('offers active child tasks as explicit workflow-scope steering targets and filters paused work', () => {
@@ -114,6 +118,29 @@ describe('WorkflowSteering', () => {
     expect(options.map((option) => option.label)).toEqual(['Workflow: Workflow 1']);
   });
 
+  it('excludes cancelled narrower targets from the workflow target picker', () => {
+    const options = buildWorkflowSteeringTargets(
+      createTargetContext({
+        workflowState: 'cancelled',
+        boardColumns: activeColumns(),
+        scope: createScope('workflow'),
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [
+          createTask({
+            id: 'task-1',
+            title: 'Verify deliverable',
+            work_item_id: 'work-item-7',
+            work_item_title: 'Prepare release bundle',
+          }),
+        ],
+      }),
+    );
+
+    expect(options.map((option) => option.label)).toEqual(['Workflow: Workflow 1']);
+  });
+
   it('reports a clear disabled reason when the selected task is paused', () => {
     const pausedTask = createPausedTask();
     const target = createTarget('selected_task', {
@@ -130,6 +157,25 @@ describe('WorkflowSteering', () => {
         selectedWorkItemTasks: [pausedTask],
       }),
     ).toBe('This task is paused. Resume it or choose another target before steering.');
+  });
+
+  it('reports a clear disabled reason when the workflow is paused even if the selected task itself is still active', () => {
+    const activeTask = createTask();
+    const target = createTarget('selected_task', {
+      workflowState: 'paused',
+      selectedTask: activeTask,
+      selectedWorkItemTasks: [activeTask],
+    });
+    expect(
+      describeSteeringTargetDisabledReason({
+        workflowState: 'paused',
+        boardColumns: activeColumns(),
+        target,
+        selectedWorkItem: createWorkItem(),
+        selectedTask: activeTask,
+        selectedWorkItemTasks: [activeTask],
+      }),
+    ).toBe('This workflow is paused. Resume it or choose another target before steering.');
   });
 
   it('reports a clear disabled reason when the selected work item is completed', () => {
@@ -156,6 +202,25 @@ describe('WorkflowSteering', () => {
         selectedWorkItemTasks: [],
       }),
     ).toBe('This work item is already completed or cancelled. Historical work cannot be steered.');
+  });
+
+  it('reports a clear disabled reason when the selected task belongs to a cancelled workflow', () => {
+    const activeTask = createTask();
+    const target = createTarget('selected_task', {
+      workflowState: 'cancelled',
+      selectedTask: activeTask,
+      selectedWorkItemTasks: [activeTask],
+    });
+    expect(
+      describeSteeringTargetDisabledReason({
+        workflowState: 'cancelled',
+        boardColumns: activeColumns(),
+        target,
+        selectedWorkItem: createWorkItem(),
+        selectedTask: activeTask,
+        selectedWorkItemTasks: [activeTask],
+      }),
+    ).toBe('This workflow is cancelled. Historical work cannot be steered.');
   });
 
   it('omits request-recorded acknowledgements from steering history', () => {
@@ -186,6 +251,58 @@ describe('WorkflowSteering', () => {
         [],
       ).map((entry) => entry.title),
     ).toEqual(['Tighten the approval brief.']);
+  });
+
+  it('does not repeat operator request text in both the history title and body', () => {
+    const [entry] = buildSteeringHistory(
+      [
+        createMessage({
+          id: 'message-1',
+          source_kind: 'operator',
+          message_kind: 'operator_request',
+          headline: 'Tighten the approval brief.',
+          body: 'Tighten the approval brief.',
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-28T04:00:00.000Z',
+        }),
+      ],
+      [],
+    );
+
+    expect(entry.title).toBe('Tighten the approval brief.');
+    expect(entry.body).toBeNull();
+  });
+
+  it('suppresses request-recorded acknowledgements even when the platform row only carries the text in body or content', () => {
+    expect(
+      buildSteeringHistory(
+        [
+          createMessage({
+            id: 'message-1',
+            source_kind: 'operator',
+            message_kind: 'operator_request',
+            headline: 'Tighten the approval brief.',
+            body: 'Keep the scope narrow.',
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-28T04:00:00.000Z',
+          }),
+          createMessage({
+            id: 'message-2',
+            source_kind: 'platform',
+            message_kind: 'steering_response',
+            headline: null,
+            body: null,
+            content: 'Steering request recorded',
+            created_by_type: 'system',
+            created_by_id: 'system-1',
+            created_at: '2026-03-28T04:00:01.000Z',
+          }),
+        ],
+        [],
+      ),
+    ).toHaveLength(1);
   });
 });
 

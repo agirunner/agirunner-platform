@@ -14,11 +14,15 @@ export interface WorkflowLaunchDialogValidationResult {
 }
 
 export function buildWorkflowLaunchComboboxItems(
-  records: Array<Pick<DashboardPlaybookRecord, 'id' | 'name'> | Pick<DashboardWorkspaceRecord, 'id' | 'name'>>,
+  records: Array<
+    Pick<DashboardPlaybookRecord, 'id' | 'name' | 'slug'>
+    | Pick<DashboardWorkspaceRecord, 'id' | 'name' | 'slug'>
+  >,
 ): ComboboxItem[] {
   return records.map((record) => ({
     id: record.id,
     label: record.name,
+    subtitle: record.slug,
   }));
 }
 

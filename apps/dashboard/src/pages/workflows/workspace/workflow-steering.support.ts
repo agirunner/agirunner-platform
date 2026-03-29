@@ -88,6 +88,7 @@ export function buildWorkflowSteeringTargets(
   );
   options.push(
     ...buildWorkflowScopeTaskTargets({
+      workflowState: input.workflowState,
       selectedTaskId: input.selectedTaskId,
       selectedTaskTitle: input.selectedTaskTitle,
       selectedTask: currentTask,
@@ -124,6 +125,11 @@ export function describeSteeringTargetDisabledReason(input: {
   selectedTask: DashboardTaskRecord | null;
   selectedWorkItemTasks: DashboardTaskRecord[];
 }): string | null {
+  const workflowDisabledReason = describeWorkflowTargetDisabledReason(input.workflowState);
+  if (workflowDisabledReason) {
+    return workflowDisabledReason;
+  }
+
   if (input.target.scopeKind === 'selected_task') {
     const task = resolveSteeringTaskRecord(
       input.selectedTask,
@@ -231,6 +237,9 @@ function shouldIncludeWorkflowScopeWorkItemTarget(
   if (!selectedWorkItemId) {
     return false;
   }
+  if (hasWorkflowDisabledTargets(workflowState)) {
+    return false;
+  }
   if (!selectedWorkItem) {
     return true;
   }
@@ -241,10 +250,14 @@ function shouldIncludeWorkflowScopeWorkItemTarget(
 }
 
 function shouldIncludeWorkflowScopeTaskTarget(
+  workflowState: string,
   selectedTaskId: string | null,
   selectedTask: DashboardTaskRecord | null,
 ): boolean {
   if (!selectedTaskId) {
+    return false;
+  }
+  if (hasWorkflowDisabledTargets(workflowState)) {
     return false;
   }
   if (!selectedTask) {
@@ -254,15 +267,26 @@ function shouldIncludeWorkflowScopeTaskTarget(
 }
 
 function buildWorkflowScopeTaskTargets(input: {
+  workflowState: string;
   selectedTaskId: string | null;
   selectedTaskTitle: string | null;
   selectedTask: DashboardTaskRecord | null;
   selectedWorkItemId: string | null;
   selectedWorkItemTasks: DashboardTaskRecord[];
 }): WorkflowSteeringTargetOption[] {
+  if (hasWorkflowDisabledTargets(input.workflowState)) {
+    return [];
+  }
+
   const options = new Map<string, WorkflowSteeringTargetOption>();
 
-  if (shouldIncludeWorkflowScopeTaskTarget(input.selectedTaskId, input.selectedTask)) {
+  if (
+    shouldIncludeWorkflowScopeTaskTarget(
+      input.workflowState,
+      input.selectedTaskId,
+      input.selectedTask,
+    )
+  ) {
     const taskId = input.selectedTaskId;
     options.set(
       taskId ?? 'selected-task',
@@ -338,4 +362,19 @@ function isTerminalWorkItem(
     return true;
   }
   return boardColumns.some((column) => column.id === workItem.column_id && column.is_terminal);
+}
+
+function hasWorkflowDisabledTargets(workflowState: string): boolean {
+  return describeWorkflowTargetDisabledReason(workflowState) !== null;
+}
+
+function describeWorkflowTargetDisabledReason(workflowState: string): string | null {
+  const state = workflowState.trim().toLowerCase();
+  if (state === 'paused') {
+    return 'This workflow is paused. Resume it or choose another target before steering.';
+  }
+  if (state === 'completed' || state === 'cancelled') {
+    return `This workflow is ${state}. Historical work cannot be steered.`;
+  }
+  return null;
 }

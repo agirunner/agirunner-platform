@@ -12,11 +12,13 @@ import {
 } from '../../lib/api.js';
 import { WorkflowsRail } from './workflows-rail.js';
 import {
+  describeHeaderAddWorkLabel,
   buildWorkflowsPageSearchParams,
   buildWorkflowsPageHref,
   describeWorkflowWorkbenchScope,
   readWorkflowsPageState,
   resolveBoardSelectionForLens,
+  resolveHeaderAddWorkTargetWorkItemId,
   resolveSelectedWorkflowId,
   workspacePacketMatchesScope,
   resolveWorkspacePlaceholderData,
@@ -431,9 +433,18 @@ export function WorkflowsPage(): JSX.Element {
                   workflowSettings={workflowSettingsQuery.data ?? null}
                   board={board}
                   selectedScopeLabel={selectedScopeLabel}
+                  addWorkLabel={describeHeaderAddWorkLabel({
+                    scopeKind: tabScope,
+                    lifecycle: workflow?.lifecycle,
+                  })}
                   onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
                   onAddWork={() => {
-                    setAddWorkTargetWorkItemId(null);
+                    setAddWorkTargetWorkItemId(
+                      resolveHeaderAddWorkTargetWorkItemId({
+                        scopeKind: tabScope,
+                        workItemId: boardSelection.workItemId,
+                      }),
+                    );
                     setIsAddWorkOpen(true);
                   }}
                   onOpenRedrive={() => setIsRedriveOpen(true)}
@@ -581,6 +592,7 @@ export function WorkflowsPage(): JSX.Element {
             lifecycle={workflow?.lifecycle}
             board={board}
             workItemId={addWorkTargetWorkItemId}
+            workflowWorkspaceId={workflow?.workspaceId}
           />
           <WorkflowRedriveDialog
             isOpen={isRedriveOpen}
