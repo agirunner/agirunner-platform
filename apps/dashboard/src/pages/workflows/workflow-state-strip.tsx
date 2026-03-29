@@ -45,7 +45,7 @@ export function WorkflowStateStrip(props: {
   const activeSpecialistTaskCount = sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount;
 
   return (
-    <section className="space-y-1 rounded-2xl border border-border/70 bg-stone-50/90 p-2.5 shadow-sm dark:bg-slate-950/70">
+    <section className="space-y-1 rounded-2xl border border-border/70 bg-background/90 p-2.5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <h2 className="truncate text-sm font-semibold text-foreground">{props.workflow.name}</h2>

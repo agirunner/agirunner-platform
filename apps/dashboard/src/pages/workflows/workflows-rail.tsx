@@ -210,15 +210,22 @@ function WorkflowRailRowCard(props: {
       className={cn(
         'grid w-full min-w-0 max-w-full gap-2 rounded-xl border px-3 py-3 text-left transition-[border-color,background-color,box-shadow,color] duration-150',
         props.isSelected
-          ? 'border-sky-400/80 bg-sky-100 text-sky-950 shadow-[0_10px_30px_rgba(14,165,233,0.2)] dark:border-sky-300/70 dark:bg-sky-400/15 dark:text-sky-50'
+          ? 'border-sky-400 bg-sky-200/90 text-sky-950 shadow-[0_12px_36px_rgba(14,165,233,0.26)] ring-1 ring-sky-300/70 dark:border-sky-300/80 dark:bg-sky-300/20 dark:text-sky-50 dark:ring-sky-300/40'
           : 'border-border/70 bg-background/85 hover:border-border hover:bg-background',
       )}
       onClick={() => props.onSelect(props.row.workflow_id)}
     >
       <div className="grid min-w-0 gap-2">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-foreground">{props.row.name}</p>
-          <p className="truncate text-xs text-muted-foreground">
+          <p className={cn('truncate text-sm font-semibold', props.isSelected ? 'text-inherit' : 'text-foreground')}>
+            {props.row.name}
+          </p>
+          <p
+            className={cn(
+              'truncate text-xs',
+              props.isSelected ? 'text-sky-900/85 dark:text-sky-100/85' : 'text-muted-foreground',
+            )}
+          >
             {[props.row.playbook_name, props.row.workspace_name].filter(Boolean).join(' • ') || 'Workflow'}
           </p>
         </div>
@@ -228,13 +235,20 @@ function WorkflowRailRowCard(props: {
         </div>
       </div>
 
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+      <div
+        className={cn(
+          'flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs',
+          props.isSelected ? 'text-sky-900/85 dark:text-sky-100/85' : 'text-muted-foreground',
+        )}
+      >
         <span>{humanizePosture(props.row.posture)}</span>
         <span>{formatRelativeTimestamp(props.row.last_changed_at)}</span>
       </div>
 
       {primaryStatus ? (
-        <p className="text-sm text-foreground">{primaryStatus}</p>
+        <p className={cn('text-sm', props.isSelected ? 'text-sky-950 dark:text-sky-50' : 'text-foreground')}>
+          {primaryStatus}
+        </p>
       ) : null}
     </button>
   );

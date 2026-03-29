@@ -300,7 +300,7 @@ export function WorkflowsPage(): JSX.Element {
         style={buildWorkflowsShellStyle(isRailHidden, railWidthPx)}
       >
         {!isRailHidden ? (
-          <div className="overflow-visible rounded-2xl border border-border/70 bg-stone-50/90 lg:min-h-0 lg:overflow-hidden dark:bg-slate-950/70">
+          <div className="overflow-visible rounded-[1.75rem] border border-border/70 bg-stone-50/90 lg:min-h-0 lg:overflow-hidden dark:bg-slate-950/70">
             <WorkflowsRail
               mode={pageState.mode}
               search={pageState.search}
@@ -355,62 +355,70 @@ export function WorkflowsPage(): JSX.Element {
             />
           </div>
         ) : null}
-        <div className="grid min-h-0 w-full min-w-0 gap-1.5 lg:h-full lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
-          <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
-            <Button type="button" size="sm" variant="outline" onClick={() => setIsRailHidden((current) => !current)}>
-              {isRailHidden ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-              {isRailHidden ? 'Show workflows' : 'Hide workflows'}
-            </Button>
-            {isRailHidden ? (
-              <Button type="button" size="sm" onClick={() => setIsLaunchOpen(true)}>
-                New Workflow
+        <div className="grid min-h-0 w-full min-w-0 gap-2 lg:h-full lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
+          <section
+            data-workflows-top-strip="true"
+            className="grid gap-2 rounded-[1.75rem] border border-border/70 bg-transparent p-1.5"
+          >
+            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+              <Button type="button" size="sm" variant="outline" onClick={() => setIsRailHidden((current) => !current)}>
+                {isRailHidden ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+                {isRailHidden ? 'Show workflows' : 'Hide workflows'}
               </Button>
+              {isRailHidden ? (
+                <Button type="button" size="sm" onClick={() => setIsLaunchOpen(true)}>
+                  New Workflow
+                </Button>
+              ) : null}
+            </div>
+            {workflow && workspacePacket ? (
+              <WorkflowStateStrip
+                workflow={workflow}
+                stickyStrip={workspacePacket.sticky_strip}
+                workflowSettings={workflowSettingsQuery.data ?? null}
+                board={board}
+                selectedScopeLabel={selectedScopeLabel}
+                addWorkLabel={describeHeaderAddWorkLabel({
+                  scopeKind: tabScope,
+                  lifecycle: workflow?.lifecycle,
+                })}
+                onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
+                onAddWork={() => {
+                  setAddWorkTargetWorkItemId(
+                    resolveHeaderAddWorkTargetWorkItemId({
+                      scopeKind: tabScope,
+                      workItemId: boardSelection.workItemId,
+                    }),
+                  );
+                  setIsAddWorkOpen(true);
+                }}
+                onOpenRedrive={() => setIsRedriveOpen(true)}
+                onVisibilityModeChange={async (nextMode) => {
+                  const currentSettings = workflowSettingsQuery.data;
+                  if (!currentSettings) {
+                    return;
+                  }
+                  await dashboardApi.updateWorkflowSettings(pageState.workflowId as string, {
+                    live_visibility_mode: nextMode,
+                    settings_revision: currentSettings.revision,
+                  });
+                  await queryClient.invalidateQueries({
+                    queryKey: ['workflow-settings', pageState.workflowId],
+                  });
+                }}
+              />
             ) : null}
-          </div>
+          </section>
 
           {workflow && workspacePacket ? (
-            <div className="grid min-h-0 min-w-0 gap-1.5 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
-              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm">
-                <WorkflowStateStrip
-                  workflow={workflow}
-                  stickyStrip={workspacePacket.sticky_strip}
-                  workflowSettings={workflowSettingsQuery.data ?? null}
-                  board={board}
-                  selectedScopeLabel={selectedScopeLabel}
-                  addWorkLabel={describeHeaderAddWorkLabel({
-                    scopeKind: tabScope,
-                    lifecycle: workflow?.lifecycle,
-                  })}
-                  onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
-                  onAddWork={() => {
-                    setAddWorkTargetWorkItemId(
-                      resolveHeaderAddWorkTargetWorkItemId({
-                        scopeKind: tabScope,
-                        workItemId: boardSelection.workItemId,
-                      }),
-                    );
-                    setIsAddWorkOpen(true);
-                  }}
-                  onOpenRedrive={() => setIsRedriveOpen(true)}
-                  onVisibilityModeChange={async (nextMode) => {
-                    const currentSettings = workflowSettingsQuery.data;
-                    if (!currentSettings) {
-                      return;
-                    }
-                    await dashboardApi.updateWorkflowSettings(pageState.workflowId as string, {
-                      live_visibility_mode: nextMode,
-                      settings_revision: currentSettings.revision,
-                    });
-                    await queryClient.invalidateQueries({
-                      queryKey: ['workflow-settings', pageState.workflowId],
-                    });
-                  }}
-                />
-              </div>
-              <div
-                ref={workspaceSplitRef}
-                className={buildWorkflowWorkspaceSplitClassName()}
-                style={buildWorkflowWorkspaceSplitStyle(workbenchFraction)}
+            <div
+              ref={workspaceSplitRef}
+              className={buildWorkflowWorkspaceSplitClassName()}
+              style={buildWorkflowWorkspaceSplitStyle(workbenchFraction)}
+            >
+              <section
+                data-workflows-board-frame="true"
+                className="min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-transparent p-1.5"
               >
                 <WorkflowBoard
                   workflowId={workflow.id}
@@ -425,36 +433,41 @@ export function WorkflowsPage(): JSX.Element {
                     patchPageState(navigate, pageState, { workItemId })
                   }
                 />
-                <div className="relative hidden lg:flex items-center justify-center">
-                  <button
-                    type="button"
-                    aria-label="Resize workflow workbench"
-                    className="h-full w-full cursor-row-resize rounded-full bg-transparent transition-colors hover:bg-border/60"
-                    onPointerDown={(event) => {
-                      const splitContainer = workspaceSplitRef.current;
-                      if (!splitContainer) {
-                        return;
-                      }
-                      event.preventDefault();
-                      const startY = event.clientY;
-                      const startFraction = workbenchFraction;
-                      const containerHeight = splitContainer.getBoundingClientRect().height;
-                      const handlePointerMove = (moveEvent: PointerEvent) => {
-                        const delta = moveEvent.clientY - startY;
-                        const nextFraction = clampWorkflowWorkbenchFraction(
-                          startFraction - (delta / Math.max(containerHeight, 1)),
-                        );
-                        setWorkbenchFraction(nextFraction);
-                      };
-                      const handlePointerUp = () => {
-                        window.removeEventListener('pointermove', handlePointerMove);
-                        window.removeEventListener('pointerup', handlePointerUp);
-                      };
-                      window.addEventListener('pointermove', handlePointerMove);
-                      window.addEventListener('pointerup', handlePointerUp);
-                    }}
-                  />
-                </div>
+              </section>
+              <div className="relative hidden lg:flex items-center justify-center">
+                <button
+                  type="button"
+                  aria-label="Resize workflow workbench"
+                  className="h-full w-full cursor-row-resize rounded-full bg-transparent transition-colors hover:bg-border/60"
+                  onPointerDown={(event) => {
+                    const splitContainer = workspaceSplitRef.current;
+                    if (!splitContainer) {
+                      return;
+                    }
+                    event.preventDefault();
+                    const startY = event.clientY;
+                    const startFraction = workbenchFraction;
+                    const containerHeight = splitContainer.getBoundingClientRect().height;
+                    const handlePointerMove = (moveEvent: PointerEvent) => {
+                      const delta = moveEvent.clientY - startY;
+                      const nextFraction = clampWorkflowWorkbenchFraction(
+                        startFraction - (delta / Math.max(containerHeight, 1)),
+                      );
+                      setWorkbenchFraction(nextFraction);
+                    };
+                    const handlePointerUp = () => {
+                      window.removeEventListener('pointermove', handlePointerMove);
+                      window.removeEventListener('pointerup', handlePointerUp);
+                    };
+                    window.addEventListener('pointermove', handlePointerMove);
+                    window.addEventListener('pointerup', handlePointerUp);
+                  }}
+                />
+              </div>
+              <section
+                data-workflows-workbench-frame="true"
+                className="min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-transparent p-1.5"
+              >
                 <WorkflowBottomWorkbench
                   workflowId={workflow.id}
                   workflow={workflow}
@@ -492,13 +505,18 @@ export function WorkflowsPage(): JSX.Element {
                     setDeliverablesLimit((current) => current + DELIVERABLES_PAGE_SIZE)
                   }
                 />
-              </div>
+              </section>
             </div>
           ) : (
-            <EmptyWorkspaceState
-              hasWorkflows={((railPacket?.rows.length ?? 0) + (railPacket?.ongoing_rows.length ?? 0)) > 0}
-              onCreateWorkflow={() => setIsLaunchOpen(true)}
-            />
+            <section
+              data-workflows-workbench-frame="true"
+              className="min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-transparent p-1.5"
+            >
+              <EmptyWorkspaceState
+                hasWorkflows={((railPacket?.rows.length ?? 0) + (railPacket?.ongoing_rows.length ?? 0)) > 0}
+                onCreateWorkflow={() => setIsLaunchOpen(true)}
+              />
+            </section>
           )}
         </div>
       </div>

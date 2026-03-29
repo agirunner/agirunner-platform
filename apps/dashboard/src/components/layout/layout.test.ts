@@ -284,8 +284,9 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("label: 'Workflows'");
     expect(source).toContain('WORKFLOWS_NAV_HREF');
     expect(source).toContain("const WORKFLOWS_NAV_HREF = '/workflows'");
-    expect(source).toContain('SIDEBAR_WORKFLOWS_ACTIVE_CLASSES');
-    expect(source).toContain('SIDEBAR_WORKFLOWS_INACTIVE_CLASSES');
+    expect(source).not.toContain('SIDEBAR_WORKFLOWS_ACTIVE_CLASSES');
+    expect(source).not.toContain('SIDEBAR_WORKFLOWS_INACTIVE_CLASSES');
+    expect(source).not.toContain('isWorkflowsNavItem(item)');
     expect(source).toContain("'live operations'");
     expect(source).toContain("'action queue'");
     expect(source).toContain("'workflow canvas'");
@@ -341,6 +342,8 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain('bg-sky-100 text-sky-950');
     expect(source).toContain('dark:bg-white dark:text-slate-950');
     expect(source).toContain('bg-stone-50/85');
+    expect(source).not.toContain('bg-amber-200 text-amber-950');
+    expect(source).not.toContain('bg-amber-50 text-amber-950');
     expect(source).not.toContain('border-l border-border pl-2');
     expect(source).not.toContain('bg-accent/10 font-medium text-accent');
   });

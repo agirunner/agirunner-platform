@@ -258,18 +258,8 @@ const SIDEBAR_ACTIVE_ITEM_CLASSES =
 const SIDEBAR_INACTIVE_ITEM_CLASSES =
   'text-slate-700 hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800/90 dark:hover:text-slate-100';
 
-const SIDEBAR_WORKFLOWS_ACTIVE_CLASSES =
-  'bg-amber-200 text-amber-950 shadow-sm ring-1 ring-amber-300/90 dark:bg-amber-300 dark:text-slate-950 dark:font-semibold';
-
-const SIDEBAR_WORKFLOWS_INACTIVE_CLASSES =
-  'bg-amber-50 text-amber-950 ring-1 ring-amber-200/90 hover:bg-amber-100 hover:text-amber-950 dark:bg-amber-500/10 dark:text-amber-100 dark:ring-amber-500/40 dark:hover:bg-amber-500/15 dark:hover:text-amber-50';
-
 function readActiveElement(): HTMLElement | null {
   return document.activeElement instanceof HTMLElement ? document.activeElement : null;
-}
-
-function isWorkflowsNavItem(item: NavItem): boolean {
-  return item.href === WORKFLOWS_NAV_HREF;
 }
 
 function restoreFocusToElement(element: HTMLElement | null): boolean {
@@ -1011,13 +1001,7 @@ function NavSectionGroup({
                 cn(
                   'flex items-center justify-center rounded-lg px-0 py-2.5 transition-[background-color,color,box-shadow]',
                   FOCUS_RING_CLASSES,
-                  isWorkflowsNavItem(item)
-                    ? active
-                      ? SIDEBAR_WORKFLOWS_ACTIVE_CLASSES
-                      : SIDEBAR_WORKFLOWS_INACTIVE_CLASSES
-                    : active
-                      ? SIDEBAR_ACTIVE_ITEM_CLASSES
-                      : SIDEBAR_INACTIVE_ITEM_CLASSES,
+                  active ? SIDEBAR_ACTIVE_ITEM_CLASSES : SIDEBAR_INACTIVE_ITEM_CLASSES,
                 )
               }
             >
@@ -1058,13 +1042,7 @@ function NavSectionGroup({
                 cn(
                   'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color,box-shadow]',
                   FOCUS_RING_CLASSES,
-                  isWorkflowsNavItem(item)
-                    ? active
-                      ? SIDEBAR_WORKFLOWS_ACTIVE_CLASSES
-                      : SIDEBAR_WORKFLOWS_INACTIVE_CLASSES
-                    : active
-                      ? SIDEBAR_ACTIVE_ITEM_CLASSES
-                      : SIDEBAR_INACTIVE_ITEM_CLASSES,
+                  active ? SIDEBAR_ACTIVE_ITEM_CLASSES : SIDEBAR_INACTIVE_ITEM_CLASSES,
                 )
               }
             >

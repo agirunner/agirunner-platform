@@ -51,6 +51,36 @@ describe('WorkflowsRail', () => {
     expect(html).not.toContain('stays pinned while you browse other rail results');
   });
 
+  it('uses a stronger selected row treatment without reverting inner text to the default muted palette', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowsRail, {
+        mode: 'live',
+        search: '',
+        needsActionOnly: false,
+        ongoingOnly: false,
+        rows: [createRailRow({ workflow_id: 'workflow-selected', name: 'Workflow Selected' })],
+        ongoingRows: [],
+        selectedWorkflowId: 'workflow-selected',
+        selectedWorkflowRow: null,
+        hasNextPage: false,
+        isLoading: false,
+        onModeChange: vi.fn(),
+        onSearchChange: vi.fn(),
+        onNeedsActionOnlyChange: vi.fn(),
+        onShowAllOngoing: vi.fn(),
+        onClearOngoingFilter: vi.fn(),
+        onSelectWorkflow: vi.fn(),
+        onLoadMore: vi.fn(),
+        onCreateWorkflow: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('bg-sky-200/90');
+    expect(html).toContain('shadow-[0_12px_36px_rgba(14,165,233,0.26)]');
+    expect(html).toContain('text-inherit');
+    expect(html).not.toContain('bg-amber-100');
+  });
+
   it('treats Needs Action as a filter toggle instead of a second primary mode highlight', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowsRail, {
