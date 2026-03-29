@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import type { DashboardWorkflowWorkspacePacket } from '../../lib/api.js';
 import {
+  describeHeaderAddWorkLabel,
   describeWorkflowWorkbenchScope,
   buildWorkflowDiagnosticsHref,
   buildWorkflowsPageHref,
+  resolveHeaderAddWorkTargetWorkItemId,
   resolveBoardSelectionForLens,
   resolveWorkspacePlaceholderData,
   resolveWorkflowTabScope,
@@ -101,6 +103,48 @@ describe('workflows page support', () => {
       workItemId: 'work-item-7',
       taskId: 'task-4',
     });
+  });
+
+  it('opens header add-or-modify in modify mode only for explicit work-item scope', () => {
+    expect(
+      resolveHeaderAddWorkTargetWorkItemId({
+        scopeKind: 'selected_work_item',
+        workItemId: 'work-item-7',
+      }),
+    ).toBe('work-item-7');
+    expect(
+      resolveHeaderAddWorkTargetWorkItemId({
+        scopeKind: 'selected_task',
+        workItemId: 'work-item-7',
+      }),
+    ).toBeNull();
+    expect(
+      resolveHeaderAddWorkTargetWorkItemId({
+        scopeKind: 'workflow',
+        workItemId: 'work-item-7',
+      }),
+    ).toBeNull();
+  });
+
+  it('describes the header add-work label from the active scope and lifecycle', () => {
+    expect(
+      describeHeaderAddWorkLabel({
+        scopeKind: 'selected_work_item',
+        lifecycle: 'ongoing',
+      }),
+    ).toBe('Modify Work');
+    expect(
+      describeHeaderAddWorkLabel({
+        scopeKind: 'selected_task',
+        lifecycle: 'ongoing',
+      }),
+    ).toBe('Add Intake');
+    expect(
+      describeHeaderAddWorkLabel({
+        scopeKind: 'workflow',
+        lifecycle: 'planned',
+      }),
+    ).toBe('Add Work');
   });
 
   it('describes the exact workbench scope banner for workflow, work item, and task views', () => {
