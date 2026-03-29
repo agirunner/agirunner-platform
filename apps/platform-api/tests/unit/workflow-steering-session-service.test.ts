@@ -390,4 +390,122 @@ describe('WorkflowSteeringSessionService', () => {
       }),
     );
   });
+
+  it('records task-scoped steering with the task id in the linked intervention payload', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows') && sql.includes('SELECT id')) {
+        return {
+          rowCount: 1,
+          rows: [{ id: 'workflow-1' }],
+        };
+      }
+      if (sql.includes('FROM tasks') && sql.includes('SELECT work_item_id')) {
+        expect(params).toEqual(['tenant-1', 'workflow-1', 'task-1']);
+        return {
+          rowCount: 1,
+          rows: [{ work_item_id: 'work-item-1' }],
+        };
+      }
+      if (sql.includes('FROM workflow_work_items') && sql.includes('SELECT id')) {
+        expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
+        return {
+          rowCount: 1,
+          rows: [{ id: 'work-item-1' }],
+        };
+      }
+      if (sql.includes('INSERT INTO workflow_steering_sessions')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'session-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            title: 'Keep the task limited to the current rollback-safe scope.',
+            status: 'open',
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: new Date('2026-03-27T10:00:00.000Z'),
+            updated_at: new Date('2026-03-27T10:00:00.000Z'),
+            last_message_at: null,
+          }],
+        };
+      }
+      if (sql.includes('FROM workflow_steering_sessions') && sql.includes('AND id = $3')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'session-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            title: 'Keep the task limited to the current rollback-safe scope.',
+            status: 'open',
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: new Date('2026-03-27T10:00:00.000Z'),
+            updated_at: new Date('2026-03-27T10:00:00.000Z'),
+            last_message_at: null,
+          }],
+        };
+      }
+      if (sql.includes('INSERT INTO workflow_steering_messages')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: params?.[6] === 'steering_response' ? 'message-2' : 'message-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            steering_session_id: 'session-1',
+            source_kind: params?.[5],
+            message_kind: params?.[6],
+            headline: params?.[7],
+            body: params?.[8] ?? null,
+            linked_intervention_id: params?.[9] ?? null,
+            linked_input_packet_id: params?.[10] ?? null,
+            linked_operator_update_id: params?.[11] ?? null,
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: new Date('2026-03-27T10:05:00.000Z'),
+          }],
+        };
+      }
+      if (sql.includes('UPDATE workflow_steering_sessions')) {
+        return { rowCount: 1, rows: [] };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+    interventionService.recordIntervention.mockResolvedValue({ id: 'intervention-task-1' });
+
+    const result = await service.recordSteeringRequest(IDENTITY as never, 'workflow-1', {
+      requestId: 'request-task-1',
+      request: 'Keep the task limited to the current rollback-safe scope.',
+      taskId: 'task-1',
+      linkedInputPacketIds: ['packet-task-1'],
+    });
+
+    expect(interventionService.recordIntervention).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({
+        requestId: 'request-task-1',
+        workItemId: 'work-item-1',
+        taskId: 'task-1',
+        structuredAction: expect.objectContaining({
+          kind: 'steer_task',
+          task_id: 'task-1',
+          work_item_id: 'work-item-1',
+          linked_input_packet_ids: ['packet-task-1'],
+        }),
+      }),
+    );
+    expect(result).toEqual(
+      expect.objectContaining({
+        resulting_work_item_id: 'work-item-1',
+        linked_intervention_ids: ['intervention-task-1'],
+        linked_input_packet_ids: ['packet-task-1'],
+      }),
+    );
+  });
 });

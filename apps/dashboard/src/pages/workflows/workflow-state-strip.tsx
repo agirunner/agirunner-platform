@@ -58,6 +58,7 @@ export function WorkflowStateStrip(props: {
           <WorkflowControlActions
             workflowId={props.workflow.id}
             workflowState={props.workflow.state}
+            workflowPosture={sticky?.posture ?? props.workflow.posture}
             workspaceId={props.workflow.workspaceId}
             additionalQueryKeys={[['workflows']]}
             availableActions={props.workflow.availableActions}

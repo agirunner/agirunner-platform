@@ -312,4 +312,92 @@ describe('GuidedClosureRecoveryHelpersService', () => {
 
     expect(supersedeCall?.[1]).toEqual(['tenant-1', 'workflow-1', 'wi-1']);
   });
+
+  it('preserves the current board column when missing-handoff recovery reopens a paused workflow work item', async () => {
+    const definitionWithActiveColumn = {
+      ...definition,
+      board: {
+        columns: [
+          { id: 'planned', label: 'Planned' },
+          { id: 'active', label: 'Active' },
+          { id: 'done', label: 'Done', is_terminal: true },
+        ],
+      },
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflow_work_items wi')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-1',
+              workflow_id: 'workflow-1',
+              stage_name: 'review',
+              column_id: 'done',
+              completed_at: new Date('2026-03-24T10:00:00Z'),
+              metadata: { orchestrator_finish_state: { finished: true } },
+              completion_callouts: {},
+              updated_at: new Date('2026-03-24T10:00:00Z'),
+              definition: definitionWithActiveColumn,
+              workflow_state: 'paused',
+              workflow_metadata: { pause_requested_at: '2026-03-24T10:01:00Z' },
+            }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_work_items') && sql.includes('completed_at = NULL')) {
+          expect(params?.[3]).toBe('done');
+          expect(params?.[4]).toBe('The predecessor exited without a full handoff.');
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-1',
+              workflow_id: 'workflow-1',
+              stage_name: 'review',
+              column_id: 'done',
+              completed_at: null,
+              metadata: { guided_closure: { last_reopen_reason: 'The predecessor exited without a full handoff.' } },
+              completion_callouts: {},
+              updated_at: new Date('2026-03-24T10:06:00Z'),
+              definition: definitionWithActiveColumn,
+              workflow_state: 'paused',
+              workflow_metadata: { pause_requested_at: '2026-03-24T10:01:00Z' },
+            }],
+          };
+        }
+        if (
+          sql.includes('UPDATE workflow_output_descriptors')
+          && sql.includes("SET state = 'superseded'")
+          && sql.includes('work_item_id = $3')
+        ) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-1']);
+          return {
+            rowCount: 1,
+            rows: [{ id: 'descriptor-1' }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const service = new GuidedClosureRecoveryHelpersService({
+      pool: {} as never,
+      eventService: eventService as never,
+      taskService: {
+        updateTaskInput: vi.fn(),
+        retryTask: vi.fn(),
+        reassignTask: vi.fn(),
+      } as never,
+      workflowControlService: {
+        completeWorkItem: vi.fn(),
+        completeWorkflow: vi.fn(),
+      } as never,
+    });
+
+    const result = await service.reopenWorkItemForMissingHandoff(identity as never, 'workflow-1', 'wi-1', {
+      reason: 'The predecessor exited without a full handoff.',
+    }, client as never);
+
+    expect(result.column_id).toBe('done');
+    expect(result.completed_at).toBeNull();
+  });
 });

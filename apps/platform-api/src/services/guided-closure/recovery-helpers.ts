@@ -53,6 +53,8 @@ interface RecoveryWorkItemRow {
   stage_name: string;
   column_id: string;
   completed_at: Date | null;
+  workflow_state: string | null;
+  workflow_metadata: Record<string, unknown> | null;
   metadata: Record<string, unknown>;
   completion_callouts: Record<string, unknown>;
   definition: unknown;
@@ -290,7 +292,7 @@ export class GuidedClosureRecoveryHelpersService {
     }
 
     const definition = parsePlaybookDefinition(current.definition as Record<string, unknown>);
-    const reopenColumnId = activeColumnId(definition) ?? defaultColumnId(definition) ?? current.column_id;
+    const reopenColumnId = resolveRecoveryReopenColumnId(current, definition);
     const updated = await db.query<RecoveryWorkItemRow>(
       `UPDATE workflow_work_items
           SET column_id = $4,
@@ -355,6 +357,8 @@ export class GuidedClosureRecoveryHelpersService {
               wi.stage_name,
               wi.column_id,
               wi.completed_at,
+              w.state AS workflow_state,
+              w.metadata AS workflow_metadata,
               wi.metadata,
               wi.completion_callouts,
               wi.updated_at,
@@ -396,6 +400,24 @@ function toRecoveryWorkItemResponse(row: RecoveryWorkItemRow) {
     completion_callouts: completionCalloutsSchema.parse(row.completion_callouts ?? {}),
     updated_at: row.updated_at.toISOString(),
   };
+}
+
+function resolveRecoveryReopenColumnId(
+  current: RecoveryWorkItemRow,
+  definition: ReturnType<typeof parsePlaybookDefinition>,
+): string {
+  if (current.workflow_state === 'paused' || hasPendingWorkflowCancel(current.workflow_metadata)) {
+    return current.column_id;
+  }
+  return activeColumnId(definition) ?? defaultColumnId(definition) ?? current.column_id;
+}
+
+function hasPendingWorkflowCancel(metadata: unknown): boolean {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return false;
+  }
+  const value = (metadata as Record<string, unknown>).cancel_requested_at;
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 async function emitRecoveryWorkItemEvents(

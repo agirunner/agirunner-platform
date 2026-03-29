@@ -1,5 +1,6 @@
 interface WorkflowControlStateInput {
   state?: string | null;
+  workflowPosture?: string | null;
   availableActions?: Array<{
     kind: string;
     scope?: string;
@@ -22,10 +23,12 @@ export function getWorkflowControlAvailability(
   }
 
   const state = input.state?.trim().toLowerCase() ?? '';
+  const posture = input.workflowPosture?.trim().toLowerCase() ?? '';
+  const isCancelling = posture === 'cancelling';
   return {
-    canPause: state === 'active',
-    canResume: state === 'paused',
-    canCancel: state === 'active' || state === 'paused',
+    canPause: state === 'active' && !isCancelling,
+    canResume: state === 'paused' && !isCancelling,
+    canCancel: (state === 'active' || state === 'paused') && !isCancelling,
   };
 }
 

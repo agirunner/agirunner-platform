@@ -436,6 +436,36 @@ describe('WorkflowStateStrip', () => {
     expect(html).not.toContain('>Cancel<');
   });
 
+  it('does not render resume or cancel controls while a paused workflow is already cancelling and actions have not loaded yet', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            state: 'paused',
+            posture: 'cancelling',
+            availableActions: [],
+          }),
+          stickyStrip: createStickyStrip({
+            posture: 'cancelling',
+          }),
+          workflowSettings: null,
+          board: createBoard(),
+          selectedScopeLabel: null,
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onVisibilityModeChange: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).not.toContain('>Pause<');
+    expect(html).not.toContain('>Resume<');
+    expect(html).not.toContain('>Cancel<');
+  });
+
   it('describes pre-dispatch activity as workflow orchestration instead of hidden board work', () => {
     const html = renderToStaticMarkup(
       createElement(

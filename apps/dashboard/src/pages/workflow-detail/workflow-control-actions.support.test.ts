@@ -55,6 +55,20 @@ describe('workflow control action availability', () => {
     });
   });
 
+  it('keeps resume and cancel hidden when cancellation is already in progress during fallback gating', () => {
+    expect(
+      getWorkflowControlAvailability({
+        state: 'paused',
+        availableActions: [],
+        workflowPosture: 'cancelling',
+      }),
+    ).toEqual({
+      canPause: false,
+      canResume: false,
+      canCancel: false,
+    });
+  });
+
   it('ignores non-workflow scoped action rows when deciding header controls', () => {
     expect(
       getWorkflowControlAvailability({

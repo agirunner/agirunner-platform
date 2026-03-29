@@ -21,6 +21,7 @@ import { getWorkflowControlAvailability } from './workflow-control-actions.suppo
 interface WorkflowControlActionsProps {
   workflowId: string;
   workflowState?: string | null;
+  workflowPosture?: string | null;
   workspaceId?: string | null;
   size?: ButtonProps['size'];
   className?: string;
@@ -54,6 +55,7 @@ export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.
   const queryClient = useQueryClient();
   const availability = getWorkflowControlAvailability({
     state: props.workflowState,
+    workflowPosture: props.workflowPosture,
     availableActions: props.availableActions,
   });
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
