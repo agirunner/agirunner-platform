@@ -60,6 +60,11 @@ describe('WorkflowLiveConsoleService', () => {
     const result = await service.getLiveConsole('tenant-1', 'workflow-1', { limit: 5 });
 
     expect(result.total_count).toBe(12);
+    expect(result.counts).toEqual({
+      all: 12,
+      turn_updates: 0,
+      briefs: 12,
+    });
     expect(result.items).toHaveLength(5);
     expect(result.next_cursor).not.toBeNull();
   });
@@ -166,6 +171,11 @@ describe('WorkflowLiveConsoleService', () => {
       }),
     ]);
     expect(result.total_count).toBe(1);
+    expect(result.counts).toEqual({
+      all: 1,
+      turn_updates: 1,
+      briefs: 0,
+    });
   });
 
   it('queries runtime loop phase rows so think and plan items are not dropped from enhanced mode', async () => {

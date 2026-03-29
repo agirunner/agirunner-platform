@@ -9,6 +9,7 @@ import {
   type WorkflowLiveConsolePacket,
   type WorkflowWorkspacePacket,
 } from './workflow-operations-types.js';
+import { buildWorkflowLiveConsoleCounts } from './workflow-live-console-counts.js';
 import { buildExecutionTurnItems } from './workflow-execution-log-composer.js';
 import {
   compareCursorTargets,
@@ -124,6 +125,7 @@ export class WorkflowLiveConsoleService {
       snapshot_version: buildWorkflowOperationsSnapshotVersion(version.version.latestEventId),
       items: page.items,
       total_count: scopedItems.length,
+      counts: buildWorkflowLiveConsoleCounts(scopedItems),
       next_cursor: page.nextCursor,
       live_visibility_mode: workflowSettings.effective_live_visibility_mode,
     };

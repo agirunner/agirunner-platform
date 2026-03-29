@@ -28,6 +28,7 @@ import type {
   WorkflowLiveConsoleItem,
   WorkflowWorkspacePacket,
 } from './workflow-operations-types.js';
+import { buildWorkflowLiveConsoleCounts } from './workflow-live-console-counts.js';
 import { filterLiveConsoleItemsForSelectedScope } from './workflow-live-console-scope.js';
 
 interface WorkflowWorkspaceQuery {
@@ -603,6 +604,7 @@ function filterLiveConsoleForSelectedScope(
     ...packet,
     items: filteredItems,
     total_count: filteredItems.length,
+    counts: buildWorkflowLiveConsoleCounts(filteredItems),
   };
 }
 

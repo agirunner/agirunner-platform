@@ -96,6 +96,11 @@ export interface WorkflowLiveConsoleItem {
 export interface WorkflowLiveConsolePacket extends WorkflowOperationsSnapshot {
   items: WorkflowLiveConsoleItem[];
   total_count: number;
+  counts: {
+    all: number;
+    turn_updates: number;
+    briefs: number;
+  };
   next_cursor: string | null;
   live_visibility_mode: 'standard' | 'enhanced';
 }
