@@ -204,7 +204,7 @@ describe('buildWorkflowBoardView', () => {
       },
     );
 
-    expect(summary).toBe('In Progress: Reviewer packet is ready for approval');
+    expect(summary).toBe('Working now: Reviewer on Reviewer packet is ready for approval');
   });
 
   it('falls back to the next expected action when no task headline is available', () => {

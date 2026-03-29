@@ -214,16 +214,44 @@ function isRecentlyCompleted(value: string | null | undefined): boolean {
 }
 
 function readPrimaryTaskSummary(taskSummary: WorkflowTaskPreviewSummary): string | null {
-  const primaryTask = taskSummary.tasks[0];
+  const activeTasks = taskSummary.tasks.filter((task) => isActiveTaskState(task.state));
+  const primaryTask = activeTasks[0] ?? taskSummary.tasks[0];
   if (!primaryTask) {
     return null;
   }
   const title = readSummaryText(primaryTask.title);
-  if (!title) {
-    return null;
+  const role = humanizeToken(primaryTask.role);
+  if (activeTasks.length > 0) {
+    const activeTaskSuffix = activeTasks.length > 1 ? ` (+${activeTasks.length - 1} more)` : '';
+    if (role && title) {
+      return `Working now: ${role} on ${title}${activeTaskSuffix}`;
+    }
+    if (title) {
+      return `Working now: ${title}${activeTaskSuffix}`;
+    }
+    if (role) {
+      return `Working now: ${role}${activeTaskSuffix}`;
+    }
+    return 'Work is in progress.';
   }
-  const state = humanizeToken(primaryTask.state);
-  return state ? `${state}: ${title}` : title;
+  if (role && title) {
+    return `Latest task: ${role} on ${title}`;
+  }
+  if (title) {
+    const state = humanizeToken(primaryTask.state);
+    return state ? `${state}: ${title}` : title;
+  }
+  return role ? `Latest task: ${role}` : null;
+}
+
+function isActiveTaskState(state: string | null | undefined): boolean {
+  return (
+    state === 'ready' ||
+    state === 'claimed' ||
+    state === 'in_progress' ||
+    state === 'awaiting_approval' ||
+    state === 'output_pending_assessment'
+  );
 }
 
 function readNextExpectedSummary(workItem: DashboardWorkflowWorkItemRecord): string | null {

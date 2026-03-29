@@ -383,11 +383,56 @@ describe('WorkflowBoard', () => {
       ),
     );
 
-    expect(html).toContain('In Progress: Approval packet ready for reviewer handoff');
+    expect(html).toContain(
+      'Working now: Policy Assessor on Approval packet ready for reviewer handoff',
+    );
     expect(html).not.toContain(
       'Compile the full intake record, restate the packet request, and keep the old background visible.',
     );
     expect(html).not.toContain('>2 tasks<');
+  });
+
+  it('surfaces the active specialist directly in the work-item summary line', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: createBoard(),
+          selectedWorkItemId: 'work-item-1',
+          selectedTaskId: null,
+          boardLens: 'work_items',
+          boardMode: 'active_recent_complete',
+          taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
+            [
+              'work-item-1',
+              {
+                tasks: [
+                  {
+                    id: 'task-architect',
+                    title: 'Draft technical design',
+                    role: 'mixed-architecture-lead',
+                    state: 'in_progress',
+                    workItemId: 'work-item-1',
+                    workItemTitle: 'Review incoming packet',
+                    stageName: 'intake-triage',
+                  },
+                ],
+                hasActiveOrchestratorTask: true,
+              },
+            ],
+          ]),
+          onBoardLensChange: vi.fn(),
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+          onSelectTask: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Working now: Mixed Architecture Lead on Draft technical design');
+    expect(html).toContain('Orchestrator working');
   });
 
   it('keeps paused work in its lane and marks it as paused', () => {
