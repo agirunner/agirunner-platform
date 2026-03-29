@@ -141,7 +141,7 @@ function readBrowserTargets(
       if (!href) {
         continue;
       }
-      const downloadHref = resolveArtifactDownloadHref(href);
+      const downloadHref = resolveBrowserDownloadHref(href);
       const artifactKey = readArtifactIdentityKey(resolvedTarget.target, downloadHref);
       if (seenArtifactKeys.has(artifactKey)) {
         continue;
@@ -151,7 +151,7 @@ function readBrowserTargets(
         ...resolvedTarget,
         label,
         browser_kind: 'artifact',
-        previewHref: resolveArtifactPreviewHref(href),
+        previewHref: resolveBrowserPreviewHref(href),
         downloadHref,
       });
       continue;
@@ -200,15 +200,18 @@ function readResolvedTargets(deliverable: DashboardWorkflowDeliverableRecord): R
   return resolvedTargets;
 }
 
-function resolveArtifactPreviewHref(href: string): string | null {
-  return rewriteArtifactTransportPath(href, 'preview');
+function resolveBrowserPreviewHref(href: string): string | null {
+  return rewriteTaskArtifactTransportPath(href, 'preview') ?? href;
 }
 
-function resolveArtifactDownloadHref(href: string): string {
-  return rewriteArtifactTransportPath(href, 'download') ?? href;
+function resolveBrowserDownloadHref(href: string): string {
+  return rewriteTaskArtifactTransportPath(href, 'download') ?? href;
 }
 
-function rewriteArtifactTransportPath(href: string, mode: 'preview' | 'download'): string | null {
+function rewriteTaskArtifactTransportPath(
+  href: string,
+  mode: 'preview' | 'download',
+): string | null {
   try {
     const parsed = new URL(href, 'http://dashboard.local');
     const taskArtifactMatch = parsed.pathname.match(

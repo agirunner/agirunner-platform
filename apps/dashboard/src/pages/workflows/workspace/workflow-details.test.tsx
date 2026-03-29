@@ -36,7 +36,7 @@ describe('WorkflowDetails', () => {
       '<h3 class="text-base font-semibold text-foreground">Prepare release bundle</h3>',
     );
     expect(html).toContain('Release Workflow');
-    expect(html).toContain('Check the final release packet and approve it.');
+    expect(html).toContain('Assemble final artifacts for launch.');
     expect(html).toContain('Basics');
     expect(html).toContain('Stage');
     expect(html).toContain('Release');
@@ -47,6 +47,7 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Inputs');
     expect(html).toContain('Rollback guide');
     expect(html).toContain('rollback.md');
+    expect(html).not.toContain('Check the final release packet and approve it.');
     expect(html).not.toContain(
       '<h3 class="text-base font-semibold text-foreground">Verify deliverable</h3>',
     );
@@ -55,7 +56,7 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Next expected');
   });
 
-  it('shows latest selected-task context as work-item context without leaking internal fields', () => {
+  it('does not surface selected-task input context after task scope is normalized away', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
         workflow: createWorkflow(),
@@ -84,13 +85,13 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain('Current context');
     expect(html).toContain('Inputs');
-    expect(html).toContain('Requested deliverable');
-    expect(html).toContain(
+    expect(html).toContain('Rollback guide');
+    expect(html).not.toContain('Current context');
+    expect(html).not.toContain('Requested deliverable');
+    expect(html).not.toContain(
       'A full policy assessment handoff with readiness decision, evidence, and rework guidance.',
     );
-    expect(html).not.toContain('Latest task context');
     expect(html).not.toContain('Artifact Id');
     expect(html).not.toContain('artifact-1');
     expect(html).not.toContain('Work Item Id');

@@ -111,6 +111,41 @@ describe('WorkflowDeliverableBrowser', () => {
     );
   });
 
+  it('keeps workflow file targets previewable inline without a deprecated route jump', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverableBrowser, {
+        deliverable: {
+          descriptor_id: 'deliverable-workflow-file-1',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Launch packet file',
+          state: 'final',
+          summary_brief: 'Workflow file targets should stay previewable in place.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'input_packet_file',
+            label: 'Launch packet',
+            url: 'http://localhost:3000/api/v1/workflows/workflow-1/input-packets/packet-1/files/file-1/content',
+            path: 'inputs/launch-summary.pdf',
+            artifact_id: 'file-1',
+          },
+          secondary_targets: [],
+          content_preview: {},
+          source_brief_id: null,
+          created_at: '2026-03-29T00:00:00.000Z',
+          updated_at: '2026-03-29T00:00:00.000Z',
+        },
+      }),
+    );
+
+    expect(html).toContain('Download file');
+    expect(html).toContain('<iframe');
+    expect(html).toContain('/api/v1/workflows/workflow-1/input-packets/packet-1/files/file-1/content');
+    expect(html).not.toContain('Preview is unavailable for this file.');
+  });
+
   it('uses artifact file names for selector labels when stored labels are navigation verbs', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverableBrowser, {

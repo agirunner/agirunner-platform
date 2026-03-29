@@ -80,8 +80,8 @@ describe('WorkflowDeliverables', () => {
     );
 
     expect(html).toContain('Workflow deliverables (0)');
-    expect(html).toContain('Working briefs are currently the only material output for this layer.');
-    expect(html).toContain('Working brief');
+    expect(html).toContain('Working handoffs are currently the only material output for this layer.');
+    expect(html).toContain('Working handoff');
     expect(html).toContain('No work item deliverables are available yet.');
     expect(html).not.toContain('Working briefs (1)');
   });
@@ -194,7 +194,7 @@ describe('WorkflowDeliverables', () => {
     expect(html).not.toContain('Final deliverables (1)');
   });
 
-  it('keeps task scope anchored on task evidence and clearly labels the parent work-item deliverables', () => {
+  it('normalizes stale task scope into work-item deliverables without rendering task-only evidence', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createTaskScopePacket(),
@@ -212,17 +212,17 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Task output and evidence');
-    expect(html).toContain('Generate release bundle');
-    expect(html).toContain('Showing parent work item deliverables from Prepare release bundle.');
-    expect(html).toContain('Workflow deliverables stay visible below the parent work item.');
+    expect(html).toContain('Work item + workflow deliverables');
+    expect(html).toContain('Showing work item deliverables for Prepare release bundle, followed by workflow deliverables.');
     expect(html).toContain('artifact-1');
-    expect(html).toContain('Parent work item deliverables (1)');
-    expect(html).toContain('Deliverables promoted from Prepare release bundle stay here.');
+    expect(html).toContain('Work item deliverables (1)');
     expect(html).toContain('Workflow deliverables (0)');
-    expect(html).toContain('Workflow-wide deliverables stay visible below the parent work item.');
     expect(html).toContain('No workflow deliverables are available yet.');
     expect(html).toContain('No inputs or intervention files are attached to this work item.');
+    expect(html).not.toContain('Task output and evidence');
+    expect(html).not.toContain('Generate release bundle');
+    expect(html).not.toContain('Parent work item deliverables');
+    expect(html).not.toContain('Deliverables promoted from Prepare release bundle stay here.');
     expect(html).not.toContain('Final deliverables (1)');
     expect(html).not.toContain('In-progress deliverables (0)');
     expect(html).not.toContain(
@@ -248,13 +248,15 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Showing parent work item deliverables from Prepare release bundle.');
+    expect(html).toContain(
+      'Showing work item deliverables for Prepare release bundle, followed by workflow deliverables.',
+    );
     expect(html).not.toContain(
-      'Showing parent work item deliverables from Generate release bundle.',
+      'Showing work item deliverables for Generate release bundle, followed by workflow deliverables.',
     );
   });
 
-  it('separates task evidence, parent work-item deliverables, and workflow deliverables in task scope', () => {
+  it('keeps work-item and workflow deliverables visible after task scope is normalized away', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createMixedScopePacket(),
@@ -272,16 +274,16 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Task output and evidence');
-    expect(html).toContain('Parent work item deliverables (1)');
+    expect(html).toContain('Work item deliverables (1)');
     expect(html).toContain('Workflow deliverables (1)');
     expect(html).toContain('Release checklist');
     expect(html).toContain('Program status brief');
+    expect(html).not.toContain('Task output and evidence');
     expect(html).not.toContain('Final deliverables (2)');
     expect(html).not.toContain('Workflow deliverables stay available in workflow scope.');
   });
 
-  it('keeps task scope ordered even when a deliverable is backed by a brief', () => {
+  it('keeps stale task scope ordered as work-item deliverables followed by workflow deliverables', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createTaskScopePacketWithWorkItemBrief(),
@@ -300,16 +302,103 @@ describe('WorkflowDeliverables', () => {
     );
 
     expect(html).not.toContain('Outcome Brief');
-    expect(html.indexOf('Task output and evidence')).toBeLessThan(
-      html.indexOf('Parent work item deliverables (1)'),
-    );
-    expect(html.indexOf('Parent work item deliverables (1)')).toBeLessThan(
+    expect(html.indexOf('Work item deliverables (1)')).toBeLessThan(
       html.indexOf('Workflow deliverables (0)'),
     );
     expect(html).toContain('Release bundle');
-    expect(html).toContain('Release bundle brief');
-    expect(html).toContain('Working briefs (1)');
+    expect(html).not.toContain('Release bundle brief');
+    expect(html).not.toContain('Working handoffs (1)');
+    expect(html).not.toContain('Task output and evidence');
     expect(html).not.toContain('Briefs (1)');
+  });
+
+  it('surfaces in-progress working handoffs even when a layer already has material deliverables', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: {
+          final_deliverables: [
+            {
+              descriptor_id: 'deliverable-work-item-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              descriptor_kind: 'deliverable_packet',
+              delivery_stage: 'final',
+              title: 'Blueprint completion packet',
+              state: 'final',
+              summary_brief: 'The finalized packet is already available.',
+              preview_capabilities: {},
+              primary_target: {
+                target_kind: 'inline_summary',
+                label: 'Review completion packet',
+                url: '',
+              },
+              secondary_targets: [],
+              content_preview: {
+                summary: 'Blueprint completion packet is ready.',
+              },
+              source_brief_id: null,
+              created_at: '2026-03-29T18:44:23.277Z',
+              updated_at: '2026-03-29T18:44:23.277Z',
+            },
+          ],
+          in_progress_deliverables: [],
+          working_handoffs: [
+            {
+              id: 'brief-work-item-in-progress-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              task_id: 'task-1',
+              request_id: 'request-work-item-in-progress-1',
+              execution_context_id: 'task-1',
+              brief_kind: 'milestone',
+              brief_scope: 'deliverable_context',
+              source_kind: 'specialist',
+              source_role_name: 'Policy Assessor',
+              status_kind: 'in_progress',
+              short_brief: { headline: 'Policy assessment packet is being prepared.' },
+              detailed_brief_json: {
+                headline: 'Policy assessment packet is being prepared.',
+                summary: 'The specialist has not finalized the deliverable yet, but the working handoff already exists.',
+                status_kind: 'in_progress',
+              },
+              linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
+              sequence_number: 11,
+              related_artifact_ids: [],
+              related_output_descriptor_ids: [],
+              related_intervention_ids: [],
+              canonical_workflow_brief_id: null,
+              created_by_type: 'agent',
+              created_by_id: 'agent-1',
+              created_at: '2026-03-29T15:17:00.000Z',
+              updated_at: '2026-03-29T15:17:00.000Z',
+            },
+          ],
+          inputs_and_provenance: {
+            launch_packet: null,
+            supplemental_packets: [],
+            intervention_attachments: [],
+            redrive_packet: null,
+          },
+          next_cursor: null,
+        },
+        selectedTask: null,
+        selectedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Work item deliverables (1)');
+    expect(html).toContain('Blueprint completion packet');
+    expect(html).toContain('Working handoffs (1)');
+    expect(html).toContain('Policy assessment packet is being prepared.');
   });
 
   it('reclassifies final packets out of the in-progress bucket for selected task scope', () => {
@@ -388,7 +477,7 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Parent work item deliverables (2)');
+    expect(html).toContain('Work item deliverables (2)');
     expect(html.indexOf('Final packet')).toBeLessThan(html.indexOf('Draft packet'));
   });
 
@@ -834,7 +923,7 @@ describe('WorkflowDeliverables', () => {
     );
 
     expect(html).toContain('Work item deliverables (0)');
-    expect(html).toContain('Working briefs are currently the only material output for this layer.');
+    expect(html).toContain('Working handoffs are currently the only material output for this layer.');
     expect(html).toContain('workflow-intake-01 is approved and ready to remain open.');
     expect(html).toContain('Workflow deliverables (1)');
     expect(html).toContain('Workflow release brief');

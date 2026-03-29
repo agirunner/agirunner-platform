@@ -32,9 +32,6 @@ export function WorkflowDetails(props: {
   const workflowPackets = isWorkflowScope
     ? props.inputPackets.filter((packet) => packet.work_item_id === null)
     : [];
-  const latestTaskContextEntries = isWorkItemScope
-    ? readOperatorFacingEntries(props.selectedTask?.input ?? null)
-    : [];
   const shouldShowParentWorkItemInputs = isWorkItemScope && Boolean(selectedWorkItemId);
   const compactTaskRows = isWorkItemScope ? readCompactTaskRows(props.selectedWorkItemTasks) : [];
   const workItemPackets =
@@ -45,7 +42,6 @@ export function WorkflowDetails(props: {
   const basicEntries = buildBasicEntries({ ...props, board: props.board, scope: normalizedScope });
   const inputGroups = buildInputGroups({
     isWorkflowScope,
-    latestTaskContextEntries,
     workflowParameters: props.workflowParameters,
     workflowPackets,
     workItemPackets,
@@ -256,7 +252,6 @@ function buildBasicEntries(props: {
 
 function buildInputGroups(props: {
   isWorkflowScope: boolean;
-  latestTaskContextEntries: Array<[string, string]>;
   workflowParameters: Record<string, unknown> | null;
   workflowPackets: DashboardWorkflowInputPacketRecord[];
   workItemPackets: DashboardWorkflowInputPacketRecord[];
@@ -272,15 +267,6 @@ function buildInputGroups(props: {
     entries: Array<[string, string]>;
     files: DashboardWorkflowInputPacketFileRecord[];
   }> = [];
-
-  if (props.latestTaskContextEntries.length > 0) {
-    groups.push({
-      key: 'current-context',
-      title: 'Current context',
-      entries: props.latestTaskContextEntries,
-      files: [],
-    });
-  }
 
   const launchInputEntries = props.isWorkflowScope
     ? readOperatorFacingEntries(props.workflowParameters)
@@ -343,13 +329,9 @@ function buildDetailsScope(props: {
       latest_status: buildWorkItemLatestStatus(
         props.selectedWorkItem,
         props.selectedWorkItemTasks,
-        props.selectedTask,
       ),
       workflow_name: props.workflow.name,
-      context:
-        readOptionalText(props.selectedTask?.description) ??
-        readOptionalText(props.selectedWorkItem?.goal) ??
-        null,
+      context: readOptionalText(props.selectedWorkItem?.goal) ?? null,
     };
   }
 
@@ -364,22 +346,9 @@ function buildDetailsScope(props: {
   };
 }
 
-function buildTaskLatestStatus(task: DashboardTaskRecord | null): string | null {
-  if (!task) {
-    return null;
-  }
-  const parts = [humanizeToken(task.state)];
-  const role = readOptionalText(task.role);
-  if (role) {
-    parts.push(`for ${humanizeToken(role)}`);
-  }
-  return parts.join(' ');
-}
-
 function buildWorkItemLatestStatus(
   workItem: DashboardWorkflowWorkItemRecord | null,
   tasks: Record<string, unknown>[],
-  latestTask: DashboardTaskRecord | null,
 ): string {
   const blockedReason =
     readOptionalText(workItem?.blocked_reason) ??
@@ -387,25 +356,15 @@ function buildWorkItemLatestStatus(
   if (blockedReason) {
     return blockedReason;
   }
-  const latestTaskStatus = buildTaskLatestStatus(latestTask);
-  if (latestTaskStatus) {
-    return latestTaskStatus;
+  const taskHeadline = buildTaskHeadline(tasks);
+  if (taskHeadline) {
+    return taskHeadline;
   }
-  return buildTaskHeadline(tasks) ?? 'Work item details are loading.';
-}
-
-function buildTaskHeadline(tasks: Record<string, unknown>[]): string | null {
-  const counts = readTaskCounts(tasks);
-  if (!counts) {
-    return null;
+  const nextExpectedAction = readOptionalText(workItem?.next_expected_action);
+  if (nextExpectedAction) {
+    return nextExpectedAction;
   }
-  if (counts.blockedCount > 0) {
-    return `${counts.blockedCount} blocked ${pluralize('task', counts.blockedCount)}`;
-  }
-  if (counts.activeCount > 0) {
-    return `${counts.activeCount} active ${pluralize('task', counts.activeCount)}`;
-  }
-  return `${counts.completedCount} completed ${pluralize('task', counts.completedCount)}`;
+  return 'Work item details are loading.';
 }
 
 function readTaskCounts(tasks: Record<string, unknown>[]): {
@@ -439,6 +398,20 @@ function readTaskCounts(tasks: Record<string, unknown>[]): {
     blockedCount,
     completedCount,
   };
+}
+
+function buildTaskHeadline(tasks: Record<string, unknown>[]): string | null {
+  const counts = readTaskCounts(tasks);
+  if (!counts) {
+    return null;
+  }
+  if (counts.blockedCount > 0) {
+    return `${counts.blockedCount} blocked ${pluralize('task', counts.blockedCount)}`;
+  }
+  if (counts.activeCount > 0) {
+    return `${counts.activeCount} active ${pluralize('task', counts.activeCount)}`;
+  }
+  return `${counts.completedCount} completed ${pluralize('task', counts.completedCount)}`;
 }
 
 function readCompactTaskRows(tasks: Record<string, unknown>[]): Array<{
