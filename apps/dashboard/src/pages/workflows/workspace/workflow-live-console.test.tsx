@@ -1,4 +1,6 @@
 import { createElement } from 'react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -300,6 +302,16 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('Visible execution turn.');
     expect(html).not.toContain('Legacy operator update that should stay hidden.');
     expect(html).toContain('data-live-console-filter-count="1"');
+  });
+
+  it('uses the queued-update control copy agreed for the terminal console', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-live-console.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('New updates');
+    expect(source).not.toContain('Jump to latest');
   });
 });
 

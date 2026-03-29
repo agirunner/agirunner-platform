@@ -46,6 +46,7 @@ export function WorkflowLiveConsole(props: {
     scrollHeight: 0,
     scrollTop: 0,
   });
+  const isAtLiveEdgeRef = useRef(true);
   const backfillCursorRef = useRef<string | null>(null);
   const [followMode, setFollowMode] = useState<WorkflowConsoleFollowMode>('live');
   const [hasQueuedUpdates, setHasQueuedUpdates] = useState(false);
@@ -90,6 +91,7 @@ export function WorkflowLiveConsole(props: {
       scrollHeight: container.scrollHeight,
       scrollTop: container.scrollTop,
     };
+    isAtLiveEdgeRef.current = true;
   }, [selectedFilter]);
 
   useEffect(() => {
@@ -118,6 +120,7 @@ export function WorkflowLiveConsole(props: {
 
     const followBehavior = getWorkflowConsoleFollowBehavior({
       followMode,
+      isAtLiveEdge: isAtLiveEdgeRef.current,
       prependedHistory,
       appendedLiveUpdate,
       hasPreviousItems: previousMetrics.lastItemId.length > 0,
@@ -140,6 +143,9 @@ export function WorkflowLiveConsole(props: {
       scrollHeight: container.scrollHeight,
       scrollTop: container.scrollTop,
     };
+    isAtLiveEdgeRef.current =
+      container.scrollHeight - container.clientHeight - container.scrollTop <=
+      LIVE_EDGE_THRESHOLD_PX;
   }, [followMode, visibleItems]);
 
   useEffect(() => {
@@ -186,6 +192,7 @@ export function WorkflowLiveConsole(props: {
                   container.scrollTop = container.scrollHeight;
                   setFollowMode('live');
                   setHasQueuedUpdates(false);
+                  isAtLiveEdgeRef.current = true;
                 }}
               >
                 Live
@@ -215,9 +222,10 @@ export function WorkflowLiveConsole(props: {
                   }
                   container.scrollTop = container.scrollHeight;
                   setHasQueuedUpdates(false);
+                  isAtLiveEdgeRef.current = true;
                 }}
               >
-                Jump to latest
+                New updates
               </Button>
             ) : null}
           </div>
@@ -258,6 +266,7 @@ export function WorkflowLiveConsole(props: {
             const isNearLiveEdge =
               element.scrollHeight - element.clientHeight - element.scrollTop <=
               LIVE_EDGE_THRESHOLD_PX;
+            isAtLiveEdgeRef.current = isNearLiveEdge;
             if (isNearLiveEdge) {
               setHasQueuedUpdates(false);
             }

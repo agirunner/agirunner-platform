@@ -169,6 +169,7 @@ export function shouldPrefetchWorkflowConsoleHistory(input: {
 
 export function getWorkflowConsoleFollowBehavior(input: {
   followMode: WorkflowConsoleFollowMode;
+  isAtLiveEdge: boolean;
   prependedHistory: boolean;
   appendedLiveUpdate: boolean;
   hasPreviousItems: boolean;
@@ -183,7 +184,10 @@ export function getWorkflowConsoleFollowBehavior(input: {
     };
   }
 
-  if (input.followMode === 'live' || !input.hasPreviousItems) {
+  if (
+    !input.hasPreviousItems
+    || (input.followMode === 'live' && input.isAtLiveEdge)
+  ) {
     return {
       shouldScrollToBottom: true,
       shouldQueueUpdates: false,

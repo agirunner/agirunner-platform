@@ -204,6 +204,7 @@ describe('workflow live console support', () => {
     expect(
       getWorkflowConsoleFollowBehavior({
         followMode: 'live',
+        isAtLiveEdge: true,
         prependedHistory: false,
         appendedLiveUpdate: true,
         hasPreviousItems: true,
@@ -214,7 +215,8 @@ describe('workflow live console support', () => {
     });
     expect(
       getWorkflowConsoleFollowBehavior({
-        followMode: 'paused',
+        followMode: 'live',
+        isAtLiveEdge: false,
         prependedHistory: false,
         appendedLiveUpdate: true,
         hasPreviousItems: true,
@@ -226,6 +228,19 @@ describe('workflow live console support', () => {
     expect(
       getWorkflowConsoleFollowBehavior({
         followMode: 'paused',
+        isAtLiveEdge: true,
+        prependedHistory: false,
+        appendedLiveUpdate: true,
+        hasPreviousItems: true,
+      }),
+    ).toEqual({
+      shouldScrollToBottom: false,
+      shouldQueueUpdates: true,
+    });
+    expect(
+      getWorkflowConsoleFollowBehavior({
+        followMode: 'paused',
+        isAtLiveEdge: false,
         prependedHistory: true,
         appendedLiveUpdate: false,
         hasPreviousItems: true,
