@@ -75,6 +75,13 @@ class BootstrapKeyTests(unittest.TestCase):
             self.assertTrue(bootstrap_key.context_has_key(context_file, "expected-key"))
             self.assertFalse(bootstrap_key.context_has_key(context_file, "different-key"))
 
+    def test_shared_bootstrap_defaults_use_non_mini_models(self) -> None:
+        self.assertEqual(bootstrap_key.SHARED_BOOTSTRAP_DEFAULTS["LIVE_TEST_MODEL_ID"], "gpt-5.4")
+        self.assertEqual(
+            bootstrap_key.SHARED_BOOTSTRAP_DEFAULTS["LIVE_TEST_SPECIALIST_MODEL_ID"],
+            "gpt-5.4",
+        )
+
     def create_fixture_roots(self, root: Path) -> tuple[Path, Path, Path]:
         live_root = root / "tests-live"
         repo_root = root / "platform"

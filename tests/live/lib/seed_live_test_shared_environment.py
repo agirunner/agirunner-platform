@@ -47,13 +47,13 @@ def main() -> None:
     oauth_profile_id = env("LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID") or None
     oauth_session_json = env("LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON")
     oauth_session = json.loads(oauth_session_json) if oauth_session_json else None
-    model_id = env("LIVE_TEST_MODEL_ID", "gpt-5.4-mini")
+    model_id = env("LIVE_TEST_MODEL_ID", "gpt-5.4")
     model_endpoint_type = env("LIVE_TEST_MODEL_ENDPOINT_TYPE", "responses")
     system_reasoning_effort = env("LIVE_TEST_SYSTEM_REASONING_EFFORT", "medium")
     orchestrator_model_id = env("LIVE_TEST_ORCHESTRATOR_MODEL_ID", "gpt-5.4")
     orchestrator_endpoint_type = env("LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE", model_endpoint_type)
     orchestrator_reasoning_effort = env("LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT", "low")
-    specialist_model_id = env("LIVE_TEST_SPECIALIST_MODEL_ID", "gpt-5.4-mini")
+    specialist_model_id = env("LIVE_TEST_SPECIALIST_MODEL_ID", "gpt-5.4")
     specialist_endpoint_type = env("LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE", model_endpoint_type)
     specialist_reasoning_effort = env("LIVE_TEST_SPECIALIST_REASONING_EFFORT", "medium")
     worker_name = env("ORCHESTRATOR_WORKER_NAME", "orchestrator-primary")
