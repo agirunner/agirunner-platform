@@ -87,6 +87,112 @@ describe('WorkflowActivationService', () => {
     );
   });
 
+  it('does not queue activation work while the workflow is paused', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.startsWith('SELECT id FROM workflows')) {
+          return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+        }
+        if (sql.startsWith('INSERT INTO workflow_activations')) {
+          expect(sql).toContain("WHEN w.state = 'paused'");
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-2',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'req-paused',
+              reason: 'task.completed',
+              event_type: 'task.completed',
+              payload: { task_id: 'task-1' },
+              state: 'completed',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-03-11T00:00:00Z'),
+              started_at: null,
+              consumed_at: new Date('2026-03-11T00:00:00Z'),
+              completed_at: new Date('2026-03-11T00:00:00Z'),
+              summary: 'Ignored activation because workflow is paused.',
+              error: null,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const eventService = { emit: vi.fn() };
+    const service = new WorkflowActivationService(pool as never, eventService as never);
+
+    const result = await service.enqueue(identity, 'workflow-1', {
+      request_id: 'req-paused',
+      reason: 'task.completed',
+      event_type: 'task.completed',
+      payload: { task_id: 'task-1' },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'activation-2',
+        state: 'completed',
+        summary: 'Ignored activation because workflow is paused.',
+      }),
+    );
+    expect(eventService.emit).not.toHaveBeenCalled();
+  });
+
+  it('does not queue activation work once workflow cancellation is in progress', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.startsWith('SELECT id FROM workflows')) {
+          return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+        }
+        if (sql.startsWith('INSERT INTO workflow_activations')) {
+          expect(sql).toContain("metadata->>'cancel_requested_at'");
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-3',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'req-cancelling',
+              reason: 'task.failed',
+              event_type: 'task.failed',
+              payload: { task_id: 'task-2' },
+              state: 'completed',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-03-11T00:00:00Z'),
+              started_at: null,
+              consumed_at: new Date('2026-03-11T00:00:00Z'),
+              completed_at: new Date('2026-03-11T00:00:00Z'),
+              summary: 'Ignored activation because workflow cancellation is already in progress.',
+              error: null,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const eventService = { emit: vi.fn() };
+    const service = new WorkflowActivationService(pool as never, eventService as never);
+
+    const result = await service.enqueue(identity, 'workflow-1', {
+      request_id: 'req-cancelling',
+      reason: 'task.failed',
+      event_type: 'task.failed',
+      payload: { task_id: 'task-2' },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'activation-3',
+        state: 'completed',
+        summary: 'Ignored activation because workflow cancellation is already in progress.',
+      }),
+    );
+    expect(eventService.emit).not.toHaveBeenCalled();
+  });
+
   it('redacts plaintext secrets in persisted and serialized activation payloads', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

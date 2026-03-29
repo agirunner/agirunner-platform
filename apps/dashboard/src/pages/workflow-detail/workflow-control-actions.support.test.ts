@@ -3,11 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { getWorkflowControlAvailability } from './workflow-control-actions.support.js';
 
 describe('workflow control action availability', () => {
-  it('allows pause and cancel for pending or active workflows', () => {
+  it('only allows pause and cancel for active workflows', () => {
     expect(getWorkflowControlAvailability({ state: 'pending' })).toEqual({
-      canPause: true,
+      canPause: false,
       canResume: false,
-      canCancel: true,
+      canCancel: false,
     });
     expect(getWorkflowControlAvailability({ state: 'active' })).toEqual({
       canPause: true,

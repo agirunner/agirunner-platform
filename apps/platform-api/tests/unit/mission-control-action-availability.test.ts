@@ -150,6 +150,11 @@ describe('mission control action availability', () => {
           enabled: false,
           disabledReason: 'Only active workflows can be paused.',
         }),
+        expect.objectContaining({
+          kind: 'cancel_workflow',
+          enabled: false,
+          disabledReason: 'Action is not available in the current workflow state.',
+        }),
       ]),
     );
   });

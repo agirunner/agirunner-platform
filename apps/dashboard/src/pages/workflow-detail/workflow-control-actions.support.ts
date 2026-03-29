@@ -23,9 +23,9 @@ export function getWorkflowControlAvailability(
 
   const state = input.state?.trim().toLowerCase() ?? '';
   return {
-    canPause: state === 'pending' || state === 'active',
+    canPause: state === 'active',
     canResume: state === 'paused',
-    canCancel: state === 'pending' || state === 'active' || state === 'paused',
+    canCancel: state === 'active' || state === 'paused',
   };
 }
 

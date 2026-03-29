@@ -133,9 +133,7 @@ function canResume(workflowState: string, hasCancelRequest: boolean): boolean {
 }
 
 function canCancel(workflowState: string, hasCancelRequest: boolean): boolean {
-  return !isTerminalState(workflowState)
-    && workflowState !== 'cancelling'
-    && !hasCancelRequest;
+  return (workflowState === 'active' || workflowState === 'paused') && !hasCancelRequest;
 }
 
 function canAddWork(

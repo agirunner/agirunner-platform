@@ -37,6 +37,9 @@ export class WorkflowCancellationService {
         await client.query('COMMIT');
         return this.deps.getWorkflow(identity.tenantId, workflowId);
       }
+      if (!isCancellableWorkflowState(workflow.state)) {
+        throw new ConflictError('Only active or paused workflows can be cancelled');
+      }
 
       await client.query(
         `UPDATE workflow_stage_gates
@@ -166,4 +169,8 @@ function hasCancellationRequest(metadata: unknown) {
   }
   const value = (metadata as Record<string, unknown>).cancel_requested_at;
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isCancellableWorkflowState(state: unknown) {
+  return state === 'active' || state === 'paused';
 }

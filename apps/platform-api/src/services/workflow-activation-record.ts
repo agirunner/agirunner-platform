@@ -88,19 +88,33 @@ export async function enqueueWorkflowActivationRecord(
        $6,
        CASE
          WHEN w.state IN ('completed', 'failed', 'cancelled') THEN 'completed'
+         WHEN COALESCE(NULLIF(w.metadata->>'cancel_requested_at', ''), '') <> '' THEN 'completed'
+         WHEN w.state = 'paused' THEN 'completed'
+         WHEN COALESCE(NULLIF(w.metadata->>'pause_requested_at', ''), '') <> '' THEN 'completed'
          ELSE 'queued'
        END,
        CASE
          WHEN w.state IN ('completed', 'failed', 'cancelled') THEN now()
+         WHEN COALESCE(NULLIF(w.metadata->>'cancel_requested_at', ''), '') <> '' THEN now()
+         WHEN w.state = 'paused' THEN now()
+         WHEN COALESCE(NULLIF(w.metadata->>'pause_requested_at', ''), '') <> '' THEN now()
          ELSE NULL
        END,
        CASE
          WHEN w.state IN ('completed', 'failed', 'cancelled') THEN now()
+         WHEN COALESCE(NULLIF(w.metadata->>'cancel_requested_at', ''), '') <> '' THEN now()
+         WHEN w.state = 'paused' THEN now()
+         WHEN COALESCE(NULLIF(w.metadata->>'pause_requested_at', ''), '') <> '' THEN now()
          ELSE NULL
        END,
        CASE
          WHEN w.state IN ('completed', 'failed', 'cancelled')
            THEN 'Ignored activation because workflow is already ' || w.state || '.'
+         WHEN COALESCE(NULLIF(w.metadata->>'cancel_requested_at', ''), '') <> ''
+           THEN 'Ignored activation because workflow cancellation is already in progress.'
+         WHEN w.state = 'paused'
+           OR COALESCE(NULLIF(w.metadata->>'pause_requested_at', ''), '') <> ''
+           THEN 'Ignored activation because workflow is paused.'
          ELSE NULL
        END
      FROM workflows w
