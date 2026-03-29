@@ -161,7 +161,7 @@ function HeaderCard(props: {
   detail: string | null;
   onClick?(): void;
 }): JSX.Element {
-  const className = 'grid gap-1 rounded-xl px-3 py-2 text-left';
+  const className = 'grid gap-1 rounded-xl bg-background/70 px-3 py-2.5 text-left';
 
   if (!props.onClick) {
     return (
@@ -178,7 +178,7 @@ function HeaderCard(props: {
   return (
     <button
       type="button"
-      className={`${className} transition-colors hover:bg-muted/20`}
+      className={`${className} transition-colors hover:bg-background/90`}
       onClick={props.onClick}
     >
       <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
