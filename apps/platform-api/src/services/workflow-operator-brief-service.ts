@@ -630,7 +630,21 @@ function shouldMaterializeDeliverablePacket(brief: WorkflowOperatorBriefRow): bo
   if (!isDeliverableOutcomeStatus(sanitizeOptionalText(brief.status_kind))) {
     return false;
   }
+  if (isChildScopedOrchestratorDeliverableBrief(brief)) {
+    return false;
+  }
   return true;
+}
+
+function isChildScopedOrchestratorDeliverableBrief(brief: WorkflowOperatorBriefRow): boolean {
+  if (!isOrchestratorBrief(brief)) {
+    return false;
+  }
+  return Boolean(
+    sanitizeOptionalText(brief.work_item_id)
+    || sanitizeOptionalText(brief.task_id)
+    || isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief),
+  );
 }
 
 function isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief: WorkflowOperatorBriefRow): boolean {

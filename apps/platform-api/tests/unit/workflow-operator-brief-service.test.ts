@@ -1375,10 +1375,7 @@ describe('WorkflowOperatorBriefService', () => {
     expect(result.record.related_output_descriptor_ids).toEqual(['descriptor-11']);
   });
 
-  it('materializes a work-item deliverable packet from an orchestrator brief that only links to a work item target', async () => {
-    deliverableService.upsertDeliverable.mockResolvedValue({
-      descriptor_id: 'descriptor-12',
-    });
+  it('does not materialize a work-item deliverable packet from an orchestrator brief that only links to a work item target', async () => {
     pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
       if (sql.includes('FROM workflows')) {
         return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
@@ -1449,7 +1446,7 @@ describe('WorkflowOperatorBriefService', () => {
         return { rowCount: 0, rows: [] };
       }
       if (sql.includes('UPDATE workflow_operator_briefs')) {
-        expect(params?.[0]).toBe(JSON.stringify(['descriptor-12']));
+        expect(params?.[0]).toBe(JSON.stringify([]));
         expect(params?.[2]).toBe('tenant-1');
         expect(params?.[3]).toBe('workflow-1');
         expect(params?.[4]).toBe('brief-12');
@@ -1480,7 +1477,7 @@ describe('WorkflowOperatorBriefService', () => {
             linked_target_ids: ['work-item-11', 'task-11'],
             sequence_number: 12,
             related_artifact_ids: [],
-            related_output_descriptor_ids: ['descriptor-12'],
+            related_output_descriptor_ids: [],
             related_intervention_ids: [],
             canonical_workflow_brief_id: null,
             created_by_type: 'user',
@@ -1511,16 +1508,8 @@ describe('WorkflowOperatorBriefService', () => {
     } as never);
 
     expect(result.record.work_item_id).toBeNull();
-    expect(result.record.related_output_descriptor_ids).toEqual(['descriptor-12']);
-    expect(deliverableService.upsertDeliverable).toHaveBeenCalledWith(
-      IDENTITY,
-      'workflow-1',
-      expect.objectContaining({
-        descriptorKind: 'brief_packet',
-        workItemId: 'work-item-11',
-        sourceBriefId: 'brief-12',
-      }),
-    );
+    expect(result.record.related_output_descriptor_ids).toEqual([]);
+    expect(deliverableService.upsertDeliverable).not.toHaveBeenCalled();
   });
 
   it('persists llm turn count on recorded operator briefs', async () => {

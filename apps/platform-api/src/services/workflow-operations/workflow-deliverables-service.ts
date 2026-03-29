@@ -64,7 +64,7 @@ export class WorkflowDeliverablesService {
     const limit = input.limit ?? 10;
     const fetchWindow = resolveFetchWindow(limit);
     const includeWorkflowScope = Boolean(input.workItemId);
-    const includeAllWorkItemScopes = false;
+    const includeAllWorkItemScopes = !input.workItemId;
     const [deliverables, briefs, inputPackets, handoffs] = await Promise.all([
       this.deliverableSource.listDeliverables(tenantId, workflowId, {
         workItemId: input.workItemId,
@@ -76,33 +76,41 @@ export class WorkflowDeliverablesService {
         workItemId: input.workItemId,
         includeWorkflowScope,
         includeAllWorkItemScopes,
-        limit,
+        limit: fetchWindow,
       }),
       this.inputPacketSource.listWorkflowInputPackets(tenantId, workflowId),
       this.handoffSource?.listLatestCompletedWorkItemHandoffs(tenantId, workflowId, {
         workItemId: input.workItemId,
       }) ?? Promise.resolve([]),
     ]);
-    const scopedDeliverables = filterRecordsForRequestedScope(
-      deliverables,
-      input.workItemId,
-      (deliverable) => deliverable.work_item_id,
-    );
     const scopedBriefs = filterRecordsForRequestedScope(
       briefs,
       input.workItemId,
       (brief) => readOptionalString(brief.work_item_id),
     );
-    const scopedHandoffs = filterRecordsForRequestedScope(
+    const deliverableScopeRecords = selectDeliverableScopeRecords(
+      deliverables,
+      input.workItemId,
+      (deliverable) => deliverable.work_item_id,
+    );
+    const deliverableScopeBriefs = selectDeliverableScopeRecords(
+      briefs,
+      input.workItemId,
+      (brief) => readOptionalString(brief.work_item_id),
+    );
+    const scopedHandoffs = selectDeliverableScopeRecords(
       handoffs,
       input.workItemId,
       (handoff) => handoff.work_item_id,
     );
-    const finalizedBriefIds = collectFinalizedBriefIds(scopedBriefs);
-    const finalizedDescriptorIds = collectFinalizedDescriptorIds(scopedBriefs);
-    const hydratedDeliverables = appendSynthesizedBriefDeliverables(
-      appendSynthesizedHandoffDeliverables(scopedDeliverables, scopedHandoffs),
-      scopedBriefs,
+    const finalizedBriefIds = collectFinalizedBriefIds(deliverableScopeBriefs);
+    const finalizedDescriptorIds = collectFinalizedDescriptorIds(deliverableScopeBriefs);
+    const hydratedDeliverables = suppressShadowedOrchestratorBriefPackets(
+      appendSynthesizedBriefDeliverables(
+        appendSynthesizedHandoffDeliverables(deliverableScopeRecords, scopedHandoffs),
+        deliverableScopeBriefs,
+      ),
+      deliverableScopeBriefs,
     );
 
     const orderedDeliverables = [...hydratedDeliverables].sort((left, right) =>
@@ -155,6 +163,18 @@ function filterRecordsForRequestedScope<T>(
     const recordWorkItemId = readWorkItemId(record);
     return recordWorkItemId === null || recordWorkItemId === workItemId;
   });
+}
+
+function selectDeliverableScopeRecords<T>(
+  records: T[],
+  workItemId: string | undefined,
+  readWorkItemId: (record: T) => string | null,
+): T[] {
+  if (!workItemId) {
+    const workflowScopedRecords = records.filter((record) => readWorkItemId(record) === null);
+    return workflowScopedRecords.length > 0 ? workflowScopedRecords : records;
+  }
+  return filterRecordsForRequestedScope(records, workItemId, readWorkItemId);
 }
 
 function appendSynthesizedHandoffDeliverables(
@@ -229,6 +249,27 @@ function appendSynthesizedBriefDeliverables(
   }
 
   return records;
+}
+
+function suppressShadowedOrchestratorBriefPackets(
+  deliverables: WorkflowDeliverableRecord[],
+  briefs: WorkflowOperatorBriefRecord[],
+): WorkflowDeliverableRecord[] {
+  const briefById = new Map(
+    briefs.map((brief) => [brief.id, brief] as const),
+  );
+  const canonicalPacketScopes = new Set(
+    deliverables
+      .filter((deliverable) => isCanonicalFinalPacket(deliverable))
+      .map((deliverable) => buildDeliverableScopeKey(readOptionalString(deliverable.work_item_id))),
+  );
+  return deliverables.filter((deliverable) => {
+    if (!isOrchestratorBriefPacket(deliverable, briefById)) {
+      return true;
+    }
+    const scopeKey = buildDeliverableScopeKey(readOptionalString(deliverable.work_item_id));
+    return !canonicalPacketScopes.has(scopeKey);
+  });
 }
 
 function buildHandoffPacketDeliverable(
@@ -347,6 +388,13 @@ function isStoredFinalDeliverable(deliverable: WorkflowDeliverableRecord): boole
     || readOptionalString(deliverable.state) === 'final';
 }
 
+function isCanonicalFinalPacket(deliverable: WorkflowDeliverableRecord): boolean {
+  if (!isPacketLikeDeliverable(deliverable) || !isStoredFinalDeliverable(deliverable)) {
+    return false;
+  }
+  return readOptionalString(deliverable.descriptor_kind) !== 'brief_packet';
+}
+
 function collectFinalizedBriefIds(briefs: WorkflowOperatorBriefRecord[]): Set<string> {
   return new Set(
     briefs
@@ -377,6 +425,21 @@ function isDeliverableOutcomeStatus(statusKind: string | null): boolean {
 
 function isOrchestratorBrief(brief: WorkflowOperatorBriefRecord): boolean {
   return isOrchestratorRole(brief.source_kind) || isOrchestratorRole(brief.source_role_name);
+}
+
+function isOrchestratorBriefPacket(
+  deliverable: WorkflowDeliverableRecord,
+  briefById: Map<string, WorkflowOperatorBriefRecord>,
+): boolean {
+  if (readOptionalString(deliverable.descriptor_kind) !== 'brief_packet') {
+    return false;
+  }
+  const briefId = readOptionalString(deliverable.source_brief_id);
+  if (!briefId) {
+    return false;
+  }
+  const brief = briefById.get(briefId);
+  return brief ? isOrchestratorBrief(brief) : false;
 }
 
 function isOrchestratorRole(value: string | null | undefined): boolean {
