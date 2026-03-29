@@ -675,11 +675,14 @@ function isLowValueHelperAction(actionName: string | null): boolean {
 }
 
 function canRenderLiteralActionFallback(actionName: string): boolean {
-  if (isLowValueHelperAction(actionName) || isToolSpecificFallbackOnlyAction(actionName)) {
-    return false;
-  }
   if (LITERAL_ACTION_FALLBACK_ACTIONS.has(actionName)) {
     return true;
+  }
+  if (isToolSpecificFallbackOnlyAction(actionName)) {
+    return true;
+  }
+  if (isLowValueHelperAction(actionName)) {
+    return false;
   }
   return /^(create|submit|update|write|edit|delete|approve|reject|reassign|assign|claim|start|complete|finish|close|open|upload|request|dispatch|resume|pause|retry|reroute|set|mark)_/i.test(
     actionName,
@@ -1043,10 +1046,15 @@ function readThinkText(payload: Record<string, unknown>): string | null {
 }
 
 function readPlanText(payload: Record<string, unknown>): string | null {
-  return (
-    readOperatorReadableField(payload, ['headline', 'summary', 'plan_summary'])
-    ?? readOperatorReadableText(readFirstPlanDescription(payload.steps), 180)
-  );
+  const explicitPlanText = readOperatorReadableField(payload, ['headline', 'summary', 'plan_summary']);
+  if (explicitPlanText && !looksLikePlannedActionPlaceholder(explicitPlanText)) {
+    return explicitPlanText;
+  }
+  const plannedActionSummary = buildPlannedActionSummary(payload.steps);
+  if (plannedActionSummary) {
+    return plannedActionSummary;
+  }
+  return readOperatorReadableText(readFirstPlanDescription(payload.steps), 180);
 }
 
 function readLLMExecutionPhase(
@@ -1214,7 +1222,7 @@ function buildLoggedToolCallSummary(payload: Record<string, unknown>): string | 
       if (shouldSuppressActionInvocation(name, input)) {
         return null;
       }
-      return buildActionHeadline({ tool: name, input }) ?? buildActionInvocationHeadline({
+      return buildActionInvocationHeadline({
         tool: name,
         input,
       });
@@ -1225,6 +1233,28 @@ function buildLoggedToolCallSummary(payload: Record<string, unknown>): string | 
     return null;
   }
   return readOperatorReadableText(joinActionHeadlines(renderedCalls), 180);
+}
+
+function buildPlannedActionSummary(stepsValue: unknown): string | null {
+  if (!Array.isArray(stepsValue)) {
+    return null;
+  }
+  for (const entry of stepsValue) {
+    const step = asRecord(entry);
+    const tool = readString(step.tool);
+    if (!tool) {
+      continue;
+    }
+    const input = asRecord(step.input);
+    if (shouldSuppressActionInvocation(tool, input)) {
+      continue;
+    }
+    const literalSummary = buildActionInvocationHeadline({ tool, input });
+    if (literalSummary) {
+      return literalSummary;
+    }
+  }
+  return null;
 }
 
 function looksLikeSyntheticLoggedToolCall(
@@ -1505,12 +1535,9 @@ function looksLikeSyntheticActionPreview(
 }
 
 function looksLikeLowValueConsoleText(value: string): boolean {
-  const helperCallMatch = value.match(/^calling\s+([a-z0-9_]+)\(/i);
-  if (helperCallMatch?.[1] && isLowValueHelperAction(helperCallMatch[1])) {
-    return true;
-  }
   return (
-    /^advancing the task with the next verified step\.?$/i.test(value)
+    /^reactive native-tool turn\.?$/i.test(value)
+    || /^advancing the task with the next verified step\.?$/i.test(value)
     || /^working through the next execution step\.?$/i.test(value)
     || /^checking current progress\.?$/i.test(value)
     || /^tool execution in progress\.?$/i.test(value)
@@ -1529,6 +1556,10 @@ function looksLikeLowValueConsoleText(value: string): boolean {
     || /\b(remains|still|continues to be|continues)\b.*\bready\b/i.test(value)
     || /\b(remains|still|continues to be|continues)\b.*\b(suitable|supports|cleared)\b/i.test(value)
   );
+}
+
+function looksLikePlannedActionPlaceholder(value: string): boolean {
+  return /^execute\s+[a-z0-9_]+$/i.test(value.trim());
 }
 
 function looksLikeRawExecutionDump(value: string): boolean {
@@ -1836,7 +1867,6 @@ function sanitizeOperatorIdentifiers(value: string): string {
     .replace(/\btask\s+[0-9a-f-]{36}\b/gi, 'the task')
     .replace(/\bworkflow\s+[0-9a-f-]{36}\b/gi, 'the workflow')
     .replace(/\bactivation\s+[0-9a-f-]{36}\b/gi, 'this activation')
-    .replace(/\brequest_rework\b/gi, 'request rework')
     .replace(UUID_PATTERN, '')
     .replace(/\bfor work item\b/gi, 'for the work item')
     .replace(/\bon work item\b/gi, 'on the work item')

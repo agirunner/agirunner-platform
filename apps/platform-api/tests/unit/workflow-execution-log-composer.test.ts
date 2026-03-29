@@ -588,7 +588,7 @@ describe('workflow-execution-log-composer', () => {
     expect(item.headline).toBe('[Act] calling shell_exec(command="pytest tests/unit")');
   });
 
-  it('humanizes common shell_exec act turns from llm chat stream tool calls', () => {
+  it('renders literal shell_exec act turns from llm chat stream tool calls when no prose exists', () => {
     const items = buildExecutionTurnItems([
       createLogRow({
         id: '29a',
@@ -616,7 +616,7 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(items.map((item) => item.headline)).toEqual([
-      '[Act] Installing Python 3 in the task environment; running the verification script.',
+      '[Act] calling shell_exec(command="apt-get update && apt-get install -y python3"); calling shell_exec(command="./scripts/verify.sh").',
     ]);
   });
 
@@ -965,7 +965,7 @@ describe('workflow-execution-log-composer', () => {
     ]);
   });
 
-  it('falls back to logged tool calls for llm act turns when no usable prose exists', () => {
+  it('falls back to literal logged tool calls for llm act turns when no usable prose exists', () => {
     const [item] = buildExecutionTurnItems([
       createLogRow({
         id: '43',
@@ -987,7 +987,7 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(item.headline).toBe(
-      '[Act] Submitting the handoff: Triage packet is ready for policy assessment.',
+      '[Act] calling submit_handoff(summary="Triage packet is ready for policy assessment.", completion="full")',
     );
   });
 
@@ -1013,15 +1013,17 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(item.headline).toBe(
-      '[Act] Submitting the handoff: The delivery task for the work item was rerouted and implementation can resume.',
+    expect(item.headline).toContain(
+      '[Act] calling submit_handoff(summary="The delivery task for the work item was rerouted and implementation can',
     );
-    expect(item.summary).toBe(
-      'Submitting the handoff: The delivery task for the work item was rerouted and implementation can resume.',
+    expect(item.headline).toContain('completion="full")');
+    expect(item.summary).toContain(
+      'calling submit_handoff(summary="The delivery task for the work item was rerouted and implementation can',
     );
+    expect(item.summary).toContain('completion="full")');
   });
 
-  it('humanizes request_rework act turns instead of rendering literal tool syntax', () => {
+  it('renders literal request_rework act turns when no prose exists', () => {
     const [item] = buildExecutionTurnItems([
       createLogRow({
         id: '43d',
@@ -1042,9 +1044,35 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(item.headline).toBe(
-      '[Act] Requesting rework: Resume implementation for the active revision after the replay conflict is cleared.',
+    expect(item.headline).toContain(
+      '[Act] calling request_rework(feedback="Resume implementation for the active revision after the replay conflict',
     );
+  });
+
+  it('renders sanitized file_read args for llm act fallback rows', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '43e',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'act',
+          response_tool_calls: [
+            {
+              name: 'file_read',
+              input: {
+                path: '/tmp/workspace/task-123/context/task-input.json',
+                offset: 1,
+                limit: 80,
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe('[Act] calling file_read(path="task input")');
+    expect(item.summary).toBe('calling file_read(path="task input")');
   });
 
   it('suppresses raw agent act rows when the same turn already has an llm act phase row', () => {
@@ -1082,6 +1110,50 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(items.map((item) => item.item_id)).toEqual(['execution-log:43b']);
+  });
+
+  it('suppresses synthetic runtime think placeholders that do not add operator value', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '43f',
+        operation: 'runtime.loop.think',
+        payload: {
+          phase: 'think',
+          reasoning_summary: 'Reactive native-tool turn',
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
+  it('renders literal planned tool calls instead of execute-tool placeholders', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '43g',
+        operation: 'runtime.loop.plan',
+        payload: {
+          phase: 'plan',
+          steps: [
+            {
+              tool: 'submit_handoff',
+              input: {
+                summary: 'Release package needs revision before release-pass can close.',
+                completion: 'full',
+              },
+              description: 'Execute submit_handoff',
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      '[Plan] calling submit_handoff(summary="Release package needs revision before release-pass can close.", completion="full")',
+    );
+    expect(item.summary).toBe(
+      'calling submit_handoff(summary="Release package needs revision before release-pass can close.", completion="full")',
+    );
   });
 
   it('hydrates llm phase rows from separate response rows for the same turn', () => {
@@ -1288,8 +1360,8 @@ describe('workflow-execution-log-composer', () => {
     );
   });
 
-  it('suppresses llm act turns when they only call low-value helper reads', () => {
-    const items = buildExecutionTurnItems([
+  it('renders llm act turns with sanitized helper-read args when no better prose exists', () => {
+    const [item] = buildExecutionTurnItems([
       createLogRow({
         id: '44',
         category: 'llm',
@@ -1309,11 +1381,12 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(items).toEqual([]);
+    expect(item.headline).toBe('[Act] calling file_read(path="task input")');
+    expect(item.summary).toBe('calling file_read(path="task input")');
   });
 
-  it('suppresses hydrated llm act rows when the only non-read tool call is an environment probe with a success marker', () => {
-    const items = buildExecutionTurnItems([
+  it('suppresses environment probes but keeps the remaining hydrated read call with args', () => {
+    const [item] = buildExecutionTurnItems([
       createLogRow({
         id: '44f',
         category: 'llm',
@@ -1365,7 +1438,8 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(items).toEqual([]);
+    expect(item.headline).toBe('[Act] calling file_read(path="README.md:1-200")');
+    expect(item.summary).toBe('calling file_read(path="README.md:1-200")');
   });
 
   it('suppresses llm think, plan, and verify turns that only narrate reporting bookkeeping', () => {
@@ -1642,7 +1716,7 @@ describe('workflow-execution-log-composer', () => {
         task_id: 'task-50',
         work_item_id: 'work-item-50',
         headline:
-          '[Act] Submitting the handoff: Delivered and verified a persisted technical design for the staged release-audit CLI.',
+          '[Act] calling submit_handoff(summary="Delivered and verified a persisted technical design for the staged rele…", completion="full")',
       }),
     );
   });
