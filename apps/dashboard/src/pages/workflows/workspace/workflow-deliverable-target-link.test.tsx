@@ -33,7 +33,7 @@ describe('WorkflowDeliverableTargetLink', () => {
     expect(workflowHtml).not.toContain('href="/workflows/workflow-1?tab=details"');
   });
 
-  it('renders external artifact targets as one direct-open action after rewriting deprecated routes', () => {
+  it('renders external artifact targets as canonical in-place references after rewriting deprecated routes', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverableTargetLink, {
         target: {
@@ -47,11 +47,11 @@ describe('WorkflowDeliverableTargetLink', () => {
     );
 
     expect(html).toContain('Open artifact (Artifact)');
-    expect(html).toContain('Open target');
+    expect(html).toContain('Canonical target');
     expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
     expect(html).not.toContain('/artifacts/tasks/task-1/artifact-1');
     expect(html).not.toContain('return_to=');
-    expect(html).not.toContain('target="_blank"');
+    expect(html).not.toContain('<a');
   });
 
   it('renders deprecated workflow deliverable routes inline instead of linking to removed dashboard surfaces', () => {
@@ -72,7 +72,7 @@ describe('WorkflowDeliverableTargetLink', () => {
     expect(html).not.toContain('Open artifact in new tab');
   });
 
-  it('renders workflow file targets as direct links without preview-dialog affordances', () => {
+  it('renders workflow file targets as canonical references without navigation links', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverableTargetLink, {
         target: {
@@ -85,10 +85,10 @@ describe('WorkflowDeliverableTargetLink', () => {
     );
 
     expect(html).toContain('Launch packet (Input Packet File)');
-    expect(html).toContain('Open target');
+    expect(html).toContain('Canonical target');
     expect(html).toContain('/api/v1/workflows/workflow-1/input-packets/packet-1/files/file-1/content');
     expect(html).not.toContain('return_to=');
-    expect(html).not.toContain('target="_blank"');
+    expect(html).not.toContain('<a');
   });
 
   it('renders malformed direct targets without throwing', () => {

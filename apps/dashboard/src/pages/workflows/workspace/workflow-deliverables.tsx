@@ -521,8 +521,7 @@ function PacketFileLink(props: {
       <a
         className="text-sm font-medium text-accent underline-offset-4 hover:underline"
         href={props.file.download_url}
-        target="_blank"
-        rel="noreferrer"
+        download
       >
         {props.file.file_name}
       </a>

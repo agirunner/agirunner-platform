@@ -102,9 +102,9 @@ export function WorkflowDeliverableBrowser(props: {
       {externalTargets.length > 0 ? (
         <section className="grid gap-3 rounded-xl border border-border/70 bg-background/70 p-3">
           <div className="grid gap-1">
-            <p className="text-sm font-semibold text-foreground">Linked deliverable targets</p>
+            <p className="text-sm font-semibold text-foreground">Canonical deliverable targets</p>
             <p className="text-xs text-muted-foreground">
-              External or canonical non-artifact targets remain linked here.
+              Non-artifact outputs stay visible here without navigating away from Workflows.
             </p>
           </div>
           <div className="grid gap-3">
