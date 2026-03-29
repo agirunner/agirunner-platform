@@ -147,7 +147,7 @@ def delete_workspaces(client: ApiClient) -> None:
     for workspace in workspaces:
         client.request(
             "DELETE",
-            f"/api/v1/workspaces/{workspace['id']}",
+            f"/api/v1/workspaces/{workspace['id']}?cascade=true",
             expected=(200,),
             label=f"workspaces.delete:{workspace['id']}",
         )
