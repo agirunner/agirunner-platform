@@ -128,6 +128,42 @@ describe('DestructiveDeleteService', () => {
     expect(cancelWorkflow).not.toHaveBeenCalled();
     expect(client.release).toHaveBeenCalled();
   });
+
+  it('tolerates workflows that become terminal during cascading workspace deletion', async () => {
+    const client = createStrictTransactionalClient();
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        assertSequentialParameters(sql);
+        if (sql.includes('FROM workspaces') && sql.includes('AND id = $2')) {
+          return { rowCount: 1, rows: [{ id: 'workspace-1' }] };
+        }
+        if (sql.includes('FROM workflows') && sql.includes('workspace_id = $2') && sql.includes('state::text = ANY')) {
+          return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('workspace_id = $2') && sql.includes('workflow_id IS NULL')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected pool query: ${sql} :: ${JSON.stringify(params ?? [])}`);
+      }),
+      connect: vi.fn().mockResolvedValue(client),
+    };
+    const cancelWorkflow = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('Workflow is already terminal'));
+    const service = new DestructiveDeleteService(pool as never, { cancelWorkflow });
+
+    await expect(
+      service.deleteWorkspaceCascading(createIdentity(), 'workspace-1'),
+    ).resolves.toEqual({
+      id: 'workspace-1',
+      deleted: true,
+      deleted_workflow_count: 1,
+      deleted_task_count: 2,
+    });
+
+    expect(cancelWorkflow).toHaveBeenCalledWith(createIdentity(), 'workflow-1');
+    expect(client.release).toHaveBeenCalled();
+  });
 });
 
 function createStrictTransactionalClient() {

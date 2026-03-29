@@ -1,6 +1,7 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import { ConflictError } from '../errors/domain-errors.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 
 const TERMINAL_WORKFLOW_STATES = ['completed', 'failed', 'cancelled'] as const;
@@ -585,7 +586,14 @@ export class DestructiveDeleteService {
       return;
     }
     for (const workflowId of uniqueIds(workflowIds)) {
-      await this.deps.cancelWorkflow(identity, workflowId);
+      try {
+        await this.deps.cancelWorkflow(identity, workflowId);
+      } catch (error) {
+        if (isAlreadyTerminalWorkflowConflict(error)) {
+          continue;
+        }
+        throw error;
+      }
     }
   }
 
@@ -670,6 +678,12 @@ export class DestructiveDeleteService {
 
 function uniqueIds(values: string[]) {
   return Array.from(new Set(values));
+}
+
+function isAlreadyTerminalWorkflowConflict(error: unknown): boolean {
+  return error instanceof ConflictError
+    ? error.message === 'Workflow is already terminal'
+    : error instanceof Error && error.message === 'Workflow is already terminal';
 }
 
 function emptyImpactSummary(): DeleteImpactSummary {
