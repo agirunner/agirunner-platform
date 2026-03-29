@@ -69,6 +69,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
       search?: string;
       workflow_id?: string;
     };
+    log?: { error: (payload: object, message: string) => void };
   }) {
     const query = request.query;
     if ('workflowOperationsRailService' in app && app.workflowOperationsRailService) {
@@ -169,6 +170,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
       workflow_id?: string;
     };
     headers: Record<string, unknown>;
+    log?: { error: (payload: object, message: string) => void };
   }, reply: {
     raw: NodeJS.WritableStream & { setHeader: (name: string, value: string) => void; write: (chunk: string) => boolean; end: () => void };
     send: (payload: unknown) => unknown;
@@ -227,6 +229,7 @@ export const workflowOperationsRoutes: FastifyPluginAsync = async (app) => {
     };
     headers: Record<string, unknown>;
     raw?: NodeJS.EventEmitter;
+    log?: { error: (payload: object, message: string) => void };
   }, reply: {
     raw: NodeJS.WritableStream & { setHeader: (name: string, value: string) => void; write: (chunk: string) => boolean; end: () => void };
     send: (payload: unknown) => unknown;
