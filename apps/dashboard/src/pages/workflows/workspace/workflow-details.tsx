@@ -227,7 +227,10 @@ function buildDetailsScope(props: {
         ?? 'Selected task',
       latest_status: buildTaskLatestStatus(props.selectedTask),
       workflow_name: props.workflow.name,
-      summary: readOptionalText(props.selectedTask?.description),
+      summary:
+        readOptionalText(props.selectedWorkItem?.goal)
+        ?? readOptionalText(props.selectedWorkItem?.acceptance_criteria)
+        ?? readOptionalText(props.selectedTask?.description),
       parent_work_item:
         props.selectedWorkItem?.title
         ?? props.selectedTask?.work_item_title
@@ -273,13 +276,14 @@ function buildDetailLines(input: {
   parent_work_item: string | null;
   task_summary: string | null;
 }): string[] {
-  const lines = [input.latest_status];
+  const lines: string[] = [];
   if (input.workflow_name) {
     lines.push(`Workflow: ${input.workflow_name}`);
   }
   if (input.parent_work_item) {
     lines.push(`Work item: ${input.parent_work_item}`);
   }
+  lines.push(input.latest_status);
   if (input.task_summary) {
     lines.push(input.task_summary);
   }
@@ -403,7 +407,7 @@ function readStructuredEntries(value: unknown): Array<[string, string]> {
     if (!text) {
       continue;
     }
-    rendered.push([humanizeToken(key), text]);
+    rendered.push([humanizeStructuredLabel(key), text]);
   }
   return rendered;
 }
@@ -468,7 +472,7 @@ function normalizeOperatorFacingTaskInputValue(value: unknown): unknown {
 function renderStructuredValue(value: unknown): string | null {
   if (typeof value === 'string') {
     const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
+    return trimmed.length > 0 ? humanizeStructuredText(trimmed) : null;
   }
   if (typeof value === 'number' || typeof value === 'boolean') {
     return String(value);
@@ -492,6 +496,28 @@ function readOptionalText(value: unknown): string | null {
 
 function humanizeToken(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function humanizeStructuredLabel(value: string): string {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === 'deliverable') {
+    return 'Requested deliverable';
+  }
+  if (normalized === 'acceptance_criteria') {
+    return 'Success criteria';
+  }
+  return humanizeToken(value);
+}
+
+function humanizeStructuredText(value: string): string {
+  if (!looksLikeMachineToken(value)) {
+    return value;
+  }
+  return humanizeToken(value);
+}
+
+function looksLikeMachineToken(value: string): boolean {
+  return /^[a-z0-9]+(?:[_-][a-z0-9]+)*$/i.test(value);
 }
 
 function pluralize(value: string, count: number): string {
