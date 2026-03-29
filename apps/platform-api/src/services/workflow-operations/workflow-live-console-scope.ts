@@ -56,10 +56,13 @@ function matchesSelectedTaskScope(
   if (!taskId) {
     return false;
   }
-  const selectedWorkItemId = selectedScope.work_item_id;
+  if (item.task_id && item.task_id !== taskId) {
+    return false;
+  }
   if (item.task_id !== taskId && !item.linked_target_ids.includes(taskId)) {
     return false;
   }
+  const selectedWorkItemId = selectedScope.work_item_id;
   if (selectedWorkItemId && referencesSiblingWorkItem(item, selectedWorkItemId, workflowWorkItemIds)) {
     return false;
   }

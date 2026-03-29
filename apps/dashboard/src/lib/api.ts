@@ -596,12 +596,19 @@ export interface DashboardWorkflowLiveConsoleItem {
   work_item_id: string | null;
   task_id: string | null;
   linked_target_ids: string[];
+  scope_binding?: 'record' | 'structured_target' | 'execution_context';
 }
 
 export interface DashboardWorkflowLiveConsolePacket extends DashboardWorkflowOperationsSnapshot {
   items: DashboardWorkflowLiveConsoleItem[];
   total_count?: number;
+  counts?: {
+    all?: number;
+    turn_updates?: number;
+    briefs?: number;
+  };
   next_cursor: string | null;
+  live_visibility_mode?: 'standard' | 'enhanced';
 }
 
 export interface DashboardWorkflowHistoryGroup {

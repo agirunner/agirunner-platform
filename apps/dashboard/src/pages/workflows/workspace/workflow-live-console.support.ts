@@ -282,7 +282,7 @@ function readWorkflowConsoleFilterCounts(
 ): Partial<WorkflowConsoleFilterCounts> {
   const rawPacket = packet as unknown as Record<string, unknown>;
   const rawCounts =
-    readRecord(rawPacket.counts) ??
+    readRecord(packet.counts) ??
     readRecord(rawPacket.filter_counts) ??
     readRecord(rawPacket.filterCounts);
 
