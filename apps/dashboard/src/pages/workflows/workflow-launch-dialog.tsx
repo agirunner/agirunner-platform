@@ -135,6 +135,10 @@ export function WorkflowLaunchDialog(props: {
     validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
   });
 
+  function clearLaunchFeedback(): void {
+    setErrorMessage(null);
+  }
+
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto">
@@ -152,7 +156,13 @@ export function WorkflowLaunchDialog(props: {
           <div className="grid gap-4 md:grid-cols-2">
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Playbook</span>
-              <Select value={selectedPlaybookId} onValueChange={setSelectedPlaybookId}>
+              <Select
+                value={selectedPlaybookId}
+                onValueChange={(value) => {
+                  clearLaunchFeedback();
+                  setSelectedPlaybookId(value);
+                }}
+              >
                 <SelectTrigger
                   className={
                     playbookError ? 'border-red-300 focus-visible:ring-red-500' : undefined
@@ -176,7 +186,13 @@ export function WorkflowLaunchDialog(props: {
 
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Workspace</span>
-              <Select value={workspaceId} onValueChange={setWorkspaceId}>
+              <Select
+                value={workspaceId}
+                onValueChange={(value) => {
+                  clearLaunchFeedback();
+                  setWorkspaceId(value);
+                }}
+              >
                 <SelectTrigger
                   className={
                     workspaceError ? 'border-red-300 focus-visible:ring-red-500' : undefined
@@ -203,7 +219,10 @@ export function WorkflowLaunchDialog(props: {
             <span className="font-medium">Workflow name</span>
             <Textarea
               value={workflowName}
-              onChange={(event) => setWorkflowName(event.target.value)}
+              onChange={(event) => {
+                clearLaunchFeedback();
+                setWorkflowName(event.target.value);
+              }}
               rows={2}
               className="min-h-[64px]"
               placeholder="Release readiness"
@@ -221,9 +240,10 @@ export function WorkflowLaunchDialog(props: {
                   <span className="font-medium">{spec.title}</span>
                   <Textarea
                     value={parameterDrafts[spec.slug] ?? ''}
-                    onChange={(event) =>
-                      setParameterDrafts((current) => ({ ...current, [spec.slug]: event.target.value }))
-                    }
+                    onChange={(event) => {
+                      clearLaunchFeedback();
+                      setParameterDrafts((current) => ({ ...current, [spec.slug]: event.target.value }));
+                    }}
                     rows={2}
                     className="min-h-[64px]"
                     placeholder={spec.required ? 'Required launch input' : 'Optional launch input'}
@@ -243,7 +263,10 @@ export function WorkflowLaunchDialog(props: {
 
           <WorkflowFileInput
             files={files}
-            onChange={setFiles}
+            onChange={(nextFiles) => {
+              clearLaunchFeedback();
+              setFiles(nextFiles);
+            }}
             label="Launch files"
             description="Attach immutable input files to the new workflow."
           />

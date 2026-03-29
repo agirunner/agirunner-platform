@@ -66,4 +66,12 @@ describe('WorkflowAddWorkDialog source', () => {
     expect(source).not.toContain('<SelectItem value="boolean">');
     expect(source).not.toContain('<SelectItem value="json">');
   });
+
+  it('clears stale add-work form errors when the operator edits the draft after a failed save', () => {
+    const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('function clearFormFeedback()');
+    expect(source).toContain('clearFormFeedback();');
+    expect(source).toContain('setErrorMessage(null);');
+  });
 });

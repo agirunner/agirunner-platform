@@ -33,4 +33,12 @@ describe('WorkflowLaunchDialog source', () => {
     expect(source).toContain('initial_input_packet');
     expect(source).not.toContain('createWorkflowInputPacket(workflow.id');
   });
+
+  it('clears stale launch-form errors when the operator edits the draft after a failure', () => {
+    const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('function clearLaunchFeedback()');
+    expect(source).toContain('clearLaunchFeedback();');
+    expect(source).toContain('setErrorMessage(null);');
+  });
 });

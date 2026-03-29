@@ -69,6 +69,10 @@ export function WorkflowAddWorkDialog(props: {
     validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
   });
 
+  function clearFormFeedback(): void {
+    setErrorMessage(null);
+  }
+
   const mutation = useMutation({
     mutationFn: async () => {
       const structuredInputs = buildWorkItemInputObject(inputDrafts);
@@ -150,7 +154,15 @@ export function WorkflowAddWorkDialog(props: {
           ) : (
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Work item title</span>
-              <Input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Validation rerun" aria-invalid={Boolean(titleError)} />
+              <Input
+                value={title}
+                onChange={(event) => {
+                  clearFormFeedback();
+                  setTitle(event.target.value);
+                }}
+                placeholder="Validation rerun"
+                aria-invalid={Boolean(titleError)}
+              />
               <FieldErrorText message={titleError} />
             </label>
           )}
@@ -162,7 +174,13 @@ export function WorkflowAddWorkDialog(props: {
                 Add named notes or instructions that should travel with this work item.
               </p>
             </div>
-            <WorkflowAdditionalInputsEditor drafts={inputDrafts} onChange={setInputDrafts} />
+            <WorkflowAdditionalInputsEditor
+              drafts={inputDrafts}
+              onChange={(nextDrafts) => {
+                clearFormFeedback();
+                setInputDrafts(nextDrafts);
+              }}
+            />
           </section>
 
           <section className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
@@ -172,14 +190,25 @@ export function WorkflowAddWorkDialog(props: {
                 Attach immutable files that belong with this work item.
               </p>
             </div>
-            <WorkflowFileInput files={files} onChange={setFiles} label="Additional input files" description="Attach immutable files that belong with this work item." />
+            <WorkflowFileInput
+              files={files}
+              onChange={(nextFiles) => {
+                clearFormFeedback();
+                setFiles(nextFiles);
+              }}
+              label="Additional input files"
+              description="Attach immutable files that belong with this work item."
+            />
           </section>
 
           <label className="grid gap-2 rounded-xl border border-border/70 bg-muted/10 p-4 text-sm">
             <span className="font-medium">Optional steering instruction</span>
             <Textarea
               value={steeringInstruction}
-              onChange={(event) => setSteeringInstruction(event.target.value)}
+              onChange={(event) => {
+                clearFormFeedback();
+                setSteeringInstruction(event.target.value);
+              }}
               rows={3}
               className="min-h-[96px]"
               placeholder="Optional guidance for how this work should proceed next."
