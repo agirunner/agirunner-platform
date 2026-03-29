@@ -375,6 +375,67 @@ describe('WorkflowStateStrip', () => {
     expect(html).not.toContain('>Pause<');
   });
 
+  it('falls back to paused workflow state for lifecycle controls when workflow actions have not loaded yet', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            state: 'paused',
+            posture: 'paused',
+            availableActions: [],
+          }),
+          stickyStrip: createStickyStrip({
+            posture: 'paused',
+          }),
+          workflowSettings: null,
+          board: createBoard(),
+          selectedScopeLabel: null,
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onVisibilityModeChange: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Workflow paused');
+    expect(html).toContain('Resume');
+    expect(html).toContain('Cancel');
+    expect(html).not.toContain('>Pause<');
+  });
+
+  it('does not render pause or resume controls for cancelled workflows', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            state: 'cancelled',
+            posture: 'cancelled',
+            availableActions: [],
+          }),
+          stickyStrip: createStickyStrip({
+            posture: 'cancelled',
+          }),
+          workflowSettings: null,
+          board: createBoard(),
+          selectedScopeLabel: null,
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onVisibilityModeChange: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).not.toContain('>Pause<');
+    expect(html).not.toContain('>Resume<');
+    expect(html).not.toContain('>Cancel<');
+  });
+
   it('describes pre-dispatch activity as workflow orchestration instead of hidden board work', () => {
     const html = renderToStaticMarkup(
       createElement(

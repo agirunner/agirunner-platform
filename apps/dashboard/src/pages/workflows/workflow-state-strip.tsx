@@ -60,7 +60,7 @@ export function WorkflowStateStrip(props: {
             workflowState={props.workflow.state}
             workspaceId={props.workflow.workspaceId}
             additionalQueryKeys={[['workflows']]}
-            availableActions={workflowScopedActions}
+            availableActions={props.workflow.availableActions}
           />
           {canOpenRedrive ? (
             <Button size="sm" variant="outline" onClick={props.onOpenRedrive}>

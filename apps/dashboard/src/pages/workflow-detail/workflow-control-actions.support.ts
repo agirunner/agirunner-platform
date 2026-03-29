@@ -35,10 +35,21 @@ function readWorkflowActionAvailability(
   if (!availableActions) {
     return null;
   }
+  const workflowActions = availableActions.filter(
+    (entry) => (entry.scope?.trim().toLowerCase() ?? 'workflow') === 'workflow',
+  );
+  if (availableActions.length === 0) {
+    return null;
+  }
+  if (workflowActions.length === 0) {
+    return {
+      canPause: false,
+      canResume: false,
+      canCancel: false,
+    };
+  }
   const actionMap = new Map(
-    availableActions
-      .filter((entry) => (entry.scope?.trim().toLowerCase() ?? 'workflow') === 'workflow')
-      .map((entry) => [entry.kind, entry.enabled]),
+    workflowActions.map((entry) => [entry.kind, entry.enabled]),
   );
   return {
     canPause: actionMap.get('pause_workflow') ?? false,

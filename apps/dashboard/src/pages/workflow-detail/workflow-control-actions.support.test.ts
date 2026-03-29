@@ -42,7 +42,7 @@ describe('workflow control action availability', () => {
     });
   });
 
-  it('treats an explicit empty action list as authoritative', () => {
+  it('falls back to workflow state when the action list is empty', () => {
     expect(
       getWorkflowControlAvailability({
         state: 'paused',
@@ -50,8 +50,8 @@ describe('workflow control action availability', () => {
       }),
     ).toEqual({
       canPause: false,
-      canResume: false,
-      canCancel: false,
+      canResume: true,
+      canCancel: true,
     });
   });
 
