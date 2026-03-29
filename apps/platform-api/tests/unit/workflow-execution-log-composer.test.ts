@@ -258,6 +258,22 @@ describe('workflow-execution-log-composer', () => {
     expect(items).toEqual([]);
   });
 
+  it('suppresses generic empty tool-call wrappers instead of degrading them into filler act turns', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '22cc-shell',
+        operation: 'agent.act',
+        payload: {
+          tool: 'shell_exec',
+          text_preview: 'calling shell_exec()',
+          input: {},
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
   it('suppresses low-value list helpers even when they expose operator-safe args', () => {
     const items = buildExecutionTurnItems([
       createLogRow({

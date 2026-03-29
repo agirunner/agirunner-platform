@@ -370,6 +370,22 @@ export function WorkflowLiveConsole(props: {
             )}
           </div>
         </div>
+
+        <div
+          data-live-console-shell-cursor={followMode}
+          className="border-t border-slate-900/90 bg-slate-950/70 px-4 py-2"
+        >
+          <div className="flex min-w-0 items-center gap-2 font-mono text-xs text-slate-300">
+            <span className="text-sky-300">&gt;</span>
+            <span className="truncate">
+              {followMode === 'live' ? 'Awaiting more output' : 'Stream paused'}
+            </span>
+            <span
+              aria-hidden="true"
+              className={`inline-block h-3 w-2 rounded-[2px] ${followMode === 'live' ? 'animate-pulse bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.6)]' : 'bg-amber-300 shadow-[0_0_8px_rgba(252,211,77,0.4)]'}`}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

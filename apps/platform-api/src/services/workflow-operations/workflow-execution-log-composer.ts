@@ -1563,6 +1563,7 @@ function looksLikeLowValueConsoleText(value: string): boolean {
     || /^working through the next execution step\.?$/i.test(value)
     || /^checking current progress\.?$/i.test(value)
     || /^tool execution in progress\.?$/i.test(value)
+    || /^calling\s+[a-z0-9_.-]+(?:\(\))?\.?$/i.test(value)
     || /^burst_budget:/i.test(value)
     || /\brecord the .*?(milestone|terminal|closure|operator-visible).*?\b(brief|update)\b/i.test(value)
     || /\bemit the required .*?\b(brief|update)\b/i.test(value)
