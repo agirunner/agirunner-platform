@@ -638,6 +638,20 @@ describe('workflow-execution-log-composer', () => {
     expect(items).toEqual([]);
   });
 
+  it('suppresses tool execution in progress observe rows', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '25a',
+        operation: 'agent.observe',
+        payload: {
+          text_preview: 'tool execution in progress',
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
   it('normalizes prefixed reasoning text and strips stray unicode markers', () => {
     const [item] = buildExecutionTurnItems([
       createLogRow({
@@ -1285,6 +1299,25 @@ describe('workflow-execution-log-composer', () => {
     expect(items).toEqual([]);
   });
 
+  it('suppresses llm plan turns that only say to emit the required operator brief', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '44aa',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'plan',
+          response_text: JSON.stringify({
+            summary:
+              'Emit the required milestone operator brief now that the activation has reached a meaningful wait-state checkpoint with delivery rework active.',
+          }),
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
   it('strips reporting boilerplate from useful think lines so the underlying workflow state survives', () => {
     const [item] = buildExecutionTurnItems([
       createLogRow({
@@ -1324,6 +1357,67 @@ describe('workflow-execution-log-composer', () => {
 
     expect(item.headline).toBe(
       '[Verify] It handled the delivery-task escalation and implementation now waits for fresh engineer output.',
+    );
+  });
+
+  it('strips orchestrator-closure bookkeeping from think lines so only the workflow fact remains', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '44ea',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'think',
+          response_text: JSON.stringify({
+            approach:
+              'I will record that the new security request-changes finding confirms implementation remains blocked on security-only rework, then close this orchestrator activation with a concise handoff.',
+          }),
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      '[Think] The new security request-changes finding confirms implementation remains blocked on security-only rework',
+    );
+  });
+
+  it('suppresses llm plan turns whose only remaining action is to submit the orchestrator handoff', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '44eb',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'plan',
+          response_text: JSON.stringify({
+            summary:
+              'The required assessor routing checkpoint is recorded; the only remaining action in this activation is to submit the orchestrator handoff summarizing the new dispatch state and wait for the assessor results.',
+          }),
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
+  it('strips alternate activation-complete bookkeeping prefixes from verify lines', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '44ec',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'verify',
+          response_text: JSON.stringify({
+            reason:
+              'This activation has completed its required orchestration work: it processed the implementation delivery handoff, routed the current revision into active quality and security assessment, and now waits for the assessor results.',
+          }),
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      '[Verify] It processed the implementation delivery handoff, routed the current revision into active quality and security assessment, and now waits for the assessor results.',
     );
   });
 

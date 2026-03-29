@@ -178,7 +178,7 @@ describe('WorkflowLiveConsoleService', () => {
     });
   });
 
-  it('queries runtime loop phase rows so think and plan items are not dropped from enhanced mode', async () => {
+  it('queries only observe rows from the agent-loop side and leaves think/plan/act/verify to llm phase rows', async () => {
     const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
       versionSource: unknown,
       briefSource: unknown,
@@ -194,45 +194,16 @@ describe('WorkflowLiveConsoleService', () => {
         return {
           data: [
             {
-              id: 'runtime-think-1',
+              id: 'observe-1',
               source: 'runtime',
-              category: 'task_lifecycle',
+              category: 'agent_loop',
               level: 'info',
-              operation: 'runtime.loop.think',
+              operation: 'agent.observe',
               status: 'completed',
               payload: {
-                phase: 'think',
+                phase: 'observe',
                 llm_turn_count: 4,
-                reasoning_summary: 'Check whether the queued review already covers the baseline release-audit subject.',
-              },
-              workflow_id: 'workflow-1',
-              workflow_name: 'Workflow 1',
-              work_item_id: 'work-item-1',
-              task_id: 'task-1',
-              stage_name: 'review',
-              is_orchestrator_task: false,
-              task_title: 'Assess policy readiness',
-              role: 'policy-assessor',
-              actor_type: 'runtime',
-              actor_name: 'Policy Assessor',
-              resource_name: null,
-              created_at: '2026-03-28T07:58:15.000Z',
-            },
-            {
-              id: 'runtime-plan-1',
-              source: 'runtime',
-              category: 'task_lifecycle',
-              level: 'info',
-              operation: 'runtime.loop.plan',
-              status: 'completed',
-              payload: {
-                phase: 'plan',
-                llm_turn_count: 4,
-                steps: [
-                  {
-                    description: 'Read the current release-audit packet before making the policy decision.',
-                  },
-                ],
+                summary: 'The policy review is still waiting on the latest implementation handoff.',
               },
               workflow_id: 'workflow-1',
               workflow_name: 'Workflow 1',
@@ -291,13 +262,12 @@ describe('WorkflowLiveConsoleService', () => {
     expect(executionTurnSource.query).toHaveBeenCalledWith(
       'tenant-1',
       expect.objectContaining({
-        category: ['agent_loop', 'task_lifecycle'],
-        operation: expect.arrayContaining(['runtime.loop.think', 'runtime.loop.plan']),
+        category: ['agent_loop'],
+        operation: ['agent.observe'],
       }),
     );
     expect(result.items.map((item) => item.headline)).toEqual([
-      '[Plan] Read the current release-audit packet before making the policy decision.',
-      '[Think] Check whether the queued review already covers the baseline release-audit subject.',
+      '[Observe] The policy review is still waiting on the latest implementation handoff.',
     ]);
   });
 

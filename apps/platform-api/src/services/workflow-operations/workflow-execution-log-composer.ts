@@ -1477,6 +1477,7 @@ function looksLikeLowValueConsoleText(value: string): boolean {
     /^advancing the task with the next verified step\.?$/i.test(value)
     || /^working through the next execution step\.?$/i.test(value)
     || /^checking current progress\.?$/i.test(value)
+    || /^tool execution in progress\.?$/i.test(value)
     || /^burst_budget:/i.test(value)
     || /\brecord the .*?(milestone|terminal|closure|operator-visible).*?\b(brief|update)\b/i.test(value)
     || /\bemit the required .*?\b(brief|update)\b/i.test(value)
@@ -1487,6 +1488,8 @@ function looksLikeLowValueConsoleText(value: string): boolean {
     || /\bstill requires (?:its )?structured handoff\b/i.test(value)
     || /\bsatisfy the completion contract\b/i.test(value)
     || /\bterminal structured tool submit_handoff completed the task\b/i.test(value)
+    || /\bonly remaining action in this activation is to submit the orchestrator handoff\b/i.test(value)
+    || /\bcheckpoint is recorded; the only remaining action in this activation is to submit the orchestrator handoff\b/i.test(value)
     || /\b(remains|still|continues to be|continues)\b.*\bready\b/i.test(value)
     || /\b(remains|still|continues to be|continues)\b.*\b(suitable|supports|cleared)\b/i.test(value)
   );
@@ -1728,6 +1731,7 @@ function sanitizeOperatorIdentifiers(value: string): string {
 
 function stripReportingBoilerplate(value: string): string {
   const stripped = value
+    .replace(/^I will record that\s*/i, '')
     .replace(
       /\bI will record (?:a|the) (?:required )?(?:milestone |terminal |operator(?:-facing)? |operator-visible )?brief and submit (?:a|the) structured(?: blocked)? handoff summarizing that\s*/i,
       '',
@@ -1739,6 +1743,7 @@ function stripReportingBoilerplate(value: string): string {
     .replace(/\bI will now,\s*summarizing that\s*/i, '')
     .replace(/^Describing that\s*/i, '')
     .replace(/^The activation's required orchestration work is complete:\s*/i, '')
+    .replace(/^This activation has completed its required orchestration work:\s*/i, '')
     .replace(
       /\brecord (?:a|the|required )?(?:milestone |terminal |operator(?:-facing)? |operator-visible )?brief(?: now)?(?:,? then)?\s*/i,
       '',
@@ -1754,6 +1759,14 @@ function stripReportingBoilerplate(value: string): string {
     )
     .replace(
       /\brecord (?:a )?concise milestone plus handoff while\s*/i,
+      '',
+    )
+    .replace(
+      /,\s*then close this orchestrator activation(?: with [^.]+)?\.?$/i,
+      '',
+    )
+    .replace(
+      /,\s*then close this activation(?: with [^.]+)?\.?$/i,
       '',
     )
     .trim();
