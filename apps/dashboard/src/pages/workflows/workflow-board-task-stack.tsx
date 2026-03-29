@@ -3,6 +3,7 @@ export interface WorkflowTaskPreview {
   title: string;
   role: string | null;
   state: string | null;
+  recentUpdate?: string | null;
   workItemId?: string | null;
   workItemTitle?: string | null;
   stageName?: string | null;
@@ -62,7 +63,7 @@ function TaskPreviewRows(props: {
 
   return (
     <div className="grid gap-2">
-      {props.tasks.map((task) => (
+      {props.tasks.map((task) =>
         props.onSelectTask ? (
           <button
             key={task.id}
@@ -85,6 +86,9 @@ function TaskPreviewRows(props: {
             <span className="text-xs text-muted-foreground">
               {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}
             </span>
+            {task.recentUpdate ? (
+              <span className="text-xs text-muted-foreground">{task.recentUpdate}</span>
+            ) : null}
           </button>
         ) : (
           <div
@@ -95,9 +99,12 @@ function TaskPreviewRows(props: {
             <span className="text-xs text-muted-foreground">
               {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}
             </span>
+            {task.recentUpdate ? (
+              <span className="text-xs text-muted-foreground">{task.recentUpdate}</span>
+            ) : null}
           </div>
-        )
-      ))}
+        ),
+      )}
     </div>
   );
 }
@@ -106,7 +113,5 @@ function humanizeToken(value: string | null | undefined): string | null {
   if (!value) {
     return null;
   }
-  return value
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (character) => character.toUpperCase());
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }

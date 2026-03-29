@@ -28,7 +28,8 @@ describe('WorkflowDetails', () => {
           ...createTask(),
           input: {
             artifact_id: 'artifact-1',
-            deliverable: 'A full policy assessment handoff with readiness decision, evidence, and rework guidance.',
+            deliverable:
+              'A full policy assessment handoff with readiness decision, evidence, and rework guidance.',
             work_item_id: 'work-item-1',
             subject_task_id: 'task-source-1',
             subject_revision: 1,
@@ -60,12 +61,17 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Verify deliverable');
     expect(html).toContain('Task');
     expect(html).toContain('In Progress for Reviewer');
-    expect(html).toContain('Workflow: Release Workflow');
-    expect(html).toContain('Work item: Prepare release bundle');
+    expect(html).toContain('Basics');
+    expect(html).toContain('Workflow');
+    expect(html).toContain('Release Workflow');
+    expect(html).toContain('Work item');
+    expect(html).toContain('Prepare release bundle');
     expect(html).toContain('Task input');
     expect(html).toContain('Inputs');
     expect(html).toContain('Requested deliverable');
-    expect(html).toContain('A full policy assessment handoff with readiness decision, evidence, and rework guidance.');
+    expect(html).toContain(
+      'A full policy assessment handoff with readiness decision, evidence, and rework guidance.',
+    );
     expect(html).not.toContain('Rollback guide');
     expect(html).not.toContain('rollback.md');
     expect(html).not.toContain('Artifact Id');
@@ -95,6 +101,44 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Related tasks');
     expect(html).not.toContain('rounded-lg border border-border/60 bg-muted/5 p-3');
     expect(html).not.toContain('rounded-xl border border-border/70 bg-background/70');
+  });
+
+  it('puts dense workflow and work-item basics ahead of task inputs', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: 'task-1',
+        selectedTaskTitle: 'Verify deliverable',
+        selectedWorkItem: createWorkItem(),
+        selectedTask: {
+          ...createTask(),
+          input: {
+            deliverable: 'Confirm the final release packet is complete and operator-ready.',
+          },
+        },
+        selectedWorkItemTasks: [],
+        inputPackets: createPackets(),
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Verify deliverable',
+          banner: 'Task: Verify deliverable',
+        },
+      }),
+    );
+
+    expect(html).toContain('Basics');
+    expect(html).toContain('Workflow');
+    expect(html).toContain('Release Workflow');
+    expect(html).toContain('Work item');
+    expect(html).toContain('Prepare release bundle');
+    expect(html.indexOf('Basics')).toBeLessThan(html.indexOf('Inputs'));
   });
 
   it('shows work-item state with compact task rows instead of only aggregate counts', () => {
@@ -211,10 +255,13 @@ describe('WorkflowDetails', () => {
 
     expect(html).toContain('Prepare release bundle');
     expect(html).toContain('Assemble final artifacts for launch.');
-    expect(html).toContain('Workflow: Release Workflow');
-    expect(html).toContain('Work item: Prepare release bundle');
-    expect(html.indexOf('Verify deliverable')).toBeLessThan(html.indexOf('Workflow: Release Workflow'));
-    expect(html.indexOf('Verify deliverable')).toBeLessThan(html.indexOf('Work item: Prepare release bundle'));
+    expect(html).toContain('Basics');
+    expect(html).toContain('Workflow');
+    expect(html).toContain('Release Workflow');
+    expect(html).toContain('Work item');
+    expect(html).toContain('Prepare release bundle');
+    expect(html.indexOf('Verify deliverable')).toBeLessThan(html.indexOf('Basics'));
+    expect(html.indexOf('Verify deliverable')).toBeLessThan(html.indexOf('Release Workflow'));
     expect(html).not.toContain('Check the final release packet and approve it.');
     expect(html).not.toContain('Task scope');
     expect(html).not.toContain('Owner role');
@@ -268,7 +315,8 @@ describe('WorkflowDetails', () => {
           ...createTask(),
           input: {
             review_brief: {
-              acceptance_criteria: 'Confirm the packet includes release notes and rollback guidance.',
+              acceptance_criteria:
+                'Confirm the packet includes release notes and rollback guidance.',
               target_role: 'release_manager',
             },
             checklist: ['release-notes', 'rollback-guide'],
@@ -335,7 +383,9 @@ describe('WorkflowDetails', () => {
 
     expect(html).toContain('Requested deliverable');
     expect(html).toContain('Confirm the final release packet is complete and operator-ready.');
-    expect(html.indexOf('Requested deliverable')).toBeLessThan(html.indexOf('In Progress for Reviewer'));
+    expect(html.indexOf('Requested deliverable')).toBeLessThan(
+      html.indexOf('In Progress for Reviewer'),
+    );
     expect(html).not.toContain('Rollback guide');
     expect(html).not.toContain('rollback.md');
   });

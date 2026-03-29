@@ -3,11 +3,17 @@ import { useQueries } from '@tanstack/react-query';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
-import type { DashboardWorkflowBoardResponse, DashboardWorkflowWorkItemRecord } from '../../lib/api.js';
+import type {
+  DashboardWorkflowBoardResponse,
+  DashboardWorkflowWorkItemRecord,
+} from '../../lib/api.js';
 import { dashboardApi } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
 import { WorkflowBoardTaskStack } from './workflow-board-task-stack.js';
-import { summarizeTaskPreviewsForWorkItem, type WorkflowTaskPreviewSummary } from './workflow-board-task-preview.js';
+import {
+  summarizeTaskPreviewsForWorkItem,
+  type WorkflowTaskPreviewSummary,
+} from './workflow-board-task-preview.js';
 import type { WorkflowBoardLens, WorkflowBoardMode } from './workflows-page.support.js';
 import {
   buildWorkflowBoardWorkItemSummary,
@@ -50,43 +56,46 @@ export function WorkflowBoard(props: {
         escalatedOnly,
         needsActionOnly,
       }),
-    [blockedOnly, escalatedOnly, laneFilter, needsActionOnly, props.board, props.boardMode, stageFilter],
+    [
+      blockedOnly,
+      escalatedOnly,
+      laneFilter,
+      needsActionOnly,
+      props.board,
+      props.boardMode,
+      stageFilter,
+    ],
   );
   const filteredWorkItems = useMemo(
-    () =>
-      boardView.lanes.flatMap((lane) => [...lane.activeItems, ...lane.visibleCompletedItems]),
+    () => boardView.lanes.flatMap((lane) => [...lane.activeItems, ...lane.visibleCompletedItems]),
     [boardView],
   );
 
-  const taskQueryDescriptors =
-    props.taskPreviewSummaries
-      ? []
-      : filteredWorkItems.map((workItem) => ({
-          queryKey: ['workflows', 'work-item-tasks', props.workflowId, workItem.id],
-          queryFn: () => dashboardApi.listWorkflowWorkItemTasks(props.workflowId, workItem.id),
-          staleTime: 15_000,
-        }));
+  const taskQueryDescriptors = props.taskPreviewSummaries
+    ? []
+    : filteredWorkItems.map((workItem) => ({
+        queryKey: ['workflows', 'work-item-tasks', props.workflowId, workItem.id],
+        queryFn: () => dashboardApi.listWorkflowWorkItemTasks(props.workflowId, workItem.id),
+        staleTime: 15_000,
+      }));
   const taskQueries = useQueries({
     queries: taskQueryDescriptors,
   });
 
-  const tasksByWorkItem = useMemo(
-    () => {
-      if (props.taskPreviewSummaries) {
-        return props.taskPreviewSummaries;
-      }
-      return new Map(
-        filteredWorkItems.map((workItem, index) => [
-          workItem.id,
-          summarizeTaskPreviewsForWorkItem(taskQueries[index]?.data, workItem.id, {
-            workItemTitle: workItem.title,
-            stageName: workItem.stage_name,
-          }),
-        ]),
-      );
-    },
-    [filteredWorkItems, props.taskPreviewSummaries, taskQueries],
-  );
+  const tasksByWorkItem = useMemo(() => {
+    if (props.taskPreviewSummaries) {
+      return props.taskPreviewSummaries;
+    }
+    return new Map(
+      filteredWorkItems.map((workItem, index) => [
+        workItem.id,
+        summarizeTaskPreviewsForWorkItem(taskQueries[index]?.data, workItem.id, {
+          workItemTitle: workItem.title,
+          stageName: workItem.stage_name,
+        }),
+      ]),
+    );
+  }, [filteredWorkItems, props.taskPreviewSummaries, taskQueries]);
 
   if (!props.board) {
     return (
@@ -105,7 +114,9 @@ export function WorkflowBoard(props: {
         <div className="flex min-w-0 items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             <p className="text-base font-semibold text-foreground">Workflow board</p>
-            {props.workflowState === 'paused' ? <Badge variant="warning">Workflow paused</Badge> : null}
+            {props.workflowState === 'paused' ? (
+              <Badge variant="warning">Workflow paused</Badge>
+            ) : null}
           </div>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2 pb-1">
@@ -163,7 +174,11 @@ export function WorkflowBoard(props: {
             isActive={needsActionOnly}
             onClick={() => setNeedsActionOnly((current) => !current)}
           />
-          <ToggleFilter label="Blocked" isActive={blockedOnly} onClick={() => setBlockedOnly((current) => !current)} />
+          <ToggleFilter
+            label="Blocked"
+            isActive={blockedOnly}
+            onClick={() => setBlockedOnly((current) => !current)}
+          />
           <ToggleFilter
             label="Escalated"
             isActive={escalatedOnly}
@@ -220,8 +235,8 @@ function BoardLaneCard(props: {
     [props.lane.visibleCompletedItems, props.tasksByWorkItem],
   );
   const showCompletedSection =
-    props.boardMode !== 'active'
-    && (props.lane.visibleCompletedItems.length > 0 || props.lane.hiddenCompletedCount > 0);
+    props.boardMode !== 'active' &&
+    (props.lane.visibleCompletedItems.length > 0 || props.lane.hiddenCompletedCount > 0);
 
   return (
     <article className="grid min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5">
@@ -254,10 +269,15 @@ function BoardLaneCard(props: {
       </div>
 
       {showCompletedSection ? (
-        <details className="rounded-lg border border-border/70 bg-background/70 p-3" open={props.boardMode === 'all'}>
+        <details
+          className="rounded-lg border border-border/70 bg-background/70 p-3"
+          open={props.boardMode === 'all'}
+        >
           <summary className="cursor-pointer text-sm font-medium text-foreground">
             {props.boardMode === 'all' ? 'Completed work' : 'Recent completions'}
-            {props.lane.hiddenCompletedCount > 0 ? ` • ${props.lane.hiddenCompletedCount} older hidden` : ''}
+            {props.lane.hiddenCompletedCount > 0
+              ? ` • ${props.lane.hiddenCompletedCount} older hidden`
+              : ''}
           </summary>
           <div className="mt-3 grid gap-3">
             {props.boardLens === 'tasks'
@@ -267,22 +287,22 @@ function BoardLaneCard(props: {
                   props.onSelectTask,
                   'No completed specialist tasks match the current visibility window.',
                 )
-              : props.lane.visibleCompletedItems.length === 0 ? (
-              renderLaneEmptyState('No completed work items match the current visibility window.')
-            ) : (
-              props.lane.visibleCompletedItems.map((workItem) => (
-                <BoardWorkItemCard
-                  key={workItem.id}
-                  workItem={workItem}
-                  workflowState={props.workflowState}
-                  taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
-                  isSelected={workItem.id === props.selectedWorkItemId}
-                  selectedTaskId={props.selectedTaskId}
-                  onSelect={props.onSelectWorkItem}
-                  muted
-                />
-              ))
-              )}
+              : props.lane.visibleCompletedItems.length === 0
+                ? renderLaneEmptyState(
+                    'No completed work items match the current visibility window.',
+                  )
+                : props.lane.visibleCompletedItems.map((workItem) => (
+                    <BoardWorkItemCard
+                      key={workItem.id}
+                      workItem={workItem}
+                      workflowState={props.workflowState}
+                      taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
+                      isSelected={workItem.id === props.selectedWorkItemId}
+                      selectedTaskId={props.selectedTaskId}
+                      onSelect={props.onSelectWorkItem}
+                      muted
+                    />
+                  ))}
           </div>
         </details>
       ) : null}
@@ -313,20 +333,32 @@ function BoardWorkItemCard(props: {
             : 'border-border/70 bg-background/85 hover:bg-background',
       )}
     >
-      <button type="button" className="grid w-full gap-3 text-left" onClick={() => props.onSelect(props.workItem.id)}>
+      <button
+        type="button"
+        className="grid w-full gap-3 text-left"
+        onClick={() => props.onSelect(props.workItem.id)}
+      >
         <div className="flex flex-wrap items-center gap-2">
           <strong className="text-foreground">{props.workItem.title}</strong>
           <Badge variant="outline">{humanizeToken(props.workItem.stage_name)}</Badge>
           {shouldShowPriorityBadge(props.workItem.priority) ? (
             <Badge variant="outline">{humanizeToken(props.workItem.priority)}</Badge>
           ) : null}
-          {props.workItem.blocked_state === 'blocked' ? <Badge variant="destructive">Blocked</Badge> : null}
-          {props.workItem.escalation_status === 'open' ? <Badge variant="warning">Escalated</Badge> : null}
-          {isNeedsActionWorkItem(props.workItem) ? <Badge variant="warning">Needs action</Badge> : null}
+          {props.workItem.blocked_state === 'blocked' ? (
+            <Badge variant="destructive">Blocked</Badge>
+          ) : null}
+          {props.workItem.escalation_status === 'open' ? (
+            <Badge variant="warning">Escalated</Badge>
+          ) : null}
+          {isNeedsActionWorkItem(props.workItem) ? (
+            <Badge variant="warning">Needs action</Badge>
+          ) : null}
           {isPausedWorkflowWorkItem(props.workflowState, props.workItem.completed_at) ? (
             <Badge variant="secondary">Paused</Badge>
           ) : null}
-          {props.taskSummary.hasActiveOrchestratorTask ? <Badge variant="secondary">Orchestrator working</Badge> : null}
+          {props.taskSummary.hasActiveOrchestratorTask ? (
+            <Badge variant="secondary">Orchestrator working</Badge>
+          ) : null}
         </div>
 
         {currentStateSummary ? (
@@ -341,6 +373,7 @@ function BoardWorkItemCard(props: {
       </button>
 
       {props.taskSummary.tasks.length > 0 ? (
+        // Task preview rows stay expanded here so work-item view remains informative without task-scoped clicks.
         <WorkflowBoardTaskStack
           tasks={props.taskSummary.tasks}
           selectedTaskId={props.selectedTaskId}
@@ -369,10 +402,15 @@ function renderTaskLaneCards(
   return (
     <>
       {groupTaskCardsByWorkItem(taskCards).map((group) => (
-        <section key={group.workItemId} className="grid gap-2 rounded-xl border border-border/60 bg-background/60 p-3">
+        <section
+          key={group.workItemId}
+          className="grid gap-2 rounded-xl border border-border/60 bg-background/60 p-3"
+        >
           <div className="flex min-w-0 items-center justify-between gap-2">
             <strong className="truncate text-sm text-foreground">{group.workItemTitle}</strong>
-            {group.stageName ? <Badge variant="outline">{humanizeToken(group.stageName)}</Badge> : null}
+            {group.stageName ? (
+              <Badge variant="outline">{humanizeToken(group.stageName)}</Badge>
+            ) : null}
           </div>
           <div className="grid gap-2">
             {group.tasks.map((task) => (
@@ -391,8 +429,12 @@ function renderTaskLaneCards(
                 <div className="flex flex-wrap items-center gap-2">
                   <strong className="text-foreground">{task.title}</strong>
                   {task.role ? <Badge variant="outline">{humanizeToken(task.role)}</Badge> : null}
-                  {task.state ? <Badge variant="secondary">{humanizeToken(task.state)}</Badge> : null}
-                  {task.hasActiveOrchestratorTask ? <Badge variant="secondary">Orchestrator working</Badge> : null}
+                  {task.state ? (
+                    <Badge variant="secondary">{humanizeToken(task.state)}</Badge>
+                  ) : null}
+                  {task.hasActiveOrchestratorTask ? (
+                    <Badge variant="secondary">Orchestrator working</Badge>
+                  ) : null}
                 </div>
               </button>
             ))}
@@ -404,9 +446,7 @@ function renderTaskLaneCards(
 }
 
 function renderLaneEmptyState(message: string): JSX.Element {
-  return (
-    <p className="px-1 pb-1 text-sm text-muted-foreground">{message}</p>
-  );
+  return <p className="px-1 pb-1 text-sm text-muted-foreground">{message}</p>;
 }
 
 function groupTaskCardsByWorkItem(
@@ -417,12 +457,15 @@ function groupTaskCardsByWorkItem(
   stageName: string | null;
   tasks: typeof taskCards;
 }> {
-  const groups = new Map<string, {
-    workItemId: string;
-    workItemTitle: string;
-    stageName: string | null;
-    tasks: typeof taskCards;
-  }>();
+  const groups = new Map<
+    string,
+    {
+      workItemId: string;
+      workItemTitle: string;
+      stageName: string | null;
+      tasks: typeof taskCards;
+    }
+  >();
 
   for (const task of taskCards) {
     const existing = groups.get(task.workItemId);
@@ -441,34 +484,34 @@ function groupTaskCardsByWorkItem(
   return Array.from(groups.values());
 }
 
-function ModeButton(props: {
-  isActive: boolean;
-  label: string;
-  onClick(): void;
-}): JSX.Element {
+function ModeButton(props: { isActive: boolean; label: string; onClick(): void }): JSX.Element {
   return (
-    <Button size="sm" type="button" variant={props.isActive ? 'default' : 'outline'} onClick={props.onClick}>
+    <Button
+      size="sm"
+      type="button"
+      variant={props.isActive ? 'default' : 'outline'}
+      onClick={props.onClick}
+    >
       {props.label}
     </Button>
   );
 }
 
-function ToggleFilter(props: {
-  label: string;
-  isActive: boolean;
-  onClick(): void;
-}): JSX.Element {
+function ToggleFilter(props: { label: string; isActive: boolean; onClick(): void }): JSX.Element {
   return (
-    <Button size="sm" type="button" variant={props.isActive ? 'default' : 'outline'} onClick={props.onClick}>
+    <Button
+      size="sm"
+      type="button"
+      variant={props.isActive ? 'default' : 'outline'}
+      onClick={props.onClick}
+    >
       {props.label}
     </Button>
   );
 }
 
 function humanizeToken(value: string): string {
-  return value
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (character) => character.toUpperCase());
+  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function shouldShowPriorityBadge(priority: string | null | undefined): boolean {

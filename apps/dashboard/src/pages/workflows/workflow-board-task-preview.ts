@@ -51,6 +51,7 @@ function buildTaskPreview(
       title: typeof entry.title === 'string' ? entry.title : 'Untitled task',
       role: typeof entry.role === 'string' ? entry.role : null,
       state: readState(entry),
+      recentUpdate: readRecentUpdate(entry),
       workItemId,
       workItemTitle: context?.workItemTitle ?? null,
       stageName: context?.stageName ?? null,
@@ -84,10 +85,29 @@ function readState(entry: Record<string, unknown>): string | null {
   return typeof entry.state === 'string' ? entry.state : null;
 }
 
+function readRecentUpdate(entry: Record<string, unknown>): string | null {
+  return (
+    readOptionalText(entry.summary) ??
+    readOptionalText(entry.headline) ??
+    readOptionalText(entry.status_summary) ??
+    readOptionalText(entry.description)
+  );
+}
+
+function readOptionalText(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
 function isActiveOrchestratorState(state: string | null): boolean {
-  return state === 'ready'
-    || state === 'claimed'
-    || state === 'in_progress'
-    || state === 'awaiting_approval'
-    || state === 'output_pending_assessment';
+  return (
+    state === 'ready' ||
+    state === 'claimed' ||
+    state === 'in_progress' ||
+    state === 'awaiting_approval' ||
+    state === 'output_pending_assessment'
+  );
 }

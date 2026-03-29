@@ -88,7 +88,9 @@ describe('WorkflowBoard', () => {
     );
 
     expect(html).toContain('Recent completions');
-    expect(html).not.toContain('<details class="rounded-2xl border border-border/70 bg-background/70 p-3" open="">');
+    expect(html).not.toContain(
+      '<details class="rounded-2xl border border-border/70 bg-background/70 p-3" open="">',
+    );
     expect(html).not.toContain('>3 tasks<');
     expect(html).not.toContain('flex min-h-[8rem] items-center justify-center text-center');
   });
@@ -174,10 +176,18 @@ describe('WorkflowBoard', () => {
       ),
     );
 
-    expect(html).toContain('grid gap-3 md:grid-flow-col md:auto-cols-[minmax(17.5rem,1fr)] md:items-start');
-    expect(html).toContain('grid min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5');
-    expect(html).not.toContain('grid min-h-full gap-3 md:grid-flow-col md:auto-cols-[minmax(17.5rem,1fr)]');
-    expect(html).not.toContain('grid h-full min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5');
+    expect(html).toContain(
+      'grid gap-3 md:grid-flow-col md:auto-cols-[minmax(17.5rem,1fr)] md:items-start',
+    );
+    expect(html).toContain(
+      'grid min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5',
+    );
+    expect(html).not.toContain(
+      'grid min-h-full gap-3 md:grid-flow-col md:auto-cols-[minmax(17.5rem,1fr)]',
+    );
+    expect(html).not.toContain(
+      'grid h-full min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5',
+    );
   });
 
   it('supports a task lens that renders only specialist tasks as first-class cards', () => {
@@ -278,6 +288,51 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Assess packet');
     expect(html).toContain('Tasks');
     expect(html).not.toContain('<details');
+    expect(html).not.toContain('data-task-selectable="true"');
+  });
+
+  it('shows recent task update context inside expanded work-item task summaries by default', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: createBoard(),
+          selectedWorkItemId: 'work-item-1',
+          selectedTaskId: null,
+          boardLens: 'work_items',
+          boardMode: 'active_recent_complete',
+          taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
+            [
+              'work-item-1',
+              {
+                tasks: [
+                  {
+                    id: 'task-specialist',
+                    title: 'Assess packet',
+                    role: 'policy-assessor',
+                    state: 'in_progress',
+                    recentUpdate: 'Waiting on the final evidence packet before review can finish.',
+                    workItemId: 'work-item-1',
+                    workItemTitle: 'Review incoming packet',
+                    stageName: 'intake-triage',
+                  },
+                ],
+                hasActiveOrchestratorTask: false,
+              },
+            ],
+          ]),
+          onBoardLensChange: vi.fn(),
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+          onSelectTask: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Assess packet');
+    expect(html).toContain('Waiting on the final evidence packet before review can finish.');
     expect(html).not.toContain('data-task-selectable="true"');
   });
 

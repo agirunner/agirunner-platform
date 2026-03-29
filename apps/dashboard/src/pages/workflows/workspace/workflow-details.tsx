@@ -33,7 +33,9 @@ export function WorkflowDetails(props: {
   const workflowPackets = isWorkflowScope
     ? props.inputPackets.filter((packet) => packet.work_item_id === null)
     : [];
-  const operatorFacingTaskInput = isTaskScope ? readOperatorFacingTaskInput(props.selectedTask?.input) : null;
+  const operatorFacingTaskInput = isTaskScope
+    ? readOperatorFacingTaskInput(props.selectedTask?.input)
+    : null;
   const hasTaskInput = isTaskScope && hasStructuredContent(operatorFacingTaskInput);
   const shouldShowParentWorkItemInputs = shouldShowParentWorkItemPackets({
     isWorkItemScope,
@@ -42,35 +44,31 @@ export function WorkflowDetails(props: {
     hasTaskInput,
   });
   const compactTaskRows = isWorkItemScope ? readCompactTaskRows(props.selectedWorkItemTasks) : [];
-  const workItemPackets = shouldShowParentWorkItemInputs && selectedWorkItemId
-    ? props.inputPackets.filter((packet) => packet.work_item_id === selectedWorkItemId)
-    : [];
+  const workItemPackets =
+    shouldShowParentWorkItemInputs && selectedWorkItemId
+      ? props.inputPackets.filter((packet) => packet.work_item_id === selectedWorkItemId)
+      : [];
   const scope = buildDetailsScope(props);
   const hasInputs =
-    workflowPackets.length > 0
-    || workItemPackets.length > 0
-    || hasTaskInput
-    || (isWorkflowScope && hasStructuredContent(props.workflowParameters));
+    workflowPackets.length > 0 ||
+    workItemPackets.length > 0 ||
+    hasTaskInput ||
+    (isWorkflowScope && hasStructuredContent(props.workflowParameters));
   const detailSections = buildDetailSections(scope, props.scope.scopeKind);
-  const hasSupportingDetails =
-    detailSections.secondary.length > 0
-    || compactTaskRows.length > 0;
+  const hasSupportingDetails = detailSections.secondary.length > 0 || compactTaskRows.length > 0;
 
   return (
     <section className="grid gap-3 pb-1">
       <header className="grid gap-1 border-b border-border/60 pb-2">
         <h3 className="text-base font-semibold text-foreground">{scope.title}</h3>
-        {scope.summary ? (
-          <p className="text-sm text-muted-foreground">{scope.summary}</p>
-        ) : null}
-        {detailSections.context.length > 0 ? (
-          <div className="grid gap-1 text-sm text-muted-foreground">
-            {detailSections.context.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-          </div>
-        ) : null}
+        {scope.summary ? <p className="text-sm text-muted-foreground">{scope.summary}</p> : null}
       </header>
+
+      {detailSections.context.length > 0 ? (
+        <DetailSection title="Basics">
+          <BasicDetailList entries={detailSections.context} />
+        </DetailSection>
+      ) : null}
 
       {hasInputs ? (
         <DetailSection title="Inputs">
@@ -80,12 +78,8 @@ export function WorkflowDetails(props: {
           {isWorkflowScope && hasStructuredContent(props.workflowParameters) ? (
             <StructuredBlock label="Launch inputs" value={props.workflowParameters} />
           ) : null}
-          {workflowPackets.length > 0 ? (
-            <PacketSection packets={workflowPackets} />
-          ) : null}
-          {workItemPackets.length > 0 ? (
-            <PacketSection packets={workItemPackets} />
-          ) : null}
+          {workflowPackets.length > 0 ? <PacketSection packets={workflowPackets} /> : null}
+          {workItemPackets.length > 0 ? <PacketSection packets={workItemPackets} /> : null}
         </DetailSection>
       ) : null}
 
@@ -116,10 +110,7 @@ function shouldShowParentWorkItemPackets(input: {
   return input.isTaskScope && !input.hasTaskInput;
 }
 
-function DetailSection(props: {
-  title: string;
-  children: ReactNode;
-}): JSX.Element {
+function DetailSection(props: { title: string; children: ReactNode }): JSX.Element {
   return (
     <section className="grid gap-2">
       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
@@ -130,9 +121,25 @@ function DetailSection(props: {
   );
 }
 
-function PacketSection(props: {
-  packets: DashboardWorkflowInputPacketRecord[];
-}): JSX.Element {
+function BasicDetailList(props: { entries: Array<{ label: string; value: string }> }): JSX.Element {
+  return (
+    <dl className="divide-y divide-border/60">
+      {props.entries.map((entry) => (
+        <div
+          key={`${entry.label}:${entry.value}`}
+          className="grid gap-1 py-1 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-start sm:gap-3"
+        >
+          <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+            {entry.label}
+          </dt>
+          <dd className="text-sm text-foreground">{entry.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function PacketSection(props: { packets: DashboardWorkflowInputPacketRecord[] }): JSX.Element {
   return (
     <div className="grid gap-3 divide-y divide-border/60">
       {props.packets.map((packet) => (
@@ -149,9 +156,9 @@ function PacketSection(props: {
                 Attached files
               </p>
               <div className="flex flex-wrap gap-2">
-              {packet.files.map((file) => (
-                <PacketFileLink key={file.id} file={file} />
-              ))}
+                {packet.files.map((file) => (
+                  <PacketFileLink key={file.id} file={file} />
+                ))}
               </div>
             </div>
           ) : null}
@@ -161,9 +168,7 @@ function PacketSection(props: {
   );
 }
 
-function PacketFileLink(props: {
-  file: DashboardWorkflowInputPacketFileRecord;
-}): JSX.Element {
+function PacketFileLink(props: { file: DashboardWorkflowInputPacketFileRecord }): JSX.Element {
   return (
     <a
       className="inline-flex items-center rounded-md border border-border/70 px-2 py-1 text-xs font-medium text-accent underline-offset-4 hover:underline"
@@ -197,7 +202,10 @@ function StructuredBlock(props: {
       {entries.length > 0 ? (
         <dl className="divide-y divide-border/60">
           {entries.map(([label, value]) => (
-            <div key={label} className="grid gap-1 py-1 sm:grid-cols-[10rem_minmax(0,1fr)] sm:items-start sm:gap-3">
+            <div
+              key={label}
+              className="grid gap-1 py-1 sm:grid-cols-[10rem_minmax(0,1fr)] sm:items-start sm:gap-3"
+            >
               <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 {label}
               </dt>
@@ -241,7 +249,10 @@ function CompactTaskList(props: {
       </p>
       <ul className="grid divide-y divide-border/60">
         {props.tasks.map((task) => (
-          <li key={task.id} className="flex items-start justify-between gap-3 py-2 first:pt-0 last:pb-0">
+          <li
+            key={task.id}
+            className="flex items-start justify-between gap-3 py-2 first:pt-0 last:pb-0"
+          >
             <div className="min-w-0">
               <p className="truncate text-sm text-foreground">{task.title}</p>
               {task.role ? (
@@ -279,21 +290,21 @@ function buildDetailsScope(props: {
   if (props.scope.scopeKind === 'selected_task') {
     return {
       title:
-        props.selectedTask?.title
-        ?? props.selectedTaskTitle
-        ?? props.selectedTaskId
-        ?? 'Selected task',
+        props.selectedTask?.title ??
+        props.selectedTaskTitle ??
+        props.selectedTaskId ??
+        'Selected task',
       latest_status: buildTaskLatestStatus(props.selectedTask),
       workflow_name: props.workflow.name,
       summary:
-        readOptionalText(props.selectedWorkItem?.goal)
-        ?? readOptionalText(props.selectedWorkItem?.acceptance_criteria)
-        ?? readOptionalText(props.selectedTask?.description),
+        readOptionalText(props.selectedWorkItem?.goal) ??
+        readOptionalText(props.selectedWorkItem?.acceptance_criteria) ??
+        readOptionalText(props.selectedTask?.description),
       parent_work_item:
-        props.selectedWorkItem?.title
-        ?? props.selectedTask?.work_item_title
-        ?? props.selectedWorkItemTitle
-        ?? null,
+        props.selectedWorkItem?.title ??
+        props.selectedTask?.work_item_title ??
+        props.selectedWorkItemTitle ??
+        null,
       task_summary: null,
     };
   }
@@ -301,15 +312,15 @@ function buildDetailsScope(props: {
   if (props.scope.scopeKind === 'selected_work_item') {
     return {
       title:
-        props.selectedWorkItem?.title
-        ?? props.selectedWorkItemTitle
-        ?? props.selectedWorkItemId
-        ?? 'Selected work item',
+        props.selectedWorkItem?.title ??
+        props.selectedWorkItemTitle ??
+        props.selectedWorkItemId ??
+        'Selected work item',
       latest_status: buildWorkItemLatestStatus(props.selectedWorkItem, props.selectedWorkItemTasks),
       workflow_name: props.workflow.name,
       summary:
-        readOptionalText(props.selectedWorkItem?.goal)
-        ?? readOptionalText(props.selectedWorkItem?.acceptance_criteria),
+        readOptionalText(props.selectedWorkItem?.goal) ??
+        readOptionalText(props.selectedWorkItem?.acceptance_criteria),
       parent_work_item: null,
       task_summary: buildTaskSummary(props.selectedWorkItemTasks),
     };
@@ -318,9 +329,9 @@ function buildDetailsScope(props: {
   return {
     title: props.workflow.name,
     latest_status:
-      readOptionalText(props.stickyStrip?.summary)
-      ?? readOptionalText(props.workflow.pulse.summary)
-      ?? 'Workflow is active.',
+      readOptionalText(props.stickyStrip?.summary) ??
+      readOptionalText(props.workflow.pulse.summary) ??
+      'Workflow is active.',
     workflow_name: null,
     summary: null,
     parent_work_item: null,
@@ -337,23 +348,51 @@ function buildDetailSections(
   },
   scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
 ): {
-  context: string[];
+  context: Array<{ label: string; value: string }>;
   secondary: string[];
 } {
-  const allLines = buildDetailLines(input);
+  const context = buildBasicDetails(input, scopeKind);
+  const allLines = buildDetailLines(input).filter((line) => !matchesBasicDetail(line, context));
   if (scopeKind !== 'selected_task') {
     return {
-      context: [],
+      context,
       secondary: allLines,
     };
   }
 
-  const context = allLines.filter((line) => line.startsWith('Workflow:') || line.startsWith('Work item:'));
-  const secondary = allLines.filter((line) => !context.includes(line));
   return {
     context,
-    secondary,
+    secondary: allLines,
   };
+}
+
+function buildBasicDetails(
+  input: {
+    latest_status: string;
+    workflow_name: string | null;
+    parent_work_item: string | null;
+    task_summary: string | null;
+  },
+  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
+): Array<{ label: string; value: string }> {
+  const details: Array<{ label: string; value: string }> = [];
+  if (input.workflow_name) {
+    details.push({ label: 'Workflow', value: input.workflow_name });
+  }
+  if (input.parent_work_item) {
+    details.push({ label: 'Work item', value: input.parent_work_item });
+  }
+  if (scopeKind === 'selected_task') {
+    return details;
+  }
+  return details;
+}
+
+function matchesBasicDetail(
+  line: string,
+  details: Array<{ label: string; value: string }>,
+): boolean {
+  return details.some((detail) => line === `${detail.label}: ${detail.value}`);
 }
 
 function buildDetailLines(input: {
@@ -393,7 +432,8 @@ function buildWorkItemLatestStatus(
   tasks: Record<string, unknown>[],
 ): string {
   const blockedReason =
-    readOptionalText(workItem?.blocked_reason) ?? readOptionalText(workItem?.gate_decision_feedback);
+    readOptionalText(workItem?.blocked_reason) ??
+    readOptionalText(workItem?.gate_decision_feedback);
   if (blockedReason) {
     return blockedReason;
   }
@@ -542,9 +582,9 @@ function shouldRenderOperatorFacingTaskInputKey(key: string): boolean {
     return false;
   }
   if (
-    normalized === 'subject_revision'
-    || normalized === 'activation_id'
-    || normalized === 'execution_context_id'
+    normalized === 'subject_revision' ||
+    normalized === 'activation_id' ||
+    normalized === 'execution_context_id'
   ) {
     return false;
   }
@@ -584,23 +624,28 @@ function shouldSuppressOpaqueOperatorFacingValue(key: string, value: unknown): b
     return looksLikeOpaqueIdentifier(value);
   }
   if (Array.isArray(value)) {
-    return value.length > 0 && value.every((entry) => typeof entry === 'string' && looksLikeOpaqueIdentifier(entry));
+    return (
+      value.length > 0 &&
+      value.every((entry) => typeof entry === 'string' && looksLikeOpaqueIdentifier(entry))
+    );
   }
   return false;
 }
 
 function looksLikeInternalReferenceLabel(value: string): boolean {
-  return value === 'artifact'
-    || value === 'artifacts'
-    || value === 'subject'
-    || value === 'subjects'
-    || value === 'task'
-    || value === 'tasks'
-    || value === 'workflow'
-    || value === 'work_item'
-    || value === 'work item'
-    || value === 'activation'
-    || value === 'execution_context';
+  return (
+    value === 'artifact' ||
+    value === 'artifacts' ||
+    value === 'subject' ||
+    value === 'subjects' ||
+    value === 'task' ||
+    value === 'tasks' ||
+    value === 'workflow' ||
+    value === 'work_item' ||
+    value === 'work item' ||
+    value === 'activation' ||
+    value === 'execution_context'
+  );
 }
 
 function renderStructuredValue(value: unknown): string | null {
