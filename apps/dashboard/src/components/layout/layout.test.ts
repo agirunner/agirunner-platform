@@ -162,6 +162,16 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("href: '/design/specialists'");
   });
 
+  it('labels the workflows nav item as Mission Control and keeps it on the shared active nav treatment', () => {
+    const source = readLayoutSource();
+
+    expect(source.match(/label: 'Mission Control'/g)).toHaveLength(2);
+    expect(source).not.toContain("label: 'Workflows',");
+    expect(source).toContain('active ? SIDEBAR_ACTIVE_ITEM_CLASSES : SIDEBAR_INACTIVE_ITEM_CLASSES');
+    expect(source).not.toContain('bg-amber');
+    expect(source).not.toContain('bg-yellow');
+  });
+
   it('uses distinct icons for playbooks, environments, live diagnostics, webhooks, and agentic settings', () => {
     const source = readLayoutSource();
     expect(source).toContain("{ label: 'Playbooks', href: '/design/playbooks', icon: FileText }");
@@ -278,10 +288,9 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain('keywords: item.keywords');
   });
 
-  it('keeps Workflows as a single primary nav item instead of separate live board, workflows, tasks, and action queue links', () => {
+  it('keeps Mission Control as a single primary nav item instead of separate live board, workflows, tasks, and action queue links', () => {
     const source = readLayoutSource();
     expect(source).toContain("label: 'Mission Control'");
-    expect(source).toContain("label: 'Workflows'");
     expect(source).toContain('WORKFLOWS_NAV_HREF');
     expect(source).toContain("const WORKFLOWS_NAV_HREF = '/workflows'");
     expect(source).not.toContain('SIDEBAR_WORKFLOWS_ACTIVE_CLASSES');

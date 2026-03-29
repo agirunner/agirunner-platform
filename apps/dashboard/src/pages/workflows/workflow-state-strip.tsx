@@ -43,42 +43,67 @@ export function WorkflowStateStrip(props: {
   const needsActionCount =
     (sticky?.approvals_count ?? 0) + (sticky?.escalations_count ?? 0) + (sticky?.blocked_work_item_count ?? 0);
   const activeSpecialistTaskCount = sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount;
+  const visibilityControlId = `workflow-live-visibility-${props.workflow.id}`;
 
   return (
-    <section className="space-y-1 rounded-2xl border border-border/70 bg-background/90 p-2.5 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <h2 className="truncate text-sm font-semibold text-foreground">{props.workflow.name}</h2>
-          <Badge variant={isPausedWorkflow ? 'warning' : 'secondary'}>
-            {isPausedWorkflow ? 'Workflow paused' : postureLabel}
-          </Badge>
-          {isOngoingWorkflow ? <Badge variant="outline">Ongoing</Badge> : null}
-          {metaLine ? <span className="text-[11px] text-muted-foreground">{metaLine}</span> : null}
-        </div>
+    <div className="grid gap-3">
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.95fr)]">
+        <section className="grid gap-3 rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Workflow
+          </p>
+          <div className="grid gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h2 className="truncate text-base font-semibold text-foreground">{props.workflow.name}</h2>
+              <Badge variant={isPausedWorkflow ? 'warning' : 'secondary'}>
+                {isPausedWorkflow ? 'Workflow paused' : postureLabel}
+              </Badge>
+              {isOngoingWorkflow ? <Badge variant="outline">Ongoing</Badge> : null}
+            </div>
+            {metaLine ? <p className="text-sm text-muted-foreground">{metaLine}</p> : null}
+            {props.selectedScopeLabel ? (
+              <p className="text-sm text-muted-foreground">
+                Workbench scope:{' '}
+                <span className="font-medium text-foreground">{props.selectedScopeLabel}</span>
+              </p>
+            ) : null}
+          </div>
+        </section>
 
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <WorkflowControlActions
-            workflowId={props.workflow.id}
-            workflowState={props.workflow.state}
-            workflowPosture={sticky?.posture ?? props.workflow.posture}
-            workspaceId={props.workflow.workspaceId}
-            additionalQueryKeys={[['workflows']]}
-            availableActions={props.workflow.availableActions}
-          />
-          {canOpenRedrive ? (
-            <Button size="sm" variant="outline" onClick={props.onOpenRedrive}>
-              Redrive
-            </Button>
-          ) : null}
-          {canAddWork ? (
-            <Button size="sm" onClick={props.onAddWork}>
-              {addWorkLabel}
-            </Button>
-          ) : null}
-          <label className="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/10 px-2.5 py-1.5 text-[11px] text-muted-foreground">
-            <span className="font-medium text-foreground">Live visibility</span>
+        <section className="grid gap-3 rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+            Steering
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <WorkflowControlActions
+              workflowId={props.workflow.id}
+              workflowState={props.workflow.state}
+              workflowPosture={sticky?.posture ?? props.workflow.posture}
+              workspaceId={props.workflow.workspaceId}
+              additionalQueryKeys={[['workflows']]}
+              availableActions={props.workflow.availableActions}
+            />
+            {canOpenRedrive ? (
+              <Button size="sm" variant="outline" onClick={props.onOpenRedrive}>
+                Redrive
+              </Button>
+            ) : null}
+            {canAddWork ? (
+              <Button size="sm" onClick={props.onAddWork}>
+                {addWorkLabel}
+              </Button>
+            ) : null}
+          </div>
+          <div className="grid gap-1.5">
+            <label
+              className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground"
+              htmlFor={visibilityControlId}
+            >
+              Live visibility
+            </label>
             <select
-              className="rounded-md border border-border bg-background px-2 py-1 text-[11px] text-foreground"
+              id={visibilityControlId}
+              className="h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
               value={visibilityValue}
               onChange={(event) =>
                 props.onVisibilityModeChange(
@@ -94,11 +119,11 @@ export function WorkflowStateStrip(props: {
               <option value="standard">Standard</option>
               <option value="enhanced">Enhanced</option>
             </select>
-          </label>
-        </div>
+          </div>
+        </section>
       </div>
 
-      <div className="grid gap-2 lg:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <HeaderCard
           title="State"
           value={postureLabel}
@@ -126,7 +151,7 @@ export function WorkflowStateStrip(props: {
           })}
         />
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -136,7 +161,8 @@ function HeaderCard(props: {
   detail: string | null;
   onClick?(): void;
 }): JSX.Element {
-  const className = 'grid gap-0.5 rounded-xl border border-border/70 bg-muted/5 px-2.5 py-2 text-left shadow-none';
+  const className =
+    'grid gap-1 rounded-2xl border border-border/70 bg-background/95 p-3 text-left shadow-sm';
 
   if (!props.onClick) {
     return (
@@ -153,7 +179,7 @@ function HeaderCard(props: {
   return (
     <button
       type="button"
-      className={`${className} transition-colors hover:bg-muted/10`}
+      className={`${className} transition-colors hover:bg-muted/20`}
       onClick={props.onClick}
     >
       <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">

@@ -11,6 +11,7 @@ describe('WorkflowsRail', () => {
   it('preserves the operator rail scroll position when selection changes', () => {
     const source = readFileSync(resolve(__dirname, './workflows-rail.tsx'), 'utf8');
 
+    expect(source).toContain('useLayoutEffect');
     expect(source).toContain('data-workflows-rail-scroll-region="true"');
     expect(source).toContain('const persistedScrollTopRef = useRef(0);');
     expect(source).toContain('persistedScrollTopRef.current = element.scrollTop;');
@@ -75,8 +76,9 @@ describe('WorkflowsRail', () => {
       }),
     );
 
-    expect(html).toContain('bg-sky-200/90');
-    expect(html).toContain('shadow-[0_12px_36px_rgba(14,165,233,0.26)]');
+    expect(html).toContain('bg-sky-100');
+    expect(html).toContain('ring-2');
+    expect(html).toContain('shadow-[0_16px_40px_rgba(14,165,233,0.28)]');
     expect(html).toContain('text-inherit');
     expect(html).not.toContain('bg-amber-100');
   });
@@ -136,7 +138,7 @@ describe('WorkflowsRail', () => {
     expect(html).toContain('flex min-w-0 flex-wrap items-center gap-2');
     expect(html).toContain('overflow-x-hidden');
     expect(html).not.toContain('overflow-x-auto');
-    expect(html).not.toContain('overflow-hidden rounded-2xl border');
+    expect(html).toContain('rounded-[1.25rem] border border-border/70 bg-background/95 shadow-sm');
     expect(html).not.toContain('Select workflow');
   });
 

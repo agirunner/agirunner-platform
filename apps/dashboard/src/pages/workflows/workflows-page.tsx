@@ -300,7 +300,7 @@ export function WorkflowsPage(): JSX.Element {
         style={buildWorkflowsShellStyle(isRailHidden, railWidthPx)}
       >
         {!isRailHidden ? (
-          <div className="overflow-visible rounded-[1.75rem] border border-border/70 bg-stone-50/90 lg:min-h-0 lg:overflow-hidden dark:bg-slate-950/70">
+          <div className="overflow-visible rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm lg:min-h-0 lg:overflow-hidden dark:bg-slate-950/65">
             <WorkflowsRail
               mode={pageState.mode}
               search={pageState.search}
@@ -358,7 +358,7 @@ export function WorkflowsPage(): JSX.Element {
         <div className="grid min-h-0 w-full min-w-0 gap-2 lg:h-full lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
           <section
             data-workflows-top-strip="true"
-            className="grid gap-2 rounded-[1.75rem] border border-border/70 bg-transparent p-1.5"
+            className="grid gap-2 rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm dark:bg-slate-950/65"
           >
             <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
               <Button type="button" size="sm" variant="outline" onClick={() => setIsRailHidden((current) => !current)}>
@@ -418,7 +418,7 @@ export function WorkflowsPage(): JSX.Element {
             >
               <section
                 data-workflows-board-frame="true"
-                className="min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-transparent p-1.5"
+                className="min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm dark:bg-slate-950/65"
               >
                 <WorkflowBoard
                   workflowId={workflow.id}
@@ -466,7 +466,7 @@ export function WorkflowsPage(): JSX.Element {
               </div>
               <section
                 data-workflows-workbench-frame="true"
-                className="min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-transparent p-1.5"
+                className="min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm dark:bg-slate-950/65"
               >
                 <WorkflowBottomWorkbench
                   workflowId={workflow.id}
@@ -510,7 +510,7 @@ export function WorkflowsPage(): JSX.Element {
           ) : (
             <section
               data-workflows-workbench-frame="true"
-              className="min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-transparent p-1.5"
+              className="min-h-0 min-w-0 overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm dark:bg-slate-950/65"
             >
               <EmptyWorkspaceState
                 hasWorkflows={((railPacket?.rows.length ?? 0) + (railPacket?.ongoing_rows.length ?? 0)) > 0}

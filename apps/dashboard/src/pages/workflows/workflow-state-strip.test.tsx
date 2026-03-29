@@ -41,9 +41,9 @@ describe('WorkflowStateStrip', () => {
     expect(html).toContain('Work Items');
     expect(html).toContain('2 completed');
     expect(html).toContain('Specialist Tasks');
+    expect(html).toContain('Steering');
     expect(html).toContain('3 active tasks');
     expect(html).toContain('Live visibility');
-    expect(html).not.toContain('Steering');
     expect(html).not.toContain('Playbook');
     expect(html).not.toContain('Workspace');
   });
@@ -115,16 +115,40 @@ describe('WorkflowStateStrip', () => {
     expect(html).toContain('Routing next step');
     expect(html).toContain('Specialist Tasks');
     expect(html).toContain('Work Items');
+    expect(html).toContain('Steering');
     expect(html).not.toContain('Waiting By Design');
     expect(html).not.toContain('Workflow is waiting by design');
     expect(html).not.toContain('Awaiting Intake');
-    expect((html.match(/text-sm font-semibold leading-5 text-foreground sm:text-base/g) ?? []).length).toBeGreaterThanOrEqual(4);
     expect(html).toContain('Live visibility');
-    expect((html.match(/rounded-xl border border-border\/70 bg-muted\/5 px-2.5 py-2 text-left shadow-none/g) ?? [])).toHaveLength(4);
-    expect((html.match(/rounded-xl border border-border\/70 bg-muted\/5 px-2.5 py-2 text-left shadow-none transition-colors hover:bg-muted\/10/g) ?? [])).toHaveLength(1);
+    expect(html).toContain('rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm');
+    expect(html).not.toContain('rounded-xl border border-border/70 bg-muted/5 px-2.5 py-2 text-left shadow-none');
+    expect(html).not.toContain('label class="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/10 px-2.5 py-1.5 text-[11px] text-muted-foreground"');
     expect(html).not.toContain('Requests and responses');
     expect(html).not.toContain('<p class="text-xs text-muted-foreground">Playbook • Workspace</p>');
     expect(html).not.toContain('Accepting new work');
+  });
+
+  it('shows the selected workbench scope in the workflow overview card when a narrower slice is focused', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard(),
+          stickyStrip: createStickyStrip(),
+          workflowSettings: null,
+          board: createBoard(),
+          selectedScopeLabel: 'Verify release candidate',
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onVisibilityModeChange: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Workbench scope');
+    expect(html).toContain('Verify release candidate');
   });
 
   it('shows add-or-modify-work only when the platform marks it legal', () => {

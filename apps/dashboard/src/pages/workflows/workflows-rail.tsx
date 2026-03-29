@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -9,6 +9,8 @@ import { formatRelativeTimestamp } from '../workflow-detail/workflow-detail-pres
 import type { WorkflowPageMode } from './workflows-page.support.js';
 
 const ONGOING_PREVIEW_LIMIT = 5;
+const useIsomorphicLayoutEffect =
+  typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 export function WorkflowsRail(props: {
   mode: WorkflowPageMode;
@@ -62,17 +64,27 @@ export function WorkflowsRail(props: {
         : true,
     [props.selectedWorkflowId, renderedRows],
   );
+  const renderedRowSignature = useMemo(
+    () => renderedRows.map((row) => row.workflow_id).join('|'),
+    [renderedRows],
+  );
   const shouldShowMainEmptyState = renderedRows.length === 0;
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!scrollRef.current) {
       return;
     }
     scrollRef.current.scrollTop = persistedScrollTopRef.current;
-  }, [props.selectedWorkflowId, props.mode, props.ongoingOnly, renderedRows.length, selectedVisible]);
+  }, [
+    props.selectedWorkflowId,
+    props.mode,
+    props.ongoingOnly,
+    renderedRowSignature,
+    selectedVisible,
+  ]);
 
   return (
-    <aside className="flex h-full min-h-0 w-full flex-col overflow-x-hidden border-r border-border/70 bg-stone-50/90 dark:bg-slate-950/70">
+    <aside className="flex h-full min-h-0 w-full flex-col overflow-hidden rounded-[1.25rem] border border-border/70 bg-background/95 shadow-sm dark:bg-slate-950/85">
       <div className="space-y-3 border-b border-border/70 px-4 py-4">
         <div className="flex items-center justify-between gap-3">
           <div>
@@ -210,7 +222,7 @@ function WorkflowRailRowCard(props: {
       className={cn(
         'grid w-full min-w-0 max-w-full gap-2 rounded-xl border px-3 py-3 text-left transition-[border-color,background-color,box-shadow,color] duration-150',
         props.isSelected
-          ? 'border-sky-400 bg-sky-200/90 text-sky-950 shadow-[0_12px_36px_rgba(14,165,233,0.26)] ring-1 ring-sky-300/70 dark:border-sky-300/80 dark:bg-sky-300/20 dark:text-sky-50 dark:ring-sky-300/40'
+          ? 'border-sky-500/90 bg-sky-100 text-sky-950 shadow-[0_16px_40px_rgba(14,165,233,0.28)] ring-2 ring-sky-300/90 dark:border-sky-300/90 dark:bg-sky-400/22 dark:text-sky-50 dark:ring-sky-300/55'
           : 'border-border/70 bg-background/85 hover:border-border hover:bg-background',
       )}
       onClick={() => props.onSelect(props.row.workflow_id)}
@@ -223,7 +235,7 @@ function WorkflowRailRowCard(props: {
           <p
             className={cn(
               'truncate text-xs',
-              props.isSelected ? 'text-sky-900/85 dark:text-sky-100/85' : 'text-muted-foreground',
+              props.isSelected ? 'text-sky-900/90 dark:text-sky-100/90' : 'text-muted-foreground',
             )}
           >
             {[props.row.playbook_name, props.row.workspace_name].filter(Boolean).join(' • ') || 'Workflow'}
@@ -238,7 +250,7 @@ function WorkflowRailRowCard(props: {
       <div
         className={cn(
           'flex min-w-0 flex-wrap items-center justify-between gap-2 text-xs',
-          props.isSelected ? 'text-sky-900/85 dark:text-sky-100/85' : 'text-muted-foreground',
+          props.isSelected ? 'text-sky-900/90 dark:text-sky-100/90' : 'text-muted-foreground',
         )}
       >
         <span>{humanizePosture(props.row.posture)}</span>
