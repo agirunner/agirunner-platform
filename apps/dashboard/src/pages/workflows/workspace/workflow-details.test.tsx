@@ -13,7 +13,7 @@ import type {
 import { WorkflowDetails } from './workflow-details.js';
 
 describe('WorkflowDetails', () => {
-  it('renders explicit task scope content with only task-owned inputs', () => {
+  it('renders task scope with workflow/work-item context and filters internal task metadata out of operator inputs', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
         workflow: createWorkflow(),
@@ -24,7 +24,16 @@ describe('WorkflowDetails', () => {
         selectedTaskId: 'task-1',
         selectedTaskTitle: 'Verify deliverable',
         selectedWorkItem: createWorkItem(),
-        selectedTask: createTask(),
+        selectedTask: {
+          ...createTask(),
+          input: {
+            artifact_id: 'artifact-1',
+            deliverable: 'A full policy assessment handoff with readiness decision, evidence, and rework guidance.',
+            work_item_id: 'work-item-1',
+            subject_task_id: 'task-source-1',
+            subject_revision: 1,
+          },
+        },
         selectedWorkItemTasks: [
           {
             id: 'task-1',
@@ -51,15 +60,24 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Verify deliverable');
     expect(html).toContain('Task');
     expect(html).toContain('In Progress for Reviewer');
+    expect(html).toContain('Workflow: Release Workflow');
+    expect(html).toContain('Work item: Prepare release bundle');
+    expect(html).toContain('Rollback guide');
+    expect(html).toContain('rollback.md');
     expect(html).toContain('Task input');
     expect(html).toContain('Inputs');
-    expect(html).toContain('Work item: Prepare release bundle');
+    expect(html).toContain('Deliverable');
+    expect(html).toContain('A full policy assessment handoff with readiness decision, evidence, and rework guidance.');
+    expect(html).not.toContain('Artifact Id');
+    expect(html).not.toContain('artifact-1');
+    expect(html).not.toContain('Work Item Id');
+    expect(html).not.toContain('Subject Task Id');
+    expect(html).not.toContain('Subject Revision');
     expect(html).not.toContain('Task scope');
     expect(html).not.toContain('Latest status');
     expect(html).not.toContain('Work item scope');
     expect(html).not.toContain('Workflow scope');
     expect(html).not.toContain('Launch packet');
-    expect(html).not.toContain('Rollback guide');
     expect(html).not.toContain('release/2026.03');
     expect(html).not.toContain('Launch • Operator');
     expect(html).not.toContain('Owner role');
@@ -189,6 +207,7 @@ describe('WorkflowDetails', () => {
 
     expect(html).toContain('Prepare release bundle');
     expect(html).toContain('Check the final release packet and approve it.');
+    expect(html).toContain('Workflow: Release Workflow');
     expect(html).toContain('Work item: Prepare release bundle');
     expect(html).not.toContain('Task scope');
     expect(html).not.toContain('Owner role');

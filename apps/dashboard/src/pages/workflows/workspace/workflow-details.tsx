@@ -33,13 +33,14 @@ export function WorkflowDetails(props: {
   const workflowPackets = isWorkflowScope
     ? props.inputPackets.filter((packet) => packet.work_item_id === null)
     : [];
+  const operatorFacingTaskInput = isTaskScope ? readOperatorFacingTaskInput(props.selectedTask?.input) : null;
   const shouldShowParentWorkItemInputs =
-    selectedWorkItemId !== null && (isWorkItemScope || (isTaskScope && !hasStructuredContent(props.selectedTask?.input)));
+    selectedWorkItemId !== null && (isWorkItemScope || isTaskScope);
   const workItemPackets = shouldShowParentWorkItemInputs && selectedWorkItemId
     ? props.inputPackets.filter((packet) => packet.work_item_id === selectedWorkItemId)
     : [];
   const scope = buildDetailsScope(props);
-  const hasTaskInput = isTaskScope && hasStructuredContent(props.selectedTask?.input);
+  const hasTaskInput = isTaskScope && hasStructuredContent(operatorFacingTaskInput);
   const hasInputs =
     workflowPackets.length > 0
     || workItemPackets.length > 0
@@ -77,7 +78,7 @@ export function WorkflowDetails(props: {
             <PacketSection packets={workItemPackets} />
           ) : null}
           {hasTaskInput ? (
-            <StructuredBlock label="Task input" value={props.selectedTask?.input ?? null} />
+            <StructuredBlock label="Task input" value={operatorFacingTaskInput} />
           ) : null}
         </DetailSection>
       ) : null}
@@ -212,6 +213,7 @@ function buildDetailsScope(props: {
 }): {
   title: string;
   latest_status: string;
+  workflow_name: string | null;
   summary: string | null;
   parent_work_item: string | null;
   task_summary: string | null;
@@ -224,6 +226,7 @@ function buildDetailsScope(props: {
         ?? props.selectedTaskId
         ?? 'Selected task',
       latest_status: buildTaskLatestStatus(props.selectedTask),
+      workflow_name: props.workflow.name,
       summary: readOptionalText(props.selectedTask?.description),
       parent_work_item:
         props.selectedWorkItem?.title
@@ -242,6 +245,7 @@ function buildDetailsScope(props: {
         ?? props.selectedWorkItemId
         ?? 'Selected work item',
       latest_status: buildWorkItemLatestStatus(props.selectedWorkItem, props.selectedWorkItemTasks),
+      workflow_name: props.workflow.name,
       summary:
         readOptionalText(props.selectedWorkItem?.goal)
         ?? readOptionalText(props.selectedWorkItem?.acceptance_criteria),
@@ -256,6 +260,7 @@ function buildDetailsScope(props: {
       readOptionalText(props.stickyStrip?.summary)
       ?? readOptionalText(props.workflow.pulse.summary)
       ?? 'Workflow is active.',
+    workflow_name: null,
     summary: null,
     parent_work_item: null,
     task_summary: null,
@@ -264,10 +269,14 @@ function buildDetailsScope(props: {
 
 function buildDetailLines(input: {
   latest_status: string;
+  workflow_name: string | null;
   parent_work_item: string | null;
   task_summary: string | null;
 }): string[] {
   const lines = [input.latest_status];
+  if (input.workflow_name) {
+    lines.push(`Workflow: ${input.workflow_name}`);
+  }
   if (input.parent_work_item) {
     lines.push(`Work item: ${input.parent_work_item}`);
   }
@@ -397,6 +406,63 @@ function readStructuredEntries(value: unknown): Array<[string, string]> {
     rendered.push([humanizeToken(key), text]);
   }
   return rendered;
+}
+
+function readOperatorFacingTaskInput(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  const filtered = filterOperatorFacingInputRecord(value as Record<string, unknown>);
+  return Object.keys(filtered).length > 0 ? filtered : null;
+}
+
+function filterOperatorFacingInputRecord(value: Record<string, unknown>): Record<string, unknown> {
+  const filtered: Record<string, unknown> = {};
+  for (const [key, entryValue] of Object.entries(value)) {
+    if (!shouldRenderOperatorFacingTaskInputKey(key)) {
+      continue;
+    }
+    const normalizedValue = normalizeOperatorFacingTaskInputValue(entryValue);
+    if (normalizedValue === null) {
+      continue;
+    }
+    filtered[key] = normalizedValue;
+  }
+  return filtered;
+}
+
+function shouldRenderOperatorFacingTaskInputKey(key: string): boolean {
+  const normalized = key.trim().toLowerCase();
+  if (normalized.length === 0) {
+    return false;
+  }
+  if (
+    normalized === 'subject_revision'
+    || normalized === 'activation_id'
+    || normalized === 'execution_context_id'
+  ) {
+    return false;
+  }
+  if (normalized.endsWith('_id') || normalized.endsWith('_ids')) {
+    return false;
+  }
+  return true;
+}
+
+function normalizeOperatorFacingTaskInputValue(value: unknown): unknown {
+  if (typeof value === 'string') {
+    return value.trim().length > 0 ? value.trim() : null;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return value;
+  }
+  if (Array.isArray(value)) {
+    const items = value
+      .map((entry) => normalizeOperatorFacingTaskInputValue(entry))
+      .filter((entry): entry is string | number | boolean => entry !== null);
+    return items.length > 0 ? items : null;
+  }
+  return null;
 }
 
 function renderStructuredValue(value: unknown): string | null {

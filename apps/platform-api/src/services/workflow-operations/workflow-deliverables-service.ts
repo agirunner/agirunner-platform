@@ -151,6 +151,11 @@ function appendSynthesizedBriefDeliverables(
       .filter(isStoredFinalDeliverable)
       .map((deliverable) => buildDeliverableScopeKey(readOptionalString(deliverable.work_item_id))),
   );
+  const existingPacketScopes = new Set(
+    deliverables
+      .filter(isPacketLikeDeliverable)
+      .map((deliverable) => buildDeliverableScopeKey(readOptionalString(deliverable.work_item_id))),
+  );
 
   for (const brief of briefs) {
     if (!shouldSynthesizeBriefDeliverable(brief)) {
@@ -163,8 +168,12 @@ function appendSynthesizedBriefDeliverables(
     if (existingFinalPacketScopes.has(scopeKey)) {
       continue;
     }
+    if (isOrchestratorBrief(brief) && existingPacketScopes.has(scopeKey)) {
+      continue;
+    }
     records.push(buildBriefPacketDeliverable(brief));
     existingFinalPacketScopes.add(scopeKey);
+    existingPacketScopes.add(scopeKey);
   }
 
   return records;
@@ -303,6 +312,11 @@ function collectFinalizedDescriptorIds(briefs: WorkflowOperatorBriefRecord[]): S
 
 function isDeliverableOutcomeStatus(statusKind: string | null): boolean {
   return statusKind === 'completed' || statusKind === 'final' || statusKind === 'approved';
+}
+
+function isOrchestratorBrief(brief: WorkflowOperatorBriefRecord): boolean {
+  return readOptionalString(brief.source_kind) === 'orchestrator'
+    || readOptionalString(brief.source_role_name)?.toLowerCase() === 'orchestrator';
 }
 
 function pickSinglePacket(

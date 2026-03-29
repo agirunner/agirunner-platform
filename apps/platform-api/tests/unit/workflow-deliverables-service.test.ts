@@ -1021,4 +1021,93 @@ describe('WorkflowDeliverablesService', () => {
       }),
     ]);
   });
+
+  it('does not synthesize an orchestrator brief packet when the same work item already has a specialist handoff packet', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'handoff-packet-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          descriptor_kind: 'handoff_packet',
+          delivery_stage: 'in_progress',
+          title: 'workflow-intake-01 handoff packet',
+          state: 'draft',
+          summary_brief: 'Policy assessor approved the intake packet.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'inline_summary',
+            label: 'Review handoff packet',
+          },
+          secondary_targets: [],
+          content_preview: {
+            summary: 'Policy assessor approved the intake packet.\n\nProduced by: Policy Assessor',
+          },
+          source_brief_id: null,
+          created_at: '2026-03-28T20:40:00.000Z',
+          updated_at: '2026-03-28T20:40:00.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => [
+        {
+          id: 'brief-orchestrator-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: null,
+          request_id: 'request-orchestrator-1',
+          execution_context_id: 'activation-1',
+          brief_kind: 'milestone',
+          brief_scope: 'deliverable_context',
+          source_kind: 'orchestrator',
+          source_role_name: 'Orchestrator',
+          status_kind: 'completed',
+          short_brief: { headline: 'workflow-intake-01 completion packet' },
+          detailed_brief_json: {
+            headline: 'workflow-intake-01 completion packet',
+            summary: 'The orchestrator reviewed the item and found no further routing was required.',
+            status_kind: 'completed',
+          },
+          linked_target_ids: ['work-item-1'],
+          sequence_number: 1,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: [],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-28T20:41:00.000Z',
+          updated_at: '2026-03-28T20:41:00.000Z',
+        },
+      ]),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+    });
+
+    expect(result.final_deliverables).toEqual([]);
+    expect(result.in_progress_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'handoff-packet-1',
+        work_item_id: 'work-item-1',
+      }),
+    ]);
+    expect(result.working_handoffs).toEqual([
+      expect.objectContaining({
+        id: 'brief-orchestrator-1',
+        source_role_name: 'Orchestrator',
+      }),
+    ]);
+  });
 });
