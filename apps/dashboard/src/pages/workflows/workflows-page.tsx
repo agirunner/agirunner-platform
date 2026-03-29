@@ -26,12 +26,10 @@ import {
   type WorkflowsPageState,
 } from './workflows-page.support.js';
 import {
-  readStoredWorkflowBoardLens,
   readStoredWorkflowId,
   readStoredWorkflowRailHidden,
   readStoredWorkflowRailWidth,
   readStoredWorkflowWorkbenchFraction,
-  writeStoredWorkflowBoardLens,
   writeStoredWorkflowId,
   writeStoredWorkflowRailHidden,
   writeStoredWorkflowRailWidth,
@@ -83,9 +81,6 @@ export function WorkflowsPage(): JSX.Element {
   const [railWidthPx, setRailWidthPx] = useState(
     clampWorkflowRailWidthPx(readStoredWorkflowRailWidth() ?? DEFAULT_WORKFLOW_RAIL_WIDTH_PX),
   );
-  const [boardLens, setBoardLens] = useState<'work_items' | 'tasks'>(
-    readStoredWorkflowBoardLens() ?? 'work_items',
-  );
   const [workbenchFraction, setWorkbenchFraction] = useState(
     clampWorkflowWorkbenchFraction(
       readStoredWorkflowWorkbenchFraction() ?? DEFAULT_WORKFLOW_WORKBENCH_FRACTION,
@@ -110,36 +105,20 @@ export function WorkflowsPage(): JSX.Element {
     writeStoredWorkflowRailWidth(railWidthPx);
   }, [railWidthPx]);
   useEffect(() => {
-    writeStoredWorkflowBoardLens(boardLens);
-  }, [boardLens]);
-  useEffect(() => {
     writeStoredWorkflowWorkbenchFraction(workbenchFraction);
   }, [workbenchFraction]);
 
-  const handleBoardLensChange = (nextLens: 'work_items' | 'tasks') => {
-    setBoardLens(nextLens);
-    if (nextLens === 'work_items' && pageState.taskId) {
-      patchPageState(navigate, pageState, { taskId: null });
-    }
-  };
-
-  const handleClearTaskScope = () => {
-    setBoardLens('work_items');
-    patchPageState(navigate, pageState, { taskId: null });
-  };
-
   const handleClearWorkItemScope = () => {
-    setBoardLens('work_items');
     patchPageState(navigate, pageState, { workItemId: null, taskId: null });
   };
 
   const boardSelection = useMemo(
     () =>
-      resolveBoardSelectionForLens(boardLens, {
+      resolveBoardSelectionForLens('work_items', {
         workItemId: pageState.workItemId,
         taskId: pageState.taskId,
       }),
-    [boardLens, pageState.taskId, pageState.workItemId],
+    [pageState.taskId, pageState.workItemId],
   );
 
   const activeTab = pageState.tab ?? 'details';
@@ -473,18 +452,18 @@ export function WorkflowsPage(): JSX.Element {
                   board={board}
                   workflowState={workflow.state}
                   selectedWorkItemId={boardSelection.workItemId}
-                  selectedTaskId={boardSelection.taskId}
-                  boardLens={boardLens}
+                  selectedTaskId={null}
+                  boardLens="work_items"
                   boardMode={pageState.boardMode}
-                  onBoardLensChange={handleBoardLensChange}
+                  onBoardLensChange={() => undefined}
                   onBoardModeChange={(boardMode) =>
                     patchPageState(navigate, pageState, { boardMode })
                   }
                   onSelectWorkItem={(workItemId) =>
                     patchPageState(navigate, pageState, { workItemId, taskId: null })
                   }
-                  onSelectTask={(workItemId, taskId) =>
-                    patchPageState(navigate, pageState, { workItemId, taskId })
+                  onSelectTask={(workItemId) =>
+                    patchPageState(navigate, pageState, { workItemId, taskId: null })
                   }
                 />
                 <div className="relative hidden lg:flex items-center justify-center">
@@ -528,10 +507,10 @@ export function WorkflowsPage(): JSX.Element {
                   selectedWorkItemId={boardSelection.workItemId}
                   scopedWorkItemId={scopedWorkItemId}
                   selectedWorkItemTitle={workItemTitle}
-                  selectedTaskId={boardSelection.taskId}
-                  selectedTaskTitle={taskTitle}
+                  selectedTaskId={null}
+                  selectedTaskTitle={null}
                   selectedWorkItem={selectedWorkItemQuery.data ?? null}
-                  selectedTask={selectedTaskQuery.data ?? null}
+                  selectedTask={null}
                   selectedWorkItemTasks={selectedWorkItemTasksQuery.data ?? []}
                   inputPackets={inputPacketsQuery.data ?? []}
                   workflowParameters={(workflowDetailQuery.data?.parameters as Record<string, unknown> | null | undefined) ?? null}
@@ -539,7 +518,7 @@ export function WorkflowsPage(): JSX.Element {
                   isScopeLoading={isScopeLoading}
                   onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
                   onClearWorkItemScope={handleClearWorkItemScope}
-                  onClearTaskScope={handleClearTaskScope}
+                  onClearTaskScope={() => undefined}
                   onOpenAddWork={(workItemId) => {
                     if (workItemId !== undefined) {
                       patchPageState(navigate, pageState, { workItemId: workItemId ?? null, taskId: null });

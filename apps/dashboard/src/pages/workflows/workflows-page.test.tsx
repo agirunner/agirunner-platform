@@ -19,7 +19,6 @@ describe('workflows page source', () => {
     expect(source).toContain('WorkflowStateStrip');
     expect(source).toContain('WorkflowBoard');
     expect(source).toContain('WorkflowBottomWorkbench');
-    expect(source).toContain('selectedTaskId');
     expect(source).toContain("taskId: null");
     expect(source).toContain('WorkflowLaunchDialog');
     expect(source).toContain('WorkflowAddWorkDialog');
@@ -75,26 +74,23 @@ describe('workflows page source', () => {
     expect(source).not.toContain('placeholderData: (previous) => previous');
   });
 
-  it('wires task clicks into task-scoped bottom-pane state and clears only task scope when returning to work-item view', () => {
+  it('treats board task clicks as parent work-item selection and removes the task lens toggle', () => {
     const source = readSource();
-    expect(source).toContain("onSelectTask={(workItemId, taskId) =>");
-    expect(source).toContain('patchPageState(navigate, pageState, { workItemId, taskId })');
-    expect(source).toContain('selectedTaskId={boardSelection.taskId}');
-    expect(source).toContain('selectedTask={selectedTaskQuery.data ?? null}');
-    expect(source).toContain("const handleBoardLensChange = (nextLens: 'work_items' | 'tasks') => {");
-    expect(source).toContain("if (nextLens === 'work_items' && pageState.taskId) {");
-    expect(source).toContain('setBoardLens(nextLens);');
-    expect(source).toContain('onBoardLensChange={handleBoardLensChange}');
-    expect(source).toContain("const handleClearTaskScope = () => {");
-    expect(source).toContain('onClearTaskScope={handleClearTaskScope}');
+    expect(source).toContain("resolveBoardSelectionForLens('work_items'");
+    expect(source).toContain('selectedTaskId={null}');
+    expect(source).toContain('selectedTask={null}');
+    expect(source).toContain('selectedTaskTitle={null}');
+    expect(source).toContain('onBoardLensChange={() => undefined}');
+    expect(source).toContain("onSelectTask={(workItemId) =>");
+    expect(source).toContain('patchPageState(navigate, pageState, { workItemId, taskId: null })');
+    expect(source).toContain('onClearTaskScope={() => undefined}');
     expect(source).toContain("const handleClearWorkItemScope = () => {");
     expect(source).toContain('onClearWorkItemScope={handleClearWorkItemScope}');
-    expect(source).toContain("setBoardLens('work_items');");
     expect(source).toContain('patchPageState(navigate, pageState, { workItemId: null, taskId: null })');
-    expect(source).toContain('patchPageState(navigate, pageState, { taskId: null })');
+    expect(source).not.toContain("label=\"Tasks\"");
   });
 
-  it('opens header add-or-modify in modify mode for selected work items but not for selected tasks', () => {
+  it('opens header add-or-modify in modify mode for selected work items only', () => {
     const source = readSource();
 
     expect(source).toContain('const [addWorkTargetWorkItemId, setAddWorkTargetWorkItemId] = useState<string | null>(null);');
