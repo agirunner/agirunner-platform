@@ -450,6 +450,135 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).toContain('>137<');
     expect(html).not.toContain('>50<');
   });
+
+  it('renders the deliverables tab even when the scoped deliverables packet is incomplete', () => {
+    const packet = createPacket();
+
+    expect(() =>
+      renderToStaticMarkup(
+        createElement(WorkflowBottomWorkbench, {
+          workflowId: 'workflow-1',
+          workflow: packet.workflow,
+          stickyStrip: packet.sticky_strip,
+          board: packet.board,
+          workflowName: 'Workflow 1',
+          packet: {
+            ...packet,
+            bottom_tabs: {
+              ...packet.bottom_tabs,
+              counts: {
+                ...packet.bottom_tabs.counts,
+                deliverables: 1,
+              },
+            },
+            deliverables: {
+              final_deliverables: [
+                {
+                  descriptor_id: 'deliverable-incomplete',
+                  workflow_id: 'workflow-1',
+                  work_item_id: null,
+                  title: 'Recovered deliverable',
+                  content_preview: {
+                    summary: 'Deliverables tab should render instead of tripping the workspace fallback.',
+                  },
+                },
+              ],
+              inputs_and_provenance: null,
+            } as unknown as DashboardWorkflowWorkspacePacket['deliverables'],
+          },
+          activeTab: 'deliverables',
+          selectedWorkItemId: null,
+          scopedWorkItemId: null,
+          selectedWorkItemTitle: null,
+          selectedTaskId: null,
+          selectedTaskTitle: null,
+          selectedWorkItem: null,
+          selectedTask: null,
+          selectedWorkItemTasks: [],
+          inputPackets: [],
+          workflowParameters: null,
+          scope: {
+            scopeKind: 'workflow',
+            title: 'Workflow',
+            subject: 'workflow',
+            name: 'Workflow 1',
+            banner: 'Workflow: Workflow 1',
+          },
+          onTabChange: vi.fn(),
+          onClearWorkItemScope: vi.fn(),
+          onClearTaskScope: vi.fn(),
+          onOpenAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+          onLoadMoreActivity: vi.fn(),
+          onLoadMoreDeliverables: vi.fn(),
+        }),
+      ),
+    ).not.toThrow();
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBottomWorkbench, {
+        workflowId: 'workflow-1',
+        workflow: packet.workflow,
+        stickyStrip: packet.sticky_strip,
+        board: packet.board,
+        workflowName: 'Workflow 1',
+        packet: {
+          ...packet,
+          bottom_tabs: {
+            ...packet.bottom_tabs,
+            counts: {
+              ...packet.bottom_tabs.counts,
+              deliverables: 1,
+            },
+          },
+          deliverables: {
+            final_deliverables: [
+              {
+                descriptor_id: 'deliverable-incomplete',
+                workflow_id: 'workflow-1',
+                work_item_id: null,
+                title: 'Recovered deliverable',
+                content_preview: {
+                  summary: 'Deliverables tab should render instead of tripping the workspace fallback.',
+                },
+              },
+            ],
+            inputs_and_provenance: null,
+          } as unknown as DashboardWorkflowWorkspacePacket['deliverables'],
+        },
+        activeTab: 'deliverables',
+        selectedWorkItemId: null,
+        scopedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [],
+        inputPackets: [],
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        onTabChange: vi.fn(),
+        onClearWorkItemScope: vi.fn(),
+        onClearTaskScope: vi.fn(),
+        onOpenAddWork: vi.fn(),
+        onOpenRedrive: vi.fn(),
+        onLoadMoreActivity: vi.fn(),
+        onLoadMoreDeliverables: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Deliverables');
+    expect(html).toContain('Recovered deliverable');
+    expect(html).toContain('Deliverables tab should render instead of tripping the workspace fallback.');
+    expect(html).toContain('No inputs or intervention files are attached to this workflow.');
+  });
 });
 
 function createPacket(): DashboardWorkflowWorkspacePacket {

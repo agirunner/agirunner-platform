@@ -14,6 +14,7 @@ import { WorkflowDeliverableTargetLink } from './workflow-deliverable-target-lin
 import { WorkflowBriefRenderer } from './workflow-brief-renderer.js';
 import {
   hasMeaningfulDeliverableTarget,
+  normalizeDeliverablesPacket,
   sanitizeDeliverableTarget,
   sanitizeDeliverableTargets,
 } from './workflow-deliverables.support.js';
@@ -26,9 +27,10 @@ export function WorkflowDeliverables(props: {
   scope: WorkflowWorkbenchScopeDescriptor;
   onLoadMore(): void;
 }): JSX.Element {
+  const packet = normalizeDeliverablesPacket(props.packet);
   const selectedWorkItemId = props.selectedWorkItemId ?? props.selectedTask?.work_item_id ?? null;
   const scopeCopy = buildDeliverablesScopeCopy(props.scope, props.selectedWorkItemTitle);
-  const displayPacket = buildDisplayPacketForScope(props.packet, props.scope.scopeKind);
+  const displayPacket = buildDisplayPacketForScope(packet, props.scope.scopeKind);
   const outcomeBrief = pickOutcomeBrief(
     displayPacket.final_deliverables,
     displayPacket.working_handoffs,

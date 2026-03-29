@@ -1,4 +1,12 @@
-import type { DashboardWorkflowDeliverableTarget } from '../../../lib/api.js';
+import type {
+  DashboardWorkflowDeliverableRecord,
+  DashboardWorkflowDeliverableTarget,
+  DashboardWorkflowDeliverablesPacket,
+  DashboardWorkflowInputPacketFileRecord,
+  DashboardWorkflowInputPacketRecord,
+  DashboardWorkflowInterventionRecord,
+  DashboardWorkflowOperatorBriefRecord,
+} from '../../../lib/api.js';
 
 export interface DeliverableTargetAction {
   action_kind: 'dialog_preview' | 'external_link';
@@ -13,6 +21,24 @@ const IN_PLACE_TARGET_PATH_PATTERNS = [
   /^\/api\/v1\/workflows\/[^/]+\/interventions\/[^/]+\/files\/[^/]+\/content$/,
 ];
 const DEPRECATED_NAVIGATION_PARAM_NAMES = ['return_to', 'return_source'];
+
+export function normalizeDeliverablesPacket(
+  packet: Partial<DashboardWorkflowDeliverablesPacket> | null | undefined,
+): DashboardWorkflowDeliverablesPacket {
+  const inputs = asRecord(packet?.inputs_and_provenance);
+  return {
+    final_deliverables: normalizeDeliverableRecords(packet?.final_deliverables),
+    in_progress_deliverables: normalizeDeliverableRecords(packet?.in_progress_deliverables),
+    working_handoffs: normalizeBriefRecords(packet?.working_handoffs),
+    inputs_and_provenance: {
+      launch_packet: normalizeInputPacket(inputs.launch_packet),
+      supplemental_packets: normalizeInputPackets(inputs.supplemental_packets),
+      intervention_attachments: normalizeInterventions(inputs.intervention_attachments),
+      redrive_packet: normalizeInputPacket(inputs.redrive_packet),
+    },
+    next_cursor: readOptionalTargetText(packet?.next_cursor),
+  };
+}
 
 export function sanitizeDeliverableTarget(
   target: Partial<DashboardWorkflowDeliverableTarget> | null | undefined,
@@ -126,6 +152,181 @@ function serializeTargetUrl(parsed: URL): string {
   return parsed.origin === DASHBOARD_ORIGIN
     ? `${parsed.pathname}${parsed.search}${parsed.hash}`
     : parsed.toString();
+}
+
+function normalizeDeliverableRecords(value: unknown): DashboardWorkflowDeliverableRecord[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((entry, index) => normalizeDeliverableRecord(entry, index));
+}
+
+function normalizeDeliverableRecord(value: unknown, index: number): DashboardWorkflowDeliverableRecord {
+  const record = asRecord(value);
+  const descriptorId = readTargetText(record.descriptor_id) || `deliverable-${index + 1}`;
+  return {
+    descriptor_id: descriptorId,
+    workflow_id: readTargetText(record.workflow_id),
+    work_item_id: readOptionalTargetText(record.work_item_id),
+    descriptor_kind: readTargetText(record.descriptor_kind),
+    delivery_stage: readTargetText(record.delivery_stage) || 'unknown',
+    title: readTargetText(record.title) || descriptorId,
+    state: readTargetText(record.state) || 'unknown',
+    summary_brief: readOptionalTargetText(record.summary_brief),
+    preview_capabilities: asRecord(record.preview_capabilities),
+    primary_target: sanitizeDeliverableTarget(asPartialTarget(record.primary_target)),
+    secondary_targets: sanitizeDeliverableTargets(record.secondary_targets),
+    content_preview: asRecord(record.content_preview),
+    source_brief_id: readOptionalTargetText(record.source_brief_id),
+    created_at: readTargetText(record.created_at),
+    updated_at: readTargetText(record.updated_at),
+  };
+}
+
+function normalizeBriefRecords(value: unknown): DashboardWorkflowOperatorBriefRecord[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((entry, index) => normalizeBriefRecord(entry, index));
+}
+
+function normalizeBriefRecord(value: unknown, index: number): DashboardWorkflowOperatorBriefRecord {
+  const record = asRecord(value);
+  return {
+    id: readTargetText(record.id) || `brief-${index + 1}`,
+    workflow_id: readTargetText(record.workflow_id),
+    work_item_id: readOptionalTargetText(record.work_item_id),
+    task_id: readOptionalTargetText(record.task_id),
+    request_id: readTargetText(record.request_id),
+    execution_context_id: readTargetText(record.execution_context_id),
+    brief_kind: readTargetText(record.brief_kind),
+    brief_scope: readTargetText(record.brief_scope),
+    source_kind: readTargetText(record.source_kind),
+    source_role_name: readOptionalTargetText(record.source_role_name),
+    status_kind: readTargetText(record.status_kind) || 'unknown',
+    short_brief: asRecord(record.short_brief),
+    detailed_brief_json: asRecord(record.detailed_brief_json),
+    linked_target_ids: readStringArray(record.linked_target_ids),
+    sequence_number: readNumber(record.sequence_number),
+    related_artifact_ids: readStringArray(record.related_artifact_ids),
+    related_output_descriptor_ids: readStringArray(record.related_output_descriptor_ids),
+    related_intervention_ids: readStringArray(record.related_intervention_ids),
+    canonical_workflow_brief_id: readOptionalTargetText(record.canonical_workflow_brief_id),
+    created_by_type: readTargetText(record.created_by_type),
+    created_by_id: readTargetText(record.created_by_id),
+    created_at: readTargetText(record.created_at),
+    updated_at: readTargetText(record.updated_at),
+  };
+}
+
+function normalizeInputPackets(value: unknown): DashboardWorkflowInputPacketRecord[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value
+    .map((entry, index) => normalizeInputPacket(entry, index))
+    .filter((packet): packet is DashboardWorkflowInputPacketRecord => packet !== null);
+}
+
+function normalizeInputPacket(
+  value: unknown,
+  index = 0,
+): DashboardWorkflowInputPacketRecord | null {
+  const record = asRecord(value);
+  if (Object.keys(record).length === 0) {
+    return null;
+  }
+  const packetId = readTargetText(record.id) || `packet-${index + 1}`;
+  return {
+    id: packetId,
+    workflow_id: readTargetText(record.workflow_id),
+    work_item_id: readOptionalTargetText(record.work_item_id),
+    packet_kind: readTargetText(record.packet_kind) || 'unknown',
+    source: readTargetText(record.source),
+    summary: readOptionalTargetText(record.summary),
+    structured_inputs: asRecord(record.structured_inputs),
+    metadata: asRecord(record.metadata),
+    created_by_type: readTargetText(record.created_by_type),
+    created_by_id: readTargetText(record.created_by_id),
+    created_at: readTargetText(record.created_at),
+    updated_at: readTargetText(record.updated_at),
+    files: normalizePacketFiles(record.files),
+  };
+}
+
+function normalizePacketFiles(value: unknown): DashboardWorkflowInputPacketFileRecord[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((entry, index) => normalizePacketFile(entry, index));
+}
+
+function normalizePacketFile(value: unknown, index: number): DashboardWorkflowInputPacketFileRecord {
+  const record = asRecord(value);
+  const fileId = readTargetText(record.id) || `file-${index + 1}`;
+  return {
+    id: fileId,
+    file_name: readTargetText(record.file_name) || fileId,
+    description: readOptionalTargetText(record.description),
+    content_type: readTargetText(record.content_type) || 'unknown',
+    size_bytes: readNumber(record.size_bytes),
+    created_at: readTargetText(record.created_at),
+    download_url: readTargetText(record.download_url),
+  };
+}
+
+function normalizeInterventions(value: unknown): DashboardWorkflowInterventionRecord[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.map((entry, index) => normalizeIntervention(entry, index));
+}
+
+function normalizeIntervention(value: unknown, index: number): DashboardWorkflowInterventionRecord {
+  const record = asRecord(value);
+  const interventionId = readTargetText(record.id) || `intervention-${index + 1}`;
+  return {
+    id: interventionId,
+    workflow_id: readTargetText(record.workflow_id),
+    work_item_id: readOptionalTargetText(record.work_item_id),
+    task_id: readOptionalTargetText(record.task_id),
+    kind: readTargetText(record.kind) || 'unknown',
+    origin: readTargetText(record.origin),
+    status: readTargetText(record.status),
+    summary: readTargetText(record.summary) || interventionId,
+    note: readOptionalTargetText(record.note),
+    structured_action: asRecord(record.structured_action),
+    metadata: asRecord(record.metadata),
+    created_by_type: readTargetText(record.created_by_type),
+    created_by_id: readTargetText(record.created_by_id),
+    created_at: readTargetText(record.created_at),
+    updated_at: readTargetText(record.updated_at),
+    files: normalizePacketFiles(record.files),
+  };
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+function asPartialTarget(value: unknown): Partial<DashboardWorkflowDeliverableTarget> | null {
+  return Object.keys(asRecord(value)).length > 0
+    ? asRecord(value) as Partial<DashboardWorkflowDeliverableTarget>
+    : null;
+}
+
+function readStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((entry): entry is string => typeof entry === 'string');
+}
+
+function readNumber(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
 function readTargetText(value: unknown): string {

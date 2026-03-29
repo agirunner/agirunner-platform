@@ -424,6 +424,75 @@ describe('WorkflowDeliverables', () => {
     expect(html).not.toContain('Release checklist');
     expect(html).toContain('Final deliverables (1)');
   });
+
+  it('tolerates incomplete deliverables packets and malformed records without crashing', () => {
+    expect(() =>
+      renderToStaticMarkup(
+        createElement(WorkflowDeliverables, {
+          packet: {
+            final_deliverables: [
+              {
+                descriptor_id: 'deliverable-incomplete',
+                workflow_id: 'workflow-1',
+                work_item_id: null,
+                title: 'Recovered deliverable',
+                content_preview: {
+                  summary: 'The dashboard should still render this partial record.',
+                },
+              },
+            ],
+            inputs_and_provenance: null,
+          } as unknown as DashboardWorkflowDeliverablesPacket,
+          selectedTask: null,
+          selectedWorkItemId: null,
+          selectedWorkItemTitle: null,
+          scope: {
+            scopeKind: 'workflow',
+            title: 'Workflow',
+            subject: 'workflow',
+            name: 'Workflow 1',
+            banner: 'Workflow: Workflow 1',
+          },
+          onLoadMore: vi.fn(),
+        }),
+      ),
+    ).not.toThrow();
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: {
+          final_deliverables: [
+            {
+              descriptor_id: 'deliverable-incomplete',
+              workflow_id: 'workflow-1',
+              work_item_id: null,
+              title: 'Recovered deliverable',
+              content_preview: {
+                summary: 'The dashboard should still render this partial record.',
+              },
+            },
+          ],
+          inputs_and_provenance: null,
+        } as unknown as DashboardWorkflowDeliverablesPacket,
+        selectedTask: null,
+        selectedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Recovered deliverable');
+    expect(html).toContain('The dashboard should still render this partial record.');
+    expect(html).toContain('No inputs or intervention files are attached to this workflow.');
+    expect(html).toContain('Final deliverables (1)');
+  });
 });
 
 function createPacket(): DashboardWorkflowDeliverablesPacket {
