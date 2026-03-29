@@ -122,8 +122,7 @@ export class WorkflowControlService {
 
       await client.query(
         `UPDATE workflows
-            SET state = 'pending',
-                metadata = COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at',
+            SET metadata = COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at',
                 updated_at = now()
           WHERE tenant_id = $1
             AND id = $2`,

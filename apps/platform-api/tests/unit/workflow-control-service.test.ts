@@ -312,6 +312,14 @@ describe('WorkflowControlService', () => {
       expect.stringContaining("metadata = COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at'"),
       ['tenant-1', 'workflow-1'],
     );
+    const workflowUpdateSql = client.query.mock.calls.find(
+      ([sql]) =>
+        typeof sql === 'string' &&
+        sql.startsWith('UPDATE workflows') &&
+        String(sql).includes("metadata = COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at'"),
+    )?.[0];
+    expect(workflowUpdateSql).toBeDefined();
+    expect(String(workflowUpdateSql)).not.toContain("SET state = 'pending'");
     expect(stateService.recomputeWorkflowState).toHaveBeenCalledWith(
       'tenant-1',
       'workflow-1',
