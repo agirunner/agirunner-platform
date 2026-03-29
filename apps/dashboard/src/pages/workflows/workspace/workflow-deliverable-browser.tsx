@@ -15,15 +15,19 @@ import { WorkflowDeliverableTargetLink } from './workflow-deliverable-target-lin
 
 interface ResolvedTarget {
   key: string;
-  href: string;
   target: DashboardWorkflowDeliverableTarget;
+}
+
+interface ResolvedArtifactTarget extends ResolvedTarget {
+  previewHref: string | null;
+  downloadHref: string;
 }
 
 export function WorkflowDeliverableBrowser(props: {
   deliverable: DashboardWorkflowDeliverableRecord;
 }): JSX.Element | null {
   const artifactTargets = readArtifactTargets(props.deliverable);
-  const externalTargets = readExternalTargets(props.deliverable);
+  const externalTargets = readExternalTargets(props.deliverable, new Set(artifactTargets.map((target) => target.key)));
   const browserId = useId();
   const [selectedTargetKey, setSelectedTargetKey] = useState<string | null>(
     artifactTargets[0]?.key ?? null,
@@ -50,7 +54,7 @@ export function WorkflowDeliverableBrowser(props: {
             {selectedTarget ? (
               <a
                 className="text-sm font-medium text-accent underline-offset-4 hover:underline"
-                href={selectedTarget.href}
+                href={selectedTarget.downloadHref}
                 download
               >
                 Download artifact
@@ -83,16 +87,22 @@ export function WorkflowDeliverableBrowser(props: {
           ) : null}
           {selectedTarget ? (
             <div className="grid gap-2">
-              <div className="rounded-xl border border-border/70 bg-background shadow-sm">
-                <iframe
-                  key={selectedTarget.key}
-                  title={`${props.deliverable.title} preview`}
-                  src={selectedTarget.href}
-                  className="h-96 w-full rounded-xl bg-white"
-                />
-              </div>
+              {selectedTarget.previewHref ? (
+                <div className="rounded-xl border border-border/70 bg-background shadow-sm">
+                  <iframe
+                    key={selectedTarget.key}
+                    title={`${props.deliverable.title} preview`}
+                    src={selectedTarget.previewHref}
+                    className="h-96 w-full rounded-xl bg-white"
+                  />
+                </div>
+              ) : (
+                <p className="rounded-xl border border-dashed border-border/70 bg-background/80 px-3 py-6 text-sm text-muted-foreground">
+                  Preview is unavailable for this artifact. Use download from this browser.
+                </p>
+              )}
               <div id={browserId} className="text-xs text-muted-foreground">
-                {selectedTarget.target.path ?? selectedTarget.target.repo_ref ?? selectedTarget.href}
+                {selectedTarget.target.path ?? selectedTarget.target.repo_ref ?? selectedTarget.previewHref ?? selectedTarget.downloadHref}
               </div>
             </div>
           ) : null}
@@ -120,17 +130,28 @@ export function WorkflowDeliverableBrowser(props: {
 
 function readArtifactTargets(
   deliverable: DashboardWorkflowDeliverableRecord,
-): ResolvedTarget[] {
-  return readResolvedTargets(deliverable).filter((target) =>
-    isDownloadableDeliverableTarget(target.target),
-  );
+): ResolvedArtifactTarget[] {
+  return readResolvedTargets(deliverable)
+    .filter((target) => isDownloadableDeliverableTarget(target.target))
+    .flatMap((target) => {
+      const action = resolveDeliverableTargetAction(target.target);
+      if (action.action_kind !== 'external_link' || !action.href) {
+        return [];
+      }
+      return [{
+        ...target,
+        previewHref: resolveArtifactPreviewHref(action.href),
+        downloadHref: resolveArtifactDownloadHref(action.href),
+      }];
+    });
 }
 
 function readExternalTargets(
   deliverable: DashboardWorkflowDeliverableRecord,
+  artifactTargetKeys: Set<string>,
 ): ResolvedTarget[] {
   return readResolvedTargets(deliverable).filter((target) =>
-    !isDownloadableDeliverableTarget(target.target),
+    !artifactTargetKeys.has(target.key),
   );
 }
 
@@ -148,23 +169,59 @@ function readResolvedTargets(
     if (!hasMeaningfulDeliverableTarget(target)) {
       continue;
     }
-    const action = resolveDeliverableTargetAction(target);
-    if (action.action_kind !== 'external_link' || !action.href) {
-      continue;
-    }
-    const key = `${target.target_kind}:${target.artifact_id ?? action.href}:${target.label}`;
+    const key = [
+      target.target_kind,
+      target.artifact_id ?? '',
+      target.url,
+      target.path ?? '',
+      target.repo_ref ?? '',
+      target.label,
+    ].join(':');
     if (seen.has(key)) {
       continue;
     }
     seen.add(key);
     resolvedTargets.push({
       key,
-      href: action.href,
       target,
     });
   }
 
   return resolvedTargets;
+}
+
+function resolveArtifactPreviewHref(href: string): string | null {
+  return rewriteArtifactTransportPath(href, 'preview');
+}
+
+function resolveArtifactDownloadHref(href: string): string {
+  return rewriteArtifactTransportPath(href, 'download') ?? href;
+}
+
+function rewriteArtifactTransportPath(
+  href: string,
+  mode: 'preview' | 'download',
+): string | null {
+  try {
+    const parsed = new URL(href, 'http://dashboard.local');
+    const taskArtifactMatch = parsed.pathname.match(
+      /^\/api\/v1\/tasks\/([^/]+)\/artifacts\/([^/]+)(?:\/(preview|download|permalink))?$/,
+    );
+    if (!taskArtifactMatch) {
+      return null;
+    }
+    const [, taskId, artifactId] = taskArtifactMatch;
+    parsed.pathname = `/api/v1/tasks/${encodeURIComponent(taskId)}/artifacts/${encodeURIComponent(artifactId)}/${mode}`;
+    return serializeHref(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function serializeHref(parsed: URL): string {
+  return parsed.origin === 'http://dashboard.local'
+    ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+    : parsed.toString();
 }
 
 function readTargetLabel(target: DashboardWorkflowDeliverableTarget): string {

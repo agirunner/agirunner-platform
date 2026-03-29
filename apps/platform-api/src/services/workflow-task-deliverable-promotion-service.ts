@@ -14,6 +14,10 @@ interface WorkItemTitleRow {
   title: string;
 }
 
+interface TaskWorkItemRow {
+  work_item_id: string | null;
+}
+
 interface ExistingDescriptorRow {
   id: string;
   delivery_stage: string | null;
@@ -49,7 +53,7 @@ export class WorkflowTaskDeliverablePromotionService {
     if (!shouldPromoteHandoff(handoff)) {
       return null;
     }
-    const workItemId = handoff.work_item_id;
+    const workItemId = await this.resolveWorkItemId(tenantId, handoff);
     if (!workItemId) {
       return null;
     }
@@ -68,8 +72,30 @@ export class WorkflowTaskDeliverablePromotionService {
         workItemTitle,
         existingDescriptor,
         artifacts,
+        workItemId,
       ),
     );
+  }
+
+  private async resolveWorkItemId(
+    tenantId: string,
+    handoff: WorkflowTaskDeliverablePromotionHandoff,
+  ): Promise<string | null> {
+    const directWorkItemId = readOptionalString(handoff.work_item_id);
+    if (directWorkItemId) {
+      return directWorkItemId;
+    }
+
+    const result = await this.pool.query<TaskWorkItemRow>(
+      `SELECT work_item_id
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = $3
+        LIMIT 1`,
+      [tenantId, handoff.workflow_id, handoff.task_id],
+    );
+    return readOptionalString(result.rows[0]?.work_item_id) ?? null;
   }
 
   private async loadExistingDescriptor(
@@ -137,8 +163,10 @@ export class WorkflowTaskDeliverablePromotionService {
 }
 
 function shouldPromoteHandoff(handoff: WorkflowTaskDeliverablePromotionHandoff): boolean {
-  const completionState = readOptionalString(handoff.completion_state) ?? readOptionalString(handoff.completion);
-  return completionState === 'full' && !isOrchestratorRole(handoff.role);
+  const completionState = normalizeCompletionState(
+    readOptionalString(handoff.completion_state) ?? readOptionalString(handoff.completion),
+  );
+  return completionState !== null && FINAL_COMPLETION_STATES.has(completionState) && !isOrchestratorRole(handoff.role);
 }
 
 function buildPromotedDeliverableInput(
@@ -146,6 +174,7 @@ function buildPromotedDeliverableInput(
   workItemTitle: string | null,
   existingDescriptor: ExistingDescriptorRow | null,
   artifacts: ArtifactRow[],
+  workItemId: string,
 ): UpsertWorkflowDeliverableInput {
   const progress = resolveDeliverableProgress(handoff, existingDescriptor);
   const artifactTargets = artifacts.map((artifact, index) =>
@@ -158,7 +187,7 @@ function buildPromotedDeliverableInput(
   const previewSummary = buildPreviewSummary(handoff);
   return {
     descriptorId: existingDescriptor?.id,
-    workItemId: handoff.work_item_id ?? undefined,
+    workItemId,
     descriptorKind: CANONICAL_DELIVERABLE_PACKET_KIND,
     deliveryStage: progress,
     title: `${workItemTitle ?? 'Work item'} ${progress === 'final' ? 'completion' : 'handoff'} packet`,
@@ -235,6 +264,12 @@ function readOptionalString(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+const FINAL_COMPLETION_STATES = new Set(['approved', 'completed', 'final', 'full']);
+
+function normalizeCompletionState(value: string | null): string | null {
+  return value ? value.trim().toLowerCase() : null;
 }
 
 function humanizeToken(value: string): string {

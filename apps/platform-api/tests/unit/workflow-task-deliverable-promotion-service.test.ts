@@ -69,6 +69,58 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
     expect(promotionInput?.primaryTarget).not.toHaveProperty('url');
   });
 
+  it('promotes completed specialist handoffs into canonical work-item deliverables', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [],
+          rowCount: 0,
+        })
+        .mockResolvedValueOnce({
+          rows: [{ title: 'workflow-intake-01' }],
+          rowCount: 1,
+        }),
+    };
+    const deliverableService = {
+      upsertSystemDeliverable: vi.fn(async () => ({
+        descriptor_id: 'descriptor-completed-1',
+      })),
+    };
+
+    const service = new WorkflowTaskDeliverablePromotionService(
+      pool as never,
+      deliverableService as never,
+    );
+
+    await service.promoteFromHandoff('tenant-1', {
+      id: 'handoff-completed-1',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      task_id: 'task-1',
+      role: 'policy-assessor',
+      summary: 'Approved the intake packet and finalized the specialist review.',
+      completion: 'Approved the packet.',
+      completion_state: 'completed',
+      role_data: {
+        task_kind: 'assessment',
+      },
+      artifact_ids: [],
+      created_at: '2026-03-28T20:21:00.000Z',
+    });
+
+    expect(deliverableService.upsertSystemDeliverable).toHaveBeenCalledWith(
+      'tenant-1',
+      'workflow-1',
+      expect.objectContaining({
+        workItemId: 'work-item-1',
+        descriptorKind: 'deliverable_packet',
+        deliveryStage: 'final',
+        state: 'final',
+      }),
+    );
+  });
+
   it('promotes an artifact-backed delivery handoff into a canonical packet that points at the artifact', async () => {
     const pool = {
       query: vi
@@ -134,6 +186,69 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
           can_inline_preview: true,
           can_download: true,
         }),
+      }),
+    );
+  });
+
+  it('resolves the parent work item from the task when the handoff omits work-item linkage', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-5']);
+          return {
+            rows: [{ work_item_id: 'work-item-5' }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM workflow_output_descriptors')) {
+          return {
+            rows: [],
+            rowCount: 0,
+          };
+        }
+        if (sql.includes('FROM workflow_work_items')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-5']);
+          return {
+            rows: [{ title: 'workflow-intake-05' }],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const deliverableService = {
+      upsertSystemDeliverable: vi.fn(async () => ({
+        descriptor_id: 'descriptor-5',
+      })),
+    };
+
+    const service = new WorkflowTaskDeliverablePromotionService(
+      pool as never,
+      deliverableService as never,
+    );
+
+    await service.promoteFromHandoff('tenant-1', {
+      id: 'handoff-5',
+      workflow_id: 'workflow-1',
+      work_item_id: null,
+      task_id: 'task-5',
+      role: 'builder',
+      summary: 'Published the final workflow-intake-05 packet artifact.',
+      completion: 'full',
+      completion_state: 'full',
+      role_data: {
+        task_kind: 'delivery',
+      },
+      artifact_ids: [],
+      created_at: '2026-03-28T20:55:00.000Z',
+    });
+
+    expect(deliverableService.upsertSystemDeliverable).toHaveBeenCalledWith(
+      'tenant-1',
+      'workflow-1',
+      expect.objectContaining({
+        workItemId: 'work-item-5',
+        title: 'workflow-intake-05 completion packet',
       }),
     );
   });
