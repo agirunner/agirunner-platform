@@ -1693,6 +1693,92 @@ def _execution_log_rows(snapshot: Any) -> list[dict[str, Any]]:
     return data if isinstance(data, list) else []
 
 
+def _parse_optional_log_id(value: Any) -> int | None:
+    if isinstance(value, int):
+        return value
+    if not isinstance(value, str):
+        return None
+    candidate = value.strip()
+    if candidate == "":
+        return None
+    try:
+        return int(candidate)
+    except ValueError:
+        return None
+
+
+def _max_execution_log_id(execution_logs: Any) -> int | None:
+    log_ids = [
+        parsed_id
+        for parsed_id in (_parse_optional_log_id(row.get("id")) for row in execution_log_rows(execution_logs))
+        if parsed_id is not None
+    ]
+    if len(log_ids) == 0:
+        return None
+    return max(log_ids)
+
+
+def _max_workspace_scope_execution_log_id(workspace_scope_trace: Any) -> int | None:
+    if not isinstance(workspace_scope_trace, dict):
+        return None
+
+    log_ids: list[int] = []
+    for scope_key in ("workflow_scope", "selected_work_item_scope", "selected_task_scope"):
+        scope = workspace_scope_trace.get(scope_key)
+        if not isinstance(scope, dict):
+            continue
+        live_console = scope.get("workspace_api", {}).get("live_console", {})
+        if not isinstance(live_console, dict):
+            continue
+        execution_turn_ids = live_console.get("execution_turn_ids", [])
+        if not isinstance(execution_turn_ids, list):
+            continue
+        log_ids.extend(
+            parsed_id
+            for parsed_id in (_parse_optional_log_id(value) for value in execution_turn_ids)
+            if parsed_id is not None
+        )
+    if len(log_ids) == 0:
+        return None
+    return max(log_ids)
+
+
+def collect_consistent_workspace_scope_evidence(
+    *,
+    client: ApiClient,
+    workflow_id: str,
+    workflow: dict[str, Any],
+    db_state_snapshot: dict[str, Any],
+    max_attempts: int = 3,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    execution_logs_snapshot = collect_execution_logs(client, workflow_id=workflow_id)
+    workspace_scope_trace = build_workspace_scope_trace(
+        client,
+        workflow_id=workflow_id,
+        workflow=workflow,
+        db_state=db_state_snapshot,
+        execution_logs=execution_logs_snapshot,
+    )
+
+    for _ in range(max_attempts - 1):
+        max_workspace_scope_log_id = _max_workspace_scope_execution_log_id(workspace_scope_trace)
+        max_execution_log_id = _max_execution_log_id(execution_logs_snapshot)
+        if max_workspace_scope_log_id is None:
+            break
+        if max_execution_log_id is not None and max_execution_log_id >= max_workspace_scope_log_id:
+            break
+        execution_logs_snapshot = collect_execution_logs(client, workflow_id=workflow_id)
+        workspace_scope_trace = build_workspace_scope_trace(
+            client,
+            workflow_id=workflow_id,
+            workflow=workflow,
+            db_state=db_state_snapshot,
+            execution_logs=execution_logs_snapshot,
+        )
+
+    return execution_logs_snapshot, workspace_scope_trace
+
+
 def _completed_work_item_count(work_items_snapshot: Any, board_snapshot: Any) -> int:
     return sum(1 for item in _work_items(work_items_snapshot) if _work_item_is_terminal(item, board_snapshot))
 
@@ -4573,20 +4659,18 @@ def main() -> None:
         live_container_observations=live_container_observations,
         relevant_task_ids=_workflow_task_ids(latest_workflow),
     )
-    execution_logs_snapshot = collect_execution_logs(client, workflow_id=workflow_id)
+    db_state_snapshot = collect_db_state_snapshot(trace, workflow_id=workflow_id)
+    execution_logs_snapshot, workspace_scope_trace = collect_consistent_workspace_scope_evidence(
+        client,
+        workflow_id=workflow_id,
+        workflow=latest_workflow,
+        db_state_snapshot=db_state_snapshot,
+    )
     efficiency_summary = summarize_efficiency(
         workflow=latest_workflow,
         logs=execution_logs_snapshot,
         events=events_snapshot,
         approval_actions=approval_actions,
-    )
-    db_state_snapshot = collect_db_state_snapshot(trace, workflow_id=workflow_id)
-    workspace_scope_trace = build_workspace_scope_trace(
-        client,
-        workflow_id=workflow_id,
-        workflow=latest_workflow,
-        db_state=db_state_snapshot,
-        execution_logs=execution_logs_snapshot,
     )
     evidence_payload = {
         "db_state": db_state_snapshot,
