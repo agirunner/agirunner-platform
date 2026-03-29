@@ -674,6 +674,7 @@ describe('buildTaskContext active stage semantics', () => {
           return { rows: [{ stage_name: 'implementation' }] };
         }
         if (sql.includes('FROM workflow_input_packets')) {
+          expect(sql).not.toContain('LIMIT 20');
           return {
             rows: [
               {

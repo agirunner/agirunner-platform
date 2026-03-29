@@ -136,6 +136,29 @@ describe('workflow-execution-log-composer', () => {
     expect(items).toEqual([]);
   });
 
+  it('suppresses planning text that only talks about recording briefs and submitting required handoffs', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '21ca',
+        operation: 'agent.plan',
+        payload: {
+          plan_summary:
+            'Record the closure milestone for operators, then submit the required structured handoff to finish this orchestrator activation.',
+        },
+      }),
+      createLogRow({
+        id: '21cb',
+        operation: 'agent.plan',
+        payload: {
+          plan_summary:
+            'Emit the required milestone operator brief for the completed intake-item closure checkpoint, then reassess completion.',
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
   it('formats act turns as action calls with safe args', () => {
     const [item] = buildExecutionTurnItems([
       createLogRow({
@@ -253,6 +276,23 @@ describe('workflow-execution-log-composer', () => {
           tool: 'read_task_status',
           input: {
             task_id: 'task-1',
+          },
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
+  it('suppresses read-only workflow continuity helpers instead of surfacing tool syntax', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '22ccf',
+        operation: 'agent.act',
+        payload: {
+          tool: 'read_work_item_continuity',
+          input: {
+            work_item_id: 'work-item-1',
           },
         },
       }),

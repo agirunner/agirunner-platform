@@ -738,8 +738,7 @@ async function loadWorkflowInputPackets(
        FROM workflow_input_packets
       WHERE tenant_id = $1
         AND workflow_id = $2
-      ORDER BY created_at DESC
-      LIMIT 20`,
+      ORDER BY created_at DESC`,
     [tenantId, workflowId],
   );
   if (packetResult.rows.length === 0) {

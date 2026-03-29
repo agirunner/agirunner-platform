@@ -751,6 +751,9 @@ function looksLikeLowValueConsoleText(value: string): boolean {
     || /^working through the next execution step\.?$/i.test(value)
     || /^checking current progress\.?$/i.test(value)
     || /^burst_budget:/i.test(value)
+    || /\brecord the .*?(milestone|terminal|closure|operator-visible).*?\b(brief|update)\b/i.test(value)
+    || /\bemit the required .*?\b(brief|update)\b/i.test(value)
+    || /\bsubmit the required structured handoff\b/i.test(value)
     || /\b(remains|still|continues to be|continues)\b.*\bready\b/i.test(value)
     || /\b(remains|still|continues to be|continues)\b.*\b(suitable|supports|cleared)\b/i.test(value)
   );
@@ -815,11 +818,16 @@ const LOW_VALUE_HELPER_ACTIONS = new Set([
   'artifact_read',
   'file_read',
   'file_list',
+  'grep',
   'list_work_items',
   'list_workflow_tasks',
   'memory_read',
+  'read_predecessor_handoff',
   'read_task_status',
+  'read_task_output',
+  'read_task_events',
   'read_stage_status',
+  'read_work_item_continuity',
 ]);
 
 function truncate(value: string | null, maxLength: number): string | null {
