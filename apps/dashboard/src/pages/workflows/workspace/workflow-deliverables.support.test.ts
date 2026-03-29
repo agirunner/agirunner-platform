@@ -35,6 +35,20 @@ describe('workflow deliverables support', () => {
     });
   });
 
+  it('rewrites deprecated task artifact download routes to direct download links without stale workflow navigation params', () => {
+    expect(
+      resolveDeliverableTargetAction({
+        target_kind: 'artifact',
+        label: 'Download artifact',
+        url:
+          'http://localhost:3000/artifacts/tasks/task-1/artifact-1/download?return_to=%2Fworkflows%2Fworkflow-1&return_source=workspace-artifacts',
+      }),
+    ).toEqual({
+      action_kind: 'external_link',
+      href: 'http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/download',
+    });
+  });
+
   it('keeps workflow file targets as direct links instead of classifying them for inline preview', () => {
     expect(
       resolveDeliverableTargetAction({

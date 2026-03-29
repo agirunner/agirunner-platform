@@ -16,7 +16,7 @@ export interface DeliverableTargetAction {
 const DASHBOARD_ORIGIN = 'http://dashboard.local';
 const IN_PLACE_TARGET_PATH_PATTERNS = [
   /^\/artifacts\/tasks\/[^/]+\/[^/]+$/,
-  /^\/api\/v1\/tasks\/[^/]+\/artifacts\/[^/]+(?:\/preview|\/permalink)?$/,
+  /^\/api\/v1\/tasks\/[^/]+\/artifacts\/[^/]+(?:\/preview|\/permalink|\/download)?$/,
   /^\/api\/v1\/workflows\/[^/]+\/input-packets\/[^/]+\/files\/[^/]+\/content$/,
   /^\/api\/v1\/workflows\/[^/]+\/interventions\/[^/]+\/files\/[^/]+\/content$/,
 ];
@@ -155,14 +155,16 @@ function hasActionableDeliverableHref(
 }
 
 function rewriteDeprecatedArtifactPreviewPath(parsed: URL): void {
-  const match = parsed.pathname.match(/^\/artifacts\/tasks\/([^/]+)\/([^/]+)$/);
+  const match = parsed.pathname.match(
+    /^\/artifacts\/tasks\/([^/]+)\/([^/]+)(?:\/(download|permalink|preview))?$/,
+  );
   if (!match) {
     return;
   }
 
-  const [, taskId, artifactId] = match;
+  const [, taskId, artifactId, suffix] = match;
   parsed.pathname =
-    `/api/v1/tasks/${encodeURIComponent(taskId)}/artifacts/${encodeURIComponent(artifactId)}/preview`;
+    `/api/v1/tasks/${encodeURIComponent(taskId)}/artifacts/${encodeURIComponent(artifactId)}/${suffix ?? 'preview'}`;
 }
 
 function stripDeprecatedNavigationParams(parsed: URL): void {
@@ -199,11 +201,19 @@ function normalizeDeliverableRecord(value: unknown, index: number): DashboardWor
     preview_capabilities: asRecord(record.preview_capabilities),
     primary_target: sanitizeDeliverableTarget(asPartialTarget(record.primary_target)),
     secondary_targets: sanitizeDeliverableTargets(record.secondary_targets),
-    content_preview: asRecord(record.content_preview),
+    content_preview: normalizeDeliverableContentPreview(record.content_preview),
     source_brief_id: readOptionalTargetText(record.source_brief_id),
     created_at: readTargetText(record.created_at),
     updated_at: readTargetText(record.updated_at),
   };
+}
+
+function normalizeDeliverableContentPreview(value: unknown): Record<string, unknown> {
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? { text: trimmed } : {};
+  }
+  return asRecord(value);
 }
 
 function normalizeBriefRecords(value: unknown): DashboardWorkflowOperatorBriefRecord[] {
