@@ -13,6 +13,7 @@ import {
   getWorkflowConsoleEntryStyle,
   getWorkflowConsoleLineText,
   orderWorkflowConsoleItemsForDisplay,
+  resolveWorkflowConsoleWindowChange,
   resolveWorkflowConsoleFilterCounts,
   shouldPrefetchWorkflowConsoleHistory,
 } from './workflow-live-console.support.js';
@@ -87,6 +88,33 @@ describe('workflow live console support', () => {
       all: 9,
       turn_updates: 2,
       briefs: 1,
+    });
+  });
+
+  it('reads compatibility filter counts from camelCase live-console payload aliases', () => {
+    const items = createItems();
+    const packet = {
+      generated_at: '2026-03-27T04:05:00.000Z',
+      latest_event_id: 42,
+      snapshot_version: 'workflow-operations:42',
+      next_cursor: 'cursor-1',
+      totalCount: 137,
+      items,
+      filterCounts: {
+        turnUpdates: 101,
+        briefs: 36,
+      },
+    };
+
+    expect(
+      resolveWorkflowConsoleFilterCounts(
+        packet as Parameters<typeof resolveWorkflowConsoleFilterCounts>[0],
+        items,
+      ),
+    ).toEqual({
+      all: 137,
+      turn_updates: 101,
+      briefs: 36,
     });
   });
 
@@ -312,6 +340,18 @@ describe('workflow live console support', () => {
     ).toEqual({
       shouldScrollToBottom: false,
       shouldQueueUpdates: false,
+    });
+  });
+
+  it('treats a shifted live window as an appended update when newer rows push older ones out', () => {
+    expect(
+      resolveWorkflowConsoleWindowChange({
+        previousItemIds: ['line-1', 'line-2', 'line-3'],
+        currentItemIds: ['line-2', 'line-3', 'line-4'],
+      }),
+    ).toEqual({
+      prependedHistory: false,
+      appendedLiveUpdate: true,
     });
   });
 

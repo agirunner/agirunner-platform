@@ -179,6 +179,59 @@ describe('WorkflowLiveConsole', () => {
     expect(html).not.toContain('data-live-console-filter-count="1"');
   });
 
+  it('renders compatibility filter totals when the packet uses live-console alias fields', () => {
+    const packet = createPacket(
+      [
+        {
+          item_id: 'brief-1',
+          item_kind: 'milestone_brief',
+          source_label: 'Orchestrator',
+          headline: 'Workflow reached approval milestone',
+          summary: 'A structured brief was published.',
+          created_at: '2026-03-27T04:05:00.000Z',
+        },
+        {
+          item_id: 'update-1',
+          item_kind: 'execution_turn',
+          source_label: 'Implementation Engineer',
+          headline: 'Updated retry handling.',
+          summary: 'Execution turn completed for Implementation Engineer.',
+          created_at: '2026-03-27T04:04:00.000Z',
+        },
+      ],
+      { includePlatformNotice: true },
+    ) as DashboardWorkflowLiveConsolePacket & {
+      totalCount: number;
+      filterCounts: {
+        turnUpdates: number;
+        briefs: number;
+      };
+    };
+
+    packet.total_count = undefined;
+    packet.totalCount = 137;
+    packet.filterCounts = {
+      turnUpdates: 101,
+      briefs: 36,
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(WorkflowLiveConsole, {
+        packet,
+        scopeLabel: 'Workflow: Release workflow',
+        scopeSubject: 'workflow',
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('data-live-console-filter="all"');
+    expect(html).toContain('data-live-console-filter-count="137"');
+    expect(html).toContain('data-live-console-filter="turn_updates"');
+    expect(html).toContain('data-live-console-filter-count="101"');
+    expect(html).toContain('data-live-console-filter="briefs"');
+    expect(html).toContain('data-live-console-filter-count="36"');
+  });
+
   it('humanizes role labels and falls back when the provided label is a raw uuid', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowLiveConsole, {

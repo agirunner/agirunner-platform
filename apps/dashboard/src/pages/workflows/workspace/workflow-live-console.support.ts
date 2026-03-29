@@ -101,7 +101,7 @@ export function resolveWorkflowConsoleFilterCounts(
   const packetCounts = readWorkflowConsoleFilterCounts(packet);
 
   return {
-    all: packetCounts.all ?? normalizeConsoleCount(packet.total_count) ?? derivedCounts.all,
+    all: packetCounts.all ?? readWorkflowConsoleTotalCount(packet) ?? derivedCounts.all,
     turn_updates: packetCounts.turn_updates ?? derivedCounts.turn_updates,
     briefs: packetCounts.briefs ?? derivedCounts.briefs,
   };
@@ -232,6 +232,36 @@ export function getWorkflowConsoleFollowBehavior(input: {
   };
 }
 
+export function resolveWorkflowConsoleWindowChange(input: {
+  previousItemIds: string[];
+  currentItemIds: string[];
+}): {
+  prependedHistory: boolean;
+  appendedLiveUpdate: boolean;
+} {
+  if (input.previousItemIds.length === 0 || input.currentItemIds.length === 0) {
+    return {
+      prependedHistory: false,
+      appendedLiveUpdate: false,
+    };
+  }
+
+  const previousFirstItemId = input.previousItemIds[0] ?? '';
+  const previousLastItemId = input.previousItemIds[input.previousItemIds.length - 1] ?? '';
+  const currentFirstItemId = input.currentItemIds[0] ?? '';
+  const currentLastItemId = input.currentItemIds[input.currentItemIds.length - 1] ?? '';
+
+  return {
+    prependedHistory:
+      previousLastItemId === currentLastItemId &&
+      previousFirstItemId !== currentFirstItemId &&
+      readWindowOverlapLength(input.currentItemIds, input.previousItemIds) > 0,
+    appendedLiveUpdate:
+      previousLastItemId !== currentLastItemId &&
+      readWindowOverlapLength(input.previousItemIds, input.currentItemIds) > 0,
+  };
+}
+
 export function getWorkflowConsoleEntryStyle(itemKind: string, sourceKind: string): {
   dataKind: 'brief' | 'notice' | 'update';
   entryClassName: string;
@@ -292,15 +322,38 @@ function readWorkflowConsoleFilterCounts(
 
   return {
     all: normalizeConsoleCount(rawCounts.all),
-    turn_updates: normalizeConsoleCount(rawCounts.turn_updates),
+    turn_updates: normalizeConsoleCount(rawCounts.turn_updates)
+      ?? normalizeConsoleCount(rawCounts.turnUpdates),
     briefs: normalizeConsoleCount(rawCounts.briefs),
   };
+}
+
+function readWorkflowConsoleTotalCount(packet: DashboardWorkflowLiveConsolePacket): number | null {
+  const rawPacket = packet as unknown as Record<string, unknown>;
+  return normalizeConsoleCount(packet.total_count) ?? normalizeConsoleCount(rawPacket.totalCount);
 }
 
 function readRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
+}
+
+function readWindowOverlapLength(left: string[], right: string[]): number {
+  const overlapLimit = Math.min(left.length, right.length);
+  for (let overlapLength = overlapLimit; overlapLength > 0; overlapLength -= 1) {
+    let matches = true;
+    for (let index = 0; index < overlapLength; index += 1) {
+      if (left[left.length - overlapLength + index] !== right[index]) {
+        matches = false;
+        break;
+      }
+    }
+    if (matches) {
+      return overlapLength;
+    }
+  }
+  return 0;
 }
 
 function normalizeConsoleCount(value: unknown): number | null {

@@ -12,6 +12,7 @@ import {
   getWorkflowConsoleVisibleItems,
   getWorkflowConsoleFollowBehavior,
   orderWorkflowConsoleItemsForDisplay,
+  resolveWorkflowConsoleWindowChange,
   resolveWorkflowConsoleFilterCounts,
   shouldPrefetchWorkflowConsoleHistory,
   type WorkflowConsoleFilter,
@@ -45,8 +46,7 @@ export function WorkflowLiveConsole(props: {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const visibleItemsRef = useRef<DashboardWorkflowLiveConsolePacket['items']>([]);
   const scrollMetricsRef = useRef({
-    firstItemId: '',
-    lastItemId: '',
+    visibleItemIds: [] as string[],
     scrollHeight: 0,
     scrollTop: 0,
   });
@@ -94,8 +94,7 @@ export function WorkflowLiveConsole(props: {
     setIsLoadingOlderHistory(false);
     const currentVisibleItems = visibleItemsRef.current;
     scrollMetricsRef.current = {
-      firstItemId: currentVisibleItems[0]?.item_id ?? '',
-      lastItemId: currentVisibleItems[currentVisibleItems.length - 1]?.item_id ?? '',
+      visibleItemIds: currentVisibleItems.map((item) => item.item_id),
       scrollHeight: container.scrollHeight,
       scrollTop: container.scrollTop,
     };
@@ -109,17 +108,15 @@ export function WorkflowLiveConsole(props: {
     }
 
     const previousMetrics = scrollMetricsRef.current;
-    const firstItemId = visibleItems[0]?.item_id ?? '';
-    const lastItemId = visibleItems[visibleItems.length - 1]?.item_id ?? '';
-    const prependedHistory =
-      firstItemId !== previousMetrics.firstItemId && lastItemId === previousMetrics.lastItemId;
-    const appendedLiveUpdate =
-      lastItemId !== previousMetrics.lastItemId && firstItemId === previousMetrics.firstItemId;
+    const currentItemIds = visibleItems.map((item) => item.item_id);
+    const { prependedHistory, appendedLiveUpdate } = resolveWorkflowConsoleWindowChange({
+      previousItemIds: previousMetrics.visibleItemIds,
+      currentItemIds,
+    });
 
     if (visibleItems.length === 0) {
       scrollMetricsRef.current = {
-        firstItemId,
-        lastItemId,
+        visibleItemIds: currentItemIds,
         scrollHeight: container.scrollHeight,
         scrollTop: container.scrollTop,
       };
@@ -131,7 +128,7 @@ export function WorkflowLiveConsole(props: {
       isAtLiveEdge: isAtLiveEdgeRef.current,
       prependedHistory,
       appendedLiveUpdate,
-      hasPreviousItems: previousMetrics.lastItemId.length > 0,
+      hasPreviousItems: previousMetrics.visibleItemIds.length > 0,
     });
 
     if (prependedHistory) {
@@ -146,8 +143,7 @@ export function WorkflowLiveConsole(props: {
     }
 
     scrollMetricsRef.current = {
-      firstItemId,
-      lastItemId,
+      visibleItemIds: currentItemIds,
       scrollHeight: container.scrollHeight,
       scrollTop: container.scrollTop,
     };
