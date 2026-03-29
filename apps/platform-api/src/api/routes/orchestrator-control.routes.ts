@@ -2584,12 +2584,25 @@ async function loadReviewedTaskMetadata(
       };
     }
   }
+  const deliverySubjectRevision = deriveReviewedDeliverySubjectRevision(row);
   return {
     subjectTaskId: row?.id ?? reviewedTaskId,
     subjectWorkItemId: null,
     subjectHandoffId: null,
-    subjectRevision: (row?.rework_count ?? 0) + 1,
+    subjectRevision: deliverySubjectRevision,
   };
+}
+
+function deriveReviewedDeliverySubjectRevision(
+  row: ReviewedTaskContextRow | undefined,
+): number | null {
+  const metadata = asRecord(row?.metadata);
+  const input = asRecord(row?.input);
+  const persistedRevision = readInteger(metadata.output_revision) ?? 0;
+  const reworkDerivedRevision = (row?.rework_count ?? 0) + 1;
+  const explicitRevision = readInteger(input.subject_revision) ?? 0;
+  const subjectRevision = Math.max(persistedRevision, reworkDerivedRevision, explicitRevision);
+  return subjectRevision > 0 ? subjectRevision : null;
 }
 
 async function maybeLoadCrossStageTargetWorkItemAssessmentSubject(
