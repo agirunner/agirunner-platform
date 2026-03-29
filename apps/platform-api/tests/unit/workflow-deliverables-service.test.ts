@@ -2423,7 +2423,7 @@ describe('WorkflowDeliverablesService', () => {
     ]);
   });
 
-  it('keeps a stored final work-item packet in final deliverables when the selected work item is still incomplete', async () => {
+  it('reclassifies a stored final work-item packet into in-progress deliverables when the selected work item is still incomplete', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => [
         {
@@ -2469,7 +2469,8 @@ describe('WorkflowDeliverablesService', () => {
       workItemId: 'work-item-1',
     });
 
-    expect(result.final_deliverables).toEqual([
+    expect(result.final_deliverables).toEqual([]);
+    expect(result.in_progress_deliverables).toEqual([
       expect.objectContaining({
         descriptor_id: 'deliverable-current',
         work_item_id: 'work-item-1',
@@ -2477,7 +2478,6 @@ describe('WorkflowDeliverablesService', () => {
         state: 'final',
       }),
     ]);
-    expect(result.in_progress_deliverables).toEqual([]);
     expect(result.all_deliverables).toEqual([
       expect.objectContaining({
         descriptor_id: 'deliverable-current',

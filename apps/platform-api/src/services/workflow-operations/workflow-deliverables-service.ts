@@ -80,7 +80,7 @@ export class WorkflowDeliverablesService {
   ): Promise<WorkflowDeliverablesPacket & { all_deliverables: WorkflowDeliverableRecord[] }> {
     const limit = input.limit ?? 10;
     const fetchWindow = resolveFetchWindow(limit);
-    const allowIncompleteReclassification = !input.workItemId;
+    const allowIncompleteReclassification = true;
     const includeWorkflowScope = Boolean(input.workItemId);
     const includeAllWorkItemScopes = !input.workItemId;
     const [deliverables, briefs, inputPackets, handoffs, incompleteWorkItemIds] = await Promise.all([

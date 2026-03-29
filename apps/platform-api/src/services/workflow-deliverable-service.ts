@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseQueryable } from '../db/database.js';
@@ -33,6 +33,14 @@ interface WorkflowDeliverableRow {
   created_at: Date;
   updated_at: Date;
 }
+
+interface WorkflowWorkItemSettlementRow {
+  id: string;
+  completed_at: Date | null;
+}
+
+const ROLLUP_SOURCE_DESCRIPTOR_ID_KEY = 'rollup_source_descriptor_id';
+const ROLLUP_SOURCE_WORK_ITEM_ID_KEY = 'rollup_source_work_item_id';
 
 export interface WorkflowDeliverableRecord {
   descriptor_id: string;
@@ -126,9 +134,13 @@ export class WorkflowDeliverableService {
     }
   }
 
-  private async assertWorkItem(tenantId: string, workflowId: string, workItemId: string): Promise<void> {
-    const result = await this.pool.query(
-      `SELECT id
+  private async loadWorkItemSettlement(
+    tenantId: string,
+    workflowId: string,
+    workItemId: string,
+  ): Promise<WorkflowWorkItemSettlementRow> {
+    const result = await this.pool.query<WorkflowWorkItemSettlementRow>(
+      `SELECT id, completed_at
          FROM workflow_work_items
         WHERE tenant_id = $1
           AND workflow_id = $2
@@ -138,6 +150,7 @@ export class WorkflowDeliverableService {
     if (!result.rowCount) {
       throw new ValidationError('Workflow deliverable work item must belong to the selected workflow');
     }
+    return result.rows[0]!;
   }
 
   private async assertSourceBrief(tenantId: string, workflowId: string, sourceBriefId: string): Promise<void> {
@@ -160,9 +173,9 @@ export class WorkflowDeliverableService {
     input: UpsertWorkflowDeliverableInput,
   ): Promise<WorkflowDeliverableRecord> {
     await this.assertWorkflow(tenantId, workflowId);
-    if (input.workItemId) {
-      await this.assertWorkItem(tenantId, workflowId, input.workItemId);
-    }
+    const workItemSettlement = input.workItemId
+      ? await this.loadWorkItemSettlement(tenantId, workflowId, input.workItemId)
+      : null;
     if (input.sourceBriefId) {
       await this.assertSourceBrief(tenantId, workflowId, input.sourceBriefId);
     }
@@ -223,12 +236,116 @@ export class WorkflowDeliverableService {
           params,
         );
 
-    return toWorkflowDeliverableRecord(result.rows[0]);
+    const record = toWorkflowDeliverableRecord(result.rows[0]);
+    await this.syncWorkflowRollupDeliverable(tenantId, workflowId, record, workItemSettlement);
+    return record;
+  }
+
+  private async syncWorkflowRollupDeliverable(
+    tenantId: string,
+    workflowId: string,
+    record: WorkflowDeliverableRecord,
+    workItemSettlement: WorkflowWorkItemSettlementRow | null,
+  ): Promise<void> {
+    if (!record.work_item_id) {
+      return;
+    }
+    const existingRollupDescriptorId = await this.loadWorkflowRollupDescriptorId(
+      tenantId,
+      workflowId,
+      record.descriptor_id,
+    );
+    if (!shouldMaterializeWorkflowRollup(record, workItemSettlement)) {
+      if (!existingRollupDescriptorId) {
+        return;
+      }
+      await this.upsertDeliverableForTenant(tenantId, workflowId, {
+        descriptorId: existingRollupDescriptorId,
+        descriptorKind: record.descriptor_kind,
+        deliveryStage: record.delivery_stage,
+        title: record.title,
+        state: 'superseded',
+        summaryBrief: record.summary_brief ?? undefined,
+        previewCapabilities: record.preview_capabilities,
+        primaryTarget: record.primary_target,
+        secondaryTargets: record.secondary_targets,
+        contentPreview: buildWorkflowRollupContentPreview(record),
+        sourceBriefId: record.source_brief_id ?? undefined,
+      });
+      return;
+    }
+    await this.upsertDeliverableForTenant(tenantId, workflowId, {
+      descriptorId: existingRollupDescriptorId ?? buildWorkflowRollupDescriptorId(record.descriptor_id),
+      descriptorKind: record.descriptor_kind,
+      deliveryStage: record.delivery_stage,
+      title: record.title,
+      state: record.state,
+      summaryBrief: record.summary_brief ?? undefined,
+      previewCapabilities: record.preview_capabilities,
+      primaryTarget: record.primary_target,
+      secondaryTargets: record.secondary_targets,
+      contentPreview: buildWorkflowRollupContentPreview(record),
+      sourceBriefId: record.source_brief_id ?? undefined,
+    });
+  }
+
+  private async loadWorkflowRollupDescriptorId(
+    tenantId: string,
+    workflowId: string,
+    sourceDescriptorId: string,
+  ): Promise<string | null> {
+    const result = await this.pool.query<{ id: string }>(
+      `SELECT id
+         FROM workflow_output_descriptors
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND work_item_id IS NULL
+          AND content_preview_json->>'${ROLLUP_SOURCE_DESCRIPTOR_ID_KEY}' = $3
+        LIMIT 1`,
+      [tenantId, workflowId, sourceDescriptorId],
+    );
+    return sanitizeOptionalText(result.rows[0]?.id) ?? null;
   }
 }
 
 function serializeJsonbParam(value: Record<string, unknown> | Record<string, unknown>[]): string {
   return JSON.stringify(value);
+}
+
+function shouldMaterializeWorkflowRollup(
+  record: WorkflowDeliverableRecord,
+  workItemSettlement: WorkflowWorkItemSettlementRow | null,
+): boolean {
+  if (!record.work_item_id) {
+    return false;
+  }
+  if (record.state === 'superseded') {
+    return false;
+  }
+  if (!workItemSettlement?.completed_at) {
+    return false;
+  }
+  return record.delivery_stage === 'final' || record.state === 'final';
+}
+
+function buildWorkflowRollupContentPreview(record: WorkflowDeliverableRecord): Record<string, unknown> {
+  return {
+    ...record.content_preview,
+    [ROLLUP_SOURCE_DESCRIPTOR_ID_KEY]: record.descriptor_id,
+    [ROLLUP_SOURCE_WORK_ITEM_ID_KEY]: record.work_item_id,
+  };
+}
+
+function buildWorkflowRollupDescriptorId(sourceDescriptorId: string): string {
+  const hex = createHash('sha256').update(`workflow-rollup:${sourceDescriptorId}`).digest('hex').slice(0, 32);
+  const clockSeq = (Number.parseInt(hex.slice(16, 18), 16) & 0x3f) | 0x80;
+  return [
+    hex.slice(0, 8),
+    hex.slice(8, 12),
+    `4${hex.slice(13, 16)}`,
+    `${clockSeq.toString(16).padStart(2, '0')}${hex.slice(18, 20)}`,
+    hex.slice(20, 32),
+  ].join('-');
 }
 
 function buildDeliverableScopeQuery(input: ListWorkflowDeliverablesInput): {
