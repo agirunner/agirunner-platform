@@ -251,6 +251,7 @@ describe('workflows page support', () => {
       },
       live_console: {
         ...currentWorkflowPacket.live_console,
+        total_count: 0,
         next_cursor: null,
         items: [],
       },
@@ -381,6 +382,7 @@ function createWorkspacePacket(): DashboardWorkflowWorkspacePacket {
       generated_at: '2026-03-28T03:00:00.000Z',
       latest_event_id: 10,
       snapshot_version: 'workflow-operations:10',
+      total_count: 8,
       next_cursor: 'cursor-1',
       items: [],
     },

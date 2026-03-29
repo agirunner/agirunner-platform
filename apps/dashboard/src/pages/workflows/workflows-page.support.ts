@@ -354,6 +354,7 @@ function buildScopedWorkspacePlaceholder(
     },
     live_console: {
       ...previous.live_console,
+      total_count: 0,
       next_cursor: null,
       items: [],
     },
