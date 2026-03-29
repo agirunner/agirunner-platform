@@ -48,10 +48,11 @@ export function WorkflowDetails(props: {
     || (isWorkflowScope && hasStructuredContent(props.workflowParameters));
   const scopeLabel = readScopeLabel(props.scope.scopeKind);
   const detailSections = buildDetailSections(scope, props.scope.scopeKind);
+  const hasSupportingDetails = Boolean(scope.summary) || detailSections.secondary.length > 0;
 
   return (
     <section className="grid gap-3 pb-1">
-      <header className="grid gap-1 border-b border-border/60 pb-3">
+      <header className="grid gap-1 border-b border-border/60 pb-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{scopeLabel}</p>
         {detailSections.context.length > 0 ? (
           <div className="grid gap-1 text-sm text-muted-foreground">
@@ -61,20 +62,13 @@ export function WorkflowDetails(props: {
           </div>
         ) : null}
         <h3 className="text-base font-semibold text-foreground">{scope.title}</h3>
-        {scope.summary ? (
-          <p className="text-sm text-muted-foreground">{scope.summary}</p>
-        ) : null}
-        {detailSections.secondary.length > 0 ? (
-          <div className="grid gap-1 text-sm text-muted-foreground">
-            {detailSections.secondary.map((line) => (
-              <p key={line}>{line}</p>
-            ))}
-          </div>
-        ) : null}
       </header>
 
       {hasInputs ? (
         <DetailSection title="Inputs">
+          {hasTaskInput ? (
+            <StructuredBlock label="Task input" value={operatorFacingTaskInput} />
+          ) : null}
           {isWorkflowScope && hasStructuredContent(props.workflowParameters) ? (
             <StructuredBlock label="Launch inputs" value={props.workflowParameters} />
           ) : null}
@@ -84,10 +78,16 @@ export function WorkflowDetails(props: {
           {workItemPackets.length > 0 ? (
             <PacketSection packets={workItemPackets} />
           ) : null}
-          {hasTaskInput ? (
-            <StructuredBlock label="Task input" value={operatorFacingTaskInput} />
-          ) : null}
         </DetailSection>
+      ) : null}
+
+      {hasSupportingDetails ? (
+        <div className="grid gap-1 border-t border-border/60 pt-2 text-sm text-muted-foreground">
+          {scope.summary ? <p>{scope.summary}</p> : null}
+          {detailSections.secondary.map((line) => (
+            <p key={line}>{line}</p>
+          ))}
+        </div>
       ) : null}
     </section>
   );
