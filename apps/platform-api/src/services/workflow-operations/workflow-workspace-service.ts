@@ -269,7 +269,7 @@ export class WorkflowWorkspaceService {
               : selectedScope.scope_kind === 'selected_work_item'
                 ? 'selected_work_item'
                 : 'workflow_scoped',
-          can_accept_request: true,
+          can_accept_request: canAcceptWorkflowSteering(workflowCard),
           active_session_id: activeSession ? String(activeSession.id) : null,
           last_summary: workflowCard?.pulse.summary ?? null,
         },
@@ -287,6 +287,17 @@ export class WorkflowWorkspaceService {
       redrive_lineage: readRedriveLineage(workflow),
     };
   }
+}
+
+function canAcceptWorkflowSteering(workflowCard: MissionControlWorkflowCard | null): boolean {
+  if (!workflowCard) {
+    return false;
+  }
+  const state = (workflowCard.state || workflowCard.posture || '').trim().toLowerCase();
+  if (state.length === 0) {
+    return true;
+  }
+  return state !== 'paused' && state !== 'completed' && state !== 'cancelled';
 }
 
 function buildWorkspaceDeliverablesPacket(
