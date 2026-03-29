@@ -29,7 +29,7 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('All lanes');
     expect(html).toContain('flex min-w-0 flex-wrap items-center gap-2 pb-1');
     expect(html).toContain('min-h-0 flex-1 overflow-x-auto overflow-y-auto pb-1');
-    expect(html).toContain('flex h-full min-h-[15rem] min-w-0 flex-col gap-3 overflow-hidden px-3 py-3 sm:min-h-[18rem] lg:min-h-0');
+    expect(html).toContain('flex h-full min-h-[13rem] min-w-0 flex-col gap-3 overflow-hidden px-3 py-3 sm:min-h-[15rem] lg:min-h-0');
     expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/90 p-2.5 shadow-sm');
     expect(html).not.toContain('rounded-2xl bg-background/90 p-2.5');
     expect(html).not.toContain('flex flex-wrap items-center justify-between gap-3');
@@ -204,6 +204,27 @@ describe('WorkflowBoard', () => {
     expect(html).not.toContain(
       'grid h-full min-w-0 content-start gap-2.5 rounded-lg border border-border/60 bg-muted/5 p-2.5',
     );
+  });
+
+  it('uses a shorter mobile board minimum so the lower workbench stays reachable on phone', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: createBoard(),
+          selectedWorkItemId: null,
+          boardMode: 'active_recent_complete',
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('min-h-[13rem]');
+    expect(html).toContain('sm:min-h-[15rem]');
+    expect(html).not.toContain('sm:min-h-[18rem]');
   });
 
   it('keeps the terminal lane inside a horizontally scrollable board track so done items stay reachable on desktop', () => {
@@ -479,6 +500,10 @@ describe('WorkflowBoard', () => {
                     state: 'in_progress',
                     recentUpdate:
                       'Reviewing integration constraints and outlining the release plan.',
+                    operatorSummary: [
+                      'Requested deliverable: A concise implementation brief for the release reviewers.',
+                      'Success criteria: Call out blockers, dependencies, and the fallback path.',
+                    ],
                     workItemId: 'work-item-1',
                     workItemTitle: 'Review incoming packet',
                     stageName: 'intake-triage',
@@ -509,6 +534,12 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Draft technical design');
     expect(html).toContain('Working now');
     expect(html).toContain('Reviewing integration constraints and outlining the release plan.');
+    expect(html).toContain(
+      'Requested deliverable: A concise implementation brief for the release reviewers.',
+    );
+    expect(html).toContain(
+      'Success criteria: Call out blockers, dependencies, and the fallback path.',
+    );
     expect(html).toContain('Ready next');
     expect(html).toContain('Queued behind the architecture pass.');
     expect(html).not.toContain('>2 tasks<');

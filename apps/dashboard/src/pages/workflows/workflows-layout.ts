@@ -58,7 +58,7 @@ export function buildWorkflowWorkspaceSplitClassName(): string {
     'flex-col',
     'min-h-0',
     'min-w-0',
-    'gap-2',
+    'gap-3',
     'lg:grid',
     'lg:h-full',
     'lg:gap-0',

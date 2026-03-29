@@ -42,6 +42,7 @@ describe('buildWorkflowsShellClassName', () => {
 
   it('builds a stable board/workbench split that keeps the board large enough for stacked work-item cards', () => {
     expect(buildWorkflowWorkspaceSplitClassName()).toContain('flex flex-col');
+    expect(buildWorkflowWorkspaceSplitClassName()).toContain('gap-3');
     expect(buildWorkflowWorkspaceSplitClassName()).toContain('lg:grid');
     expect(buildWorkflowWorkspaceSplitClassName()).toContain(
       'lg:grid-rows-[minmax(0,var(--workflow-board-track))_0.5rem_minmax(0,var(--workflow-workbench-track))]',

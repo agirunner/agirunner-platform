@@ -143,6 +143,8 @@ describe('WorkflowsRail', () => {
     expect(html).toContain('flex min-w-0 flex-wrap items-center gap-2');
     expect(html).toContain('overflow-x-hidden');
     expect(html).not.toContain('overflow-x-auto');
+    expect(html).toContain('max-h-[24rem]');
+    expect(html).toContain('lg:max-h-none');
     expect(html).toContain('rounded-[1.25rem] border border-border/70 bg-background/95 shadow-sm');
     expect(html).not.toContain('Select workflow');
   });

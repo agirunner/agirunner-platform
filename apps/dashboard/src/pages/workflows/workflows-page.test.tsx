@@ -42,10 +42,11 @@ describe('workflows page source', () => {
     expect(source).toContain('data-workflows-workbench-frame="true"');
     expect(source).toContain('cursor-col-resize');
     expect(source).toContain('cursor-row-resize');
-    expect(source).toContain('data-workflows-board-frame="true"\n                className="flex min-h-[15rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 lg:min-h-0"');
-    expect(source).toContain('data-workflows-workbench-frame="true"\n                className="flex min-h-[16rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 lg:min-h-0"');
+    expect(source).toContain('data-workflows-board-frame="true"\n                className="flex min-h-[13rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 sm:min-h-[15rem] lg:min-h-0"');
+    expect(source).toContain('data-workflows-workbench-frame="true"\n                className="flex min-h-[15rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 sm:min-h-[16rem] lg:min-h-0"');
     expect(source).toContain('lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden');
-    expect(source).toContain('min-h-[calc(100dvh-8.5rem)]');
+    expect(source).toContain('grid min-h-0 w-full min-w-0 gap-3 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden');
+    expect(source).not.toContain('min-h-[calc(100dvh-8.5rem)]');
     expect(source).not.toContain('h-full overflow-visible rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm lg:min-h-0 lg:overflow-hidden dark:bg-slate-950/65');
     expect(source).not.toContain('bg-transparent p-1.5');
     expect(source).not.toContain('<div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm">');
@@ -129,8 +130,18 @@ describe('workflows page source', () => {
 
     expect(source).toContain('data-workflows-board-frame="true"');
     expect(source).toContain('data-workflows-workbench-frame="true"');
-    expect(source).toContain('data-workflows-board-frame="true"\n                className="flex min-h-[15rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 lg:min-h-0"');
-    expect(source).toContain('data-workflows-workbench-frame="true"\n                className="flex min-h-[16rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 lg:min-h-0"');
-    expect(source).toContain('data-workflows-workbench-frame="true"\n              className="flex min-h-[16rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 lg:min-h-0"');
+    expect(source).toContain('data-workflows-board-frame="true"\n                className="flex min-h-[13rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 sm:min-h-[15rem] lg:min-h-0"');
+    expect(source).toContain('data-workflows-workbench-frame="true"\n                className="flex min-h-[15rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 sm:min-h-[16rem] lg:min-h-0"');
+    expect(source).toContain('data-workflows-workbench-frame="true"\n              className="flex min-h-[15rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 sm:min-h-[16rem] lg:min-h-0"');
+  });
+
+  it('keeps phone layout reachable by dropping the extra viewport-height lock and shrinking mobile panel minimums', () => {
+    const source = readSource();
+
+    expect(source).toContain('grid min-h-0 w-full min-w-0 gap-3 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden');
+    expect(source).toContain('data-workflows-board-frame="true"\n                className="flex min-h-[13rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 sm:min-h-[15rem] lg:min-h-0"');
+    expect(source).toContain('data-workflows-workbench-frame="true"\n                className="flex min-h-[15rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 sm:min-h-[16rem] lg:min-h-0"');
+    expect(source).not.toContain('min-h-[calc(100dvh-8.5rem)]');
+    expect(source).not.toContain('data-workflows-board-frame="true"\n                className="flex min-h-[15rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 lg:min-h-0"');
   });
 });

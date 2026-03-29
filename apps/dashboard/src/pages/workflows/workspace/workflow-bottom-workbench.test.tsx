@@ -59,8 +59,10 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html.indexOf('Workflow: Workflow 1')).toBeLessThan(html.indexOf('Details'));
     expect(html).toContain('Scope');
     expect(html).toContain('>Workflow<');
-    expect(html).toContain('grid h-full min-h-[22rem] min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2 overflow-hidden px-1 py-1 lg:min-h-0');
+    expect(html).toContain('grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-2 overflow-hidden px-1 py-1');
     expect(html).toContain('flex min-w-0 flex-wrap items-start justify-between gap-2 px-2 py-1.5');
+    expect(html).toContain('flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-3 py-3');
+    expect(html).toContain('flex min-h-full min-w-0 flex-1 flex-col');
     expect(html).not.toContain('rounded-xl border border-border/70 bg-transparent px-3 py-2');
     expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/90 p-2.5 shadow-sm');
     expect(html).not.toContain('rounded-2xl bg-background/90 p-2.5');
@@ -72,6 +74,7 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).not.toContain('History');
     expect(html).not.toContain('Workbench Scope');
     expect(html).not.toContain('Workspace</p>');
+    expect(html).not.toContain('min-h-[22rem]');
     expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/70 p-3');
   });
 
@@ -222,12 +225,13 @@ describe('WorkflowBottomWorkbench', () => {
 
     expect(html).toContain('Prepare release bundle');
     expect(html).toContain('Assemble final artifacts for launch.');
-    expect(html).toContain('1 active task');
-    expect(html).not.toContain('1 active • 0 blocked • 0 completed');
+    expect(html).toContain('In Progress for Reviewer');
+    expect(html).toContain('Inputs');
+    expect(html).toContain('Requested deliverable');
+    expect(html).toContain('Confirm the final release packet is complete and operator-ready.');
     expect(html).toContain('Verify deliverable');
     expect(html).toContain('Reviewer');
     expect(html).toContain('In Progress');
-    expect(html).not.toContain('Requested deliverable');
     expect(html).not.toContain('Task details are loading.');
   });
 
@@ -726,7 +730,7 @@ describe('WorkflowBottomWorkbench', () => {
         board: packet.board,
         workflowName: 'Workflow 1',
         packet,
-        activeTab: 'details',
+        activeTab: 'history',
         selectedWorkItemId: null,
         scopedWorkItemId: null,
         selectedWorkItemTitle: null,
@@ -755,7 +759,8 @@ describe('WorkflowBottomWorkbench', () => {
     );
 
     expect(html).toContain('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden');
-    expect(html).toContain('min-h-0 min-w-0 flex-1 overflow-y-auto px-3 py-3');
+    expect(html).toContain('flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-3 py-3');
+    expect(html).toContain('flex min-h-full min-w-0 flex-1 flex-col');
     expect(html).not.toContain('rounded-[1.25rem] border border-border/60 bg-background/70');
   });
 

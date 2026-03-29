@@ -357,7 +357,7 @@ export function WorkflowsPage(): JSX.Element {
             />
           </div>
         ) : null}
-        <div className="grid min-h-[calc(100dvh-8.5rem)] w-full min-w-0 gap-2 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
+        <div className="grid min-h-0 w-full min-w-0 gap-3 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
           <section
             data-workflows-top-strip="true"
             className="grid shrink-0 gap-2 rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm dark:bg-slate-950/65"
@@ -420,7 +420,7 @@ export function WorkflowsPage(): JSX.Element {
             >
               <section
                 data-workflows-board-frame="true"
-                className="flex min-h-[15rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 lg:min-h-0"
+                className="flex min-h-[13rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 sm:min-h-[15rem] lg:min-h-0"
               >
                 <WorkflowBoard
                   workflowId={workflow.id}
@@ -466,7 +466,7 @@ export function WorkflowsPage(): JSX.Element {
               </div>
               <section
                 data-workflows-workbench-frame="true"
-                className="flex min-h-[16rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 lg:min-h-0"
+                className="flex min-h-[15rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 sm:min-h-[16rem] lg:min-h-0"
               >
                 <WorkflowBottomWorkbench
                   workflowId={workflow.id}
@@ -510,7 +510,7 @@ export function WorkflowsPage(): JSX.Element {
           ) : (
             <section
               data-workflows-workbench-frame="true"
-              className="flex min-h-[16rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 lg:min-h-0"
+              className="flex min-h-[15rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-0 shadow-sm dark:bg-slate-950/65 sm:min-h-[16rem] lg:min-h-0"
             >
               <EmptyWorkspaceState
                 hasWorkflows={((railPacket?.rows.length ?? 0) + (railPacket?.ongoing_rows.length ?? 0)) > 0}
