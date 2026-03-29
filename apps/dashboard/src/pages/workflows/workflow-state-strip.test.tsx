@@ -120,8 +120,8 @@ describe('WorkflowStateStrip', () => {
     expect(html).not.toContain('Awaiting Intake');
     expect((html.match(/text-sm font-semibold leading-5 text-foreground sm:text-base/g) ?? []).length).toBeGreaterThanOrEqual(4);
     expect(html).toContain('Live visibility');
-    expect((html.match(/rounded-lg border border-border\/50 bg-background\/80 px-2 py-1.5 text-left shadow-none/g) ?? [])).toHaveLength(4);
-    expect((html.match(/rounded-lg border border-border\/50 bg-background\/80 px-2 py-1.5 text-left shadow-none transition-colors hover:bg-muted\/10/g) ?? [])).toHaveLength(1);
+    expect((html.match(/rounded-xl border border-border\/70 bg-muted\/5 px-2.5 py-2 text-left shadow-none/g) ?? [])).toHaveLength(4);
+    expect((html.match(/rounded-xl border border-border\/70 bg-muted\/5 px-2.5 py-2 text-left shadow-none transition-colors hover:bg-muted\/10/g) ?? [])).toHaveLength(1);
     expect(html).not.toContain('Requests and responses');
     expect(html).not.toContain('<p class="text-xs text-muted-foreground">Playbook • Workspace</p>');
     expect(html).not.toContain('Accepting new work');
