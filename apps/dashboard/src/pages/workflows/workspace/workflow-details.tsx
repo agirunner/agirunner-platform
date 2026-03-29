@@ -41,6 +41,7 @@ export function WorkflowDetails(props: {
     selectedWorkItemId,
     hasTaskInput,
   });
+  const compactTaskRows = isWorkItemScope ? readCompactTaskRows(props.selectedWorkItemTasks) : [];
   const workItemPackets = shouldShowParentWorkItemInputs && selectedWorkItemId
     ? props.inputPackets.filter((packet) => packet.work_item_id === selectedWorkItemId)
     : [];
@@ -52,7 +53,10 @@ export function WorkflowDetails(props: {
     || (isWorkflowScope && hasStructuredContent(props.workflowParameters));
   const scopeLabel = readScopeLabel(props.scope.scopeKind);
   const detailSections = buildDetailSections(scope, props.scope.scopeKind);
-  const hasSupportingDetails = Boolean(scope.summary) || detailSections.secondary.length > 0;
+  const hasSupportingDetails =
+    Boolean(scope.summary)
+    || detailSections.secondary.length > 0
+    || compactTaskRows.length > 0;
 
   return (
     <section className="grid gap-3 pb-1">
@@ -91,6 +95,7 @@ export function WorkflowDetails(props: {
           {detailSections.secondary.map((line) => (
             <p key={line}>{line}</p>
           ))}
+          {compactTaskRows.length > 0 ? <CompactTaskList tasks={compactTaskRows} /> : null}
         </div>
       ) : null}
     </section>
@@ -221,6 +226,40 @@ function StructuredBlock(props: {
         </pre>
       ) : null}
     </div>
+  );
+}
+
+function CompactTaskList(props: {
+  tasks: Array<{
+    id: string;
+    title: string;
+    role: string | null;
+    state: string;
+  }>;
+}): JSX.Element {
+  if (props.tasks.length === 0) {
+    return <></>;
+  }
+
+  return (
+    <section className="grid gap-2 pt-1">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+        Tasks
+      </p>
+      <ul className="grid divide-y divide-border/60">
+        {props.tasks.map((task) => (
+          <li key={task.id} className="flex items-start justify-between gap-3 py-2 first:pt-0 last:pb-0">
+            <div className="min-w-0">
+              <p className="truncate text-sm text-foreground">{task.title}</p>
+              {task.role ? (
+                <p className="text-xs text-muted-foreground">{humanizeToken(task.role)}</p>
+              ) : null}
+            </div>
+            <span className="shrink-0 text-xs text-muted-foreground">{task.state}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -438,6 +477,28 @@ function readTaskCounts(tasks: Record<string, unknown>[]): {
   };
 }
 
+function readCompactTaskRows(tasks: Record<string, unknown>[]): Array<{
+  id: string;
+  title: string;
+  role: string | null;
+  state: string;
+}> {
+  return tasks
+    .map((task, index) => {
+      const id = readOptionalText(task.id) ?? `task-${index}`;
+      const title = readOptionalText(task.title) ?? id;
+      const role = readOptionalText(task.role);
+      const state = humanizeToken(readOptionalText(task.state) ?? 'pending');
+      return {
+        id,
+        title,
+        role,
+        state,
+      };
+    })
+    .filter((task) => task.title.trim().length > 0);
+}
+
 function hasStructuredContent(value: unknown): boolean {
   return readStructuredPreview(value) !== null;
 }
@@ -521,8 +582,12 @@ function normalizeOperatorFacingTaskInputValue(value: unknown): unknown {
   if (Array.isArray(value)) {
     const items = value
       .map((entry) => normalizeOperatorFacingTaskInputValue(entry))
-      .filter((entry): entry is string | number | boolean => entry !== null);
+      .filter((entry) => entry !== null);
     return items.length > 0 ? items : null;
+  }
+  if (value && typeof value === 'object') {
+    const filtered = filterOperatorFacingInputRecord(value as Record<string, unknown>);
+    return Object.keys(filtered).length > 0 ? filtered : null;
   }
   return null;
 }
@@ -568,6 +633,13 @@ function renderStructuredValue(value: unknown): string | null {
       .map((entry) => renderStructuredValue(entry))
       .filter((entry): entry is string => Boolean(entry));
     return items.length > 0 ? items.join(' • ') : null;
+  }
+  if (value && typeof value === 'object') {
+    const entries = readStructuredEntries(value);
+    if (entries.length === 0) {
+      return null;
+    }
+    return entries.map(([label, text]) => `${label}: ${text}`).join(' • ');
   }
   return null;
 }

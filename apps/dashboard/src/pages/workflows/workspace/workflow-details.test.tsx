@@ -97,7 +97,7 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('rounded-xl border border-border/70 bg-background/70');
   });
 
-  it('shows one compact task summary line for work-item scope instead of a full related-task list', () => {
+  it('shows work-item state with compact task rows instead of only aggregate counts', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
         workflow: createWorkflow(),
@@ -127,16 +127,19 @@ describe('WorkflowDetails', () => {
     );
 
     expect(html).toContain('Work item');
+    expect(html).toContain('Prepare release bundle');
     expect(html).toContain('1 active');
     expect(html).toContain('1 blocked');
     expect(html).toContain('1 completed');
+    expect(html).toContain('Verify deliverable');
+    expect(html).toContain('In Progress');
+    expect(html).toContain('Rollback validation');
+    expect(html).toContain('Blocked');
+    expect(html).toContain('Archive release notes');
+    expect(html).toContain('Completed');
     expect(html).not.toContain('Work item scope');
     expect(html).not.toContain('Latest status');
-    expect(html).not.toContain('Tasks</span>');
     expect(html).not.toContain('Current task load:');
-    expect(html).not.toContain('Verify deliverable</span>');
-    expect(html).not.toContain('Rollback validation</span>');
-    expect(html).not.toContain('Archive release notes</span>');
     expect(html).not.toContain('Related tasks');
   });
 
@@ -247,6 +250,55 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Release Notes');
     expect(html).toContain('Artifacts');
     expect(html).not.toContain('release-notes');
+  });
+
+  it('renders nested task inputs as operator-facing details instead of dropping them', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: 'task-1',
+        selectedTaskTitle: 'Verify deliverable',
+        selectedWorkItem: createWorkItem(),
+        selectedTask: {
+          ...createTask(),
+          input: {
+            review_brief: {
+              acceptance_criteria: 'Confirm the packet includes release notes and rollback guidance.',
+              target_role: 'release_manager',
+            },
+            checklist: ['release-notes', 'rollback-guide'],
+            artifact_ids: ['artifact-1'],
+            notes: '  ',
+          },
+        },
+        selectedWorkItemTasks: [],
+        inputPackets: createPackets(),
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Verify deliverable',
+          banner: 'Task: Verify deliverable',
+        },
+      }),
+    );
+
+    expect(html).toContain('Task input');
+    expect(html).toContain('Review Brief');
+    expect(html).toContain('Success criteria');
+    expect(html).toContain('Confirm the packet includes release notes and rollback guidance.');
+    expect(html).toContain('Target Role');
+    expect(html).toContain('Release Manager');
+    expect(html).toContain('Checklist');
+    expect(html).toContain('Rollback Guide');
+    expect(html).not.toContain('Artifact Ids');
+    expect(html).not.toContain('artifact-1');
+    expect(html).not.toContain('>Notes<');
   });
 
   it('puts authored task input ahead of status framing in task scope without repeating parent packets', () => {
