@@ -53,7 +53,7 @@ describe('WorkflowLiveConsole', () => {
             summary: 'Execution turn completed for Implementation Engineer.',
             created_at: '2026-03-27T04:04:00.000Z',
           },
-        ]),
+        ], { includePlatformNotice: true }),
         scopeLabel: 'Workflow: Release workflow',
         scopeSubject: 'workflow',
         onLoadMore: vi.fn(),
@@ -63,8 +63,8 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('All');
     expect(html).toContain('Turn updates');
     expect(html).toContain('Briefs');
-    expect(html).toContain('>2<');
     expect(html).toContain('>1<');
+    expect(html).toContain('>3<');
     expect(html).toContain('aria-pressed="true"');
     expect(html).toContain('&gt;');
     expect(html).toContain('Implementation Engineer:');
@@ -73,9 +73,13 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('Orchestrator:');
     expect(html).toContain('Workflow reached approval milestone');
     expect(html).not.toContain('A structured brief was published.');
+    expect(html).toContain('Platform:');
+    expect(html).toContain('Transport retried after reconnect.');
     expect(html).toContain('Workflow: Release workflow');
+    expect(html).toContain('Showing the workflow stream for Workflow: Release workflow.');
     expect(html).toContain('data-terminal-entry="brief"');
     expect(html).toContain('data-terminal-entry="update"');
+    expect(html).toContain('data-terminal-entry="notice"');
     expect(html).toContain('border-l-emerald-400/70');
     expect(html).toContain('border-l-slate-700');
     expect(html).toContain('grid gap-1 border-l-2');
@@ -85,7 +89,7 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('break-words');
     expect(html).toContain('overflow-x-hidden overflow-y-auto');
     expect(html).toContain(
-      'Showing the latest 2 loaded headlines out of 7 total. Filter counts reflect the current window until you load older headlines.',
+      'Showing the latest 3 loaded headlines out of 7 total. Filter counts reflect the current window until you load older headlines.',
     );
   });
 
@@ -135,8 +139,31 @@ describe('WorkflowLiveConsole', () => {
     );
 
     expect(html).toContain('Task: Verify deliverable');
+    expect(html).toContain('Showing the selected task stream for Task: Verify deliverable.');
     expect(html).toContain('No live console entries recorded for Task: Verify deliverable yet.');
     expect(html).not.toContain('this workflow yet');
+  });
+
+  it('falls back to the canonical summary when the headline is blank', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowLiveConsole, {
+        packet: createPacket([
+          {
+            item_id: 'brief-2',
+            item_kind: 'milestone_brief',
+            source_label: 'Orchestrator',
+            headline: '   ',
+            summary: 'Canonical brief summary.',
+            created_at: '2026-03-27T04:05:00.000Z',
+          },
+        ]),
+        scopeLabel: 'Workflow: Release workflow',
+        scopeSubject: 'workflow',
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Canonical brief summary.');
   });
 
   it('keeps terminal rows readable on narrow screens by wrapping the line and stacking the timestamp', () => {
@@ -185,21 +212,42 @@ describe('WorkflowLiveConsole', () => {
 
 function createPacket(
   items: Array<Partial<DashboardWorkflowLiveConsolePacket['items'][number]> & Pick<DashboardWorkflowLiveConsolePacket['items'][number], 'item_id' | 'headline' | 'summary' | 'created_at'>>,
+  options?: {
+    includePlatformNotice?: boolean;
+  },
 ): DashboardWorkflowLiveConsolePacket {
+  const baseItems = items.map((item) => ({
+    item_kind: 'operator_update',
+    source_kind: 'specialist',
+    source_label: 'Verifier',
+    work_item_id: null,
+    task_id: null,
+    linked_target_ids: [],
+    ...item,
+  }));
+  const allItems = options?.includePlatformNotice
+    ? [
+        ...baseItems,
+        {
+          item_id: 'notice-1',
+          item_kind: 'platform_notice',
+          source_kind: 'platform',
+          source_label: 'Platform',
+          headline: 'Transport retried after reconnect.',
+          summary: 'Transport retried after reconnect.',
+          created_at: '2026-03-27T04:02:00.000Z',
+          work_item_id: null,
+          task_id: null,
+          linked_target_ids: [],
+        },
+      ]
+    : baseItems;
   return {
     generated_at: '2026-03-27T04:05:00.000Z',
     latest_event_id: 42,
     snapshot_version: 'workflow-operations:42',
     next_cursor: 'cursor-1',
     total_count: 7,
-    items: items.map((item) => ({
-      item_kind: 'operator_update',
-      source_kind: 'specialist',
-      source_label: 'Verifier',
-      work_item_id: null,
-      task_id: null,
-      linked_target_ids: [],
-      ...item,
-    })),
+    items: allItems,
   };
 }

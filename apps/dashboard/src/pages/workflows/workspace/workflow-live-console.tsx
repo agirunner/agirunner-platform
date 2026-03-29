@@ -8,10 +8,11 @@ import {
   buildWorkflowConsoleFilterDescriptors,
   describeWorkflowConsoleCoverage,
   describeWorkflowConsoleEmptyState,
+  describeWorkflowConsoleScope,
   filterWorkflowConsoleItems,
   formatWorkflowActivitySourceLabel,
+  getWorkflowConsoleLineText,
   getWorkflowConsoleEntryStyle,
-  normalizeWorkflowConsoleText,
   type WorkflowConsoleFilter,
 } from './workflow-live-console.support.js';
 
@@ -69,7 +70,7 @@ export function WorkflowLiveConsole(props: {
         <div className="grid gap-1">
           <p className="text-sm font-semibold text-foreground">Live Console</p>
           <p className="text-sm text-muted-foreground">
-            Turn updates and milestone briefs for {props.scopeLabel}.
+            {describeWorkflowConsoleScope(scopeSubject, props.scopeLabel)}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -166,7 +167,7 @@ function LiveConsoleEntry(props: {
       <p className="min-w-0 break-words text-slate-100">
         <span className={entryStyle.promptClassName}>&gt; </span>
         <span className={`font-semibold ${entryStyle.sourceClassName}`}>{sourceLabel}: </span>
-        <span className="text-slate-100">{normalizeWorkflowConsoleText(item.headline)}</span>
+        <span className="text-slate-100">{getWorkflowConsoleLineText(item)}</span>
       </p>
       <span className="pl-[1.35rem] text-left text-xs text-slate-500 sm:pl-0 sm:text-right">
         {formatRelativeTimestamp(item.created_at)}

@@ -21,6 +21,7 @@ const WORKFLOW_CONSOLE_ENTRY_STYLES = {
 } as const;
 
 export type WorkflowConsoleFilter = 'all' | 'turn_updates' | 'briefs';
+export type WorkflowConsoleScopeSubject = 'workflow' | 'work item' | 'task';
 
 const WORKFLOW_CONSOLE_FILTER_LABELS: Record<WorkflowConsoleFilter, string> = {
   all: 'All',
@@ -39,6 +40,14 @@ export function formatWorkflowActivitySourceLabel(sourceLabel: string, sourceKin
 
 export function normalizeWorkflowConsoleText(value: string): string {
   return value.replace(/\s+/g, ' ').trim();
+}
+
+export function getWorkflowConsoleLineText(item: DashboardWorkflowLiveConsoleItem): string {
+  const canonicalHeadline = normalizeWorkflowConsoleText(item.headline);
+  if (canonicalHeadline.length > 0) {
+    return canonicalHeadline;
+  }
+  return normalizeWorkflowConsoleText(item.summary);
 }
 
 export function buildWorkflowConsoleFilterDescriptors(items: DashboardWorkflowLiveConsoleItem[]): Array<{
@@ -63,7 +72,20 @@ export function filterWorkflowConsoleItems(
   if (filter === 'briefs') {
     return items.filter(isWorkflowConsoleBrief);
   }
-  return items.filter((item) => !isWorkflowConsoleBrief(item));
+  return items.filter(isWorkflowConsoleTurnUpdate);
+}
+
+export function describeWorkflowConsoleScope(
+  scopeSubject: WorkflowConsoleScopeSubject,
+  scopeLabel: string,
+): string {
+  if (scopeSubject === 'task') {
+    return `Showing the selected task stream for ${scopeLabel}.`;
+  }
+  if (scopeSubject === 'work item') {
+    return `Showing the selected work item stream for ${scopeLabel}.`;
+  }
+  return `Showing the workflow stream for ${scopeLabel}.`;
 }
 
 export function describeWorkflowConsoleEmptyState(
@@ -121,6 +143,10 @@ export function getWorkflowConsoleEntryStyle(itemKind: string): {
 
 function isWorkflowConsoleBrief(item: DashboardWorkflowLiveConsoleItem): boolean {
   return item.item_kind === 'milestone_brief';
+}
+
+function isWorkflowConsoleTurnUpdate(item: DashboardWorkflowLiveConsoleItem): boolean {
+  return item.item_kind === 'operator_update' || item.item_kind === 'execution_turn';
 }
 
 function readNonEmptyText(value: string): string | null {

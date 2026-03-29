@@ -5,7 +5,9 @@ import {
   buildWorkflowConsoleFilterDescriptors,
   describeWorkflowConsoleCoverage,
   describeWorkflowConsoleEmptyState,
+  describeWorkflowConsoleScope,
   filterWorkflowConsoleItems,
+  getWorkflowConsoleLineText,
 } from './workflow-live-console.support.js';
 
 describe('workflow live console support', () => {
@@ -14,7 +16,7 @@ describe('workflow live console support', () => {
 
     expect(buildWorkflowConsoleFilterDescriptors(items)).toEqual([
       { filter: 'all', label: 'All', count: 4 },
-      { filter: 'turn_updates', label: 'Turn updates', count: 3 },
+      { filter: 'turn_updates', label: 'Turn updates', count: 2 },
       { filter: 'briefs', label: 'Briefs', count: 1 },
     ]);
   });
@@ -24,7 +26,7 @@ describe('workflow live console support', () => {
 
     expect(
       filterWorkflowConsoleItems(items, 'turn_updates').map((item) => item.item_id),
-    ).toEqual(['update-1', 'notice-1', 'turn-1']);
+    ).toEqual(['update-1', 'turn-1']);
     expect(filterWorkflowConsoleItems(items, 'briefs').map((item) => item.item_id)).toEqual([
       'brief-1',
     ]);
@@ -46,6 +48,39 @@ describe('workflow live console support', () => {
     expect(describeWorkflowConsoleEmptyState('briefs', 'Task: Verify deliverable')).toBe(
       'No briefs recorded for Task: Verify deliverable yet.',
     );
+  });
+
+  it('describes the current scope explicitly for workflow, work-item, and task views', () => {
+    expect(describeWorkflowConsoleScope('workflow', 'Workflow: Release workflow')).toBe(
+      'Showing the workflow stream for Workflow: Release workflow.',
+    );
+    expect(describeWorkflowConsoleScope('work item', 'Work item: workflows-intake-01')).toBe(
+      'Showing the selected work item stream for Work item: workflows-intake-01.',
+    );
+    expect(describeWorkflowConsoleScope('task', 'Task: Verify deliverable')).toBe(
+      'Showing the selected task stream for Task: Verify deliverable.',
+    );
+  });
+
+  it('uses the canonical headline when present and falls back to the summary when needed', () => {
+    expect(
+      getWorkflowConsoleLineText(
+        createItem({
+          item_id: 'update-2',
+          headline: '  Canonical headline  ',
+          summary: 'Summary fallback',
+        }),
+      ),
+    ).toBe('Canonical headline');
+    expect(
+      getWorkflowConsoleLineText(
+        createItem({
+          item_id: 'update-3',
+          headline: '   ',
+          summary: '  Summary fallback  ',
+        }),
+      ),
+    ).toBe('Summary fallback');
   });
 
   it('describes when filter counts only cover the currently loaded window', () => {
