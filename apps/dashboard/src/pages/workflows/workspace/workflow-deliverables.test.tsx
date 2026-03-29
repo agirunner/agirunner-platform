@@ -6,7 +6,7 @@ import type { DashboardTaskRecord, DashboardWorkflowDeliverablesPacket } from '.
 import { WorkflowDeliverables } from './workflow-deliverables.js';
 
 describe('WorkflowDeliverables', () => {
-  it('offers inline artifact preview actions without workflow-navigation copy or deprecated routes', () => {
+  it('offers direct artifact open actions without workflow-navigation copy or deprecated routes', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createPacket(),
@@ -24,12 +24,12 @@ describe('WorkflowDeliverables', () => {
       }),
     );
 
-    expect(html).toContain('Preview inline');
     expect(html).toContain('Open artifact in new tab');
     expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
     expect(html).not.toContain('/artifacts/tasks/task-1/artifact-1');
     expect(html).not.toContain('Open without leaving workflow');
     expect(html).not.toContain('Open in new window');
+    expect(html).not.toContain('Preview inline');
     expect(html).toContain('Deliverables');
   });
 

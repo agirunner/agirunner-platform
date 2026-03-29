@@ -33,7 +33,7 @@ describe('WorkflowDeliverableTargetLink', () => {
     expect(workflowHtml).not.toContain('href="/workflows/workflow-1?tab=details"');
   });
 
-  it('rewrites deprecated artifact routes into preview-safe artifact actions', () => {
+  it('renders external artifact targets as one direct-open action after rewriting deprecated routes', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverableTargetLink, {
         target: {
@@ -48,10 +48,28 @@ describe('WorkflowDeliverableTargetLink', () => {
     );
 
     expect(html).toContain('Open artifact');
-    expect(html).toContain('Preview inline');
     expect(html).toContain('Open artifact in new tab');
     expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
     expect(html).not.toContain('/artifacts/tasks/task-1/artifact-1');
+    expect(html).not.toContain('return_to=');
+  });
+
+  it('renders workflow file targets as direct links without preview-dialog affordances', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverableTargetLink, {
+        target: {
+          target_kind: 'input_packet_file',
+          label: 'Launch packet',
+          url:
+            'http://localhost:3000/api/v1/workflows/workflow-1/input-packets/packet-1/files/file-1/content?return_to=%2Fworkflows%2Fworkflow-1',
+        },
+      }),
+    );
+
+    expect(html).toContain('Launch packet (Input Packet File)');
+    expect(html).toContain('Open file in new tab');
+    expect(html).toContain('/api/v1/workflows/workflow-1/input-packets/packet-1/files/file-1/content');
+    expect(html).not.toContain('Preview inline');
     expect(html).not.toContain('return_to=');
   });
 

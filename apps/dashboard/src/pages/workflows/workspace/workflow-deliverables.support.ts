@@ -9,7 +9,7 @@ import type {
 } from '../../../lib/api.js';
 
 export interface DeliverableTargetAction {
-  action_kind: 'dialog_preview' | 'external_link';
+  action_kind: 'external_link';
   href: string;
 }
 
@@ -79,18 +79,9 @@ export function hasMeaningfulDeliverableTarget(target: DashboardWorkflowDelivera
 export function resolveDeliverableTargetAction(
   target: DashboardWorkflowDeliverableTarget,
 ): DeliverableTargetAction {
-  const href = normalizeDeliverableTargetUrl(target.url);
-
-  if (isInPlaceArtifactPreviewTarget(href)) {
-    return {
-      action_kind: 'dialog_preview',
-      href,
-    };
-  }
-
   return {
     action_kind: 'external_link',
-    href,
+    href: normalizeDeliverableTargetUrl(target.url),
   };
 }
 

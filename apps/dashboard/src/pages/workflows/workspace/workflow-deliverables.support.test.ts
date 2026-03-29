@@ -8,7 +8,7 @@ import {
 } from './workflow-deliverables.support.js';
 
 describe('workflow deliverables support', () => {
-  it('rewrites deprecated task artifact routes to direct artifact preview targets without deprecated return navigation', () => {
+  it('rewrites deprecated task artifact routes to direct artifact links without deprecated return navigation', () => {
     expect(
       resolveDeliverableTargetAction({
         target_kind: 'artifact',
@@ -16,12 +16,12 @@ describe('workflow deliverables support', () => {
         url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-1?return_to=%2Fworkflows',
       }),
     ).toEqual({
-      action_kind: 'dialog_preview',
+      action_kind: 'external_link',
       href: 'http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/preview',
     });
   });
 
-  it('strips deprecated return navigation params from direct preview links while preserving other query params', () => {
+  it('strips deprecated return navigation params from direct artifact links while preserving other query params', () => {
     expect(
       resolveDeliverableTargetAction({
         target_kind: 'artifact',
@@ -30,8 +30,22 @@ describe('workflow deliverables support', () => {
           'http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/preview?download=1&return_to=%2Fworkflows%2Fworkflow-1&return_source=workspace-artifacts',
       }),
     ).toEqual({
-      action_kind: 'dialog_preview',
+      action_kind: 'external_link',
       href: 'http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/preview?download=1',
+    });
+  });
+
+  it('keeps workflow file targets as direct links instead of classifying them for inline preview', () => {
+    expect(
+      resolveDeliverableTargetAction({
+        target_kind: 'input_packet_file',
+        label: 'Open launch packet',
+        url:
+          'http://localhost:3000/api/v1/workflows/workflow-1/input-packets/packet-1/files/file-1/content?return_to=%2Fworkflows%2Fworkflow-1',
+      }),
+    ).toEqual({
+      action_kind: 'external_link',
+      href: 'http://localhost:3000/api/v1/workflows/workflow-1/input-packets/packet-1/files/file-1/content',
     });
   });
 
