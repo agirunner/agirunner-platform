@@ -249,6 +249,43 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('release-notes');
   });
 
+  it('puts authored task input ahead of parent packets and status framing in task scope', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: 'task-1',
+        selectedTaskTitle: 'Verify deliverable',
+        selectedWorkItem: createWorkItem(),
+        selectedTask: {
+          ...createTask(),
+          input: {
+            deliverable: 'Confirm the final release packet is complete and operator-ready.',
+            checklist: ['release-notes', 'artifacts'],
+          },
+        },
+        selectedWorkItemTasks: [],
+        inputPackets: createPackets(),
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Verify deliverable',
+          banner: 'Task: Verify deliverable',
+        },
+      }),
+    );
+
+    expect(html).toContain('Requested deliverable');
+    expect(html).toContain('Confirm the final release packet is complete and operator-ready.');
+    expect(html.indexOf('Requested deliverable')).toBeLessThan(html.indexOf('Rollback guide'));
+    expect(html.indexOf('Requested deliverable')).toBeLessThan(html.indexOf('In Progress for Reviewer'));
+  });
+
   it('suppresses uuid-like task metadata even when it arrives under generic labels', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
