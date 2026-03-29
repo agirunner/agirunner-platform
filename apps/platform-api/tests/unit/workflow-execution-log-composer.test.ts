@@ -616,7 +616,7 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(items.map((item) => item.headline)).toEqual([
-      '[Act] calling shell_exec(command="apt-get update && apt-get install -y python3"); calling shell_exec(command="./scripts/verify.sh").',
+      '[Act] Installing Python 3 in the task environment; running the verification script.',
     ]);
   });
 
@@ -1148,7 +1148,7 @@ describe('workflow-execution-log-composer', () => {
     ]);
   });
 
-  it('falls back to literal logged tool calls for llm act turns when no usable prose exists', () => {
+  it('humanizes logged tool calls for llm act turns when no usable prose exists', () => {
     const [item] = buildExecutionTurnItems([
       createLogRow({
         id: '43',
@@ -1170,7 +1170,7 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(item.headline).toBe(
-      '[Act] calling submit_handoff(summary="Triage packet is ready for policy assessment.", completion="full")',
+      '[Act] Submitting the handoff: Triage packet is ready for policy assessment.',
     );
   });
 
@@ -1196,17 +1196,15 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(item.headline).toContain(
-      '[Act] calling submit_handoff(summary="The delivery task for the work item was rerouted and implementation can',
+    expect(item.headline).toBe(
+      '[Act] Submitting the handoff: The delivery task for the work item was rerouted and implementation can resume.',
     );
-    expect(item.headline).toContain('completion="full")');
-    expect(item.summary).toContain(
-      'calling submit_handoff(summary="The delivery task for the work item was rerouted and implementation can',
+    expect(item.summary).toBe(
+      'Submitting the handoff: The delivery task for the work item was rerouted and implementation can resume.',
     );
-    expect(item.summary).toContain('completion="full")');
   });
 
-  it('renders literal request_rework act turns when no prose exists', () => {
+  it('humanizes request_rework act turns when no prose exists', () => {
     const [item] = buildExecutionTurnItems([
       createLogRow({
         id: '43d',
@@ -1227,8 +1225,8 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(item.headline).toContain(
-      '[Act] calling request_rework(feedback="Resume implementation for the active revision after the replay conflict',
+    expect(item.headline).toBe(
+      '[Act] Requesting rework: Resume implementation for the active revision after the replay conflict is cleared.',
     );
   });
 
@@ -1331,10 +1329,40 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(item.headline).toBe(
-      '[Plan] calling submit_handoff(summary="Release package needs revision before release-pass can close.", completion="full")',
+      '[Plan] Submitting the handoff: Release package needs revision before release-pass can close.',
     );
     expect(item.summary).toBe(
-      'calling submit_handoff(summary="Release package needs revision before release-pass can close.", completion="full")',
+      'Submitting the handoff: Release package needs revision before release-pass can close.',
+    );
+  });
+
+  it('humanizes llm tool-call fallbacks before resorting to literal calling syntax', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '43gb',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        status: 'completed',
+        payload: {
+          phase: 'act',
+          response_tool_calls: [
+            {
+              name: 'submit_handoff',
+              input: {
+                summary: 'Implementation revision 3 is approved and ready for release-readiness routing.',
+                completion: 'full',
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      '[Act] Submitting the handoff: Implementation revision 3 is approved and ready for release-readiness routing.',
+    );
+    expect(item.summary).toBe(
+      'Submitting the handoff: Implementation revision 3 is approved and ready for release-readiness routing.',
     );
   });
 
@@ -1991,7 +2019,7 @@ describe('workflow-execution-log-composer', () => {
         task_id: 'task-50',
         work_item_id: 'work-item-50',
         headline:
-          '[Act] calling submit_handoff(summary="Delivered and verified a persisted technical design for the staged rele…", completion="full")',
+          '[Act] Submitting the handoff: Delivered and verified a persisted technical design for the staged release-audit CLI.',
       }),
     );
   });

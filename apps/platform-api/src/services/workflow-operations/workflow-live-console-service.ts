@@ -1,6 +1,5 @@
 import type { MissionControlHistoryResponse } from './mission-control-types.js';
 import type { WorkflowOperatorBriefRecord } from '../workflow-operator-brief-service.js';
-import type { WorkflowOperatorUpdateRecord } from '../workflow-operator-update-service.js';
 import type { LogRow } from '../../logging/log-service.js';
 import { filterLiveConsoleItemsForSelectedScope } from './workflow-live-console-scope.js';
 import {
@@ -29,14 +28,6 @@ interface BriefSource {
     workflowId: string,
     input?: { workItemId?: string; taskId?: string; limit?: number; unbounded?: boolean },
   ): Promise<WorkflowOperatorBriefRecord[]>;
-}
-
-interface UpdateSource {
-  listUpdates(
-    tenantId: string,
-    workflowId: string,
-    input?: { workItemId?: string; taskId?: string; limit?: number },
-  ): Promise<WorkflowOperatorUpdateRecord[]>;
 }
 
 interface VisibilityModeSource {
@@ -85,7 +76,7 @@ export class WorkflowLiveConsoleService {
   constructor(
     private readonly versionSource: VersionSource,
     private readonly briefSource: BriefSource,
-    _deprecatedUpdateSource: UpdateSource,
+    _deprecatedUpdateSource: unknown,
     private readonly visibilityModeSource: VisibilityModeSource,
     private readonly executionTurnSource?: ExecutionTurnSource,
     private readonly workflowBoardSource?: WorkflowBoardSource,

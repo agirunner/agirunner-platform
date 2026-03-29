@@ -1236,7 +1236,10 @@ function buildLoggedToolCallSummary(payload: Record<string, unknown>): string | 
       if (shouldSuppressActionInvocation(name, input)) {
         return null;
       }
-      return buildActionInvocationHeadline({
+      return buildActionHeadline({
+        tool: name,
+        input,
+      }) ?? buildActionInvocationHeadline({
         tool: name,
         input,
       });
@@ -1263,9 +1266,9 @@ function buildPlannedActionSummary(stepsValue: unknown): string | null {
     if (shouldSuppressActionInvocation(tool, input)) {
       continue;
     }
-    const literalSummary = buildActionInvocationHeadline({ tool, input });
-    if (literalSummary) {
-      return literalSummary;
+    const actionSummary = buildActionHeadline({ tool, input }) ?? buildActionInvocationHeadline({ tool, input });
+    if (actionSummary) {
+      return actionSummary;
     }
   }
   return null;
