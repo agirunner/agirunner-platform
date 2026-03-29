@@ -73,7 +73,7 @@ describe('WorkflowControlService', () => {
   it('pauses workflows by stopping active workflow-bound execution before marking the workflow paused', async () => {
     const workerConnectionHub = { sendToWorker: vi.fn() };
     const client = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }

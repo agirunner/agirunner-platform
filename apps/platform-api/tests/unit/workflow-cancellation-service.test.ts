@@ -159,7 +159,7 @@ describe('WorkflowCancellationService', () => {
     const workerConnectionHub = { sendToWorker: vi.fn() };
     const eventService = { emit: vi.fn(async () => undefined) };
     const client = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
