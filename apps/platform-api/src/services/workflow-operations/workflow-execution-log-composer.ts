@@ -8,6 +8,10 @@ const LIVE_CONSOLE_AGENT_LOOP_OPERATIONS = new Set([
   'agent.act',
   'agent.observe',
   'agent.verify',
+  'runtime.loop.think',
+  'runtime.loop.plan',
+  'runtime.loop.observe',
+  'runtime.loop.verify',
   'llm.chat_stream',
 ]);
 
@@ -22,9 +26,10 @@ export function buildExecutionTurnItems(rows: LogRow[]): WorkflowLiveConsoleItem
   const items: WorkflowLiveConsoleItem[] = [];
   const hydratedRows = hydrateLLMPhaseRows(rows);
   const preferredLLMPhaseKeys = collectPreferredLLMPhaseKeys(hydratedRows);
+  const preferredRuntimeLoopKeys = collectPreferredRuntimeLoopKeys(hydratedRows);
 
   for (const row of hydratedRows) {
-    const item = buildExecutionTurnItem(row, preferredLLMPhaseKeys);
+    const item = buildExecutionTurnItem(row, preferredLLMPhaseKeys, preferredRuntimeLoopKeys);
     if (!item) {
       continue;
     }
@@ -115,6 +120,7 @@ function hydrateLLMPhaseRow(
 function buildExecutionTurnItem(
   row: LogRow,
   preferredLLMPhaseKeys: Set<string>,
+  preferredRuntimeLoopKeys: Set<string>,
 ): WorkflowLiveConsoleItem | null {
   if (!LIVE_CONSOLE_AGENT_LOOP_OPERATIONS.has(row.operation)) {
     return null;
@@ -123,6 +129,9 @@ function buildExecutionTurnItem(
     return buildLLMExecutionTurnItem(row);
   }
   if (shouldPreferLLMPhaseRow(row, preferredLLMPhaseKeys)) {
+    return null;
+  }
+  if (shouldPreferRuntimeLoopRow(row, preferredRuntimeLoopKeys)) {
     return null;
   }
   if (!shouldRenderExecutionTurn(row)) {
@@ -170,6 +179,30 @@ function shouldPreferLLMPhaseRow(row: LogRow, preferredLLMPhaseKeys: Set<string>
   return key !== null && preferredLLMPhaseKeys.has(key);
 }
 
+function collectPreferredRuntimeLoopKeys(rows: LogRow[]): Set<string> {
+  const keys = new Set<string>();
+  for (const row of rows) {
+    const phase = readRuntimeLoopPhase(row.operation);
+    if (!phase) {
+      continue;
+    }
+    const key = buildExecutionPhaseKey(row, phase, asRecord(row.payload));
+    if (key) {
+      keys.add(key);
+    }
+  }
+  return keys;
+}
+
+function shouldPreferRuntimeLoopRow(row: LogRow, preferredRuntimeLoopKeys: Set<string>): boolean {
+  const phase = readAgentLoopPhaseForRuntimePreference(row.operation);
+  if (!phase) {
+    return false;
+  }
+  const key = buildExecutionPhaseKey(row, phase, asRecord(row.payload));
+  return key !== null && preferredRuntimeLoopKeys.has(key);
+}
+
 function readMirroredAgentPhase(
   operation: string,
 ): 'think' | 'plan' | 'act' | 'verify' | null {
@@ -187,9 +220,43 @@ function readMirroredAgentPhase(
   }
 }
 
+function readRuntimeLoopPhase(
+  operation: string,
+): 'think' | 'plan' | 'observe' | 'verify' | null {
+  switch (operation) {
+    case 'runtime.loop.think':
+      return 'think';
+    case 'runtime.loop.plan':
+      return 'plan';
+    case 'runtime.loop.observe':
+      return 'observe';
+    case 'runtime.loop.verify':
+      return 'verify';
+    default:
+      return null;
+  }
+}
+
+function readAgentLoopPhaseForRuntimePreference(
+  operation: string,
+): 'think' | 'plan' | 'observe' | 'verify' | null {
+  switch (operation) {
+    case 'agent.think':
+      return 'think';
+    case 'agent.plan':
+      return 'plan';
+    case 'agent.observe':
+      return 'observe';
+    case 'agent.verify':
+      return 'verify';
+    default:
+      return null;
+  }
+}
+
 function buildExecutionPhaseKey(
   row: LogRow,
-  phase: 'think' | 'plan' | 'act' | 'verify',
+  phase: 'think' | 'plan' | 'act' | 'observe' | 'verify',
   payload: Record<string, unknown>,
 ): string | null {
   const turnOrdinal = readExecutionTurnOrdinal(payload);
@@ -307,11 +374,13 @@ function buildExecutionTurnHeadline(row: LogRow): string {
   const headline = (() => {
     switch (row.operation) {
       case 'agent.think':
+      case 'runtime.loop.think':
         return (
           readThinkText(payload)
           ?? buildSubjectHeadline('Thinking through the next step for', subject, 'Thinking through the next step')
         );
       case 'agent.plan':
+      case 'runtime.loop.plan':
         return (
           readPlanText(payload)
           ?? buildSubjectHeadline('Planning the next step for', subject, 'Planning the next step')
@@ -325,11 +394,13 @@ function buildExecutionTurnHeadline(row: LogRow): string {
         );
       }
       case 'agent.observe':
+      case 'runtime.loop.observe':
         return (
           readObserveText(payload)
           ?? buildSubjectHeadline('Checking results for', subject, 'Checking execution results')
         );
       case 'agent.verify':
+      case 'runtime.loop.verify':
         return (
           readVerifyText(payload)
           ?? readOperatorReadableText(buildVerifyHeadline(payload), 180)
@@ -503,8 +574,10 @@ function shouldRenderExecutionTurn(row: LogRow): boolean {
   const payload = asRecord(row.payload);
   switch (row.operation) {
     case 'agent.think':
+    case 'runtime.loop.think':
       return readThinkText(payload) !== null;
     case 'agent.plan':
+    case 'runtime.loop.plan':
       return readPlanText(payload) !== null;
     case 'agent.act': {
       const actionName = readActionName(payload);
@@ -522,8 +595,10 @@ function shouldRenderExecutionTurn(row: LogRow): boolean {
       );
     }
     case 'agent.observe':
+    case 'runtime.loop.observe':
       return readObserveText(payload) !== null;
     case 'agent.verify':
+    case 'runtime.loop.verify':
       return isMeaningfulVerify(payload);
     default:
       return true;
@@ -685,7 +760,14 @@ function buildHumanizedActionHeadline(payload: Record<string, unknown>): string 
   switch (actionName) {
     case 'submit_handoff': {
       const summary = readOperatorReadableText(readString(input.summary), 140);
-      return summary ? `Submitting the handoff: ${summary}` : null;
+      return summary ? `Submitting the handoff: ${capitalizeSentence(summary)}` : null;
+    }
+    case 'request_rework': {
+      const feedback = readOperatorReadableText(
+        readString(input.feedback) ?? readString(input.summary),
+        140,
+      );
+      return feedback ? `Requesting rework: ${capitalizeSentence(feedback)}` : 'Requesting rework.';
     }
     case 'artifact_upload': {
       const path = readActionPath(input);
@@ -990,6 +1072,14 @@ function readLoggedResponseRecord(payload: Record<string, unknown>): Record<stri
     return directRecord;
   }
 
+  const firstObjectSegment = extractFirstJSONObjectSegment(rawResponse);
+  if (firstObjectSegment) {
+    const firstRecord = tryParseJSONObject(firstObjectSegment);
+    if (firstRecord) {
+      return firstRecord;
+    }
+  }
+
   const firstBrace = rawResponse.indexOf('{');
   const lastBrace = rawResponse.lastIndexOf('}');
   if (firstBrace < 0 || lastBrace <= firstBrace) {
@@ -1005,6 +1095,50 @@ function tryParseJSONObject(value: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+function extractFirstJSONObjectSegment(value: string): string | null {
+  const start = value.indexOf('{');
+  if (start < 0) {
+    return null;
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < value.length; index += 1) {
+    const character = value[index];
+    if (character === undefined) {
+      break;
+    }
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (character === '\\') {
+      escaped = true;
+      continue;
+    }
+    if (character === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) {
+      continue;
+    }
+    if (character === '{') {
+      depth += 1;
+      continue;
+    }
+    if (character === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return value.slice(start, index + 1);
+      }
+    }
+  }
+
+  return null;
 }
 
 function stripMarkdownCodeFences(value: string | null): string | null {
@@ -1289,7 +1423,11 @@ function normalizeConsoleText(value: string | null): string | null {
   let normalized = parsed
     .replace(/[\u200B-\u200D\u2060\uFEFF\uFFFD]/g, ' ')
     .replace(/[“”]/g, '"')
-    .replace(/[‘’]/g, "'");
+    .replace(/[‘’]/g, "'")
+    .replace(/\bwork_item_id\b/gi, 'work item');
+
+  normalized = sanitizeOperatorIdentifiers(normalized);
+  normalized = stripReportingBoilerplate(normalized);
 
   let previous = '';
   while (normalized !== previous) {
@@ -1301,6 +1439,7 @@ function normalizeConsoleText(value: string | null): string | null {
       .trim();
   }
 
+  normalized = stripReportingBoilerplate(normalized);
   normalized = normalized.replace(/\s+/g, ' ').trim();
   return normalized.length > 0 ? normalized : null;
 }
@@ -1342,7 +1481,12 @@ function looksLikeLowValueConsoleText(value: string): boolean {
     || /\brecord the .*?(milestone|terminal|closure|operator-visible).*?\b(brief|update)\b/i.test(value)
     || /\bemit the required .*?\b(brief|update)\b/i.test(value)
     || /\bsubmitt?(?:ing)? the required structured handoff\b/i.test(value)
+    || /\bsubmit the structured handoff\b/i.test(value)
     || /\bfinish this (?:heartbeat )?activation\b.*\bstructured handoff\b/i.test(value)
+    || /\boperator milestone\b/i.test(value)
+    || /\bstill requires (?:its )?structured handoff\b/i.test(value)
+    || /\bsatisfy the completion contract\b/i.test(value)
+    || /\bterminal structured tool submit_handoff completed the task\b/i.test(value)
     || /\b(remains|still|continues to be|continues)\b.*\bready\b/i.test(value)
     || /\b(remains|still|continues to be|continues)\b.*\b(suitable|supports|cleared)\b/i.test(value)
   );
@@ -1513,14 +1657,18 @@ function formatExecutionPhaseLabelHeadline(phase: string, headline: string): str
 function readPhaseLabel(operation: string): string {
   switch (operation) {
     case 'agent.think':
+    case 'runtime.loop.think':
       return 'Think';
     case 'agent.plan':
+    case 'runtime.loop.plan':
       return 'Plan';
     case 'agent.act':
       return 'Act';
     case 'agent.observe':
+    case 'runtime.loop.observe':
       return 'Observe';
     case 'agent.verify':
+    case 'runtime.loop.verify':
       return 'Verify';
     default:
       return humanizeToken(operation);
@@ -1551,6 +1699,69 @@ const LITERAL_ACTION_FALLBACK_ACTIONS = new Set([
 ]);
 
 const EXECUTION_BURST_WINDOW_MS = 15_000;
+const UUID_PATTERN =
+  /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/gi;
+
+function capitalizeSentence(value: string): string {
+  return value.length === 0 ? value : value[0].toUpperCase() + value.slice(1);
+}
+
+function sanitizeOperatorIdentifiers(value: string): string {
+  return value
+    .replace(/\b([a-z-]+)\s+work item\s+[0-9a-f-]{36}\b/gi, '$1 work item')
+    .replace(/\b([a-z-]+)\s+task\s+[0-9a-f-]{36}\b/gi, '$1 task')
+    .replace(/\bwork item\s+[0-9a-f-]{36}\b/gi, 'the work item')
+    .replace(/\bdelivery task\s+[0-9a-f-]{36}\b/gi, 'the delivery task')
+    .replace(/\btask\s+[0-9a-f-]{36}\b/gi, 'the task')
+    .replace(/\bworkflow\s+[0-9a-f-]{36}\b/gi, 'the workflow')
+    .replace(/\bactivation\s+[0-9a-f-]{36}\b/gi, 'this activation')
+    .replace(/\brequest_rework\b/gi, 'request rework')
+    .replace(UUID_PATTERN, '')
+    .replace(/\bfor work item\b/gi, 'for the work item')
+    .replace(/\bon work item\b/gi, 'on the work item')
+    .replace(/\bthe the\b/gi, 'the')
+    .replace(/\s+([,.;:])/g, '$1')
+    .replace(/\(\s*\)/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function stripReportingBoilerplate(value: string): string {
+  const stripped = value
+    .replace(
+      /\bI will record (?:a|the) (?:required )?(?:milestone |terminal |operator(?:-facing)? |operator-visible )?brief and submit (?:a|the) structured(?: blocked)? handoff summarizing that\s*/i,
+      '',
+    )
+    .replace(
+      /^I will record (?:a|the) (?:required )?(?:milestone |terminal |operator(?:-facing)? |operator-visible )?brief and\s*/i,
+      '',
+    )
+    .replace(/\bI will now,\s*summarizing that\s*/i, '')
+    .replace(/^Describing that\s*/i, '')
+    .replace(/^The activation's required orchestration work is complete:\s*/i, '')
+    .replace(
+      /\brecord (?:a|the|required )?(?:milestone |terminal |operator(?:-facing)? |operator-visible )?brief(?: now)?(?:,? then)?\s*/i,
+      '',
+    )
+    .replace(/\brecord the reroute milestone now that\s*/i, '')
+    .replace(
+      /\b(?:close|finish) this (?:heartbeat )?task with (?:a )?blocked handoff:\s*/i,
+      '',
+    )
+    .replace(
+      /\bsubmit (?:a|the) structured(?: blocked)? handoff(?: summarizing that)?\s*/i,
+      '',
+    )
+    .replace(
+      /\brecord (?:a )?concise milestone plus handoff while\s*/i,
+      '',
+    )
+    .trim();
+  if (stripped !== value && /^[a-z]/.test(stripped)) {
+    return stripped.replace(/^[a-z]/, (match) => match.toUpperCase());
+  }
+  return stripped;
+}
 
 function truncate(value: string | null, maxLength: number): string | null {
   if (!value) {

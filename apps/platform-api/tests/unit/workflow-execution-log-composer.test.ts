@@ -477,6 +477,100 @@ describe('workflow-execution-log-composer', () => {
     ]);
   });
 
+  it('surfaces runtime loop think and plan rows when agent think and plan rows are absent', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '26a',
+        operation: 'runtime.loop.think',
+        payload: {
+          phase: 'think',
+          llm_turn_count: 4,
+          reasoning_summary: 'Check whether the release-audit baseline already passed review.',
+        },
+      }),
+      createLogRow({
+        id: '26b',
+        operation: 'runtime.loop.plan',
+        payload: {
+          phase: 'plan',
+          llm_turn_count: 4,
+          steps: [
+            {
+              description: 'Read the current release-audit packet and verify its baseline fields.',
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(items.map((item) => item.headline)).toEqual([
+      '[Think] Check whether the release-audit baseline already passed review.',
+      '[Plan] Read the current release-audit packet and verify its baseline fields.',
+    ]);
+  });
+
+  it('prefers runtime loop observe and verify rows over generic mirrored agent rows for the same turn', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '26c',
+        operation: 'agent.observe',
+        activation_id: 'activation-1',
+        role: 'mixed-security-assessor',
+        task_id: 'task-1',
+        work_item_id: 'work-item-1',
+        payload: {
+          burst_id: 3,
+          text_preview: 'tool_failure',
+        },
+      }),
+      createLogRow({
+        id: '26d',
+        operation: 'runtime.loop.observe',
+        activation_id: 'activation-1',
+        role: 'mixed-security-assessor',
+        task_id: 'task-1',
+        work_item_id: 'work-item-1',
+        payload: {
+          burst_id: 3,
+          summary: 'Reviewed the current release-audit packet and found no unresolved security blockers.',
+        },
+      }),
+      createLogRow({
+        id: '26e',
+        operation: 'agent.verify',
+        activation_id: 'activation-1',
+        role: 'mixed-security-assessor',
+        task_id: 'task-1',
+        work_item_id: 'work-item-1',
+        payload: {
+          burst_id: 3,
+          status: 'continue',
+          summary: 'continue',
+        },
+      }),
+      createLogRow({
+        id: '26f',
+        operation: 'runtime.loop.verify',
+        activation_id: 'activation-1',
+        role: 'mixed-security-assessor',
+        task_id: 'task-1',
+        work_item_id: 'work-item-1',
+        payload: {
+          burst_id: 3,
+          status: 'complete',
+          details: 'Security review is complete and ready for handoff.',
+        },
+      }),
+    ]);
+
+    expect(items.map((item) => item.headline)).toEqual([
+      '[Observe] Reviewed the current release-audit packet and found no unresolved security blockers.',
+      '[Verify] Security review is complete and ready for handoff.',
+    ]);
+    expect(items.map((item) => item.item_id)).not.toContain('execution-log:26c');
+    expect(items.map((item) => item.item_id)).not.toContain('execution-log:26e');
+  });
+
   it('falls back to calling syntax only when a meaningful action cannot be humanized', () => {
     const [item] = buildExecutionTurnItems([
       createLogRow({
@@ -827,6 +921,62 @@ describe('workflow-execution-log-composer', () => {
     );
   });
 
+  it('sanitizes uuid-heavy handoff summaries so act rows stay human-readable', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '43c',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'act',
+          response_tool_calls: [
+            {
+              name: 'submit_handoff',
+              input: {
+                summary:
+                  'The delivery task 8d2ec505-f6de-44ee-817d-8caf129ac1b6 for work item 95b223b4-bfc7-46c7-8fee-ec61d8b93cad was rerouted and implementation can resume.',
+                completion: 'full',
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      '[Act] Submitting the handoff: The delivery task for the work item was rerouted and implementation can resume.',
+    );
+    expect(item.summary).toBe(
+      'Submitting the handoff: The delivery task for the work item was rerouted and implementation can resume.',
+    );
+  });
+
+  it('humanizes request_rework act turns instead of rendering literal tool syntax', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '43d',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'act',
+          response_tool_calls: [
+            {
+              name: 'request_rework',
+              input: {
+                feedback:
+                  'Resume implementation for the active revision after the replay conflict is cleared.',
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      '[Act] Requesting rework: Resume implementation for the active revision after the replay conflict is cleared.',
+    );
+  });
+
   it('suppresses raw agent act rows when the same turn already has an llm act phase row', () => {
     const items = buildExecutionTurnItems([
       createLogRow({
@@ -1024,6 +1174,50 @@ describe('workflow-execution-log-composer', () => {
     );
   });
 
+  it('parses duplicated concatenated json payloads from hydrated llm response rows', () => {
+    const duplicatedPlan = JSON.stringify({
+      summary:
+        'Inspect the active implementation work item and its task continuity first so the next mutation targets the exact stale blocker instead of guessing.',
+    });
+
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '49c',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        status: 'started',
+        task_id: 'task-3',
+        activation_id: 'activation-duplicated-plan',
+        role: 'orchestrator',
+        created_at: '2026-03-28T10:02:01.000Z',
+        payload: {
+          phase: 'plan',
+          llm_turn_count: 8,
+        },
+      }),
+      createLogRow({
+        id: '49d',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        task_id: 'task-3',
+        activation_id: 'activation-duplicated-plan',
+        role: 'orchestrator',
+        created_at: '2026-03-28T10:02:02.000Z',
+        payload: {
+          llm_turn_count: 8,
+          response_text: `${duplicatedPlan}${duplicatedPlan}`,
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      '[Plan] Inspect the active implementation work item and its task continuity first so the next mutation targets the exact stale blocker instead of guessing.',
+    );
+    expect(item.summary).toBe(
+      'Inspect the active implementation work item and its task continuity first so the next mutation targets the exact stale blocker instead of guessing.',
+    );
+  });
+
   it('suppresses llm act turns when they only call low-value helper reads', () => {
     const items = buildExecutionTurnItems([
       createLogRow({
@@ -1046,6 +1240,91 @@ describe('workflow-execution-log-composer', () => {
     ]);
 
     expect(items).toEqual([]);
+  });
+
+  it('suppresses llm think, plan, and verify turns that only narrate reporting bookkeeping', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '44a',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'think',
+          response_text: JSON.stringify({
+            approach:
+              'I will record the required milestone operator brief and then submit the structured handoff for this activation.',
+          }),
+        },
+      }),
+      createLogRow({
+        id: '44b',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'plan',
+          response_text: JSON.stringify({
+            summary:
+              'Record the required milestone brief now, then submit the structured handoff summarizing the confirmed blocker.',
+          }),
+        },
+      }),
+      createLogRow({
+        id: '44c',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'verify',
+          response_text: JSON.stringify({
+            reason:
+              'The operator milestone was recorded successfully, but the activation still requires its structured handoff to satisfy the completion contract.',
+          }),
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
+  it('strips reporting boilerplate from useful think lines so the underlying workflow state survives', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '44d',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'think',
+          response_text: JSON.stringify({
+            approach:
+              'I will record a milestone brief and submit a structured blocked handoff summarizing that implementation is waiting on human resolution of the delivery task replay conflict.',
+          }),
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      '[Think] Implementation is waiting on human resolution of the delivery task replay conflict.',
+    );
+  });
+
+  it('strips activation-complete bookkeeping prefixes from verify lines', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '44e',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'verify',
+          response_text: JSON.stringify({
+            reason:
+              "The activation's required orchestration work is complete: it handled the delivery-task escalation and implementation now waits for fresh engineer output.",
+          }),
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe(
+      '[Verify] It handled the delivery-task escalation and implementation now waits for fresh engineer output.',
+    );
   });
 
   it('derives llm execution-turn scope from structured tool-call targets', () => {

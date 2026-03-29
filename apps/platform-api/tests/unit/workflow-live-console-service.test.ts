@@ -168,6 +168,129 @@ describe('WorkflowLiveConsoleService', () => {
     expect(result.total_count).toBe(1);
   });
 
+  it('queries runtime loop phase rows so think and plan items are not dropped from enhanced mode', async () => {
+    const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
+      versionSource: unknown,
+      briefSource: unknown,
+      updateSource: unknown,
+      visibilityModeSource: unknown,
+      executionTurnSource: unknown,
+    ) => WorkflowLiveConsoleService;
+    const executionTurnSource = {
+      query: vi.fn(async (_tenantId, filters) => {
+        if (filters.category.includes('llm')) {
+          return { data: [], pagination: { per_page: 10, has_more: false, next_cursor: null, prev_cursor: null } };
+        }
+        return {
+          data: [
+            {
+              id: 'runtime-think-1',
+              source: 'runtime',
+              category: 'task_lifecycle',
+              level: 'info',
+              operation: 'runtime.loop.think',
+              status: 'completed',
+              payload: {
+                phase: 'think',
+                llm_turn_count: 4,
+                reasoning_summary: 'Check whether the queued review already covers the baseline release-audit subject.',
+              },
+              workflow_id: 'workflow-1',
+              workflow_name: 'Workflow 1',
+              work_item_id: 'work-item-1',
+              task_id: 'task-1',
+              stage_name: 'review',
+              is_orchestrator_task: false,
+              task_title: 'Assess policy readiness',
+              role: 'policy-assessor',
+              actor_type: 'runtime',
+              actor_name: 'Policy Assessor',
+              resource_name: null,
+              created_at: '2026-03-28T07:58:15.000Z',
+            },
+            {
+              id: 'runtime-plan-1',
+              source: 'runtime',
+              category: 'task_lifecycle',
+              level: 'info',
+              operation: 'runtime.loop.plan',
+              status: 'completed',
+              payload: {
+                phase: 'plan',
+                llm_turn_count: 4,
+                steps: [
+                  {
+                    description: 'Read the current release-audit packet before making the policy decision.',
+                  },
+                ],
+              },
+              workflow_id: 'workflow-1',
+              workflow_name: 'Workflow 1',
+              work_item_id: 'work-item-1',
+              task_id: 'task-1',
+              stage_name: 'review',
+              is_orchestrator_task: false,
+              task_title: 'Assess policy readiness',
+              role: 'policy-assessor',
+              actor_type: 'runtime',
+              actor_name: 'Policy Assessor',
+              resource_name: null,
+              created_at: '2026-03-28T07:58:20.000Z',
+            },
+          ],
+          pagination: {
+            per_page: 10,
+            has_more: false,
+            next_cursor: null,
+            prev_cursor: null,
+          },
+        };
+      }),
+    };
+    const service = new ServiceCtor(
+      {
+        getHistory: vi.fn(async () => ({
+          version: {
+            generatedAt: '2026-03-28T08:00:00.000Z',
+            latestEventId: 77,
+            token: 'mission-control:77',
+          },
+          packets: [],
+        })),
+      } as never,
+      {
+        listBriefs: vi.fn(async () => []),
+      } as never,
+      {
+        listUpdates: vi.fn(async () => []),
+      } as never,
+      {
+        getWorkflowSettings: vi.fn(async () => ({
+          effective_live_visibility_mode: 'enhanced',
+        })),
+      } as never,
+      executionTurnSource as never,
+    );
+
+    const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+      taskId: 'task-1',
+      limit: 10,
+    });
+
+    expect(executionTurnSource.query).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        category: ['agent_loop', 'task_lifecycle'],
+        operation: expect.arrayContaining(['runtime.loop.think', 'runtime.loop.plan']),
+      }),
+    );
+    expect(result.items.map((item) => item.headline)).toEqual([
+      '[Plan] Read the current release-audit packet before making the policy decision.',
+      '[Think] Check whether the queued review already covers the baseline release-audit subject.',
+    ]);
+  });
+
   it('keeps orchestrator execution rows that target the selected task even when their raw task id differs', async () => {
     const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
       versionSource: unknown,
