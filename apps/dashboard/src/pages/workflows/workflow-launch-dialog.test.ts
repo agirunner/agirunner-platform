@@ -63,6 +63,10 @@ describe('WorkflowLaunchDialog source', () => {
     const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
 
     expect(source).toContain('SearchableCombobox');
+    expect(source).toContain('placeholder="Type a playbook name or slug"');
+    expect(source).toContain('placeholder="Type a workspace name or slug"');
+    expect(source).toContain('items={filteredPlaybookItems}');
+    expect(source).toContain('items={filteredWorkspaceItems}');
     expect(source).toContain('searchPlaceholder="Search playbooks..."');
     expect(source).toContain('searchPlaceholder="Search workspaces..."');
     expect(source).not.toContain('<SelectTrigger');
