@@ -85,6 +85,20 @@ describe('workflow-execution-log-composer', () => {
     expect(items).toEqual([]);
   });
 
+  it('suppresses observe turns that only report boundary tool markers', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '21aa',
+        operation: 'agent.observe',
+        payload: {
+          text_preview: 'boundary_tool:artifact_upload',
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
   it('suppresses generic verify rows when they do not carry operator-meaningful text', () => {
     const items = buildExecutionTurnItems([
       createLogRow({

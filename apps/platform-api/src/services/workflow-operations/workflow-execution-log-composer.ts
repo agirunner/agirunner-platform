@@ -413,6 +413,7 @@ function looksLikeRawExecutionDump(value: string): boolean {
     || /\boperator (brief|update)s?\b/i.test(value)
     || /^executed\s+\d+\s+tools?/i.test(value)
     || /^signal_mutation:/i.test(value)
+    || /^boundary_tool:/i.test(value)
     || /\bphase\s+\w+/i.test(value)
     || /\bturn\s+\d+\b/i.test(value)
     || /\btool steps?\b/i.test(value)
