@@ -543,6 +543,76 @@ describe('workflow-execution-log-composer', () => {
 
     expect(items).toEqual([]);
   });
+
+  it('normalizes prefixed reasoning text and strips stray unicode markers', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '30',
+        operation: 'agent.think',
+        payload: {
+          approach: 'approach: • Check whether the policy review task is already active.\u200b',
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe('[Think] Check whether the policy review task is already active.');
+    expect(item.summary).toBe('Check whether the policy review task is already active.');
+  });
+
+  it('suppresses helper-read act rows even when they narrate the read in plain text', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '31',
+        operation: 'agent.act',
+        payload: {
+          tool: 'file_read',
+          headline: 'Read the task input packet before deciding the next step.',
+          input: {
+            path: 'context/task-input.json',
+          },
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
+  it('keeps brief-style operator updates visible after normalization', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '32',
+        operation: 'agent.observe',
+        payload: {
+          summary: 'Operator brief: Policy review is ready for operator approval.',
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe('[Observe] Policy review is ready for operator approval.');
+    expect(item.summary).toBe('Policy review is ready for operator approval.');
+  });
+
+  it('suppresses adjacent normalized rows when they repeat the same state with no new detail', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '33',
+        operation: 'agent.observe',
+        payload: {
+          summary: 'Policy review is waiting on operator approval.',
+        },
+      }),
+      createLogRow({
+        id: '34',
+        operation: 'agent.verify',
+        payload: {
+          status: 'waiting',
+          summary: 'Policy review is waiting on operator approval.',
+        },
+      }),
+    ]);
+
+    expect(items.map((item) => item.item_id)).toEqual(['execution-log:33']);
+  });
 });
 
 function createLogRow(

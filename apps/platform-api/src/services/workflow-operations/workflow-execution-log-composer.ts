@@ -18,10 +18,14 @@ const HISTORY_LIFECYCLE_OPERATIONS = new Set([
 ]);
 
 export function buildExecutionTurnItems(rows: LogRow[]): WorkflowLiveConsoleItem[] {
-  return rows
-    .filter((row) => LIVE_CONSOLE_AGENT_LOOP_OPERATIONS.has(row.operation))
-    .filter((row) => shouldRenderExecutionTurn(row))
-    .map((row) => ({
+  const items: WorkflowLiveConsoleItem[] = [];
+
+  for (const row of rows) {
+    if (!LIVE_CONSOLE_AGENT_LOOP_OPERATIONS.has(row.operation) || !shouldRenderExecutionTurn(row)) {
+      continue;
+    }
+
+    const item: WorkflowLiveConsoleItem = {
       item_id: `execution-log:${row.id}`,
       item_kind: 'execution_turn',
       source_kind: readLogSourceKind(row),
@@ -32,7 +36,14 @@ export function buildExecutionTurnItems(rows: LogRow[]): WorkflowLiveConsoleItem
       work_item_id: row.work_item_id,
       task_id: row.task_id,
       linked_target_ids: buildLinkedTargetIds(row),
-    }));
+    };
+    if (shouldSuppressAdjacentExecutionItem(items.at(-1), item)) {
+      continue;
+    }
+    items.push(item);
+  }
+
+  return items;
 }
 
 export function buildLifecycleHistoryItems(rows: LogRow[]): WorkflowHistoryItem[] {
@@ -180,7 +191,7 @@ function buildActionInvocationHeadline(payload: Record<string, unknown>): string
     ?? readString(payload.tool)
     ?? readString(payload.action)
     ?? readString(payload.command);
-  if (!actionName) {
+  if (!actionName || !canRenderLiteralActionFallback(actionName)) {
     return null;
   }
   const args = summarizeActionArgs(actionName, asRecord(payload.input));
@@ -225,7 +236,7 @@ function shouldRenderExecutionTurn(row: LogRow): boolean {
       if (isSuppressedActionName(actionName)) {
         return false;
       }
-      if (isLowValueHelperAction(actionName) && readActText(payload, null) === null) {
+      if (isLowValueHelperAction(actionName)) {
         return false;
       }
       return (
@@ -309,6 +320,18 @@ function isToolSpecificFallbackOnlyAction(actionName: string): boolean {
 
 function isLowValueHelperAction(actionName: string | null): boolean {
   return actionName !== null && LOW_VALUE_HELPER_ACTIONS.has(actionName);
+}
+
+function canRenderLiteralActionFallback(actionName: string): boolean {
+  if (isLowValueHelperAction(actionName) || isToolSpecificFallbackOnlyAction(actionName)) {
+    return false;
+  }
+  if (LITERAL_ACTION_FALLBACK_ACTIONS.has(actionName)) {
+    return true;
+  }
+  return /^(create|submit|update|write|edit|delete|approve|reject|reassign|assign|claim|start|complete|finish|close|open|upload|request|dispatch|resume|pause|retry|reroute|set|mark)_/i.test(
+    actionName,
+  );
 }
 
 function summarizeToolSpecificArgs(actionName: string, input: Record<string, unknown>): string[] {
@@ -724,11 +747,37 @@ function readOperatorReadableField(
 }
 
 function readOperatorReadableText(value: string | null, maxLength: number): string | null {
-  const trimmed = truncate(value, maxLength);
+  const normalized = normalizeConsoleText(value);
+  const trimmed = truncate(normalized, maxLength);
   if (!trimmed || looksLikeRawExecutionDump(trimmed) || looksLikeLowValueConsoleText(trimmed)) {
     return null;
   }
   return trimmed;
+}
+
+function normalizeConsoleText(value: string | null): string | null {
+  const parsed = readString(value);
+  if (!parsed) {
+    return null;
+  }
+
+  let normalized = parsed
+    .replace(/[\u200B-\u200D\u2060\uFEFF\uFFFD]/g, ' ')
+    .replace(/[“”]/g, '"')
+    .replace(/[‘’]/g, "'");
+
+  let previous = '';
+  while (normalized !== previous) {
+    previous = normalized;
+    normalized = normalized
+      .replace(/^\s*(?:approach|plan|plan summary|summary|details)\s*:\s*/i, '')
+      .replace(/^\s*(?:operator\s+)?(?:brief|update)\s*:\s*/i, '')
+      .replace(/^\s*[•·▪◦●◆▶▷→*-]+\s*/u, '')
+      .trim();
+  }
+
+  normalized = normalized.replace(/\s+/g, ' ').trim();
+  return normalized.length > 0 ? normalized : null;
 }
 
 function looksLikeSyntheticActionPreview(value: string, actionHeadline: string | null): boolean {
@@ -792,6 +841,29 @@ function buildExecutionTurnFallbackSummary(operation: string, subject: string | 
   return `Working through the next step for ${subject}.`;
 }
 
+function shouldSuppressAdjacentExecutionItem(
+  previousItem: WorkflowLiveConsoleItem | undefined,
+  currentItem: WorkflowLiveConsoleItem,
+): boolean {
+  if (!previousItem) {
+    return false;
+  }
+  const previousSummary = normalizeExecutionComparisonText(previousItem.summary);
+  const currentSummary = normalizeExecutionComparisonText(currentItem.summary);
+  if (!previousSummary || !currentSummary || previousSummary !== currentSummary) {
+    return false;
+  }
+  return true;
+}
+
+function normalizeExecutionComparisonText(value: string): string | null {
+  return normalizeConsoleText(stripExecutionPhasePrefix(value));
+}
+
+function stripExecutionPhasePrefix(value: string): string {
+  return value.replace(/^\[[^\]]+\]\s*/, '');
+}
+
 function formatExecutionPhaseHeadline(operation: string, headline: string): string {
   return `[${readPhaseLabel(operation)}] ${headline}`;
 }
@@ -830,6 +902,10 @@ const LOW_VALUE_HELPER_ACTIONS = new Set([
   'read_task_events',
   'read_stage_status',
   'read_work_item_continuity',
+]);
+
+const LITERAL_ACTION_FALLBACK_ACTIONS = new Set([
+  'shell_exec',
 ]);
 
 function truncate(value: string | null, maxLength: number): string | null {
