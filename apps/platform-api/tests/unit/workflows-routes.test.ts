@@ -567,6 +567,87 @@ describe('workflow routes', () => {
     );
   });
 
+  it('accepts shorthand linked deliverables with label and path on operator brief writes', async () => {
+    const recordBriefWrite = vi.fn().mockResolvedValue({
+      record_id: 'brief-4',
+      sequence_number: 7,
+      deduped: false,
+      record: {
+        id: 'brief-4',
+        workflow_id: 'workflow-1',
+        short_brief: { headline: 'Release readiness is complete.' },
+      },
+    });
+
+    app = createWorkflowRoutesApp({
+      workflowOperatorBriefService: {
+        listBriefs: vi.fn().mockResolvedValue([]),
+        recordBriefWrite,
+      },
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/operator-briefs',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'request-4',
+        execution_context_id: 'execution-4',
+        workflow_id: 'workflow-1',
+        brief_kind: 'milestone',
+        brief_scope: 'deliverable_context',
+        source_kind: 'orchestrator',
+        payload: {
+          short_brief: {
+            headline: 'Release readiness is complete.',
+          },
+          detailed_brief_json: {
+            headline: 'Release readiness is complete.',
+            status_kind: 'completed',
+          },
+          linked_deliverables: [
+            {
+              label: 'Release-readiness record',
+              path: 'docs/release-audit-release-readiness.md',
+            },
+          ],
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(recordBriefWrite).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({
+        requestId: 'request-4',
+        payload: expect.objectContaining({
+          linkedDeliverables: [
+            expect.objectContaining({
+              descriptorKind: 'deliverable_packet',
+              deliveryStage: 'final',
+              title: 'Release-readiness record',
+              state: 'final',
+              previewCapabilities: expect.objectContaining({
+                can_inline_preview: true,
+                can_copy_path: true,
+              }),
+              primaryTarget: expect.objectContaining({
+                target_kind: 'inline_summary',
+                label: 'Release-readiness record',
+                path: 'docs/release-audit-release-readiness.md',
+              }),
+              contentPreview: expect.objectContaining({
+                summary: expect.stringContaining('docs/release-audit-release-readiness.md'),
+              }),
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
   it('accepts operator brief route writes when runtime-derived fields are omitted', async () => {
     const recordBriefWrite = vi.fn().mockResolvedValue({
       record_id: 'brief-4',

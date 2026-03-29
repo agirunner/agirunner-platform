@@ -54,6 +54,12 @@ interface IncompleteWorkItemSource {
     workflowId: string,
     input?: { workItemId?: string },
   ): Promise<string[]>;
+
+  listExistingWorkItemIds?(
+    tenantId: string,
+    workflowId: string,
+    input?: { candidateIds?: string[] },
+  ): Promise<string[]>;
 }
 
 export class WorkflowDeliverablesService {
@@ -95,7 +101,15 @@ export class WorkflowDeliverablesService {
         workItemId: input.workItemId,
       }) ?? Promise.resolve([]),
     ]);
+    const linkedWorkItemIds = await this.incompleteWorkItemSource?.listExistingWorkItemIds?.(
+      tenantId,
+      workflowId,
+      {
+        candidateIds: collectLinkedTargetCandidateIds(briefs),
+      },
+    ) ?? [];
     const incompleteWorkItemIdSet = new Set(incompleteWorkItemIds);
+    const linkedWorkItemIdSet = new Set(linkedWorkItemIds);
     const deliverableScopeRecords = selectDeliverableScopeRecords(
       deliverables,
       input.workItemId,
@@ -105,8 +119,8 @@ export class WorkflowDeliverablesService {
     const deliverableScopeBriefs = selectDeliverableScopeRecords(
       briefs,
       input.workItemId,
-      (brief) => readOptionalString(brief.work_item_id),
-      (brief) => isDeliverableOutcomeStatus(readOptionalString(brief.status_kind)),
+      (brief) => resolveDeliverableWorkItemId(brief, linkedWorkItemIdSet),
+      (brief) => shouldRollUpChildScopeBrief(brief, linkedWorkItemIdSet),
     );
     const scopedHandoffs = selectDeliverableScopeRecords(
       handoffs,
@@ -120,11 +134,14 @@ export class WorkflowDeliverablesService {
       appendSynthesizedBriefDeliverables(
         appendSynthesizedHandoffDeliverables(deliverableScopeRecords, scopedHandoffs),
         deliverableScopeBriefs,
+        linkedWorkItemIdSet,
       ),
       deliverableScopeBriefs,
     );
 
-    const orderedDeliverables = [...hydratedDeliverables].sort((left, right) =>
+    const normalizedDeliverables = hydratedDeliverables.map(normalizeDeliverableTargets);
+
+    const orderedDeliverables = [...normalizedDeliverables].sort((left, right) =>
       compareDeliverables(left, right),
     );
     const visibleDeliverables = orderedDeliverables.filter((deliverable) =>
@@ -242,6 +259,7 @@ function appendSynthesizedHandoffDeliverables(
 function appendSynthesizedBriefDeliverables(
   deliverables: WorkflowDeliverableRecord[],
   briefs: WorkflowOperatorBriefRecord[],
+  linkedWorkItemIds: Set<string>,
 ): WorkflowDeliverableRecord[] {
   const records = [...deliverables];
   const existingBriefIds = new Set(
@@ -262,7 +280,7 @@ function appendSynthesizedBriefDeliverables(
   );
 
   for (const brief of briefs) {
-    if (!shouldSynthesizeBriefDeliverable(brief)) {
+    if (!shouldSynthesizeBriefDeliverable(brief, linkedWorkItemIds)) {
       continue;
     }
     if (isOrchestratorBrief(brief) && readOptionalString(brief.work_item_id) !== null) {
@@ -271,14 +289,14 @@ function appendSynthesizedBriefDeliverables(
     if (existingBriefIds.has(brief.id)) {
       continue;
     }
-    const scopeKey = buildDeliverableScopeKey(readOptionalString(brief.work_item_id));
+    const scopeKey = buildDeliverableScopeKey(resolveDeliverableWorkItemId(brief, linkedWorkItemIds));
     if (existingFinalPacketScopes.has(scopeKey)) {
       continue;
     }
     if (isOrchestratorBrief(brief) && existingPacketScopes.has(scopeKey)) {
       continue;
     }
-    records.push(buildBriefPacketDeliverable(brief));
+    records.push(buildBriefPacketDeliverable(brief, linkedWorkItemIds));
     existingFinalPacketScopes.add(scopeKey);
     existingPacketScopes.add(scopeKey);
   }
@@ -351,8 +369,9 @@ function buildHandoffPacketDeliverable(
 
 function buildBriefPacketDeliverable(
   brief: WorkflowOperatorBriefRecord,
+  linkedWorkItemIds: Set<string>,
 ): WorkflowDeliverableRecord {
-  const workItemId = resolveDeliverableWorkItemId(brief);
+  const workItemId = resolveDeliverableWorkItemId(brief, linkedWorkItemIds);
   const headline = readBriefHeadline(brief);
   const summary = readBriefSummary(brief);
   const previewText = [headline, summary, readBriefSourceLabel(brief)]
@@ -393,8 +412,11 @@ function isDeliverableBrief(brief: WorkflowOperatorBriefRecord): boolean {
   return readOptionalString(brief.brief_scope) === 'deliverable_context';
 }
 
-function shouldSynthesizeBriefDeliverable(brief: WorkflowOperatorBriefRecord): boolean {
-  const attributedWorkItemId = resolveDeliverableWorkItemId(brief);
+function shouldSynthesizeBriefDeliverable(
+  brief: WorkflowOperatorBriefRecord,
+  linkedWorkItemIds: Set<string>,
+): boolean {
+  const attributedWorkItemId = resolveDeliverableWorkItemId(brief, linkedWorkItemIds);
   return (
     isDeliverableBrief(brief)
     && isDeliverableOutcomeStatus(readOptionalString(brief.status_kind))
@@ -403,6 +425,14 @@ function shouldSynthesizeBriefDeliverable(brief: WorkflowOperatorBriefRecord): b
       || attributedWorkItemId !== null
     )
   );
+}
+
+function shouldRollUpChildScopeBrief(
+  brief: WorkflowOperatorBriefRecord,
+  linkedWorkItemIds: Set<string>,
+): boolean {
+  return isDeliverableOutcomeStatus(readOptionalString(brief.status_kind))
+    && resolveDeliverableWorkItemId(brief, linkedWorkItemIds) !== null;
 }
 
 function isFinalDeliverable(
@@ -556,7 +586,10 @@ function isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief: WorkflowOper
   });
 }
 
-function resolveDeliverableWorkItemId(brief: WorkflowOperatorBriefRecord): string | null {
+function resolveDeliverableWorkItemId(
+  brief: WorkflowOperatorBriefRecord,
+  linkedWorkItemIds: Set<string>,
+): string | null {
   const storedWorkItemId = readOptionalString(brief.work_item_id);
   if (storedWorkItemId) {
     return storedWorkItemId;
@@ -566,8 +599,69 @@ function resolveDeliverableWorkItemId(brief: WorkflowOperatorBriefRecord): strin
   }
   const candidateIds = (brief.linked_target_ids ?? [])
     .map((targetId) => readOptionalString(targetId))
-    .filter((targetId): targetId is string => targetId !== null && targetId !== brief.workflow_id);
+    .filter((targetId): targetId is string => targetId !== null && targetId !== brief.workflow_id)
+    .filter((targetId) => linkedWorkItemIds.has(targetId));
   return candidateIds.length === 1 ? candidateIds[0] : null;
+}
+
+function collectLinkedTargetCandidateIds(briefs: WorkflowOperatorBriefRecord[]): string[] {
+  const candidateIds = new Set<string>();
+  for (const brief of briefs) {
+    if (!isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief)) {
+      continue;
+    }
+    for (const targetId of brief.linked_target_ids ?? []) {
+      const normalizedTargetId = readOptionalString(targetId);
+      if (normalizedTargetId && normalizedTargetId !== brief.workflow_id) {
+        candidateIds.add(normalizedTargetId);
+      }
+    }
+  }
+  return [...candidateIds];
+}
+
+function normalizeDeliverableTargets(
+  deliverable: WorkflowDeliverableRecord,
+): WorkflowDeliverableRecord {
+  return {
+    ...deliverable,
+    primary_target: normalizeDeliverableTarget(deliverable.primary_target),
+    secondary_targets: deliverable.secondary_targets.map(normalizeDeliverableTarget),
+  };
+}
+
+function normalizeDeliverableTarget(target: Record<string, unknown>): Record<string, unknown> {
+  const normalizedUrl = normalizeArtifactPreviewUrl(readOptionalString(target.url));
+  return normalizedUrl === null ? target : { ...target, url: normalizedUrl };
+}
+
+function normalizeArtifactPreviewUrl(url: string | null): string | null {
+  if (!url) {
+    return url;
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url, 'http://dashboard.local');
+  } catch {
+    return url;
+  }
+
+  const deprecatedMatch = parsed.pathname.match(/^\/artifacts\/tasks\/([^/]+)\/([^/?#]+)$/);
+  if (!deprecatedMatch) {
+    return serializeNormalizedUrl(parsed);
+  }
+
+  parsed.pathname = `/api/v1/tasks/${encodeURIComponent(deprecatedMatch[1])}/artifacts/${encodeURIComponent(deprecatedMatch[2])}/preview`;
+  parsed.searchParams.delete('return_to');
+  parsed.searchParams.delete('return_source');
+  return serializeNormalizedUrl(parsed);
+}
+
+function serializeNormalizedUrl(parsed: URL): string {
+  return parsed.origin === 'http://dashboard.local'
+    ? `${parsed.pathname}${parsed.search}${parsed.hash}`
+    : parsed.toString();
 }
 
 function pickSinglePacket(

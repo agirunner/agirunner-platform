@@ -35,6 +35,27 @@ const workflowInterventionCreateSchema = z.object({
   files: z.array(workflowOperatorFileUploadSchema).default([]),
 });
 
+const workflowOperatorBriefLinkedDeliverableSchema = z.union([
+  z.object({
+    descriptor_kind: z.string().min(1).max(120),
+    delivery_stage: z.string().min(1).max(120),
+    title: z.string().min(1).max(255),
+    state: z.string().min(1).max(120),
+    summary_brief: z.string().max(4000).optional(),
+    work_item_id: z.string().uuid().optional(),
+    preview_capabilities: z.record(z.unknown()).optional(),
+    primary_target: z.record(z.unknown()),
+    secondary_targets: z.array(z.record(z.unknown())).optional(),
+    content_preview: z.record(z.unknown()).optional(),
+  }),
+  z.object({
+    label: z.string().min(1).max(255),
+    path: z.string().min(1).max(4000),
+    summary_brief: z.string().max(4000).optional(),
+    work_item_id: z.string().uuid().optional(),
+  }),
+]);
+
 const workflowOperatorBriefCreateSchema = z.object({
   request_id: z.string().min(1).max(255).optional(),
   execution_context_id: z.string().min(1).max(255).optional(),
@@ -51,18 +72,7 @@ const workflowOperatorBriefCreateSchema = z.object({
     short_brief: z.record(z.unknown()),
     detailed_brief_json: z.record(z.unknown()),
     linked_target_ids: z.array(z.string().min(1).max(255)).optional(),
-    linked_deliverables: z.array(z.object({
-      descriptor_kind: z.string().min(1).max(120),
-      delivery_stage: z.string().min(1).max(120),
-      title: z.string().min(1).max(255),
-      state: z.string().min(1).max(120),
-      summary_brief: z.string().max(4000).optional(),
-      work_item_id: z.string().uuid().optional(),
-      preview_capabilities: z.record(z.unknown()).optional(),
-      primary_target: z.record(z.unknown()),
-      secondary_targets: z.array(z.record(z.unknown())).optional(),
-      content_preview: z.record(z.unknown()).optional(),
-    })).default([]),
+    linked_deliverables: z.array(workflowOperatorBriefLinkedDeliverableSchema).default([]),
   }),
   related_artifact_ids: z.array(z.string().min(1).max(255)).optional(),
   related_intervention_ids: z.array(z.string().min(1).max(255)).optional(),
@@ -104,6 +114,54 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   throw new SchemaValidationFailedError('Invalid request body', { issues: result.error.flatten() });
 }
 
+function mapLinkedDeliverableInput(entry: Record<string, unknown>) {
+  if ('descriptor_kind' in entry) {
+    return {
+      descriptorKind: String(entry.descriptor_kind),
+      deliveryStage: String(entry.delivery_stage),
+      title: String(entry.title),
+      state: String(entry.state),
+      summaryBrief: entry.summary_brief as string | undefined,
+      workItemId: entry.work_item_id as string | undefined,
+      previewCapabilities: entry.preview_capabilities as Record<string, unknown> | undefined,
+      primaryTarget: entry.primary_target as Record<string, unknown>,
+      secondaryTargets: entry.secondary_targets as Record<string, unknown>[] | undefined,
+      contentPreview: entry.content_preview as Record<string, unknown> | undefined,
+    };
+  }
+
+  const label = String(entry.label);
+  const path = String(entry.path);
+  const summary = typeof entry.summary_brief === 'string' && entry.summary_brief.trim().length > 0
+    ? entry.summary_brief
+    : undefined;
+
+  return {
+    descriptorKind: 'deliverable_packet',
+    deliveryStage: 'final',
+    title: label,
+    state: 'final',
+    summaryBrief: summary,
+    workItemId: entry.work_item_id as string | undefined,
+    previewCapabilities: {
+      can_inline_preview: true,
+      can_download: false,
+      can_open_external: false,
+      can_copy_path: true,
+      preview_kind: 'structured_summary',
+    },
+    primaryTarget: {
+      target_kind: 'inline_summary',
+      label,
+      path,
+    },
+    secondaryTargets: [],
+    contentPreview: {
+      summary: summary ? `${summary}\n\nPath: ${path}` : `Path: ${path}`,
+    },
+  };
+}
+
 export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     '/api/v1/workflows/:id/operator-briefs',
@@ -142,18 +200,9 @@ export const workflowOperatorRecordRoutes: FastifyPluginAsync = async (app) => {
         payload: {
           shortBrief: body.payload.short_brief,
           detailedBriefJson: body.payload.detailed_brief_json,
-          linkedDeliverables: body.payload.linked_deliverables.map((entry) => ({
-            descriptorKind: entry.descriptor_kind,
-            deliveryStage: entry.delivery_stage,
-            title: entry.title,
-            state: entry.state,
-            summaryBrief: entry.summary_brief,
-            workItemId: entry.work_item_id,
-            previewCapabilities: entry.preview_capabilities,
-            primaryTarget: entry.primary_target,
-            secondaryTargets: entry.secondary_targets,
-            contentPreview: entry.content_preview,
-          })),
+          linkedDeliverables: body.payload.linked_deliverables.map((entry) =>
+            mapLinkedDeliverableInput(entry as Record<string, unknown>),
+          ),
           linkedTargetIds: body.payload.linked_target_ids,
         },
         relatedArtifactIds: body.related_artifact_ids,
