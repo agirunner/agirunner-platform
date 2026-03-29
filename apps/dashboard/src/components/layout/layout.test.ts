@@ -167,7 +167,10 @@ describe('layout breadcrumbs', () => {
 
     expect(source.match(/label: 'Mission Control'/g)).toHaveLength(1);
     expect(source).toContain("label: 'Workflows',");
-    expect(source).toContain('active ? SIDEBAR_ACTIVE_ITEM_CLASSES : SIDEBAR_INACTIVE_ITEM_CLASSES');
+    expect(source).toContain('const SIDEBAR_CONTEXTUAL_ACTIVE_ITEM_CLASSES =');
+    expect(source).toContain("return sectionLabel === 'Mission Control'");
+    expect(source).toContain('? SIDEBAR_CONTEXTUAL_ACTIVE_ITEM_CLASSES');
+    expect(source).toContain(': SIDEBAR_ACTIVE_ITEM_CLASSES;');
     expect(source).toContain('isActive ? SIDEBAR_SECTION_ACTIVE_CLASSES : SIDEBAR_SECTION_INACTIVE_CLASSES');
     expect(source).not.toContain('bg-amber');
     expect(source).not.toContain('bg-yellow');

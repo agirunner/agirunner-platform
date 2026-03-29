@@ -252,11 +252,23 @@ const SIDEBAR_SECTION_INACTIVE_CLASSES =
 const SIDEBAR_SECTION_GROUP_CLASSES =
   'mt-1 rounded-xl bg-stone-50/85 p-1.5 ring-1 ring-stone-200/90 dark:bg-slate-900/55 dark:ring-slate-800';
 
+const SIDEBAR_CONTEXTUAL_ACTIVE_ITEM_CLASSES =
+  'bg-stone-50/95 text-slate-950 shadow-sm ring-1 ring-stone-300/80 dark:bg-slate-900/80 dark:text-slate-100 dark:ring-slate-700';
+
 const SIDEBAR_ACTIVE_ITEM_CLASSES =
   'bg-sky-100 text-sky-950 shadow-sm ring-1 ring-sky-200/90 dark:bg-white dark:text-slate-950 dark:font-semibold';
 
 const SIDEBAR_INACTIVE_ITEM_CLASSES =
   'text-slate-700 hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800/90 dark:hover:text-slate-100';
+
+function readSidebarItemStateClasses(isActive: boolean, sectionLabel: string): string {
+  if (!isActive) {
+    return SIDEBAR_INACTIVE_ITEM_CLASSES;
+  }
+  return sectionLabel === 'Mission Control'
+    ? SIDEBAR_CONTEXTUAL_ACTIVE_ITEM_CLASSES
+    : SIDEBAR_ACTIVE_ITEM_CLASSES;
+}
 
 function readActiveElement(): HTMLElement | null {
   return document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -1000,7 +1012,7 @@ function NavSectionGroup({
             cn(
               'flex items-center justify-center rounded-lg px-0 py-2.5 transition-[background-color,color,box-shadow]',
               FOCUS_RING_CLASSES,
-              active ? SIDEBAR_ACTIVE_ITEM_CLASSES : SIDEBAR_INACTIVE_ITEM_CLASSES,
+              readSidebarItemStateClasses(active, section.label),
             )
           }
         >
@@ -1027,7 +1039,7 @@ function NavSectionGroup({
                 cn(
                   'flex items-center justify-center rounded-lg px-0 py-2.5 transition-[background-color,color,box-shadow]',
                   FOCUS_RING_CLASSES,
-                  active ? SIDEBAR_ACTIVE_ITEM_CLASSES : SIDEBAR_INACTIVE_ITEM_CLASSES,
+                  readSidebarItemStateClasses(active, section.label),
                 )
               }
             >
@@ -1052,7 +1064,7 @@ function NavSectionGroup({
             cn(
               'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color,box-shadow]',
               FOCUS_RING_CLASSES,
-              active ? SIDEBAR_ACTIVE_ITEM_CLASSES : SIDEBAR_INACTIVE_ITEM_CLASSES,
+              readSidebarItemStateClasses(active, section.label),
             )
           }
         >
@@ -1091,7 +1103,7 @@ function NavSectionGroup({
                 cn(
                   'flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-[background-color,color,box-shadow]',
                   FOCUS_RING_CLASSES,
-                  active ? SIDEBAR_ACTIVE_ITEM_CLASSES : SIDEBAR_INACTIVE_ITEM_CLASSES,
+                  readSidebarItemStateClasses(active, section.label),
                 )
               }
             >

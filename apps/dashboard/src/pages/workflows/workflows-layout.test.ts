@@ -44,6 +44,7 @@ describe('buildWorkflowsShellClassName', () => {
     expect(buildWorkflowWorkspaceSplitClassName()).toContain('flex flex-col');
     expect(buildWorkflowWorkspaceSplitClassName()).toContain('gap-3');
     expect(buildWorkflowWorkspaceSplitClassName()).toContain('lg:grid');
+    expect(buildWorkflowWorkspaceSplitClassName()).toContain('lg:items-stretch');
     expect(buildWorkflowWorkspaceSplitClassName()).toContain(
       'lg:grid-rows-[minmax(0,var(--workflow-board-track))_0.5rem_minmax(0,var(--workflow-workbench-track))]',
     );

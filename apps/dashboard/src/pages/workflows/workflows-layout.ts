@@ -62,6 +62,7 @@ export function buildWorkflowWorkspaceSplitClassName(): string {
     'lg:grid',
     'lg:h-full',
     'lg:gap-0',
+    'lg:items-stretch',
     'lg:overflow-hidden',
     `lg:grid-rows-[minmax(0,var(--workflow-board-track))_${WORKFLOW_SPLIT_GUTTER_REM}rem_minmax(0,var(--workflow-workbench-track))]`,
   ].join(' ');

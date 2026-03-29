@@ -77,11 +77,11 @@ export function WorkflowBottomWorkbench(props: {
   const liveConsoleCount = props.isScopeLoading
     ? undefined
     : props.packet.live_console.total_count ?? counts.live_console_activity;
-  const tabPanelShellClassName = 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden';
+  const tabPanelShellClassName = 'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden';
   const liveConsoleTabPanelContentClassName =
-    'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 py-4';
+    'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 py-4';
   const scrollableTabPanelContentClassName =
-    'flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-4 py-4';
+    'flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-4 py-4';
 
   return (
     <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-0 overflow-hidden">
