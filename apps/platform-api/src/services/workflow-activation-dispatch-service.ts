@@ -552,7 +552,7 @@ export class WorkflowActivationDispatchService {
         return null;
       }
 
-      const timingDefaults = await this.readActivationTimingDefaults();
+      const timingDefaults = await this.readActivationTimingDefaults(client);
       if (!options.ignoreDelay && !isReadyForDispatch(activation, timingDefaults.activationDelayMs)) {
         if (ownsClient) {
           await client.query('COMMIT');
@@ -777,7 +777,7 @@ export class WorkflowActivationDispatchService {
     workflowId: string,
     client: DatabaseClient,
   ): Promise<void> {
-    const timingDefaults = await this.readActivationTimingDefaults();
+    const timingDefaults = await this.readActivationTimingDefaults(client);
     const dispatchEligibilityCondition = buildDispatchEligibilityCondition('', '$3');
     const nextActivationResult = await client.query<{ id: string }>(
       `SELECT id
@@ -1292,7 +1292,7 @@ export class WorkflowActivationDispatchService {
         };
       }
 
-      const timingDefaults = await this.readActivationTimingDefaults();
+      const timingDefaults = await this.readActivationTimingDefaults(client);
       const recovered = await client.query<QueuedActivationRow>(
         `UPDATE workflow_activations
             SET state = 'queued',
@@ -1440,7 +1440,7 @@ export class WorkflowActivationDispatchService {
     staleState: StaleActivationStateRow,
     client: DatabaseClient,
   ): Promise<void> {
-    const timingDefaults = await this.readActivationTimingDefaults();
+    const timingDefaults = await this.readActivationTimingDefaults(client);
     await client.query(
       `UPDATE workflow_activations
           SET summary = COALESCE(summary, 'Stale orchestrator detected during activation recovery'),
@@ -1499,8 +1499,8 @@ export class WorkflowActivationDispatchService {
     );
   }
 
-  private async readActivationTimingDefaults() {
-    return readWorkflowActivationTimingDefaults(this.deps.pool, DEFAULT_TENANT_ID);
+  private async readActivationTimingDefaults(db: DatabaseClient | DatabasePool = this.deps.pool) {
+    return readWorkflowActivationTimingDefaults(db, DEFAULT_TENANT_ID);
   }
 
   private async resolveDefaultTaskTimeoutMinutes(

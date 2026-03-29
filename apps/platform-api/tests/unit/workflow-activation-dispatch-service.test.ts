@@ -6,7 +6,11 @@ type MockWorkflowStageProjection = {
   activeStages: string[];
 };
 
-const { loadWorkflowStageProjectionMock, readRequiredPositiveIntegerRuntimeDefaultMock } = vi.hoisted(() => ({
+const {
+  loadWorkflowStageProjectionMock,
+  readRequiredPositiveIntegerRuntimeDefaultMock,
+  readWorkflowActivationTimingDefaultsMock,
+} = vi.hoisted(() => ({
   loadWorkflowStageProjectionMock: vi.fn<() => Promise<MockWorkflowStageProjection>>(async () => ({
     stageRows: [],
     currentStage: null,
@@ -14,6 +18,11 @@ const { loadWorkflowStageProjectionMock, readRequiredPositiveIntegerRuntimeDefau
   })),
   readRequiredPositiveIntegerRuntimeDefaultMock:
     vi.fn<(db: unknown, tenantId: string, key: string) => Promise<number>>(),
+  readWorkflowActivationTimingDefaultsMock: vi.fn<(db: unknown, tenantId: string) => Promise<{
+    activationDelayMs: number;
+    heartbeatIntervalMs: number;
+    staleAfterMs: number;
+  }>>(),
 }));
 
 const DEFAULT_RUNTIME_DEFAULTS: Record<string, number> = {
@@ -23,11 +32,7 @@ const DEFAULT_RUNTIME_DEFAULTS: Record<string, number> = {
 };
 
 vi.mock('../../src/services/platform-timing-defaults.js', () => ({
-  readWorkflowActivationTimingDefaults: vi.fn(async () => ({
-    activationDelayMs: 60_000,
-    heartbeatIntervalMs: 300_000,
-    staleAfterMs: 300_000,
-  })),
+  readWorkflowActivationTimingDefaults: readWorkflowActivationTimingDefaultsMock,
 }));
 
 vi.mock('../../src/services/runtime-default-values.js', async () => {
@@ -77,6 +82,12 @@ describe('WorkflowActivationDispatchService', () => {
       stageRows: [],
       currentStage: null,
       activeStages: [],
+    });
+    readWorkflowActivationTimingDefaultsMock.mockReset();
+    readWorkflowActivationTimingDefaultsMock.mockResolvedValue({
+      activationDelayMs: 60_000,
+      heartbeatIntervalMs: 300_000,
+      staleAfterMs: 300_000,
     });
     readRequiredPositiveIntegerRuntimeDefaultMock.mockReset();
     readRequiredPositiveIntegerRuntimeDefaultMock.mockImplementation(async (_db, _tenantId, key: string) => {
@@ -899,6 +910,151 @@ describe('WorkflowActivationDispatchService', () => {
     const taskId = await service.dispatchActivation('tenant-1', 'activation-playbook-loop-defaults');
 
     expect(taskId).toBe('task-playbook-loop-defaults');
+  });
+
+  it('keeps timing and runtime-default reads on the existing transaction client', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-existing-client',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'req-existing-client',
+              reason: 'workflow.created',
+              event_type: 'workflow.created',
+              payload: {},
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-03-13T12:00:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = true')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SET activation_id = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-existing-client',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: 'activation-existing-client',
+              request_id: 'req-existing-client',
+              reason: 'workflow.created',
+              event_type: 'workflow.created',
+              payload: {},
+              state: 'processing',
+              dispatch_attempt: 1,
+              dispatch_token: 'dispatch-token-existing-client',
+              queued_at: new Date('2026-03-13T12:00:00Z'),
+              started_at: new Date('2026-03-13T12:00:01Z'),
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflows w')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow 1',
+              workspace_id: 'workspace-1',
+              current_stage: 'triage',
+              playbook_id: 'playbook-1',
+              playbook_name: 'Playbook 1',
+              playbook_outcome: null,
+              playbook_definition: { stages: [{ name: 'triage' }] },
+              workspace_repository_url: null,
+              workspace_settings: null,
+              workflow_git_branch: null,
+              workflow_parameters: null,
+            }],
+          };
+        }
+        if (sql.includes('SELECT id, request_id, reason, event_type, payload')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-existing-client',
+              request_id: 'req-existing-client',
+              reason: 'workflow.created',
+              event_type: 'workflow.created',
+              payload: {},
+              state: 'processing',
+              dispatch_attempt: 1,
+              dispatch_token: 'dispatch-token-existing-client',
+              queued_at: new Date('2026-03-13T12:00:00Z'),
+              started_at: new Date('2026-03-13T12:00:01Z'),
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('INSERT INTO tasks')) {
+          const inserted = readInsertedActivationTask(params);
+          expect(inserted.timeoutMinutes).toBe(45);
+          expect(inserted.maxIterations).toBe(500);
+          expect(inserted.llmMaxRetries).toBe(5);
+          return { rowCount: 1, rows: [{ id: 'task-existing-client' }] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      connect: vi.fn(async () => client),
+      query: vi.fn(async () => {
+        throw new Error('dispatchActivation should not read defaults through the pool when an existing client is supplied');
+      }),
+    };
+    const service = new WorkflowActivationDispatchService({
+      pool: pool as never,
+      eventService: eventService as never,
+      config: {
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      } as never,
+    });
+
+    expectWorkflowStageProjection({ currentStage: 'triage', activeStages: ['triage'] });
+    readRequiredPositiveIntegerRuntimeDefaultMock.mockImplementation(async (db, _tenantId, key: string) => {
+      expect(db).toBe(client);
+      if (key === 'tasks.default_timeout_minutes') {
+        return 45;
+      }
+      const value = DEFAULT_RUNTIME_DEFAULTS[key];
+      if (value == null) {
+        throw new Error(`unexpected runtime default lookup: ${key}`);
+      }
+      return value;
+    });
+
+    await expect(
+      service.dispatchActivation('tenant-1', 'activation-existing-client', client as never),
+    ).resolves.toBe('task-existing-client');
+    expect(readWorkflowActivationTimingDefaultsMock).toHaveBeenCalledTimes(1);
+    expect(readWorkflowActivationTimingDefaultsMock.mock.calls[0]?.[0]).toBe(client);
+    expect(pool.query).not.toHaveBeenCalled();
   });
 
   it('fails fast when the runtime default task timeout is missing during activation dispatch', async () => {
