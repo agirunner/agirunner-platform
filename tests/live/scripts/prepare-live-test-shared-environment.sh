@@ -120,7 +120,6 @@ verify_live_test_stack_secrets
 
 log_live_test "seeding shared platform state through API"
 export LIVE_TEST_TRACE_DIR
-export LIVE_TEST_SHARED_CONTEXT_FILE
 export LIVE_TEST_LIBRARY_ROOT
 export LIVE_TEST_REMOTE_MCP_FIXTURE_PARAMETERIZED_SECRET
 export LIVE_TEST_PROVIDER_AUTH_MODE
@@ -140,6 +139,23 @@ export LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE
 export LIVE_TEST_SPECIALIST_REASONING_EFFORT
 export LIVE_TEST_EXECUTION_ENVIRONMENT_SELECTION_SEED
 export LIVE_TEST_SHARED_BOOTSTRAP_KEY
-python3 "${LIVE_TEST_RUN_SCRIPT}" >"${LIVE_TEST_SHARED_CONTEXT_FILE}"
+
+bootstrap_context_target="${LIVE_TEST_SHARED_CONTEXT_FILE}"
+bootstrap_context_tmp="${LIVE_TEST_SHARED_CONTEXT_FILE}.tmp.$$"
+rm -f "${bootstrap_context_tmp}"
+
+LIVE_TEST_SHARED_CONTEXT_FILE="${bootstrap_context_tmp}" python3 "${LIVE_TEST_RUN_SCRIPT}"
+
+if [[ ! -s "${bootstrap_context_tmp}" ]]; then
+  echo "[tests/live] shared bootstrap context file was not written: ${bootstrap_context_tmp}" >&2
+  exit 1
+fi
+
+if ! shared_live_test_context_has_bootstrap_key "${bootstrap_context_tmp}" "${LIVE_TEST_SHARED_BOOTSTRAP_KEY}"; then
+  echo "[tests/live] shared bootstrap context is missing the expected bootstrap key" >&2
+  exit 1
+fi
+
+mv "${bootstrap_context_tmp}" "${bootstrap_context_target}"
 
 log_live_test "shared bootstrap context written to ${LIVE_TEST_SHARED_CONTEXT_FILE}"

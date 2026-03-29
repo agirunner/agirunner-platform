@@ -68,9 +68,9 @@ def main() -> None:
     auth_token = login(public_client, admin_api_key)
     client = public_client.with_bearer_token(auth_token, lambda: login(public_client, admin_api_key))
 
-    delete_models_and_providers(client)
-    clear_assignments(client)
     delete_workspaces(client)
+    clear_assignments(client)
+    delete_models_and_providers(client)
     execution_environments = ensure_live_test_execution_environments(client)
 
     profiles = sync_library_profiles(
