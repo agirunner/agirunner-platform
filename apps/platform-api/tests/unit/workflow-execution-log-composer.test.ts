@@ -870,6 +870,7 @@ describe('workflow-execution-log-composer', () => {
         id: '46a',
         category: 'llm',
         operation: 'llm.chat_stream',
+        status: 'started',
         task_id: 'task-1',
         activation_id: 'activation-split',
         role: 'orchestrator',
@@ -898,6 +899,7 @@ describe('workflow-execution-log-composer', () => {
         id: '47a',
         category: 'llm',
         operation: 'llm.chat_stream',
+        status: 'started',
         task_id: 'task-1',
         activation_id: 'activation-split',
         role: 'orchestrator',
@@ -926,6 +928,7 @@ describe('workflow-execution-log-composer', () => {
         id: '48a',
         category: 'llm',
         operation: 'llm.chat_stream',
+        status: 'started',
         task_id: 'task-1',
         activation_id: 'activation-split',
         role: 'orchestrator',
@@ -970,6 +973,7 @@ describe('workflow-execution-log-composer', () => {
         id: '49a',
         category: 'llm',
         operation: 'llm.chat_stream',
+        status: 'started',
         task_id: 'task-2',
         activation_id: 'activation-split-act',
         role: 'mixed-architecture-lead',
@@ -1071,6 +1075,36 @@ describe('workflow-execution-log-composer', () => {
 
     expect(item.work_item_id).toBe('work-item-9');
     expect(item.task_id).toBe('task-44');
+    expect(item.scope_binding).toBe('structured_target');
+  });
+
+  it('preserves execution-context work-item scope when structured tool calls only expose a task target', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '45a',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        work_item_id: 'work-item-12',
+        task_id: 'task-77',
+        payload: {
+          phase: 'act',
+          response_tool_calls: [
+            {
+              name: 'submit_handoff',
+              input: {
+                task_id: 'task-77',
+                summary: 'The design packet is ready for review.',
+                completion: 'full',
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(item.work_item_id).toBe('work-item-12');
+    expect(item.task_id).toBe('task-77');
+    expect(item.linked_target_ids).toEqual(['workflow-1', 'work-item-12', 'task-77']);
     expect(item.scope_binding).toBe('structured_target');
   });
 });

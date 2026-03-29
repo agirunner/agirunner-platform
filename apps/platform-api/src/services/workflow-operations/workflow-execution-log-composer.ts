@@ -94,6 +94,10 @@ function hydrateLLMPhaseRow(
   const companionPayload = asRecord(companionRow.payload);
   return {
     ...row,
+    status: row.status === 'completed' ? row.status : companionRow.status,
+    created_at: compareLogRowsByCreatedAt(row, companionRow) <= 0
+      ? companionRow.created_at
+      : row.created_at,
     payload: {
       ...companionPayload,
       ...payload,
@@ -1122,10 +1126,12 @@ function resolveExecutionTurnScope(row: LogRow): {
 
   return {
     binding: 'structured_target',
-    workItemId: targets.workItemIds[0] ?? null,
-    taskId: targets.taskIds[0] ?? null,
+    workItemId: targets.workItemIds[0] ?? row.work_item_id,
+    taskId: targets.taskIds[0] ?? row.task_id,
     linkedTargetIds: dedupeIds([
       row.workflow_id,
+      row.work_item_id,
+      row.task_id,
       ...targets.workItemIds,
       ...targets.taskIds,
     ]),
