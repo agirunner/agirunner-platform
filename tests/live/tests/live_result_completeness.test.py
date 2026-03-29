@@ -43,7 +43,6 @@ class LiveResultCompletenessTests(unittest.TestCase):
             "ok": True,
             "failures": [],
             "selected_work_item_id": "wi-1",
-            "selected_task_id": "task-1",
             "workflow_scope": self.build_scope_entry(
                 scope_kind="workflow",
                 work_item_id=None,
@@ -53,11 +52,6 @@ class LiveResultCompletenessTests(unittest.TestCase):
                 scope_kind="selected_work_item",
                 work_item_id="wi-1",
                 task_id=None,
-            ),
-            "selected_task_scope": self.build_scope_entry(
-                scope_kind="selected_task",
-                work_item_id="wi-1",
-                task_id="task-1",
             ),
         }
 
@@ -333,11 +327,11 @@ class LiveResultCompletenessTests(unittest.TestCase):
             evidence_dir.mkdir(parents=True)
 
             workspace_scope_trace = self.build_workspace_scope_trace()
-            selected_task_scope = workspace_scope_trace["selected_task_scope"]
-            assert isinstance(selected_task_scope, dict)
-            selected_task_scope["reconciliation"] = {
+            selected_work_item_scope = workspace_scope_trace["selected_work_item_scope"]
+            assert isinstance(selected_work_item_scope, dict)
+            selected_work_item_scope["reconciliation"] = {
                 "passed": False,
-                "failures": ["selected_task_scope live console brief id mismatch"],
+                "failures": ["selected_work_item_scope live console brief id mismatch"],
             }
             evidence = self.build_complete_evidence(
                 evidence_dir,
@@ -366,9 +360,43 @@ class LiveResultCompletenessTests(unittest.TestCase):
 
             self.assertFalse(result.is_valid)
             self.assertIn(
-                "selected_task_scope live console brief id mismatch",
+                "selected_work_item_scope live console brief id mismatch",
                 "\n".join(result.failures),
             )
+
+    def test_validate_result_file_accepts_workspace_scope_trace_without_selected_task_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            scenario_dir = Path(tmpdir) / "scenario"
+            evidence_dir = scenario_dir / "evidence"
+            evidence_dir.mkdir(parents=True)
+
+            evidence = self.build_complete_evidence(
+                evidence_dir,
+                workspace_scope_trace=self.build_workspace_scope_trace(),
+            )
+
+            result_path = scenario_dir / "workflow-run.json"
+            result_path.write_text(
+                json.dumps(
+                    {
+                        "scenario_name": "demo",
+                        "runner_exit_code": 0,
+                        "workflow_state": "completed",
+                        "state": "completed",
+                        "verification_passed": True,
+                        "verification": {"passed": True, "failures": []},
+                        "harness_failure": False,
+                        "outcome_metrics": {"status": "passed"},
+                        "evidence": evidence,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            result = validate_live_result.validate_result_file(result_path)
+
+            self.assertTrue(result.is_valid)
+            self.assertEqual([], result.failures)
 
     def test_validate_result_file_rejects_failed_enhanced_live_console_reconciliation(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -377,15 +405,15 @@ class LiveResultCompletenessTests(unittest.TestCase):
             evidence_dir.mkdir(parents=True)
 
             workspace_scope_trace = self.build_workspace_scope_trace()
-            selected_task_scope = workspace_scope_trace["selected_task_scope"]
-            assert isinstance(selected_task_scope, dict)
-            selected_task_scope["enhanced_live_console"] = {
+            selected_work_item_scope = workspace_scope_trace["selected_work_item_scope"]
+            assert isinstance(selected_work_item_scope, dict)
+            selected_work_item_scope["enhanced_live_console"] = {
                 "applicable": True,
                 "effective_mode": "enhanced",
                 "expected_rows": [],
                 "actual_rows": [],
                 "passed": False,
-                "failures": ["selected_task_scope missing expected enhanced turn line execution-log:111"],
+                "failures": ["selected_work_item_scope missing expected enhanced turn line execution-log:111"],
             }
             evidence = self.build_complete_evidence(
                 evidence_dir,
@@ -414,7 +442,7 @@ class LiveResultCompletenessTests(unittest.TestCase):
 
             self.assertFalse(result.is_valid)
             self.assertIn(
-                "selected_task_scope missing expected enhanced turn line execution-log:111",
+                "selected_work_item_scope missing expected enhanced turn line execution-log:111",
                 "\n".join(result.failures),
             )
 
@@ -425,9 +453,9 @@ class LiveResultCompletenessTests(unittest.TestCase):
             evidence_dir.mkdir(parents=True)
 
             workspace_scope_trace = self.build_workspace_scope_trace()
-            selected_task_scope = workspace_scope_trace["selected_task_scope"]
-            assert isinstance(selected_task_scope, dict)
-            workspace_api = selected_task_scope["workspace_api"]
+            selected_work_item_scope = workspace_scope_trace["selected_work_item_scope"]
+            assert isinstance(selected_work_item_scope, dict)
+            workspace_api = selected_work_item_scope["workspace_api"]
             assert isinstance(workspace_api, dict)
             live_console = workspace_api["live_console"]
             assert isinstance(live_console, dict)
@@ -459,7 +487,7 @@ class LiveResultCompletenessTests(unittest.TestCase):
 
             self.assertFalse(result.is_valid)
             self.assertIn(
-                "selected_task_scope.workspace_api.live_console.execution_turn_ids must be a list",
+                "selected_work_item_scope.workspace_api.live_console.execution_turn_ids must be a list",
                 "\n".join(result.failures),
             )
 

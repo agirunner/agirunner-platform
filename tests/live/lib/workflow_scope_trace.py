@@ -80,7 +80,6 @@ def build_workspace_scope_trace(
         return {"ok": False, "failures": [failure]}
 
     selected_work_item_id = candidate["work_item_id"]
-    selected_task_id = candidate["task_id"]
     scopes = {
         "workflow_scope": reconcile_scope(
             client,
@@ -106,18 +105,6 @@ def build_workspace_scope_trace(
             work_item_id=selected_work_item_id,
             task_id=None,
         ),
-        "selected_task_scope": reconcile_scope(
-            client,
-            workflow_id=workflow_id,
-            db_state=db_payload,
-            execution_logs=execution_logs,
-            composed_execution_turn_rows=composed_execution_turn_rows,
-            effective_mode=effective_mode,
-            scope_key="selected_task_scope",
-            scope_kind="selected_task",
-            work_item_id=selected_work_item_id,
-            task_id=selected_task_id,
-        ),
     }
     failures: list[str] = []
     for scope_key, scope in scopes.items():
@@ -128,12 +115,11 @@ def build_workspace_scope_trace(
         "failures": failures,
         "effective_live_visibility_mode": effective_mode,
         "selected_work_item_id": selected_work_item_id,
-        "selected_task_id": selected_task_id,
         **scopes,
     }
 
 
-def select_scope_candidate(workflow: dict[str, Any], db_state: dict[str, Any]) -> dict[str, str] | None:
+def select_scope_candidate(workflow: dict[str, Any], db_state: dict[str, Any]) -> dict[str, str | None] | None:
     tasks = [task for task in workflow.get("tasks", []) if isinstance(task, dict)]
     candidates: list[dict[str, Any]] = []
     for task in tasks:
@@ -162,9 +148,31 @@ def select_scope_candidate(workflow: dict[str, Any], db_state: dict[str, Any]) -
         )
         candidates.append({"task_id": task_id, "work_item_id": work_item_id, "score": score})
     if not candidates:
-        return None
+        work_item_id = select_work_item_without_task(workflow, db_state)
+        if work_item_id is None:
+            return None
+        return {"task_id": None, "work_item_id": work_item_id}
     candidates.sort(key=lambda candidate: (-candidate["score"], candidate["task_id"]))
     return {"task_id": candidates[0]["task_id"], "work_item_id": candidates[0]["work_item_id"]}
+
+
+def select_work_item_without_task(workflow: dict[str, Any], db_state: dict[str, Any]) -> str | None:
+    workflow_work_items = [item for item in workflow.get("work_items", []) if isinstance(item, dict)]
+    for work_item in workflow_work_items:
+        work_item_id = read_string(work_item.get("id"))
+        if work_item_id is not None:
+            return work_item_id
+
+    candidate_records = (
+        as_list(db_state.get("deliverables"))
+        + as_list(db_state.get("operator_briefs"))
+        + as_list(db_state.get("completed_handoffs"))
+    )
+    for record in candidate_records:
+        work_item_id = read_string(record.get("work_item_id"))
+        if work_item_id is not None:
+            return work_item_id
+    return None
 
 
 def reconcile_scope(

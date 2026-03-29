@@ -168,7 +168,6 @@ def validate_workspace_scope_trace(payload: dict[str, Any]) -> list[str]:
     if payload.get("ok") is not True:
         failures.append("workspace_scope_trace.ok must be true")
     require_non_empty_string(payload, "selected_work_item_id", failures, prefix="workspace_scope_trace.")
-    require_non_empty_string(payload, "selected_task_id", failures, prefix="workspace_scope_trace.")
 
     root_failures = payload.get("failures")
     if root_failures is None:
@@ -181,7 +180,6 @@ def validate_workspace_scope_trace(payload: dict[str, Any]) -> list[str]:
     for scope_key, expected_kind in (
         ("workflow_scope", "workflow"),
         ("selected_work_item_scope", "selected_work_item"),
-        ("selected_task_scope", "selected_task"),
     ):
         scope_payload = require_mapping(payload, scope_key, failures, prefix="workspace_scope_trace.")
         if scope_payload is None:

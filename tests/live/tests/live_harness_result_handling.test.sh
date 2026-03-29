@@ -253,7 +253,6 @@ for key in required_keys:
             "ok": True,
             "failures": [],
             "selected_work_item_id": "wi-1",
-            "selected_task_id": "task-1",
             "workflow_scope": {
                 "scope_kind": "workflow",
                 "selection": {"work_item_id": None, "task_id": None},
@@ -297,30 +296,6 @@ for key in required_keys:
                     "effective_mode": "enhanced",
                     "expected_rows": [{"log_id": "111", "operation": "agent.think", "phase": "think", "phase_label": "Think", "surface_expected": True, "surface_kind": "execution_turn", "expected_headline": "[Think] Inspect the work item.", "expected_summary": "Inspect the work item.", "task_id": None, "work_item_id": "wi-1"}],
                     "actual_rows": [{"log_id": "111", "item_id": "execution-log:111", "headline": "[Think] Inspect the work item.", "summary": "Inspect the work item.", "task_id": None, "work_item_id": "wi-1"}],
-                    "passed": True,
-                    "failures": []
-                },
-                "reconciliation": {"passed": True, "failures": []},
-            },
-            "selected_task_scope": {
-                "scope_kind": "selected_task",
-                "selection": {"work_item_id": "wi-1", "task_id": "task-1"},
-                "workspace_api": {
-                    "selected_scope": {"scope_kind": "selected_task", "work_item_id": "wi-1", "task_id": "task-1"},
-                    "live_console": {
-                        "brief_ids": ["brief-1"],
-                        "execution_turn_ids": ["222"],
-                        "execution_turn_items": [{"log_id": "222", "item_id": "execution-log:222", "headline": "[Think] Inspect the task.", "summary": "Inspect the task.", "task_id": "task-1", "work_item_id": "wi-1"}],
-                        "item_kind_counts": {"milestone_brief": 1, "execution_turn": 1}
-                    },
-                    "deliverables": {"all_descriptor_ids": ["descriptor-1"], "descriptor_kind_counts": {"report": 1}},
-                },
-                "db": {"brief_ids": ["brief-1"], "all_descriptor_ids": ["descriptor-1"]},
-                "enhanced_live_console": {
-                    "applicable": True,
-                    "effective_mode": "enhanced",
-                    "expected_rows": [{"log_id": "222", "operation": "agent.think", "phase": "think", "phase_label": "Think", "surface_expected": True, "surface_kind": "execution_turn", "expected_headline": "[Think] Inspect the task.", "expected_summary": "Inspect the task.", "task_id": "task-1", "work_item_id": "wi-1"}],
-                    "actual_rows": [{"log_id": "222", "item_id": "execution-log:222", "headline": "[Think] Inspect the task.", "summary": "Inspect the task.", "task_id": "task-1", "work_item_id": "wi-1"}],
                     "passed": True,
                     "failures": []
                 },
