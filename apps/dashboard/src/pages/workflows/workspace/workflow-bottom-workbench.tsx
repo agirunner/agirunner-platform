@@ -28,10 +28,10 @@ export function WorkflowBottomWorkbench(props: {
   selectedWorkItemId: string | null;
   scopedWorkItemId: string | null;
   selectedWorkItemTitle: string | null;
-  selectedTaskId: string | null;
-  selectedTaskTitle: string | null;
+  selectedTaskId?: string | null;
+  selectedTaskTitle?: string | null;
   selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
-  selectedTask: DashboardTaskRecord | null;
+  selectedTask?: DashboardTaskRecord | null;
   selectedWorkItemTasks: Record<string, unknown>[];
   inputPackets: DashboardWorkflowInputPacketRecord[];
   workflowParameters: Record<string, unknown> | null;
