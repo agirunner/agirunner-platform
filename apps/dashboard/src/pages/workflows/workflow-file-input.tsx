@@ -1,4 +1,4 @@
-import { Trash2, Upload } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
@@ -10,7 +10,7 @@ export function WorkflowFileInput(props: {
   description: string;
 }): JSX.Element {
   return (
-    <div className="grid gap-3 rounded-md border border-dashed border-border p-4">
+    <div className="grid gap-3">
       <div className="grid gap-1">
         <strong className="text-sm">{props.label}</strong>
         <p className="text-sm text-muted-foreground">{props.description}</p>
@@ -29,13 +29,14 @@ export function WorkflowFileInput(props: {
           {props.files.map((file) => (
             <li
               key={`${file.name}:${file.lastModified}:${file.size}`}
-              className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2"
+              className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2"
             >
               <span className="truncate">{file.name}</span>
               <Button
                 type="button"
                 size="icon"
                 variant="outline"
+                aria-label={`Remove ${file.name}`}
                 onClick={() =>
                   props.onChange(
                     props.files.filter(
@@ -55,10 +56,7 @@ export function WorkflowFileInput(props: {
           ))}
         </ul>
       ) : (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Upload className="h-4 w-4" />
-          No files selected.
-        </div>
+        <p className="text-sm text-muted-foreground">No files selected yet.</p>
       )}
     </div>
   );

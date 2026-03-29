@@ -50,6 +50,10 @@ export function WorkflowRedriveDialog(props: {
     validationMessage: DEFAULT_FORM_VALIDATION_MESSAGE,
   });
 
+  function clearFormFeedback(): void {
+    setErrorMessage(null);
+  }
+
   const mutation = useMutation({
     mutationFn: async () => {
       const trimmedBrief = brief.trim();
@@ -93,7 +97,10 @@ export function WorkflowRedriveDialog(props: {
             <span className="font-medium">Redrive brief</span>
             <Textarea
               value={brief}
-              onChange={(event) => setBrief(event.target.value)}
+              onChange={(event) => {
+                clearFormFeedback();
+                setBrief(event.target.value);
+              }}
               rows={4}
               className="min-h-[96px]"
               placeholder="Explain what should change in the next attempt."
@@ -104,9 +111,12 @@ export function WorkflowRedriveDialog(props: {
 
           <WorkflowFileInput
             files={files}
-            onChange={setFiles}
+            onChange={(nextFiles) => {
+              clearFormFeedback();
+              setFiles(nextFiles);
+            }}
             label="Redrive files"
-            description="Attach corrected workflow-scoped files for the new attempt."
+            description="Attach corrected files for the next attempt."
           />
 
           <FormFeedbackMessage message={formFeedbackMessage} />

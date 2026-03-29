@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 
 import { Button } from '../../../components/ui/button.js';
 import { DEFAULT_FORM_VALIDATION_MESSAGE, FieldErrorText, FormFeedbackMessage, resolveFormFeedbackMessage } from '../../../components/forms/form-feedback.js';
@@ -62,7 +61,7 @@ export function WorkflowAddWorkDialog(props: {
   const titleError = hasAttemptedSubmit && !isModifyMode && !title.trim() ? 'Enter a work item title.' : undefined;
   const modifyWorkError =
     hasAttemptedSubmit && isModifyMode && !hasSupplementalInput && steeringInstruction.trim().length === 0
-      ? 'Add inputs, files, or a steering instruction before saving changes.'
+      ? 'Add inputs, files, or an operator note before saving changes.'
       : undefined;
   const formFeedbackMessage = resolveFormFeedbackMessage({
     serverError: errorMessage,
@@ -134,12 +133,12 @@ export function WorkflowAddWorkDialog(props: {
     },
   });
 
-  const titleLabel = selectedWorkItem ? 'Modify Work' : props.lifecycle === 'ongoing' ? 'Add Intake' : 'Add Work';
+  const titleLabel = selectedWorkItem ? 'Update work' : props.lifecycle === 'ongoing' ? 'Add intake' : 'Add work';
   const description = selectedWorkItem
-    ? 'Add new operator inputs, files, and optional steering to the parent work item without reopening its internal planning fields.'
+    ? 'Add more authored inputs, files, or a note to the current work item.'
     : props.lifecycle === 'ongoing'
-      ? 'Add a new intake item with optional inputs, files, and steering.'
-      : 'Add a new work item with optional inputs, files, and steering.';
+      ? 'Add a new intake item with authored inputs, optional files, and an operator note.'
+      : 'Add a new work item with authored inputs, optional files, and an operator note.';
 
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
@@ -152,21 +151,8 @@ export function WorkflowAddWorkDialog(props: {
           {isModifyMode ? (
             <div className="grid gap-3">
               <p className="text-sm text-muted-foreground">
-                Modifying the parent work item <span className="font-medium text-foreground">{selectedWorkItem.title}</span> with new operator-authored context only.
+                Updating <span className="font-medium text-foreground">{selectedWorkItem.title}</span> with authored inputs, files, or a note.
               </p>
-              <div className="grid gap-2 text-sm">
-                {props.workflowWorkspaceId ? (
-                  <Link
-                    to={`/design/workspaces/${props.workflowWorkspaceId}`}
-                    className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                  >
-                    Edit workflow workspace
-                  </Link>
-                ) : null}
-                <p className="text-xs text-muted-foreground">
-                  Open the workspace detail view if you need to adjust shared context before saving this work update.
-                </p>
-              </div>
             </div>
           ) : (
             <label className="grid gap-2 text-sm">
@@ -184,11 +170,11 @@ export function WorkflowAddWorkDialog(props: {
             </label>
           )}
 
-          <section className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
+          <section className="grid gap-3">
             <div className="grid gap-1">
-              <strong className="text-sm">Editable inputs</strong>
+              <strong className="text-sm">Authored inputs</strong>
               <p className="text-sm text-muted-foreground">
-                Add named notes or instructions that should travel with this work item.
+                Add named inputs that should travel with this work item.
               </p>
             </div>
             <WorkflowAdditionalInputsEditor
@@ -200,26 +186,18 @@ export function WorkflowAddWorkDialog(props: {
             />
           </section>
 
-          <section className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
-            <div className="grid gap-1">
-              <strong className="text-sm">Input files</strong>
-              <p className="text-sm text-muted-foreground">
-                Attach immutable files that belong with this work item.
-              </p>
-            </div>
-            <WorkflowFileInput
-              files={files}
-              onChange={(nextFiles) => {
-                clearFormFeedback();
-                setFiles(nextFiles);
-              }}
-              label="Additional input files"
-              description="Attach immutable files that belong with this work item."
-            />
-          </section>
+          <WorkflowFileInput
+            files={files}
+            onChange={(nextFiles) => {
+              clearFormFeedback();
+              setFiles(nextFiles);
+            }}
+            label="Files"
+            description="Attach files that belong with this work item."
+          />
 
-          <label className="grid gap-2 rounded-xl border border-border/70 bg-muted/10 p-4 text-sm">
-            <span className="font-medium">Optional steering instruction</span>
+          <label className="grid gap-2 text-sm">
+            <span className="font-medium">Operator note</span>
             <Textarea
               value={steeringInstruction}
               onChange={(event) => {
@@ -228,7 +206,7 @@ export function WorkflowAddWorkDialog(props: {
               }}
               rows={3}
               className="min-h-[96px]"
-              placeholder="Optional guidance for how this work should proceed next."
+              placeholder="Optional note about what should happen next."
             />
           </label>
           <FieldErrorText message={modifyWorkError} />
@@ -262,22 +240,47 @@ function WorkflowAdditionalInputsEditor(props: {
   onChange(drafts: WorkItemInputDraft[]): void;
 }): JSX.Element {
   return (
-    <div className="space-y-3 rounded-md border border-dashed border-border bg-background/80 p-3">
+    <div className="grid gap-3">
       {props.drafts.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No editable inputs yet.</p>
+        <p className="text-sm text-muted-foreground">No authored inputs yet.</p>
       ) : (
         props.drafts.map((draft) => (
-          <div key={draft.id} className="grid gap-3 rounded-md border border-border p-3 md:grid-cols-[0.9fr,1.4fr,auto]">
+          <div
+            key={draft.id}
+            className="grid gap-3 rounded-md border border-border/70 p-3 md:grid-cols-[0.9fr,1.4fr,auto]"
+          >
             <label className="grid gap-1 text-xs">
               <span className="font-medium">Input name</span>
-              <Input value={draft.key} onChange={(event) => props.onChange(updateWorkItemInputDraft(props.drafts, draft.id, { key: event.target.value }))} />
+              <Input
+                value={draft.key}
+                onChange={(event) =>
+                  props.onChange(
+                    updateWorkItemInputDraft(props.drafts, draft.id, { key: event.target.value }),
+                  )
+                }
+              />
             </label>
             <label className="grid gap-1 text-xs">
               <span className="font-medium">Input value</span>
-              <Textarea value={draft.value} rows={3} className="min-h-[96px]" onChange={(event) => props.onChange(updateWorkItemInputDraft(props.drafts, draft.id, { value: event.target.value }))} />
+              <Textarea
+                value={draft.value}
+                rows={3}
+                className="min-h-[96px]"
+                onChange={(event) =>
+                  props.onChange(
+                    updateWorkItemInputDraft(props.drafts, draft.id, { value: event.target.value }),
+                  )
+                }
+              />
             </label>
             <div className="flex items-end">
-              <Button type="button" variant="outline" size="icon" onClick={() => props.onChange(props.drafts.filter((entry) => entry.id !== draft.id))}>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                aria-label={`Remove input ${draft.key || draft.id}`}
+                onClick={() => props.onChange(props.drafts.filter((entry) => entry.id !== draft.id))}
+              >
                 <Trash2 className="h-4 w-4" />
               </Button>
             </div>

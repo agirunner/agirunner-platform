@@ -21,11 +21,10 @@ describe('WorkflowLaunchDialog source', () => {
   it('keeps operator-authored strings in compact textareas and flattens launch inputs', () => {
     const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
 
-    expect(source).toContain('Launch inputs');
     expect(source.match(/rows=\{2\}/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(source).not.toContain('ChainParameterField');
-    expect(source).not.toContain('Launch input groups');
-    expect(source).not.toContain('rounded-full border border-border');
+    expect(source).not.toContain('<h3 className="text-sm font-medium">Launch inputs</h3>');
+    expect(source).not.toContain('Provide the operator-authored inputs defined by the selected playbook.');
   });
 
   it('persists launch files through workflow creation instead of a second packet request', () => {
@@ -60,5 +59,14 @@ describe('WorkflowLaunchDialog source', () => {
       "setWorkspaceId((current) => resolveDefaultWorkflowLaunchWorkspaceId(workspaces, current));",
     );
     expect(source).not.toContain('setWorkspaceId(workspaces[0].id)');
+  });
+
+  it('removes design-surface links and icon-heavy chrome from the launch form body', () => {
+    const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).not.toContain('Edit selected playbook');
+    expect(source).not.toContain('Edit selected workspace');
+    expect(source).not.toContain('<Rocket');
+    expect(source).not.toContain("from 'react-router-dom'");
   });
 });

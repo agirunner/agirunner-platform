@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Loader2, Rocket } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Loader2 } from 'lucide-react';
 
 import { SearchableCombobox } from '../../components/log-viewer/ui/searchable-combobox.js';
 import { Button } from '../../components/ui/button.js';
@@ -147,12 +146,9 @@ export function WorkflowLaunchDialog(props: {
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Rocket className="h-5 w-5" />
-            New workflow
-          </DialogTitle>
+          <DialogTitle>New workflow</DialogTitle>
           <DialogDescription>
-            Choose the playbook, workspace, launch inputs, and optional files for the new workflow.
+            Choose the playbook and workspace, then add the required inputs and any supporting files.
           </DialogDescription>
         </DialogHeader>
 
@@ -173,14 +169,6 @@ export function WorkflowLaunchDialog(props: {
                 isLoading={playbooksQuery.isLoading}
                 className={playbookError ? 'border-red-300 focus:ring-red-500' : undefined}
               />
-              {selectedPlaybookId ? (
-                <Link
-                  to={`/design/playbooks/${selectedPlaybookId}`}
-                  className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                >
-                  Edit selected playbook
-                </Link>
-              ) : null}
               {playbookError ? (
                 <p className="text-xs text-red-600 dark:text-red-400">{playbookError}</p>
               ) : null}
@@ -201,14 +189,6 @@ export function WorkflowLaunchDialog(props: {
                 isLoading={workspacesQuery.isLoading}
                 className={workspaceError ? 'border-red-300 focus:ring-red-500' : undefined}
               />
-              {workspaceId ? (
-                <Link
-                  to={`/design/workspaces/${workspaceId}`}
-                  className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-                >
-                  Edit selected workspace
-                </Link>
-              ) : null}
               {workspaceError ? (
                 <p className="text-xs text-red-600 dark:text-red-400">{workspaceError}</p>
               ) : null}
@@ -234,13 +214,7 @@ export function WorkflowLaunchDialog(props: {
           </label>
 
           {launchDefinition.parameterSpecs.length > 0 ? (
-            <div className="grid gap-3">
-              <div className="grid gap-1">
-                <h3 className="text-sm font-medium">Launch inputs</h3>
-                <p className="text-sm text-muted-foreground">
-                  Provide the operator-authored inputs defined by the selected playbook.
-                </p>
-              </div>
+            <div className="grid gap-4">
               {launchDefinition.parameterSpecs.map((spec) => (
                 <label key={spec.slug} className="grid gap-2 text-sm">
                   <span className="font-medium">{spec.title}</span>
@@ -273,8 +247,8 @@ export function WorkflowLaunchDialog(props: {
               clearLaunchFeedback();
               setFiles(nextFiles);
             }}
-            label="Launch files"
-            description="Attach immutable input files to the new workflow."
+            label="Files"
+            description="Attach supporting files that should launch with this workflow."
           />
 
           <FormFeedbackMessage message={formFeedbackMessage} />

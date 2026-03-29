@@ -6,20 +6,20 @@ describe('WorkflowAddWorkDialog source', () => {
   it('uses operator-facing section labels that distinguish add work from modify work', () => {
     const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
 
-    expect(source).toContain('Modify Work');
-    expect(source).toContain('Editable inputs');
-    expect(source).toContain('Optional steering instruction');
+    expect(source).toContain('Update work');
+    expect(source).toContain('Authored inputs');
+    expect(source).toContain('Operator note');
     expect(source).not.toContain('Update Work Item');
-    expect(source).not.toContain('<strong className="text-sm">Work item inputs</strong>');
+    expect(source).not.toContain('<strong className="text-sm">Editable inputs</strong>');
   });
 
   it('keeps add and modify work focused on operator inputs, files, and steering only', () => {
     const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
 
     expect(source).not.toContain('Owner role');
-    expect(source).toContain('Optional steering instruction');
+    expect(source).toContain('Operator note');
     expect(source).not.toContain('Input type');
-    expect(source).toContain('Editable inputs');
+    expect(source).toContain('Authored inputs');
     expect(source).not.toContain("<span className=\"font-medium\">Goal</span>");
   });
 
@@ -29,7 +29,7 @@ describe('WorkflowAddWorkDialog source', () => {
     expect(source).not.toContain('Acceptance criteria');
     expect(source).not.toContain('Auto-route');
     expect(source).not.toContain('Priority');
-    expect(source).not.toContain('Operator note');
+    expect(source).not.toContain('Owner role');
     expect(source).toContain('Work item title');
   });
 
@@ -39,7 +39,8 @@ describe('WorkflowAddWorkDialog source', () => {
     expect(source).not.toContain('How this attaches');
     expect(source).not.toContain('workflow-scoped input packet');
     expect(source).not.toContain('If you opened this from task scope');
-    expect(source).toContain('parent work item');
+    expect(source).not.toContain('Edit workflow workspace');
+    expect(source).not.toContain("from 'react-router-dom'");
   });
 
   it('creates new work with the embedded input packet and can add a steering request in the same flow', () => {
@@ -75,11 +76,11 @@ describe('WorkflowAddWorkDialog source', () => {
     expect(source).toContain('setErrorMessage(null);');
   });
 
-  it('links modify mode to the workflow workspace without exposing an inert workspace selector', () => {
+  it('keeps the operator sections flat instead of wrapping them in dashboard chrome cards', () => {
     const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
 
-    expect(source).toContain('Edit workflow workspace');
-    expect(source).toContain('to={`/design/workspaces/${props.workflowWorkspaceId}`}');
+    expect(source).not.toContain('rounded-xl border border-border/70 bg-muted/10 p-4');
+    expect(source).not.toContain('rounded-md border border-dashed border-border bg-background/80 p-3');
     expect(source).not.toContain('SearchableCombobox');
   });
 });
