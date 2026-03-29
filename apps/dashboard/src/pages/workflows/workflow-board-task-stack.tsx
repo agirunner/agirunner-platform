@@ -93,8 +93,11 @@ function TaskPreviewRows(props: {
         ) : (
           <div
             key={task.id}
-            className="grid gap-1 rounded-lg border border-border/60 bg-background/60 px-3 py-2 text-left text-sm"
+            className={buildStaticTaskRowClassName(task.state)}
           >
+            <span className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              {describeTaskRowLead(task.state)}
+            </span>
             <span className="text-foreground">{task.title}</span>
             <span className="text-xs text-muted-foreground">
               {[humanizeToken(task.role), humanizeToken(task.state)].filter(Boolean).join(' • ')}
@@ -114,4 +117,34 @@ function humanizeToken(value: string | null | undefined): string | null {
     return null;
   }
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function describeTaskRowLead(state: string | null | undefined): string {
+  if (isActiveTaskState(state)) {
+    return 'Working now';
+  }
+  if (state === 'ready') {
+    return 'Ready next';
+  }
+  if (state === 'completed') {
+    return 'Completed';
+  }
+  if (state === 'failed') {
+    return 'Needs retry';
+  }
+  return humanizeToken(state) ?? 'Task';
+}
+
+function buildStaticTaskRowClassName(state: string | null | undefined): string {
+  if (isActiveTaskState(state)) {
+    return 'grid gap-1 rounded-lg border border-amber-300/60 bg-amber-50/50 px-3 py-2 text-left text-sm dark:border-amber-500/40 dark:bg-amber-500/10';
+  }
+  if (state === 'ready') {
+    return 'grid gap-1 rounded-lg border border-border/60 bg-background/80 px-3 py-2 text-left text-sm';
+  }
+  return 'grid gap-1 rounded-lg border border-border/60 bg-background/60 px-3 py-2 text-left text-sm';
+}
+
+function isActiveTaskState(state: string | null | undefined): boolean {
+  return state === 'claimed' || state === 'in_progress' || state === 'awaiting_approval';
 }

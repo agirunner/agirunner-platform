@@ -16,6 +16,7 @@ import {
 } from './workflow-board-task-preview.js';
 import type { WorkflowBoardLens, WorkflowBoardMode } from './workflows-page.support.js';
 import {
+  buildWorkflowBoardActiveTaskSummary,
   buildWorkflowBoardWorkItemSummary,
   buildWorkflowBoardTaskCards,
   buildWorkflowBoardView,
@@ -321,6 +322,11 @@ function BoardWorkItemCard(props: {
   onSelectTask?(workItemId: string, taskId: string): void;
 }): JSX.Element {
   const currentStateSummary = buildWorkflowBoardWorkItemSummary(props.workItem, props.taskSummary);
+  const activeTaskSummary = buildWorkflowBoardActiveTaskSummary(props.taskSummary);
+  const activeTaskCountSuffix =
+    activeTaskSummary && activeTaskSummary.activeTaskCount > 1
+      ? ` +${activeTaskSummary.activeTaskCount - 1} more active`
+      : '';
 
   return (
     <article
@@ -363,6 +369,25 @@ function BoardWorkItemCard(props: {
 
         {currentStateSummary ? (
           <p className="text-sm leading-6 text-muted-foreground">{currentStateSummary}</p>
+        ) : null}
+
+        {activeTaskSummary ? (
+          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            <span className="font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+              Active specialist
+            </span>
+            {activeTaskSummary.roleLabel ? (
+              <span className="font-medium text-foreground">{activeTaskSummary.roleLabel}</span>
+            ) : null}
+            {activeTaskSummary.taskTitle ? (
+              <span className="text-muted-foreground">
+                on {activeTaskSummary.taskTitle}
+                {activeTaskCountSuffix}
+              </span>
+            ) : activeTaskCountSuffix ? (
+              <span className="text-muted-foreground">{activeTaskCountSuffix.trim()}</span>
+            ) : null}
+          </div>
         ) : null}
 
         {props.workItem.blocked_reason || props.workItem.gate_decision_feedback ? (

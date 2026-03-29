@@ -435,6 +435,68 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Orchestrator working');
   });
 
+  it('makes work-item cards useful by surfacing active ownership and richer task context', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: createBoard(),
+          selectedWorkItemId: 'work-item-1',
+          selectedTaskId: null,
+          boardLens: 'work_items',
+          boardMode: 'active_recent_complete',
+          taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
+            [
+              'work-item-1',
+              {
+                tasks: [
+                  {
+                    id: 'task-architect',
+                    title: 'Draft technical design',
+                    role: 'mixed-architecture-lead',
+                    state: 'in_progress',
+                    recentUpdate:
+                      'Reviewing integration constraints and outlining the release plan.',
+                    workItemId: 'work-item-1',
+                    workItemTitle: 'Review incoming packet',
+                    stageName: 'intake-triage',
+                  },
+                  {
+                    id: 'task-review',
+                    title: 'Review implementation notes',
+                    role: 'mixed-reviewer',
+                    state: 'ready',
+                    recentUpdate: 'Queued behind the architecture pass.',
+                    workItemId: 'work-item-1',
+                    workItemTitle: 'Review incoming packet',
+                    stageName: 'intake-triage',
+                  },
+                ],
+                hasActiveOrchestratorTask: false,
+              },
+            ],
+          ]),
+          onBoardLensChange: vi.fn(),
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+          onSelectTask: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Active specialist');
+    expect(html).toContain('Mixed Architecture Lead');
+    expect(html).toContain('Draft technical design');
+    expect(html).toContain('Working now');
+    expect(html).toContain('Reviewing integration constraints and outlining the release plan.');
+    expect(html).toContain('Ready next');
+    expect(html).toContain('Queued behind the architecture pass.');
+    expect(html).not.toContain('>2 tasks<');
+    expect(html).not.toContain('data-task-selectable="true"');
+  });
+
   it('keeps paused work in its lane and marks it as paused', () => {
     const html = renderToStaticMarkup(
       createElement(

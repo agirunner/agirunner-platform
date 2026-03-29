@@ -44,6 +44,12 @@ export interface WorkflowBoardTaskCard {
   hasActiveOrchestratorTask: boolean;
 }
 
+export interface WorkflowBoardActiveTaskSummary {
+  roleLabel: string | null;
+  taskTitle: string | null;
+  activeTaskCount: number;
+}
+
 export function buildWorkflowBoardView(
   board: DashboardWorkflowBoardResponse | null,
   input: WorkflowBoardViewInput,
@@ -166,6 +172,22 @@ export function buildWorkflowBoardWorkItemSummary(
     ?? readSummaryText(workItem.notes)
     ?? readSummaryText(workItem.goal)
   );
+}
+
+export function buildWorkflowBoardActiveTaskSummary(
+  taskSummary: WorkflowTaskPreviewSummary,
+): WorkflowBoardActiveTaskSummary | null {
+  const activeTasks = taskSummary.tasks.filter((task) => isActiveTaskState(task.state));
+  const primaryTask = activeTasks[0];
+  if (!primaryTask) {
+    return null;
+  }
+
+  return {
+    roleLabel: humanizeToken(primaryTask.role),
+    taskTitle: readSummaryText(primaryTask.title),
+    activeTaskCount: activeTasks.length,
+  };
 }
 
 function resolveDisplayColumnId(workItem: DashboardWorkflowWorkItemRecord): string {

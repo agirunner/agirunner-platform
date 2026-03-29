@@ -85,6 +85,37 @@ describe('WorkflowBoardTaskStack', () => {
     expect(html).not.toContain('<button');
   });
 
+  it('surfaces active task ownership and task-ready context in non-interactive work-item rows', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBoardTaskStack, {
+        tasks: [
+          {
+            id: 'task-1',
+            title: 'Assess packet',
+            role: 'policy-assessor',
+            state: 'in_progress',
+            recentUpdate: 'Reviewing the latest packet before filing the handoff.',
+          },
+          {
+            id: 'task-2',
+            title: 'Review approval packet',
+            role: 'mixed-reviewer',
+            state: 'ready',
+            recentUpdate: 'Queued once the assessor finishes.',
+          },
+        ],
+        collapsible: false,
+        defaultOpen: true,
+      }),
+    );
+
+    expect(html).toContain('Working now');
+    expect(html).toContain('Reviewing the latest packet before filing the handoff.');
+    expect(html).toContain('Ready next');
+    expect(html).toContain('Queued once the assessor finishes.');
+    expect(html).not.toContain('<button');
+  });
+
   it('does not keep a stale task highlight when task selection is locked to work-item view', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowBoardTaskStack, {
