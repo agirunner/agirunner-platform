@@ -37,6 +37,15 @@ describe('workflow-launch-dialog.support', () => {
     expect(resolveDefaultWorkflowLaunchWorkspaceId(workspaces, 'workspace-2')).toBe('workspace-2');
   });
 
+  it('requires an explicit workspace choice when multiple workspaces are available', () => {
+    const workspaces: DashboardWorkspaceRecord[] = [
+      { id: 'workspace-1', name: 'Primary Workspace', slug: 'primary-workspace' },
+      { id: 'workspace-2', name: 'Secondary Workspace', slug: 'secondary-workspace' },
+    ];
+
+    expect(resolveDefaultWorkflowLaunchWorkspaceId(workspaces, '')).toBe('');
+  });
+
   it('requires playbook, workspace, workflow name, and required launch inputs', () => {
     const result = validateWorkflowLaunchDialogDraft({
       selectedPlaybook: null,
@@ -74,6 +83,29 @@ describe('workflow-launch-dialog.support', () => {
       ],
       parameterDrafts: {
         goal: 'Ship release 24.4',
+      },
+    });
+
+    expect(result).toEqual({
+      fieldErrors: {},
+      parameterErrors: {},
+      blockingIssues: [],
+      isValid: true,
+    });
+  });
+
+  it('accepts optional launch inputs when only the required inputs are present', () => {
+    const result = validateWorkflowLaunchDialogDraft({
+      selectedPlaybook: createPlaybook(),
+      workspaceId: 'workspace-1',
+      workflowName: 'Launch release readiness',
+      parameterSpecs: [
+        { slug: 'goal', title: 'Goal', required: true },
+        { slug: 'context', title: 'Context', required: false },
+      ],
+      parameterDrafts: {
+        goal: 'Ship release 24.4',
+        context: '',
       },
     });
 

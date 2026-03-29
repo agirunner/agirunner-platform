@@ -22,9 +22,18 @@ describe('WorkflowLaunchDialog source', () => {
     const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
 
     expect(source.match(/rows=\{2\}/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(source.match(/min-h-\[64px\]/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
     expect(source).not.toContain('ChainParameterField');
     expect(source).not.toContain('<h3 className="text-sm font-medium">Launch inputs</h3>');
     expect(source).not.toContain('Provide the operator-authored inputs defined by the selected playbook.');
+  });
+
+  it('keeps launch inputs free of slug badge chrome so only the human title is shown', () => {
+    const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('<span className="font-medium">{spec.title}</span>');
+    expect(source).not.toContain('Badge');
+    expect(source).not.toContain('spec.slug}</span>');
   });
 
   it('persists launch files through workflow creation instead of a second packet request', () => {
