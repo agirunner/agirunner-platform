@@ -253,6 +253,92 @@ describe('workflow-execution-log-composer', () => {
     );
   });
 
+  it('suppresses file-read fallbacks when the only path is a temp workspace context path', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '22da',
+        operation: 'agent.act',
+        payload: {
+          tool: 'file_read',
+          input: {
+            path: '/tmp/workspace/task-4df24677-e56d-42e5-9c75-d86e9d8c01cf/context/current-task.md',
+            offset: 1,
+            limit: 200,
+          },
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
+  it('formats artifact-style file actions using safe logical paths instead of temp workspace paths', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '22db',
+        operation: 'agent.act',
+        payload: {
+          tool: 'artifact_upload',
+          input: {
+            path: '/tmp/workspace/task-4df24677-e56d-42e5-9c75-d86e9d8c01cf/output/release-packet.md',
+            logical_path: 'output/release-packet.md',
+            artifact_id: 'artifact-1',
+          },
+        },
+      }),
+    ]);
+
+    expect(item.headline).toBe('calling artifact_upload(path="output/release-packet.md")');
+  });
+
+  it('suppresses action fallbacks when only temp-path and id args are present', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '22dc',
+        operation: 'agent.act',
+        payload: {
+          tool: 'shell_exec',
+          input: {
+            cwd: '/tmp/workspace/task-4df24677-e56d-42e5-9c75-d86e9d8c01cf',
+            request_id: 'req-1',
+            task_id: 'task-1',
+          },
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
+  it('keeps operator-meaningful safe args while dropping temp context paths and noise', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '22dd',
+        operation: 'agent.act',
+        payload: {
+          tool: 'submit_handoff',
+          input: {
+            summary: 'Completed the intake-triage deliverable for workflows-intake-01.',
+            successor_context:
+              'Current subject state is documented in the uploaded triage packet. The assessor can continue from the packet.',
+            context_path: '/tmp/workspace/task-4df24677-e56d-42e5-9c75-d86e9d8c01cf/context/current-task.md',
+            request_id: 'handoff-1',
+            work_item_id: 'work-item-1',
+          },
+        },
+      }),
+    ]);
+
+    expect(item.headline).toContain(
+      'calling submit_handoff(summary="Completed the intake-triage deliverable for workflows-intake-01."',
+    );
+    expect(item.headline).toContain(
+      'successor_context="Current subject state is documented in the uploaded triage packet.',
+    );
+    expect(item.headline).not.toContain('/tmp/workspace/');
+    expect(item.headline).not.toContain('context/current-task.md');
+  });
+
   it('suppresses internal operator-recording act turns so the live console shows only the resulting record', () => {
     const items = buildExecutionTurnItems([
       createLogRow({

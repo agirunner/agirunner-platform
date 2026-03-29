@@ -224,6 +224,9 @@ function summarizeActionArgs(actionName: string, input: Record<string, unknown>)
   if (specializedArgs.length > 0) {
     return specializedArgs;
   }
+  if (isToolSpecificFallbackOnlyAction(actionName)) {
+    return [];
+  }
 
   const preferredKeys = ['summary', 'headline', 'title', 'role', 'completion', 'decision', 'stage_name'];
   const summaries: string[] = [];
@@ -252,6 +255,18 @@ function summarizeActionArgs(actionName: string, input: Record<string, unknown>)
   return summaries;
 }
 
+function isToolSpecificFallbackOnlyAction(actionName: string): boolean {
+  return (
+    actionName === 'file_read'
+    || actionName === 'file_write'
+    || actionName === 'file_edit'
+    || actionName === 'file_list'
+    || actionName === 'artifact_upload'
+    || actionName === 'artifact_read'
+    || actionName === 'artifact_document_read'
+  );
+}
+
 function summarizeToolSpecificArgs(actionName: string, input: Record<string, unknown>): string[] {
   switch (actionName) {
     case 'file_read': {
@@ -265,10 +280,9 @@ function summarizeToolSpecificArgs(actionName: string, input: Record<string, unk
     case 'artifact_read':
     case 'artifact_document_read': {
       const pathLike = readFirstString([
-        readString(input.path),
-        readString(input.logical_path),
-        readString(input.artifact_name),
-        readString(input.artifact_id),
+        sanitizePathLikeArg(readString(input.logical_path)),
+        sanitizePathLikeArg(readString(input.path)),
+        sanitizePathLikeArg(readString(input.artifact_name)),
       ]);
       return pathLike ? [`path="${truncate(pathLike, 72)?.replace(/"/g, "'")}"`] : [];
     }
@@ -282,7 +296,7 @@ function renderActionArg(key: string, value: unknown): string | null {
     return null;
   }
   if (typeof value === 'string') {
-    const normalized = normalizeActionArgText(value);
+    const normalized = normalizeActionArgText(key, value);
     if (!normalized) {
       return null;
     }
@@ -298,6 +312,9 @@ function shouldSkipActionArg(key: string, value: unknown): boolean {
   if (!key.trim()) {
     return true;
   }
+  if (key === 'cwd') {
+    return true;
+  }
   if (/(^|_)(id|ids)$/.test(key) || key.endsWith('_id') || key === 'request_id') {
     return true;
   }
@@ -307,8 +324,9 @@ function shouldSkipActionArg(key: string, value: unknown): boolean {
   return false;
 }
 
-function normalizeActionArgText(value: string): string | null {
-  const normalized = readOperatorReadableText(value, 72);
+function normalizeActionArgText(key: string, value: string): string | null {
+  const sanitizedPath = isPathLikeKey(key) ? sanitizePathLikeArg(value) : null;
+  const normalized = readOperatorReadableText(sanitizedPath ?? value, 72);
   if (!normalized) {
     return null;
   }
@@ -320,7 +338,7 @@ function isSuppressedActionName(value: string | null): boolean {
 }
 
 function formatPathRangeSummary(input: Record<string, unknown>): string | null {
-  const path = readString(input.path);
+  const path = sanitizePathLikeArg(readString(input.path));
   if (!path) {
     return null;
   }
@@ -343,6 +361,70 @@ function readFirstString(values: Array<string | null>): string | null {
     }
   }
   return null;
+}
+
+function isPathLikeKey(key: string): boolean {
+  return key === 'path' || key === 'logical_path' || key.endsWith('_path');
+}
+
+function sanitizePathLikeArg(value: string | null): string | null {
+  const path = readString(value);
+  if (!path) {
+    return null;
+  }
+  if (looksLikeSuppressedContextPath(path)) {
+    return null;
+  }
+  if (path.startsWith('/tmp/workspace/')) {
+    const relative = extractWorkspaceRelativePath(path);
+    if (!relative || looksLikeSuppressedContextPath(relative)) {
+      return null;
+    }
+    return relative;
+  }
+  if (path.startsWith('/')) {
+    return null;
+  }
+  if (path.startsWith('repo/')) {
+    return path.slice('repo/'.length);
+  }
+  return path;
+}
+
+function extractWorkspaceRelativePath(path: string): string | null {
+  const taskWorkspaceMatch = path.match(/^\/tmp\/workspace\/task-[^/]+\/(.+)$/);
+  if (taskWorkspaceMatch?.[1]) {
+    return normalizeWorkspaceRelativePath(taskWorkspaceMatch[1]);
+  }
+  const workspaceMatch = path.match(/^\/tmp\/workspace\/(.+)$/);
+  if (workspaceMatch?.[1]) {
+    return normalizeWorkspaceRelativePath(workspaceMatch[1]);
+  }
+  return null;
+}
+
+function normalizeWorkspaceRelativePath(relativePath: string): string | null {
+  if (!relativePath) {
+    return null;
+  }
+  if (relativePath.startsWith('repo/')) {
+    return relativePath.slice('repo/'.length);
+  }
+  if (relativePath.startsWith('workspace/')) {
+    return relativePath.slice('workspace/'.length);
+  }
+  return relativePath;
+}
+
+function looksLikeSuppressedContextPath(path: string): boolean {
+  return (
+    path === 'context'
+    || path.startsWith('context/')
+    || path === '/workspace/context'
+    || path.startsWith('/workspace/context/')
+    || path === 'workspace/context'
+    || path.startsWith('workspace/context/')
+  );
 }
 
 function readActionName(payload: Record<string, unknown>): string | null {
