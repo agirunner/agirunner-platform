@@ -261,7 +261,7 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('Reroute candidates: brand-reviewer, editor');
   });
 
-  it('renders the orchestrator live-visibility contract with exact operator update fields', () => {
+  it('renders the orchestrator live-visibility contract without a model-authored operator-update tool', () => {
     const layer = buildWorkflowInstructionLayer({
       isOrchestratorTask: true,
       workflow: {
@@ -274,11 +274,7 @@ describe('buildWorkflowInstructionLayer', () => {
           task_id: null,
           execution_context_id: 'activation-1',
           source_kind: 'orchestrator',
-          record_operator_update_tool: 'record_operator_update',
           record_operator_brief_tool: 'record_operator_brief',
-          turn_update_scope: null,
-          eligible_turn_guidance: null,
-          operator_update_request_id_prefix: 'operator-update:activation-1:',
           operator_brief_request_id_prefix: 'operator-brief:activation-1:',
           milestone_briefs_required: true,
         },
@@ -317,29 +313,21 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('Work item id: work-item-1');
     expect(layer!.content).toContain('Execution context id: activation-1');
     expect(layer!.content).toContain(
-      'Use record_operator_update for durable operator-readable workflow events such as routing, decisions, escalations, approval outcomes, meaningful wait-state changes, and workflow lifecycle changes.',
+      'Standard live visibility comes from canonical workflow events and required briefs, not from an extra model-authored operator-update tool.',
     );
     expect(layer!.content).toContain(
-      'Do not emit record_operator_update on every llm turn. If nothing operator-meaningful changed in the batch, do not force an extra operator update.',
-    );
-    expect(layer!.content).toContain(
-      'Enhanced live visibility streams trimmed execution output automatically. Do not manufacture synthetic per-turn operator updates just to keep the console moving.',
-    );
-    expect(layer!.content).toContain(
-      'Use operator-update:activation-1: as the stable request_id prefix for record_operator_update writes in this execution context.',
+      'Enhanced live visibility streams trimmed execution output automatically from the persisted loop phases. Do not add a reporting step just to keep the console moving.',
     );
     expect(layer!.content).toContain(
       'Use brief_kind milestone for in-flight progress or handoff summaries and brief_kind terminal only for the final workflow outcome summary.',
     );
     expect(layer!.content).toContain(
-      'record_operator_brief and record_operator_update do not satisfy a required submit_handoff and do not by themselves complete a task, work item, or workflow.',
+      'record_operator_brief does not satisfy a required submit_handoff and does not by itself complete a task, work item, or workflow.',
     );
     expect(layer!.content).toContain(
       'If you do not have the exact scoped workflow, work-item, or task ids from the live visibility contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id.',
     );
-    expect(layer!.content).toContain(
-      'Example: { request_id: "operator-update:activation-1:route-reviewer", execution_context_id: "activation-1", work_item_id: "work-item-1", source_kind: "orchestrator", payload: { headline: "Orchestrator is routing the next specialist task." } }',
-    );
+    expect(layer!.content).not.toContain('record_operator_update');
   });
 
   it('tells the orchestrator that restrictive findings do not satisfy missing same-stage roles', () => {

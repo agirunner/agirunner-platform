@@ -1798,21 +1798,15 @@ describe('WorkflowActivationDispatchService', () => {
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('Do not poll running tasks in a loop.');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('If a stage already awaits approval, do not request another gate');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('record_operator_brief');
-          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('record_operator_update');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
-            'Use record_operator_update for durable operator-readable workflow events such as routing, decisions, escalations, approval outcomes, meaningful wait-state changes, and workflow lifecycle changes.',
+            'Standard live visibility comes from canonical workflow events and required briefs, not from an extra model-authored operator-update tool.',
           );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
-            'Enhanced live visibility streams trimmed execution output automatically. Do not manufacture synthetic per-turn operator updates just to keep the console moving.',
-          );
-          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
-            'Use request_id values with the pattern operator-update:<execution_context_id>:<event-slug> and keep the same request_id only when retrying that exact write.',
+            'Enhanced live visibility streams trimmed execution output automatically from the persisted loop phases. Do not add a reporting step just to keep the console moving.',
           );
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('payload.short_brief and payload.detailed_brief_json objects');
           expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('detailed_brief_json must include headline and status_kind');
-          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain(
-            'record_operator_update example shape: { request_id: "operator-update:<execution_context_id>:route-reviewer", execution_context_id: "<execution_context_id>", work_item_id: "<work_item_id if present>", source_kind: "orchestrator", payload: { headline: "Orchestrator is routing the next specialist task." } }.',
-          );
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).not.toContain('record_operator_update');
           expect(inserted.environment).toEqual({
             execution_mode: 'orchestrator',
             template: 'execution-workspace',
@@ -4378,7 +4372,6 @@ describe('WorkflowActivationDispatchService', () => {
                 'artifact_document_read',
                 'send_task_message',
                 'record_operator_brief',
-                'record_operator_update',
               ]),
             }),
           );

@@ -206,7 +206,7 @@ describe('buildSpecialistExecutionBrief', () => {
       'Every operator record write must include a unique request_id.',
     );
     expect(brief?.rendered_markdown).toContain(
-      'submit_handoff is the required task-completion write on this task. record_operator_brief and record_operator_update never satisfy that completion contract.',
+      'submit_handoff is the required task-completion write on this task. record_operator_brief never satisfies that completion contract.',
     );
     expect(brief?.rendered_markdown).toContain(
       'Use request_id values with the pattern handoff:task-review-1:<handoff-slug> for submit_handoff writes on this task.',

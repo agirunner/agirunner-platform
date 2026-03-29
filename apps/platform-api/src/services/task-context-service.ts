@@ -418,11 +418,8 @@ async function loadWorkflowLiveVisibilityContext(
     execution_context_id: executionContextId,
     source_kind: task.is_orchestrator_task === true ? 'orchestrator' : 'specialist',
     record_operator_brief_tool: 'record_operator_brief',
-    record_operator_update_tool:
-      task.is_orchestrator_task === true ? 'record_operator_update' : null,
     turn_update_scope: null,
     eligible_turn_guidance: null,
-    operator_update_request_id_prefix: `operator-update:${executionContextId}:`,
     operator_brief_request_id_prefix: `operator-brief:${executionContextId}:`,
     milestone_briefs_required: true,
     terminal_briefs_required: task.is_orchestrator_task === true,

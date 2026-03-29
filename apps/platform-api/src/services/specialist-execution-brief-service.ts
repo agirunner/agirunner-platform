@@ -27,10 +27,8 @@ interface OperatorVisibilityContract {
   execution_context_id: string | null;
   source_kind: string | null;
   record_operator_brief_tool: string | null;
-  record_operator_update_tool: string | null;
   turn_update_scope: string | null;
   eligible_turn_guidance: string | null;
-  operator_update_request_id_prefix: string | null;
   operator_brief_request_id_prefix: string | null;
   milestone_briefs_required: boolean;
 }
@@ -294,23 +292,21 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
     );
     if (brief.operator_visibility.task_id) {
       lines.push(
-        'submit_handoff is the required task-completion write on this task. record_operator_brief and record_operator_update never satisfy that completion contract.',
+        'submit_handoff is the required task-completion write on this task. record_operator_brief never satisfies that completion contract.',
       );
       lines.push(
         `Use request_id values with the pattern handoff:${brief.operator_visibility.task_id}:<handoff-slug> for submit_handoff writes on this task. Reuse the same request_id only for an intentional retry of that exact same handoff payload.`,
       );
     }
-    if (brief.operator_visibility.record_operator_update_tool) {
-      lines.push(
-        'Enhanced live visibility is streamed automatically from execution output. Do not spend extra turns creating synthetic per-turn operator updates.',
-      );
-      lines.push(
-        'If you do not already have the exact scoped workflow_id, work_item_id, or task_id from this contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id. Never guess them.',
-      );
-      lines.push(
-        'Operator updates and briefs are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".',
-      );
-    }
+    lines.push(
+      'Enhanced live visibility is streamed automatically from execution output. Do not add a reporting step just to keep the console moving.',
+    );
+    lines.push(
+      'If you do not already have the exact scoped workflow_id, work_item_id, or task_id from this contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id. Never guess them.',
+    );
+    lines.push(
+      'Operator briefs and live-console phase lines are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".',
+    );
     if (
       brief.operator_visibility.milestone_briefs_required &&
       brief.operator_visibility.record_operator_brief_tool
@@ -467,12 +463,8 @@ function operatorVisibilityFrom(
     execution_context_id: executionContextId,
     source_kind: readString(liveVisibility.source_kind),
     record_operator_brief_tool: readString(liveVisibility.record_operator_brief_tool),
-    record_operator_update_tool: readString(liveVisibility.record_operator_update_tool),
     turn_update_scope: null,
     eligible_turn_guidance: null,
-    operator_update_request_id_prefix:
-      readString(liveVisibility.operator_update_request_id_prefix) ??
-      (executionContextId ? `operator-update:${executionContextId}:` : null),
     operator_brief_request_id_prefix:
       readString(liveVisibility.operator_brief_request_id_prefix) ??
       (executionContextId ? `operator-brief:${executionContextId}:` : null),

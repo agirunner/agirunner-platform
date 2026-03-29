@@ -379,10 +379,7 @@ function formatOperatorVisibilitySection(liveVisibility: Record<string, unknown>
   const workItemId = readString(liveVisibility.work_item_id);
   const taskId = readString(liveVisibility.task_id);
   const executionContextId = readString(liveVisibility.execution_context_id);
-  const recordOperatorUpdateTool = readString(liveVisibility.record_operator_update_tool);
   const recordOperatorBriefTool = readString(liveVisibility.record_operator_brief_tool);
-  const sourceKind = readString(liveVisibility.source_kind) ?? 'orchestrator';
-  const operatorUpdateRequestIdPrefix = readString(liveVisibility.operator_update_request_id_prefix);
   const operatorBriefRequestIdPrefix = readString(liveVisibility.operator_brief_request_id_prefix);
 
   if (mode) lines.push(`Live visibility mode: ${mode}`);
@@ -391,53 +388,24 @@ function formatOperatorVisibilitySection(liveVisibility: Record<string, unknown>
   if (taskId) lines.push(`Task id: ${taskId}`);
   if (executionContextId) lines.push(`Execution context id: ${executionContextId}`);
   lines.push(
-    'Every operator record write must include a unique request_id. Reuse a request_id only for an intentional retry of the same write.',
+    'Standard live visibility comes from canonical workflow events and required briefs, not from an extra model-authored operator-update tool.',
   );
-  lines.push(
-    'record_operator_brief and record_operator_update do not satisfy a required submit_handoff and do not by themselves complete a task, work item, or workflow.',
-  );
-
-  if (recordOperatorUpdateTool) {
-    if (operatorUpdateRequestIdPrefix) {
-      lines.push(
-        `Use ${operatorUpdateRequestIdPrefix} as the stable request_id prefix for ${recordOperatorUpdateTool} writes in this execution context.`,
-      );
-    }
+  if (mode === 'enhanced') {
     lines.push(
-      `Use ${recordOperatorUpdateTool} for durable operator-readable workflow events such as routing, decisions, escalations, approval outcomes, meaningful wait-state changes, and workflow lifecycle changes.`,
-    );
-    lines.push(
-      `Do not emit ${recordOperatorUpdateTool} on every llm turn. If nothing operator-meaningful changed in the batch, do not force an extra operator update.`,
-    );
-    lines.push(
-      'If you do not have the exact scoped workflow, work-item, or task ids from the live visibility contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id.',
-    );
-    lines.push(
-      'Operator updates and briefs are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".',
-    );
-    lines.push(
-      'Each operator-update headline must describe the new routing decision, blocker, wait reason, handoff, approval result, or completion change. Do not repeat the same readiness sentence on adjacent updates.',
-    );
-    lines.push(
-      'Because the console already shows the role label, do not start headlines with repetitive stage-prefixed phrases. Describe the operator-visible change directly.',
-    );
-    if (mode === 'enhanced') {
-      lines.push(
-        'Enhanced live visibility streams trimmed execution output automatically. Do not manufacture synthetic per-turn operator updates just to keep the console moving.',
-      );
-    }
-    lines.push(
-      `Example: ${formatOperatorUpdateExample({
-        requestIdPrefix: operatorUpdateRequestIdPrefix,
-        executionContextId,
-        workItemId,
-        taskId,
-        sourceKind,
-      })}`,
+      'Enhanced live visibility streams trimmed execution output automatically from the persisted loop phases. Do not add a reporting step just to keep the console moving.',
     );
   }
+  lines.push(
+    'Operator briefs and live-console phase lines are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".',
+  );
+  lines.push(
+    'If you do not have the exact scoped workflow, work-item, or task ids from the live visibility contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id.',
+  );
 
   if (liveVisibility.milestone_briefs_required === true && recordOperatorBriefTool) {
+    lines.push(
+      'Every operator brief write must include a unique request_id. Reuse a request_id only for an intentional retry of the same write.',
+    );
     if (operatorBriefRequestIdPrefix) {
       lines.push(
         `Use ${operatorBriefRequestIdPrefix} as the stable request_id prefix for ${recordOperatorBriefTool} writes in this execution context.`,
@@ -459,29 +427,12 @@ function formatOperatorVisibilitySection(liveVisibility: Record<string, unknown>
     lines.push(
       'record_operator_brief requires short_brief.headline plus detailed_brief_json.headline and status_kind, and must never be called with only linked_target_ids or an empty brief shell.',
     );
+    lines.push(
+      'record_operator_brief does not satisfy a required submit_handoff and does not by itself complete a task, work item, or workflow.',
+    );
   }
 
   return lines.length > 0 ? `## Operator Visibility\n${lines.join('\n')}` : '';
-}
-
-function formatOperatorUpdateExample(input: {
-  requestIdPrefix: string | null;
-  executionContextId: string | null;
-  workItemId: string | null;
-  taskId: string | null;
-  sourceKind: string;
-}): string {
-  const requestId = `${input.requestIdPrefix ?? 'operator-update:<execution_context_id>:'}route-reviewer`;
-  const fields = [
-    `request_id: "${requestId}"`,
-    `execution_context_id: "${input.executionContextId ?? '<execution_context_id>'}"`,
-    input.workItemId ? `work_item_id: "${input.workItemId}"` : null,
-    input.taskId ? `task_id: "${input.taskId}"` : null,
-    `source_kind: "${input.sourceKind}"`,
-    'payload: { headline: "Orchestrator is routing the next specialist task." }',
-  ].filter((value): value is string => Boolean(value));
-
-  return `{ ${fields.join(', ')} }`;
 }
 
 function formatPendingDispatches(

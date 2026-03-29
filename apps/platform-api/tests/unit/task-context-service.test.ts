@@ -234,9 +234,7 @@ describe('buildTaskContext active stage semantics', () => {
         execution_context_id: 'activation-live',
         source_kind: 'orchestrator',
         record_operator_brief_tool: 'record_operator_brief',
-        record_operator_update_tool: 'record_operator_update',
         turn_update_scope: null,
-        operator_update_request_id_prefix: 'operator-update:activation-live:',
         operator_brief_request_id_prefix: 'operator-brief:activation-live:',
       }),
     );
@@ -245,7 +243,6 @@ describe('buildTaskContext active stage semantics', () => {
         mode: 'enhanced',
         execution_context_id: 'activation-live',
         source_kind: 'orchestrator',
-        record_operator_update_tool: 'record_operator_update',
       }),
     );
     expect((context as Record<string, any>).agentic_settings).toEqual({
@@ -331,7 +328,6 @@ describe('buildTaskContext active stage semantics', () => {
         task_id: 'task-live-specialist',
         execution_context_id: 'task-live-specialist',
         record_operator_brief_tool: 'record_operator_brief',
-        record_operator_update_tool: null,
       }),
     );
   });

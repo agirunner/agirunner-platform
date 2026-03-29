@@ -12,13 +12,13 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Before escalating, leave clean takeover state.
 - Repository-backed tasks MUST commit and push relevant work before completion or escalation.
 - When live visibility is present, use record_operator_brief for required milestone or terminal summaries.
-- Orchestrator uses record_operator_update for durable operator-readable workflow events such as routing, decisions, escalations, approval outcomes, meaningful wait-state changes, and workflow lifecycle changes.
-- Specialists MUST NOT spend extra turns creating synthetic per-turn operator updates. Enhanced live visibility is streamed automatically from execution output and safe action-call summaries.
-- Operator updates and briefs are console text, not audit logs: use titles and roles when available, and never dump tool chatter, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".
+- Standard live visibility comes from canonical workflow events and required briefs, not from an extra model-authored operator-update tool.
+- Enhanced live visibility is streamed automatically from execution output and safe action-call summaries.
+- Operator briefs and live-console phase lines are console text, not audit logs: use titles and roles when available, and never dump tool chatter, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".
 - Live-console headlines MUST describe the new decision, dispatch, blocker, handoff, wait reason, or completion change. Do not restate the same readiness sentence on adjacent updates.
 - Because the console already shows the role label, do not prefix headlines with repetitive stage phrases like "Intake triage ...". Write the operator-visible change directly.
 - record_operator_brief requires payload.short_brief.headline plus payload.detailed_brief_json.{headline,status_kind}; never send only linked_target_ids or an empty brief shell.
-- record_operator_brief and record_operator_update never replace submit_handoff.
+- record_operator_brief never replaces submit_handoff.
 - Use the exact execution_context_id and scoped workflow/task/work-item ids from task context.
 - If you do not have the exact scoped workflow_id, work_item_id, or task_id from current task context, omit those optional fields and let runtime derive canonical linkage from execution_context_id.
 - Repository-backed containers already provide repo checkout and git.
@@ -104,16 +104,15 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - Use platform-produced closure_context, recent recovery outcomes, and attempt history as the recovery contract; do not guess from prose or stale memory.
 - A null predecessor handoff is normal for first-stage work or freshly seeded entry work. Check current work-item state before escalating.
 - Use record_operator_brief for material milestone summaries and the terminal workflow brief.
-- Use record_operator_update for durable operator-readable workflow events such as routing, decisions, escalations, approval outcomes, meaningful wait-state changes, and workflow lifecycle changes.
-- Do not emit record_operator_update on every llm turn. If no operator-meaningful workflow event happened in the batch, do not force an extra operator update.
+- Standard live visibility comes from canonical workflow events and required briefs, not from an extra model-authored operator-update tool.
 - Each headline MUST capture the new routing decision, blocker, wait reason, handoff, approval result, or completion change. Do not emit near-duplicate "still ready" or stage-prefixed restatements on adjacent updates.
 - Because the console already labels the role, do not start headlines with repetitive stage prefixes. Describe the new operator-visible change directly.
-- Enhanced live visibility streams trimmed execution output automatically. Do not manufacture synthetic per-turn operator updates just to keep the console moving.
+- Enhanced live visibility streams trimmed execution output automatically from the persisted loop phases. Do not add a reporting step just to keep the console moving.
 - If you reach a meaningful completion, handoff, approval, or output checkpoint and milestone briefs are required, emit record_operator_brief before attempting completion.
-- Operator updates and briefs are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".
+- Operator briefs and live-console phase lines are console text, not audit logs: keep them human-readable, use titles and roles when available, and never dump tool chatter, phases, JSON, UUIDs, or lines like "Ran File Read", "tool_failure", or "executed 2 tools".
 - record_operator_brief inputs must include short_brief.headline plus detailed_brief_json.{headline,status_kind}; never send only linked_target_ids or an empty brief shell.
 - Use brief_kind milestone for in-flight progress or handoff summaries and brief_kind terminal only for the final workflow outcome summary.
-- record_operator_brief and record_operator_update do not satisfy a required submit_handoff and do not by themselves complete a task, work item, or workflow.
+- record_operator_brief does not satisfy a required submit_handoff and does not by itself complete a task, work item, or workflow.
 - Use the exact execution_context_id from the live visibility contract and never fabricate workflow, work-item, or task linkage.
 - If you do not have the exact scoped workflow, work-item, or task ids from the live visibility contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id.
 

@@ -161,7 +161,6 @@ const builtInToolDefinitions: Array<{
   { id: 'reassign_task', name: 'Reassign Task', description: 'Reassign a task to another Specialist Agent or Specialist Execution owner', category: 'workflow', owner: 'runtime' },
   { id: 'send_task_message', name: 'Send Task Message', description: 'Send a message to an active task', category: 'workflow', owner: 'runtime' },
   { id: 'record_operator_brief', name: 'Record Operator Brief', description: 'Record a structured operator brief for the current workflow', category: 'workflow', owner: 'runtime' },
-  { id: 'record_operator_update', name: 'Record Operator Update', description: 'Record a live operator-readable workflow update', category: 'workflow', owner: 'runtime' },
 ];
 
 const builtInToolDefinitionIds = new Set(builtInToolDefinitions.map((tag) => tag.id));

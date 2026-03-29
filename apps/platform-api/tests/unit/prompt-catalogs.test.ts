@@ -28,16 +28,13 @@ describe('prompt catalogs', () => {
       'Do not assume python3 or any other optional runtime is present unless the execution contract or direct verification says so.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
-      'Orchestrator uses record_operator_update for durable operator-readable workflow events',
-    );
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
-      'Specialists MUST NOT spend extra turns creating synthetic per-turn operator updates.',
+      'Standard live visibility comes from canonical workflow events and required briefs, not from an extra model-authored operator-update tool.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Enhanced live visibility is streamed automatically from execution output and safe action-call summaries.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
-      'Operator updates and briefs are console text, not audit logs',
+      'Operator briefs and live-console phase lines are console text, not audit logs',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'use titles and roles when available',
@@ -49,8 +46,9 @@ describe('prompt catalogs', () => {
       'record_operator_brief requires payload.short_brief.headline plus payload.detailed_brief_json.{headline,status_kind}; never send only linked_target_ids or an empty brief shell.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
-      'record_operator_brief and record_operator_update never replace submit_handoff.',
+      'record_operator_brief never replaces submit_handoff.',
     );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('record_operator_update');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'If you do not have the exact scoped workflow_id, work_item_id, or task_id from current task context, omit those optional fields and let runtime derive canonical linkage from execution_context_id.',
     );
@@ -209,7 +207,7 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use process instructions as the workflow contract.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Treat actual invoked governance state and continuity state as authoritative.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'Operator updates and briefs are console text, not audit logs',
+      'Operator briefs and live-console phase lines are console text, not audit logs',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'use titles and roles when available',
@@ -224,7 +222,7 @@ describe('prompt catalogs', () => {
       'Use brief_kind milestone for in-flight progress or handoff summaries and brief_kind terminal only for the final workflow outcome summary.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'record_operator_brief and record_operator_update do not satisfy a required submit_handoff and do not by themselves complete a task, work item, or workflow.',
+      'record_operator_brief does not satisfy a required submit_handoff and does not by itself complete a task, work item, or workflow.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If you do not have the exact scoped workflow, work-item, or task ids from the live visibility contract, omit those optional ids and let the runtime derive the canonical linkage from execution_context_id.',
