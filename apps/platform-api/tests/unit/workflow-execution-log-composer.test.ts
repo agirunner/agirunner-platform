@@ -728,6 +728,79 @@ describe('workflow-execution-log-composer', () => {
     ]);
   });
 
+  it('prefers llm think, plan, and verify rows over mirrored agent-loop rows for the same turn', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '40a',
+        operation: 'agent.think',
+        payload: {
+          reasoning_summary: 'Check whether the latest approval is already persisted.',
+          llm_turn_count: 17,
+        },
+      }),
+      createLogRow({
+        id: '40b',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'think',
+          llm_turn_count: 17,
+          response_text: JSON.stringify({
+            approach: 'Check whether the latest approval is already persisted.',
+          }),
+        },
+      }),
+      createLogRow({
+        id: '41a',
+        operation: 'agent.plan',
+        payload: {
+          plan_summary: 'Route the approved intake item to policy assessment.',
+          llm_turn_count: 18,
+        },
+      }),
+      createLogRow({
+        id: '41b',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'plan',
+          llm_turn_count: 18,
+          response_text: JSON.stringify({
+            summary: 'Route the approved intake item to policy assessment.',
+          }),
+        },
+      }),
+      createLogRow({
+        id: '42a',
+        operation: 'agent.verify',
+        payload: {
+          status: 'waiting',
+          summary: 'The policy assessment is still waiting on approval.',
+          llm_turn_count: 19,
+        },
+      }),
+      createLogRow({
+        id: '42b',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'verify',
+          llm_turn_count: 19,
+          response_text: JSON.stringify({
+            decision: 'continue',
+            reason: 'The policy assessment is still waiting on approval.',
+          }),
+        },
+      }),
+    ]);
+
+    expect(items.map((item) => item.item_id)).toEqual([
+      'execution-log:40b',
+      'execution-log:41b',
+      'execution-log:42b',
+    ]);
+  });
+
   it('falls back to logged tool calls for llm act turns when no usable prose exists', () => {
     const [item] = buildExecutionTurnItems([
       createLogRow({
@@ -752,6 +825,43 @@ describe('workflow-execution-log-composer', () => {
     expect(item.headline).toBe(
       '[Act] Submitting the handoff: Triage packet is ready for policy assessment.',
     );
+  });
+
+  it('suppresses raw agent act rows when the same turn already has an llm act phase row', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '43a',
+        operation: 'agent.act',
+        payload: {
+          tool: 'submit_handoff',
+          llm_turn_count: 22,
+          input: {
+            summary: 'Triage packet is ready for policy assessment.',
+            completion: 'full',
+          },
+        },
+      }),
+      createLogRow({
+        id: '43b',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        payload: {
+          phase: 'act',
+          llm_turn_count: 22,
+          response_tool_calls: [
+            {
+              name: 'submit_handoff',
+              input: {
+                summary: 'Triage packet is ready for policy assessment.',
+                completion: 'full',
+              },
+            },
+          ],
+        },
+      }),
+    ]);
+
+    expect(items.map((item) => item.item_id)).toEqual(['execution-log:43b']);
   });
 
   it('suppresses llm act turns when they only call low-value helper reads', () => {

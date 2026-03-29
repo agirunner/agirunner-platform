@@ -20,9 +20,10 @@ const HISTORY_LIFECYCLE_OPERATIONS = new Set([
 
 export function buildExecutionTurnItems(rows: LogRow[]): WorkflowLiveConsoleItem[] {
   const items: WorkflowLiveConsoleItem[] = [];
+  const preferredLLMPhaseKeys = collectPreferredLLMPhaseKeys(rows);
 
   for (const row of rows) {
-    const item = buildExecutionTurnItem(row);
+    const item = buildExecutionTurnItem(row, preferredLLMPhaseKeys);
     if (!item) {
       continue;
     }
@@ -40,12 +41,18 @@ export function buildExecutionTurnItems(rows: LogRow[]): WorkflowLiveConsoleItem
   return items;
 }
 
-function buildExecutionTurnItem(row: LogRow): WorkflowLiveConsoleItem | null {
+function buildExecutionTurnItem(
+  row: LogRow,
+  preferredLLMPhaseKeys: Set<string>,
+): WorkflowLiveConsoleItem | null {
   if (!LIVE_CONSOLE_AGENT_LOOP_OPERATIONS.has(row.operation)) {
     return null;
   }
   if (row.operation === 'llm.chat_stream') {
     return buildLLMExecutionTurnItem(row);
+  }
+  if (shouldPreferLLMPhaseRow(row, preferredLLMPhaseKeys)) {
+    return null;
   }
   if (!shouldRenderExecutionTurn(row)) {
     return null;
@@ -65,6 +72,79 @@ function buildExecutionTurnItem(row: LogRow): WorkflowLiveConsoleItem | null {
     linked_target_ids: scope.linkedTargetIds,
     scope_binding: scope.binding,
   };
+}
+
+function collectPreferredLLMPhaseKeys(rows: LogRow[]): Set<string> {
+  const keys = new Set<string>();
+  for (const row of rows) {
+    if (row.operation !== 'llm.chat_stream') {
+      continue;
+    }
+    const payload = asRecord(row.payload);
+    const phase = readLLMExecutionPhase(payload);
+    const key = phase ? buildExecutionPhaseKey(row, phase, payload) : null;
+    if (key) {
+      keys.add(key);
+    }
+  }
+  return keys;
+}
+
+function shouldPreferLLMPhaseRow(row: LogRow, preferredLLMPhaseKeys: Set<string>): boolean {
+  const phase = readMirroredAgentPhase(row.operation);
+  if (!phase) {
+    return false;
+  }
+  const key = buildExecutionPhaseKey(row, phase, asRecord(row.payload));
+  return key !== null && preferredLLMPhaseKeys.has(key);
+}
+
+function readMirroredAgentPhase(
+  operation: string,
+): 'think' | 'plan' | 'act' | 'verify' | null {
+  switch (operation) {
+    case 'agent.think':
+      return 'think';
+    case 'agent.plan':
+      return 'plan';
+    case 'agent.act':
+      return 'act';
+    case 'agent.verify':
+      return 'verify';
+    default:
+      return null;
+  }
+}
+
+function buildExecutionPhaseKey(
+  row: LogRow,
+  phase: 'think' | 'plan' | 'act' | 'verify',
+  payload: Record<string, unknown>,
+): string | null {
+  const turnOrdinal = readExecutionTurnOrdinal(payload);
+  if (!turnOrdinal) {
+    return null;
+  }
+  return [
+    row.activation_id ?? '',
+    readString(row.role) ?? '',
+    phase,
+    turnOrdinal,
+    row.task_id ?? '',
+    row.work_item_id ?? '',
+  ].join(':');
+}
+
+function readExecutionTurnOrdinal(payload: Record<string, unknown>): string | null {
+  const llmTurnCount = readOptionalNumber(payload.llm_turn_count);
+  if (llmTurnCount !== null) {
+    return `turn:${llmTurnCount}`;
+  }
+  const burstId = readOptionalNumber(payload.burst_id);
+  if (burstId !== null) {
+    return `burst:${burstId}`;
+  }
+  return null;
 }
 
 export function buildLifecycleHistoryItems(rows: LogRow[]): WorkflowHistoryItem[] {
