@@ -14,6 +14,10 @@ import {
   guidedClosureSuggestedActionSchema,
   guidedClosureWaivedStepSchema,
 } from './guided-closure/types.js';
+import {
+  buildReplayConflictOperatorGuidance,
+  type ReplayConflictOperatorField,
+} from './guided-closure/recovery-helpers.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
@@ -198,25 +202,63 @@ export class HandoffService {
       payload.request_id,
       db,
     );
+    let existingTaskAttempt =
+      replayMatch
+      && replayMatch.task_id === taskId
+      && replayMatch.task_rework_count === payload.task_rework_count
+        ? replayMatch
+        : null;
     if (replayMatch) {
-      assertMatchingHandoffReplay(replayMatch, payload);
-      await this.promoteTaskDeliverable(tenantId, toTaskHandoffResponse(replayMatch));
-      return toTaskHandoffResponse(replayMatch);
+      if (matchesHandoffReplay(replayMatch, payload) || canReusePersistedTaskAttemptHandoff(task, replayMatch, payload)) {
+        await this.promoteTaskDeliverable(tenantId, toTaskHandoffResponse(replayMatch));
+        return toTaskHandoffResponse(replayMatch);
+      }
+      if (!existingTaskAttempt) {
+        existingTaskAttempt = await this.loadTaskAttemptHandoff(
+          tenantId,
+          taskId,
+          payload.task_rework_count,
+          db,
+        );
+      }
+      if (
+        existingTaskAttempt
+        && existingTaskAttempt.id !== replayMatch.id
+        && (
+          matchesHandoffReplay(existingTaskAttempt, payload)
+          || canReusePersistedTaskAttemptHandoff(task, existingTaskAttempt, payload)
+        )
+      ) {
+        await this.promoteTaskDeliverable(tenantId, toTaskHandoffResponse(existingTaskAttempt));
+        return toTaskHandoffResponse(existingTaskAttempt);
+      }
+      throw buildReplayConflictError(
+        task,
+        replayMatch,
+        payload,
+        existingTaskAttempt && existingTaskAttempt.id !== replayMatch.id ? existingTaskAttempt : null,
+      );
     }
 
-    const existingTaskAttempt = await this.loadTaskAttemptHandoff(
-      tenantId,
-      taskId,
-      payload.task_rework_count,
-      db,
-    );
+    if (!existingTaskAttempt) {
+      existingTaskAttempt = await this.loadTaskAttemptHandoff(
+        tenantId,
+        taskId,
+        payload.task_rework_count,
+        db,
+      );
+    }
     if (existingTaskAttempt) {
       if (matchesHandoffReplay(existingTaskAttempt, payload)) {
         await this.promoteTaskDeliverable(tenantId, toTaskHandoffResponse(existingTaskAttempt));
         return toTaskHandoffResponse(existingTaskAttempt);
       }
       if (!isEditableTaskState(task.state)) {
-        throw new ConflictError('task handoff request replay does not match the existing handoff');
+        if (canReusePersistedTaskAttemptHandoff(task, existingTaskAttempt, payload)) {
+          await this.promoteTaskDeliverable(tenantId, toTaskHandoffResponse(existingTaskAttempt));
+          return toTaskHandoffResponse(existingTaskAttempt);
+        }
+        throw buildReplayConflictError(task, existingTaskAttempt, payload, existingTaskAttempt);
       }
       const updated = await this.updateExistingHandoff(existingTaskAttempt.id, payload, db);
       await this.promoteTaskDeliverable(tenantId, updated);
@@ -289,7 +331,11 @@ export class HandoffService {
       return toTaskHandoffResponse(existing);
     }
     if (!isEditableTaskState(task.state)) {
-      throw new ConflictError('task handoff request replay does not match the existing handoff');
+      if (canReusePersistedTaskAttemptHandoff(task, existing, payload)) {
+        await this.promoteTaskDeliverable(tenantId, toTaskHandoffResponse(existing));
+        return toTaskHandoffResponse(existing);
+      }
+      throw buildReplayConflictError(task, existing, payload);
     }
     const updated = await this.updateExistingHandoff(existing.id, payload, db);
     await this.promoteTaskDeliverable(tenantId, updated);
@@ -789,13 +835,177 @@ function buildSystemOwnedRoleData(
   return normalized;
 }
 
-function assertMatchingHandoffReplay(
+function canReusePersistedTaskAttemptHandoff(
+  task: TaskContextRow,
   existing: TaskHandoffRow,
   expected: ReturnType<typeof buildNormalizedHandoffPayload>,
 ) {
-  if (!matchesHandoffReplay(existing, expected)) {
-    throw new ConflictError('task handoff request replay does not match the existing handoff');
+  return (
+    !isEditableTaskState(task.state)
+    && existing.task_id === task.id
+    && existing.task_rework_count === expected.task_rework_count
+  );
+}
+
+function buildReplayConflictError(
+  task: TaskContextRow | null,
+  existing: TaskHandoffRow,
+  expected: ReturnType<typeof buildNormalizedHandoffPayload>,
+  currentAttemptHandoff: TaskHandoffRow | null = null,
+) {
+  const replayConflictFields = describeReplayConflictFields(existing, expected);
+  const operatorGuidance = buildReplayConflictOperatorGuidance({
+    submitted_request_id: expected.request_id,
+    submitted_task_rework_count: expected.task_rework_count,
+    persisted_handoff: {
+      id: existing.id,
+      request_id: existing.request_id,
+      task_id: existing.task_id,
+      task_rework_count: existing.task_rework_count,
+      created_at: existing.created_at.toISOString(),
+      summary: existing.summary,
+      completion_state: normalizeCompletionState(existing.completion_state ?? existing.completion),
+      decision_state: normalizeHandoffResolution(existing.decision_state ?? existing.resolution),
+    },
+    current_attempt_handoff:
+      currentAttemptHandoff
+        ? {
+            id: currentAttemptHandoff.id,
+            request_id: currentAttemptHandoff.request_id,
+            task_id: currentAttemptHandoff.task_id,
+            task_rework_count: currentAttemptHandoff.task_rework_count,
+            created_at: currentAttemptHandoff.created_at.toISOString(),
+            summary: currentAttemptHandoff.summary,
+            completion_state: normalizeCompletionState(
+              currentAttemptHandoff.completion_state ?? currentAttemptHandoff.completion,
+            ),
+            decision_state: normalizeHandoffResolution(
+              currentAttemptHandoff.decision_state ?? currentAttemptHandoff.resolution,
+            ),
+          }
+        : null,
+    replay_conflict_fields: replayConflictFields,
+  });
+  return new ConflictError(
+    'submit_handoff replay conflicted with the persisted handoff for this task attempt',
+    {
+      reason_code: 'submit_handoff_replay_conflict',
+      recovery_hint: 'inspect_persisted_handoff_or_use_new_request_id',
+      recoverable: true,
+      task_state: task?.state ?? null,
+      task_id: task?.id ?? existing.task_id,
+      workflow_id: task?.workflow_id ?? existing.workflow_id,
+      work_item_id: task?.work_item_id ?? existing.work_item_id,
+      task_rework_count: expected.task_rework_count,
+      existing_handoff: {
+        id: existing.id,
+        request_id: existing.request_id,
+        task_id: existing.task_id,
+        task_rework_count: existing.task_rework_count,
+        created_at: existing.created_at.toISOString(),
+        completion_state: normalizeCompletionState(existing.completion_state ?? existing.completion),
+        decision_state: normalizeHandoffResolution(existing.decision_state ?? existing.resolution),
+      },
+      conflict_source: operatorGuidance.conflict_source,
+      task_contract_satisfied_by_persisted_handoff:
+        operatorGuidance.task_contract_satisfied_by_persisted_handoff,
+      conflicting_request_ids: operatorGuidance.conflicting_request_ids,
+      replay_conflict_fields: replayConflictFields,
+      recovery: {
+        status: 'action_required',
+        reason: 'submit_handoff_replay_conflict',
+        action: 'inspect_persisted_handoff_or_use_new_request_id',
+      },
+      escalation_guidance: {
+        reason: 'submit_handoff replay conflict',
+        context_summary: operatorGuidance.context_summary,
+        work_so_far: operatorGuidance.work_so_far,
+      },
+      suggested_next_actions: [
+        {
+          action_code: 'inspect_persisted_handoff',
+          target_type: 'handoff',
+          target_id: existing.id,
+          why: 'Compare the replayed payload to the persisted handoff before retrying the mutation.',
+          requires_orchestrator_judgment: false,
+        },
+        {
+          action_code: 'resubmit_handoff_with_new_request_id',
+          target_type: 'task',
+          target_id: task?.id ?? existing.task_id,
+          why: 'Reuse the same request_id only for an intentional retry of the exact same handoff payload.',
+          requires_orchestrator_judgment: false,
+        },
+        {
+          action_code: 'resolve_or_escalate_handoff_conflict',
+          target_type: 'task',
+          target_id: task?.id ?? existing.task_id,
+          why: 'If the persisted handoff is authoritative, settle from it. If it is wrong and the task is no longer editable, escalate for operator resolution.',
+          requires_orchestrator_judgment: true,
+        },
+      ],
+    },
+  );
+}
+
+function describeReplayConflictFields(
+  existing: TaskHandoffRow,
+  expected: ReturnType<typeof buildNormalizedHandoffPayload>,
+): ReplayConflictOperatorField[] {
+  const fields: ReplayConflictOperatorField[] = [];
+  appendReplayConflictField(fields, 'summary', existing.summary, expected.summary);
+  appendReplayConflictField(
+    fields,
+    'completion_state',
+    normalizeCompletionState(existing.completion_state ?? existing.completion),
+    expected.completion_state,
+  );
+  appendReplayConflictField(
+    fields,
+    'decision_state',
+    normalizeHandoffResolution(existing.decision_state ?? existing.resolution),
+    expected.decision_state,
+  );
+  appendReplayConflictField(fields, 'successor_context', existing.successor_context ?? null, expected.successor_context);
+  appendReplayConflictField(fields, 'changes', existing.changes, expected.changes);
+  appendReplayConflictField(fields, 'focus_areas', existing.focus_areas, expected.focus_areas);
+  appendReplayConflictField(fields, 'artifact_ids', existing.artifact_ids, expected.artifact_ids);
+  return fields;
+}
+
+function appendReplayConflictField(
+  fields: ReplayConflictOperatorField[],
+  field: string,
+  persistedValue: unknown,
+  submittedValue: unknown,
+) {
+  if (areJsonValuesEquivalent(persistedValue, submittedValue)) {
+    return;
   }
+  fields.push({
+    field,
+    persisted_value: formatReplayConflictValue(persistedValue),
+    submitted_value: formatReplayConflictValue(submittedValue),
+    operator_message:
+      `Persisted handoff ${field.replace(/_/g, ' ')} is ${quoteReplayConflictValue(persistedValue)}, `
+      + `but the replayed handoff ${field.replace(/_/g, ' ')} is ${quoteReplayConflictValue(submittedValue)}.`,
+  });
+}
+
+function formatReplayConflictValue(value: unknown) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  const serialized = JSON.stringify(value);
+  return serialized.length > 240 ? `${serialized.slice(0, 237)}...` : serialized;
+}
+
+function quoteReplayConflictValue(value: unknown) {
+  const formatted = formatReplayConflictValue(value);
+  return formatted === null ? '"(none)"' : `"${formatted}"`;
 }
 
 function matchesHandoffReplay(
