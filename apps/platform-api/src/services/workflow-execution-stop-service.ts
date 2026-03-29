@@ -1,6 +1,5 @@
 import type { DatabaseQueryable } from '../db/database.js';
 import type { EventService } from './event-service.js';
-import { reconcileStoppedWorkItemColumns } from './workflow-stop-work-item-reconciliation.js';
 import type { WorkerConnectionHub } from './worker-connection-hub.js';
 
 const CANCELLABLE_WORKFLOW_TASK_STATES = [
@@ -39,6 +38,7 @@ export interface StopWorkflowBoundExecutionInput {
   workflowId: string;
   summary: string;
   signalReason: string;
+  disposition: 'pause' | 'cancel';
   actorType: string;
   actorId: string | null;
 }
@@ -79,7 +79,7 @@ export async function stopWorkflowBoundExecution(
   const signalRequestedAt = gracePeriodMs !== null ? new Date() : null;
   let signalledTaskCount = 0;
 
-  if (signalRequestedAt && gracePeriodMs !== null) {
+  if (input.disposition === 'pause' && signalRequestedAt && gracePeriodMs !== null) {
     for (const task of activeTasks.rows) {
       if (task.state !== 'in_progress') {
         continue;
@@ -196,8 +196,6 @@ export async function stopWorkflowBoundExecution(
       [input.tenantId, activeSpecialistTaskIds],
     );
   }
-
-  await reconcileStoppedWorkItemColumns(db, deps.eventService, input, cancelledTasks.rows);
 
   const cancelledActivations = await db.query(
     `UPDATE workflow_activations

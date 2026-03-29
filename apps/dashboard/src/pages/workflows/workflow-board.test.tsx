@@ -548,6 +548,40 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Workflow paused');
     expect(html).toContain('>Paused<');
   });
+
+  it('shows cancelled work in Done with a cancelled badge instead of leaving it in an active lane', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: {
+            ...createBoard(),
+            work_items: [
+              {
+                id: 'work-item-cancelled',
+                workflow_id: 'workflow-1',
+                stage_name: 'intake-triage',
+                title: 'Cancelled packet review',
+                priority: 'normal',
+                column_id: 'done',
+              },
+            ],
+          },
+          selectedWorkItemId: null,
+          boardMode: 'active_recent_complete',
+          workflowState: 'cancelled',
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Cancelled packet review');
+    expect(html).toContain('>Cancelled<');
+    expect(html).not.toContain('No completed work items match the current visibility window.');
+  });
 });
 
 function createBoard(): DashboardWorkflowBoardResponse {

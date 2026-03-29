@@ -989,12 +989,15 @@ function annotateBoardWorkItems(
 function resolveBoardColumnId(
   item: Record<string, unknown>,
   terminalColumns: Set<string>,
-  _workflowState: string | null,
-  _hasCancelRequest: boolean,
+  workflowState: string | null,
+  hasCancelRequest: boolean,
 ): string | null {
   const currentColumnId = asOptionalString(item.column_id) ?? null;
   if (isCompletedBoardChild(item, terminalColumns)) {
     return currentColumnId;
+  }
+  if ((workflowState === 'cancelled' || hasCancelRequest) && terminalColumns.size > 0) {
+    return terminalColumns.values().next().value ?? currentColumnId;
   }
   return currentColumnId;
 }

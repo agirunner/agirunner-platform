@@ -261,19 +261,9 @@ describe('WorkflowCancellationService', () => {
     const workerSignalCalls = client.query.mock.calls.filter(
       ([sql]) => String(sql).startsWith('INSERT INTO worker_signals'),
     );
-    expect(workerSignalCalls).toHaveLength(2);
-    expect(workerSignalCalls[0]?.[0]).toContain("'cancel_task'");
+    expect(workerSignalCalls).toHaveLength(1);
+    expect(workerSignalCalls[0]?.[0]).toContain("'set_draining'");
     expect(workerSignalCalls[0]?.[1]).toEqual([
-      'tenant-1',
-      'worker-1',
-      'task-specialist-1',
-      expect.objectContaining({
-        reason: 'manual_cancel',
-        grace_period_ms: 60_000,
-      }),
-    ]);
-    expect(workerSignalCalls[1]?.[0]).toContain("'set_draining'");
-    expect(workerSignalCalls[1]?.[1]).toEqual([
       'tenant-1',
       'worker-1',
       {
@@ -281,13 +271,6 @@ describe('WorkflowCancellationService', () => {
         workflow_id: 'workflow-1',
       },
     ]);
-    expect(workerConnectionHub.sendToWorker).toHaveBeenCalledWith(
-      'worker-1',
-      expect.objectContaining({
-        task_id: 'task-specialist-1',
-        signal_type: 'cancel_task',
-      }),
-    );
     expect(workerConnectionHub.sendToWorker).toHaveBeenCalledWith(
       'worker-1',
       expect.objectContaining({

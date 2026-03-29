@@ -19,6 +19,7 @@ import {
   buildWorkflowBoardActiveTaskSummary,
   buildWorkflowBoardWorkItemSummary,
   buildWorkflowBoardView,
+  isCancelledWorkItem,
   isNeedsActionWorkItem,
 } from './workflow-board.support.js';
 
@@ -336,6 +337,9 @@ function BoardWorkItemCard(props: {
           ) : null}
           {isNeedsActionWorkItem(props.workItem) ? (
             <Badge variant="warning">Needs action</Badge>
+          ) : null}
+          {isCancelledWorkItem(props.workItem, props.workflowState) ? (
+            <Badge variant="secondary">Cancelled</Badge>
           ) : null}
           {isPausedWorkflowWorkItem(props.workflowState, props.workItem.completed_at) ? (
             <Badge variant="secondary">Paused</Badge>

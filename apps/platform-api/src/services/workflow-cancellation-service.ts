@@ -69,6 +69,7 @@ export class WorkflowCancellationService {
           workflowId,
           summary: 'Workflow cancelled by operator.',
           signalReason: 'manual_cancel',
+          disposition: 'cancel',
           actorType: identity.scope,
           actorId: identity.keyPrefix,
         },

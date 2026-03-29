@@ -72,7 +72,7 @@ export function WorkflowStateStrip(props: {
 
         <section className="grid gap-3 xl:pl-2">
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Steering
+            Controls
           </p>
           <div className="flex flex-wrap items-center gap-2">
             <WorkflowControlActions

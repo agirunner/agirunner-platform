@@ -41,7 +41,7 @@ describe('WorkflowStateStrip', () => {
     expect(html).toContain('Work Items');
     expect(html).toContain('2 completed');
     expect(html).toContain('Specialist Tasks');
-    expect(html).toContain('Steering');
+    expect(html).toContain('Controls');
     expect(html).toContain('3 active tasks');
     expect(html).toContain('Live visibility');
     expect(html).not.toContain('Playbook');
@@ -115,7 +115,7 @@ describe('WorkflowStateStrip', () => {
     expect(html).toContain('Routing next step');
     expect(html).toContain('Specialist Tasks');
     expect(html).toContain('Work Items');
-    expect(html).toContain('Steering');
+    expect(html).toContain('Controls');
     expect(html).not.toContain('Waiting By Design');
     expect(html).not.toContain('Workflow is waiting by design');
     expect(html).not.toContain('Awaiting Intake');
@@ -487,6 +487,8 @@ describe('WorkflowStateStrip', () => {
     expect(html).toContain('Cancel');
     expect(html).toContain('Redrive');
     expect(html).toContain('Modify Work');
+    expect(html).toContain('Controls');
+    expect(html).not.toContain('Steering');
     expect(html).not.toContain('Workflow-level actions only');
   });
 

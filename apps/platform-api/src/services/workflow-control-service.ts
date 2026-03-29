@@ -61,6 +61,7 @@ export class WorkflowControlService {
           workflowId,
           summary: 'Workflow paused by operator.',
           signalReason: 'manual_pause',
+          disposition: 'pause',
           actorType: identity.scope,
           actorId: identity.keyPrefix,
         },

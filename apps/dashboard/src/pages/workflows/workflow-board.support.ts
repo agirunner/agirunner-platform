@@ -140,6 +140,16 @@ export function isCompletedWorkItem(
   return Boolean(column?.is_terminal);
 }
 
+export function isCancelledWorkItem(
+  workItem: DashboardWorkflowWorkItemRecord,
+  workflowState?: string | null,
+): boolean {
+  if (workflowState !== 'cancelled') {
+    return false;
+  }
+  return !Boolean(workItem.completed_at);
+}
+
 export function buildWorkflowBoardTaskCards(
   workItems: DashboardWorkflowWorkItemRecord[],
   taskSummaries: Map<string, WorkflowTaskPreviewSummary>,
@@ -207,7 +217,7 @@ function buildLaneView(
     boardMode === 'all'
       ? completedItems
       : boardMode === 'active_recent_complete'
-        ? completedItems.filter((workItem) => isRecentlyCompleted(workItem.completed_at))
+        ? completedItems.filter((workItem) => !workItem.completed_at || isRecentlyCompleted(workItem.completed_at))
         : [];
 
   return {
@@ -227,6 +237,10 @@ function compareCompletedWorkItemsNewestFirst(
 }
 
 function readCompletedTimestamp(workItem: DashboardWorkflowWorkItemRecord): number {
+  const cancelledAt = readWorkflowStopRequestedAt(workItem);
+  if (!Number.isNaN(cancelledAt)) {
+    return cancelledAt;
+  }
   const completedAt = workItem.completed_at ? Date.parse(workItem.completed_at) : Number.NaN;
   if (!Number.isNaN(completedAt)) {
     return completedAt;
@@ -238,6 +252,11 @@ function readCompletedTimestamp(workItem: DashboardWorkflowWorkItemRecord): numb
     return updatedAt;
   }
   return 0;
+}
+
+function readWorkflowStopRequestedAt(workItem: DashboardWorkflowWorkItemRecord): number {
+  const value = workItem.metadata?.workflow_stop_requested_at;
+  return typeof value === 'string' ? Date.parse(value) : Number.NaN;
 }
 
 function isColumnCompletedWorkItem(
