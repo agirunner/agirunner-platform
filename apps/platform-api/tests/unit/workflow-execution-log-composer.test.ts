@@ -1107,6 +1107,60 @@ describe('workflow-execution-log-composer', () => {
     expect(item.linked_target_ids).toEqual(['workflow-1', 'work-item-12', 'task-77']);
     expect(item.scope_binding).toBe('structured_target');
   });
+
+  it('surfaces hydrated llm act rows when the phase row is started and the companion row only carries tool calls', () => {
+    const [item] = buildExecutionTurnItems([
+      createLogRow({
+        id: '50b',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        role: 'mixed-architecture-lead',
+        task_id: 'task-50',
+        work_item_id: 'work-item-50',
+        activation_id: 'activation-50',
+        status: 'completed',
+        created_at: '2026-03-28T10:05:02.000Z',
+        payload: {
+          llm_turn_count: 6,
+          response_tool_calls: [
+            {
+              name: 'submit_handoff',
+              input: {
+                summary:
+                  'Delivered and verified a persisted technical design for the staged release-audit CLI.',
+                completion: 'full',
+              },
+            },
+          ],
+        },
+      }),
+      createLogRow({
+        id: '50a',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        role: 'mixed-architecture-lead',
+        task_id: 'task-50',
+        work_item_id: 'work-item-50',
+        activation_id: 'activation-50',
+        status: 'started',
+        created_at: '2026-03-28T10:05:01.000Z',
+        payload: {
+          phase: 'act',
+          llm_turn_count: 6,
+        },
+      }),
+    ]);
+
+    expect(item).toEqual(
+      expect.objectContaining({
+        item_id: 'execution-log:50a',
+        task_id: 'task-50',
+        work_item_id: 'work-item-50',
+        headline:
+          '[Act] Submitting the handoff: Delivered and verified a persisted technical design for the staged release-audit CLI.',
+      }),
+    );
+  });
 });
 
 function createLogRow(
