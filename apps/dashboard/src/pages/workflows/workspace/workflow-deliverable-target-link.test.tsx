@@ -54,4 +54,16 @@ describe('WorkflowDeliverableTargetLink', () => {
     expect(html).not.toContain('/artifacts/tasks/task-1/artifact-1');
     expect(html).not.toContain('return_to=');
   });
+
+  it('renders malformed direct targets without throwing', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverableTargetLink, {
+        target: {} as never,
+      }),
+    );
+
+    expect(html).toContain('Linked output');
+    expect(html).toContain('Already visible in this workflow workspace.');
+    expect(html).not.toContain('href=');
+  });
 });
