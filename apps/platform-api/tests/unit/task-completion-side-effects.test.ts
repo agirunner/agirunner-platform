@@ -1766,6 +1766,138 @@ describe('applyTaskCompletionSideEffects', () => {
     );
   });
 
+  it('auto-closes an ongoing work item after an approved assessment settles the last remaining work', async () => {
+    const eventService = {
+      emit: vi.fn(async () => undefined),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT playbook_id FROM workflows')) {
+          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
+        }
+        if (sql.includes('FROM task_handoffs')) {
+          return {
+            rows: [{
+              completion: 'full',
+              resolution: 'approved',
+              summary: 'Approved for closure.',
+              outcome_action_applied: null,
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1']);
+          return {
+            rows: [{
+              lifecycle: 'ongoing',
+              definition: {
+                roles: ['intake-analyst', 'policy-assessor'],
+                lifecycle: 'ongoing',
+                board: {
+                  columns: [
+                    { id: 'planned', label: 'Planned' },
+                    { id: 'active', label: 'Active' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'intake-triage', goal: 'Prepare the intake packet' },
+                ],
+              },
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('FOR UPDATE OF wi')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
+          return {
+            rows: [{
+              stage_name: 'intake-triage',
+              column_id: 'active',
+              completed_at: null,
+              blocked_state: null,
+              escalation_status: null,
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.startsWith('SELECT COUNT(*)::int AS count') && sql.includes('FROM tasks')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
+          return {
+            rows: [{ count: 0 }],
+            rowCount: 1,
+          };
+        }
+        if (sql.startsWith('UPDATE workflow_work_items')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'work-item-1',
+            'done',
+            expect.any(Date),
+          ]);
+          return {
+            rows: [{ id: 'work-item-1' }],
+            rowCount: 1,
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+    };
+    const workItemContinuityService = {
+      recordTaskCompleted: vi.fn(async () => ({
+        matchedRuleType: 'assessment',
+        nextExpectedActor: null,
+        nextExpectedAction: null,
+        requiresHumanApproval: false,
+        reworkDelta: 0,
+        satisfiedAssessmentExpectation: false,
+      })),
+    };
+
+    await applyTaskCompletionSideEffects(
+      eventService as never,
+      undefined,
+      workItemContinuityService as never,
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'agent-key',
+      },
+      {
+        id: 'task-review',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        role: 'policy-assessor',
+        stage_name: 'intake-triage',
+        is_orchestrator_task: false,
+        metadata: {
+          task_kind: 'assessment',
+          subject_task_id: 'task-intake',
+          subject_revision: 1,
+        },
+        output: { verdict: 'approved' },
+      },
+      client as never,
+    );
+
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'work_item.completed',
+        entityId: 'work-item-1',
+        actorId: 'task_completion_side_effects',
+      }),
+      client,
+    );
+  });
+
   it('skips assessment resolution when the subject task linkage is missing', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

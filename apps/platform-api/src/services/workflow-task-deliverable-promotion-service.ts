@@ -14,6 +14,8 @@ interface WorkItemTitleRow {
 
 interface ExistingDescriptorRow {
   id: string;
+  delivery_stage: string | null;
+  state: string | null;
 }
 
 export interface WorkflowTaskDeliverablePromotionHandoff {
@@ -50,8 +52,8 @@ export class WorkflowTaskDeliverablePromotionService {
       return null;
     }
 
-    const [existingDescriptorId, workItemTitle, artifacts] = await Promise.all([
-      this.loadExistingDescriptorId(tenantId, handoff.workflow_id, workItemId),
+    const [existingDescriptor, workItemTitle, artifacts] = await Promise.all([
+      this.loadExistingDescriptor(tenantId, handoff.workflow_id, workItemId),
       this.loadWorkItemTitle(tenantId, handoff.workflow_id, workItemId),
       this.loadArtifacts(tenantId, handoff.workflow_id, handoff.artifact_ids ?? []),
     ]);
@@ -62,19 +64,21 @@ export class WorkflowTaskDeliverablePromotionService {
       buildPromotedDeliverableInput(
         handoff,
         workItemTitle,
-        existingDescriptorId,
+        existingDescriptor,
         artifacts,
       ),
     );
   }
 
-  private async loadExistingDescriptorId(
+  private async loadExistingDescriptor(
     tenantId: string,
     workflowId: string,
     workItemId: string,
-  ): Promise<string | undefined> {
+  ): Promise<ExistingDescriptorRow | null> {
     const result = await this.pool.query<ExistingDescriptorRow>(
-      `SELECT id
+      `SELECT id,
+              delivery_stage,
+              state
          FROM workflow_output_descriptors
         WHERE tenant_id = $1
           AND workflow_id = $2
@@ -83,7 +87,7 @@ export class WorkflowTaskDeliverablePromotionService {
         LIMIT 1`,
       [tenantId, workflowId, workItemId],
     );
-    return result.rows[0]?.id;
+    return result.rows[0] ?? null;
   }
 
   private async loadWorkItemTitle(
@@ -136,10 +140,10 @@ function shouldPromoteHandoff(handoff: WorkflowTaskDeliverablePromotionHandoff):
 function buildPromotedDeliverableInput(
   handoff: WorkflowTaskDeliverablePromotionHandoff,
   workItemTitle: string | null,
-  descriptorId: string | undefined,
+  existingDescriptor: ExistingDescriptorRow | null,
   artifacts: ArtifactRow[],
 ): UpsertWorkflowDeliverableInput {
-  const progress = resolveDeliverableProgress(handoff);
+  const progress = resolveDeliverableProgress(handoff, existingDescriptor);
   const artifactTargets = artifacts.map((artifact, index) =>
     buildArtifactTarget(artifact, index === 0),
   );
@@ -149,7 +153,7 @@ function buildPromotedDeliverableInput(
   };
   const previewSummary = buildPreviewSummary(handoff);
   return {
-    descriptorId,
+    descriptorId: existingDescriptor?.id,
     workItemId: handoff.work_item_id ?? undefined,
     descriptorKind: 'handoff_packet',
     deliveryStage: progress,
@@ -173,7 +177,16 @@ function buildPromotedDeliverableInput(
   };
 }
 
-function resolveDeliverableProgress(handoff: WorkflowTaskDeliverablePromotionHandoff): DeliverableProgress {
+function resolveDeliverableProgress(
+  handoff: WorkflowTaskDeliverablePromotionHandoff,
+  existingDescriptor: ExistingDescriptorRow | null,
+): DeliverableProgress {
+  if (
+    readOptionalString(existingDescriptor?.delivery_stage) === 'final'
+    || readOptionalString(existingDescriptor?.state) === 'final'
+  ) {
+    return 'final';
+  }
   return readOptionalString(handoff.role_data?.task_kind) === 'delivery' ? 'final' : 'in_progress';
 }
 

@@ -132,13 +132,17 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
     );
   });
 
-  it('promotes non-delivery full handoffs into in-progress work-item deliverables', async () => {
+  it('does not let a later non-delivery handoff downgrade an existing final work-item deliverable', async () => {
     const pool = {
       query: vi
         .fn()
         .mockResolvedValueOnce({
-          rows: [],
-          rowCount: 0,
+          rows: [{
+            id: 'descriptor-3',
+            delivery_stage: 'final',
+            state: 'final',
+          }],
+          rowCount: 1,
         })
         .mockResolvedValueOnce({
           rows: [{ title: 'workflow-intake-03' }],
@@ -176,11 +180,12 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
       'tenant-1',
       'workflow-1',
       expect.objectContaining({
+        descriptorId: 'descriptor-3',
         workItemId: 'work-item-3',
         descriptorKind: 'handoff_packet',
-        deliveryStage: 'in_progress',
-        state: 'draft',
-        title: 'workflow-intake-03 handoff packet',
+        deliveryStage: 'final',
+        state: 'final',
+        title: 'workflow-intake-03 completion packet',
         primaryTarget: expect.objectContaining({
           target_kind: 'inline_summary',
         }),
