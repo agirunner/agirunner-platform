@@ -86,15 +86,15 @@ export function buildWorkflowSteeringTargets(
     input.selectedTaskId,
     input.selectedWorkItemTasks,
   );
-  if (shouldIncludeWorkflowScopeTaskTarget(input.selectedTaskId, currentTask)) {
-    options.push(
-      buildTaskTargetOption(
-        input.selectedTaskId,
-        input.selectedTaskTitle ?? currentTask?.title ?? 'Selected task',
-        currentTask?.work_item_id ?? input.selectedWorkItemId,
-      ),
-    );
-  }
+  options.push(
+    ...buildWorkflowScopeTaskTargets({
+      selectedTaskId: input.selectedTaskId,
+      selectedTaskTitle: input.selectedTaskTitle,
+      selectedTask: currentTask,
+      selectedWorkItemId: input.selectedWorkItemId,
+      selectedWorkItemTasks: input.selectedWorkItemTasks,
+    }),
+  );
 
   return options;
 }
@@ -235,8 +235,8 @@ function shouldIncludeWorkflowScopeWorkItemTarget(
     return true;
   }
   return (
-    !isPausedWorkItem(workflowState, selectedWorkItem, boardColumns)
-    && !isTerminalWorkItem(selectedWorkItem, boardColumns)
+    !isPausedWorkItem(workflowState, selectedWorkItem, boardColumns) &&
+    !isTerminalWorkItem(selectedWorkItem, boardColumns)
   );
 }
 
@@ -251,6 +251,48 @@ function shouldIncludeWorkflowScopeTaskTarget(
     return true;
   }
   return !isPausedTask(selectedTask) && !isTerminalTask(selectedTask);
+}
+
+function buildWorkflowScopeTaskTargets(input: {
+  selectedTaskId: string | null;
+  selectedTaskTitle: string | null;
+  selectedTask: DashboardTaskRecord | null;
+  selectedWorkItemId: string | null;
+  selectedWorkItemTasks: DashboardTaskRecord[];
+}): WorkflowSteeringTargetOption[] {
+  const options = new Map<string, WorkflowSteeringTargetOption>();
+
+  if (shouldIncludeWorkflowScopeTaskTarget(input.selectedTaskId, input.selectedTask)) {
+    const taskId = input.selectedTaskId;
+    options.set(
+      taskId ?? 'selected-task',
+      buildTaskTargetOption(
+        taskId,
+        input.selectedTaskTitle ?? input.selectedTask?.title ?? 'Selected task',
+        input.selectedTask?.work_item_id ?? input.selectedWorkItemId,
+      ),
+    );
+  }
+
+  for (const task of input.selectedWorkItemTasks) {
+    const taskId = typeof task.id === 'string' ? task.id : null;
+    if (!taskId || isPausedTask(task) || isTerminalTask(task)) {
+      continue;
+    }
+    if (
+      input.selectedWorkItemId &&
+      task.work_item_id &&
+      task.work_item_id !== input.selectedWorkItemId
+    ) {
+      continue;
+    }
+    options.set(
+      taskId,
+      buildTaskTargetOption(taskId, task.title, task.work_item_id ?? input.selectedWorkItemId),
+    );
+  }
+
+  return Array.from(options.values());
 }
 
 function resolveSteeringTaskRecord(
@@ -270,8 +312,10 @@ function isPausedTask(task: DashboardTaskRecord): boolean {
 
 function isTerminalTask(task: DashboardTaskRecord): boolean {
   const state = String(task.state);
-  return Boolean(task.completed_at || task.cancelled_at || task.failed_at)
-    || ['completed', 'done', 'succeeded', 'cancelled', 'failed'].includes(state);
+  return (
+    Boolean(task.completed_at || task.cancelled_at || task.failed_at) ||
+    ['completed', 'done', 'succeeded', 'cancelled', 'failed'].includes(state)
+  );
 }
 
 function isPausedWorkItem(
@@ -287,9 +331,9 @@ function isTerminalWorkItem(
   boardColumns: DashboardWorkflowBoardColumn[],
 ): boolean {
   if (
-    workItem.completed_at
-    || workItem.branch_status === 'completed'
-    || workItem.branch_status === 'terminated'
+    workItem.completed_at ||
+    workItem.branch_status === 'completed' ||
+    workItem.branch_status === 'terminated'
   ) {
     return true;
   }

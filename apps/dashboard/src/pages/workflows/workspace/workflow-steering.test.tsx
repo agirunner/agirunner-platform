@@ -43,6 +43,32 @@ describe('WorkflowSteering', () => {
     expect(html).toContain('Select a target');
   });
 
+  it('offers active child tasks as explicit workflow-scope steering targets and filters paused work', () => {
+    const options = buildWorkflowSteeringTargets(
+      createTargetContext({
+        scope: createScope('workflow'),
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [
+          createTask({
+            id: 'task-1',
+            title: 'Verify deliverable',
+            work_item_id: 'work-item-7',
+            work_item_title: 'Prepare release bundle',
+          }),
+          createPausedTask(),
+        ],
+      }),
+    );
+
+    expect(options.map((option) => option.label)).toEqual([
+      'Workflow: Workflow 1',
+      'Work item: Prepare release bundle',
+      'Task: Verify deliverable',
+    ]);
+  });
+
   it('builds task-targeted steering requests with the task id in the payload', () => {
     expect(createRequestPayload(createTarget('selected_task'))).toEqual({
       request_id: 'request-1',
@@ -55,12 +81,16 @@ describe('WorkflowSteering', () => {
   });
 
   it('builds work-item-targeted steering requests with the work item id in the payload', () => {
-    expect(createRequestPayload(createTarget('selected_work_item', {
-      selectedTaskId: null,
-      selectedTaskTitle: null,
-      selectedTask: null,
-      selectedWorkItemTasks: [],
-    }))).toEqual({
+    expect(
+      createRequestPayload(
+        createTarget('selected_work_item', {
+          selectedTaskId: null,
+          selectedTaskTitle: null,
+          selectedTask: null,
+          selectedWorkItemTasks: [],
+        }),
+      ),
+    ).toEqual({
       request_id: 'request-1',
       request: 'Keep the rollout limited to the current scope.',
       work_item_id: 'work-item-7',
@@ -72,31 +102,41 @@ describe('WorkflowSteering', () => {
 
   it('excludes paused and terminal narrower targets from the workflow target picker', () => {
     const pausedTask = createPausedTask();
-    const options = buildWorkflowSteeringTargets(createTargetContext({
-      boardColumns: doneColumns(),
-      scope: createScope('workflow'),
-      selectedWorkItem: createWorkItem({ completed_at: '2026-03-28T04:00:00.000Z' }),
-      selectedTask: pausedTask,
-      selectedWorkItemTasks: [pausedTask],
-    }));
+    const options = buildWorkflowSteeringTargets(
+      createTargetContext({
+        boardColumns: doneColumns(),
+        scope: createScope('workflow'),
+        selectedWorkItem: createWorkItem({ completed_at: '2026-03-28T04:00:00.000Z' }),
+        selectedTask: pausedTask,
+        selectedWorkItemTasks: [pausedTask],
+      }),
+    );
     expect(options.map((option) => option.label)).toEqual(['Workflow: Workflow 1']);
   });
 
   it('reports a clear disabled reason when the selected task is paused', () => {
     const pausedTask = createPausedTask();
-    const target = createTarget('selected_task', { selectedTask: pausedTask, selectedWorkItemTasks: [pausedTask] });
-    expect(describeSteeringTargetDisabledReason({
-      workflowState: 'active',
-      boardColumns: activeColumns(),
-      target,
-      selectedWorkItem: createWorkItem(),
+    const target = createTarget('selected_task', {
       selectedTask: pausedTask,
       selectedWorkItemTasks: [pausedTask],
-    })).toBe('This task is paused. Resume it or choose another target before steering.');
+    });
+    expect(
+      describeSteeringTargetDisabledReason({
+        workflowState: 'active',
+        boardColumns: activeColumns(),
+        target,
+        selectedWorkItem: createWorkItem(),
+        selectedTask: pausedTask,
+        selectedWorkItemTasks: [pausedTask],
+      }),
+    ).toBe('This task is paused. Resume it or choose another target before steering.');
   });
 
   it('reports a clear disabled reason when the selected work item is completed', () => {
-    const completedWorkItem = createWorkItem({ completed_at: '2026-03-28T04:00:00.000Z', column_id: 'done' });
+    const completedWorkItem = createWorkItem({
+      completed_at: '2026-03-28T04:00:00.000Z',
+      column_id: 'done',
+    });
     const target = createTarget('selected_work_item', {
       boardColumns: doneColumns(),
       scope: createScope('selected_work_item'),
@@ -106,46 +146,62 @@ describe('WorkflowSteering', () => {
       selectedTask: null,
       selectedWorkItemTasks: [],
     });
-    expect(describeSteeringTargetDisabledReason({
-      workflowState: 'active',
-      boardColumns: doneColumns(),
-      target,
-      selectedWorkItem: completedWorkItem,
-      selectedTask: null,
-      selectedWorkItemTasks: [],
-    })).toBe('This work item is already completed or cancelled. Historical work cannot be steered.');
+    expect(
+      describeSteeringTargetDisabledReason({
+        workflowState: 'active',
+        boardColumns: doneColumns(),
+        target,
+        selectedWorkItem: completedWorkItem,
+        selectedTask: null,
+        selectedWorkItemTasks: [],
+      }),
+    ).toBe('This work item is already completed or cancelled. Historical work cannot be steered.');
   });
 
   it('omits request-recorded acknowledgements from steering history', () => {
-    expect(buildSteeringHistory([createMessage({
-      id: 'message-1',
-      source_kind: 'operator',
-      message_kind: 'operator_request',
-      headline: 'Tighten the approval brief.',
-      body: 'Keep the scope narrow.',
-      created_by_type: 'user',
-      created_by_id: 'user-1',
-      created_at: '2026-03-28T04:00:00.000Z',
-    }), createMessage({
-      id: 'message-2',
-      source_kind: 'platform',
-      message_kind: 'steering_response',
-      headline: 'Steering request recorded',
-      body: 'Scoped to the workflow.',
-      created_by_type: 'system',
-      created_by_id: 'system-1',
-      created_at: '2026-03-28T04:00:01.000Z',
-    })], []).map((entry) => entry.title)).toEqual(['Tighten the approval brief.']);
+    expect(
+      buildSteeringHistory(
+        [
+          createMessage({
+            id: 'message-1',
+            source_kind: 'operator',
+            message_kind: 'operator_request',
+            headline: 'Tighten the approval brief.',
+            body: 'Keep the scope narrow.',
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-28T04:00:00.000Z',
+          }),
+          createMessage({
+            id: 'message-2',
+            source_kind: 'platform',
+            message_kind: 'steering_response',
+            headline: 'Steering request recorded',
+            body: 'Scoped to the workflow.',
+            created_by_type: 'system',
+            created_by_id: 'system-1',
+            created_at: '2026-03-28T04:00:01.000Z',
+          }),
+        ],
+        [],
+      ).map((entry) => entry.title),
+    ).toEqual(['Tighten the approval brief.']);
   });
 });
 
 function renderSteering(overrides: Partial<Parameters<typeof WorkflowSteering>[0]> = {}): string {
   return renderToStaticMarkup(
-    createElement(QueryClientProvider, { client: new QueryClient() }, createElement(WorkflowSteering, createProps(overrides))),
+    createElement(
+      QueryClientProvider,
+      { client: new QueryClient() },
+      createElement(WorkflowSteering, createProps(overrides)),
+    ),
   );
 }
 
-function createProps(overrides: Partial<Parameters<typeof WorkflowSteering>[0]> = {}): Parameters<typeof WorkflowSteering>[0] {
+function createProps(
+  overrides: Partial<Parameters<typeof WorkflowSteering>[0]> = {},
+): Parameters<typeof WorkflowSteering>[0] {
   const task = overrides.selectedTask ?? createTask();
   return {
     workflowId: 'workflow-1',
@@ -172,10 +228,14 @@ function createTarget(
   scopeKind: WorkflowSteeringTargetContext['scope']['scopeKind'],
   overrides: Partial<WorkflowSteeringTargetContext> = {},
 ) {
-  return buildWorkflowSteeringTargets(createTargetContext({ scope: createScope(scopeKind), ...overrides }))[0];
+  return buildWorkflowSteeringTargets(
+    createTargetContext({ scope: createScope(scopeKind), ...overrides }),
+  )[0];
 }
 
-function createTargetContext(overrides: Partial<WorkflowSteeringTargetContext> = {}): WorkflowSteeringTargetContext {
+function createTargetContext(
+  overrides: Partial<WorkflowSteeringTargetContext> = {},
+): WorkflowSteeringTargetContext {
   const task = overrides.selectedTask ?? createTask();
   return {
     workflowName: 'Workflow 1',
@@ -194,23 +254,61 @@ function createTargetContext(overrides: Partial<WorkflowSteeringTargetContext> =
 }
 
 function createRequestPayload(target = createTarget('selected_task')) {
-  return buildWorkflowSteeringRequestInput({ requestId: 'request-1', request: 'Keep the rollout limited to the current scope.', sessionId: 'session-1', target });
+  return buildWorkflowSteeringRequestInput({
+    requestId: 'request-1',
+    request: 'Keep the rollout limited to the current scope.',
+    sessionId: 'session-1',
+    target,
+  });
 }
 
 function createScope(scopeKind: WorkflowSteeringTargetContext['scope']['scopeKind']) {
-  if (scopeKind === 'workflow') return { scopeKind, title: 'Workflow' as const, subject: 'workflow' as const, name: 'Workflow 1', banner: 'Workflow: Workflow 1' };
-  if (scopeKind === 'selected_work_item') return { scopeKind, title: 'Work item' as const, subject: 'work item' as const, name: 'Prepare release bundle', banner: 'Work item: Prepare release bundle' };
-  return { scopeKind: 'selected_task' as const, title: 'Task' as const, subject: 'task' as const, name: 'Verify deliverable', banner: 'Task: Verify deliverable' };
+  if (scopeKind === 'workflow')
+    return {
+      scopeKind,
+      title: 'Workflow' as const,
+      subject: 'workflow' as const,
+      name: 'Workflow 1',
+      banner: 'Workflow: Workflow 1',
+    };
+  if (scopeKind === 'selected_work_item')
+    return {
+      scopeKind,
+      title: 'Work item' as const,
+      subject: 'work item' as const,
+      name: 'Prepare release bundle',
+      banner: 'Work item: Prepare release bundle',
+    };
+  return {
+    scopeKind: 'selected_task' as const,
+    title: 'Task' as const,
+    subject: 'task' as const,
+    name: 'Verify deliverable',
+    banner: 'Task: Verify deliverable',
+  };
 }
 
-function activeColumns() { return [{ id: 'active', label: 'Active', is_terminal: false }]; }
-function doneColumns() { return [{ id: 'done', label: 'Done', is_terminal: true }]; }
-function createPausedTask(): DashboardTaskRecord { return createTask({ state: 'paused' as DashboardTaskRecord['state'] }); }
+function activeColumns() {
+  return [{ id: 'active', label: 'Active', is_terminal: false }];
+}
+function doneColumns() {
+  return [{ id: 'done', label: 'Done', is_terminal: true }];
+}
+function createPausedTask(): DashboardTaskRecord {
+  return createTask({ state: 'paused' as DashboardTaskRecord['state'] });
+}
 
 function createMessage(
   overrides: Pick<
     DashboardWorkflowSteeringMessageRecord,
-    'id' | 'source_kind' | 'message_kind' | 'headline' | 'body' | 'created_by_type' | 'created_by_id' | 'created_at'
+    | 'id'
+    | 'source_kind'
+    | 'message_kind'
+    | 'headline'
+    | 'body'
+    | 'created_by_type'
+    | 'created_by_id'
+    | 'created_at'
   >,
 ): DashboardWorkflowSteeringMessageRecord {
   return {
@@ -224,8 +322,20 @@ function createMessage(
   };
 }
 
-function createWorkItem(overrides: Partial<DashboardWorkflowWorkItemRecord> = {}): DashboardWorkflowWorkItemRecord {
-  return { id: 'work-item-7', workflow_id: 'workflow-1', stage_name: 'review', title: 'Prepare release bundle', column_id: 'active', priority: 'normal', completed_at: null, branch_status: 'active', ...overrides };
+function createWorkItem(
+  overrides: Partial<DashboardWorkflowWorkItemRecord> = {},
+): DashboardWorkflowWorkItemRecord {
+  return {
+    id: 'work-item-7',
+    workflow_id: 'workflow-1',
+    stage_name: 'review',
+    title: 'Prepare release bundle',
+    column_id: 'active',
+    priority: 'normal',
+    completed_at: null,
+    branch_status: 'active',
+    ...overrides,
+  };
 }
 
 function createTask(overrides: Partial<DashboardTaskRecord> = {}): DashboardTaskRecord {
