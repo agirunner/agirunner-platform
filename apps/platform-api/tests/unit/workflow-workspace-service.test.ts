@@ -541,6 +541,166 @@ describe('WorkflowWorkspaceService', () => {
     });
   });
 
+  it('supports selected task scope without a work item id for orchestrator tasks', async () => {
+    const workflowService = {
+      getWorkflow: vi.fn(async () => ({})),
+      getWorkflowBoard: vi.fn(async () => ({
+        columns: [],
+        work_items: [{ id: 'work-item-1' }],
+      })),
+    };
+    const railService = {
+      getWorkflowCard: vi.fn(async () => ({
+        id: 'workflow-1',
+        name: 'Release Workflow',
+        posture: 'progressing',
+        pulse: { summary: 'Orchestrator is driving the next step' },
+        availableActions: [],
+        metrics: {
+          blockedWorkItemCount: 0,
+          openEscalationCount: 0,
+          failedTaskCount: 0,
+          recoverableIssueCount: 0,
+          waitingForDecisionCount: 0,
+          activeTaskCount: 1,
+          activeWorkItemCount: 1,
+          lastChangedAt: '2026-03-28T05:00:00.000Z',
+        },
+      })),
+    };
+    const liveConsoleService = {
+      getLiveConsole: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:140',
+        generated_at: '2026-03-28T05:00:00.000Z',
+        latest_event_id: 140,
+        items: [
+          {
+            item_id: 'orchestrator-turn',
+            item_kind: 'execution_turn',
+            source_kind: 'orchestrator',
+            source_label: 'Orchestrator',
+            headline: '[Act] Route the next specialist task.',
+            summary: 'Routing the next specialist task.',
+            created_at: '2026-03-28T05:00:00.000Z',
+            work_item_id: null,
+            task_id: 'task-orchestrator',
+            linked_target_ids: ['workflow-1', 'task-orchestrator'],
+            scope_binding: 'execution_context',
+          },
+        ],
+        total_count: 1,
+        next_cursor: null,
+        live_visibility_mode: 'enhanced',
+      })),
+    };
+    const historyService = {
+      getHistory: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:140',
+        generated_at: '2026-03-28T05:00:00.000Z',
+        latest_event_id: 140,
+        groups: [
+          {
+            group_id: '2026-03-28',
+            label: '2026-03-28',
+            anchor_at: '2026-03-28T00:00:00.000Z',
+            item_ids: ['history-orchestrator'],
+          },
+        ],
+        items: [
+          {
+            item_id: 'history-orchestrator',
+            item_kind: 'milestone_brief',
+            source_kind: 'orchestrator',
+            source_label: 'Orchestrator',
+            headline: 'Queued the next activation.',
+            summary: 'Queued the next activation.',
+            created_at: '2026-03-28T04:59:00.000Z',
+            work_item_id: null,
+            task_id: 'task-orchestrator',
+            linked_target_ids: ['workflow-1', 'task-orchestrator'],
+          },
+        ],
+        total_count: 1,
+        filters: { available: ['briefs'], active: [] },
+        next_cursor: null,
+      })),
+    };
+    const deliverablesService = {
+      getDeliverables: vi.fn(async () => ({
+        final_deliverables: [],
+        in_progress_deliverables: [],
+        working_handoffs: [],
+        inputs_and_provenance: {
+          launch_packet: null,
+          supplemental_packets: [],
+          intervention_attachments: [],
+          redrive_packet: null,
+        },
+        next_cursor: null,
+        all_deliverables: [],
+      })),
+    };
+    const interventionService = {
+      listWorkflowInterventions: vi.fn(async () => []),
+    };
+    const steeringSessionService = {
+      listSessions: vi.fn(async () => []),
+      listMessages: vi.fn(async () => []),
+    };
+    const taskService = {
+      listTasks: vi.fn(async () => ({ data: [] })),
+    };
+
+    const service = new WorkflowWorkspaceService(
+      workflowService as never,
+      railService as never,
+      liveConsoleService as never,
+      historyService as never,
+      deliverablesService as never,
+      interventionService as never,
+      steeringSessionService as never,
+      taskService as never,
+    );
+
+    const result = await service.getWorkspace('tenant-1', 'workflow-1', {
+      tabScope: 'selected_task',
+      taskId: 'task-orchestrator',
+    });
+
+    expect(liveConsoleService.getLiveConsole).toHaveBeenCalledWith('tenant-1', 'workflow-1', {
+      limit: undefined,
+      workItemId: undefined,
+      taskId: 'task-orchestrator',
+      after: undefined,
+    });
+    expect(historyService.getHistory).toHaveBeenCalledWith('tenant-1', 'workflow-1', {
+      limit: undefined,
+      workItemId: undefined,
+      taskId: 'task-orchestrator',
+      after: undefined,
+    });
+    expect(result.selected_scope).toEqual({
+      scope_kind: 'selected_task',
+      work_item_id: null,
+      task_id: 'task-orchestrator',
+    });
+    expect(result.bottom_tabs).toEqual(
+      expect.objectContaining({
+        current_scope_kind: 'selected_task',
+        current_work_item_id: null,
+        current_task_id: 'task-orchestrator',
+        counts: expect.objectContaining({
+          live_console_activity: 1,
+          history: 1,
+        }),
+      }),
+    );
+    expect(result.live_console.items.map((item) => item.item_id)).toEqual(['orchestrator-turn']);
+    expect(result.live_console.total_count).toBe(1);
+    expect(result.history.items.map((item) => item.item_id)).toEqual(['history-orchestrator']);
+    expect(result.history.total_count).toBe(1);
+  });
+
   it('keeps work-item context on intervention-sourced escalation responses', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),

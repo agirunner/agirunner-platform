@@ -244,10 +244,10 @@ export class WorkflowWorkspaceService {
 }
 
 function resolveSelectedScope(input: WorkflowWorkspaceQuery): WorkflowWorkspacePacket['selected_scope'] {
-  if (input.tabScope === 'selected_task' && input.workItemId && input.taskId) {
+  if (input.tabScope === 'selected_task' && input.taskId) {
     return {
       scope_kind: 'selected_task',
-      work_item_id: input.workItemId,
+      work_item_id: input.workItemId ?? null,
       task_id: input.taskId,
     };
   }
@@ -297,7 +297,7 @@ function buildBottomTabs(
   return {
     default_tab: needsActionCount > 0 ? 'needs_action' : 'details',
     current_scope_kind:
-      input.tabScope === 'selected_task' && input.workItemId && input.taskId
+      input.tabScope === 'selected_task' && input.taskId
         ? 'selected_task'
         : input.tabScope === 'selected_work_item' && input.workItemId
           ? 'selected_work_item'

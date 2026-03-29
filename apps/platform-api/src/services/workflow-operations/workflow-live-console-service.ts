@@ -98,7 +98,7 @@ export class WorkflowLiveConsoleService {
         limit: fetchWindow,
       }),
       this.visibilityModeSource.getWorkflowSettings(tenantId, workflowId),
-      shouldFilterSelectedWorkItemScope(input) && this.workflowBoardSource
+      shouldFilterSelectedScope(input) && this.workflowBoardSource
         ? this.workflowBoardSource.getWorkflowBoard(tenantId, workflowId)
         : Promise.resolve(null),
     ]);
@@ -113,7 +113,7 @@ export class WorkflowLiveConsoleService {
     const items = [...updates.map(toUpdateItem), ...briefs.map(toBriefItem), ...executionTurns].sort(
       sortNewestFirst,
     );
-    const scopedItems = shouldFilterSelectedWorkItemScope(input)
+    const scopedItems = shouldFilterSelectedScope(input)
       ? filterLiveConsoleItemsForSelectedScope(
           items,
           toSelectedScope(input),
@@ -281,18 +281,18 @@ function deriveVisibilityModeFromUpdates(
     : 'standard';
 }
 
-function shouldFilterSelectedWorkItemScope(input: { workItemId?: string; taskId?: string }): boolean {
-  return typeof input.workItemId === 'string' && typeof input.taskId !== 'string';
+function shouldFilterSelectedScope(input: { workItemId?: string; taskId?: string }): boolean {
+  return typeof input.taskId === 'string' || typeof input.workItemId === 'string';
 }
 
 function toSelectedScope(input: {
   workItemId?: string;
   taskId?: string;
 }): WorkflowWorkspacePacket['selected_scope'] {
-  if (input.taskId && input.workItemId) {
+  if (input.taskId) {
     return {
       scope_kind: 'selected_task',
-      work_item_id: input.workItemId,
+      work_item_id: input.workItemId ?? null,
       task_id: input.taskId,
     };
   }

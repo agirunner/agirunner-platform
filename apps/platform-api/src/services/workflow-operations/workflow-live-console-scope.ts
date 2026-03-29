@@ -21,6 +21,10 @@ function matchesLiveConsoleScope(
   selectedScope: WorkflowWorkspacePacket['selected_scope'],
   workflowWorkItemIds: ReadonlySet<string>,
 ): boolean {
+  if (selectedScope.scope_kind === 'selected_task') {
+    return matchesSelectedTaskScope(item, selectedScope, workflowWorkItemIds);
+  }
+
   const selectedWorkItemId = selectedScope.work_item_id;
   if (!selectedWorkItemId) {
     return false;
@@ -32,21 +36,26 @@ function matchesLiveConsoleScope(
     return false;
   }
 
-  if (selectedScope.scope_kind === 'selected_task') {
-    return matchesSelectedTaskScope(item, selectedScope.task_id);
-  }
-
   return item.work_item_id === selectedWorkItemId || item.linked_target_ids.includes(selectedWorkItemId);
 }
 
 function matchesSelectedTaskScope(
   item: WorkflowLiveConsoleItem,
-  taskId: string | null,
+  selectedScope: Extract<WorkflowWorkspacePacket['selected_scope'], { scope_kind: 'selected_task' }>,
+  workflowWorkItemIds: ReadonlySet<string>,
 ): boolean {
+  const taskId = selectedScope.task_id;
   if (!taskId) {
     return false;
   }
-  return item.task_id === taskId || item.linked_target_ids.includes(taskId);
+  const selectedWorkItemId = selectedScope.work_item_id;
+  if (item.task_id !== taskId && !item.linked_target_ids.includes(taskId)) {
+    return false;
+  }
+  if (selectedWorkItemId && referencesSiblingWorkItem(item, selectedWorkItemId, workflowWorkItemIds)) {
+    return false;
+  }
+  return true;
 }
 
 function referencesSiblingWorkItem(
