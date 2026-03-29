@@ -48,8 +48,8 @@ describe('workflow-execution-log-composer', () => {
     );
   });
 
-  it('uses plan summaries and observe previews when they are operator readable', () => {
-    const [planItem, observeItem] = buildExecutionTurnItems([
+  it('uses plan summaries and suppresses generic observe execution dumps', () => {
+    const items = buildExecutionTurnItems([
       createLogRow({
         id: '20',
         operation: 'agent.plan',
@@ -66,14 +66,12 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(planItem.headline).toBe('Route the approved intake item to policy assessment.');
-    expect(observeItem.headline).toBe(
-      'executed 2 tools (2 succeeded, 0 failed): list_workflow_tasks, list_workflow_tasks',
-    );
+    expect(items).toHaveLength(1);
+    expect(items[0]!.headline).toBe('Route the approved intake item to policy assessment.');
   });
 
-  it('removes internal operator-recording tools from observe summaries', () => {
-    const [item] = buildExecutionTurnItems([
+  it('suppresses observe turns that only report internal operator mutations', () => {
+    const items = buildExecutionTurnItems([
       createLogRow({
         id: '21a',
         operation: 'agent.observe',
@@ -84,8 +82,38 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(item.headline).toBe('executed 1 tool (1 succeeded, 0 failed): submit_handoff');
-    expect(item.summary).toBe('executed 1 tool (1 succeeded, 0 failed): submit_handoff');
+    expect(items).toEqual([]);
+  });
+
+  it('suppresses generic verify rows when they do not carry operator-meaningful text', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '21b',
+        operation: 'agent.verify',
+        payload: {
+          status: 'complete',
+          decision: 'continue',
+          llm_turn_count: 3,
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
+  });
+
+  it('suppresses planning text that only narrates internal operator-record bookkeeping', () => {
+    const items = buildExecutionTurnItems([
+      createLogRow({
+        id: '21c',
+        operation: 'agent.plan',
+        payload: {
+          plan_summary:
+            'Emit the required milestone operator brief now that routing and handoff are complete for this activation.',
+        },
+      }),
+    ]);
+
+    expect(items).toEqual([]);
   });
 
   it('formats act turns as action calls with safe args', () => {

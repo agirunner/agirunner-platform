@@ -20,7 +20,7 @@ const HISTORY_LIFECYCLE_OPERATIONS = new Set([
 export function buildExecutionTurnItems(rows: LogRow[]): WorkflowLiveConsoleItem[] {
   return rows
     .filter((row) => LIVE_CONSOLE_AGENT_LOOP_OPERATIONS.has(row.operation))
-    .filter((row) => !isSuppressedExecutionTurn(row))
+    .filter((row) => shouldRenderExecutionTurn(row))
     .map((row) => ({
       item_id: `execution-log:${row.id}`,
       item_kind: 'execution_turn',
@@ -58,13 +58,12 @@ function buildExecutionTurnHeadline(row: LogRow): string {
   switch (row.operation) {
     case 'agent.think':
       return (
-        readOperatorReadableField(payload, ['headline', 'reasoning_summary', 'approach'])
+        readThinkText(payload)
         ?? buildSubjectHeadline('Thinking through the next step for', subject, 'Thinking through the next step')
       );
     case 'agent.plan':
       return (
-        readOperatorReadableField(payload, ['headline', 'summary', 'plan_summary'])
-        ?? readOperatorReadableText(readFirstPlanDescription(payload.steps), 180)
+        readPlanText(payload)
         ?? buildSubjectHeadline('Planning the next step for', subject, 'Planning the next step')
       );
     case 'agent.act': {
@@ -76,13 +75,12 @@ function buildExecutionTurnHeadline(row: LogRow): string {
     }
     case 'agent.observe':
       return (
-        buildSignalToolsHeadline(payload)
-        ?? readOperatorReadableField(payload, ['headline', 'summary', 'text_preview', 'details'])
+        readObserveText(payload)
         ?? buildSubjectHeadline('Checking results for', subject, 'Checking execution results')
       );
     case 'agent.verify':
       return (
-        readOperatorReadableField(payload, ['headline', 'details', 'summary'])
+        readVerifyText(payload)
         ?? readOperatorReadableText(buildVerifyHeadline(payload), 180)
         ?? buildSubjectHeadline('Checking', subject, 'Checking current progress')
       );
@@ -95,7 +93,8 @@ function buildExecutionTurnSummary(row: LogRow): string {
   const payload = asRecord(row.payload);
   const subject = readExecutionSubject(row);
   const detail =
-    buildSignalToolsHeadline(payload)
+    readObserveText(payload)
+    ?? readVerifyText(payload)
     ?? readOperatorReadableField(payload, ['summary', 'details', 'reasoning_summary', 'approach'])
     ?? buildExecutionTurnFallbackSummary(row.operation, subject);
   if (!detail) {
@@ -180,26 +179,22 @@ function buildActionInvocationHeadline(payload: Record<string, unknown>): string
   return `calling ${actionName}(${args.join(', ')})`;
 }
 
-function buildSignalToolsHeadline(payload: Record<string, unknown>): string | null {
-  const filteredTools = readStringArray(payload.signal_tools).filter((tool) => !isInternalOperatorRecordTool(tool));
-  if (filteredTools.length === 0) {
-    return null;
-  }
-  const toolWord = filteredTools.length === 1 ? 'tool' : 'tools';
-  return `executed ${filteredTools.length} ${toolWord} (${filteredTools.length} succeeded, 0 failed): ${filteredTools.join(', ')}`;
-}
-
-function isSuppressedExecutionTurn(row: LogRow): boolean {
-  if (row.operation !== 'agent.act') {
-    return false;
-  }
+function shouldRenderExecutionTurn(row: LogRow): boolean {
   const payload = asRecord(row.payload);
-  const actionName =
-    readString(payload.mcp_tool_name)
-    ?? readString(payload.tool)
-    ?? readString(payload.action)
-    ?? readString(payload.command);
-  return actionName === 'record_operator_update' || actionName === 'record_operator_brief';
+  switch (row.operation) {
+    case 'agent.think':
+      return readThinkText(payload) !== null;
+    case 'agent.plan':
+      return readPlanText(payload) !== null;
+    case 'agent.act':
+      return !isSuppressedActionName(readActionName(payload));
+    case 'agent.observe':
+      return readObserveText(payload) !== null;
+    case 'agent.verify':
+      return readVerifyText(payload) !== null;
+    default:
+      return true;
+  }
 }
 
 function readExecutionSubject(row: LogRow): string | null {
@@ -283,8 +278,36 @@ function normalizeActionArgText(value: string): string | null {
   return normalized.replace(/"/g, "'");
 }
 
-function isInternalOperatorRecordTool(value: string): boolean {
+function isSuppressedActionName(value: string | null): boolean {
   return value === 'record_operator_update' || value === 'record_operator_brief';
+}
+
+function readActionName(payload: Record<string, unknown>): string | null {
+  return (
+    readString(payload.mcp_tool_name)
+    ?? readString(payload.tool)
+    ?? readString(payload.action)
+    ?? readString(payload.command)
+  );
+}
+
+function readObserveText(payload: Record<string, unknown>): string | null {
+  return readOperatorReadableField(payload, ['headline', 'summary', 'details', 'text_preview']);
+}
+
+function readVerifyText(payload: Record<string, unknown>): string | null {
+  return readOperatorReadableField(payload, ['headline', 'summary', 'details']);
+}
+
+function readThinkText(payload: Record<string, unknown>): string | null {
+  return readOperatorReadableField(payload, ['headline', 'reasoning_summary', 'approach']);
+}
+
+function readPlanText(payload: Record<string, unknown>): string | null {
+  return (
+    readOperatorReadableField(payload, ['headline', 'summary', 'plan_summary'])
+    ?? readOperatorReadableText(readFirstPlanDescription(payload.steps), 180)
+  );
 }
 
 function readFirstPlanDescription(value: unknown): string | null {
@@ -386,6 +409,10 @@ function looksLikeRawExecutionDump(value: string): boolean {
     || value.includes('}')
     || value.includes('[')
     || value.includes(']')
+    || /\brecord_operator_(brief|update)\b/i.test(value)
+    || /\boperator (brief|update)s?\b/i.test(value)
+    || /^executed\s+\d+\s+tools?/i.test(value)
+    || /^signal_mutation:/i.test(value)
     || /\bphase\s+\w+/i.test(value)
     || /\bturn\s+\d+\b/i.test(value)
     || /\btool steps?\b/i.test(value)
