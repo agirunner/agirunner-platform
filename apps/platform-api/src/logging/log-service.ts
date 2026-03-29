@@ -296,7 +296,8 @@ const LOG_SELECT_COLUMNS = `l.id, l.tenant_id, l.trace_id, l.span_id, l.parent_s
             l.source, l.category, l.level, l.operation, l.status, l.duration_ms,
             l.payload, l.error,
             l.workspace_id, l.workflow_id, l.workflow_name, l.workspace_name, l.task_id,
-            l.work_item_id, l.stage_name, l.activation_id, l.is_orchestrator_task,
+            COALESCE(l.work_item_id, task_ctx.work_item_id) AS work_item_id,
+            l.stage_name, l.activation_id, l.is_orchestrator_task,
             l.execution_backend, l.tool_owner,
             l.task_title,
             l.role,
@@ -880,7 +881,7 @@ export class LogService {
     }
     if (filters.workItemId) {
       values.push(filters.workItemId);
-      conditions.push(`l.work_item_id = $${values.length}`);
+      conditions.push(`COALESCE(l.work_item_id, task_ctx.work_item_id) = $${values.length}`);
     }
     if (filters.stageName) {
       values.push(filters.stageName);

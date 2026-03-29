@@ -809,6 +809,22 @@ describe('LogService', () => {
       expect(params).toContain('task-1');
     });
 
+    it('filters work-item queries against the effective task-linked work item id', async () => {
+      const pool = createMockPool();
+      pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+      const service = new LogService(pool as never);
+
+      await service.query('tenant-1', {
+        workflowId: 'wf-1',
+        workItemId: 'work-item-1',
+      });
+
+      const [sql, params] = pool.query.mock.calls[0];
+      expect(sql).toContain('COALESCE(l.work_item_id, task_ctx.work_item_id) AS work_item_id');
+      expect(sql).toContain('COALESCE(l.work_item_id, task_ctx.work_item_id) = $');
+      expect(params).toContain('work-item-1');
+    });
+
     it('appliesCategoryAndSourceArrayFilters', async () => {
       const pool = createMockPool();
       pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
@@ -1173,7 +1189,7 @@ describe('LogService', () => {
 
       const [sql, params] = pool.query.mock.calls[0];
       expect(sql).toContain("COALESCE(l.stage_name, 'unassigned')");
-      expect(sql).toContain('work_item_id = $');
+      expect(sql).toContain('COALESCE(l.work_item_id, task_ctx.work_item_id) = $');
       expect(sql).toContain('activation_id = $');
       expect(sql).toContain('is_orchestrator_task = $');
       expect(params).toContain('work-item-1');
