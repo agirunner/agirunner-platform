@@ -248,6 +248,15 @@ describe('buildSpecialistExecutionBrief', () => {
       'If you write task-local working files such as `output/...`, upload or persist the real deliverable and cite artifact ids, logical paths, repo-relative deliverables, memory keys, or workflow/task ids in the final handoff instead of that task-local path.',
     );
     expect(brief?.rendered_markdown).toContain(
+      'If uploaded artifacts support the deliverable or handoff, include their UUIDs in submit_handoff.artifact_ids',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'artifact_read and artifact_document_read are keyed by artifact id.',
+    );
+    expect(brief?.rendered_markdown).toContain(
+      'Prefer artifact_document_read for readable text artifacts.',
+    );
+    expect(brief?.rendered_markdown).toContain(
       'Repository-backed task. Use Specialist Execution tools for repository, filesystem, shell, web fetch, and artifact upload work. The image already includes repo checkout and git, but optional runtimes such as python3, bash, jq, or language-specific CLIs may be absent; probe them first or install them before chaining them into commands.',
     );
     expect(brief?.rendered_markdown).toContain('## Execution Environment Contract');

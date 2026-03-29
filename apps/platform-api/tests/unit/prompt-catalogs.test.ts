@@ -71,6 +71,15 @@ describe('prompt catalogs', () => {
       'If you uploaded a file from output/, describe it in the handoff by artifact id, stable filename, or repo-relative path only;',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'include their UUIDs in submit_handoff.artifact_ids',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'artifact_read and artifact_document_read are keyed by artifact id.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Prefer artifact_document_read for readable text artifacts.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'When handoffs mention repository files, use repo-relative paths like workflow_cli/__main__.py, never repo/workflow_cli/__main__.py or /tmp/workspace paths.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(

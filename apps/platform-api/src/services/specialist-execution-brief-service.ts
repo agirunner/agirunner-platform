@@ -351,6 +351,12 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
   lines.push(
     pathDisciplineGuidance(brief.repo_status_summary.startsWith('Repository-backed task.')),
   );
+  lines.push(
+    'If uploaded artifacts support the deliverable or handoff, include their UUIDs in submit_handoff.artifact_ids so downstream work can resolve the exact persisted artifact without guessing.',
+  );
+  lines.push(
+    'artifact_read and artifact_document_read are keyed by artifact id. If you only know a logical path, resolve the artifact id from artifact_list or the provided artifact references first. Prefer artifact_document_read for readable text artifacts.',
+  );
   if (brief.execution_environment_contract?.agent_hint) {
     lines.push('', '## Execution Environment Contract');
     lines.push(brief.execution_environment_contract.agent_hint);
