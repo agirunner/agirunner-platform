@@ -111,6 +111,7 @@ export interface ListWorkflowOperatorBriefsInput {
   workItemId?: string;
   taskId?: string;
   includeWorkflowScope?: boolean;
+  includeAllWorkItemScopes?: boolean;
   limit?: number;
 }
 
@@ -133,6 +134,22 @@ export class WorkflowOperatorBriefService {
     input: ListWorkflowOperatorBriefsInput = {},
   ): Promise<WorkflowOperatorBriefRecord[]> {
     await this.assertWorkflow(tenantId, workflowId);
+    if (input.includeAllWorkItemScopes === true && !input.workItemId && !input.taskId) {
+      const result = await this.pool.query<WorkflowOperatorBriefRow>(
+        `SELECT *
+           FROM workflow_operator_briefs
+          WHERE tenant_id = $1
+            AND workflow_id = $2
+          ORDER BY sequence_number DESC
+          LIMIT $3`,
+        [
+          tenantId,
+          workflowId,
+          input.limit ?? 50,
+        ],
+      );
+      return result.rows.map(toWorkflowOperatorBriefRecord);
+    }
     const result = await this.pool.query<WorkflowOperatorBriefRow>(
       `SELECT *
          FROM workflow_operator_briefs

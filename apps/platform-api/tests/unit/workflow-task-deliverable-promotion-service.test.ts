@@ -296,4 +296,38 @@ describe('WorkflowTaskDeliverablePromotionService', () => {
     expect(pool.query).not.toHaveBeenCalled();
     expect(deliverableService.upsertSystemDeliverable).not.toHaveBeenCalled();
   });
+
+  it('does not let an orchestrator handoff overwrite the specialist-produced work-item packet', async () => {
+    const pool = {
+      query: vi.fn(),
+    };
+    const deliverableService = {
+      upsertSystemDeliverable: vi.fn(),
+    };
+
+    const service = new WorkflowTaskDeliverablePromotionService(
+      pool as never,
+      deliverableService as never,
+    );
+
+    const result = await service.promoteFromHandoff('tenant-1', {
+      id: 'handoff-orchestrator-1',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-4',
+      task_id: 'task-orchestrator-4',
+      role: 'orchestrator',
+      summary: 'The orchestrator reviewed the completed work item.',
+      completion: 'full',
+      completion_state: 'full',
+      role_data: {
+        task_kind: 'routing',
+      },
+      artifact_ids: [],
+      created_at: '2026-03-28T20:45:00.000Z',
+    });
+
+    expect(result).toBeNull();
+    expect(pool.query).not.toHaveBeenCalled();
+    expect(deliverableService.upsertSystemDeliverable).not.toHaveBeenCalled();
+  });
 });

@@ -134,7 +134,7 @@ export class WorkflowTaskDeliverablePromotionService {
 
 function shouldPromoteHandoff(handoff: WorkflowTaskDeliverablePromotionHandoff): boolean {
   const completionState = readOptionalString(handoff.completion_state) ?? readOptionalString(handoff.completion);
-  return completionState === 'full';
+  return completionState === 'full' && !isOrchestratorRole(handoff.role);
 }
 
 function buildPromotedDeliverableInput(
@@ -235,4 +235,8 @@ function readOptionalString(value: unknown): string | null {
 
 function humanizeToken(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function isOrchestratorRole(value: string | null): boolean {
+  return readOptionalString(value)?.toLowerCase() === 'orchestrator';
 }

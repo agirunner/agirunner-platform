@@ -180,6 +180,90 @@ describe('WorkflowOperatorBriefService', () => {
     expect(result.map((entry) => entry.id)).toEqual(['brief-linked']);
   });
 
+  it('lists workflow deliverable briefs across work-item scope when rollup is requested', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows')) {
+        return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+      }
+      if (sql.includes('FROM workflow_operator_briefs')) {
+        expect(sql).not.toContain('($3::uuid IS NULL AND $5::uuid IS NULL)');
+        expect(sql).toContain('ORDER BY sequence_number DESC');
+        expect(params).toEqual([
+          'tenant-1',
+          'workflow-1',
+          10,
+        ]);
+        return {
+          rowCount: 2,
+          rows: [
+            {
+              id: 'brief-work-item',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              task_id: null,
+              request_id: 'request-work-item',
+              execution_context_id: 'execution-work-item',
+              brief_kind: 'milestone',
+              brief_scope: 'deliverable_context',
+              source_kind: 'specialist',
+              source_role_name: 'Verifier',
+              llm_turn_count: null,
+              status_kind: 'completed',
+              short_brief: { headline: 'Work-item packet' },
+              detailed_brief_json: { headline: 'Work-item packet', status_kind: 'completed' },
+              linked_target_ids: ['work-item-1'],
+              sequence_number: 2,
+              related_artifact_ids: [],
+              related_output_descriptor_ids: [],
+              related_intervention_ids: [],
+              canonical_workflow_brief_id: null,
+              created_by_type: 'user',
+              created_by_id: 'user-1',
+              created_at: new Date('2026-03-27T19:00:00.000Z'),
+              updated_at: new Date('2026-03-27T19:00:00.000Z'),
+            },
+            {
+              id: 'brief-workflow',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: null,
+              task_id: null,
+              request_id: 'request-workflow',
+              execution_context_id: 'execution-workflow',
+              brief_kind: 'milestone',
+              brief_scope: 'deliverable_context',
+              source_kind: 'orchestrator',
+              source_role_name: 'Orchestrator',
+              llm_turn_count: null,
+              status_kind: 'completed',
+              short_brief: { headline: 'Workflow packet' },
+              detailed_brief_json: { headline: 'Workflow packet', status_kind: 'completed' },
+              linked_target_ids: ['workflow-1'],
+              sequence_number: 1,
+              related_artifact_ids: [],
+              related_output_descriptor_ids: [],
+              related_intervention_ids: [],
+              canonical_workflow_brief_id: null,
+              created_by_type: 'user',
+              created_by_id: 'user-1',
+              created_at: new Date('2026-03-27T18:00:00.000Z'),
+              updated_at: new Date('2026-03-27T18:00:00.000Z'),
+            },
+          ],
+        };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    const result = await service.listBriefs('tenant-1', 'workflow-1', {
+      includeAllWorkItemScopes: true,
+      limit: 10,
+    });
+
+    expect(result.map((entry) => entry.id)).toEqual(['brief-work-item', 'brief-workflow']);
+  });
+
   it('records nested brief payloads, validates execution identity, and materializes linked deliverables', async () => {
     deliverableService.upsertDeliverable.mockResolvedValue({
       descriptor_id: 'descriptor-2',

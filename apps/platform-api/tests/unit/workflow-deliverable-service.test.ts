@@ -104,6 +104,25 @@ describe('WorkflowDeliverableService', () => {
     await service.listDeliverables('tenant-1', 'workflow-1');
   });
 
+  it('queries workflow scope with work-item rollup when requested', async () => {
+    pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM workflows')) {
+        return { rowCount: 1, rows: [{ id: 'workflow-1' }] };
+      }
+      if (sql.includes('FROM workflow_output_descriptors')) {
+        expect(sql).not.toContain('work_item_id IS NULL');
+        expect(sql).toContain('LIMIT $3');
+        expect(params).toEqual(['tenant-1', 'workflow-1', 50]);
+        return { rowCount: 0, rows: [] };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    });
+
+    await service.listDeliverables('tenant-1', 'workflow-1', {
+      includeAllWorkItemScopes: true,
+    });
+  });
+
   it('queries selected work-item scope with workflow-level rollup when requested', async () => {
     pool.query.mockImplementation(async (sql: string, params?: unknown[]) => {
       if (sql.includes('FROM workflows')) {

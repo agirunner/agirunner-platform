@@ -70,6 +70,7 @@ export interface UpsertWorkflowDeliverableInput {
 export interface ListWorkflowDeliverablesInput {
   workItemId?: string;
   includeWorkflowScope?: boolean;
+  includeAllWorkItemScopes?: boolean;
   limit?: number;
 }
 
@@ -232,6 +233,13 @@ function buildDeliverableScopeQuery(input: ListWorkflowDeliverablesInput): {
   limitParamIndex: number;
 } {
   if (!input.workItemId) {
+    if (input.includeAllWorkItemScopes === true) {
+      return {
+        whereClause: 'TRUE',
+        params: [],
+        limitParamIndex: 3,
+      };
+    }
     return {
       whereClause: 'work_item_id IS NULL',
       params: [],

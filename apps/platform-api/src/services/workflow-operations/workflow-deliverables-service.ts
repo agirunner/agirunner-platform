@@ -12,7 +12,12 @@ interface DeliverableSource {
   listDeliverables(
     tenantId: string,
     workflowId: string,
-    input?: { workItemId?: string; includeWorkflowScope?: boolean; limit?: number },
+    input?: {
+      workItemId?: string;
+      includeWorkflowScope?: boolean;
+      includeAllWorkItemScopes?: boolean;
+      limit?: number;
+    },
   ): Promise<WorkflowDeliverableRecord[]>;
 }
 
@@ -20,7 +25,12 @@ interface BriefSource {
   listBriefs(
     tenantId: string,
     workflowId: string,
-    input?: { workItemId?: string; includeWorkflowScope?: boolean; limit?: number },
+    input?: {
+      workItemId?: string;
+      includeWorkflowScope?: boolean;
+      includeAllWorkItemScopes?: boolean;
+      limit?: number;
+    },
   ): Promise<WorkflowOperatorBriefRecord[]>;
 }
 
@@ -52,15 +62,18 @@ export class WorkflowDeliverablesService {
     const limit = input.limit ?? 10;
     const fetchWindow = resolveFetchWindow(limit);
     const includeWorkflowScope = Boolean(input.workItemId);
+    const includeAllWorkItemScopes = !input.workItemId;
     const [deliverables, briefs, inputPackets, handoffs] = await Promise.all([
       this.deliverableSource.listDeliverables(tenantId, workflowId, {
         workItemId: input.workItemId,
         includeWorkflowScope,
+        includeAllWorkItemScopes,
         limit: fetchWindow,
       }),
       this.briefSource.listBriefs(tenantId, workflowId, {
         workItemId: input.workItemId,
         includeWorkflowScope,
+        includeAllWorkItemScopes,
         limit,
       }),
       this.inputPacketSource.listWorkflowInputPackets(tenantId, workflowId),
@@ -132,7 +145,7 @@ function filterRecordsForRequestedScope<T>(
   readWorkItemId: (record: T) => string | null,
 ): T[] {
   if (!workItemId) {
-    return records.filter((record) => readWorkItemId(record) === null);
+    return records;
   }
 
   return records.filter((record) => {
@@ -156,6 +169,9 @@ function appendSynthesizedHandoffDeliverables(
       .filter((workItemId): workItemId is string => workItemId !== null),
   );
   for (const handoff of handoffs) {
+    if (isOrchestratorRole(handoff.role)) {
+      continue;
+    }
     if (existingFinalWorkItemIds.has(handoff.work_item_id)) {
       continue;
     }
@@ -348,8 +364,11 @@ function isDeliverableOutcomeStatus(statusKind: string | null): boolean {
 }
 
 function isOrchestratorBrief(brief: WorkflowOperatorBriefRecord): boolean {
-  return readOptionalString(brief.source_kind) === 'orchestrator'
-    || readOptionalString(brief.source_role_name)?.toLowerCase() === 'orchestrator';
+  return isOrchestratorRole(brief.source_kind) || isOrchestratorRole(brief.source_role_name);
+}
+
+function isOrchestratorRole(value: string | null | undefined): boolean {
+  return readOptionalString(value)?.toLowerCase() === 'orchestrator';
 }
 
 function pickSinglePacket(
