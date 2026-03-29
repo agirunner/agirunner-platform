@@ -19,6 +19,17 @@ import {
 } from './workflow-live-console.support.js';
 
 const LIVE_EDGE_THRESHOLD_PX = 48;
+const TERMINAL_SURFACE_CLASS_NAME =
+  'rounded-xl border border-slate-900/90 bg-[#08111f] text-slate-100 shadow-[0_18px_40px_rgba(2,6,23,0.28)]';
+const TERMINAL_TOOLBAR_CLASS_NAME = 'border-b border-slate-800/80 bg-slate-950/80 px-4 py-3';
+const TERMINAL_FILTER_BASE_CLASS_NAME =
+  'inline-flex min-w-0 items-center gap-2 rounded-md border px-2.5 py-1.5 font-mono text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300/70';
+const TERMINAL_FILTER_ACTIVE_CLASS_NAME =
+  'border-slate-500/80 bg-slate-100/12 text-slate-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]';
+const TERMINAL_FILTER_INACTIVE_CLASS_NAME =
+  'border-slate-800/90 bg-transparent text-slate-400 hover:border-slate-600/80 hover:text-slate-100';
+const TERMINAL_FILTER_COUNT_CLASS_NAME =
+  'rounded-sm border border-slate-600/80 bg-slate-900/80 px-1.5 py-0 font-mono text-[11px] leading-5 text-slate-200';
 
 export function WorkflowLiveConsole(props: {
   packet: DashboardWorkflowLiveConsolePacket;
@@ -28,6 +39,7 @@ export function WorkflowLiveConsole(props: {
 }): JSX.Element {
   const scopeSubject = props.scopeSubject ?? 'workflow';
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const visibleItemsRef = useRef<DashboardWorkflowLiveConsolePacket['items']>([]);
   const scrollMetricsRef = useRef({
     firstItemId: '',
     lastItemId: '',
@@ -44,13 +56,44 @@ export function WorkflowLiveConsole(props: {
     [props.packet.items],
   );
   const visibleItems = useMemo(
-    () => orderWorkflowConsoleItemsForDisplay(filterWorkflowConsoleItems(props.packet.items, selectedFilter)),
+    () =>
+      orderWorkflowConsoleItemsForDisplay(
+        filterWorkflowConsoleItems(props.packet.items, selectedFilter),
+      ),
     [props.packet.items, selectedFilter],
   );
   const coverageMessage = useMemo(
-    () => describeWorkflowConsoleCoverage(props.packet.items, props.packet.next_cursor, props.packet.total_count),
+    () =>
+      describeWorkflowConsoleCoverage(
+        props.packet.items,
+        props.packet.next_cursor,
+        props.packet.total_count,
+      ),
     [props.packet.items, props.packet.next_cursor, props.packet.total_count],
   );
+
+  useEffect(() => {
+    visibleItemsRef.current = visibleItems;
+  }, [visibleItems]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    container.scrollTop = container.scrollHeight;
+    setIsPinnedToLiveEdge(true);
+    setHasQueuedUpdates(false);
+    setIsLoadingOlderHistory(false);
+    const currentVisibleItems = visibleItemsRef.current;
+    scrollMetricsRef.current = {
+      firstItemId: currentVisibleItems[0]?.item_id ?? '',
+      lastItemId: currentVisibleItems[currentVisibleItems.length - 1]?.item_id ?? '',
+      scrollHeight: container.scrollHeight,
+      scrollTop: container.scrollTop,
+    };
+  }, [selectedFilter]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -61,8 +104,10 @@ export function WorkflowLiveConsole(props: {
     const previousMetrics = scrollMetricsRef.current;
     const firstItemId = visibleItems[0]?.item_id ?? '';
     const lastItemId = visibleItems[visibleItems.length - 1]?.item_id ?? '';
-    const prependedHistory = firstItemId !== previousMetrics.firstItemId && lastItemId === previousMetrics.lastItemId;
-    const appendedLiveUpdate = lastItemId !== previousMetrics.lastItemId && firstItemId === previousMetrics.firstItemId;
+    const prependedHistory =
+      firstItemId !== previousMetrics.firstItemId && lastItemId === previousMetrics.lastItemId;
+    const appendedLiveUpdate =
+      lastItemId !== previousMetrics.lastItemId && firstItemId === previousMetrics.firstItemId;
 
     if (visibleItems.length === 0) {
       scrollMetricsRef.current = {
@@ -131,62 +176,72 @@ export function WorkflowLiveConsole(props: {
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-2">
-        {filterDescriptors.map((descriptor) => (
-          <Button
-            key={descriptor.filter}
-            type="button"
-            size="sm"
-            variant={selectedFilter === descriptor.filter ? 'secondary' : 'outline'}
-            aria-pressed={selectedFilter === descriptor.filter}
-            onClick={() => setSelectedFilter(descriptor.filter)}
-          >
-            <span>{descriptor.label}</span>
-            <Badge variant={selectedFilter === descriptor.filter ? 'secondary' : 'outline'}>
-              {descriptor.count}
-            </Badge>
-          </Button>
-        ))}
-      </div>
-      {coverageMessage ? (
-        <p className="text-xs text-muted-foreground">{coverageMessage}</p>
-      ) : null}
+      <div data-live-console-surface="terminal" className={TERMINAL_SURFACE_CLASS_NAME}>
+        <div className={TERMINAL_TOOLBAR_CLASS_NAME}>
+          <div className="flex flex-wrap gap-2">
+            {filterDescriptors.map((descriptor) => {
+              const isSelected = selectedFilter === descriptor.filter;
+              return (
+                <button
+                  key={descriptor.filter}
+                  type="button"
+                  data-live-console-filter={descriptor.filter}
+                  data-state={isSelected ? 'active' : 'inactive'}
+                  className={`${TERMINAL_FILTER_BASE_CLASS_NAME} ${isSelected ? TERMINAL_FILTER_ACTIVE_CLASS_NAME : TERMINAL_FILTER_INACTIVE_CLASS_NAME}`}
+                  aria-pressed={isSelected}
+                  onClick={() => setSelectedFilter(descriptor.filter)}
+                >
+                  <span className="truncate">{descriptor.label}</span>
+                  <span
+                    data-live-console-filter-count={String(descriptor.count)}
+                    className={TERMINAL_FILTER_COUNT_CLASS_NAME}
+                  >
+                    {descriptor.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {coverageMessage ? (
+            <p className="mt-2 text-xs text-slate-400">{coverageMessage}</p>
+          ) : null}
+        </div>
 
-      <div
-        ref={containerRef}
-        className="max-h-[28rem] overflow-x-hidden overflow-y-auto border border-slate-800 bg-[#09111f] px-0 py-2 font-mono text-sm text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
-        onScroll={(event) => {
-          const element = event.currentTarget;
-          const nextPinned =
-            element.scrollHeight - element.clientHeight - element.scrollTop <= LIVE_EDGE_THRESHOLD_PX;
-          setIsPinnedToLiveEdge(nextPinned);
-          if (nextPinned) {
-            setHasQueuedUpdates(false);
-          }
-          scrollMetricsRef.current.scrollHeight = element.scrollHeight;
-          scrollMetricsRef.current.scrollTop = element.scrollTop;
-          if (
-            shouldPrefetchWorkflowConsoleHistory({
-              hasNextCursor: props.packet.next_cursor !== null,
-              isLoadingOlderHistory,
-              scrollTop: element.scrollTop,
-            })
-          ) {
-            setIsLoadingOlderHistory(true);
-            props.onLoadMore();
-          }
-        }}
-      >
-        <div className="grid gap-0">
-          {visibleItems.length === 0 ? (
-            <div className="px-4 py-5 text-slate-300">
-              {describeWorkflowConsoleEmptyState(selectedFilter, props.scopeLabel)}
-            </div>
-          ) : (
-            visibleItems.map((item) => (
-              <LiveConsoleEntry key={item.item_id} item={item} />
-            ))
-          )}
+        <div
+          ref={containerRef}
+          className="max-h-[28rem] overflow-x-hidden overflow-y-auto bg-transparent px-0 py-2 font-mono text-sm text-slate-100"
+          onScroll={(event) => {
+            const element = event.currentTarget;
+            const nextPinned =
+              element.scrollHeight - element.clientHeight - element.scrollTop <=
+              LIVE_EDGE_THRESHOLD_PX;
+            setIsPinnedToLiveEdge(nextPinned);
+            if (nextPinned) {
+              setHasQueuedUpdates(false);
+            }
+            scrollMetricsRef.current.scrollHeight = element.scrollHeight;
+            scrollMetricsRef.current.scrollTop = element.scrollTop;
+            if (
+              shouldPrefetchWorkflowConsoleHistory({
+                hasNextCursor: props.packet.next_cursor !== null,
+                isLoadingOlderHistory,
+                scrollTop: element.scrollTop,
+              })
+            ) {
+              setIsLoadingOlderHistory(true);
+              props.onLoadMore();
+            }
+          }}
+        >
+          <div className="grid gap-px">
+            {visibleItems.length === 0 ? (
+              <div className="px-4 py-5 text-slate-300">
+                {describeWorkflowConsoleEmptyState(selectedFilter, props.scopeLabel)}
+              </div>
+            ) : (
+              visibleItems.map((item) => <LiveConsoleEntry key={item.item_id} item={item} />)
+            )}
+          </div>
         </div>
       </div>
     </div>

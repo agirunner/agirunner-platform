@@ -39,30 +39,41 @@ describe('WorkflowLiveConsole', () => {
   it('renders updates and briefs as single-line terminal entries', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowLiveConsole, {
-        packet: createPacket([
-          {
-            item_id: 'brief-1',
-            item_kind: 'milestone_brief',
-            source_label: 'Orchestrator',
-            headline: 'Workflow reached approval milestone',
-            summary: 'A structured brief was published.',
-            created_at: '2026-03-27T04:05:00.000Z',
-          },
-          {
-            item_id: 'update-1',
-            item_kind: 'operator_update',
-            source_label: 'Implementation Engineer',
-            headline: 'Updated retry handling.',
-            summary: 'Execution turn completed for Implementation Engineer.',
-            created_at: '2026-03-27T04:04:00.000Z',
-          },
-        ], { includePlatformNotice: true }),
+        packet: createPacket(
+          [
+            {
+              item_id: 'brief-1',
+              item_kind: 'milestone_brief',
+              source_label: 'Orchestrator',
+              headline: 'Workflow reached approval milestone',
+              summary: 'A structured brief was published.',
+              created_at: '2026-03-27T04:05:00.000Z',
+            },
+            {
+              item_id: 'update-1',
+              item_kind: 'operator_update',
+              source_label: 'Implementation Engineer',
+              headline: 'Updated retry handling.',
+              summary: 'Execution turn completed for Implementation Engineer.',
+              created_at: '2026-03-27T04:04:00.000Z',
+            },
+          ],
+          { includePlatformNotice: true },
+        ),
         scopeLabel: 'Workflow: Release workflow',
         scopeSubject: 'workflow',
         onLoadMore: vi.fn(),
       }),
     );
 
+    expect(html).toContain('data-live-console-surface="terminal"');
+    expect(html).toContain('data-live-console-filter="all"');
+    expect(html).toContain('data-live-console-filter="turn_updates"');
+    expect(html).toContain('data-live-console-filter="briefs"');
+    expect(html).toContain('data-state="active"');
+    expect(html).toContain('data-state="inactive"');
+    expect(html).toContain('data-live-console-filter-count="3"');
+    expect(html).toContain('data-live-console-filter-count="1"');
     expect(html).toContain('All');
     expect(html).toContain('Turn updates');
     expect(html).toContain('Briefs');
@@ -85,10 +96,12 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('data-terminal-entry="notice"');
     expect(html).toContain('border-emerald-400/40');
     expect(html).toContain('border-slate-700/80');
-    expect(html).toContain('grid gap-1 px-4 py-2');
-    expect(html).toContain('sm:grid-cols-[minmax(0,1fr)_auto]');
-    expect(html).toContain('sm:items-start');
-    expect(html).toContain('sm:gap-3');
+    expect(html).toContain('rounded-xl border border-slate-900/90 bg-[#08111f]');
+    expect(html).toContain('border-b border-slate-800/80 bg-slate-950/80');
+    expect(html).toContain(
+      'inline-flex min-w-0 items-center gap-2 rounded-md border px-2.5 py-1.5',
+    );
+    expect(html).toContain('grid gap-px');
     expect(html).toContain('break-words');
     expect(html).toContain('overflow-x-hidden overflow-y-auto');
     expect(html).toContain(
@@ -250,7 +263,13 @@ describe('WorkflowLiveConsole', () => {
 });
 
 function createPacket(
-  items: Array<Partial<DashboardWorkflowLiveConsolePacket['items'][number]> & Pick<DashboardWorkflowLiveConsolePacket['items'][number], 'item_id' | 'headline' | 'summary' | 'created_at'>>,
+  items: Array<
+    Partial<DashboardWorkflowLiveConsolePacket['items'][number]> &
+      Pick<
+        DashboardWorkflowLiveConsolePacket['items'][number],
+        'item_id' | 'headline' | 'summary' | 'created_at'
+      >
+  >,
   options?: {
     includePlatformNotice?: boolean;
   },

@@ -27,9 +27,10 @@ describe('workflow live console support', () => {
   it('filters the scoped console stream for turn updates and briefs', () => {
     const items = createItems();
 
-    expect(
-      filterWorkflowConsoleItems(items, 'turn_updates').map((item) => item.item_id),
-    ).toEqual(['update-1', 'turn-1']);
+    expect(filterWorkflowConsoleItems(items, 'turn_updates').map((item) => item.item_id)).toEqual([
+      'update-1',
+      'turn-1',
+    ]);
     expect(filterWorkflowConsoleItems(items, 'briefs').map((item) => item.item_id)).toEqual([
       'brief-1',
     ]);
@@ -39,6 +40,21 @@ describe('workflow live console support', () => {
       'notice-1',
       'turn-1',
     ]);
+  });
+
+  it('keeps filter counts reconciled with mixed live-console content when notices are present', () => {
+    const items = createItems();
+    const descriptors = buildWorkflowConsoleFilterDescriptors(items);
+
+    expect(descriptors.find((descriptor) => descriptor.filter === 'all')?.count).toBe(
+      filterWorkflowConsoleItems(items, 'all').length,
+    );
+    expect(descriptors.find((descriptor) => descriptor.filter === 'turn_updates')?.count).toBe(
+      filterWorkflowConsoleItems(items, 'turn_updates').length,
+    );
+    expect(descriptors.find((descriptor) => descriptor.filter === 'briefs')?.count).toBe(
+      filterWorkflowConsoleItems(items, 'briefs').length,
+    );
   });
 
   it('describes scope-aware empty states for each filter', () => {
