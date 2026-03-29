@@ -47,6 +47,7 @@ export function WorkflowBoard(props: {
     () =>
       groupStages(props.board, {
         boardMode: props.boardMode,
+        workflowState: props.workflowState,
         stageFilter,
         laneFilter,
         blockedOnly,
@@ -60,6 +61,7 @@ export function WorkflowBoard(props: {
       needsActionOnly,
       props.board,
       props.boardMode,
+      props.workflowState,
       stageFilter,
     ],
   );

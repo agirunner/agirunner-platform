@@ -84,12 +84,15 @@ describe('WorkflowsRail', () => {
       }),
     );
 
-    expect(html).toContain('bg-sky-800');
-    expect(html).toContain('ring-2');
-    expect(html).toContain('ring-offset-2');
-    expect(html).toContain('shadow-[0_24px_60px_rgba(8,47,73,0.42)]');
-    expect(html).toContain('text-inherit');
-    expect(html).toContain('text-white');
+    expect(html).toContain('border-sky-500/80');
+    expect(html).toContain('bg-sky-100/95');
+    expect(html).toContain('ring-1');
+    expect(html).toContain('shadow-[0_12px_28px_rgba(8,47,73,0.18)]');
+    expect(html).toContain('text-sky-950');
+    expect(html).toContain('text-sky-900/75');
+    expect(html).not.toContain('ring-offset-2');
+    expect(html).not.toContain('shadow-[0_24px_60px_rgba(8,47,73,0.42)]');
+    expect(html).not.toContain('text-white');
     expect(html).not.toContain('bg-amber-100');
   });
 

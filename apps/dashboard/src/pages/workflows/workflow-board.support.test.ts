@@ -183,6 +183,49 @@ describe('buildWorkflowBoardView', () => {
     ]);
   });
 
+  it('projects cancelled unfinished work into the terminal lane without moving paused work', () => {
+    const board = createBoard([
+      createWorkItem({
+        id: 'cancelled-item',
+        column_id: 'active',
+        stage_name: 'delivery',
+      }),
+      createWorkItem({
+        id: 'paused-item',
+        column_id: 'active',
+        stage_name: 'delivery',
+      }),
+    ]);
+
+    const cancelledView = buildWorkflowBoardView(board, {
+      boardMode: 'all',
+      workflowState: 'cancelled',
+      stageFilter: '__all__',
+      laneFilter: '__all__',
+      blockedOnly: false,
+      escalatedOnly: false,
+      needsActionOnly: false,
+    });
+    const pausedView = buildWorkflowBoardView(board, {
+      boardMode: 'all',
+      workflowState: 'paused',
+      stageFilter: '__all__',
+      laneFilter: '__all__',
+      blockedOnly: false,
+      escalatedOnly: false,
+      needsActionOnly: false,
+    });
+
+    expect(
+      cancelledView.lanes.find((lane) => lane.column.id === 'done')?.visibleCompletedItems.map((item) => item.id),
+    ).toContain('cancelled-item');
+    expect(cancelledView.lanes.find((lane) => lane.column.id === 'active')?.activeItems).toEqual([]);
+    expect(pausedView.lanes.find((lane) => lane.column.id === 'active')?.activeItems.map((item) => item.id)).toEqual([
+      'cancelled-item',
+      'paused-item',
+    ]);
+  });
+
   it('prefers the top task headline over raw goal text for compact work-item summaries', () => {
     const summary = buildWorkflowBoardWorkItemSummary(
       createWorkItem({

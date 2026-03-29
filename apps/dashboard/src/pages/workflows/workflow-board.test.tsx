@@ -604,6 +604,8 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('Review incoming packet');
     expect(html).toContain('Workflow paused');
     expect(html).toContain('>Paused<');
+    expect(html.indexOf('>Active</p>')).toBeLessThan(html.indexOf('Review incoming packet'));
+    expect(html.indexOf('Review incoming packet')).toBeLessThan(html.indexOf('>Done</p>'));
   });
 
   it('shows cancelled work in Done with a cancelled badge instead of leaving it in an active lane', () => {
@@ -622,7 +624,7 @@ describe('WorkflowBoard', () => {
                 stage_name: 'intake-triage',
                 title: 'Cancelled packet review',
                 priority: 'normal',
-                column_id: 'done',
+                column_id: 'active',
               },
             ],
           },
@@ -637,6 +639,7 @@ describe('WorkflowBoard', () => {
 
     expect(html).toContain('Cancelled packet review');
     expect(html).toContain('>Cancelled<');
+    expect(html.indexOf('>Done</p>')).toBeLessThan(html.indexOf('Cancelled packet review'));
     expect(html).not.toContain('No completed work items match the current visibility window.');
   });
 });

@@ -8,6 +8,7 @@ import type { WorkflowBoardMode } from './workflows-page.support.js';
 
 export interface WorkflowBoardViewInput {
   boardMode: WorkflowBoardMode;
+  workflowState?: string | null;
   stageFilter: string;
   laneFilter: string;
   blockedOnly: boolean;
@@ -67,7 +68,11 @@ export function buildWorkflowBoardView(
   }
 
   const filteredItems = board.work_items.filter((workItem) => {
-    const displayColumnId = resolveDisplayColumnId(workItem);
+    const displayColumnId = resolveDisplayColumnId(
+      board.columns,
+      workItem,
+      input.workflowState,
+    );
     if (input.stageFilter !== '__all__' && workItem.stage_name !== input.stageFilter) {
       return false;
     }
@@ -91,7 +96,11 @@ export function buildWorkflowBoardView(
 
   const filteredByColumn = new Map<string, DashboardWorkflowWorkItemRecord[]>();
   for (const workItem of filteredItems) {
-    const displayColumnId = resolveDisplayColumnId(workItem);
+    const displayColumnId = resolveDisplayColumnId(
+      board.columns,
+      workItem,
+      input.workflowState,
+    );
     const current = filteredByColumn.get(displayColumnId) ?? [];
     current.push(workItem);
     filteredByColumn.set(displayColumnId, current);
@@ -200,8 +209,20 @@ export function buildWorkflowBoardActiveTaskSummary(
   };
 }
 
-function resolveDisplayColumnId(workItem: DashboardWorkflowWorkItemRecord): string {
+function resolveDisplayColumnId(
+  columns: DashboardWorkflowBoardColumn[],
+  workItem: DashboardWorkflowWorkItemRecord,
+  workflowState?: string | null,
+): string {
+  if (isCancelledWorkItem(workItem, workflowState)) {
+    return readTerminalColumnId(columns) ?? workItem.column_id;
+  }
   return workItem.column_id;
+}
+
+function readTerminalColumnId(columns: DashboardWorkflowBoardColumn[]): string | null {
+  const terminalColumn = columns.find((column) => Boolean(column.is_terminal));
+  return terminalColumn?.id ?? null;
 }
 
 function buildLaneView(
