@@ -78,6 +78,7 @@ export class WorkflowDeliverablesService {
   ): Promise<WorkflowDeliverablesPacket & { all_deliverables: WorkflowDeliverableRecord[] }> {
     const limit = input.limit ?? 10;
     const fetchWindow = resolveFetchWindow(limit);
+    const allowIncompleteReclassification = !input.workItemId;
     const includeWorkflowScope = Boolean(input.workItemId);
     const includeAllWorkItemScopes = !input.workItemId;
     const [deliverables, briefs, inputPackets, handoffs, incompleteWorkItemIds] = await Promise.all([
@@ -163,6 +164,7 @@ export class WorkflowDeliverablesService {
         isCurrentFinalDeliverable(
           deliverable,
           incompleteWorkItemIdSet,
+          allowIncompleteReclassification,
           finalizedBriefIds,
           finalizedDescriptorIds,
         ),
@@ -171,6 +173,7 @@ export class WorkflowDeliverablesService {
         !isCurrentFinalDeliverable(
           deliverable,
           incompleteWorkItemIdSet,
+          allowIncompleteReclassification,
           finalizedBriefIds,
           finalizedDescriptorIds,
         ),
@@ -454,13 +457,18 @@ function isFinalDeliverable(
 function isCurrentFinalDeliverable(
   deliverable: WorkflowDeliverableRecord,
   incompleteWorkItemIds: Set<string>,
+  allowIncompleteReclassification: boolean,
   finalizedBriefIds: Set<string>,
   finalizedDescriptorIds: Set<string>,
 ): boolean {
   if (!isFinalDeliverable(deliverable, finalizedBriefIds, finalizedDescriptorIds)) {
     return false;
   }
-  return !isIncompleteReclassifiedDeliverable(deliverable, incompleteWorkItemIds);
+  return !isIncompleteReclassifiedDeliverable(
+    deliverable,
+    incompleteWorkItemIds,
+    allowIncompleteReclassification,
+  );
 }
 
 function isStoredFinalDeliverable(deliverable: WorkflowDeliverableRecord): boolean {
@@ -499,7 +507,11 @@ function shouldExposeCurrentDeliverable(
 function isIncompleteReclassifiedDeliverable(
   deliverable: WorkflowDeliverableRecord,
   incompleteWorkItemIds: Set<string>,
+  allowIncompleteReclassification: boolean,
 ): boolean {
+  if (!allowIncompleteReclassification) {
+    return false;
+  }
   const workItemId = readOptionalString(deliverable.work_item_id);
   return Boolean(
     workItemId

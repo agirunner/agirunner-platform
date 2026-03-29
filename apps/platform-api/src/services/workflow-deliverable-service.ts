@@ -183,10 +183,10 @@ export class WorkflowDeliverableService {
       sanitizeRequiredText(input.title, 'Workflow deliverable title is required'),
       sanitizeDeliverableState(input.state),
       sanitizeDeliverableSummary(input.summaryBrief),
-      sanitizeDeliverablePreviewCapabilities(input.previewCapabilities),
-      sanitizeDeliverableTarget(input.primaryTarget),
-      sanitizeDeliverableTargets(input.secondaryTargets),
-      sanitizeDeliverableContentPreview(input.contentPreview),
+      serializeJsonbParam(sanitizeDeliverablePreviewCapabilities(input.previewCapabilities)),
+      serializeJsonbParam(sanitizeDeliverableTarget(input.primaryTarget)),
+      serializeJsonbParam(sanitizeDeliverableTargets(input.secondaryTargets)),
+      serializeJsonbParam(sanitizeDeliverableContentPreview(input.contentPreview)),
       sanitizeOptionalText(input.sourceBriefId),
       workflowId,
       input.workItemId ?? null,
@@ -225,6 +225,10 @@ export class WorkflowDeliverableService {
 
     return toWorkflowDeliverableRecord(result.rows[0]);
   }
+}
+
+function serializeJsonbParam(value: Record<string, unknown> | Record<string, unknown>[]): string {
+  return JSON.stringify(value);
 }
 
 function buildDeliverableScopeQuery(input: ListWorkflowDeliverablesInput): {

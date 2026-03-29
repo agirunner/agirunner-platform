@@ -373,6 +373,9 @@ function selectScopedOutputDescriptors(
   if (selectedScope.scope_kind === 'workflow') {
     return outputDescriptors;
   }
+  if (selectedScope.scope_kind === 'selected_task') {
+    return [];
+  }
   if (!selectedScope.work_item_id) {
     return [];
   }
