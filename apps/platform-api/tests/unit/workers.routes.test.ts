@@ -98,4 +98,38 @@ describe('workers routes', () => {
     expect(response.statusCode).toBe(422);
     expect(claimTask).not.toHaveBeenCalled();
   });
+
+  it('allows polling workers to acknowledge a delivered signal', async () => {
+    const { workerRoutes } = await import('../../src/api/routes/workers.routes.js');
+    const acknowledgeSignal = vi.fn();
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('taskService', { claimTask: vi.fn() });
+    app.decorate('pgPool', { query: vi.fn() });
+    app.decorate('workerService', {
+      registerWorker: vi.fn(),
+      listWorkers: vi.fn(),
+      getWorker: vi.fn(),
+      deleteWorker: vi.fn(),
+      heartbeat: vi.fn(),
+      sendSignal: vi.fn(),
+      acknowledgeSignal,
+    });
+
+    await app.register(workerRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workers/worker-1/signals/signal-1/ack',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(acknowledgeSignal).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'worker-1',
+      'signal-1',
+    );
+  });
 });

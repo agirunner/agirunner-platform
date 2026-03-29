@@ -76,7 +76,7 @@ export class WorkflowCancellationService {
 
       await client.query(
         `UPDATE workflows
-            SET metadata = metadata || $3::jsonb,
+            SET metadata = (COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at') || $3::jsonb,
                 updated_at = now()
           WHERE tenant_id = $1
             AND id = $2`,

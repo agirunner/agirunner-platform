@@ -152,8 +152,10 @@ export class WorkflowStateService {
     workflowId: string,
     db: DatabaseClient | DatabasePool,
   ) {
-    const posture = await this.loadWorkflowPosture(tenantId, workflowId, db);
-    return hasPendingCancellationWork(posture) ? 'paused' : 'cancelled';
+    void tenantId;
+    void workflowId;
+    void db;
+    return 'cancelled';
   }
 
   private async enqueueParentWorkflowOutcome(
@@ -402,11 +404,6 @@ function hasContinuousWorkflowPosture(posture: ContinuousWorkflowPosture) {
   if (posture.hasActiveOrchestratorTask || posture.openWorkItemCount > 0) return true;
   if (posture.stages.some((stage) => isAttentionGateStatus(stage.gate_status))) return true;
   return false;
-}
-
-function hasPendingCancellationWork(posture: WorkflowPosture) {
-  if (posture.hasActiveOrchestratorTask || posture.openWorkItemCount > 0) return true;
-  return posture.stages.some((stage) => isAttentionGateStatus(stage.gate_status));
 }
 
 function hasWorkflowPauseMarker(metadata: Record<string, unknown>) {

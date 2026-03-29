@@ -698,7 +698,9 @@ export class FleetService {
       JOIN workflows w ON w.id = t.workflow_id AND w.tenant_id = t.tenant_id
       WHERE t.tenant_id = $1
         AND t.state = 'ready'
-        AND w.state NOT IN ('cancelled', 'failed', 'completed')
+        AND w.state NOT IN ('paused', 'cancelled', 'failed', 'completed')
+        AND COALESCE(NULLIF(w.metadata->>'pause_requested_at', ''), '') = ''
+        AND COALESCE(NULLIF(w.metadata->>'cancel_requested_at', ''), '') = ''
         AND w.playbook_id IS NOT NULL`;
 
     const params: unknown[] = [tenantId];
@@ -784,10 +786,16 @@ export class FleetService {
     const result = await this.pool.query<SpecialistRuntimeStatsRow>(
       `WITH ready_specialist_tasks AS (
          SELECT 1
-           FROM tasks
-          WHERE tenant_id = $1
-            AND state = 'ready'
-            AND COALESCE(is_orchestrator_task, false) = false
+           FROM tasks t
+           JOIN workflows w
+             ON w.id = t.workflow_id
+            AND w.tenant_id = t.tenant_id
+          WHERE t.tenant_id = $1
+            AND t.state = 'ready'
+            AND COALESCE(t.is_orchestrator_task, false) = false
+            AND w.state NOT IN ('paused', 'cancelled', 'failed', 'completed')
+            AND COALESCE(NULLIF(w.metadata->>'pause_requested_at', ''), '') = ''
+            AND COALESCE(NULLIF(w.metadata->>'cancel_requested_at', ''), '') = ''
        ),
        specialist_runtime_heartbeats AS (
          SELECT COUNT(*)::int AS active_runtimes

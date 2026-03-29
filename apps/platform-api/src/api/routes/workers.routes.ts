@@ -85,6 +85,16 @@ export const workerRoutes: FastifyPluginAsync = async (app) => {
     return { data };
   });
 
+  app.post(
+    '/api/v1/workers/:id/signals/:signalId/ack',
+    { preHandler: [authenticateApiKey, withScope('worker')] },
+    async (request, reply) => {
+      const params = request.params as { id: string; signalId: string };
+      await app.workerService.acknowledgeSignal(request.auth!, params.id, params.signalId);
+      return reply.status(204).send();
+    },
+  );
+
   const handleNextTask = async (request: FastifyRequest, reply: FastifyReply) => {
     const params = request.params as { id: string };
     ensureWorkerAccess(request.auth!, params.id);

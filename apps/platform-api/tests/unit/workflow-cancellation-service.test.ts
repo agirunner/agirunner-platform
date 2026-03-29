@@ -362,6 +362,70 @@ describe('WorkflowCancellationService', () => {
     );
   });
 
+  it('clears the pause marker when a paused workflow is cancelled', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('SELECT id, state, metadata, lifecycle FROM workflows')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              state: 'paused',
+              metadata: { pause_requested_at: '2026-03-12T00:00:00.000Z' },
+              lifecycle: 'planned',
+            }],
+          };
+        }
+        if (sql.includes('assigned_worker_id') && sql.includes('FROM tasks')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_stage_gates')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_stages')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE tasks')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE execution_container_leases')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_activations')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflows')) {
+          expect(sql).toContain("COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at'");
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            expect.objectContaining({ cancel_requested_at: expect.any(String) }),
+          ]);
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.startsWith('UPDATE agents')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkflowCancellationService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'cancelled') } as never,
+      resolveCancelSignalGracePeriodMs: async () => 60_000,
+      getWorkflow: vi.fn(async () => ({ id: 'workflow-1', state: 'cancelled' })),
+    });
+
+    const result = await service.cancelWorkflow(identity as never, 'workflow-1');
+
+    expect(result).toEqual(expect.objectContaining({ id: 'workflow-1', state: 'cancelled' }));
+  });
+
   it('closes pending stage gates when workflow cancellation is requested', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {

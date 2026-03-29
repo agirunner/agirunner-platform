@@ -343,7 +343,7 @@ describe('WorkflowStateService', () => {
     expect(eventService.emit).not.toHaveBeenCalled();
   });
 
-  it('returns paused during cancellation when work items remain open', async () => {
+  it('returns cancelled immediately during cancellation even when work items remain open', async () => {
     const pool = createPool([
       workflowRow({
         state: 'active',
@@ -358,11 +358,11 @@ describe('WorkflowStateService', () => {
     const eventService = { emit: vi.fn() };
     const service = new WorkflowStateService(pool as never, eventService as never);
     const result = await service.recomputeWorkflowState('tenant-1', 'workflow-1');
-    expect(result).toBe('paused');
+    expect(result).toBe('cancelled');
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'workflow.state_changed',
-        data: { from_state: 'active', to_state: 'paused' },
+        data: { from_state: 'active', to_state: 'cancelled' },
       }),
       undefined,
     );

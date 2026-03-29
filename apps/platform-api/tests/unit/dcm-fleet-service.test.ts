@@ -236,6 +236,12 @@ describe('FleetService DCM', () => {
       expect(query).toContain('WITH ready_specialist_tasks AS');
       expect(query).toContain('specialist_runtime_heartbeats AS');
       expect(query).toContain('active_execution_leases AS');
+      expect(query).toContain('JOIN workflows w');
+      expect(query).toContain('w.id = t.workflow_id');
+      expect(query).toContain('w.tenant_id = t.tenant_id');
+      expect(query).toContain("w.state NOT IN ('paused', 'cancelled', 'failed', 'completed')");
+      expect(query).toContain("COALESCE(NULLIF(w.metadata->>'pause_requested_at', ''), '') = ''");
+      expect(query).toContain("COALESCE(NULLIF(w.metadata->>'cancel_requested_at', ''), '') = ''");
       expect(query).not.toContain('capabilities_required');
       expect(query.match(/FROM ready_specialist_tasks/g)?.length).toBeGreaterThanOrEqual(1);
       expect(query).not.toContain('FROM playbooks p');
