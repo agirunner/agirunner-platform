@@ -117,13 +117,14 @@ async function apiJsonRequest<T>(
   path: string,
   init: { method?: string; body?: Record<string, unknown> } = {},
 ): Promise<T> {
+  const hasBody = init.body !== undefined;
   const response = await fetch(`${PLATFORM_API_URL}${path}`, {
     method: init.method ?? 'GET',
     headers: {
-      'content-type': 'application/json',
       authorization: `Bearer ${ADMIN_API_KEY}`,
+      ...(hasBody ? { 'content-type': 'application/json' } : {}),
     },
-    body: init.body ? JSON.stringify(init.body) : undefined,
+    body: hasBody ? JSON.stringify(init.body) : undefined,
   });
   if (!response.ok) {
     throw new Error(
