@@ -62,12 +62,12 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('In Progress for Reviewer');
     expect(html).toContain('Workflow: Release Workflow');
     expect(html).toContain('Work item: Prepare release bundle');
-    expect(html).toContain('Rollback guide');
-    expect(html).toContain('rollback.md');
     expect(html).toContain('Task input');
     expect(html).toContain('Inputs');
     expect(html).toContain('Requested deliverable');
     expect(html).toContain('A full policy assessment handoff with readiness decision, evidence, and rework guidance.');
+    expect(html).not.toContain('Rollback guide');
+    expect(html).not.toContain('rollback.md');
     expect(html).not.toContain('Artifact Id');
     expect(html).not.toContain('artifact-1');
     expect(html).not.toContain('Work Item Id');
@@ -249,7 +249,7 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('release-notes');
   });
 
-  it('puts authored task input ahead of parent packets and status framing in task scope', () => {
+  it('puts authored task input ahead of status framing in task scope without repeating parent packets', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
         workflow: createWorkflow(),
@@ -282,8 +282,9 @@ describe('WorkflowDetails', () => {
 
     expect(html).toContain('Requested deliverable');
     expect(html).toContain('Confirm the final release packet is complete and operator-ready.');
-    expect(html.indexOf('Requested deliverable')).toBeLessThan(html.indexOf('Rollback guide'));
     expect(html.indexOf('Requested deliverable')).toBeLessThan(html.indexOf('In Progress for Reviewer'));
+    expect(html).not.toContain('Rollback guide');
+    expect(html).not.toContain('rollback.md');
   });
 
   it('suppresses uuid-like task metadata even when it arrives under generic labels', () => {
@@ -326,7 +327,7 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Subject</dt>');
   });
 
-  it('fills thin task scope with parent work-item inputs instead of showing an empty task-only pane', () => {
+  it('fills thin task scope with parent work-item inputs when task input is only linkage metadata', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
         workflow: createWorkflow(),
@@ -339,7 +340,12 @@ describe('WorkflowDetails', () => {
         selectedWorkItem: createWorkItem(),
         selectedTask: {
           ...createTask(),
-          input: {},
+          input: {
+            artifact_id: 'artifact-1',
+            subject_task_id: 'task-source-1',
+            subject_revision: 2,
+            work_item_id: 'work-item-1',
+          },
         },
         selectedWorkItemTasks: [],
         inputPackets: createPackets(),

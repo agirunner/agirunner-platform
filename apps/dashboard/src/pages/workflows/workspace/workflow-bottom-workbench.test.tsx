@@ -134,6 +134,66 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).not.toContain('Current scope');
   });
 
+  it('shows the work item scope banner above the tabs when the workbench is scoped to a work item', () => {
+    const packet = createPacket();
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBottomWorkbench, {
+        workflowId: 'workflow-1',
+        workflow: packet.workflow,
+        stickyStrip: packet.sticky_strip,
+        board: packet.board,
+        workflowName: 'Workflow 1',
+        packet: {
+          ...packet,
+          selected_scope: {
+            scope_kind: 'selected_work_item',
+            work_item_id: 'work-item-7',
+            task_id: null,
+          },
+          bottom_tabs: {
+            ...packet.bottom_tabs,
+            current_scope_kind: 'selected_work_item',
+            current_work_item_id: 'work-item-7',
+            current_task_id: null,
+          },
+        },
+        activeTab: 'details',
+        selectedWorkItemId: 'work-item-7',
+        scopedWorkItemId: 'work-item-7',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [],
+        inputPackets: [],
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'selected_work_item',
+          title: 'Work item',
+          subject: 'work item',
+          name: 'Prepare release bundle',
+          banner: 'Work item: Prepare release bundle',
+        },
+        onTabChange: vi.fn(),
+        onClearWorkItemScope: vi.fn(),
+        onClearTaskScope: vi.fn(),
+        onOpenAddWork: vi.fn(),
+        onOpenRedrive: vi.fn(),
+        onLoadMoreActivity: vi.fn(),
+        onLoadMoreDeliverables: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Scope');
+    expect(html).toContain('>Work item<');
+    expect(html).toContain('Work item: Prepare release bundle');
+    expect(html.indexOf('Work item: Prepare release bundle')).toBeLessThan(html.indexOf('Details'));
+    expect(html).toContain('Show workflow');
+    expect(html).not.toContain('Show work item');
+    expect(html).not.toContain('Current scope');
+  });
+
   it('keeps steering focused on requests and history instead of header-control reminders', () => {
     const packet = createPacket();
     const html = renderToStaticMarkup(

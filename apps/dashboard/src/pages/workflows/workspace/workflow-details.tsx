@@ -34,13 +34,17 @@ export function WorkflowDetails(props: {
     ? props.inputPackets.filter((packet) => packet.work_item_id === null)
     : [];
   const operatorFacingTaskInput = isTaskScope ? readOperatorFacingTaskInput(props.selectedTask?.input) : null;
-  const shouldShowParentWorkItemInputs =
-    selectedWorkItemId !== null && (isWorkItemScope || isTaskScope);
+  const hasTaskInput = isTaskScope && hasStructuredContent(operatorFacingTaskInput);
+  const shouldShowParentWorkItemInputs = shouldShowParentWorkItemPackets({
+    isWorkItemScope,
+    isTaskScope,
+    selectedWorkItemId,
+    hasTaskInput,
+  });
   const workItemPackets = shouldShowParentWorkItemInputs && selectedWorkItemId
     ? props.inputPackets.filter((packet) => packet.work_item_id === selectedWorkItemId)
     : [];
   const scope = buildDetailsScope(props);
-  const hasTaskInput = isTaskScope && hasStructuredContent(operatorFacingTaskInput);
   const hasInputs =
     workflowPackets.length > 0
     || workItemPackets.length > 0
@@ -91,6 +95,21 @@ export function WorkflowDetails(props: {
       ) : null}
     </section>
   );
+}
+
+function shouldShowParentWorkItemPackets(input: {
+  isWorkItemScope: boolean;
+  isTaskScope: boolean;
+  selectedWorkItemId: string | null;
+  hasTaskInput: boolean;
+}): boolean {
+  if (!input.selectedWorkItemId) {
+    return false;
+  }
+  if (input.isWorkItemScope) {
+    return true;
+  }
+  return input.isTaskScope && !input.hasTaskInput;
 }
 
 function DetailSection(props: {
