@@ -13,7 +13,7 @@ import type {
 import { WorkflowDetails } from './workflow-details.js';
 
 describe('WorkflowDetails', () => {
-  it('keeps stale task-scoped data framed as selected work-item details', () => {
+  it('keeps stale task-scoped data framed as a dense selected work-item surface', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
         workflow: createWorkflow(),
@@ -35,19 +35,21 @@ describe('WorkflowDetails', () => {
     expect(html).toContain(
       '<h3 class="text-base font-semibold text-foreground">Prepare release bundle</h3>',
     );
-    expect(html).toContain('Basics');
-    expect(html).toContain('Workflow');
     expect(html).toContain('Release Workflow');
+    expect(html).toContain('Check the final release packet and approve it.');
+    expect(html).toContain('Rollback guide');
+    expect(html).toContain('rollback.md');
+    expect(html).not.toContain('Basics');
+    expect(html).not.toContain('Inputs');
     expect(html).not.toContain(
       '<h3 class="text-base font-semibold text-foreground">Verify deliverable</h3>',
     );
-    expect(html).not.toContain('Task input');
-    expect(html).not.toContain('Task');
-    expect(html).not.toContain('Work item scope');
     expect(html).not.toContain('Task scope');
+    expect(html).not.toContain('Work item scope');
+    expect(html).not.toContain('Next expected');
   });
 
-  it('shows latest task context as work-item input context without leaking internal fields', () => {
+  it('shows latest selected-task context as work-item context without leaking internal fields', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
         workflow: createWorkflow(),
@@ -76,13 +78,12 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain('Inputs');
-    expect(html).toContain('Latest task context');
+    expect(html).toContain('Current context');
     expect(html).toContain('Requested deliverable');
     expect(html).toContain(
       'A full policy assessment handoff with readiness decision, evidence, and rework guidance.',
     );
-    expect(html).not.toContain('Task input');
+    expect(html).not.toContain('Latest task context');
     expect(html).not.toContain('Artifact Id');
     expect(html).not.toContain('artifact-1');
     expect(html).not.toContain('Work Item Id');
@@ -90,7 +91,7 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Subject Revision');
   });
 
-  it('keeps selected work-item details concrete with the latest status and task rows only', () => {
+  it('keeps selected work-item details dense with latest status, operator inputs, files, and compact task summary', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
         workflow: createWorkflow(),
@@ -116,19 +117,28 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Prepare release bundle');
     expect(html).toContain('Assemble final artifacts for launch.');
     expect(html).toContain('1 blocked task');
+    expect(html).toContain('Rollback guide');
+    expect(html).toContain('rollback.md');
     expect(html).toContain('Verify deliverable');
     expect(html).toContain('In Progress');
     expect(html).toContain('Rollback validation');
     expect(html).toContain('Blocked');
     expect(html).toContain('Archive release notes');
     expect(html).toContain('Completed');
+    expect(html).not.toContain('Reviewer');
+    expect(html).not.toContain('Release Manager');
+    expect(html).not.toContain('Approve release packet');
+    expect(html).not.toContain('reviewer');
+    expect(html).not.toContain('Release notes and approval summary are attached.');
     expect(html).not.toContain('1 active');
     expect(html).not.toContain('1 completed');
     expect(html).not.toContain('1 active • 1 blocked • 1 completed');
+    expect(html).not.toContain('Basics');
+    expect(html).not.toContain('Inputs');
     expect(html).not.toContain('Related tasks');
   });
 
-  it('keeps workflow scope minimal and limited to workflow-level inputs', () => {
+  it('keeps workflow scope minimal and limited to workflow-level status, inputs, and uploaded files', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
         workflow: createWorkflow(),
@@ -155,11 +165,14 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Launch inputs');
     expect(html).toContain('Launch packet');
     expect(html).toContain('release/2026.03');
+    expect(html).toContain('launch-summary.pdf');
+    expect(html).not.toContain('Basics');
+    expect(html).not.toContain('Inputs');
     expect(html).not.toContain('Prepare release bundle');
     expect(html).not.toContain('Rollback guide');
     expect(html).not.toContain('rollback.md');
-    expect(html).not.toContain('Latest task context');
-    expect(html).not.toContain('Task input');
+    expect(html).not.toContain('Current context');
+    expect(html).not.toContain('Tasks');
   });
 });
 
@@ -338,7 +351,17 @@ function createPackets(): DashboardWorkflowInputPacketRecord[] {
       created_by_id: 'user-1',
       created_at: '2026-03-27T23:30:00.000Z',
       updated_at: '2026-03-27T23:30:00.000Z',
-      files: [],
+      files: [
+        {
+          id: 'file-0',
+          file_name: 'launch-summary.pdf',
+          description: null,
+          content_type: 'application/pdf',
+          size_bytes: 1024,
+          created_at: '2026-03-27T23:30:00.000Z',
+          download_url: '/files/launch-summary.pdf',
+        },
+      ],
     },
     {
       id: 'packet-2',

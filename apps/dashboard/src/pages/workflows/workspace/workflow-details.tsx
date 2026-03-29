@@ -1,5 +1,3 @@
-import type { ReactNode } from 'react';
-
 import type {
   DashboardMissionControlWorkflowCard,
   DashboardTaskRecord,
@@ -26,8 +24,9 @@ export function WorkflowDetails(props: {
   workflowParameters: Record<string, unknown> | null;
   scope: WorkflowWorkbenchScopeDescriptor;
 }): JSX.Element {
+  const normalizedScope = normalizeDetailsScope(props.scope, props.selectedWorkItem, props.selectedWorkItemTitle);
   const selectedWorkItemId = props.selectedWorkItem?.id ?? props.selectedWorkItemId ?? null;
-  const isWorkflowScope = props.scope.scopeKind === 'workflow';
+  const isWorkflowScope = normalizedScope.scopeKind === 'workflow';
   const isWorkItemScope = !isWorkflowScope;
   const workflowPackets = isWorkflowScope
     ? props.inputPackets.filter((packet) => packet.work_item_id === null)
@@ -42,86 +41,60 @@ export function WorkflowDetails(props: {
     shouldShowParentWorkItemInputs && selectedWorkItemId
       ? props.inputPackets.filter((packet) => packet.work_item_id === selectedWorkItemId)
       : [];
-  const scope = buildDetailsScope(props);
-  const hasInputs =
-    workflowPackets.length > 0 ||
-    workItemPackets.length > 0 ||
-    hasLatestTaskContext ||
-    (isWorkflowScope && hasStructuredContent(props.workflowParameters));
-  const detailSections = buildDetailSections(scope);
-  const hasSupportingDetails = detailSections.supporting.length > 0 || compactTaskRows.length > 0;
+  const scope = buildDetailsScope({ ...props, scope: normalizedScope });
+  const hasLaunchInputs = isWorkflowScope && hasStructuredContent(props.workflowParameters);
+  const hasTaskDetails = compactTaskRows.length > 0;
 
   return (
-    <section className="grid gap-2.5 pb-1">
-      <header className="grid gap-1 border-b border-border/60 pb-1.5">
+    <section className="grid gap-3 pb-1">
+      <header className="grid gap-1.5 border-b border-border/60 pb-2">
         <h3 className="text-base font-semibold text-foreground">{scope.title}</h3>
+        {scope.workflow_name ? (
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
+            {scope.workflow_name}
+          </p>
+        ) : null}
+        <p className="text-sm text-foreground">{scope.latest_status}</p>
+        {scope.context ? (
+          <p className="text-sm text-muted-foreground">{scope.context}</p>
+        ) : null}
       </header>
 
-      {detailSections.context.length > 0 ? (
-        <DetailSection title="Basics">
-          <BasicDetailList entries={detailSections.context} />
-        </DetailSection>
-      ) : null}
-
-      {hasInputs ? (
-        <DetailSection title="Inputs">
+      {hasLatestTaskContext || hasLaunchInputs || workflowPackets.length > 0 || workItemPackets.length > 0 ? (
+        <div className="grid gap-3">
           {hasLatestTaskContext ? (
-            <StructuredBlock label="Latest task context" value={latestTaskContext} />
+            <StructuredBlock label="Current context" value={latestTaskContext} />
           ) : null}
-          {isWorkflowScope && hasStructuredContent(props.workflowParameters) ? (
+          {hasLaunchInputs ? (
             <StructuredBlock label="Launch inputs" value={props.workflowParameters} />
           ) : null}
           {workflowPackets.length > 0 ? <PacketSection packets={workflowPackets} /> : null}
           {workItemPackets.length > 0 ? <PacketSection packets={workItemPackets} /> : null}
-        </DetailSection>
+        </div>
       ) : null}
 
-      {hasSupportingDetails ? (
-        <div className="grid gap-1 border-t border-border/60 pt-2 text-sm text-muted-foreground">
-          {detailSections.supporting.map((line) => (
-            <p key={line}>{line}</p>
-          ))}
-          {compactTaskRows.length > 0 ? <CompactTaskList tasks={compactTaskRows} /> : null}
+      {isWorkItemScope && hasTaskDetails ? (
+        <div className="grid gap-2 border-t border-border/60 pt-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+              Tasks
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {buildTaskHeadline(props.selectedWorkItemTasks) ?? `${compactTaskRows.length} ${pluralize('task', compactTaskRows.length)}`}
+            </p>
+          </div>
+          <CompactTaskList tasks={compactTaskRows} />
         </div>
       ) : null}
     </section>
-  );
-}
-
-function DetailSection(props: { title: string; children: ReactNode }): JSX.Element {
-  return (
-    <section className="grid gap-1.5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-        {props.title}
-      </p>
-      <div className="grid gap-2">{props.children}</div>
-    </section>
-  );
-}
-
-function BasicDetailList(props: { entries: Array<{ label: string; value: string }> }): JSX.Element {
-  return (
-    <dl className="divide-y divide-border/60">
-      {props.entries.map((entry) => (
-        <div
-          key={`${entry.label}:${entry.value}`}
-          className="grid gap-1 py-1 sm:grid-cols-[7rem_minmax(0,1fr)] sm:items-start sm:gap-2.5"
-        >
-          <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-            {entry.label}
-          </dt>
-          <dd className="text-sm text-foreground">{entry.value}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 
 function PacketSection(props: { packets: DashboardWorkflowInputPacketRecord[] }): JSX.Element {
   return (
-    <div className="grid gap-2 divide-y divide-border/60">
+    <div className="grid gap-3">
       {props.packets.map((packet) => (
-        <div key={packet.id} className="grid gap-1.5 pt-2 first:pt-0">
+        <div key={packet.id} className="grid gap-1.5 border-t border-border/60 pt-2 first:border-t-0 first:pt-0">
           <strong className="text-sm text-foreground">
             {packet.summary ?? humanizeToken(packet.packet_kind)}
           </strong>
@@ -212,7 +185,6 @@ function CompactTaskList(props: {
   tasks: Array<{
     id: string;
     title: string;
-    role: string | null;
     state: string;
   }>;
 }): JSX.Element {
@@ -221,27 +193,19 @@ function CompactTaskList(props: {
   }
 
   return (
-    <section className="grid gap-2 pt-1">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-        Tasks
-      </p>
-      <ul className="grid divide-y divide-border/60">
-        {props.tasks.map((task) => (
-          <li
-            key={task.id}
-            className="flex items-start justify-between gap-3 py-2 first:pt-0 last:pb-0"
-          >
-            <div className="min-w-0">
-              <p className="truncate text-sm text-foreground">{task.title}</p>
-              {task.role ? (
-                <p className="text-xs text-muted-foreground">{humanizeToken(task.role)}</p>
-              ) : null}
-            </div>
-            <span className="shrink-0 text-xs text-muted-foreground">{task.state}</span>
-          </li>
-        ))}
-      </ul>
-    </section>
+    <ul className="grid divide-y divide-border/60">
+      {props.tasks.map((task) => (
+        <li
+          key={task.id}
+          className="flex items-start justify-between gap-3 py-2 first:pt-0 last:pb-0"
+        >
+          <div className="min-w-0">
+            <p className="truncate text-sm text-foreground">{task.title}</p>
+          </div>
+          <span className="shrink-0 text-xs text-muted-foreground">{task.state}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -261,8 +225,7 @@ function buildDetailsScope(props: {
   title: string;
   latest_status: string;
   workflow_name: string | null;
-  summary: string | null;
-  supporting_context: string | null;
+  context: string | null;
 } {
   if (props.scope.scopeKind !== 'workflow') {
     return {
@@ -277,11 +240,10 @@ function buildDetailsScope(props: {
         props.selectedTask,
       ),
       workflow_name: props.workflow.name,
-      summary:
+      context:
+        readOptionalText(props.selectedTask?.description) ??
         readOptionalText(props.selectedWorkItem?.goal) ??
-        readOptionalText(props.selectedWorkItem?.acceptance_criteria) ??
-        readOptionalText(props.selectedTask?.description),
-      supporting_context: readOptionalText(props.selectedWorkItem?.acceptance_criteria),
+        null,
     };
   }
 
@@ -292,61 +254,8 @@ function buildDetailsScope(props: {
       readOptionalText(props.workflow.pulse.summary) ??
       'Workflow is active.',
     workflow_name: null,
-    summary: null,
-    supporting_context: null,
+    context: null,
   };
-}
-
-function buildDetailSections(
-  input: {
-    latest_status: string;
-    workflow_name: string | null;
-    summary: string | null;
-    supporting_context: string | null;
-  },
-): {
-  context: Array<{ label: string; value: string }>;
-  supporting: string[];
-} {
-  const context = buildBasicDetails(input);
-  return {
-    context,
-    supporting: buildSupportingLines(input),
-  };
-}
-
-function buildBasicDetails(
-  input: {
-    workflow_name: string | null;
-  },
-): Array<{ label: string; value: string }> {
-  const details: Array<{ label: string; value: string }> = [];
-  if (input.workflow_name) {
-    details.push({ label: 'Workflow', value: input.workflow_name });
-  }
-  return details;
-}
-
-function buildSupportingLines(input: {
-  latest_status: string;
-  summary: string | null;
-  supporting_context: string | null;
-}): string[] {
-  const lines: string[] = [];
-  if (input.summary) {
-    lines.push(input.summary);
-  }
-  if (input.latest_status && input.latest_status !== input.summary) {
-    lines.push(input.latest_status);
-  }
-  if (
-    input.supporting_context &&
-    input.supporting_context !== input.summary &&
-    input.supporting_context !== input.latest_status
-  ) {
-    lines.push(input.supporting_context);
-  }
-  return lines.filter((line) => line.trim().length > 0);
 }
 
 function buildTaskLatestStatus(task: DashboardTaskRecord | null): string | null {
@@ -429,19 +338,16 @@ function readTaskCounts(tasks: Record<string, unknown>[]): {
 function readCompactTaskRows(tasks: Record<string, unknown>[]): Array<{
   id: string;
   title: string;
-  role: string | null;
   state: string;
 }> {
   return tasks
     .map((task, index) => {
       const id = readOptionalText(task.id) ?? `task-${index}`;
       const title = readOptionalText(task.title) ?? id;
-      const role = readOptionalText(task.role);
       const state = humanizeToken(readOptionalText(task.state) ?? 'pending');
       return {
         id,
         title,
-        role,
         state,
       };
     })
@@ -689,4 +595,25 @@ function isBlockedState(state: string): boolean {
 
 function isCompletedState(state: string): boolean {
   return state === 'completed' || state === 'done' || state === 'succeeded';
+}
+
+function normalizeDetailsScope(
+  scope: WorkflowWorkbenchScopeDescriptor,
+  selectedWorkItem: DashboardWorkflowWorkItemRecord | null,
+  selectedWorkItemTitle: string | null,
+): WorkflowWorkbenchScopeDescriptor {
+  if (scope.scopeKind !== 'selected_task') {
+    return scope;
+  }
+  const name =
+    selectedWorkItem?.title ??
+    selectedWorkItemTitle ??
+    'Selected work item';
+  return {
+    scopeKind: 'selected_work_item',
+    title: 'Work item',
+    subject: 'work item',
+    name,
+    banner: `Work item: ${name}`,
+  };
 }
