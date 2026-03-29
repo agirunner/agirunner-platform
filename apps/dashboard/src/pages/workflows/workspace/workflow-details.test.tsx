@@ -262,6 +262,7 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Prepare release bundle');
     expect(html.indexOf('Verify deliverable')).toBeLessThan(html.indexOf('Basics'));
     expect(html.indexOf('Verify deliverable')).toBeLessThan(html.indexOf('Release Workflow'));
+    expect(html.indexOf('Basics')).toBeLessThan(html.indexOf('Assemble final artifacts for launch.'));
     expect(html).not.toContain('Check the final release packet and approve it.');
     expect(html).not.toContain('Task scope');
     expect(html).not.toContain('Owner role');
@@ -385,6 +386,9 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Confirm the final release packet is complete and operator-ready.');
     expect(html.indexOf('Requested deliverable')).toBeLessThan(
       html.indexOf('In Progress for Reviewer'),
+    );
+    expect(html.indexOf('Requested deliverable')).toBeLessThan(
+      html.indexOf('Assemble final artifacts for launch.'),
     );
     expect(html).not.toContain('Rollback guide');
     expect(html).not.toContain('rollback.md');

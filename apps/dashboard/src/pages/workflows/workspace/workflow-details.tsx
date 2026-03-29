@@ -54,14 +54,13 @@ export function WorkflowDetails(props: {
     workItemPackets.length > 0 ||
     hasTaskInput ||
     (isWorkflowScope && hasStructuredContent(props.workflowParameters));
-  const detailSections = buildDetailSections(scope, props.scope.scopeKind);
+  const detailSections = buildDetailSections(scope);
   const hasSupportingDetails = detailSections.secondary.length > 0 || compactTaskRows.length > 0;
 
   return (
-    <section className="grid gap-3 pb-1">
-      <header className="grid gap-1 border-b border-border/60 pb-2">
+    <section className="grid gap-2.5 pb-1">
+      <header className="grid gap-1 border-b border-border/60 pb-1.5">
         <h3 className="text-base font-semibold text-foreground">{scope.title}</h3>
-        {scope.summary ? <p className="text-sm text-muted-foreground">{scope.summary}</p> : null}
       </header>
 
       {detailSections.context.length > 0 ? (
@@ -112,11 +111,11 @@ function shouldShowParentWorkItemPackets(input: {
 
 function DetailSection(props: { title: string; children: ReactNode }): JSX.Element {
   return (
-    <section className="grid gap-2">
+    <section className="grid gap-1.5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
         {props.title}
       </p>
-      <div className="grid gap-3">{props.children}</div>
+      <div className="grid gap-2">{props.children}</div>
     </section>
   );
 }
@@ -127,7 +126,7 @@ function BasicDetailList(props: { entries: Array<{ label: string; value: string 
       {props.entries.map((entry) => (
         <div
           key={`${entry.label}:${entry.value}`}
-          className="grid gap-1 py-1 sm:grid-cols-[8rem_minmax(0,1fr)] sm:items-start sm:gap-3"
+          className="grid gap-1 py-1 sm:grid-cols-[7rem_minmax(0,1fr)] sm:items-start sm:gap-2.5"
         >
           <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
             {entry.label}
@@ -141,9 +140,9 @@ function BasicDetailList(props: { entries: Array<{ label: string; value: string 
 
 function PacketSection(props: { packets: DashboardWorkflowInputPacketRecord[] }): JSX.Element {
   return (
-    <div className="grid gap-3 divide-y divide-border/60">
+    <div className="grid gap-2 divide-y divide-border/60">
       {props.packets.map((packet) => (
-        <div key={packet.id} className="grid gap-2 pt-3 first:pt-0">
+        <div key={packet.id} className="grid gap-1.5 pt-2 first:pt-0">
           <strong className="text-sm text-foreground">
             {packet.summary ?? humanizeToken(packet.packet_kind)}
           </strong>
@@ -193,7 +192,7 @@ function StructuredBlock(props: {
   }
 
   return (
-    <div className="grid gap-2">
+    <div className="grid gap-1.5">
       {props.label ? (
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           {props.label}
@@ -204,7 +203,7 @@ function StructuredBlock(props: {
           {entries.map(([label, value]) => (
             <div
               key={label}
-              className="grid gap-1 py-1 sm:grid-cols-[10rem_minmax(0,1fr)] sm:items-start sm:gap-3"
+              className="grid gap-1 py-1 sm:grid-cols-[9rem_minmax(0,1fr)] sm:items-start sm:gap-2.5"
             >
               <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
                 {label}
@@ -343,37 +342,26 @@ function buildDetailSections(
   input: {
     latest_status: string;
     workflow_name: string | null;
+    summary: string | null;
     parent_work_item: string | null;
     task_summary: string | null;
   },
-  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
 ): {
   context: Array<{ label: string; value: string }>;
   secondary: string[];
 } {
-  const context = buildBasicDetails(input, scopeKind);
-  const allLines = buildDetailLines(input).filter((line) => !matchesBasicDetail(line, context));
-  if (scopeKind !== 'selected_task') {
-    return {
-      context,
-      secondary: allLines,
-    };
-  }
-
+  const context = buildBasicDetails(input);
   return {
     context,
-    secondary: allLines,
+    secondary: buildSupportingLines(input),
   };
 }
 
 function buildBasicDetails(
   input: {
-    latest_status: string;
     workflow_name: string | null;
     parent_work_item: string | null;
-    task_summary: string | null;
   },
-  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
 ): Array<{ label: string; value: string }> {
   const details: Array<{ label: string; value: string }> = [];
   if (input.workflow_name) {
@@ -382,33 +370,23 @@ function buildBasicDetails(
   if (input.parent_work_item) {
     details.push({ label: 'Work item', value: input.parent_work_item });
   }
-  if (scopeKind === 'selected_task') {
-    return details;
-  }
   return details;
 }
 
-function matchesBasicDetail(
-  line: string,
-  details: Array<{ label: string; value: string }>,
-): boolean {
-  return details.some((detail) => line === `${detail.label}: ${detail.value}`);
-}
-
-function buildDetailLines(input: {
+function buildSupportingLines(input: {
   latest_status: string;
   workflow_name: string | null;
+  summary: string | null;
   parent_work_item: string | null;
   task_summary: string | null;
 }): string[] {
   const lines: string[] = [];
-  if (input.workflow_name) {
-    lines.push(`Workflow: ${input.workflow_name}`);
+  if (input.summary) {
+    lines.push(input.summary);
   }
-  if (input.parent_work_item) {
-    lines.push(`Work item: ${input.parent_work_item}`);
+  if (input.latest_status && input.latest_status !== input.summary) {
+    lines.push(input.latest_status);
   }
-  lines.push(input.latest_status);
   if (input.task_summary) {
     lines.push(input.task_summary);
   }
