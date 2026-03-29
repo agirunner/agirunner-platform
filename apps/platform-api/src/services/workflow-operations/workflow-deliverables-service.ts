@@ -11,6 +11,7 @@ import {
 const CANONICAL_DELIVERABLE_PACKET_KIND = 'deliverable_packet';
 const ROLLUP_SOURCE_DESCRIPTOR_ID_KEY = 'rollup_source_descriptor_id';
 const ROLLUP_SOURCE_WORK_ITEM_ID_KEY = 'rollup_source_work_item_id';
+const SYNTHETIC_DERIVED_DELIVERABLE_PREFIXES = ['brief:', 'handoff:'] as const;
 
 interface DeliverableSource {
   listDeliverables(
@@ -167,10 +168,15 @@ export class WorkflowDeliverablesService {
       timestamp: deliverable.updated_at ?? deliverable.created_at,
       id: deliverable.descriptor_id,
     }));
-    const allDeliverables = orderedDeliverables;
-    const pagedDeliverables = page.items;
+    const allDeliverables = orderedDeliverables.map((deliverable) =>
+      normalizeDeliverableForPresentation(deliverable, incompleteWorkItemIdSet),
+    );
+    const pagedDeliverables = page.items.map((deliverable) =>
+      normalizeDeliverableForPresentation(deliverable, incompleteWorkItemIdSet),
+    );
     return {
-      final_deliverables: pagedDeliverables.filter((deliverable) =>
+      final_deliverables: page.items
+        .filter((deliverable) =>
         isCurrentFinalDeliverable(
           deliverable,
           incompleteWorkItemIdSet,
@@ -178,16 +184,23 @@ export class WorkflowDeliverablesService {
           finalizedBriefIds,
           finalizedDescriptorIds,
         ),
-      ),
-      in_progress_deliverables: pagedDeliverables.filter((deliverable) =>
-        !isCurrentFinalDeliverable(
-          deliverable,
-          incompleteWorkItemIdSet,
-          allowIncompleteReclassification,
-          finalizedBriefIds,
-          finalizedDescriptorIds,
+        )
+        .map((deliverable) =>
+          normalizeDeliverableForPresentation(deliverable, incompleteWorkItemIdSet),
         ),
-      ),
+      in_progress_deliverables: page.items
+        .filter((deliverable) =>
+          !isCurrentFinalDeliverable(
+            deliverable,
+            incompleteWorkItemIdSet,
+            allowIncompleteReclassification,
+            finalizedBriefIds,
+            finalizedDescriptorIds,
+          ),
+        )
+        .map((deliverable) =>
+          normalizeDeliverableForPresentation(deliverable, incompleteWorkItemIdSet),
+        ),
       working_handoffs: deliverableScopeBriefs.filter(isDeliverableBrief),
       inputs_and_provenance: {
         launch_packet: pickSinglePacket(inputPackets, 'launch', input.workItemId),
@@ -586,6 +599,39 @@ function shouldKeepVisibleDuringIncompleteWorkItem(
 
 function isSupersededDeliverable(deliverable: WorkflowDeliverableRecord): boolean {
   return readOptionalString(deliverable.state) === 'superseded';
+}
+
+function normalizeDeliverableForPresentation(
+  deliverable: WorkflowDeliverableRecord,
+  incompleteWorkItemIds: Set<string>,
+): WorkflowDeliverableRecord {
+  if (isSyntheticDerivedDeliverable(deliverable) || !isStoredFinalDeliverable(deliverable)) {
+    return deliverable;
+  }
+
+  const workItemId = readOptionalString(deliverable.work_item_id);
+  if (!workItemId || !incompleteWorkItemIds.has(workItemId)) {
+    return deliverable;
+  }
+
+  return {
+    ...deliverable,
+    delivery_stage: 'in_progress',
+    state: normalizeIncompleteDeliverableState(readOptionalString(deliverable.state)),
+  };
+}
+
+function isSyntheticDerivedDeliverable(deliverable: WorkflowDeliverableRecord): boolean {
+  return SYNTHETIC_DERIVED_DELIVERABLE_PREFIXES.some((prefix) =>
+    deliverable.descriptor_id.startsWith(prefix),
+  );
+}
+
+function normalizeIncompleteDeliverableState(state: string | null): string {
+  if (state === 'final') {
+    return 'approved';
+  }
+  return state ?? 'draft';
 }
 
 function collectFinalizedBriefIds(briefs: WorkflowOperatorBriefRecord[]): Set<string> {

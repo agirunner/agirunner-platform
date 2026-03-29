@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import type {
   MissionControlActionAvailability,
   MissionControlOutputDescriptor,
@@ -445,7 +447,7 @@ function composeFallbackDeliverableFromOutputDescriptor(
   descriptor: MissionControlOutputDescriptor,
 ): WorkflowDeliverableRecord {
   return {
-    descriptor_id: `output:${descriptor.id}`,
+    descriptor_id: buildFallbackOutputDescriptorId(descriptor),
     workflow_id: workflowId,
     work_item_id: descriptor.workItemId,
     descriptor_kind: descriptor.primaryLocation.kind,
@@ -461,6 +463,29 @@ function composeFallbackDeliverableFromOutputDescriptor(
     created_at: '',
     updated_at: '',
   };
+}
+
+function buildFallbackOutputDescriptorId(descriptor: MissionControlOutputDescriptor): string {
+  const descriptorId = readOptionalString(descriptor.id);
+  if (descriptorId) {
+    return `output:${descriptorId}`;
+  }
+
+  const fingerprint = createHash('sha256')
+    .update(JSON.stringify({
+      title: descriptor.title,
+      summary: descriptor.summary,
+      status: descriptor.status,
+      producedByRole: descriptor.producedByRole,
+      workItemId: descriptor.workItemId,
+      taskId: descriptor.taskId,
+      stageName: descriptor.stageName,
+      primaryLocation: descriptor.primaryLocation,
+      secondaryLocations: descriptor.secondaryLocations,
+    }))
+    .digest('hex')
+    .slice(0, 16);
+  return `output:derived:${fingerprint}`;
 }
 
 function composeFallbackPrimaryTarget(

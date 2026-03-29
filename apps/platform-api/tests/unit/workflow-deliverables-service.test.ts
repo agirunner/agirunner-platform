@@ -2560,14 +2560,16 @@ describe('WorkflowDeliverablesService', () => {
       expect.objectContaining({
         descriptor_id: 'deliverable-current',
         work_item_id: 'work-item-1',
-        delivery_stage: 'final',
-        state: 'final',
+        delivery_stage: 'in_progress',
+        state: 'approved',
       }),
     ]);
     expect(result.all_deliverables).toEqual([
       expect.objectContaining({
         descriptor_id: 'deliverable-current',
         work_item_id: 'work-item-1',
+        delivery_stage: 'in_progress',
+        state: 'approved',
       }),
     ]);
   });
@@ -2621,11 +2623,15 @@ describe('WorkflowDeliverablesService', () => {
       expect.objectContaining({
         descriptor_id: 'deliverable-current',
         work_item_id: 'work-item-1',
+        delivery_stage: 'in_progress',
+        state: 'approved',
       }),
     ]);
     expect(result.all_deliverables).toEqual([
       expect.objectContaining({
         descriptor_id: 'deliverable-current',
+        delivery_stage: 'in_progress',
+        state: 'approved',
       }),
     ]);
   });
