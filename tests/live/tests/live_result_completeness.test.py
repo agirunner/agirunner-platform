@@ -717,6 +717,30 @@ class LiveResultCompletenessTests(unittest.TestCase):
         self.assertFalse(result["passed"])
         self.assertIn("forbidden", "\n".join(result["failures"]))
 
+    def test_workflow_scope_db_summary_rolls_up_work_item_deliverables(self) -> None:
+        summary = workflow_scope_trace.summarize_db_scope(
+            {
+                "deliverables": [
+                    {
+                        "descriptor_id": "deliverable-1",
+                        "descriptor_kind": "deliverable_packet",
+                        "delivery_stage": "final",
+                        "state": "final",
+                        "work_item_id": "wi-1",
+                    }
+                ],
+                "operator_briefs": [],
+                "completed_handoffs": [],
+            },
+            scope_kind="workflow",
+            work_item_id=None,
+            task_id=None,
+        )
+
+        self.assertEqual(["deliverable-1"], summary["all_descriptor_ids"])
+        self.assertEqual(["deliverable-1"], summary["final_descriptor_ids"])
+        self.assertEqual({"deliverable_packet": 1}, summary["deliverable_descriptor_kind_counts"])
+
 
 if __name__ == "__main__":
     unittest.main()

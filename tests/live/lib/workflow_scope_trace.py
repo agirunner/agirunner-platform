@@ -1456,7 +1456,7 @@ def filter_console_records(records: list[dict[str, Any]], scope_kind: str, work_
 
 def filter_deliverable_records(records: list[dict[str, Any]], scope_kind: str, work_item_id: str | None) -> list[dict[str, Any]]:
     if scope_kind == "workflow":
-        return [record for record in records if read_string(record.get("work_item_id")) is None]
+        return records
     return [
         record
         for record in records

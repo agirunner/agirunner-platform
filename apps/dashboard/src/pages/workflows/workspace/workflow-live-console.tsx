@@ -9,18 +9,17 @@ import {
   describeWorkflowConsoleEmptyState,
   describeWorkflowConsoleScope,
   filterWorkflowConsoleItems,
+  getWorkflowConsoleScrollBehavior,
   getWorkflowConsoleVisibleItems,
   getWorkflowConsoleFollowBehavior,
+  isWorkflowConsoleAtLiveEdge,
   orderWorkflowConsoleItemsForDisplay,
   resolveWorkflowConsoleWindowChange,
   resolveWorkflowConsoleFilterCounts,
-  shouldPrefetchWorkflowConsoleHistory,
   type WorkflowConsoleFilter,
   type WorkflowConsoleFollowMode,
 } from './workflow-live-console.support.js';
 import { WorkflowLiveConsoleEntry } from './workflow-live-console-entry.js';
-
-const LIVE_EDGE_THRESHOLD_PX = 48;
 const TERMINAL_SURFACE_CLASS_NAME =
   'rounded-xl border border-slate-900/90 bg-[#08111f] text-slate-100 shadow-[0_18px_40px_rgba(2,6,23,0.28)]';
 const TERMINAL_TOOLBAR_CLASS_NAME = 'border-b border-slate-800/80 bg-slate-950/80 px-4 py-3';
@@ -147,9 +146,11 @@ export function WorkflowLiveConsole(props: {
       scrollHeight: container.scrollHeight,
       scrollTop: container.scrollTop,
     };
-    isAtLiveEdgeRef.current =
-      container.scrollHeight - container.clientHeight - container.scrollTop <=
-      LIVE_EDGE_THRESHOLD_PX;
+    isAtLiveEdgeRef.current = isWorkflowConsoleAtLiveEdge({
+      scrollHeight: container.scrollHeight,
+      clientHeight: container.clientHeight,
+      scrollTop: container.scrollTop,
+    });
   }, [followMode, visibleItems]);
 
   useEffect(() => {
@@ -314,22 +315,29 @@ export function WorkflowLiveConsole(props: {
           className="max-h-[28rem] overflow-x-hidden overflow-y-auto bg-transparent px-0 py-2 font-mono text-sm text-slate-100"
           onScroll={(event) => {
             const element = event.currentTarget;
-            const isNearLiveEdge =
-              element.scrollHeight - element.clientHeight - element.scrollTop <=
-              LIVE_EDGE_THRESHOLD_PX;
-            isAtLiveEdgeRef.current = isNearLiveEdge;
-            if (isNearLiveEdge) {
+            const scrollBehavior = getWorkflowConsoleScrollBehavior({
+              followMode,
+              hasNextCursor: props.packet.next_cursor !== null,
+              isLoadingOlderHistory,
+              scrollTop: element.scrollTop,
+              scrollHeight: element.scrollHeight,
+              clientHeight: element.clientHeight,
+            });
+            if (scrollBehavior.shouldStickToLiveEdge) {
+              element.scrollTop = element.scrollHeight;
+              isAtLiveEdgeRef.current = true;
+              setHasQueuedUpdates(false);
+              scrollMetricsRef.current.scrollHeight = element.scrollHeight;
+              scrollMetricsRef.current.scrollTop = element.scrollTop;
+              return;
+            }
+            isAtLiveEdgeRef.current = scrollBehavior.isAtLiveEdge;
+            if (scrollBehavior.shouldClearQueuedUpdates) {
               setHasQueuedUpdates(false);
             }
             scrollMetricsRef.current.scrollHeight = element.scrollHeight;
             scrollMetricsRef.current.scrollTop = element.scrollTop;
-            if (
-              shouldPrefetchWorkflowConsoleHistory({
-                hasNextCursor: props.packet.next_cursor !== null,
-                isLoadingOlderHistory,
-                scrollTop: element.scrollTop,
-              })
-            ) {
+            if (scrollBehavior.shouldPrefetchHistory) {
               setIsLoadingOlderHistory(true);
               props.onLoadMore();
             }
