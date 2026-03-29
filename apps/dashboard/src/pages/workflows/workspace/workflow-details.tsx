@@ -560,6 +560,14 @@ function shouldRenderOperatorFacingTaskInputKey(key: string): boolean {
     return false;
   }
   if (
+    normalized === 'slug' ||
+    normalized === 'slugs' ||
+    normalized.endsWith('_slug') ||
+    normalized.endsWith('_slugs')
+  ) {
+    return false;
+  }
+  if (
     normalized === 'subject_revision' ||
     normalized === 'activation_id' ||
     normalized === 'execution_context_id'
@@ -574,7 +582,7 @@ function shouldRenderOperatorFacingTaskInputKey(key: string): boolean {
 
 function normalizeOperatorFacingTaskInputValue(value: unknown): unknown {
   if (typeof value === 'string') {
-    const trimmed = value.trim();
+    const trimmed = sanitizeOperatorFacingString(value);
     return trimmed.length > 0 ? trimmed : null;
   }
   if (typeof value === 'number' || typeof value === 'boolean') {
@@ -599,12 +607,12 @@ function shouldSuppressOpaqueOperatorFacingValue(key: string, value: unknown): b
     return false;
   }
   if (typeof value === 'string') {
-    return looksLikeOpaqueIdentifier(value);
+    return looksLikeOpaqueReferenceValue(value);
   }
   if (Array.isArray(value)) {
     return (
       value.length > 0 &&
-      value.every((entry) => typeof entry === 'string' && looksLikeOpaqueIdentifier(entry))
+      value.every((entry) => typeof entry === 'string' && looksLikeOpaqueReferenceValue(entry))
     );
   }
   return false;
@@ -632,6 +640,28 @@ function normalizeOperatorFacingTaskInputKey(value: string): string {
     .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
     .replace(/[\s-]+/g, '_')
     .toLowerCase();
+}
+
+function sanitizeOperatorFacingString(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return '';
+  }
+  return stripCredentialedUrl(trimmed);
+}
+
+function stripCredentialedUrl(value: string): string {
+  try {
+    const parsed = new URL(value);
+    if (!parsed.username && !parsed.password) {
+      return value;
+    }
+    parsed.username = '';
+    parsed.password = '';
+    return parsed.toString();
+  } catch {
+    return value;
+  }
 }
 
 function renderStructuredValue(value: unknown): string | null {
@@ -694,6 +724,11 @@ function looksLikeMachineToken(value: string): boolean {
 
 function looksLikeOpaqueIdentifier(value: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function looksLikeOpaqueReferenceValue(value: string): boolean {
+  return looksLikeOpaqueIdentifier(value)
+    || /^[a-z0-9]+(?:[_-][a-z0-9]+)+$/i.test(value);
 }
 
 function pluralize(value: string, count: number): string {

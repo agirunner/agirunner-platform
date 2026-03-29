@@ -691,6 +691,108 @@ describe('WorkflowDeliverablesService', () => {
     expect(result.in_progress_deliverables).toEqual([]);
   });
 
+  it('keeps rolled-up work-item deliverables visible in workflow scope when a completed brief finalized the descriptor before the row updated', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'deliverable-workflow-1',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'artifact',
+          delivery_stage: 'final',
+          title: 'Workflow status packet',
+          state: 'final',
+          summary_brief: 'Workflow status is available.',
+          preview_capabilities: {},
+          primary_target: {},
+          secondary_targets: [],
+          content_preview: {},
+          source_brief_id: null,
+          created_at: '2026-03-27T22:34:00.000Z',
+          updated_at: '2026-03-27T22:34:00.000Z',
+        },
+        {
+          descriptor_id: 'deliverable-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          descriptor_kind: 'artifact',
+          delivery_stage: 'in_progress',
+          title: 'Triage summary',
+          state: 'draft',
+          summary_brief: 'Final triage summary ready for review.',
+          preview_capabilities: {},
+          primary_target: {},
+          secondary_targets: [],
+          content_preview: {},
+          source_brief_id: 'brief-1',
+          created_at: '2026-03-27T22:35:00.000Z',
+          updated_at: '2026-03-27T22:35:00.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => [
+        {
+          id: 'brief-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: 'task-1',
+          request_id: 'request-1',
+          execution_context_id: 'task-1',
+          brief_kind: 'milestone',
+          brief_scope: 'deliverable_context',
+          source_kind: 'specialist',
+          source_role_name: 'Builder',
+          status_kind: 'completed',
+          short_brief: { headline: 'Triage summary completed.' },
+          detailed_brief_json: {
+            headline: 'Triage summary completed.',
+            status_kind: 'completed',
+          },
+          linked_target_ids: [],
+          sequence_number: 5,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: ['deliverable-1'],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-27T22:36:00.000Z',
+          updated_at: '2026-03-27T22:36:00.000Z',
+        },
+      ]),
+    };
+    const inputPacketService = { listWorkflowInputPackets: vi.fn(async () => []) };
+    const workItemSource = {
+      listIncompleteWorkItemIds: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+      undefined,
+      workItemSource as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1');
+
+    expect(result.final_deliverables).toHaveLength(2);
+    expect(result.final_deliverables).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          descriptor_id: 'deliverable-workflow-1',
+          work_item_id: null,
+        }),
+        expect.objectContaining({
+          descriptor_id: 'deliverable-1',
+          work_item_id: 'work-item-1',
+        }),
+      ]),
+    );
+    expect(result.in_progress_deliverables).toEqual([]);
+  });
+
   it('synthesizes a final handoff packet deliverable for completed work items without materialized descriptors', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => [
@@ -2002,6 +2104,75 @@ describe('WorkflowDeliverablesService', () => {
       }),
     ]);
     expect(result.in_progress_deliverables).toEqual([]);
+    expect(result.final_deliverables).not.toEqual([
+      expect.objectContaining({
+        content_preview: expect.objectContaining({
+          summary: expect.stringContaining('Produced by: Orchestrator'),
+        }),
+      }),
+    ]);
+  });
+
+  it('labels synthesized work-item completion packets as promoted work-item deliverables instead of claiming the orchestrator produced them', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => []),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => [
+        {
+          id: 'brief-orchestrator-work-item-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: null,
+          request_id: 'request-orchestrator-work-item-1',
+          execution_context_id: 'activation-1',
+          brief_kind: 'milestone',
+          brief_scope: 'deliverable_context',
+          source_kind: 'orchestrator',
+          source_role_name: 'Orchestrator',
+          status_kind: 'completed',
+          short_brief: { headline: 'workflow-intake-01 completion packet' },
+          detailed_brief_json: {
+            headline: 'workflow-intake-01 completion packet',
+            summary: 'The orchestrator observed closure after the specialist completed the packet.',
+            status_kind: 'completed',
+          },
+          linked_target_ids: ['work-item-1'],
+          sequence_number: 1,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: [],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-28T21:06:00.000Z',
+          updated_at: '2026-03-28T21:06:00.000Z',
+        },
+      ]),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+    });
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'brief:brief-orchestrator-work-item-1',
+        work_item_id: 'work-item-1',
+        content_preview: expect.objectContaining({
+          summary: expect.stringContaining('Promoted from work item brief'),
+        }),
+      }),
+    ]);
     expect(result.final_deliverables).not.toEqual([
       expect.objectContaining({
         content_preview: expect.objectContaining({

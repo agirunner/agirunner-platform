@@ -434,6 +434,90 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Subject</dt>');
   });
 
+  it('hides slug-style linkage fields while preserving human task input', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: 'task-1',
+        selectedTaskTitle: 'Verify deliverable',
+        selectedWorkItem: createWorkItem(),
+        selectedTask: {
+          ...createTask(),
+          input: {
+            work_item_slug: 'workflow-intake-01',
+            workflowSlug: 'release-workflow',
+            task_slug: 'verify-deliverable',
+            review_focus: 'Confirm the final packet is operator-ready.',
+          },
+        },
+        selectedWorkItemTasks: [],
+        inputPackets: createPackets(),
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Verify deliverable',
+          banner: 'Task: Verify deliverable',
+        },
+      }),
+    );
+
+    expect(html).toContain('Review Focus');
+    expect(html).toContain('Confirm the final packet is operator-ready.');
+    expect(html).not.toContain('Work Item Slug');
+    expect(html).not.toContain('Workflow Slug');
+    expect(html).not.toContain('Task Slug');
+    expect(html).not.toContain('workflow-intake-01');
+    expect(html).not.toContain('release-workflow');
+    expect(html).not.toContain('verify-deliverable');
+  });
+
+  it('strips embedded credentials from operator-facing repository urls', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: 'task-1',
+        selectedTaskTitle: 'Verify deliverable',
+        selectedWorkItem: createWorkItem(),
+        selectedTask: {
+          ...createTask(),
+          input: {
+            repo: {
+              url: 'https://x-access-token:github_pat_abc123@github.com/agirunner/agirunner-test-fixtures.git',
+              base_branch: 'main',
+            },
+          },
+        },
+        selectedWorkItemTasks: [],
+        inputPackets: createPackets(),
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Verify deliverable',
+          banner: 'Task: Verify deliverable',
+        },
+      }),
+    );
+
+    expect(html).toContain('Repo');
+    expect(html).toContain('https://github.com/agirunner/agirunner-test-fixtures.git');
+    expect(html).toContain('Base Branch');
+    expect(html).toContain('Main');
+    expect(html).not.toContain('x-access-token');
+    expect(html).not.toContain('github_pat_abc123');
+  });
+
   it('fills thin task scope with parent work-item inputs when task input is only linkage metadata', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {

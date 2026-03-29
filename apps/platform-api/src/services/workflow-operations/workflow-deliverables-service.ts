@@ -111,12 +111,6 @@ export class WorkflowDeliverablesService {
     ) ?? [];
     const incompleteWorkItemIdSet = new Set(incompleteWorkItemIds);
     const linkedWorkItemIdSet = new Set(linkedWorkItemIds);
-    const deliverableScopeRecords = selectDeliverableScopeRecords(
-      deliverables,
-      input.workItemId,
-      (deliverable) => deliverable.work_item_id,
-      isStoredFinalDeliverable,
-    );
     const deliverableScopeBriefs = selectDeliverableScopeRecords(
       briefs,
       input.workItemId,
@@ -131,6 +125,17 @@ export class WorkflowDeliverablesService {
     );
     const finalizedBriefIds = collectFinalizedBriefIds(deliverableScopeBriefs);
     const finalizedDescriptorIds = collectFinalizedDescriptorIds(deliverableScopeBriefs);
+    const deliverableScopeRecords = selectDeliverableScopeRecords(
+      deliverables,
+      input.workItemId,
+      (deliverable) => deliverable.work_item_id,
+      (deliverable) =>
+        shouldRollUpChildScopeDeliverable(
+          deliverable,
+          finalizedBriefIds,
+          finalizedDescriptorIds,
+        ),
+    );
     const hydratedDeliverables = suppressShadowedOrchestratorBriefPackets(
       appendSynthesizedBriefDeliverables(
         appendSynthesizedHandoffDeliverables(deliverableScopeRecords, scopedHandoffs),
@@ -286,9 +291,6 @@ function appendSynthesizedBriefDeliverables(
     if (!shouldSynthesizeBriefDeliverable(brief, linkedWorkItemIds)) {
       continue;
     }
-    if (isOrchestratorBrief(brief) && readOptionalString(brief.work_item_id) !== null) {
-      continue;
-    }
     if (existingBriefIds.has(brief.id)) {
       continue;
     }
@@ -436,6 +438,14 @@ function shouldRollUpChildScopeBrief(
 ): boolean {
   return isDeliverableOutcomeStatus(readOptionalString(brief.status_kind))
     && resolveDeliverableWorkItemId(brief, linkedWorkItemIds) !== null;
+}
+
+function shouldRollUpChildScopeDeliverable(
+  deliverable: WorkflowDeliverableRecord,
+  finalizedBriefIds: Set<string>,
+  finalizedDescriptorIds: Set<string>,
+): boolean {
+  return isFinalDeliverable(deliverable, finalizedBriefIds, finalizedDescriptorIds);
 }
 
 function isFinalDeliverable(
@@ -771,6 +781,9 @@ function readBriefSummary(brief: WorkflowOperatorBriefRecord): string | null {
 function readBriefSourceLabel(brief: WorkflowOperatorBriefRecord): string | null {
   if (isWorkflowScopedOrchestratorBriefLinkedToChildScope(brief)) {
     return 'Promoted from workflow brief';
+  }
+  if (isOrchestratorBrief(brief) && readOptionalString(brief.work_item_id) !== null) {
+    return 'Promoted from work item brief';
   }
   const roleName = readOptionalString(brief.source_role_name);
   return roleName ? `Produced by: ${roleName}` : null;

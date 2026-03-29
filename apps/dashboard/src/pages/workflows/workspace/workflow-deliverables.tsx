@@ -201,9 +201,28 @@ export function WorkflowDeliverables(props: {
 
 function buildDisplayPacketForScope(
   packet: DashboardWorkflowDeliverablesPacket,
-  _scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
+  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
 ): DashboardWorkflowDeliverablesPacket {
-  return packet;
+  if (scopeKind === 'workflow') {
+    return packet;
+  }
+
+  const deliverables = [
+    ...packet.final_deliverables,
+    ...packet.in_progress_deliverables,
+  ];
+  return {
+    ...packet,
+    final_deliverables: deliverables.filter(isExplicitlyFinalDeliverable),
+    in_progress_deliverables: deliverables.filter((deliverable) => !isExplicitlyFinalDeliverable(deliverable)),
+  };
+}
+
+function isExplicitlyFinalDeliverable(
+  deliverable: DashboardWorkflowDeliverableRecord,
+): boolean {
+  return readText(deliverable.delivery_stage) === 'final'
+    || readText(deliverable.state) === 'final';
 }
 
 function buildDeliverablesScopeCopy(

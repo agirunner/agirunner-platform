@@ -302,6 +302,86 @@ describe('WorkflowDeliverables', () => {
     expect(html).toContain('Release bundle brief');
   });
 
+  it('reclassifies final packets out of the in-progress bucket for selected task scope', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: {
+          final_deliverables: [],
+          in_progress_deliverables: [
+            {
+              descriptor_id: 'deliverable-draft',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              descriptor_kind: 'deliverable_packet',
+              delivery_stage: 'in_progress',
+              title: 'Draft packet',
+              state: 'draft',
+              summary_brief: 'Still in progress.',
+              preview_capabilities: {},
+              primary_target: {
+                target_kind: 'inline_summary',
+                label: 'Review packet',
+                url: '',
+              },
+              secondary_targets: [],
+              content_preview: {
+                summary: 'Still in progress.',
+              },
+              source_brief_id: null,
+              created_at: '2026-03-28T20:55:00.000Z',
+              updated_at: '2026-03-28T20:55:00.000Z',
+            },
+            {
+              descriptor_id: 'deliverable-final',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              descriptor_kind: 'deliverable_packet',
+              delivery_stage: 'final',
+              title: 'Final packet',
+              state: 'final',
+              summary_brief: 'Operator-ready.',
+              preview_capabilities: {},
+              primary_target: {
+                target_kind: 'inline_summary',
+                label: 'Review packet',
+                url: '',
+              },
+              secondary_targets: [],
+              content_preview: {
+                summary: 'Operator-ready.',
+              },
+              source_brief_id: null,
+              created_at: '2026-03-28T21:00:00.000Z',
+              updated_at: '2026-03-28T21:00:00.000Z',
+            },
+          ],
+          working_handoffs: [],
+          inputs_and_provenance: {
+            launch_packet: null,
+            supplemental_packets: [],
+            intervention_attachments: [],
+            redrive_packet: null,
+          },
+          next_cursor: null,
+        },
+        selectedTask: createTask(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        scope: {
+          scopeKind: 'selected_task',
+          title: 'Task',
+          subject: 'task',
+          name: 'Generate release bundle',
+          banner: 'Task: Generate release bundle',
+        },
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Parent work item deliverables (2)');
+    expect(html.indexOf('Final packet')).toBeLessThan(html.indexOf('Draft packet'));
+  });
+
   it('renders synthesized inline-summary deliverables without deprecated navigation links', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
