@@ -2,13 +2,24 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './playbook-detail-page.tsx'), 'utf8');
+function readSource(fileName = './playbook-detail-page.tsx') {
+  return readFileSync(resolve(import.meta.dirname, fileName), 'utf8');
+}
+
+function readCombinedSource() {
+  return [
+    './playbook-detail-page.tsx',
+    './playbook-detail-page.controller.ts',
+    './playbook-detail-page.basics.tsx',
+    './playbook-detail-page.delete-dialogs.tsx',
+  ]
+    .map((fileName) => readSource(fileName))
+    .join('\n');
 }
 
 describe('playbook detail page source', () => {
   it('builds a first-class structured playbook edit flow', () => {
-    const source = readSource();
+    const source = readCombinedSource();
     expect(source).toContain('dashboardApi.getPlaybook');
     expect(source).toContain('dashboardApi.listPlaybooks');
     expect(source).toContain('dashboardApi.updatePlaybook');
@@ -59,8 +70,33 @@ describe('playbook detail page source', () => {
     expect(source).not.toContain('sticky bottom-4 z-10 xl:hidden');
   });
 
+  it('keeps query state and save-delete mutations in a dedicated controller module', () => {
+    const source = readSource('./playbook-detail-page.controller.ts');
+
+    expect(source).toContain('export function usePlaybookDetailPageController()');
+    expect(source).toContain("queryKey: ['playbook', playbookId]");
+    expect(source).toContain("queryKey: ['playbooks']");
+    expect(source).toContain("queryKey: ['playbook-delete-impact', playbookId]");
+    expect(source).toContain('const updateMutation = useMutation({');
+    expect(source).toContain('const deleteMutation = useMutation({');
+    expect(source).toContain('const permanentDeleteMutation = useMutation({');
+    expect(source).toContain('useUnsavedChanges(isDirty)');
+  });
+
+  it('keeps basics and delete surfaces in focused local modules', () => {
+    const basicsSource = readSource('./playbook-detail-page.basics.tsx');
+    const deleteSource = readSource('./playbook-detail-page.delete-dialogs.tsx');
+
+    expect(basicsSource).toContain('export function PlaybookDetailBasicsCard(');
+    expect(basicsSource).toContain('Playbook Basics');
+    expect(deleteSource).toContain('export function PlaybookDeleteDialogs(');
+    expect(deleteSource).toContain('Delete Playbook Revision');
+    expect(deleteSource).toContain('Delete Playbook Permanently');
+    expect(deleteSource).toContain('function PlaybookDeleteImpactDetails(');
+  });
+
   it('guards against unsaved changes via beforeunload with dirty tracking on all form fields', () => {
-    const source = readSource();
+    const source = readCombinedSource();
     expect(source).toContain('useUnsavedChanges');
     expect(source).toContain('useUnsavedChanges(isDirty)');
     expect(source).toContain('setIsDirty(false)');
@@ -68,9 +104,9 @@ describe('playbook detail page source', () => {
   });
 
   it('routes playbook launch through the canonical workflows launch dialog instead of a separate page', () => {
-    const source = readSource();
+    const source = readCombinedSource();
     expect(source).toContain("import { buildWorkflowsLaunchHref } from '../workflows/workflows-page.support.js';");
-    expect(source).toContain('to={buildWorkflowsLaunchHref({ playbookId: playbook.id })}');
+    expect(source).toContain('buildWorkflowsLaunchHref({ playbookId:');
     expect(source).not.toContain('to={`/design/playbooks/${playbook.id}/launch`}');
   });
 });
