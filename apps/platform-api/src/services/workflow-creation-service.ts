@@ -11,7 +11,6 @@ import { WorkflowActivationService } from './workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import type { CreateWorkflowInput } from './workflow-service.types.js';
 import { EventService } from './event-service.js';
-import type { ModelCatalogService } from './model-catalog-service.js';
 import { resolveOperatorRecordActorId } from './operator-record-authorship.js';
 import { sanitizeOptionalWorkflowLiveVisibilityMode } from './workflow-operator-record-sanitization.js';
 import { currentStageNameFromStages, WorkflowStageService } from './workflow-stage-service.js';
@@ -27,7 +26,6 @@ interface WorkflowCreationDeps {
   activationService: WorkflowActivationService;
   activationDispatchService: WorkflowActivationDispatchService;
   stageService: WorkflowStageService;
-  modelCatalogService: Pick<ModelCatalogService, 'validateModelOverride'>;
   inputPacketService?: Pick<WorkflowInputPacketService, 'createWorkflowInputPacket'>;
 }
 
@@ -81,11 +79,10 @@ export class WorkflowCreationService {
       const playbook = playbookResult.rows[0] as Record<string, unknown>;
       const definition = parsePlaybookDefinition(playbook.definition);
       const workspaceConfig = await this.loadWorkspaceConfig(identity.tenantId, input.workspace_id ?? null, client);
-      const workflowConfigOverrides = stripWorkflowModelOverride(input.config_overrides ?? {});
       const resolvedConfig = resolveWorkflowConfig(
         playbook.definition as Record<string, unknown>,
         workspaceConfig,
-        workflowConfigOverrides,
+        input.config_overrides ?? {},
       );
       const workflowParameters = validateWorkflowParameters(definition, input.parameters);
       const workflowContext = normalizeWorkflowContext(input.context);
@@ -270,11 +267,6 @@ export class WorkflowCreationService {
       client as never,
     );
   }
-}
-
-function stripWorkflowModelOverride(value: Record<string, unknown>): Record<string, unknown> {
-  const { model_override: _modelOverride, ...rest } = value;
-  return rest;
 }
 
 function initialWorkflowStageName(definition: ReturnType<typeof parsePlaybookDefinition>): string | null {

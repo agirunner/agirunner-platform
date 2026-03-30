@@ -395,25 +395,10 @@ describe('ModelCatalogService', () => {
     });
   });
 
-  describe('effective model resolution', () => {
-    it('fails fast when no effective model is configured for the requested scope', async () => {
-      pool.query
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-        .mockResolvedValueOnce({
-          rows: [{
-            workspace_id: null,
-            resolved_config: {},
-            config_layers: {},
-          }],
-          rowCount: 1,
-        });
-
-      await expect(
-        service.resolveEffectiveModel(TENANT_ID, { workflowId: 'workflow-1' }),
-      ).rejects.toThrow(
-        'No LLM model is configured for this scope. Set a default model on the LLM Providers page or add an override before continuing.',
-      );
+  describe('resolved model configuration', () => {
+    it('does not expose the retired workflow effective-model resolution surface', () => {
+      expect('resolveEffectiveModel' in service).toBe(false);
+      expect('validateModelOverride' in service).toBe(false);
     });
 
     it('does not invent a reasoning config from model metadata when the llm page did not configure one', async () => {
@@ -550,87 +535,5 @@ describe('ModelCatalogService', () => {
       );
     });
 
-    it('validates model override references against enabled models', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [{ id: MODEL_ID }], rowCount: 1 });
-
-      await expect(
-        service.validateModelOverride(TENANT_ID, { model_id: MODEL_ID }, 'workflow model_override'),
-      ).resolves.toBeUndefined();
-    });
-
-    it('resolves effective model with workflow override precedence over workspace and tenant defaults', async () => {
-      pool.query
-        .mockResolvedValueOnce({ rows: [{ config_value: MODEL_ID }], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [{ config_value: JSON.stringify({ effort: 'low' }) }], rowCount: 1 })
-        .mockResolvedValueOnce({
-          rows: [{
-            workspace_id: 'workspace-1',
-            resolved_config: {
-              model_override: {
-                model_id: '00000000-0000-0000-0000-000000000030',
-              },
-            },
-            config_layers: {
-              run: {
-                model_override: {
-                  model_id: '00000000-0000-0000-0000-000000000030',
-                  reasoning_config: { effort: 'high' },
-                },
-              },
-            },
-          }],
-          rowCount: 1,
-        })
-        .mockResolvedValueOnce({
-          rows: [{ settings: {} }],
-          rowCount: 1,
-        })
-        .mockResolvedValueOnce({
-          rows: [{
-            id: '00000000-0000-0000-0000-000000000030',
-            tenant_id: TENANT_ID,
-            provider_id: PROVIDER_ID,
-            model_id: 'claude-opus-4-1',
-            context_window: 200000,
-            max_output_tokens: 8192,
-            supports_tool_use: true,
-            supports_vision: true,
-            input_cost_per_million_usd: '15.00',
-            output_cost_per_million_usd: '75.00',
-            is_enabled: true,
-            endpoint_type: 'chat',
-            reasoning_config: { type: 'effort', default: 'medium' },
-            created_at: new Date(),
-            provider_name: 'anthropic',
-            provider_base_url: 'https://api.anthropic.com',
-          }],
-          rowCount: 1,
-        });
-
-      const result = await service.resolveEffectiveModel(TENANT_ID, { workflowId: 'workflow-1' });
-
-      expect(result).toEqual({
-        modelId: '00000000-0000-0000-0000-000000000030',
-        reasoningConfig: { effort: 'high' },
-        modelSource: 'workflow',
-        reasoningSource: 'workflow',
-        model: {
-          id: '00000000-0000-0000-0000-000000000030',
-          modelId: 'claude-opus-4-1',
-          providerId: PROVIDER_ID,
-          providerName: 'anthropic',
-          providerBaseUrl: 'https://api.anthropic.com',
-          contextWindow: 200000,
-          maxOutputTokens: 8192,
-          supportsToolUse: true,
-          supportsVision: true,
-          inputCostPerMillionUsd: 15,
-          outputCostPerMillionUsd: 75,
-          endpointType: 'chat',
-          reasoningConfig: { type: 'effort', default: 'medium' },
-          nativeSearch: sampleNativeSearch,
-        },
-      });
-    });
   });
 });

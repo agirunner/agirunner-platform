@@ -1,20 +1,7 @@
-import { z } from 'zod';
-
 import { ValidationError } from '../errors/domain-errors.js';
 import { normalizeSuppressedLayers, type InstructionLayerName } from './instruction-policy.js';
 
 type RecordValue = Record<string, unknown>;
-
-const modelOverrideSchema = z
-  .object({
-    model_id: z.string().uuid().nullable().optional(),
-    reasoning_config: z.record(z.unknown()).nullable().optional(),
-  })
-  .strict()
-  .refine(
-    (value) => value.model_id !== undefined || value.reasoning_config !== undefined,
-    'model_override must include model_id or reasoning_config',
-  );
 
 interface ConfigConstraint {
   enum?: unknown[];
@@ -38,16 +25,6 @@ export interface ResolvedWorkflowConfig {
 
 export interface InstructionConfig {
   suppress_layers: InstructionLayerName[];
-}
-
-export interface ModelOverride {
-  model_id?: string | null;
-  reasoning_config?: Record<string, unknown> | null;
-}
-
-export interface EffectiveModelOverride {
-  model_id: string | null;
-  reasoning_config: Record<string, unknown> | null;
 }
 
 export function resolveWorkflowConfig(
@@ -95,48 +72,12 @@ export function buildResolvedConfigView(
   return annotateSources(resolved, layers, []);
 }
 
-export function readModelOverride(value: unknown, label = 'model_override'): ModelOverride | null {
-  if (value === undefined || value === null) {
-    return null;
-  }
-  const result = modelOverrideSchema.safeParse(value);
-  if (!result.success) {
-    throw new ValidationError(`Invalid ${label}`, { issues: result.error.flatten() });
-  }
-  return {
-    ...(result.data.model_id !== undefined ? { model_id: result.data.model_id } : {}),
-    ...(result.data.reasoning_config !== undefined
-      ? { reasoning_config: result.data.reasoning_config ?? null }
-      : {}),
-  };
-}
-
 export function readWorkflowConfigLayer(value: unknown): RecordValue {
   const record = asRecord(value);
-  const config = mergeRecords(
+  return mergeRecords(
     cloneRecord(asRecord(record.config)),
     cloneRecord(stripReservedKeys(record)),
   );
-  const modelOverride = readModelOverride(record.model_override, 'model_override');
-  if (modelOverride) {
-    config.model_override = modelOverride;
-  }
-  return config;
-}
-
-export function overlayModelOverride(
-  base: EffectiveModelOverride,
-  override: ModelOverride | null,
-): EffectiveModelOverride {
-  if (!override) {
-    return base;
-  }
-
-  return {
-    model_id: override.model_id !== undefined ? override.model_id : base.model_id,
-    reasoning_config:
-      override.reasoning_config !== undefined ? override.reasoning_config : base.reasoning_config,
-  };
 }
 
 function readConfigPolicy(playbookSchema: RecordValue): ConfigPolicy {

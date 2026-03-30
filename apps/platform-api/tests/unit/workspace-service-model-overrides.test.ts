@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ValidationError } from '../../src/errors/domain-errors.js';
 import { WorkspaceService } from '../../src/services/workspace-service.js';
 
 describe('WorkspaceService model overrides', () => {
@@ -57,7 +56,7 @@ describe('WorkspaceService model overrides', () => {
           },
         },
       ),
-    ).rejects.toMatchObject<Partial<ValidationError>>({
+    ).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
       message: expect.stringMatching(/model_overrides.*no longer supported/i),
     });

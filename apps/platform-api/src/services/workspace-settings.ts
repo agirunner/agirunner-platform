@@ -359,11 +359,6 @@ function resolveCredentialValue(input: {
     : undefined;
 }
 
-function readModelOverrides(value: unknown): Record<string, WorkspaceRoleModelOverride> {
-  void value;
-  return {};
-}
-
 function readOptionalString(value: unknown, label: string): string | undefined {
   if (value === undefined || value === null) {
     return undefined;

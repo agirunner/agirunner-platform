@@ -48,7 +48,6 @@ describe('WorkflowCreationService', () => {
       activationService: { enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-1' })) } as never,
       activationDispatchService: { dispatchActivation: vi.fn(async () => null) } as never,
       stageService: { createStages: vi.fn(async () => []) } as never,
-      modelCatalogService: { validateModelOverride: vi.fn(async () => undefined) } as never,
       inputPacketService: { createWorkflowInputPacket } as never,
     });
 
@@ -162,7 +161,6 @@ describe('WorkflowCreationService', () => {
       activationService: { enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-1' })) } as never,
       activationDispatchService: { dispatchActivation: vi.fn(async () => null) } as never,
       stageService: { createStages: vi.fn(async () => []) } as never,
-      modelCatalogService: { validateModelOverride: vi.fn(async () => undefined) } as never,
     });
 
     const result = await service.createWorkflow(
@@ -303,7 +301,6 @@ describe('WorkflowCreationService', () => {
       stageService: {
         createStages: vi.fn(async () => []),
       } as never,
-      modelCatalogService: {} as never,
     });
 
     const result = await service.createWorkflow(
@@ -391,9 +388,6 @@ describe('WorkflowCreationService', () => {
       stageService: {
         createStages: vi.fn(async () => []),
       } as never,
-      modelCatalogService: {
-        validateModelOverride: vi.fn(async () => undefined),
-      } as never,
     });
 
     const result = await service.createWorkflow(
@@ -459,7 +453,6 @@ describe('WorkflowCreationService', () => {
       activationService: { enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-1' })) } as never,
       activationDispatchService: { dispatchActivation: vi.fn(async () => null) } as never,
       stageService: { createStages: vi.fn(async () => []) } as never,
-      modelCatalogService: { validateModelOverride: vi.fn(async () => undefined) } as never,
     });
 
     await expect(
@@ -514,7 +507,6 @@ describe('WorkflowCreationService', () => {
       activationService: { enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-1' })) } as never,
       activationDispatchService: { dispatchActivation: vi.fn(async () => null) } as never,
       stageService: { createStages: vi.fn(async () => []) } as never,
-      modelCatalogService: { validateModelOverride: vi.fn(async () => undefined) } as never,
     });
 
     await expect(
@@ -568,7 +560,6 @@ describe('WorkflowCreationService', () => {
       activationService: { enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-1' })) } as never,
       activationDispatchService: { dispatchActivation: vi.fn(async () => null) } as never,
       stageService: { createStages: vi.fn(async () => []) } as never,
-      modelCatalogService: { validateModelOverride: vi.fn(async () => undefined) } as never,
     });
 
     await expect(

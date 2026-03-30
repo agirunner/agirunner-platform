@@ -21,7 +21,7 @@ export const workspaces = pgTable(
     settings: jsonb('settings')
       .$type<StoredWorkspaceSettings>()
       .notNull()
-      .default({ credentials: {}, model_overrides: {} }),
+      .default({ credentials: {} }),
     gitWebhookProvider: text('git_webhook_provider'),
     gitWebhookSecret: text('git_webhook_secret'),
     isActive: boolean('is_active').notNull().default(true),

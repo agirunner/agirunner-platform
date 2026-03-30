@@ -15,7 +15,6 @@ import { WorkflowControlService } from './workflow-control-service.js';
 import { WorkflowCreationService } from './workflow-creation-service.js';
 import { WorkflowDeliverableService } from './workflow-deliverable-service.js';
 import { EventService } from './event-service.js';
-import { ModelCatalogService } from './model-catalog-service.js';
 import {
   PlaybookWorkflowControlService,
   type AdvanceStageInput,
@@ -72,7 +71,6 @@ export class WorkflowService {
   private readonly workItemService: WorkItemService;
   private readonly stageService: WorkflowStageService;
   private readonly playbookControlService: PlaybookWorkflowControlService;
-  private readonly modelCatalogService: ModelCatalogService;
   private readonly addWorkService: WorkflowAddWorkService;
 
   constructor(
@@ -85,7 +83,6 @@ export class WorkflowService {
     workflowInputPacketService?: Pick<WorkflowInputPacketService, 'createWorkflowInputPacket'>,
   ) {
     this.workspaceTimelineService = new WorkspaceTimelineService(pool);
-    this.modelCatalogService = new ModelCatalogService(pool);
     this.artifactStorage = createArtifactStorage(buildArtifactStorageConfig(config));
     const artifactRetentionService = new ArtifactRetentionService(pool, this.artifactStorage);
     const stateService = new WorkflowStateService(
@@ -118,7 +115,6 @@ export class WorkflowService {
       activationService: this.activationService,
       activationDispatchService: this.activationDispatchService,
       stageService: this.stageService,
-      modelCatalogService: this.modelCatalogService,
       inputPacketService: workflowInputPacketService,
     });
     this.workItemService = new WorkItemService(
@@ -169,13 +165,6 @@ export class WorkflowService {
 
   evaluateWorkflowBudget(tenantId: string, workflowId: string, client?: DatabaseClient) {
     return this.budgetService.evaluatePolicy(tenantId, workflowId, client);
-  }
-
-  async getEffectiveModel(tenantId: string, workflowId: string) {
-    return {
-      workflow_id: workflowId,
-      ...(await this.modelCatalogService.resolveEffectiveModel(tenantId, { workflowId })),
-    };
   }
 
   async listWorkflows(tenantId: string, query: ListWorkflowQuery) {

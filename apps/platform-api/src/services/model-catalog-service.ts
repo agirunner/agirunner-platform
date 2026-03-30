@@ -5,11 +5,6 @@ import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { normalizeStoredProviderSecret, readProviderSecret } from '../lib/oauth-crypto.js';
 import {
-  overlayModelOverride,
-  readModelOverride,
-  type EffectiveModelOverride,
-} from './config-hierarchy-service.js';
-import {
   type DiscoveredModel,
   isDefaultEnabledModel,
   readNativeSearchCapability,
@@ -56,29 +51,6 @@ export type CreateProviderInput = z.infer<typeof createProviderSchema>;
 export type UpdateProviderInput = z.infer<typeof updateProviderSchema>;
 export type CreateModelInput = z.infer<typeof createModelSchema>;
 export type UpdateModelInput = z.infer<typeof updateModelSchema>;
-
-export interface EffectiveModelResolution {
-  modelId: string | null;
-  reasoningConfig: Record<string, unknown> | null;
-  modelSource: 'tenant' | 'workspace' | 'workflow' | null;
-  reasoningSource: 'tenant' | 'workspace' | 'workflow' | null;
-  model: {
-    id: string;
-    modelId: string;
-    providerId: string;
-    providerName: string;
-    providerBaseUrl: string;
-    contextWindow: number | null;
-    maxOutputTokens: number | null;
-    supportsToolUse: boolean;
-    supportsVision: boolean;
-    endpointType: string | null;
-    reasoningConfig: Record<string, unknown> | null;
-    inputCostPerMillionUsd?: number | null;
-    outputCostPerMillionUsd?: number | null;
-    nativeSearch?: NativeSearchCapability | null;
-  } | null;
-}
 
 interface ProviderRow {
   [key: string]: unknown;
@@ -143,14 +115,21 @@ interface AssignmentRow {
   updated_at: Date;
 }
 
-interface WorkspaceSettingsRow {
-  settings: Record<string, unknown> | null;
-}
-
-interface WorkflowModelScopeRow {
-  workspace_id: string | null;
-  resolved_config: Record<string, unknown> | null;
-  config_layers: Record<string, unknown> | null;
+interface ResolvedCatalogModel {
+  id: string;
+  modelId: string;
+  providerId: string;
+  providerName: string;
+  providerBaseUrl: string;
+  contextWindow: number | null;
+  maxOutputTokens: number | null;
+  supportsToolUse: boolean;
+  supportsVision: boolean;
+  endpointType: string | null;
+  reasoningConfig: Record<string, unknown> | null;
+  inputCostPerMillionUsd?: number | null;
+  outputCostPerMillionUsd?: number | null;
+  nativeSearch?: NativeSearchCapability | null;
 }
 
 export class ModelCatalogService {
@@ -468,95 +447,6 @@ export class ModelCatalogService {
     return this.buildResolvedConfig(tenantId, roleName, modelId);
   }
 
-  async validateModelOverride(
-    tenantId: string,
-    override: unknown,
-    label = 'model_override',
-  ): Promise<void> {
-    const parsed = readModelOverride(override, label);
-    if (!parsed?.model_id) {
-      return;
-    }
-
-    await this.getModelWithProvider(tenantId, parsed.model_id);
-  }
-
-  async resolveEffectiveModel(
-    tenantId: string,
-    scope: { workspaceId?: string | null; workflowId?: string | null } = {},
-  ): Promise<EffectiveModelResolution> {
-    const tenantDefault = await this.getSystemDefault(tenantId);
-    let effective: EffectiveModelOverride = {
-      model_id: tenantDefault.modelId,
-      reasoning_config: tenantDefault.reasoningConfig,
-    };
-    let modelSource: EffectiveModelResolution['modelSource'] = tenantDefault.modelId ? 'tenant' : null;
-    let reasoningSource: EffectiveModelResolution['reasoningSource'] = tenantDefault.reasoningConfig ? 'tenant' : null;
-
-    let workspaceId = scope.workspaceId ?? null;
-    if (workspaceId) {
-      const workspaceOverride = await this.getWorkspaceModelOverride(tenantId, workspaceId);
-      if (workspaceOverride) {
-        effective = overlayModelOverride(effective, workspaceOverride);
-        if (workspaceOverride.model_id !== undefined) {
-          modelSource = 'workspace';
-        }
-        if (workspaceOverride.reasoning_config !== undefined) {
-          reasoningSource = 'workspace';
-        }
-      }
-    }
-
-    if (scope.workflowId) {
-      const workflowScope = await this.loadWorkflowModelScope(tenantId, scope.workflowId);
-      if (!workflowScope) {
-        throw new NotFoundError('Workflow not found');
-      }
-      if (!workspaceId && workflowScope.workspace_id) {
-        workspaceId = workflowScope.workspace_id;
-        const workspaceOverride = await this.getWorkspaceModelOverride(tenantId, workspaceId);
-        if (workspaceOverride) {
-          effective = overlayModelOverride(effective, workspaceOverride);
-          if (workspaceOverride.model_id !== undefined) {
-            modelSource = 'workspace';
-          }
-          if (workspaceOverride.reasoning_config !== undefined) {
-            reasoningSource = 'workspace';
-          }
-        }
-      }
-
-      const workflowOverride = readModelOverride(
-        asRecord(asRecord(workflowScope.config_layers).run).model_override
-          ?? asRecord(workflowScope.resolved_config).model_override,
-        'workflow model_override',
-      );
-      if (workflowOverride) {
-        effective = overlayModelOverride(effective, workflowOverride);
-        if (workflowOverride.model_id !== undefined) {
-          modelSource = 'workflow';
-        }
-        if (workflowOverride.reasoning_config !== undefined) {
-          reasoningSource = 'workflow';
-        }
-      }
-    }
-
-    if (!effective.model_id) {
-      throw new ValidationError(
-        'No LLM model is configured for this scope. Set a default model on the LLM Providers page or add an override before continuing.',
-      );
-    }
-
-    return {
-      modelId: effective.model_id,
-      reasoningConfig: effective.reasoning_config,
-      modelSource,
-      reasoningSource,
-      model: await this.getModelWithProvider(tenantId, effective.model_id),
-    };
-  }
-
   private async findModelIdForRole(
     tenantId: string,
     roleName: string,
@@ -700,30 +590,6 @@ export class ModelCatalogService {
     };
   }
 
-  private async getWorkspaceModelOverride(tenantId: string, workspaceId: string) {
-    const result = await this.pool.query<WorkspaceSettingsRow>(
-      'SELECT settings FROM workspaces WHERE tenant_id = $1 AND id = $2',
-      [tenantId, workspaceId],
-    );
-    if (!result.rowCount) {
-      return null;
-    }
-    return readModelOverride(asRecord(result.rows[0].settings).model_override, 'workspace model_override');
-  }
-
-  private async loadWorkflowModelScope(
-    tenantId: string,
-    workflowId: string,
-  ): Promise<WorkflowModelScopeRow | null> {
-    const result = await this.pool.query<WorkflowModelScopeRow>(
-      `SELECT workspace_id, resolved_config, config_layers
-         FROM workflows
-        WHERE tenant_id = $1
-          AND id = $2`,
-      [tenantId, workflowId],
-    );
-    return result.rows[0] ?? null;
-  }
   async getProviderForOperations(tenantId: string, id: string): Promise<ProviderRow> {
     const provider = await this.getStoredProvider(tenantId, id);
     return {
@@ -744,7 +610,7 @@ export class ModelCatalogService {
   private async getModelWithProvider(
     tenantId: string,
     modelId: string,
-  ): Promise<EffectiveModelResolution['model']> {
+  ): Promise<ResolvedCatalogModel> {
     const result = await this.pool.query<
       ModelRow & {
         provider_name: string;

@@ -80,48 +80,9 @@ describe('WorkflowService workflow relations', () => {
     });
   });
 
-  it('exposes effective model resolution for a workflow', async () => {
+  it('does not expose the retired workflow effective-model surface', async () => {
     const pool = {
-      query: vi
-        .fn()
-        .mockResolvedValueOnce({ rows: [{ config_value: '00000000-0000-0000-0000-000000000010' }], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-        .mockResolvedValueOnce({
-          rows: [{
-            workspace_id: null,
-            resolved_config: {},
-            config_layers: {
-              run: {
-                model_override: {
-                  model_id: '00000000-0000-0000-0000-000000000011',
-                  reasoning_config: { effort: 'high' },
-                },
-              },
-            },
-          }],
-          rowCount: 1,
-        })
-        .mockResolvedValueOnce({
-          rows: [{
-            id: '00000000-0000-0000-0000-000000000011',
-            tenant_id: 'tenant-1',
-            provider_id: 'provider-1',
-            model_id: 'claude-opus-4-1',
-            context_window: 200000,
-            max_output_tokens: 8192,
-            supports_tool_use: true,
-            supports_vision: true,
-            input_cost_per_million_usd: '15.00',
-            output_cost_per_million_usd: '75.00',
-            is_enabled: true,
-            endpoint_type: 'chat',
-            reasoning_config: { type: 'effort', default: 'medium' },
-            created_at: new Date(),
-            provider_name: 'anthropic',
-            provider_base_url: 'https://api.anthropic.com',
-          }],
-          rowCount: 1,
-        }),
+      query: vi.fn(),
     };
     const service = new WorkflowService(
       pool as never,
@@ -129,20 +90,7 @@ describe('WorkflowService workflow relations', () => {
       { TASK_DEFAULT_TIMEOUT_MINUTES: 30, ARTIFACT_STORAGE_BACKEND: 'local', ARTIFACT_LOCAL_ROOT: '/tmp' } as never,
     );
 
-    const result = await service.getEffectiveModel('tenant-1', 'wf-1');
-
-    expect(result).toEqual({
-      workflow_id: 'wf-1',
-      modelId: '00000000-0000-0000-0000-000000000011',
-      reasoningConfig: { effort: 'high' },
-      modelSource: 'workflow',
-      reasoningSource: 'workflow',
-      model: expect.objectContaining({
-        id: '00000000-0000-0000-0000-000000000011',
-        modelId: 'claude-opus-4-1',
-        providerName: 'anthropic',
-      }),
-    });
+    expect('getEffectiveModel' in service).toBe(false);
   });
 
 });
