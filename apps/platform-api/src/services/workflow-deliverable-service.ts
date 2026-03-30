@@ -121,8 +121,39 @@ export class WorkflowDeliverableService {
     return this.upsertDeliverableForTenant(tenantId, workflowId, input);
   }
 
-  private async assertWorkflow(tenantId: string, workflowId: string): Promise<void> {
-    const result = await this.pool.query(
+  async reconcileWorkflowRollupsForCompletedWorkItem(
+    tenantId: string,
+    workflowId: string,
+    workItemId: string,
+    db: DatabaseQueryable = this.pool,
+  ): Promise<void> {
+    const workItemSettlement = await this.loadWorkItemSettlement(tenantId, workflowId, workItemId, db);
+    if (!workItemSettlement.completed_at) {
+      return;
+    }
+    const sourceDeliverables = await this.loadCurrentFinalDeliverablesForWorkItem(
+      tenantId,
+      workflowId,
+      workItemId,
+      db,
+    );
+    for (const record of sourceDeliverables) {
+      await this.syncWorkflowRollupDeliverable(
+        tenantId,
+        workflowId,
+        record,
+        workItemSettlement,
+        db,
+      );
+    }
+  }
+
+  private async assertWorkflow(
+    tenantId: string,
+    workflowId: string,
+    db: DatabaseQueryable = this.pool,
+  ): Promise<void> {
+    const result = await db.query(
       `SELECT id
          FROM workflows
         WHERE tenant_id = $1
@@ -138,8 +169,9 @@ export class WorkflowDeliverableService {
     tenantId: string,
     workflowId: string,
     workItemId: string,
+    db: DatabaseQueryable = this.pool,
   ): Promise<WorkflowWorkItemSettlementRow> {
-    const result = await this.pool.query<WorkflowWorkItemSettlementRow>(
+    const result = await db.query<WorkflowWorkItemSettlementRow>(
       `SELECT id, completed_at
          FROM workflow_work_items
         WHERE tenant_id = $1
@@ -153,8 +185,13 @@ export class WorkflowDeliverableService {
     return result.rows[0]!;
   }
 
-  private async assertSourceBrief(tenantId: string, workflowId: string, sourceBriefId: string): Promise<void> {
-    const result = await this.pool.query(
+  private async assertSourceBrief(
+    tenantId: string,
+    workflowId: string,
+    sourceBriefId: string,
+    db: DatabaseQueryable = this.pool,
+  ): Promise<void> {
+    const result = await db.query(
       `SELECT id
          FROM workflow_operator_briefs
         WHERE tenant_id = $1
@@ -171,17 +208,18 @@ export class WorkflowDeliverableService {
     tenantId: string,
     workflowId: string,
     input: UpsertWorkflowDeliverableInput,
+    db: DatabaseQueryable = this.pool,
   ): Promise<WorkflowDeliverableRecord> {
-    await this.assertWorkflow(tenantId, workflowId);
+    await this.assertWorkflow(tenantId, workflowId, db);
     const workItemSettlement = input.workItemId
-      ? await this.loadWorkItemSettlement(tenantId, workflowId, input.workItemId)
+      ? await this.loadWorkItemSettlement(tenantId, workflowId, input.workItemId, db)
       : null;
     if (input.sourceBriefId) {
-      await this.assertSourceBrief(tenantId, workflowId, input.sourceBriefId);
+      await this.assertSourceBrief(tenantId, workflowId, input.sourceBriefId, db);
     }
 
     const descriptorId = sanitizeOptionalText(input.descriptorId) ?? randomUUID();
-    const exists = await this.pool.query<{ id: string }>(
+    const exists = await db.query<{ id: string }>(
       `SELECT id
          FROM workflow_output_descriptors
         WHERE tenant_id = $1
@@ -208,7 +246,7 @@ export class WorkflowDeliverableService {
     ];
 
     const result = exists.rowCount
-      ? await this.pool.query<WorkflowDeliverableRow>(
+      ? await db.query<WorkflowDeliverableRow>(
           `UPDATE workflow_output_descriptors
               SET work_item_id = $12,
                   descriptor_kind = $13,
@@ -228,7 +266,7 @@ export class WorkflowDeliverableService {
           RETURNING *`,
           params,
         )
-      : await this.pool.query<WorkflowDeliverableRow>(
+      : await db.query<WorkflowDeliverableRow>(
           `INSERT INTO workflow_output_descriptors
              (id, tenant_id, workflow_id, work_item_id, descriptor_kind, delivery_stage, title, state, summary_brief, preview_capabilities_json, primary_target_json, secondary_targets_json, content_preview_json, source_brief_id)
            VALUES ($14,$1,$11,$12,$13,$2,$3,$4,$5,$6::jsonb,$7::jsonb,$8::jsonb,$9::jsonb,$10)
@@ -237,8 +275,28 @@ export class WorkflowDeliverableService {
         );
 
     const record = toWorkflowDeliverableRecord(result.rows[0]);
-    await this.syncWorkflowRollupDeliverable(tenantId, workflowId, record, workItemSettlement);
+    await this.syncWorkflowRollupDeliverable(tenantId, workflowId, record, workItemSettlement, db);
     return record;
+  }
+
+  private async loadCurrentFinalDeliverablesForWorkItem(
+    tenantId: string,
+    workflowId: string,
+    workItemId: string,
+    db: DatabaseQueryable = this.pool,
+  ): Promise<WorkflowDeliverableRecord[]> {
+    const result = await db.query<WorkflowDeliverableRow>(
+      `SELECT *
+         FROM workflow_output_descriptors
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND work_item_id = $3
+          AND state <> 'superseded'
+          AND (delivery_stage = 'final' OR state = 'final')
+        ORDER BY updated_at DESC, created_at DESC`,
+      [tenantId, workflowId, workItemId],
+    );
+    return result.rows.map(toWorkflowDeliverableRecord);
   }
 
   private async syncWorkflowRollupDeliverable(
@@ -246,6 +304,7 @@ export class WorkflowDeliverableService {
     workflowId: string,
     record: WorkflowDeliverableRecord,
     workItemSettlement: WorkflowWorkItemSettlementRow | null,
+    db: DatabaseQueryable = this.pool,
   ): Promise<void> {
     if (!record.work_item_id) {
       return;
@@ -254,6 +313,7 @@ export class WorkflowDeliverableService {
       tenantId,
       workflowId,
       record.descriptor_id,
+      db,
     );
     if (!shouldMaterializeWorkflowRollup(record, workItemSettlement)) {
       if (!existingRollupDescriptorId) {
@@ -271,7 +331,7 @@ export class WorkflowDeliverableService {
         secondaryTargets: record.secondary_targets,
         contentPreview: buildWorkflowRollupContentPreview(record),
         sourceBriefId: record.source_brief_id ?? undefined,
-      });
+      }, db);
       return;
     }
     await this.upsertDeliverableForTenant(tenantId, workflowId, {
@@ -286,15 +346,16 @@ export class WorkflowDeliverableService {
       secondaryTargets: record.secondary_targets,
       contentPreview: buildWorkflowRollupContentPreview(record),
       sourceBriefId: record.source_brief_id ?? undefined,
-    });
+    }, db);
   }
 
   private async loadWorkflowRollupDescriptorId(
     tenantId: string,
     workflowId: string,
     sourceDescriptorId: string,
+    db: DatabaseQueryable = this.pool,
   ): Promise<string | null> {
-    const result = await this.pool.query<{ id: string }>(
+    const result = await db.query<{ id: string }>(
       `SELECT id
          FROM workflow_output_descriptors
         WHERE tenant_id = $1

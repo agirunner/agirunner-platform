@@ -2671,6 +2671,132 @@ describe('PlaybookWorkflowControlService', () => {
     );
   });
 
+  it('reconciles workflow deliverable rollups when a work item completes', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const activationService = {
+      enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-rollup' })),
+    };
+    const dispatchService = {
+      dispatchActivation: vi.fn(async () => 'task-rollup'),
+    };
+    const stateService = {
+      recomputeWorkflowState: vi.fn(async () => 'active'),
+    };
+    const workflowDeliverableService = {
+      reconcileWorkflowRollupsForCompletedWorkItem: vi.fn(async () => undefined),
+    };
+    const updatedAt = new Date('2026-03-11T03:05:30Z');
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'planned',
+              active_stage_name: 'implementation',
+              state: 'active',
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('AND id = $3') && sql.includes('FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-implementation-rollup',
+              parent_work_item_id: null,
+              stage_name: 'implementation',
+              title: 'Implement the reporting pipeline',
+              goal: 'Ship the feature',
+              acceptance_criteria: 'The reporting pipeline is complete.',
+              column_id: 'planned',
+              owner_role: 'implementer',
+              next_expected_actor: null,
+              next_expected_action: null,
+              rework_count: 1,
+              priority: 'high',
+              notes: null,
+              completed_at: null,
+              metadata: {},
+              updated_at: new Date('2026-03-11T03:00:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('SELECT latest_assessment.resolution AS blocking_resolution')) {
+          return {
+            rowCount: 0,
+            rows: [],
+          };
+        }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-implementation-rollup',
+              parent_work_item_id: null,
+              stage_name: 'implementation',
+              title: 'Implement the reporting pipeline',
+              goal: 'Ship the feature',
+              acceptance_criteria: 'The reporting pipeline is complete.',
+              column_id: 'done',
+              owner_role: 'implementer',
+              next_expected_actor: null,
+              next_expected_action: null,
+              rework_count: 1,
+              priority: 'high',
+              notes: null,
+              completed_at: new Date('2026-03-11T03:05:30Z'),
+              metadata: {},
+              completion_callouts: {
+                residual_risks: [],
+                unresolved_advisory_items: [],
+                waived_steps: [],
+                completion_notes: null,
+              },
+              updated_at: updatedAt,
+            }],
+          };
+        }
+        if (sql.includes('SELECT stage_name, status, gate_status, human_gate') || sql.includes('FROM workflow_stages')) {
+          return {
+            rowCount: 0,
+            rows: [],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('work_item_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: eventService as never,
+      stateService: stateService as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
+      workflowDeliverableService: workflowDeliverableService as never,
+    } as never);
+
+    await service.completeWorkItem(
+      { tenantId: 'tenant-1', scope: 'admin', ownerType: 'user', ownerId: 'user-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'wi-implementation-rollup',
+      {},
+      pool as never,
+    );
+
+    expect(workflowDeliverableService.reconcileWorkflowRollupsForCompletedWorkItem).toHaveBeenCalledWith(
+      'tenant-1',
+      'workflow-1',
+      'wi-implementation-rollup',
+      pool,
+    );
+  });
+
   it('rejects completing a work item while a required assessment is still pending', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

@@ -10,6 +10,7 @@ import {
 } from '../orchestration/playbook-model.js';
 import { EventService } from './event-service.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
+import type { WorkflowDeliverableService } from './workflow-deliverable-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
 import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
@@ -215,6 +216,7 @@ interface Dependencies {
   activationService: WorkflowActivationService;
   activationDispatchService: WorkflowActivationDispatchService;
   subjectTaskChangeService?: SubjectTaskChangeService;
+  workflowDeliverableService?: Pick<WorkflowDeliverableService, 'reconcileWorkflowRollupsForCompletedWorkItem'>;
 }
 
 export class PlaybookWorkflowControlService {
@@ -1580,6 +1582,12 @@ export class PlaybookWorkflowControlService {
       ],
     );
     const updatedWorkItem = result.rows[0];
+    await this.deps.workflowDeliverableService?.reconcileWorkflowRollupsForCompletedWorkItem(
+      identity.tenantId,
+      workflowId,
+      workItemId,
+      db,
+    );
     if (workflow.lifecycle === 'planned') {
       await reconcilePlannedWorkflowStages(db, identity.tenantId, workflowId);
     }

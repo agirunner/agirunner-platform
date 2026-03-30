@@ -6,6 +6,7 @@ import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import type { DatabaseQueryable } from '../../db/database.js';
 import { WorkflowActivationDispatchService } from '../../services/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../services/workflow-activation-service.js';
+import { WorkflowDeliverableService } from '../../services/workflow-deliverable-service.js';
 import { WorkflowStateService } from '../../services/workflow-state-service.js';
 import { PlaybookWorkflowControlService } from '../../services/playbook-workflow-control-service.js';
 import { OrchestratorTaskMessageService } from '../../services/orchestrator-task-message-service.js';
@@ -506,6 +507,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
       config: app.config,
     }),
     subjectTaskChangeService: app.taskService,
+    workflowDeliverableService: new WorkflowDeliverableService(app.pgPool),
   });
   const recoveryHelpers = new GuidedClosureRecoveryHelpersService({
     pool: app.pgPool,

@@ -25,6 +25,7 @@ import { WorkflowChainingService } from '../../services/workflow-chaining-servic
 import { PlaybookWorkflowControlService } from '../../services/playbook-workflow-control-service.js';
 import { WorkflowActivationDispatchService } from '../../services/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../services/workflow-activation-service.js';
+import { WorkflowDeliverableService } from '../../services/workflow-deliverable-service.js';
 import { WorkflowStateService } from '../../services/workflow-state-service.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 import { runIdempotentWorkflowBackedTaskAction } from './task-route-idempotency.js';
@@ -339,6 +340,7 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
       config: app.config,
     }),
     subjectTaskChangeService: app.taskService,
+    workflowDeliverableService: new WorkflowDeliverableService(app.pgPool),
   });
   const workflowWorkItemTaskMutationPreHandler = [
     authenticateApiKey,

@@ -6,6 +6,7 @@ import { ApprovalQueueService } from '../../services/approval-queue-service.js';
 import { PlaybookWorkflowControlService } from '../../services/playbook-workflow-control-service.js';
 import { WorkflowActivationDispatchService } from '../../services/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../services/workflow-activation-service.js';
+import { WorkflowDeliverableService } from '../../services/workflow-deliverable-service.js';
 import { WorkflowStateService } from '../../services/workflow-state-service.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 
@@ -31,6 +32,7 @@ export const approvalQueueRoutes: FastifyPluginAsync = async (app) => {
       config: app.config,
     }),
     subjectTaskChangeService: app.taskService,
+    workflowDeliverableService: new WorkflowDeliverableService(app.pgPool),
   });
 
   app.get('/api/v1/approvals', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {

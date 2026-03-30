@@ -14,6 +14,7 @@ import { WorkflowBudgetService } from './workflow-budget-service.js';
 import { WorkflowCancellationService } from './workflow-cancellation-service.js';
 import { WorkflowControlService } from './workflow-control-service.js';
 import { WorkflowCreationService } from './workflow-creation-service.js';
+import { WorkflowDeliverableService } from './workflow-deliverable-service.js';
 import { EventService } from './event-service.js';
 import { ModelCatalogService } from './model-catalog-service.js';
 import {
@@ -141,6 +142,7 @@ export class WorkflowService {
       activationService: this.activationService,
       activationDispatchService: this.activationDispatchService,
       subjectTaskChangeService: taskService,
+      workflowDeliverableService: new WorkflowDeliverableService(pool),
     });
     this.cancellationService = new WorkflowCancellationService({
       pool,
