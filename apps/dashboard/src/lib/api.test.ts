@@ -1201,10 +1201,12 @@ describe('dashboard api auth/session behavior', () => {
     expect(dashboardApiBlock).not.toContain('getWorkflowModelOverrides(');
     expect(dashboardApiBlock).not.toContain('getResolvedWorkflowModels(');
     expect(dashboardApiBlock).not.toContain('previewEffectiveModels(');
+    expect(dashboardApiBlock).not.toContain('getResolvedWorkflowConfig(');
     expect(createWorkflowBlock).not.toContain('model_overrides?: Record<string, DashboardRoleModelOverride>;');
     expect(source).not.toContain('/api/v1/workspaces/${workspaceId}/model-overrides');
     expect(source).not.toContain('/api/v1/workflows/${workflowId}/model-overrides');
     expect(source).not.toContain('/api/v1/config/llm/resolve-preview');
+    expect(source).not.toContain('/api/v1/workflows/${workflowId}/config/resolved');
   });
 
   it('loads and updates workflow work items through the dashboard api surface', async () => {
@@ -1651,12 +1653,6 @@ describe('dashboard api auth/session behavior', () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ data: { workflow_id: 'pipe-1', resolved_config: { retries: 2 } } }),
-          { status: 200 },
-        ),
-      )
-      .mockResolvedValueOnce(
         new Response(JSON.stringify({ data: [{ workflow_id: 'pipe-1', kind: 'run_summary' }] }), {
           status: 200,
         }),
@@ -1749,7 +1745,6 @@ describe('dashboard api auth/session behavior', () => {
       baseUrl: 'http://localhost:8080',
     });
 
-    const config = await api.getResolvedWorkflowConfig('pipe-1', true);
     const timeline = await api.getWorkspaceTimeline('workspace-1');
     const artifacts = await api.listWorkspaceArtifacts('workspace-1', {
       q: 'release',
@@ -1758,17 +1753,13 @@ describe('dashboard api auth/session behavior', () => {
       per_page: '50',
     });
 
-    expect(config.resolved_config).toEqual({ retries: 2 });
     expect(timeline[0].kind).toBe('run_summary');
     expect(artifacts.data[0]?.id).toBe('artifact-1');
     expect(artifacts.meta.summary.total_artifacts).toBe(1);
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
-      'http://localhost:8080/api/v1/workflows/pipe-1/config/resolved?show_layers=true',
-    );
-    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
       'http://localhost:8080/api/v1/workspaces/workspace-1/timeline',
     );
-    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
+    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
       'http://localhost:8080/api/v1/workspaces/workspace-1/artifacts?q=release&preview_mode=inline&page=1&per_page=50',
     );
   });

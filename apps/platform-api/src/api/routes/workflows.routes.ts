@@ -1302,22 +1302,6 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  app.get(
-    '/api/v1/workflows/:id/config/resolved',
-    { preHandler: [authenticateApiKey, withScope('agent')] },
-    async (request) => {
-      const params = request.params as { id: string };
-      const query = request.query as { show_layers?: string };
-      const showLayers = query.show_layers === 'true';
-      const config = await workflowService.getResolvedConfig(
-        request.auth!.tenantId,
-        params.id,
-        showLayers,
-      );
-      return { data: config };
-    },
-  );
-
   app.post(
     '/api/v1/workflows/:id/cancel',
     { preHandler: [authenticateApiKey, withScope('admin')] },

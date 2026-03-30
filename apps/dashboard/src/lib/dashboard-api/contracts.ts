@@ -108,12 +108,6 @@ export interface DashboardApiKeyRecord {
   created_at: string;
 }
 
-export interface DashboardResolvedConfigResponse {
-  workflow_id: string;
-  resolved_config: Record<string, unknown>;
-  config_layers?: Record<string, Record<string, unknown>>;
-}
-
 export interface DashboardRoleModelOverride {
   provider: string;
   model: string;
@@ -3076,10 +3070,6 @@ export interface DashboardApi {
   ): Promise<unknown>;
   pauseWorkflow(workflowId: string): Promise<unknown>;
   resumeWorkflow(workflowId: string): Promise<unknown>;
-  getResolvedWorkflowConfig(
-    workflowId: string,
-    showLayers?: boolean,
-  ): Promise<DashboardResolvedConfigResponse>;
   getWorkspaceTimeline(workspaceId: string): Promise<DashboardWorkspaceTimelineEntry[]>;
   createPlanningWorkflow(
     workspaceId: string,

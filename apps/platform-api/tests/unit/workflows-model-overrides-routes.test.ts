@@ -86,7 +86,7 @@ describe('workflow model override routes', () => {
     expect(createWorkflow).not.toHaveBeenCalled();
   });
 
-  it('does not expose retired workflow model override routes', async () => {
+  it('does not expose retired workflow model-routing routes', async () => {
     const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
 
     app = fastify();
@@ -118,7 +118,7 @@ describe('workflow model override routes', () => {
 
     await app.register(workflowRoutes);
 
-    const [plainResponse, resolvedResponse] = await Promise.all([
+    const [plainResponse, resolvedResponse, configResponse] = await Promise.all([
       app.inject({
         method: 'GET',
         url: '/api/v1/workflows/workflow-1/model-overrides',
@@ -129,9 +129,15 @@ describe('workflow model override routes', () => {
         url: '/api/v1/workflows/workflow-1/model-overrides/resolved?roles=developer',
         headers: { authorization: 'Bearer test' },
       }),
+      app.inject({
+        method: 'GET',
+        url: '/api/v1/workflows/workflow-1/config/resolved?show_layers=true',
+        headers: { authorization: 'Bearer test' },
+      }),
     ]);
 
     expect(plainResponse.statusCode).toBe(404);
     expect(resolvedResponse.statusCode).toBe(404);
+    expect(configResponse.statusCode).toBe(404);
   });
 });

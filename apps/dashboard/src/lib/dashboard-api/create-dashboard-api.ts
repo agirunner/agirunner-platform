@@ -44,7 +44,6 @@ type DashboardPlaybookRecord = Contracts.DashboardPlaybookRecord;
 type DashboardRemoteMcpAuthorizeResult = Contracts.DashboardRemoteMcpAuthorizeResult;
 type DashboardRemoteMcpOAuthClientProfileRecord = Contracts.DashboardRemoteMcpOAuthClientProfileRecord;
 type DashboardRemoteMcpServerRecord = Contracts.DashboardRemoteMcpServerRecord;
-type DashboardResolvedConfigResponse = Contracts.DashboardResolvedConfigResponse;
 type DashboardResolvedDocumentReference = Contracts.DashboardResolvedDocumentReference;
 type DashboardRoleDefinitionRecord = Contracts.DashboardRoleDefinitionRecord;
 type DashboardRuntimeDefaultRecord = Contracts.DashboardRuntimeDefaultRecord;
@@ -1134,13 +1133,6 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() => requestWorkflowControlAction(`/api/v1/workflows/${workflowId}/pause`)),
     resumeWorkflow: (workflowId) =>
       withRefresh(() => requestWorkflowControlAction(`/api/v1/workflows/${workflowId}/resume`)),
-    getResolvedWorkflowConfig: (workflowId, showLayers = false) =>
-      withRefresh(() =>
-        requestData<DashboardResolvedConfigResponse>(
-          `/api/v1/workflows/${workflowId}/config/resolved${showLayers ? '?show_layers=true' : ''}`,
-          { method: 'GET' },
-        ),
-      ),
     getWorkspaceTimeline: (workspaceId) =>
       withRefresh(() =>
         requestData<DashboardWorkspaceTimelineEntry[]>(
