@@ -329,14 +329,6 @@ async function maybeLoadCrossStageTargetWorkItemAssessmentSubject(
     return null;
   }
 
-  const activationWorkItemId = readString(context.payload.work_item_id);
-  const activationStageName = readString(context.payload.stage_name);
-  const changedWorkItem = activationWorkItemId !== null && activationWorkItemId !== body.work_item_id;
-  const changedStage = activationStageName !== null && activationStageName !== body.stage_name;
-  if (!changedWorkItem && !changedStage) {
-    return null;
-  }
-
   const result = await db.query<{
     subject_task_id: string | null;
     subject_work_item_id: string | null;
