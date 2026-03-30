@@ -1,0 +1,41 @@
+import { expect, test } from '@playwright/test';
+
+import {
+  loginToWorkflows,
+  workflowRailButton,
+} from './support/workflows-auth.js';
+import { seedWorkflowsScenario } from './support/workflows-fixtures.js';
+
+test.use({ viewport: { width: 1280, height: 1100 } });
+
+test('keeps Details as the default workbench tab and scopes it to the selected work item', async ({ page }) => {
+  await seedWorkflowsScenario();
+  await loginToWorkflows(page);
+
+  await workflowRailButton(page, 'E2E Needs Action Delivery').click();
+
+  const workbench = page.locator('[data-workflows-workbench-frame="true"]');
+  await expect(workbench.getByRole('button', { name: 'Details' })).toBeVisible();
+  await expect(workbench.getByText('Workflow · E2E Needs Action Delivery')).toBeVisible();
+  await expect(workbench.getByText('What was asked')).toBeVisible();
+  await expect(workbench.getByText('brief.md', { exact: true })).toBeVisible();
+  await expect(workbench.getByText('Owner role')).toHaveCount(0);
+  await expect(workbench.getByText('Next actor')).toHaveCount(0);
+  await expect(workbench.getByText('Next expected action')).toHaveCount(0);
+  await expect(workbench.getByText('Basics', { exact: true })).toHaveCount(0);
+  await expect(workbench.getByText('Inputs', { exact: true })).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Prepare blocked release brief' }).click();
+
+  await expect(workbench.getByText('Work item · Prepare blocked release brief')).toBeVisible();
+  await expect(workbench.getByText('What was asked')).toBeVisible();
+  await expect(workbench.getByText('Current state')).toBeVisible();
+  await expect(workbench.getByText('Waiting on rollback guidance.').first()).toBeVisible();
+  await expect(workbench.getByText('Basics', { exact: true })).toHaveCount(0);
+  await expect(workbench.getByText('Stage', { exact: true })).toHaveCount(0);
+  await expect(workbench.getByText('Lane', { exact: true })).toHaveCount(0);
+  await expect(workbench.getByText('Priority', { exact: true })).toHaveCount(0);
+  await expect(workbench.getByText('Owner role')).toHaveCount(0);
+  await expect(workbench.getByText('Task input')).toHaveCount(0);
+  await expect(workbench.getByText('Artifact Id')).toHaveCount(0);
+});

@@ -51,7 +51,8 @@ describe('WorkflowStateStrip', () => {
     expect(html).toContain('2 completed');
     expect(html).toContain('Specialist Tasks');
     expect(html).toContain('Workflow');
-    expect(html).toContain('Playbook');
+    expect(html).toContain('Release Playbook');
+    expect(html).toContain('href="/design/playbooks/playbook-1"');
     expect(html).toContain('Updated');
     expect(html).toContain('3 active tasks');
     expect(html).not.toContain('Live visibility');
@@ -674,7 +675,7 @@ function createWorkflowCard(
     workspaceId: 'workspace-1',
     workspaceName: 'Workspace',
     playbookId: 'playbook-1',
-    playbookName: 'Playbook',
+    playbookName: 'Release Playbook',
     posture: 'progressing',
     attentionLane: 'watchlist',
     pulse: {

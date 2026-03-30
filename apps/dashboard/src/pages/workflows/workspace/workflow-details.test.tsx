@@ -61,6 +61,9 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Rollback validation');
     expect(html).toContain('Archive release notes');
     expect(html).toContain('rollback.md');
+    expect(html).not.toContain(
+      '<p class="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">Release Workflow</p>',
+    );
     expect(html).not.toContain('Basics');
     expect(html).not.toContain('Inputs');
     expect(html).not.toContain('Tasks');

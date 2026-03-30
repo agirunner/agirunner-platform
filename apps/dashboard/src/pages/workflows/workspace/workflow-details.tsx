@@ -61,11 +61,6 @@ export function WorkflowDetails(props: {
     <section className="grid gap-4 pb-1">
       <header className="grid gap-1.5">
         <h3 className="text-base font-semibold text-foreground">{scope.title}</h3>
-        {scope.workflowName ? (
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted-foreground">
-            {scope.workflowName}
-          </p>
-        ) : null}
         <p className="text-sm text-foreground">{scope.latestStatus}</p>
       </header>
 

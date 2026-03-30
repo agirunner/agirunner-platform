@@ -34,13 +34,8 @@ export function WorkflowStateStrip(props: {
         ? buildFallbackWorkflowActions(props.workflow.state)
         : [];
   const workload = summarizeWorkload(props.board, props.workflow);
-  const metaLine = [
-    'Workflow',
-    readOptionalSummary(props.workflow.playbookName),
-    `Updated ${formatRelativeTimestamp(props.workflow.metrics.lastChangedAt)}`,
-  ]
-    .filter((segment): segment is string => Boolean(segment))
-    .join(' · ');
+  const playbookLabel = readOptionalSummary(props.workflow.playbookName);
+  const updatedLabel = `Updated ${formatRelativeTimestamp(props.workflow.metrics.lastChangedAt)}`;
   const canAddWork = workflowScopedActions.some(
     (action) => action.kind === 'add_work_item' && action.enabled,
   );
@@ -58,7 +53,26 @@ export function WorkflowStateStrip(props: {
       <div className="grid gap-3 sm:gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.95fr)] xl:items-start xl:gap-6">
         <section className="grid gap-2.5 sm:gap-3">
           <div className="grid gap-2">
-            <p className="text-[11px] text-muted-foreground">{metaLine}</p>
+            <p className="text-[11px] text-muted-foreground">
+              <span>Workflow</span>
+              {playbookLabel ? (
+                <>
+                  <span>{' · '}</span>
+                  {props.workflow.playbookId ? (
+                    <a
+                      className="text-foreground underline-offset-4 hover:underline"
+                      href={`/design/playbooks/${props.workflow.playbookId}`}
+                    >
+                      {playbookLabel}
+                    </a>
+                  ) : (
+                    <span>{playbookLabel}</span>
+                  )}
+                </>
+              ) : null}
+              <span>{' · '}</span>
+              <span>{updatedLabel}</span>
+            </p>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <h2 className="truncate text-base font-semibold text-foreground">{props.workflow.name}</h2>
               <Badge variant={isPausedWorkflow ? 'warning' : 'secondary'}>
