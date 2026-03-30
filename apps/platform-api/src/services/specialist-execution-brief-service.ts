@@ -301,6 +301,9 @@ function renderBrief(
       lines.push(
         `Use request_id values with the pattern handoff:${brief.operator_visibility.task_id}:r${reworkCount}:<handoff-slug> for submit_handoff writes on this task. Include the current rework count so later rework attempts do not collide with earlier handoffs. Reuse the same request_id only for an intentional retry of that exact same handoff payload.`,
       );
+      lines.push(
+        'workflow_id, work_item_id, and task_id are never top-level submit_handoff fields. Those ids come from current task context and execution linkage, not from handoff payload guesswork.',
+      );
     }
     lines.push(
       'Enhanced live visibility is streamed automatically from execution output. Do not add a reporting step just to keep the console moving.',

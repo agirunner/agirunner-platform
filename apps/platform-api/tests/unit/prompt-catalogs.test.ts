@@ -125,6 +125,9 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('submit_handoff accepts only its documented schema fields.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not invent extras such as tests_run or verification_results');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('target_id is never a top-level handoff field');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'workflow_id, work_item_id, and task_id are never top-level submit_handoff fields',
+    );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Never send next_expected_actor or next_expected_action inside submit_handoff.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Optional context files may not exist.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not read guessed files directly.');

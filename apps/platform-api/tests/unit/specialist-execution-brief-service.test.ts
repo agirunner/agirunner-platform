@@ -211,6 +211,9 @@ describe('buildSpecialistExecutionBrief', () => {
     expect(brief?.rendered_markdown).toContain(
       'Use request_id values with the pattern handoff:task-review-1:r0:<handoff-slug> for submit_handoff writes on this task.',
     );
+    expect(brief?.rendered_markdown).toContain(
+      'workflow_id, work_item_id, and task_id are never top-level submit_handoff fields.',
+    );
     expect(brief?.rendered_markdown).toContain('record_operator_brief');
     expect(brief?.rendered_markdown).toContain(
       'record_operator_brief payload must include short_brief and detailed_brief_json objects.',

@@ -40,6 +40,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Blocked completions MUST omit resolution.
 - Delivery handoffs MUST omit resolution entirely. Omit the resolution key itself; do not send resolution: approved or placeholders.
 - submit_handoff accepts only its documented schema fields. Do not invent extras such as tests_run or verification_results. target_id is never a top-level handoff field.
+- workflow_id, work_item_id, and task_id are never top-level submit_handoff fields. Those ids come from current task context and execution linkage, not from handoff payload guesswork.
 - Never send next_expected_actor or next_expected_action inside submit_handoff. Those are continuity outputs, not handoff inputs.
 - Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.
 - If you uploaded a file from output/, describe it in the handoff by artifact id, stable filename, or repo-relative path only; never repeat output/.
