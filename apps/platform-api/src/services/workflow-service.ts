@@ -6,7 +6,6 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
-import { buildResolvedConfigView } from './config-hierarchy-service.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
@@ -592,32 +591,6 @@ export class WorkflowService {
     return new Map(
       result.rows.map((row) => [String(row.workflow_id), Number(row.blocked_work_item_count ?? 0)]),
     );
-  }
-
-  async getResolvedConfig(tenantId: string, workflowId: string, showLayers = false) {
-    const repo = new TenantScopedRepository(this.pool, tenantId);
-    const workflow = await repo.findById<Record<string, unknown> & { tenant_id: string }>(
-      'workflows',
-      'id, resolved_config, config_layers',
-      workflowId,
-    );
-    if (!workflow) {
-      throw new NotFoundError('Workflow not found');
-    }
-
-    const resolved = ((workflow.resolved_config ?? {}) as Record<string, unknown>) ?? {};
-    const rawLayers = ((workflow.config_layers ?? {}) as Record<string, unknown>) ?? {};
-    const layers = {
-      playbook: sanitizeWorkflowConfigView((rawLayers.playbook ?? {}) as Record<string, unknown>),
-      workspace: sanitizeWorkflowConfigView((rawLayers.workspace ?? {}) as Record<string, unknown>),
-      run: sanitizeWorkflowConfigView((rawLayers.run ?? {}) as Record<string, unknown>),
-    };
-
-    return {
-      workflow_id: workflowId,
-      resolved_config: buildResolvedConfigView(sanitizeWorkflowConfigView(resolved), layers, showLayers),
-      ...(showLayers ? { config_layers: layers } : {}),
-    };
   }
 
   async deleteWorkflow(identity: ApiKeyIdentity, workflowId: string) {
