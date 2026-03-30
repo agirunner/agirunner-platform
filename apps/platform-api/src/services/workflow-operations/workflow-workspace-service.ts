@@ -413,6 +413,7 @@ function buildFallbackOutputDescriptorDeliverables(
     visibleDeliverables.map(readDeliverableIdentityKey).filter((key): key is string => key !== null),
   );
   const blockedWorkItemIds = readBlockedWorkItemIds(board);
+  const incompleteWorkItemIds = readIncompleteWorkItemIds(board);
   const fallbackDeliverables: WorkflowDeliverableRecord[] = [];
   const emittedKeys = new Set<string>();
 
@@ -420,7 +421,10 @@ function buildFallbackOutputDescriptorDeliverables(
     if (descriptor.workItemId && blockedWorkItemIds.has(descriptor.workItemId)) {
       continue;
     }
-    const fallbackDeliverable = composeFallbackDeliverableFromOutputDescriptor(workflowId, descriptor);
+    const fallbackDeliverable = normalizeFallbackOutputDescriptorDeliverable(
+      composeFallbackDeliverableFromOutputDescriptor(workflowId, descriptor),
+      incompleteWorkItemIds,
+    );
     const identityKey = readDeliverableIdentityKey(fallbackDeliverable);
     if (!identityKey || visibleIdentityKeys.has(identityKey) || emittedKeys.has(identityKey)) {
       continue;
@@ -497,6 +501,36 @@ function readBlockedWorkItemIds(board: Record<string, unknown>): Set<string> {
   return blockedIds;
 }
 
+function readIncompleteWorkItemIds(board: Record<string, unknown>): Set<string> {
+  const incompleteIds = new Set<string>();
+  const columnTerminality = new Map<string, boolean>();
+  const columns = Array.isArray(board.columns) ? board.columns : [];
+  for (const column of columns) {
+    const record = asRecord(column);
+    const columnId = readOptionalString(record.id);
+    if (!columnId) {
+      continue;
+    }
+    columnTerminality.set(columnId, record.is_terminal === true);
+  }
+
+  const workItems = Array.isArray(board.work_items) ? board.work_items : [];
+  for (const workItem of workItems) {
+    const record = asRecord(workItem);
+    const workItemId = readOptionalString(record.id);
+    if (!workItemId) {
+      continue;
+    }
+    const completedAt = readOptionalString(record.completed_at);
+    const columnId = readOptionalString(record.column_id);
+    const isTerminalColumn = columnId ? columnTerminality.get(columnId) === true : false;
+    if (!isTerminalColumn || completedAt === null) {
+      incompleteIds.add(workItemId);
+    }
+  }
+  return incompleteIds;
+}
+
 function composeFallbackDeliverableFromOutputDescriptor(
   workflowId: string,
   descriptor: MissionControlOutputDescriptor,
@@ -517,6 +551,21 @@ function composeFallbackDeliverableFromOutputDescriptor(
     source_brief_id: null,
     created_at: '',
     updated_at: '',
+  };
+}
+
+function normalizeFallbackOutputDescriptorDeliverable(
+  deliverable: WorkflowDeliverableRecord,
+  incompleteWorkItemIds: Set<string>,
+): WorkflowDeliverableRecord {
+  const workItemId = readOptionalString(deliverable.work_item_id);
+  if (!workItemId || !incompleteWorkItemIds.has(workItemId) || !isFinalWorkspaceDeliverable(deliverable)) {
+    return deliverable;
+  }
+  return {
+    ...deliverable,
+    delivery_stage: 'in_progress',
+    state: deliverable.state === 'final' ? 'approved' : deliverable.state,
   };
 }
 
