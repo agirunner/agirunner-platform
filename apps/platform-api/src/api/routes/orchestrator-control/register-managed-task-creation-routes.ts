@@ -21,6 +21,7 @@ import {
   loadOrchestratorCreateWorkItemContext,
   normalizeOrchestratorTaskCreateInput,
 } from './task-normalization.js';
+import { normalizeManagedTaskMessageResult } from './managed-task-message-recovery.js';
 
 export function registerOrchestratorManagedTaskCreationRoutes(
   context: OrchestratorControlRouteContext,
@@ -199,12 +200,17 @@ export function registerOrchestratorManagedTaskCreationRoutes(
           taskScope.workflow_id,
           body.request_id,
         )) ?? stored;
+      const normalizedResult = normalizeManagedTaskMessageResult(
+        taskScope,
+        params.managedTaskId,
+        delivered,
+      );
       const finalResponse = await toolResultService.replaceResult(
         request.auth!.tenantId,
         taskScope.workflow_id,
         'send_task_message',
         body.request_id,
-        delivered,
+        normalizedResult,
       );
       return { data: finalResponse };
     },
