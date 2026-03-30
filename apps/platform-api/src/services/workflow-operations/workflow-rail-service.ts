@@ -266,13 +266,12 @@ function hasConcreteNeedsAction(card: MissionControlWorkflowCard): boolean {
     metrics.waitingForDecisionCount > 0
     || metrics.openEscalationCount > 0
     || metrics.blockedWorkItemCount > 0
+    || metrics.failedTaskCount > 0
+    || metrics.recoverableIssueCount > 0
   ) {
     return true;
   }
-  return (card.availableActions ?? []).some(
-    (action) =>
-      action.enabled && (action.kind === 'add_work_item' || action.kind === 'redrive_workflow'),
-  );
+  return false;
 }
 
 function toRailRowFromPacket(packet: MissionControlPacket): WorkflowRailRow {
