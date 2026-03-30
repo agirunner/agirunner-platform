@@ -59,6 +59,38 @@ describe('WorkflowStateStrip', () => {
     expect(html).not.toContain('Workspace');
   });
 
+  it('counts only unresolved approvals and escalations in the needs-action summary card', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            metrics: {
+              ...createWorkflowCard().metrics,
+              blockedWorkItemCount: 4,
+            },
+          }),
+          stickyStrip: createStickyStrip({
+            approvals_count: 1,
+            escalations_count: 1,
+            blocked_work_item_count: 4,
+          }),
+          board: createBoard(),
+          selectedScopeLabel: null,
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Needs Action');
+    expect(html).toContain('>2<');
+    expect(html).toContain('1 approval');
+    expect(html).toContain('1 escalation');
+    expect(html).not.toContain('4 blocked');
+  });
+
   it('uses singular workload grammar when only one specialist task is active', () => {
     const html = renderToStaticMarkup(
       createElement(

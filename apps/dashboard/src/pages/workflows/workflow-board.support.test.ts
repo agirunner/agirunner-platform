@@ -81,13 +81,13 @@ describe('buildWorkflowBoardView', () => {
     expect(doneLane?.hiddenCompletedCount).toBe(1);
   });
 
-  it('supports lane, stage, and needs-action filters without changing lane structure', () => {
+  it('supports lane, stage, and needs-action filters for unresolved approvals and escalations without changing lane structure', () => {
     const board = createBoard([
       createWorkItem({
-        id: 'blocked-active',
-        column_id: 'blocked',
+        id: 'approval-active',
+        column_id: 'active',
         stage_name: 'delivery',
-        blocked_state: 'blocked',
+        gate_status: 'awaiting_approval',
       }),
       createWorkItem({
         id: 'plain-active',
@@ -99,15 +99,38 @@ describe('buildWorkflowBoardView', () => {
     const view = buildWorkflowBoardView(board, {
       boardMode: 'all',
       stageFilter: 'delivery',
-      laneFilter: 'blocked',
-      blockedOnly: true,
+      laneFilter: 'active',
+      blockedOnly: false,
       escalatedOnly: false,
       needsActionOnly: true,
     });
 
     expect(view.filteredCount).toBe(1);
-    expect(view.lanes.map((lane) => lane.column.id)).toEqual(['blocked']);
-    expect(view.lanes[0]?.activeItems.map((item) => item.id)).toEqual(['blocked-active']);
+    expect(view.lanes.map((lane) => lane.column.id)).toEqual(['active']);
+    expect(view.lanes[0]?.activeItems.map((item) => item.id)).toEqual(['approval-active']);
+  });
+
+  it('keeps blocked-only work out of the needs-action filter', () => {
+    const board = createBoard([
+      createWorkItem({
+        id: 'blocked-only',
+        column_id: 'blocked',
+        stage_name: 'delivery',
+        blocked_state: 'blocked',
+      }),
+    ]);
+
+    const view = buildWorkflowBoardView(board, {
+      boardMode: 'all',
+      stageFilter: '__all__',
+      laneFilter: '__all__',
+      blockedOnly: false,
+      escalatedOnly: false,
+      needsActionOnly: true,
+    });
+
+    expect(view.filteredCount).toBe(0);
+    expect(view.lanes.find((lane) => lane.column.id === 'blocked')?.activeItems).toEqual([]);
   });
 
   it('projects blocked workflow review states into the blocked lane', () => {

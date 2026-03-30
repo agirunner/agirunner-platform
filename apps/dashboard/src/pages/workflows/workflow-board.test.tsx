@@ -866,6 +866,8 @@ describe('WorkflowBoard', () => {
     expect(html).toContain('data-work-item-card="true"');
     expect(html).toContain('data-work-item-local-control="steer"');
     expect(html).toContain('rounded-xl border border-amber-300/60 bg-amber-50/70 p-3 text-sm text-amber-950');
+    expect(html).not.toContain('>Needs action<');
+    expect(html).not.toContain('data-work-item-local-control="needs-action"');
   });
 
   it('bounds large task stacks inside work-item cards instead of letting the card grow forever', () => {

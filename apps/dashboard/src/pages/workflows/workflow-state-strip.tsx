@@ -44,8 +44,7 @@ export function WorkflowStateStrip(props: {
   const isOngoingWorkflow = props.workflow.lifecycle === 'ongoing';
   const addWorkLabel = props.addWorkLabel ?? (isOngoingWorkflow ? 'Add Intake' : 'Add Work');
   const selectedScopeLine = props.selectedScopeLabel ? `Work item · ${props.selectedScopeLabel}` : null;
-  const needsActionCount =
-    (sticky?.approvals_count ?? 0) + (sticky?.escalations_count ?? 0) + (sticky?.blocked_work_item_count ?? 0);
+  const needsActionCount = readNeedsActionCount(sticky);
   const activeSpecialistTaskCount = sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount;
 
   return (
@@ -112,7 +111,7 @@ export function WorkflowStateStrip(props: {
         <HeaderCard
           title="Needs Action"
           value={String(needsActionCount)}
-          detail={`${sticky?.approvals_count ?? 0} approvals • ${sticky?.escalations_count ?? 0} escalations • ${sticky?.blocked_work_item_count ?? 0} blocked`}
+          detail={formatNeedsActionDetail(sticky)}
           onClick={() => props.onTabChange('needs_action')}
         />
         <HeaderCard
@@ -243,6 +242,30 @@ function readOptionalSummary(value: string | null | undefined): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function readNeedsActionCount(sticky: DashboardWorkflowStickyStrip | null): number {
+  return (sticky?.approvals_count ?? 0) + (sticky?.escalations_count ?? 0);
+}
+
+function formatNeedsActionDetail(sticky: DashboardWorkflowStickyStrip | null): string | null {
+  const segments = [
+    formatCountSegment(sticky?.approvals_count ?? 0, 'approval'),
+    formatCountSegment(sticky?.escalations_count ?? 0, 'escalation'),
+  ].filter((segment): segment is string => Boolean(segment));
+
+  if (segments.length === 0) {
+    return 'No unresolved approvals or escalations';
+  }
+
+  return segments.join(' • ');
+}
+
+function formatCountSegment(count: number, singularLabel: string): string | null {
+  if (count <= 0) {
+    return null;
+  }
+  return `${count} ${singularLabel}${count === 1 ? '' : 's'}`;
 }
 
 function truncateDetail(value: string): string {
