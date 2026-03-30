@@ -1196,6 +1196,66 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/pause',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string };
+      const body = parseOrThrow(workflowControlMutationSchema.safeParse(request.body ?? {}));
+      return {
+        data: await runIdempotentWorkflowAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'operator_pause_workflow_work_item',
+          body.request_id,
+          () => workflowService.pauseWorkflowWorkItem(request.auth!, params.id, params.workItemId),
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/resume',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string };
+      const body = parseOrThrow(workflowControlMutationSchema.safeParse(request.body ?? {}));
+      return {
+        data: await runIdempotentWorkflowAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'operator_resume_workflow_work_item',
+          body.request_id,
+          () => workflowService.resumeWorkflowWorkItem(request.auth!, params.id, params.workItemId),
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/cancel',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string };
+      const body = parseOrThrow(workflowControlMutationSchema.safeParse(request.body ?? {}));
+      return {
+        data: await runIdempotentWorkflowAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'operator_cancel_workflow_work_item',
+          body.request_id,
+          () => workflowService.cancelWorkflowWorkItem(request.auth!, params.id, params.workItemId),
+        ),
+      };
+    },
+  );
+
+  app.post(
     '/api/v1/workflows/:id/gates/:gateId',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => {

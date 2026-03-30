@@ -140,6 +140,28 @@ export function WorkflowsPage(): JSX.Element {
     patchPageState(navigate, pageState, { workItemId: null });
   };
 
+  const refreshWorkflowQueries = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['workflows'] });
+  };
+
+  const handleWorkItemLifecycleAction = async (
+    workItemId: string,
+    action: 'pause' | 'resume' | 'cancel',
+  ) => {
+    patchPageState(navigate, pageState, { workItemId });
+    if (!pageState.workflowId) {
+      return;
+    }
+    if (action === 'pause') {
+      await dashboardApi.pauseWorkflowWorkItem(pageState.workflowId, workItemId);
+    } else if (action === 'resume') {
+      await dashboardApi.resumeWorkflowWorkItem(pageState.workflowId, workItemId);
+    } else {
+      await dashboardApi.cancelWorkflowWorkItem(pageState.workflowId, workItemId);
+    }
+    await refreshWorkflowQueries();
+  };
+
   const boardSelection = useMemo(
     () => ({
       workItemId: pageState.workItemId,
@@ -520,7 +542,7 @@ export function WorkflowsPage(): JSX.Element {
                       case 'pause':
                       case 'resume':
                       case 'cancel':
-                        patchPageState(navigate, pageState, { workItemId });
+                        void handleWorkItemLifecycleAction(workItemId, action);
                         return;
                     }
                   }}

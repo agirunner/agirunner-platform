@@ -36,6 +36,7 @@ interface WorkerSignalRow {
 export interface StopWorkflowBoundExecutionInput {
   tenantId: string;
   workflowId: string;
+  workItemId?: string;
   summary: string;
   signalReason: string;
   disposition: 'pause' | 'cancel';
@@ -65,12 +66,13 @@ export async function stopWorkflowBoundExecution(
 ): Promise<StopWorkflowBoundExecutionResult> {
   const activeTasks = await db.query<ActiveWorkflowTaskRow>(
     `SELECT id, state, assigned_worker_id, is_orchestrator_task
-       FROM tasks
+      FROM tasks
       WHERE tenant_id = $1
         AND workflow_id = $2
+        AND ($4::uuid IS NULL OR work_item_id = $4::uuid)
         AND state = ANY($3::task_state[])
       FOR UPDATE`,
-    [input.tenantId, input.workflowId, [...ACTIVE_WORKFLOW_TASK_STATES]],
+    [input.tenantId, input.workflowId, [...ACTIVE_WORKFLOW_TASK_STATES], input.workItemId ?? null],
   );
 
   const gracePeriodMs = deps.resolveCancelSignalGracePeriodMs
@@ -152,9 +154,10 @@ export async function stopWorkflowBoundExecution(
               - 'workflow_cancel_signal_id')
       WHERE tenant_id = $1
         AND workflow_id = $2
+        AND ($4::uuid IS NULL OR work_item_id = $4::uuid)
         AND state = ANY($3::task_state[])
     RETURNING id, is_orchestrator_task, work_item_id`,
-    [input.tenantId, input.workflowId, [...CANCELLABLE_WORKFLOW_TASK_STATES]],
+    [input.tenantId, input.workflowId, [...CANCELLABLE_WORKFLOW_TASK_STATES], input.workItemId ?? null],
   );
 
   const cancelledTaskIds = cancelledTasks.rows.map((row) => row.id);
@@ -177,15 +180,27 @@ export async function stopWorkflowBoundExecution(
     );
   }
 
-  await db.query(
-    `UPDATE execution_container_leases
-        SET released_at = NOW(),
-            released_reason = COALESCE(released_reason, 'workflow_stopped')
-      WHERE tenant_id = $1
-        AND workflow_id = $2
-        AND released_at IS NULL`,
-    [input.tenantId, input.workflowId],
-  );
+  if (input.workItemId) {
+    await db.query(
+      `UPDATE execution_container_leases
+          SET released_at = NOW(),
+              released_reason = COALESCE(released_reason, 'workflow_stopped')
+        WHERE tenant_id = $1
+          AND task_id = ANY($2::uuid[])
+          AND released_at IS NULL`,
+      [input.tenantId, cancelledTaskIds],
+    );
+  } else {
+    await db.query(
+      `UPDATE execution_container_leases
+          SET released_at = NOW(),
+              released_reason = COALESCE(released_reason, 'workflow_stopped')
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND released_at IS NULL`,
+      [input.tenantId, input.workflowId],
+    );
+  }
 
   if (activeSpecialistTaskIds.length > 0) {
     await db.query(
@@ -197,19 +212,21 @@ export async function stopWorkflowBoundExecution(
     );
   }
 
-  const cancelledActivations = await db.query(
-    `UPDATE workflow_activations
-        SET state = 'failed',
-            consumed_at = COALESCE(consumed_at, now()),
-            completed_at = COALESCE(completed_at, now()),
-            summary = COALESCE(summary, $3),
-            error = COALESCE(error, '{}'::jsonb) || jsonb_build_object('message', $3)
-      WHERE tenant_id = $1
-        AND workflow_id = $2
-        AND state IN ('queued', 'processing')
-    RETURNING id`,
-    [input.tenantId, input.workflowId, input.summary],
-  );
+  const cancelledActivations = input.workItemId
+    ? { rowCount: 0 }
+    : await db.query(
+      `UPDATE workflow_activations
+          SET state = 'failed',
+              consumed_at = COALESCE(consumed_at, now()),
+              completed_at = COALESCE(completed_at, now()),
+              summary = COALESCE(summary, $3),
+              error = COALESCE(error, '{}'::jsonb) || jsonb_build_object('message', $3)
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND state IN ('queued', 'processing')
+      RETURNING id`,
+      [input.tenantId, input.workflowId, input.summary],
+    );
 
   return {
     cancelledTaskIds,
@@ -229,10 +246,13 @@ async function queueDrainSignalsForSpecialistWorkers(
 ): Promise<void> {
   const workerIds = uniqueSpecialistWorkerIds(activeTasks);
   for (const workerId of workerIds) {
-    const signalPayload = {
+    const signalPayload: Record<string, string | null> = {
       reason: 'workflow_stopped',
       workflow_id: input.workflowId,
     };
+    if (input.workItemId) {
+      signalPayload.work_item_id = input.workItemId;
+    }
     const signalResult = await db.query<WorkerSignalRow>(
       `INSERT INTO worker_signals (tenant_id, worker_id, signal_type, task_id, data)
        VALUES ($1, $2, 'set_draining', NULL, $3)

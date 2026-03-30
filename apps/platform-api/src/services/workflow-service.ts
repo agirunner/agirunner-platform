@@ -45,6 +45,7 @@ import {
   type WorkflowStageResponse,
 } from './workflow-stage-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
+import { WorkflowWorkItemControlService } from './workflow-work-item-control-service.js';
 import { WorkspaceTimelineService } from './workspace-timeline-service.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 import { buildWorkflowReadColumns } from './workflow-read-columns.js';
@@ -69,6 +70,7 @@ export class WorkflowService {
   private readonly activationDispatchService: WorkflowActivationDispatchService;
   private readonly budgetService: WorkflowBudgetService;
   private readonly workItemService: WorkItemService;
+  private readonly workItemControlService: WorkflowWorkItemControlService;
   private readonly stageService: WorkflowStageService;
   private readonly playbookControlService: PlaybookWorkflowControlService;
   private readonly addWorkService: WorkflowAddWorkService;
@@ -123,6 +125,16 @@ export class WorkflowService {
       this.activationService,
       this.activationDispatchService,
     );
+    this.workItemControlService = new WorkflowWorkItemControlService({
+      pool,
+      eventService,
+      stateService,
+      resolveCancelSignalGracePeriodMs: async (tenantId: string) =>
+        readTaskCancelSignalGracePeriodMs(pool, tenantId),
+      workerConnectionHub: connectionHub,
+      getWorkflowWorkItem: (tenantId, workflowId, workItemId) =>
+        this.workItemService.getWorkflowWorkItem(tenantId, workflowId, workItemId),
+    });
     this.addWorkService = new WorkflowAddWorkService({
       pool,
       workItemService: this.workItemService,
@@ -644,6 +656,18 @@ export class WorkflowService {
 
   resumeWorkflow(identity: ApiKeyIdentity, workflowId: string) {
     return this.controlService.resumeWorkflow(identity, workflowId);
+  }
+
+  pauseWorkflowWorkItem(identity: ApiKeyIdentity, workflowId: string, workItemId: string) {
+    return this.workItemControlService.pauseWorkflowWorkItem(identity, workflowId, workItemId);
+  }
+
+  resumeWorkflowWorkItem(identity: ApiKeyIdentity, workflowId: string, workItemId: string) {
+    return this.workItemControlService.resumeWorkflowWorkItem(identity, workflowId, workItemId);
+  }
+
+  cancelWorkflowWorkItem(identity: ApiKeyIdentity, workflowId: string, workItemId: string) {
+    return this.workItemControlService.cancelWorkflowWorkItem(identity, workflowId, workItemId);
   }
 
   private async deleteWorkflowStoredObjects(

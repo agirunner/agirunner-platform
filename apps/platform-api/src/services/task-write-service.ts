@@ -53,6 +53,8 @@ interface LinkedWorkItemRow {
   workflow_id: string;
   workflow_state: string;
   workflow_metadata: Record<string, unknown> | null;
+  work_item_metadata: Record<string, unknown> | null;
+  work_item_completed_at: string | null;
   parent_work_item_id: string | null;
   branch_id: string | null;
   branch_status: 'active' | 'completed' | 'blocked' | 'terminated' | null;
@@ -570,6 +572,8 @@ export class TaskWriteService {
       `SELECT wi.workflow_id,
               w.state AS workflow_state,
               w.metadata AS workflow_metadata,
+              wi.metadata AS work_item_metadata,
+              wi.completed_at::text AS work_item_completed_at,
               wi.parent_work_item_id,
               wi.branch_id,
               branch.branch_status,
@@ -787,6 +791,7 @@ export class TaskWriteService {
 
   private assertLinkedWorkItemAcceptsTaskMutation(linkedWorkItem: LinkedWorkItemRow) {
     const metadata = asRecord(linkedWorkItem.workflow_metadata);
+    const workItemMetadata = asRecord(linkedWorkItem.work_item_metadata);
     if (typeof metadata.cancel_requested_at === 'string' && metadata.cancel_requested_at.trim().length > 0) {
       throw new ConflictError('Workflow cancellation is already in progress');
     }
@@ -804,6 +809,24 @@ export class TaskWriteService {
     }
     if (linkedWorkItem.workflow_state === 'failed') {
       throw new ConflictError('Failed workflows cannot accept new tasks');
+    }
+    if (
+      typeof workItemMetadata.cancel_requested_at === 'string'
+      && workItemMetadata.cancel_requested_at.trim().length > 0
+    ) {
+      throw new ConflictError('Cancelled workflow work items cannot accept new tasks');
+    }
+    if (
+      typeof linkedWorkItem.work_item_completed_at === 'string'
+      && linkedWorkItem.work_item_completed_at.trim().length > 0
+    ) {
+      throw new ConflictError('Completed workflow work items cannot accept new tasks');
+    }
+    if (
+      typeof workItemMetadata.pause_requested_at === 'string'
+      && workItemMetadata.pause_requested_at.trim().length > 0
+    ) {
+      throw new ConflictError('Workflow work item is paused');
     }
   }
 

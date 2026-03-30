@@ -137,6 +137,9 @@ describe('workflows page source', () => {
     expect(source).toContain('setAddWorkTargetWorkItemId(null);');
     expect(source).toContain('setRepeatSourceWorkItemId(workItemId);');
     expect(source).toContain('setIsAddWorkOpen(true);');
+    expect(source).toContain("dashboardApi.pauseWorkflowWorkItem(pageState.workflowId, workItemId)");
+    expect(source).toContain("dashboardApi.resumeWorkflowWorkItem(pageState.workflowId, workItemId)");
+    expect(source).toContain("dashboardApi.cancelWorkflowWorkItem(pageState.workflowId, workItemId)");
     expect(source).toContain('<WorkflowSteering');
     expect(source).not.toContain('workflow && workspacePacket && selectedWorkItem ? (');
     expect(source).not.toContain('WorkflowRedriveDialog');

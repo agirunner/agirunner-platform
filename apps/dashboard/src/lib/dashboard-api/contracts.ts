@@ -2988,6 +2988,9 @@ export interface DashboardApi {
     taskId: string,
     payload: { output: unknown; reason: string },
   ): Promise<unknown>;
+  pauseWorkflowWorkItem(workflowId: string, workItemId: string): Promise<unknown>;
+  resumeWorkflowWorkItem(workflowId: string, workItemId: string): Promise<unknown>;
+  cancelWorkflowWorkItem(workflowId: string, workItemId: string): Promise<unknown>;
   cancelWorkflow(workflowId: string): Promise<unknown>;
   chainWorkflow(
     workflowId: string,

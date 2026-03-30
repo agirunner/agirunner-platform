@@ -1021,6 +1021,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           payload as Record<string, unknown>,
         ),
       ),
+    pauseWorkflowWorkItem: (workflowId, workItemId) =>
+      withRefresh(() => requestWorkflowWorkItemAction(workflowId, workItemId, 'pause', {})),
+    resumeWorkflowWorkItem: (workflowId, workItemId) =>
+      withRefresh(() => requestWorkflowWorkItemAction(workflowId, workItemId, 'resume', {})),
+    cancelWorkflowWorkItem: (workflowId, workItemId) =>
+      withRefresh(() => requestWorkflowWorkItemAction(workflowId, workItemId, 'cancel', {})),
     cancelWorkflow: (workflowId) =>
       withRefresh(() => requestWorkflowControlAction(`/api/v1/workflows/${workflowId}/cancel`)),
     chainWorkflow: (workflowId, payload) =>

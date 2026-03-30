@@ -134,7 +134,7 @@ export function isCompletedWorkItem(
   columns: DashboardWorkflowBoardColumn[],
   workItem: DashboardWorkflowWorkItemRecord,
 ): boolean {
-  if (workItem.completed_at) {
+  if (workItem.completed_at || hasWorkItemCancelMarker(workItem)) {
     return true;
   }
   const column = columns.find((entry) => entry.id === workItem.column_id);
@@ -145,6 +145,9 @@ export function isCancelledWorkItem(
   workItem: DashboardWorkflowWorkItemRecord,
   workflowState?: string | null,
 ): boolean {
+  if (hasWorkItemCancelMarker(workItem)) {
+    return true;
+  }
   if (workflowState !== 'cancelled') {
     return false;
   }
@@ -219,6 +222,9 @@ function shouldProjectToTerminalLane(
   workItem: DashboardWorkflowWorkItemRecord,
   workflowState?: string | null,
 ): boolean {
+  if (hasWorkItemCancelMarker(workItem)) {
+    return true;
+  }
   return !Boolean(workItem.completed_at) && isTerminalWorkflowState(workflowState);
 }
 
@@ -297,7 +303,7 @@ function readCompletedTimestamp(workItem: DashboardWorkflowWorkItemRecord): numb
 }
 
 function readWorkflowStopRequestedAt(workItem: DashboardWorkflowWorkItemRecord): number {
-  const value = workItem.metadata?.workflow_stop_requested_at;
+  const value = workItem.metadata?.cancel_requested_at ?? workItem.metadata?.workflow_stop_requested_at;
   return typeof value === 'string' ? Date.parse(value) : Number.NaN;
 }
 
@@ -305,7 +311,12 @@ function isColumnCompletedWorkItem(
   column: DashboardWorkflowBoardColumn,
   workItem: DashboardWorkflowWorkItemRecord,
 ): boolean {
-  return Boolean(workItem.completed_at) || Boolean(column.is_terminal);
+  return Boolean(workItem.completed_at) || hasWorkItemCancelMarker(workItem) || Boolean(column.is_terminal);
+}
+
+function hasWorkItemCancelMarker(workItem: DashboardWorkflowWorkItemRecord): boolean {
+  const value = workItem.metadata?.cancel_requested_at;
+  return typeof value === 'string' && value.trim().length > 0;
 }
 
 function isRecentlyCompleted(value: string | null | undefined): boolean {

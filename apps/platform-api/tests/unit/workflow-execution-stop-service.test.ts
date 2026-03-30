@@ -320,4 +320,102 @@ describe('stopWorkflowBoundExecution', () => {
       }),
     );
   });
+
+  it('scopes work-item stop requests to the selected work item and keeps workflow activations intact', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const db = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('assigned_worker_id')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            ['claimed', 'in_progress'],
+            'work-item-1',
+          ]);
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-specialist-1',
+                state: 'in_progress',
+                assigned_worker_id: 'worker-1',
+                is_orchestrator_task: false,
+              },
+            ],
+          };
+        }
+        if (sql.startsWith('INSERT INTO worker_signals')) {
+          return {
+            rowCount: 1,
+            rows: [{ id: 'signal-1', created_at: new Date('2026-03-29T19:00:00.000Z') }],
+          };
+        }
+        if (sql.startsWith('UPDATE tasks')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            [
+              'pending',
+              'ready',
+              'claimed',
+              'in_progress',
+              'awaiting_approval',
+              'output_pending_assessment',
+              'failed',
+              'escalated',
+            ],
+            'work-item-1',
+          ]);
+          return {
+            rowCount: 1,
+            rows: [{ id: 'task-specialist-1', is_orchestrator_task: false, work_item_id: 'work-item-1' }],
+          };
+        }
+        if (sql.startsWith('UPDATE execution_container_leases')) {
+          expect(params).toEqual(['tenant-1', ['task-specialist-1']]);
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.startsWith('UPDATE runtime_heartbeats') || sql.startsWith('UPDATE agents')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_activations')) {
+          throw new Error('workflow activations should not be cancelled for work-item scoped stops');
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+
+    const result = await stopWorkflowBoundExecution(
+      db as never,
+      {
+        eventService: eventService as never,
+        resolveCancelSignalGracePeriodMs: async () => 1_500,
+      },
+      {
+        tenantId: 'tenant-1',
+        workflowId: 'workflow-1',
+        workItemId: 'work-item-1',
+        summary: 'Workflow work item paused by operator.',
+        signalReason: 'manual_work_item_pause',
+        disposition: 'pause',
+        actorType: 'admin',
+        actorId: 'admin-key',
+      },
+    );
+
+    const insertCalls = db.query.mock.calls.filter(
+      ([sql]) => typeof sql === 'string' && sql.startsWith('INSERT INTO worker_signals'),
+    );
+    expect(insertCalls[1]?.[1]).toEqual([
+      'tenant-1',
+      'worker-1',
+      {
+        reason: 'workflow_stopped',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+      },
+    ]);
+    expect(result.cancelledActivationCount).toBe(0);
+    expect(result.cancelledTaskIds).toEqual(['task-specialist-1']);
+  });
 });
