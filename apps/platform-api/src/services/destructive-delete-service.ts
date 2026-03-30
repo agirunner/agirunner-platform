@@ -414,6 +414,15 @@ export class DestructiveDeleteService {
       RETURNING id`,
       taskParams,
     );
+    const deletedWorkspaceTasks = workspaceId
+      ? await client.query<{ id: string }>(
+        `DELETE FROM tasks
+          WHERE tenant_id = $1
+            AND workspace_id = $2
+        RETURNING id`,
+        [tenantId, workspaceId],
+      )
+      : { rowCount: 0 };
     await client.query('DELETE FROM workflow_work_items WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', workflowParams);
     await client.query('DELETE FROM workflow_activations WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', workflowParams);
     const deletedWorkflows = await client.query<{ id: string }>(
@@ -424,7 +433,7 @@ export class DestructiveDeleteService {
       workflowParams,
     );
     return {
-      deleted_task_count: deletedTasks.rowCount ?? 0,
+      deleted_task_count: (deletedTasks.rowCount ?? 0) + (deletedWorkspaceTasks.rowCount ?? 0),
       deleted_workflow_count: deletedWorkflows.rowCount ?? 0,
     };
   }

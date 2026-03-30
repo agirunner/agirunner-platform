@@ -73,7 +73,7 @@ describe('DestructiveDeleteService', () => {
       id: 'workspace-1',
       deleted: true,
       deleted_workflow_count: 1,
-      deleted_task_count: 2,
+      deleted_task_count: 3,
     });
 
     expect(cancelWorkflow).toHaveBeenCalledWith(createIdentity(), 'workflow-1');
@@ -122,7 +122,7 @@ describe('DestructiveDeleteService', () => {
       id: 'workspace-1',
       deleted: true,
       deleted_workflow_count: 1,
-      deleted_task_count: 2,
+      deleted_task_count: 3,
     });
 
     expect(cancelWorkflow).not.toHaveBeenCalled();
@@ -158,11 +158,65 @@ describe('DestructiveDeleteService', () => {
       id: 'workspace-1',
       deleted: true,
       deleted_workflow_count: 1,
-      deleted_task_count: 2,
+      deleted_task_count: 3,
     });
 
     expect(cancelWorkflow).toHaveBeenCalledWith(createIdentity(), 'workflow-1');
     expect(client.release).toHaveBeenCalled();
+  });
+
+  it('purges residual workspace-scoped tasks before deleting the workspace row', async () => {
+    const client = createStrictTransactionalClient();
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        assertSequentialParameters(sql);
+        if (sql.includes('FROM workspaces') && sql.includes('AND id = $2')) {
+          return { rowCount: 1, rows: [{ id: 'workspace-1' }] };
+        }
+        if (sql.includes('FROM workflows') && sql.includes('workspace_id = $2') && sql.includes('state::text = ANY')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('workspace_id = $2') && sql.includes('workflow_id IS NULL')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected pool query: ${sql} :: ${JSON.stringify(params ?? [])}`);
+      }),
+      connect: vi.fn().mockResolvedValue(client),
+    };
+    const service = new DestructiveDeleteService(pool as never);
+
+    await expect(
+      service.deleteWorkspaceCascading(createIdentity(), 'workspace-1'),
+    ).resolves.toEqual({
+      id: 'workspace-1',
+      deleted: true,
+      deleted_workflow_count: 1,
+      deleted_task_count: 3,
+    });
+
+    const workspaceScopedDeleteCall = client.query.mock.calls.find(
+      ([sql, params]) =>
+        typeof sql === 'string'
+        && sql.includes('DELETE FROM tasks')
+        && sql.includes('workspace_id = $2')
+        && Array.isArray(params)
+        && params[1] === 'workspace-1',
+    );
+    expect(workspaceScopedDeleteCall).toBeDefined();
+
+    const deleteWorkspaceCallIndex = client.query.mock.calls.findIndex(
+      ([sql]) => typeof sql === 'string' && sql.startsWith('DELETE FROM workspaces'),
+    );
+    const deleteWorkspaceTasksCallIndex = client.query.mock.calls.findIndex(
+      ([sql, params]) =>
+        typeof sql === 'string'
+        && sql.includes('DELETE FROM tasks')
+        && sql.includes('workspace_id = $2')
+        && Array.isArray(params)
+        && params[1] === 'workspace-1',
+    );
+    expect(deleteWorkspaceTasksCallIndex).toBeGreaterThan(-1);
+    expect(deleteWorkspaceTasksCallIndex).toBeLessThan(deleteWorkspaceCallIndex);
   });
 });
 
@@ -203,6 +257,9 @@ function createStrictTransactionalClient() {
         };
       }
       if (sql.startsWith('DELETE FROM tasks')) {
+        if (sql.includes('workspace_id = $2')) {
+          return { rowCount: 1, rows: [{ id: 'task-residual-1' }] };
+        }
         const taskIds = Array.isArray(params?.[1]) ? (params[1] as string[]) : [];
         return {
           rowCount: taskIds.length,
