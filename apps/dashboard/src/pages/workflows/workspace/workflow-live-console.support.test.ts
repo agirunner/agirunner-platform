@@ -283,6 +283,19 @@ describe('workflow live console support', () => {
     ).toBe('calling submit_handoff(summary="Ready for operator review.", completion="full")');
   });
 
+  it('sanitizes temp workspace paths in literal helper-action fallbacks', () => {
+    expect(
+      getWorkflowConsoleLineText(
+        createItem({
+          item_id: 'update-temp-path',
+          headline:
+            'Policy Assessor: calling file_read(path="/tmp/workspace/task-4df24677-e56d-42e5-9c75-d86e9d8c01cf/context/current-task.md")',
+          summary: 'Working through the next execution step.',
+        }),
+      ),
+    ).toBe('calling file_read(path="task context")');
+  });
+
   it('keeps helper action rows with safe args while still suppressing empty fallbacks', () => {
     const items = [
       createItem({

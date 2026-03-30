@@ -1528,6 +1528,35 @@ describe('workflow-execution-log-composer', () => {
         },
       }),
       createLogRow({
+        id: '47c',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        status: 'started',
+        task_id: 'task-1',
+        activation_id: 'activation-split',
+        role: 'orchestrator',
+        created_at: '2026-03-28T10:00:04.500Z',
+        payload: {
+          phase: 'observe',
+          llm_turn_count: 6.5,
+        },
+      }),
+      createLogRow({
+        id: '47d',
+        category: 'llm',
+        operation: 'llm.chat_stream',
+        task_id: 'task-1',
+        activation_id: 'activation-split',
+        role: 'orchestrator',
+        created_at: '2026-03-28T10:00:04.600Z',
+        payload: {
+          llm_turn_count: 6.5,
+          response_text: JSON.stringify({
+            summary: 'Observed the active architecture lead handoff and confirmed implementation should still wait.',
+          }),
+        },
+      }),
+      createLogRow({
         id: '48a',
         category: 'llm',
         operation: 'llm.chat_stream',
@@ -1561,11 +1590,13 @@ describe('workflow-execution-log-composer', () => {
     expect(items.map((item) => item.headline)).toEqual([
       '[Think] Confirm whether the active design task already covers this work item.',
       '[Plan] Wait for the architecture lead handoff before routing implementation.',
+      '[Observe] Observed the active architecture lead handoff and confirmed implementation should still wait.',
       '[Verify] The design work is still waiting on the active architecture task.',
     ]);
     expect(items.map((item) => item.item_id)).toEqual([
       'execution-log:46a',
       'execution-log:47a',
+      'execution-log:47c',
       'execution-log:48a',
     ]);
   });

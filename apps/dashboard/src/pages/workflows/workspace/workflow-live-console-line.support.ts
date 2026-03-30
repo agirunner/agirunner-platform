@@ -190,7 +190,7 @@ function pushActionArg(args: string[], value: string): void {
 function formatActionArgument(argument: string): string[] {
   const [rawKey, ...valueParts] = argument.split('=');
   if (valueParts.length === 0) {
-    return isMeaningfulActionValue(argument) ? [argument.trim()] : [];
+    return isMeaningfulActionValue(argument) ? [sanitizeStandaloneActionValue(argument.trim())] : [];
   }
 
   const key = rawKey.trim();
@@ -208,7 +208,12 @@ function formatActionArgument(argument: string): string[] {
     return [];
   }
 
-  return [`${key}=${value}`];
+  const sanitizedValue = sanitizeActionArgumentValue(normalizedKey, value);
+  if (!sanitizedValue || !isMeaningfulActionValue(sanitizedValue)) {
+    return [];
+  }
+
+  return [`${key}=${quotePreservingActionValue(sanitizedValue)}`];
 }
 
 function isMeaningfulActionValue(value: string): boolean {
@@ -329,4 +334,132 @@ function stripWrappingQuotes(value: string): string {
     return value.slice(1, -1).trim();
   }
   return value;
+}
+
+function sanitizeStandaloneActionValue(value: string): string {
+  return quotePreservingActionValue(stripWrappingQuotes(value));
+}
+
+function sanitizeActionArgumentValue(key: string, value: string): string | null {
+  const unwrapped = stripWrappingQuotes(value);
+  if (isPathLikeActionArg(key)) {
+    const sanitizedPath = sanitizePathLikeValue(unwrapped);
+    return sanitizedPath ? quoteActionValue(sanitizedPath) : null;
+  }
+  return quotePreservingActionValue(unwrapped);
+}
+
+function quotePreservingActionValue(value: string): string {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return trimmed;
+  }
+  if (
+    (trimmed.startsWith('"') && trimmed.endsWith('"'))
+    || (trimmed.startsWith("'") && trimmed.endsWith("'"))
+  ) {
+    return trimmed;
+  }
+  return quoteActionValue(trimmed);
+}
+
+function isPathLikeActionArg(key: string): boolean {
+  return key === 'path' || key === 'logical_path' || key.endsWith('_path');
+}
+
+function sanitizePathLikeValue(value: string): string | null {
+  const normalized = value.trim().replace(/\\/g, '/');
+  if (normalized.length === 0) {
+    return null;
+  }
+  const logicalContext = describeLogicalContextPath(normalized);
+  if (logicalContext) {
+    return logicalContext;
+  }
+  if (normalized.startsWith('/tmp/workspace/')) {
+    const relativePath = extractWorkspaceRelativePath(normalized);
+    if (!relativePath) {
+      return null;
+    }
+    return describeLogicalContextPath(relativePath) ?? relativePath;
+  }
+  if (normalized.startsWith('/')) {
+    return null;
+  }
+  if (normalized.startsWith('repo/')) {
+    return normalized.slice('repo/'.length);
+  }
+  return normalized;
+}
+
+function extractWorkspaceRelativePath(path: string): string | null {
+  const taskScopedMatch = path.match(/^\/tmp\/workspace\/task-[^/]+\/(.+)$/);
+  if (taskScopedMatch?.[1]) {
+    return normalizeWorkspaceRelativePath(taskScopedMatch[1]);
+  }
+  const workspaceMatch = path.match(/^\/tmp\/workspace\/(.+)$/);
+  if (workspaceMatch?.[1]) {
+    return normalizeWorkspaceRelativePath(workspaceMatch[1]);
+  }
+  return null;
+}
+
+function normalizeWorkspaceRelativePath(path: string): string | null {
+  if (!path) {
+    return null;
+  }
+  if (path.startsWith('repo/')) {
+    return path.slice('repo/'.length);
+  }
+  if (path.startsWith('workspace/')) {
+    return path.slice('workspace/'.length);
+  }
+  return path;
+}
+
+function describeLogicalContextPath(path: string): string | null {
+  const filename = path.split('/').at(-1);
+  switch (filename) {
+    case 'task-input.json':
+    case 'task-input.md':
+      return 'task input';
+    case 'task-context.json':
+    case 'current-task.json':
+    case 'current-task.md':
+      return 'task context';
+    case 'workflow-context.json':
+    case 'current-workflow.json':
+    case 'current-workflow.md':
+      return 'workflow context';
+    case 'workspace-context.json':
+    case 'workspace-context.md':
+      return 'workspace context';
+    case 'workspace-memory.json':
+    case 'workspace-memory.md':
+      return 'workspace memory';
+    case 'execution-brief.json':
+    case 'execution-brief.md':
+      return 'execution brief';
+    case 'work-item.json':
+    case 'work-item.md':
+      return 'work item context';
+    case 'execution-context.json':
+    case 'execution-context.md':
+      return 'execution context';
+    case 'upstream-context.json':
+    case 'upstream-context.md':
+      return 'upstream context';
+    case 'predecessor_handoff.json':
+    case 'predecessor-handoff.json':
+    case 'predecessor-handoff.md':
+      return 'predecessor handoff';
+    case 'orchestrator-context.json':
+    case 'orchestrator-context.md':
+      return 'orchestrator context';
+    case 'activation-checkpoint.json':
+    case 'activation-checkpoint.md':
+      return 'activation checkpoint';
+    default:
+      return null;
+  }
 }

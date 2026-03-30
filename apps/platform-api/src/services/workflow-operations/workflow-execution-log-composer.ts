@@ -432,7 +432,7 @@ function buildExecutionTurnSummary(row: LogRow): string {
 }
 
 function buildLLMExecutionTurnSummary(
-  phase: 'think' | 'plan' | 'act' | 'verify',
+  phase: 'think' | 'plan' | 'act' | 'observe' | 'verify',
   payload: Record<string, unknown>,
 ): string | null {
   switch (phase) {
@@ -456,9 +456,14 @@ function buildLLMExecutionTurnSummary(
         && !looksLikeLowValueConsoleText(stripExecutionPhasePrefix(prose))
       ) {
         return prose;
-      }
+        }
       return buildLoggedToolCallSummary(payload);
     }
+    case 'observe':
+      return (
+        readLoggedResponseField(payload, ['summary', 'headline', 'details'])
+        ?? readLoggedResponseText(payload, 180)
+      );
     case 'verify':
       return (
         readLoggedResponseField(payload, ['reason', 'summary', 'headline'])
@@ -1226,12 +1231,13 @@ function readPlanText(payload: Record<string, unknown>): string | null {
 
 function readLLMExecutionPhase(
   payload: Record<string, unknown>,
-): 'think' | 'plan' | 'act' | 'verify' | null {
+): 'think' | 'plan' | 'act' | 'observe' | 'verify' | null {
   const phase = readString(payload.phase);
   if (
     phase === 'think'
     || phase === 'plan'
     || phase === 'act'
+    || phase === 'observe'
     || phase === 'verify'
   ) {
     return phase;

@@ -115,6 +115,26 @@ export function readDeliverableTargetDisplayLabel(
   return label.length > 0 ? label : fallbackLabel;
 }
 
+export function formatDeliverableTargetKind(kind: string): string {
+  const normalized = kind.trim().toLowerCase();
+  if (normalized === 'repo_reference' || normalized === 'repository') {
+    return 'Repository';
+  }
+  if (normalized === 'external_url') {
+    return 'External URL';
+  }
+  if (normalized === 'workflow_document') {
+    return 'Workflow document';
+  }
+  if (normalized === 'host_directory') {
+    return 'Host directory';
+  }
+  if (normalized === 'inline_summary') {
+    return 'Inline summary';
+  }
+  return kind.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
 export function isBrowserDeliverableTarget(target: DashboardWorkflowDeliverableTarget): boolean {
   const href = resolveDeliverableTargetHref(target);
   if (href === null || !isInPlaceArtifactPreviewTarget(href)) {
