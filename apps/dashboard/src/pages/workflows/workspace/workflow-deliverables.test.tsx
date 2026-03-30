@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import type {
+  DashboardWorkflowOperatorBriefRecord,
   DashboardWorkflowDeliverableRecord,
   DashboardWorkflowDeliverablesPacket,
 } from '../../../lib/api.js';
@@ -108,6 +109,88 @@ describe('WorkflowDeliverables', () => {
     expect(html).not.toContain('Workflow terminal packet');
     expect(html).toContain('Work item');
     expect(html).not.toContain('Task');
+  });
+
+  it('renders working handoffs at workflow scope when deliverable-context briefs exist', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: createPacket({
+          working_handoffs: [
+            createWorkingHandoff({
+              id: 'brief-workflow-1',
+              work_item_id: null,
+              detailed_brief_json: {
+                headline: 'Workflow handoff is being assembled.',
+                summary: 'The workflow-level packet is still in progress.',
+              },
+            }),
+            createWorkingHandoff({
+              id: 'brief-work-item-1',
+              work_item_id: 'work-item-1',
+              detailed_brief_json: {
+                headline: 'Draft review-ready product brief is being revised.',
+                summary: 'The selected work item still has a live working handoff.',
+              },
+            }),
+          ],
+        }),
+        selectedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        scope: createWorkflowScope(),
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Working handoffs');
+    expect(html).toContain('Workflow handoff is being assembled.');
+    expect(html).toContain('Draft review-ready product brief is being revised.');
+    expect(html).toContain('The workflow-level packet is still in progress.');
+    expect(html).toContain('The selected work item still has a live working handoff.');
+  });
+
+  it('filters working handoffs to the selected work item scope', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverables, {
+        packet: createPacket({
+          working_handoffs: [
+            createWorkingHandoff({
+              id: 'brief-selected-1',
+              work_item_id: 'work-item-1',
+              detailed_brief_json: {
+                headline: 'Draft review-ready product brief is being revised.',
+                summary: 'The selected work item still has a live working handoff.',
+              },
+            }),
+            createWorkingHandoff({
+              id: 'brief-other-1',
+              work_item_id: 'work-item-2',
+              detailed_brief_json: {
+                headline: 'Other work item handoff.',
+                summary: 'This handoff should not appear in the selected scope.',
+              },
+            }),
+            createWorkingHandoff({
+              id: 'brief-workflow-1',
+              work_item_id: null,
+              detailed_brief_json: {
+                headline: 'Workflow-wide note.',
+                summary: 'This workflow-level handoff should not bleed into selected work item scope.',
+              },
+            }),
+          ],
+        }),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Draft review-ready product brief',
+        scope: createSelectedWorkItemScope(),
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Working handoffs');
+    expect(html).toContain('Draft review-ready product brief is being revised.');
+    expect(html).toContain('The selected work item still has a live working handoff.');
+    expect(html).not.toContain('Other work item handoff.');
+    expect(html).not.toContain('Workflow-wide note.');
   });
 
   it('keeps final entries sorted newest first inside each stage', () => {
@@ -224,6 +307,41 @@ function createPacket(
         redrive_packet: null,
       },
     next_cursor: overrides.next_cursor ?? null,
+  };
+}
+
+function createWorkingHandoff(
+  overrides: Partial<DashboardWorkflowOperatorBriefRecord> = {},
+): DashboardWorkflowOperatorBriefRecord {
+  return {
+    id: overrides.id ?? 'brief-1',
+    workflow_id: overrides.workflow_id ?? 'workflow-1',
+    work_item_id: overrides.work_item_id ?? null,
+    task_id: overrides.task_id ?? null,
+    request_id: overrides.request_id ?? 'request-1',
+    execution_context_id: overrides.execution_context_id ?? 'context-1',
+    brief_kind: overrides.brief_kind ?? 'milestone',
+    brief_scope: overrides.brief_scope ?? 'deliverable_context',
+    source_kind: overrides.source_kind ?? 'specialist',
+    source_role_name: overrides.source_role_name ?? 'Policy Assessor',
+    status_kind: overrides.status_kind ?? 'in_progress',
+    short_brief: overrides.short_brief ?? {
+      headline: 'Working handoff',
+    },
+    detailed_brief_json: overrides.detailed_brief_json ?? {
+      headline: 'Working handoff',
+      summary: 'The handoff is still being prepared.',
+    },
+    linked_target_ids: overrides.linked_target_ids ?? [],
+    sequence_number: overrides.sequence_number ?? 1,
+    related_artifact_ids: overrides.related_artifact_ids ?? [],
+    related_output_descriptor_ids: overrides.related_output_descriptor_ids ?? [],
+    related_intervention_ids: overrides.related_intervention_ids ?? [],
+    canonical_workflow_brief_id: overrides.canonical_workflow_brief_id ?? null,
+    created_by_type: overrides.created_by_type ?? 'agent',
+    created_by_id: overrides.created_by_id ?? 'agent-1',
+    created_at: overrides.created_at ?? '2026-03-30T07:30:00.000Z',
+    updated_at: overrides.updated_at ?? '2026-03-30T07:30:00.000Z',
   };
 }
 

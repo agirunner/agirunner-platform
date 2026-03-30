@@ -1,9 +1,11 @@
 import { Badge } from '../../../components/ui/badge.js';
 import type {
+  DashboardWorkflowOperatorBriefRecord,
   DashboardWorkflowDeliverableRecord,
   DashboardWorkflowDeliverablesPacket,
 } from '../../../lib/api.js';
 import type { WorkflowWorkbenchScopeDescriptor } from '../workflows-page.support.js';
+import { WorkflowBriefRenderer } from './workflow-brief-renderer.js';
 import { WorkflowDeliverableBrowser } from './workflow-deliverable-browser.js';
 import { normalizeDeliverablesPacket } from './workflow-deliverables.support.js';
 
@@ -22,6 +24,11 @@ export function WorkflowDeliverables(props: {
     normalizedScope.scopeKind,
     selectedWorkItemId,
   );
+  const scopedWorkingHandoffs = buildScopedWorkingHandoffs(
+    packet.working_handoffs,
+    normalizedScope.scopeKind,
+    selectedWorkItemId,
+  );
 
   return (
     <div className="grid gap-4">
@@ -36,6 +43,10 @@ export function WorkflowDeliverables(props: {
           {buildDeliverablesScopeDescription(normalizedScope.scopeKind, props.selectedWorkItemTitle)}
         </p>
       </div>
+
+      {scopedWorkingHandoffs.length > 0 ? (
+        <WorkingHandoffsSection handoffs={scopedWorkingHandoffs} />
+      ) : null}
 
       <DeliverableStageSection
         title="Final"
@@ -63,6 +74,36 @@ export function WorkflowDeliverables(props: {
         </div>
       ) : null}
     </div>
+  );
+}
+
+function WorkingHandoffsSection(props: {
+  handoffs: DashboardWorkflowOperatorBriefRecord[];
+}): JSX.Element {
+  return (
+    <section className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-sm font-semibold text-foreground">Working handoffs</p>
+        <Badge variant="outline">{props.handoffs.length}</Badge>
+      </div>
+      <div className="grid gap-3">
+        {props.handoffs.map((handoff) => (
+          <article
+            key={handoff.id}
+            className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4"
+          >
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <Badge variant="secondary">In progress</Badge>
+              {handoff.source_role_name ? (
+                <Badge variant="outline">{handoff.source_role_name}</Badge>
+              ) : null}
+              <span>Updated {formatEntryTimestamp(handoff.updated_at || handoff.created_at)}</span>
+            </div>
+            <WorkflowBriefRenderer brief={handoff} compact />
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -154,14 +195,44 @@ function buildScopedDeliverables(
   };
 }
 
+function buildScopedWorkingHandoffs(
+  handoffs: DashboardWorkflowOperatorBriefRecord[],
+  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
+  selectedWorkItemId: string | null,
+): DashboardWorkflowOperatorBriefRecord[] {
+  if (scopeKind === 'workflow') {
+    return sortWorkingHandoffs(handoffs);
+  }
+
+  if (selectedWorkItemId === null) {
+    return [];
+  }
+
+  return sortWorkingHandoffs(
+    handoffs.filter((handoff) => handoff.work_item_id === selectedWorkItemId),
+  );
+}
+
 function sortDeliverables(
   deliverables: DashboardWorkflowDeliverableRecord[],
 ): DashboardWorkflowDeliverableRecord[] {
   return [...deliverables].sort((left, right) => readDeliverableTimestamp(right) - readDeliverableTimestamp(left));
 }
 
+function sortWorkingHandoffs(
+  handoffs: DashboardWorkflowOperatorBriefRecord[],
+): DashboardWorkflowOperatorBriefRecord[] {
+  return [...handoffs].sort(
+    (left, right) => readTimestamp(right.updated_at ?? right.created_at) - readTimestamp(left.updated_at ?? left.created_at),
+  );
+}
+
 function readDeliverableTimestamp(deliverable: DashboardWorkflowDeliverableRecord): number {
-  const millis = new Date(deliverable.updated_at ?? deliverable.created_at).getTime();
+  return readTimestamp(deliverable.updated_at ?? deliverable.created_at);
+}
+
+function readTimestamp(value: string): number {
+  const millis = new Date(value).getTime();
   return Number.isFinite(millis) ? millis : 0;
 }
 
