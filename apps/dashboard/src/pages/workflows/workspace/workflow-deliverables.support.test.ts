@@ -114,6 +114,7 @@ describe('workflow deliverables support', () => {
       path: null,
       repo_ref: null,
       artifact_id: null,
+      size_bytes: null,
     });
     expect(hasMeaningfulDeliverableTarget(normalized)).toBe(false);
     expect(resolveDeliverableTargetAction(normalized)).toEqual({
