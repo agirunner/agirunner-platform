@@ -81,15 +81,11 @@ export class WorkflowCreationService {
       const playbook = playbookResult.rows[0] as Record<string, unknown>;
       const definition = parsePlaybookDefinition(playbook.definition);
       const workspaceConfig = await this.loadWorkspaceConfig(identity.tenantId, input.workspace_id ?? null, client);
-      await this.deps.modelCatalogService.validateModelOverride(
-        identity.tenantId,
-        input.config_overrides ? input.config_overrides.model_override : undefined,
-        'workflow model_override',
-      );
+      const workflowConfigOverrides = stripWorkflowModelOverride(input.config_overrides ?? {});
       const resolvedConfig = resolveWorkflowConfig(
         playbook.definition as Record<string, unknown>,
         workspaceConfig,
-        input.config_overrides ?? {},
+        workflowConfigOverrides,
       );
       const workflowParameters = validateWorkflowParameters(definition, input.parameters);
       const workflowContext = normalizeWorkflowContext(input.context);
@@ -274,6 +270,11 @@ export class WorkflowCreationService {
       client as never,
     );
   }
+}
+
+function stripWorkflowModelOverride(value: Record<string, unknown>): Record<string, unknown> {
+  const { model_override: _modelOverride, ...rest } = value;
+  return rest;
 }
 
 function initialWorkflowStageName(definition: ReturnType<typeof parsePlaybookDefinition>): string | null {

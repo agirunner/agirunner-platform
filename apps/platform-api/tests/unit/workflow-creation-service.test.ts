@@ -208,8 +208,7 @@ describe('WorkflowCreationService', () => {
     );
   });
 
-  it('keeps typed workspace settings out of workflow config layers when creating a workflow', async () => {
-    const validateModelOverride = vi.fn(async () => undefined);
+  it('strips workflow model overrides from workflow config layers when creating a workflow', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -263,10 +262,6 @@ describe('WorkflowCreationService', () => {
           expect(params?.[6]).toBeNull();
           expect(params?.[9]).toEqual({
             runtime: { timeout: 45 },
-            model_override: {
-              model_id: '00000000-0000-0000-0000-000000000022',
-              reasoning_config: { effort: 'high' },
-            },
           });
           expect(params?.[10]).toEqual({
             playbook: { runtime: { timeout: 30 } },
@@ -275,12 +270,7 @@ describe('WorkflowCreationService', () => {
                 timeout: 45,
               },
             },
-            run: {
-              model_override: {
-                model_id: '00000000-0000-0000-0000-000000000022',
-                reasoning_config: { effort: 'high' },
-              },
-            },
+            run: {},
           });
           expect(params?.[12]).toBe(500000);
           expect(params?.[13]).toBe(125.5);
@@ -313,9 +303,7 @@ describe('WorkflowCreationService', () => {
       stageService: {
         createStages: vi.fn(async () => []),
       } as never,
-      modelCatalogService: {
-        validateModelOverride,
-      } as never,
+      modelCatalogService: {} as never,
     });
 
     const result = await service.createWorkflow(
@@ -346,15 +334,6 @@ describe('WorkflowCreationService', () => {
     );
 
     expect(result.id).toBe('workflow-1');
-    expect(validateModelOverride).toHaveBeenCalledTimes(1);
-    expect(validateModelOverride).toHaveBeenCalledWith(
-      'tenant-1',
-      {
-        model_id: '00000000-0000-0000-0000-000000000022',
-        reasoning_config: { effort: 'high' },
-      },
-      'workflow model_override',
-    );
   });
 
   it('omits workflow-global current_stage from continuous workflow reads', async () => {

@@ -116,22 +116,6 @@ interface TaskClaimDependencies {
   claimHandleSecret: string;
 }
 
-interface DirectModelLookupRow {
-  provider_id: string;
-  provider_name: string;
-  provider_base_url: string | null;
-  provider_api_key_secret_ref: string | null;
-  provider_auth_mode: string | null;
-  provider_metadata: Record<string, unknown> | null;
-  model_id: string;
-  model_context_window: number | null;
-  model_max_output_tokens: number | null;
-  model_endpoint_type: string | null;
-  model_reasoning_config: Record<string, unknown> | null;
-  model_input_cost_per_million_usd: string | null;
-  model_output_cost_per_million_usd: string | null;
-}
-
 interface RetryReadyTaskRow {
   id: string;
   workflow_id: string | null;
@@ -184,12 +168,6 @@ interface ClaimableExecutionEnvironmentRow {
   bootstrap_commands: unknown;
   bootstrap_required_domains: unknown;
   support_status: string | null;
-}
-
-interface TaskModelOverrideSelection {
-  providerName: string;
-  modelId: string;
-  requested: boolean;
 }
 
 function buildExecutionContractLogPayload(input: {
@@ -1036,70 +1014,6 @@ export class TaskClaimService {
     });
   }
 
-  private async resolveTaskRoleConfigOverride(
-    tenantId: string,
-    selection: TaskModelOverrideSelection,
-  ): Promise<ResolvedRoleConfig | null> {
-    if (!selection.requested) {
-      return null;
-    }
-
-    const result = await this.deps.pool.query<DirectModelLookupRow>(
-      `SELECT
-          p.id AS provider_id,
-          p.name AS provider_name,
-          p.base_url AS provider_base_url,
-          p.api_key_secret_ref AS provider_api_key_secret_ref,
-          p.auth_mode AS provider_auth_mode,
-          p.metadata AS provider_metadata,
-          m.model_id AS model_id,
-          m.context_window AS model_context_window,
-          m.max_output_tokens AS model_max_output_tokens,
-          m.endpoint_type AS model_endpoint_type,
-          m.reasoning_config AS model_reasoning_config,
-          m.input_cost_per_million_usd AS model_input_cost_per_million_usd,
-          m.output_cost_per_million_usd AS model_output_cost_per_million_usd
-        FROM llm_models m
-        JOIN llm_providers p
-          ON p.id = m.provider_id
-       WHERE p.tenant_id = $1
-         AND p.name = $2
-         AND m.model_id = $3
-         AND p.is_enabled = true
-         AND m.is_enabled = true
-       LIMIT 1`,
-      [tenantId, selection.providerName, selection.modelId],
-    );
-    const row = result.rows[0];
-    if (!row) {
-      return null;
-    }
-
-    const providerMetadata = isRecord(row.provider_metadata) ? row.provider_metadata : {};
-    const authMode = row.provider_auth_mode ?? 'api_key';
-    return {
-      provider: {
-        name: row.provider_name,
-        providerType: readProviderTypeForExecution(providerMetadata, row.provider_name),
-        baseUrl: row.provider_base_url ?? '',
-        apiKeySecretRef: row.provider_api_key_secret_ref,
-        authMode,
-        providerId: authMode === 'oauth' ? row.provider_id : null,
-      },
-      model: {
-        modelId: row.model_id,
-        contextWindow: row.model_context_window,
-        maxOutputTokens: row.model_max_output_tokens,
-        endpointType: row.model_endpoint_type,
-        reasoningConfig: row.model_reasoning_config,
-        inputCostPerMillionUsd: readNullableFloat(row.model_input_cost_per_million_usd),
-        outputCostPerMillionUsd: readNullableFloat(row.model_output_cost_per_million_usd),
-      },
-      reasoningConfig: row.model_reasoning_config,
-      nativeSearch: readNativeSearchCapability(row.model_id),
-    };
-  }
-
   private async resolveTaskLLMConfig(
     tenantId: string,
     task: Record<string, unknown>,
@@ -1107,33 +1021,9 @@ export class TaskClaimService {
     const sanitizedTask = stripClaimSecretEchoes(task);
     const roleName = (sanitizedTask.role as string) || '';
     const existingRoleConfig = (sanitizedTask.role_config ?? {}) as Record<string, unknown>;
-    const directOverride = allowsWorkflowTaskModelOverride(sanitizedTask)
-      ? readTaskModelOverrideSelection(existingRoleConfig)
-      : { providerName: '', modelId: '', requested: false };
-    let resolved: ResolvedRoleConfig | null = null;
-    if (directOverride.requested) {
-      if (!isCompleteTaskModelOverrideSelection(directOverride)) {
-        throw buildInvalidTaskModelOverrideError(directOverride);
-      }
-      const directResolved = await this.resolveTaskRoleConfigOverride(tenantId, directOverride);
-      if (!directResolved) {
-        throw buildInvalidTaskModelOverrideError(directOverride);
-      }
-      const fallbackResolved = this.deps.resolveRoleConfig && roleName
-        ? await this.deps.resolveRoleConfig(tenantId, roleName)
-        : null;
-      resolved = {
-        ...directResolved,
-        reasoningConfig:
-          readExplicitTaskReasoningConfig(existingRoleConfig)
-          ?? fallbackResolved?.reasoningConfig
-          ?? null,
-      };
-    } else {
-      resolved = this.deps.resolveRoleConfig && roleName
-        ? await this.deps.resolveRoleConfig(tenantId, roleName)
-        : null;
-    }
+    const resolved = this.deps.resolveRoleConfig && roleName
+      ? await this.deps.resolveRoleConfig(tenantId, roleName)
+      : null;
     if (!resolved) {
       throw buildMissingTaskModelConfigError(roleName);
     }
@@ -1467,43 +1357,6 @@ function toNullableDate(value: unknown): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function readExplicitTaskReasoningConfig(
-  roleConfig: Record<string, unknown>,
-): Record<string, unknown> | null {
-  const value = roleConfig.llm_reasoning_config;
-  return isRecord(value) ? value : null;
-}
-
-function readTaskModelOverrideSelection(
-  roleConfig: Record<string, unknown>,
-): TaskModelOverrideSelection {
-  const providerName = typeof roleConfig.llm_provider === 'string'
-    ? roleConfig.llm_provider.trim()
-    : '';
-  const modelId = typeof roleConfig.llm_model === 'string'
-    ? roleConfig.llm_model.trim()
-    : '';
-  return {
-    providerName,
-    modelId,
-    requested: providerName !== '' || modelId !== '',
-  };
-}
-
-function allowsWorkflowTaskModelOverride(task: Record<string, unknown>): boolean {
-  return !readOptionalUuidLikeText(task.workflow_id) && !readOptionalUuidLikeText(task.work_item_id);
-}
-
-function readOptionalUuidLikeText(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
-}
-
-function isCompleteTaskModelOverrideSelection(
-  selection: TaskModelOverrideSelection,
-): boolean {
-  return selection.providerName !== '' && selection.modelId !== '';
-}
-
 function mergeSystemPrompt(
   taskResponse: Record<string, unknown>,
   flattenedPrompt: string,
@@ -1618,43 +1471,6 @@ function buildMissingTaskModelConfigError(roleName: string): ValidationError {
   return new ValidationError(
     `No LLM model is configured for ${label}. Assign a model to the role or set a default model on the LLM Providers page before claiming tasks.`,
     { role: trimmedRoleName || null },
-  );
-}
-
-function buildInvalidTaskModelOverrideError(
-  selection: TaskModelOverrideSelection,
-): ValidationError {
-  if (!selection.providerName || !selection.modelId) {
-    return new ValidationError(
-      'Explicit task model override is incomplete. Set both llm_provider and llm_model or remove the override so the role/default LLM routing can apply.',
-      {
-        llm_provider: selection.providerName || null,
-        llm_model: selection.modelId || null,
-      },
-    );
-  }
-  return new ValidationError(
-    `Explicit task model override could not be resolved for provider "${selection.providerName}" and model "${selection.modelId}". Configure that model on the LLM Providers page or remove the task-level override.`,
-    {
-      llm_provider: selection.providerName,
-      llm_model: selection.modelId,
-    },
-  );
-}
-
-function readProviderTypeForExecution(
-  providerMetadata: Record<string, unknown>,
-  providerName: string,
-): string {
-  const providerType = providerMetadata.providerType;
-  if (typeof providerType === 'string' && providerType.trim().length > 0) {
-    return providerType.trim();
-  }
-  throw new ValidationError(
-    `Provider "${providerName}" is missing providerType metadata. Re-save the provider on the LLM Providers page before using it for execution.`,
-    {
-      provider_name: providerName,
-    },
   );
 }
 

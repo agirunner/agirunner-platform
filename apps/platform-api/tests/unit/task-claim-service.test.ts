@@ -2498,9 +2498,7 @@ describe('TaskClaimService', () => {
     );
   });
 
-  it('resolves claim credentials from standalone task-level llm provider and model overrides', async () => {
-    process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
-    const encryptedProviderSecret = storeProviderSecret('override-provider-secret');
+  it('ignores standalone task-level model fields and uses the resolved role model instead', async () => {
     const client = {
       query: vi.fn(async (sql: string, _params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -2536,29 +2534,10 @@ describe('TaskClaimService', () => {
               role_config: {
                 llm_provider: 'Smoke Provider',
                 llm_model: 'gpt-smoke',
+                llm_reasoning_config: { reasoning_effort: 'minimal' },
                 tools: ['shell'],
               },
               metadata: {},
-            }],
-          };
-        }
-        if (sql.includes("FROM llm_models m") && sql.includes('JOIN llm_providers p')) {
-          return {
-            rowCount: 1,
-            rows: [{
-              provider_id: 'provider-override',
-              provider_name: 'Smoke Provider',
-              provider_base_url: 'https://provider.example/v1',
-              provider_api_key_secret_ref: encryptedProviderSecret,
-              provider_auth_mode: 'api_key',
-              provider_metadata: { providerType: 'openai' },
-              model_id: 'gpt-smoke',
-              model_context_window: 64000,
-              model_max_output_tokens: 96000,
-              model_endpoint_type: 'responses',
-              model_reasoning_config: null,
-              model_input_cost_per_million_usd: '1.25',
-              model_output_cost_per_million_usd: '10',
             }],
           };
         }
@@ -2574,6 +2553,7 @@ describe('TaskClaimService', () => {
               role_config: {
                 llm_provider: 'Smoke Provider',
                 llm_model: 'gpt-smoke',
+                llm_reasoning_config: { reasoning_effort: 'minimal' },
                 tools: ['shell'],
               },
               metadata: {},
@@ -2599,12 +2579,20 @@ describe('TaskClaimService', () => {
     };
 
     const pool = { connect: vi.fn(async () => client), query: client.query };
+    const resolveRoleConfig = vi.fn(async () => ({
+      ...defaultResolvedRoleConfig,
+      model: {
+        ...defaultResolvedRoleConfig.model,
+        modelId: 'gpt-5.4',
+      },
+      reasoningConfig: { reasoning_effort: 'low' },
+    }));
     const service = new TaskClaimService({
       pool: pool as never,
       eventService: { emit: vi.fn(async () => undefined) } as never,
       toTaskResponse: (task) => task,
       getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
-      resolveRoleConfig: vi.fn(async () => null),
+      resolveRoleConfig,
       claimHandleSecret: 'test-claim-handle-secret',
     });
 
@@ -2613,499 +2601,13 @@ describe('TaskClaimService', () => {
       routing_tags: ['coding', 'role:developer'],
     });
 
-    expect(task?.credentials).toEqual({
-      llm_provider: 'openai',
-      llm_model: 'gpt-smoke',
-      llm_context_window: 64000,
-      llm_max_output_tokens: 96000,
-      llm_reasoning_config: null,
-      llm_input_cost_per_million_usd: 1.25,
-      llm_output_cost_per_million_usd: 10,
-      llm_api_key_claim_handle: expect.stringMatching(/^claim:v1:/),
-      llm_base_url: 'https://provider.example/v1',
-      llm_endpoint_type: 'responses',
-    });
-    expect((task?.credentials as Record<string, unknown>).llm_api_key).toBeUndefined();
-  });
-
-  it('uses platform-resolved reasoning for standalone direct task model overrides when the task does not set reasoning explicitly', async () => {
-    const encryptedProviderSecret = storeProviderSecret('override-provider-secret');
-    const client = {
-      query: vi.fn(async (sql: string, _params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('SELECT * FROM agents')) {
-          return {
-            rowCount: 1,
-            rows: [{
-              id: 'agent-1',
-              worker_id: null,
-              current_task_id: null,
-              metadata: { execution_mode: 'specialist' },
-            }],
-          };
-        }
-        if (sql.includes('SELECT tasks.* FROM tasks')) {
-          return {
-            rowCount: 1,
-            rows: [{
-              id: 'task-direct-model-system-reasoning',
-              workflow_id: null,
-              work_item_id: null,
-              state: 'ready',
-              role: 'developer',
-              workspace_id: null,
-              role_config: {
-                llm_provider: 'Smoke Provider',
-                llm_model: 'gpt-smoke',
-                tools: ['shell'],
-              },
-              metadata: {},
-            }],
-          };
-        }
-        if (sql.includes("FROM llm_models m") && sql.includes('JOIN llm_providers p')) {
-          return {
-            rowCount: 1,
-            rows: [{
-              provider_id: 'provider-override',
-              provider_name: 'Smoke Provider',
-              provider_base_url: 'https://provider.example/v1',
-              provider_api_key_secret_ref: encryptedProviderSecret,
-              provider_auth_mode: 'api_key',
-              provider_metadata: { providerType: 'openai' },
-              model_id: 'gpt-smoke',
-              model_context_window: 64000,
-              model_max_output_tokens: 96000,
-              model_endpoint_type: 'responses',
-              model_reasoning_config: { reasoning_effort: 'high' },
-              model_input_cost_per_million_usd: '1.25',
-              model_output_cost_per_million_usd: '10',
-            }],
-          };
-        }
-        if (sql.includes("SET state = 'claimed'")) {
-          return {
-            rowCount: 1,
-            rows: [{
-              id: 'task-direct-model-system-reasoning',
-              workflow_id: null,
-              work_item_id: null,
-              state: 'claimed',
-              role: 'developer',
-              role_config: {
-                llm_provider: 'Smoke Provider',
-                llm_model: 'gpt-smoke',
-                tools: ['shell'],
-              },
-              metadata: {},
-            }],
-          };
-        }
-        if (sql.includes('UPDATE agents SET current_task_id')) {
-          return { rowCount: 1, rows: [] };
-        }
-        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('SELECT escalation_target, allowed_tools')) {
-          return { rowCount: 0, rows: [] };
-        }
-        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
-        if (runtimeDefault) {
-          return runtimeDefault;
-        }
-        throw new Error(`unexpected query: ${sql}`);
-      }),
-      release: vi.fn(),
-    };
-
-    const pool = { connect: vi.fn(async () => client), query: client.query };
-    const service = new TaskClaimService({
-      pool: pool as never,
-      eventService: { emit: vi.fn(async () => undefined) } as never,
-      toTaskResponse: (task) => task,
-      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
-      resolveRoleConfig: vi.fn(async () => ({
-        ...defaultResolvedRoleConfig,
-        reasoningConfig: { reasoning_effort: 'low' },
-      })),
-      claimHandleSecret: 'test-claim-handle-secret',
-    });
-
-    const task = await service.claimTask(identity, {
-      agent_id: 'agent-1',
-      routing_tags: ['coding', 'role:developer'],
-    });
-
+    expect(resolveRoleConfig).toHaveBeenCalledWith('tenant-1', 'developer');
+    expect((task?.credentials as Record<string, unknown>).llm_model).toBe('gpt-5.4');
     expect((task?.credentials as Record<string, unknown>).llm_reasoning_config).toEqual({
       reasoning_effort: 'low',
     });
-  });
-
-  it('fails standalone direct task model overrides when provider type metadata is missing', async () => {
-    const encryptedProviderSecret = storeProviderSecret('override-provider-secret');
-    const client = {
-      query: vi.fn(async (sql: string, _params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('SELECT * FROM agents')) {
-          return {
-            rowCount: 1,
-            rows: [{
-              id: 'agent-1',
-              worker_id: null,
-              current_task_id: null,
-              metadata: { execution_mode: 'specialist' },
-            }],
-          };
-        }
-        if (sql.includes('SELECT tasks.* FROM tasks')) {
-          return {
-            rowCount: 1,
-            rows: [{
-              id: 'task-direct-model-missing-provider-type',
-              workflow_id: null,
-              work_item_id: null,
-              state: 'ready',
-              role: 'developer',
-              workspace_id: null,
-              role_config: {
-                llm_provider: 'Smoke Provider',
-                llm_model: 'gpt-smoke',
-                tools: ['shell'],
-              },
-              metadata: {},
-            }],
-          };
-        }
-        if (sql.includes("FROM llm_models m") && sql.includes('JOIN llm_providers p')) {
-          return {
-            rowCount: 1,
-            rows: [{
-              provider_id: 'provider-override',
-              provider_name: 'Smoke Provider',
-              provider_base_url: 'https://provider.example/v1',
-              provider_api_key_secret_ref: encryptedProviderSecret,
-              provider_auth_mode: 'api_key',
-              provider_metadata: {},
-              model_id: 'gpt-smoke',
-              model_context_window: 64000,
-              model_max_output_tokens: 96000,
-              model_endpoint_type: 'responses',
-              model_reasoning_config: null,
-              model_input_cost_per_million_usd: '1.25',
-              model_output_cost_per_million_usd: '10',
-            }],
-          };
-        }
-        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('SELECT escalation_target, allowed_tools')) {
-          return { rowCount: 0, rows: [] };
-        }
-        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
-        if (runtimeDefault) {
-          return runtimeDefault;
-        }
-        throw new Error(`unexpected query: ${sql}`);
-      }),
-      release: vi.fn(),
-    };
-
-    const pool = { connect: vi.fn(async () => client), query: client.query };
-    const service = new TaskClaimService({
-      pool: pool as never,
-      eventService: { emit: vi.fn(async () => undefined) } as never,
-      toTaskResponse: (task) => task,
-      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
-      resolveRoleConfig: vi.fn(async () => null),
-      claimHandleSecret: 'test-claim-handle-secret',
-    });
-
-    await expect(
-      service.claimTask(identity, {
-        agent_id: 'agent-1',
-        routing_tags: ['coding', 'role:developer'],
-      }),
-    ).rejects.toThrow(/providerType/i);
-  });
-
-  it('preserves explicit task reasoning for standalone direct task model overrides', async () => {
-    const encryptedProviderSecret = storeProviderSecret('override-provider-secret');
-    const client = {
-      query: vi.fn(async (sql: string, _params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('SELECT * FROM agents')) {
-          return {
-            rowCount: 1,
-            rows: [{
-              id: 'agent-1',
-              worker_id: null,
-              current_task_id: null,
-              metadata: { execution_mode: 'specialist' },
-            }],
-          };
-        }
-        if (sql.includes('SELECT tasks.* FROM tasks')) {
-          return {
-            rowCount: 1,
-            rows: [{
-              id: 'task-direct-model-explicit-reasoning',
-              workflow_id: null,
-              work_item_id: null,
-              state: 'ready',
-              role: 'developer',
-              workspace_id: null,
-              role_config: {
-                llm_provider: 'Smoke Provider',
-                llm_model: 'gpt-smoke',
-                llm_reasoning_config: { reasoning_effort: 'medium' },
-                tools: ['shell'],
-              },
-              metadata: {},
-            }],
-          };
-        }
-        if (sql.includes("FROM llm_models m") && sql.includes('JOIN llm_providers p')) {
-          return {
-            rowCount: 1,
-            rows: [{
-              provider_id: 'provider-override',
-              provider_name: 'Smoke Provider',
-              provider_base_url: 'https://provider.example/v1',
-              provider_api_key_secret_ref: encryptedProviderSecret,
-              provider_auth_mode: 'api_key',
-              provider_metadata: { providerType: 'openai' },
-              model_id: 'gpt-smoke',
-              model_context_window: 64000,
-              model_max_output_tokens: 96000,
-              model_endpoint_type: 'responses',
-              model_reasoning_config: { reasoning_effort: 'high' },
-              model_input_cost_per_million_usd: '1.25',
-              model_output_cost_per_million_usd: '10',
-            }],
-          };
-        }
-        if (sql.includes("SET state = 'claimed'")) {
-          return {
-            rowCount: 1,
-            rows: [{
-              id: 'task-direct-model-explicit-reasoning',
-              workflow_id: null,
-              work_item_id: null,
-              state: 'claimed',
-              role: 'developer',
-              role_config: {
-                llm_provider: 'Smoke Provider',
-                llm_model: 'gpt-smoke',
-                llm_reasoning_config: { reasoning_effort: 'medium' },
-                tools: ['shell'],
-              },
-              metadata: {},
-            }],
-          };
-        }
-        if (sql.includes('UPDATE agents SET current_task_id')) {
-          return { rowCount: 1, rows: [] };
-        }
-        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('SELECT escalation_target, allowed_tools')) {
-          return { rowCount: 0, rows: [] };
-        }
-        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
-        if (runtimeDefault) {
-          return runtimeDefault;
-        }
-        throw new Error(`unexpected query: ${sql}`);
-      }),
-      release: vi.fn(),
-    };
-
-    const pool = { connect: vi.fn(async () => client), query: client.query };
-    const service = new TaskClaimService({
-      pool: pool as never,
-      eventService: { emit: vi.fn(async () => undefined) } as never,
-      toTaskResponse: (task) => task,
-      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
-      resolveRoleConfig: vi.fn(async () => ({
-        ...defaultResolvedRoleConfig,
-        reasoningConfig: { reasoning_effort: 'low' },
-      })),
-      claimHandleSecret: 'test-claim-handle-secret',
-    });
-
-    const task = await service.claimTask(identity, {
-      agent_id: 'agent-1',
-      routing_tags: ['coding', 'role:developer'],
-    });
-
-    expect((task?.credentials as Record<string, unknown>).llm_reasoning_config).toEqual({
-      reasoning_effort: 'medium',
-    });
-  });
-
-  it('fails before claiming when a standalone explicit task model override cannot be resolved', async () => {
-    const eventService = { emit: vi.fn(async () => undefined) };
-    const resolveRoleConfig = vi.fn(async () => defaultResolvedRoleConfig);
-    const client = {
-      query: vi.fn(async (sql: string, _params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'ROLLBACK') {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('SELECT * FROM agents')) {
-          return {
-            rowCount: 1,
-            rows: [{
-              id: 'agent-1',
-              worker_id: null,
-              current_task_id: null,
-              metadata: { execution_mode: 'specialist' },
-            }],
-          };
-        }
-        if (sql.includes('SELECT tasks.* FROM tasks')) {
-          return {
-            rowCount: 1,
-            rows: [{
-              id: 'task-bad-direct-model',
-              workflow_id: null,
-              work_item_id: null,
-              state: 'ready',
-              role: 'developer',
-              workspace_id: null,
-              role_config: {
-                llm_provider: 'Missing Provider',
-                llm_model: 'gpt-missing',
-                tools: ['shell'],
-              },
-              metadata: {},
-            }],
-          };
-        }
-        if (sql.includes("FROM llm_models m") && sql.includes('JOIN llm_providers p')) {
-          return { rowCount: 0, rows: [] };
-        }
-        throw new Error(`unexpected query: ${sql}`);
-      }),
-      release: vi.fn(),
-    };
-
-    const pool = { connect: vi.fn(async () => client), query: client.query };
-    const service = new TaskClaimService({
-      pool: pool as never,
-      eventService: eventService as never,
-      toTaskResponse: (task) => task,
-      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
-      resolveRoleConfig,
-      claimHandleSecret: 'test-claim-handle-secret',
-    });
-
-    await expect(service.claimTask(identity, {
-      agent_id: 'agent-1',
-      routing_tags: ['coding', 'role:developer'],
-    })).rejects.toThrow(/explicit task model override/i);
-
-    expect(resolveRoleConfig).not.toHaveBeenCalled();
-    expect(eventService.emit).not.toHaveBeenCalled();
     expect(client.query).not.toHaveBeenCalledWith(
-      expect.stringContaining("SET state = 'claimed'"),
-      expect.anything(),
-    );
-  });
-
-  it('fails before claiming when a standalone explicit task model override is incomplete', async () => {
-    const eventService = { emit: vi.fn(async () => undefined) };
-    const resolveRoleConfig = vi.fn(async () => defaultResolvedRoleConfig);
-    const client = {
-      query: vi.fn(async (sql: string, _params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'ROLLBACK') {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
-          return { rowCount: 0, rows: [] };
-        }
-        if (sql.includes('SELECT * FROM agents')) {
-          return {
-            rowCount: 1,
-            rows: [{
-              id: 'agent-1',
-              worker_id: null,
-              current_task_id: null,
-              metadata: { execution_mode: 'specialist' },
-            }],
-          };
-        }
-        if (sql.includes('SELECT tasks.* FROM tasks')) {
-          return {
-            rowCount: 1,
-            rows: [{
-              id: 'task-incomplete-direct-model',
-              workflow_id: null,
-              work_item_id: null,
-              state: 'ready',
-              role: 'developer',
-              workspace_id: null,
-              role_config: {
-                llm_provider: 'Smoke Provider',
-                tools: ['shell'],
-              },
-              metadata: {},
-            }],
-          };
-        }
-        throw new Error(`unexpected query: ${sql}`);
-      }),
-      release: vi.fn(),
-    };
-
-    const pool = { connect: vi.fn(async () => client), query: client.query };
-    const service = new TaskClaimService({
-      pool: pool as never,
-      eventService: eventService as never,
-      toTaskResponse: (task) => task,
-      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
-      resolveRoleConfig,
-      claimHandleSecret: 'test-claim-handle-secret',
-    });
-
-    await expect(service.claimTask(identity, {
-      agent_id: 'agent-1',
-      routing_tags: ['coding', 'role:developer'],
-    })).rejects.toThrow(/explicit task model override/i);
-
-    expect(resolveRoleConfig).not.toHaveBeenCalled();
-    expect(eventService.emit).not.toHaveBeenCalled();
-    expect(client.query).not.toHaveBeenCalledWith(
-      expect.stringContaining("SET state = 'claimed'"),
+      expect.stringContaining('FROM llm_models m'),
       expect.anything(),
     );
   });

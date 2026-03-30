@@ -32,8 +32,9 @@ describe('workspace model override routes', () => {
     }
   });
 
-  it('ignores retired legacy model overrides on workspace create instead of rejecting the request', async () => {
+  it('keeps silently ignoring retired workspace settings.model_overrides on create', async () => {
     const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
+    const createWorkspace = vi.fn().mockResolvedValue({ id: 'workspace-1' });
 
     app = fastify();
     registerErrorHandler(app);
@@ -42,7 +43,7 @@ describe('workspace model override routes', () => {
     app.decorate('eventService', {});
     app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
     app.decorate('workspaceService', {
-      createWorkspace: vi.fn(),
+      createWorkspace,
       getWorkspace: vi.fn(),
       updateWorkspace: vi.fn(),
       patchWorkspaceMemory: vi.fn(),
@@ -50,6 +51,8 @@ describe('workspace model override routes', () => {
       setGitWebhookConfig: vi.fn(),
       deleteWorkspace: vi.fn(),
       listWorkspaces: vi.fn(),
+      getWorkspaceDeleteImpact: vi.fn(),
+      verifyWorkspaceGitAccess: vi.fn(),
     });
     app.decorate('workspaceArtifactFileService', {
       listWorkspaceArtifactFiles: vi.fn(),
@@ -80,86 +83,10 @@ describe('workspace model override routes', () => {
     });
 
     expect(response.statusCode).toBe(201);
+    expect(createWorkspace).toHaveBeenCalled();
   });
 
-  it('returns shared resolved workspace models without workspace-specific overrides', async () => {
-    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
-
-    const getWorkspace = vi.fn().mockResolvedValue({
-      id: 'workspace-1',
-      settings: {},
-    });
-
-    app = fastify();
-    registerErrorHandler(app);
-    app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
-    app.decorate('pgPool', {});
-    app.decorate('eventService', {});
-    app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
-    app.decorate('workspaceService', {
-      createWorkspace: vi.fn(),
-      getWorkspace,
-      updateWorkspace: vi.fn(),
-      patchWorkspaceMemory: vi.fn(),
-      removeWorkspaceMemory: vi.fn(),
-      setGitWebhookConfig: vi.fn(),
-      deleteWorkspace: vi.fn(),
-      listWorkspaces: vi.fn(),
-    });
-    app.decorate('workspaceArtifactFileService', {
-      listWorkspaceArtifactFiles: vi.fn(),
-      uploadWorkspaceArtifactFile: vi.fn(),
-      uploadWorkspaceArtifactFiles: vi.fn(),
-      deleteWorkspaceArtifactFile: vi.fn(),
-      downloadWorkspaceArtifactFile: vi.fn(),
-    });
-    app.decorate('modelCatalogService', {
-      resolveRoleConfig: vi.fn().mockResolvedValue({
-        provider: { name: 'openai' },
-        model: { modelId: 'gpt-4.1' },
-        reasoningConfig: { effort: 'medium' },
-      }),
-      listProviders: vi.fn().mockResolvedValue([
-        { id: 'provider-1', name: 'anthropic', metadata: { providerType: 'anthropic' } },
-      ]),
-      listModels: vi.fn().mockResolvedValue([
-        {
-          model_id: 'claude-sonnet-4-6',
-          context_window: 200000,
-          endpoint_type: 'messages',
-          reasoning_config: { effort: 'medium' },
-          is_enabled: true,
-        },
-      ]),
-      getProviderForOperations: vi.fn().mockResolvedValue({
-        id: 'provider-1',
-        name: 'anthropic',
-        metadata: { providerType: 'anthropic' },
-        base_url: 'https://api.anthropic.com',
-        api_key_secret_ref: 'secret:anthropic',
-        auth_mode: 'api_key',
-      }),
-    });
-
-    await app.register(workspaceRoutes);
-
-    const response = await app.inject({
-      method: 'GET',
-      url: '/api/v1/workspaces/workspace-1/model-overrides/resolved?roles=developer',
-      headers: { authorization: 'Bearer test' },
-    });
-
-    expect(response.statusCode).toBe(200);
-    expect(getWorkspace).toHaveBeenCalledWith('tenant-1', 'workspace-1');
-    expect(response.json().data.workspace_model_overrides).toEqual({});
-    expect(response.json().data.effective_models.developer.source).toBe('base');
-    expect(response.json().data.effective_models.developer.resolved.model.modelId).toBe('gpt-4.1');
-    expect(response.json().data.effective_models.developer.resolved.provider).not.toHaveProperty(
-      'apiKeySecretRef',
-    );
-  });
-
-  it('sanitizes base resolved workspace models when no overrides are present', async () => {
+  it('does not expose retired workspace model override routes', async () => {
     const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     app = fastify();
@@ -170,16 +97,15 @@ describe('workspace model override routes', () => {
     app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
     app.decorate('workspaceService', {
       createWorkspace: vi.fn(),
-      getWorkspace: vi.fn().mockResolvedValue({
-        id: 'workspace-1',
-        settings: {},
-      }),
+      getWorkspace: vi.fn(),
       updateWorkspace: vi.fn(),
       patchWorkspaceMemory: vi.fn(),
       removeWorkspaceMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
       deleteWorkspace: vi.fn(),
       listWorkspaces: vi.fn(),
+      getWorkspaceDeleteImpact: vi.fn(),
+      verifyWorkspaceGitAccess: vi.fn(),
     });
     app.decorate('workspaceArtifactFileService', {
       listWorkspaceArtifactFiles: vi.fn(),
@@ -188,34 +114,23 @@ describe('workspace model override routes', () => {
       deleteWorkspaceArtifactFile: vi.fn(),
       downloadWorkspaceArtifactFile: vi.fn(),
     });
-    app.decorate('modelCatalogService', {
-      resolveRoleConfig: vi.fn().mockResolvedValue({
-        provider: {
-          name: 'openai',
-          providerType: 'openai',
-          apiKeySecretRef: 'secret:OPENAI_API_KEY',
-          oauth_credentials: { access_token: 'enc:v1:token' },
-        },
-        model: { modelId: 'gpt-5.4' },
-        reasoningConfig: { effort: 'medium' },
-      }),
-      listProviders: vi.fn().mockResolvedValue([]),
-      listModels: vi.fn().mockResolvedValue([]),
-      getProviderForOperations: vi.fn(),
-    });
 
     await app.register(workspaceRoutes);
 
-    const response = await app.inject({
-      method: 'GET',
-      url: '/api/v1/workspaces/workspace-1/model-overrides/resolved?roles=developer',
-      headers: { authorization: 'Bearer test' },
-    });
+    const [plainResponse, resolvedResponse] = await Promise.all([
+      app.inject({
+        method: 'GET',
+        url: '/api/v1/workspaces/workspace-1/model-overrides',
+        headers: { authorization: 'Bearer test' },
+      }),
+      app.inject({
+        method: 'GET',
+        url: '/api/v1/workspaces/workspace-1/model-overrides/resolved?roles=developer',
+        headers: { authorization: 'Bearer test' },
+      }),
+    ]);
 
-    expect(response.statusCode).toBe(200);
-    expect(response.json().data.effective_models.developer.resolved.provider).toEqual({
-      name: 'openai',
-      providerType: 'openai',
-    });
+    expect(plainResponse.statusCode).toBe(404);
+    expect(resolvedResponse.statusCode).toBe(404);
   });
 });

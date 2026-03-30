@@ -6,7 +6,15 @@ import { buildSearchResults, createDashboardApi } from './api.js';
 import { clearSession, readSession, writeSession } from './session.js';
 
 function readApiSource() {
-  return readFileSync(resolve(import.meta.dirname, './api.ts'), 'utf8');
+  const contractsSource = readFileSync(
+    resolve(import.meta.dirname, './dashboard-api/contracts.ts'),
+    'utf8',
+  );
+  const implementationSource = readFileSync(
+    resolve(import.meta.dirname, './dashboard-api/create-dashboard-api.ts'),
+    'utf8',
+  );
+  return `${contractsSource}\n${implementationSource}`;
 }
 
 function readInterfaceBlock(source: string, interfaceName: string) {
@@ -227,12 +235,12 @@ describe('dashboard api auth/session behavior', () => {
     expect(workspaceSettingsBlock).toContain('git_user_name?: string | null;');
     expect(workspaceSettingsBlock).toContain('git_user_email?: string | null;');
     expect(workspaceSettingsBlock).toContain('credentials?: DashboardWorkspaceCredentialPosture;');
-    expect(workspaceSettingsBlock).toContain(
+    expect(workspaceSettingsBlock).not.toContain(
       'model_overrides?: Record<string, DashboardRoleModelOverride>;',
     );
     expect(workspaceSettingsBlock).toContain('workspace_brief?: string | null;');
     expect(workspaceSettingsInputBlock).toContain('credentials?: DashboardWorkspaceCredentialInput;');
-    expect(workspaceSettingsInputBlock).toContain(
+    expect(workspaceSettingsInputBlock).not.toContain(
       'model_overrides?: Record<string, DashboardRoleModelOverride>;',
     );
     expect(workspaceSummaryBlock).toContain('active_workflow_count: number;');
@@ -1180,196 +1188,23 @@ describe('dashboard api auth/session behavior', () => {
     expect(playbook).toEqual({ id: 'playbook-1', name: 'Delivery' });
   });
 
-  it('supports model override endpoints through typed dashboard methods', async () => {
-    writeSession({ accessToken: 'model-token', tenantId: 'tenant-1' });
+  it('does not expose retired workspace or workflow model override endpoints through the dashboard api surface', () => {
+    const source = readApiSource();
+    const dashboardApiBlock = readExportBlock(source, 'DashboardApi');
+    const createWorkflowBlock = source.slice(
+      source.indexOf('createWorkflow(payload: {'),
+      source.indexOf('\n  createWorkflowWorkItem(', source.indexOf('createWorkflow(payload: {')),
+    );
 
-    const fetcher = vi.fn() as unknown as typeof fetch;
-    vi.mocked(fetcher)
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            data: {
-              id: 'workspace-1',
-              name: 'Atlas',
-              slug: 'atlas',
-              settings: {
-                model_overrides: {
-                  architect: { provider: 'openai', model: 'gpt-5' },
-                },
-              },
-            },
-          }),
-          { status: 200 },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            data: {
-              workspace_id: 'workspace-1',
-              model_overrides: {
-                architect: { provider: 'openai', model: 'gpt-5' },
-              },
-            },
-          }),
-          { status: 200 },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            data: {
-              workspace_id: 'workspace-1',
-              workspace_model_overrides: {
-                architect: { provider: 'openai', model: 'gpt-5' },
-              },
-              effective_models: {
-                architect: {
-                  source: 'workspace',
-                  fallback: false,
-                  resolved: {
-                    provider: { name: 'openai', providerType: 'openai' },
-                    model: { modelId: 'gpt-5' },
-                  },
-                },
-              },
-            },
-          }),
-          { status: 200 },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            data: {
-              roles: ['architect'],
-              workspace_model_overrides: {
-                architect: { provider: 'openai', model: 'gpt-5' },
-              },
-              workflow_model_overrides: {
-                architect: { provider: 'anthropic', model: 'claude-opus-4.1' },
-              },
-              effective_models: {
-                architect: {
-                  source: 'workflow',
-                  fallback: false,
-                  resolved: {
-                    provider: { name: 'anthropic', providerType: 'anthropic' },
-                    model: { modelId: 'claude-opus-4.1' },
-                  },
-                },
-              },
-            },
-          }),
-          { status: 200 },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            data: {
-              workflow_id: 'wf-1',
-              model_overrides: {
-                architect: { provider: 'anthropic', model: 'claude-opus-4.1' },
-              },
-            },
-          }),
-          { status: 200 },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
-            data: {
-              workflow_id: 'wf-1',
-              workspace_id: 'workspace-1',
-              workspace_model_overrides: {
-                architect: { provider: 'openai', model: 'gpt-5' },
-              },
-              workflow_model_overrides: {
-                architect: { provider: 'anthropic', model: 'claude-opus-4.1' },
-              },
-              effective_models: {
-                architect: {
-                  source: 'workflow',
-                  fallback: false,
-                  resolved: {
-                    provider: { name: 'anthropic', providerType: 'anthropic' },
-                    model: { modelId: 'claude-opus-4.1' },
-                  },
-                },
-              },
-            },
-          }),
-          { status: 200 },
-        ),
-      );
-    const client = {
-      refreshSession: vi.fn(),
-      setAccessToken: vi.fn(),
-      listWorkflows: vi.fn(),
-      exchangeApiKey: vi.fn(),
-      getWorkflow: vi.fn(),
-      createWorkflow: vi.fn(),
-      listTasks: vi.fn(),
-      getTask: vi.fn(),
-      listWorkers: vi.fn(),
-      listAgents: vi.fn(),
-    };
-
-    const api = createDashboardApi({
-      client: client as never,
-      fetcher,
-      baseUrl: 'http://localhost:8080',
-    });
-
-    const patchedWorkspace = await api.patchWorkspace('workspace-1', {
-      settings: {
-        model_overrides: {
-          architect: { provider: 'openai', model: 'gpt-5' },
-        },
-      },
-    });
-    const workspaceOverrides = await api.getWorkspaceModelOverrides('workspace-1');
-    const resolvedWorkspace = await api.getResolvedWorkspaceModels('workspace-1', ['architect']);
-    const preview = await api.previewEffectiveModels({
-      workspace_model_overrides: {
-        architect: { provider: 'openai', model: 'gpt-5' },
-      },
-      workflow_model_overrides: {
-        architect: { provider: 'anthropic', model: 'claude-opus-4.1' },
-      },
-    });
-    const workflowOverrides = await api.getWorkflowModelOverrides('wf-1');
-    const resolvedWorkflow = await api.getResolvedWorkflowModels('wf-1', ['architect']);
-
-    expect(
-      ((patchedWorkspace.settings ?? {}) as { model_overrides?: Record<string, { model?: string }> })
-        .model_overrides?.architect?.model,
-    ).toBe('gpt-5');
-    expect(workspaceOverrides.model_overrides.architect?.provider).toBe('openai');
-    expect(resolvedWorkspace.effective_models.architect?.source).toBe('workspace');
-    expect(preview.effective_models.architect?.source).toBe('workflow');
-    expect(workflowOverrides.model_overrides.architect?.provider).toBe('anthropic');
-    expect(resolvedWorkflow.workflow_model_overrides.architect?.model).toBe('claude-opus-4.1');
-    expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
-      'http://localhost:8080/api/v1/workspaces/workspace-1',
-    );
-    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
-      'http://localhost:8080/api/v1/workspaces/workspace-1/model-overrides',
-    );
-    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
-      'http://localhost:8080/api/v1/workspaces/workspace-1/model-overrides/resolved?roles=architect',
-    );
-    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
-      'http://localhost:8080/api/v1/config/llm/resolve-preview',
-    );
-    expect(vi.mocked(fetcher).mock.calls[4][0]).toBe(
-      'http://localhost:8080/api/v1/workflows/wf-1/model-overrides',
-    );
-    expect(vi.mocked(fetcher).mock.calls[5][0]).toBe(
-      'http://localhost:8080/api/v1/workflows/wf-1/model-overrides/resolved?roles=architect',
-    );
+    expect(dashboardApiBlock).not.toContain('getWorkspaceModelOverrides(');
+    expect(dashboardApiBlock).not.toContain('getResolvedWorkspaceModels(');
+    expect(dashboardApiBlock).not.toContain('getWorkflowModelOverrides(');
+    expect(dashboardApiBlock).not.toContain('getResolvedWorkflowModels(');
+    expect(dashboardApiBlock).not.toContain('previewEffectiveModels(');
+    expect(createWorkflowBlock).not.toContain('model_overrides?: Record<string, DashboardRoleModelOverride>;');
+    expect(source).not.toContain('/api/v1/workspaces/${workspaceId}/model-overrides');
+    expect(source).not.toContain('/api/v1/workflows/${workflowId}/model-overrides');
+    expect(source).not.toContain('/api/v1/config/llm/resolve-preview');
   });
 
   it('loads and updates workflow work items through the dashboard api surface', async () => {

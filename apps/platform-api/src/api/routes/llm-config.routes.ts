@@ -11,20 +11,6 @@ import type {
 import { LlmDiscoveryService } from '../../services/llm-discovery-service.js';
 import { getOAuthProfile } from '../../catalogs/oauth-profiles.js';
 
-const roleModelOverrideSchema = z.object({
-  provider: z.string().min(1).max(120),
-  model: z.string().min(1).max(200),
-  reasoning_config: z.record(z.unknown()).nullable().optional(),
-});
-
-const modelOverridesSchema = z.record(z.string().min(1).max(120), roleModelOverrideSchema);
-
-const resolvePreviewSchema = z.object({
-  roles: z.array(z.string().min(1).max(120)).optional(),
-  workspace_model_overrides: modelOverridesSchema.optional(),
-  workflow_model_overrides: modelOverridesSchema.optional(),
-});
-
 export const llmConfigRoutes: FastifyPluginAsync = async (app) => {
   const service = app.modelCatalogService;
   const discoveryService = new LlmDiscoveryService();
@@ -297,152 +283,7 @@ export const llmConfigRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  app.post(
-    '/api/v1/config/llm/resolve-preview',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
-    async (request) => {
-      const body = resolvePreviewSchema.parse(request.body ?? {});
-      const workspaceOverrides = body.workspace_model_overrides ?? {};
-      const workflowOverrides = body.workflow_model_overrides ?? {};
-      const roles = readRequestedRoles(body.roles, workspaceOverrides, workflowOverrides);
-      return {
-        data: {
-          roles,
-          workspace_model_overrides: workspaceOverrides,
-          workflow_model_overrides: workflowOverrides,
-          effective_models: await resolveEffectiveModels(
-            service,
-            request.auth!.tenantId,
-            roles,
-            workspaceOverrides,
-            workflowOverrides,
-          ),
-        },
-      };
-    },
-  );
 };
-
-function readRequestedRoles(
-  roles: string[] | undefined,
-  workspaceOverrides: Record<string, unknown>,
-  workflowOverrides: Record<string, unknown>,
-) {
-  if (Array.isArray(roles) && roles.length > 0) {
-    return roles;
-  }
-  return Array.from(new Set([...Object.keys(workspaceOverrides), ...Object.keys(workflowOverrides)]));
-}
-
-async function resolveEffectiveModels(
-  modelCatalogService: {
-    resolveRoleConfig(tenantId: string, roleName: string): Promise<unknown>;
-    listProviders(tenantId: string): Promise<unknown[]>;
-    listModels(tenantId: string, providerId?: string): Promise<unknown[]>;
-    getProviderForOperations(tenantId: string, id: string): Promise<unknown>;
-  },
-  tenantId: string,
-  roles: string[],
-  workspaceOverrides: Record<string, unknown>,
-  workflowOverrides: Record<string, unknown>,
-) {
-  const providers = (await modelCatalogService.listProviders(tenantId)) as Array<Record<string, unknown>>;
-  const byId = new Map(providers.map((provider) => [String(provider.id), provider]));
-  const byName = new Map(
-    providers.flatMap((provider) => {
-      const record = provider as Record<string, unknown>;
-      const names = [record.name, asRecord(record.metadata).providerType].filter(
-        (value): value is string => typeof value === 'string' && value.length > 0,
-      );
-      return names.map((name) => [name, provider] as const);
-    }),
-  );
-
-  const results: Record<string, unknown> = {};
-  for (const role of roles) {
-    const baseResolved = (await modelCatalogService.resolveRoleConfig(tenantId, role)) as
-      | Record<string, unknown>
-      | null;
-    const workflowOverride = asRecord(workflowOverrides[role]);
-    const workspaceOverride = asRecord(workspaceOverrides[role]);
-    const activeOverride = Object.keys(workflowOverride).length > 0 ? workflowOverride : workspaceOverride;
-    const source =
-      Object.keys(workflowOverride).length > 0
-        ? 'workflow'
-        : Object.keys(workspaceOverride).length > 0
-          ? 'workspace'
-          : 'base';
-
-    if (Object.keys(activeOverride).length === 0) {
-      results[role] = {
-        source,
-        resolved: sanitizeResolvedConfig(baseResolved),
-        fallback: baseResolved === null,
-      };
-      continue;
-    }
-
-    const providerRef = String(activeOverride.provider);
-    const provider = byId.get(providerRef) ?? byName.get(providerRef);
-    if (!provider) {
-      results[role] = {
-        source,
-        resolved: sanitizeResolvedConfig(baseResolved),
-        fallback: true,
-        fallback_reason: `provider '${providerRef}' is not available`,
-      };
-      continue;
-    }
-
-    const models = (await modelCatalogService.listModels(
-      tenantId,
-      String(provider.id),
-    )) as Array<Record<string, unknown>>;
-    const model = models.find(
-      (entry) =>
-        String((entry as Record<string, unknown>).model_id) === String(activeOverride.model)
-        && (entry as Record<string, unknown>).is_enabled === true,
-    );
-    if (!model) {
-      results[role] = {
-        source,
-        resolved: sanitizeResolvedConfig(baseResolved),
-        fallback: true,
-        fallback_reason: `model '${String(activeOverride.model)}' is not enabled for provider '${providerRef}'`,
-      };
-      continue;
-    }
-
-    const providerDetails = (await modelCatalogService.getProviderForOperations(
-      tenantId,
-      String((provider as Record<string, unknown>).id),
-    )) as Record<string, unknown>;
-    results[role] = {
-      source,
-      resolved: sanitizeResolvedConfig({
-        provider: {
-          name: providerDetails.name,
-          providerType: asRecord(providerDetails.metadata).providerType ?? providerDetails.name,
-          baseUrl: providerDetails.base_url,
-          authMode: providerDetails.auth_mode ?? 'api_key',
-          providerId: providerDetails.auth_mode === 'oauth' ? providerDetails.id : null,
-        },
-        model: {
-          modelId: model.model_id,
-          contextWindow: model.context_window ?? null,
-          endpointType: model.endpoint_type ?? null,
-          reasoningConfig: model.reasoning_config ?? null,
-        },
-        reasoningConfig:
-          activeOverride.reasoning_config === undefined
-            ? (baseResolved as Record<string, unknown> | null)?.reasoningConfig ?? null
-            : activeOverride.reasoning_config,
-      }),
-      fallback: false,
-    };
-  }
-  return results;
-}
 
 function sanitizeResolvedConfig(value: unknown) {
   const record = asNullableRecord(value);
@@ -470,12 +311,6 @@ function sanitizeResolvedProvider(provider: Record<string, unknown>) {
     ...safeProvider
   } = provider;
   return safeProvider;
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
 }
 
 function asNullableRecord(value: unknown): Record<string, unknown> | null {

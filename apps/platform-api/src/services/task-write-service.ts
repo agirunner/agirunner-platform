@@ -1087,7 +1087,7 @@ function normalizeTaskContractInput(input: CreateTaskInput): CreateTaskInput {
   const taskKind = resolveTaskKind(input);
   const persistedTaskKind = shouldPersistTaskKind(input, taskKind) ? taskKind : undefined;
   assertTaskKindIsValidForInput(taskKind, input);
-  const normalizedRoleConfig = normalizeWorkflowLinkedTaskRoleConfig(input);
+  const normalizedRoleConfig = normalizeTaskRoleConfig(input);
   return {
     ...input,
     task_kind: persistedTaskKind,
@@ -1096,12 +1096,9 @@ function normalizeTaskContractInput(input: CreateTaskInput): CreateTaskInput {
   };
 }
 
-function normalizeWorkflowLinkedTaskRoleConfig(
+function normalizeTaskRoleConfig(
   input: CreateTaskInput,
 ): Record<string, unknown> | undefined {
-  if (!input.workflow_id && !input.work_item_id) {
-    return input.role_config;
-  }
   const roleConfig = asRecord(input.role_config);
   if (Object.keys(roleConfig).length === 0) {
     return undefined;
@@ -1109,6 +1106,7 @@ function normalizeWorkflowLinkedTaskRoleConfig(
   const {
     llm_provider: _llmProvider,
     llm_model: _llmModel,
+    llm_reasoning_config: _llmReasoningConfig,
     ...rest
   } = roleConfig;
   return Object.keys(rest).length > 0 ? rest : undefined;

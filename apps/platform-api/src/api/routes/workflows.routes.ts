@@ -31,14 +31,6 @@ import { WorkflowToolResultService } from '../../services/workflow-tool-result-s
 import { runIdempotentWorkflowBackedTaskAction } from './task-route-idempotency.js';
 import { workflowOperatorRecordRoutes } from './workflow-operator-record-routes.js';
 
-const roleModelOverrideSchema = z.object({
-  provider: z.string().min(1).max(120),
-  model: z.string().min(1).max(200),
-  reasoning_config: z.record(z.unknown()).nullable().optional(),
-});
-
-const modelOverridesSchema = z.record(z.string().min(1).max(120), roleModelOverrideSchema);
-
 const workflowBudgetSchema = z.object({
   token_budget: z.number().int().positive().optional(),
   cost_cap_usd: z.number().positive().optional(),
@@ -72,7 +64,6 @@ const workflowCreateSchema = z.object({
   config_overrides: z.record(z.unknown()).optional(),
   instruction_config: z.record(z.unknown()).optional(),
   budget: workflowBudgetSchema.optional(),
-  model_overrides: modelOverridesSchema.optional(),
   live_visibility_mode: z.enum(['standard', 'enhanced']).optional(),
 });
 
@@ -353,10 +344,18 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     '/api/v1/workflows',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request, reply) => {
+      if (
+        request.body
+        && typeof request.body === 'object'
+        && !Array.isArray(request.body)
+        && Object.hasOwn(request.body as Record<string, unknown>, 'model_overrides')
+      ) {
+        throw new ValidationError('model_overrides is no longer supported');
+      }
       const body = parseOrThrow(workflowCreateSchema.safeParse(request.body));
       const workflow = await workflowService.createWorkflow(request.auth!, {
         ...mapWorkflowCreateBody(body),
-        metadata: mergeWorkflowMetadata(body.metadata, body.model_overrides),
+        metadata: body.metadata,
         live_visibility_mode: body.live_visibility_mode,
       });
       return reply.status(201).send({ data: workflow });
@@ -1319,50 +1318,6 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  app.get(
-    '/api/v1/workflows/:id/model-overrides',
-    { preHandler: [authenticateApiKey, withScope('agent')] },
-    async (request) => {
-      const params = request.params as { id: string };
-      const workflow = await workflowService.getWorkflow(request.auth!.tenantId, params.id);
-      return {
-        data: {
-          workflow_id: params.id,
-          model_overrides: readModelOverrides(asRecord(workflow.metadata).model_overrides),
-        },
-      };
-    },
-  );
-
-  app.get(
-    '/api/v1/workflows/:id/model-overrides/resolved',
-    { preHandler: [authenticateApiKey, withScope('agent')] },
-    async (request) => {
-      const params = request.params as { id: string };
-      const query = request.query as { roles?: string };
-      const workflow = await workflowService.getWorkflow(request.auth!.tenantId, params.id);
-      const workflowOverrides = readModelOverrides(asRecord(workflow.metadata).model_overrides);
-      const workspaceId = typeof workflow.workspace_id === 'string' ? workflow.workspace_id : null;
-      const workspaceOverrides = {};
-      const roles = parseRoleQuery(query.roles, workflowOverrides);
-      return {
-        data: {
-          workflow_id: params.id,
-          workspace_id: workspaceId,
-          workspace_model_overrides: workspaceOverrides,
-          workflow_model_overrides: workflowOverrides,
-          effective_models: await resolveEffectiveModels(
-            app.modelCatalogService,
-            request.auth!.tenantId,
-            roles,
-            workspaceOverrides,
-            workflowOverrides,
-          ),
-        },
-      };
-    },
-  );
-
   app.post(
     '/api/v1/workflows/:id/cancel',
     { preHandler: [authenticateApiKey, withScope('admin')] },
@@ -1589,179 +1544,8 @@ async function loadStoredWorkflowActionResult(
   }
 }
 
-function mergeWorkflowMetadata(
-  metadata: Record<string, unknown> | undefined,
-  modelOverrides: Record<string, unknown> | undefined,
-) {
-  if (!modelOverrides) {
-    return metadata;
-  }
-  return {
-    ...(metadata ?? {}),
-    model_overrides: modelOverrides,
-  };
-}
-
-function parseRoleQuery(raw: string | undefined, workflowOverrides: Record<string, unknown>) {
-  if (typeof raw === 'string' && raw.trim().length > 0) {
-    return raw
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean);
-  }
-  return Array.from(new Set([...Object.keys(workflowOverrides)]));
-}
-
-function readModelOverrides(value: unknown): Record<string, unknown> {
-  const parsed = modelOverridesSchema.safeParse(value ?? {});
-  return parsed.success ? parsed.data : {};
-}
-
-async function resolveEffectiveModels(
-  modelCatalogService: {
-    resolveRoleConfig(tenantId: string, roleName: string): Promise<unknown>;
-    listProviders(tenantId: string): Promise<unknown[]>;
-    listModels(tenantId: string, providerId?: string): Promise<unknown[]>;
-    getProviderForOperations(tenantId: string, id: string): Promise<unknown>;
-  },
-  tenantId: string,
-  roles: string[],
-  workspaceOverrides: Record<string, unknown>,
-  workflowOverrides: Record<string, unknown>,
-) {
-  const providers = (await modelCatalogService.listProviders(tenantId)) as Array<
-    Record<string, unknown>
-  >;
-  const byId = new Map(providers.map((provider) => [String(provider.id), provider]));
-  const byName = new Map(
-    providers.flatMap((provider) => {
-      const record = provider as Record<string, unknown>;
-      const names = [record.name, asRecord(record.metadata).providerType].filter(
-        (value): value is string => typeof value === 'string' && value.length > 0,
-      );
-      return names.map((name) => [name, provider] as const);
-    }),
-  );
-
-  const results: Record<string, unknown> = {};
-  for (const role of roles) {
-    const baseResolved = (await modelCatalogService.resolveRoleConfig(tenantId, role)) as Record<
-      string,
-      unknown
-    > | null;
-    const sanitizedBaseResolved = sanitizeResolvedRoleConfig(baseResolved);
-    const workflowOverride = asRecord(workflowOverrides[role]);
-    const workspaceOverride = asRecord(workspaceOverrides[role]);
-    const activeOverride =
-      Object.keys(workflowOverride).length > 0 ? workflowOverride : workspaceOverride;
-    const source =
-      Object.keys(workflowOverride).length > 0
-        ? 'workflow'
-        : Object.keys(workspaceOverride).length > 0
-          ? 'workspace'
-          : 'base';
-
-    if (Object.keys(activeOverride).length === 0) {
-      results[role] = {
-        source,
-        resolved: sanitizedBaseResolved,
-        fallback: sanitizedBaseResolved === null,
-      };
-      continue;
-    }
-
-    const providerRef = String(activeOverride.provider);
-    const provider = byId.get(providerRef) ?? byName.get(providerRef);
-    if (!provider) {
-      results[role] = {
-        source,
-        resolved: sanitizedBaseResolved,
-        fallback: true,
-        fallback_reason: `provider '${providerRef}' is not available`,
-      };
-      continue;
-    }
-
-    const models = (await modelCatalogService.listModels(tenantId, String(provider.id))) as Array<
-      Record<string, unknown>
-    >;
-    const model = models.find(
-      (entry) =>
-        String((entry as Record<string, unknown>).model_id) === String(activeOverride.model) &&
-        (entry as Record<string, unknown>).is_enabled === true,
-    );
-    if (!model) {
-      results[role] = {
-        source,
-        resolved: sanitizedBaseResolved,
-        fallback: true,
-        fallback_reason: `model '${String(activeOverride.model)}' is not enabled for provider '${providerRef}'`,
-      };
-      continue;
-    }
-
-    const providerDetails = (await modelCatalogService.getProviderForOperations(
-      tenantId,
-      String((provider as Record<string, unknown>).id),
-    )) as Record<string, unknown>;
-    results[role] = {
-      source,
-      resolved: {
-        provider: {
-          name: providerDetails.name,
-          providerType: asRecord(providerDetails.metadata).providerType ?? providerDetails.name,
-          baseUrl: providerDetails.base_url,
-          authMode: providerDetails.auth_mode ?? 'api_key',
-          providerId: providerDetails.auth_mode === 'oauth' ? providerDetails.id : null,
-        },
-        model: {
-          modelId: model.model_id,
-          contextWindow: model.context_window ?? null,
-          endpointType: model.endpoint_type ?? null,
-          reasoningConfig: model.reasoning_config ?? null,
-        },
-        reasoningConfig:
-          activeOverride.reasoning_config === undefined
-            ? ((baseResolved as Record<string, unknown> | null)?.reasoningConfig ?? null)
-            : activeOverride.reasoning_config,
-      },
-      fallback: false,
-    };
-  }
-  return results;
-}
-
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
-}
-
-function sanitizeResolvedRoleConfig(
-  value: Record<string, unknown> | null,
-): Record<string, unknown> | null {
-  if (!value) {
-    return null;
-  }
-
-  const provider = asRecord(value.provider);
-  return {
-    ...value,
-    ...(Object.keys(provider).length > 0 ? { provider: sanitizeResolvedProvider(provider) } : {}),
-  };
-}
-
-function sanitizeResolvedProvider(provider: Record<string, unknown>): Record<string, unknown> {
-  const {
-    apiKeySecretRef: _apiKeySecretRef,
-    api_key_secret_ref: _apiKeySecretRefSnake,
-    accessTokenSecret: _accessTokenSecret,
-    extraHeadersSecret: _extraHeadersSecret,
-    oauthConfig: _oauthConfig,
-    oauth_config: _oauthConfigSnake,
-    oauthCredentials: _oauthCredentials,
-    oauth_credentials: _oauthCredentialsSnake,
-    ...safeProvider
-  } = provider;
-  return safeProvider;
 }
