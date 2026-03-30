@@ -2386,6 +2386,216 @@ describe('WorkflowWorkspaceService', () => {
     ]);
   });
 
+  it('drops stale awaiting-approval items when no actionable task or gate still exists', async () => {
+    const workflowService = {
+      getWorkflow: vi.fn(async () => ({})),
+      getWorkflowBoard: vi.fn(async () => ({
+        columns: [{ id: 'review' }],
+        work_items: [
+          {
+            id: 'work-item-1',
+            title: 'Approve Curiosity Deck brief',
+            stage_name: 'approval-gate',
+            column_id: 'review',
+            gate_status: 'awaiting_approval',
+            escalation_status: null,
+            blocked_state: null,
+            completed_at: null,
+          },
+        ],
+        stage_summary: [],
+      })),
+    };
+    const railService = {
+      getWorkflowCard: vi.fn(async () => ({
+        id: 'workflow-1',
+        name: 'Review It',
+        posture: 'needs_decision',
+        pulse: { summary: 'Waiting on human approval' },
+        availableActions: [],
+        metrics: {
+          blockedWorkItemCount: 0,
+          openEscalationCount: 0,
+          failedTaskCount: 0,
+          recoverableIssueCount: 0,
+          waitingForDecisionCount: 1,
+          activeTaskCount: 0,
+          activeWorkItemCount: 1,
+          lastChangedAt: '2026-03-28T08:15:00.000Z',
+        },
+      })),
+    };
+    const liveConsoleService = {
+      getLiveConsole: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:220',
+        generated_at: '2026-03-28T08:15:00.000Z',
+        latest_event_id: 220,
+        items: [],
+        next_cursor: null,
+        live_visibility_mode: 'enhanced',
+      })),
+    };
+    const historyService = {
+      getHistory: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:220',
+        generated_at: '2026-03-28T08:15:00.000Z',
+        latest_event_id: 220,
+        groups: [],
+        items: [],
+        filters: { available: [], active: [] },
+        next_cursor: null,
+      })),
+    };
+    const deliverablesService = {
+      getDeliverables: vi.fn(async () => ({
+        final_deliverables: [],
+        in_progress_deliverables: [],
+        working_handoffs: [],
+        inputs_and_provenance: {
+          launch_packet: null,
+          supplemental_packets: [],
+          intervention_attachments: [],
+          redrive_packet: null,
+        },
+        next_cursor: null,
+        all_deliverables: [],
+      })),
+    };
+    const interventionService = {
+      listWorkflowInterventions: vi.fn(async () => []),
+    };
+    const steeringSessionService = {
+      listSessions: vi.fn(async () => []),
+      listMessages: vi.fn(async () => []),
+    };
+    const taskService = {
+      listTasks: vi.fn(async () => ({ data: [] })),
+    };
+    const gateSource = {
+      listWorkflowGates: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowWorkspaceService(
+      workflowService as never,
+      railService as never,
+      liveConsoleService as never,
+      historyService as never,
+      deliverablesService as never,
+      interventionService as never,
+      steeringSessionService as never,
+      taskService as never,
+      gateSource as never,
+    );
+
+    const result = await service.getWorkspace('tenant-1', 'workflow-1');
+
+    expect(result.needs_action.items).toEqual([]);
+    expect(result.needs_action.total_count).toBe(0);
+  });
+
+  it('drops stale open-escalation items when no escalated task still exists', async () => {
+    const workflowService = {
+      getWorkflow: vi.fn(async () => ({})),
+      getWorkflowBoard: vi.fn(async () => ({
+        columns: [{ id: 'review' }],
+        work_items: [
+          {
+            id: 'work-item-1',
+            title: 'workflows-intake-02',
+            stage_name: 'policy-review',
+            column_id: 'review',
+            gate_status: null,
+            escalation_status: 'open',
+            blocked_state: null,
+            completed_at: null,
+          },
+        ],
+        stage_summary: [],
+      })),
+    };
+    const railService = {
+      getWorkflowCard: vi.fn(async () => ({
+        id: 'workflow-1',
+        name: 'Release Workflow',
+        posture: 'needs_intervention',
+        pulse: { summary: 'Waiting on escalation guidance' },
+        availableActions: [],
+        metrics: {
+          blockedWorkItemCount: 0,
+          openEscalationCount: 1,
+          failedTaskCount: 0,
+          recoverableIssueCount: 0,
+          waitingForDecisionCount: 0,
+          activeTaskCount: 0,
+          activeWorkItemCount: 1,
+          lastChangedAt: '2026-03-27T22:45:00.000Z',
+        },
+      })),
+    };
+    const liveConsoleService = {
+      getLiveConsole: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:120',
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        items: [],
+        next_cursor: null,
+        live_visibility_mode: 'enhanced',
+      })),
+    };
+    const historyService = {
+      getHistory: vi.fn(async () => ({
+        snapshot_version: 'workflow-operations:120',
+        generated_at: '2026-03-27T22:45:00.000Z',
+        latest_event_id: 120,
+        groups: [],
+        items: [],
+        filters: { available: [], active: [] },
+        next_cursor: null,
+      })),
+    };
+    const deliverablesService = {
+      getDeliverables: vi.fn(async () => ({
+        final_deliverables: [],
+        in_progress_deliverables: [],
+        working_handoffs: [],
+        inputs_and_provenance: {
+          launch_packet: null,
+          supplemental_packets: [],
+          intervention_attachments: [],
+          redrive_packet: null,
+        },
+        next_cursor: null,
+        all_deliverables: [],
+      })),
+    };
+    const interventionService = {
+      listWorkflowInterventions: vi.fn(async () => []),
+    };
+    const steeringSessionService = {
+      listSessions: vi.fn(async () => []),
+      listMessages: vi.fn(async () => []),
+    };
+    const taskService = {
+      listTasks: vi.fn(async () => ({ data: [] })),
+    };
+
+    const service = new WorkflowWorkspaceService(
+      workflowService as never,
+      railService as never,
+      liveConsoleService as never,
+      historyService as never,
+      deliverablesService as never,
+      interventionService as never,
+      steeringSessionService as never,
+      taskService as never,
+    );
+
+    const result = await service.getWorkspace('tenant-1', 'workflow-1');
+
+    expect(result.needs_action.items).toEqual([]);
+    expect(result.needs_action.total_count).toBe(0);
+  });
+
   it('surfaces request-changes work items as actionable add-work entries instead of leaving them stranded in planned', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
@@ -2503,7 +2713,7 @@ describe('WorkflowWorkspaceService', () => {
     expect(result.bottom_tabs.default_tab).toBe('needs_action');
   });
 
-  it('keeps unsupported workflow quick actions out of needs action while surfacing supported ones', async () => {
+  it('keeps workflow add-work controls out of needs action while surfacing real workflow interventions', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -2594,9 +2804,8 @@ describe('WorkflowWorkspaceService', () => {
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1');
 
-    expect(result.needs_action.total_count).toBe(2);
+    expect(result.needs_action.total_count).toBe(1);
     expect(result.needs_action.items).toEqual([
-      expect.objectContaining({ action_kind: 'add_work_item' }),
       expect.objectContaining({ action_kind: 'redrive_workflow' }),
     ]);
     expect(result.steering.quick_actions).toEqual([]);
@@ -5989,7 +6198,7 @@ describe('WorkflowWorkspaceService', () => {
     ]);
   });
 
-  it('surfaces supported workflow-level actions in workflow scope needs action', async () => {
+  it('surfaces only real workflow interventions in workflow scope needs action', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({ columns: [], work_items: [], stage_summary: [] })),
@@ -6079,18 +6288,14 @@ describe('WorkflowWorkspaceService', () => {
 
     expect(result.needs_action.items).toEqual([
       expect.objectContaining({
-        action_kind: 'add_work_item',
-        target: { target_kind: 'workflow', target_id: 'workflow-1' },
-      }),
-      expect.objectContaining({
         action_kind: 'redrive_workflow',
         target: { target_kind: 'workflow', target_id: 'workflow-1' },
       }),
     ]);
-    expect(result.bottom_tabs.counts.needs_action).toBe(2);
+    expect(result.bottom_tabs.counts.needs_action).toBe(1);
     expect((result.needs_action as any).scope_summary).toEqual({
-      workflow_total_count: 2,
-      selected_scope_total_count: 2,
+      workflow_total_count: 1,
+      selected_scope_total_count: 1,
       scoped_away_workflow_count: 0,
     });
   });

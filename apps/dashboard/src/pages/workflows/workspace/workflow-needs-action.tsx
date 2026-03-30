@@ -24,16 +24,17 @@ export function WorkflowNeedsAction(props: {
 }): JSX.Element {
   const normalizedScope = normalizeNeedsActionScope(props.scopeSubject, props.scopeLabel);
   const scopeSubject = normalizedScope.subject;
-  const scopeLabel = normalizedScope.label;
+  const visibleItems = props.packet.items.filter(shouldDisplayNeedsActionItem);
   const scopeSummary = props.packet.scope_summary ?? {
     workflow_total_count: props.packet.total_count,
-    selected_scope_total_count: props.packet.total_count,
+    selected_scope_total_count: visibleItems.length,
     scoped_away_workflow_count: 0,
   };
   const queryClient = useQueryClient();
   const [promptAction, setPromptAction] = useState<DashboardWorkflowNeedsActionResponseAction | null>(null);
   const [promptValue, setPromptValue] = useState('');
   const [promptError, setPromptError] = useState<string | null>(null);
+  const [hasAttemptedPromptSubmit, setHasAttemptedPromptSubmit] = useState(false);
 
   const mutation = useMutation({
     mutationFn: async (input: {
@@ -45,6 +46,7 @@ export function WorkflowNeedsAction(props: {
       setPromptAction(null);
       setPromptValue('');
       setPromptError(null);
+      setHasAttemptedPromptSubmit(false);
       toast.success(readSuccessMessage(input.action.kind));
     },
     onError: (error) => {
@@ -61,6 +63,7 @@ export function WorkflowNeedsAction(props: {
       setPromptAction(action);
       setPromptValue('');
       setPromptError(null);
+      setHasAttemptedPromptSubmit(false);
       return;
     }
     mutation.mutate({ item, action });
@@ -70,9 +73,8 @@ export function WorkflowNeedsAction(props: {
     if (!promptAction) {
       return;
     }
-    const promptMeta = buildPromptMeta(promptAction);
+    setHasAttemptedPromptSubmit(true);
     if (!promptValue.trim()) {
-      setPromptError(promptMeta.requiredMessage);
       return;
     }
     const promptItem = props.packet.items.find((item) =>
@@ -85,30 +87,25 @@ export function WorkflowNeedsAction(props: {
     mutation.mutate({ item: promptItem, action: promptAction });
   }
 
+  function handlePromptChange(value: string): void {
+    setPromptValue(value);
+    setPromptError(null);
+  }
+
   return (
     <div className="grid gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-foreground">Needs Action</p>
-          <p className="text-xs font-medium text-foreground">{scopeLabel}</p>
-          <p className="text-sm text-muted-foreground">
-            Prioritized actions for this {scopeSubject} that currently require an operator response.
-          </p>
-        </div>
-      </div>
-
-      {props.packet.items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
+      {visibleItems.length === 0 ? (
+        <div className="grid gap-1 px-1 text-sm text-muted-foreground">
           <p>Nothing in this {scopeSubject} requires operator action right now.</p>
           {scopeSummary.scoped_away_workflow_count > 0 && scopeSubject !== 'workflow' ? (
-            <p className="mt-2">
+            <p>
               {readScopedAwayWorkflowMessage(scopeSummary.scoped_away_workflow_count)}
             </p>
           ) : null}
         </div>
       ) : (
-        <div className="grid gap-3">
-          {props.packet.items.map((item) => (
+        <div className="grid divide-y divide-border/60">
+          {visibleItems.map((item) => (
             <NeedsActionCard
               key={item.action_id}
               item={item}
@@ -116,9 +113,10 @@ export function WorkflowNeedsAction(props: {
               activePromptActionId={promptAction?.action_id ?? null}
               promptValue={promptValue}
               promptError={promptError}
+              hasAttemptedPromptSubmit={hasAttemptedPromptSubmit}
               isPending={mutation.isPending}
               onAction={(action) => handleAction(item, action)}
-              onPromptChange={setPromptValue}
+              onPromptChange={handlePromptChange}
               onPromptCancel={() => {
                 if (mutation.isPending) {
                   return;
@@ -126,6 +124,7 @@ export function WorkflowNeedsAction(props: {
                 setPromptAction(null);
                 setPromptValue('');
                 setPromptError(null);
+                setHasAttemptedPromptSubmit(false);
               }}
               onPromptSubmit={handlePromptSubmit}
             />
@@ -142,6 +141,7 @@ function NeedsActionCard(props: {
   activePromptActionId: string | null;
   promptValue: string;
   promptError: string | null;
+  hasAttemptedPromptSubmit: boolean;
   isPending: boolean;
   onAction(action: DashboardWorkflowNeedsActionResponseAction): void;
   onPromptChange(value: string): void;
@@ -151,6 +151,11 @@ function NeedsActionCard(props: {
   const responses = props.item.responses.filter(isSupportedNeedsActionResponse);
   const activePromptAction = responses.find((action) => action.action_id === props.activePromptActionId) ?? null;
   const promptMeta = buildPromptMeta(activePromptAction);
+  const validationError =
+    activePromptAction && props.hasAttemptedPromptSubmit && !props.promptValue.trim()
+      ? promptMeta.requiredMessage
+      : null;
+  const promptMessage = props.promptError ?? validationError;
   const visibleTargetKind = describeNeedsActionVisibleTargetKind(
     props.visibleScopeSubject,
     props.item.target.target_kind,
@@ -158,7 +163,7 @@ function NeedsActionCard(props: {
   const actionTargetKind = humanizeToken(props.item.target.target_kind);
 
   return (
-    <article className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
+    <article className="grid gap-2 py-3">
       <div className="flex flex-wrap items-center gap-2">
         <strong className="text-foreground">{props.item.label}</strong>
         <Badge variant="warning">{humanizeToken(visibleTargetKind)}</Badge>
@@ -166,9 +171,6 @@ function NeedsActionCard(props: {
         {props.item.requires_confirmation ? <Badge variant="outline">Confirm</Badge> : null}
       </div>
       <div className="grid gap-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-          Why it needs action
-        </p>
         <p className="text-sm text-muted-foreground">{props.item.summary}</p>
         <p className="text-xs text-muted-foreground">
           Scope: {humanizeToken(visibleTargetKind)}
@@ -179,7 +181,7 @@ function NeedsActionCard(props: {
         ) : null}
       </div>
       {props.item.details && props.item.details.length > 0 ? (
-        <dl className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-3">
+        <dl className="grid gap-2 border-l-2 border-border/60 pl-3">
           {props.item.details.map((detail) => (
             <div key={`${detail.label}:${detail.value}`} className="grid gap-1">
               <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -211,7 +213,7 @@ function NeedsActionCard(props: {
         ))}
       </div>
       {activePromptAction ? (
-        <div className="grid gap-3 rounded-xl border border-amber-300/60 bg-amber-100/60 p-3 dark:border-amber-500/40 dark:bg-amber-500/10">
+        <div className="grid gap-3 border-l-2 border-amber-300/80 pl-3 dark:border-amber-500/60">
           <div className="grid gap-1">
             <p className="text-sm font-semibold text-foreground">{promptMeta.title}</p>
             {promptMeta.description ? (
@@ -221,11 +223,12 @@ function NeedsActionCard(props: {
           <Textarea
             value={props.promptValue}
             onChange={(event) => props.onPromptChange(event.target.value)}
+            onInput={(event) => props.onPromptChange((event.target as HTMLTextAreaElement).value)}
             rows={4}
             placeholder={promptMeta.placeholder}
-            aria-invalid={Boolean(props.promptError)}
+            aria-invalid={Boolean(promptMessage)}
           />
-          {props.promptError ? <p className="text-sm text-destructive">{props.promptError}</p> : null}
+          {promptMessage ? <p className="text-sm text-destructive">{promptMessage}</p> : null}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={props.onPromptCancel} disabled={props.isPending}>
               Cancel
@@ -370,6 +373,19 @@ function isSupportedNeedsActionResponse(
     || action.kind === 'request_changes_gate'
     || action.kind === 'resolve_escalation'
     || action.kind === 'retry_task';
+}
+
+function shouldDisplayNeedsActionItem(item: DashboardWorkflowNeedsActionItem): boolean {
+  const supportedResponses = item.responses.filter(isSupportedNeedsActionResponse);
+  if (supportedResponses.length === 0) {
+    return false;
+  }
+
+  const onlyWorkflowChromeResponses = supportedResponses.every((action) =>
+    action.kind === 'add_work_item' || action.kind === 'redrive_workflow',
+  );
+
+  return !(item.target.target_kind === 'workflow' && onlyWorkflowChromeResponses);
 }
 
 function readSuccessMessage(actionKind: string): string {

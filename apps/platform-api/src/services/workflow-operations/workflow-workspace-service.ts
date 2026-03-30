@@ -929,6 +929,9 @@ function buildNeedsActionItems(
       actionableTaskMap,
     );
     const responses = buildBoardNeedsActionResponses(boardItem.action_kind, boardItem.target, directTask, gate);
+    if (shouldSuppressStaleBoardNeedsActionItem(boardItem.action_kind, responses)) {
+      continue;
+    }
     const presentation = buildBoardNeedsActionPresentation(boardItem, directTask, gate);
     const { stage_name: _stageName, subject_label: _subjectLabel, ...publicItem } = boardItem;
     items.push({
@@ -1423,6 +1426,18 @@ function buildBoardNeedsActionResponses(
   return [];
 }
 
+function shouldSuppressStaleBoardNeedsActionItem(
+  actionKind: string,
+  responses: WorkflowNeedsActionResponseAction[],
+): boolean {
+  if (responses.length > 0) {
+    return false;
+  }
+  return actionKind === 'review_work_item'
+    || actionKind === 'review_stage_gate'
+    || actionKind === 'resolve_escalation';
+}
+
 function buildGateDecisionResponses(gateId: string): WorkflowNeedsActionResponseAction[] {
   return [
     buildNeedsActionResponse('approve_gate', 'Approve', gateId, 'gate', 'none'),
@@ -1474,9 +1489,6 @@ function buildQuickActionResponses(
 ): WorkflowNeedsActionResponseAction[] {
   if (actionKind === 'redrive_workflow') {
     return [buildNeedsActionResponse('redrive_workflow', 'Redrive workflow', target.target_id, 'workflow', 'none', true)];
-  }
-  if (actionKind === 'add_work_item') {
-    return [buildNeedsActionResponse('add_work_item', 'Add / Modify Work', target.target_id, target.target_kind, 'none')];
   }
   return [];
 }
@@ -1553,7 +1565,7 @@ function isNeedsActionQuickAction(action: MissionControlActionAvailability): boo
   if (!action.enabled) {
     return false;
   }
-  return action.kind === 'add_work_item' || action.kind === 'redrive_workflow';
+  return action.kind === 'redrive_workflow';
 }
 
 function readBoardNeedsActionItems(board: Record<string, unknown>): WorkflowBoardNeedsActionItem[] {

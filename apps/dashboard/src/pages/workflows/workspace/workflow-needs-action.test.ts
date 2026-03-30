@@ -71,9 +71,11 @@ describe('WorkflowNeedsAction', () => {
     expect(html).toContain('Approve');
     expect(html).toContain('Request changes');
     expect(html).not.toContain('Open Steering');
+    expect(html).not.toContain('Prioritized actions for this work item that currently require an operator response.');
+    expect(html).not.toContain('>Needs Action<');
   });
 
-  it('renders workflow-level controls inline when workflow scope is actionable', () => {
+  it('does not surface workflow-level faux generic controls inside needs action', () => {
     const html = renderToStaticMarkup(
       createElement(
         QueryClientProvider,
@@ -138,9 +140,10 @@ describe('WorkflowNeedsAction', () => {
       ),
     );
 
-    expect(html).toContain('Workflow recovery');
-    expect(html).toContain('Add / Modify Work');
-    expect(html).toContain('Redrive workflow');
+    expect(html).toContain('Nothing in this work item requires operator action right now.');
+    expect(html).not.toContain('Workflow recovery');
+    expect(html).not.toContain('Add / Modify Work');
+    expect(html).not.toContain('Redrive workflow');
   });
 
   it('renders add-or-modify-work responses inline for blocked work items', () => {
@@ -314,6 +317,66 @@ describe('WorkflowNeedsAction', () => {
 
     expect(html).toContain('Nothing in this work item requires operator action right now.');
     expect(html).toContain('1 workflow-level action remains available in workflow scope.');
+    expect(html).not.toContain('rounded-2xl border border-dashed border-border/70 bg-background/60 p-4');
+  });
+
+  it('hides needs-action items that do not expose a supported operator response', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowNeedsAction, {
+          workflowId: 'workflow-1',
+          workspaceId: 'workspace-1',
+          scopeSubject: 'work item',
+          scopeLabel: 'Work item: Prepare release bundle',
+          packet: {
+            items: [
+              {
+                action_id: 'work-item-1:informational',
+                action_kind: 'review_work_item',
+                label: 'Background summary',
+                summary: 'This row should stay out of Needs Action because no operator response is available.',
+                target: {
+                  target_kind: 'work_item',
+                  target_id: 'work-item-1',
+                },
+                priority: 'medium',
+                requires_confirmation: false,
+                submission: {
+                  route_kind: 'workflow_intervention',
+                  method: 'POST',
+                },
+                responses: [
+                  {
+                    action_id: 'work-item-1:unsupported',
+                    kind: 'open_steering',
+                    label: 'Open Steering',
+                    target: {
+                      target_kind: 'work_item',
+                      target_id: 'work-item-1',
+                    },
+                    requires_confirmation: false,
+                    prompt_kind: 'none',
+                  },
+                ],
+              },
+            ],
+            total_count: 1,
+            default_sort: 'priority_desc',
+            scope_summary: {
+              workflow_total_count: 1,
+              selected_scope_total_count: 1,
+              scoped_away_workflow_count: 0,
+            },
+          } as never,
+        }),
+      ),
+    );
+
+    expect(html).toContain('Nothing in this work item requires operator action right now.');
+    expect(html).not.toContain('Background summary');
+    expect(html).not.toContain('Open Steering');
   });
 
   it('renders approval context details inline for approval cards', () => {
@@ -431,12 +494,64 @@ describe('WorkflowNeedsAction', () => {
       ),
     );
 
-    expect(html).toContain('Work item: Prepare release bundle');
     expect(html).toContain('Approval required');
     expect(html).toContain('Approve release packet');
     expect(html).toContain('Scope: Work Item');
     expect(html).not.toContain('Scope: Task');
     expect(html).not.toContain('Open Steering');
+  });
+
+  it('renders needs-action rows without nested heavy card shells', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowNeedsAction, {
+          workflowId: 'workflow-1',
+          workspaceId: 'workspace-1',
+          scopeSubject: 'work item',
+          scopeLabel: 'Work item: Prepare release bundle',
+          packet: {
+            items: [
+              {
+                action_id: 'task-approve-1:awaiting_approval',
+                action_kind: 'review_work_item',
+                label: 'Approval required',
+                summary: 'Review release packet is waiting for operator approval on Approve release packet.',
+                target: {
+                  target_kind: 'task',
+                  target_id: 'task-approve-1',
+                },
+                priority: 'high',
+                requires_confirmation: true,
+                submission: {
+                  route_kind: 'task_mutation',
+                  method: 'POST',
+                },
+                responses: [
+                  {
+                    action_id: 'task-approve-1:approve',
+                    kind: 'approve_task',
+                    label: 'Approve',
+                    target: {
+                      target_kind: 'task',
+                      target_id: 'task-approve-1',
+                    },
+                    requires_confirmation: false,
+                    prompt_kind: 'none',
+                  },
+                ],
+              },
+            ],
+            total_count: 1,
+            default_sort: 'priority_desc',
+          } as never,
+        }),
+      ),
+    );
+
+    expect(html).toContain('Approval required');
+    expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/80 p-4');
   });
 
   it('renders escalation reason, context, and work-so-far details inside the needs-action card', () => {
@@ -535,5 +650,15 @@ describe('WorkflowNeedsAction', () => {
     expect(source).not.toContain('dashboardApi.rejectTask(action.target.target_id');
     expect(source).not.toContain('dashboardApi.requestTaskChanges(action.target.target_id');
     expect(source).not.toContain('dashboardApi.retryTask(action.target.target_id');
+  });
+
+  it('clears prompt validation once the operator starts typing feedback', () => {
+    const source = readFileSync(new URL('./workflow-needs-action.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('function handlePromptChange(value: string): void {');
+    expect(source).toContain('setPromptValue(value);');
+    expect(source).toContain('setPromptError(null);');
+    expect(source).toContain('onPromptChange={handlePromptChange}');
+    expect(source).not.toContain('onPromptChange={setPromptValue}');
   });
 });

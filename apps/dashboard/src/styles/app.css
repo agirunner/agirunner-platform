@@ -36,6 +36,11 @@ body {
   @apply bg-background text-foreground font-sans antialiased;
 }
 
+[data-sonner-toaster],
+[data-sonner-toast] {
+  pointer-events: none;
+}
+
 a {
   @apply text-accent underline-offset-2 hover:underline;
 }

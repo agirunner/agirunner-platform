@@ -763,6 +763,90 @@ describe('workflow work-item routes', () => {
     expect(second.json()).toEqual(first.json());
   });
 
+  it('deduplicates workflow work-item resolve-escalation actions by request_id', async () => {
+    const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
+    const { pool } = createTransactionalWorkflowReplayPool(
+      'workflow-1',
+      'operator_resolve_work_item_escalation',
+    );
+    const workflowService = {
+      createWorkflow: vi.fn(),
+      listWorkflows: vi.fn(),
+      getWorkflow: vi.fn(),
+      getWorkflowBoard: vi.fn(),
+      listWorkflowStages: vi.fn(),
+      listWorkflowWorkItems: vi.fn(),
+      createWorkflowWorkItem: vi.fn(),
+      getWorkflowWorkItem: vi.fn(),
+      listWorkflowWorkItemTasks: vi.fn(),
+      listWorkflowWorkItemEvents: vi.fn(),
+      getWorkflowWorkItemMemory: vi.fn(),
+      getWorkflowWorkItemMemoryHistory: vi.fn(),
+      updateWorkflowWorkItem: vi.fn(),
+      resolveWorkflowWorkItemEscalation: vi.fn(async () => ({
+        id: 'wi-1',
+        workflow_id: 'workflow-1',
+        escalation_status: null,
+      })),
+      actOnStageGate: vi.fn(),
+      getResolvedConfig: vi.fn(),
+      cancelWorkflow: vi.fn(),
+      pauseWorkflow: vi.fn(),
+      resumeWorkflow: vi.fn(),
+      deleteWorkflow: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowService', workflowService as never);
+    app.decorate('pgPool', pool as never);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: vi.fn(),
+      listProviders: vi.fn(),
+      listModels: vi.fn(),
+      getProviderForOperations: vi.fn(),
+    } as never);
+
+    await app.register(workflowRoutes);
+
+    const payload = {
+      request_id: 'request-1',
+      action: 'dismiss',
+      feedback: 'Handled in the latest work item update.',
+    };
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/resolve-escalation',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/resolve-escalation',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(workflowService.resolveWorkflowWorkItemEscalation).toHaveBeenCalledTimes(1);
+    expect(workflowService.resolveWorkflowWorkItemEscalation).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      'wi-1',
+      {
+        action: 'dismiss',
+        feedback: 'Handled in the latest work item update.',
+      },
+      expect.any(Object),
+    );
+    expect(second.json()).toEqual(first.json());
+  });
+
+
   it('deduplicates workflow work-item agent-escalate requests', async () => {
     const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
     const { pool } = createWorkflowReplayPool('workflow-1', 'public_task_agent_escalate');
