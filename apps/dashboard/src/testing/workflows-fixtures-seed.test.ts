@@ -35,6 +35,7 @@ describe('seedWorkflowsScenario', () => {
             action_kind: string;
             label: string;
             summary: string;
+            details?: Array<{ label: string; value: string }>;
             responses: Array<{ kind: string; label: string }>;
           }>;
         };
@@ -48,6 +49,22 @@ describe('seedWorkflowsScenario', () => {
           action_kind: 'resolve_escalation',
           label: 'Resolve escalation',
           summary: expect.stringContaining('replay mismatch'),
+          details: expect.arrayContaining([
+            expect.objectContaining({
+              label: 'Conflicting request ids',
+              value:
+                'Submitted handoff:seeded-submitted; persisted handoff:seeded-persisted; current attempt handoff:seeded-current-attempt',
+            }),
+            expect.objectContaining({
+              label: 'Persisted handoff',
+              value:
+                'Release summary is already persisted for operator review. (handoff:seeded-persisted, full)',
+            }),
+            expect.objectContaining({
+              label: 'Completion contract',
+              value: 'Already satisfied by the persisted handoff.',
+            }),
+          ]),
           responses: expect.arrayContaining([
             expect.objectContaining({
               kind: 'resolve_escalation',

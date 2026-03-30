@@ -95,8 +95,20 @@ test('validates and submits escalation guidance from the workflow needs-action U
   const workbench = page.locator('[data-workflows-workbench-frame="true"]');
   await workbench.getByRole('button', { name: /Needs Action/ }).click();
 
-  await expect(page.getByText('Resolve escalation', { exact: true })).toBeVisible();
-  await expect(page.getByText('submit_handoff replay mismatch conflict')).toBeVisible();
+  await expect(workbench.getByText('Resolve escalation', { exact: true })).toBeVisible();
+  await expect(workbench.getByText('submit_handoff replay mismatch conflict')).toBeVisible();
+  await expect(workbench.getByText('Conflicting request ids', { exact: true })).toBeVisible();
+  await expect(
+    workbench.getByText(
+      'Submitted handoff:seeded-submitted; persisted handoff:seeded-persisted; current attempt handoff:seeded-current-attempt',
+    ),
+  ).toBeVisible();
+  await expect(workbench.getByText('Persisted handoff', { exact: true })).toBeVisible();
+  await expect(
+    workbench.getByText('Release summary is already persisted for operator review. (handoff:seeded-persisted, full)'),
+  ).toBeVisible();
+  await expect(workbench.getByText('Completion contract', { exact: true })).toBeVisible();
+  await expect(workbench.getByText('Already satisfied by the persisted handoff.')).toBeVisible();
   await workbench.getByRole('button', { name: 'Resume with guidance' }).click();
   await workbench.getByRole('button', { name: 'Resume task' }).click();
   await expect(page.getByText('Enter operator guidance before continuing.')).toBeVisible();
@@ -125,9 +137,9 @@ async function routeNeedsActionWorkspace(
 
   await page.route(workspacePattern, async (route) => {
     const response = await route.fetch();
-    const payload = await response.json() as { data: Record<string, unknown> };
+    const payload = await response.json() as { data?: Record<string, unknown> } & Record<string, unknown>;
     const items = readItems();
-    applyNeedsActionPatch(payload.data, items);
+    applyNeedsActionPatch((payload.data ?? payload) as Record<string, unknown>, items);
     await route.fulfill({ response, json: payload });
   });
 }

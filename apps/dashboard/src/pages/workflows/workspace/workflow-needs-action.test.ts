@@ -145,6 +145,95 @@ describe('WorkflowNeedsAction', () => {
     expect(html).not.toContain('text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground');
   });
 
+  it('renders replay-conflict escalation details that explain the winning persisted handoff context', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowNeedsAction, {
+          workflowId: 'workflow-1',
+          workspaceId: 'workspace-1',
+          scopeSubject: 'work item',
+          scopeLabel: 'Work item: Implement release-audit revision 1',
+          packet: {
+            items: [
+              {
+                action_id: 'task-escalation-2:open_escalation',
+                action_kind: 'resolve_escalation',
+                label: 'Resolve escalation',
+                summary:
+                  'Task completion is blocked by platform handoff replay conflicts.',
+                work_item_id: 'work-item-2',
+                target: {
+                  target_kind: 'task',
+                  target_id: 'task-escalation-2',
+                },
+                priority: 'high',
+                requires_confirmation: false,
+                submission: {
+                  route_kind: 'task_mutation',
+                  method: 'POST',
+                },
+                details: [
+                  {
+                    label: 'Escalation',
+                    value:
+                      'Resolve the replay conflict and decide whether the persisted handoff should settle this task.',
+                  },
+                  {
+                    label: 'Blocking state',
+                    value:
+                      'The task cannot submit another handoff until the replay conflict is resolved.',
+                  },
+                  {
+                    label: 'Work so far',
+                    value:
+                      'The implementation packet was drafted and the submit_handoff call conflicted with an earlier persisted handoff.',
+                  },
+                  {
+                    label: 'Conflicting request ids',
+                    value:
+                      'Submitted req-new; persisted req-old; current attempt req-current',
+                  },
+                  {
+                    label: 'Persisted handoff',
+                    value: 'Persisted policy review handoff (req-old, full)',
+                  },
+                  {
+                    label: 'Completion contract',
+                    value: 'Already satisfied by the persisted handoff.',
+                  },
+                ],
+                responses: [
+                  {
+                    action_id: 'task-escalation-2:resolve',
+                    kind: 'resolve_escalation',
+                    label: 'Resume with guidance',
+                    target: {
+                      target_kind: 'task',
+                      target_id: 'task-escalation-2',
+                    },
+                    requires_confirmation: true,
+                    prompt_kind: 'instructions',
+                  },
+                ],
+              },
+            ],
+            total_count: 1,
+            default_sort: 'priority_desc',
+          } as never,
+        }),
+      ),
+    );
+
+    expect(html).toContain('Conflicting request ids');
+    expect(html).toContain('Submitted req-new; persisted req-old; current attempt req-current');
+    expect(html).toContain('Persisted handoff');
+    expect(html).toContain('Persisted policy review handoff (req-old, full)');
+    expect(html).toContain('Completion contract');
+    expect(html).toContain('Already satisfied by the persisted handoff.');
+  });
+
   it('hides faux actions that are not unresolved approvals or escalations', () => {
     const html = renderToStaticMarkup(
       createElement(

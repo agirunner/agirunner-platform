@@ -44,7 +44,30 @@ export function buildNeedsActionDossier(
   workSoFar: string;
   recommendedAction: string;
   evidence: string | null;
+  additionalDetails: Array<{ label: string; value: string }>;
 } {
+  const consumedLabels = new Set<string>([
+    'approval_target',
+    'requested_decision',
+    'decision',
+    'escalation',
+    'blocking_state',
+    'blocked_state',
+    'blocking_reason',
+    'context',
+    'work_so_far',
+    'progress',
+    'status',
+    'recommendation',
+    'recommended_action',
+    'next_action',
+    'verification',
+    'evidence',
+    'output',
+    'deliverable',
+    'artifacts',
+  ]);
+
   return {
     needsDecision:
       readDetailValue(item.details, [
@@ -83,6 +106,7 @@ export function buildNeedsActionDossier(
       'deliverable',
       'artifacts',
     ]),
+    additionalDetails: readAdditionalDetailRows(item.details, consumedLabels),
   };
 }
 
@@ -350,6 +374,34 @@ function readCombinedDetailValues(
   }
 
   return values.join(' ');
+}
+
+function readAdditionalDetailRows(
+  details: DashboardWorkflowNeedsActionDetail[] | undefined,
+  consumedLabels: Set<string>,
+): Array<{ label: string; value: string }> {
+  if (!details) {
+    return [];
+  }
+
+  return details
+    .map((detail) => ({
+      label: detail.label.trim(),
+      normalizedLabel: normalizeDetailLabel(detail.label),
+      value: readSentence(detail.value),
+    }))
+    .filter(
+      (
+        detail,
+      ): detail is { label: string; normalizedLabel: string; value: string } =>
+        detail.label.length > 0
+        && detail.value !== null
+        && !consumedLabels.has(detail.normalizedLabel),
+    )
+    .map((detail) => ({
+      label: detail.label,
+      value: detail.value,
+    }));
 }
 
 function normalizeDetailLabel(value: string): string {

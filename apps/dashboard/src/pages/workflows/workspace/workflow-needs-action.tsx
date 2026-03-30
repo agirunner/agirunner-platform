@@ -187,6 +187,9 @@ function NeedsActionPacketCard(props: {
       <DossierSection title="Work so far" value={dossier.workSoFar} />
       <DossierSection title="Recommended action" value={dossier.recommendedAction} />
       {dossier.evidence ? <DossierSection title="Evidence" value={dossier.evidence} /> : null}
+      {dossier.additionalDetails.map((detail) => (
+        <DossierSection key={detail.label} title={detail.label} value={detail.value} />
+      ))}
 
       <div className="flex flex-wrap gap-2">
         {responses.map((action) => (
