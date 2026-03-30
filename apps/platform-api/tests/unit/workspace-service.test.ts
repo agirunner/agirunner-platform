@@ -65,12 +65,6 @@ describe('WorkspaceService typed settings contract', () => {
         credentials: {
           git_token: 'secret:GITHUB_PAT',
         },
-        model_overrides: {
-          developer: {
-            provider: 'openai',
-            model: 'gpt-5',
-          },
-        },
         workspace_brief: 'Ship it',
       },
     });
@@ -82,7 +76,6 @@ describe('WorkspaceService typed settings contract', () => {
       credentials: {
         git_token: 'secret:GITHUB_PAT',
       },
-      model_overrides: {},
       workspace_brief: 'Ship it',
     });
     expect(result.settings).toEqual({
@@ -93,7 +86,6 @@ describe('WorkspaceService typed settings contract', () => {
         git_token: 'redacted://workspace-settings-secret',
         git_token_configured: true,
       },
-      model_overrides: {},
       workspace_brief: 'Ship it',
     });
   });
@@ -155,12 +147,6 @@ describe('WorkspaceService typed settings contract', () => {
           git_token: 'redacted://workspace-settings-secret',
           git_token_configured: true,
         },
-        model_overrides: {
-          reviewer: {
-            provider: 'anthropic',
-            model: 'claude-sonnet-4-6',
-          },
-        },
       },
     });
 
@@ -169,7 +155,6 @@ describe('WorkspaceService typed settings contract', () => {
       credentials: {
         git_token: 'secret:GITHUB_PAT',
       },
-      model_overrides: {},
     });
     expect(result.settings).toEqual({
       default_branch: 'release',
@@ -177,7 +162,6 @@ describe('WorkspaceService typed settings contract', () => {
         git_token: 'redacted://workspace-settings-secret',
         git_token_configured: true,
       },
-      model_overrides: {},
     });
   });
 
@@ -224,7 +208,6 @@ describe('WorkspaceService typed settings contract', () => {
       credentials: {
         git_token: expect.stringMatching(/^enc:v1:/),
       },
-      model_overrides: {},
     });
     if (!insertedSettings) {
       throw new Error('expected inserted settings to be captured');
@@ -239,7 +222,6 @@ describe('WorkspaceService typed settings contract', () => {
         git_token: 'redacted://workspace-settings-secret',
         git_token_configured: true,
       },
-      model_overrides: {},
     });
   });
 
@@ -290,7 +272,6 @@ describe('WorkspaceService typed settings contract', () => {
           credentials: {
             git_token: expect.stringMatching(/^enc:v1:/),
           },
-          model_overrides: {},
         }),
       ],
     );
@@ -299,7 +280,6 @@ describe('WorkspaceService typed settings contract', () => {
         git_token: 'redacted://workspace-settings-secret',
         git_token_configured: true,
       },
-      model_overrides: {},
     });
   });
 
@@ -352,7 +332,6 @@ describe('WorkspaceService typed settings contract', () => {
           credentials: {
             git_token: encryptedCanonicalToken,
           },
-          model_overrides: {},
         },
       ],
     );
@@ -361,7 +340,6 @@ describe('WorkspaceService typed settings contract', () => {
         git_token: 'redacted://workspace-settings-secret',
         git_token_configured: true,
       },
-      model_overrides: {},
     });
   });
 });

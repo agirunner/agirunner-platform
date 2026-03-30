@@ -24,7 +24,6 @@ describe('workspace settings', () => {
       credentials: {
         git_token: 'secret:GIT_TOKEN',
       },
-      model_overrides: {},
     });
   });
 
@@ -64,7 +63,6 @@ describe('workspace settings', () => {
         host_path: '/home/mark/coolrepo',
       },
       credentials: {},
-      model_overrides: {},
     });
   });
 
@@ -128,7 +126,7 @@ describe('workspace settings', () => {
     ).toThrow(/model_override.*no longer supported/i);
   });
 
-  it('drops legacy model overrides from normalized workspace settings', () => {
+  it('strips stored legacy model overrides from normalized workspace settings', () => {
     expect(
       normalizeWorkspaceSettings({
         model_overrides: {
@@ -140,8 +138,20 @@ describe('workspace settings', () => {
       }),
     ).toEqual({
       credentials: {},
-      model_overrides: {},
     });
+  });
+
+  it('rejects the retired plural model overrides field on input parsing', () => {
+    expect(() =>
+      validateWorkspaceSettingsShape({
+        model_overrides: {
+          architect: {
+            provider: 'openai',
+            model: 'gpt-5.4',
+          },
+        },
+      }),
+    ).toThrow(/model_overrides.*no longer supported/i);
   });
 
   it('rejects relative host directory paths', () => {

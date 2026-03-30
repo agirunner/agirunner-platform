@@ -32,7 +32,7 @@ describe('workspace model override routes', () => {
     }
   });
 
-  it('keeps silently ignoring retired workspace settings.model_overrides on create', async () => {
+  it('rejects retired workspace settings.model_overrides on create', async () => {
     const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
     const createWorkspace = vi.fn().mockResolvedValue({ id: 'workspace-1' });
 
@@ -82,8 +82,8 @@ describe('workspace model override routes', () => {
       },
     });
 
-    expect(response.statusCode).toBe(201);
-    expect(createWorkspace).toHaveBeenCalled();
+    expect(response.statusCode).toBe(422);
+    expect(createWorkspace).not.toHaveBeenCalled();
   });
 
   it('does not expose retired workspace model override routes', async () => {

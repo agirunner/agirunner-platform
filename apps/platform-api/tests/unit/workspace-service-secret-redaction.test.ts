@@ -59,7 +59,6 @@ describe('WorkspaceService secret redaction', () => {
           git_token: null,
           git_token_configured: false,
         },
-        model_overrides: {},
         deployment: {
           api_token: 'redacted://workspace-settings-secret',
           endpoint: 'https://example.com',
@@ -103,7 +102,6 @@ describe('WorkspaceService secret redaction', () => {
           git_token: null,
           git_token_configured: false,
         },
-        model_overrides: {},
         deployment: {
           api_token: 'redacted://workspace-settings-secret',
           endpoint: 'https://example.com',
@@ -178,7 +176,6 @@ describe('WorkspaceService secret redaction', () => {
           git_token: null,
           git_token_configured: false,
         },
-        model_overrides: {},
         endpoint: {
           auth: 'redacted://workspace-settings-secret',
           session: 'redacted://workspace-settings-secret',

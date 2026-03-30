@@ -45,7 +45,6 @@ describe('WorkspaceService git access verification', () => {
                 credentials: {
                   git_token: unreadableStoredToken,
                 },
-                model_overrides: {},
               },
               memory: {},
               git_webhook_secret: null,

@@ -25,17 +25,6 @@ const WORKSPACE_SETTINGS_KNOWN_KEYS = new Set([
 
 const emailSchema = z.string().email().max(MAX_EMAIL_LENGTH);
 
-export const workspaceRoleModelOverrideSchema = z.object({
-  provider: z.string().min(1).max(120),
-  model: z.string().min(1).max(200),
-  reasoning_config: z.record(z.unknown()).nullable().optional(),
-});
-
-export const workspaceModelOverridesSchema = z.record(
-  z.string().min(1).max(120),
-  workspaceRoleModelOverrideSchema,
-);
-
 export interface StoredWorkspaceSettingsCredentials {
   git_token?: string;
 }
@@ -64,14 +53,7 @@ export interface StoredWorkspaceSettings extends Record<string, unknown> {
   git_user_name?: string;
   git_user_email?: string;
   credentials: StoredWorkspaceSettingsCredentials;
-  model_overrides: Record<string, WorkspaceRoleModelOverride>;
   workspace_brief?: string;
-}
-
-export interface WorkspaceRoleModelOverride {
-  provider: string;
-  model: string;
-  reasoning_config?: Record<string, unknown> | null;
 }
 
 export interface WorkspaceRepositorySettings {
@@ -94,22 +76,18 @@ export interface WorkspaceStorageSettings {
 
 interface ParseWorkspaceSettingsOptions {
   existing?: StoredWorkspaceSettings;
+  rejectRetiredOverrides?: boolean;
 }
 
 export function normalizeWorkspaceSettings(value: unknown): StoredWorkspaceSettings {
-  return parseWorkspaceSettings(value, {});
+  return parseWorkspaceSettings(value, { rejectRetiredOverrides: false });
 }
 
 export function parseWorkspaceSettingsInput(
   value: unknown,
   existing?: StoredWorkspaceSettings,
 ): StoredWorkspaceSettings {
-  return parseWorkspaceSettings(value, { existing });
-}
-
-export function readWorkspaceModelOverrides(value: unknown): Record<string, WorkspaceRoleModelOverride> {
-  void value;
-  return {};
+  return parseWorkspaceSettings(value, { existing, rejectRetiredOverrides: true });
 }
 
 export function readWorkspaceSettingsExtras(value: unknown): Record<string, unknown> {
@@ -194,7 +172,6 @@ export function serializeWorkspaceSettings(value: unknown): Record<string, unkno
     ...(settings.git_user_name ? { git_user_name: settings.git_user_name } : {}),
     ...(settings.git_user_email ? { git_user_email: settings.git_user_email } : {}),
     credentials: serializeCredentialPosture(settings.credentials),
-    model_overrides: {},
     ...(settings.workspace_brief ? { workspace_brief: settings.workspace_brief } : {}),
     ...extras,
   };
@@ -206,8 +183,11 @@ function parseWorkspaceSettings(
 ): StoredWorkspaceSettings {
   const record = asRecord(value);
 
-  if (record.model_override !== undefined) {
+  if (options.rejectRetiredOverrides && record.model_override !== undefined) {
     throw new ValidationError('settings.model_override is no longer supported');
+  }
+  if (options.rejectRetiredOverrides && record.model_overrides !== undefined) {
+    throw new ValidationError('settings.model_overrides is no longer supported');
   }
 
   const existing = options.existing ? normalizeWorkspaceSettings(options.existing) : emptyWorkspaceSettings();
@@ -227,7 +207,6 @@ function parseWorkspaceSettings(
     ...(gitUserName ? { git_user_name: gitUserName } : {}),
     ...(gitUserEmail ? { git_user_email: gitUserEmail } : {}),
     credentials,
-    model_overrides: {},
     ...(workspaceBrief ? { workspace_brief: workspaceBrief } : {}),
   };
 }
@@ -235,7 +214,6 @@ function parseWorkspaceSettings(
 function emptyWorkspaceSettings(): StoredWorkspaceSettings {
   return {
     credentials: {},
-    model_overrides: {},
   };
 }
 
