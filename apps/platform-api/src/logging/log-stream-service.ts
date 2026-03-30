@@ -130,7 +130,9 @@ export class LogStreamService {
       if (msg.channel !== 'agirunner_execution_logs' || !msg.payload) {
         return;
       }
-      void this.handleNotification(msg.payload);
+      void this.handleNotification(msg.payload).catch(() => {
+        scheduleReconnect();
+      });
     });
     client.on('error', () => {
       scheduleReconnect();

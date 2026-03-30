@@ -119,6 +119,61 @@ describe('LogStreamService', () => {
       expect(secondClient.query).toHaveBeenCalledWith('LISTEN agirunner_execution_logs');
       vi.useRealTimers();
     });
+
+    it('reconnects after fetching a notified log row fails', async () => {
+      vi.useFakeTimers();
+      const firstClient = {
+        query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+        on: vi.fn(),
+        release: vi.fn(),
+      };
+      const secondClient = {
+        query: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 }),
+        on: vi.fn(),
+        release: vi.fn(),
+      };
+      const pool = {
+        query: vi
+          .fn()
+          .mockRejectedValueOnce(
+            Object.assign(new Error('terminating connection due to administrator command'), { code: '57P01' }),
+          )
+          .mockResolvedValue({ rows: [sampleRow()], rowCount: 1 }),
+        connect: vi
+          .fn()
+          .mockResolvedValueOnce(firstClient)
+          .mockResolvedValueOnce(secondClient),
+      };
+      const reconnectingService = new LogStreamService(pool as never);
+      const callback = vi.fn();
+      reconnectingService.subscribe('tenant-1', { workflowId: 'wf-1' }, callback);
+
+      await reconnectingService.start();
+      const notificationHandler = firstClient.on.mock.calls.find(
+        (call: unknown[]) => call[0] === 'notification',
+      )?.[1] as ((msg: { channel: string; payload: string }) => void) | undefined;
+
+      notificationHandler?.({
+        channel: 'agirunner_execution_logs',
+        payload: JSON.stringify({
+          id: 1,
+          tenant_id: 'tenant-1',
+          source: 'runtime',
+          category: 'llm',
+          level: 'info',
+          operation: 'llm.chat_stream',
+          workflow_id: 'wf-1',
+          created_at: '2026-03-09T15:30:00.000Z',
+        }),
+      });
+      await vi.runAllTimersAsync();
+
+      expect(pool.connect).toHaveBeenCalledTimes(2);
+      expect(firstClient.release).toHaveBeenCalledTimes(1);
+      expect(secondClient.query).toHaveBeenCalledWith('LISTEN agirunner_execution_logs');
+      expect(callback).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
   });
 
   describe('subscribe', () => {

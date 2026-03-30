@@ -75,6 +75,18 @@ export async function runDatabaseStartupWithRetry<T>(
   throw new Error(`${options.label} exhausted startup retries`);
 }
 
+export async function runDatabaseListenerStartupWithRetry(
+  operation: () => Promise<void>,
+  options: {
+    logger: StartupLogger;
+    label: string;
+    retries?: number;
+    delayMs?: number;
+  },
+): Promise<void> {
+  await runDatabaseStartupWithRetry(operation, options);
+}
+
 function readErrorCode(error: unknown): string | null {
   if (!error || typeof error !== 'object' || !('code' in error)) {
     return null;

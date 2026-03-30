@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   isRetryableDatabaseStartupError,
   registerPoolErrorLogging,
+  runDatabaseListenerStartupWithRetry,
   runDatabaseStartupWithRetry,
 } from '../../src/db/startup-resilience.js';
 
@@ -34,6 +35,24 @@ describe('startup resilience', () => {
     });
 
     expect(operation).toHaveBeenCalledTimes(2);
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries transient listener startup failures and then succeeds', async () => {
+    const logger = { warn: vi.fn(), error: vi.fn() };
+    const startListener = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(Object.assign(new Error('temporary dns'), { code: 'EAI_AGAIN' }))
+      .mockResolvedValueOnce(undefined);
+
+    await runDatabaseListenerStartupWithRetry(startListener, {
+      logger,
+      retries: 2,
+      delayMs: 0,
+      label: 'workflow event listener',
+    });
+
+    expect(startListener).toHaveBeenCalledTimes(2);
     expect(logger.warn).toHaveBeenCalledTimes(1);
   });
 

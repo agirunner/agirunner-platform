@@ -8,6 +8,7 @@ import { createPool } from '../db/client.js';
 import { runMigrations } from '../db/migrations/run-migrations.js';
 import {
   registerPoolErrorLogging,
+  runDatabaseListenerStartupWithRetry,
   runDatabaseStartupWithRetry,
 } from '../db/startup-resilience.js';
 import { seedDefaultTenant } from '../db/seed.js';
@@ -168,14 +169,20 @@ export async function buildApp() {
 
   const eventService = new EventService(pool);
   const eventStreamService = new EventStreamService(pool);
-  await eventStreamService.start();
+  await runDatabaseListenerStartupWithRetry(() => eventStreamService.start(), {
+    logger: console,
+    label: 'platform event stream listener',
+  });
   const containerInventoryService = new ContainerInventoryService(pool);
 
   const logService = new LogService(pool);
   const logLevelCache = new LogLevelCache(pool, startupLogLevel);
   logService.setLevelFilter(logLevelCache);
   const logStreamService = new LogStreamService(pool);
-  await logStreamService.start();
+  await runDatabaseListenerStartupWithRetry(() => logStreamService.start(), {
+    logger: console,
+    label: 'platform log stream listener',
+  });
 
   const workerConnectionHub = new WorkerConnectionHub();
   const workerService = new WorkerService(pool, eventService, workerConnectionHub, appConfig);

@@ -117,7 +117,9 @@ export class EventStreamService {
       if (!msg.payload) {
         return;
       }
-      void this.handleNotification(msg.payload);
+      void this.handleNotification(msg.payload).catch(() => {
+        scheduleReconnect();
+      });
     });
     client.on('error', () => {
       scheduleReconnect();
