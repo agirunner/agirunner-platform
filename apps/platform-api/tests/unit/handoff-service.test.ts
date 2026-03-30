@@ -2131,6 +2131,103 @@ describe('HandoffService', () => {
     expect(result).toEqual(expect.objectContaining({ id: 'handoff-r3', request_id: 'req-r3' }));
   });
 
+  it('reuses the current task-attempt handoff for an active task when a stale request_id points at an earlier attempt', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            role: 'developer',
+            stage_name: 'implementation',
+            state: 'in_progress',
+            rework_count: 3,
+            metadata: { team_name: 'delivery' },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'handoff-r2',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: 'task-1',
+            task_rework_count: 2,
+            request_id: 'req-r2',
+            role: 'developer',
+            team_name: 'delivery',
+            stage_name: 'implementation',
+            sequence: 2,
+            summary: 'Persisted handoff for revision 2.',
+            completion: 'full',
+            changes: [{ file: 'src/auth.ts' }],
+            decisions: [],
+            remaining_items: [],
+            blockers: [],
+            focus_areas: ['delivery'],
+            known_risks: [],
+            successor_context: 'Review revision 2.',
+            role_data: {
+              task_kind: 'delivery',
+              subject_task_id: 'task-1',
+              subject_work_item_id: 'work-item-1',
+              subject_revision: 3,
+            },
+            artifact_ids: [],
+            created_at: new Date('2026-03-16T12:00:00Z'),
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'handoff-r3',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: 'task-1',
+            task_rework_count: 3,
+            request_id: 'req-r3',
+            role: 'developer',
+            team_name: 'delivery',
+            stage_name: 'implementation',
+            sequence: 3,
+            summary: 'Persisted handoff for revision 3.',
+            completion: 'full',
+            changes: [{ file: 'src/auth.ts' }],
+            decisions: [],
+            remaining_items: [],
+            blockers: [],
+            focus_areas: ['delivery'],
+            known_risks: [],
+            successor_context: 'Review revision 3.',
+            role_data: {
+              task_kind: 'delivery',
+              subject_task_id: 'task-1',
+              subject_work_item_id: 'work-item-1',
+              subject_revision: 4,
+            },
+            artifact_ids: [],
+            created_at: new Date('2026-03-17T12:00:00Z'),
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+    const result = await service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-r2',
+      task_rework_count: 3,
+      summary: 'Stale retry after revision 3 already persisted while the task stayed active.',
+      completion: 'full',
+    });
+
+    expect(result).toEqual(expect.objectContaining({ id: 'handoff-r3', request_id: 'req-r3' }));
+  });
+
   it('returns structured recovery guidance when an active task reuses a request_id with a different handoff payload', async () => {
     const pool = {
       query: vi

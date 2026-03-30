@@ -178,4 +178,125 @@ describe('handoff rework integration', () => {
       }),
     ]);
   }, 120_000);
+
+  it('reuses the current rework handoff when an active task retries with a stale earlier-attempt request id', async (context) => {
+    if (!canRunIntegration) {
+      context.skip();
+    }
+
+    const playbook = await harness.playbookService.createPlaybook(identity.tenantId, {
+      name: 'Handoff Reuse Flow',
+      outcome: 'Prefer the current rework handoff over stale earlier-attempt retries.',
+      definition: {
+        process_instructions: 'Developer implements and may retry handoffs after rework.',
+        lifecycle: 'ongoing',
+        roles: ['developer'],
+        board: {
+          entry_column_id: 'planned',
+          columns: [
+            { id: 'planned', label: 'Planned' },
+            { id: 'active', label: 'Active' },
+            { id: 'done', label: 'Done', is_terminal: true },
+          ],
+        },
+        stages: [{ name: 'implementation', goal: 'Deliver the implementation.' }],
+      },
+    });
+
+    const workflow = await harness.workflowService.createWorkflow(identity, {
+      playbook_id: String(playbook.id),
+      name: 'Handoff Reuse Run',
+    });
+    const workItem = await harness.workflowService.createWorkflowWorkItem(identity, String(workflow.id), {
+      request_id: 'wi-handoff-reuse',
+      title: 'Build hello world again',
+      goal: 'Deliver a hello world implementation with retries.',
+      stage_name: 'implementation',
+      column_id: 'active',
+      owner_role: 'developer',
+    });
+    const task = await harness.taskService.createTask(identity, {
+      request_id: 'task-handoff-reuse',
+      title: 'Implement hello world with retries',
+      description: 'Create the hello world implementation.',
+      work_item_id: String(workItem.id),
+      stage_name: 'implementation',
+      role: 'developer',
+    });
+
+    const handoffService = new HandoffService(db.pool);
+
+    await db.pool.query(
+      `UPDATE tasks
+          SET rework_count = 2,
+              state = 'in_progress'
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [identity.tenantId, String(task.id)],
+    );
+    const priorAttempt = await handoffService.submitTaskHandoff(identity.tenantId, String(task.id), {
+      request_id: 'handoff-r2',
+      task_rework_count: 2,
+      summary: 'Revision 2 implementation completed.',
+      completion: 'full',
+    });
+
+    await db.pool.query(
+      `UPDATE tasks
+          SET rework_count = 3,
+              state = 'in_progress'
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [identity.tenantId, String(task.id)],
+    );
+    const currentAttempt = await handoffService.submitTaskHandoff(identity.tenantId, String(task.id), {
+      request_id: 'handoff-r3',
+      task_rework_count: 3,
+      summary: 'Revision 3 implementation completed.',
+      completion: 'full',
+    });
+
+    const replayed = await handoffService.submitTaskHandoff(identity.tenantId, String(task.id), {
+      request_id: 'handoff-r2',
+      task_rework_count: 3,
+      summary: 'Stale retry should reuse revision 3 handoff.',
+      completion: 'full',
+    });
+
+    const handoffRows = await db.pool.query<{
+      id: string;
+      task_rework_count: number;
+      request_id: string | null;
+      summary: string;
+    }>(
+      `SELECT id, task_rework_count, request_id, summary
+         FROM task_handoffs
+        WHERE tenant_id = $1
+          AND task_id = $2
+        ORDER BY task_rework_count ASC`,
+      [identity.tenantId, String(task.id)],
+    );
+
+    expect(priorAttempt.request_id).toBe('handoff-r2');
+    expect(currentAttempt.request_id).toBe('handoff-r3');
+    expect(replayed).toEqual(expect.objectContaining({
+      id: currentAttempt.id,
+      request_id: 'handoff-r3',
+      summary: 'Revision 3 implementation completed.',
+    }));
+    expect(handoffRows.rows).toEqual([
+      expect.objectContaining({
+        id: priorAttempt.id,
+        task_rework_count: 2,
+        request_id: 'handoff-r2',
+        summary: 'Revision 2 implementation completed.',
+      }),
+      expect.objectContaining({
+        id: currentAttempt.id,
+        task_rework_count: 3,
+        request_id: 'handoff-r3',
+        summary: 'Revision 3 implementation completed.',
+      }),
+    ]);
+  }, 120_000);
 });

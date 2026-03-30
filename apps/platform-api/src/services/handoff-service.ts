@@ -226,9 +226,16 @@ export class HandoffService {
         && existingTaskAttempt.id !== replayMatch.id
         && (
           matchesHandoffReplay(existingTaskAttempt, payload)
+          || canReuseCurrentTaskAttemptAfterEarlierAttemptReplay(
+            task,
+            replayMatch,
+            existingTaskAttempt,
+            payload,
+          )
           || canReusePersistedTaskAttemptHandoff(task, existingTaskAttempt, payload)
         )
       ) {
+        logCurrentAttemptReplayRepair(task, existingTaskAttempt, replayMatch, payload);
         await this.promoteTaskDeliverable(tenantId, toTaskHandoffResponse(existingTaskAttempt));
         return toTaskHandoffResponse(existingTaskAttempt);
       }
@@ -844,6 +851,43 @@ function canReusePersistedTaskAttemptHandoff(
     !isEditableTaskState(task.state)
     && existing.task_id === task.id
     && existing.task_rework_count === expected.task_rework_count
+  );
+}
+
+function canReuseCurrentTaskAttemptAfterEarlierAttemptReplay(
+  task: TaskContextRow,
+  replayMatch: TaskHandoffRow,
+  currentAttemptHandoff: TaskHandoffRow,
+  expected: ReturnType<typeof buildNormalizedHandoffPayload>,
+) {
+  return (
+    replayMatch.task_id === task.id
+    && replayMatch.task_rework_count !== expected.task_rework_count
+    && currentAttemptHandoff.task_id === task.id
+    && currentAttemptHandoff.task_rework_count === expected.task_rework_count
+  );
+}
+
+function logCurrentAttemptReplayRepair(
+  task: TaskContextRow,
+  currentAttemptHandoff: TaskHandoffRow,
+  replayMatch: TaskHandoffRow,
+  expected: ReturnType<typeof buildNormalizedHandoffPayload>,
+) {
+  if (!canReuseCurrentTaskAttemptAfterEarlierAttemptReplay(task, replayMatch, currentAttemptHandoff, expected)) {
+    return;
+  }
+  logSafetynetTriggered(
+    HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_SAFETYNET,
+    'stale earlier-attempt request_id replay reused the persisted current task-attempt handoff',
+    {
+      task_id: task.id,
+      workflow_id: task.workflow_id,
+      stale_request_id: expected.request_id,
+      stale_task_rework_count: replayMatch.task_rework_count,
+      current_task_rework_count: currentAttemptHandoff.task_rework_count,
+      current_handoff_id: currentAttemptHandoff.id,
+    },
   );
 }
 
