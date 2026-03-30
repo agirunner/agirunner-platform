@@ -639,6 +639,138 @@ describe('WorkflowDeliverablesService', () => {
     expect(result.final_deliverables).toHaveLength(2);
   });
 
+  it('keeps direct work-item deliverables visible in workflow scope even when workflow rollups exist', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => [
+        {
+          descriptor_id: 'workflow-rollup-1',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Implementation packet',
+          state: 'final',
+          summary_brief: 'Workflow rollup for the completed work item.',
+          preview_capabilities: {},
+          primary_target: {},
+          secondary_targets: [],
+          content_preview: {
+            rollup_source_descriptor_id: 'work-item-deliverable-1',
+            rollup_source_work_item_id: 'work-item-1',
+          },
+          source_brief_id: null,
+          created_at: '2026-03-29T20:00:00.000Z',
+          updated_at: '2026-03-29T20:00:00.000Z',
+        },
+        {
+          descriptor_id: 'work-item-deliverable-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Implementation packet',
+          state: 'final',
+          summary_brief: 'Canonical work-item deliverable.',
+          preview_capabilities: {},
+          primary_target: {},
+          secondary_targets: [],
+          content_preview: {},
+          source_brief_id: null,
+          created_at: '2026-03-29T19:58:00.000Z',
+          updated_at: '2026-03-29T19:58:00.000Z',
+        },
+      ]),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+    const workItemSource = {
+      listIncompleteWorkItemIds: vi.fn(async () => []),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+      undefined,
+      workItemSource as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1');
+
+    expect(result.final_deliverables).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          descriptor_id: 'workflow-rollup-1',
+          work_item_id: null,
+        }),
+        expect.objectContaining({
+          descriptor_id: 'work-item-deliverable-1',
+          work_item_id: 'work-item-1',
+        }),
+      ]),
+    );
+  });
+
+  it('synthesizes workflow deliverables from workflow documents when descriptors are absent', async () => {
+    const deliverableService = {
+      listDeliverables: vi.fn(async () => []),
+    };
+    const briefService = {
+      listBriefs: vi.fn(async () => []),
+    };
+    const inputPacketService = {
+      listWorkflowInputPackets: vi.fn(async () => []),
+    };
+    const documentService = {
+      listWorkflowDocuments: vi.fn(async () => [
+        {
+          logical_name: 'terminal-brief',
+          scope: 'workflow',
+          source: 'external',
+          title: 'Terminal brief',
+          description: 'Seeded final deliverable for workflow observations.',
+          metadata: {},
+          url: 'https://example.com/terminal-brief',
+          created_at: '2026-03-29T20:10:00.000Z',
+        },
+      ]),
+    };
+
+    const service = new WorkflowDeliverablesService(
+      deliverableService as never,
+      briefService as never,
+      inputPacketService as never,
+      undefined,
+      undefined,
+      documentService as never,
+    );
+
+    const result = await service.getDeliverables('tenant-1', 'workflow-1');
+
+    expect(result.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'workflow-document:terminal-brief',
+        work_item_id: null,
+        title: 'Terminal brief',
+        summary_brief: 'Seeded final deliverable for workflow observations.',
+      }),
+    ]);
+    const firstDeliverable = result.final_deliverables[0] as
+      | { primary_target?: Record<string, unknown> }
+      | undefined;
+
+    expect(firstDeliverable?.primary_target).toEqual(
+      expect.objectContaining({
+        target_kind: 'external',
+        url: 'https://example.com/terminal-brief',
+      }),
+    );
+  });
+
   it('paginates deliverables and exposes the next cursor', async () => {
     const deliverableService = {
       listDeliverables: vi.fn(async () => [
@@ -1998,12 +2130,19 @@ describe('WorkflowDeliverablesService', () => {
     );
 
     const workflowScope = await service.getDeliverables('tenant-1', 'workflow-1');
-    expect(workflowScope.final_deliverables).toEqual([
-      expect.objectContaining({
-        descriptor_id: 'deliverable-workflow-rollup-impl',
-        work_item_id: null,
-      }),
-    ]);
+    expect(workflowScope.final_deliverables).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          descriptor_id: 'deliverable-workflow-rollup-impl',
+          work_item_id: null,
+        }),
+        expect.objectContaining({
+          descriptor_id: 'deliverable-work-item-impl',
+          work_item_id: 'work-item-impl',
+        }),
+      ]),
+    );
+    expect(workflowScope.final_deliverables).toHaveLength(2);
 
     const workItemScope = await service.getDeliverables('tenant-1', 'workflow-1', {
       workItemId: 'work-item-impl',

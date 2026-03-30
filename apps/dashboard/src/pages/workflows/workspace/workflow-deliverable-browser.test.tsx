@@ -232,6 +232,57 @@ describe('WorkflowDeliverableBrowser', () => {
     expect(html).not.toContain('Other deliverable targets');
   });
 
+  it('prefers the first artifact preview when inline summary is only metadata for the same deliverable', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverableBrowser, {
+        deliverable: {
+          descriptor_id: 'deliverable-inline-artifact-mixed-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Release packet',
+          state: 'final',
+          summary_brief: 'Release packet is ready for review.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'inline_summary',
+            label: 'Review completion packet',
+            url: '',
+          },
+          secondary_targets: [
+            {
+              target_kind: 'artifact',
+              label: 'Open artifact',
+              url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-1',
+              path: 'artifacts/releases/final-package.json',
+              artifact_id: 'artifact-1',
+            },
+            {
+              target_kind: 'artifact',
+              label: 'Artifact',
+              url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-2',
+              path: 'artifacts/releases/release-summary.md',
+              artifact_id: 'artifact-2',
+            },
+          ],
+          content_preview: {
+            summary: 'Release packet is ready for review.',
+          },
+          source_brief_id: null,
+          created_at: '2026-03-29T00:00:00.000Z',
+          updated_at: '2026-03-29T00:00:00.000Z',
+        },
+      }),
+    );
+
+    expect(html).toContain('Targets in this deliverable (2)');
+    expect(html).toContain('final-package.json');
+    expect(html).toContain('release-summary.md');
+    expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
+    expect(html).not.toContain('Review completion packet (Inline Summary)');
+  });
+
   it('does not silently cap long artifact target lists in the in-tab browser', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverableBrowser, {

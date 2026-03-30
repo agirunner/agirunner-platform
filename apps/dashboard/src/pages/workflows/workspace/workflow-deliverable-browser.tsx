@@ -40,7 +40,7 @@ export function WorkflowDeliverableBrowser(props: {
   const browserTargets = readBrowserTargets(props.deliverable);
   const browserId = useId();
   const [selectedTargetKey, setSelectedTargetKey] = useState<string | null>(
-    browserTargets[0]?.key ?? null,
+    selectInitialTargetKey(browserTargets),
   );
   const selectedTarget =
     browserTargets.find((target) => target.key === selectedTargetKey) ??
@@ -157,14 +157,14 @@ function readBrowserTargets(
       continue;
     }
 
-    browserTargets.push({
-      ...resolvedTarget,
-      label,
-      browser_kind: 'reference',
-    });
-  }
+      browserTargets.push({
+        ...resolvedTarget,
+        label,
+        browser_kind: 'reference',
+      });
+    }
 
-  return browserTargets;
+  return prioritizeArtifactTargets(browserTargets);
 }
 
 function readResolvedTargets(deliverable: DashboardWorkflowDeliverableRecord): ResolvedTarget[] {
@@ -177,6 +177,9 @@ function readResolvedTargets(deliverable: DashboardWorkflowDeliverableRecord): R
 
   for (const target of targets) {
     if (!hasMeaningfulDeliverableTarget(target)) {
+      continue;
+    }
+    if (shouldSuppressInlineSummaryTarget(target)) {
       continue;
     }
     const key = [
@@ -198,6 +201,29 @@ function readResolvedTargets(deliverable: DashboardWorkflowDeliverableRecord): R
   }
 
   return resolvedTargets;
+}
+
+function shouldSuppressInlineSummaryTarget(
+  target: DashboardWorkflowDeliverableTarget,
+): boolean {
+  return target.target_kind === 'inline_summary' && !isBrowserDeliverableTarget(target);
+}
+
+function prioritizeArtifactTargets(
+  targets: Array<ResolvedArtifactTarget | ResolvedReferenceTarget>,
+): Array<ResolvedArtifactTarget | ResolvedReferenceTarget> {
+  return [...targets].sort((left, right) => {
+    if (left.browser_kind === right.browser_kind) {
+      return 0;
+    }
+    return left.browser_kind === 'artifact' ? -1 : 1;
+  });
+}
+
+function selectInitialTargetKey(
+  targets: Array<ResolvedArtifactTarget | ResolvedReferenceTarget>,
+): string | null {
+  return targets[0]?.key ?? null;
 }
 
 function resolveBrowserPreviewHref(href: string): string | null {

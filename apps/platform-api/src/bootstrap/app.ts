@@ -28,6 +28,7 @@ import { ApiKeyService } from '../services/api-key-service.js';
 import { ContainerInventoryService } from '../services/container-inventory-service.js';
 import { DestructiveDeleteService } from '../services/destructive-delete-service.js';
 import { ContainerManagerExecutionEnvironmentVerifier } from '../services/container-manager-execution-environment-verifier.js';
+import { listWorkflowDocuments } from '../services/document-reference-service.js';
 import { EventStreamService } from '../services/event-stream-service.js';
 import { EventService } from '../services/event-service.js';
 import { ExecutionEnvironmentCatalogService } from '../services/execution-environment-catalog-service.js';
@@ -300,6 +301,10 @@ export async function buildApp() {
     workflowInputPacketService,
     workflowDeliverableHandoffService,
     workflowDeliverableLifecycleService,
+    {
+      listWorkflowDocuments: (tenantId: string, workflowId: string) =>
+        listWorkflowDocuments(pool, tenantId, workflowId),
+    },
   );
   const workflowOperationsWorkspaceService = new WorkflowWorkspaceService(
     workflowService,

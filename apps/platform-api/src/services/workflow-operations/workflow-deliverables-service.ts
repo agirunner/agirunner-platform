@@ -2,6 +2,7 @@ import type { WorkflowDeliverableRecord } from '../workflow-deliverable-service.
 import type { WorkflowDeliverableHandoffRecord } from '../workflow-deliverable-handoff-service.js';
 import type { WorkflowInputPacketRecord } from '../workflow-input-packet-service.js';
 import type { WorkflowOperatorBriefRecord } from '../workflow-operator-brief-service.js';
+import type { ResolvedDocumentReference } from '../document-reference-service.js';
 import type { WorkflowDeliverablesPacket } from './workflow-operations-types.js';
 import {
   paginateOrderedItems,
@@ -65,6 +66,13 @@ interface IncompleteWorkItemSource {
   ): Promise<string[]>;
 }
 
+interface WorkflowDocumentSource {
+  listWorkflowDocuments(
+    tenantId: string,
+    workflowId: string,
+  ): Promise<ResolvedDocumentReference[]>;
+}
+
 export class WorkflowDeliverablesService {
   constructor(
     private readonly deliverableSource: DeliverableSource,
@@ -72,6 +80,7 @@ export class WorkflowDeliverablesService {
     private readonly inputPacketSource: InputPacketSource,
     private readonly handoffSource?: HandoffSource,
     private readonly incompleteWorkItemSource?: IncompleteWorkItemSource,
+    private readonly workflowDocumentSource?: WorkflowDocumentSource,
   ) {}
 
   async getDeliverables(
@@ -84,7 +93,7 @@ export class WorkflowDeliverablesService {
     const allowIncompleteReclassification = true;
     const includeWorkflowScope = Boolean(input.workItemId);
     const includeAllWorkItemScopes = !input.workItemId;
-    const [deliverables, briefs, inputPackets, handoffs, incompleteWorkItemIds] = await Promise.all([
+    const [deliverables, briefs, inputPackets, handoffs, incompleteWorkItemIds, workflowDocuments] = await Promise.all([
       this.deliverableSource.listDeliverables(tenantId, workflowId, {
         workItemId: input.workItemId,
         includeWorkflowScope,
@@ -104,6 +113,7 @@ export class WorkflowDeliverablesService {
       this.incompleteWorkItemSource?.listIncompleteWorkItemIds(tenantId, workflowId, {
         workItemId: input.workItemId,
       }) ?? Promise.resolve([]),
+      this.workflowDocumentSource?.listWorkflowDocuments(tenantId, workflowId) ?? Promise.resolve([]),
     ]);
     const linkedWorkItemIds = await this.incompleteWorkItemSource?.listExistingWorkItemIds?.(
       tenantId,
@@ -149,7 +159,13 @@ export class WorkflowDeliverablesService {
     );
 
     const normalizedDeliverables = suppressMirroredWorkflowRollupDuplicates(
-      hydratedDeliverables.map(normalizeDeliverableTargets),
+      appendSynthesizedWorkflowDocumentDeliverables(
+        hydratedDeliverables,
+        workflowDocuments,
+        workflowId,
+      ).map(
+        normalizeDeliverableTargets,
+      ),
       input.workItemId,
     );
 
@@ -856,6 +872,9 @@ function suppressMirroredWorkflowRollupDuplicates(
   deliverables: WorkflowDeliverableRecord[],
   selectedWorkItemId?: string,
 ): WorkflowDeliverableRecord[] {
+  if (!selectedWorkItemId) {
+    return deliverables;
+  }
   const workflowRollupSources = new Set(
     deliverables
       .filter((deliverable) => readOptionalString(deliverable.work_item_id) === null)
@@ -864,23 +883,200 @@ function suppressMirroredWorkflowRollupDuplicates(
   );
   return deliverables.filter((deliverable) => {
     const workItemId = readOptionalString(deliverable.work_item_id);
-    if (selectedWorkItemId) {
-      if (workItemId !== null) {
-        return true;
-      }
-      return (
-        readRollupSourceWorkItemId(deliverable) === null
-        || readRollupSourceWorkItemId(deliverable) === selectedWorkItemId
-      );
+    if (workItemId !== null) {
+      return true;
     }
-    return !(workItemId !== null && workflowRollupSources.has(deliverable.descriptor_id));
+    return (
+      readRollupSourceWorkItemId(deliverable) === null
+      || readRollupSourceWorkItemId(deliverable) === selectedWorkItemId
+      || !workflowRollupSources.has(deliverable.descriptor_id)
+    );
   });
+}
+
+function appendSynthesizedWorkflowDocumentDeliverables(
+  deliverables: WorkflowDeliverableRecord[],
+  documents: ResolvedDocumentReference[],
+  workflowId: string,
+): WorkflowDeliverableRecord[] {
+  if (documents.length === 0) {
+    return deliverables;
+  }
+
+  const records = [...deliverables];
+  const existingIds = new Set(records.map((deliverable) => deliverable.descriptor_id));
+  const existingTargetKeys = new Set(
+    records.map(readDeliverableTargetIdentityKey).filter((key): key is string => key !== null),
+  );
+
+  for (const document of documents) {
+    const syntheticDeliverable = buildWorkflowDocumentDeliverable(document, workflowId);
+    if (!syntheticDeliverable) {
+      continue;
+    }
+    if (existingIds.has(syntheticDeliverable.descriptor_id)) {
+      continue;
+    }
+    const identityKey = readDeliverableTargetIdentityKey(syntheticDeliverable);
+    if (identityKey && existingTargetKeys.has(identityKey)) {
+      continue;
+    }
+    records.push(syntheticDeliverable);
+    existingIds.add(syntheticDeliverable.descriptor_id);
+    if (identityKey) {
+      existingTargetKeys.add(identityKey);
+    }
+  }
+
+  return records;
 }
 
 function serializeNormalizedUrl(parsed: URL): string {
   return parsed.origin === 'http://dashboard.local'
     ? `${parsed.pathname}${parsed.search}${parsed.hash}`
     : parsed.toString();
+}
+
+function buildWorkflowDocumentDeliverable(
+  document: ResolvedDocumentReference,
+  workflowId: string,
+): WorkflowDeliverableRecord | null {
+  if (document.scope !== 'workflow') {
+    return null;
+  }
+
+  const title = readOptionalString(document.title) ?? document.logical_name;
+  const summary = readOptionalString(document.description);
+  const previewSummary = buildWorkflowDocumentPreviewSummary(document);
+  const primaryTarget = buildWorkflowDocumentTarget(document, title);
+
+  return {
+    descriptor_id: `workflow-document:${document.logical_name}`,
+    workflow_id: workflowId,
+    work_item_id: null,
+    descriptor_kind: 'workflow_document',
+    delivery_stage: 'final',
+    title,
+    state: 'final',
+    summary_brief: summary,
+    preview_capabilities: buildWorkflowDocumentPreviewCapabilities(document),
+    primary_target: primaryTarget,
+    secondary_targets: [],
+    content_preview: {
+      summary: previewSummary,
+    },
+    source_brief_id: null,
+    created_at: document.created_at ?? new Date(0).toISOString(),
+    updated_at: document.created_at ?? new Date(0).toISOString(),
+  };
+}
+
+function buildWorkflowDocumentPreviewSummary(document: ResolvedDocumentReference): string {
+  const lines = [
+    readOptionalString(document.description),
+    document.source === 'repository'
+      ? [
+          readOptionalString(document.repository),
+          readOptionalString(document.path),
+        ]
+          .filter((entry): entry is string => entry !== null)
+          .join(' • ')
+      : null,
+    document.source === 'external' ? readOptionalString(document.url) : null,
+    document.source === 'artifact' ? readOptionalString(document.artifact?.logical_path) : null,
+  ].filter((entry): entry is string => entry !== null);
+
+  return lines.join('\n\n');
+}
+
+function buildWorkflowDocumentPreviewCapabilities(
+  document: ResolvedDocumentReference,
+): Record<string, unknown> {
+  if (document.source === 'artifact') {
+    const contentType = readOptionalString(document.artifact?.content_type) ?? '';
+    return {
+      can_inline_preview: true,
+      can_download: true,
+      can_open_external: false,
+      can_copy_path: Boolean(readOptionalString(document.artifact?.logical_path)),
+      preview_kind: contentType.includes('markdown')
+        ? 'markdown'
+        : contentType.includes('json')
+          ? 'json'
+          : 'text',
+    };
+  }
+
+  return {
+    can_inline_preview: false,
+    can_download: false,
+    can_open_external: false,
+    can_copy_path: Boolean(readOptionalString(document.path)),
+    preview_kind: 'structured_summary',
+  };
+}
+
+function buildWorkflowDocumentTarget(
+  document: ResolvedDocumentReference,
+  title: string,
+): Record<string, unknown> {
+  if (document.source === 'artifact' && document.artifact) {
+    return {
+      target_kind: 'artifact',
+      label: title,
+      url: `/api/v1/tasks/${encodeURIComponent(document.artifact.task_id)}/artifacts/${encodeURIComponent(document.artifact.id)}/preview`,
+      path: readOptionalString(document.artifact.logical_path),
+      artifact_id: document.artifact.id,
+    };
+  }
+
+  if (document.source === 'external') {
+    return {
+      target_kind: 'external',
+      label: title,
+      url: readOptionalString(document.url) ?? '',
+    };
+  }
+
+  return {
+    target_kind: 'repo_reference',
+    label: title,
+    url: '',
+    repo_ref: [readOptionalString(document.repository), readOptionalString(document.path)]
+      .filter((entry): entry is string => entry !== null)
+      .join(':'),
+    path: readOptionalString(document.path),
+  };
+}
+
+function readDeliverableTargetIdentityKey(
+  deliverable: WorkflowDeliverableRecord,
+): string | null {
+  const target = asDeliverableIdentityTargetRecord(deliverable.primary_target);
+  const targetKind = readOptionalString(target.target_kind);
+  const targetUrl = readOptionalString(target.url);
+  const targetPath = readOptionalString(target.path);
+  const targetRepoRef = readOptionalString(target.repo_ref);
+  const targetArtifactId = readOptionalString(target.artifact_id);
+
+  if (!targetKind && !targetUrl && !targetPath && !targetRepoRef && !targetArtifactId) {
+    return null;
+  }
+
+  return [
+    targetKind ?? '',
+    targetUrl ?? '',
+    targetPath ?? '',
+    targetRepoRef ?? '',
+    targetArtifactId ?? '',
+  ].join('|');
+}
+
+function asDeliverableIdentityTargetRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
 }
 
 function pickSinglePacket(
