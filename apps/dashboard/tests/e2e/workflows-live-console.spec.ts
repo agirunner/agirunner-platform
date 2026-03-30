@@ -43,6 +43,10 @@ test('surfaces new live console headlines when the stream receives fresh workflo
   await workflowRailButton(page, 'E2E Ongoing Intake').click();
   await page.getByRole('button', { name: 'Live Console' }).click();
   await expect(page.getByText('Initial execution burst')).toBeVisible();
+  await expect(page.getByText('Shift handoff')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'New updates' })).toHaveCount(0);
+  await expect(page.getByTitle('Follow the latest terminal output')).toBeVisible();
+  await expect(page.getByTitle('Pause terminal follow mode')).toBeVisible();
 
   const consolePanel = page.locator('div').filter({ hasText: 'Initial execution burst' }).last();
   await consolePanel.evaluate((element) => {

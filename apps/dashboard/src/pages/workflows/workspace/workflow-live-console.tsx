@@ -52,7 +52,6 @@ export function WorkflowLiveConsole(props: {
   const isAtLiveEdgeRef = useRef(true);
   const backfillCursorRef = useRef<string | null>(null);
   const [followMode, setFollowMode] = useState<WorkflowConsoleFollowMode>('live');
-  const [hasQueuedUpdates, setHasQueuedUpdates] = useState(false);
   const [isLoadingOlderHistory, setIsLoadingOlderHistory] = useState(false);
   const [selectedFilter, setSelectedFilter] = useState<WorkflowConsoleFilter>('all');
   const consoleItems = useMemo(() => getWorkflowConsoleVisibleItems(props.packet.items), [props.packet.items]);
@@ -87,7 +86,6 @@ export function WorkflowLiveConsole(props: {
     }
 
     container.scrollTop = container.scrollHeight;
-    setHasQueuedUpdates(false);
     setIsLoadingOlderHistory(false);
     const currentVisibleItems = visibleItemsRef.current;
     scrollMetricsRef.current = {
@@ -134,9 +132,6 @@ export function WorkflowLiveConsole(props: {
       setIsLoadingOlderHistory(false);
     } else if (followBehavior.shouldScrollToBottom) {
       container.scrollTop = container.scrollHeight;
-      setHasQueuedUpdates(false);
-    } else if (followBehavior.shouldQueueUpdates) {
-      setHasQueuedUpdates(true);
     }
 
     scrollMetricsRef.current = {
@@ -269,26 +264,6 @@ export function WorkflowLiveConsole(props: {
                 />
                 {followMode === 'live' ? 'Following live' : 'Paused'}
               </span>
-              {hasQueuedUpdates ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 border border-slate-700/80 bg-slate-900/70 font-mono text-[11px] uppercase tracking-[0.16em] text-slate-200 hover:bg-slate-800/80 hover:text-slate-50"
-                  onClick={() => {
-                    const container = containerRef.current;
-                    if (!container) {
-                      return;
-                    }
-                    container.scrollTop = container.scrollHeight;
-                    setHasQueuedUpdates(false);
-                    isAtLiveEdgeRef.current = true;
-                    setFollowMode('live');
-                  }}
-                >
-                  New updates
-                </Button>
-              ) : null}
               <Button
                 type="button"
                 size="sm"
@@ -305,7 +280,6 @@ export function WorkflowLiveConsole(props: {
                   }
                   container.scrollTop = container.scrollHeight;
                   setFollowMode('live');
-                  setHasQueuedUpdates(false);
                   isAtLiveEdgeRef.current = true;
                 }}
               >
@@ -342,12 +316,6 @@ export function WorkflowLiveConsole(props: {
               clientHeight: element.clientHeight,
             });
             isAtLiveEdgeRef.current = scrollBehavior.isAtLiveEdge;
-            if (scrollBehavior.shouldPauseFollowing && followMode !== 'paused') {
-              setFollowMode('paused');
-            }
-            if (scrollBehavior.shouldClearQueuedUpdates) {
-              setHasQueuedUpdates(false);
-            }
             scrollMetricsRef.current.scrollHeight = element.scrollHeight;
             scrollMetricsRef.current.scrollTop = element.scrollTop;
             if (scrollBehavior.shouldPrefetchHistory) {

@@ -116,15 +116,15 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('inline-flex min-w-0 items-center gap-2 rounded-md border px-2.5 py-1.5');
     expect(html).toContain('flex min-w-0 items-center justify-between gap-3');
     expect(html).toContain('grid gap-px');
-    expect(html).toContain('grid-cols-[max-content_minmax(0,1fr)_max-content]');
-    expect(html).toContain('gap-2 border-b border-slate-950/90 px-4 py-2 font-mono text-sm leading-6 text-slate-100');
-    expect(html).toContain('min-w-0 truncate text-slate-100');
-    expect(html).toContain('shrink-0 pl-2 text-right text-xs text-slate-500');
+    expect(html).toContain('flex min-w-0 items-baseline gap-2 border-b border-slate-950/90 px-4 py-2 font-mono text-sm leading-6 text-slate-100');
+    expect(html).toContain('min-w-0 flex-1 truncate text-slate-100');
+    expect(html).toContain('shrink-0 pl-3 text-right text-xs tabular-nums text-slate-500');
     expect(html).toContain('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden');
     expect(html).toContain('flex shrink-0 items-center justify-end gap-1.5');
     expect(html).toContain('min-h-0 flex-1 overflow-x-hidden overflow-y-auto');
     expect(html).not.toContain('break-words');
     expect(html).not.toContain('max-h-[28rem]');
+    expect(html).not.toContain('New updates');
     expect(html).not.toContain('Older lines stream in automatically as you scroll upward.');
   });
 
@@ -330,15 +330,16 @@ describe('WorkflowLiveConsole', () => {
       }),
     );
 
-    expect(html).toContain('grid min-w-0 grid-cols-[max-content_minmax(0,1fr)_max-content]');
+    expect(html).toContain('flex min-w-0 items-baseline gap-2');
     expect(html).toContain('border-b border-slate-950/90');
     expect(html).toContain('self-start text-emerald-300');
-    expect(html).toContain('min-w-0 truncate text-slate-100');
-    expect(html).toContain('shrink-0 pl-2 text-right text-xs text-slate-500');
+    expect(html).toContain('min-w-0 flex-1 truncate text-slate-100');
+    expect(html).toContain('shrink-0 pl-3 text-right text-xs tabular-nums text-slate-500');
     expect(html).toContain('overflow-x-hidden overflow-y-auto');
     expect(html).not.toContain('break-words');
     expect(html).not.toContain('text-left text-xs text-slate-500');
     expect(html).not.toContain('sm:text-right');
+    expect(html).not.toContain('grid-cols-[max-content_minmax(0,1fr)_max-content]');
   });
 
   it('labels live and pause controls so the terminal follow state stays explicit', () => {
@@ -487,13 +488,13 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('data-live-console-filter-count="1"');
   });
 
-  it('uses the queued-update control copy agreed for the terminal console', () => {
+  it('removes the queued-update affordance from the terminal console source', () => {
     const source = readFileSync(
       resolve(import.meta.dirname, './workflow-live-console.tsx'),
       'utf8',
     );
 
-    expect(source).toContain('New updates');
+    expect(source).not.toContain('New updates');
     expect(source).not.toContain('Jump to latest');
   });
 });

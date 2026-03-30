@@ -226,24 +226,17 @@ export function getWorkflowConsoleScrollBehavior(input: {
   clientHeight: number;
 }): {
   isAtLiveEdge: boolean;
-  shouldClearQueuedUpdates: boolean;
-  shouldPauseFollowing: boolean;
   shouldPrefetchHistory: boolean;
 } {
   const isAtLiveEdge = isWorkflowConsoleAtLiveEdge(input);
-  const shouldPauseFollowing = input.followMode === 'live' && !isAtLiveEdge;
 
   return {
     isAtLiveEdge,
-    shouldClearQueuedUpdates: isAtLiveEdge,
-    shouldPauseFollowing,
-    shouldPrefetchHistory:
-      (input.followMode === 'paused' || shouldPauseFollowing) &&
-      shouldPrefetchWorkflowConsoleHistory({
-        hasNextCursor: input.hasNextCursor,
-        isLoadingOlderHistory: input.isLoadingOlderHistory,
-        scrollTop: input.scrollTop,
-      }),
+    shouldPrefetchHistory: shouldPrefetchWorkflowConsoleHistory({
+      hasNextCursor: input.hasNextCursor,
+      isLoadingOlderHistory: input.isLoadingOlderHistory,
+      scrollTop: input.scrollTop,
+    }),
   };
 }
 
@@ -255,25 +248,21 @@ export function getWorkflowConsoleFollowBehavior(input: {
   hasPreviousItems: boolean;
 }): {
   shouldScrollToBottom: boolean;
-  shouldQueueUpdates: boolean;
 } {
   if (input.prependedHistory || !input.appendedLiveUpdate) {
     return {
       shouldScrollToBottom: !input.hasPreviousItems,
-      shouldQueueUpdates: false,
     };
   }
 
   if (!input.hasPreviousItems || input.followMode === 'live') {
     return {
       shouldScrollToBottom: true,
-      shouldQueueUpdates: false,
     };
   }
 
   return {
     shouldScrollToBottom: false,
-    shouldQueueUpdates: true,
   };
 }
 

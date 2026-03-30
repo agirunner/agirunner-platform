@@ -1,3 +1,4 @@
+import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import type { DashboardWorkflowHistoryPacket } from '../../../lib/api.js';
 import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
@@ -13,6 +14,10 @@ export function WorkflowHistory(props: {
 }): JSX.Element {
   const scopeSubject = props.scopeSubject ?? 'workflow';
   const displayGroups = getHistoryDisplayGroups(props.packet);
+  const visibleKinds = new Set(
+    displayGroups.flatMap((group) => group.items.map((item) => item.item_kind)),
+  );
+  const shouldShowTypeLabel = visibleKinds.size > 1;
 
   return (
     <div className="grid gap-4">
@@ -30,18 +35,19 @@ export function WorkflowHistory(props: {
       ) : (
         <div className="grid gap-4">
           {displayGroups.map((group) => (
-            <section key={group.group_id} className="grid gap-3">
+            <section key={group.group_id} className="grid gap-2.5">
               <div className="flex items-center gap-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                   {group.label}
                 </p>
                 <div className="h-px flex-1 bg-border/70" />
               </div>
-              <div className="grid gap-3">
+              <div className="overflow-hidden rounded-xl border border-border/70 bg-background/40">
                 {group.items.map((item) => (
                   <HistoryItemCard
                     key={item.item_id}
                     item={item}
+                    shouldShowTypeLabel={shouldShowTypeLabel}
                   />
                 ))}
               </div>
@@ -63,6 +69,7 @@ export function WorkflowHistory(props: {
 
 function HistoryItemCard(props: {
   item: DashboardWorkflowHistoryPacket['items'][number];
+  shouldShowTypeLabel: boolean;
 }): JSX.Element {
   const sourceLabel = formatWorkflowActivitySourceLabel(
     props.item.source_label,
@@ -72,15 +79,22 @@ function HistoryItemCard(props: {
   const headline = props.item.headline.trim();
   const displayHeadline = headline || summary;
   const showSummary = summary.length > 0 && summary !== displayHeadline;
+  const typeLabel = props.shouldShowTypeLabel
+    ? formatHistoryKindLabel(props.item.item_kind)
+    : null;
 
   return (
-    <article className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
-      <p className="text-xs font-medium text-muted-foreground">
-        {sourceLabel}
-        {' · '}
-        {formatRelativeTimestamp(props.item.created_at)}
-      </p>
-      <strong className="text-foreground">{displayHeadline}</strong>
+    <article className="grid gap-1.5 border-b border-border/60 px-3 py-3 last:border-b-0">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <span className="font-medium text-foreground">{sourceLabel}</span>
+        {typeLabel ? (
+          <Badge variant="outline" className="px-1.5 py-0 text-[10px] uppercase tracking-[0.14em]">
+            {typeLabel}
+          </Badge>
+        ) : null}
+        <span>{formatRelativeTimestamp(props.item.created_at)}</span>
+      </div>
+      <strong className="text-sm leading-6 text-foreground">{displayHeadline}</strong>
       {showSummary ? <p className="text-sm text-muted-foreground">{summary}</p> : null}
     </article>
   );
@@ -103,4 +117,27 @@ function getHistoryDisplayGroups(packet: DashboardWorkflowHistoryPacket): Array<
     }))
     .filter((group) => group.items.length > 0)
     .sort((left, right) => right.anchor_at.localeCompare(left.anchor_at));
+}
+
+function formatHistoryKindLabel(
+  itemKind: DashboardWorkflowHistoryPacket['items'][number]['item_kind'],
+): string {
+  switch (itemKind) {
+    case 'milestone_brief':
+      return 'Milestone';
+    case 'operator_update':
+      return 'Update';
+    case 'platform_notice':
+      return 'Notice';
+    case 'lifecycle_event':
+      return 'Lifecycle';
+    case 'intervention':
+      return 'Intervention';
+    case 'input':
+      return 'Input';
+    case 'deliverable':
+      return 'Deliverable';
+    case 'redrive':
+      return 'Redrive';
+  }
 }

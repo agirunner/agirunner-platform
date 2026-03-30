@@ -67,6 +67,7 @@ describe('WorkflowHistory', () => {
     expect(html).toContain('Policy assessment settled revision 3');
     expect(html).toContain('Revision 3 is internally consistent and ready for the next workflow action.');
     expect(html).not.toContain('Milestone Brief');
+    expect(html).not.toContain('Milestone');
     expect(html).not.toContain('Open brief');
     expect(html).not.toContain('Open brief scope');
     expect(html).not.toContain('ordered newest first');
@@ -240,7 +241,26 @@ describe('WorkflowHistory', () => {
     expect(html.indexOf('Middle headline')).toBeLessThan(html.indexOf('Older headline'));
   });
 
-  it('shows the brief type chip only when multiple visible brief kinds are present', () => {
+  it('renders briefs as dense inline rows instead of standalone cards', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        MemoryRouter,
+        undefined,
+        createElement(WorkflowHistory, {
+          workflowId: 'workflow-1',
+          packet: createPacket(),
+          scopeSubject: 'workflow',
+          onLoadMore: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Approval requested');
+    expect(html).toContain('Review the publication package.');
+    expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/80 p-4');
+  });
+
+  it('shows brief type labels only when multiple visible brief kinds are present', () => {
     const html = renderToStaticMarkup(
       createElement(
         MemoryRouter,
@@ -290,8 +310,8 @@ describe('WorkflowHistory', () => {
       ),
     );
 
-    expect(html).not.toContain('Milestone Brief');
-    expect(html).not.toContain('Operator Update');
+    expect(html).toContain('Milestone');
+    expect(html).toContain('Update');
     expect(html).toContain('Reviewer');
     expect(html).toContain('Verifier');
   });

@@ -332,8 +332,6 @@ describe('workflow live console support', () => {
       }),
     ).toEqual({
       isAtLiveEdge: false,
-      shouldClearQueuedUpdates: false,
-      shouldPauseFollowing: true,
       shouldPrefetchHistory: true,
     });
 
@@ -348,8 +346,6 @@ describe('workflow live console support', () => {
       }),
     ).toEqual({
       isAtLiveEdge: false,
-      shouldClearQueuedUpdates: false,
-      shouldPauseFollowing: false,
       shouldPrefetchHistory: true,
     });
   });
@@ -414,7 +410,7 @@ describe('workflow live console support', () => {
     ).toBe(false);
   });
 
-  it('switches live follow into paused mode when the operator scrolls upward in live mode', () => {
+  it('keeps live follow active when the operator scrolls upward in live mode', () => {
     expect(
       getWorkflowConsoleScrollBehavior({
         followMode: 'live',
@@ -426,8 +422,6 @@ describe('workflow live console support', () => {
       }),
     ).toEqual({
       isAtLiveEdge: false,
-      shouldClearQueuedUpdates: false,
-      shouldPauseFollowing: true,
       shouldPrefetchHistory: true,
     });
   });
@@ -444,8 +438,6 @@ describe('workflow live console support', () => {
       }),
     ).toEqual({
       isAtLiveEdge: false,
-      shouldClearQueuedUpdates: false,
-      shouldPauseFollowing: false,
       shouldPrefetchHistory: true,
     });
   });
@@ -461,7 +453,6 @@ describe('workflow live console support', () => {
       }),
     ).toEqual({
       shouldScrollToBottom: true,
-      shouldQueueUpdates: false,
     });
     expect(
       getWorkflowConsoleFollowBehavior({
@@ -473,7 +464,6 @@ describe('workflow live console support', () => {
       }),
     ).toEqual({
       shouldScrollToBottom: true,
-      shouldQueueUpdates: false,
     });
     expect(
       getWorkflowConsoleFollowBehavior({
@@ -485,7 +475,6 @@ describe('workflow live console support', () => {
       }),
     ).toEqual({
       shouldScrollToBottom: false,
-      shouldQueueUpdates: true,
     });
     expect(
       getWorkflowConsoleFollowBehavior({
@@ -497,7 +486,6 @@ describe('workflow live console support', () => {
       }),
     ).toEqual({
       shouldScrollToBottom: false,
-      shouldQueueUpdates: false,
     });
   });
 
