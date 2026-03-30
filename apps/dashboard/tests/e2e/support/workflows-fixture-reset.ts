@@ -50,12 +50,14 @@ export async function resetWorkflowsState(): Promise<void> {
   for (const workspaceId of fixtureWorkspaceIds) {
     await apiDataRequest(`/api/v1/workspaces/${workspaceId}?cascade=true`, {
       method: 'DELETE',
+      allowNotFound: true,
     });
   }
 
   for (const playbookId of fixturePlaybookIds) {
     await apiDataRequest(`/api/v1/playbooks/${playbookId}/permanent`, {
       method: 'DELETE',
+      allowNotFound: true,
     });
   }
 }
@@ -107,7 +109,7 @@ async function listPaginated<T extends ApiRecord>(path: string): Promise<T[]> {
 
 async function apiDataRequest<T>(
   path: string,
-  init: { method?: string; body?: Record<string, unknown> } = {},
+  init: { method?: string; body?: Record<string, unknown>; allowNotFound?: boolean } = {},
 ): Promise<T> {
   const payload = await apiJsonRequest<{ data: T }>(path, init);
   return payload.data;
@@ -115,7 +117,7 @@ async function apiDataRequest<T>(
 
 async function apiJsonRequest<T>(
   path: string,
-  init: { method?: string; body?: Record<string, unknown> } = {},
+  init: { method?: string; body?: Record<string, unknown>; allowNotFound?: boolean } = {},
 ): Promise<T> {
   const hasBody = init.body !== undefined;
   const response = await fetch(`${PLATFORM_API_URL}${path}`, {
@@ -127,8 +129,12 @@ async function apiJsonRequest<T>(
     body: hasBody ? JSON.stringify(init.body) : undefined,
   });
   if (!response.ok) {
+    const responseText = await response.text();
+    if (init.allowNotFound && response.status === 404) {
+      return ({ data: null } satisfies { data: null }) as T;
+    }
     throw new Error(
-      `API request failed ${init.method ?? 'GET'} ${path}: ${response.status} ${await response.text()}`,
+      `API request failed ${init.method ?? 'GET'} ${path}: ${response.status} ${responseText}`,
     );
   }
   return (await response.json()) as T;

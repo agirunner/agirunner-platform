@@ -157,4 +157,34 @@ describe('resetWorkflowsState', () => {
     );
     expect(calls[5]?.[1]).toMatchObject({ method: 'DELETE' });
   });
+
+  it('ignores not-found fixture deletes so reset stays idempotent', async () => {
+    const fetchMock = installFetchMock([
+      jsonResponse({
+        data: [{ id: 'fixture-workspace', slug: 'workflows-fixture-123' }],
+        meta: { page: 1, per_page: 100, pages: 1, total: 1 },
+      }),
+      jsonResponse({
+        data: [{ id: 'fixture-playbook-planned', slug: 'planned-workflows-fixture-123' }],
+      }),
+      jsonResponse({
+        data: [],
+        meta: { page: 1, per_page: 100, pages: 1, total: 0 },
+      }),
+      {
+        ok: false,
+        status: 404,
+        text: '{"error":{"code":"NOT_FOUND","message":"Workspace not found"}}',
+      },
+      {
+        ok: false,
+        status: 404,
+        text: '{"error":{"code":"NOT_FOUND","message":"Playbook not found"}}',
+      },
+    ]);
+
+    await expect(resetWorkflowsState()).resolves.toBeUndefined();
+
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+  });
 });
