@@ -6,7 +6,7 @@ import {
 } from './support/workflows-auth.js';
 import { seedWorkflowsScenario } from './support/workflows-fixtures.js';
 
-test('restores workflow scope, selected work item, and tab state across refresh and history', async ({ page }) => {
+test('restores workflow scope, selected work item, and tab state across refresh and live console', async ({ page }) => {
   await seedWorkflowsScenario();
   await loginToWorkflows(page);
 
@@ -21,8 +21,8 @@ test('restores workflow scope, selected work item, and tab state across refresh 
   await expect(workbench.getByText('Work item · Prepare blocked release brief')).toBeVisible();
   await expect(workbench.getByText('What was asked')).toBeVisible();
 
-  await page.getByRole('button', { name: 'History' }).click();
-  await expect(page).toHaveURL(/tab=history/);
+  await page.getByRole('button', { name: 'Live Console' }).click();
+  await expect(page).toHaveURL(/tab=live_console/);
 });
 
 test('opens a steer composer with inputs directly from the work-item card action', async ({ page }) => {
