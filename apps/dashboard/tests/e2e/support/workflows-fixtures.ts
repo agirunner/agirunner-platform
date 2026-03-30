@@ -1,10 +1,12 @@
 import { Buffer } from 'node:buffer';
 import { execFileSync } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { dirname } from 'node:path';
 
 import {
   ADMIN_API_KEY,
   DEFAULT_TENANT_ID,
+  PLATFORM_API_CONTAINER_NAME,
   PLATFORM_API_URL,
   POSTGRES_CONTAINER_NAME,
   POSTGRES_DB,
@@ -41,6 +43,8 @@ export interface SeededWorkflowsScenario {
   ongoingWorkflow: ApiRecord;
   ongoingWorkItem: ApiRecord;
   needsActionWorkflow: ApiRecord;
+  needsActionWorkItem: ApiRecord;
+  needsActionEscalationTask: ApiRecord;
   failedWorkflow: ApiRecord;
 }
 
@@ -92,16 +96,14 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     priority: 'high',
     completed_at: new Date().toISOString(),
   });
-  await apiRequest(`/api/v1/workflows/${plannedWorkflow.id}/documents`, {
-    method: 'POST',
-    body: {
-      request_id: randomUUID(),
-      logical_name: 'terminal-brief',
-      source: 'external',
-      title: 'Terminal brief',
-      description: 'Seeded final deliverable for workflow observations.',
-      url: 'https://example.com/terminal-brief',
-    },
+  await createWorkflowDocumentRecord({
+    workflowId: plannedWorkflow.id,
+    workspaceId: workspace.id,
+    logicalName: 'terminal-brief',
+    source: 'external',
+    title: 'Terminal brief',
+    description: 'Seeded final deliverable for workflow observations.',
+    location: 'https://example.com/terminal-brief',
   });
   await appendWorkflowEvent(plannedWorkflow.id, 'workflow.output_published', {
     headline: 'Historical record',
@@ -114,6 +116,7 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     workspaceId: workspace.id,
     lifecycle: 'ongoing',
     state: 'active',
+    seedHeartbeatGuard: true,
     parameters: { workflow_goal: 'Keep intake work active with live workflow updates.' },
   });
   const ongoingWorkItem = await createWorkItem(ongoingWorkflow.id, {
@@ -125,6 +128,17 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     owner_role: 'intake-analyst',
     priority: 'high',
   });
+  await createTask({
+    workflowId: ongoingWorkflow.id,
+    workspaceId: workspace.id,
+    workItemId: ongoingWorkItem.id,
+    stageName: 'intake',
+    title: 'Triage intake queue',
+    role: 'intake-analyst',
+    state: 'in_progress',
+    description: 'Seeded in-flight specialist task for deterministic live-console coverage.',
+  });
+  await clearWorkflowHeartbeatGuard(ongoingWorkflow.id);
   await appendWorkflowExecutionTurn({
     workflowId: ongoingWorkflow.id,
     workflowName: 'E2E Ongoing Intake',
@@ -162,15 +176,14 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     lifecycle: 'planned',
     state: 'active',
     currentStage: 'delivery',
+    seedHeartbeatGuard: true,
     parameters: { workflow_goal: 'Surface operator action in the workflows workbench.' },
   });
-  await apiRequest(`/api/v1/workflows/${needsActionWorkflow.id}/input-packets`, {
-    method: 'POST',
-    body: {
-      packet_kind: 'launch',
-      summary: 'Seeded launch packet',
-      files: [buildUploadFile('brief.md', '# Seed brief\nBlocked workflow context.\n')],
-    },
+  await createWorkflowInputPacketRecord({
+    workflowId: needsActionWorkflow.id,
+    packetKind: 'launch',
+    summary: 'Seeded launch packet',
+    files: [buildUploadFile('brief.md', '# Seed brief\nBlocked workflow context.\n')],
   });
   const blockedWorkItem = await createWorkItem(needsActionWorkflow.id, {
     title: 'Prepare blocked release brief',
@@ -189,16 +202,54 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     'Provide rollback guidance',
     { escalationStatus: 'open' },
   );
-  await apiRequest(`/api/v1/workflows/${needsActionWorkflow.id}/documents`, {
-    method: 'POST',
-    body: {
-      request_id: randomUUID(),
-      logical_name: 'release-brief',
-      source: 'external',
-      title: 'Release brief',
-      description: 'Seeded release brief for workflows deliverables.',
-      url: 'https://example.com/release-brief',
+  const needsActionEscalationTask = await createTask({
+    workflowId: needsActionWorkflow.id,
+    workspaceId: workspace.id,
+    workItemId: blockedWorkItem.id,
+    stageName: 'delivery',
+    title: 'Resolve replay mismatch before handoff',
+    role: 'developer',
+    state: 'escalated',
+    description: 'Persisted handoff exists and the release summary is already written.',
+    metadata: {
+      escalation_reason: 'submit_handoff replay mismatch conflict',
+      escalation_context: 'Persisted handoff exists and the release summary is already written.',
+      escalation_work_so_far:
+        'Reviewed the current attempt, compared request ids, and identified the replay mismatch.',
+      escalation_context_packet: {
+        conflicting_request_ids: {
+          submitted_request_id: 'handoff:seeded-submitted',
+          persisted_request_id: 'handoff:seeded-persisted',
+          current_attempt_request_id: 'handoff:seeded-current-attempt',
+        },
+        existing_handoff: {
+          summary: 'Release summary is already persisted for operator review.',
+          request_id: 'handoff:seeded-persisted',
+          completion_state: 'full',
+        },
+        task_contract_satisfied_by_persisted_handoff: true,
+      },
     },
+  });
+  await createTask({
+    workflowId: needsActionWorkflow.id,
+    workspaceId: workspace.id,
+    workItemId: blockedWorkItem.id,
+    stageName: 'delivery',
+    title: 'Hold release packet while operator guidance is pending',
+    role: 'developer',
+    state: 'claimed',
+    description: 'Seeded active specialist claim to keep deterministic workflows idle-free without dispatching runtime work.',
+  });
+  await clearWorkflowHeartbeatGuard(needsActionWorkflow.id);
+  await createWorkflowDocumentRecord({
+    workflowId: needsActionWorkflow.id,
+    workspaceId: workspace.id,
+    logicalName: 'release-brief',
+    source: 'external',
+    title: 'Release brief',
+    description: 'Seeded release brief for workflows deliverables.',
+    location: 'https://example.com/release-brief',
   });
   await appendWorkflowEvent(needsActionWorkflow.id, 'workflow.blocked', {
     headline: 'Operator attention required',
@@ -219,7 +270,7 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
   });
 
   await seedBulkWorkflows(options.bulkWorkflowCount ?? 0, plannedPlaybook.id, workspace.id);
-  return {
+  const scenario = {
     workspace,
     plannedPlaybook,
     ongoingPlaybook,
@@ -227,8 +278,12 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     ongoingWorkflow,
     ongoingWorkItem,
     needsActionWorkflow,
+    needsActionWorkItem: blockedWorkItem,
+    needsActionEscalationTask,
     failedWorkflow,
   };
+  assertSeededScenarioIsInert();
+  return scenario;
 }
 
 export async function seedLaunchDialogScenario(options: {
@@ -276,6 +331,7 @@ export async function createWorkflowViaApi(input: {
   state: 'pending' | 'active' | 'completed' | 'failed' | 'cancelled';
   currentStage?: string;
   parameters: Record<string, unknown>;
+  seedHeartbeatGuard?: boolean;
 }): Promise<ApiRecord> {
   const workflowId = randomUUID();
   runPsql(`
@@ -310,6 +366,44 @@ export async function createWorkflowViaApi(input: {
       NOW()
     );
 
+    ${input.seedHeartbeatGuard ? `
+    INSERT INTO public.tasks (
+      id,
+      tenant_id,
+      workflow_id,
+      work_item_id,
+      workspace_id,
+      title,
+      role,
+      stage_name,
+      priority,
+      state,
+      state_changed_at,
+      input,
+      context,
+      metadata,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      ${sqlUuid(randomUUID())},
+      ${sqlUuid(DEFAULT_TENANT_ID)},
+      ${sqlUuid(workflowId)},
+      NULL,
+      ${sqlUuid(input.workspaceId)},
+      'Seed heartbeat guard',
+      'seed-guard',
+      ${input.currentStage ? sqlText(input.currentStage) : sqlText('delivery')},
+      'normal'::task_priority,
+      'claimed'::task_state,
+      NOW(),
+      '{}'::jsonb,
+      '{}'::jsonb,
+      ${sqlJsonValue({ seeded_heartbeat_guard: true })}::jsonb,
+      NOW(),
+      NOW()
+    );` : ''}
+
     INSERT INTO public.workflow_stages (
       id,
       tenant_id,
@@ -341,6 +435,30 @@ export async function createWorkflowViaApi(input: {
 
 export async function listWorkflowInputPackets(workflowId: string): Promise<Array<Record<string, unknown>>> {
   return apiRequest(`/api/v1/workflows/${workflowId}/input-packets`);
+}
+
+export async function createSeededWorkflowWorkItem(
+  workflowId: string,
+  body: Record<string, unknown>,
+): Promise<ApiRecord> {
+  return createWorkItem(workflowId, body);
+}
+
+export async function createSeededWorkflowInputPacket(input: {
+  workflowId: string;
+  workItemId?: string;
+  packetKind: string;
+  summary: string;
+  structuredInputs: Record<string, unknown>;
+}): Promise<void> {
+  return createWorkflowInputPacketRecord({
+    workflowId: input.workflowId,
+    workItemId: input.workItemId,
+    packetKind: input.packetKind,
+    summary: input.summary,
+    structuredInputs: input.structuredInputs,
+    files: [],
+  });
 }
 
 export async function listWorkflows(): Promise<Array<Record<string, unknown>>> {
@@ -491,6 +609,110 @@ async function createPlaybook(input: { name: string; slug: string; lifecycle: 'p
   });
 }
 
+async function createWorkflowDocumentRecord(input: {
+  workflowId: string;
+  workspaceId: string;
+  logicalName: string;
+  source: 'external' | 'artifact' | 'repository';
+  title: string;
+  description: string;
+  location: string;
+}): Promise<void> {
+  runPsql(`
+    INSERT INTO public.workflow_documents (
+      id,
+      tenant_id,
+      workflow_id,
+      workspace_id,
+      task_id,
+      logical_name,
+      source,
+      location,
+      artifact_id,
+      content_type,
+      title,
+      description,
+      metadata,
+      created_at
+    )
+    VALUES (
+      ${sqlUuid(randomUUID())},
+      ${sqlUuid(DEFAULT_TENANT_ID)},
+      ${sqlUuid(input.workflowId)},
+      ${sqlUuid(input.workspaceId)},
+      NULL,
+      ${sqlText(input.logicalName)},
+      ${sqlText(input.source)},
+      ${sqlText(input.location)},
+      NULL,
+      NULL,
+      ${sqlText(input.title)},
+      ${sqlText(input.description)},
+      '{}'::jsonb,
+      NOW()
+    );
+  `);
+}
+
+async function createWorkflowInputPacketRecord(input: {
+  workflowId: string;
+  workItemId?: string;
+  packetKind: string;
+  summary: string;
+  structuredInputs?: Record<string, unknown>;
+  files: WorkflowPacketSeedFile[];
+}): Promise<void> {
+  const packetId = randomUUID();
+  runPsql(`
+    INSERT INTO public.workflow_input_packets (
+      id,
+      tenant_id,
+      workflow_id,
+      work_item_id,
+      request_id,
+      source_intervention_id,
+      source_attempt_id,
+      packet_kind,
+      source,
+      summary,
+      structured_inputs,
+      metadata,
+      created_by_kind,
+      created_by_type,
+      created_by_id,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      ${sqlUuid(packetId)},
+      ${sqlUuid(DEFAULT_TENANT_ID)},
+      ${sqlUuid(input.workflowId)},
+      ${input.workItemId ? sqlUuid(input.workItemId) : 'NULL'},
+      ${sqlText(`playwright-packet:${packetId}`)},
+      NULL,
+      NULL,
+      ${sqlText(input.packetKind)},
+      'operator',
+      ${sqlText(input.summary)},
+      ${sqlJsonValue(input.structuredInputs ?? {})}::jsonb,
+      '{}'::jsonb,
+      'operator',
+      'admin',
+      'playwright',
+      NOW(),
+      NOW()
+    );
+  `);
+
+  for (const file of input.files) {
+    createWorkflowInputPacketFileRecord({
+      workflowId: input.workflowId,
+      packetId,
+      file,
+    });
+  }
+}
+
 async function createWorkItem(workflowId: string, body: Record<string, unknown>): Promise<ApiRecord> {
   const workItemId = randomUUID();
   runPsql(`
@@ -532,6 +754,61 @@ async function createWorkItem(workflowId: string, body: Record<string, unknown>)
     );
   `);
   return { id: workItemId, title: String(body.title ?? 'Untitled work item'), workflow_id: workflowId };
+}
+
+async function createTask(input: {
+  workflowId: string;
+  workspaceId: string;
+  workItemId: string;
+  stageName: string;
+  title: string;
+  role: string;
+  state: 'claimed' | 'in_progress' | 'escalated' | 'awaiting_approval' | 'output_pending_assessment' | 'failed';
+  description?: string;
+  input?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}): Promise<ApiRecord> {
+  const taskId = randomUUID();
+  runPsql(`
+    INSERT INTO public.tasks (
+      id,
+      tenant_id,
+      workflow_id,
+      workspace_id,
+      work_item_id,
+      stage_name,
+      title,
+      role,
+      state,
+      state_changed_at,
+      input,
+      metadata,
+      created_at,
+      updated_at,
+      context
+    )
+    VALUES (
+      ${sqlUuid(taskId)},
+      ${sqlUuid(DEFAULT_TENANT_ID)},
+      ${sqlUuid(input.workflowId)},
+      ${sqlUuid(input.workspaceId)},
+      ${sqlUuid(input.workItemId)},
+      ${sqlText(input.stageName)},
+      ${sqlText(input.title)},
+      ${sqlText(input.role)},
+      ${sqlText(input.state)}::task_state,
+      NOW(),
+      ${sqlJsonValue(input.input ?? {})}::jsonb,
+      ${sqlJsonValue({
+        ...(input.metadata ?? {}),
+        ...(input.description ? { description: input.description } : {}),
+      })}::jsonb,
+      NOW(),
+      NOW(),
+      '{}'::jsonb
+    );
+  `);
+  return { id: taskId, title: input.title, workflow_id: input.workflowId };
 }
 
 async function seedBulkWorkflows(count: number, playbookId: string, workspaceId: string): Promise<void> {
@@ -617,6 +894,15 @@ async function setWorkflowCurrentStage(workflowId: string, stageName: string): P
   `);
 }
 
+async function clearWorkflowHeartbeatGuard(workflowId: string): Promise<void> {
+  runPsql(`
+    DELETE FROM public.tasks
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id = ${sqlUuid(workflowId)}
+       AND metadata->>'seeded_heartbeat_guard' = 'true';
+  `);
+}
+
 function runPsql(sql: string): void {
   execFileSync(
     'docker',
@@ -625,12 +911,164 @@ function runPsql(sql: string): void {
   );
 }
 
-function buildUploadFile(fileName: string, content: string): Record<string, string> {
+function createWorkflowInputPacketFileRecord(input: {
+  workflowId: string;
+  packetId: string;
+  file: WorkflowPacketSeedFile;
+}): void {
+  const fileId = randomUUID();
+  const payload = Buffer.from(input.file.content, 'utf8');
+  const storageKey = buildSeedWorkflowOperatorStorageKey({
+    workflowId: input.workflowId,
+    packetId: input.packetId,
+    fileId,
+    fileName: input.file.fileName,
+  });
+  const checksumSha256 = createHash('sha256').update(payload).digest('hex');
+  writeSeededArtifactObject(storageKey, payload, input.file.contentType);
+  runPsql(`
+    INSERT INTO public.workflow_input_packet_files (
+      id,
+      tenant_id,
+      workflow_id,
+      packet_id,
+      file_name,
+      description,
+      storage_backend,
+      storage_key,
+      content_type,
+      size_bytes,
+      checksum_sha256,
+      created_at
+    )
+    VALUES (
+      ${sqlUuid(fileId)},
+      ${sqlUuid(DEFAULT_TENANT_ID)},
+      ${sqlUuid(input.workflowId)},
+      ${sqlUuid(input.packetId)},
+      ${sqlText(input.file.fileName)},
+      NULL,
+      'local',
+      ${sqlText(storageKey)},
+      ${sqlText(input.file.contentType)},
+      ${payload.byteLength},
+      ${sqlText(checksumSha256)},
+      NOW()
+    );
+  `);
+}
+
+function assertSeededScenarioIsInert(): void {
+  const activationCount = countFixtureWorkflowActivations();
+  if (activationCount !== 0) {
+    throw new Error(`Deterministic workflow seed created ${activationCount} workflow activations.`);
+  }
+
+  const runtimeNames = listSpecialistRuntimeContainers();
+  if (runtimeNames.length > 0) {
+    throw new Error(
+      `Deterministic workflow seed started specialist runtime containers: ${runtimeNames.join(', ')}`,
+    );
+  }
+}
+
+function countFixtureWorkflowActivations(): number {
+  const sql = `
+    SELECT COUNT(*)
+      FROM workflow_activations wa
+      JOIN workflows w ON w.id = wa.workflow_id
+     WHERE w.tenant_id = '00000000-0000-0000-0000-000000000001'::uuid
+       AND w.name LIKE 'E2E %';
+  `;
+  const output = execFileSync(
+    'docker',
+    [
+      'exec',
+      '-i',
+      POSTGRES_CONTAINER_NAME,
+      'psql',
+      '-t',
+      '-A',
+      '-U',
+      POSTGRES_USER,
+      '-d',
+      POSTGRES_DB,
+      '-c',
+      sql,
+    ],
+    { encoding: 'utf8' },
+  ).trim();
+  return Number.parseInt(output, 10);
+}
+
+function listSpecialistRuntimeContainers(): string[] {
+  const output = execFileSync(
+    'docker',
+    ['ps', '--format', '{{.Names}}'],
+    { encoding: 'utf8' },
+  ).trim();
+  return output
+    .split('\n')
+    .map((name) => name.trim())
+    .filter((name) => name.startsWith('runtime-speciali-'));
+}
+
+interface WorkflowPacketSeedFile {
+  fileName: string;
+  content: string;
+  contentType: string;
+}
+
+function buildUploadFile(fileName: string, content: string): WorkflowPacketSeedFile {
   return {
-    file_name: fileName,
-    content_base64: Buffer.from(content, 'utf8').toString('base64'),
-    content_type: 'text/markdown',
+    fileName,
+    content,
+    contentType: 'text/markdown',
   };
+}
+
+function buildSeedWorkflowOperatorStorageKey(input: {
+  workflowId: string;
+  packetId: string;
+  fileId: string;
+  fileName: string;
+}): string {
+  return [
+    'tenants',
+    DEFAULT_TENANT_ID,
+    'workflows',
+    input.workflowId,
+    'input-packets',
+    input.packetId,
+    'files',
+    input.fileId,
+    input.fileName,
+  ].join('/');
+}
+
+function writeSeededArtifactObject(storageKey: string, payload: Buffer, contentType: string): void {
+  const containerPath = `/artifacts/${storageKey}`;
+  execFileSync(
+    'docker',
+    [
+      'exec',
+      '-i',
+      PLATFORM_API_CONTAINER_NAME,
+      'sh',
+      '-lc',
+      [
+        'set -e',
+        `mkdir -p ${shellQuote(dirname(containerPath))}`,
+        `cat > ${shellQuote(containerPath)}`,
+        `printf %s ${shellQuote(contentType)} > ${shellQuote(`${containerPath}.content-type`)}`,
+      ].join(' && '),
+    ],
+    { input: payload },
+  );
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", `'\"'\"'`)}'`;
 }
 
 function sqlText(value: string): string {

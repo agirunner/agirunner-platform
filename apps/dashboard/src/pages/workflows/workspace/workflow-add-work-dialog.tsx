@@ -12,12 +12,10 @@ import { buildFileUploadPayloads } from '../../../lib/file-upload.js';
 import { toast } from '../../../lib/toast.js';
 import { WorkflowFileInput } from '../workflow-file-input.js';
 import { invalidateWorkflowsQueries } from '../workflows-query.js';
-
-interface WorkItemInputDraft {
-  id: string;
-  key: string;
-  value: string;
-}
+import {
+  buildInitialWorkItemInputDrafts,
+  type WorkflowAddWorkInputDraft,
+} from './workflow-add-work-dialog.support.js';
 
 export function WorkflowAddWorkDialog(props: {
   isOpen: boolean;
@@ -25,6 +23,11 @@ export function WorkflowAddWorkDialog(props: {
   workflowId: string;
   lifecycle: string | null | undefined;
   board: DashboardWorkflowBoardResponse | null;
+  inputPackets?: Array<{
+    work_item_id: string | null;
+    created_at: string;
+    structured_inputs: Record<string, unknown>;
+  }>;
   workItemId: string | null;
   prefillSourceWorkItemId?: string | null;
   workflowWorkspaceId?: string | null;
@@ -39,7 +42,7 @@ export function WorkflowAddWorkDialog(props: {
   const isModifyMode = selectedWorkItem !== null;
   const [title, setTitle] = useState('');
   const [files, setFiles] = useState<File[]>([]);
-  const [inputDrafts, setInputDrafts] = useState<WorkItemInputDraft[]>([]);
+  const [inputDrafts, setInputDrafts] = useState<WorkflowAddWorkInputDraft[]>([]);
   const [steeringInstruction, setSteeringInstruction] = useState('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasAttemptedSubmit, setHasAttemptedSubmit] = useState(false);
@@ -56,11 +59,17 @@ export function WorkflowAddWorkDialog(props: {
     }
     setTitle(selectedWorkItem?.title ?? prefillSourceWorkItem?.title ?? '');
     setFiles([]);
-    setInputDrafts([]);
+    setInputDrafts(
+      buildInitialWorkItemInputDrafts({
+        mode: isModifyMode ? 'modify' : prefillSourceWorkItem ? 'repeat' : 'create',
+        sourceWorkItemId: prefillSourceWorkItem?.id ?? null,
+        inputPackets: props.inputPackets ?? [],
+      }),
+    );
     setSteeringInstruction('');
     setErrorMessage(null);
     setHasAttemptedSubmit(false);
-  }, [prefillSourceWorkItem, props.isOpen, selectedWorkItem]);
+  }, [isModifyMode, prefillSourceWorkItem, props.inputPackets, props.isOpen, selectedWorkItem]);
 
   const hasSupplementalInput = inputDrafts.some((entry) => entry.key.trim() || entry.value.trim()) || files.length > 0;
   const titleError = hasAttemptedSubmit && !isModifyMode && !title.trim() ? 'Enter a work item title.' : undefined;
@@ -249,8 +258,8 @@ export function WorkflowAddWorkDialog(props: {
 }
 
 function WorkflowAdditionalInputsEditor(props: {
-  drafts: WorkItemInputDraft[];
-  onChange(drafts: WorkItemInputDraft[]): void;
+  drafts: WorkflowAddWorkInputDraft[];
+  onChange(drafts: WorkflowAddWorkInputDraft[]): void;
 }): JSX.Element {
   return (
     <div className="grid gap-3">
@@ -308,7 +317,7 @@ function WorkflowAdditionalInputsEditor(props: {
   );
 }
 
-function buildWorkItemInputObject(drafts: WorkItemInputDraft[]): Record<string, string> | undefined {
+function buildWorkItemInputObject(drafts: WorkflowAddWorkInputDraft[]): Record<string, string> | undefined {
   const value: Record<string, string> = {};
 
   for (const draft of drafts) {
@@ -332,7 +341,7 @@ function buildWorkItemInputObject(drafts: WorkItemInputDraft[]): Record<string, 
   return Object.keys(value).length > 0 ? value : undefined;
 }
 
-function createWorkItemInputDraft(): WorkItemInputDraft {
+function createWorkItemInputDraft(): WorkflowAddWorkInputDraft {
   return {
     id: crypto.randomUUID(),
     key: '',
@@ -341,9 +350,9 @@ function createWorkItemInputDraft(): WorkItemInputDraft {
 }
 
 function updateWorkItemInputDraft(
-  drafts: WorkItemInputDraft[],
+  drafts: WorkflowAddWorkInputDraft[],
   id: string,
-  patch: Partial<WorkItemInputDraft>,
-): WorkItemInputDraft[] {
+  patch: Partial<WorkflowAddWorkInputDraft>,
+): WorkflowAddWorkInputDraft[] {
   return drafts.map((draft) => (draft.id === id ? { ...draft, ...patch } : draft));
 }

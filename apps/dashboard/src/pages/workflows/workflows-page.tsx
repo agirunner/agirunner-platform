@@ -666,6 +666,7 @@ export function WorkflowsPage(): JSX.Element {
             workflowId={pageState.workflowId}
             lifecycle={workflow?.lifecycle}
             board={board}
+            inputPackets={inputPacketsQuery.data ?? []}
             workItemId={addWorkTargetWorkItemId}
             prefillSourceWorkItemId={repeatSourceWorkItemId}
             workflowWorkspaceId={workflow?.workspaceId}
