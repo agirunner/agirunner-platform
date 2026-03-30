@@ -207,20 +207,24 @@ describe('DestructiveDeleteService', () => {
     const deleteWorkspaceCallIndex = client.query.mock.calls.findIndex(
       ([sql]) => typeof sql === 'string' && sql.startsWith('DELETE FROM workspaces'),
     );
-    const deleteWorkspaceTasksCallIndex = client.query.mock.calls.findIndex(
-      ([sql, params]) =>
+    const deleteWorkspaceTaskCallIndexes = client.query.mock.calls
+      .map(([sql, params], index) =>
         typeof sql === 'string'
         && sql.includes('DELETE FROM tasks')
         && sql.includes('workspace_id = $2')
         && Array.isArray(params)
-        && params[1] === 'workspace-1',
-    );
-    expect(deleteWorkspaceTasksCallIndex).toBeGreaterThan(-1);
-    expect(deleteWorkspaceTasksCallIndex).toBeLessThan(deleteWorkspaceCallIndex);
+        && params[1] === 'workspace-1'
+          ? index
+          : -1,
+      )
+      .filter((index) => index >= 0);
+    expect(deleteWorkspaceTaskCallIndexes.length).toBe(2);
+    expect(deleteWorkspaceTaskCallIndexes.at(-1) ?? -1).toBeLessThan(deleteWorkspaceCallIndex);
   });
 });
 
 function createStrictTransactionalClient() {
+  let residualWorkspaceTaskDeleteCount = 0;
   return {
     query: vi.fn(async (sql: string, params?: unknown[]) => {
       if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -258,7 +262,10 @@ function createStrictTransactionalClient() {
       }
       if (sql.startsWith('DELETE FROM tasks')) {
         if (sql.includes('workspace_id = $2')) {
-          return { rowCount: 1, rows: [{ id: 'task-residual-1' }] };
+          residualWorkspaceTaskDeleteCount += 1;
+          return residualWorkspaceTaskDeleteCount === 1
+            ? { rowCount: 1, rows: [{ id: 'task-residual-1' }] }
+            : { rowCount: 0, rows: [] };
         }
         const taskIds = Array.isArray(params?.[1]) ? (params[1] as string[]) : [];
         return {

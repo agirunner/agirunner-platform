@@ -415,13 +415,7 @@ export class DestructiveDeleteService {
       taskParams,
     );
     const deletedWorkspaceTasks = workspaceId
-      ? await client.query<{ id: string }>(
-        `DELETE FROM tasks
-          WHERE tenant_id = $1
-            AND workspace_id = $2
-        RETURNING id`,
-        [tenantId, workspaceId],
-      )
+      ? await deleteWorkspaceScopedTasks(client, tenantId, workspaceId)
       : { rowCount: 0 };
     await client.query('DELETE FROM workflow_work_items WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', workflowParams);
     await client.query('DELETE FROM workflow_activations WHERE tenant_id = $1 AND workflow_id = ANY($2::uuid[])', workflowParams);
@@ -432,8 +426,14 @@ export class DestructiveDeleteService {
       RETURNING id`,
       workflowParams,
     );
+    const deletedLateWorkspaceTasks = workspaceId
+      ? await deleteWorkspaceScopedTasks(client, tenantId, workspaceId)
+      : { rowCount: 0 };
     return {
-      deleted_task_count: (deletedTasks.rowCount ?? 0) + (deletedWorkspaceTasks.rowCount ?? 0),
+      deleted_task_count:
+        (deletedTasks.rowCount ?? 0)
+        + (deletedWorkspaceTasks.rowCount ?? 0)
+        + (deletedLateWorkspaceTasks.rowCount ?? 0),
       deleted_workflow_count: deletedWorkflows.rowCount ?? 0,
     };
   }
@@ -687,6 +687,20 @@ export class DestructiveDeleteService {
 
 function uniqueIds(values: string[]) {
   return Array.from(new Set(values));
+}
+
+function deleteWorkspaceScopedTasks(
+  client: DatabaseClient,
+  tenantId: string,
+  workspaceId: string,
+) {
+  return client.query<{ id: string }>(
+    `DELETE FROM tasks
+      WHERE tenant_id = $1
+        AND workspace_id = $2
+    RETURNING id`,
+    [tenantId, workspaceId],
+  );
 }
 
 function isAlreadyTerminalWorkflowConflict(error: unknown): boolean {
