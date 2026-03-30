@@ -85,6 +85,7 @@ export function WorkflowsPage(): JSX.Element {
   const [addWorkTargetWorkItemId, setAddWorkTargetWorkItemId] = useState<string | null>(null);
   const [repeatSourceWorkItemId, setRepeatSourceWorkItemId] = useState<string | null>(null);
   const [isSteeringOpen, setIsSteeringOpen] = useState(false);
+  const [steeringTargetWorkItemId, setSteeringTargetWorkItemId] = useState<string | null>(null);
   const [isRailHidden, setIsRailHidden] = useState(readStoredWorkflowRailHidden());
   const [railWidthPx, setRailWidthPx] = useState(
     clampWorkflowRailWidthPx(readStoredWorkflowRailWidth() ?? DEFAULT_WORKFLOW_RAIL_WIDTH_PX),
@@ -271,6 +272,22 @@ export function WorkflowsPage(): JSX.Element {
       workspacePacket?.bottom_tabs.current_scope_kind,
       workspacePacket?.bottom_tabs.current_work_item_id,
     ],
+  );
+  const steeringWorkItem =
+    selectedWorkItem?.id === steeringTargetWorkItemId
+      ? selectedWorkItem
+      : board?.work_items.find((item) => item.id === steeringTargetWorkItemId) ?? null;
+  const steeringScope = useMemo(
+    () =>
+      steeringWorkItem
+        ? describeWorkflowWorkbenchScope({
+            scopeKind: 'selected_work_item',
+            workflowName: workflow?.name ?? pageState.workflowId,
+            workItemId: steeringWorkItem.id,
+            workItemTitle: steeringWorkItem.title,
+          })
+        : workbenchScope,
+    [pageState.workflowId, steeringWorkItem, workbenchScope, workflow?.name],
   );
   const hasMoreRailRows = Boolean(railPacket?.next_cursor) || (railPacket?.rows.length ?? 0) >= railLimit;
 
@@ -462,6 +479,7 @@ export function WorkflowsPage(): JSX.Element {
                         return;
                       case 'steer':
                         patchPageState(navigate, pageState, { workItemId, tab: 'details' });
+                        setSteeringTargetWorkItemId(workItemId);
                         setIsSteeringOpen(true);
                         return;
                       case 'repeat':
@@ -595,7 +613,15 @@ export function WorkflowsPage(): JSX.Element {
             prefillSourceWorkItemId={repeatSourceWorkItemId}
             workflowWorkspaceId={workflow?.workspaceId}
           />
-          <Dialog open={isSteeringOpen} onOpenChange={setIsSteeringOpen}>
+          <Dialog
+            open={isSteeringOpen}
+            onOpenChange={(open) => {
+              setIsSteeringOpen(open);
+              if (!open) {
+                setSteeringTargetWorkItemId(null);
+              }
+            }}
+          >
             <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Steer work item</DialogTitle>
@@ -603,20 +629,22 @@ export function WorkflowsPage(): JSX.Element {
                   Record guidance for the selected work item and wake the orchestrator on that scope.
                 </DialogDescription>
               </DialogHeader>
-              {workflow && workspacePacket && selectedWorkItem ? (
+              {workflow && workspacePacket && steeringWorkItem ? (
                 <WorkflowSteering
                   workflowId={workflow.id}
                   workflowName={workflow.name}
                   workflowState={workflow.state}
                   boardColumns={board?.columns ?? []}
-                  selectedWorkItemId={selectedWorkItem.id}
-                  selectedWorkItemTitle={selectedWorkItem.title}
-                  selectedWorkItem={selectedWorkItem}
+                  selectedWorkItemId={steeringWorkItem.id}
+                  selectedWorkItemTitle={steeringWorkItem.title}
+                  selectedWorkItem={steeringWorkItem}
                   selectedTaskId={null}
                   selectedTaskTitle={null}
                   selectedTask={null}
-                  selectedWorkItemTasks={selectedWorkItemTaskRecords}
-                  scope={workbenchScope}
+                  selectedWorkItemTasks={
+                    selectedWorkItem?.id === steeringWorkItem.id ? selectedWorkItemTaskRecords : []
+                  }
+                  scope={steeringScope}
                   interventions={workspacePacket.steering.recent_interventions}
                   messages={workspacePacket.steering.session.messages}
                   sessionId={workspacePacket.steering.session.session_id}

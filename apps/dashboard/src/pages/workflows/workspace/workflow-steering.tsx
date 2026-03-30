@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import { Textarea } from '../../../components/ui/textarea.js';
 import type {
@@ -14,7 +13,6 @@ import type {
 import { dashboardApi } from '../../../lib/api.js';
 import { buildFileUploadPayloads } from '../../../lib/file-upload.js';
 import { toast } from '../../../lib/toast.js';
-import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
 import {
   buildSteeringAttachmentSummary,
   buildWorkflowSteeringRequestInput,
@@ -131,99 +129,60 @@ export function WorkflowSteering(props: {
     },
   });
 
-  const historyEntries = useMemo(
-    () => buildSteeringHistory(props.messages, props.interventions),
-    [props.interventions, props.messages],
-  );
-
   return (
-    <div className="grid gap-4">
-      <section className="grid gap-3">
-        <div className="grid gap-1">
-          <p className="text-sm font-semibold text-foreground">Steering request</p>
-          {selectedTarget ? (
-            <p className="text-sm text-muted-foreground">
-              {selectedTarget.subject === 'work item'
-                ? `Work item · ${selectedTarget.name}`
-                : selectedTarget.name}
-            </p>
-          ) : null}
-        </div>
-        {shouldHideSteeringControls ? (
-          <div className="grid gap-1 border-l-2 border-destructive/40 pl-3">
-            <p className="text-sm font-medium text-foreground">
-              Steering is unavailable for this {unavailableSubject}.
-            </p>
-            <p className="text-sm text-destructive">{disabledReason}</p>
-          </div>
-        ) : (
-          <>
-            <label className="grid gap-2 text-sm">
-              <span className="font-medium text-foreground">Operator guidance</span>
-              <Textarea
-                value={request}
-                onChange={(event) => setRequest(event.target.value)}
-                className="min-h-[144px]"
-                placeholder={requestPlaceholder}
-              />
-            </label>
-            <WorkflowFileInput
-              files={files}
-              onChange={setFiles}
-              label="Steering attachments"
-              description={`Attach files for this ${attachmentSubject} that should be referenced by the steering request.`}
-            />
-          </>
-        )}
-        {!shouldHideSteeringControls && disabledReason ? (
-          <p className="text-sm text-destructive">{disabledReason}</p>
-        ) : null}
-        {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
-        {shouldHideSteeringControls ? null : (
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              disabled={
-                requestMutation.isPending ||
-                disabledReason !== null ||
-                request.trim().length === 0
-              }
-              onClick={() => requestMutation.mutate()}
-            >
-              {requestMutation.isPending ? 'Recording…' : 'Record steering request'}
-            </Button>
-          </div>
-        )}
-      </section>
-
-      <section className="grid gap-3">
-        <div className="grid gap-1">
-          <p className="text-sm font-semibold text-foreground">Steering history</p>
-        </div>
-        {historyEntries.length === 0 ? (
-          <p className="px-1 text-sm text-muted-foreground">
-            No steering history exists for this {normalizedScope.subject} yet.
+    <div className="grid gap-3">
+      {selectedTarget ? (
+        <p className="text-sm text-muted-foreground">
+          {selectedTarget.subject === 'work item'
+            ? `Work item · ${selectedTarget.name}`
+            : selectedTarget.name}
+        </p>
+      ) : null}
+      {shouldHideSteeringControls ? (
+        <div className="grid gap-1 border-l-2 border-destructive/40 pl-3">
+          <p className="text-sm font-medium text-foreground">
+            Steering is unavailable for this {unavailableSubject}.
           </p>
-        ) : (
-          <div className="grid divide-y divide-border/60">
-            {historyEntries.map((entry) => (
-              <article
-                key={entry.id}
-                className="grid gap-1.5 py-3"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <strong className="text-foreground">{entry.title}</strong>
-                  <Badge variant={entry.variant}>{entry.badge}</Badge>
-                </div>
-                {entry.body ? <p className="text-sm text-muted-foreground">{entry.body}</p> : null}
-                <p className="text-xs text-muted-foreground">
-                  {formatRelativeTimestamp(entry.createdAt)}
-                </p>
-              </article>
-            ))}
-          </div>
-        )}
-      </section>
+          <p className="text-sm text-destructive">{disabledReason}</p>
+        </div>
+      ) : (
+        <>
+          <label className="grid gap-2 text-sm">
+            <span className="font-medium text-foreground">Operator guidance</span>
+            <Textarea
+              value={request}
+              onChange={(event) => setRequest(event.target.value)}
+              className="min-h-[144px]"
+              placeholder={requestPlaceholder}
+            />
+          </label>
+          <WorkflowFileInput
+            files={files}
+            onChange={setFiles}
+            label="Steering attachments"
+            description={`Attach files for this ${attachmentSubject} that should be referenced by the steering request.`}
+          />
+        </>
+      )}
+      {!shouldHideSteeringControls && disabledReason ? (
+        <p className="text-sm text-destructive">{disabledReason}</p>
+      ) : null}
+      {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
+      {shouldHideSteeringControls ? null : (
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            disabled={
+              requestMutation.isPending ||
+              disabledReason !== null ||
+              request.trim().length === 0
+            }
+            onClick={() => requestMutation.mutate()}
+          >
+            {requestMutation.isPending ? 'Recording…' : 'Record steering request'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

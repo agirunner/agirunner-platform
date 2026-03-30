@@ -25,6 +25,8 @@ describe('WorkflowSteering', () => {
     expect(html).toContain('Operator guidance');
     expect(html).toContain('Guide Prepare release bundle toward the next legal action.');
     expect(html).toContain('Steering attachments');
+    expect(html).not.toContain('Steering history');
+    expect(html).not.toContain('No steering history exists');
     expect(html).not.toContain('Steering target');
     expect(html).not.toContain('Target kind');
     expect(html).not.toContain('Specific work item');
@@ -36,7 +38,7 @@ describe('WorkflowSteering', () => {
     expect(html).toContain('Guide Prepare release bundle toward the next legal action.');
     expect(html).toContain('Operator guidance');
     expect(html).toContain('Work item · Prepare release bundle');
-    expect(html).toContain('No steering history exists for this work item yet.');
+    expect(html).not.toContain('No steering history exists for this work item yet.');
     expect(html).not.toContain('Steering target');
     expect(html).not.toContain('Target kind');
     expect(html).not.toContain('Choose a steering target');
@@ -58,7 +60,7 @@ describe('WorkflowSteering', () => {
 
     expect(html).toContain('Operator guidance');
     expect(html).toContain('Guide Workflow 1 toward the next legal action.');
-    expect(html).toContain('No steering history exists for this workflow yet.');
+    expect(html).not.toContain('No steering history exists for this workflow yet.');
     expect(html).not.toContain('Steering target');
     expect(html).not.toContain('Target kind');
     expect(html).not.toContain('Specific work item');
@@ -294,11 +296,12 @@ describe('WorkflowSteering', () => {
       ],
     });
 
-    expect(html).toContain('Steering request');
-    expect(html).toContain('Tighten the approval brief.');
+    expect(html).not.toContain('Steering request');
+    expect(html).not.toContain('Tighten the approval brief.');
     expect(html).not.toContain('Open session');
     expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/80 p-4');
     expect(html).not.toContain('rounded-2xl border border-border/70 bg-muted/10 p-4');
+    expect(html).not.toContain('Steering history');
   });
 
   it('removes steering controls for completed scoped work items', () => {

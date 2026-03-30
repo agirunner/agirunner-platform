@@ -24,6 +24,7 @@ describe('WorkflowNeedsAction', () => {
                 action_kind: 'review_work_item',
                 label: 'Approval required',
                 summary: 'Review release packet is waiting for operator approval.',
+                work_item_id: 'work-item-1',
                 target: {
                   target_kind: 'task',
                   target_id: 'task-approve-1',
@@ -84,6 +85,7 @@ describe('WorkflowNeedsAction', () => {
                 action_kind: 'resolve_escalation',
                 label: 'Escalation requires guidance',
                 summary: 'The specialist hit a replay mismatch while trying to submit the handoff.',
+                work_item_id: 'work-item-1',
                 target: {
                   target_kind: 'task',
                   target_id: 'task-escalation-1',
@@ -124,11 +126,14 @@ describe('WorkflowNeedsAction', () => {
 
     expect(html).toContain('Approval required');
     expect(html).toContain('Escalation requires guidance');
+    expect(html).toContain('Work item · Prepare release bundle');
     expect(html).toContain('Needs decision');
     expect(html).toContain('Why it needs action');
     expect(html).toContain('Blocking now');
     expect(html).toContain('Work so far');
     expect(html).toContain('Evidence');
+    expect(html).toContain('Recommended action');
+    expect(html).toContain('Approve');
     expect(html).toContain('Approve release packet');
     expect(html).toContain('Release packet verification passed and the required artifacts are attached.');
     expect(html).toContain('Resolve the handoff replay mismatch and decide how to resume.');
@@ -137,6 +142,7 @@ describe('WorkflowNeedsAction', () => {
     expect(html).toContain('Request changes');
     expect(html).not.toContain('Add / Modify Work');
     expect(html).not.toContain('<table');
+    expect(html).not.toContain('text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground');
   });
 
   it('hides faux actions that are not unresolved approvals or escalations', () => {

@@ -107,6 +107,7 @@ export function WorkflowNeedsAction(props: {
               key={item.action_id}
               item={item}
               visibleScopeSubject={scopeSubject}
+              scopeLine={buildNeedsActionScopeLine(scopeSubject, normalizedScope.label, item)}
               activePromptActionId={promptAction?.action_id ?? null}
               promptValue={promptValue}
               promptError={promptError}
@@ -135,6 +136,7 @@ export function WorkflowNeedsAction(props: {
 function NeedsActionPacketCard(props: {
   item: DashboardWorkflowNeedsActionItem;
   visibleScopeSubject: 'workflow' | 'work item';
+  scopeLine: string | null;
   activePromptActionId: string | null;
   promptValue: string;
   promptError: string | null;
@@ -167,11 +169,13 @@ function NeedsActionPacketCard(props: {
         <Badge variant="secondary">{humanizePriority(props.item.priority)} priority</Badge>
         {props.item.requires_confirmation ? <Badge variant="outline">Confirm</Badge> : null}
       </div>
+      {props.scopeLine ? <p className="text-sm text-muted-foreground">{props.scopeLine}</p> : null}
 
       <DossierSection title="Needs decision" value={dossier.needsDecision} />
       <DossierSection title="Why it needs action" value={dossier.whyItNeedsAction} />
       <DossierSection title="Blocking now" value={dossier.blockingNow} />
       <DossierSection title="Work so far" value={dossier.workSoFar} />
+      <DossierSection title="Recommended action" value={dossier.recommendedAction} />
       {dossier.evidence ? <DossierSection title="Evidence" value={dossier.evidence} /> : null}
 
       <div className="flex flex-wrap gap-2">
@@ -232,9 +236,7 @@ function DossierSection(props: {
 }): JSX.Element {
   return (
     <div className="grid gap-1">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-        {props.title}
-      </p>
+      <p className="text-xs font-medium text-muted-foreground">{props.title}</p>
       <p className="text-sm leading-6 text-foreground">{props.value}</p>
     </div>
   );
@@ -248,6 +250,7 @@ function buildNeedsActionDossier(
   whyItNeedsAction: string;
   blockingNow: string;
   workSoFar: string;
+  recommendedAction: string;
   evidence: string | null;
 } {
   return {
@@ -261,8 +264,29 @@ function buildNeedsActionDossier(
     workSoFar:
       readDetailValue(item.details, ['work_so_far', 'progress', 'status', 'context'])
       ?? 'No additional work summary was attached to this packet yet.',
+    recommendedAction:
+      readDetailValue(item.details, ['recommendation', 'recommended_action', 'next_action'])
+      ?? item.responses.find(isVisibleNeedsActionResponse)?.label
+      ?? 'Review the packet and choose the next legal operator action.',
     evidence: readCombinedDetailValues(item.details, ['verification', 'evidence', 'output', 'deliverable', 'artifacts']),
   };
+}
+
+function buildNeedsActionScopeLine(
+  visibleScopeSubject: 'workflow' | 'work item',
+  scopeLabel: string,
+  item: DashboardWorkflowNeedsActionItem,
+): string | null {
+  if (visibleScopeSubject === 'work item') {
+    return scopeLabel.replace(/^Work item:\s*/i, 'Work item · ');
+  }
+  if (item.target.target_kind === 'workflow') {
+    return 'Workflow';
+  }
+  if (item.work_item_id) {
+    return `Work item · ${item.work_item_id}`;
+  }
+  return null;
 }
 
 function normalizeNeedsActionScope(

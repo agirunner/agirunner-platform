@@ -58,6 +58,7 @@ export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.
     workflowPosture: props.workflowPosture,
     availableActions: props.availableActions,
   });
+  const [isPauseDialogOpen, setIsPauseDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 
   const pauseMutation = useMutation({
@@ -114,6 +115,16 @@ export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.
     return null;
   }
 
+  function handlePauseDialogChange(nextOpen: boolean): void {
+    if (pauseMutation.isPending) {
+      return;
+    }
+    setIsPauseDialogOpen(nextOpen);
+    if (!nextOpen) {
+      pauseMutation.reset();
+    }
+  }
+
   function handleCancelDialogChange(nextOpen: boolean): void {
     if (cancelMutation.isPending) {
       return;
@@ -133,7 +144,7 @@ export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.
             variant="outline"
             size={props.size ?? 'sm'}
             disabled={isPending}
-            onClick={() => pauseMutation.mutate()}
+            onClick={() => setIsPauseDialogOpen(true)}
           >
             {pauseMutation.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -172,6 +183,50 @@ export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.
           </Button>
         ) : null}
       </div>
+      <Dialog open={isPauseDialogOpen} onOpenChange={handlePauseDialogChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Pause workflow?</DialogTitle>
+            <DialogDescription>
+              Pausing freezes new routing and asks the current workflow work to stop cleanly.
+              Resume it later when the workflow can continue.
+            </DialogDescription>
+          </DialogHeader>
+          {pauseMutation.isError ? (
+            <p className="text-sm text-red-600">
+              {readWorkflowControlError(pauseMutation.error, 'Failed to pause workflow')}
+            </p>
+          ) : null}
+          <div className="flex justify-end gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pauseMutation.isPending}
+              onClick={() => handlePauseDialogChange(false)}
+            >
+              Keep running
+            </Button>
+            <Button
+              type="button"
+              variant="default"
+              disabled={pauseMutation.isPending}
+              onClick={() => pauseMutation.mutate()}
+            >
+              {pauseMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Pausing...
+                </>
+              ) : (
+                <>
+                  <Pause className="h-4 w-4" />
+                  Confirm pause
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
       <Dialog open={isCancelDialogOpen} onOpenChange={handleCancelDialogChange}>
         <DialogContent>
           <DialogHeader>

@@ -16,12 +16,12 @@ describe('WorkflowStateStrip', () => {
     const source = readFileSync(new URL('./workflow-state-strip.tsx', import.meta.url), 'utf8');
 
     expect(source).toContain('xl:items-start');
-    expect(source).toContain('className="grid gap-2.5 sm:gap-3 xl:justify-items-end xl:pl-2"');
-    expect(source).toContain('className="flex flex-wrap items-center justify-start gap-2 xl:justify-end"');
+    expect(source).toContain('className="flex min-w-0 flex-wrap items-start justify-start gap-2 xl:justify-end xl:pl-2"');
     expect(source).not.toContain('Live visibility');
     expect(source).not.toContain('workflow-live-visibility-');
     expect(source).toContain("action.kind !== 'redrive_workflow'");
     expect(source).not.toContain('onOpenRedrive');
+    expect(source).not.toContain('>Controls<');
   });
 
   it('renders the add-work CTA from a passed label instead of a hardcoded generic header label', () => {
@@ -120,7 +120,6 @@ describe('WorkflowStateStrip', () => {
     expect(html).toContain('Routing next step');
     expect(html).toContain('Specialist Tasks');
     expect(html).toContain('Work Items');
-    expect(html).toContain('Controls');
     expect(html).not.toContain('Waiting By Design');
     expect(html).not.toContain('Workflow is waiting by design');
     expect(html).not.toContain('Awaiting Intake');

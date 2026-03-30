@@ -126,16 +126,19 @@ describe('workflows page source', () => {
     const source = readSource();
 
     expect(source).toContain('const [isSteeringOpen, setIsSteeringOpen] = useState(false);');
+    expect(source).toContain('const [steeringTargetWorkItemId, setSteeringTargetWorkItemId] = useState<string | null>(null);');
     expect(source).toContain('onWorkItemAction={({ workItemId, action }) => {');
     expect(source).toContain("case 'needs-action':");
     expect(source).toContain("tab: 'needs_action'");
     expect(source).toContain("case 'steer':");
+    expect(source).toContain('setSteeringTargetWorkItemId(workItemId);');
     expect(source).toContain('setIsSteeringOpen(true);');
     expect(source).toContain("case 'repeat':");
     expect(source).toContain('setAddWorkTargetWorkItemId(null);');
     expect(source).toContain('setRepeatSourceWorkItemId(workItemId);');
     expect(source).toContain('setIsAddWorkOpen(true);');
     expect(source).toContain('<WorkflowSteering');
+    expect(source).not.toContain('workflow && workspacePacket && selectedWorkItem ? (');
     expect(source).not.toContain('WorkflowRedriveDialog');
     expect(source).not.toContain('setIsRedriveOpen(true);');
     expect(source).not.toContain('open its board, steering, history, live console,');

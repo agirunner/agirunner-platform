@@ -84,27 +84,22 @@ export function WorkflowStateStrip(props: {
           </div>
         </section>
 
-        <section className="grid gap-2.5 sm:gap-3 xl:justify-items-end xl:pl-2">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Controls
-          </p>
-          <div className="flex flex-wrap items-center justify-start gap-2 xl:justify-end">
-            {effectiveWorkflowActions.length > 0 ? (
-              <WorkflowControlActions
-                workflowId={props.workflow.id}
-                workflowState={props.workflow.state}
-                workflowPosture={sticky?.posture ?? props.workflow.posture}
-                workspaceId={props.workflow.workspaceId}
-                additionalQueryKeys={[['workflows']]}
-                availableActions={effectiveWorkflowActions}
-              />
-            ) : null}
-            {canAddWork ? (
-              <Button size="sm" onClick={props.onAddWork}>
-                {addWorkLabel}
-              </Button>
-            ) : null}
-          </div>
+        <section className="flex min-w-0 flex-wrap items-start justify-start gap-2 xl:justify-end xl:pl-2">
+          {effectiveWorkflowActions.length > 0 ? (
+            <WorkflowControlActions
+              workflowId={props.workflow.id}
+              workflowState={props.workflow.state}
+              workflowPosture={sticky?.posture ?? props.workflow.posture}
+              workspaceId={props.workflow.workspaceId}
+              additionalQueryKeys={[['workflows']]}
+              availableActions={effectiveWorkflowActions}
+            />
+          ) : null}
+          {canAddWork ? (
+            <Button size="sm" onClick={props.onAddWork}>
+              {addWorkLabel}
+            </Button>
+          ) : null}
         </section>
       </div>
 
