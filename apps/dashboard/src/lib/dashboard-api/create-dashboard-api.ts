@@ -10,7 +10,6 @@ type DashboardAgenticSettingsRecord = Contracts.DashboardAgenticSettingsRecord;
 type DashboardApi = Contracts.DashboardApi;
 type DashboardApiKeyRecord = Contracts.DashboardApiKeyRecord;
 type DashboardApiOptions = Contracts.DashboardApiOptions;
-type DashboardConfigAssistantResponse = Contracts.DashboardConfigAssistantResponse;
 type DashboardCostSummaryRecord = Contracts.DashboardCostSummaryRecord;
 type DashboardCustomizationBuildResponse = Contracts.DashboardCustomizationBuildResponse;
 type DashboardCustomizationExportResponse = Contracts.DashboardCustomizationExportResponse;
@@ -1901,17 +1900,6 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           )}`,
           { method: 'DELETE' },
         );
-      }),
-    askConfigAssistant: (question) =>
-      withRefresh(async () => {
-        const response = await requestJson<{
-          data?: DashboardConfigAssistantResponse;
-          reply?: string;
-          suggestions?: DashboardConfigAssistantResponse['suggestions'];
-        }>('/api/v1/config/assistant', {
-          body: { question },
-        });
-        return (response.data ?? response) as DashboardConfigAssistantResponse;
       }),
   };
 }

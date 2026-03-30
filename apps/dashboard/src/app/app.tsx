@@ -132,11 +132,6 @@ const PlatformInstructionsPage = lazyWithRetry(() =>
     default: m.PlatformInstructionsPage,
   })),
 );
-const AiConfigAssistantPage = lazyWithRetry(() =>
-  import('../pages/ai-config-assistant/ai-config-assistant-page.js').then((m) => ({
-    default: m.AiConfigAssistantPage,
-  })),
-);
 const PlaybookListPage = lazyWithRetry(() =>
   import('../pages/playbook-list/playbook-list-page.js').then((m) => ({
     default: m.PlaybookListPage,
@@ -168,11 +163,6 @@ const ContainersPage = lazyWithRetry(() =>
 
 const ApiKeyPage = lazyWithRetry(() =>
   import('../pages/api-key/api-key-page.js').then((m) => ({ default: m.ApiKeyPage })),
-);
-const UserManagementPage = lazyWithRetry(() =>
-  import('../pages/user-management/user-management-page.js').then((m) => ({
-    default: m.UserManagementPage,
-  })),
 );
 const SettingsPage = lazyWithRetry(() =>
   import('../pages/settings/settings-page.js').then((m) => ({ default: m.SettingsPage })),
@@ -354,7 +344,6 @@ export function App(): JSX.Element {
                 element={<Navigate to="/admin/agentic-settings" replace />}
               />
               <Route path="/config/tools" element={<Navigate to="/platform/tools" replace />} />
-              <Route path="/config/assistant" element={<AiConfigAssistantPage />} />
 
               {/* Integrations */}
               <Route path="/integrations/webhooks" element={<WebhooksPage />} />
@@ -414,7 +403,6 @@ export function App(): JSX.Element {
                 path="/governance/api-keys"
                 element={<Navigate to="/admin/api-keys" replace />}
               />
-              <Route path="/governance/users" element={<UserManagementPage />} />
               <Route
                 path="/governance/retention"
                 element={<Navigate to="/admin/general-settings" replace />}

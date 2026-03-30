@@ -23,7 +23,6 @@ describe('dashboard page header consistency', () => {
 
   it('uses the shared nav-backed header for top-level dashboard pages', () => {
     const expectations: Array<[string, string]> = [
-      ['../../pages/task-list/task-list-page.tsx', 'navHref="/work/tasks"'],
       ['../../pages/workspace-list/workspace-list-page.tsx', 'navHref="/design/workspaces"'],
       ['../../pages/playbook-list/playbook-list-page.tsx', 'navHref="/design/playbooks"'],
       ['../../pages/role-definitions/role-definitions-page.tsx', 'navHref="/design/specialists"'],

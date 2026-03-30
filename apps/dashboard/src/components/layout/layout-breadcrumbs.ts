@@ -26,7 +26,6 @@ const SEGMENT_LABELS: Record<string, string> = {
   'live-containers': 'Live Containers',
   admin: 'Admin',
   governance: 'Admin',
-  users: 'Legacy User Access',
   memory: 'Memory',
   content: 'Documents',
   artifacts: 'Artifacts',
@@ -58,8 +57,6 @@ const ROUTABLE_PATHS: ReadonlySet<string> = new Set([
   '/admin/platform-settings',
   '/admin/general-settings',
   '/admin/api-keys',
-  '/config/assistant',
-  '/governance/users',
   '/governance/retention',
 ]);
 

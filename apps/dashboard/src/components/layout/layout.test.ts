@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 import {
+  NAV_SECTIONS,
   buildBreadcrumbs,
   buildDesktopSidebarStorageKey,
   readDesktopSidebarCollapsedState,
@@ -21,6 +22,57 @@ afterEach(() => {
 });
 
 describe('layout breadcrumbs', () => {
+  it('exposes the shipped primary nav graph and nothing else', () => {
+    expect(
+      NAV_SECTIONS.map((section) => ({
+        label: section.label,
+        hrefs: section.items.map((item) => item.href),
+      })),
+    ).toEqual([
+      { label: 'Mission Control', hrefs: ['/workflows'] },
+      {
+        label: 'Work Design',
+        hrefs: [
+          '/design/playbooks',
+          '/design/workspaces',
+          '/design/specialists',
+          '/design/specialists/skills',
+        ],
+      },
+      {
+        label: 'Platform',
+        hrefs: [
+          '/platform/models',
+          '/platform/instructions',
+          '/platform/orchestrator',
+          '/platform/environments',
+          '/platform/tools',
+        ],
+      },
+      {
+        label: 'Integrations',
+        hrefs: [
+          '/integrations/mcp-servers',
+          '/integrations/triggers',
+          '/integrations/webhooks',
+        ],
+      },
+      {
+        label: 'Diagnostics',
+        hrefs: ['/diagnostics/live-logs', '/diagnostics/live-containers'],
+      },
+      {
+        label: 'Admin',
+        hrefs: [
+          '/admin/api-keys',
+          '/admin/general-settings',
+          '/admin/agentic-settings',
+          '/admin/platform-settings',
+        ],
+      },
+    ]);
+  });
+
   it('scopes desktop sidebar collapse state per tenant in localStorage', () => {
     expect(buildDesktopSidebarStorageKey('tenant-42')).toBe(
       'agirunner.desktop-sidebar-collapsed.tenant-42',
@@ -242,13 +294,6 @@ describe('layout breadcrumbs', () => {
     expect(buildBreadcrumbs('/governance/grants')).toEqual([
       { label: 'Admin' },
       { label: 'Grants' },
-    ]);
-  });
-
-  it('labels the deprecated users route truthfully in breadcrumbs', () => {
-    expect(buildBreadcrumbs('/governance/users')).toEqual([
-      { label: 'Admin' },
-      { label: 'Legacy User Access' },
     ]);
   });
 

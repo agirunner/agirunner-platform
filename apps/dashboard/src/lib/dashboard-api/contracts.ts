@@ -1953,16 +1953,6 @@ export interface DashboardLoggingConfig {
   level: 'debug' | 'info' | 'warn' | 'error';
 }
 
-export interface DashboardConfigAssistantResponse {
-  reply: string;
-  suggestions?: Array<{
-    path: string;
-    current_value?: string;
-    suggested_value: string;
-    description: string;
-  }>;
-}
-
 export interface DashboardResolvedDocumentReference {
   logical_name: string;
   scope: 'workspace' | 'workflow';
@@ -3181,5 +3171,4 @@ export interface DashboardApi {
   exportLogs(filters: Record<string, string>): Promise<Blob>;
   getWorkspaceDeleteImpact(workspaceId: string): Promise<DashboardDeleteImpactSummary>;
   deleteWorkspace(workspaceId: string, options?: { cascade?: boolean }): Promise<void>;
-  askConfigAssistant(question: string): Promise<DashboardConfigAssistantResponse>;
 }

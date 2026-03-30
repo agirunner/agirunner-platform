@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -7,6 +7,66 @@ function readSource() {
 }
 
 describe('app trigger routes source', () => {
+  it('keeps the shipped route graph focused on nav-reachable surfaces and their linked detail views', () => {
+    const source = readSource();
+    const shippedRoutes = [
+      '/workflows',
+      '/workflows/:workflowId',
+      '/work/tasks/:id',
+      '/artifacts/tasks/:taskId/:artifactId',
+      '/design/workspaces',
+      '/design/workspaces/:id',
+      '/design/playbooks',
+      '/design/playbooks/:id',
+      '/design/specialists',
+      '/design/specialists/skills',
+      '/platform/orchestrator',
+      '/platform/models',
+      '/platform/environments',
+      '/platform/instructions',
+      '/platform/tools',
+      '/integrations/webhooks',
+      '/integrations/triggers',
+      '/integrations/mcp-servers',
+      '/diagnostics/live-logs',
+      '/diagnostics/live-containers',
+      '/admin/general-settings',
+      '/admin/api-keys',
+      '/admin/agentic-settings',
+      '/admin/platform-settings',
+    ];
+
+    for (const routePath of shippedRoutes) {
+      expect(source).toContain(`path="${routePath}"`);
+    }
+  });
+
+  it('removes hidden assistant and user-management routes from the shipped router', () => {
+    const source = readSource();
+    expect(source).not.toContain('path="/config/assistant"');
+    expect(source).not.toContain('path="/governance/users"');
+    expect(source).not.toContain("../pages/ai-config-assistant/ai-config-assistant-page.js");
+    expect(source).not.toContain("../pages/user-management/user-management-page.js");
+  });
+
+  it('deletes dead standalone dashboard surfaces instead of keeping dormant page modules around', () => {
+    const deadSurfaceFiles = [
+      '../pages/ai-config-assistant/ai-config-assistant-page.tsx',
+      '../pages/api-key-management/api-key-management-page.tsx',
+      '../pages/cost-dashboard/cost-dashboard-page.tsx',
+      '../pages/governance/governance-page.tsx',
+      '../pages/orchestrator-grants/orchestrator-grants-page.tsx',
+      '../pages/system-metrics/system-metrics-page.tsx',
+      '../pages/task-list/task-list-page.tsx',
+      '../pages/user-management/user-management-page.tsx',
+      '../pages/workspaces-overview/workspaces-page.tsx',
+    ];
+
+    for (const relativePath of deadSurfaceFiles) {
+      expect(existsSync(resolve(import.meta.dirname, relativePath))).toBe(false);
+    }
+  });
+
   it('registers the trigger overview route and redirects the legacy path', () => {
     const source = readSource();
     expect(source).toContain('path="/integrations/triggers"');

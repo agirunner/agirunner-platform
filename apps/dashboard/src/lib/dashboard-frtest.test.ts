@@ -391,24 +391,6 @@ describe('FR-427: dashboard navigation and layout', () => {
   });
 });
 
-describe('operator information architecture', () => {
-  it('workspaces page exposes workspace continuity controls', () => {
-    const source = readComponent('pages/workspaces-overview/workspaces-page.tsx');
-    expect(source).toContain('export function WorkspacesPage');
-    expect(source).toContain('Workspace Timeline');
-    expect(source).toContain('Run Summary');
-    expect(source).toContain('createWorkspace');
-    expect(source).toContain('StructuredRecordView data={toolsQuery.data?.data}');
-  });
-
-  it('governance page exposes retention controls', () => {
-    const source = readComponent('pages/governance/governance-page.tsx');
-    expect(source).toContain('export function GovernancePage');
-    expect(source).toContain('getRetentionPolicy');
-    expect(source).toContain('updateRetentionPolicy');
-  });
-});
-
 // ─────────────────────────────────────────────────────────────────────────────
 // FR-429: Workflows live canvas with filters
 // ─────────────────────────────────────────────────────────────────────────────
