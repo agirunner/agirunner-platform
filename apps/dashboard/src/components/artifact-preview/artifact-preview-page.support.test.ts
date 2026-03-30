@@ -20,7 +20,7 @@ describe('artifact preview page support', () => {
       }),
     ).toEqual({
       primaryHref:
-        '/workflows/workflow-1?work_item_id=work-item-1&tab=history#work-item-work-item-1',
+        '/workflows/workflow-1?work_item_id=work-item-1&tab=live_console#work-item-work-item-1',
       primaryLabel: 'Back to work-item flow',
       primaryHelper:
         'Return to the grouped work-item flow first so artifact review stays attached to board context and operator decisions.',

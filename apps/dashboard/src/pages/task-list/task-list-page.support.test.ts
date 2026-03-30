@@ -46,7 +46,7 @@ describe('task list page support', () => {
     );
     expect(buildTaskPrimaryOperatorAction(approvalTask)).toEqual({
       href:
-        '/workflows/workflow-1?work_item_id=work-item-12345678&tab=history#work-item-work-item-12345678',
+        '/workflows/workflow-1?work_item_id=work-item-12345678&tab=live_console#work-item-work-item-12345678',
       label: 'Open work-item flow',
       helper: 'Review this step from the grouped work-item flow so board context stays aligned.',
       showsDiagnosticLink: true,

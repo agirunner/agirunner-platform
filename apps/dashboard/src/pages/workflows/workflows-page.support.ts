@@ -5,7 +5,6 @@ export type WorkflowWorkbenchTab =
   | 'details'
   | 'needs_action'
   | 'live_console'
-  | 'history'
   | 'deliverables';
 export type WorkflowBoardMode = 'active' | 'active_recent_complete' | 'all';
 export type WorkflowTabScope = 'workflow' | 'selected_work_item';
@@ -248,9 +247,10 @@ function readTab(value: string | null): WorkflowWorkbenchTab | null {
     case 'details':
     case 'needs_action':
     case 'live_console':
-    case 'history':
     case 'deliverables':
       return value;
+    case 'history':
+      return 'live_console';
     case 'steering':
       return 'details';
     default:

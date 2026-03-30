@@ -44,7 +44,7 @@ describe('workflows page support', () => {
       mode: 'recent',
       workflowId: 'workflow-9',
       workItemId: 'work-item-2',
-      tab: 'history',
+      tab: 'live_console',
       search: 'release',
       needsActionOnly: true,
       ongoingOnly: true,
@@ -94,7 +94,6 @@ describe('workflows page support', () => {
     expect(resolveWorkflowTabScope('details', 'work-item-7')).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('needs_action', 'work-item-7')).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('live_console', 'work-item-7')).toBe('selected_work_item');
-    expect(resolveWorkflowTabScope('history', 'work-item-7')).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('deliverables', 'work-item-7')).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('live_console', null)).toBe('workflow');
   });

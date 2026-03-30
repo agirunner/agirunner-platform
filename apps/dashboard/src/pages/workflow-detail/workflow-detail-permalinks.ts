@@ -59,12 +59,12 @@ export function isWorkflowDetailTargetHighlighted(
 
 function deriveWorkflowWorkbenchTab(
   target: WorkflowDetailTarget,
-): 'needs_action' | 'history' | null {
+): 'needs_action' | 'live_console' | null {
   if (target.gateStageName) {
     return 'needs_action';
   }
   if (target.activationId || target.childWorkflowId) {
-    return 'history';
+    return 'live_console';
   }
   return null;
 }

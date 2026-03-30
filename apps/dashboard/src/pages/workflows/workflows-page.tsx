@@ -734,8 +734,8 @@ function EmptyWorkspaceState(props: {
         <LayoutDashboard className="mx-auto h-10 w-10 text-muted-foreground" />
         <p className="text-lg font-semibold text-foreground">Select a workflow</p>
         <p className="text-sm text-muted-foreground">
-          Choose a workflow from the left rail to open its board, details, history, live console,
-          and deliverables in one place.
+          Choose a workflow from the left rail to open its board, details, needs action, live
+          console, and deliverables in one place.
         </p>
       </div>
     </div>

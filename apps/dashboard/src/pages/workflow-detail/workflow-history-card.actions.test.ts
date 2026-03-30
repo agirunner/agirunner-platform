@@ -25,7 +25,7 @@ describe('workflow history timeline actions', () => {
       },
       {
         label: 'Open activation packet',
-        href: '/workflows/workflow-1?tab=history#activation-activation-3',
+        href: '/workflows/workflow-1?tab=live_console#activation-activation-3',
       },
       {
         label: 'Open child board',

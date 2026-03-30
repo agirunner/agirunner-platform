@@ -22,7 +22,7 @@ describe('workflow detail permalinks', () => {
         activationId: 'activation-4',
       }),
     ).toBe(
-      '/workflows/workflow-1?tab=history#activation-activation-4',
+      '/workflows/workflow-1?tab=live_console#activation-activation-4',
     );
   });
 

@@ -73,10 +73,10 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).not.toContain('flex min-h-full min-w-0 flex-1 flex-col');
     expect(html).not.toContain('border-sky-300 bg-sky-100/90');
     expect(html).not.toContain('Current scope');
-    expect(html).toContain('History');
     expect(html).toContain('Needs Action</span><div');
     expect(html).toContain('>Live Console<');
     expect(html).toContain('>Deliverables<');
+    expect(html).not.toContain('>History<');
     expect(html).not.toContain('Details</span><div');
     expect(html).not.toContain('Steering</span><div');
     expect(html).not.toContain('Workflow Workbench');
@@ -569,8 +569,9 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).not.toContain('Show work item');
     expect(html).toContain('Show workflow');
     expect(html).toContain('>42<');
-    expect(html).toContain('>45<');
+    expect(html).toContain('>44<');
     expect(html).not.toContain('>41<');
+    expect(html).not.toContain('>45<');
     expect(html).not.toContain('Workflow · Workflow 1');
     expect(html).toContain('Live Console');
     expect(html).not.toContain('this workflow yet');
@@ -674,7 +675,7 @@ describe('WorkflowBottomWorkbench', () => {
         board: packet.board,
         workflowName: 'Workflow 1',
         packet,
-        activeTab: 'history',
+        activeTab: 'details',
         selectedWorkItemId: null,
         scopedWorkItemId: null,
         selectedWorkItemTitle: null,
@@ -1035,7 +1036,7 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).not.toContain('Open artifact in new tab');
   });
 
-  it('renders the History tab from the briefs packet instead of the history packet when briefs are available', () => {
+  it('does not revive a standalone history tab even when briefs and history packets are both populated', () => {
     const packet = {
       ...createPacket(),
       bottom_tabs: {
@@ -1122,7 +1123,7 @@ describe('WorkflowBottomWorkbench', () => {
         board: packet.board,
         workflowName: 'Workflow 1',
         packet,
-        activeTab: 'history',
+        activeTab: 'live_console',
         selectedWorkItemId: null,
         scopedWorkItemId: null,
         selectedWorkItemTitle: null,
@@ -1145,11 +1146,9 @@ describe('WorkflowBottomWorkbench', () => {
       }),
     );
 
-    expect(html).toContain('History');
-    expect(html).toContain('Brief packet headline');
+    expect(html).not.toContain('>History<');
+    expect(html).not.toContain('Load more history');
     expect(html).not.toContain('History packet only');
-    expect(html).toContain('>1<');
-    expect(html).not.toContain('>9<');
   });
 });
 

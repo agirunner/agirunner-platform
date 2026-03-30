@@ -11,7 +11,6 @@ import type {
 } from '../workflows-page.support.js';
 import { WorkflowDeliverables } from './workflow-deliverables.js';
 import { WorkflowDetails } from './workflow-details.js';
-import { WorkflowHistory } from './workflow-history.js';
 import { WorkflowLiveConsole } from './workflow-live-console.js';
 import { WorkflowNeedsAction } from './workflow-needs-action.js';
 
@@ -100,12 +99,6 @@ export function WorkflowBottomWorkbench(props: {
           onClick={() => props.onTabChange('live_console')}
         />
         <WorkbenchTabButton
-          label="History"
-          count={Math.max(props.packet.briefs?.total_count ?? 0, counts.briefs ?? counts.history ?? 0)}
-          isActive={activeTab === 'history'}
-          onClick={() => props.onTabChange('history')}
-        />
-        <WorkbenchTabButton
           label="Deliverables"
           count={counts.deliverables}
           isActive={activeTab === 'deliverables'}
@@ -148,15 +141,6 @@ export function WorkflowBottomWorkbench(props: {
                 scopeSubject={resolvedScope.subject}
                 scopeLabel={resolvedScope.banner}
                 onOpenAddWork={(workItemId) => props.onOpenAddWork(workItemId)}
-              />
-            ) : null}
-            {activeTab === 'history' ? (
-              <WorkflowHistory
-                workflowId={props.workflowId}
-                packet={props.packet.briefs ?? props.packet.history}
-                selectedWorkItemId={currentWorkItemId}
-                scopeSubject={resolvedScope.subject}
-                onLoadMore={props.onLoadMoreActivity}
               />
             ) : null}
             {activeTab === 'deliverables' ? (

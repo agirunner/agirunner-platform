@@ -279,7 +279,7 @@ export function App(): JSX.Element {
               <Route path="/work/workflows/*" element={<LegacyWorkflowBoardRedirect />} />
               <Route
                 path="/work/tasks"
-                element={<Navigate to={buildWorkflowsPageHref({ mode: 'recent', tab: 'history' })} replace />}
+                element={<Navigate to={buildWorkflowsPageHref({ mode: 'recent', tab: 'live_console' })} replace />}
               />
               <Route path="/work/tasks/:id" element={<TaskDetailPage />} />
               <Route
