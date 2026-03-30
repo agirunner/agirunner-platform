@@ -9,7 +9,9 @@ function readSource(fileName: string) {
 function readCombinedSource() {
   return [
     '../../lib/api.ts',
+    '../../lib/dashboard-api/contracts.ts',
     './mcp-page.tsx',
+    './mcp-page.controller.ts',
     './mcp-page.errors.ts',
     './mcp-page.api.ts',
     './mcp-page.device-authorization-dialog.tsx',
@@ -28,6 +30,14 @@ function readCombinedSource() {
   ]
     .map(readSource)
     .join('\n');
+}
+
+function readApiSource() {
+  return [
+    readSource('../../lib/api.ts'),
+    readSource('../../lib/dashboard-api/contracts.ts'),
+    readSource('../../lib/dashboard-api/create-dashboard-api.ts'),
+  ].join('\n');
 }
 
 describe('mcp page source', () => {
@@ -49,7 +59,7 @@ describe('mcp page source', () => {
   });
 
   it('handles oauth callback success and failure on the integrations mcp route', () => {
-    const source = readSource('./mcp-page.tsx');
+    const source = readCombinedSource();
 
     expect(source).toContain("const oauthSuccess = searchParams.get('oauth_success');");
     expect(source).toContain("const oauthError = searchParams.get('oauth_error');");
@@ -57,6 +67,18 @@ describe('mcp page source', () => {
     expect(source).toContain('OAuth connected successfully');
     expect(source).toContain("toast.error(normalizeMcpErrorText(oauthError, 'OAuth authorization failed.'))");
     expect(source).toContain("queryClient.invalidateQueries({ queryKey: ['remote-mcp-servers'] })");
+  });
+
+  it('keeps page state, mutations, and oauth transitions in a dedicated controller module', () => {
+    const source = readSource('./mcp-page.controller.ts');
+
+    expect(source).toContain('export function useMcpPageController()');
+    expect(source).toContain('const saveMutation = useMutation({');
+    expect(source).toContain('const connectOauthMutation = useMutation({');
+    expect(source).toContain('const pollDeviceAuthorizationMutation = useMutation({');
+    expect(source).toContain('async function handleRemoteMcpOauthStartResult(');
+    expect(source).toContain('async function refreshRemoteMcpQueries(');
+    expect(source).toContain('toast.success(`OAuth connected successfully for ${result.serverName}.`)');
   });
 
   it('includes operator actions for tools, verification, oauth connection, and archive state', () => {
@@ -284,7 +306,7 @@ describe('mcp page source', () => {
   });
 
   it('teaches the dashboard api about remote mcp oauth client profile routes', () => {
-    const source = readSource('../../lib/api.ts');
+    const source = readApiSource();
 
     expect(source).toContain('DashboardRemoteMcpOAuthClientProfileRecord');
     expect(source).toContain('listRemoteMcpOAuthClientProfiles');
@@ -302,7 +324,7 @@ describe('mcp page source', () => {
   });
 
   it('models a discriminated oauth result contract for browser, device, and completed flows', () => {
-    const source = readSource('../../lib/api.ts');
+    const source = readApiSource();
 
     expect(source).toContain("kind: 'browser'");
     expect(source).toContain("kind: 'device'");
