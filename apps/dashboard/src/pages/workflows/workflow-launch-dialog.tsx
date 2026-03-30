@@ -18,7 +18,7 @@ import { toast } from '../../lib/toast.js';
 import {
   buildParametersFromDrafts,
   readLaunchDefinition,
-} from '../playbook-launch/playbook-launch-support.js';
+} from './workflow-launch-support.js';
 import { invalidateWorkflowsQueries } from './workflows-query.js';
 import { WorkflowFileInput } from './workflow-file-input.js';
 import {

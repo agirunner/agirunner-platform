@@ -1,6 +1,6 @@
 import type { DashboardPlaybookRecord, DashboardWorkspaceRecord } from '../../lib/api.js';
 import type { ComboboxItem } from '../../components/log-viewer/ui/searchable-combobox.js';
-import type { LaunchParameterSpec } from '../playbook-launch/playbook-launch-support.js';
+import type { LaunchParameterSpec } from './workflow-launch-support.js';
 
 export interface WorkflowLaunchDialogValidationResult {
   fieldErrors: {

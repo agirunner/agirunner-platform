@@ -302,14 +302,20 @@ describe('WorkflowNeedsAction', () => {
   });
 
   it('routes escalation responses through the workflow work-item task api helper', () => {
-    const source = readFileSync(new URL('./workflow-needs-action.tsx', import.meta.url), 'utf8');
+    const source = [
+      readFileSync(new URL('./workflow-needs-action.tsx', import.meta.url), 'utf8'),
+      readFileSync(new URL('./workflow-needs-action.support.ts', import.meta.url), 'utf8'),
+    ].join('\n');
 
     expect(source).toContain('dashboardApi.resolveWorkflowWorkItemTaskEscalation(');
     expect(source).not.toContain('dashboardApi.resolveEscalation(action.target.target_id');
   });
 
   it('routes workflow task review actions through workflow-backed helpers instead of raw task endpoints', () => {
-    const source = readFileSync(new URL('./workflow-needs-action.tsx', import.meta.url), 'utf8');
+    const source = [
+      readFileSync(new URL('./workflow-needs-action.tsx', import.meta.url), 'utf8'),
+      readFileSync(new URL('./workflow-needs-action.support.ts', import.meta.url), 'utf8'),
+    ].join('\n');
 
     expect(source).toContain('dashboardApi.approveWorkflowWorkItemTask(');
     expect(source).toContain('dashboardApi.approveWorkflowWorkItemTaskOutput(');

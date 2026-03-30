@@ -3,9 +3,11 @@ import { execFileSync } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  ADMIN_API_KEY,
   POSTGRES_CONTAINER_NAME,
   POSTGRES_DB,
   POSTGRES_USER,
+  PLATFORM_API_URL,
 } from '../../tests/e2e/support/platform-env.js';
 import { resetWorkflowsState } from '../../tests/e2e/support/workflows-fixture-reset.js';
 import { seedWorkflowsScenario } from '../../tests/e2e/support/workflows-fixtures.js';
@@ -19,6 +21,42 @@ describe('seedWorkflowsScenario', () => {
     await seedWorkflowsScenario();
 
     expect(countFixtureWorkflowActivations()).toBe(0);
+    expect(listSpecialistRuntimeContainers()).toEqual([]);
+  });
+
+  it('creates a real actionable escalation packet for the seeded needs-action workflow', async () => {
+    const scenario = await seedWorkflowsScenario();
+
+    const payload = await fetchJson<{
+      data: {
+        needs_action: {
+          total_count: number;
+          items: Array<{
+            action_kind: string;
+            label: string;
+            summary: string;
+            responses: Array<{ kind: string; label: string }>;
+          }>;
+        };
+      };
+    }>(`${PLATFORM_API_URL}/api/v1/operations/workflows/${scenario.needsActionWorkflow.id}/workspace`);
+
+    expect(payload.data.needs_action.total_count).toBeGreaterThan(0);
+    expect(payload.data.needs_action.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action_kind: 'resolve_escalation',
+          label: 'Resolve escalation',
+          summary: expect.stringContaining('replay mismatch'),
+          responses: expect.arrayContaining([
+            expect.objectContaining({
+              kind: 'resolve_escalation',
+              label: 'Resume with guidance',
+            }),
+          ]),
+        }),
+      ]),
+    );
   });
 });
 
@@ -49,4 +87,28 @@ function countFixtureWorkflowActivations(): number {
     { encoding: 'utf8' },
   ).trim();
   return Number.parseInt(output, 10);
+}
+
+function listSpecialistRuntimeContainers(): string[] {
+  const output = execFileSync(
+    'docker',
+    ['ps', '--format', '{{.Names}}'],
+    { encoding: 'utf8' },
+  ).trim();
+  return output
+    .split('\n')
+    .map((name) => name.trim())
+    .filter((name) => name.startsWith('runtime-speciali-'));
+}
+
+async function fetchJson<T>(url: string): Promise<T> {
+  const response = await fetch(url, {
+    headers: {
+      authorization: `Bearer ${ADMIN_API_KEY}`,
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Request failed ${response.status} ${url}: ${await response.text()}`);
+  }
+  return response.json() as Promise<T>;
 }

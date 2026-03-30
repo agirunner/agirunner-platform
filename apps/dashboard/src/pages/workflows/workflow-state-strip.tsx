@@ -5,10 +5,16 @@ import type {
   DashboardWorkflowBoardResponse,
   DashboardWorkflowStickyStrip,
 } from '../../lib/api.js';
-import { formatRelativeTimestamp } from '../workflow-detail/workflow-detail-presentation.js';
 import { WorkflowControlActions } from '../workflow-detail/workflow-control-actions.js';
 import type { WorkflowWorkbenchTab } from './workflows-page.support.js';
-import { isCompletedWorkItem } from './workflow-board.support.js';
+import {
+  buildWorkflowHeaderState,
+  formatNeedsActionDetail,
+  formatSpecialistTaskDetail,
+  formatWorkItemDetail,
+  readNeedsActionCount,
+  readWorkflowStateDetail,
+} from './workflow-state-strip.support.js';
 
 export function WorkflowStateStrip(props: {
   workflow: DashboardMissionControlWorkflowCard;
@@ -20,32 +26,14 @@ export function WorkflowStateStrip(props: {
   onAddWork(): void;
 }): JSX.Element {
   const sticky = props.stickyStrip;
-  const workflowScopedActions = props.workflow.availableActions.filter(
-    (action) => action.scope === 'workflow' && action.kind !== 'redrive_workflow',
-  );
-  const shouldUseFallbackWorkflowActions =
-    props.workflow.availableActions.length === 0
-    && sticky?.posture !== 'cancelling'
-    && sticky?.posture !== 'cancelled';
-  const effectiveWorkflowActions =
-    workflowScopedActions.length > 0
-      ? workflowScopedActions
-      : shouldUseFallbackWorkflowActions
-        ? buildFallbackWorkflowActions(props.workflow.state)
-        : [];
-  const workload = summarizeWorkload(props.board, props.workflow);
-  const playbookLabel = readOptionalSummary(props.workflow.playbookName);
-  const updatedLabel = `Updated ${formatRelativeTimestamp(props.workflow.metrics.lastChangedAt)}`;
-  const canAddWork = workflowScopedActions.some(
-    (action) => action.kind === 'add_work_item' && action.enabled,
-  );
-  const postureLabel = humanizePosture(sticky?.posture ?? props.workflow.posture);
+  const headerState = buildWorkflowHeaderState({
+    workflow: props.workflow,
+    stickyStrip: props.stickyStrip,
+    board: props.board,
+    addWorkLabel: props.addWorkLabel,
+  });
   const isPausedWorkflow = props.workflow.state === 'paused' || sticky?.posture === 'paused';
-  const isOngoingWorkflow = props.workflow.lifecycle === 'ongoing';
-  const addWorkLabel = props.addWorkLabel ?? (isOngoingWorkflow ? 'Add Intake' : 'Add Work');
   const selectedScopeLine = props.selectedScopeLabel ? `Work item · ${props.selectedScopeLabel}` : null;
-  const needsActionCount = readNeedsActionCount(sticky);
-  const activeSpecialistTaskCount = sticky?.active_task_count ?? props.workflow.metrics.activeTaskCount;
 
   return (
     <div className="grid gap-3 sm:gap-4">
@@ -53,8 +41,8 @@ export function WorkflowStateStrip(props: {
         <section className="grid gap-2.5 sm:gap-3">
           <div className="grid gap-2">
             <p className="text-[11px] text-muted-foreground">
-              <span>Workflow</span>
-              {playbookLabel ? (
+              <span>Playbook</span>
+              {headerState.playbookLabel ? (
                 <>
                   <span>{' · '}</span>
                   {props.workflow.playbookId ? (
@@ -62,41 +50,41 @@ export function WorkflowStateStrip(props: {
                       className="text-foreground underline-offset-4 hover:underline"
                       href={`/design/playbooks/${props.workflow.playbookId}`}
                     >
-                      {playbookLabel}
+                      {headerState.playbookLabel}
                     </a>
                   ) : (
-                    <span>{playbookLabel}</span>
+                    <span>{headerState.playbookLabel}</span>
                   )}
                 </>
               ) : null}
               <span>{' · '}</span>
-              <span>{updatedLabel}</span>
+              <span>{headerState.updatedLabel}</span>
             </p>
             <div className="flex min-w-0 flex-wrap items-center gap-2">
               <h2 className="truncate text-base font-semibold text-foreground">{props.workflow.name}</h2>
               <Badge variant={isPausedWorkflow ? 'warning' : 'secondary'}>
-                {isPausedWorkflow ? 'Workflow paused' : postureLabel}
+                {isPausedWorkflow ? 'Workflow paused' : headerState.postureLabel}
               </Badge>
-              {isOngoingWorkflow ? <Badge variant="outline">Ongoing</Badge> : null}
+              {props.workflow.lifecycle === 'ongoing' ? <Badge variant="outline">Ongoing</Badge> : null}
             </div>
             {selectedScopeLine ? <p className="text-sm text-muted-foreground">{selectedScopeLine}</p> : null}
           </div>
         </section>
 
         <section className="flex min-w-0 flex-wrap items-start justify-start gap-2 xl:justify-end xl:pl-2">
-          {effectiveWorkflowActions.length > 0 ? (
+          {headerState.effectiveWorkflowActions.length > 0 ? (
             <WorkflowControlActions
               workflowId={props.workflow.id}
               workflowState={props.workflow.state}
               workflowPosture={sticky?.posture ?? props.workflow.posture}
               workspaceId={props.workflow.workspaceId}
               additionalQueryKeys={[['workflows']]}
-              availableActions={effectiveWorkflowActions}
+              availableActions={headerState.effectiveWorkflowActions}
             />
           ) : null}
-          {canAddWork ? (
+          {headerState.canAddWork ? (
             <Button size="sm" onClick={props.onAddWork}>
-              {addWorkLabel}
+              {headerState.addWorkLabel}
             </Button>
           ) : null}
         </section>
@@ -105,26 +93,26 @@ export function WorkflowStateStrip(props: {
       <div className="grid gap-2 pt-0.5 sm:gap-3 sm:pt-1 md:grid-cols-2 xl:grid-cols-4">
         <HeaderCard
           title="State"
-          value={postureLabel}
-          detail={readWorkflowStateDetail(sticky?.summary, postureLabel)}
+          value={headerState.postureLabel}
+          detail={readWorkflowStateDetail(sticky?.summary, headerState.postureLabel)}
         />
         <HeaderCard
           title="Needs Action"
-          value={String(needsActionCount)}
+          value={String(readNeedsActionCount(sticky))}
           detail={formatNeedsActionDetail(sticky)}
           onClick={() => props.onTabChange('needs_action')}
         />
         <HeaderCard
           title="Work Items"
-          value={String(workload.activeWorkItemCount)}
-          detail={formatWorkItemDetail(workload)}
+          value={String(headerState.workload.activeWorkItemCount)}
+          detail={formatWorkItemDetail(headerState.workload)}
         />
         <HeaderCard
           title="Specialist Tasks"
-          value={String(activeSpecialistTaskCount)}
+          value={String(headerState.activeSpecialistTaskCount)}
           detail={formatSpecialistTaskDetail({
-            activeSpecialistTaskCount,
-            activeWorkItemCount: workload.activeWorkItemCount,
+            activeSpecialistTaskCount: headerState.activeSpecialistTaskCount,
+            activeWorkItemCount: headerState.workload.activeWorkItemCount,
             lifecycle: props.workflow.lifecycle,
             posture: sticky?.posture ?? props.workflow.posture,
           })}
@@ -168,157 +156,4 @@ function HeaderCard(props: {
       {props.detail ? <p className="text-[10px] leading-4 text-muted-foreground">{props.detail}</p> : null}
     </button>
   );
-}
-
-function formatWorkItemDetail(input: {
-  activeWorkItemCount: number;
-  completedWorkItemCount: number;
-}): string | null {
-  if (input.completedWorkItemCount > 0) {
-    return `${input.completedWorkItemCount} completed`;
-  }
-  if (input.activeWorkItemCount > 0) {
-    return 'In active lanes';
-  }
-  return 'No active work items';
-}
-
-function formatSpecialistTaskDetail(input: {
-  activeSpecialistTaskCount: number;
-  activeWorkItemCount: number;
-  lifecycle: string | null;
-  posture: string | null;
-}): string | null {
-  if (input.activeWorkItemCount === 0 && input.activeSpecialistTaskCount > 0) {
-    return 'Orchestrating workflow setup';
-  }
-  if (
-    input.activeSpecialistTaskCount === 0
-    && (input.lifecycle === 'ongoing' || input.posture === 'waiting_by_design')
-  ) {
-    return 'Routing next step';
-  }
-  if (input.activeSpecialistTaskCount === 0) {
-    return 'No active tasks';
-  }
-  return `${input.activeSpecialistTaskCount} active task${input.activeSpecialistTaskCount === 1 ? '' : 's'}`;
-}
-
-function humanizePosture(value: string | null | undefined): string {
-  if (!value) {
-    return 'Workflow';
-  }
-  if (value === 'waiting_by_design') {
-    return 'Waiting for Work';
-  }
-  return value
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function summarizeWorkload(
-  board: DashboardWorkflowBoardResponse | null,
-  workflow: DashboardMissionControlWorkflowCard,
-): {
-  activeWorkItemCount: number;
-  completedWorkItemCount: number;
-} {
-  if (!board) {
-    return {
-      activeWorkItemCount: workflow.metrics.activeWorkItemCount,
-      completedWorkItemCount: 0,
-    };
-  }
-
-  return {
-    activeWorkItemCount: board.work_items.filter((workItem) => !isCompletedWorkItem(board.columns, workItem)).length,
-    completedWorkItemCount: board.work_items.filter((workItem) => isCompletedWorkItem(board.columns, workItem)).length,
-  };
-}
-
-function readOptionalSummary(value: string | null | undefined): string | null {
-  if (!value) {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function readNeedsActionCount(sticky: DashboardWorkflowStickyStrip | null): number {
-  return (sticky?.approvals_count ?? 0) + (sticky?.escalations_count ?? 0);
-}
-
-function formatNeedsActionDetail(sticky: DashboardWorkflowStickyStrip | null): string | null {
-  const segments = [
-    formatCountSegment(sticky?.approvals_count ?? 0, 'approval'),
-    formatCountSegment(sticky?.escalations_count ?? 0, 'escalation'),
-  ].filter((segment): segment is string => Boolean(segment));
-
-  if (segments.length === 0) {
-    return 'No unresolved approvals or escalations';
-  }
-
-  return segments.join(' • ');
-}
-
-function formatCountSegment(count: number, singularLabel: string): string | null {
-  if (count <= 0) {
-    return null;
-  }
-  return `${count} ${singularLabel}${count === 1 ? '' : 's'}`;
-}
-
-function truncateDetail(value: string): string {
-  return value.length <= 72 ? value : `${value.slice(0, 69)}...`;
-}
-
-function readWorkflowStateDetail(summary: string | null | undefined, postureLabel: string): string | null {
-  const detail = readOptionalSummary(summary);
-  if (!detail) {
-    return null;
-  }
-  const normalized = detail.trim().toLowerCase();
-  if (normalized === 'workflow is waiting by design') {
-    return null;
-  }
-  if (normalized === postureLabel.trim().toLowerCase()) {
-    return null;
-  }
-  return truncateDetail(detail);
-}
-
-function buildFallbackWorkflowActions(
-  workflowState: string | null | undefined,
-): DashboardMissionControlWorkflowCard['availableActions'] {
-  if (workflowState === 'paused') {
-    return [
-      createFallbackWorkflowAction('resume_workflow'),
-      createFallbackWorkflowAction('cancel_workflow'),
-    ];
-  }
-  if (workflowState === 'active') {
-    return [
-      createFallbackWorkflowAction('pause_workflow'),
-      createFallbackWorkflowAction('cancel_workflow'),
-    ];
-  }
-  if (workflowState === 'pending') {
-    return [
-      createFallbackWorkflowAction('cancel_workflow'),
-    ];
-  }
-  return [];
-}
-
-function createFallbackWorkflowAction(
-  kind: 'pause_workflow' | 'resume_workflow' | 'cancel_workflow',
-): DashboardMissionControlWorkflowCard['availableActions'][number] {
-  return {
-    kind,
-    scope: 'workflow',
-    enabled: true,
-    confirmationLevel: kind === 'cancel_workflow' ? 'high_impact_confirm' : 'immediate',
-    stale: false,
-    disabledReason: null,
-  };
 }

@@ -108,4 +108,10 @@ describe('WorkflowLaunchDialog source', () => {
     expect(source).toContain('initialPlaybookId?: string | null;');
     expect(source).toContain("setSelectedPlaybookId(props.initialPlaybookId?.trim() ?? '');");
   });
+
+  it('depends on canonical workflows launch helpers instead of the deleted playbook launch page namespace', () => {
+    const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).not.toContain("../playbook-launch/playbook-launch-support.js");
+  });
 });

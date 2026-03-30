@@ -9,6 +9,7 @@ import type {
   WorkflowWorkbenchScopeDescriptor,
   WorkflowWorkbenchTab,
 } from '../workflows-page.support.js';
+import { resolveWorkbenchScope } from './workbench/workflow-bottom-workbench.scope.js';
 import { WorkflowDeliverables } from './workflow-deliverables.js';
 import { WorkflowDetails } from './workflow-details.js';
 import { WorkflowLiveConsole } from './workflow-live-console.js';
@@ -67,9 +68,9 @@ export function WorkflowBottomWorkbench(props: {
 
   return (
     <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-0 overflow-hidden">
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 border-b border-border/60 bg-muted/20 px-3 py-3">
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-foreground">{resolvedScope.banner}</p>
+          <p className="truncate text-base font-semibold text-foreground">{resolvedScope.banner}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {resolvedScope.scopeKind !== 'workflow' ? (
@@ -80,7 +81,7 @@ export function WorkflowBottomWorkbench(props: {
         </div>
       </div>
 
-      <div className="flex min-w-0 gap-1.5 overflow-x-auto px-4 pb-2 pt-1 sm:flex-wrap sm:overflow-visible">
+      <div className="flex min-w-0 gap-1.5 overflow-x-auto px-3 pb-2.5 pt-2 sm:flex-wrap sm:overflow-visible">
         <WorkbenchTabButton
           label="Details"
           isActive={activeTab === 'details'}
@@ -157,37 +158,6 @@ export function WorkflowBottomWorkbench(props: {
       </div>
     </section>
   );
-}
-
-function resolveWorkbenchScope(props: {
-  packet: DashboardWorkflowWorkspacePacket;
-  workflowName: string;
-  selectedWorkItemTitle: string | null;
-  scope: WorkflowWorkbenchScopeDescriptor;
-}): WorkflowWorkbenchScopeDescriptor {
-  const scopeKind = props.packet.bottom_tabs.current_scope_kind;
-  const workItemId =
-    props.packet.bottom_tabs.current_work_item_id
-    ?? props.packet.selected_scope.work_item_id;
-
-  if (scopeKind !== 'workflow' && (props.selectedWorkItemTitle ?? workItemId ?? props.scope.name)) {
-    const workItemName = props.selectedWorkItemTitle ?? workItemId ?? props.scope.name;
-    return {
-      scopeKind: 'selected_work_item',
-      title: 'Work item',
-      subject: 'work item',
-      name: workItemName,
-      banner: `Work item · ${workItemName}`,
-    };
-  }
-
-  return {
-    scopeKind: 'workflow',
-    title: 'Workflow',
-    subject: 'workflow',
-    name: props.workflowName,
-    banner: 'Workflow',
-  };
 }
 
 function WorkbenchTabButton(props: {

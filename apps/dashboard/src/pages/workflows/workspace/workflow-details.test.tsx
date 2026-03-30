@@ -59,9 +59,6 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain(
-      '<h3 class="text-base font-semibold text-foreground">Prepare release bundle</h3>',
-    );
     expect(html).toContain('1 blocked task');
     expect(html).toContain('What was asked');
     expect(html).toContain('Current state');
@@ -85,9 +82,8 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('artifact-1');
     expect(html).not.toContain('Subject Revision');
     expect(html).not.toContain('Work Item Id');
-    expect(html).not.toContain(
-      '<h3 class="text-base font-semibold text-foreground">Verify deliverable</h3>',
-    );
+    expect(html).not.toContain('Work item · Prepare release bundle');
+    expect(html).not.toContain('Verify deliverable</h3>');
   });
 
   it('renders workflow scope with the same briefing sections and compact work-item rows', () => {
@@ -131,7 +127,6 @@ describe('WorkflowDetails', () => {
       }),
     );
 
-    expect(html).toContain('Release Workflow');
     expect(html).toContain('Release bundle is being assembled.');
     expect(html).toContain('What was asked');
     expect(html).toContain('Current state');

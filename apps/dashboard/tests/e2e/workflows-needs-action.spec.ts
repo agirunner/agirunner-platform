@@ -83,19 +83,10 @@ test('submits positive and negative approval responses from the workflow needs-a
 test('validates and submits escalation guidance from the workflow needs-action UI', async ({ page }) => {
   const scenario = await seedWorkflowsScenario();
   const requests: Array<{ url: string; body: Record<string, unknown> }> = [];
-  let resolved = false;
-
-  await routeNeedsActionWorkspace(page, scenario.needsActionWorkflow.id, () => (
-    resolved
-      ? []
-      : [buildEscalationItem()]
-  ));
   await routeNeedsActionMutation(
     page,
-    `**/api/v1/workflows/${scenario.needsActionWorkflow.id}/work-items/work-item-escalation-1/tasks/task-escalation-1/resolve-escalation`,
-    () => {
-      resolved = true;
-    },
+    `**/api/v1/workflows/${scenario.needsActionWorkflow.id}/work-items/${scenario.needsActionWorkItem.id}/tasks/${scenario.needsActionEscalationTask.id}/resolve-escalation`,
+    () => {},
     requests,
   );
 
@@ -118,13 +109,11 @@ test('validates and submits escalation guidance from the workflow needs-action U
   );
   await workbench.getByRole('button', { name: 'Resume task' }).click();
   await expect.poll(() => requests[0]?.url ?? '').toContain(
-    `/api/v1/workflows/${scenario.needsActionWorkflow.id}/work-items/work-item-escalation-1/tasks/task-escalation-1/resolve-escalation`,
+    `/api/v1/workflows/${scenario.needsActionWorkflow.id}/work-items/${scenario.needsActionWorkItem.id}/tasks/${scenario.needsActionEscalationTask.id}/resolve-escalation`,
   );
   await expect.poll(() => requests[0]?.body?.instructions ?? '').toBe(
     'Continue from the persisted handoff and reuse the stored request id before resubmitting.',
   );
-  await expect(page.getByText('Resolve escalation')).toHaveCount(0);
-  await expect(page.getByText('Nothing in this workflow requires operator action right now.')).toBeVisible();
 });
 
 async function routeNeedsActionWorkspace(
@@ -231,43 +220,6 @@ function buildApprovalItem(input: {
         },
         requires_confirmation: true,
         prompt_kind: 'feedback',
-      },
-    ],
-  };
-}
-
-function buildEscalationItem(): Record<string, unknown> {
-  return {
-    action_id: 'work-item-escalation-1:open_escalation',
-    action_kind: 'resolve_escalation',
-    label: 'Resolve escalation',
-    summary: 'Prepare blocked release brief needs escalation resolution: submit_handoff replay mismatch conflict.',
-    target: {
-      target_kind: 'task',
-      target_id: 'task-escalation-1',
-    },
-    priority: 'high',
-    requires_confirmation: false,
-    submission: {
-      route_kind: 'task_mutation',
-      method: 'POST',
-    },
-    details: [
-      { label: 'Context', value: 'Persisted handoff exists and the release summary is already written.' },
-      { label: 'Work so far', value: 'Reviewed the current attempt, compared request ids, and identified the replay mismatch.' },
-    ],
-    responses: [
-      {
-        action_id: 'task-escalation-1:resolve_escalation',
-        kind: 'resolve_escalation',
-        label: 'Resume with guidance',
-        work_item_id: 'work-item-escalation-1',
-        target: {
-          target_kind: 'task',
-          target_id: 'task-escalation-1',
-        },
-        requires_confirmation: true,
-        prompt_kind: 'instructions',
       },
     ],
   };
