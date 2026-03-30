@@ -186,7 +186,7 @@ function resolveWorkbenchScope(props: {
     title: 'Workflow',
     subject: 'workflow',
     name: props.workflowName,
-    banner: `Workflow · ${props.workflowName}`,
+    banner: 'Workflow',
   };
 }
 

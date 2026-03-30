@@ -65,8 +65,9 @@ describe('WorkflowBottomWorkbench', () => {
         onLoadMoreDeliverables: vi.fn(),
       });
 
-    expect(html).toContain('Workflow · Workflow 1');
-    expect(html.indexOf('Workflow · Workflow 1')).toBeLessThan(html.indexOf('Details'));
+    expect(html).toContain('>Workflow<');
+    expect(html.indexOf('>Workflow<')).toBeLessThan(html.indexOf('Details'));
+    expect(html).not.toContain('Workflow · Workflow 1');
     expect(html).toContain('grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-0 overflow-hidden');
     expect(html).not.toContain('border-b border-border/60 bg-sky-100/90 px-4 py-3 dark:bg-sky-950/35');
     expect(html).toContain('flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-4 py-4');
@@ -336,7 +337,7 @@ describe('WorkflowBottomWorkbench', () => {
       ),
     );
 
-    expect(html).toContain('Workflow · Workflow 1');
+    expect(html).toContain('>Workflow<');
     expect(html).not.toContain('Steering request');
     expect(html).not.toContain('Steering history');
     expect(html).not.toContain('Steering</span><div');

@@ -67,6 +67,17 @@ interface DocumentOutputRow {
 export class MissionControlLiveService {
   constructor(private readonly pool: DatabasePool) {}
 
+  async countWorkflows(tenantId: string): Promise<number> {
+    const result = await this.pool.query<{ total_count: number | string }>(
+      `SELECT COUNT(*)::int AS total_count
+         FROM workflows
+        WHERE tenant_id = $1`,
+      [tenantId],
+    );
+    const rawTotal = result.rows[0]?.total_count;
+    return typeof rawTotal === 'string' ? Number(rawTotal) : Number(rawTotal ?? 0);
+  }
+
   async getLive(
     tenantId: string,
     input: { page?: number; perPage?: number } = {},

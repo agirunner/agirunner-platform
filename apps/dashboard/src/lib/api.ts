@@ -539,6 +539,8 @@ export interface DashboardWorkflowRailPacket extends DashboardWorkflowOperations
   rows: DashboardWorkflowRailRow[];
   ongoing_rows: DashboardWorkflowRailRow[];
   selected_workflow_id: string | null;
+  visible_count?: number;
+  total_count?: number;
   next_cursor: string | null;
 }
 

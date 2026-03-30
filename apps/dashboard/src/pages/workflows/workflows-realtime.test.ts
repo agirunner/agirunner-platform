@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clearSession, readSession, writeSession } from '../../lib/session.js';
 import {
+  applyRailStreamBatch,
+  applyWorkspaceStreamBatch,
   requestWorkflowOperationsStreamResponse,
   shouldRetryWorkflowOperationsStream,
 } from './workflows-realtime.js';
@@ -161,6 +163,8 @@ describe('shouldRetryWorkflowOperationsStream', () => {
     expect(source).toContain("function buildRailStreamPath(input: {");
     expect(source).toContain("return `/api/v1/operations/workflows/stream?${params.toString()}`;");
     expect(source).not.toContain("params.set('workflow_id', input.workflowId);");
+    expect(source).toContain('applyRailStreamBatch');
+    expect(source).not.toContain('invalidateQueries({');
   });
 
   it('no longer emits legacy task_id params for the workbench workspace stream path', () => {
@@ -169,5 +173,202 @@ describe('shouldRetryWorkflowOperationsStream', () => {
     expect(source).toContain("function buildWorkspaceStreamPath(");
     expect(source).not.toContain("params.set('task_id', taskId);");
     expect(source).not.toContain("tabScope: 'workflow' | 'selected_work_item' | 'selected_task'");
+    expect(source).toContain('applyWorkspaceStreamBatch');
+  });
+});
+
+describe('applyRailStreamBatch', () => {
+  it('upserts rail rows in place without dropping the current selection or count context', () => {
+    const next = applyRailStreamBatch(
+      {
+        generated_at: '2026-03-30T12:00:00.000Z',
+        latest_event_id: 11,
+        snapshot_version: 'workflow-operations:11',
+        mode: 'live',
+        rows: [
+          {
+            workflow_id: 'workflow-1',
+            name: 'Workflow 1',
+            state: 'active',
+            lifecycle: 'planned',
+            current_stage: null,
+            workspace_name: 'Workspace',
+            playbook_name: 'Playbook',
+            posture: 'progressing',
+            live_summary: 'Working',
+            last_changed_at: '2026-03-30T12:00:00.000Z',
+            needs_action: false,
+            counts: {
+              active_task_count: 1,
+              active_work_item_count: 1,
+              blocked_work_item_count: 0,
+              open_escalation_count: 0,
+              waiting_for_decision_count: 0,
+              failed_task_count: 0,
+            },
+          },
+        ],
+        ongoing_rows: [],
+        selected_workflow_id: 'workflow-1',
+        visible_count: 1,
+        total_count: 18,
+        next_cursor: null,
+      },
+      {
+        generated_at: '2026-03-30T12:01:00.000Z',
+        latest_event_id: 12,
+        snapshot_version: 'workflow-operations:12',
+        cursor: 'workflow-operations:12',
+        events: [
+          {
+            event_type: 'rail_row_upsert',
+            cursor: 'workflow-operations:12',
+            snapshot_version: 'workflow-operations:12',
+            workflow_id: 'workflow-1',
+            payload: {
+              workflow_id: 'workflow-1',
+              name: 'Workflow 1',
+              state: 'active',
+              lifecycle: 'ongoing',
+              current_stage: null,
+              workspace_name: 'Workspace',
+              playbook_name: 'Playbook',
+              posture: 'progressing',
+              live_summary: 'Still working',
+              last_changed_at: '2026-03-30T12:01:00.000Z',
+              needs_action: false,
+              counts: {
+                active_task_count: 2,
+                active_work_item_count: 1,
+                blocked_work_item_count: 0,
+                open_escalation_count: 0,
+                waiting_for_decision_count: 0,
+                failed_task_count: 0,
+              },
+            },
+          },
+        ],
+      },
+    );
+
+    expect(next).toBeDefined();
+    if (!next) {
+      throw new Error('expected rail packet');
+    }
+    expect(next.selected_workflow_id).toBe('workflow-1');
+    expect(next.visible_count).toBe(1);
+    expect(next.total_count).toBe(18);
+    expect(next.rows).toEqual([]);
+    expect(next.ongoing_rows).toEqual([
+      expect.objectContaining({
+        workflow_id: 'workflow-1',
+        lifecycle: 'ongoing',
+        live_summary: 'Still working',
+      }),
+    ]);
+  });
+});
+
+describe('applyWorkspaceStreamBatch', () => {
+  it('patches workspace slices in place instead of requiring a full query invalidation', () => {
+    const next = applyWorkspaceStreamBatch(
+      {
+        generated_at: '2026-03-30T12:00:00.000Z',
+        latest_event_id: 11,
+        snapshot_version: 'workflow-operations:11',
+        workflow_id: 'workflow-1',
+        workflow: null,
+        sticky_strip: {
+          workflow_id: 'workflow-1',
+          workflow_name: 'Workflow 1',
+          posture: 'progressing',
+          summary: 'Before',
+          approvals_count: 0,
+          escalations_count: 0,
+          blocked_work_item_count: 0,
+          active_task_count: 1,
+          active_work_item_count: 1,
+          steering_available: true,
+        },
+        board: { columns: [], work_items: [], active_stages: [], awaiting_gate_count: 0, stage_summary: [] },
+        bottom_tabs: {
+          current_scope_kind: 'workflow',
+          current_work_item_id: null,
+          current_task_id: null,
+          counts: {
+            details: 1,
+            needs_action: 0,
+            live_console_activity: 1,
+            briefs: 0,
+            history: 0,
+            deliverables: 0,
+          },
+        },
+        needs_action: { items: [], total_count: 0, default_sort: 'priority_desc' },
+        steering: { items: [], total_count: 0 },
+        live_console: {
+          generated_at: '2026-03-30T12:00:00.000Z',
+          latest_event_id: 11,
+          snapshot_version: 'workflow-operations:11',
+          items: [],
+          total_count: 0,
+          counts: { all: 0, turn_updates: 0, briefs: 0, steering: 0 },
+          next_cursor: null,
+          live_visibility_mode: 'enhanced',
+        },
+        briefs: { items: [], total_count: 0, next_cursor: null },
+        history: { items: [], groups: [], total_count: 0, next_cursor: null },
+        deliverables: { inputs_and_provenance: [], final_deliverables: [], in_progress_deliverables: [], next_cursor: null, total_count: 0 },
+        redrive_lineage: null,
+      } as never,
+      {
+        generated_at: '2026-03-30T12:01:00.000Z',
+        latest_event_id: 12,
+        snapshot_version: 'workflow-operations:12',
+        cursor: 'workflow-operations:12',
+        events: [
+          {
+            event_type: 'workspace_sticky_update',
+            cursor: 'workflow-operations:12',
+            snapshot_version: 'workflow-operations:12',
+            workflow_id: 'workflow-1',
+            payload: {
+              workflow_id: 'workflow-1',
+              workflow_name: 'Workflow 1',
+              posture: 'needs_intervention',
+              summary: 'After',
+              approvals_count: 1,
+              escalations_count: 0,
+              blocked_work_item_count: 0,
+              active_task_count: 1,
+              active_work_item_count: 1,
+              steering_available: true,
+            },
+          },
+          {
+            event_type: 'workspace_tab_counts_update',
+            cursor: 'workflow-operations:12',
+            snapshot_version: 'workflow-operations:12',
+            workflow_id: 'workflow-1',
+            payload: {
+              details: 1,
+              needs_action: 1,
+              live_console_activity: 1,
+              briefs: 0,
+              history: 0,
+              deliverables: 0,
+            },
+          },
+        ],
+      },
+    );
+
+    expect(next).toBeDefined();
+    if (!next) {
+      throw new Error('expected workspace packet');
+    }
+    expect(next.sticky_strip?.summary).toBe('After');
+    expect(next.sticky_strip?.approvals_count).toBe(1);
+    expect(next.bottom_tabs.counts.needs_action).toBe(1);
   });
 });

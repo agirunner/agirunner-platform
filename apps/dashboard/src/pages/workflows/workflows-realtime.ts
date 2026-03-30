@@ -3,9 +3,14 @@ import type { QueryClient } from '@tanstack/react-query';
 
 import { readCookieValue } from '../../lib/auth-callback.js';
 import { processSseBuffer } from '../../lib/sse.js';
+import type { DashboardWorkflowOperationsStreamBatch } from '../../lib/api.js';
 import { clearSession, readSession, writeSession } from '../../lib/session.js';
 import { buildWorkflowRailQueryKey } from './workflows-query.js';
 import type { WorkflowPageMode } from './workflows-page.support.js';
+import {
+  applyRailStreamBatch,
+  applyWorkspaceStreamBatch,
+} from './workflows-realtime.support.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 const AUTH_REFRESH_PATH = '/api/v1/auth/refresh';
@@ -16,7 +21,7 @@ let refreshPromise: Promise<string | null> | null = null;
 
 interface StreamOptions {
   path: string;
-  onMessage(): void;
+  onMessage(batch: DashboardWorkflowOperationsStreamBatch): void;
 }
 
 interface StreamRequestOptions {
@@ -37,15 +42,18 @@ export function useWorkflowRailRealtime(
   useEffect(() => {
     return subscribeToWorkflowOperationsStream({
       path: buildRailStreamPath(input),
-      onMessage: () => {
-        void queryClient.invalidateQueries({
-          queryKey: buildWorkflowRailQueryKey({
-            mode: input.mode,
-            search: input.search,
-            needsActionOnly: input.needsActionOnly,
-            ongoingOnly: input.ongoingOnly,
-          }),
-        });
+      onMessage: (batch) => {
+        queryClient.setQueriesData(
+          {
+            queryKey: buildWorkflowRailQueryKey({
+              mode: input.mode,
+              search: input.search,
+              needsActionOnly: input.needsActionOnly,
+              ongoingOnly: input.ongoingOnly,
+            }),
+          },
+          (previous) => applyRailStreamBatch(previous as never, batch),
+        );
       },
     });
   }, [input.mode, input.needsActionOnly, input.ongoingOnly, input.search, queryClient]);
@@ -71,10 +79,13 @@ export function useWorkflowWorkspaceRealtime(
         input.tabScope,
         input.boardMode,
       ),
-      onMessage: () => {
-        void queryClient.invalidateQueries({
-          queryKey: ['workflows', 'workspace', input.workflowId],
-        });
+      onMessage: (batch) => {
+        queryClient.setQueriesData(
+          {
+            queryKey: ['workflows', 'workspace', input.workflowId],
+          },
+          (previous) => applyWorkspaceStreamBatch(previous as never, batch),
+        );
       },
     });
   }, [input.boardMode, input.tabScope, input.workflowId, input.workItemId, queryClient]);
@@ -126,7 +137,11 @@ async function runStreamLoop(
           break;
         }
         buffer += decoder.decode(next.value, { stream: true });
-        buffer = processSseBuffer(buffer, () => options.onMessage());
+        buffer = processSseBuffer(buffer, (_eventType, payload) => {
+          if (isWorkflowOperationsBatch(payload)) {
+            options.onMessage(payload);
+          }
+        });
       }
     } catch {
       if (!controller.signal.aborted) {
@@ -145,6 +160,14 @@ export function shouldRetryWorkflowOperationsStream(path: string, status: number
 
 function isWorkflowWorkspaceStreamPath(path: string): boolean {
   return /^\/api\/v1\/operations\/workflows\/[^/]+\/stream(?:\?|$)/.test(path);
+}
+
+function isWorkflowOperationsBatch(value: unknown): value is DashboardWorkflowOperationsStreamBatch {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return typeof record.cursor === 'string' && Array.isArray(record.events);
 }
 
 export async function requestWorkflowOperationsStreamResponse(
@@ -287,3 +310,8 @@ function sleep(durationMs = 2_000): Promise<void> {
     setTimeout(resolve, durationMs);
   });
 }
+
+export {
+  applyRailStreamBatch,
+  applyWorkspaceStreamBatch,
+};

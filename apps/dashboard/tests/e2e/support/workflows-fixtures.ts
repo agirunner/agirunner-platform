@@ -10,6 +10,7 @@ import {
   POSTGRES_DB,
   POSTGRES_USER,
 } from './platform-env.js';
+import { buildBulkWorkflowInsertSql } from '../../../src/testing/workflows-bulk-seed.js';
 import { resetWorkflowsState } from './workflows-fixture-reset.js';
 
 interface ApiRecord {
@@ -420,17 +421,16 @@ async function createWorkItem(workflowId: string, body: Record<string, unknown>)
 }
 
 async function seedBulkWorkflows(count: number, playbookId: string, workspaceId: string): Promise<void> {
-  const requests = Array.from({ length: count }, (_, index) =>
-    createWorkflowViaApi({
-      name: `E2E Bulk Workflow ${String(index).padStart(4, '0')}`,
-      playbookId,
-      workspaceId,
-      parameters: { workflow_goal: `Keep workflow ${index} visible in the workflows rail.` },
-    }),
-  );
-  for (let index = 0; index < requests.length; index += 40) {
-    await Promise.all(requests.slice(index, index + 40));
+  const sql = buildBulkWorkflowInsertSql({
+    tenantId: DEFAULT_TENANT_ID,
+    workspaceId,
+    playbookId,
+    count,
+  });
+  if (!sql) {
+    return;
   }
+  runPsql(sql);
 }
 
 async function updateAgenticSettings(mode: 'standard' | 'enhanced'): Promise<void> {

@@ -33,6 +33,8 @@ export interface WorkflowRailPacket extends WorkflowOperationsSnapshot {
   rows: WorkflowRailRow[];
   ongoing_rows: WorkflowRailRow[];
   selected_workflow_id: string | null;
+  visible_count: number;
+  total_count: number;
   next_cursor: string | null;
 }
 

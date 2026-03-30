@@ -132,8 +132,10 @@ describe('WorkflowsRail', () => {
         search: '',
         needsActionOnly: false,
         ongoingOnly: true,
-        rows: [createRailRow({ workflow_id: 'workflow-visible', name: 'Visible workflow' })],
-        ongoingRows: [],
+        visibleCount: 1,
+        totalCount: 18,
+        rows: [],
+        ongoingRows: [createRailRow({ workflow_id: 'workflow-visible', name: 'Visible workflow', lifecycle: 'ongoing' })],
         selectedWorkflowId: 'workflow-visible',
         selectedWorkflowRow: null,
         hasNextPage: false,
@@ -150,13 +152,46 @@ describe('WorkflowsRail', () => {
     );
 
     expect(html).toContain('flex min-w-0 flex-wrap items-center gap-2');
+    expect(html).toContain('1 shown · 18 total');
     expect(html).toContain('overflow-x-hidden');
     expect(html).not.toContain('overflow-x-auto');
     expect(html).toContain('max-h-[18rem]');
     expect(html).toContain('sm:max-h-[24rem]');
     expect(html).toContain('lg:max-h-none');
     expect(html).toContain('rounded-[1.25rem] border border-border/70 bg-background/95 shadow-sm');
+    expect(html).not.toContain('Load more');
     expect(html).not.toContain('Select workflow');
+  });
+
+  it('renders a compact active-filter summary without growing the rail width', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowsRail, {
+        mode: 'live',
+        search: 'release audit',
+        needsActionOnly: true,
+        ongoingOnly: true,
+        visibleCount: 3,
+        totalCount: 18,
+        rows: [createRailRow({ workflow_id: 'workflow-visible', name: 'Visible workflow' })],
+        ongoingRows: [createRailRow({ workflow_id: 'workflow-ongoing', name: 'Workflow ongoing', lifecycle: 'ongoing' })],
+        selectedWorkflowId: 'workflow-visible',
+        selectedWorkflowRow: null,
+        hasNextPage: false,
+        isLoading: false,
+        onModeChange: vi.fn(),
+        onSearchChange: vi.fn(),
+        onNeedsActionOnlyChange: vi.fn(),
+        onShowAllOngoing: vi.fn(),
+        onClearOngoingFilter: vi.fn(),
+        onSelectWorkflow: vi.fn(),
+        onLoadMore: vi.fn(),
+        onCreateWorkflow: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('Search: release audit · Needs Action · Ongoing');
+    expect(html).not.toContain('rail view');
+    expect(html).not.toContain('Showing filters as chips');
   });
 
   it('does not show a contradictory empty state when pinned ongoing workflows are visible', () => {
@@ -166,6 +201,8 @@ describe('WorkflowsRail', () => {
         search: '',
         needsActionOnly: false,
         ongoingOnly: false,
+        visibleCount: 0,
+        totalCount: 0,
         rows: [],
         ongoingRows: [createRailRow({ workflow_id: 'workflow-ongoing', name: 'Ongoing workflow', lifecycle: 'ongoing' })],
         selectedWorkflowId: 'workflow-ongoing',
@@ -280,6 +317,8 @@ describe('WorkflowsRail', () => {
         search: '',
         needsActionOnly: false,
         ongoingOnly: false,
+        visibleCount: 0,
+        totalCount: 6,
         rows: [],
         ongoingRows: [
           createRailRow({ workflow_id: 'workflow-1', name: 'Workflow 1', lifecycle: 'ongoing' }),
@@ -320,6 +359,8 @@ describe('WorkflowsRail', () => {
         search: '',
         needsActionOnly: false,
         ongoingOnly: true,
+        visibleCount: 1,
+        totalCount: 6,
         rows: [],
         ongoingRows: [
           createRailRow({

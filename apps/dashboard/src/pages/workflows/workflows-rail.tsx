@@ -21,6 +21,8 @@ export function WorkflowsRail(props: {
   search: string;
   needsActionOnly: boolean;
   ongoingOnly: boolean;
+  visibleCount?: number;
+  totalCount?: number;
   rows: DashboardWorkflowRailRow[];
   ongoingRows: DashboardWorkflowRailRow[];
   selectedWorkflowId: string | null;
@@ -71,6 +73,13 @@ export function WorkflowsRail(props: {
   );
   const shouldShowMainEmptyState =
     visibleRows.length === 0 && (props.mode !== 'live' || ongoingPreviewRows.length === 0);
+  const visibleCount = props.visibleCount ?? countVisibleRows(props.rows, props.ongoingRows);
+  const totalCount = props.totalCount ?? visibleCount;
+  const activeFilterSummary = buildActiveFilterSummary({
+    search: props.search,
+    needsActionOnly: props.needsActionOnly,
+    ongoingOnly: props.ongoingOnly,
+  });
 
   useIsomorphicLayoutEffect(() => {
     if (!scrollRef.current) {
@@ -150,6 +159,12 @@ export function WorkflowsRail(props: {
               </Button>
             ) : null}
           </div>
+          <div className="grid gap-1">
+            <p className="text-xs text-muted-foreground">{visibleCount} shown · {totalCount} total</p>
+            {activeFilterSummary ? (
+              <p className="truncate text-xs text-muted-foreground">{activeFilterSummary}</p>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -221,15 +236,33 @@ export function WorkflowsRail(props: {
               />
             ))
           ) : null}
-          {props.hasNextPage ? (
-            <Button type="button" variant="ghost" onClick={props.onLoadMore}>
-              Load more
-            </Button>
-          ) : null}
         </div>
       </div>
     </aside>
   );
+}
+
+function countVisibleRows(rows: DashboardWorkflowRailRow[], ongoingRows: DashboardWorkflowRailRow[]): number {
+  return rows.length + ongoingRows.length;
+}
+
+function buildActiveFilterSummary(input: {
+  search: string;
+  needsActionOnly: boolean;
+  ongoingOnly: boolean;
+}): string | null {
+  const parts: string[] = [];
+  const search = input.search.trim();
+  if (search.length > 0) {
+    parts.push(`Search: ${search}`);
+  }
+  if (input.needsActionOnly) {
+    parts.push('Needs Action');
+  }
+  if (input.ongoingOnly) {
+    parts.push('Ongoing');
+  }
+  return parts.length > 0 ? parts.join(' · ') : null;
 }
 
 function WorkflowRailRowCard(props: {

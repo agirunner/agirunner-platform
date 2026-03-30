@@ -47,6 +47,7 @@ describe('WorkflowRailService', () => {
         ],
         attentionItems: [],
       })),
+      countWorkflows: vi.fn(async () => 18),
     };
     const recentService = { getRecent: vi.fn() };
     const historyService = { getHistory: vi.fn() };
@@ -63,6 +64,8 @@ describe('WorkflowRailService', () => {
       expect.objectContaining({
         snapshot_version: 'workflow-operations:42',
         selected_workflow_id: 'workflow-1',
+        visible_count: 1,
+        total_count: 18,
         ongoing_rows: [expect.objectContaining({ workflow_id: 'workflow-1' })],
         rows: [],
       }),

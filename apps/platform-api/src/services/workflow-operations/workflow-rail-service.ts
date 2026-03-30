@@ -18,6 +18,7 @@ interface LiveRailSource {
     tenantId: string,
     input?: { page?: number; perPage?: number },
   ): Promise<MissionControlLiveResponse>;
+  countWorkflows?(tenantId: string): Promise<number>;
   listWorkflowCards(
     tenantId: string,
     input?: { workflowIds?: string[]; page?: number; perPage?: number },
@@ -74,10 +75,13 @@ export class WorkflowRailService {
   }
 
   private async buildLiveRail(tenantId: string, query: WorkflowRailQuery): Promise<WorkflowRailPacket> {
-    const response = await this.liveSource.getLive(tenantId, {
-      page: query.page ?? 1,
-      perPage: query.perPage ?? 100,
-    });
+    const [response, totalCount] = await Promise.all([
+      this.liveSource.getLive(tenantId, {
+        page: query.page ?? 1,
+        perPage: query.perPage ?? 100,
+      }),
+      this.liveSource.countWorkflows?.(tenantId) ?? Promise.resolve(0),
+    ]);
     const selectedRow = query.selectedWorkflowId
       ? await this.readSelectedLiveRow(tenantId, query.selectedWorkflowId)
       : null;
@@ -94,6 +98,7 @@ export class WorkflowRailService {
       response.version.latestEventId,
       primaryRows,
       ongoingRows,
+      totalCount,
       query,
     );
   }
@@ -116,7 +121,15 @@ export class WorkflowRailService {
       dedupeRows(response.packets.map(toRailRowFromPacket)),
       query,
     );
-    return buildRailPacket('recent', response.version.generatedAt, response.version.latestEventId, rows, [], query);
+    return buildRailPacket(
+      'recent',
+      response.version.generatedAt,
+      response.version.latestEventId,
+      rows,
+      [],
+      rows.length,
+      query,
+    );
   }
 
   private async buildHistoryRail(tenantId: string, query: WorkflowRailQuery): Promise<WorkflowRailPacket> {
@@ -125,7 +138,15 @@ export class WorkflowRailService {
       dedupeRows(response.packets.map(toRailRowFromPacket)),
       query,
     );
-    return buildRailPacket('history', response.version.generatedAt, response.version.latestEventId, rows, [], query);
+    return buildRailPacket(
+      'history',
+      response.version.generatedAt,
+      response.version.latestEventId,
+      rows,
+      [],
+      rows.length,
+      query,
+    );
   }
 }
 
@@ -135,9 +156,11 @@ function buildRailPacket(
   latestEventId: number | null,
   rows: WorkflowRailRow[],
   ongoingRows: WorkflowRailRow[],
+  totalCount: number,
   query: WorkflowRailQuery,
 ): WorkflowRailPacket {
   const selectedWorkflowId = selectWorkflowId([...rows, ...ongoingRows], query.selectedWorkflowId);
+  const visibleCount = rows.length + ongoingRows.length;
   return {
     mode,
     generated_at: generatedAt,
@@ -146,6 +169,8 @@ function buildRailPacket(
     rows,
     ongoing_rows: ongoingRows,
     selected_workflow_id: selectedWorkflowId,
+    visible_count: visibleCount,
+    total_count: totalCount > 0 ? totalCount : visibleCount,
     next_cursor: null,
   };
 }

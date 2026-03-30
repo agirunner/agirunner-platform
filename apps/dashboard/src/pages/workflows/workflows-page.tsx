@@ -365,6 +365,8 @@ export function WorkflowsPage(): JSX.Element {
             search={pageState.search}
             needsActionOnly={pageState.needsActionOnly}
             ongoingOnly={pageState.ongoingOnly}
+            visibleCount={railPacket?.visible_count}
+            totalCount={railPacket?.total_count}
             rows={railPacket?.rows ?? []}
             ongoingRows={railPacket?.ongoing_rows ?? []}
             selectedWorkflowId={pageState.workflowId}
