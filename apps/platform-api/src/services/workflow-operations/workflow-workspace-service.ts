@@ -751,15 +751,38 @@ function filterLiveConsoleForSelectedScope(
   workflowWorkItemIds: string[],
 ): WorkflowWorkspacePacket['live_console'] {
   const filteredItems = filterLiveConsoleItemsForSelectedScope(packet.items, selectedScope, workflowWorkItemIds);
+  const visibleTotalCount = readLiveConsoleVisibleTotal(packet);
+  const hasStableTotalCounts = shouldPreserveLiveConsoleTotals(packet);
   if (filteredItems.length === packet.items.length) {
-    return packet;
+    if (visibleTotalCount === packet.total_count) {
+      return packet;
+    }
+    return {
+      ...packet,
+      total_count: visibleTotalCount,
+    };
   }
+  const counts = hasStableTotalCounts ? packet.counts : buildWorkflowLiveConsoleCounts(filteredItems);
   return {
     ...packet,
     items: filteredItems,
-    total_count: filteredItems.length,
-    counts: buildWorkflowLiveConsoleCounts(filteredItems),
+    total_count: hasStableTotalCounts ? visibleTotalCount : counts.all,
+    counts,
   };
+}
+
+function readLiveConsoleVisibleTotal(
+  packet: WorkflowWorkspacePacket['live_console'],
+): number {
+  return typeof packet.counts?.all === 'number'
+    ? packet.counts.all
+    : packet.total_count;
+}
+
+function shouldPreserveLiveConsoleTotals(
+  packet: WorkflowWorkspacePacket['live_console'],
+): boolean {
+  return packet.next_cursor !== null || packet.total_count > packet.items.length;
 }
 
 function readBoardWorkItemIds(board: Record<string, unknown>): string[] {

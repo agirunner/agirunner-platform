@@ -91,14 +91,17 @@ export class WorkflowLiveConsoleService {
     input: { limit?: number; workItemId?: string; taskId?: string; after?: string } = {},
   ): Promise<WorkflowLiveConsolePacket> {
     const limit = input.limit ?? 50;
+    const briefScope = shouldFilterSelectedScope(input)
+      ? { workItemId: undefined, taskId: undefined }
+      : input;
     const [version, briefs, workflowSettings, workflowBoard] = await Promise.all([
       this.versionSource.getHistory(tenantId, {
         workflowId,
         limit: 1,
       }),
       this.briefSource.listBriefs(tenantId, workflowId, {
-        workItemId: input.workItemId,
-        taskId: input.taskId,
+        workItemId: briefScope.workItemId,
+        taskId: briefScope.taskId,
         unbounded: true,
       }),
       this.visibilityModeSource.getWorkflowSettings(tenantId, workflowId),
@@ -125,14 +128,15 @@ export class WorkflowLiveConsoleService {
       timestamp: item.created_at,
       id: item.item_id,
     }));
+    const counts = buildWorkflowLiveConsoleCounts(scopedItems);
 
     return {
       generated_at: version.version.generatedAt,
       latest_event_id: version.version.latestEventId,
       snapshot_version: buildWorkflowOperationsSnapshotVersion(version.version.latestEventId),
       items: page.items,
-      total_count: scopedItems.length,
-      counts: buildWorkflowLiveConsoleCounts(scopedItems),
+      total_count: counts.all,
+      counts,
       next_cursor: page.nextCursor,
       live_visibility_mode: workflowSettings.effective_live_visibility_mode,
     };
