@@ -5,6 +5,10 @@ import { describe, expect, it } from 'vitest';
 function readSource() {
   return [
     './task-detail-page.tsx',
+    './task-detail-page.model.tsx',
+    './task-detail-page.actions.tsx',
+    './task-detail-page.sections.tsx',
+    './task-detail-page.output.tsx',
     './task-detail-artifacts-panel.tsx',
   ]
     .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))

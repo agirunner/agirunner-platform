@@ -2,13 +2,25 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './task-detail-page.tsx'), 'utf8');
+function readSource(fileName = './task-detail-page.tsx') {
+  return readFileSync(resolve(import.meta.dirname, fileName), 'utf8');
+}
+
+function readCombinedSource() {
+  return [
+    './task-detail-page.tsx',
+    './task-detail-page.model.tsx',
+    './task-detail-page.actions.tsx',
+    './task-detail-page.sections.tsx',
+    './task-detail-page.output.tsx',
+  ]
+    .map((fileName) => readSource(fileName))
+    .join('\n');
 }
 
 describe('task detail page source', () => {
   it('surfaces specialist task context and v2 workflow scope fields', () => {
-    const source = readSource();
+    const source = readCombinedSource();
     expect(source).toContain('describeTaskKind');
     expect(source).toContain('Orchestrator activation');
     expect(source).toContain('execution_backend');
@@ -25,7 +37,7 @@ describe('task detail page source', () => {
   });
 
   it('handles output assessment and escalation-aware operator actions', () => {
-    const source = readSource();
+    const source = readCombinedSource();
     expect(source).toContain('approveTaskOutput');
     expect(source).toContain('overrideTaskOutput');
     expect(source).toContain('escalated');
@@ -50,7 +62,7 @@ describe('task detail page source', () => {
   });
 
   it('renders an operator-first packet instead of a raw output dump', () => {
-    const source = readSource();
+    const source = readCombinedSource();
     expect(source).toContain('Recommended next move');
     expect(source).toContain('Review the rendered output first');
     expect(source).toContain('Raw payload');
@@ -64,7 +76,7 @@ describe('task detail page source', () => {
   });
 
   it('guards raw approve/reject/retry/cancel buttons behind the workflow operator flow check', () => {
-    const source = readSource();
+    const source = readCombinedSource();
     const guardPos = source.indexOf('workflowOperatorPermalink && workflowOperatorFlow');
     const approvePos = source.indexOf('Approve Step');
     const rejectPos = source.indexOf('Reject Step');
@@ -73,5 +85,19 @@ describe('task detail page source', () => {
     expect(approvePos).toBeGreaterThan(guardPos);
     expect(rejectPos).toBeGreaterThan(guardPos);
     expect(retryPos).toBeGreaterThan(guardPos);
+  });
+
+  it('keeps task model, actions, and output rendering in dedicated local modules', () => {
+    const modelSource = readSource('./task-detail-page.model.tsx');
+    const actionsSource = readSource('./task-detail-page.actions.tsx');
+    const outputSource = readSource('./task-detail-page.output.tsx');
+
+    expect(modelSource).toContain('export interface Task {');
+    expect(modelSource).toContain('export function normalizeTask(');
+    expect(modelSource).toContain('export function resolveStatus(');
+    expect(actionsSource).toContain('export function TaskActionButtons(');
+    expect(actionsSource).toContain('dashboardApi.reassignTask');
+    expect(outputSource).toContain('export function OutputSection(');
+    expect(outputSource).toContain('function renderOutputPreview(');
   });
 });
