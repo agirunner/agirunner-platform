@@ -14,6 +14,8 @@ import {
 } from '../helpers/postgres.js';
 import { ModelCatalogService } from '../../src/services/model-catalog-service.js';
 import { RuntimeDefaultsService } from '../../src/services/runtime-defaults-service.js';
+import { HandoffService } from '../../src/services/handoff-service.js';
+import { WorkflowOperatorBriefService } from '../../src/services/workflow-operator-brief-service.js';
 
 describe('workflow activation recovery integration', () => {
   let db: TestDatabase;
@@ -139,6 +141,8 @@ describe('workflow activation recovery integration', () => {
       playbook_id: String(playbook.id),
       name: 'Activation Recovery Run',
     });
+    const handoffService = new HandoffService(db.pool);
+    const workflowOperatorBriefService = new WorkflowOperatorBriefService(db.pool);
 
     await runWorkflowActivationDispatchTick(
       harness.logger as never,
@@ -284,6 +288,30 @@ describe('workflow activation recovery integration', () => {
         redispatched_task_id: String(recoveredClaim?.id),
       }),
     );
+
+    await handoffService.submitTaskHandoff(identity.tenantId, String(recoveredClaim?.id), {
+      request_id: 'activation-recovery-handoff',
+      summary: 'Recovered activation processed.',
+      completion: 'full',
+      remaining_items: [],
+    });
+    await workflowOperatorBriefService.recordBrief(identity, String(workflow.id), {
+      requestId: `operator-brief:${String(recoveredClaim?.activation_id)}:activation-recovery`,
+      executionContextId: String(recoveredClaim?.activation_id),
+      sourceKind: 'orchestrator',
+      sourceRoleName: 'Orchestrator',
+      briefKind: 'milestone',
+      payload: {
+        shortBrief: {
+          headline: 'Recovered activation processed.',
+        },
+        detailedBriefJson: {
+          headline: 'Recovered activation processed.',
+          status_kind: 'completed',
+          summary: 'Recovered activation processed and is ready to settle cleanly.',
+        },
+      },
+    });
 
     await harness.taskService.completeTask(agentIdentity(String(orchestratorAgentB?.id)), String(recoveredClaim?.id), {
       agent_id: String(orchestratorAgentB?.id),

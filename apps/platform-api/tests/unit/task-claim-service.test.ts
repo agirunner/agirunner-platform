@@ -520,7 +520,7 @@ describe('TaskClaimService', () => {
             }],
           };
         }
-        if (sql.includes('FROM tasks') && sql.includes('assigned_agent_id') && sql.includes('LIMIT 1')) {
+        if (sql.includes('SELECT *') && sql.includes('FROM tasks') && sql.includes('LIMIT 1')) {
           expect(params).toEqual(['tenant-1', 'task-stale']);
           return {
             rowCount: 1,
@@ -637,6 +637,112 @@ describe('TaskClaimService', () => {
         typeof sql === 'string' && sql.includes('current_task_id = NULL'),
       ),
     ).toBe(true);
+  });
+
+  it('reclaims the same in-progress task when the agent already owns it', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: 'worker-1',
+              current_task_id: 'task-owned-1',
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT *') && sql.includes('FROM tasks') && sql.includes('LIMIT 1')) {
+          expect(params).toEqual(['tenant-1', 'task-owned-1']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-owned-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'in_progress',
+              role: 'developer',
+              title: 'Resume owned work',
+              role_config: {},
+              input: { description: 'Resume owned work' },
+              metadata: {},
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: false,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: null,
+              max_iterations: null,
+              llm_max_retries: null,
+              assigned_agent_id: 'agent-1',
+              assigned_worker_id: 'worker-1',
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id = $2')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (
+          sql.includes('SELECT')
+          && sql.includes('w.name AS workflow_name')
+          && sql.includes('p.name AS workspace_name')
+        ) {
+          return {
+            rowCount: 1,
+            rows: [{
+              workflow_name: 'Workflow 1',
+              workspace_name: null,
+              workspace_repository_url: null,
+              workspace_settings: null,
+            }],
+          };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: eventService as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      worker_id: 'worker-1',
+      routing_tags: ['coding', 'role:developer'],
+    });
+
+    expect(task).toMatchObject({
+      id: 'task-owned-1',
+      state: 'in_progress',
+    });
+    expect(eventService.emit).not.toHaveBeenCalled();
+    expect(client.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('SELECT tasks.* FROM tasks'),
+      expect.anything(),
+    );
   });
 
   it('claims workflow specialist tasks by advertised role tag instead of stored capability tags', async () => {

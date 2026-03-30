@@ -373,13 +373,55 @@ export class TaskClaimService {
       }
 
       if (agent.current_task_id) {
-        const stillBusy = await this.reconcileAgentClaimState(
+        const ownedTask = await this.reclaimOwnedAgentTask(
           identity.tenantId,
           payload.agent_id,
           agent,
           client,
         );
-        if (!stillBusy) {
+        if (ownedTask) {
+          const agentTools = readAgentToolRequirements(agent);
+          const workspaceTools = await resolveWorkspaceToolTags(
+            client,
+            identity.tenantId,
+            (ownedTask.workspace_id as string | null | undefined) ?? null,
+          );
+          const evaluation = computeToolMatch(workspaceTools, agentTools);
+          const llmResolution = await this.resolveTaskLLMConfig(identity.tenantId, ownedTask);
+          const loopContract = await this.resolveTaskLoopContract(
+            identity.tenantId,
+            ownedTask,
+            client,
+          );
+          const resolvedExecutionEnvironment = await this.resolveExecutionEnvironmentContract(
+            identity.tenantId,
+            ownedTask,
+            client,
+          );
+          await client.query(
+            `UPDATE agents SET current_task_id = $2, status = 'busy', last_heartbeat_at = now()
+                , last_claim_at = now()
+             WHERE tenant_id = $1 AND id = $3`,
+            [identity.tenantId, ownedTask.id, payload.agent_id],
+          );
+          const claimResponse = await this.buildClaimResponse(
+            identity,
+            payload,
+            ownedTask,
+            llmResolution,
+            loopContract,
+            resolvedExecutionEnvironment,
+            {
+              matched: evaluation.matched,
+              unavailable_optional: evaluation.unavailable_optional,
+            },
+            client,
+          );
+          await client.query('COMMIT');
+          committed = true;
+          return claimResponse;
+        }
+        if (!agent.current_task_id) {
           agent.current_task_id = null;
         }
       }
@@ -581,113 +623,19 @@ export class TaskClaimService {
         client,
       );
 
-      const claimedTask = mergeClaimRuntimeBindings(
-        this.deps.toTaskResponse(updatedTaskRes.rows[0] as Record<string, unknown>),
+      const claimResponse = await this.buildClaimResponse(
+        identity,
+        payload,
         updatedTaskRes.rows[0] as Record<string, unknown>,
-      );
-
-      const namesRes = await client.query(
-        `SELECT
-           w.name AS workflow_name,
-           p.name AS workspace_name,
-           p.repository_url AS workspace_repository_url,
-           p.settings AS workspace_settings
-         FROM tasks t
-         LEFT JOIN workflows w ON w.tenant_id = t.tenant_id AND w.id = t.workflow_id
-         LEFT JOIN workspaces p ON p.tenant_id = t.tenant_id AND p.id = t.workspace_id
-         WHERE t.tenant_id = $1 AND t.id = $2`,
-        [identity.tenantId, task.id],
-      );
-      if (namesRes.rowCount) {
-        (claimedTask as Record<string, unknown>).workflow_name = namesRes.rows[0].workflow_name;
-        (claimedTask as Record<string, unknown>).workspace_name = namesRes.rows[0].workspace_name;
-        (claimedTask as Record<string, unknown>).workspace_binding = resolveWorkspaceStorageBinding({
-          repository_url: namesRes.rows[0].workspace_repository_url,
-          settings: namesRes.rows[0].workspace_settings,
-        });
-      } else {
-        (claimedTask as Record<string, unknown>).workspace_binding = resolveWorkspaceStorageBinding({});
-      }
-
-      const enrichedTask = await this.enrichWithLLMCredentials(
-        identity.tenantId,
-        claimedTask,
         llmResolution,
+        loopContract,
+        resolvedExecutionEnvironment,
+        toolMatch,
+        client,
       );
-      const runtimeReadyTask = hydrateClaimGitCredentials(enrichedTask);
-      await logTaskGovernanceTransition(this.deps.logService, {
-        tenantId: identity.tenantId,
-        operation: 'task.execution_contract_resolved',
-        executor: client,
-        task: runtimeReadyTask,
-        payload: buildExecutionContractLogPayload({
-          llmResolution,
-          loopContract,
-          executionContainer,
-          executionEnvironment,
-          agentId: payload.agent_id,
-          workerId: payload.worker_id ?? null,
-          task: runtimeReadyTask,
-        }),
-      });
-      const { context: _taskContext, ...claimedTaskBase } = runtimeReadyTask as Record<string, unknown>;
-      const instructionContext = (await this.deps.getTaskContext(
-        identity.tenantId,
-        task.id as string,
-        payload.agent_id,
-      )) as Record<string, unknown>;
-      const instructions =
-        typeof instructionContext.instructions === 'string' ? instructionContext.instructions : '';
-      const layers = (instructionContext.instruction_layers ?? {}) as Record<string, unknown>;
-      const executionBrief = (instructionContext.execution_brief ?? null) as Record<string, unknown> | null;
-      const runtimeCapabilities = buildRuntimeTaskCapabilities(runtimeReadyTask, instructionContext);
-      const assembledSystemPrompt = flattenInstructionLayers(layers);
-      const mergedBase = mergeSystemPrompt(claimedTaskBase, assembledSystemPrompt);
-      await logAssembledPromptWarningIfNeeded(this.deps.logService, {
-        tenantId: identity.tenantId,
-        executor: client,
-        task: runtimeReadyTask,
-        prompt: assembledSystemPrompt,
-        warningThresholdChars: readAssembledPromptWarningThreshold(instructionContext),
-      });
-      const executionBackend = readTaskExecutionBackend(runtimeReadyTask);
-      const toolOwners = buildToolOwnerContract(mergedBase);
-      if ((payload.include_context ?? true) === false) {
-        await client.query('COMMIT');
-        committed = true;
-        return {
-          ...mergedBase,
-          execution_backend: executionBackend,
-          loop_mode: loopContract.loopMode,
-          max_iterations: loopContract.maxIterations,
-          llm_max_retries: loopContract.llmMaxRetries,
-          execution_container: executionContainer,
-          execution_environment: executionEnvironment,
-          runtime_capabilities: runtimeCapabilities,
-          tool_owners: toolOwners,
-          tools: toolMatch,
-          instructions,
-          execution_brief: executionBrief,
-        };
-      }
-
       await client.query('COMMIT');
       committed = true;
-      return {
-        ...mergedBase,
-        execution_backend: executionBackend,
-        loop_mode: loopContract.loopMode,
-        max_iterations: loopContract.maxIterations,
-        llm_max_retries: loopContract.llmMaxRetries,
-        execution_container: executionContainer,
-        execution_environment: executionEnvironment,
-        runtime_capabilities: runtimeCapabilities,
-        tool_owners: toolOwners,
-        tools: toolMatch,
-        instructions,
-        execution_brief: executionBrief,
-        context: instructionContext,
-      };
+      return claimResponse;
     } catch (error) {
       if (!committed) {
         await client.query('ROLLBACK');
@@ -881,27 +829,22 @@ export class TaskClaimService {
     return credentials;
   }
 
-  private async reconcileAgentClaimState(
+  private async reclaimOwnedAgentTask(
     tenantId: string,
     agentId: string,
     agent: Record<string, unknown>,
     client: DatabaseClient,
-  ): Promise<boolean> {
+  ): Promise<Record<string, unknown> | null> {
     const currentTaskId =
       typeof agent.current_task_id === 'string' && agent.current_task_id.trim().length > 0
         ? agent.current_task_id.trim()
         : null;
     if (!currentTaskId) {
-      return false;
+      return null;
     }
 
-    const taskResult = await client.query<{
-      id: string;
-      state: string;
-      assigned_agent_id: string | null;
-      assigned_worker_id: string | null;
-    }>(
-      `SELECT id, state, assigned_agent_id, assigned_worker_id
+    const taskResult = await client.query<Record<string, unknown>>(
+      `SELECT *
          FROM tasks
         WHERE tenant_id = $1
           AND id = $2
@@ -919,7 +862,7 @@ export class TaskClaimService {
       && activeTask.assigned_agent_id === agentId
       && (expectedWorkerId == null || activeTask.assigned_worker_id === expectedWorkerId);
     if (stillBusy) {
-      return true;
+      return activeTask;
     }
 
     await client.query(
@@ -931,7 +874,129 @@ export class TaskClaimService {
           AND id = $2`,
       [tenantId, agentId],
     );
-    return false;
+    agent.current_task_id = null;
+    return null;
+  }
+
+  private async buildClaimResponse(
+    identity: ApiKeyIdentity,
+    payload: {
+      agent_id: string;
+      worker_id?: string;
+      include_context?: boolean;
+    },
+    task: Record<string, unknown>,
+    llmResolution: TaskLLMResolution,
+    loopContract: TaskLoopContract,
+    resolvedExecutionEnvironment: ResolvedTaskExecutionEnvironment | null,
+    toolMatch: { matched: string[]; unavailable_optional: string[] },
+    client: DatabaseClient,
+  ): Promise<Record<string, unknown>> {
+    const executionContainer = resolvedExecutionEnvironment?.executionContainer ?? null;
+    const executionEnvironment = resolvedExecutionEnvironment?.executionEnvironment ?? null;
+    const claimedTask = mergeClaimRuntimeBindings(
+      this.deps.toTaskResponse(task),
+      task,
+    );
+
+    const namesRes = await client.query(
+      `SELECT
+         w.name AS workflow_name,
+         p.name AS workspace_name,
+         p.repository_url AS workspace_repository_url,
+         p.settings AS workspace_settings
+       FROM tasks t
+       LEFT JOIN workflows w ON w.tenant_id = t.tenant_id AND w.id = t.workflow_id
+       LEFT JOIN workspaces p ON p.tenant_id = t.tenant_id AND p.id = t.workspace_id
+       WHERE t.tenant_id = $1 AND t.id = $2`,
+      [identity.tenantId, task.id],
+    );
+    if (namesRes.rowCount) {
+      claimedTask.workflow_name = namesRes.rows[0].workflow_name;
+      claimedTask.workspace_name = namesRes.rows[0].workspace_name;
+      claimedTask.workspace_binding = resolveWorkspaceStorageBinding({
+        repository_url: namesRes.rows[0].workspace_repository_url,
+        settings: namesRes.rows[0].workspace_settings,
+      });
+    } else {
+      claimedTask.workspace_binding = resolveWorkspaceStorageBinding({});
+    }
+
+    const enrichedTask = await this.enrichWithLLMCredentials(
+      identity.tenantId,
+      claimedTask,
+      llmResolution,
+    );
+    const runtimeReadyTask = hydrateClaimGitCredentials(enrichedTask);
+    await logTaskGovernanceTransition(this.deps.logService, {
+      tenantId: identity.tenantId,
+      operation: 'task.execution_contract_resolved',
+      executor: client,
+      task: runtimeReadyTask,
+      payload: buildExecutionContractLogPayload({
+        llmResolution,
+        loopContract,
+        executionContainer,
+        executionEnvironment,
+        agentId: payload.agent_id,
+        workerId: payload.worker_id ?? null,
+        task: runtimeReadyTask,
+      }),
+    });
+    const { context: _taskContext, ...claimedTaskBase } = runtimeReadyTask as Record<string, unknown>;
+    const instructionContext = (await this.deps.getTaskContext(
+      identity.tenantId,
+      task.id as string,
+      payload.agent_id,
+    )) as Record<string, unknown>;
+    const instructions =
+      typeof instructionContext.instructions === 'string' ? instructionContext.instructions : '';
+    const layers = (instructionContext.instruction_layers ?? {}) as Record<string, unknown>;
+    const executionBrief = (instructionContext.execution_brief ?? null) as Record<string, unknown> | null;
+    const runtimeCapabilities = buildRuntimeTaskCapabilities(runtimeReadyTask, instructionContext);
+    const assembledSystemPrompt = flattenInstructionLayers(layers);
+    const mergedBase = mergeSystemPrompt(claimedTaskBase, assembledSystemPrompt);
+    await logAssembledPromptWarningIfNeeded(this.deps.logService, {
+      tenantId: identity.tenantId,
+      executor: client,
+      task: runtimeReadyTask,
+      prompt: assembledSystemPrompt,
+      warningThresholdChars: readAssembledPromptWarningThreshold(instructionContext),
+    });
+    const executionBackend = readTaskExecutionBackend(runtimeReadyTask);
+    const toolOwners = buildToolOwnerContract(mergedBase);
+    if ((payload.include_context ?? true) === false) {
+      return {
+        ...mergedBase,
+        execution_backend: executionBackend,
+        loop_mode: loopContract.loopMode,
+        max_iterations: loopContract.maxIterations,
+        llm_max_retries: loopContract.llmMaxRetries,
+        execution_container: executionContainer,
+        execution_environment: executionEnvironment,
+        runtime_capabilities: runtimeCapabilities,
+        tool_owners: toolOwners,
+        tools: toolMatch,
+        instructions,
+        execution_brief: executionBrief,
+      };
+    }
+
+    return {
+      ...mergedBase,
+      execution_backend: executionBackend,
+      loop_mode: loopContract.loopMode,
+      max_iterations: loopContract.maxIterations,
+      llm_max_retries: loopContract.llmMaxRetries,
+      execution_container: executionContainer,
+      execution_environment: executionEnvironment,
+      runtime_capabilities: runtimeCapabilities,
+      tool_owners: toolOwners,
+      tools: toolMatch,
+      instructions,
+      execution_brief: executionBrief,
+      context: instructionContext,
+    };
   }
 
   private async enrichWithLLMCredentials(
