@@ -110,6 +110,7 @@ describe('WorkflowBoardTaskStack', () => {
     );
 
     expect(html).toContain('max-h-[16rem] overflow-y-auto overscroll-contain pr-1');
+    expect(html).toContain('scrollbar-width:thin');
     expect(html).toContain('rounded-md border border-border/50 bg-background/30');
   });
 
@@ -128,6 +129,7 @@ describe('WorkflowBoardTaskStack', () => {
     );
 
     expect(html).toContain('max-h-[22rem] overflow-y-auto overscroll-contain pr-1');
+    expect(html).toContain('scrollbar-width:thin');
     expect(html).not.toContain('max-h-[16rem] overflow-y-auto overscroll-contain pr-1');
   });
 

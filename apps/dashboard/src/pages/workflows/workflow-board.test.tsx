@@ -245,6 +245,7 @@ describe('WorkflowBoard', () => {
     );
 
     expect(html).toContain('overflow-x-auto overflow-y-auto');
+    expect(html).toContain('scrollbar-width:thin');
     expect(html).toContain('grid w-max min-w-full gap-3 md:grid-flow-col md:auto-cols-[minmax(18rem,1fr)] md:items-start');
     expect(html).toContain('Terminal lane');
     expect(html).toContain('Completed packet 1');

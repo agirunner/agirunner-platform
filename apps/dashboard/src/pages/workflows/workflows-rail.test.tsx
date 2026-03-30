@@ -84,11 +84,11 @@ describe('WorkflowsRail', () => {
       }),
     );
 
-    expect(html).toContain('border-sky-600/90');
-    expect(html).toContain('bg-sky-100/95');
+    expect(html).toContain('border-sky-700/90');
+    expect(html).toContain('bg-sky-200/95');
     expect(html).toContain('ring-2');
-    expect(html).toContain('ring-sky-400/70');
-    expect(html).toContain('shadow-[0_16px_36px_rgba(8,47,73,0.22)]');
+    expect(html).toContain('ring-sky-500/70');
+    expect(html).toContain('shadow-[0_18px_40px_rgba(8,47,73,0.24)]');
     expect(html).toContain('text-sky-950');
     expect(html).toContain('text-sky-900/75');
     expect(html).not.toContain('ring-offset-2');

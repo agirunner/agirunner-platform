@@ -9,6 +9,10 @@ import { formatRelativeTimestamp } from '../workflow-detail/workflow-detail-pres
 import type { WorkflowPageMode } from './workflows-page.support.js';
 
 const ONGOING_PREVIEW_LIMIT = 5;
+const THEMED_SCROLL_STYLE = {
+  scrollbarWidth: 'thin',
+  scrollbarColor: 'rgba(148, 163, 184, 0.5) transparent',
+} as const;
 const useIsomorphicLayoutEffect =
   typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
@@ -191,6 +195,7 @@ export function WorkflowsRail(props: {
         ref={scrollRef}
         data-workflows-rail-scroll-region="true"
         className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-3 py-3"
+        style={THEMED_SCROLL_STYLE}
         onScroll={(event) => {
           const element = event.currentTarget;
           persistedScrollTopRef.current = element.scrollTop;
@@ -240,7 +245,7 @@ function WorkflowRailRowCard(props: {
       className={cn(
         'grid w-full min-w-0 max-w-full gap-2 rounded-xl border px-3 py-3 text-left transition-[border-color,background-color,box-shadow,color] duration-150',
         props.isSelected
-          ? 'border-sky-600/90 bg-sky-100/95 text-sky-950 shadow-[0_16px_36px_rgba(8,47,73,0.22)] ring-2 ring-sky-400/70 dark:border-sky-300/80 dark:bg-sky-400/20 dark:text-sky-50 dark:ring-sky-300/40'
+          ? 'border-sky-700/90 bg-sky-200/95 text-sky-950 shadow-[0_18px_40px_rgba(8,47,73,0.24)] ring-2 ring-sky-500/70 dark:border-sky-200/90 dark:bg-sky-300/20 dark:text-sky-50 dark:ring-sky-300/45'
           : 'border-border/70 bg-background/85 hover:border-border hover:bg-background',
       )}
       onClick={() => props.onSelect(props.row.workflow_id)}

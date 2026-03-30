@@ -10,6 +10,11 @@ export interface WorkflowTaskPreview {
   stageName?: string | null;
 }
 
+const THEMED_SCROLL_STYLE = {
+  scrollbarWidth: 'thin',
+  scrollbarColor: 'rgba(148, 163, 184, 0.5) transparent',
+} as const;
+
 export function WorkflowBoardTaskStack(props: {
   tasks: WorkflowTaskPreview[];
   defaultOpen?: boolean;
@@ -90,7 +95,10 @@ function TaskRowsContainer(props: {
 
   return (
     <div className="mt-3 overflow-hidden rounded-md border border-border/50 bg-background/30 p-1.5">
-      <div className={shouldBoundHeight ? maxHeightClassName : 'grid'}>
+      <div
+        className={shouldBoundHeight ? maxHeightClassName : 'grid'}
+        style={shouldBoundHeight ? THEMED_SCROLL_STYLE : undefined}
+      >
         {props.children}
       </div>
     </div>

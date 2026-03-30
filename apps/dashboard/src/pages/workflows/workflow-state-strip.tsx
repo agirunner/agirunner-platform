@@ -161,7 +161,7 @@ function HeaderCard(props: {
   detail: string | null;
   onClick?(): void;
 }): JSX.Element {
-  const className = 'grid gap-1 rounded-xl bg-background/70 px-3 py-2.5 text-left';
+  const className = 'grid gap-1 rounded-xl border border-border/70 bg-background/90 px-3 py-3 text-left shadow-sm';
 
   if (!props.onClick) {
     return (
@@ -176,11 +176,11 @@ function HeaderCard(props: {
   }
 
   return (
-    <button
-      type="button"
-      className={`${className} transition-colors hover:bg-background/90`}
-      onClick={props.onClick}
-    >
+      <button
+        type="button"
+        className={`${className} transition-colors hover:bg-background`}
+        onClick={props.onClick}
+      >
       <p className="text-[9px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
         {props.title}
       </p>

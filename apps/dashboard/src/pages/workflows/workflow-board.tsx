@@ -26,6 +26,10 @@ import {
 type StageFilter = string;
 type LaneFilter = string;
 const groupStages = buildWorkflowBoardView;
+const THEMED_SCROLL_STYLE = {
+  scrollbarWidth: 'thin',
+  scrollbarColor: 'rgba(148, 163, 184, 0.5) transparent',
+} as const;
 
 export function WorkflowBoard(props: {
   workflowId: string;
@@ -176,7 +180,10 @@ export function WorkflowBoard(props: {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-x-auto overflow-y-auto pb-1">
+      <div
+        className="min-h-0 flex-1 overflow-x-auto overflow-y-auto pb-1"
+        style={THEMED_SCROLL_STYLE}
+      >
         <div className="grid w-max min-w-full gap-3 md:grid-flow-col md:auto-cols-[minmax(18rem,1fr)] md:items-start">
           {boardView.lanes.map((lane) => (
             <BoardLaneCard
