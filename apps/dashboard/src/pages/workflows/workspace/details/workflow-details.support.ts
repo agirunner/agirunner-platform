@@ -70,13 +70,15 @@ export function buildCurrentState(props: {
       props.workflow.lifecycle
         ? `${humanizeToken(props.workflow.lifecycle)} lifecycle`
         : null,
-      props.workflow.currentStage
-        ? `${humanizeToken(props.workflow.currentStage)} stage`
-        : null,
       humanizeOptionalToken(props.workflow.posture),
     ].filter((value): value is string => Boolean(value));
 
-    return [joinSentence('This workflow is', stateParts)];
+    const paragraphs = [joinSentence('This workflow is', stateParts)];
+    const activeWorkItemStages = summarizeActiveWorkItemStages(props.board);
+    if (activeWorkItemStages) {
+      paragraphs.push(activeWorkItemStages);
+    }
+    return paragraphs;
   }
 
   const lane = resolveBoardColumnLabel(props.board, props.selectedWorkItem?.column_id);
@@ -302,6 +304,17 @@ function collectPacketFiles(
   return [...files.values()];
 }
 
+function summarizeActiveWorkItemStages(board: DashboardWorkflowBoardResponse | null): string | null {
+  if (!board || board.active_stages.length === 0) {
+    return null;
+  }
+  const stageLabels = board.active_stages.map((stage) => humanizeToken(stage));
+  if (stageLabels.length === 1) {
+    return `Active work items are currently in ${stageLabels[0]} stage.`;
+  }
+  return `Active work items are currently in ${joinWithAnd(stageLabels)} stages.`;
+}
+
 function summarizePacket(packet: DashboardWorkflowInputPacketRecord): string | null {
   const entrySummary = summarizeEntries(
     packet.summary ?? humanizeToken(packet.packet_kind),
@@ -333,6 +346,16 @@ function joinSentence(prefix: string, parts: string[]): string {
     return `${prefix} progress is still loading.`;
   }
   return `${prefix} ${parts.join(', ')}.`;
+}
+
+function joinWithAnd(values: string[]): string {
+  if (values.length <= 1) {
+    return values[0] ?? '';
+  }
+  if (values.length === 2) {
+    return `${values[0]} and ${values[1]}`;
+  }
+  return `${values.slice(0, -1).join(', ')}, and ${values.at(-1)}`;
 }
 
 function readSentence(value: string | null | undefined): string | null {

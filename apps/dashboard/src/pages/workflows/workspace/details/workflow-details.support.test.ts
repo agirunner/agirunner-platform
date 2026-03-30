@@ -89,6 +89,23 @@ describe('workflow-details support', () => {
       'rollback.md',
     ]);
   });
+
+  it('frames workflow stage context as active work-item stages instead of a single workflow stage', () => {
+    const currentState = buildCurrentState({
+      isWorkflowScope: true,
+      workflow: createWorkflow(),
+      board: {
+        ...createBoard(),
+        active_stages: ['release', 'approval-gate'],
+      },
+      selectedWorkItem: null,
+    });
+
+    expect(currentState).toEqual([
+      'This workflow is Active, Planned lifecycle, Progressing.',
+      'Active work items are currently in Release and Approval Gate stages.',
+    ]);
+  });
 });
 
 function createScope(

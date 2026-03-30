@@ -131,6 +131,7 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('What was asked');
     expect(html).toContain('Current state');
     expect(html).toContain('What exists now');
+    expect(html).toContain('Active work items are currently in Release stage.');
     expect(html).toContain('release/2026.03');
     expect(html).toContain('Friday 17:00');
     expect(html).toContain('Prepare release bundle');
