@@ -1107,7 +1107,9 @@ export class TaskClaimService {
     const sanitizedTask = stripClaimSecretEchoes(task);
     const roleName = (sanitizedTask.role as string) || '';
     const existingRoleConfig = (sanitizedTask.role_config ?? {}) as Record<string, unknown>;
-    const directOverride = readTaskModelOverrideSelection(existingRoleConfig);
+    const directOverride = allowsWorkflowTaskModelOverride(sanitizedTask)
+      ? readTaskModelOverrideSelection(existingRoleConfig)
+      : { providerName: '', modelId: '', requested: false };
     let resolved: ResolvedRoleConfig | null = null;
     if (directOverride.requested) {
       if (!isCompleteTaskModelOverrideSelection(directOverride)) {
@@ -1486,6 +1488,14 @@ function readTaskModelOverrideSelection(
     modelId,
     requested: providerName !== '' || modelId !== '',
   };
+}
+
+function allowsWorkflowTaskModelOverride(task: Record<string, unknown>): boolean {
+  return !readOptionalUuidLikeText(task.workflow_id) && !readOptionalUuidLikeText(task.work_item_id);
+}
+
+function readOptionalUuidLikeText(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }
 
 function isCompleteTaskModelOverrideSelection(

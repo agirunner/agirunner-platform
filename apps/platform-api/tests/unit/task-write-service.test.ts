@@ -2201,6 +2201,123 @@ describe('TaskWriteService', () => {
     expect(result.environment).toEqual(insertedEnvironment);
   });
 
+  it('strips task-level llm model overrides from workflow-linked task role_config before insert', async () => {
+    let insertedRoleConfig: unknown = null;
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const pool = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (isLinkedWorkItemLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (
+          sql.includes('FROM tasks')
+          && sql.includes('workflow_id = $2')
+          && sql.includes('request_id = $3')
+        ) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (
+          sql.includes('FROM tasks')
+          && sql.includes('work_item_id = $3')
+          && sql.includes('role = $4')
+          && sql.includes('state = ANY($5::task_state[])')
+        ) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('INSERT INTO tasks')) {
+          insertedRoleConfig = values?.[12] ?? null;
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-1',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              workspace_id: null,
+              title: 'Implement requested change',
+              role: 'developer',
+              stage_name: 'implementation',
+              priority: 'normal',
+              state: 'ready',
+              depends_on: [],
+              input: {},
+              context: {},
+              role_config: insertedRoleConfig,
+              environment: null,
+              resource_bindings: [],
+              activation_id: null,
+              request_id: 'request-1',
+              is_orchestrator_task: false,
+              timeout_minutes: 30,
+              token_budget: null,
+              cost_cap_usd: null,
+              auto_retry: false,
+              max_retries: 0,
+              max_iterations: 500,
+              llm_max_retries: 5,
+              branch_id: null,
+              execution_backend: 'runtime_plus_task',
+              metadata: {},
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: eventService as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    const result = await service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'Implement requested change',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        request_id: 'request-1',
+        role: 'developer',
+        role_config: {
+          llm_provider: 'OpenAI (Subscription)',
+          llm_model: 'gpt-5.4-mini',
+          system_prompt: 'Implement the change cleanly.',
+          tools: ['shell'],
+        },
+      },
+    );
+
+    expect(insertedRoleConfig).toEqual({
+      system_prompt: 'Implement the change cleanly.',
+      tools: ['shell'],
+    });
+    expect(result.role_config).toEqual({
+      system_prompt: 'Implement the change cleanly.',
+      tools: ['shell'],
+    });
+  });
+
   it('returns the existing task when request_id is replayed in the same workflow scope', async () => {
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {

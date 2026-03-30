@@ -2392,7 +2392,113 @@ describe('TaskClaimService', () => {
     expect((task?.role_config as Record<string, unknown>).llm_api_key).toBeUndefined();
   });
 
-  it('resolves claim credentials from task-level llm provider and model overrides', async () => {
+  it('ignores task-level model overrides for workflow-linked tasks and uses the resolved role model instead', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-workflow-linked',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {
+                llm_provider: 'Smoke Provider',
+                llm_model: 'gpt-smoke',
+                tools: ['shell'],
+              },
+              metadata: {},
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-workflow-linked',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'claimed',
+              role: 'developer',
+              role_config: {
+                llm_provider: 'Smoke Provider',
+                llm_model: 'gpt-smoke',
+                tools: ['shell'],
+              },
+              metadata: {},
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => ({
+        ...defaultResolvedRoleConfig,
+        model: {
+          ...defaultResolvedRoleConfig.model,
+          modelId: 'gpt-5.4',
+        },
+      })),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      routing_tags: ['coding', 'role:developer'],
+    });
+
+    expect((task?.credentials as Record<string, unknown>).llm_model).toBe('gpt-5.4');
+    expect(client.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('FROM llm_models m'),
+      expect.anything(),
+    );
+  });
+
+  it('resolves claim credentials from standalone task-level llm provider and model overrides', async () => {
     process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
     const encryptedProviderSecret = storeProviderSecret('override-provider-secret');
     const client = {
@@ -2422,7 +2528,8 @@ describe('TaskClaimService', () => {
             rowCount: 1,
             rows: [{
               id: 'task-direct-model',
-              workflow_id: 'wf-1',
+              workflow_id: null,
+              work_item_id: null,
               state: 'ready',
               role: 'developer',
               workspace_id: null,
@@ -2460,7 +2567,8 @@ describe('TaskClaimService', () => {
             rowCount: 1,
             rows: [{
               id: 'task-direct-model',
-              workflow_id: 'wf-1',
+              workflow_id: null,
+              work_item_id: null,
               state: 'claimed',
               role: 'developer',
               role_config: {
@@ -2520,7 +2628,7 @@ describe('TaskClaimService', () => {
     expect((task?.credentials as Record<string, unknown>).llm_api_key).toBeUndefined();
   });
 
-  it('uses platform-resolved reasoning for direct task model overrides when the task does not set reasoning explicitly', async () => {
+  it('uses platform-resolved reasoning for standalone direct task model overrides when the task does not set reasoning explicitly', async () => {
     const encryptedProviderSecret = storeProviderSecret('override-provider-secret');
     const client = {
       query: vi.fn(async (sql: string, _params?: unknown[]) => {
@@ -2549,7 +2657,8 @@ describe('TaskClaimService', () => {
             rowCount: 1,
             rows: [{
               id: 'task-direct-model-system-reasoning',
-              workflow_id: 'wf-1',
+              workflow_id: null,
+              work_item_id: null,
               state: 'ready',
               role: 'developer',
               workspace_id: null,
@@ -2587,7 +2696,8 @@ describe('TaskClaimService', () => {
             rowCount: 1,
             rows: [{
               id: 'task-direct-model-system-reasoning',
-              workflow_id: 'wf-1',
+              workflow_id: null,
+              work_item_id: null,
               state: 'claimed',
               role: 'developer',
               role_config: {
@@ -2640,7 +2750,7 @@ describe('TaskClaimService', () => {
     });
   });
 
-  it('fails direct task model overrides when provider type metadata is missing', async () => {
+  it('fails standalone direct task model overrides when provider type metadata is missing', async () => {
     const encryptedProviderSecret = storeProviderSecret('override-provider-secret');
     const client = {
       query: vi.fn(async (sql: string, _params?: unknown[]) => {
@@ -2669,7 +2779,8 @@ describe('TaskClaimService', () => {
             rowCount: 1,
             rows: [{
               id: 'task-direct-model-missing-provider-type',
-              workflow_id: 'wf-1',
+              workflow_id: null,
+              work_item_id: null,
               state: 'ready',
               role: 'developer',
               workspace_id: null,
@@ -2735,7 +2846,7 @@ describe('TaskClaimService', () => {
     ).rejects.toThrow(/providerType/i);
   });
 
-  it('preserves explicit task reasoning for direct task model overrides', async () => {
+  it('preserves explicit task reasoning for standalone direct task model overrides', async () => {
     const encryptedProviderSecret = storeProviderSecret('override-provider-secret');
     const client = {
       query: vi.fn(async (sql: string, _params?: unknown[]) => {
@@ -2764,7 +2875,8 @@ describe('TaskClaimService', () => {
             rowCount: 1,
             rows: [{
               id: 'task-direct-model-explicit-reasoning',
-              workflow_id: 'wf-1',
+              workflow_id: null,
+              work_item_id: null,
               state: 'ready',
               role: 'developer',
               workspace_id: null,
@@ -2803,7 +2915,8 @@ describe('TaskClaimService', () => {
             rowCount: 1,
             rows: [{
               id: 'task-direct-model-explicit-reasoning',
-              workflow_id: 'wf-1',
+              workflow_id: null,
+              work_item_id: null,
               state: 'claimed',
               role: 'developer',
               role_config: {
@@ -2857,7 +2970,7 @@ describe('TaskClaimService', () => {
     });
   });
 
-  it('fails before claiming when an explicit task model override cannot be resolved', async () => {
+  it('fails before claiming when a standalone explicit task model override cannot be resolved', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const resolveRoleConfig = vi.fn(async () => defaultResolvedRoleConfig);
     const client = {
@@ -2884,7 +2997,8 @@ describe('TaskClaimService', () => {
             rowCount: 1,
             rows: [{
               id: 'task-bad-direct-model',
-              workflow_id: 'wf-1',
+              workflow_id: null,
+              work_item_id: null,
               state: 'ready',
               role: 'developer',
               workspace_id: null,
@@ -2928,7 +3042,7 @@ describe('TaskClaimService', () => {
     );
   });
 
-  it('fails before claiming when an explicit task model override is incomplete', async () => {
+  it('fails before claiming when a standalone explicit task model override is incomplete', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const resolveRoleConfig = vi.fn(async () => defaultResolvedRoleConfig);
     const client = {
@@ -2955,7 +3069,8 @@ describe('TaskClaimService', () => {
             rowCount: 1,
             rows: [{
               id: 'task-incomplete-direct-model',
-              workflow_id: 'wf-1',
+              workflow_id: null,
+              work_item_id: null,
               state: 'ready',
               role: 'developer',
               workspace_id: null,

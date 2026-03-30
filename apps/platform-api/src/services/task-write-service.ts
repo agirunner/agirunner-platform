@@ -1087,11 +1087,31 @@ function normalizeTaskContractInput(input: CreateTaskInput): CreateTaskInput {
   const taskKind = resolveTaskKind(input);
   const persistedTaskKind = shouldPersistTaskKind(input, taskKind) ? taskKind : undefined;
   assertTaskKindIsValidForInput(taskKind, input);
+  const normalizedRoleConfig = normalizeWorkflowLinkedTaskRoleConfig(input);
   return {
     ...input,
     task_kind: persistedTaskKind,
+    role_config: normalizedRoleConfig,
     input: mergeSubjectLinkageIntoInput(input),
   };
+}
+
+function normalizeWorkflowLinkedTaskRoleConfig(
+  input: CreateTaskInput,
+): Record<string, unknown> | undefined {
+  if (!input.workflow_id && !input.work_item_id) {
+    return input.role_config;
+  }
+  const roleConfig = asRecord(input.role_config);
+  if (Object.keys(roleConfig).length === 0) {
+    return undefined;
+  }
+  const {
+    llm_provider: _llmProvider,
+    llm_model: _llmModel,
+    ...rest
+  } = roleConfig;
+  return Object.keys(rest).length > 0 ? rest : undefined;
 }
 
 function resolveTaskKind(input: CreateTaskInput): NonNullable<CreateTaskInput['task_kind']> {
