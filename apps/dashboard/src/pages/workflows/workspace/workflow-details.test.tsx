@@ -171,6 +171,8 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Release Manager');
     expect(html).toContain('Inputs');
     expect(html).toContain('1 blocked task');
+    expect(html).toContain('Launch packet');
+    expect(html).toContain('launch-summary.pdf');
     expect(html).toContain('Rollback guide');
     expect(html).toContain('rollback.md');
     expect(html).toContain('Verify deliverable');
@@ -182,6 +184,56 @@ describe('WorkflowDetails', () => {
     expect(html.match(/1 blocked task/g)?.length ?? 0).toBe(1);
     expect(html).not.toContain('Release notes and approval summary are attached.');
     expect(html).not.toContain('1 active • 1 blocked • 1 completed');
+  });
+
+  it('keeps workflow-scoped packet context visible inside selected work-item details', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: createWorkItem(),
+        selectedTask: null,
+        selectedWorkItemTasks: [],
+        inputPackets: [
+          {
+            id: 'packet-launch',
+            workflow_id: 'workflow-1',
+            work_item_id: null,
+            packet_kind: 'launch',
+            source: 'operator',
+            summary: 'Seeded launch packet',
+            structured_inputs: {},
+            metadata: {},
+            created_by_type: 'user',
+            created_by_id: 'user-1',
+            created_at: '2026-03-27T23:30:00.000Z',
+            updated_at: '2026-03-27T23:30:00.000Z',
+            files: [
+              {
+                id: 'file-brief',
+                file_name: 'brief.md',
+                description: null,
+                content_type: 'text/markdown',
+                size_bytes: 256,
+                created_at: '2026-03-27T23:30:00.000Z',
+                download_url: '/files/brief.md',
+              },
+            ],
+          },
+        ],
+        workflowParameters: null,
+        scope: createScope('selected_work_item', 'Prepare release bundle'),
+      }),
+    );
+
+    expect(html).toContain('Inputs');
+    expect(html).toContain('Seeded launch packet');
+    expect(html).toContain('brief.md');
   });
 
   it('bounds long work-item task lists inside a themed internal scroll area', () => {

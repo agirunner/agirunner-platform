@@ -29,9 +29,7 @@ export function WorkflowDetails(props: {
   const selectedWorkItemId = props.selectedWorkItem?.id ?? props.selectedWorkItemId ?? null;
   const isWorkflowScope = normalizedScope.scopeKind === 'workflow';
   const isWorkItemScope = !isWorkflowScope;
-  const workflowPackets = isWorkflowScope
-    ? props.inputPackets.filter((packet) => packet.work_item_id === null)
-    : [];
+  const workflowPackets = props.inputPackets.filter((packet) => packet.work_item_id === null);
   const shouldShowParentWorkItemInputs = isWorkItemScope && Boolean(selectedWorkItemId);
   const compactTaskRows = isWorkItemScope ? readCompactTaskRows(props.selectedWorkItemTasks) : [];
   const workItemPackets =
