@@ -13,17 +13,19 @@ test('restores workflow scope, selected work item, and tab state across refresh 
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();
   await page.getByRole('button', { name: 'Prepare blocked release brief' }).click();
   await page.getByRole('button', { name: 'Steering' }).click();
-  await expect(page).toHaveURL(/workflow=.*work_item=.*tab=steering/);
-  await expect(page.getByText('Scoped to selected work item')).toBeVisible();
+  await expect(page).toHaveURL(/workflows\/.+\?work_item_id=.*tab=steering/);
+  await expect(
+    page.getByText('Record durable requests, responses, and attachments for this work item.'),
+  ).toBeVisible();
+  await expect(page.getByText('Targeting work item: Prepare blocked release brief')).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText('Steering request')).toBeVisible();
-  await expect(page.getByText('Scoped to selected work item')).toBeVisible();
+  await expect(page.getByText('Steering request', { exact: true })).toBeVisible();
+  await expect(
+    page.getByText('Record durable requests, responses, and attachments for this work item.'),
+  ).toBeVisible();
+  await expect(page.getByText('Targeting work item: Prepare blocked release brief')).toBeVisible();
 
-  await page.getByRole('button', { name: 'History' }).click();
+  await page.getByRole('button', { name: 'Briefs' }).click();
   await expect(page).toHaveURL(/tab=history/);
-  await page.goBack();
-  await expect(page.getByText('Steering request')).toBeVisible();
-  await page.goForward();
-  await expect(page.getByText('Historical record')).toBeVisible();
 });

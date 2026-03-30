@@ -9,36 +9,46 @@ import {
   seedWorkflowsScenario,
 } from './support/workflows-fixtures.js';
 
-test('supports pause, resume, add work, and steering requests from the workflows workbench', async ({ page }) => {
+test('supports pause, resume, modify work, and steering requests from the workflows workbench', async ({ page }) => {
   const scenario = await seedWorkflowsScenario();
   await loginToWorkflows(page);
 
   await workflowRailButton(page, 'E2E Ongoing Intake').click();
   await page.getByRole('button', { name: 'Pause' }).click();
-  await expect(page.getByText('Workflow paused')).toBeVisible();
+  await expect(page.getByText('Workflow paused', { exact: true }).first()).toBeVisible();
   await page.getByRole('button', { name: 'Resume' }).click();
-  await expect(page.getByText('Workflow resumed')).toBeVisible();
+  await expect(page.getByText('Workflow resumed', { exact: true }).first()).toBeVisible();
 
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();
-  await page.getByRole('button', { name: 'Steering' }).click();
-
-  await page.getByRole('button', { name: 'Add / Modify Work' }).click();
-  await page.getByLabel('Title').fill('Regression follow-up');
-  await page.getByLabel('Goal').fill('Verify the follow-up path is captured.');
-  await page.getByRole('button', { name: 'Add / Modify Work' }).last().click();
-  await expect(page.getByText('Workflow plan updated')).toBeVisible();
+  await page.getByRole('button', { name: 'Prepare blocked release brief' }).click();
+  await page.getByRole('button', { name: 'Modify Work' }).click();
+  await page.getByRole('button', { name: 'Add input' }).click();
+  await page.getByLabel('Input name').fill('follow_up');
+  await page.getByLabel('Input value').fill('Verify the follow-up path is captured.');
+  await page.getByLabel('Operator note').fill('Capture the regression follow-up before resuming delivery work.');
+  await page.getByRole('button', { name: 'Update work' }).click();
+  await expect(page.getByText('Workflow work updated')).toBeVisible();
 
   await expect
     .poll(async () => {
       const packets = await listWorkflowInputPackets(scenario.needsActionWorkflow.id);
-      return packets.some((packet) => String(packet.summary ?? '').includes('Regression follow-up'));
+      return packets.some((packet) =>
+        String(packet.summary ?? '').includes('Inputs updated for Prepare blocked release brief'),
+      );
     })
     .toBe(true);
 
-  await page.getByPlaceholder(/Guide E2E Needs Action Delivery toward the next legal action/i).fill(
+  await page.getByRole('button', { name: 'Steering' }).click();
+  await expect(page.getByText('Targeting work item: Prepare blocked release brief')).toBeVisible();
+  await page.getByPlaceholder(/Guide Prepare blocked release brief toward the next legal action/i).fill(
     'Prioritize the release-risk summary before any new implementation work.',
   );
-  await page.getByRole('button', { name: 'Record steering request' }).click();
+  const steeringSubmitButton = page.getByRole('button', { name: 'Record steering request' });
+  await steeringSubmitButton.evaluate((node) => {
+    node.scrollIntoView({ block: 'center', inline: 'nearest' });
+  });
+  await steeringSubmitButton.focus();
+  await page.keyboard.press('Enter');
   await expect(page.getByText('Steering request recorded')).toBeVisible();
   await expect(page.getByText('Prioritize the release-risk summary before any new implementation work.')).toBeVisible();
 });

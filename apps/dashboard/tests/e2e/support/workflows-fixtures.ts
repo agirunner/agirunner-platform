@@ -26,6 +26,7 @@ export interface SeededWorkflowsScenario {
   ongoingPlaybook: ApiRecord;
   plannedWorkflow: ApiRecord;
   ongoingWorkflow: ApiRecord;
+  ongoingWorkItem: ApiRecord;
   needsActionWorkflow: ApiRecord;
   failedWorkflow: ApiRecord;
 }
@@ -68,6 +69,7 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     owner_role: 'publisher',
     priority: 'high',
   });
+  await setWorkflowCurrentStage(plannedWorkflow.id, 'delivery');
   await apiRequest(`/api/v1/workflows/${plannedWorkflow.id}/documents`, {
     method: 'POST',
     body: {
@@ -99,6 +101,7 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     owner_role: 'intake-analyst',
     priority: 'high',
   });
+  await setWorkflowState(ongoingWorkflow.id, 'active');
   await appendWorkflowExecutionTurn({
     workflowId: ongoingWorkflow.id,
     workflowName: 'E2E Ongoing Intake',
@@ -152,6 +155,7 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     priority: 'critical',
     notes: 'Seeded blocked work item.',
   });
+  await setWorkflowCurrentStage(needsActionWorkflow.id, 'delivery');
   await blockWorkItem(blockedWorkItem.id, 'Waiting on rollback guidance', 'operator', 'Provide rollback guidance');
   await apiRequest(`/api/v1/workflows/${needsActionWorkflow.id}/documents`, {
     method: 'POST',
@@ -182,7 +186,16 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
   });
 
   await seedBulkWorkflows(options.bulkWorkflowCount ?? 0, plannedPlaybook.id, workspace.id);
-  return { workspace, plannedPlaybook, ongoingPlaybook, plannedWorkflow, ongoingWorkflow, needsActionWorkflow, failedWorkflow };
+  return {
+    workspace,
+    plannedPlaybook,
+    ongoingPlaybook,
+    plannedWorkflow,
+    ongoingWorkflow,
+    ongoingWorkItem,
+    needsActionWorkflow,
+    failedWorkflow,
+  };
 }
 
 export async function createWorkflowViaApi(input: {
@@ -225,7 +238,7 @@ export async function appendWorkflowEvent(workflowId: string, eventType: string,
   `);
 }
 
-async function appendWorkflowExecutionTurn(input: {
+export async function appendWorkflowExecutionTurn(input: {
   workflowId: string;
   workflowName: string;
   workspaceId: string;
@@ -379,11 +392,20 @@ async function seedBulkWorkflows(count: number, playbookId: string, workspaceId:
 }
 
 async function updateAgenticSettings(mode: 'standard' | 'enhanced'): Promise<void> {
-  const current = await apiRequest<{ revision: number }>('/api/v1/agentic-settings');
-  await apiRequest('/api/v1/agentic-settings', {
-    method: 'PATCH',
-    body: { live_visibility_mode_default: mode, settings_revision: current.revision },
-  });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const current = await apiRequest<{ revision: number }>('/api/v1/agentic-settings');
+    try {
+      await apiRequest('/api/v1/agentic-settings', {
+        method: 'PATCH',
+        body: { live_visibility_mode_default: mode, settings_revision: current.revision },
+      });
+      return;
+    } catch (error) {
+      if (attempt === 1 || !isRevisionConflict(error)) {
+        throw error;
+      }
+    }
+  }
 }
 
 async function apiRequest<T>(path: string, init: { method?: string; body?: Record<string, unknown> } = {}): Promise<T> {
@@ -423,6 +445,15 @@ async function setWorkflowState(workflowId: string, state: string): Promise<void
   `);
 }
 
+async function setWorkflowCurrentStage(workflowId: string, stageName: string): Promise<void> {
+  runPsql(`
+    UPDATE public.workflows
+       SET current_stage = ${sqlText(stageName)},
+           updated_at = NOW()
+     WHERE id = ${sqlText(workflowId)};
+  `);
+}
+
 function runPsql(sql: string): void {
   execFileSync(
     'docker',
@@ -453,4 +484,8 @@ function sqlJson(value: Record<string, unknown>): string {
 
 function sqlJsonValue(value: unknown): string {
   return sqlText(JSON.stringify(value));
+}
+
+function isRevisionConflict(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('Agentic settings revision is stale');
 }

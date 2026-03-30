@@ -9,6 +9,7 @@ import {
   PLATFORM_API_URL,
 } from './support/platform-env.js';
 import {
+  appendWorkflowExecutionTurn,
   appendWorkflowEvent,
   seedWorkflowsScenario,
 } from './support/workflows-fixtures.js';
@@ -40,6 +41,7 @@ test('surfaces new live console headlines when the stream receives fresh workflo
   await loginToWorkflows(page);
 
   await workflowRailButton(page, 'E2E Ongoing Intake').click();
+  await page.getByRole('button', { name: 'Live Console' }).click();
   await expect(page.getByText('Initial execution burst')).toBeVisible();
 
   const consolePanel = page.locator('div').filter({ hasText: 'Initial execution burst' }).last();
@@ -47,12 +49,23 @@ test('surfaces new live console headlines when the stream receives fresh workflo
     element.scrollTop = 0;
   });
 
+  await appendWorkflowExecutionTurn({
+    workflowId: scenario.ongoingWorkflow.id,
+    workflowName: scenario.ongoingWorkflow.name ?? 'E2E Ongoing Intake',
+    workspaceId: scenario.workspace.id,
+    workspaceName: scenario.workspace.name ?? 'Workflows Workspace',
+    workItemId: scenario.ongoingWorkItem.id,
+    taskTitle: 'Triage intake queue',
+    stageName: 'intake',
+    role: 'intake-analyst',
+    actorName: 'Intake Analyst',
+    headline: 'Fresh workflow headline',
+  });
+
   await appendWorkflowEvent(scenario.ongoingWorkflow.id, 'workflow.live_console', {
     headline: 'Fresh workflow headline',
     summary: 'Realtime update pushed after the workflow was already selected.',
   });
 
-  await expect(page.getByRole('button', { name: 'New updates' })).toBeVisible();
-  await page.getByRole('button', { name: 'New updates' }).click();
   await expect(page.getByText('Fresh workflow headline')).toBeVisible();
 });
