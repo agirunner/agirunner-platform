@@ -6,11 +6,13 @@ export function buildWorkflowLiveConsoleCounts(
   const visibleItems = items.filter((item) => item.item_kind !== 'operator_update');
   const turnUpdates = visibleItems.filter(isWorkflowLiveConsoleTurnUpdate);
   const briefs = visibleItems.filter((item) => item.item_kind === 'milestone_brief');
+  const steering = visibleItems.filter((item) => item.item_kind === 'steering_message');
 
   return {
     all: visibleItems.length,
     turn_updates: turnUpdates.length,
     briefs: briefs.length,
+    steering: steering.length,
   };
 }
 

@@ -221,7 +221,7 @@ describe('WorkflowWorkspaceService', () => {
         counts: expect.objectContaining({
           needs_action: 1,
           steering: 1,
-          live_console_activity: 1,
+          live_console_activity: 2,
           briefs: 1,
           history: 1,
           deliverables: 1,
@@ -260,7 +260,20 @@ describe('WorkflowWorkspaceService', () => {
     );
     expect(result.live_console).toEqual(
       expect.objectContaining({
-        items: [{ item_id: 'console-1' }],
+        items: expect.arrayContaining([
+          expect.objectContaining({ item_id: 'console-1' }),
+          expect.objectContaining({
+            item_id: 'message-1',
+            item_kind: 'steering_message',
+            source_label: 'Operator',
+          }),
+        ]),
+        counts: {
+          all: 2,
+          turn_updates: 0,
+          briefs: 0,
+          steering: 1,
+        },
       }),
     );
     expect(result.history).toEqual(
@@ -699,7 +712,7 @@ describe('WorkflowWorkspaceService', () => {
     });
   });
 
-  it('scopes steering history to the selected work item when tabScope selects that work item', async () => {
+  it('scopes steering history and live-console steering rows to the selected work item when tabScope selects that work item', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({ columns: [], work_items: [] })),
@@ -861,6 +874,22 @@ describe('WorkflowWorkspaceService', () => {
         messages: [expect.objectContaining({ id: 'work-item-session-message' })],
       }),
     );
+    expect(result.live_console.items).toEqual([
+      expect.objectContaining({
+        item_id: 'work-item-session-message',
+        item_kind: 'steering_message',
+        source_kind: 'operator',
+        source_label: 'Operator',
+        headline: 'Work-item steering',
+        work_item_id: 'work-item-1',
+      }),
+    ]);
+    expect(result.live_console.counts).toEqual({
+      all: 1,
+      turn_updates: 0,
+      briefs: 0,
+      steering: 1,
+    });
   });
 
   it('keeps canonical deliverables scoped to the parent work item when task scope is selected', async () => {
@@ -6122,6 +6151,7 @@ describe('WorkflowWorkspaceService', () => {
       all: 3,
       turn_updates: 2,
       briefs: 1,
+      steering: 0,
     });
   });
 

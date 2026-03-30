@@ -51,6 +51,7 @@ test('routes needs-action through local work-item controls while keeping workflo
     .locator('[data-workflows-top-strip="true"]')
     .getByRole('button', { name: 'Pause' })
     .click();
+  await page.getByRole('button', { name: 'Confirm pause' }).click();
   await expect(page.getByText('Workflow paused', { exact: true }).first()).toBeVisible();
   await page
     .locator('[data-workflows-top-strip="true"]')

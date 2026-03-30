@@ -18,6 +18,7 @@ import type {
 } from '../workflow-intervention-service.js';
 import type {
   WorkflowSteeringSessionRecord,
+  WorkflowSteeringMessageRecord,
   WorkflowSteeringSessionService,
 } from '../workflow-steering-session-service.js';
 import type {
@@ -215,22 +216,34 @@ export class WorkflowWorkspaceService {
       ...workspaceDeliverables.final_deliverables,
       ...workspaceDeliverables.in_progress_deliverables,
     ];
-    const effectiveLiveConsole = filterLiveConsoleForSelectedScope(
-      liveConsole,
-      selectedScope,
-      readBoardWorkItemIds(board as Record<string, unknown>),
-    );
     const effectiveBriefs = filterBriefsForSelectedScope(
       briefs ?? buildEmptyBriefsPacket(history),
       selectedScope,
     );
     const effectiveHistory = filterHistoryForSelectedScope(history, selectedScope);
     const scopedInterventions = filterSteeringInterventionsForSelectedScope(interventions, selectedScope);
+    const scopedSteeringSessions = selectSteeringSessionsForSelectedScope(sessions, selectedScope);
+    const scopedSteeringSessionEntries = await Promise.all(
+      scopedSteeringSessions.map(async (session) => ({
+        sessionId: session.id,
+        messages: await this.steeringSessionService.listMessages(tenantId, workflowId, session.id),
+      })),
+    );
+    const scopedSteeringMessages = scopedSteeringSessionEntries.flatMap((entry) => entry.messages);
     const activeSession = selectSteeringSessionForSelectedScope(sessions, selectedScope);
     const steeringQuickActions = filterSteeringQuickActions(workflowCard?.availableActions ?? []);
     const sessionMessages = activeSession
-      ? await this.steeringSessionService.listMessages(tenantId, workflowId, activeSession.id)
+      ? scopedSteeringSessionEntries.find((entry) => entry.sessionId === activeSession.id)?.messages ?? []
       : [];
+    const liveConsoleWithSteering = mergeSteeringMessagesIntoLiveConsole(
+      liveConsole,
+      scopedSteeringMessages,
+    );
+    const effectiveLiveConsole = filterLiveConsoleForSelectedScope(
+      liveConsoleWithSteering,
+      selectedScope,
+      readBoardWorkItemIds(board as Record<string, unknown>),
+    );
     const bottomTabs = buildBottomTabs(
       needsAction.total_count,
       activeSession ? 1 : 0,
@@ -300,6 +313,20 @@ function selectSteeringSessionForSelectedScope(
     return null;
   }
   return sessions.find((session) => (session.work_item_id ?? null) === scopedWorkItemId) ?? null;
+}
+
+function selectSteeringSessionsForSelectedScope(
+  sessions: WorkflowSteeringSessionRecord[],
+  selectedScope: WorkflowWorkspacePacket['selected_scope'],
+): WorkflowSteeringSessionRecord[] {
+  if (selectedScope.scope_kind === 'workflow') {
+    return sessions;
+  }
+  const scopedWorkItemId = selectedScope.work_item_id;
+  if (!scopedWorkItemId) {
+    return [];
+  }
+  return sessions.filter((session) => (session.work_item_id ?? null) === scopedWorkItemId);
 }
 
 function filterSteeringInterventionsForSelectedScope(
@@ -771,6 +798,103 @@ function filterLiveConsoleForSelectedScope(
     total_count: hasStableTotalCounts ? visibleTotalCount : counts.all,
     counts,
   };
+}
+
+function mergeSteeringMessagesIntoLiveConsole(
+  packet: WorkflowWorkspacePacket['live_console'],
+  messages: WorkflowSteeringMessageRecord[],
+): WorkflowWorkspacePacket['live_console'] {
+  const steeringItems = messages
+    .map(toSteeringLiveConsoleItem)
+    .filter((item): item is WorkflowLiveConsoleItem => item !== null);
+  if (steeringItems.length === 0) {
+    return packet;
+  }
+
+  const existingIds = new Set(packet.items.map((item) => item.item_id));
+  const newSteeringItems = steeringItems.filter((item) => !existingIds.has(item.item_id));
+  if (newSteeringItems.length === 0) {
+    return packet;
+  }
+
+  const mergedItems = [...packet.items, ...newSteeringItems].sort(sortNewestLiveConsoleFirst);
+  const mergedCounts = buildMergedLiveConsoleCounts(packet, newSteeringItems.length, mergedItems);
+
+  return {
+    ...packet,
+    items: mergedItems,
+    total_count: mergedCounts.all,
+    counts: mergedCounts,
+  };
+}
+
+function toSteeringLiveConsoleItem(
+  message: WorkflowSteeringMessageRecord,
+): WorkflowLiveConsoleItem | null {
+  const headline = readOptionalString(message.headline) ?? readOptionalString(message.body);
+  if (!headline) {
+    return null;
+  }
+
+  const summary = readOptionalString(message.body) ?? headline;
+  const linkedTargetIds = [
+    message.work_item_id,
+    message.linked_intervention_id,
+    message.linked_input_packet_id,
+  ].filter((value): value is string => typeof value === 'string' && value.trim().length > 0);
+
+  return {
+    item_id: message.id,
+    item_kind: 'steering_message',
+    source_kind: message.source_kind,
+    source_label: readSteeringSourceLabel(message.source_kind),
+    headline,
+    summary,
+    created_at: message.created_at,
+    work_item_id: message.work_item_id ?? null,
+    task_id: null,
+    linked_target_ids: linkedTargetIds,
+    scope_binding: 'record',
+  };
+}
+
+function readSteeringSourceLabel(sourceKind: string): string {
+  switch (sourceKind) {
+    case 'operator':
+      return 'Operator';
+    case 'platform':
+      return 'Orchestrator';
+    case 'system':
+      return 'System';
+    default:
+      return humanizeActionKind(sourceKind);
+  }
+}
+
+function buildMergedLiveConsoleCounts(
+  packet: WorkflowWorkspacePacket['live_console'],
+  addedSteeringCount: number,
+  mergedItems: WorkflowLiveConsoleItem[],
+): WorkflowWorkspacePacket['live_console']['counts'] {
+  const existingCounts = packet.counts;
+  if (!existingCounts) {
+    return buildWorkflowLiveConsoleCounts(mergedItems);
+  }
+  return {
+    all: existingCounts.all + addedSteeringCount,
+    turn_updates: existingCounts.turn_updates,
+    briefs: existingCounts.briefs,
+    steering: (existingCounts.steering ?? 0) + addedSteeringCount,
+  };
+}
+
+function sortNewestLiveConsoleFirst(
+  left: WorkflowLiveConsoleItem,
+  right: WorkflowLiveConsoleItem,
+): number {
+  const rightTimestamp = readOptionalString(right.created_at) ?? '';
+  const leftTimestamp = readOptionalString(left.created_at) ?? '';
+  return rightTimestamp.localeCompare(leftTimestamp) || right.item_id.localeCompare(left.item_id);
 }
 
 function readLiveConsoleVisibleTotal(

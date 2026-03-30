@@ -471,7 +471,7 @@ describe('WorkflowLiveConsole', () => {
         packet: createPacket([
           {
             item_id: 'steer-1',
-            item_kind: 'execution_turn',
+            item_kind: 'steering_message',
             source_kind: 'operator',
             source_label: 'Operator',
             headline: 'Pause packaging until the rollback note is updated.',

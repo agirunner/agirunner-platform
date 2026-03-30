@@ -6,8 +6,11 @@ import { Textarea } from '../../../components/ui/textarea.js';
 import type {
   DashboardWorkflowBoardColumn,
   DashboardWorkflowInterventionRecord,
+  DashboardWorkflowLiveConsoleItem,
   DashboardWorkflowSteeringMessageRecord,
+  DashboardWorkflowSteeringRequestResult,
   DashboardWorkflowWorkItemRecord,
+  DashboardWorkflowWorkspacePacket,
 } from '../../../lib/api.js';
 import { dashboardApi } from '../../../lib/api.js';
 import { buildFileUploadPayloads } from '../../../lib/file-upload.js';
@@ -40,6 +43,7 @@ export function WorkflowSteering(props: {
   messages: DashboardWorkflowSteeringMessageRecord[];
   sessionId: string | null;
   canAcceptRequest: boolean;
+  onRecorded?(): void;
 }): JSX.Element {
   const queryClient = useQueryClient();
   const [request, setRequest] = useState('');
@@ -101,7 +105,14 @@ export function WorkflowSteering(props: {
         }),
       );
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
+      patchWorkflowSteeringWorkspaceCache(queryClient, {
+        workflowId: props.workflowId,
+        requestText: request.trim(),
+        result,
+        workItemId: selectedTarget?.workItemId ?? null,
+      });
+      props.onRecorded?.();
       await invalidateWorkflowsQueries(queryClient, props.workflowId);
       toast.success('Steering request recorded');
       setRequest('');
@@ -169,6 +180,156 @@ export function WorkflowSteering(props: {
       )}
     </div>
   );
+}
+
+function patchWorkflowSteeringWorkspaceCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  input: {
+    workflowId: string;
+    requestText: string;
+    result: DashboardWorkflowSteeringRequestResult;
+    workItemId: string | null;
+  },
+): void {
+  queryClient.setQueriesData(
+    { queryKey: ['workflows', 'workspace', input.workflowId] },
+    (current: unknown) => {
+      const packet = current as DashboardWorkflowWorkspacePacket | undefined;
+      if (!packet || !shouldPatchSteeringWorkspacePacket(packet, input.workItemId)) {
+        return current;
+      }
+      return applySteeringRequestToWorkspacePacket(packet, input);
+    },
+  );
+}
+
+function shouldPatchSteeringWorkspacePacket(
+  packet: DashboardWorkflowWorkspacePacket,
+  workItemId: string | null,
+): boolean {
+  if (packet.selected_scope.scope_kind === 'workflow') {
+    return true;
+  }
+  return packet.selected_scope.work_item_id === workItemId;
+}
+
+function applySteeringRequestToWorkspacePacket(
+  packet: DashboardWorkflowWorkspacePacket,
+  input: {
+    requestText: string;
+    result: DashboardWorkflowSteeringRequestResult;
+    workItemId: string | null;
+  },
+): DashboardWorkflowWorkspacePacket {
+  const createdAt = new Date().toISOString();
+  const steeringMessage = buildOptimisticSteeringMessageRecord(input, createdAt);
+  const liveConsoleItem = buildOptimisticSteeringLiveConsoleItem(input, createdAt);
+  const liveConsoleItems = prependUniqueItems(packet.live_console.items, [liveConsoleItem]);
+  const steeringMessages = prependUniqueItems(packet.steering.session.messages, [steeringMessage]);
+  const liveConsoleCounts = {
+    all: (packet.live_console.counts?.all ?? packet.live_console.items.length) + 1,
+    turn_updates: packet.live_console.counts?.turn_updates ?? 0,
+    briefs: packet.live_console.counts?.briefs ?? 0,
+    steering: (packet.live_console.counts?.steering ?? 0) + 1,
+  };
+
+  return {
+    ...packet,
+    steering: {
+      ...packet.steering,
+      steering_state: {
+        ...packet.steering.steering_state,
+        active_session_id: input.result.steering_session_id,
+      },
+      session: {
+        session_id: input.result.steering_session_id,
+        status: packet.steering.session.status || 'open',
+        messages: steeringMessages,
+      },
+    },
+    live_console: {
+      ...packet.live_console,
+      items: liveConsoleItems,
+      total_count: (packet.live_console.total_count ?? packet.live_console.items.length) + 1,
+      counts: liveConsoleCounts,
+    },
+    bottom_tabs: {
+      ...packet.bottom_tabs,
+      counts: {
+        ...packet.bottom_tabs.counts,
+        live_console_activity: (packet.bottom_tabs.counts.live_console_activity ?? 0) + 1,
+        steering: Math.max(packet.bottom_tabs.counts.steering, 1),
+      },
+    },
+  };
+}
+
+function buildOptimisticSteeringMessageRecord(
+  input: {
+    requestText: string;
+    result: DashboardWorkflowSteeringRequestResult;
+    workItemId: string | null;
+  },
+  createdAt: string,
+): DashboardWorkflowSteeringMessageRecord {
+  return {
+    id: input.result.request_message_id,
+    workflow_id: input.result.workflow_id,
+    work_item_id: input.workItemId,
+    steering_session_id: input.result.steering_session_id,
+    source_kind: 'operator',
+    message_kind: 'operator_request',
+    headline: input.requestText,
+    body: null,
+    linked_intervention_id: input.result.intervention_id,
+    linked_input_packet_id: input.result.linked_input_packet_ids[0] ?? null,
+    linked_operator_update_id: null,
+    created_by_type: 'user',
+    created_by_id: 'current',
+    created_at: createdAt,
+  };
+}
+
+function buildOptimisticSteeringLiveConsoleItem(
+  input: {
+    requestText: string;
+    result: DashboardWorkflowSteeringRequestResult;
+    workItemId: string | null;
+  },
+  createdAt: string,
+): DashboardWorkflowLiveConsoleItem {
+  return {
+    item_id: input.result.request_message_id,
+    item_kind: 'steering_message',
+    source_kind: 'operator',
+    source_label: 'Operator',
+    headline: input.requestText,
+    summary: input.requestText,
+    created_at: createdAt,
+    work_item_id: input.workItemId,
+    task_id: null,
+    linked_target_ids: [input.workItemId, input.result.intervention_id].filter(
+      (value): value is string => typeof value === 'string' && value.trim().length > 0,
+    ),
+    scope_binding: 'record',
+  };
+}
+
+function prependUniqueItems<T extends { id?: string; item_id?: string }>(
+  items: T[],
+  nextItems: T[],
+): T[] {
+  const seen = new Set<string>();
+  const combined: T[] = [];
+  for (const item of [...nextItems, ...items]) {
+    const identity = item.id ?? item.item_id;
+    if (!identity || seen.has(identity)) {
+      continue;
+    }
+    seen.add(identity);
+    combined.push(item);
+  }
+  return combined;
 }
 
 interface SteeringHistoryEntry {

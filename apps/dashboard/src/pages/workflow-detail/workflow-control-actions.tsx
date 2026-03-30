@@ -12,7 +12,10 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog.js';
 import { dashboardApi } from '../../lib/api.js';
-import type { DashboardMissionControlActionAvailability } from '../../lib/api.js';
+import type {
+  DashboardMissionControlActionAvailability,
+  DashboardWorkflowWorkspacePacket,
+} from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { cn } from '../../lib/utils.js';
 import { invalidateWorkflowQueries } from './workflow-detail-query.js';
@@ -64,6 +67,8 @@ export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.
   const pauseMutation = useMutation({
     mutationFn: () => dashboardApi.pauseWorkflow(props.workflowId),
     onSuccess: async () => {
+      setIsPauseDialogOpen(false);
+      patchWorkflowLifecycleWorkspaceCache(queryClient, props.workflowId, 'paused');
       await invalidateWorkflowControlQueries(
         queryClient,
         props.workflowId,
@@ -79,6 +84,7 @@ export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.
   const resumeMutation = useMutation({
     mutationFn: () => dashboardApi.resumeWorkflow(props.workflowId),
     onSuccess: async () => {
+      patchWorkflowLifecycleWorkspaceCache(queryClient, props.workflowId, 'active');
       await invalidateWorkflowControlQueries(
         queryClient,
         props.workflowId,
@@ -95,6 +101,7 @@ export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.
     mutationFn: () => dashboardApi.cancelWorkflow(props.workflowId),
     onSuccess: async () => {
       setIsCancelDialogOpen(false);
+      patchWorkflowLifecycleWorkspaceCache(queryClient, props.workflowId, 'cancelled');
       await invalidateWorkflowControlQueries(
         queryClient,
         props.workflowId,
@@ -272,5 +279,37 @@ export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function patchWorkflowLifecycleWorkspaceCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  workflowId: string,
+  nextState: 'active' | 'paused' | 'cancelled',
+): void {
+  queryClient.setQueriesData(
+    { queryKey: ['workflows', 'workspace', workflowId] },
+    (current: unknown) => {
+      const packet = current as DashboardWorkflowWorkspacePacket | undefined;
+      if (!packet?.workflow) {
+        return current;
+      }
+
+      return {
+        ...packet,
+        workflow: {
+          ...packet.workflow,
+          state: nextState,
+          posture: nextState,
+          availableActions: [],
+        },
+        sticky_strip: packet.sticky_strip
+          ? {
+              ...packet.sticky_strip,
+              posture: nextState,
+            }
+          : packet.sticky_strip,
+      };
+    },
   );
 }

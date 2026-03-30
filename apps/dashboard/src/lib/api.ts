@@ -598,7 +598,12 @@ export interface DashboardWorkflowNeedsActionPacket {
 
 export interface DashboardWorkflowLiveConsoleItem {
   item_id: string;
-  item_kind: 'milestone_brief' | 'operator_update' | 'platform_notice' | 'execution_turn';
+  item_kind:
+    | 'milestone_brief'
+    | 'operator_update'
+    | 'platform_notice'
+    | 'execution_turn'
+    | 'steering_message';
   source_kind: string;
   source_label: string;
   headline: string;

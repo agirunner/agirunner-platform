@@ -92,7 +92,12 @@ export interface WorkflowNeedsActionPacket {
 
 export interface WorkflowLiveConsoleItem {
   item_id: string;
-  item_kind: 'milestone_brief' | 'operator_update' | 'platform_notice' | 'execution_turn';
+  item_kind:
+    | 'milestone_brief'
+    | 'operator_update'
+    | 'platform_notice'
+    | 'execution_turn'
+    | 'steering_message';
   source_kind: string;
   source_label: string;
   headline: string;
@@ -111,6 +116,7 @@ export interface WorkflowLiveConsolePacket extends WorkflowOperationsSnapshot {
     all: number;
     turn_updates: number;
     briefs: number;
+    steering?: number;
   };
   next_cursor: string | null;
   live_visibility_mode: 'standard' | 'enhanced';

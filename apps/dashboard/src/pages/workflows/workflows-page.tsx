@@ -644,6 +644,14 @@ export function WorkflowsPage(): JSX.Element {
                   messages={workspacePacket.steering.session.messages}
                   sessionId={workspacePacket.steering.session.session_id}
                   canAcceptRequest={workspacePacket.steering.steering_state.can_accept_request}
+                  onRecorded={() => {
+                    patchPageState(navigate, pageState, {
+                      workItemId: steeringWorkItem.id,
+                      tab: 'live_console',
+                    });
+                    setIsSteeringOpen(false);
+                    setSteeringTargetWorkItemId(null);
+                  }}
                 />
               ) : null}
             </DialogContent>

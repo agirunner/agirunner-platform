@@ -25,10 +25,10 @@ describe('workflow live console support', () => {
     const items = createItems();
 
     expect(buildWorkflowConsoleFilterDescriptors(items)).toEqual([
-      { filter: 'all', label: 'All', count: 4 },
+      { filter: 'all', label: 'All', count: 5 },
       { filter: 'turn_updates', label: 'Turn updates', count: 3 },
       { filter: 'briefs', label: 'Briefs', count: 1 },
-      { filter: 'steering', label: 'Steering', count: 0 },
+      { filter: 'steering', label: 'Steering', count: 1 },
     ]);
   });
 
@@ -57,19 +57,20 @@ describe('workflow live console support', () => {
       all: 137,
       turn_updates: 101,
       briefs: 36,
-      steering: 0,
+      steering: 1,
     });
     expect(buildWorkflowConsoleFilterDescriptorsWithCounts(items, counts)).toEqual([
       { filter: 'all', label: 'All', count: 137 },
       { filter: 'turn_updates', label: 'Turn updates', count: 101 },
       { filter: 'briefs', label: 'Briefs', count: 36 },
-      { filter: 'steering', label: 'Steering', count: 0 },
+      { filter: 'steering', label: 'Steering', count: 1 },
     ]);
     expect(filterWorkflowConsoleItems(items, 'all').map((item) => item.item_id)).toEqual([
       'update-1',
       'brief-1',
       'notice-1',
       'turn-1',
+      'steering-1',
     ]);
   });
 
@@ -93,7 +94,7 @@ describe('workflow live console support', () => {
       all: 9,
       turn_updates: 3,
       briefs: 1,
-      steering: 0,
+      steering: 1,
     });
   });
 
@@ -121,7 +122,7 @@ describe('workflow live console support', () => {
       all: 137,
       turn_updates: 101,
       briefs: 36,
-      steering: 0,
+      steering: 1,
     });
   });
 
@@ -136,16 +137,17 @@ describe('workflow live console support', () => {
     ];
 
     expect(buildWorkflowConsoleFilterDescriptors(items)).toEqual([
-      { filter: 'all', label: 'All', count: 4 },
+      { filter: 'all', label: 'All', count: 5 },
       { filter: 'turn_updates', label: 'Turn updates', count: 3 },
       { filter: 'briefs', label: 'Briefs', count: 1 },
-      { filter: 'steering', label: 'Steering', count: 0 },
+      { filter: 'steering', label: 'Steering', count: 1 },
     ]);
     expect(filterWorkflowConsoleItems(items, 'all').map((item) => item.item_id)).toEqual([
       'update-1',
       'brief-1',
       'notice-1',
       'turn-1',
+      'steering-1',
     ]);
   });
 
@@ -160,11 +162,15 @@ describe('workflow live console support', () => {
     expect(filterWorkflowConsoleItems(items, 'briefs').map((item) => item.item_id)).toEqual([
       'brief-1',
     ]);
+    expect(filterWorkflowConsoleItems(items, 'steering').map((item) => item.item_id)).toEqual([
+      'steering-1',
+    ]);
     expect(filterWorkflowConsoleItems(items, 'all').map((item) => item.item_id)).toEqual([
       'update-1',
       'brief-1',
       'notice-1',
       'turn-1',
+      'steering-1',
     ]);
   });
 
@@ -413,10 +419,10 @@ describe('workflow live console support', () => {
     const items = createItems();
 
     expect(describeWorkflowConsoleCoverage(items, 'cursor-2', 9)).toBe(
-      'Showing the latest 4 loaded lines out of 9 total. Older lines stream in automatically as you scroll upward.',
+      'Showing the latest 5 loaded lines out of 9 total. Older lines stream in automatically as you scroll upward.',
     );
     expect(describeWorkflowConsoleCoverage(items, 'cursor-2', null)).toBe(
-      'Showing the latest 4 loaded lines. Older lines stream in automatically as you scroll upward.',
+      'Showing the latest 5 loaded lines. Older lines stream in automatically as you scroll upward.',
     );
     expect(describeWorkflowConsoleCoverage(items, null, 9)).toBeNull();
   });
@@ -600,6 +606,13 @@ function createItems(): DashboardWorkflowLiveConsoleItem[] {
       item_id: 'turn-1',
       item_kind: 'execution_turn',
       headline: 'Verifier completed a new turn.',
+    }),
+    createItem({
+      item_id: 'steering-1',
+      item_kind: 'steering_message',
+      source_kind: 'operator',
+      source_label: 'Operator',
+      headline: 'Pause packaging until the rollback note is updated.',
     }),
   ];
 }

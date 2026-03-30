@@ -12,6 +12,7 @@ describe('workflow control actions source', () => {
     expect(source).toContain('Pause workflow?');
     expect(source).toContain('Pausing freezes new routing and asks the current workflow work to stop cleanly.');
     expect(source).toContain('setIsPauseDialogOpen(true)');
+    expect(source).toContain('setIsPauseDialogOpen(false);');
     expect(source).toContain('Keep running');
     expect(source).toContain('Confirm pause');
     expect(source).toContain('pauseMutation.mutate()');

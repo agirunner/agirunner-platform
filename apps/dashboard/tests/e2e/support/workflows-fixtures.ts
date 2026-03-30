@@ -21,6 +21,18 @@ interface ApiRecord {
   workspace_id?: string;
 }
 
+const SEED_STAGE_DEFINITIONS = [
+  { name: 'intake', goal: 'Clarify the request', position: 0 },
+  { name: 'delivery', goal: 'Deliver the requested output', position: 1 },
+] as const;
+
+const SEED_BOARD_COLUMNS = {
+  planned: 'planned',
+  active: 'doing',
+  blocked: 'blocked',
+  done: 'done',
+} as const;
+
 export interface SeededWorkflowsScenario {
   workspace: ApiRecord;
   plannedPlaybook: ApiRecord;
@@ -65,6 +77,9 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     name: 'E2E Planned Terminal Brief',
     playbookId: plannedPlaybook.id,
     workspaceId: workspace.id,
+    lifecycle: 'planned',
+    state: 'completed',
+    currentStage: 'delivery',
     parameters: { workflow_goal: 'Publish a terminal brief with deliverables.' },
   });
   await createWorkItem(plannedWorkflow.id, {
@@ -72,10 +87,11 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     goal: 'Finalize the workflow outcome brief.',
     acceptance_criteria: 'A final deliverable is available.',
     stage_name: 'delivery',
+    column_id: SEED_BOARD_COLUMNS.done,
     owner_role: 'publisher',
     priority: 'high',
+    completed_at: new Date().toISOString(),
   });
-  await setWorkflowCurrentStage(plannedWorkflow.id, 'delivery');
   await apiRequest(`/api/v1/workflows/${plannedWorkflow.id}/documents`, {
     method: 'POST',
     body: {
@@ -87,7 +103,6 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
       url: 'https://example.com/terminal-brief',
     },
   });
-  await setWorkflowState(plannedWorkflow.id, 'completed');
   await appendWorkflowEvent(plannedWorkflow.id, 'workflow.output_published', {
     headline: 'Historical record',
     summary: 'Terminal brief published to the deliverables panel.',
@@ -97,6 +112,8 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     name: 'E2E Ongoing Intake',
     playbookId: ongoingPlaybook.id,
     workspaceId: workspace.id,
+    lifecycle: 'ongoing',
+    state: 'active',
     parameters: { workflow_goal: 'Keep intake work active with live workflow updates.' },
   });
   const ongoingWorkItem = await createWorkItem(ongoingWorkflow.id, {
@@ -104,10 +121,10 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     goal: 'Keep new intake work moving.',
     acceptance_criteria: 'Intake work remains active.',
     stage_name: 'intake',
+    column_id: SEED_BOARD_COLUMNS.active,
     owner_role: 'intake-analyst',
     priority: 'high',
   });
-  await setWorkflowState(ongoingWorkflow.id, 'active');
   await appendWorkflowExecutionTurn({
     workflowId: ongoingWorkflow.id,
     workflowName: 'E2E Ongoing Intake',
@@ -142,6 +159,9 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     name: 'E2E Needs Action Delivery',
     playbookId: plannedPlaybook.id,
     workspaceId: workspace.id,
+    lifecycle: 'planned',
+    state: 'active',
+    currentStage: 'delivery',
     parameters: { workflow_goal: 'Surface operator action in the workflows workbench.' },
   });
   await apiRequest(`/api/v1/workflows/${needsActionWorkflow.id}/input-packets`, {
@@ -157,12 +177,18 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     goal: 'Prepare the blocked release brief.',
     acceptance_criteria: 'Release brief is ready for review.',
     stage_name: 'delivery',
+    column_id: SEED_BOARD_COLUMNS.blocked,
     owner_role: 'developer',
     priority: 'critical',
     notes: 'Seeded blocked work item.',
   });
-  await setWorkflowCurrentStage(needsActionWorkflow.id, 'delivery');
-  await blockWorkItem(blockedWorkItem.id, 'Waiting on rollback guidance', 'operator', 'Provide rollback guidance');
+  await blockWorkItem(
+    blockedWorkItem.id,
+    'Waiting on rollback guidance',
+    'operator',
+    'Provide rollback guidance',
+    { escalationStatus: 'open' },
+  );
   await apiRequest(`/api/v1/workflows/${needsActionWorkflow.id}/documents`, {
     method: 'POST',
     body: {
@@ -183,9 +209,10 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     name: 'E2E Redrive Candidate',
     playbookId: plannedPlaybook.id,
     workspaceId: workspace.id,
+    lifecycle: 'planned',
+    state: 'failed',
     parameters: { workflow_goal: 'Recover the failed validation workflow.' },
   });
-  await setWorkflowState(failedWorkflow.id, 'failed');
   await appendWorkflowEvent(failedWorkflow.id, 'workflow.failed', {
     headline: 'Validation run failed',
     summary: 'Workflow failed after validation timeout.',
@@ -245,17 +272,71 @@ export async function createWorkflowViaApi(input: {
   name: string;
   playbookId: string;
   workspaceId: string;
+  lifecycle: 'planned' | 'ongoing';
+  state: 'pending' | 'active' | 'completed' | 'failed' | 'cancelled';
+  currentStage?: string;
   parameters: Record<string, unknown>;
 }): Promise<ApiRecord> {
-  return apiRequest('/api/v1/workflows', {
-    method: 'POST',
-    body: {
-      playbook_id: input.playbookId,
-      workspace_id: input.workspaceId,
-      name: input.name,
-      parameters: input.parameters,
-    },
-  });
+  const workflowId = randomUUID();
+  runPsql(`
+    INSERT INTO public.workflows (
+      id,
+      tenant_id,
+      workspace_id,
+      playbook_id,
+      playbook_version,
+      name,
+      state,
+      lifecycle,
+      current_stage,
+      parameters,
+      metadata,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      ${sqlUuid(workflowId)},
+      ${sqlUuid(DEFAULT_TENANT_ID)},
+      ${sqlUuid(input.workspaceId)},
+      ${sqlUuid(input.playbookId)},
+      1,
+      ${sqlText(input.name)},
+      ${sqlText(input.state)}::workflow_state,
+      ${sqlText(input.lifecycle)},
+      ${input.currentStage ? sqlText(input.currentStage) : 'NULL'},
+      ${sqlJsonValue(input.parameters)}::jsonb,
+      '{}'::jsonb,
+      NOW(),
+      NOW()
+    );
+
+    INSERT INTO public.workflow_stages (
+      id,
+      tenant_id,
+      workflow_id,
+      name,
+      position,
+      goal,
+      status,
+      gate_status,
+      created_at,
+      updated_at
+    )
+    VALUES
+      ${SEED_STAGE_DEFINITIONS.map((stage) => `(
+        ${sqlUuid(randomUUID())},
+        ${sqlUuid(DEFAULT_TENANT_ID)},
+        ${sqlUuid(workflowId)},
+        ${sqlText(stage.name)},
+        ${stage.position},
+        ${sqlText(stage.goal)},
+        ${sqlText(resolveSeedStageStatus(input, stage.name))},
+        'not_requested',
+        NOW(),
+        NOW()
+      )`).join(',\n      ')};
+  `);
+  return { id: workflowId, name: input.name };
 }
 
 export async function listWorkflowInputPackets(workflowId: string): Promise<Array<Record<string, unknown>>> {
@@ -403,10 +484,7 @@ async function createPlaybook(input: { name: string; slug: string; lifecycle: 'p
             { id: 'done', label: 'Done', is_terminal: true },
           ],
         },
-        stages: [
-          { name: 'intake', goal: 'Clarify the request' },
-          { name: 'delivery', goal: 'Deliver the requested output' },
-        ],
+        stages: SEED_STAGE_DEFINITIONS.map((stage) => ({ name: stage.name, goal: stage.goal })),
         parameters: [{ slug: 'workflow_goal', title: 'Workflow Goal', required: true }],
       },
     },
@@ -414,10 +492,46 @@ async function createPlaybook(input: { name: string; slug: string; lifecycle: 'p
 }
 
 async function createWorkItem(workflowId: string, body: Record<string, unknown>): Promise<ApiRecord> {
-  return apiRequest(`/api/v1/workflows/${workflowId}/work-items`, {
-    method: 'POST',
-    body: { request_id: randomUUID(), ...body },
-  });
+  const workItemId = randomUUID();
+  runPsql(`
+    INSERT INTO public.workflow_work_items (
+      id,
+      tenant_id,
+      workflow_id,
+      stage_name,
+      title,
+      goal,
+      acceptance_criteria,
+      column_id,
+      owner_role,
+      priority,
+      notes,
+      request_id,
+      completed_at,
+      metadata,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      ${sqlUuid(workItemId)},
+      ${sqlUuid(DEFAULT_TENANT_ID)},
+      ${sqlUuid(workflowId)},
+      ${sqlText(String(body.stage_name ?? 'delivery'))},
+      ${sqlText(String(body.title ?? 'Untitled work item'))},
+      ${body.goal ? sqlText(String(body.goal)) : 'NULL'},
+      ${body.acceptance_criteria ? sqlText(String(body.acceptance_criteria)) : 'NULL'},
+      ${sqlText(String(body.column_id ?? SEED_BOARD_COLUMNS.planned))},
+      ${body.owner_role ? sqlText(String(body.owner_role)) : 'NULL'},
+      ${sqlText(String(body.priority ?? 'normal'))}::task_priority,
+      ${body.notes ? sqlText(String(body.notes)) : 'NULL'},
+      ${sqlText(randomUUID())},
+      ${body.completed_at ? `${sqlText(String(body.completed_at))}::timestamptz` : 'NULL'},
+      '{}'::jsonb,
+      NOW(),
+      NOW()
+    );
+  `);
+  return { id: workItemId, title: String(body.title ?? 'Untitled work item'), workflow_id: workflowId };
 }
 
 async function seedBulkWorkflows(count: number, playbookId: string, workspaceId: string): Promise<void> {
@@ -466,13 +580,20 @@ async function apiRequest<T>(path: string, init: { method?: string; body?: Recor
   return payload.data;
 }
 
-async function blockWorkItem(workItemId: string, reason: string, actor: string, action: string): Promise<void> {
+async function blockWorkItem(
+  workItemId: string,
+  reason: string,
+  actor: string,
+  action: string,
+  options: { escalationStatus?: 'open' | 'resolved' } = {},
+): Promise<void> {
   runPsql(`
     UPDATE public.workflow_work_items
        SET blocked_state = 'blocked',
            blocked_reason = ${sqlText(reason)},
            next_expected_actor = ${sqlText(actor)},
            next_expected_action = ${sqlText(action)},
+           escalation_status = ${options.escalationStatus ? sqlText(options.escalationStatus) : 'NULL'},
            updated_at = NOW()
      WHERE id = ${sqlText(workItemId)};
   `);
@@ -518,6 +639,27 @@ function sqlText(value: string): string {
 
 function sqlUuid(value: string): string {
   return `${sqlText(value)}::uuid`;
+}
+
+function resolveSeedStageStatus(
+  workflow: { lifecycle: 'planned' | 'ongoing'; state: string; currentStage?: string },
+  stageName: string,
+): 'pending' | 'active' | 'completed' | 'blocked' {
+  if (workflow.state === 'completed') {
+    return 'completed';
+  }
+  if (workflow.lifecycle === 'ongoing') {
+    return stageName === 'intake' ? 'active' : 'pending';
+  }
+  if (workflow.currentStage === stageName && workflow.state === 'active') {
+    return 'active';
+  }
+  if (workflow.currentStage === stageName && workflow.state === 'failed') {
+    return 'blocked';
+  }
+  return workflow.currentStage === 'delivery' && stageName === 'intake'
+    ? 'completed'
+    : 'pending';
 }
 
 function sqlJson(value: Record<string, unknown>): string {

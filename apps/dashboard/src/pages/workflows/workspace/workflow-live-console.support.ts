@@ -366,7 +366,7 @@ function isWorkflowConsoleTurnUpdate(item: DashboardWorkflowLiveConsoleItem): bo
 }
 
 function isWorkflowConsoleSteering(item: DashboardWorkflowLiveConsoleItem): boolean {
-  return item.source_kind === 'operator';
+  return item.item_kind === 'steering_message' || item.source_kind === 'operator';
 }
 
 function readNonEmptyText(value: string): string | null {
