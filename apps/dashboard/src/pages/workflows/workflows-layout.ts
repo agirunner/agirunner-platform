@@ -3,23 +3,22 @@ import type { CSSProperties } from 'react';
 export const DEFAULT_WORKFLOW_RAIL_WIDTH_PX = 320;
 export const MIN_WORKFLOW_RAIL_WIDTH_PX = 296;
 export const MAX_WORKFLOW_RAIL_WIDTH_PX = 440;
-export const DEFAULT_WORKFLOW_WORKBENCH_FRACTION = 0.5;
+export const DEFAULT_WORKFLOW_WORKBENCH_FRACTION = 0.44;
 export const MIN_WORKFLOW_WORKBENCH_FRACTION = 0.42;
 export const MAX_WORKFLOW_WORKBENCH_FRACTION = 0.58;
-const WORKFLOWS_SHELL_MIN_HEIGHT_CLASS = 'min-h-[calc(100dvh-4.5rem)]';
-const WORKFLOWS_SHELL_HEIGHT_CLASS = 'lg:h-[calc(100dvh-2.25rem)]';
 const WORKFLOW_SPLIT_GUTTER_REM = 0.5;
+const WORKFLOW_SPLIT_BASELINE_FRACTION = 0.5;
 
 export function buildWorkflowsShellClassName(isRailHidden: boolean): string {
   const baseClassName = [
     'flex',
+    'flex-1',
     'w-full',
     'min-w-0',
+    'h-full',
+    'min-h-0',
     'flex-col',
     'gap-1.5',
-    WORKFLOWS_SHELL_MIN_HEIGHT_CLASS,
-    WORKFLOWS_SHELL_HEIGHT_CLASS,
-    'lg:min-h-0',
     'lg:overflow-hidden',
   ].join(' ');
   if (isRailHidden) {
@@ -44,8 +43,8 @@ export function buildWorkflowWorkspaceSplitStyle(
   workbenchFraction: number,
 ): CSSProperties {
   const clampedFraction = clampWorkflowWorkbenchFraction(workbenchFraction);
-  const boardWeight = trimGridWeight(1 - clampedFraction);
-  const footerWeight = trimGridWeight(clampedFraction);
+  const boardWeight = trimGridWeight((1 - clampedFraction) / WORKFLOW_SPLIT_BASELINE_FRACTION);
+  const footerWeight = trimGridWeight(clampedFraction / WORKFLOW_SPLIT_BASELINE_FRACTION);
   return {
     '--workflow-board-track': `${boardWeight}fr`,
     '--workflow-workbench-track': `${footerWeight}fr`,
@@ -83,5 +82,5 @@ export function clampWorkflowWorkbenchFraction(fraction: number): number {
 }
 
 function trimGridWeight(value: number): string {
-  return Number((value / DEFAULT_WORKFLOW_WORKBENCH_FRACTION).toFixed(3)).toString();
+  return Number(value.toFixed(3)).toString();
 }

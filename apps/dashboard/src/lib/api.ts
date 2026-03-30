@@ -618,6 +618,7 @@ export interface DashboardWorkflowLiveConsolePacket extends DashboardWorkflowOpe
   };
   next_cursor: string | null;
   live_visibility_mode?: 'standard' | 'enhanced';
+  scope_filtered?: boolean;
 }
 
 export interface DashboardWorkflowHistoryGroup {
@@ -655,6 +656,42 @@ export interface DashboardWorkflowHistoryPacket extends DashboardWorkflowOperati
     available: string[];
     active: string[];
   };
+  next_cursor: string | null;
+}
+
+export interface DashboardWorkflowBriefItem {
+  brief_id: string;
+  workflow_id: string;
+  work_item_id: string | null;
+  task_id: string | null;
+  request_id: string;
+  execution_context_id: string;
+  brief_kind: string;
+  brief_scope: string;
+  source_kind: string;
+  source_label: string;
+  source_role_name: string | null;
+  headline: string;
+  summary: string;
+  llm_turn_count: number | null;
+  status_kind: string;
+  short_brief: Record<string, unknown>;
+  detailed_brief_json: Record<string, unknown>;
+  linked_target_ids: string[];
+  sequence_number: number;
+  related_artifact_ids: string[];
+  related_output_descriptor_ids: string[];
+  related_intervention_ids: string[];
+  canonical_workflow_brief_id: string | null;
+  created_by_type: string;
+  created_by_id: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DashboardWorkflowBriefsPacket extends DashboardWorkflowOperationsSnapshot {
+  items: DashboardWorkflowBriefItem[];
+  total_count: number;
   next_cursor: string | null;
 }
 
@@ -747,6 +784,7 @@ export interface DashboardWorkflowBottomTabsPacket {
     needs_action: number;
     steering: number;
     live_console_activity: number;
+    briefs?: number;
     history: number;
     deliverables: number;
   };
@@ -781,6 +819,7 @@ export interface DashboardWorkflowWorkspacePacket extends DashboardWorkflowOpera
     };
   };
   live_console: DashboardWorkflowLiveConsolePacket;
+  briefs?: DashboardWorkflowBriefsPacket;
   history: DashboardWorkflowHistoryPacket;
   deliverables: DashboardWorkflowDeliverablesPacket;
   redrive_lineage: Record<string, unknown> | null;
@@ -3030,6 +3069,8 @@ export interface DashboardApi {
     artifactId: string,
   ): Promise<DashboardTaskArtifactContent>;
   downloadTaskArtifact(taskId: string, artifactId: string): Promise<DashboardTaskArtifactDownload>;
+  readBinaryContentByHref(href: string): Promise<DashboardTaskArtifactContent>;
+  downloadBinaryByHref(href: string): Promise<DashboardTaskArtifactDownload>;
   deleteTaskArtifact(taskId: string, artifactId: string): Promise<void>;
   listWorkers(): Promise<unknown>;
   listAgents(): Promise<DashboardAgentRecord[]>;
@@ -4202,6 +4243,30 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     downloadTaskArtifact: (taskId, artifactId) =>
       withRefresh(async () => {
         const response = await requestBinary(`/api/v1/tasks/${taskId}/artifacts/${artifactId}`, {
+          method: 'GET',
+        });
+        return {
+          blob: await response.blob(),
+          content_type: response.headers.get('content-type') ?? 'application/octet-stream',
+          file_name: readContentDispositionFileName(response.headers.get('content-disposition')),
+          size_bytes: Number(response.headers.get('content-length') ?? '0'),
+        };
+      }),
+    readBinaryContentByHref: (href) =>
+      withRefresh(async () => {
+        const response = await requestBinary(href, {
+          method: 'GET',
+        });
+        return {
+          content_type: response.headers.get('content-type') ?? 'application/octet-stream',
+          content_text: await response.text(),
+          file_name: readContentDispositionFileName(response.headers.get('content-disposition')),
+          size_bytes: Number(response.headers.get('content-length') ?? '0'),
+        };
+      }),
+    downloadBinaryByHref: (href) =>
+      withRefresh(async () => {
+        const response = await requestBinary(href, {
           method: 'GET',
         });
         return {

@@ -32,7 +32,6 @@ export function useWorkflowRailRealtime(
     search: string;
     needsActionOnly: boolean;
     ongoingOnly: boolean;
-    workflowId: string | null;
   },
 ): void {
   useEffect(() => {
@@ -45,12 +44,11 @@ export function useWorkflowRailRealtime(
             search: input.search,
             needsActionOnly: input.needsActionOnly,
             ongoingOnly: input.ongoingOnly,
-            workflowId: input.workflowId,
           }),
         });
       },
     });
-  }, [input.mode, input.needsActionOnly, input.ongoingOnly, input.search, input.workflowId, queryClient]);
+  }, [input.mode, input.needsActionOnly, input.ongoingOnly, input.search, queryClient]);
 }
 
 export function useWorkflowWorkspaceRealtime(
@@ -256,7 +254,6 @@ function buildRailStreamPath(input: {
   search: string;
   needsActionOnly: boolean;
   ongoingOnly: boolean;
-  workflowId: string | null;
 }): string {
   const params = new URLSearchParams();
   params.set('mode', input.mode);
@@ -268,9 +265,6 @@ function buildRailStreamPath(input: {
   }
   if (input.ongoingOnly) {
     params.set('ongoing_only', 'true');
-  }
-  if (input.workflowId) {
-    params.set('workflow_id', input.workflowId);
   }
   return `/api/v1/operations/workflows/stream?${params.toString()}`;
 }

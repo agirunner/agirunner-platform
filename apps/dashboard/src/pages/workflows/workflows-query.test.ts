@@ -3,14 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { buildWorkflowRailQueryKey } from './workflows-query.js';
 
 describe('workflows query keys', () => {
-  it('includes the selected workflow id in the rail query key so pinned selections refetch immediately', () => {
+  it('keeps the rail query key stable when selection changes so selection is not treated like a sort key', () => {
     expect(
       buildWorkflowRailQueryKey({
         mode: 'live',
         search: '',
         needsActionOnly: false,
         ongoingOnly: false,
-        workflowId: 'workflow-1',
       }),
     ).toEqual([
       'workflows',
@@ -19,7 +18,6 @@ describe('workflows query keys', () => {
       '',
       false,
       false,
-      'workflow-1',
     ]);
     expect(
       buildWorkflowRailQueryKey({
@@ -27,15 +25,13 @@ describe('workflows query keys', () => {
         search: '',
         needsActionOnly: false,
         ongoingOnly: false,
-        workflowId: 'workflow-2',
       }),
-    ).not.toEqual(
+    ).toEqual(
       buildWorkflowRailQueryKey({
         mode: 'live',
         search: '',
         needsActionOnly: false,
         ongoingOnly: false,
-        workflowId: 'workflow-1',
       }),
     );
   });

@@ -11,7 +11,6 @@ import {
   resolveFormFeedbackMessage,
 } from '../../components/forms/form-feedback.js';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog.js';
-import { Input } from '../../components/ui/input.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { dashboardApi } from '../../lib/api.js';
 import { buildFileUploadPayloads } from '../../lib/file-upload.js';
@@ -24,10 +23,7 @@ import { invalidateWorkflowsQueries } from './workflows-query.js';
 import { WorkflowFileInput } from './workflow-file-input.js';
 import {
   buildWorkflowLaunchComboboxItems,
-  filterWorkflowLaunchComboboxItems,
   resolveDefaultWorkflowLaunchWorkspaceId,
-  resolveWorkflowLaunchSelectorLabel,
-  resolveWorkflowLaunchTypedSelectionId,
   validateWorkflowLaunchDialogDraft,
 } from './workflow-launch-dialog.support.js';
 
@@ -37,10 +33,8 @@ export function WorkflowLaunchDialog(props: {
   onLaunched?(workflowId: string): void;
 }): JSX.Element {
   const queryClient = useQueryClient();
-  const [playbookQuery, setPlaybookQuery] = useState('');
   const [selectedPlaybookId, setSelectedPlaybookId] = useState('');
   const [workflowName, setWorkflowName] = useState('');
-  const [workspaceQuery, setWorkspaceQuery] = useState('');
   const [workspaceId, setWorkspaceId] = useState('');
   const [parameterDrafts, setParameterDrafts] = useState<Record<string, string>>({});
   const [files, setFiles] = useState<File[]>([]);
@@ -62,14 +56,6 @@ export function WorkflowLaunchDialog(props: {
   const workspaces = workspacesQuery.data?.data?.filter((workspace) => workspace.is_active !== false) ?? [];
   const playbookItems = useMemo(() => buildWorkflowLaunchComboboxItems(playbooks), [playbooks]);
   const workspaceItems = useMemo(() => buildWorkflowLaunchComboboxItems(workspaces), [workspaces]);
-  const filteredPlaybookItems = useMemo(
-    () => filterWorkflowLaunchComboboxItems(playbookItems, playbookQuery),
-    [playbookItems, playbookQuery],
-  );
-  const filteredWorkspaceItems = useMemo(
-    () => filterWorkflowLaunchComboboxItems(workspaceItems, workspaceQuery),
-    [workspaceItems, workspaceQuery],
-  );
   const selectedPlaybook = useMemo(
     () => playbooks.find((playbook) => playbook.id === selectedPlaybookId) ?? null,
     [playbooks, selectedPlaybookId],
@@ -105,30 +91,14 @@ export function WorkflowLaunchDialog(props: {
       });
       return;
     }
-    setPlaybookQuery('');
     setSelectedPlaybookId('');
     setWorkflowName('');
-    setWorkspaceQuery('');
     setWorkspaceId('');
     setParameterDrafts({});
     setFiles([]);
     setErrorMessage(null);
     setHasAttemptedSubmit(false);
   }, [launchDefinition.parameterSpecs, props.isOpen]);
-
-  useEffect(() => {
-    if (!selectedPlaybookId) {
-      return;
-    }
-    setPlaybookQuery(resolveWorkflowLaunchSelectorLabel(playbookItems, selectedPlaybookId));
-  }, [playbookItems, selectedPlaybookId]);
-
-  useEffect(() => {
-    if (!workspaceId) {
-      return;
-    }
-    setWorkspaceQuery(resolveWorkflowLaunchSelectorLabel(workspaceItems, workspaceId));
-  }, [workspaceId, workspaceItems]);
 
   const launchMutation = useMutation({
     mutationFn: async () => {
@@ -173,18 +143,6 @@ export function WorkflowLaunchDialog(props: {
     setErrorMessage(null);
   }
 
-  function handlePlaybookQueryChange(nextQuery: string): void {
-    clearLaunchFeedback();
-    setPlaybookQuery(nextQuery);
-    setSelectedPlaybookId(resolveWorkflowLaunchTypedSelectionId(playbookItems, nextQuery) ?? '');
-  }
-
-  function handleWorkspaceQueryChange(nextQuery: string): void {
-    clearLaunchFeedback();
-    setWorkspaceQuery(nextQuery);
-    setWorkspaceId(resolveWorkflowLaunchTypedSelectionId(workspaceItems, nextQuery) ?? '');
-  }
-
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto">
@@ -199,20 +157,12 @@ export function WorkflowLaunchDialog(props: {
           <div className="grid gap-4 md:grid-cols-2">
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Playbook</span>
-              <Input
-                value={playbookQuery}
-                onChange={(event) => handlePlaybookQueryChange(event.target.value)}
-                placeholder="Type a playbook name or slug"
-                aria-invalid={Boolean(playbookError)}
-              />
               <SearchableCombobox
-                items={filteredPlaybookItems}
+                items={playbookItems}
                 value={selectedPlaybookId || null}
                 onChange={(value) => {
                   clearLaunchFeedback();
-                  const nextValue = value ?? '';
-                  setSelectedPlaybookId(nextValue);
-                  setPlaybookQuery(resolveWorkflowLaunchSelectorLabel(playbookItems, nextValue));
+                  setSelectedPlaybookId(value ?? '');
                 }}
                 placeholder="Select playbook"
                 searchPlaceholder="Search playbooks..."
@@ -225,20 +175,12 @@ export function WorkflowLaunchDialog(props: {
 
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Workspace</span>
-              <Input
-                value={workspaceQuery}
-                onChange={(event) => handleWorkspaceQueryChange(event.target.value)}
-                placeholder="Type a workspace name or slug"
-                aria-invalid={Boolean(workspaceError)}
-              />
               <SearchableCombobox
-                items={filteredWorkspaceItems}
+                items={workspaceItems}
                 value={workspaceId || null}
                 onChange={(value) => {
                   clearLaunchFeedback();
-                  const nextValue = value ?? '';
-                  setWorkspaceId(nextValue);
-                  setWorkspaceQuery(resolveWorkflowLaunchSelectorLabel(workspaceItems, nextValue));
+                  setWorkspaceId(value ?? '');
                 }}
                 placeholder="Select workspace"
                 searchPlaceholder="Search workspaces..."

@@ -176,6 +176,16 @@ describe('layout breadcrumbs', () => {
     expect(source).not.toContain('bg-yellow');
   });
 
+  it('treats the routed content area as the only vertical scroll container', () => {
+    const source = readLayoutSource();
+
+    expect(source).toContain('<div className="flex h-dvh min-h-screen overflow-hidden">');
+    expect(source).toContain('<main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background pt-12 lg:pt-0">');
+    expect(source).toContain('<div className="flex min-h-0 min-w-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">');
+    expect(source).toContain('<div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">');
+    expect(source).not.toContain('<div className="flex min-h-full min-w-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">');
+  });
+
   it('renders Mission Control like the other expandable nav groups instead of collapsing it into a single row', () => {
     const source = readLayoutSource();
 

@@ -3,9 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { DashboardPlaybookRecord, DashboardWorkspaceRecord } from '../../lib/api.js';
 import {
   buildWorkflowLaunchComboboxItems,
-  filterWorkflowLaunchComboboxItems,
   resolveDefaultWorkflowLaunchWorkspaceId,
-  resolveWorkflowLaunchTypedSelectionId,
   validateWorkflowLaunchDialogDraft,
 } from './workflow-launch-dialog.support.js';
 
@@ -46,28 +44,6 @@ describe('workflow-launch-dialog.support', () => {
     ];
 
     expect(resolveDefaultWorkflowLaunchWorkspaceId(workspaces, '')).toBe('');
-  });
-
-  it('filters launch selector items by operator-entered name fragments or slugs', () => {
-    const items = buildWorkflowLaunchComboboxItems([
-      createPlaybook({ id: 'playbook-1', name: 'Release Readiness', slug: 'release-readiness' }),
-      createPlaybook({ id: 'playbook-2', name: 'Incident Review', slug: 'incident-review' }),
-    ]);
-
-    expect(filterWorkflowLaunchComboboxItems(items, 'release')).toEqual([items[0]]);
-    expect(filterWorkflowLaunchComboboxItems(items, 'incident-review')).toEqual([items[1]]);
-    expect(filterWorkflowLaunchComboboxItems(items, '  ')).toEqual(items);
-  });
-
-  it('selects a launch item when the operator types one exact name or slug', () => {
-    const items = buildWorkflowLaunchComboboxItems([
-      createPlaybook({ id: 'playbook-1', name: 'Release Readiness', slug: 'release-readiness' }),
-      createPlaybook({ id: 'playbook-2', name: 'Incident Review', slug: 'incident-review' }),
-    ]);
-
-    expect(resolveWorkflowLaunchTypedSelectionId(items, 'Release Readiness')).toBe('playbook-1');
-    expect(resolveWorkflowLaunchTypedSelectionId(items, 'incident-review')).toBe('playbook-2');
-    expect(resolveWorkflowLaunchTypedSelectionId(items, 'release')).toBeNull();
   });
 
   it('requires playbook, workspace, workflow name, and required launch inputs', () => {

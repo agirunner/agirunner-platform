@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  DEFAULT_WORKFLOW_WORKBENCH_FRACTION,
   buildWorkflowWorkspaceSplitClassName,
   buildWorkflowWorkspaceSplitStyle,
   buildWorkflowsShellClassName,
@@ -12,17 +13,19 @@ import {
 describe('buildWorkflowsShellClassName', () => {
   it('uses a single-column shell when the workflow rail is hidden', () => {
     expect(buildWorkflowsShellClassName(true)).toContain('lg:flex');
+    expect(buildWorkflowsShellClassName(true)).toContain('flex-1');
+    expect(buildWorkflowsShellClassName(true)).toContain('h-full');
+    expect(buildWorkflowsShellClassName(true)).toContain('min-h-0');
     expect(buildWorkflowsShellClassName(true)).toContain('gap-1.5');
-    expect(buildWorkflowsShellClassName(true)).toContain('min-h-[calc(100dvh-4.5rem)]');
-    expect(buildWorkflowsShellClassName(true)).toContain('lg:h-[calc(100dvh-2.25rem)]');
     expect(buildWorkflowsShellClassName(true)).not.toContain('xl:grid-cols-[22rem_minmax(0,1fr)]');
   });
 
   it('uses the two-column shell when the workflow rail is visible', () => {
     expect(buildWorkflowsShellClassName(false)).toContain('lg:grid');
+    expect(buildWorkflowsShellClassName(false)).toContain('flex-1');
+    expect(buildWorkflowsShellClassName(false)).toContain('h-full');
+    expect(buildWorkflowsShellClassName(false)).toContain('min-h-0');
     expect(buildWorkflowsShellClassName(false)).toContain('gap-1.5');
-    expect(buildWorkflowsShellClassName(false)).toContain('min-h-[calc(100dvh-4.5rem)]');
-    expect(buildWorkflowsShellClassName(false)).toContain('lg:h-[calc(100dvh-2.25rem)]');
     expect(buildWorkflowsShellClassName(false)).not.toContain('xl:grid-cols-[22rem_minmax(0,1fr)]');
   });
 
@@ -57,4 +60,18 @@ describe('buildWorkflowsShellClassName', () => {
       '--workflow-workbench-track': '1fr',
     });
   });
+
+  it('biases the default desktop split toward the board so blocked work-item cards stay clear of the workbench divider', () => {
+    const defaultSplitStyle = buildWorkflowWorkspaceSplitStyle(DEFAULT_WORKFLOW_WORKBENCH_FRACTION);
+    const splitTracks = defaultSplitStyle as Record<string, string>;
+
+    expect(DEFAULT_WORKFLOW_WORKBENCH_FRACTION).toBeLessThan(0.5);
+    expect(readGridTrackWeight(splitTracks['--workflow-board-track'])).toBeGreaterThan(
+      readGridTrackWeight(splitTracks['--workflow-workbench-track']),
+    );
+  });
 });
+
+function readGridTrackWeight(value: unknown): number {
+  return Number.parseFloat(String(value).replace('fr', ''));
+}

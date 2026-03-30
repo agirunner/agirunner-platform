@@ -19,3 +19,23 @@ for (const viewport of workflowsViewports) {
     await expect(page.getByText('Workflow Workbench')).toBeVisible();
   });
 }
+
+test('keeps the desktop workflows shell inside the viewport without a pointless root scrollbar', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1024 });
+  await seedWorkflowsScenario();
+  await loginToWorkflows(page);
+
+  await workflowRailButton(page, 'E2E Needs Action Delivery').click();
+  await expect(page.getByText('Workflow board')).toBeVisible();
+  await expect(page.getByText('Workflow Workbench')).toBeVisible();
+
+  const rootMetrics = await page.evaluate(() => ({
+    clientHeight: document.documentElement.clientHeight,
+    scrollHeight: document.documentElement.scrollHeight,
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+
+  expect(rootMetrics.scrollHeight).toBeLessThanOrEqual(rootMetrics.clientHeight + 1);
+  expect(rootMetrics.scrollWidth).toBeLessThanOrEqual(rootMetrics.clientWidth + 1);
+});

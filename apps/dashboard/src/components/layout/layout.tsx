@@ -741,7 +741,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex h-dvh min-h-screen overflow-hidden">
       <div className="fixed left-0 right-0 top-0 z-30 flex items-center justify-between border-b border-stone-200/90 bg-stone-100/95 px-4 py-2 dark:border-slate-800 dark:bg-slate-950 lg:hidden">
         <button
           ref={mobileMenuTriggerRef}
@@ -804,10 +804,12 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
         {renderSidebarContent(false)}
       </aside>
 
-      <main className="flex-1 overflow-y-auto bg-background pt-12 lg:pt-0">
-        <div className="px-4 py-4 sm:px-6 lg:px-8">
+      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background pt-12 lg:pt-0">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col px-4 py-4 sm:px-6 lg:px-8">
           <BreadcrumbBar />
-          <Outlet />
+          <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+            <Outlet />
+          </div>
         </div>
       </main>
 

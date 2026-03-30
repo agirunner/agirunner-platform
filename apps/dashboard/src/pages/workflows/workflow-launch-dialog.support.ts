@@ -27,44 +27,6 @@ export function buildWorkflowLaunchComboboxItems(
   }));
 }
 
-export function filterWorkflowLaunchComboboxItems(
-  items: ComboboxItem[],
-  query: string,
-): ComboboxItem[] {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return items;
-  }
-  return items.filter(
-    (item) =>
-      item.label.toLowerCase().includes(normalizedQuery)
-      || item.subtitle?.toLowerCase().includes(normalizedQuery),
-  );
-}
-
-export function resolveWorkflowLaunchTypedSelectionId(
-  items: ComboboxItem[],
-  query: string,
-): string | null {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return null;
-  }
-  const matches = items.filter(
-    (item) =>
-      item.label.toLowerCase() === normalizedQuery
-      || item.subtitle?.toLowerCase() === normalizedQuery,
-  );
-  return matches.length === 1 ? matches[0].id : null;
-}
-
-export function resolveWorkflowLaunchSelectorLabel(
-  items: ComboboxItem[],
-  selectedId: string,
-): string {
-  return items.find((item) => item.id === selectedId)?.label ?? '';
-}
-
 export function resolveDefaultWorkflowLaunchWorkspaceId(
   workspaces: DashboardWorkspaceRecord[],
   currentWorkspaceId: string,

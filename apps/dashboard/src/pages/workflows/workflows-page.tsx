@@ -139,7 +139,6 @@ export function WorkflowsPage(): JSX.Element {
         needsActionOnly: pageState.needsActionOnly,
         ongoingOnly: pageState.ongoingOnly,
         search: pageState.search,
-        workflowId: pageState.workflowId ?? undefined,
       }),
   });
   const workspaceQuery = useQuery({
@@ -189,18 +188,11 @@ export function WorkflowsPage(): JSX.Element {
       dashboardApi.listWorkflowWorkItemTasks(pageState.workflowId as string, boardSelection.workItemId as string),
     enabled: Boolean(pageState.workflowId && boardSelection.workItemId),
   });
-  const workflowSettingsQuery = useQuery({
-    queryKey: ['workflow-settings', pageState.workflowId],
-    queryFn: () => dashboardApi.getWorkflowSettings(pageState.workflowId as string),
-    enabled: Boolean(pageState.workflowId),
-  });
-
   useWorkflowRailRealtime(queryClient, {
     mode: pageState.mode,
     search: pageState.search,
     needsActionOnly: pageState.needsActionOnly,
     ongoingOnly: pageState.ongoingOnly,
-    workflowId: pageState.workflowId,
   });
   useWorkflowWorkspaceRealtime(queryClient, {
     workflowId: pageState.workflowId,
@@ -298,6 +290,9 @@ export function WorkflowsPage(): JSX.Element {
     if (selectableRows.some((row) => row.workflow_id === pageState.workflowId)) {
       return;
     }
+    if (selectedWorkflowRow && !workspaceQuery.isError && !workflowDetailQuery.isError) {
+      return;
+    }
     const nextWorkflowId = resolveSelectedWorkflowId({
       currentWorkflowId: null,
       rows: selectableRows,
@@ -309,7 +304,14 @@ export function WorkflowsPage(): JSX.Element {
       workItemId: null,
       tab: null,
     });
-  }, [navigate, pageState, railPacket]);
+  }, [
+    navigate,
+    pageState,
+    railPacket,
+    selectedWorkflowRow,
+    workflowDetailQuery.isError,
+    workspaceQuery.isError,
+  ]);
 
   useEffect(() => {
     if (!pageState.workflowId) {
@@ -381,7 +383,7 @@ export function WorkflowsPage(): JSX.Element {
         <div className="grid min-h-0 w-full min-w-0 gap-3 lg:h-full lg:min-h-0 lg:grid-rows-[auto_minmax(0,1fr)] lg:overflow-hidden">
           <section
             data-workflows-top-strip="true"
-            className="grid shrink-0 gap-2.5 rounded-[1.75rem] border border-border/70 bg-card/85 p-3 shadow-sm sm:gap-3 sm:p-4"
+            className="grid shrink-0 gap-2.5 sm:gap-3"
           >
             <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
               <Button type="button" size="sm" variant="outline" onClick={() => setIsRailHidden((current) => !current)}>
@@ -398,7 +400,6 @@ export function WorkflowsPage(): JSX.Element {
               <WorkflowStateStrip
                 workflow={workflow}
                 stickyStrip={workspacePacket.sticky_strip}
-                workflowSettings={workflowSettingsQuery.data ?? null}
                 board={board}
                 selectedScopeLabel={selectedScopeLabel}
                 addWorkLabel={describeHeaderAddWorkLabel({
@@ -416,19 +417,6 @@ export function WorkflowsPage(): JSX.Element {
                   setIsAddWorkOpen(true);
                 }}
                 onOpenRedrive={() => setIsRedriveOpen(true)}
-                onVisibilityModeChange={async (nextMode) => {
-                  const currentSettings = workflowSettingsQuery.data;
-                  if (!currentSettings) {
-                    return;
-                  }
-                  await dashboardApi.updateWorkflowSettings(pageState.workflowId as string, {
-                    live_visibility_mode: nextMode,
-                    settings_revision: currentSettings.revision,
-                  });
-                  await queryClient.invalidateQueries({
-                    queryKey: ['workflow-settings', pageState.workflowId],
-                  });
-                }}
               />
             ) : null}
           </section>

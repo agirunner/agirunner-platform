@@ -70,11 +70,20 @@ describe('workflows page source', () => {
 
     expect(source).toContain('if (!railPacket || !pageState.workflowId) {');
     expect(source).toContain('if (selectableRows.some((row) => row.workflow_id === pageState.workflowId)) {');
+    expect(source).toContain('if (selectedWorkflowRow && !workspaceQuery.isError && !workflowDetailQuery.isError) {');
     expect(source).toContain('currentWorkflowId: null');
     expect(source).toContain('selectedWorkflowId: railPacket.selected_workflow_id');
     expect(source).toContain('workflowId: nextWorkflowId,');
     expect(source).toContain('workItemId: null,');
     expect(source).toContain('tab: null,');
+  });
+
+  it('keeps the rail query and realtime stream independent from the selected workflow id', () => {
+    const source = readSource();
+
+    expect(source).not.toContain('workflowId: pageState.workflowId ?? undefined');
+    expect(source).not.toContain("workflow_id: input?.workflowId");
+    expect(source).not.toContain('buildWorkflowRailQueryKey({\n            mode: input.mode,\n            search: input.search,\n            needsActionOnly: input.needsActionOnly,\n            ongoingOnly: input.ongoingOnly,\n            workflowId: input.workflowId,');
   });
 
   it('keeps the previous workspace shell mounted while scoped work-item selections refetch', () => {
@@ -133,9 +142,9 @@ describe('workflows page source', () => {
     expect(source).toContain('data-workflows-top-strip="true"');
     expect(source).toContain('data-workflows-board-frame="true"');
     expect(source).toContain('data-workflows-workbench-frame="true"');
-    expect(source).toContain('bg-card/85 p-3 shadow-sm sm:gap-3 sm:p-4');
-    expect(source).toContain('data-workflows-top-strip="true"\n            className="grid shrink-0 gap-2.5 rounded-[1.75rem] border border-border/70 bg-card/85 p-3 shadow-sm sm:gap-3 sm:p-4"');
-    expect(source).toContain("const className = 'grid gap-1 rounded-xl border border-border/70 bg-background/90 px-3 py-3 text-left shadow-sm';");
+    expect(source).toContain('data-workflows-top-strip="true"\n            className="grid shrink-0 gap-2.5 sm:gap-3"');
+    expect(source).toContain('function HeaderCard(props: {');
+    expect(source).not.toContain('data-workflows-top-strip="true"\n            className="grid shrink-0 gap-2.5 rounded-[1.75rem] border border-border/70 bg-card/85 p-3 shadow-sm sm:gap-3 sm:p-4"');
     expect(source).not.toContain('data-workflows-top-strip="true"\n            className="grid shrink-0 gap-2 rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm dark:bg-slate-950/65"');
     expect(source).not.toContain('data-workflows-top-strip="true"\n            className="grid gap-2 rounded-[1.75rem] border border-border/70 bg-transparent p-1.5"');
     expect(source).not.toContain('<div className="h-full overflow-visible rounded-[1.75rem] border border-border/70 bg-stone-100/80 p-2 shadow-sm lg:min-h-0 lg:overflow-hidden dark:bg-slate-950/65">');
@@ -172,9 +181,10 @@ describe('workflows page source', () => {
   it('uses tighter shell height math so the board and lower panel run closer to the viewport bottom', () => {
     const source = readSource();
 
-    expect(source).toContain("const WORKFLOWS_SHELL_MIN_HEIGHT_CLASS = 'min-h-[calc(100dvh-4.5rem)]';");
-    expect(source).toContain("const WORKFLOWS_SHELL_HEIGHT_CLASS = 'lg:h-[calc(100dvh-2.25rem)]';");
-    expect(source).not.toContain("const WORKFLOWS_SHELL_MIN_HEIGHT_CLASS = 'min-h-[calc(100dvh-5.75rem)]';");
-    expect(source).not.toContain("const WORKFLOWS_SHELL_HEIGHT_CLASS = 'lg:h-[calc(100dvh-3.5rem)]';");
+    expect(source).toContain("'flex-1'");
+    expect(source).toContain("'h-full'");
+    expect(source).toContain("'min-h-0'");
+    expect(source).not.toContain("const WORKFLOWS_SHELL_MIN_HEIGHT_CLASS =");
+    expect(source).not.toContain("const WORKFLOWS_SHELL_HEIGHT_CLASS =");
   });
 });
