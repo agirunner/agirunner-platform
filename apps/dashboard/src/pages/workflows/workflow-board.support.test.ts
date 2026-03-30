@@ -110,7 +110,7 @@ describe('buildWorkflowBoardView', () => {
     expect(view.lanes[0]?.activeItems.map((item) => item.id)).toEqual(['blocked-active']);
   });
 
-  it('keeps actionable work in the platform-assigned lane instead of reprojecting it in the dashboard', () => {
+  it('projects blocked workflow review states into the blocked lane', () => {
     const board = createBoard([
       createWorkItem({
         id: 'needs-action-item',
@@ -129,13 +129,13 @@ describe('buildWorkflowBoardView', () => {
       needsActionOnly: false,
     });
 
-    expect(view.lanes.find((lane) => lane.column.id === 'planned')?.activeItems.map((item) => item.id)).toEqual([
+    expect(view.lanes.find((lane) => lane.column.id === 'planned')?.activeItems).toEqual([]);
+    expect(view.lanes.find((lane) => lane.column.id === 'blocked')?.activeItems.map((item) => item.id)).toEqual([
       'needs-action-item',
     ]);
-    expect(view.lanes.find((lane) => lane.column.id === 'blocked')?.activeItems).toEqual([]);
   });
 
-  it('keeps rejected work filterable as needs action without changing its lane', () => {
+  it('projects rejected work into the blocked lane', () => {
     const board = createBoard([
       createWorkItem({
         id: 'rejected-item',
@@ -154,12 +154,13 @@ describe('buildWorkflowBoardView', () => {
       needsActionOnly: false,
     });
 
-    expect(view.lanes.find((lane) => lane.column.id === 'planned')?.activeItems.map((item) => item.id)).toEqual([
+    expect(view.lanes.find((lane) => lane.column.id === 'planned')?.activeItems).toEqual([]);
+    expect(view.lanes.find((lane) => lane.column.id === 'blocked')?.activeItems.map((item) => item.id)).toEqual([
       'rejected-item',
     ]);
   });
 
-  it('keeps request-changes work visible in its stored lane while needs-action filters still match it', () => {
+  it('projects request-changes work into the blocked lane', () => {
     const board = createBoard([
       createWorkItem({
         id: 'request-changes-item',
@@ -178,7 +179,8 @@ describe('buildWorkflowBoardView', () => {
       needsActionOnly: false,
     });
 
-    expect(view.lanes.find((lane) => lane.column.id === 'planned')?.activeItems.map((item) => item.id)).toEqual([
+    expect(view.lanes.find((lane) => lane.column.id === 'planned')?.activeItems).toEqual([]);
+    expect(view.lanes.find((lane) => lane.column.id === 'blocked')?.activeItems.map((item) => item.id)).toEqual([
       'request-changes-item',
     ]);
   });

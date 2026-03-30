@@ -217,7 +217,25 @@ function resolveDisplayColumnId(
   if (isCancelledWorkItem(workItem, workflowState)) {
     return readTerminalColumnId(columns) ?? workItem.column_id;
   }
+  if (isBlockedWorkItem(workItem)) {
+    return readBlockedColumnId(columns) ?? workItem.column_id;
+  }
   return workItem.column_id;
+}
+
+function readBlockedColumnId(columns: DashboardWorkflowBoardColumn[]): string | null {
+  const blockedColumn = columns.find((column) => Boolean(column.is_blocked));
+  return blockedColumn?.id ?? null;
+}
+
+function isBlockedWorkItem(workItem: DashboardWorkflowWorkItemRecord): boolean {
+  return (
+    workItem.blocked_state === 'blocked'
+    || workItem.gate_status === 'blocked'
+    || workItem.gate_status === 'request_changes'
+    || workItem.gate_status === 'changes_requested'
+    || workItem.gate_status === 'rejected'
+  );
 }
 
 function readTerminalColumnId(columns: DashboardWorkflowBoardColumn[]): string | null {
