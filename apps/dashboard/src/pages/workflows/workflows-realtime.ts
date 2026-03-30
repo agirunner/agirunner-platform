@@ -108,7 +108,14 @@ async function runStreamLoop(
       if (!response) {
         return;
       }
-      if (!response.ok || !response.body) {
+      if (!response.ok) {
+        if (!shouldRetryWorkflowOperationsStream(options.path, response.status)) {
+          return;
+        }
+        await sleep();
+        continue;
+      }
+      if (!response.body) {
         await sleep();
         continue;
       }
@@ -131,6 +138,17 @@ async function runStreamLoop(
       }
     }
   }
+}
+
+export function shouldRetryWorkflowOperationsStream(path: string, status: number): boolean {
+  if (status === 404 && isWorkflowWorkspaceStreamPath(path)) {
+    return false;
+  }
+  return true;
+}
+
+function isWorkflowWorkspaceStreamPath(path: string): boolean {
+  return /^\/api\/v1\/operations\/workflows\/[^/]+\/stream(?:\?|$)/.test(path);
 }
 
 export async function requestWorkflowOperationsStreamResponse(

@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { clearSession, readSession, writeSession } from '../../lib/session.js';
-import { requestWorkflowOperationsStreamResponse } from './workflows-realtime.js';
+import {
+  requestWorkflowOperationsStreamResponse,
+  shouldRetryWorkflowOperationsStream,
+} from './workflows-realtime.js';
 
 function mockBrowserStorage() {
   const localStore = new Map<string, string>();
@@ -115,5 +118,34 @@ describe('requestWorkflowOperationsStreamResponse', () => {
 
     expect(response).toBeNull();
     expect(readSession()).toBeNull();
+  });
+});
+
+describe('shouldRetryWorkflowOperationsStream', () => {
+  it('treats deleted workflow workspace streams as terminal when the backend returns 404', () => {
+    expect(
+      shouldRetryWorkflowOperationsStream(
+        '/api/v1/operations/workflows/workflow-1/stream?tab_scope=selected_work_item',
+        404,
+      ),
+    ).toBe(false);
+  });
+
+  it('keeps retrying transient workflow stream failures', () => {
+    expect(
+      shouldRetryWorkflowOperationsStream(
+        '/api/v1/operations/workflows/workflow-1/stream?tab_scope=selected_work_item',
+        503,
+      ),
+    ).toBe(true);
+  });
+
+  it('does not change retry behavior for the shared rail stream endpoint', () => {
+    expect(
+      shouldRetryWorkflowOperationsStream(
+        '/api/v1/operations/workflows/stream?mode=live',
+        404,
+      ),
+    ).toBe(true);
   });
 });
