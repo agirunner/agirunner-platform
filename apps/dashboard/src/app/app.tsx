@@ -20,6 +20,7 @@ import {
 import { clearSession, readSession } from '../lib/session.js';
 import {
   buildWorkflowDiagnosticsHref,
+  buildWorkflowsLaunchHref,
   buildWorkflowsPageHref,
 } from '../pages/workflows/workflows-page.support.js';
 import { buildWorkflowDetailPermalink } from '../pages/workflow-detail/workflow-detail-permalinks.js';
@@ -144,11 +145,6 @@ const PlaybookListPage = lazyWithRetry(() =>
 const PlaybookDetailPage = lazyWithRetry(() =>
   import('../pages/playbook-detail/playbook-detail-page.js').then((m) => ({
     default: m.PlaybookDetailPage,
-  })),
-);
-const PlaybookLaunchPage = lazyWithRetry(() =>
-  import('../pages/playbook-launch/playbook-launch-page.js').then((m) => ({
-    default: m.PlaybookLaunchPage,
   })),
 );
 const ToolsPage = lazyWithRetry(() =>
@@ -318,8 +314,8 @@ export function App(): JSX.Element {
               <Route path="/workspaces/*" element={<LegacyWorkspaceRouteRedirect />} />
               <Route path="/design/playbooks" element={<PlaybookListPage />} />
               <Route path="/design/playbooks/:id" element={<PlaybookDetailPage />} />
-              <Route path="/design/playbooks/:id/launch" element={<PlaybookLaunchPage />} />
-              <Route path="/design/playbooks/launch" element={<PlaybookLaunchPage />} />
+              <Route path="/design/playbooks/:id/launch" element={<LegacyPlaybookLaunchRedirect />} />
+              <Route path="/design/playbooks/launch" element={<LegacyPlaybookLaunchRedirect />} />
               <Route path="/config/playbooks/*" element={<LegacyPlaybookRouteRedirect />} />
               <Route path="/design/specialists" element={<RoleDefinitionsPage />} />
               <Route path="/design/specialists/skills" element={<SkillsPage />} />
@@ -516,6 +512,11 @@ function LegacyPlaybookRouteRedirect(): JSX.Element {
       replace
     />
   );
+}
+
+function LegacyPlaybookLaunchRedirect(): JSX.Element {
+  const { id } = useParams<{ id: string }>();
+  return <Navigate to={buildWorkflowsLaunchHref({ playbookId: id })} replace />;
 }
 
 function LegacySpecialistsRouteRedirect(): JSX.Element {

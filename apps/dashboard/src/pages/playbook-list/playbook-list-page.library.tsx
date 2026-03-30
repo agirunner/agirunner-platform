@@ -42,6 +42,7 @@ import {
   type PlaybookSortOption,
   type PlaybookStatusFilter,
 } from './playbook-list-page.support.js';
+import { buildWorkflowsLaunchHref } from '../workflows/workflows-page.support.js';
 
 function describePlaybookLifecycle(lifecycle: 'planned' | 'ongoing'): string {
   return lifecycle === 'planned' ? 'Planned' : 'Ongoing';
@@ -366,7 +367,7 @@ function PlaybookFamilyRow(props: {
                 label={`Launch ${family.name}`}
                 onClick={(event) => event.stopPropagation()}
               >
-                <Link to={`/design/playbooks/${playbook.id}/launch`}>
+                <Link to={buildWorkflowsLaunchHref({ playbookId: playbook.id })}>
                   <Rocket className="h-4 w-4" />
                 </Link>
               </IconActionButton>

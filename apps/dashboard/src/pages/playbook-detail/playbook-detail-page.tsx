@@ -42,6 +42,7 @@ import {
   type PlaybookAuthoringDraft,
 } from '../playbook-authoring/playbook-authoring-support.js';
 import { PlaybookAuthoringForm } from '../playbook-authoring/playbook-authoring-form.js';
+import { buildWorkflowsLaunchHref } from '../workflows/workflows-page.support.js';
 import {
   buildPlaybookRevisionChain,
   buildPlaybookRevisionDiff,
@@ -291,7 +292,7 @@ export function PlaybookDetailPage(): JSX.Element {
         <div className="flex flex-wrap gap-2">
           {playbook.is_active ? (
             <Button asChild variant="outline">
-              <Link to={`/design/playbooks/${playbook.id}/launch`}>Launch</Link>
+              <Link to={buildWorkflowsLaunchHref({ playbookId: playbook.id })}>Launch</Link>
             </Button>
           ) : null}
           <Button onClick={handleSave} disabled={!canSave}>

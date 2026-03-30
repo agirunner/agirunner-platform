@@ -209,4 +209,15 @@ describe('workflows page source', () => {
     expect(source).not.toContain("const WORKFLOWS_SHELL_MIN_HEIGHT_CLASS =");
     expect(source).not.toContain("const WORKFLOWS_SHELL_HEIGHT_CLASS =");
   });
+
+  it('opens the shared workflow launch dialog from canonical launch query params and clears them after hydration', () => {
+    const source = readSource();
+
+    expect(source).toContain('readWorkflowLaunchRequest(searchParams)');
+    expect(source).toContain('const [launchPlaybookId, setLaunchPlaybookId] = useState<string | null>(null);');
+    expect(source).toContain('setLaunchPlaybookId(launchRequest.playbookId);');
+    expect(source).toContain('setIsLaunchOpen(true);');
+    expect(source).toContain('navigate(buildWorkflowsPageHref({}, pageState), { replace: true });');
+    expect(source).toContain('initialPlaybookId={launchPlaybookId}');
+  });
 });

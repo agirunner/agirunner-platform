@@ -7,9 +7,11 @@ import {
   describeHeaderAddWorkLabel,
   describeWorkflowWorkbenchScope,
   buildWorkflowDiagnosticsHref,
+  buildWorkflowsLaunchHref,
   buildWorkflowsPageHref,
   resolveHeaderAddWorkTargetWorkItemId,
   resolveWorkspacePlaceholderData,
+  readWorkflowLaunchRequest,
   resolveWorkflowTabScope,
   readWorkflowsPageState,
 } from './workflows-page.support.js';
@@ -88,6 +90,21 @@ describe('workflows page support', () => {
       '/workflows/workflow-2?mode=recent&work_item_id=work-item-7&tab=deliverables&search=release+readiness&needs_action_only=1&ongoing_only=1&board_mode=all',
     );
     expect(buildWorkflowsPageHref({})).toBe('/workflows');
+  });
+
+  it('builds and reads canonical launch-dialog urls for the workflows shell', () => {
+    expect(buildWorkflowsLaunchHref({})).toBe('/workflows?launch=1');
+    expect(buildWorkflowsLaunchHref({ playbookId: 'playbook-7' })).toBe(
+      '/workflows?launch=1&playbook=playbook-7',
+    );
+    expect(readWorkflowLaunchRequest(new URLSearchParams())).toEqual({
+      isRequested: false,
+      playbookId: null,
+    });
+    expect(readWorkflowLaunchRequest(new URLSearchParams('launch=1&playbook=playbook-7'))).toEqual({
+      isRequested: true,
+      playbookId: 'playbook-7',
+    });
   });
 
   it('uses workflow or work-item scope only across every workbench tab', () => {

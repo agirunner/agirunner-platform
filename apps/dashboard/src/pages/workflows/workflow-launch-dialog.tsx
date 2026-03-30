@@ -30,6 +30,7 @@ import {
 export function WorkflowLaunchDialog(props: {
   isOpen: boolean;
   onOpenChange(open: boolean): void;
+  initialPlaybookId?: string | null;
   onLaunched?(workflowId: string): void;
 }): JSX.Element {
   const queryClient = useQueryClient();
@@ -79,6 +80,13 @@ export function WorkflowLaunchDialog(props: {
     }
     setWorkspaceId((current) => resolveDefaultWorkflowLaunchWorkspaceId(workspaces, current));
   }, [props.isOpen, workspaces]);
+
+  useEffect(() => {
+    if (!props.isOpen) {
+      return;
+    }
+    setSelectedPlaybookId(props.initialPlaybookId?.trim() ?? '');
+  }, [props.initialPlaybookId, props.isOpen]);
 
   useEffect(() => {
     if (props.isOpen) {

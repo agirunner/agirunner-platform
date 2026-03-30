@@ -101,4 +101,11 @@ describe('WorkflowLaunchDialog source', () => {
     expect(source).not.toContain('<Rocket');
     expect(source).not.toContain("from 'react-router-dom'");
   });
+
+  it('accepts a preselected playbook id so deprecated playbook launch entry points can open this dialog directly', () => {
+    const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('initialPlaybookId?: string | null;');
+    expect(source).toContain("setSelectedPlaybookId(props.initialPlaybookId?.trim() ?? '');");
+  });
 });

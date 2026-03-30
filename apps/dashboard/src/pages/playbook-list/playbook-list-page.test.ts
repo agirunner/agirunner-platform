@@ -146,4 +146,11 @@ describe('playbook list page source', () => {
     expect(source).toContain('props.familyCount === 0');
     expect(source).toContain('onCreatePlaybook(): void;');
   });
+
+  it('routes playbook launches into the canonical workflows launch dialog instead of a separate launch page', () => {
+    const source = readLibrarySource();
+    expect(source).toContain("import { buildWorkflowsLaunchHref } from '../workflows/workflows-page.support.js';");
+    expect(source).toContain('to={buildWorkflowsLaunchHref({ playbookId: playbook.id })}');
+    expect(source).not.toContain('to={`/design/playbooks/${playbook.id}/launch`}');
+  });
 });

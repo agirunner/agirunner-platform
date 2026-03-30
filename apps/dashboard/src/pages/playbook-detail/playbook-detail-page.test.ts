@@ -66,4 +66,11 @@ describe('playbook detail page source', () => {
     expect(source).toContain('setIsDirty(false)');
     expect(source).toContain('setIsDirty(true)');
   });
+
+  it('routes playbook launch through the canonical workflows launch dialog instead of a separate page', () => {
+    const source = readSource();
+    expect(source).toContain("import { buildWorkflowsLaunchHref } from '../workflows/workflows-page.support.js';");
+    expect(source).toContain('to={buildWorkflowsLaunchHref({ playbookId: playbook.id })}');
+    expect(source).not.toContain('to={`/design/playbooks/${playbook.id}/launch`}');
+  });
 });

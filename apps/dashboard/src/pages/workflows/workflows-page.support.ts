@@ -23,6 +23,11 @@ export interface WorkflowWorkbenchScopeDescriptor {
   banner: string;
 }
 
+export interface WorkflowLaunchRequest {
+  isRequested: boolean;
+  playbookId: string | null;
+}
+
 export interface WorkflowsPageState {
   mode: WorkflowPageMode;
   workflowId: string | null;
@@ -119,6 +124,32 @@ export function buildWorkflowsPageHref(
     ? `/workflows/${encodeURIComponent(nextState.workflowId)}`
     : '/workflows';
   return rendered.length > 0 ? `${basePath}?${rendered}` : basePath;
+}
+
+export function buildWorkflowsLaunchHref(input: {
+  playbookId?: string | null;
+} = {}): string {
+  const searchParams = new URLSearchParams();
+  searchParams.set('launch', '1');
+  if (input.playbookId) {
+    searchParams.set('playbook', input.playbookId);
+  }
+  return `/workflows?${searchParams.toString()}`;
+}
+
+export function readWorkflowLaunchRequest(
+  searchParams: URLSearchParams,
+): WorkflowLaunchRequest {
+  if (searchParams.get('launch') !== '1') {
+    return {
+      isRequested: false,
+      playbookId: null,
+    };
+  }
+  return {
+    isRequested: true,
+    playbookId: readOptionalValue(searchParams.get('playbook')),
+  };
 }
 
 export function resolveWorkflowTabScope(

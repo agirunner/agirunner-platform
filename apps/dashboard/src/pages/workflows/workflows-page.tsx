@@ -25,6 +25,7 @@ import {
   buildWorkflowsPageHref,
   describeWorkflowWorkbenchScope,
   readWorkflowsPageState,
+  readWorkflowLaunchRequest,
   resolveHeaderAddWorkTargetWorkItemId,
   resolveSelectedWorkflowId,
   workspacePacketMatchesScope,
@@ -77,10 +78,15 @@ export function WorkflowsPage(): JSX.Element {
     () => readWorkflowsPageState(location.pathname, searchParams),
     [location.pathname, searchParams],
   );
+  const launchRequest = useMemo(
+    () => readWorkflowLaunchRequest(searchParams),
+    [searchParams],
+  );
   const [railLimit, setRailLimit] = useState(RAIL_PAGE_SIZE);
   const [activityLimit, setActivityLimit] = useState(ACTIVITY_PAGE_SIZE);
   const [deliverablesLimit, setDeliverablesLimit] = useState(DELIVERABLES_PAGE_SIZE);
   const [isLaunchOpen, setIsLaunchOpen] = useState(false);
+  const [launchPlaybookId, setLaunchPlaybookId] = useState<string | null>(null);
   const [isAddWorkOpen, setIsAddWorkOpen] = useState(false);
   const [addWorkTargetWorkItemId, setAddWorkTargetWorkItemId] = useState<string | null>(null);
   const [repeatSourceWorkItemId, setRepeatSourceWorkItemId] = useState<string | null>(null);
@@ -106,6 +112,15 @@ export function WorkflowsPage(): JSX.Element {
     setActivityLimit(ACTIVITY_PAGE_SIZE);
     setDeliverablesLimit(DELIVERABLES_PAGE_SIZE);
   }, [pageState.workflowId, pageState.workItemId]);
+
+  useEffect(() => {
+    if (!launchRequest.isRequested) {
+      return;
+    }
+    setLaunchPlaybookId(launchRequest.playbookId);
+    setIsLaunchOpen(true);
+    navigate(buildWorkflowsPageHref({}, pageState), { replace: true });
+  }, [launchRequest.isRequested, launchRequest.playbookId, navigate, pageState]);
 
   useEffect(() => {
     writeStoredWorkflowRailHidden(isRailHidden);
@@ -388,7 +403,10 @@ export function WorkflowsPage(): JSX.Element {
               patchPageState(navigate, pageState, { workflowId, workItemId: null })
             }
             onLoadMore={() => setRailLimit((current) => current + RAIL_PAGE_SIZE)}
-            onCreateWorkflow={() => setIsLaunchOpen(true)}
+            onCreateWorkflow={() => {
+              setLaunchPlaybookId(null);
+              setIsLaunchOpen(true);
+            }}
           />
         ) : null}
         {!isRailHidden ? (
@@ -426,7 +444,14 @@ export function WorkflowsPage(): JSX.Element {
                 {isRailHidden ? 'Show workflows' : 'Hide workflows'}
               </Button>
               {isRailHidden ? (
-                <Button type="button" size="sm" onClick={() => setIsLaunchOpen(true)}>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => {
+                    setLaunchPlaybookId(null);
+                    setIsLaunchOpen(true);
+                  }}
+                >
                   New Workflow
                 </Button>
               ) : null}
@@ -578,16 +603,25 @@ export function WorkflowsPage(): JSX.Element {
             >
               <EmptyWorkspaceState
                 hasWorkflows={((railPacket?.rows.length ?? 0) + (railPacket?.ongoing_rows.length ?? 0)) > 0}
-                onCreateWorkflow={() => setIsLaunchOpen(true)}
+                onCreateWorkflow={() => {
+                  setLaunchPlaybookId(null);
+                  setIsLaunchOpen(true);
+                }}
               />
             </section>
           )}
         </div>
       </div>
 
-        <WorkflowLaunchDialog
+      <WorkflowLaunchDialog
         isOpen={isLaunchOpen}
-        onOpenChange={setIsLaunchOpen}
+        onOpenChange={(open) => {
+          setIsLaunchOpen(open);
+          if (!open) {
+            setLaunchPlaybookId(null);
+          }
+        }}
+        initialPlaybookId={launchPlaybookId}
         onLaunched={(workflowId) =>
           patchPageState(navigate, pageState, {
             workflowId,

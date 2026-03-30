@@ -143,4 +143,14 @@ describe('app trigger routes source', () => {
     expect(source).not.toContain('/mission-control/workflows/:id');
     expect(source).not.toContain('/mission-control/workflows/:id/inspector');
   });
+
+  it('deprecates the separate playbook launch page in favor of the workflows launch dialog', () => {
+    const source = readSource();
+    expect(source).toContain('function LegacyPlaybookLaunchRedirect()');
+    expect(source).toContain('buildWorkflowsLaunchHref({ playbookId: id })');
+    expect(source).toContain('path="/design/playbooks/:id/launch" element={<LegacyPlaybookLaunchRedirect />}');
+    expect(source).toContain('path="/design/playbooks/launch" element={<LegacyPlaybookLaunchRedirect />}');
+    expect(source).not.toContain('PlaybookLaunchPage');
+    expect(source).not.toContain("../pages/playbook-launch/playbook-launch-page.js");
+  });
 });
