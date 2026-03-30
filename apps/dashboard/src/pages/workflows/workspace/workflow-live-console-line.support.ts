@@ -119,6 +119,7 @@ function formatWorkflowConsoleLineText(value: string): string {
     normalized.length === 0
     || looksLikeLowValueConsoleText(normalized)
     || looksLikeRawOperatorRecordWrapper(normalized)
+    || looksLikeBareStructuredPayload(normalized)
   ) {
     return '';
   }
@@ -290,6 +291,20 @@ function looksLikeLowValueConsoleText(value: string): boolean {
 
 function looksLikeRawOperatorRecordWrapper(value: string): boolean {
   return RAW_OPERATOR_RECORD_WRAPPER_RE.test(value);
+}
+
+function looksLikeBareStructuredPayload(value: string): boolean {
+  const trimmed = value.trim();
+  if (!looksLikeStructuredActionValue(trimmed)) {
+    return false;
+  }
+
+  try {
+    const parsed = JSON.parse(trimmed) as unknown;
+    return typeof parsed === 'object' && parsed !== null;
+  } catch {
+    return false;
+  }
 }
 
 function formatStructuredActionArguments(value: string): string[] {

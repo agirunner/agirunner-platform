@@ -227,23 +227,23 @@ export function getWorkflowConsoleScrollBehavior(input: {
 }): {
   isAtLiveEdge: boolean;
   shouldClearQueuedUpdates: boolean;
+  shouldPauseFollowing: boolean;
   shouldPrefetchHistory: boolean;
-  shouldStickToLiveEdge: boolean;
 } {
   const isAtLiveEdge = isWorkflowConsoleAtLiveEdge(input);
-  const shouldStickToLiveEdge = input.followMode === 'live' && !isAtLiveEdge;
+  const shouldPauseFollowing = input.followMode === 'live' && !isAtLiveEdge;
 
   return {
     isAtLiveEdge,
     shouldClearQueuedUpdates: isAtLiveEdge,
+    shouldPauseFollowing,
     shouldPrefetchHistory:
-      !shouldStickToLiveEdge &&
+      (input.followMode === 'paused' || shouldPauseFollowing) &&
       shouldPrefetchWorkflowConsoleHistory({
         hasNextCursor: input.hasNextCursor,
         isLoadingOlderHistory: input.isLoadingOlderHistory,
         scrollTop: input.scrollTop,
       }),
-    shouldStickToLiveEdge,
   };
 }
 

@@ -65,6 +65,18 @@ describe('workflows page source', () => {
     expect(source).not.toContain('{ needsActionOnly, workflowId: null, workItemId: null }');
   });
 
+  it('re-resolves the selected workflow when a live rail refresh no longer contains the previously selected id', () => {
+    const source = readSource();
+
+    expect(source).toContain('if (!railPacket || !pageState.workflowId) {');
+    expect(source).toContain('if (selectableRows.some((row) => row.workflow_id === pageState.workflowId)) {');
+    expect(source).toContain('currentWorkflowId: null');
+    expect(source).toContain('selectedWorkflowId: railPacket.selected_workflow_id');
+    expect(source).toContain('workflowId: nextWorkflowId,');
+    expect(source).toContain('workItemId: null,');
+    expect(source).toContain('tab: null,');
+  });
+
   it('keeps the previous workspace shell mounted while scoped work-item selections refetch', () => {
     const source = readSource();
     expect(source).toContain('lastWorkspacePacketRef');

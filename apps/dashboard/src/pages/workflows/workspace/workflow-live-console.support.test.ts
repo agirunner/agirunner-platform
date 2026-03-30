@@ -295,6 +295,18 @@ describe('workflow live console support', () => {
     expect(filterWorkflowConsoleItems(items, 'all')).toEqual([]);
   });
 
+  it('suppresses bare JSON blobs that do not contain operator-readable console text', () => {
+    const items = [
+      createItem({
+        item_id: 'update-raw-json',
+        headline: '{"foo":"bar","count":2}',
+        summary: '{"baz":true}',
+      }),
+    ];
+
+    expect(filterWorkflowConsoleItems(items, 'all')).toEqual([]);
+  });
+
   it('reports the brief label prefix only for milestone briefs', () => {
     expect(getWorkflowConsoleEntryPrefix(createItem({
       item_id: 'brief-2',
@@ -308,7 +320,7 @@ describe('workflow live console support', () => {
     }))).toBeNull();
   });
 
-  it('keeps live mode pinned to the bottom until pause allows upward history prefetch', () => {
+  it('auto-pauses live mode when the operator scrolls away and then unlocks upward history prefetch', () => {
     expect(
       getWorkflowConsoleScrollBehavior({
         followMode: 'live',
@@ -321,8 +333,8 @@ describe('workflow live console support', () => {
     ).toEqual({
       isAtLiveEdge: false,
       shouldClearQueuedUpdates: false,
-      shouldPrefetchHistory: false,
-      shouldStickToLiveEdge: true,
+      shouldPauseFollowing: true,
+      shouldPrefetchHistory: true,
     });
 
     expect(
@@ -337,8 +349,8 @@ describe('workflow live console support', () => {
     ).toEqual({
       isAtLiveEdge: false,
       shouldClearQueuedUpdates: false,
+      shouldPauseFollowing: false,
       shouldPrefetchHistory: true,
-      shouldStickToLiveEdge: false,
     });
   });
 
@@ -402,7 +414,7 @@ describe('workflow live console support', () => {
     ).toBe(false);
   });
 
-  it('pins live follow to the bottom instead of prefetching when the operator scrolls upward in live mode', () => {
+  it('switches live follow into paused mode when the operator scrolls upward in live mode', () => {
     expect(
       getWorkflowConsoleScrollBehavior({
         followMode: 'live',
@@ -415,8 +427,8 @@ describe('workflow live console support', () => {
     ).toEqual({
       isAtLiveEdge: false,
       shouldClearQueuedUpdates: false,
-      shouldPrefetchHistory: false,
-      shouldStickToLiveEdge: true,
+      shouldPauseFollowing: true,
+      shouldPrefetchHistory: true,
     });
   });
 
@@ -433,8 +445,8 @@ describe('workflow live console support', () => {
     ).toEqual({
       isAtLiveEdge: false,
       shouldClearQueuedUpdates: false,
+      shouldPauseFollowing: false,
       shouldPrefetchHistory: true,
-      shouldStickToLiveEdge: false,
     });
   });
 

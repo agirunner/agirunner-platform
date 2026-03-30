@@ -74,28 +74,15 @@ const ENHANCED_AGENT_LOOP_OPERATIONS = [
 
 export class WorkflowLiveConsoleService {
   private readonly visibilityModeSource: VisibilityModeSource;
-  private readonly executionTurnSource?: ExecutionTurnSource;
-  private readonly workflowBoardSource?: WorkflowBoardSource;
 
   constructor(
     private readonly versionSource: VersionSource,
     private readonly briefSource: BriefSource,
-    visibilityModeSourceOrDeprecatedUpdateSource: VisibilityModeSource | unknown,
-    executionTurnSourceOrVisibility?: ExecutionTurnSource | VisibilityModeSource,
-    workflowBoardSourceOrExecutionTurnSource?: WorkflowBoardSource | ExecutionTurnSource,
-    maybeWorkflowBoardSource?: WorkflowBoardSource,
+    visibilityModeSource: VisibilityModeSource,
+    private readonly executionTurnSource?: ExecutionTurnSource,
+    private readonly workflowBoardSource?: WorkflowBoardSource,
   ) {
-    if (isVisibilityModeSource(visibilityModeSourceOrDeprecatedUpdateSource)) {
-      this.visibilityModeSource = visibilityModeSourceOrDeprecatedUpdateSource;
-      this.executionTurnSource = executionTurnSourceOrVisibility as ExecutionTurnSource | undefined;
-      this.workflowBoardSource = workflowBoardSourceOrExecutionTurnSource as WorkflowBoardSource | undefined;
-      return;
-    }
-
-    this.visibilityModeSource = executionTurnSourceOrVisibility as VisibilityModeSource;
-    this.executionTurnSource =
-      workflowBoardSourceOrExecutionTurnSource as ExecutionTurnSource | undefined;
-    this.workflowBoardSource = maybeWorkflowBoardSource;
+    this.visibilityModeSource = visibilityModeSource;
   }
 
   async getLiveConsole(
@@ -243,10 +230,6 @@ export class WorkflowLiveConsoleService {
     }
     return rows;
   }
-}
-
-function isVisibilityModeSource(value: unknown): value is VisibilityModeSource {
-  return typeof value === 'object' && value !== null && 'getWorkflowSettings' in value;
 }
 
 function dedupeExecutionRows(rows: LogRow[]): LogRow[] {

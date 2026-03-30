@@ -34,10 +34,11 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
   await resetWorkflowsState();
   await updateAgenticSettings('enhanced');
   const suffix = Date.now().toString(36);
+  const workspaceName = `Workflows Workspace ${suffix}`;
   const workspace = await apiRequest<ApiRecord>('/api/v1/workspaces', {
     method: 'POST',
     body: {
-      name: `Workflows Workspace ${suffix}`,
+      name: workspaceName,
       slug: `workflows-${suffix}`,
       description: 'Seeded workspace for workflows Playwright coverage.',
     },
@@ -90,13 +91,34 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     workspaceId: workspace.id,
     parameters: { workflow_goal: 'Keep intake work active with live workflow updates.' },
   });
-  await createWorkItem(ongoingWorkflow.id, {
+  const ongoingWorkItem = await createWorkItem(ongoingWorkflow.id, {
     title: 'Triage intake queue',
     goal: 'Keep new intake work moving.',
     acceptance_criteria: 'Intake work remains active.',
     stage_name: 'intake',
     owner_role: 'intake-analyst',
     priority: 'high',
+  });
+  await appendWorkflowExecutionTurn({
+    workflowId: ongoingWorkflow.id,
+    workflowName: 'E2E Ongoing Intake',
+    workspaceId: workspace.id,
+    workspaceName,
+    workItemId: ongoingWorkItem.id,
+    taskTitle: 'Triage intake queue',
+    stageName: 'intake',
+    role: 'intake-analyst',
+    actorName: 'Intake Analyst',
+    headline: 'Initial execution burst',
+  });
+  await appendWorkflowBrief({
+    workflowId: ongoingWorkflow.id,
+    workItemId: ongoingWorkItem.id,
+    executionContextId: ongoingWorkItem.id,
+    headline: 'Shift handoff',
+    summary: 'Workflow Created',
+    sourceKind: 'specialist',
+    sourceRoleName: 'Intake Analyst',
   });
   await appendWorkflowEvent(ongoingWorkflow.id, 'workflow.created', {
     headline: 'Initial execution burst',
@@ -198,7 +220,109 @@ export async function appendWorkflowEvent(workflowId: string, eventType: string,
       ${sqlText(workflowId)}::uuid,
       'admin',
       'playwright',
-      ${sqlJson({ workflow_id: workflowId, ...data })}::jsonb
+      ${sqlJsonValue({ workflow_id: workflowId, ...data })}::jsonb
+    );
+  `);
+}
+
+async function appendWorkflowExecutionTurn(input: {
+  workflowId: string;
+  workflowName: string;
+  workspaceId: string;
+  workspaceName: string;
+  workItemId: string;
+  taskTitle: string;
+  stageName: string;
+  role: string;
+  actorName: string;
+  headline: string;
+}): Promise<void> {
+  runPsql(`
+    SELECT create_execution_logs_partition(CURRENT_DATE);
+
+    INSERT INTO public.execution_logs (
+      tenant_id, trace_id, span_id,
+      source, category, level, operation, status, payload,
+      workspace_id, workflow_id, workflow_name, workspace_name,
+      work_item_id, task_title, stage_name, is_orchestrator_task,
+      role, actor_type, actor_id, actor_name,
+      created_at
+    )
+    VALUES (
+      '${DEFAULT_TENANT_ID}'::uuid,
+      '${randomUUID()}'::uuid,
+      '${randomUUID()}'::uuid,
+      'runtime',
+      'agent_loop',
+      'info',
+      'agent.plan',
+      'completed',
+      ${sqlJsonValue({ summary: input.headline })}::jsonb,
+      ${sqlUuid(input.workspaceId)},
+      ${sqlUuid(input.workflowId)},
+      ${sqlText(input.workflowName)},
+      ${sqlText(input.workspaceName)},
+      ${sqlUuid(input.workItemId)},
+      ${sqlText(input.taskTitle)},
+      ${sqlText(input.stageName)},
+      FALSE,
+      ${sqlText(input.role)},
+      'runtime',
+      ${sqlText(`playwright:${input.role}`)},
+      ${sqlText(input.actorName)},
+      NOW()
+    );
+  `);
+}
+
+async function appendWorkflowBrief(input: {
+  workflowId: string;
+  workItemId: string;
+  executionContextId: string;
+  headline: string;
+  summary: string;
+  sourceKind: string;
+  sourceRoleName: string;
+}): Promise<void> {
+  runPsql(`
+    INSERT INTO public.workflow_operator_briefs (
+      id, tenant_id, workflow_id, work_item_id, task_id,
+      request_id, execution_context_id,
+      brief_kind, brief_scope, source_kind, source_role_name, llm_turn_count, status_kind,
+      short_brief, detailed_brief_json, linked_target_ids, sequence_number,
+      related_artifact_ids, related_output_descriptor_ids, related_intervention_ids,
+      canonical_workflow_brief_id, created_by_type, created_by_id, created_at, updated_at
+    )
+    VALUES (
+      '${randomUUID()}'::uuid,
+      '${DEFAULT_TENANT_ID}'::uuid,
+      ${sqlUuid(input.workflowId)},
+      ${sqlUuid(input.workItemId)},
+      NULL,
+      ${sqlText(`playwright-brief:${input.workflowId}`)},
+      ${sqlText(input.executionContextId)},
+      'milestone',
+      'workflow_timeline',
+      ${sqlText(input.sourceKind)},
+      ${sqlText(input.sourceRoleName)},
+      NULL,
+      'handoff',
+      ${sqlJsonValue({ headline: input.headline })}::jsonb,
+      ${sqlJsonValue({
+        headline: input.headline,
+        status_kind: 'handoff',
+        summary: input.summary,
+      })}::jsonb,
+      ${sqlJsonValue([input.workflowId, input.workItemId])}::jsonb,
+      1,
+      '[]'::jsonb,
+      '[]'::jsonb,
+      '[]'::jsonb,
+      NULL,
+      'admin',
+      'playwright',
+      NOW(),
+      NOW()
     );
   `);
 }
@@ -319,6 +443,14 @@ function sqlText(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
+function sqlUuid(value: string): string {
+  return `${sqlText(value)}::uuid`;
+}
+
 function sqlJson(value: Record<string, unknown>): string {
+  return sqlJsonValue(value);
+}
+
+function sqlJsonValue(value: unknown): string {
   return sqlText(JSON.stringify(value));
 }

@@ -48,9 +48,6 @@ describe('WorkflowLiveConsoleService', () => {
         listBriefs: vi.fn(async () => briefs),
       } as never,
       {
-        listUpdates: vi.fn(async () => []),
-      } as never,
-      {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
         })),
@@ -73,7 +70,6 @@ describe('WorkflowLiveConsoleService', () => {
     const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
       versionSource: unknown,
       briefSource: unknown,
-      updateSource: unknown,
       visibilityModeSource: unknown,
       executionTurnSource: unknown,
     ) => WorkflowLiveConsoleService;
@@ -143,9 +139,6 @@ describe('WorkflowLiveConsoleService', () => {
         listBriefs: vi.fn(async () => []),
       } as never,
       {
-        listUpdates: vi.fn(async () => []),
-      } as never,
-      {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
         })),
@@ -182,7 +175,6 @@ describe('WorkflowLiveConsoleService', () => {
     const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
       versionSource: unknown,
       briefSource: unknown,
-      updateSource: unknown,
       visibilityModeSource: unknown,
       executionTurnSource: unknown,
     ) => WorkflowLiveConsoleService;
@@ -293,9 +285,6 @@ describe('WorkflowLiveConsoleService', () => {
         listBriefs: vi.fn(async () => []),
       } as never,
       {
-        listUpdates: vi.fn(async () => []),
-      } as never,
-      {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
         })),
@@ -337,7 +326,6 @@ describe('WorkflowLiveConsoleService', () => {
     const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
       versionSource: unknown,
       briefSource: unknown,
-      updateSource: unknown,
       visibilityModeSource: unknown,
       executionTurnSource: unknown,
     ) => WorkflowLiveConsoleService;
@@ -394,9 +382,6 @@ describe('WorkflowLiveConsoleService', () => {
         listBriefs: vi.fn(async () => []),
       } as never,
       {
-        listUpdates: vi.fn(async () => []),
-      } as never,
-      {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
         })),
@@ -429,7 +414,6 @@ describe('WorkflowLiveConsoleService', () => {
     const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
       versionSource: unknown,
       briefSource: unknown,
-      updateSource: unknown,
       visibilityModeSource: unknown,
       executionTurnSource: unknown,
     ) => WorkflowLiveConsoleService;
@@ -497,9 +481,6 @@ describe('WorkflowLiveConsoleService', () => {
         listBriefs: vi.fn(async () => []),
       } as never,
       {
-        listUpdates: vi.fn(async () => []),
-      } as never,
-      {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
         })),
@@ -528,7 +509,6 @@ describe('WorkflowLiveConsoleService', () => {
     const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
       versionSource: unknown,
       briefSource: unknown,
-      updateSource: unknown,
       visibilityModeSource: unknown,
       executionTurnSource: unknown,
     ) => WorkflowLiveConsoleService;
@@ -596,9 +576,6 @@ describe('WorkflowLiveConsoleService', () => {
         listBriefs: vi.fn(async () => []),
       } as never,
       {
-        listUpdates: vi.fn(async () => []),
-      } as never,
-      {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
         })),
@@ -628,7 +605,6 @@ describe('WorkflowLiveConsoleService', () => {
     const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
       versionSource: unknown,
       briefSource: unknown,
-      updateSource: unknown,
       visibilityModeSource: unknown,
       executionTurnSource: unknown,
     ) => WorkflowLiveConsoleService;
@@ -708,9 +684,6 @@ describe('WorkflowLiveConsoleService', () => {
       } as never,
       {
         listBriefs: vi.fn(async () => []),
-      } as never,
-      {
-        listUpdates: vi.fn(async () => []),
       } as never,
       {
         getWorkflowSettings: vi.fn(async () => ({
@@ -818,30 +791,6 @@ describe('WorkflowLiveConsoleService', () => {
         ]),
       } as never,
       {
-        listUpdates: vi.fn(async () => [
-          {
-            id: 'update-1',
-            workflow_id: 'workflow-1',
-            work_item_id: 'work-item-1',
-            task_id: 'task-1',
-            request_id: 'update-request',
-            execution_context_id: 'task-1',
-            source_kind: 'specialist',
-            source_role_name: 'Policy Assessor',
-            update_kind: 'turn_update',
-            headline: 'Policy assessment is ready for operator review.',
-            summary: 'The approval packet is ready.',
-            linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
-            visibility_mode: 'standard',
-            promoted_brief_id: null,
-            sequence_number: 4,
-            created_by_type: 'agent',
-            created_by_id: 'agent-2',
-            created_at: '2026-03-28T07:59:00.000Z',
-          },
-        ]),
-      } as never,
-      {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'standard',
         })),
@@ -866,7 +815,7 @@ describe('WorkflowLiveConsoleService', () => {
     ]);
   });
 
-  it('ignores deprecated operator updates when briefs already cover the same scope', async () => {
+  it('stays limited to scope-backed briefs when no enhanced execution turns survive normalization', async () => {
     const service = new WorkflowLiveConsoleService(
       {
         getHistory: vi.fn(async () => ({
@@ -908,30 +857,6 @@ describe('WorkflowLiveConsoleService', () => {
             created_by_id: 'agent-1',
             created_at: '2026-03-28T07:58:00.000Z',
             updated_at: '2026-03-28T07:58:00.000Z',
-          },
-        ]),
-      } as never,
-      {
-        listUpdates: vi.fn(async () => [
-          {
-            id: 'update-1',
-            workflow_id: 'workflow-1',
-            work_item_id: 'work-item-1',
-            task_id: 'task-1',
-            request_id: 'update-request',
-            execution_context_id: 'task-1',
-            source_kind: 'specialist',
-            source_role_name: 'Verifier',
-            update_kind: 'turn_update',
-            headline: 'Verifier is checking rollback handling.',
-            summary: 'Rollback handling is under review.',
-            linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
-            visibility_mode: 'enhanced',
-            promoted_brief_id: null,
-            sequence_number: 4,
-            created_by_type: 'agent',
-            created_by_id: 'agent-2',
-            created_at: '2026-03-28T07:59:00.000Z',
           },
         ]),
       } as never,
@@ -1045,9 +970,6 @@ describe('WorkflowLiveConsoleService', () => {
         ]),
       } as never,
       {
-        listUpdates: vi.fn(async () => []),
-      } as never,
-      {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
         })),
@@ -1089,9 +1011,6 @@ describe('WorkflowLiveConsoleService', () => {
         listBriefs: vi.fn(async () => []),
       } as never,
       {
-        listUpdates: vi.fn(async () => []),
-      } as never,
-      {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
         })),
@@ -1106,6 +1025,81 @@ describe('WorkflowLiveConsoleService', () => {
 
     expect(result.items).toEqual([]);
     expect(result.total_count).toBe(0);
+  });
+
+  it('suppresses raw JSON execution turns that do not resolve to operator-readable text', async () => {
+    const executionTurnSource = {
+      query: vi.fn(async (_tenantId, filters) => {
+        if (filters.category.includes('llm')) {
+          return {
+            data: [
+              {
+                id: 'log-raw-json',
+                source: 'runtime',
+                category: 'llm',
+                level: 'info',
+                operation: 'llm.chat_stream',
+                status: 'completed',
+                payload: {
+                  phase: 'act',
+                  response_text: '{"foo":"bar","count":2}',
+                },
+                workflow_id: 'workflow-1',
+                workflow_name: 'Workflow 1',
+                work_item_id: 'work-item-1',
+                task_id: 'task-1',
+                stage_name: 'review',
+                is_orchestrator_task: false,
+                task_title: 'Assess policy readiness',
+                role: 'policy-assessor',
+                actor_type: 'runtime',
+                actor_name: 'Policy Assessor',
+                resource_name: null,
+                created_at: '2026-03-28T07:59:00.000Z',
+              },
+            ],
+          };
+        }
+        return {
+          data: [],
+        };
+      }),
+    };
+    const service = new WorkflowLiveConsoleService(
+      {
+        getHistory: vi.fn(async () => ({
+          version: {
+            generatedAt: '2026-03-28T08:00:00.000Z',
+            latestEventId: 77,
+            token: 'mission-control:77',
+          },
+          packets: [],
+        })),
+      } as never,
+      {
+        listBriefs: vi.fn(async () => []),
+      } as never,
+      {
+        getWorkflowSettings: vi.fn(async () => ({
+          effective_live_visibility_mode: 'enhanced',
+        })),
+      } as never,
+      executionTurnSource as never,
+    );
+
+    const result = await service.getLiveConsole('tenant-1', 'workflow-1', {
+      workItemId: 'work-item-1',
+      taskId: 'task-1',
+      limit: 10,
+    });
+
+    expect(result.items).toEqual([]);
+    expect(result.total_count).toBe(0);
+    expect(result.counts).toEqual({
+      all: 0,
+      turn_updates: 0,
+      briefs: 0,
+    });
   });
 
   it('preserves persisted brief target ids instead of rebuilding them from nullable columns', async () => {
@@ -1152,9 +1146,6 @@ describe('WorkflowLiveConsoleService', () => {
             updated_at: '2026-03-28T07:58:00.000Z',
           },
         ]),
-      } as never,
-      {
-        listUpdates: vi.fn(async () => []),
       } as never,
       {
         getWorkflowSettings: vi.fn(async () => ({
@@ -1267,9 +1258,6 @@ describe('WorkflowLiveConsoleService', () => {
         ]),
       } as never,
       {
-        listUpdates: vi.fn(async () => []),
-      } as never,
-      {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
         })),
@@ -1302,7 +1290,6 @@ describe('WorkflowLiveConsoleService', () => {
     const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
       versionSource: unknown,
       briefSource: unknown,
-      updateSource: unknown,
       visibilityModeSource: unknown,
       executionTurnSource: unknown,
     ) => WorkflowLiveConsoleService;
@@ -1353,9 +1340,6 @@ describe('WorkflowLiveConsoleService', () => {
         listBriefs: vi.fn(async () => []),
       } as never,
       {
-        listUpdates: vi.fn(async () => []),
-      } as never,
-      {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
         })),
@@ -1384,7 +1368,6 @@ describe('WorkflowLiveConsoleService', () => {
     const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
       versionSource: unknown,
       briefSource: unknown,
-      updateSource: unknown,
       visibilityModeSource: unknown,
       executionTurnSource: unknown,
       workflowBoardSource: unknown,
@@ -1487,9 +1470,6 @@ describe('WorkflowLiveConsoleService', () => {
         listBriefs: vi.fn(async () => []),
       } as never,
       {
-        listUpdates: vi.fn(async () => []),
-      } as never,
-      {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
         })),
@@ -1524,7 +1504,6 @@ describe('WorkflowLiveConsoleService', () => {
     const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
       versionSource: unknown,
       briefSource: unknown,
-      updateSource: unknown,
       visibilityModeSource: unknown,
       executionTurnSource: unknown,
       workflowBoardSource: unknown,
@@ -1658,9 +1637,6 @@ describe('WorkflowLiveConsoleService', () => {
         listBriefs: vi.fn(async () => []),
       } as never,
       {
-        listUpdates: vi.fn(async () => []),
-      } as never,
-      {
         getWorkflowSettings: vi.fn(async () => ({
           effective_live_visibility_mode: 'enhanced',
         })),
@@ -1702,7 +1678,6 @@ describe('WorkflowLiveConsoleService', () => {
     const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
       versionSource: unknown,
       briefSource: unknown,
-      updateSource: unknown,
       visibilityModeSource: unknown,
       executionTurnSource: unknown,
       workflowBoardSource?: unknown,
@@ -1731,9 +1706,6 @@ describe('WorkflowLiveConsoleService', () => {
       } as never,
       {
         listBriefs: vi.fn(async () => []),
-      } as never,
-      {
-        listUpdates: vi.fn(async () => []),
       } as never,
       {
         getWorkflowSettings: vi.fn(async () => ({
@@ -1773,7 +1745,6 @@ describe('WorkflowLiveConsoleService', () => {
     const ServiceCtor = WorkflowLiveConsoleService as unknown as new (
       versionSource: unknown,
       briefSource: unknown,
-      updateSource: unknown,
       visibilityModeSource: unknown,
       executionTurnSource: unknown,
     ) => WorkflowLiveConsoleService;
@@ -1875,9 +1846,6 @@ describe('WorkflowLiveConsoleService', () => {
       } as never,
       {
         listBriefs: vi.fn(async () => []),
-      } as never,
-      {
-        listUpdates: vi.fn(async () => []),
       } as never,
       {
         getWorkflowSettings: vi.fn(async () => ({

@@ -341,15 +341,10 @@ export function WorkflowLiveConsole(props: {
               scrollHeight: element.scrollHeight,
               clientHeight: element.clientHeight,
             });
-            if (scrollBehavior.shouldStickToLiveEdge) {
-              element.scrollTop = element.scrollHeight;
-              isAtLiveEdgeRef.current = true;
-              setHasQueuedUpdates(false);
-              scrollMetricsRef.current.scrollHeight = element.scrollHeight;
-              scrollMetricsRef.current.scrollTop = element.scrollTop;
-              return;
-            }
             isAtLiveEdgeRef.current = scrollBehavior.isAtLiveEdge;
+            if (scrollBehavior.shouldPauseFollowing && followMode !== 'paused') {
+              setFollowMode('paused');
+            }
             if (scrollBehavior.shouldClearQueuedUpdates) {
               setHasQueuedUpdates(false);
             }

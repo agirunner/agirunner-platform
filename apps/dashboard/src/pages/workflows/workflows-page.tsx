@@ -291,6 +291,27 @@ export function WorkflowsPage(): JSX.Element {
   }, [navigate, pageState, railPacket]);
 
   useEffect(() => {
+    if (!railPacket || !pageState.workflowId) {
+      return;
+    }
+    const selectableRows = [...railPacket.rows, ...railPacket.ongoing_rows];
+    if (selectableRows.some((row) => row.workflow_id === pageState.workflowId)) {
+      return;
+    }
+    const nextWorkflowId = resolveSelectedWorkflowId({
+      currentWorkflowId: null,
+      rows: selectableRows,
+      selectedWorkflowId: railPacket.selected_workflow_id,
+      storedWorkflowId: readStoredWorkflowId(),
+    });
+    patchPageState(navigate, pageState, {
+      workflowId: nextWorkflowId,
+      workItemId: null,
+      tab: null,
+    });
+  }, [navigate, pageState, railPacket]);
+
+  useEffect(() => {
     if (!pageState.workflowId) {
       return;
     }
