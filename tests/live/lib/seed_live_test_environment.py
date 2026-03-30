@@ -602,6 +602,7 @@ def seed_provider_catalog(
             raise RuntimeError("LIVE_TEST_PROVIDER_OAUTH_PROFILE_ID is required when auth mode is oauth")
         if oauth_session is None:
             raise RuntimeError("LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON is required when auth mode is oauth")
+        require_refreshable_oauth_session(oauth_session)
 
         imported = extract_data(
             client.request(
@@ -701,6 +702,25 @@ def seed_provider_catalog(
         specialist_reasoning_effort=specialist_reasoning_effort,
     )
     return provider, model, orchestrator_model, specialist_model
+
+
+def require_refreshable_oauth_session(oauth_session: dict[str, Any]) -> dict[str, Any]:
+    credentials = oauth_session.get("credentials")
+    if not isinstance(credentials, dict):
+        raise RuntimeError("LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON must include a credentials object")
+
+    access_token = credentials.get("accessToken")
+    if not isinstance(access_token, str) or access_token.strip() == "":
+        raise RuntimeError("LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON must include credentials.accessToken")
+
+    refresh_token = credentials.get("refreshToken")
+    if not isinstance(refresh_token, str) or refresh_token.strip() == "":
+        raise RuntimeError("LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON must include credentials.refreshToken")
+
+    if credentials.get("needsReauth") is True:
+        raise RuntimeError("LIVE_TEST_PROVIDER_OAUTH_SESSION_JSON requires reauthorization before live execution")
+
+    return oauth_session
 
 
 def build_workspace_create_payload(
