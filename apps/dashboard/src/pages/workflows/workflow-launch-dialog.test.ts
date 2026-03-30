@@ -87,9 +87,8 @@ describe('WorkflowLaunchDialog source', () => {
   it('auto-selects the sole remaining workspace through the shared launch helper instead of hardcoding a first-row default', () => {
     const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
 
-    expect(source).toContain(
-      "setWorkspaceId((current) => resolveDefaultWorkflowLaunchWorkspaceId(workspaces, current));",
-    );
+    expect(source).toContain('resolveDefaultWorkflowLaunchWorkspaceId(');
+    expect(source).toContain('props.initialWorkspaceId ??');
     expect(source).not.toContain('setWorkspaceId(workspaces[0].id)');
   });
 

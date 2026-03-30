@@ -4,6 +4,7 @@ import type { DashboardPlaybookRecord, DashboardWorkspaceRecord } from '../../li
 import {
   buildWorkflowLaunchComboboxItems,
   resolveDefaultWorkflowLaunchWorkspaceId,
+  stringifyWorkflowLaunchParameterDrafts,
   validateWorkflowLaunchDialogDraft,
 } from './workflow-launch-dialog.support.js';
 
@@ -44,6 +45,33 @@ describe('workflow-launch-dialog.support', () => {
     ];
 
     expect(resolveDefaultWorkflowLaunchWorkspaceId(workspaces, '')).toBe('');
+  });
+
+  it('prefers the explicit initial workspace when it is still available', () => {
+    const workspaces: DashboardWorkspaceRecord[] = [
+      { id: 'workspace-1', name: 'Primary Workspace', slug: 'primary-workspace' },
+      { id: 'workspace-2', name: 'Secondary Workspace', slug: 'secondary-workspace' },
+    ];
+
+    expect(resolveDefaultWorkflowLaunchWorkspaceId(workspaces, '', 'workspace-2')).toBe('workspace-2');
+  });
+
+  it('stringifies seeded launch parameter drafts from prior workflow context', () => {
+    expect(
+      stringifyWorkflowLaunchParameterDrafts({
+        workflow_goal: 'Ship the final release packet',
+        revision: 3,
+        approved: false,
+        context: {
+          phase: 'release',
+        },
+      }),
+    ).toEqual({
+      workflow_goal: 'Ship the final release packet',
+      revision: '3',
+      approved: 'false',
+      context: '{"phase":"release"}',
+    });
   });
 
   it('requires playbook, workspace, workflow name, and required launch inputs', () => {

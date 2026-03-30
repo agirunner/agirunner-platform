@@ -30,8 +30,13 @@ export function buildWorkflowLaunchComboboxItems(
 export function resolveDefaultWorkflowLaunchWorkspaceId(
   workspaces: DashboardWorkspaceRecord[],
   currentWorkspaceId: string,
+  initialWorkspaceId = '',
 ): string {
+  const trimmedInitial = initialWorkspaceId.trim();
   const trimmedCurrent = currentWorkspaceId.trim();
+  if (trimmedInitial.length > 0 && workspaces.some((workspace) => workspace.id === trimmedInitial)) {
+    return trimmedInitial;
+  }
   if (trimmedCurrent.length > 0 && workspaces.some((workspace) => workspace.id === trimmedCurrent)) {
     return trimmedCurrent;
   }
@@ -89,4 +94,26 @@ export function validateWorkflowLaunchDialogDraft(input: {
     blockingIssues,
     isValid: blockingIssues.length === 0,
   };
+}
+
+export function stringifyWorkflowLaunchParameterDrafts(
+  parameterValues: Record<string, unknown> | null | undefined,
+): Record<string, string> {
+  if (!parameterValues) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(parameterValues).map(([key, value]) => [key, stringifyParameterValue(value)]),
+  );
+}
+
+function stringifyParameterValue(value: unknown): string {
+  if (typeof value === 'string') {
+    return value;
+  }
+  if (typeof value === 'number' || typeof value === 'boolean' || value === null) {
+    return String(value);
+  }
+  return JSON.stringify(value);
 }

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { DashboardWorkflowWorkspacePacket } from '../../lib/api.js';
 import {
+  buildRepeatWorkflowLaunchSeed,
   describeHeaderAddWorkLabel,
   describeWorkflowWorkbenchScope,
   buildWorkflowDiagnosticsHref,
@@ -143,6 +144,38 @@ describe('workflows page support', () => {
         lifecycle: 'planned',
       }),
     ).toBe('Add Work');
+  });
+
+  it('builds a terminal repeat launch seed from the completed workflow context only', () => {
+    expect(
+      buildRepeatWorkflowLaunchSeed({
+        workflowState: 'completed',
+        playbookId: 'playbook-1',
+        workspaceId: 'workspace-1',
+        workItemTitle: 'Publish terminal brief',
+        workflowParameters: {
+          workflow_goal: 'Publish a terminal brief with deliverables.',
+        },
+      }),
+    ).toEqual({
+      playbookId: 'playbook-1',
+      workspaceId: 'workspace-1',
+      workflowName: 'Publish terminal brief',
+      parameterDrafts: {
+        workflow_goal: 'Publish a terminal brief with deliverables.',
+      },
+    });
+    expect(
+      buildRepeatWorkflowLaunchSeed({
+        workflowState: 'active',
+        playbookId: 'playbook-1',
+        workspaceId: 'workspace-1',
+        workItemTitle: 'Publish terminal brief',
+        workflowParameters: {
+          workflow_goal: 'Publish a terminal brief with deliverables.',
+        },
+      }),
+    ).toBeNull();
   });
 
   it('describes the exact shell scope banner for workflow and work item views only', () => {

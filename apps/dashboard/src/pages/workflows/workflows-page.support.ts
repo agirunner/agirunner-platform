@@ -1,4 +1,5 @@
 import type { DashboardWorkflowWorkspacePacket } from '../../lib/api.js';
+import { stringifyWorkflowLaunchParameterDrafts } from './workflow-launch-dialog.support.js';
 
 export type WorkflowPageMode = 'live' | 'recent';
 export type WorkflowWorkbenchTab =
@@ -26,6 +27,13 @@ export interface WorkflowWorkbenchScopeDescriptor {
 export interface WorkflowLaunchRequest {
   isRequested: boolean;
   playbookId: string | null;
+}
+
+export interface WorkflowRepeatLaunchSeed {
+  playbookId: string | null;
+  workspaceId: string | null;
+  workflowName: string | null;
+  parameterDrafts: Record<string, string>;
 }
 
 export interface WorkflowsPageState {
@@ -182,6 +190,25 @@ export function describeHeaderAddWorkLabel(input: {
   return input.lifecycle === 'ongoing' ? 'Add Intake' : 'Add Work';
 }
 
+export function buildRepeatWorkflowLaunchSeed(input: {
+  workflowState: string | null | undefined;
+  playbookId: string | null | undefined;
+  workspaceId: string | null | undefined;
+  workItemTitle: string | null | undefined;
+  workflowParameters: Record<string, unknown> | null | undefined;
+}): WorkflowRepeatLaunchSeed | null {
+  if (!isTerminalWorkflowState(input.workflowState)) {
+    return null;
+  }
+
+  return {
+    playbookId: input.playbookId ?? null,
+    workspaceId: input.workspaceId ?? null,
+    workflowName: input.workItemTitle ?? null,
+    parameterDrafts: stringifyWorkflowLaunchParameterDrafts(input.workflowParameters),
+  };
+}
+
 export function describeWorkflowWorkbenchScope(input: {
   scopeKind: WorkflowTabScope;
   workflowName: string | null;
@@ -301,6 +328,10 @@ function readBoardMode(value: string | null): WorkflowBoardMode {
 
 function readBooleanFlag(value: string | null): boolean {
   return value === '1' || value === 'true';
+}
+
+function isTerminalWorkflowState(state: string | null | undefined): boolean {
+  return state === 'completed' || state === 'cancelled' || state === 'failed';
 }
 
 function readOptionalValue(value: string | null): string | null {

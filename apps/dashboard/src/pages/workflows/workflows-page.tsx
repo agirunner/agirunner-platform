@@ -21,6 +21,7 @@ import {
 import { WorkflowsRail } from './workflows-rail.js';
 import {
   describeHeaderAddWorkLabel,
+  buildRepeatWorkflowLaunchSeed,
   buildWorkflowsPageSearchParams,
   buildWorkflowsPageHref,
   describeWorkflowWorkbenchScope,
@@ -87,6 +88,9 @@ export function WorkflowsPage(): JSX.Element {
   const [deliverablesLimit, setDeliverablesLimit] = useState(DELIVERABLES_PAGE_SIZE);
   const [isLaunchOpen, setIsLaunchOpen] = useState(false);
   const [launchPlaybookId, setLaunchPlaybookId] = useState<string | null>(null);
+  const [launchWorkspaceId, setLaunchWorkspaceId] = useState<string | null>(null);
+  const [launchWorkflowName, setLaunchWorkflowName] = useState<string | null>(null);
+  const [launchParameterDrafts, setLaunchParameterDrafts] = useState<Record<string, string>>({});
   const [isAddWorkOpen, setIsAddWorkOpen] = useState(false);
   const [addWorkTargetWorkItemId, setAddWorkTargetWorkItemId] = useState<string | null>(null);
   const [repeatSourceWorkItemId, setRepeatSourceWorkItemId] = useState<string | null>(null);
@@ -118,6 +122,9 @@ export function WorkflowsPage(): JSX.Element {
       return;
     }
     setLaunchPlaybookId(launchRequest.playbookId);
+    setLaunchWorkspaceId(null);
+    setLaunchWorkflowName(null);
+    setLaunchParameterDrafts({});
     setIsLaunchOpen(true);
     navigate(buildWorkflowsPageHref({}, pageState), { replace: true });
   }, [launchRequest.isRequested, launchRequest.playbookId, navigate, pageState]);
@@ -535,6 +542,26 @@ export function WorkflowsPage(): JSX.Element {
                         return;
                       case 'repeat':
                         patchPageState(navigate, pageState, { workItemId });
+                        {
+                          const repeatLaunchSeed = buildRepeatWorkflowLaunchSeed({
+                            workflowState: workflow.state,
+                            playbookId: workflow.playbookId,
+                            workspaceId: workflow.workspaceId,
+                            workItemTitle:
+                              board?.work_items.find((item) => item.id === workItemId)?.title ?? null,
+                            workflowParameters:
+                              (workflowDetailQuery.data?.parameters as Record<string, unknown> | null | undefined)
+                              ?? null,
+                          });
+                          if (repeatLaunchSeed) {
+                            setLaunchPlaybookId(repeatLaunchSeed.playbookId);
+                            setLaunchWorkspaceId(repeatLaunchSeed.workspaceId);
+                            setLaunchWorkflowName(repeatLaunchSeed.workflowName);
+                            setLaunchParameterDrafts(repeatLaunchSeed.parameterDrafts);
+                            setIsLaunchOpen(true);
+                            return;
+                          }
+                        }
                         setAddWorkTargetWorkItemId(null);
                         setRepeatSourceWorkItemId(workItemId);
                         setIsAddWorkOpen(true);
@@ -623,10 +650,13 @@ export function WorkflowsPage(): JSX.Element {
               data-workflows-workbench-frame="true"
               className="flex h-full min-h-[12rem] min-w-0 flex-col overflow-hidden rounded-[1.75rem] border border-border/70 bg-card/85 p-0 shadow-sm sm:min-h-[16rem] lg:min-h-0"
             >
-              <EmptyWorkspaceState
-                hasWorkflows={((railPacket?.rows.length ?? 0) + (railPacket?.ongoing_rows.length ?? 0)) > 0}
+                <EmptyWorkspaceState
+                  hasWorkflows={((railPacket?.rows.length ?? 0) + (railPacket?.ongoing_rows.length ?? 0)) > 0}
                 onCreateWorkflow={() => {
                   setLaunchPlaybookId(null);
+                  setLaunchWorkspaceId(null);
+                  setLaunchWorkflowName(null);
+                  setLaunchParameterDrafts({});
                   setIsLaunchOpen(true);
                 }}
               />
@@ -641,9 +671,15 @@ export function WorkflowsPage(): JSX.Element {
           setIsLaunchOpen(open);
           if (!open) {
             setLaunchPlaybookId(null);
+            setLaunchWorkspaceId(null);
+            setLaunchWorkflowName(null);
+            setLaunchParameterDrafts({});
           }
         }}
         initialPlaybookId={launchPlaybookId}
+        initialWorkspaceId={launchWorkspaceId}
+        initialWorkflowName={launchWorkflowName}
+        initialParameterDrafts={launchParameterDrafts}
         onLaunched={(workflowId) =>
           patchPageState(navigate, pageState, {
             workflowId,

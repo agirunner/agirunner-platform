@@ -31,6 +31,9 @@ export function WorkflowLaunchDialog(props: {
   isOpen: boolean;
   onOpenChange(open: boolean): void;
   initialPlaybookId?: string | null;
+  initialWorkspaceId?: string | null;
+  initialWorkflowName?: string | null;
+  initialParameterDrafts?: Record<string, string> | null;
   onLaunched?(workflowId: string): void;
 }): JSX.Element {
   const queryClient = useQueryClient();
@@ -78,22 +81,26 @@ export function WorkflowLaunchDialog(props: {
     if (!props.isOpen) {
       return;
     }
-    setWorkspaceId((current) => resolveDefaultWorkflowLaunchWorkspaceId(workspaces, current));
-  }, [props.isOpen, workspaces]);
+    setWorkspaceId((current) =>
+      resolveDefaultWorkflowLaunchWorkspaceId(workspaces, current, props.initialWorkspaceId ?? ''),
+    );
+  }, [props.initialWorkspaceId, props.isOpen, workspaces]);
 
   useEffect(() => {
     if (!props.isOpen) {
       return;
     }
     setSelectedPlaybookId(props.initialPlaybookId?.trim() ?? '');
-  }, [props.initialPlaybookId, props.isOpen]);
+    setWorkflowName(props.initialWorkflowName?.trim() ?? '');
+  }, [props.initialPlaybookId, props.initialWorkflowName, props.isOpen]);
 
   useEffect(() => {
     if (props.isOpen) {
       setParameterDrafts((current) => {
+        const seededDrafts = props.initialParameterDrafts ?? {};
         const next: Record<string, string> = {};
         for (const spec of launchDefinition.parameterSpecs) {
-          next[spec.slug] = current[spec.slug] ?? '';
+          next[spec.slug] = seededDrafts[spec.slug] ?? current[spec.slug] ?? '';
         }
         return next;
       });
@@ -106,7 +113,7 @@ export function WorkflowLaunchDialog(props: {
     setFiles([]);
     setErrorMessage(null);
     setHasAttemptedSubmit(false);
-  }, [launchDefinition.parameterSpecs, props.isOpen]);
+  }, [launchDefinition.parameterSpecs, props.initialParameterDrafts, props.isOpen]);
 
   const launchMutation = useMutation({
     mutationFn: async () => {

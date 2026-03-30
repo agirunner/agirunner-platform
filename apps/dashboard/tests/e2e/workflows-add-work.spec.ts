@@ -128,6 +128,28 @@ test('prefills repeat work from the latest source input packet for non-terminal 
   );
 });
 
+test('routes repeat from a terminal workflow into a new workflow launch seeded from the same context', async ({ page }) => {
+  await seedWorkflowsScenario();
+  await loginToWorkflows(page);
+
+  await workflowRailButton(page, 'E2E Planned Terminal Brief').click();
+  await page.getByRole('button', { name: 'Publish terminal brief' }).click();
+  await page.locator('[data-work-item-local-control="repeat"]').click();
+
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('heading', { name: 'New workflow' })).toBeVisible();
+  await expect(dialog.locator('label').filter({ hasText: 'Playbook' }).getByRole('button')).toContainText(
+    'Planned Workflows',
+  );
+  await expect(dialog.locator('label').filter({ hasText: 'Workspace' }).getByRole('button')).toContainText(
+    'Workflows Workspace',
+  );
+  await expect(dialog.getByLabel('Workflow name')).toHaveValue('Publish terminal brief');
+  await expect(dialog.getByLabel('Workflow Goal')).toHaveValue(
+    'Publish a terminal brief with deliverables.',
+  );
+});
+
 async function routeCreateWorkItem(
   page: Page,
   workflowId: string,
