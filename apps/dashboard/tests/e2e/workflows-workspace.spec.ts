@@ -47,3 +47,55 @@ test('opens a steer composer with inputs directly from the work-item card action
     /Guide Prepare blocked release brief toward the next legal action\./,
   );
 });
+
+test('shows only legal workflow controls for paused workflows and keeps paused work visible on the board', async ({ page }) => {
+  await seedWorkflowsScenario();
+  await loginToWorkflows(page);
+
+  await workflowRailButton(page, 'E2E Paused Intake Review').click();
+
+  const stateStrip = page.locator('[data-workflows-top-strip="true"]');
+  const board = page.locator('[data-workflows-board-frame="true"]');
+  const pausedCard = board.locator('[data-work-item-card="true"]').filter({ hasText: 'Paused intake review' }).first();
+
+  await expect(stateStrip.getByRole('button', { name: 'Resume' })).toBeVisible();
+  await expect(stateStrip.getByRole('button', { name: 'Cancel' })).toBeVisible();
+  await expect(stateStrip.getByRole('button', { name: 'Pause' })).toHaveCount(0);
+  await expect(pausedCard).toBeVisible();
+  await expect(pausedCard.locator('.inline-flex').filter({ hasText: /^Paused$/ }).first()).toBeVisible();
+  await expect(pausedCard.locator('[data-work-item-local-control="pause"]')).toHaveCount(0);
+  await expect(pausedCard.locator('[data-work-item-local-control="resume"]')).toHaveCount(0);
+});
+
+test('shows cancelled workflows as terminal and removes workflow lifecycle controls', async ({ page }) => {
+  await seedWorkflowsScenario();
+  await loginToWorkflows(page);
+
+  await workflowRailButton(page, 'E2E Cancelled Packet Review').click();
+
+  const stateStrip = page.locator('[data-workflows-top-strip="true"]');
+  const board = page.locator('[data-workflows-board-frame="true"]');
+  const cancelledCard = board
+    .locator('[data-work-item-card="true"]')
+    .filter({ hasText: 'Cancelled packet review' })
+    .first();
+
+  await expect(stateStrip.locator('.inline-flex').filter({ hasText: /^Cancelled$/ }).first()).toBeVisible();
+  await expect(stateStrip.getByRole('button', { name: 'Pause' })).toHaveCount(0);
+  await expect(stateStrip.getByRole('button', { name: 'Resume' })).toHaveCount(0);
+  await expect(stateStrip.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
+  await expect(cancelledCard).toBeVisible();
+  await expect(cancelledCard.locator('.inline-flex').filter({ hasText: /^Cancelled$/ }).first()).toBeVisible();
+});
+
+test('humanizes orchestrator-only in-flight workflows in the rail and workspace header', async ({ page }) => {
+  await seedWorkflowsScenario();
+  await loginToWorkflows(page);
+
+  const row = page.getByRole('button', { name: /E2E Orchestrator Setup/ }).first();
+  await expect(row).toContainText('Orchestrator working');
+  await row.click();
+
+  const stateStrip = page.locator('[data-workflows-top-strip="true"]');
+  await expect(stateStrip.getByText('Orchestrating workflow setup')).toBeVisible();
+});

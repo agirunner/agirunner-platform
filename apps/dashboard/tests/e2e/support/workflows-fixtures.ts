@@ -42,6 +42,11 @@ export interface SeededWorkflowsScenario {
   plannedWorkflow: ApiRecord;
   ongoingWorkflow: ApiRecord;
   ongoingWorkItem: ApiRecord;
+  pausedWorkflow: ApiRecord;
+  pausedWorkItem: ApiRecord;
+  cancelledWorkflow: ApiRecord;
+  cancelledWorkItem: ApiRecord;
+  orchestratorOnlyWorkflow: ApiRecord;
   needsActionWorkflow: ApiRecord;
   needsActionWorkItem: ApiRecord;
   needsActionEscalationTask: ApiRecord;
@@ -169,6 +174,60 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     summary: 'Workflow Created',
   });
 
+  const pausedWorkflow = await createWorkflowViaApi({
+    name: 'E2E Paused Intake Review',
+    playbookId: ongoingPlaybook.id,
+    workspaceId: workspace.id,
+    lifecycle: 'ongoing',
+    state: 'paused',
+    parameters: { workflow_goal: 'Keep the intake review paused without dropping it back to planned.' },
+  });
+  const pausedWorkItem = await createWorkItem(pausedWorkflow.id, {
+    title: 'Paused intake review',
+    goal: 'Hold the intake review in its current active lane.',
+    acceptance_criteria: 'The work item remains paused until resumed.',
+    stage_name: 'intake',
+    column_id: SEED_BOARD_COLUMNS.active,
+    owner_role: 'intake-analyst',
+    priority: 'high',
+    metadata: {
+      pause_requested_at: new Date().toISOString(),
+    },
+  });
+
+  const cancelledWorkflow = await createWorkflowViaApi({
+    name: 'E2E Cancelled Packet Review',
+    playbookId: plannedPlaybook.id,
+    workspaceId: workspace.id,
+    lifecycle: 'planned',
+    state: 'cancelled',
+    currentStage: 'delivery',
+    parameters: { workflow_goal: 'Keep cancelled work terminal and out of planned.' },
+  });
+  const cancelledWorkItem = await createWorkItem(cancelledWorkflow.id, {
+    title: 'Cancelled packet review',
+    goal: 'Ensure cancelled work stays terminal.',
+    acceptance_criteria: 'The cancelled work item is visibly terminal.',
+    stage_name: 'delivery',
+    column_id: SEED_BOARD_COLUMNS.active,
+    owner_role: 'reviewer',
+    priority: 'high',
+    completed_at: new Date().toISOString(),
+    metadata: {
+      cancel_requested_at: new Date().toISOString(),
+    },
+  });
+
+  const orchestratorOnlyWorkflow = await createWorkflowViaApi({
+    name: 'E2E Orchestrator Setup',
+    playbookId: ongoingPlaybook.id,
+    workspaceId: workspace.id,
+    lifecycle: 'ongoing',
+    state: 'active',
+    seedHeartbeatGuard: true,
+    parameters: { workflow_goal: 'Surface orchestrator-only routing without fake board work.' },
+  });
+
   const needsActionWorkflow = await createWorkflowViaApi({
     name: 'E2E Needs Action Delivery',
     playbookId: plannedPlaybook.id,
@@ -277,6 +336,11 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     plannedWorkflow,
     ongoingWorkflow,
     ongoingWorkItem,
+    pausedWorkflow,
+    pausedWorkItem,
+    cancelledWorkflow,
+    cancelledWorkItem,
+    orchestratorOnlyWorkflow,
     needsActionWorkflow,
     needsActionWorkItem: blockedWorkItem,
     needsActionEscalationTask,
@@ -328,7 +392,7 @@ export async function createWorkflowViaApi(input: {
   playbookId: string;
   workspaceId: string;
   lifecycle: 'planned' | 'ongoing';
-  state: 'pending' | 'active' | 'completed' | 'failed' | 'cancelled';
+  state: 'pending' | 'active' | 'paused' | 'completed' | 'failed' | 'cancelled';
   currentStage?: string;
   parameters: Record<string, unknown>;
   seedHeartbeatGuard?: boolean;
@@ -748,7 +812,7 @@ async function createWorkItem(workflowId: string, body: Record<string, unknown>)
       ${body.notes ? sqlText(String(body.notes)) : 'NULL'},
       ${sqlText(randomUUID())},
       ${body.completed_at ? `${sqlText(String(body.completed_at))}::timestamptz` : 'NULL'},
-      '{}'::jsonb,
+      ${sqlJsonValue(body.metadata ?? {})}::jsonb,
       NOW(),
       NOW()
     );
@@ -1087,9 +1151,12 @@ function resolveSeedStageStatus(
     return 'completed';
   }
   if (workflow.lifecycle === 'ongoing') {
+    if (workflow.state === 'paused' && workflow.currentStage === stageName) {
+      return 'active';
+    }
     return stageName === 'intake' ? 'active' : 'pending';
   }
-  if (workflow.currentStage === stageName && workflow.state === 'active') {
+  if (workflow.currentStage === stageName && (workflow.state === 'active' || workflow.state === 'paused')) {
     return 'active';
   }
   if (workflow.currentStage === stageName && workflow.state === 'failed') {
