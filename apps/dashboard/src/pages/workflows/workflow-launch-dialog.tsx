@@ -44,12 +44,12 @@ export function WorkflowLaunchDialog(props: {
   const playbooksQuery = useQuery({
     queryKey: ['playbooks'],
     queryFn: () => dashboardApi.listPlaybooks(),
-    enabled: props.isOpen,
+    staleTime: 60_000,
   });
   const workspacesQuery = useQuery({
     queryKey: ['workspaces'],
     queryFn: () => dashboardApi.listWorkspaces(),
-    enabled: props.isOpen,
+    staleTime: 60_000,
   });
 
   const playbooks = playbooksQuery.data?.data?.filter((playbook) => playbook.is_active !== false) ?? [];

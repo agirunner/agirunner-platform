@@ -75,6 +75,15 @@ describe('WorkflowLaunchDialog source', () => {
     expect(source).not.toContain('<SelectContent');
   });
 
+  it('warms playbook and workspace selector data before the modal opens so the dropdowns do not alternate between empty and populated states', () => {
+    const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain("queryKey: ['playbooks']");
+    expect(source).toContain("queryKey: ['workspaces']");
+    expect(source).toContain('staleTime: 60_000');
+    expect(source).not.toContain('enabled: props.isOpen');
+  });
+
   it('auto-selects the sole remaining workspace through the shared launch helper instead of hardcoding a first-row default', () => {
     const source = readFileSync(new URL('./workflow-launch-dialog.tsx', import.meta.url), 'utf8');
 
