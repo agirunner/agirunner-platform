@@ -1,6 +1,5 @@
 import type {
   DashboardMissionControlWorkflowCard,
-  DashboardTaskRecord,
   DashboardWorkflowBoardResponse,
   DashboardWorkflowInputPacketFileRecord,
   DashboardWorkflowInputPacketRecord,
@@ -16,10 +15,7 @@ export function WorkflowDetails(props: {
   board: DashboardWorkflowBoardResponse | null;
   selectedWorkItemId: string | null;
   selectedWorkItemTitle: string | null;
-  selectedTaskId: string | null;
-  selectedTaskTitle: string | null;
   selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
-  selectedTask: DashboardTaskRecord | null;
   selectedWorkItemTasks: Record<string, unknown>[];
   inputPackets: DashboardWorkflowInputPacketRecord[];
   workflowParameters: Record<string, unknown> | null;
@@ -39,7 +35,7 @@ export function WorkflowDetails(props: {
     isWorkflowScope,
     workflowParameters: props.workflowParameters,
     selectedWorkItem: props.selectedWorkItem,
-    selectedTask: props.selectedTask,
+    selectedWorkItemTasks: props.selectedWorkItemTasks,
     workflowPackets,
     workItemPackets,
   });
@@ -183,7 +179,7 @@ function buildWhatWasAsked(props: {
   isWorkflowScope: boolean;
   workflowParameters: Record<string, unknown> | null;
   selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
-  selectedTask: DashboardTaskRecord | null;
+  selectedWorkItemTasks: Record<string, unknown>[];
   workflowPackets: DashboardWorkflowInputPacketRecord[];
   workItemPackets: DashboardWorkflowInputPacketRecord[];
 }): string[] {
@@ -195,8 +191,8 @@ function buildWhatWasAsked(props: {
       paragraphs.push(goal);
     }
 
-    const taskInputSummary = summarizeEntries('Task brief', readOperatorFacingEntries(props.selectedTask?.input));
-    if (taskInputSummary) {
+    const taskInputSummaries = readTaskInputSummaries(props.selectedWorkItemTasks);
+    for (const taskInputSummary of taskInputSummaries) {
       paragraphs.push(taskInputSummary);
     }
   }
@@ -216,6 +212,20 @@ function buildWhatWasAsked(props: {
   }
 
   return paragraphs;
+}
+
+function readTaskInputSummaries(tasks: Record<string, unknown>[]): string[] {
+  return tasks
+    .map((task) => {
+      const title = readOptionalText(task.title) ?? 'Task brief';
+      return summarizeEntries(title, readOperatorFacingEntries(readTaskInput(task)));
+    })
+    .filter((summary): summary is string => Boolean(summary));
+}
+
+function readTaskInput(task: Record<string, unknown>): Record<string, unknown> | null {
+  const input = task.input;
+  return input && typeof input === 'object' ? input as Record<string, unknown> : null;
 }
 
 function buildCurrentState(props: {
@@ -504,21 +514,8 @@ function isCompletedState(state: string): boolean {
 
 function normalizeDetailsScope(
   scope: WorkflowWorkbenchScopeDescriptor,
-  selectedWorkItem: DashboardWorkflowWorkItemRecord | null,
-  selectedWorkItemTitle: string | null,
+  _selectedWorkItem: DashboardWorkflowWorkItemRecord | null,
+  _selectedWorkItemTitle: string | null,
 ): WorkflowWorkbenchScopeDescriptor {
-  if (scope.scopeKind !== 'selected_task') {
-    return scope;
-  }
-  const name =
-    selectedWorkItem?.title ??
-    selectedWorkItemTitle ??
-    'Selected work item';
-  return {
-    scopeKind: 'selected_work_item',
-    title: 'Work item',
-    subject: 'work item',
-    name,
-    banner: `Work item: ${name}`,
-  };
+  return scope;
 }

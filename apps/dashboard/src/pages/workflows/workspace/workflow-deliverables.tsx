@@ -1,6 +1,5 @@
 import { Badge } from '../../../components/ui/badge.js';
 import type {
-  DashboardTaskRecord,
   DashboardWorkflowDeliverableRecord,
   DashboardWorkflowDeliverablesPacket,
 } from '../../../lib/api.js';
@@ -10,15 +9,14 @@ import { normalizeDeliverablesPacket } from './workflow-deliverables.support.js'
 
 export function WorkflowDeliverables(props: {
   packet: DashboardWorkflowDeliverablesPacket;
-  selectedTask: DashboardTaskRecord | null;
   selectedWorkItemId: string | null;
   selectedWorkItemTitle: string | null;
   scope: WorkflowWorkbenchScopeDescriptor;
   onLoadMore(): void;
 }): JSX.Element {
   const packet = normalizeDeliverablesPacket(props.packet);
-  const normalizedScope = normalizeDeliverablesScope(props.scope, props.selectedWorkItemTitle);
-  const selectedWorkItemId = props.selectedWorkItemId ?? props.selectedTask?.work_item_id ?? null;
+  const normalizedScope = props.scope;
+  const selectedWorkItemId = props.selectedWorkItemId;
   const scopedDeliverables = buildScopedDeliverables(
     packet,
     normalizedScope.scopeKind,
@@ -207,23 +205,6 @@ function readText(value: unknown): string | null {
 
 function humanizeToken(value: string): string {
   return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
-function normalizeDeliverablesScope(
-  scope: WorkflowWorkbenchScopeDescriptor,
-  selectedWorkItemTitle: string | null,
-): WorkflowWorkbenchScopeDescriptor {
-  if (scope.scopeKind !== 'selected_task') {
-    return scope;
-  }
-  const name = readText(selectedWorkItemTitle) ?? 'Selected work item';
-  return {
-    scopeKind: 'selected_work_item',
-    title: 'Work item',
-    subject: 'work item',
-    name,
-    banner: `Work item: ${name}`,
-  };
 }
 
 function formatEntryTimestamp(value: string): string {

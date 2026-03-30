@@ -132,7 +132,7 @@ export function WorkflowsPage(): JSX.Element {
     [pageState.workItemId],
   );
   const activeTab = pageState.tab ?? 'details';
-  const tabScope = resolveWorkflowTabScope(activeTab, boardSelection.workItemId, null);
+  const tabScope = resolveWorkflowTabScope(activeTab, boardSelection.workItemId);
   const scopedWorkItemId = tabScope === 'selected_work_item' ? boardSelection.workItemId : null;
   const requestedWorkspaceScope = {
     workflowId: pageState.workflowId,
@@ -156,7 +156,6 @@ export function WorkflowsPage(): JSX.Element {
       ? buildWorkflowWorkspaceQueryKey({
           workflowId: pageState.workflowId,
           workItemId: scopedWorkItemId,
-          taskId: null,
           scopeKind: tabScope,
           boardMode: pageState.boardMode,
           activityLimit,
@@ -255,21 +254,24 @@ export function WorkflowsPage(): JSX.Element {
     ?? null;
   const selectedWorkItemTasks = selectedWorkItemTasksQuery.data ?? [];
   const selectedWorkItemTaskRecords = selectedWorkItemTasks as unknown as DashboardTaskRecord[];
+  const currentWorkbenchScopeKind =
+    workspacePacket?.bottom_tabs.current_scope_kind === 'selected_task'
+      ? 'selected_work_item'
+      : workspacePacket?.bottom_tabs.current_scope_kind ?? requestedWorkspaceScope.scopeKind;
   const workbenchScope = useMemo(
     () =>
       describeWorkflowWorkbenchScope({
-        scopeKind: workspacePacket?.bottom_tabs.current_scope_kind ?? requestedWorkspaceScope.scopeKind,
+        scopeKind: currentWorkbenchScopeKind,
         workflowName: workflow?.name ?? pageState.workflowId,
         workItemId: workspacePacket?.bottom_tabs.current_work_item_id ?? requestedWorkspaceScope.workItemId,
         workItemTitle,
       }),
     [
+      currentWorkbenchScopeKind,
       pageState.workflowId,
-      requestedWorkspaceScope.scopeKind,
       requestedWorkspaceScope.workItemId,
       workItemTitle,
       workflow?.name,
-      workspacePacket?.bottom_tabs.current_scope_kind,
       workspacePacket?.bottom_tabs.current_work_item_id,
     ],
   );
@@ -542,10 +544,7 @@ export function WorkflowsPage(): JSX.Element {
                   selectedWorkItemId={boardSelection.workItemId}
                   scopedWorkItemId={scopedWorkItemId}
                   selectedWorkItemTitle={workItemTitle}
-                  selectedTaskId={null}
-                  selectedTaskTitle={null}
                   selectedWorkItem={selectedWorkItem}
-                  selectedTask={null}
                   selectedWorkItemTasks={selectedWorkItemTasks}
                   inputPackets={inputPacketsQuery.data ?? []}
                   workflowParameters={(workflowDetailQuery.data?.parameters as Record<string, unknown> | null | undefined) ?? null}

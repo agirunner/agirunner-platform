@@ -22,7 +22,6 @@ export function buildWorkflowRailQueryKey(input: {
 export function buildWorkflowWorkspaceQueryKey(input: {
   workflowId: string;
   workItemId: string | null;
-  taskId: string | null;
   scopeKind: string;
   boardMode: string;
   activityLimit: number;
@@ -34,7 +33,6 @@ export function buildWorkflowWorkspaceQueryKey(input: {
     input.workflowId,
     input.scopeKind,
     input.workItemId ?? 'workflow',
-    input.taskId ?? 'all-tasks',
     input.boardMode,
     input.activityLimit,
     input.deliverablesLimit,

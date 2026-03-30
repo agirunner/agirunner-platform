@@ -1,10 +1,11 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import type {
   DashboardMissionControlWorkflowCard,
-  DashboardTaskRecord,
   DashboardWorkflowBoardResponse,
   DashboardWorkflowInputPacketRecord,
   DashboardWorkflowStickyStrip,
@@ -12,8 +13,21 @@ import type {
 } from '../../../lib/api.js';
 import { WorkflowDetails } from './workflow-details.js';
 
+function readDetailsSource() {
+  return readFileSync(resolve(import.meta.dirname, './workflow-details.tsx'), 'utf8');
+}
+
 describe('WorkflowDetails', () => {
-  it('renders selected task scope as a compact work-item briefing with readable asks and task rows', () => {
+  it('keeps details scoped to workflow or work item with no selected-task prop surface', () => {
+    const source = readDetailsSource();
+
+    expect(source).not.toContain('selectedTaskId: string | null;');
+    expect(source).not.toContain('selectedTaskTitle: string | null;');
+    expect(source).not.toContain('selectedTask: DashboardTaskRecord | null;');
+    expect(source).not.toContain("scope.scopeKind !== 'selected_task'");
+  });
+
+  it('renders selected work-item scope as a compact briefing with readable asks and task rows', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {
         workflow: createWorkflow(),
@@ -21,28 +35,27 @@ describe('WorkflowDetails', () => {
         board: createBoard(),
         selectedWorkItemId: 'work-item-1',
         selectedWorkItemTitle: 'Prepare release bundle',
-        selectedTaskId: 'task-1',
-        selectedTaskTitle: 'Verify deliverable',
         selectedWorkItem: createWorkItem(),
-        selectedTask: {
-          ...createTask(),
-          input: {
-            deliverable: 'Confirm the final release packet is complete and operator-ready.',
-            checklist: ['release-notes', 'artifact-manifest'],
-            repository_url: 'https://x-access-token:secret@example.com/org/repo.git',
-            artifact_id: 'artifact-1',
-            work_item_id: 'work-item-1',
-            subject_revision: 1,
-          },
-        },
         selectedWorkItemTasks: [
-          { id: 'task-1', title: 'Verify deliverable', state: 'in_progress' },
+          {
+            id: 'task-1',
+            title: 'Verify deliverable',
+            state: 'in_progress',
+            input: {
+              deliverable: 'Confirm the final release packet is complete and operator-ready.',
+              checklist: ['release-notes', 'artifact-manifest'],
+              repository_url: 'https://x-access-token:secret@example.com/org/repo.git',
+              artifact_id: 'artifact-1',
+              work_item_id: 'work-item-1',
+              subject_revision: 1,
+            },
+          },
           { id: 'task-2', title: 'Rollback validation', state: 'blocked' },
           { id: 'task-3', title: 'Archive release notes', state: 'completed' },
         ],
         inputPackets: createPackets(),
         workflowParameters: null,
-        scope: createScope('selected_task', 'Verify deliverable'),
+        scope: createScope('selected_work_item', 'Prepare release bundle'),
       }),
     );
 
@@ -107,10 +120,7 @@ describe('WorkflowDetails', () => {
         board,
         selectedWorkItemId: null,
         selectedWorkItemTitle: null,
-        selectedTaskId: null,
-        selectedTaskTitle: null,
         selectedWorkItem: null,
-        selectedTask: null,
         selectedWorkItemTasks: [],
         inputPackets: createPackets(),
         workflowParameters: {
@@ -141,7 +151,7 @@ describe('WorkflowDetails', () => {
 });
 
 function createScope(
-  scopeKind: 'workflow' | 'selected_work_item' | 'selected_task',
+  scopeKind: 'workflow' | 'selected_work_item',
   name: string,
 ) {
   if (scopeKind === 'workflow') {
@@ -156,11 +166,10 @@ function createScope(
 
   return {
     scopeKind,
-    title: scopeKind === 'selected_work_item' ? ('Work item' as const) : ('Task' as const),
-    subject: scopeKind === 'selected_work_item' ? ('work item' as const) : ('task' as const),
+    title: 'Work item' as const,
+    subject: 'work item' as const,
     name,
-    banner:
-      scopeKind === 'selected_work_item' ? `Work item: ${name}` : `Task: ${name}`,
+    banner: `Work item: ${name}`,
   };
 }
 
@@ -244,57 +253,6 @@ function createWorkItem(): DashboardWorkflowWorkItemRecord {
     next_expected_action: 'Approve release packet',
     priority: 'high',
     task_count: 4,
-  };
-}
-
-function createTask(): DashboardTaskRecord {
-  return {
-    id: 'task-1',
-    tenant_id: 'tenant-1',
-    workflow_id: 'workflow-1',
-    workspace_id: 'workspace-1',
-    parent_id: null,
-    title: 'Verify deliverable',
-    description: 'Check the final release packet and approve it.',
-    state: 'in_progress',
-    priority: 'high',
-    execution_backend: 'runtime_plus_task',
-    used_task_sandbox: true,
-    role: 'reviewer',
-    role_config: {},
-    environment: {},
-    resource_bindings: [],
-    input: {
-      checklist: ['release-notes', 'artifacts'],
-    },
-    output: null,
-    metadata: {},
-    assigned_agent_id: null,
-    assigned_worker_id: null,
-    depends_on: [],
-    timeout_minutes: 30,
-    auto_retry: false,
-    max_retries: 0,
-    retry_count: 0,
-    claimed_at: null,
-    started_at: '2026-03-27T23:40:00.000Z',
-    completed_at: null,
-    failed_at: null,
-    cancelled_at: null,
-    created_at: '2026-03-27T23:35:00.000Z',
-    updated_at: '2026-03-27T23:50:00.000Z',
-    workflow: {
-      id: 'workflow-1',
-      name: 'Release Workflow',
-      workspace_id: 'workspace-1',
-    },
-    workflow_name: 'Release Workflow',
-    workspace_name: 'Launch Workspace',
-    work_item_id: 'work-item-1',
-    work_item_title: 'Prepare release bundle',
-    stage_name: 'release',
-    activation_id: 'activation-1',
-    execution_environment: null,
   };
 }
 

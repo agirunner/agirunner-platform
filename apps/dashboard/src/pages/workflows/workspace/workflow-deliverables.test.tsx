@@ -1,16 +1,29 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
 import type {
-  DashboardTaskRecord,
   DashboardWorkflowDeliverableRecord,
   DashboardWorkflowDeliverablesPacket,
 } from '../../../lib/api.js';
 import type { WorkflowWorkbenchScopeDescriptor } from '../workflows-page.support.js';
 import { WorkflowDeliverables } from './workflow-deliverables.js';
 
+function readDeliverablesSource() {
+  return readFileSync(resolve(import.meta.dirname, './workflow-deliverables.tsx'), 'utf8');
+}
+
 describe('WorkflowDeliverables', () => {
+  it('keeps deliverables scoped to workflow or work item with no selected-task prop surface', () => {
+    const source = readDeliverablesSource();
+
+    expect(source).not.toContain('selectedTask: DashboardTaskRecord | null;');
+    expect(source).not.toContain('props.selectedTask?.work_item_id');
+    expect(source).not.toContain("scope.scopeKind !== 'selected_task'");
+  });
+
   it('renders a scope-pure workflow view with final and interim sections only', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
@@ -39,7 +52,6 @@ describe('WorkflowDeliverables', () => {
             }),
           ],
         }),
-        selectedTask: null,
         selectedWorkItemId: null,
         selectedWorkItemTitle: null,
         scope: createWorkflowScope(),
@@ -83,10 +95,9 @@ describe('WorkflowDeliverables', () => {
             }),
           ],
         }),
-        selectedTask: createTask(),
         selectedWorkItemId: 'work-item-1',
         selectedWorkItemTitle: 'Draft review-ready product brief',
-        scope: createTaskScope(),
+        scope: createSelectedWorkItemScope(),
         onLoadMore: vi.fn(),
       }),
     );
@@ -116,7 +127,6 @@ describe('WorkflowDeliverables', () => {
             }),
           ],
         }),
-        selectedTask: null,
         selectedWorkItemId: null,
         selectedWorkItemTitle: null,
         scope: createWorkflowScope(),
@@ -131,7 +141,6 @@ describe('WorkflowDeliverables', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createPacket(),
-        selectedTask: null,
         selectedWorkItemId: 'work-item-1',
         selectedWorkItemTitle: 'Draft review-ready product brief',
         scope: createSelectedWorkItemScope(),
@@ -151,7 +160,6 @@ describe('WorkflowDeliverables', () => {
     const withoutNextPage = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createPacket(),
-        selectedTask: null,
         selectedWorkItemId: null,
         selectedWorkItemTitle: null,
         scope: createWorkflowScope(),
@@ -161,7 +169,6 @@ describe('WorkflowDeliverables', () => {
     const withNextPage = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
         packet: createPacket({ next_cursor: 'cursor:2' }),
-        selectedTask: null,
         selectedWorkItemId: null,
         selectedWorkItemTitle: null,
         scope: createWorkflowScope(),
@@ -220,15 +227,6 @@ function createPacket(
   };
 }
 
-function createTask(): DashboardTaskRecord {
-  return {
-    id: 'task-1',
-    workflow_id: 'workflow-1',
-    work_item_id: 'work-item-1',
-    title: 'Draft review-ready product brief',
-  } as unknown as DashboardTaskRecord;
-}
-
 function createWorkflowScope(): WorkflowWorkbenchScopeDescriptor {
   return {
     scopeKind: 'workflow' as const,
@@ -251,10 +249,10 @@ function createSelectedWorkItemScope(): WorkflowWorkbenchScopeDescriptor {
 
 function createTaskScope(): WorkflowWorkbenchScopeDescriptor {
   return {
-    scopeKind: 'selected_task' as const,
-    title: 'Task' as const,
-    subject: 'task',
+    scopeKind: 'selected_work_item' as const,
+    title: 'Work item' as const,
+    subject: 'work item',
     name: 'Draft review-ready product brief',
-    banner: 'Task: Draft review-ready product brief',
+    banner: 'Work item: Draft review-ready product brief',
   };
 }

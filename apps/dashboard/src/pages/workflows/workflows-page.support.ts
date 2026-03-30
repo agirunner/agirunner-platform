@@ -8,19 +8,18 @@ export type WorkflowWorkbenchTab =
   | 'history'
   | 'deliverables';
 export type WorkflowBoardMode = 'active' | 'active_recent_complete' | 'all';
-export type WorkflowTabScope = 'workflow' | 'selected_work_item' | 'selected_task';
+export type WorkflowTabScope = 'workflow' | 'selected_work_item';
 
 export interface RequestedWorkspaceScope {
   workflowId: string | null;
   scopeKind: WorkflowTabScope;
   workItemId: string | null;
-  taskId?: string | null;
 }
 
 export interface WorkflowWorkbenchScopeDescriptor {
   scopeKind: WorkflowTabScope;
-  title: 'Workflow' | 'Work item' | 'Task';
-  subject: 'workflow' | 'work item' | 'task';
+  title: 'Workflow' | 'Work item';
+  subject: 'workflow' | 'work item';
   name: string;
   banner: string;
 }
@@ -126,7 +125,6 @@ export function buildWorkflowsPageHref(
 export function resolveWorkflowTabScope(
   _activeTab: WorkflowWorkbenchTab | null,
   workItemId: string | null,
-  _taskId: string | null,
 ): 'workflow' | 'selected_work_item' {
   if (workItemId) {
     return 'selected_work_item';

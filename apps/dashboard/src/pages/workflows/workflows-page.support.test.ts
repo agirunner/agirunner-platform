@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { DashboardWorkflowWorkspacePacket } from '../../lib/api.js';
@@ -11,6 +13,10 @@ import {
   resolveWorkflowTabScope,
   readWorkflowsPageState,
 } from './workflows-page.support.js';
+
+function readSupportSource() {
+  return readFileSync(resolve(import.meta.dirname, './workflows-page.support.ts'), 'utf8');
+}
 
 describe('workflows page support', () => {
   it('reads defaults from empty search params', () => {
@@ -85,16 +91,12 @@ describe('workflows page support', () => {
   });
 
   it('uses workflow or work-item scope only across every workbench tab', () => {
-    expect(resolveWorkflowTabScope('details', 'work-item-7', null)).toBe('selected_work_item');
-    expect(resolveWorkflowTabScope('needs_action', 'work-item-7', null)).toBe('selected_work_item');
-    expect(resolveWorkflowTabScope('live_console', 'work-item-7', null)).toBe('selected_work_item');
-    expect(resolveWorkflowTabScope('history', 'work-item-7', null)).toBe('selected_work_item');
-    expect(resolveWorkflowTabScope('deliverables', 'work-item-7', null)).toBe('selected_work_item');
-    expect(resolveWorkflowTabScope('details', 'work-item-7', 'task-4')).toBe('selected_work_item');
-    expect(resolveWorkflowTabScope('needs_action', 'work-item-7', 'task-4')).toBe('selected_work_item');
-    expect(resolveWorkflowTabScope('live_console', 'work-item-7', 'task-4')).toBe('selected_work_item');
-    expect(resolveWorkflowTabScope('history', 'work-item-7', 'task-4')).toBe('selected_work_item');
-    expect(resolveWorkflowTabScope('live_console', null, null)).toBe('workflow');
+    expect(resolveWorkflowTabScope('details', 'work-item-7')).toBe('selected_work_item');
+    expect(resolveWorkflowTabScope('needs_action', 'work-item-7')).toBe('selected_work_item');
+    expect(resolveWorkflowTabScope('live_console', 'work-item-7')).toBe('selected_work_item');
+    expect(resolveWorkflowTabScope('history', 'work-item-7')).toBe('selected_work_item');
+    expect(resolveWorkflowTabScope('deliverables', 'work-item-7')).toBe('selected_work_item');
+    expect(resolveWorkflowTabScope('live_console', null)).toBe('workflow');
   });
 
   it('opens header add-or-modify in modify mode only for explicit work-item scope', () => {
@@ -156,10 +158,10 @@ describe('workflows page support', () => {
     });
   });
 
-  it('normalizes stale task-scoped banner input back to the selected work item', () => {
+  it('describes explicit selected work-item scope without any task lens semantics', () => {
     expect(
       describeWorkflowWorkbenchScope({
-        scopeKind: 'selected_task',
+        scopeKind: 'selected_work_item',
         workflowName: 'Release Workflow',
         workItemId: 'work-item-7',
         workItemTitle: 'Prepare release bundle',
@@ -170,6 +172,19 @@ describe('workflows page support', () => {
       subject: 'work item',
       banner: 'Work item · Prepare release bundle',
     });
+  });
+
+  it('keeps the shared shell model workflow/work-item only with no task scope type plumbing', () => {
+    const source = readSupportSource();
+    const requestedScopeBlock = source.slice(
+      source.indexOf('export interface RequestedWorkspaceScope {'),
+      source.indexOf('\n}\n\nexport interface WorkflowWorkbenchScopeDescriptor'),
+    );
+
+    expect(source).toContain("export type WorkflowTabScope = 'workflow' | 'selected_work_item';");
+    expect(source).not.toContain("| 'selected_task'");
+    expect(requestedScopeBlock).not.toContain('taskId?: string | null;');
+    expect(source).not.toContain('_taskId: string | null');
   });
 
   it('builds workflow-scoped diagnostics hrefs for live evidence', () => {
@@ -193,7 +208,6 @@ describe('workflows page support', () => {
         workflowId: 'workflow-1',
         scopeKind: 'workflow',
         workItemId: null,
-        taskId: null,
       }),
     ).toBe(
       currentWorkflowPacket,
@@ -203,7 +217,6 @@ describe('workflows page support', () => {
         workflowId: 'workflow-2',
         scopeKind: 'workflow',
         workItemId: null,
-        taskId: null,
       }),
     ).toBeUndefined();
     expect(
@@ -211,7 +224,6 @@ describe('workflows page support', () => {
         workflowId: null,
         scopeKind: 'workflow',
         workItemId: null,
-        taskId: null,
       }),
     ).toBeUndefined();
     expect(
@@ -219,7 +231,6 @@ describe('workflows page support', () => {
         workflowId: 'workflow-1',
         scopeKind: 'workflow',
         workItemId: null,
-        taskId: null,
       }),
     ).toBeUndefined();
   });
@@ -232,7 +243,6 @@ describe('workflows page support', () => {
         workflowId: 'workflow-1',
         scopeKind: 'selected_work_item',
         workItemId: 'work-item-7',
-        taskId: null,
       }),
     ).toEqual({
       ...currentWorkflowPacket,

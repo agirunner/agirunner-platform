@@ -13,8 +13,7 @@ export function WorkflowHistory(props: {
   workflowId: string;
   packet: DashboardWorkflowHistoryPacket | DashboardWorkflowBriefsPacket;
   selectedWorkItemId?: string | null;
-  selectedTaskId?: string | null;
-  scopeSubject?: 'workflow' | 'work item' | 'task';
+  scopeSubject?: 'workflow' | 'work item';
   onLoadMore(): void;
 }): JSX.Element {
   const scopeSubject = props.scopeSubject ?? 'workflow';

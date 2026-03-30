@@ -1,7 +1,6 @@
 import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import type {
-  DashboardTaskRecord,
   DashboardWorkflowInputPacketRecord,
   DashboardWorkflowWorkspacePacket,
   DashboardWorkflowWorkItemRecord,
@@ -27,10 +26,7 @@ export function WorkflowBottomWorkbench(props: {
   selectedWorkItemId: string | null;
   scopedWorkItemId: string | null;
   selectedWorkItemTitle: string | null;
-  selectedTaskId?: string | null;
-  selectedTaskTitle?: string | null;
   selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
-  selectedTask?: DashboardTaskRecord | null;
   selectedWorkItemTasks: Record<string, unknown>[];
   inputPackets: DashboardWorkflowInputPacketRecord[];
   workflowParameters: Record<string, unknown> | null;
@@ -38,7 +34,6 @@ export function WorkflowBottomWorkbench(props: {
   isScopeLoading?: boolean;
   onTabChange(tab: WorkflowWorkbenchTab): void;
   onClearWorkItemScope(): void;
-  onClearTaskScope?(): void;
   onOpenAddWork(workItemId?: string | null): void;
   onLoadMoreActivity(): void;
   onLoadMoreDeliverables(): void;
@@ -56,17 +51,6 @@ export function WorkflowBottomWorkbench(props: {
     ? props.selectedWorkItem.title
     : currentWorkItem?.title ?? props.selectedWorkItemTitle;
   const currentScopedTaskRows = currentWorkItemId ? props.selectedWorkItemTasks : [];
-  const currentTaskId =
-    props.packet.bottom_tabs.current_task_id
-    ?? props.packet.selected_scope.task_id
-    ?? props.selectedTaskId
-    ?? null;
-  const currentTask =
-    props.selectedTask?.id === currentTaskId
-      ? props.selectedTask
-      : currentTaskId
-        ? resolveScopedTaskRecord(currentScopedTaskRows, currentTaskId)
-        : null;
   const resolvedScope = resolveWorkbenchScope({
     ...props,
     selectedWorkItemTitle: currentWorkItemTitle,
@@ -149,10 +133,7 @@ export function WorkflowBottomWorkbench(props: {
                 board={props.board}
                 selectedWorkItemId={currentWorkItemId}
                 selectedWorkItemTitle={currentWorkItemTitle}
-                selectedTaskId={null}
-                selectedTaskTitle={null}
                 selectedWorkItem={currentWorkItem}
-                selectedTask={currentTask}
                 selectedWorkItemTasks={currentScopedTaskRows}
                 inputPackets={props.inputPackets}
                 workflowParameters={props.workflowParameters}
@@ -174,7 +155,6 @@ export function WorkflowBottomWorkbench(props: {
                 workflowId={props.workflowId}
                 packet={props.packet.briefs ?? props.packet.history}
                 selectedWorkItemId={currentWorkItemId}
-                selectedTaskId={null}
                 scopeSubject={resolvedScope.subject}
                 onLoadMore={props.onLoadMoreActivity}
               />
@@ -182,7 +162,6 @@ export function WorkflowBottomWorkbench(props: {
             {activeTab === 'deliverables' ? (
               <WorkflowDeliverables
                 packet={props.packet.deliverables}
-                selectedTask={null}
                 selectedWorkItemId={currentWorkItemId}
                 selectedWorkItemTitle={currentWorkItemTitle}
                 scope={resolvedScope}
@@ -207,7 +186,7 @@ function resolveWorkbenchScope(props: {
     props.packet.bottom_tabs.current_work_item_id
     ?? props.packet.selected_scope.work_item_id;
 
-  if (scopeKind === 'selected_work_item' || scopeKind === 'selected_task') {
+  if (scopeKind !== 'workflow' && (props.selectedWorkItemTitle ?? workItemId ?? props.scope.name)) {
     const workItemName = props.selectedWorkItemTitle ?? workItemId ?? props.scope.name;
     return {
       scopeKind: 'selected_work_item',
@@ -225,14 +204,6 @@ function resolveWorkbenchScope(props: {
     name: props.workflowName,
     banner: `Workflow · ${props.workflowName}`,
   };
-}
-
-function resolveScopedTaskRecord(
-  tasks: Record<string, unknown>[],
-  taskId: string,
-): DashboardTaskRecord | null {
-  const record = tasks.find((task) => typeof task.id === 'string' && task.id === taskId);
-  return record ? (record as unknown as DashboardTaskRecord) : null;
 }
 
 function WorkbenchTabButton(props: {

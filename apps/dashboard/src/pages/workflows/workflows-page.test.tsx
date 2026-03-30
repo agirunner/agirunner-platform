@@ -105,9 +105,9 @@ describe('workflows page source', () => {
   it('treats board task clicks as parent work-item selection and removes the task lens toggle', () => {
     const source = readSource();
     expect(source).not.toContain("resolveBoardSelectionForLens('work_items'");
-    expect(source).toContain('selectedTaskId={null}');
-    expect(source).toContain('selectedTask={null}');
-    expect(source).toContain('selectedTaskTitle={null}');
+    expect(source).not.toContain('selectedTaskId=');
+    expect(source).not.toContain('selectedTask={');
+    expect(source).not.toContain('selectedTaskTitle=');
     expect(source).not.toContain('boardLens="work_items"');
     expect(source).not.toContain('onBoardLensChange={() => undefined}');
     expect(source).not.toContain("onSelectTask={(workItemId) =>");
