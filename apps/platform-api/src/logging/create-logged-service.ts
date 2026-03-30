@@ -105,7 +105,6 @@ export function createLoggedService<T extends object>(
 
       return async function loggedMethod(this: unknown, ...args: unknown[]) {
         const ctx = getRequestContext();
-        const actor = actorFromAuth(ctx?.auth);
         const tenantId = ctx?.auth?.tenantId ?? '00000000-0000-0000-0000-000000000000';
         const start = performance.now();
 
@@ -119,6 +118,10 @@ export function createLoggedService<T extends object>(
 
           const durationMs = Math.round(performance.now() - start);
           const context = resolveLogContext(result, args, config.nameField, config.entityType);
+          const actor = actorFromAuth(ctx?.auth, {
+            role: context.role,
+            isOrchestratorTask: context.isOrchestratorTask,
+          });
 
           const operation = `${config.category}.${config.entityType}.${methodToAction(prop)}`;
           const records = collectContextRecords(result, args);
@@ -183,6 +186,10 @@ export function createLoggedService<T extends object>(
           const errorObj = err instanceof Error ? err : new Error(String(err));
           const records = collectContextRecords(undefined, args);
           const context = resolveLogContext(undefined, args, config.nameField, config.entityType);
+          const actor = actorFromAuth(ctx?.auth, {
+            role: context.role,
+            isOrchestratorTask: context.isOrchestratorTask,
+          });
           const payload: Record<string, unknown> = {
             method: prop,
             action: methodToAction(prop),

@@ -274,10 +274,13 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
       ...deps,
       logService: logService as never,
     } as never);
-    await service.claimTask(
+    const result = await service.claimTask(
       { tenantId: 'tenant-1', scope: 'agent', keyPrefix: 'ab_test' } as never,
       { agent_id: 'agent-1', routing_tags: ['role:coder'] },
     );
+
+    expect(result).not.toBeNull();
+    expect((result as Record<string, unknown>).state).toBe('claimed');
 
     const warningEntries = logService.insertWithExecutor.mock.calls
       .map((call) => call[1] as Record<string, unknown>)

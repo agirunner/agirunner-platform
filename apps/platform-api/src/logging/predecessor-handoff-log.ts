@@ -22,7 +22,10 @@ export async function logPredecessorHandoffResolution(
   }
 
   const requestContext = getRequestContext();
-  const actor = actorFromAuth(requestContext?.auth);
+  const actor = actorFromAuth(requestContext?.auth, {
+    role: readOptionalString(input.task.role),
+    isOrchestratorTask: readOptionalBoolean(input.task.is_orchestrator_task),
+  });
   const selectedHandoff = input.resolution.handoffs[0] ?? null;
   const candidateHandoffIds = input.resolution.handoffs
     .map((handoff) => readOptionalString(handoff.id))

@@ -19,7 +19,10 @@ export async function logTaskContextAttachments(
   }
 
   const requestContext = getRequestContext();
-  const actor = actorFromAuth(requestContext?.auth);
+  const actor = actorFromAuth(requestContext?.auth, {
+    role: readOptionalString(input.task.role),
+    isOrchestratorTask: readOptionalBoolean(input.task.is_orchestrator_task),
+  });
 
   await logService.insert({
     tenantId: input.tenantId,

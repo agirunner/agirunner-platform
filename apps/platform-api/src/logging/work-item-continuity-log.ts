@@ -52,7 +52,12 @@ export async function logWorkItemContinuityTransition(
   }
 
   const requestContext = getRequestContext();
-  const actor = actorFromAuth(requestContext?.auth);
+  const taskRole = readOptionalString(input.task.role);
+  const isOrchestratorTask = readOptionalBoolean(input.task.is_orchestrator_task);
+  const actor = actorFromAuth(requestContext?.auth, {
+    role: taskRole,
+    isOrchestratorTask,
+  });
 
   try {
     await logService.insert({
@@ -68,7 +73,7 @@ export async function logWorkItemContinuityTransition(
         event: input.event,
         stage_name: input.stageName,
         owner_role: input.ownerRole,
-        task_role: readOptionalString(input.task.role),
+        task_role: taskRole,
         previous_next_expected_actor: input.previousNextExpectedActor,
         previous_next_expected_action: input.previousNextExpectedAction,
         next_expected_actor: input.nextExpectedActor,
@@ -96,9 +101,9 @@ export async function logWorkItemContinuityTransition(
       taskId: readOptionalString(input.task.id),
       workItemId: readOptionalString(input.task.work_item_id),
       stageName: input.stageName,
-      isOrchestratorTask: readOptionalBoolean(input.task.is_orchestrator_task),
+      isOrchestratorTask,
       taskTitle: readOptionalString(input.task.title),
-      role: readOptionalString(input.task.role),
+      role: taskRole,
       actorType: actor.type,
       actorId: actor.id,
       actorName: actor.name,

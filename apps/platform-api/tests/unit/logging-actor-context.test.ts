@@ -67,6 +67,44 @@ describe('actorFromAuth', () => {
     expect(actor.id).toBe('agent-1');
   });
 
+  it('renames worker-scope actor for orchestrator-owned task logs', () => {
+    const auth: ApiKeyIdentity = {
+      id: 'key-2',
+      tenantId: 'tenant-1',
+      scope: 'worker',
+      ownerType: 'worker',
+      ownerId: 'worker-1',
+      keyPrefix: 'kWORKER12345',
+    };
+
+    const actor = actorFromAuth(auth, { role: 'orchestrator', isOrchestratorTask: true });
+
+    expect(actor).toEqual({
+      type: 'worker',
+      id: 'worker-1',
+      name: 'Orchestrator agent',
+    });
+  });
+
+  it('renames agent-scope actor for orchestrator-owned execution logs', () => {
+    const auth: ApiKeyIdentity = {
+      id: 'key-3',
+      tenantId: 'tenant-1',
+      scope: 'agent',
+      ownerType: 'agent',
+      ownerId: 'agent-1',
+      keyPrefix: 'kAGENT123456',
+    };
+
+    const actor = actorFromAuth(auth, { isOrchestratorTask: true });
+
+    expect(actor).toEqual({
+      type: 'agent',
+      id: 'agent-1',
+      name: 'Orchestrator execution',
+    });
+  });
+
   it('fallsBackToKeyIdWhenOwnerIdIsNull', () => {
     const auth: ApiKeyIdentity = {
       id: 'key-4',

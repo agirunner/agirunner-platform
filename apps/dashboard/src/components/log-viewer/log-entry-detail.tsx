@@ -101,6 +101,12 @@ function describeActorSurface(entry: LogEntry): string {
   return entry.actor_type ? formatActorType(entry.actor_type) : 'Unknown';
 }
 
+function describeActorSummary(entry: LogEntry): string {
+  const surface = describeActorSurface(entry);
+  const label = resolveActorLabel(entry);
+  return surface.toLowerCase() === label.toLowerCase() ? label : `${surface} · ${label}`;
+}
+
 const DETAIL_CATEGORY_LABELS: Record<string, string> = {
   llm: 'LLM',
   tool: 'Tool',
@@ -257,9 +263,7 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
           </DetailRow>
         )}
         <DetailRow label="Actor">
-          <span className="text-muted-foreground">{describeActorSurface(entry)}</span>
-          {' · '}
-          {resolveActorLabel(entry)}
+          {describeActorSummary(entry)}
         </DetailRow>
         {entry.actor_id && (
           <DetailRow label="Actor ID">

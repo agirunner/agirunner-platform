@@ -381,4 +381,61 @@ describe('createLoggedService', () => {
       }),
     );
   });
+
+  it('labels orchestrator execution rows under orchestrator instead of specialist execution', async () => {
+    vi.resetModules();
+    vi.doMock('../../src/observability/request-context.js', () => ({
+      getRequestContext: () => ({
+        requestId: 'req-1',
+        sourceIp: '127.0.0.1',
+        auth: {
+          tenantId: 'tenant-1',
+          scope: 'agent',
+          id: 'agent-key-1',
+          ownerId: 'agent-1',
+        },
+      }),
+    }));
+
+    try {
+      const { createLoggedService: createLoggedServiceWithContext } = await import(
+        '../../src/logging/create-logged-service.js'
+      );
+
+      const service = {
+        createTask: vi.fn().mockResolvedValue({
+          id: 'task-1',
+          title: 'Orchestrate product brief',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          role: 'orchestrator',
+          is_orchestrator_task: true,
+        }),
+      };
+      const logInsert = vi.fn().mockResolvedValue(undefined);
+      const logService = { insert: logInsert };
+
+      const wrapped = createLoggedServiceWithContext(service, 'TaskService', logService as never);
+      await wrapped.createTask({
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        role: 'orchestrator',
+        is_orchestrator_task: true,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(logInsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          actorType: 'agent',
+          actorName: 'Orchestrator execution',
+          role: 'orchestrator',
+          isOrchestratorTask: true,
+        }),
+      );
+    } finally {
+      vi.doUnmock('../../src/observability/request-context.js');
+      vi.resetModules();
+    }
+  });
 });

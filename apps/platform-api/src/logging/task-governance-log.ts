@@ -31,7 +31,12 @@ export async function logTaskGovernanceTransition(
   }
 
   const requestContext = getRequestContext();
-  const actor = actorFromAuth(requestContext?.auth);
+  const role = readOptionalString(input.task.role);
+  const isOrchestratorTask = readOptionalBoolean(input.task.is_orchestrator_task);
+  const actor = actorFromAuth(requestContext?.auth, {
+    role,
+    isOrchestratorTask,
+  });
   const entry = {
     tenantId: input.tenantId,
     traceId: requestContext?.requestId ?? randomUUID(),
@@ -46,9 +51,9 @@ export async function logTaskGovernanceTransition(
     taskId: readOptionalString(input.task.id),
     workItemId: readOptionalString(input.task.work_item_id),
     stageName: readOptionalString(input.task.stage_name),
-    isOrchestratorTask: readOptionalBoolean(input.task.is_orchestrator_task),
+    isOrchestratorTask,
     taskTitle: readOptionalString(input.task.title),
-    role: readOptionalString(input.task.role),
+    role,
     actorType: actor.type,
     actorId: actor.id,
     actorName: actor.name,
