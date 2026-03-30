@@ -240,8 +240,8 @@ describe('workflow-execution-log-composer', () => {
     expect(items).toEqual([]);
   });
 
-  it('suppresses low-value helper reads instead of surfacing empty tool-call fallbacks', () => {
-    const items = buildExecutionTurnItems([
+  it('surfaces helper reads as safe tool-call fallbacks when a sanitized path exists', () => {
+    const [item] = buildExecutionTurnItems([
       createLogRow({
         id: '22cc',
         operation: 'agent.act',
@@ -255,7 +255,8 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(items).toEqual([]);
+    expect(item.headline).toBe('[Act] calling file_read(path="task input")');
+    expect(item.summary).toBe('calling file_read(path="task input")');
   });
 
   it('suppresses generic empty tool-call wrappers instead of degrading them into filler act turns', () => {
@@ -274,8 +275,8 @@ describe('workflow-execution-log-composer', () => {
     expect(items).toEqual([]);
   });
 
-  it('suppresses low-value list helpers even when they expose operator-safe args', () => {
-    const items = buildExecutionTurnItems([
+  it('surfaces list helpers as safe tool-call fallbacks when they expose operator-safe args', () => {
+    const [item] = buildExecutionTurnItems([
       createLogRow({
         id: '22ccd',
         operation: 'agent.act',
@@ -288,7 +289,8 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(items).toEqual([]);
+    expect(item.headline).toBe('[Act] calling artifact_list(limit=20)');
+    expect(item.summary).toBe('calling artifact_list(limit=20)');
   });
 
   it('suppresses low-value task-status reads and lets observe/plan rows carry the wait state', () => {
@@ -358,8 +360,8 @@ describe('workflow-execution-log-composer', () => {
     expect(items).toEqual([]);
   });
 
-  it('suppresses file reads even when a safe path-range summary can be derived', () => {
-    const items = buildExecutionTurnItems([
+  it('surfaces file reads with a safe path-range summary when it can be derived', () => {
+    const [item] = buildExecutionTurnItems([
       createLogRow({
         id: '22d',
         operation: 'agent.act',
@@ -374,11 +376,16 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(items).toEqual([]);
+    expect(item.headline).toBe(
+      '[Act] calling file_read(path="output/workflows-intake-01-triage-packet.md:1-200")',
+    );
+    expect(item.summary).toBe(
+      'calling file_read(path="output/workflows-intake-01-triage-packet.md:1-200")',
+    );
   });
 
-  it('suppresses file reads when the only path is a temp workspace context path', () => {
-    const items = buildExecutionTurnItems([
+  it('surfaces temp workspace context reads with a sanitized task-context label', () => {
+    const [item] = buildExecutionTurnItems([
       createLogRow({
         id: '22da',
         operation: 'agent.act',
@@ -393,7 +400,8 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(items).toEqual([]);
+    expect(item.headline).toBe('[Act] calling file_read(path="task context")');
+    expect(item.summary).toBe('calling file_read(path="task context")');
   });
 
   it('humanizes artifact uploads instead of exposing raw tool syntax', () => {
@@ -739,8 +747,8 @@ describe('workflow-execution-log-composer', () => {
     expect(item.summary).toBe('Check whether the policy review task is already active.');
   });
 
-  it('suppresses helper-read act rows even when they narrate the read in plain text', () => {
-    const items = buildExecutionTurnItems([
+  it('keeps helper-read act rows when they narrate a specific read in plain text', () => {
+    const [item] = buildExecutionTurnItems([
       createLogRow({
         id: '31',
         operation: 'agent.act',
@@ -754,7 +762,8 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(items).toEqual([]);
+    expect(item.headline).toBe('[Act] Read the task input packet before deciding the next step.');
+    expect(item.summary).toBe('Read the task input packet before deciding the next step.');
   });
 
   it('suppresses prefixed synthetic helper tool-call wrappers leaked through llm chat stream text', () => {
@@ -1297,7 +1306,7 @@ describe('workflow-execution-log-composer', () => {
     );
   });
 
-  it('suppresses low-value file_read helper turns even when safe args are available', () => {
+  it('surfaces helper file_read turns when safe args are available', () => {
     const items = buildExecutionTurnItems([
       createLogRow({
         id: '43e',
@@ -1319,7 +1328,9 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(items).toEqual([]);
+    expect(items).toHaveLength(1);
+    expect(items[0]?.headline).toBe('[Act] calling file_read(path="task input")');
+    expect(items[0]?.summary).toBe('calling file_read(path="task input")');
   });
 
   it('suppresses raw agent act rows when the same turn already has an llm act phase row', () => {
@@ -1683,7 +1694,7 @@ describe('workflow-execution-log-composer', () => {
     expect(item.summary).not.toContain('to=list_work_items');
   });
 
-  it('suppresses llm act turns when they only contain helper-read fallbacks', () => {
+  it('uses helper-read fallbacks when the llm act turn only contains a tool-call wrapper', () => {
     const items = buildExecutionTurnItems([
       createLogRow({
         id: '44',
@@ -1704,11 +1715,13 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(items).toEqual([]);
+    expect(items).toHaveLength(1);
+    expect(items[0]?.headline).toBe('[Act] calling file_read(path="task input")');
+    expect(items[0]?.summary).toBe('calling file_read(path="task input")');
   });
 
-  it('suppresses environment probes and helper-read leftovers when no operator-meaningful act remains', () => {
-    const items = buildExecutionTurnItems([
+  it('falls back to the remaining safe helper-read action when probe rows are suppressed', () => {
+    const [item] = buildExecutionTurnItems([
       createLogRow({
         id: '44f',
         category: 'llm',
@@ -1760,7 +1773,9 @@ describe('workflow-execution-log-composer', () => {
       }),
     ]);
 
-    expect(items).toEqual([]);
+    expect(item.headline).toBe('[Act] calling file_read(path="README.md:1-200")');
+    expect(item.summary).toBe('calling file_read(path="README.md:1-200")');
+    expect(item.source_label).toBe('Spawn Agent Synthesis Specialist');
   });
 
   it('suppresses llm think, plan, and verify turns that only narrate reporting bookkeeping', () => {

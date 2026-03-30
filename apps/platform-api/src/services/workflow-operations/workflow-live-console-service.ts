@@ -139,6 +139,7 @@ export class WorkflowLiveConsoleService {
       counts,
       next_cursor: page.nextCursor,
       live_visibility_mode: workflowSettings.effective_live_visibility_mode,
+      scope_filtered: shouldFilterSelectedScope(input),
     };
   }
 

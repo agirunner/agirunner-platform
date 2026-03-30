@@ -450,7 +450,11 @@ function buildLLMExecutionTurnSummary(
     case 'act': {
       const prose = readLoggedResponseField(payload, ['headline', 'summary', 'details'])
         ?? readLoggedResponseText(payload, 180);
-      if (prose && !looksLikeSyntheticLoggedToolCall(prose, payload)) {
+      if (
+        prose
+        && !looksLikeSyntheticLoggedToolCall(prose, payload)
+        && !looksLikeLowValueConsoleText(stripExecutionPhasePrefix(prose))
+      ) {
         return prose;
       }
       return buildLoggedToolCallSummary(payload);
@@ -552,11 +556,19 @@ function readActText(
 ): string | null {
   const actionName = readActionName(payload);
   const explicitHeadline = readOperatorReadableField(payload, ['headline']);
-  if (explicitHeadline && !looksLikeSyntheticActionPreview(explicitHeadline, actionHeadline, actionName)) {
+  if (
+    explicitHeadline
+    && !looksLikeSyntheticActionPreview(explicitHeadline, actionHeadline, actionName)
+    && !looksLikeLowValueConsoleText(stripExecutionPhasePrefix(explicitHeadline))
+  ) {
     return explicitHeadline;
   }
   const textPreview = readOperatorReadableField(payload, ['text_preview']);
-  if (textPreview && !looksLikeSyntheticActionPreview(textPreview, actionHeadline, actionName)) {
+  if (
+    textPreview
+    && !looksLikeSyntheticActionPreview(textPreview, actionHeadline, actionName)
+    && !looksLikeLowValueConsoleText(stripExecutionPhasePrefix(textPreview))
+  ) {
     return textPreview;
   }
   return null;
@@ -585,9 +597,6 @@ function shouldRenderExecutionTurn(row: LogRow): boolean {
       const actionName = readActionName(payload);
       const actionInput = asRecord(payload.input);
       if (isSuppressedActionName(actionName) || shouldSuppressActionInvocation(actionName, actionInput)) {
-        return false;
-      }
-      if (isLowValueHelperAction(actionName)) {
         return false;
       }
       return (
@@ -680,7 +689,7 @@ function canRenderLiteralActionFallback(actionName: string): boolean {
     return true;
   }
   if (isToolSpecificFallbackOnlyAction(actionName) || isLowValueHelperAction(actionName)) {
-    return false;
+    return true;
   }
   return /^(create|submit|update|write|edit|delete|approve|reject|reassign|assign|claim|start|complete|finish|close|open|upload|request|dispatch|resume|pause|retry|reroute|set|mark)_/i.test(
     actionName,

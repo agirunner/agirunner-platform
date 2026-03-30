@@ -9,35 +9,6 @@ const STRUCTURED_ACTION_ARG_RE =
 const SYNTHETIC_SOURCE_PREFIX_RE = /^([^:\n]{1,64}):\s*(.+)$/;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const SUPPRESSED_READ_ONLY_ACTION_TOOLS = new Set([
-  'artifact_document_read',
-  'artifact_list',
-  'artifact_read',
-  'file_list',
-  'file_read',
-  'grep',
-  'list_work_items',
-  'list_workflow_tasks',
-  'memory_read',
-  'read_latest_handoff',
-  'read_predecessor_handoff',
-  'read_stage_status',
-  'read_task_events',
-  'read_task_output',
-  'read_task_status',
-  'read_work_item_continuity',
-]);
-
-const TOOL_SPECIFIC_FALLBACK_ONLY_ACTIONS = new Set([
-  'artifact_document_read',
-  'artifact_read',
-  'artifact_upload',
-  'file_edit',
-  'file_list',
-  'file_read',
-  'file_write',
-]);
-
 const MEANINGLESS_ACTION_ARG_KEYS = new Set([
   'activation_id',
   'event_id',
@@ -148,13 +119,6 @@ function readActionInvocation(value: string): { actionName: string; rawArgs: str
 }
 
 function formatActionInvocation(actionName: string, rawArgs: string): string {
-  if (
-    SUPPRESSED_READ_ONLY_ACTION_TOOLS.has(actionName)
-    || TOOL_SPECIFIC_FALLBACK_ONLY_ACTIONS.has(actionName)
-  ) {
-    return '';
-  }
-
   const args = splitActionArgs(rawArgs)
     .flatMap(formatActionArgument)
     .slice(0, 3);

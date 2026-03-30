@@ -112,6 +112,7 @@ export interface WorkflowLiveConsolePacket extends WorkflowOperationsSnapshot {
   };
   next_cursor: string | null;
   live_visibility_mode: 'standard' | 'enhanced';
+  scope_filtered?: boolean;
 }
 
 export interface WorkflowHistoryGroup {
