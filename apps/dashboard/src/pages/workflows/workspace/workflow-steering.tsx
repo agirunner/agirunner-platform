@@ -52,7 +52,7 @@ export function WorkflowSteering(props: {
   const [request, setRequest] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const normalizedScope = props.scope;
+  const normalizedScope = normalizeSteeringScope(props);
   const targetOptions = useMemo(
     () => buildWorkflowSteeringTargets({ ...props, scope: normalizedScope }),
     [
@@ -74,30 +74,17 @@ export function WorkflowSteering(props: {
   const workflowScopeWorkItemTargets = targetOptions.filter(
     (option) => option.scopeKind === 'selected_work_item',
   );
-  const workflowScopeTaskTargets = targetOptions.filter(
-    (option) => option.scopeKind === 'selected_task',
-  );
   const lockedTargetValue = isScopeLocked ? (targetOptions[0]?.value ?? '') : '';
-  const initialTargetKind = isScopeLocked ? (targetOptions[0]?.scopeKind ?? 'workflow') : 'workflow';
-  const initialTargetValue = isScopeLocked ? lockedTargetValue : (workflowTarget?.value ?? '');
-  const [selectedTargetKind, setSelectedTargetKind] = useState<'workflow' | 'selected_work_item' | 'selected_task'>(
-    initialTargetKind === 'selected_task'
-      ? 'selected_task'
-      : initialTargetKind === 'selected_work_item'
-        ? 'selected_work_item'
-        : 'workflow',
-  );
+  const initialTargetKind = isScopeLocked ? normalizeTargetKind(targetOptions[0]?.scopeKind) : '';
+  const initialTargetValue = isScopeLocked ? lockedTargetValue : '';
+  const [selectedTargetKind, setSelectedTargetKind] = useState<
+    '' | 'workflow' | 'selected_work_item' | 'selected_task'
+  >(initialTargetKind);
   const [selectedTargetValue, setSelectedTargetValue] = useState(initialTargetValue);
 
   useEffect(() => {
     if (isScopeLocked) {
-      setSelectedTargetKind(
-        targetOptions[0]?.scopeKind === 'selected_task'
-          ? 'selected_task'
-          : targetOptions[0]?.scopeKind === 'selected_work_item'
-            ? 'selected_work_item'
-            : 'workflow',
-      );
+      setSelectedTargetKind(normalizeTargetKind(targetOptions[0]?.scopeKind));
       setSelectedTargetValue(lockedTargetValue);
       return;
     }
@@ -105,16 +92,14 @@ export function WorkflowSteering(props: {
       getAvailableTargetKinds({
         workflowTarget,
         workflowScopeWorkItemTargets,
-        workflowScopeTaskTargets,
       }).includes(currentKind)
         ? currentKind
-        : 'workflow',
+        : '',
     );
   }, [
     isScopeLocked,
     lockedTargetValue,
     targetOptions,
-    workflowScopeTaskTargets,
     workflowScopeWorkItemTargets,
     workflowTarget,
   ]);
@@ -123,45 +108,49 @@ export function WorkflowSteering(props: {
     if (isScopeLocked) {
       return;
     }
+    if (selectedTargetKind === '') {
+      setSelectedTargetValue('');
+      return;
+    }
     if (selectedTargetKind === 'workflow') {
       setSelectedTargetValue(workflowTarget?.value ?? '');
       return;
     }
-    const filteredTargets =
-      selectedTargetKind === 'selected_task'
-        ? workflowScopeTaskTargets
-        : workflowScopeWorkItemTargets;
     setSelectedTargetValue((currentValue) =>
-      filteredTargets.some((option) => option.value === currentValue) ? currentValue : '',
+      workflowScopeWorkItemTargets.some((option) => option.value === currentValue) ? currentValue : '',
     );
   }, [
     isScopeLocked,
     selectedTargetKind,
-    workflowScopeTaskTargets,
     workflowScopeWorkItemTargets,
     workflowTarget,
   ]);
 
   const selectedTarget =
     targetOptions.find((option) => option.value === selectedTargetValue) ?? null;
-  const disabledReason = getWorkflowSteeringDisabledReason({
-    canAcceptRequest: props.canAcceptRequest,
-    workflowState: props.workflowState,
-    boardColumns: props.boardColumns,
-    target: selectedTarget,
-    selectedWorkItem: props.selectedWorkItem,
-    selectedTask: props.selectedTask,
-    selectedWorkItemTasks: props.selectedWorkItemTasks,
-  });
+  const disabledReason =
+    readLockedTaskScopeDisabledReason(props.scope.scopeKind, props.selectedTask)
+    ?? getWorkflowSteeringDisabledReason({
+      canAcceptRequest: props.canAcceptRequest,
+      workflowState: props.workflowState,
+      boardColumns: props.boardColumns,
+      target: selectedTarget,
+      selectedWorkItem: props.selectedWorkItem,
+      selectedTask: props.selectedTask,
+      selectedWorkItemTasks: props.selectedWorkItemTasks,
+    });
   const requestPlaceholder = selectedTarget
     ? `Guide ${selectedTarget.name} toward the next legal action.`
       : selectedTargetKind === 'selected_work_item'
         ? 'Choose a work item target above before writing a request.'
-        : selectedTargetKind === 'selected_task'
-          ? 'Choose a task target above before writing a request.'
-      : 'Choose a steering target above before writing a request.';
+        : 'Choose a steering target above before writing a request.';
   const attachmentSubject = selectedTarget?.subject ?? normalizedScope.subject;
   const isSelectedTargetUnavailable = selectedTarget !== null && disabledReason !== null;
+  const isWorkflowUnavailableWithoutTarget =
+    selectedTarget === null && disabledReason !== null && !props.canAcceptRequest;
+  const shouldHideSteeringControls =
+    isSelectedTargetUnavailable || isWorkflowUnavailableWithoutTarget;
+  const unavailableSubject = selectedTarget?.subject ?? normalizedScope.subject;
 
   const requestMutation = useMutation({
     mutationFn: async () => {
@@ -246,15 +235,15 @@ export function WorkflowSteering(props: {
                   value={selectedTargetKind}
                   className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
                   onChange={(event) =>
-                    setSelectedTargetKind(event.target.value as 'workflow' | 'selected_work_item' | 'selected_task')
+                    setSelectedTargetKind(
+                      event.target.value as '' | 'workflow' | 'selected_work_item',
+                    )
                   }
                 >
+                  <option value="">Select target</option>
                   {workflowTarget ? <option value="workflow">Workflow</option> : null}
                   {workflowScopeWorkItemTargets.length > 0 ? (
                     <option value="selected_work_item">Work item</option>
-                  ) : null}
-                  {workflowScopeTaskTargets.length > 0 ? (
-                    <option value="selected_task">Task</option>
                   ) : null}
                 </select>
               </div>
@@ -268,23 +257,13 @@ export function WorkflowSteering(props: {
                   onChange={setSelectedTargetValue}
                 />
               ) : null}
-              {selectedTargetKind === 'selected_task' ? (
-                <TargetSelect
-                  id="workflow-steering-target"
-                  label="Specific task"
-                  placeholder="Select a task"
-                  value={selectedTargetValue}
-                  options={workflowScopeTaskTargets}
-                  onChange={setSelectedTargetValue}
-                />
-              ) : null}
             </div>
           )}
         </div>
-        {isSelectedTargetUnavailable ? (
+        {shouldHideSteeringControls ? (
           <div className="grid gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-3">
             <p className="text-sm font-medium text-foreground">
-              Steering is unavailable for this {selectedTarget.subject}.
+              Steering is unavailable for this {unavailableSubject}.
             </p>
             <p className="text-sm text-destructive">{disabledReason}</p>
           </div>
@@ -304,11 +283,11 @@ export function WorkflowSteering(props: {
             />
           </>
         )}
-        {!isSelectedTargetUnavailable && disabledReason ? (
+        {!shouldHideSteeringControls && disabledReason ? (
           <p className="text-sm text-destructive">{disabledReason}</p>
         ) : null}
         {errorMessage ? <p className="text-sm text-destructive">{errorMessage}</p> : null}
-        {isSelectedTargetUnavailable ? null : (
+        {shouldHideSteeringControls ? null : (
           <div className="flex justify-end">
             <Button
               type="button"
@@ -452,19 +431,68 @@ function readSteeringHistoryDisplayText(value: string | null | undefined): strin
 function getAvailableTargetKinds(input: {
   workflowTarget: ReturnType<typeof buildWorkflowSteeringTargets>[number] | null;
   workflowScopeWorkItemTargets: ReturnType<typeof buildWorkflowSteeringTargets>;
-  workflowScopeTaskTargets: ReturnType<typeof buildWorkflowSteeringTargets>;
-}): Array<'workflow' | 'selected_work_item' | 'selected_task'> {
-  const kinds: Array<'workflow' | 'selected_work_item' | 'selected_task'> = [];
+}): Array<'' | 'workflow' | 'selected_work_item' | 'selected_task'> {
+  const kinds: Array<'' | 'workflow' | 'selected_work_item' | 'selected_task'> = [];
   if (input.workflowTarget) {
     kinds.push('workflow');
   }
   if (input.workflowScopeWorkItemTargets.length > 0) {
     kinds.push('selected_work_item');
   }
-  if (input.workflowScopeTaskTargets.length > 0) {
-    kinds.push('selected_task');
-  }
   return kinds;
+}
+
+function normalizeSteeringScope(
+  props: Parameters<typeof WorkflowSteering>[0],
+): WorkflowWorkbenchScopeDescriptor {
+  if (props.scope.scopeKind !== 'selected_task') {
+    return props.scope;
+  }
+  const workItemId = props.selectedWorkItemId ?? props.selectedTask?.work_item_id ?? null;
+  if (!workItemId) {
+    return props.scope;
+  }
+  const name =
+    props.selectedWorkItemTitle
+    ?? props.selectedWorkItem?.title
+    ?? props.scope.name
+    ?? 'Selected work item';
+  return {
+    scopeKind: 'selected_work_item',
+    title: 'Work item',
+    subject: 'work item',
+    name,
+    banner: `Work item: ${name}`,
+  };
+}
+
+function normalizeTargetKind(
+  targetKind: ReturnType<typeof buildWorkflowSteeringTargets>[number]['scopeKind'] | undefined,
+): '' | 'workflow' | 'selected_work_item' | 'selected_task' {
+  if (
+    targetKind === 'workflow'
+    || targetKind === 'selected_work_item'
+    || targetKind === 'selected_task'
+  ) {
+    return targetKind;
+  }
+  return '';
+}
+
+function readLockedTaskScopeDisabledReason(
+  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
+  selectedTask: DashboardTaskRecord | null,
+): string | null {
+  if (scopeKind !== 'selected_task' || !selectedTask) {
+    return null;
+  }
+  if (String(selectedTask.state) === 'paused') {
+    return 'This work item is paused. Resume it or choose another target before steering.';
+  }
+  if (selectedTask.state === 'completed' || selectedTask.state === 'cancelled') {
+    return 'This work item is already completed or cancelled. Historical work cannot be steered.';
+  }
+  return null;
 }
 
 function buildSteeringHistoryEchoKey(title: string, body: string | null): string {

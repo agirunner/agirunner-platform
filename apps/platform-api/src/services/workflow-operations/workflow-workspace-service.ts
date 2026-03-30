@@ -63,6 +63,7 @@ interface ActionableTaskRecord {
   escalation_reason: string | null;
   escalation_context: string | null;
   escalation_work_so_far: string | null;
+  escalation_context_packet: Record<string, unknown> | null;
 }
 
 interface TaskActionSource {
@@ -1059,6 +1060,7 @@ function normalizeActionableTask(record: Record<string, unknown>): ActionableTas
   if (!id || !title || !state) {
     return null;
   }
+  const metadata = asRecord(record.metadata);
   return {
     id,
     title,
@@ -1066,18 +1068,19 @@ function normalizeActionableTask(record: Record<string, unknown>): ActionableTas
     state,
     work_item_id: readOptionalString(record.work_item_id),
     updated_at: readOptionalString(record.updated_at),
-    description: readOptionalString(record.description) ?? readOptionalString(asRecord(record.metadata).description),
+    description: readOptionalString(record.description) ?? readOptionalString(metadata.description),
     review_feedback:
       readOptionalString(asRecord(record.input).assessment_feedback)
-      ?? readOptionalString(asRecord(record.metadata).assessment_feedback),
+      ?? readOptionalString(metadata.assessment_feedback),
     verification_summary: buildTaskVerificationSummary(asRecord(record.verification)),
     subject_revision:
       readOptionalInteger(asRecord(record.input).subject_revision)
-      ?? readOptionalInteger(asRecord(record.metadata).subject_revision)
-      ?? readOptionalInteger(asRecord(record.metadata).output_revision),
-    escalation_reason: readOptionalString(asRecord(record.metadata).escalation_reason),
-    escalation_context: readOptionalString(asRecord(record.metadata).escalation_context),
-    escalation_work_so_far: readOptionalString(asRecord(record.metadata).escalation_work_so_far),
+      ?? readOptionalInteger(metadata.subject_revision)
+      ?? readOptionalInteger(metadata.output_revision),
+    escalation_reason: readOptionalString(metadata.escalation_reason),
+    escalation_context: readOptionalString(metadata.escalation_context),
+    escalation_work_so_far: readOptionalString(metadata.escalation_work_so_far),
+    escalation_context_packet: readOptionalRecord(metadata.escalation_context_packet),
   };
 }
 
@@ -1184,7 +1187,7 @@ function buildEscalationPresentation(
 ): Pick<WorkflowNeedsActionItem, 'summary' | 'details'> {
   const title = item.subject_label ?? 'Work item';
   const reason = directTask.escalation_reason;
-  const details: WorkflowNeedsActionDetail[] = [];
+  const details = buildEscalationContextDetails(directTask.escalation_context_packet);
   if (directTask.escalation_context) {
     details.push({ label: 'Context', value: directTask.escalation_context });
   }
@@ -1197,6 +1200,56 @@ function buildEscalationPresentation(
       : `${title} has an open escalation.`,
     ...(details.length > 0 ? { details } : {}),
   };
+}
+
+function buildEscalationContextDetails(
+  packet: Record<string, unknown> | null,
+): WorkflowNeedsActionDetail[] {
+  if (!packet) {
+    return [];
+  }
+
+  const details: WorkflowNeedsActionDetail[] = [];
+  const conflictingRequestIds = asRecord(packet.conflicting_request_ids);
+  const submittedRequestId = readOptionalString(conflictingRequestIds.submitted_request_id);
+  const persistedRequestId = readOptionalString(conflictingRequestIds.persisted_request_id);
+  const currentAttemptRequestId = readOptionalString(
+    conflictingRequestIds.current_attempt_request_id,
+  );
+  const requestIdSummary = [
+    submittedRequestId ? `Submitted ${submittedRequestId}` : null,
+    persistedRequestId ? `persisted ${persistedRequestId}` : null,
+    currentAttemptRequestId ? `current attempt ${currentAttemptRequestId}` : null,
+  ].filter((value): value is string => value !== null);
+  if (requestIdSummary.length > 0) {
+    details.push({
+      label: 'Conflicting request ids',
+      value: requestIdSummary.join('; '),
+    });
+  }
+
+  const existingHandoff = asRecord(packet.existing_handoff);
+  const handoffSummary = readOptionalString(existingHandoff.summary);
+  if (handoffSummary) {
+    const qualifiers = [
+      readOptionalString(existingHandoff.request_id),
+      readOptionalString(existingHandoff.completion_state)
+        ?? readOptionalString(existingHandoff.decision_state),
+    ].filter((value): value is string => value !== null);
+    details.push({
+      label: 'Persisted handoff',
+      value: qualifiers.length > 0 ? `${handoffSummary} (${qualifiers.join(', ')})` : handoffSummary,
+    });
+  }
+
+  if (packet.task_contract_satisfied_by_persisted_handoff === true) {
+    details.push({
+      label: 'Completion contract',
+      value: 'Already satisfied by the persisted handoff.',
+    });
+  }
+
+  return details;
 }
 
 function buildTaskApprovalPresentation(
@@ -1739,6 +1792,13 @@ function readOptionalString(value: unknown): string | null {
   }
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : null;
+}
+
+function readOptionalRecord(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return value as Record<string, unknown>;
 }
 
 function readOptionalInteger(value: unknown): number | null {

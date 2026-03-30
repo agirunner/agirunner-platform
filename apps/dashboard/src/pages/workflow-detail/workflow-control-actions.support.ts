@@ -35,21 +35,26 @@ export function getWorkflowControlAvailability(
 function readWorkflowActionAvailability(
   availableActions: WorkflowControlStateInput['availableActions'],
 ): WorkflowControlAvailability | null {
-  if (!availableActions) {
+  if (!availableActions || availableActions.length === 0) {
     return null;
   }
   const workflowActions = availableActions.filter(
     (entry) => (entry.scope?.trim().toLowerCase() ?? 'workflow') === 'workflow',
   );
-  if (availableActions.length === 0) {
-    return null;
-  }
   if (workflowActions.length === 0) {
     return {
       canPause: false,
       canResume: false,
       canCancel: false,
     };
+  }
+  const lifecycleKinds = new Set([
+    'pause_workflow',
+    'resume_workflow',
+    'cancel_workflow',
+  ]);
+  if (!workflowActions.some((entry) => lifecycleKinds.has(entry.kind))) {
+    return null;
   }
   const actionMap = new Map(
     workflowActions.map((entry) => [entry.kind, entry.enabled]),

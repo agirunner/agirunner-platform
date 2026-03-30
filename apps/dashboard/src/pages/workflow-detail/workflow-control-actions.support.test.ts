@@ -92,4 +92,23 @@ describe('workflow control action availability', () => {
       canCancel: false,
     });
   });
+
+  it('falls back to workflow state when lifecycle rows are omitted from the action list', () => {
+    expect(
+      getWorkflowControlAvailability({
+        state: 'paused',
+        availableActions: [
+          {
+            kind: 'add_work_item',
+            scope: 'workflow',
+            enabled: true,
+          },
+        ],
+      }),
+    ).toEqual({
+      canPause: false,
+      canResume: true,
+      canCancel: true,
+    });
+  });
 });

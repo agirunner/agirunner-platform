@@ -322,6 +322,69 @@ describe('WorkflowRailService', () => {
     ]);
   });
 
+  it('does not flag needs action from posture alone when no concrete actionable counts or workflow actions exist', async () => {
+    const liveService = {
+      getLive: vi.fn(async () => ({
+        version: {
+          generatedAt: '2026-03-27T22:30:00.000Z',
+          latestEventId: 42,
+          token: 'mission-control:42',
+        },
+        sections: [
+          {
+            id: 'needs_action',
+            title: 'Needs Action',
+            count: 1,
+            workflows: [
+              {
+                id: 'workflow-posture-only',
+                name: 'Posture-only workflow',
+                state: 'active',
+                lifecycle: 'planned',
+                currentStage: 'implementation',
+                workspaceName: 'Core Product',
+                playbookName: 'Delivery',
+                posture: 'needs_intervention',
+                attentionLane: 'needs_intervention',
+                pulse: {
+                  summary: 'Needs intervention',
+                  tone: 'warning',
+                  updatedAt: '2026-03-27T22:29:00.000Z',
+                },
+                availableActions: [],
+                metrics: {
+                  activeTaskCount: 0,
+                  activeWorkItemCount: 0,
+                  blockedWorkItemCount: 0,
+                  openEscalationCount: 0,
+                  waitingForDecisionCount: 0,
+                  failedTaskCount: 0,
+                  recoverableIssueCount: 0,
+                  lastChangedAt: '2026-03-27T22:29:00.000Z',
+                },
+              },
+            ],
+          },
+        ],
+        attentionItems: [],
+      })),
+    };
+    const service = new WorkflowRailService(
+      liveService as never,
+      { getRecent: vi.fn() } as never,
+      { getHistory: vi.fn() } as never,
+    );
+
+    const result = await service.getRail('tenant-1', { mode: 'live' });
+
+    expect(result.rows).toEqual([
+      expect.objectContaining({
+        workflow_id: 'workflow-posture-only',
+        needs_action: false,
+      }),
+    ]);
+  });
+
   it('does not throw when a fresh workflow card is missing optional pulse or metrics fields', async () => {
     const liveService = {
       getLive: vi.fn(async () => ({

@@ -239,13 +239,7 @@ function toRailRowFromCard(card: MissionControlWorkflowCard | null): WorkflowRai
     posture: card.posture ?? null,
     live_summary: pulse.summary ?? '',
     last_changed_at: metrics.lastChangedAt ?? pulse.updatedAt ?? null,
-    needs_action:
-      card.attentionLane === 'needs_decision'
-      || card.attentionLane === 'needs_intervention'
-      || card.posture === 'needs_decision'
-      || card.posture === 'needs_intervention'
-      || card.posture === 'recoverable_needs_steering'
-      || card.posture === 'terminal_failed',
+    needs_action: hasConcreteNeedsAction(card),
     counts: {
       active_task_count: metrics.activeTaskCount,
       active_work_item_count: metrics.activeWorkItemCount,
@@ -255,6 +249,30 @@ function toRailRowFromCard(card: MissionControlWorkflowCard | null): WorkflowRai
       failed_task_count: metrics.failedTaskCount,
     },
   };
+}
+
+function hasConcreteNeedsAction(card: MissionControlWorkflowCard): boolean {
+  const metrics = card.metrics ?? {
+    activeTaskCount: 0,
+    activeWorkItemCount: 0,
+    blockedWorkItemCount: 0,
+    openEscalationCount: 0,
+    waitingForDecisionCount: 0,
+    failedTaskCount: 0,
+    recoverableIssueCount: 0,
+    lastChangedAt: null,
+  };
+  if (
+    metrics.waitingForDecisionCount > 0
+    || metrics.openEscalationCount > 0
+    || metrics.blockedWorkItemCount > 0
+  ) {
+    return true;
+  }
+  return (card.availableActions ?? []).some(
+    (action) =>
+      action.enabled && (action.kind === 'add_work_item' || action.kind === 'redrive_workflow'),
+  );
 }
 
 function toRailRowFromPacket(packet: MissionControlPacket): WorkflowRailRow {

@@ -19,17 +19,18 @@ import {
 } from './workflow-steering.js';
 
 describe('WorkflowSteering', () => {
-  it('keeps task-scoped steering locked to the selected task', () => {
+  it('normalizes stale task-scoped steering back to the selected work item', () => {
     const html = renderSteering();
-    expect(html).toContain('Task: Verify deliverable');
-    expect(html).toContain('Record durable requests, responses, and attachments for this task.');
-    expect(html).toContain('Guide Verify deliverable toward the next legal action.');
-    expect(html).toContain('Targeting task: Verify deliverable');
-    expect(html).toContain('No steering history exists for this task yet.');
-    expect(html).not.toContain('Targeting work item: Prepare release bundle');
+    expect(html).toContain('Work item: Prepare release bundle');
+    expect(html).toContain('Record durable requests, responses, and attachments for this work item.');
+    expect(html).toContain('Guide Prepare release bundle toward the next legal action.');
+    expect(html).toContain('Targeting work item: Prepare release bundle');
+    expect(html).toContain('No steering history exists for this work item yet.');
+    expect(html).not.toContain('Task: Verify deliverable');
+    expect(html).not.toContain('Targeting task: Verify deliverable');
   });
 
-  it('defaults workflow-scoped steering to workflow targeting while keeping narrower pickers explicit', () => {
+  it('requires an explicit target choice before workflow-scoped steering can be recorded', () => {
     const html = renderSteering({
       selectedWorkItemId: null,
       selectedWorkItemTitle: null,
@@ -42,14 +43,13 @@ describe('WorkflowSteering', () => {
     });
     expect(html).toContain('Steering target');
     expect(html).toContain('Choose where this workflow-level steering request should land.');
-    expect(html).toContain('Guide Workflow 1 toward the next legal action.');
+    expect(html).toContain('Choose a steering target before recording a request.');
+    expect(html).toContain('Choose a steering target above before writing a request.');
     expect(html).toContain('Target kind');
-    expect(html).toContain('Workflow');
-    expect(html).not.toContain('Choose a steering target before recording a request.');
-    expect(html).not.toContain('Select a target');
+    expect(html).not.toContain('Guide Workflow 1 toward the next legal action.');
   });
 
-  it('offers the eligible selected work item and selected task as explicit workflow-scope steering targets', () => {
+  it('offers only the eligible selected work item as a narrower workflow-scope steering target', () => {
     const options = buildWorkflowSteeringTargets(
       createTargetContext({
         scope: createScope('workflow'),
@@ -68,19 +68,7 @@ describe('WorkflowSteering', () => {
     expect(options.map((option) => option.label)).toEqual([
       'Workflow: Workflow 1',
       'Work item: Prepare release bundle',
-      'Task: Verify deliverable',
     ]);
-  });
-
-  it('builds task-targeted steering requests with both task and work item ids in the payload', () => {
-    expect(createRequestPayload(createTarget('selected_task'))).toEqual({
-      request_id: 'request-1',
-      request: 'Keep the rollout limited to the current scope.',
-      work_item_id: 'work-item-7',
-      task_id: 'task-3',
-      linked_input_packet_ids: [],
-      session_id: 'session-1',
-    });
   });
 
   it('builds work-item-targeted steering requests with the work item id in the payload', () => {
@@ -137,7 +125,7 @@ describe('WorkflowSteering', () => {
       }),
     );
 
-    expect(options.map((option) => option.label)).toEqual(['Workflow: Workflow 1']);
+    expect(options.map((option) => option.label)).toEqual([]);
   });
 
   it('reports a clear disabled reason when stale task scope resolves to a completed work item', () => {
@@ -240,7 +228,7 @@ describe('WorkflowSteering', () => {
     expect(html).not.toContain('Record steering request</button>');
   });
 
-  it('shows the specific paused-task reason and removes steering controls for paused task scope', () => {
+  it('shows the specific paused work-item reason and removes steering controls for stale task scope', () => {
     const pausedTask = createTask({ state: 'paused' as DashboardTaskRecord['state'] });
     const html = renderSteering({
       scope: createScope('selected_task'),
@@ -248,7 +236,7 @@ describe('WorkflowSteering', () => {
       selectedWorkItemTasks: [pausedTask],
     });
 
-    expect(html).toContain('This task is paused. Resume it or choose another target before steering.');
+    expect(html).toContain('This work item is paused. Resume it or choose another target before steering.');
     expect(html).not.toContain('Steering attachments');
     expect(html).not.toContain('Record steering request</button>');
   });

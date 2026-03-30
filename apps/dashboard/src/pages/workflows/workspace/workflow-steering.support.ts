@@ -57,8 +57,9 @@ export function buildWorkflowSteeringTargets(
     ];
   }
 
-  const options: WorkflowSteeringTargetOption[] = [
-    {
+  const options: WorkflowSteeringTargetOption[] = [];
+  if (!hasWorkflowDisabledTargets(input.workflowState)) {
+    options.push({
       value: 'workflow',
       scopeKind: 'workflow',
       subject: 'workflow',
@@ -67,8 +68,8 @@ export function buildWorkflowSteeringTargets(
       banner: `Workflow: ${input.workflowName}`,
       workItemId: null,
       taskId: null,
-    },
-  ];
+    });
+  }
 
   if (
     shouldIncludeWorkflowScopeWorkItemTarget(
@@ -84,11 +85,6 @@ export function buildWorkflowSteeringTargets(
         input.selectedWorkItemTitle ?? input.selectedWorkItem?.title ?? 'Selected work item',
       ),
     );
-  }
-
-  const workflowScopeTaskTargets = buildWorkflowScopeTaskTargets(input);
-  if (workflowScopeTaskTargets.length > 0) {
-    options.push(...workflowScopeTaskTargets);
   }
 
   return options;
@@ -227,23 +223,6 @@ function buildTaskTargetOption(
     workItemId,
     taskId,
   };
-}
-
-function buildWorkflowScopeTaskTargets(
-  input: WorkflowSteeringTargetContext,
-): WorkflowSteeringTargetOption[] {
-  if (hasWorkflowDisabledTargets(input.workflowState) || !input.selectedWorkItemId) {
-    return [];
-  }
-  return input.selectedWorkItemTasks
-    .filter((task) => !isPausedTask(task) && !isTerminalTask(task))
-    .map((task) =>
-      buildTaskTargetOption(
-        task.work_item_id ?? input.selectedWorkItemId ?? null,
-        task.id,
-        task.title ?? 'Selected task',
-      ),
-    );
 }
 
 function shouldIncludeWorkflowScopeWorkItemTarget(
