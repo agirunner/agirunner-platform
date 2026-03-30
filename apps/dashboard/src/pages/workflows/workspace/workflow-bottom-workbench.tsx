@@ -71,7 +71,7 @@ export function WorkflowBottomWorkbench(props: {
     ...props,
     selectedWorkItemTitle: currentWorkItemTitle,
   });
-  const activeTab = props.activeTab === 'steering' ? 'details' : props.activeTab;
+  const activeTab = props.activeTab;
   const counts = props.packet.bottom_tabs.counts;
   const liveConsoleCount = props.isScopeLoading
     ? undefined

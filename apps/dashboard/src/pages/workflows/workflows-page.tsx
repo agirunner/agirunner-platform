@@ -206,7 +206,6 @@ export function WorkflowsPage(): JSX.Element {
   useWorkflowWorkspaceRealtime(queryClient, {
     workflowId: pageState.workflowId,
     workItemId: scopedWorkItemId,
-    taskId: null,
     tabScope,
     boardMode: pageState.boardMode,
   });

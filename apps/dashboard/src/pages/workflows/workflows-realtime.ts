@@ -56,8 +56,7 @@ export function useWorkflowWorkspaceRealtime(
   input: {
     workflowId: string | null;
     workItemId: string | null;
-    taskId: string | null;
-    tabScope: 'workflow' | 'selected_work_item' | 'selected_task';
+    tabScope: 'workflow' | 'selected_work_item';
     boardMode: string;
   },
 ): void {
@@ -69,7 +68,6 @@ export function useWorkflowWorkspaceRealtime(
       path: buildWorkspaceStreamPath(
         input.workflowId,
         input.workItemId,
-        input.taskId,
         input.tabScope,
         input.boardMode,
       ),
@@ -79,7 +77,7 @@ export function useWorkflowWorkspaceRealtime(
         });
       },
     });
-  }, [input.boardMode, input.tabScope, input.taskId, input.workflowId, input.workItemId, queryClient]);
+  }, [input.boardMode, input.tabScope, input.workflowId, input.workItemId, queryClient]);
 }
 
 function subscribeToWorkflowOperationsStream(options: StreamOptions): () => void {
@@ -272,8 +270,7 @@ function buildRailStreamPath(input: {
 function buildWorkspaceStreamPath(
   workflowId: string,
   workItemId: string | null,
-  taskId: string | null,
-  tabScope: 'workflow' | 'selected_work_item' | 'selected_task',
+  tabScope: 'workflow' | 'selected_work_item',
   boardMode: string,
 ): string {
   const params = new URLSearchParams();
@@ -281,9 +278,6 @@ function buildWorkspaceStreamPath(
   params.set('board_mode', boardMode);
   if (workItemId) {
     params.set('work_item_id', workItemId);
-  }
-  if (taskId) {
-    params.set('task_id', taskId);
   }
   return `/api/v1/operations/workflows/${workflowId}/stream?${params.toString()}`;
 }

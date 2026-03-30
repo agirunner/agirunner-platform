@@ -905,6 +905,71 @@ describe('WorkflowBoard', () => {
     expect(html).not.toContain('rounded-md border border-border/50 bg-background/30');
   });
 
+  it('bounds dense work-item card bodies so selection stays inside the visible board viewport', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: {
+            columns: [
+              { id: 'planned', label: 'Planned' },
+              { id: 'doing', label: 'Doing' },
+              { id: 'blocked', label: 'Blocked', is_blocked: true },
+              { id: 'done', label: 'Done', is_terminal: true },
+            ],
+            work_items: [
+              {
+                id: 'work-item-blocked',
+                workflow_id: 'workflow-1',
+                stage_name: 'delivery',
+                title: 'Prepare blocked release brief',
+                priority: 'critical',
+                column_id: 'blocked',
+                blocked_state: 'blocked',
+                blocked_reason:
+                  'Waiting on rollback guidance while the release packet is still pending operator direction.',
+                gate_decision_feedback:
+                  'Rollback guidance must be provided before the item can proceed.',
+                task_count: 6,
+              },
+            ],
+            active_stages: ['delivery'],
+            awaiting_gate_count: 0,
+            stage_summary: [],
+          },
+          selectedWorkItemId: null,
+          boardMode: 'active_recent_complete',
+          taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
+            [
+              'work-item-blocked',
+              {
+                tasks: Array.from({ length: 6 }, (_, index) => ({
+                  id: `task-${index + 1}`,
+                  title: `Task ${index + 1}`,
+                  role: 'policy-assessor',
+                  state: index === 0 ? 'in_progress' : 'ready',
+                  workItemId: 'work-item-blocked',
+                  workItemTitle: 'Prepare blocked release brief',
+                  stageName: 'delivery',
+                })),
+                hasActiveOrchestratorTask: false,
+              },
+            ],
+          ]),
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('data-work-item-card="true"');
+    expect(html).toContain('max-h-[20rem]');
+    expect(html).toContain('overflow-y-auto overscroll-contain');
+    expect(html).toContain('scrollbar-width:thin');
+  });
+
   it('keeps paused work in its lane and marks it as paused', () => {
     const html = renderToStaticMarkup(
       createElement(

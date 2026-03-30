@@ -162,4 +162,12 @@ describe('shouldRetryWorkflowOperationsStream', () => {
     expect(source).toContain("return `/api/v1/operations/workflows/stream?${params.toString()}`;");
     expect(source).not.toContain("params.set('workflow_id', input.workflowId);");
   });
+
+  it('no longer emits legacy task_id params for the workbench workspace stream path', () => {
+    const source = readRealtimeSource();
+
+    expect(source).toContain("function buildWorkspaceStreamPath(");
+    expect(source).not.toContain("params.set('task_id', taskId);");
+    expect(source).not.toContain("tabScope: 'workflow' | 'selected_work_item' | 'selected_task'");
+  });
 });

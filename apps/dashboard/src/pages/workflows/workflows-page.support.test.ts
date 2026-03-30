@@ -46,6 +46,26 @@ describe('workflows page support', () => {
     });
   });
 
+  it('normalizes stale steering/task query params back to the supported workflow/work-item model', () => {
+    expect(
+      readWorkflowsPageState(
+        '/workflows/workflow-9',
+        new URLSearchParams(
+          'work_item_id=work-item-2&task_id=task-4&tab=steering',
+        ),
+      ),
+    ).toEqual({
+      mode: 'live',
+      workflowId: 'workflow-9',
+      workItemId: 'work-item-2',
+      tab: 'details',
+      search: '',
+      needsActionOnly: false,
+      ongoingOnly: false,
+      boardMode: 'active_recent_complete',
+    });
+  });
+
   it('builds canonical workflows hrefs from partial shell state', () => {
     expect(
       buildWorkflowsPageHref({
@@ -67,13 +87,11 @@ describe('workflows page support', () => {
   it('uses workflow or work-item scope only across every workbench tab', () => {
     expect(resolveWorkflowTabScope('details', 'work-item-7', null)).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('needs_action', 'work-item-7', null)).toBe('selected_work_item');
-    expect(resolveWorkflowTabScope('steering', 'work-item-7', null)).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('live_console', 'work-item-7', null)).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('history', 'work-item-7', null)).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('deliverables', 'work-item-7', null)).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('details', 'work-item-7', 'task-4')).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('needs_action', 'work-item-7', 'task-4')).toBe('selected_work_item');
-    expect(resolveWorkflowTabScope('steering', 'work-item-7', 'task-4')).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('live_console', 'work-item-7', 'task-4')).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('history', 'work-item-7', 'task-4')).toBe('selected_work_item');
     expect(resolveWorkflowTabScope('live_console', null, null)).toBe('workflow');

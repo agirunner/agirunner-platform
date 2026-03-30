@@ -4,7 +4,6 @@ export type WorkflowPageMode = 'live' | 'recent';
 export type WorkflowWorkbenchTab =
   | 'details'
   | 'needs_action'
-  | 'steering'
   | 'live_console'
   | 'history'
   | 'deliverables';
@@ -128,7 +127,7 @@ export function resolveWorkflowTabScope(
   _activeTab: WorkflowWorkbenchTab | null,
   workItemId: string | null,
   _taskId: string | null,
-): WorkflowTabScope {
+): 'workflow' | 'selected_work_item' {
   if (workItemId) {
     return 'selected_work_item';
   }
@@ -250,11 +249,12 @@ function readTab(value: string | null): WorkflowWorkbenchTab | null {
   switch (value) {
     case 'details':
     case 'needs_action':
-    case 'steering':
     case 'live_console':
     case 'history':
     case 'deliverables':
       return value;
+    case 'steering':
+      return 'details';
     default:
       return null;
   }

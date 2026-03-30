@@ -370,6 +370,7 @@ function BoardWorkItemCard(props: {
   const isSelected = props.isSelected;
   const titleClassName = isSelected ? 'text-accent' : 'text-foreground';
   const summaryClassName = isSelected ? 'text-accent/90' : 'text-muted-foreground';
+  const cardBodyClassName = readWorkItemCardBodyClassName(props.laneWorkItemCount);
 
   return (
     <article
@@ -393,7 +394,8 @@ function BoardWorkItemCard(props: {
         tabIndex={0}
         data-work-item-card="true"
         data-selected={isSelected ? 'true' : 'false'}
-        className="grid min-h-[7rem] gap-3 px-3.5 py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-inset"
+        className={cardBodyClassName}
+        style={THEMED_SCROLL_STYLE}
         onClick={() => props.onSelect(props.workItem.id)}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
@@ -488,6 +490,15 @@ function BoardWorkItemCard(props: {
       ) : null}
       </div>
     </article>
+  );
+}
+
+function readWorkItemCardBodyClassName(laneWorkItemCount: number): string {
+  const boundedHeightClassName =
+    laneWorkItemCount === 1 ? 'max-h-[20rem]' : 'max-h-[18rem]';
+  return cn(
+    'grid min-h-[7rem] gap-3 overflow-y-auto overscroll-contain px-3.5 py-3.5 pr-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-inset',
+    boundedHeightClassName,
   );
 }
 

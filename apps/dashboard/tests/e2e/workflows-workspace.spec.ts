@@ -12,15 +12,15 @@ test('restores workflow scope, selected work item, and tab state across refresh 
 
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();
   await page.getByRole('button', { name: 'Prepare blocked release brief' }).click();
-  await page.getByRole('button', { name: 'Steering' }).click();
-  await expect(page).toHaveURL(/workflows\/.+\?work_item_id=.*tab=steering/);
-  await expect(page.getByText('Steering request', { exact: true })).toBeVisible();
-  await expect(page.getByText('Targeting work item: Prepare blocked release brief')).toBeVisible();
+  await expect(page).toHaveURL(/workflows\/.+\?work_item_id=.*tab=details/);
+  const workbench = page.locator('[data-workflows-workbench-frame="true"]');
+  await expect(workbench.getByText('Work item · Prepare blocked release brief')).toBeVisible();
+  await expect(workbench.getByText('What was asked')).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText('Steering request', { exact: true })).toBeVisible();
-  await expect(page.getByText('Targeting work item: Prepare blocked release brief')).toBeVisible();
+  await expect(workbench.getByText('Work item · Prepare blocked release brief')).toBeVisible();
+  await expect(workbench.getByText('What was asked')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Briefs' }).click();
+  await page.getByRole('button', { name: 'History' }).click();
   await expect(page).toHaveURL(/tab=history/);
 });
