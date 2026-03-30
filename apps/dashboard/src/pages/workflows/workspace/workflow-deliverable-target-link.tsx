@@ -1,5 +1,6 @@
 import type { DashboardWorkflowDeliverableTarget } from '../../../lib/api.js';
 import {
+  formatDeliverableTargetKind,
   readDeliverableTargetDisplayLabel,
   resolveDeliverableTargetAction,
   sanitizeDeliverableTarget,
@@ -11,29 +12,45 @@ export function WorkflowDeliverableTargetLink(props: {
   const target = sanitizeDeliverableTarget(props.target);
   const action = resolveDeliverableTargetAction(target);
   const targetLabel = buildTargetLabel(target);
+  const metadata = readTargetMetadata(target, action.href);
 
   return (
     <div className="grid gap-2">
-      <p className="text-sm font-medium text-foreground">{targetLabel}</p>
-      {action.action_kind === 'inline_reference' ? (
-        <p className="text-xs text-muted-foreground">Already visible in this workflow workspace.</p>
-      ) : (
-        <p className="text-xs text-muted-foreground">Canonical target</p>
-      )}
-      {readTargetLocations(target, action.href).map((location) => (
-        <p
-          key={location}
-          className="break-all rounded-lg border border-border/70 bg-background/80 px-3 py-2 text-xs text-muted-foreground"
-        >
-          {location}
+      <div className="grid gap-1">
+        <p className="text-sm font-medium text-foreground">{targetLabel}</p>
+        <p className="text-xs text-muted-foreground">
+          {formatDeliverableTargetKind(target.target_kind)}
         </p>
-      ))}
+      </div>
+      {action.action_kind === 'external_link' ? (
+        <div className="grid gap-2">
+          <p className="text-xs text-muted-foreground">Canonical target</p>
+          {action.href ? (
+            <a
+              className="inline-flex w-fit items-center rounded-md border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-medium text-accent underline-offset-4 hover:underline"
+              href={action.href}
+            >
+              Open target
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+      {metadata.length > 0 ? (
+        <dl className="grid gap-2">
+          {metadata.map((entry) => (
+            <div key={`${entry.label}:${entry.value}`} className="grid gap-1">
+              <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                {entry.label}
+              </dt>
+              <dd className="break-all rounded-lg border border-border/70 bg-background/80 px-3 py-2 text-xs text-muted-foreground">
+                {entry.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
     </div>
   );
-}
-
-function humanizeToken(value: string): string {
-  return value.replace(/[_-]+/g, ' ').replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function readTargetLabel(target: DashboardWorkflowDeliverableTarget): string {
@@ -41,17 +58,31 @@ function readTargetLabel(target: DashboardWorkflowDeliverableTarget): string {
 }
 
 function buildTargetLabel(target: DashboardWorkflowDeliverableTarget): string {
-  const label = readTargetLabel(target);
-  return target.target_kind.length > 0
-    ? `${label} (${humanizeToken(target.target_kind)})`
-    : label;
+  return readTargetLabel(target);
 }
 
-function readTargetLocations(
+function readTargetMetadata(
   target: DashboardWorkflowDeliverableTarget,
   href: string | undefined,
-): string[] {
-  const locations = [target.path, target.repo_ref, href]
-    .filter((value): value is string => typeof value === 'string' && value.length > 0);
-  return Array.from(new Set(locations));
+): Array<{ label: string; value: string }> {
+  const entries: Array<{ label: string; value: string }> = [];
+  pushMetadata(entries, 'Path', target.path);
+  pushMetadata(entries, 'Repository ref', target.repo_ref);
+  pushMetadata(entries, 'URL', href);
+  return entries;
+}
+
+function pushMetadata(
+  entries: Array<{ label: string; value: string }>,
+  label: string,
+  value: string | null | undefined,
+): void {
+  if (typeof value !== 'string') {
+    return;
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0 || entries.some((entry) => entry.value === trimmed)) {
+    return;
+  }
+  entries.push({ label, value: trimmed });
 }

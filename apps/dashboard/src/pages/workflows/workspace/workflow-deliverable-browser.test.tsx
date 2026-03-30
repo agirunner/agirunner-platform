@@ -2,163 +2,14 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
+import type { DashboardWorkflowDeliverableRecord } from '../../../lib/api.js';
 import { WorkflowDeliverableBrowser } from './workflow-deliverable-browser.js';
 
 describe('WorkflowDeliverableBrowser', () => {
-  it('treats artifact-looking targets as browser artifacts even when the stored target kind is inline summary', () => {
+  it('renders artifact rows in a table with preview and download actions', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverableBrowser, {
-        deliverable: {
-          descriptor_id: 'deliverable-artifact-inline-1',
-          workflow_id: 'workflow-1',
-          work_item_id: null,
-          descriptor_kind: 'deliverable_packet',
-          delivery_stage: 'final',
-          title: 'Release package',
-          state: 'final',
-          summary_brief: 'The canonical release package should stay previewable here.',
-          preview_capabilities: {},
-          primary_target: {
-            target_kind: 'inline_summary',
-            label: 'Release package',
-            url: 'http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/download',
-            path: 'artifacts/releases/release-package.json',
-            artifact_id: 'artifact-1',
-          },
-          secondary_targets: [],
-          content_preview: {},
-          source_brief_id: null,
-          created_at: '2026-03-29T00:00:00.000Z',
-          updated_at: '2026-03-29T00:00:00.000Z',
-        },
-      }),
-    );
-
-    expect(html).toContain('Targets in this deliverable (1)');
-    expect(html).toContain('Download file');
-    expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
-    expect(html).not.toContain('Other deliverable targets');
-  });
-
-  it('renders inline-only canonical targets for non-artifact deliverables', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDeliverableBrowser, {
-        deliverable: {
-          descriptor_id: 'deliverable-inline-1',
-          workflow_id: 'workflow-1',
-          work_item_id: null,
-          descriptor_kind: 'deliverable_packet',
-          delivery_stage: 'final',
-          title: 'Workflow completion record',
-          state: 'final',
-          summary_brief: 'The canonical workflow target should still be shown inline.',
-          preview_capabilities: {},
-          primary_target: {
-            target_kind: 'workflow',
-            label: 'Workflow record',
-            url: '/workflows/workflow-1?tab=details',
-            path: 'records/workflow-completion.md',
-          },
-          secondary_targets: [],
-          content_preview: {},
-          source_brief_id: null,
-          created_at: '2026-03-29T00:00:00.000Z',
-          updated_at: '2026-03-29T00:00:00.000Z',
-        },
-      }),
-    );
-
-    expect(html).toContain('Targets in this deliverable (1)');
-    expect(html).toContain('Workflow record (Workflow)');
-    expect(html).toContain('Already visible in this workflow workspace.');
-    expect(html).toContain('records/workflow-completion.md');
-  });
-
-  it('uses the preview endpoint in the iframe while keeping artifact download on the browser action', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDeliverableBrowser, {
-        deliverable: {
-          descriptor_id: 'deliverable-artifact-1',
-          workflow_id: 'workflow-1',
-          work_item_id: 'work-item-1',
-          descriptor_kind: 'deliverable_packet',
-          delivery_stage: 'final',
-          title: 'Release bundle',
-          state: 'final',
-          summary_brief: 'Artifact preview should stay inline.',
-          preview_capabilities: {},
-          primary_target: {
-            target_kind: 'artifact',
-            label: 'Release bundle',
-            url: 'http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/download',
-            path: 'artifacts/release-bundle.zip',
-            artifact_id: 'artifact-1',
-          },
-          secondary_targets: [],
-          content_preview: {},
-          source_brief_id: null,
-          created_at: '2026-03-29T00:00:00.000Z',
-          updated_at: '2026-03-29T00:00:00.000Z',
-        },
-      }),
-    );
-
-    expect(html).toContain('Download file');
-    expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/download');
-    expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
-    expect(html).not.toContain(
-      'src="http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/download"',
-    );
-  });
-
-  it('keeps workflow file targets previewable inline without a deprecated route jump', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDeliverableBrowser, {
-        deliverable: {
-          descriptor_id: 'deliverable-workflow-file-1',
-          workflow_id: 'workflow-1',
-          work_item_id: null,
-          descriptor_kind: 'deliverable_packet',
-          delivery_stage: 'final',
-          title: 'Launch packet file',
-          state: 'final',
-          summary_brief: 'Workflow file targets should stay previewable in place.',
-          preview_capabilities: {},
-          primary_target: {
-            target_kind: 'input_packet_file',
-            label: 'Launch packet',
-            url: 'http://localhost:3000/api/v1/workflows/workflow-1/input-packets/packet-1/files/file-1/content',
-            path: 'inputs/launch-summary.pdf',
-            artifact_id: 'file-1',
-          },
-          secondary_targets: [],
-          content_preview: {},
-          source_brief_id: null,
-          created_at: '2026-03-29T00:00:00.000Z',
-          updated_at: '2026-03-29T00:00:00.000Z',
-        },
-      }),
-    );
-
-    expect(html).toContain('Download file');
-    expect(html).toContain('<iframe');
-    expect(html).toContain('/api/v1/workflows/workflow-1/input-packets/packet-1/files/file-1/content');
-    expect(html).not.toContain('Preview is unavailable for this file.');
-  });
-
-  it('uses artifact file names for selector labels when stored labels are navigation verbs', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDeliverableBrowser, {
-        deliverable: {
-          descriptor_id: 'deliverable-artifact-labels-1',
-          workflow_id: 'workflow-1',
-          work_item_id: 'work-item-1',
-          descriptor_kind: 'deliverable_packet',
-          delivery_stage: 'final',
-          title: 'Release evidence packet',
-          state: 'final',
-          summary_brief: 'Artifact tabs should identify the actual files.',
-          preview_capabilities: {},
+        deliverable: createDeliverable({
           primary_target: {
             target_kind: 'artifact',
             label: 'Open artifact',
@@ -166,42 +17,53 @@ describe('WorkflowDeliverableBrowser', () => {
             path: 'artifacts/releases/final-package.json',
             artifact_id: 'artifact-1',
           },
-          secondary_targets: [
-            {
-              target_kind: 'artifact',
-              label: 'Artifact',
-              url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-2',
-              path: 'artifacts/releases/release-summary.md',
-              artifact_id: 'artifact-2',
-            },
-          ],
-          content_preview: {},
-          source_brief_id: null,
-          created_at: '2026-03-29T00:00:00.000Z',
-          updated_at: '2026-03-29T00:00:00.000Z',
-        },
+        }),
       }),
     );
 
+    expect(html).toContain('<table');
+    expect(html).toContain('Item');
+    expect(html).toContain('Type');
+    expect(html).toContain('Recorded');
+    expect(html).toContain('Action');
     expect(html).toContain('final-package.json');
-    expect(html).toContain('release-summary.md');
-    expect(html).not.toContain('>Open artifact<');
-    expect(html).not.toContain('>Artifact<');
+    expect(html).toContain('Artifact');
+    expect(html).toContain('Preview');
+    expect(html).toContain('Download');
+    expect(html).not.toContain('Targets in this deliverable');
+    expect(html).not.toContain('Open artifact in new tab');
   });
 
-  it('shows one unified target chooser when a deliverable mixes artifact and repository targets', () => {
+  it('renders inline summary deliverables as their own readable row', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverableBrowser, {
-        deliverable: {
-          descriptor_id: 'deliverable-mixed-targets-1',
-          workflow_id: 'workflow-1',
-          work_item_id: 'work-item-1',
-          descriptor_kind: 'deliverable_packet',
-          delivery_stage: 'final',
-          title: 'Release output set',
-          state: 'final',
-          summary_brief: 'Artifacts and repository references should stay in one browser.',
-          preview_capabilities: {},
+        deliverable: createDeliverable({
+          primary_target: {
+            target_kind: 'inline_summary',
+            label: 'Terminal brief',
+            url: '',
+          },
+          content_preview: {
+            summary:
+              'The workflow is complete and the product brief is ready for operator review.',
+          },
+          summary_brief: 'The workflow is complete and the product brief is ready.',
+        }),
+      }),
+    );
+
+    expect(html).toContain('Terminal brief');
+    expect(html).toContain('Inline summary');
+    expect(html).toContain('Read');
+    expect(html).toContain(
+      'The workflow is complete and the product brief is ready for operator review.',
+    );
+  });
+
+  it('supports artifact, repository, external url, workflow document, host directory, and inline content rows together', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverableBrowser, {
+        deliverable: createDeliverable({
           primary_target: {
             target_kind: 'artifact',
             label: 'Open artifact',
@@ -216,89 +78,97 @@ describe('WorkflowDeliverableBrowser', () => {
               url: 'https://github.com/example/release-audit/pull/42',
               repo_ref: 'github.com/example/release-audit/pull/42',
             },
-          ],
-          content_preview: {},
-          source_brief_id: null,
-          created_at: '2026-03-29T00:00:00.000Z',
-          updated_at: '2026-03-29T00:00:00.000Z',
-        },
-      }),
-    );
-
-    expect(html).toContain('Targets in this deliverable (2)');
-    expect(html).toContain('release-bundle.zip');
-    expect(html).toContain('>Release repository<');
-    expect(html).not.toContain('Files in this deliverable (1)');
-    expect(html).not.toContain('Other deliverable targets');
-  });
-
-  it('prefers the first artifact preview when inline summary is only metadata for the same deliverable', () => {
-    const html = renderToStaticMarkup(
-      createElement(WorkflowDeliverableBrowser, {
-        deliverable: {
-          descriptor_id: 'deliverable-inline-artifact-mixed-1',
-          workflow_id: 'workflow-1',
-          work_item_id: 'work-item-1',
-          descriptor_kind: 'deliverable_packet',
-          delivery_stage: 'final',
-          title: 'Release packet',
-          state: 'final',
-          summary_brief: 'Release packet is ready for review.',
-          preview_capabilities: {},
-          primary_target: {
-            target_kind: 'inline_summary',
-            label: 'Review completion packet',
-            url: '',
-          },
-          secondary_targets: [
             {
-              target_kind: 'artifact',
-              label: 'Open artifact',
-              url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-1',
-              path: 'artifacts/releases/final-package.json',
-              artifact_id: 'artifact-1',
+              target_kind: 'external_url',
+              label: 'Published brief',
+              url: 'https://example.com/briefs/release-audit',
             },
             {
-              target_kind: 'artifact',
-              label: 'Artifact',
-              url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-2',
-              path: 'artifacts/releases/release-summary.md',
-              artifact_id: 'artifact-2',
+              target_kind: 'workflow_document',
+              label: 'Workflow spec',
+              url: '',
+              path: 'docs/release-spec.md',
+            },
+            {
+              target_kind: 'host_directory',
+              label: 'Host output',
+              url: '',
+              path: '/tmp/release-audit',
+            },
+            {
+              target_kind: 'inline_summary',
+              label: 'Completion notes',
+              url: '',
             },
           ],
           content_preview: {
-            summary: 'Release packet is ready for review.',
+            summary: 'Release audit is complete and the evidence set is ready.',
           },
-          source_brief_id: null,
-          created_at: '2026-03-29T00:00:00.000Z',
-          updated_at: '2026-03-29T00:00:00.000Z',
-        },
+        }),
       }),
     );
 
-    expect(html).toContain('Targets in this deliverable (2)');
-    expect(html).toContain('final-package.json');
-    expect(html).toContain('release-summary.md');
-    expect(html).toContain('/api/v1/tasks/task-1/artifacts/artifact-1/preview');
-    expect(html).not.toContain('Review completion packet (Inline Summary)');
+    expect(html).toContain('release-bundle.zip');
+    expect(html).toContain('Release repository');
+    expect(html).toContain('Published brief');
+    expect(html).toContain('Workflow spec');
+    expect(html).toContain('Host output');
+    expect(html).toContain('Completion notes');
+    expect(html).toContain('Repository');
+    expect(html).toContain('External URL');
+    expect(html).toContain('Workflow document');
+    expect(html).toContain('Host directory');
+    expect(html).toContain('Inline summary');
   });
 
-  it('does not silently cap long artifact target lists in the in-tab browser', () => {
+  it('renders canonical reference links inline without forcing a new tab', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverableBrowser, {
-        deliverable: {
-          descriptor_id: 'deliverable-many-targets-1',
-          workflow_id: 'workflow-1',
-          work_item_id: 'work-item-1',
-          descriptor_kind: 'deliverable_packet',
-          delivery_stage: 'final',
-          title: 'Release evidence set',
-          state: 'final',
-          summary_brief: 'Every artifact should stay selectable from this browser.',
-          preview_capabilities: {},
+        deliverable: createDeliverable({
+          primary_target: {
+            target_kind: 'external_url',
+            label: 'Published brief',
+            url: 'https://example.com/briefs/release-audit',
+          },
+        }),
+      }),
+    );
+
+    expect(html).toContain('Published brief');
+    expect(html).toContain('Canonical target');
+    expect(html).toContain('href="https://example.com/briefs/release-audit"');
+    expect(html).not.toContain('target="_blank"');
+  });
+
+  it('renders path-only references as inline metadata instead of workspace recursion copy', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverableBrowser, {
+        deliverable: createDeliverable({
+          primary_target: {
+            target_kind: 'workflow_document',
+            label: 'Workflow spec',
+            url: '',
+            path: 'docs/release-spec.md',
+          },
+        }),
+      }),
+    );
+
+    expect(html).toContain('Workflow spec');
+    expect(html).toContain('Workflow document');
+    expect(html).toContain('Path');
+    expect(html).toContain('docs/release-spec.md');
+    expect(html).not.toContain('Already visible in this workflow workspace.');
+    expect(html).not.toContain('Open target');
+  });
+
+  it('keeps long artifact lists fully present instead of silently capping them', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverableBrowser, {
+        deliverable: createDeliverable({
           primary_target: {
             target_kind: 'artifact',
-            label: 'Open artifact',
+            label: 'Artifact',
             url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-1',
             path: 'artifacts/releases/evidence-01.txt',
             artifact_id: 'artifact-1',
@@ -310,17 +180,40 @@ describe('WorkflowDeliverableBrowser', () => {
             path: `artifacts/releases/evidence-${String(index + 2).padStart(2, '0')}.txt`,
             artifact_id: `artifact-${index + 2}`,
           })),
-          content_preview: {},
-          source_brief_id: null,
-          created_at: '2026-03-29T00:00:00.000Z',
-          updated_at: '2026-03-29T00:00:00.000Z',
-        },
+        }),
       }),
     );
 
-    expect(html).toContain('Targets in this deliverable (21)');
     expect(html).toContain('evidence-01.txt');
     expect(html).toContain('evidence-21.txt');
-    expect(html).not.toContain('Targets in this deliverable (20)');
+    expect(html).not.toContain('evidence-22.txt');
   });
 });
+
+function createDeliverable(
+  overrides: Partial<DashboardWorkflowDeliverableRecord> = {},
+): DashboardWorkflowDeliverableRecord {
+  return {
+    descriptor_id: overrides.descriptor_id ?? 'deliverable-1',
+    workflow_id: overrides.workflow_id ?? 'workflow-1',
+    work_item_id: overrides.work_item_id ?? null,
+    descriptor_kind: overrides.descriptor_kind ?? 'deliverable_packet',
+    delivery_stage: overrides.delivery_stage ?? 'final',
+    title: overrides.title ?? 'Release output set',
+    state: overrides.state ?? 'final',
+    summary_brief: overrides.summary_brief ?? 'Release output set is ready for review.',
+    preview_capabilities: overrides.preview_capabilities ?? {},
+    primary_target: overrides.primary_target ?? {
+      target_kind: 'inline_summary',
+      label: 'Inline summary',
+      url: '',
+    },
+    secondary_targets: overrides.secondary_targets ?? [],
+    content_preview: overrides.content_preview ?? {
+      summary: 'Release output set is ready for review.',
+    },
+    source_brief_id: overrides.source_brief_id ?? null,
+    created_at: overrides.created_at ?? '2026-03-30T10:00:00.000Z',
+    updated_at: overrides.updated_at ?? overrides.created_at ?? '2026-03-30T10:00:00.000Z',
+  };
+}

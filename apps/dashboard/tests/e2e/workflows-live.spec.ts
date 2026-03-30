@@ -18,19 +18,21 @@ test('redirects into Workflows and defaults the workbench by workflow posture', 
   await expect(page.locator('aside button').filter({ hasText: 'E2E Ongoing Intake' })).toHaveCount(1);
 
   await workflowRailButton(page, 'E2E Ongoing Intake').click();
-  await expect(page.getByRole('heading', { name: 'E2E Ongoing Intake' })).toBeVisible();
+  await expect(page.locator('h2').filter({ hasText: 'E2E Ongoing Intake' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Live Console' })).toBeVisible();
-  await expect(page.getByText('Initial execution burst')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Details' })).toBeVisible();
 
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();
-  await expect(page.getByText('Needs Action')).toBeVisible();
-  await expect(page.getByText('Operator attention required')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Needs Action', exact: true }).first()).toBeVisible();
 
   await page.getByRole('button', { name: 'Deliverables' }).click();
-  await expect(page.getByText('Inputs & Provenance')).toBeVisible();
+  await expect(
+    page.getByText('Showing all deliverables recorded across this workflow'),
+  ).toBeVisible();
+  await expect(page.locator('p').filter({ hasText: /^Final$/ }).first()).toBeVisible();
 
   await page.getByRole('button', { name: 'History' }).click();
-  await expect(page.getByText('Historical record')).toBeVisible();
+  await expect(page.getByText('Durable decisions and workflow records for this workflow.')).toBeVisible();
 });
 
 test('preloads the seeded admin key on the login screen and signs in without manual entry', async ({ page }) => {

@@ -1,23 +1,12 @@
 import { Badge } from '../../../components/ui/badge.js';
 import type {
   DashboardTaskRecord,
-  DashboardWorkflowDeliverableTarget,
   DashboardWorkflowDeliverableRecord,
   DashboardWorkflowDeliverablesPacket,
-  DashboardWorkflowInputPacketFileRecord,
-  DashboardWorkflowInputPacketRecord,
-  DashboardWorkflowInterventionRecord,
-  DashboardWorkflowOperatorBriefRecord,
 } from '../../../lib/api.js';
 import type { WorkflowWorkbenchScopeDescriptor } from '../workflows-page.support.js';
 import { WorkflowDeliverableBrowser } from './workflow-deliverable-browser.js';
-import { WorkflowBriefRenderer } from './workflow-brief-renderer.js';
-import {
-  hasMeaningfulDeliverableTarget,
-  normalizeDeliverablesPacket,
-  sanitizeDeliverableTarget,
-  sanitizeDeliverableTargets,
-} from './workflow-deliverables.support.js';
+import { normalizeDeliverablesPacket } from './workflow-deliverables.support.js';
 
 export function WorkflowDeliverables(props: {
   packet: DashboardWorkflowDeliverablesPacket;
@@ -30,491 +19,182 @@ export function WorkflowDeliverables(props: {
   const packet = normalizeDeliverablesPacket(props.packet);
   const normalizedScope = normalizeDeliverablesScope(props.scope, props.selectedWorkItemTitle);
   const selectedWorkItemId = props.selectedWorkItemId ?? props.selectedTask?.work_item_id ?? null;
-  const scopeCopy = buildDeliverablesScopeCopy(normalizedScope, props.selectedWorkItemTitle);
-  const displayPacket = buildDisplayPacketForScope(packet, normalizedScope.scopeKind);
-  const deliverablesSubject = readDeliverablesSubject(normalizedScope.scopeKind);
-  const parentWorkItemLayer = buildDeliverableLayer(displayPacket, selectedWorkItemId, 'work_item');
-  const workflowLayer = buildDeliverableLayer(displayPacket, selectedWorkItemId, 'workflow');
-  const rolledUpWorkItemLayer = buildDeliverableLayer(displayPacket, null, 'work_item');
-  const outcomeBrief = pickOutcomeBrief(
-    workflowLayer.finalDeliverables,
-    workflowLayer.workingHandoffs,
+  const scopedDeliverables = buildScopedDeliverables(
+    packet,
+    normalizedScope.scopeKind,
+    selectedWorkItemId,
   );
-  const inputEntries = buildInputEntries(displayPacket);
 
   return (
     <div className="grid gap-4">
       <div className="grid gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-semibold text-foreground">Deliverables</p>
-          <Badge variant="outline">{scopeCopy.label}</Badge>
+          <Badge variant="outline">
+            {normalizedScope.scopeKind === 'workflow' ? 'Workflow' : 'Work item'}
+          </Badge>
         </div>
-        <p className="text-sm text-muted-foreground">{scopeCopy.description}</p>
+        <p className="text-sm text-muted-foreground">
+          {buildDeliverablesScopeDescription(normalizedScope.scopeKind, props.selectedWorkItemTitle)}
+        </p>
       </div>
 
-      {normalizedScope.scopeKind === 'workflow' && outcomeBrief ? (
-        <section className="grid gap-4 rounded-2xl border border-emerald-300/60 bg-emerald-50/60 p-4 dark:border-emerald-800/60 dark:bg-emerald-950/20">
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="success">Outcome Brief</Badge>
-            <Badge variant="outline">{humanizeToken(outcomeBrief.status_kind)}</Badge>
-          </div>
-          <WorkflowBriefRenderer brief={outcomeBrief} />
-        </section>
+      <DeliverableStageSection
+        title="Final"
+        deliverables={scopedDeliverables.finalDeliverables}
+        emptyMessage={buildEmptyStageMessage('final', normalizedScope.scopeKind, props.selectedWorkItemTitle)}
+        showScopeBadge={normalizedScope.scopeKind === 'workflow'}
+      />
+
+      <DeliverableStageSection
+        title="Interim"
+        deliverables={scopedDeliverables.inProgressDeliverables}
+        emptyMessage={buildEmptyStageMessage('interim', normalizedScope.scopeKind, props.selectedWorkItemTitle)}
+        showScopeBadge={normalizedScope.scopeKind === 'workflow'}
+      />
+
+      {packet.next_cursor ? (
+        <div className="flex justify-start sm:justify-end">
+          <button
+            type="button"
+            className="text-sm font-medium text-accent underline-offset-4 hover:underline"
+            onClick={props.onLoadMore}
+          >
+            Load older deliverables
+          </button>
+        </div>
       ) : null}
-
-      {normalizedScope.scopeKind === 'workflow' ? (
-        <>
-          <LayerDeliverablesSection
-            title="Workflow deliverables"
-            titleCount={workflowLayer.totalCount}
-            emptyMessage="No workflow deliverables are available yet."
-            layer={workflowLayer}
-          />
-          <LayerDeliverablesSection
-            title="Work item deliverables"
-            titleCount={rolledUpWorkItemLayer.totalCount}
-            description="Rolled up from work items so workflow scope stays aligned with operator-visible delivery."
-            emptyMessage="No work item deliverables are available yet."
-            layer={rolledUpWorkItemLayer}
-          />
-        </>
-      ) : (
-        <>
-          <LayerDeliverablesSection
-            title="Work item deliverables"
-            titleCount={parentWorkItemLayer.totalCount}
-            emptyMessage={
-              props.selectedWorkItemTitle
-                ? `No work item deliverables are available for ${props.selectedWorkItemTitle} yet.`
-                : 'No work item deliverables are available yet.'
-            }
-            layer={parentWorkItemLayer}
-          />
-          <LayerDeliverablesSection
-            title="Workflow deliverables"
-            titleCount={workflowLayer.totalCount}
-            emptyMessage="No workflow deliverables are available yet."
-            layer={workflowLayer}
-          />
-        </>
-      )}
-
-      <details className="rounded-2xl border border-border/70 bg-background/80 p-4">
-        <summary className="cursor-pointer text-sm font-semibold text-foreground">Inputs</summary>
-        <div className="mt-4 grid gap-4">
-          {inputEntries.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No inputs or intervention files are attached to this {deliverablesSubject}.
-            </p>
-          ) : (
-            inputEntries.map((entry) => <InputEntryCard key={entry.id} entry={entry} />)
-          )}
-        </div>
-      </details>
-
-      <div className="flex justify-start sm:justify-end">
-        <button
-          type="button"
-          className="text-sm font-medium text-accent underline-offset-4 hover:underline"
-          onClick={props.onLoadMore}
-        >
-          Load older deliverables
-        </button>
-      </div>
     </div>
   );
 }
 
-function buildDisplayPacketForScope(
-  packet: DashboardWorkflowDeliverablesPacket,
-  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
-): DashboardWorkflowDeliverablesPacket {
-  if (scopeKind === 'workflow') {
-    return packet;
-  }
-
-  const deliverables = [...packet.final_deliverables, ...packet.in_progress_deliverables];
-  return {
-    ...packet,
-    final_deliverables: deliverables.filter(isExplicitlyFinalDeliverable),
-    in_progress_deliverables: deliverables.filter(
-      (deliverable) => !isExplicitlyFinalDeliverable(deliverable),
-    ),
-  };
-}
-
-function isExplicitlyFinalDeliverable(deliverable: DashboardWorkflowDeliverableRecord): boolean {
-  return (
-    readText(deliverable.delivery_stage) === 'final' || readText(deliverable.state) === 'final'
-  );
-}
-
-function buildDeliverablesScopeCopy(
-  scope: WorkflowWorkbenchScopeDescriptor,
-  selectedWorkItemTitle: string | null,
-): {
-  label: string;
-  description: string;
-} {
-  const workItemTitle = readText(selectedWorkItemTitle);
-  if (scope.scopeKind === 'selected_work_item') {
-    return {
-      label: 'Work item + workflow deliverables',
-      description: workItemTitle
-        ? `Showing work item deliverables for ${workItemTitle}, followed by workflow deliverables.`
-        : 'Showing work item deliverables first, followed by workflow deliverables.',
-    };
-  }
-  return {
-    label: 'Workflow deliverables',
-    description:
-      'Workflow deliverables stay prominent while active deliverables, briefs, and inputs remain available in place.',
-  };
-}
-
-type DeliverableLayerKind = 'workflow' | 'work_item';
-
-function buildDeliverableLayer(
-  packet: DashboardWorkflowDeliverablesPacket,
-  selectedWorkItemId: string | null,
-  layer: DeliverableLayerKind,
-): {
-  finalDeliverables: DashboardWorkflowDeliverableRecord[];
-  inProgressDeliverables: DashboardWorkflowDeliverableRecord[];
-  workingHandoffs: DashboardWorkflowOperatorBriefRecord[];
-  totalCount: number;
-} {
-  const matchesLayer = (workItemId: string | null): boolean => {
-    if (layer === 'workflow') {
-      return workItemId === null;
-    }
-    if (selectedWorkItemId) {
-      return workItemId === selectedWorkItemId;
-    }
-    return workItemId !== null;
-  };
-
-  const finalDeliverables = packet.final_deliverables.filter((deliverable) =>
-    matchesLayer(deliverable.work_item_id),
-  );
-  const inProgressDeliverables = packet.in_progress_deliverables.filter((deliverable) =>
-    matchesLayer(deliverable.work_item_id),
-  );
-  const workingHandoffs = packet.working_handoffs.filter((brief) =>
-    matchesLayer(brief.work_item_id),
-  );
-
-  return {
-    finalDeliverables,
-    inProgressDeliverables,
-    workingHandoffs,
-    totalCount: finalDeliverables.length + inProgressDeliverables.length,
-  };
-}
-
-function readDeliverablesSubject(
-  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
-): 'workflow' | 'work item' {
-  return scopeKind === 'workflow' ? 'workflow' : 'work item';
-}
-
-function LayerDeliverablesSection(props: {
-  title: string;
-  titleCount: number;
-  description?: string | null;
+function DeliverableStageSection(props: {
+  title: 'Final' | 'Interim';
+  deliverables: DashboardWorkflowDeliverableRecord[];
   emptyMessage: string;
-  layer: {
-    finalDeliverables: DashboardWorkflowDeliverableRecord[];
-    inProgressDeliverables: DashboardWorkflowDeliverableRecord[];
-    workingHandoffs: DashboardWorkflowOperatorBriefRecord[];
-    totalCount: number;
-  };
+  showScopeBadge: boolean;
 }): JSX.Element {
-  const hasMaterialDeliverables =
-    props.layer.finalDeliverables.length > 0 || props.layer.inProgressDeliverables.length > 0;
-  const visibleWorkingHandoffs = hasMaterialDeliverables
-    ? props.layer.workingHandoffs.filter(shouldSurfaceSupplementalWorkingHandoff)
-    : props.layer.workingHandoffs;
-
   return (
-    <details className="rounded-2xl border border-border/70 bg-background/80 p-4" open>
-      <summary className="cursor-pointer text-sm font-semibold text-foreground">
-        {props.title} ({props.titleCount})
-      </summary>
-      <div className="mt-4 grid gap-4">
-        {props.description ? (
-          <p className="text-sm text-muted-foreground">{props.description}</p>
-        ) : null}
-        {hasMaterialDeliverables ? (
-          <>
-            {props.layer.finalDeliverables.map((deliverable) => (
-              <DeliverableCard
-                key={deliverable.descriptor_id}
-                deliverable={deliverable}
-                prominent
-              />
-            ))}
-            {props.layer.inProgressDeliverables.map((deliverable) => (
-              <DeliverableCard key={deliverable.descriptor_id} deliverable={deliverable} />
-            ))}
-            {visibleWorkingHandoffs.length > 0 ? (
-              <div className="grid gap-3 rounded-xl border border-border/70 bg-background/70 p-3">
-                <p className="text-sm font-semibold text-foreground">
-                  Working handoffs ({visibleWorkingHandoffs.length})
-                </p>
-                {visibleWorkingHandoffs.map((brief) => (
-                  <article
-                    key={brief.id}
-                    className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4"
-                  >
-                    <Badge variant="outline">Working handoff</Badge>
-                    <WorkflowBriefRenderer brief={brief} compact />
-                  </article>
-                ))}
-              </div>
-            ) : null}
-          </>
-        ) : visibleWorkingHandoffs.length > 0 ? (
-          <>
-            <p className="text-sm text-muted-foreground">
-              Working handoffs are currently the only material output for this layer.
-            </p>
-            {visibleWorkingHandoffs.map((brief) => (
-              <article
-                key={brief.id}
-                className="grid gap-3 rounded-2xl border border-border/70 bg-muted/10 p-4"
-              >
-                <Badge variant="outline">Working handoff</Badge>
-                <WorkflowBriefRenderer brief={brief} compact />
-              </article>
-            ))}
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground">{props.emptyMessage}</p>
-        )}
+    <section className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-sm font-semibold text-foreground">{props.title}</p>
+        <Badge variant="outline">{props.deliverables.length}</Badge>
       </div>
-    </details>
+      {props.deliverables.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{props.emptyMessage}</p>
+      ) : (
+        props.deliverables.map((deliverable) => (
+          <DeliverableRow
+            key={deliverable.descriptor_id}
+            deliverable={deliverable}
+            showScopeBadge={props.showScopeBadge}
+            stageLabel={props.title}
+          />
+        ))
+      )}
+    </section>
   );
 }
 
-function DeliverableCard(props: {
+function DeliverableRow(props: {
   deliverable: DashboardWorkflowDeliverableRecord;
-  prominent?: boolean;
+  showScopeBadge: boolean;
+  stageLabel: 'Final' | 'Interim';
 }): JSX.Element {
-  const previewText = readPreviewText(props.deliverable);
-  const summaryBrief = props.deliverable.summary_brief?.trim() ?? null;
-  const shouldRenderPreviewText =
-    previewText !== null && previewText.trim().length > 0 && previewText.trim() !== summaryBrief;
-
   return (
-    <article
-      className={
-        props.prominent
-          ? 'grid gap-4 rounded-2xl border border-emerald-300/60 bg-emerald-50/60 p-4 dark:border-emerald-800/60 dark:bg-emerald-950/20'
-          : 'grid gap-4 rounded-2xl border border-border/70 bg-muted/10 p-4'
-      }
-    >
-      <div className="flex flex-wrap items-center gap-2">
-        <strong className="text-foreground">{props.deliverable.title}</strong>
-        <Badge variant="outline">{humanizeToken(props.deliverable.state)}</Badge>
-        <Badge variant="secondary">{humanizeToken(props.deliverable.delivery_stage)}</Badge>
+    <article className="grid gap-4 rounded-2xl border border-border/70 bg-muted/10 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <strong className="text-foreground">{props.deliverable.title}</strong>
+            <Badge variant="secondary">{props.stageLabel}</Badge>
+            <Badge variant="outline">{humanizeToken(props.deliverable.descriptor_kind)}</Badge>
+            {props.showScopeBadge ? (
+              <Badge variant="outline">
+                {props.deliverable.work_item_id ? 'Work item' : 'Workflow'}
+              </Badge>
+            ) : null}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Created {formatEntryTimestamp(props.deliverable.created_at)}
+          </p>
+        </div>
       </div>
+
       {props.deliverable.summary_brief ? (
         <p className="text-sm text-muted-foreground">{props.deliverable.summary_brief}</p>
       ) : null}
-      {shouldRenderPreviewText ? (
-        <pre className="overflow-x-auto rounded-xl border border-border/70 bg-background/80 p-3 text-xs text-foreground">
-          {previewText}
-        </pre>
-      ) : null}
+
       <WorkflowDeliverableBrowser deliverable={props.deliverable} />
     </article>
   );
 }
 
-type DeliverableInputEntry =
-  | {
-      entry_kind: 'packet';
-      id: string;
-      label: string;
-      packet: DashboardWorkflowInputPacketRecord;
-    }
-  | {
-      entry_kind: 'intervention';
-      id: string;
-      label: string;
-      intervention: DashboardWorkflowInterventionRecord;
+function buildScopedDeliverables(
+  packet: DashboardWorkflowDeliverablesPacket,
+  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
+  selectedWorkItemId: string | null,
+): {
+  finalDeliverables: DashboardWorkflowDeliverableRecord[];
+  inProgressDeliverables: DashboardWorkflowDeliverableRecord[];
+} {
+  if (scopeKind === 'workflow') {
+    return {
+      finalDeliverables: sortDeliverables(packet.final_deliverables),
+      inProgressDeliverables: sortDeliverables(packet.in_progress_deliverables),
     };
-
-function InputEntryCard(props: { entry: DeliverableInputEntry }): JSX.Element {
-  if (props.entry.entry_kind === 'intervention') {
-    const intervention = props.entry.intervention;
-    return (
-      <article className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <strong className="text-sm text-foreground">{intervention.summary}</strong>
-          <Badge variant="outline">{props.entry.label}</Badge>
-          <Badge variant="secondary">{humanizeToken(intervention.kind)}</Badge>
-        </div>
-        {intervention.note ? (
-          <p className="text-sm text-muted-foreground">{intervention.note}</p>
-        ) : null}
-        {intervention.files.length > 0 ? (
-          <div className="grid gap-2">
-            {intervention.files.map((file) => (
-              <PacketFileLink key={file.id} file={file} />
-            ))}
-          </div>
-        ) : null}
-      </article>
-    );
   }
 
-  const packet = props.entry.packet;
-  const structuredInputs = readStructuredEntries(packet.structured_inputs);
-  const structuredPreview =
-    structuredInputs.length === 0 ? readStructuredPreview(packet.structured_inputs) : null;
+  const matchesSelectedWorkItem = (deliverable: DashboardWorkflowDeliverableRecord): boolean =>
+    selectedWorkItemId !== null && deliverable.work_item_id === selectedWorkItemId;
 
-  return (
-    <article className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <strong className="text-sm text-foreground">
-          {packet.summary ?? humanizeToken(packet.packet_kind)}
-        </strong>
-        <Badge variant="outline">{props.entry.label}</Badge>
-        <Badge variant="secondary">{humanizeToken(packet.packet_kind)}</Badge>
-      </div>
-      <div className="grid gap-1 text-xs text-muted-foreground">
-        <span>Created {formatEntryTimestamp(packet.created_at)}</span>
-        <span>{packet.files.length} file(s)</span>
-      </div>
-      {structuredInputs.length > 0 ? (
-        <dl className="divide-y divide-border/60 rounded-xl border border-border/70 bg-background">
-          {structuredInputs.map(([label, value]) => (
-            <div
-              key={label}
-              className="grid gap-1 px-3 py-2 sm:grid-cols-[10rem_minmax(0,1fr)] sm:items-start sm:gap-3"
-            >
-              <dt className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
-                {label}
-              </dt>
-              <dd className="text-xs text-foreground">{value}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : structuredPreview ? (
-        <pre className="overflow-x-auto rounded-xl border border-border/70 bg-background p-3 text-xs text-foreground">
-          {structuredPreview}
-        </pre>
-      ) : null}
-      {packet.files.length > 0 ? (
-        <div className="grid gap-2">
-          {packet.files.map((file) => (
-            <PacketFileLink key={file.id} file={file} />
-          ))}
-        </div>
-      ) : null}
-    </article>
-  );
+  return {
+    finalDeliverables: sortDeliverables(packet.final_deliverables.filter(matchesSelectedWorkItem)),
+    inProgressDeliverables: sortDeliverables(
+      packet.in_progress_deliverables.filter(matchesSelectedWorkItem),
+    ),
+  };
 }
 
-function PacketFileLink(props: { file: DashboardWorkflowInputPacketFileRecord }): JSX.Element {
-  return (
-    <div className="grid gap-1">
-      <a
-        className="text-sm font-medium text-accent underline-offset-4 hover:underline"
-        href={props.file.download_url}
-        download
-      >
-        {props.file.file_name}
-      </a>
-      <p className="text-xs text-muted-foreground">
-        {props.file.content_type} • {formatBytes(props.file.size_bytes)}
-      </p>
-    </div>
-  );
+function sortDeliverables(
+  deliverables: DashboardWorkflowDeliverableRecord[],
+): DashboardWorkflowDeliverableRecord[] {
+  return [...deliverables].sort((left, right) => readDeliverableTimestamp(right) - readDeliverableTimestamp(left));
 }
 
-function formatEntryTimestamp(value: string): string {
-  const millis = new Date(value).getTime();
-  if (!Number.isFinite(millis)) {
-    return 'Unknown time';
-  }
-  return new Date(millis).toLocaleString();
+function readDeliverableTimestamp(deliverable: DashboardWorkflowDeliverableRecord): number {
+  const millis = new Date(deliverable.updated_at ?? deliverable.created_at).getTime();
+  return Number.isFinite(millis) ? millis : 0;
 }
 
-function pickOutcomeBrief(
-  finalDeliverables: DashboardWorkflowDeliverableRecord[],
-  handoffs: DashboardWorkflowOperatorBriefRecord[],
-): DashboardWorkflowOperatorBriefRecord | null {
-  const briefById = new Map(handoffs.map((brief) => [brief.id, brief]));
-  for (const deliverable of finalDeliverables) {
-    if (deliverable.source_brief_id && briefById.has(deliverable.source_brief_id)) {
-      return briefById.get(deliverable.source_brief_id) ?? null;
-    }
+function buildDeliverablesScopeDescription(
+  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
+  selectedWorkItemTitle: string | null,
+): string {
+  if (scopeKind === 'workflow') {
+    return 'Showing all deliverables recorded across this workflow, with Final entries first and newest entries at the top.';
   }
-  return handoffs.find((brief) => brief.work_item_id === null) ?? null;
+
+  const workItemTitle = readText(selectedWorkItemTitle);
+  return workItemTitle
+    ? `Showing only deliverables recorded for ${workItemTitle}.`
+    : 'Showing only deliverables recorded for the selected work item.';
 }
 
-function shouldSurfaceSupplementalWorkingHandoff(
-  brief: DashboardWorkflowOperatorBriefRecord,
-): boolean {
-  const normalizedStatus = readText(brief.status_kind)?.toLowerCase();
-  return normalizedStatus !== 'approved' && normalizedStatus !== 'completed' && normalizedStatus !== 'final';
-}
+function buildEmptyStageMessage(
+  stage: 'final' | 'interim',
+  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
+  selectedWorkItemTitle: string | null,
+): string {
+  const stageLabel = stage === 'final' ? 'final' : 'interim';
+  if (scopeKind === 'workflow') {
+    return `No ${stageLabel} deliverables are recorded for this workflow yet.`;
+  }
 
-function buildInputEntries(packet: DashboardWorkflowDeliverablesPacket): DeliverableInputEntry[] {
-  const entries: DeliverableInputEntry[] = [];
-  if (packet.inputs_and_provenance.launch_packet) {
-    entries.push({
-      entry_kind: 'packet',
-      id: `launch:${packet.inputs_and_provenance.launch_packet.id}`,
-      label: 'Launch input',
-      packet: packet.inputs_and_provenance.launch_packet,
-    });
-  }
-  for (const supplementalPacket of packet.inputs_and_provenance.supplemental_packets) {
-    entries.push({
-      entry_kind: 'packet',
-      id: `supplemental:${supplementalPacket.id}`,
-      label: 'Additional input',
-      packet: supplementalPacket,
-    });
-  }
-  for (const intervention of packet.inputs_and_provenance.intervention_attachments) {
-    entries.push({
-      entry_kind: 'intervention',
-      id: `intervention:${intervention.id}`,
-      label: 'Intervention attachment',
-      intervention,
-    });
-  }
-  if (packet.inputs_and_provenance.redrive_packet) {
-    entries.push({
-      entry_kind: 'packet',
-      id: `redrive:${packet.inputs_and_provenance.redrive_packet.id}`,
-      label: 'Redrive input',
-      packet: packet.inputs_and_provenance.redrive_packet,
-    });
-  }
-  return entries;
-}
-
-function readPreviewText(deliverable: DashboardWorkflowDeliverableRecord): string | null {
-  const preview = asRecord(deliverable.content_preview);
-  return (
-    readText(preview.markdown) ??
-    readText(preview.text) ??
-    readText(preview.summary) ??
-    readText(preview.snippet)
-  );
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return {};
-  }
-  return value as Record<string, unknown>;
+  const workItemTitle = readText(selectedWorkItemTitle);
+  return workItemTitle
+    ? `No ${stageLabel} deliverables are recorded for ${workItemTitle} yet.`
+    : `No ${stageLabel} deliverables are recorded for this work item yet.`;
 }
 
 function readText(value: unknown): string | null {
@@ -546,52 +226,10 @@ function normalizeDeliverablesScope(
   };
 }
 
-function readStructuredPreview(value: unknown): string | null {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return null;
+function formatEntryTimestamp(value: string): string {
+  const millis = new Date(value).getTime();
+  if (!Number.isFinite(millis)) {
+    return 'Unknown time';
   }
-  const rendered = JSON.stringify(value, null, 2);
-  return rendered === '{}' ? null : rendered;
-}
-
-function readStructuredEntries(value: unknown): Array<[string, string]> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return [];
-  }
-  const rendered: Array<[string, string]> = [];
-  for (const [key, entryValue] of Object.entries(value as Record<string, unknown>)) {
-    const text = renderStructuredValue(entryValue);
-    if (!text) {
-      continue;
-    }
-    rendered.push([humanizeToken(key), text]);
-  }
-  return rendered;
-}
-
-function renderStructuredValue(value: unknown): string | null {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-  }
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return String(value);
-  }
-  if (Array.isArray(value)) {
-    const rendered = value
-      .map((entry) => renderStructuredValue(entry))
-      .filter((entry): entry is string => Boolean(entry));
-    return rendered.length > 0 ? rendered.join(' • ') : null;
-  }
-  return null;
-}
-
-function formatBytes(value: number): string {
-  if (value < 1024) {
-    return `${value} B`;
-  }
-  if (value < 1024 * 1024) {
-    return `${Math.round(value / 102.4) / 10} KB`;
-  }
-  return `${Math.round(value / 104857.6) / 10} MB`;
+  return new Date(millis).toLocaleString();
 }
