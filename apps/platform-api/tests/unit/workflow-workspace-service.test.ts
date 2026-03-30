@@ -219,7 +219,7 @@ describe('WorkflowWorkspaceService', () => {
       expect.objectContaining({
         default_tab: 'details',
         counts: expect.objectContaining({
-          needs_action: 1,
+          needs_action: 0,
           steering: 1,
           live_console_activity: 2,
           briefs: 1,
@@ -230,21 +230,9 @@ describe('WorkflowWorkspaceService', () => {
     );
     expect(result.needs_action).toEqual(
       expect.objectContaining({
-        total_count: 1,
+        total_count: 0,
         default_sort: 'priority_desc',
-        items: [
-          expect.objectContaining({
-            action_kind: 'retry_task',
-            target: { target_kind: 'task', target_id: 'task-1' },
-            responses: expect.arrayContaining([
-              expect.objectContaining({
-                kind: 'retry_task',
-                label: 'Retry task',
-                target: { target_kind: 'task', target_id: 'task-1' },
-              }),
-            ]),
-          }),
-        ],
+        items: [],
       }),
     );
     expect(result.steering).toEqual(
@@ -2642,7 +2630,7 @@ describe('WorkflowWorkspaceService', () => {
     expect(result.needs_action.total_count).toBe(0);
   });
 
-  it('surfaces request-changes work items as actionable add-work entries instead of leaving them stranded in planned', async () => {
+  it('keeps request-changes work items out of needs action when they only offer add-work follow-ups', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -2741,21 +2729,8 @@ describe('WorkflowWorkspaceService', () => {
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1');
 
-    expect(result.needs_action.items).toEqual([
-      expect.objectContaining({
-        action_kind: 'unblock_work_item',
-        label: 'Address requested changes',
-        summary: 'Revise release packet is blocked: Add rollback notes before resubmitting.',
-        target: { target_kind: 'work_item', target_id: 'work-item-1' },
-        responses: [
-          expect.objectContaining({
-            kind: 'add_work_item',
-            label: 'Add / Modify Work',
-            target: { target_kind: 'work_item', target_id: 'work-item-1' },
-          }),
-        ],
-      }),
-    ]);
+    expect(result.needs_action.items).toEqual([]);
+    expect(result.needs_action.total_count).toBe(0);
     expect(result.bottom_tabs.default_tab).toBe('details');
   });
 
@@ -2981,7 +2956,7 @@ describe('WorkflowWorkspaceService', () => {
     ]);
   });
 
-  it('surfaces workflow-scoped stage-gate attention when the board has no actionable work items', async () => {
+  it('does not surface stage-gate attention without a real actionable gate response target', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -3079,16 +3054,8 @@ describe('WorkflowWorkspaceService', () => {
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1');
 
-    expect(result.needs_action.total_count).toBe(1);
-    expect(result.needs_action.items).toEqual([
-      expect.objectContaining({
-        action_kind: 'review_stage_gate',
-        label: 'Approval required',
-        summary: 'Stage review is waiting for operator approval.',
-        target: { target_kind: 'workflow', target_id: 'workflow-1' },
-        priority: 'high',
-      }),
-    ]);
+    expect(result.needs_action.total_count).toBe(0);
+    expect(result.needs_action.items).toEqual([]);
     expect(result.bottom_tabs.default_tab).toBe('details');
   });
 
@@ -3289,7 +3256,7 @@ describe('WorkflowWorkspaceService', () => {
     expect(result.steering.steering_state.can_accept_request).toBe(false);
   });
 
-  it('includes blocker detail in needs-action summaries without polluting deliverables from workflow cards', async () => {
+  it('keeps blocker-only work items out of needs action without polluting deliverables from workflow cards', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -3412,12 +3379,8 @@ describe('WorkflowWorkspaceService', () => {
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1');
 
-    expect(result.needs_action.items).toEqual([
-      expect.objectContaining({
-        action_kind: 'unblock_work_item',
-        summary: 'Review final approval packet is blocked: Waiting on legal sign-off before launch packaging can start.',
-      }),
-    ]);
+    expect(result.needs_action.items).toEqual([]);
+    expect(result.needs_action.total_count).toBe(0);
     expect(result.deliverables.in_progress_deliverables).toEqual([]);
     expect(result.history.items).toEqual([]);
     expect(result.bottom_tabs.counts.deliverables).toBe(0);
@@ -4256,7 +4219,7 @@ describe('WorkflowWorkspaceService', () => {
     expect(secondDescriptorId).toBe(firstDescriptorId);
   });
 
-  it('does not use work-item output descriptor fallback when workflow-scope deliverables are empty', async () => {
+  it('uses work-item output descriptor fallback when workflow-scope deliverables are empty', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -4469,10 +4432,21 @@ describe('WorkflowWorkspaceService', () => {
       tabScope: 'workflow',
     });
 
-    expect(result.deliverables.final_deliverables).toEqual([]);
+    expect(result.deliverables.final_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'output:artifact:release-design',
+        work_item_id: 'work-item-1',
+        title: 'artifact:workflow/docs/release-audit-design.md',
+        delivery_stage: 'final',
+      }),
+    ]);
     expect(result.deliverables.in_progress_deliverables).toEqual([]);
-    expect((result.deliverables as { all_deliverables?: Array<{ descriptor_id: string }> }).all_deliverables).toEqual([]);
-    expect(result.bottom_tabs.counts.deliverables).toBe(0);
+    expect((result.deliverables as { all_deliverables?: Array<{ descriptor_id: string }> }).all_deliverables).toEqual([
+      expect.objectContaining({
+        descriptor_id: 'output:artifact:release-design',
+      }),
+    ]);
+    expect(result.bottom_tabs.counts.deliverables).toBe(1);
   });
 
   it('does not use selected work-item output descriptor fallback in task scope when canonical deliverables are empty', async () => {

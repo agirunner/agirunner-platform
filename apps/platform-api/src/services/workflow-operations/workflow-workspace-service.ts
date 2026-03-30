@@ -465,7 +465,7 @@ function selectScopedOutputDescriptors(
   selectedScope: WorkflowWorkspacePacket['selected_scope'],
 ): MissionControlOutputDescriptor[] {
   if (selectedScope.scope_kind === 'workflow') {
-    return outputDescriptors.filter((descriptor) => descriptor.workItemId === null);
+    return outputDescriptors;
   }
   if (selectedScope.scope_kind === 'selected_task') {
     return [];
@@ -1058,7 +1058,7 @@ function buildNeedsActionItems(
     }
     const presentation = buildBoardNeedsActionPresentation(boardItem, directTask, gate);
     const { stage_name: _stageName, subject_label: _subjectLabel, ...publicItem } = boardItem;
-    items.push({
+    const item: WorkflowNeedsActionItem = {
       ...publicItem,
       ...presentation,
       work_item_id: directTask?.work_item_id ?? readNeedsActionWorkItemId(boardItem.target),
@@ -1069,7 +1069,10 @@ function buildNeedsActionItems(
         method: 'POST',
       },
       responses,
-    });
+    };
+    if (shouldPublishNeedsActionItem(item)) {
+      items.push(item);
+    }
   }
   for (const stageItem of readBoardStageNeedsActionItems(board, workflowId)) {
     if (items.some((item) => item.action_id === stageItem.action_id)) {
@@ -1078,13 +1081,16 @@ function buildNeedsActionItems(
     const gate = resolveNeedsActionGate(stageItem, gatesByWorkItem, gatesByStage);
     const presentation = buildBoardNeedsActionPresentation(stageItem, null, gate);
     const { stage_name: _stageName, ...publicItem } = stageItem;
-    items.push({
+    const item: WorkflowNeedsActionItem = {
       ...publicItem,
       ...presentation,
       work_item_id: null,
       task_id: null,
       responses: buildBoardNeedsActionResponses(stageItem.action_kind, stageItem.target, null, gate),
-    });
+    };
+    if (shouldPublishNeedsActionItem(item)) {
+      items.push(item);
+    }
   }
   for (const intervention of interventions) {
     if (!isActionableIntervention(intervention)) {
@@ -1096,7 +1102,7 @@ function buildNeedsActionItems(
     if (items.some((item) => item.action_id === actionId)) {
       continue;
     }
-    items.push({
+    const item: WorkflowNeedsActionItem = {
       action_id: actionId,
       action_kind: actionKind,
       label: humanizeActionKind(actionKind),
@@ -1115,9 +1121,16 @@ function buildNeedsActionItems(
         target,
         typeof intervention.work_item_id === 'string' ? intervention.work_item_id : null,
       ),
-    });
+    };
+    if (shouldPublishNeedsActionItem(item)) {
+      items.push(item);
+    }
   }
   return items.sort(compareNeedsActionPriority);
+}
+
+function shouldPublishNeedsActionItem(item: WorkflowNeedsActionItem): boolean {
+  return item.responses.some(isVisibleNeedsActionResponse);
 }
 
 function readNeedsActionWorkItemId(target: WorkflowNeedsActionItem['target']): string | null {
@@ -1654,6 +1667,19 @@ function buildNeedsActionResponse(
     requires_confirmation: requiresConfirmation,
     prompt_kind: promptKind,
   };
+}
+
+function isVisibleNeedsActionResponse(
+  action: WorkflowNeedsActionResponseAction,
+): boolean {
+  return action.kind === 'approve_task'
+    || action.kind === 'approve_task_output'
+    || action.kind === 'approve_gate'
+    || action.kind === 'reject_task'
+    || action.kind === 'reject_gate'
+    || action.kind === 'request_changes_task'
+    || action.kind === 'request_changes_gate'
+    || action.kind === 'resolve_escalation';
 }
 
 function humanizeActionKind(actionKind: string): string {
