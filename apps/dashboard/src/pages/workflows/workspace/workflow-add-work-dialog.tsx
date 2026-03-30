@@ -26,11 +26,16 @@ export function WorkflowAddWorkDialog(props: {
   lifecycle: string | null | undefined;
   board: DashboardWorkflowBoardResponse | null;
   workItemId: string | null;
+  prefillSourceWorkItemId?: string | null;
   workflowWorkspaceId?: string | null;
 }): JSX.Element {
   const queryClient = useQueryClient();
   const selectedWorkItem =
     props.workItemId ? props.board?.work_items.find((entry) => entry.id === props.workItemId) ?? null : null;
+  const prefillSourceWorkItem =
+    !props.workItemId && props.prefillSourceWorkItemId
+      ? props.board?.work_items.find((entry) => entry.id === props.prefillSourceWorkItemId) ?? null
+      : null;
   const isModifyMode = selectedWorkItem !== null;
   const [title, setTitle] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -49,13 +54,13 @@ export function WorkflowAddWorkDialog(props: {
       setHasAttemptedSubmit(false);
       return;
     }
-    setTitle(selectedWorkItem?.title ?? '');
+    setTitle(selectedWorkItem?.title ?? prefillSourceWorkItem?.title ?? '');
     setFiles([]);
     setInputDrafts([]);
     setSteeringInstruction('');
     setErrorMessage(null);
     setHasAttemptedSubmit(false);
-  }, [props.isOpen, selectedWorkItem]);
+  }, [prefillSourceWorkItem, props.isOpen, selectedWorkItem]);
 
   const hasSupplementalInput = inputDrafts.some((entry) => entry.key.trim() || entry.value.trim()) || files.length > 0;
   const titleError = hasAttemptedSubmit && !isModifyMode && !title.trim() ? 'Enter a work item title.' : undefined;
@@ -133,9 +138,17 @@ export function WorkflowAddWorkDialog(props: {
     },
   });
 
-  const titleLabel = selectedWorkItem ? 'Update work' : props.lifecycle === 'ongoing' ? 'Add intake' : 'Add work';
+  const titleLabel = selectedWorkItem
+    ? 'Update work'
+    : prefillSourceWorkItem
+      ? 'Repeat work'
+      : props.lifecycle === 'ongoing'
+        ? 'Add intake'
+        : 'Add work';
   const description = selectedWorkItem
     ? 'Add more authored inputs, files, or a note to the current work item.'
+    : prefillSourceWorkItem
+      ? `Start a new work item using ${prefillSourceWorkItem.title} as the source draft.`
     : props.lifecycle === 'ongoing'
       ? 'Add a new intake item with authored inputs, optional files, and an operator note.'
       : 'Add a new work item with authored inputs, optional files, and an operator note.';

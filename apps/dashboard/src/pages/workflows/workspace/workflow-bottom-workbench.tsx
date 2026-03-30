@@ -15,7 +15,6 @@ import { WorkflowDetails } from './workflow-details.js';
 import { WorkflowHistory } from './workflow-history.js';
 import { WorkflowLiveConsole } from './workflow-live-console.js';
 import { WorkflowNeedsAction } from './workflow-needs-action.js';
-import { WorkflowSteering } from './workflow-steering.js';
 
 export function WorkflowBottomWorkbench(props: {
   workflowId: string;
@@ -41,7 +40,6 @@ export function WorkflowBottomWorkbench(props: {
   onClearWorkItemScope(): void;
   onClearTaskScope?(): void;
   onOpenAddWork(workItemId?: string | null): void;
-  onOpenRedrive(): void;
   onLoadMoreActivity(): void;
   onLoadMoreDeliverables(): void;
 }): JSX.Element {
@@ -145,41 +143,21 @@ export function WorkflowBottomWorkbench(props: {
         ) : (
           <div className={scrollableTabPanelContentClassName}>
             {activeTab === 'details' && props.workflow ? (
-              <div className="grid gap-5">
-                <WorkflowDetails
-                  workflow={props.workflow}
-                  stickyStrip={props.stickyStrip}
-                  board={props.board}
-                  selectedWorkItemId={currentWorkItemId}
-                  selectedWorkItemTitle={currentWorkItemTitle}
-                  selectedTaskId={null}
-                  selectedTaskTitle={null}
-                  selectedWorkItem={currentWorkItem}
-                  selectedTask={currentTask}
-                  selectedWorkItemTasks={currentScopedTaskRows}
-                  inputPackets={props.inputPackets}
-                  workflowParameters={props.workflowParameters}
-                  scope={resolvedScope}
-                />
-                <WorkflowSteering
-                  workflowId={props.workflowId}
-                  workflowName={props.workflowName}
-                  workflowState={props.workflow?.state ?? 'active'}
-                  boardColumns={props.board?.columns ?? []}
-                  selectedWorkItemId={currentWorkItemId}
-                  selectedWorkItemTitle={currentWorkItemTitle}
-                  selectedWorkItem={currentWorkItem}
-                  selectedTaskId={null}
-                  selectedTaskTitle={null}
-                  selectedTask={null}
-                  selectedWorkItemTasks={currentScopedTaskRows as unknown as DashboardTaskRecord[]}
-                  scope={resolvedScope}
-                  interventions={props.packet.steering.recent_interventions}
-                  messages={props.packet.steering.session.messages}
-                  sessionId={props.packet.steering.session.session_id}
-                  canAcceptRequest={props.packet.steering.steering_state.can_accept_request}
-                />
-              </div>
+              <WorkflowDetails
+                workflow={props.workflow}
+                stickyStrip={props.stickyStrip}
+                board={props.board}
+                selectedWorkItemId={currentWorkItemId}
+                selectedWorkItemTitle={currentWorkItemTitle}
+                selectedTaskId={null}
+                selectedTaskTitle={null}
+                selectedWorkItem={currentWorkItem}
+                selectedTask={currentTask}
+                selectedWorkItemTasks={currentScopedTaskRows}
+                inputPackets={props.inputPackets}
+                workflowParameters={props.workflowParameters}
+                scope={resolvedScope}
+              />
             ) : null}
             {activeTab === 'needs_action' && props.workflow ? (
               <WorkflowNeedsAction

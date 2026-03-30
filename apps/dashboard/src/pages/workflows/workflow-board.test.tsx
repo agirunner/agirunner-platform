@@ -150,7 +150,17 @@ describe('WorkflowBoard', () => {
         { client: new QueryClient() },
         createElement(WorkflowBoard, {
           workflowId: 'workflow-1',
-          board: createBoard(),
+          board: {
+            ...createBoard(),
+            work_items: createBoard().work_items.map((workItem) =>
+              workItem.id === 'work-item-1'
+                ? {
+                    ...workItem,
+                    gate_status: 'awaiting_approval',
+                  }
+                : workItem,
+            ),
+          },
           selectedWorkItemId: 'work-item-1',
           boardMode: 'active_recent_complete',
           taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
@@ -298,7 +308,17 @@ describe('WorkflowBoard', () => {
         { client: new QueryClient() },
         createElement(WorkflowBoard, {
           workflowId: 'workflow-1',
-          board: createBoard(),
+          board: {
+            ...createBoard(),
+            work_items: createBoard().work_items.map((workItem) =>
+              workItem.id === 'work-item-1'
+                ? {
+                    ...workItem,
+                    gate_status: 'awaiting_approval',
+                  }
+                : workItem,
+            ),
+          },
           selectedWorkItemId: 'work-item-1',
           boardMode: 'active_recent_complete',
           taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
@@ -351,7 +371,17 @@ describe('WorkflowBoard', () => {
         { client: new QueryClient() },
         createElement(WorkflowBoard, {
           workflowId: 'workflow-1',
-          board: createBoard(),
+          board: {
+            ...createBoard(),
+            work_items: createBoard().work_items.map((workItem) =>
+              workItem.id === 'work-item-1'
+                ? {
+                    ...workItem,
+                    gate_status: 'awaiting_approval',
+                  }
+                : workItem,
+            ),
+          },
           selectedWorkItemId: 'work-item-1',
           boardMode: 'active_recent_complete',
           taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
@@ -725,6 +755,62 @@ describe('WorkflowBoard', () => {
     expect(doneHtml).not.toContain('data-work-item-local-control="pause"');
     expect(doneHtml).not.toContain('data-work-item-local-control="resume"');
     expect(doneHtml).not.toContain('data-work-item-local-control="cancel"');
+  });
+
+  it('renders icon-only local lifecycle controls while keeping Needs Action as the text callout', () => {
+    const board = createBoard();
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: {
+            ...board,
+            work_items: board.work_items.map((workItem) =>
+              workItem.id === 'work-item-1'
+                ? {
+                    ...workItem,
+                    gate_status: 'awaiting_approval',
+                  }
+                : workItem,
+            ),
+          },
+          selectedWorkItemId: 'work-item-1',
+          boardMode: 'active_recent_complete',
+          taskPreviewSummaries: new Map<string, WorkflowTaskPreviewSummary>([
+            [
+              'work-item-1',
+              {
+                tasks: [
+                  {
+                    id: 'task-specialist',
+                    title: 'Assess packet',
+                    role: 'policy-assessor',
+                    state: 'in_progress',
+                    workItemId: 'work-item-1',
+                    workItemTitle: 'Review incoming packet',
+                    stageName: 'intake-triage',
+                  },
+                ],
+                hasActiveOrchestratorTask: false,
+              },
+            ],
+          ]),
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('aria-label="Steer work item"');
+    expect(html).toContain('aria-label="Pause work item"');
+    expect(html).toContain('aria-label="Cancel work item"');
+    expect(html).toContain('data-work-item-local-control="needs-action"');
+    expect(html).toContain('>Needs Action<');
+    expect(html).not.toContain('>Steer<');
+    expect(html).not.toContain('>Pause<');
+    expect(html).not.toContain('>Cancel<');
   });
 
   it('keeps blocked context visible on the card without inflating the work-item selection button hitbox', () => {

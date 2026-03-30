@@ -18,12 +18,21 @@ export function WorkflowStateStrip(props: {
   addWorkLabel?: string;
   onTabChange(tab: WorkflowWorkbenchTab): void;
   onAddWork(): void;
-  onOpenRedrive(): void;
 }): JSX.Element {
   const sticky = props.stickyStrip;
   const workflowScopedActions = props.workflow.availableActions.filter(
-    (action) => action.scope === 'workflow',
+    (action) => action.scope === 'workflow' && action.kind !== 'redrive_workflow',
   );
+  const shouldUseFallbackWorkflowActions =
+    props.workflow.availableActions.length === 0
+    && sticky?.posture !== 'cancelling'
+    && sticky?.posture !== 'cancelled';
+  const effectiveWorkflowActions =
+    workflowScopedActions.length > 0
+      ? workflowScopedActions
+      : shouldUseFallbackWorkflowActions
+        ? buildFallbackWorkflowActions(props.workflow.state)
+        : [];
   const workload = summarizeWorkload(props.board, props.workflow);
   const metaLine = [
     'Workflow',
@@ -66,14 +75,16 @@ export function WorkflowStateStrip(props: {
             Controls
           </p>
           <div className="flex flex-wrap items-center justify-start gap-2 xl:justify-end">
-            <WorkflowControlActions
-              workflowId={props.workflow.id}
-              workflowState={props.workflow.state}
-              workflowPosture={sticky?.posture ?? props.workflow.posture}
-              workspaceId={props.workflow.workspaceId}
-              additionalQueryKeys={[['workflows']]}
-              availableActions={props.workflow.availableActions}
-            />
+            {effectiveWorkflowActions.length > 0 ? (
+              <WorkflowControlActions
+                workflowId={props.workflow.id}
+                workflowState={props.workflow.state}
+                workflowPosture={sticky?.posture ?? props.workflow.posture}
+                workspaceId={props.workflow.workspaceId}
+                additionalQueryKeys={[['workflows']]}
+                availableActions={effectiveWorkflowActions}
+              />
+            ) : null}
             {canAddWork ? (
               <Button size="sm" onClick={props.onAddWork}>
                 {addWorkLabel}
@@ -242,4 +253,35 @@ function readWorkflowStateDetail(summary: string | null | undefined, postureLabe
     return null;
   }
   return truncateDetail(detail);
+}
+
+function buildFallbackWorkflowActions(
+  workflowState: string | null | undefined,
+): DashboardMissionControlWorkflowCard['availableActions'] {
+  if (workflowState === 'paused') {
+    return [
+      createFallbackWorkflowAction('resume_workflow'),
+      createFallbackWorkflowAction('cancel_workflow'),
+    ];
+  }
+  if (workflowState === 'active') {
+    return [
+      createFallbackWorkflowAction('pause_workflow'),
+      createFallbackWorkflowAction('cancel_workflow'),
+    ];
+  }
+  return [];
+}
+
+function createFallbackWorkflowAction(
+  kind: 'pause_workflow' | 'resume_workflow' | 'cancel_workflow',
+): DashboardMissionControlWorkflowCard['availableActions'][number] {
+  return {
+    kind,
+    scope: 'workflow',
+    enabled: true,
+    confirmationLevel: kind === 'cancel_workflow' ? 'high_impact_confirm' : 'immediate',
+    stale: false,
+    disabledReason: null,
+  };
 }

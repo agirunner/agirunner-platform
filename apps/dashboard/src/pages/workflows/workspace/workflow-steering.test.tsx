@@ -19,18 +19,32 @@ import {
 } from './workflow-steering.js';
 
 describe('WorkflowSteering', () => {
-  it('normalizes stale task-scoped steering back to the selected work item', () => {
+  it('renders a work-item-only steering composer without target pickers or steering-history chrome', () => {
     const html = renderSteering();
-    expect(html).toContain('Work item: Prepare release bundle');
-    expect(html).toContain('Record durable requests, responses, and attachments for this work item.');
+
+    expect(html).toContain('Operator guidance');
     expect(html).toContain('Guide Prepare release bundle toward the next legal action.');
-    expect(html).toContain('Targeting work item: Prepare release bundle');
-    expect(html).toContain('No steering history exists for this work item yet.');
-    expect(html).not.toContain('Task: Verify deliverable');
-    expect(html).not.toContain('Targeting task: Verify deliverable');
+    expect(html).toContain('Steering attachments');
+    expect(html).not.toContain('Steering target');
+    expect(html).not.toContain('Target kind');
+    expect(html).not.toContain('Specific work item');
+    expect(html).not.toContain('Choose a steering target');
   });
 
-  it('requires an explicit target choice before workflow-scoped steering can be recorded', () => {
+  it('normalizes stale task-scoped steering into a work-item-scoped composer', () => {
+    const html = renderSteering();
+    expect(html).toContain('Guide Prepare release bundle toward the next legal action.');
+    expect(html).toContain('Operator guidance');
+    expect(html).toContain('Work item · Prepare release bundle');
+    expect(html).toContain('No steering history exists for this work item yet.');
+    expect(html).not.toContain('Steering target');
+    expect(html).not.toContain('Target kind');
+    expect(html).not.toContain('Choose a steering target');
+    expect(html).not.toContain('Targeting work item: Prepare release bundle');
+    expect(html).not.toContain('Task: Verify deliverable');
+  });
+
+  it('does not reintroduce target-picking chrome when rendered at workflow scope', () => {
     const html = renderSteering({
       selectedWorkItemId: null,
       selectedWorkItemTitle: null,
@@ -41,12 +55,15 @@ describe('WorkflowSteering', () => {
       selectedWorkItemTasks: [],
       scope: createScope('workflow'),
     });
-    expect(html).toContain('Steering target');
-    expect(html).toContain('Choose where this workflow-level steering request should land.');
-    expect(html).toContain('Choose a steering target before recording a request.');
-    expect(html).toContain('Choose a steering target above before writing a request.');
-    expect(html).toContain('Target kind');
-    expect(html).not.toContain('Guide Workflow 1 toward the next legal action.');
+
+    expect(html).toContain('Operator guidance');
+    expect(html).toContain('Guide Workflow 1 toward the next legal action.');
+    expect(html).toContain('No steering history exists for this workflow yet.');
+    expect(html).not.toContain('Steering target');
+    expect(html).not.toContain('Target kind');
+    expect(html).not.toContain('Specific work item');
+    expect(html).not.toContain('Choose where this workflow-level steering request should land.');
+    expect(html).not.toContain('Choose a steering target before recording a request.');
   });
 
   it('offers only the eligible selected work item as a narrower workflow-scope steering target', () => {
@@ -256,9 +273,32 @@ describe('WorkflowSteering', () => {
     });
 
     expect(html).toContain('This workflow is paused. Resume it or choose another target before steering.');
-    expect(html).not.toContain('Steering requests are unavailable for this workflow right now.');
-    expect(html).not.toContain('Steering attachments');
-    expect(html).not.toContain('Record steering request</button>');
+    expect(html).not.toContain('Steering target');
+    expect(html).not.toContain('Target kind');
+  });
+
+  it('keeps steering dense by removing nested heavy shells and session boilerplate', () => {
+    const html = renderSteering({
+      sessionId: 'session-1',
+      messages: [
+        createMessage({
+          id: 'message-1',
+          source_kind: 'operator',
+          message_kind: 'operator_request',
+          headline: 'Tighten the approval brief.',
+          body: 'Keep the scope narrow.',
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-28T04:00:00.000Z',
+        }),
+      ],
+    });
+
+    expect(html).toContain('Steering request');
+    expect(html).toContain('Tighten the approval brief.');
+    expect(html).not.toContain('Open session');
+    expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/80 p-4');
+    expect(html).not.toContain('rounded-2xl border border-border/70 bg-muted/10 p-4');
   });
 
   it('removes steering controls for completed scoped work items', () => {

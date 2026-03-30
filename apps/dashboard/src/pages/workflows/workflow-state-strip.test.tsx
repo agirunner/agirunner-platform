@@ -20,6 +20,8 @@ describe('WorkflowStateStrip', () => {
     expect(source).toContain('className="flex flex-wrap items-center justify-start gap-2 xl:justify-end"');
     expect(source).not.toContain('Live visibility');
     expect(source).not.toContain('workflow-live-visibility-');
+    expect(source).toContain("action.kind !== 'redrive_workflow'");
+    expect(source).not.toContain('onOpenRedrive');
   });
 
   it('renders the add-work CTA from a passed label instead of a hardcoded generic header label', () => {
@@ -41,7 +43,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -76,7 +77,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -110,7 +110,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: 'workflows-intake-01',
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -149,7 +148,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -170,7 +168,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: 'Verify release candidate',
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -212,7 +209,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -247,7 +243,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -280,7 +275,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -336,7 +330,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: 'Task: Verify deliverable',
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -388,7 +381,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -432,7 +424,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -491,7 +482,6 @@ describe('WorkflowStateStrip', () => {
           addWorkLabel: 'Modify Work',
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -548,7 +538,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -577,7 +566,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -606,7 +594,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -634,7 +621,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );
@@ -667,7 +653,6 @@ describe('WorkflowStateStrip', () => {
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
         }),
       ),
     );

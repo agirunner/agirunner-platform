@@ -56,6 +56,15 @@ describe('WorkflowAddWorkDialog source', () => {
     expect(newWorkBranch).not.toContain('createWorkflowInputPacket(props.workflowId');
   });
 
+  it('lets repeat reuse the add-work modal in create mode with source-prefill instead of modifying the completed item', () => {
+    const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('prefillSourceWorkItemId');
+    expect(source).toContain('prefillSourceWorkItem');
+    expect(source).toContain("setTitle(selectedWorkItem?.title ?? prefillSourceWorkItem?.title ?? '')");
+    expect(source).not.toContain('const isModifyMode = selectedWorkItem !== null || prefillSourceWorkItem !== null');
+  });
+
   it('replaces the shared structured editor with a modal-local operator input editor', () => {
     const source = readFileSync(new URL('./workflow-add-work-dialog.tsx', import.meta.url), 'utf8');
 

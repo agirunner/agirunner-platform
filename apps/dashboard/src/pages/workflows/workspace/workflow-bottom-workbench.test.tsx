@@ -48,7 +48,6 @@ describe('WorkflowBottomWorkbench', () => {
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
         onOpenAddWork: vi.fn(),
-        onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
       });
@@ -119,7 +118,6 @@ describe('WorkflowBottomWorkbench', () => {
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
         onOpenAddWork: vi.fn(),
-        onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
       });
@@ -207,7 +205,6 @@ describe('WorkflowBottomWorkbench', () => {
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
         onOpenAddWork: vi.fn(),
-        onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
       });
@@ -269,7 +266,6 @@ describe('WorkflowBottomWorkbench', () => {
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
         onOpenAddWork: vi.fn(),
-        onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
       });
@@ -281,7 +277,7 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).not.toContain('Current scope');
   });
 
-  it('keeps steering content available inside details even after removing the separate steering tab', () => {
+  it('does not render the legacy steering composer inside details after the steering tab is removed', () => {
     const packet = createPacket();
     const html = renderToStaticMarkup(
       createElement(
@@ -337,16 +333,15 @@ describe('WorkflowBottomWorkbench', () => {
           onClearWorkItemScope: vi.fn(),
           onClearTaskScope: vi.fn(),
           onOpenAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
           onLoadMoreActivity: vi.fn(),
           onLoadMoreDeliverables: vi.fn(),
         }),
       ),
     );
 
-    expect(html).toContain('Steering request');
-    expect(html).toContain('Steering history');
     expect(html).toContain('Workflow · Workflow 1');
+    expect(html).not.toContain('Steering request');
+    expect(html).not.toContain('Steering history');
     expect(html).not.toContain('Steering</span><div');
     expect(html).not.toContain('Use the top-right workflow controls');
     expect(html).not.toContain('Steering scope');
@@ -400,14 +395,13 @@ describe('WorkflowBottomWorkbench', () => {
           onClearWorkItemScope: vi.fn(),
           onClearTaskScope: vi.fn(),
           onOpenAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
           onLoadMoreActivity: vi.fn(),
           onLoadMoreDeliverables: vi.fn(),
         }),
       ),
     );
 
-    expect(html).toContain('Targeting work item: Prepare release bundle');
+    expect(html).not.toContain('Targeting work item: Prepare release bundle');
     expect(html).not.toContain('Steering</span><div');
   });
 
@@ -459,7 +453,6 @@ describe('WorkflowBottomWorkbench', () => {
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
         onOpenAddWork: vi.fn(),
-        onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
       });
@@ -523,7 +516,6 @@ describe('WorkflowBottomWorkbench', () => {
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
         onOpenAddWork: vi.fn(),
-        onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
       });
@@ -586,7 +578,6 @@ describe('WorkflowBottomWorkbench', () => {
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
         onOpenAddWork: vi.fn(),
-        onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
       }),
@@ -648,7 +639,6 @@ describe('WorkflowBottomWorkbench', () => {
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
         onOpenAddWork: vi.fn(),
-        onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
       });
@@ -689,7 +679,6 @@ describe('WorkflowBottomWorkbench', () => {
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
         onOpenAddWork: vi.fn(),
-        onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
       }),
@@ -734,7 +723,6 @@ describe('WorkflowBottomWorkbench', () => {
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
         onOpenAddWork: vi.fn(),
-        onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
       }),
@@ -804,7 +792,6 @@ describe('WorkflowBottomWorkbench', () => {
           onClearWorkItemScope: vi.fn(),
           onClearTaskScope: vi.fn(),
           onOpenAddWork: vi.fn(),
-          onOpenRedrive: vi.fn(),
           onLoadMoreActivity: vi.fn(),
           onLoadMoreDeliverables: vi.fn(),
         }),
@@ -864,7 +851,6 @@ describe('WorkflowBottomWorkbench', () => {
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
         onOpenAddWork: vi.fn(),
-        onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
       }),
@@ -977,7 +963,6 @@ describe('WorkflowBottomWorkbench', () => {
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
         onOpenAddWork: vi.fn(),
-        onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
       }),
@@ -1086,7 +1071,6 @@ describe('WorkflowBottomWorkbench', () => {
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
         onOpenAddWork: vi.fn(),
-        onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
       }),
@@ -1207,7 +1191,6 @@ describe('WorkflowBottomWorkbench', () => {
         onClearWorkItemScope: vi.fn(),
         onClearTaskScope: vi.fn(),
         onOpenAddWork: vi.fn(),
-        onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
       }),

@@ -23,7 +23,7 @@ describe('workflows page source', () => {
     expect(source).toContain('WorkflowBottomWorkbench');
     expect(source).toContain('WorkflowLaunchDialog');
     expect(source).toContain('WorkflowAddWorkDialog');
-    expect(source).toContain('WorkflowRedriveDialog');
+    expect(source).toContain('WorkflowSteering');
     expect(source).toContain('getWorkflowRail');
     expect(source).toContain('getWorkflowWorkspace');
     expect(source).toContain('useWorkflowRailRealtime');
@@ -120,6 +120,25 @@ describe('workflows page source', () => {
     expect(source).toContain('patchPageState(navigate, pageState, { workItemId: null })');
     expect(source).toContain('onSelectWorkItem={handleSelectWorkItem}');
     expect(source).not.toContain("label=\"Tasks\"");
+  });
+
+  it('routes work-item local controls through page-level handlers and keeps steering out of the empty workspace copy', () => {
+    const source = readSource();
+
+    expect(source).toContain('const [isSteeringOpen, setIsSteeringOpen] = useState(false);');
+    expect(source).toContain('onWorkItemAction={({ workItemId, action }) => {');
+    expect(source).toContain("case 'needs-action':");
+    expect(source).toContain("tab: 'needs_action'");
+    expect(source).toContain("case 'steer':");
+    expect(source).toContain('setIsSteeringOpen(true);');
+    expect(source).toContain("case 'repeat':");
+    expect(source).toContain('setAddWorkTargetWorkItemId(null);');
+    expect(source).toContain('setRepeatSourceWorkItemId(workItemId);');
+    expect(source).toContain('setIsAddWorkOpen(true);');
+    expect(source).toContain('<WorkflowSteering');
+    expect(source).not.toContain('WorkflowRedriveDialog');
+    expect(source).not.toContain('setIsRedriveOpen(true);');
+    expect(source).not.toContain('open its board, steering, history, live console,');
   });
 
   it('opens header add-or-modify in modify mode for selected work items only', () => {

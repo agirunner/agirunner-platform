@@ -58,15 +58,21 @@ export class WorkflowStateService {
 
     const setStartedAt = derivedState === 'active';
     const setCompletedAt = ['completed', 'failed', 'cancelled'].includes(derivedState);
+    const clearCompletedAt =
+      !setCompletedAt && previousState === 'completed' && workflowRes.rows[0].completed_at != null;
 
     await db.query(
       `UPDATE workflows
        SET state = $3,
            started_at = CASE WHEN $4 AND started_at IS NULL THEN now() ELSE started_at END,
-           completed_at = CASE WHEN $5 THEN COALESCE(completed_at, now()) ELSE completed_at END,
+           completed_at = CASE
+             WHEN $5 THEN COALESCE(completed_at, now())
+             WHEN $6 THEN NULL
+             ELSE completed_at
+           END,
            updated_at = now()
        WHERE tenant_id = $1 AND id = $2`,
-      [tenantId, workflowId, derivedState, setStartedAt, setCompletedAt],
+      [tenantId, workflowId, derivedState, setStartedAt, setCompletedAt, clearCompletedAt],
     );
 
     if (
@@ -209,7 +215,9 @@ export class WorkflowStateService {
     previousState: string,
     db: DatabaseClient | DatabasePool,
   ) {
-    if (isTerminalWorkflowState(previousState)) return previousState;
+    if (previousState === 'failed' || previousState === 'cancelled') {
+      return previousState;
+    }
 
     const posture = await this.loadWorkflowPosture(tenantId, workflowId, db);
     if (posture.lifecycle === 'ongoing') {

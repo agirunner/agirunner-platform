@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { Badge } from '../../../components/ui/badge.js';
@@ -69,65 +69,7 @@ export function WorkflowSteering(props: {
       props.workflowState,
     ],
   );
-  const isScopeLocked = normalizedScope.scopeKind !== 'workflow';
-  const workflowTarget = targetOptions.find((option) => option.scopeKind === 'workflow') ?? null;
-  const workflowScopeWorkItemTargets = targetOptions.filter(
-    (option) => option.scopeKind === 'selected_work_item',
-  );
-  const lockedTargetValue = isScopeLocked ? (targetOptions[0]?.value ?? '') : '';
-  const initialTargetKind = isScopeLocked ? normalizeTargetKind(targetOptions[0]?.scopeKind) : '';
-  const initialTargetValue = isScopeLocked ? lockedTargetValue : '';
-  const [selectedTargetKind, setSelectedTargetKind] = useState<
-    '' | 'workflow' | 'selected_work_item' | 'selected_task'
-  >(initialTargetKind);
-  const [selectedTargetValue, setSelectedTargetValue] = useState(initialTargetValue);
-
-  useEffect(() => {
-    if (isScopeLocked) {
-      setSelectedTargetKind(normalizeTargetKind(targetOptions[0]?.scopeKind));
-      setSelectedTargetValue(lockedTargetValue);
-      return;
-    }
-    setSelectedTargetKind((currentKind) =>
-      getAvailableTargetKinds({
-        workflowTarget,
-        workflowScopeWorkItemTargets,
-      }).includes(currentKind)
-        ? currentKind
-        : '',
-    );
-  }, [
-    isScopeLocked,
-    lockedTargetValue,
-    targetOptions,
-    workflowScopeWorkItemTargets,
-    workflowTarget,
-  ]);
-
-  useEffect(() => {
-    if (isScopeLocked) {
-      return;
-    }
-    if (selectedTargetKind === '') {
-      setSelectedTargetValue('');
-      return;
-    }
-    if (selectedTargetKind === 'workflow') {
-      setSelectedTargetValue(workflowTarget?.value ?? '');
-      return;
-    }
-    setSelectedTargetValue((currentValue) =>
-      workflowScopeWorkItemTargets.some((option) => option.value === currentValue) ? currentValue : '',
-    );
-  }, [
-    isScopeLocked,
-    selectedTargetKind,
-    workflowScopeWorkItemTargets,
-    workflowTarget,
-  ]);
-
-  const selectedTarget =
-    targetOptions.find((option) => option.value === selectedTargetValue) ?? null;
+  const selectedTarget = targetOptions[0] ?? null;
   const disabledReason =
     readLockedTaskScopeDisabledReason(props.scope.scopeKind, props.selectedTask)
     ?? getWorkflowSteeringDisabledReason({
@@ -141,9 +83,7 @@ export function WorkflowSteering(props: {
     });
   const requestPlaceholder = selectedTarget
     ? `Guide ${selectedTarget.name} toward the next legal action.`
-      : selectedTargetKind === 'selected_work_item'
-        ? 'Choose a work item target above before writing a request.'
-        : 'Choose a steering target above before writing a request.';
+      : 'Select a work item before writing operator guidance.';
   const attachmentSubject = selectedTarget?.subject ?? normalizedScope.subject;
   const isSelectedTargetUnavailable = selectedTarget !== null && disabledReason !== null;
   const isWorkflowUnavailableWithoutTarget =
@@ -198,70 +138,19 @@ export function WorkflowSteering(props: {
 
   return (
     <div className="grid gap-4">
-      <section className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline">{normalizedScope.banner}</Badge>
-          {props.sessionId ? <Badge variant="secondary">Open session</Badge> : null}
-        </div>
+      <section className="grid gap-3">
         <div className="grid gap-1">
           <p className="text-sm font-semibold text-foreground">Steering request</p>
-          <p className="text-sm text-muted-foreground">
-            Record durable requests, responses, and attachments for this {normalizedScope.subject}.
-          </p>
-        </div>
-        <div className="grid gap-2">
-          <div className="grid gap-1">
-            <label className="text-sm font-medium text-foreground" htmlFor="workflow-steering-target">
-              Steering target
-            </label>
+          {selectedTarget ? (
             <p className="text-sm text-muted-foreground">
-              {isScopeLocked
-                ? 'This steering request is locked to the current workbench scope.'
-                : 'Choose where this workflow-level steering request should land.'}
+              {selectedTarget.subject === 'work item'
+                ? `Work item · ${selectedTarget.name}`
+                : selectedTarget.name}
             </p>
-          </div>
-          {isScopeLocked ? (
-            <div className="rounded-md border border-border/70 bg-muted/10 px-3 py-2 text-sm text-foreground">
-              {selectedTarget ? `Targeting ${selectedTarget.subject}: ${selectedTarget.name}` : 'No steering target selected.'}
-            </div>
-          ) : (
-            <div className="grid gap-2">
-              <div className="grid gap-1">
-                <label className="text-sm font-medium text-foreground" htmlFor="workflow-steering-target-kind">
-                  Target kind
-                </label>
-                <select
-                  id="workflow-steering-target-kind"
-                  value={selectedTargetKind}
-                  className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
-                  onChange={(event) =>
-                    setSelectedTargetKind(
-                      event.target.value as '' | 'workflow' | 'selected_work_item',
-                    )
-                  }
-                >
-                  <option value="">Select target</option>
-                  {workflowTarget ? <option value="workflow">Workflow</option> : null}
-                  {workflowScopeWorkItemTargets.length > 0 ? (
-                    <option value="selected_work_item">Work item</option>
-                  ) : null}
-                </select>
-              </div>
-              {selectedTargetKind === 'selected_work_item' ? (
-                <TargetSelect
-                  id="workflow-steering-target"
-                  label="Specific work item"
-                  placeholder="Select a work item"
-                  value={selectedTargetValue}
-                  options={workflowScopeWorkItemTargets}
-                  onChange={setSelectedTargetValue}
-                />
-              ) : null}
-            </div>
-          )}
+          ) : null}
         </div>
         {shouldHideSteeringControls ? (
-          <div className="grid gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-3">
+          <div className="grid gap-1 border-l-2 border-destructive/40 pl-3">
             <p className="text-sm font-medium text-foreground">
               Steering is unavailable for this {unavailableSubject}.
             </p>
@@ -269,12 +158,15 @@ export function WorkflowSteering(props: {
           </div>
         ) : (
           <>
-            <Textarea
-              value={request}
-              onChange={(event) => setRequest(event.target.value)}
-              className="min-h-[144px]"
-              placeholder={requestPlaceholder}
-            />
+            <label className="grid gap-2 text-sm">
+              <span className="font-medium text-foreground">Operator guidance</span>
+              <Textarea
+                value={request}
+                onChange={(event) => setRequest(event.target.value)}
+                className="min-h-[144px]"
+                placeholder={requestPlaceholder}
+              />
+            </label>
             <WorkflowFileInput
               files={files}
               onChange={setFiles}
@@ -304,23 +196,20 @@ export function WorkflowSteering(props: {
         )}
       </section>
 
-      <section className="grid gap-4 rounded-2xl border border-border/70 bg-background/80 p-4">
+      <section className="grid gap-3">
         <div className="grid gap-1">
           <p className="text-sm font-semibold text-foreground">Steering history</p>
-          <p className="text-sm text-muted-foreground">
-            Review prior steering requests, responses, and interventions for this {normalizedScope.subject}.
-          </p>
         </div>
         {historyEntries.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-border/70 bg-background/60 p-4 text-sm text-muted-foreground">
+          <p className="px-1 text-sm text-muted-foreground">
             No steering history exists for this {normalizedScope.subject} yet.
-          </div>
+          </p>
         ) : (
-          <div className="grid gap-3">
+          <div className="grid divide-y divide-border/60">
             {historyEntries.map((entry) => (
               <article
                 key={entry.id}
-                className="grid gap-2 rounded-2xl border border-border/70 bg-muted/10 p-4"
+                className="grid gap-1.5 py-3"
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <strong className="text-foreground">{entry.title}</strong>
@@ -428,20 +317,6 @@ function readSteeringHistoryDisplayText(value: string | null | undefined): strin
   return trimmed.length > 0 ? trimmed : null;
 }
 
-function getAvailableTargetKinds(input: {
-  workflowTarget: ReturnType<typeof buildWorkflowSteeringTargets>[number] | null;
-  workflowScopeWorkItemTargets: ReturnType<typeof buildWorkflowSteeringTargets>;
-}): Array<'' | 'workflow' | 'selected_work_item' | 'selected_task'> {
-  const kinds: Array<'' | 'workflow' | 'selected_work_item' | 'selected_task'> = [];
-  if (input.workflowTarget) {
-    kinds.push('workflow');
-  }
-  if (input.workflowScopeWorkItemTargets.length > 0) {
-    kinds.push('selected_work_item');
-  }
-  return kinds;
-}
-
 function normalizeSteeringScope(
   props: Parameters<typeof WorkflowSteering>[0],
 ): WorkflowWorkbenchScopeDescriptor {
@@ -466,19 +341,6 @@ function normalizeSteeringScope(
   };
 }
 
-function normalizeTargetKind(
-  targetKind: ReturnType<typeof buildWorkflowSteeringTargets>[number]['scopeKind'] | undefined,
-): '' | 'workflow' | 'selected_work_item' | 'selected_task' {
-  if (
-    targetKind === 'workflow'
-    || targetKind === 'selected_work_item'
-    || targetKind === 'selected_task'
-  ) {
-    return targetKind;
-  }
-  return '';
-}
-
 function readLockedTaskScopeDisabledReason(
   scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
   selectedTask: DashboardTaskRecord | null,
@@ -497,37 +359,4 @@ function readLockedTaskScopeDisabledReason(
 
 function buildSteeringHistoryEchoKey(title: string, body: string | null): string {
   return `${normalizeSteeringHistoryText(title) ?? ''}::${normalizeSteeringHistoryText(body) ?? ''}`;
-}
-
-function TargetSelect(props: {
-  id: string;
-  label: string;
-  placeholder: string;
-  value: string;
-  options: Array<{
-    value: string;
-    label: string;
-  }>;
-  onChange(value: string): void;
-}): JSX.Element {
-  return (
-    <div className="grid gap-1">
-      <label className="text-sm font-medium text-foreground" htmlFor={props.id}>
-        {props.label}
-      </label>
-      <select
-        id={props.id}
-        value={props.value}
-        className="flex h-9 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
-        onChange={(event) => props.onChange(event.target.value)}
-      >
-        <option value="">{props.placeholder}</option>
-        {props.options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
-    </div>
-  );
 }

@@ -331,16 +331,45 @@ describe('WorkflowStateService', () => {
     expect(eventService.emit).not.toHaveBeenCalled();
   });
 
-  it('does not reopen completed workflows when later task lifecycle callbacks recompute state', async () => {
-    const pool = createPool([
-      workflowRow({ state: 'completed' }),
-      rowSet([]),
-    ]);
+  it('reopens completed workflows when stage-gate request changes leaves rework active', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('WHERE w.tenant_id = $1 AND w.id = $2')) {
+          return workflowRow({
+            state: 'completed',
+            completed_at: new Date('2026-03-29T12:00:00.000Z'),
+          });
+        }
+        if (sql.includes('SELECT w.lifecycle, p.definition')) {
+          return rowSet([{ lifecycle: 'planned' }]);
+        }
+        if (sql.includes('SELECT status, gate_status FROM workflow_stages')) {
+          return rowSet([{ status: 'active', gate_status: 'changes_requested' }]);
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = true')) {
+          return rowSet([]);
+        }
+        if (sql.includes('FROM workflow_work_items')) {
+          return rowSet([{ total_work_item_count: 1, open_work_item_count: 1 }]);
+        }
+        if (sql.includes('UPDATE workflows')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'active', true, false, true]);
+          return rowSet([]);
+        }
+        throw new Error(`Unexpected query: ${sql}`);
+      }),
+    };
     const eventService = { emit: vi.fn() };
     const service = new WorkflowStateService(pool as never, eventService as never);
     const result = await service.recomputeWorkflowState('tenant-1', 'workflow-1');
-    expect(result).toBe('completed');
-    expect(eventService.emit).not.toHaveBeenCalled();
+    expect(result).toBe('active');
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.state_changed',
+        data: { from_state: 'completed', to_state: 'active' },
+      }),
+      undefined,
+    );
   });
 
   it('returns cancelled immediately during cancellation even when work items remain open', async () => {

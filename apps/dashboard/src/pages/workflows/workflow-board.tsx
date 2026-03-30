@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQueries } from '@tanstack/react-query';
+import { Pause, Play, RotateCcw, SquarePen, X } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -507,15 +508,44 @@ function BoardWorkItemControlButton(props: {
   }): void;
 }): JSX.Element {
   const isDisabled = props.control.disabled || !props.onAction;
+  if (props.control.action === 'needs-action') {
+    return (
+      <Button
+        size="sm"
+        type="button"
+        variant={props.control.variant}
+        data-work-item-local-control={props.control.action}
+        data-work-item-control-ready={props.onAction ? 'true' : 'false'}
+        className={cn('h-7 rounded-md px-2.5 text-xs', props.control.className)}
+        disabled={isDisabled}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (isDisabled) {
+            return;
+          }
+          props.onAction?.({
+            workItemId: props.workItemId,
+            action: props.control.action,
+          });
+        }}
+        onMouseDown={(event) => event.stopPropagation()}
+        onKeyDown={(event) => event.stopPropagation()}
+      >
+        {props.control.label}
+      </Button>
+    );
+  }
 
   return (
     <Button
-      size="sm"
+      size="icon"
       type="button"
       variant={props.control.variant}
       data-work-item-local-control={props.control.action}
       data-work-item-control-ready={props.onAction ? 'true' : 'false'}
-      className={cn('h-7 rounded-md px-2.5 text-xs', props.control.className)}
+      aria-label={readWorkItemControlAriaLabel(props.control.action)}
+      title={readWorkItemControlAriaLabel(props.control.action)}
+      className={cn('h-8 w-8 rounded-md', props.control.className)}
       disabled={isDisabled}
       onClick={(event) => {
         event.stopPropagation();
@@ -530,9 +560,41 @@ function BoardWorkItemControlButton(props: {
       onMouseDown={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      {props.control.label}
+      {renderWorkItemControlIcon(props.control.action)}
     </Button>
   );
+}
+
+function renderWorkItemControlIcon(action: Exclude<WorkflowBoardWorkItemAction, 'needs-action'>): JSX.Element {
+  switch (action) {
+    case 'steer':
+      return <SquarePen className="h-3.5 w-3.5" />;
+    case 'pause':
+      return <Pause className="h-3.5 w-3.5" />;
+    case 'resume':
+      return <Play className="h-3.5 w-3.5" />;
+    case 'repeat':
+      return <RotateCcw className="h-3.5 w-3.5" />;
+    case 'cancel':
+      return <X className="h-3.5 w-3.5" />;
+  }
+}
+
+function readWorkItemControlAriaLabel(
+  action: Exclude<WorkflowBoardWorkItemAction, 'needs-action'>,
+): string {
+  switch (action) {
+    case 'steer':
+      return 'Steer work item';
+    case 'pause':
+      return 'Pause work item';
+    case 'resume':
+      return 'Resume work item';
+    case 'repeat':
+      return 'Repeat work item';
+    case 'cancel':
+      return 'Cancel work item';
+  }
 }
 
 function readWorkItemCardControls(

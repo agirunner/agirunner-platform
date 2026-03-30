@@ -3,9 +3,17 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { LayoutDashboard, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog.js';
 import { Button } from '../../components/ui/button.js';
 import {
   dashboardApi,
+  type DashboardTaskRecord,
   type DashboardMissionControlWorkflowCard,
   type DashboardWorkflowRailRow,
   type DashboardWorkflowWorkspacePacket,
@@ -51,7 +59,7 @@ import {
 import { WorkflowStateStrip } from './workflow-state-strip.js';
 import { WorkflowBottomWorkbench } from './workspace/workflow-bottom-workbench.js';
 import { WorkflowAddWorkDialog } from './workspace/workflow-add-work-dialog.js';
-import { WorkflowRedriveDialog } from './workspace/workflow-redrive-dialog.js';
+import { WorkflowSteering } from './workspace/workflow-steering.js';
 
 const RAIL_PAGE_SIZE = 100;
 const ACTIVITY_PAGE_SIZE = 50;
@@ -75,7 +83,8 @@ export function WorkflowsPage(): JSX.Element {
   const [isLaunchOpen, setIsLaunchOpen] = useState(false);
   const [isAddWorkOpen, setIsAddWorkOpen] = useState(false);
   const [addWorkTargetWorkItemId, setAddWorkTargetWorkItemId] = useState<string | null>(null);
-  const [isRedriveOpen, setIsRedriveOpen] = useState(false);
+  const [repeatSourceWorkItemId, setRepeatSourceWorkItemId] = useState<string | null>(null);
+  const [isSteeringOpen, setIsSteeringOpen] = useState(false);
   const [isRailHidden, setIsRailHidden] = useState(readStoredWorkflowRailHidden());
   const [railWidthPx, setRailWidthPx] = useState(
     clampWorkflowRailWidthPx(readStoredWorkflowRailWidth() ?? DEFAULT_WORKFLOW_RAIL_WIDTH_PX),
@@ -240,6 +249,12 @@ export function WorkflowsPage(): JSX.Element {
     [board, boardSelection.workItemId, selectedWorkItemQuery.data?.title],
   );
   const selectedScopeLabel = scopedWorkItemId ? workItemTitle ?? scopedWorkItemId : null;
+  const selectedWorkItem =
+    selectedWorkItemQuery.data
+    ?? board?.work_items.find((item) => item.id === boardSelection.workItemId)
+    ?? null;
+  const selectedWorkItemTasks = selectedWorkItemTasksQuery.data ?? [];
+  const selectedWorkItemTaskRecords = selectedWorkItemTasks as unknown as DashboardTaskRecord[];
   const workbenchScope = useMemo(
     () =>
       describeWorkflowWorkbenchScope({
@@ -397,28 +412,28 @@ export function WorkflowsPage(): JSX.Element {
               ) : null}
             </div>
             {workflow && workspacePacket ? (
-              <WorkflowStateStrip
-                workflow={workflow}
-                stickyStrip={workspacePacket.sticky_strip}
-                board={board}
-                selectedScopeLabel={selectedScopeLabel}
+               <WorkflowStateStrip
+                 workflow={workflow}
+                 stickyStrip={workspacePacket.sticky_strip}
+                 board={board}
+                 selectedScopeLabel={selectedScopeLabel}
                 addWorkLabel={describeHeaderAddWorkLabel({
                   scopeKind: tabScope,
                   lifecycle: workflow?.lifecycle,
                 })}
                 onTabChange={(tab) => patchPageState(navigate, pageState, { tab })}
-                onAddWork={() => {
-                  setAddWorkTargetWorkItemId(
-                    resolveHeaderAddWorkTargetWorkItemId({
-                      scopeKind: tabScope,
-                      workItemId: boardSelection.workItemId,
-                    }),
-                  );
-                  setIsAddWorkOpen(true);
-                }}
-                onOpenRedrive={() => setIsRedriveOpen(true)}
-              />
-            ) : null}
+                 onAddWork={() => {
+                    setAddWorkTargetWorkItemId(
+                      resolveHeaderAddWorkTargetWorkItemId({
+                        scopeKind: tabScope,
+                        workItemId: boardSelection.workItemId,
+                      }),
+                    );
+                    setRepeatSourceWorkItemId(null);
+                    setIsAddWorkOpen(true);
+                  }}
+               />
+             ) : null}
           </section>
 
           {workflow && workspacePacket ? (
@@ -441,6 +456,28 @@ export function WorkflowsPage(): JSX.Element {
                     patchPageState(navigate, pageState, { boardMode })
                   }
                   onSelectWorkItem={handleSelectWorkItem}
+                  onWorkItemAction={({ workItemId, action }) => {
+                    switch (action) {
+                      case 'needs-action':
+                        patchPageState(navigate, pageState, { workItemId, tab: 'needs_action' });
+                        return;
+                      case 'steer':
+                        patchPageState(navigate, pageState, { workItemId, tab: 'details' });
+                        setIsSteeringOpen(true);
+                        return;
+                      case 'repeat':
+                        patchPageState(navigate, pageState, { workItemId });
+                        setAddWorkTargetWorkItemId(null);
+                        setRepeatSourceWorkItemId(workItemId);
+                        setIsAddWorkOpen(true);
+                        return;
+                      case 'pause':
+                      case 'resume':
+                      case 'cancel':
+                        patchPageState(navigate, pageState, { workItemId });
+                        return;
+                    }
+                  }}
                 />
               </section>
               <div className="relative hidden lg:flex items-center justify-center">
@@ -490,9 +527,9 @@ export function WorkflowsPage(): JSX.Element {
                   selectedWorkItemTitle={workItemTitle}
                   selectedTaskId={null}
                   selectedTaskTitle={null}
-                  selectedWorkItem={selectedWorkItemQuery.data ?? null}
+                  selectedWorkItem={selectedWorkItem}
                   selectedTask={null}
-                  selectedWorkItemTasks={selectedWorkItemTasksQuery.data ?? []}
+                  selectedWorkItemTasks={selectedWorkItemTasks}
                   inputPackets={inputPacketsQuery.data ?? []}
                   workflowParameters={(workflowDetailQuery.data?.parameters as Record<string, unknown> | null | undefined) ?? null}
                   scope={workbenchScope}
@@ -504,9 +541,9 @@ export function WorkflowsPage(): JSX.Element {
                       patchPageState(navigate, pageState, { workItemId: workItemId ?? null });
                     }
                     setAddWorkTargetWorkItemId(workItemId ?? null);
+                    setRepeatSourceWorkItemId(null);
                     setIsAddWorkOpen(true);
                   }}
-                  onOpenRedrive={() => setIsRedriveOpen(true)}
                   onLoadMoreActivity={() =>
                     setActivityLimit((current) => current + ACTIVITY_PAGE_SIZE)
                   }
@@ -530,7 +567,7 @@ export function WorkflowsPage(): JSX.Element {
         </div>
       </div>
 
-      <WorkflowLaunchDialog
+        <WorkflowLaunchDialog
         isOpen={isLaunchOpen}
         onOpenChange={setIsLaunchOpen}
         onLaunched={(workflowId) =>
@@ -549,28 +586,46 @@ export function WorkflowsPage(): JSX.Element {
               setIsAddWorkOpen(open);
               if (!open) {
                 setAddWorkTargetWorkItemId(null);
+                setRepeatSourceWorkItemId(null);
               }
             }}
             workflowId={pageState.workflowId}
             lifecycle={workflow?.lifecycle}
             board={board}
             workItemId={addWorkTargetWorkItemId}
+            prefillSourceWorkItemId={repeatSourceWorkItemId}
             workflowWorkspaceId={workflow?.workspaceId}
           />
-          <WorkflowRedriveDialog
-            isOpen={isRedriveOpen}
-            onOpenChange={setIsRedriveOpen}
-            workflowId={pageState.workflowId}
-            workflowName={workflow?.name ?? 'Workflow'}
-            workspaceId={workflow?.workspaceId}
-            onRedriven={(workflowId) =>
-              patchPageState(navigate, pageState, {
-                workflowId,
-                workItemId: null,
-                tab: null,
-              })
-            }
-          />
+          <Dialog open={isSteeringOpen} onOpenChange={setIsSteeringOpen}>
+            <DialogContent className="max-h-[88vh] max-w-3xl overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Steer work item</DialogTitle>
+                <DialogDescription>
+                  Record guidance for the selected work item and wake the orchestrator on that scope.
+                </DialogDescription>
+              </DialogHeader>
+              {workflow && workspacePacket && selectedWorkItem ? (
+                <WorkflowSteering
+                  workflowId={workflow.id}
+                  workflowName={workflow.name}
+                  workflowState={workflow.state}
+                  boardColumns={board?.columns ?? []}
+                  selectedWorkItemId={selectedWorkItem.id}
+                  selectedWorkItemTitle={selectedWorkItem.title}
+                  selectedWorkItem={selectedWorkItem}
+                  selectedTaskId={null}
+                  selectedTaskTitle={null}
+                  selectedTask={null}
+                  selectedWorkItemTasks={selectedWorkItemTaskRecords}
+                  scope={workbenchScope}
+                  interventions={workspacePacket.steering.recent_interventions}
+                  messages={workspacePacket.steering.session.messages}
+                  sessionId={workspacePacket.steering.session.session_id}
+                  canAcceptRequest={workspacePacket.steering.steering_state.can_accept_request}
+                />
+              ) : null}
+            </DialogContent>
+          </Dialog>
         </>
       ) : null}
     </>
@@ -659,7 +714,7 @@ function EmptyWorkspaceState(props: {
         <LayoutDashboard className="mx-auto h-10 w-10 text-muted-foreground" />
         <p className="text-lg font-semibold text-foreground">Select a workflow</p>
         <p className="text-sm text-muted-foreground">
-          Choose a workflow from the left rail to open its board, steering, history, live console,
+          Choose a workflow from the left rail to open its board, details, history, live console,
           and deliverables in one place.
         </p>
       </div>
