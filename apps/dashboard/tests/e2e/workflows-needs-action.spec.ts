@@ -51,16 +51,16 @@ test('submits positive and negative approval responses from the workflow needs-a
 
   await loginToWorkflows(page);
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();
-  const workbench = page.locator('section').filter({ hasText: 'Workflow Workbench' });
+  const workbench = page.locator('[data-workflows-workbench-frame="true"]');
   await workbench.getByRole('button', { name: /Needs Action/ }).click();
 
-  await expect(page.getByText('Approve release packet', { exact: true })).toBeVisible();
+  await expect(workbench.getByText('Approve release packet.', { exact: true })).toBeVisible();
   await workbench.getByRole('button', { name: 'Approve' }).click();
   await expect.poll(() => requests[0]?.url ?? '').toContain(
     `/api/v1/workflows/${scenario.needsActionWorkflow.id}/work-items/work-item-approval-1/tasks/task-approval-1/approve`,
   );
-  await expect(page.getByText('Approve release packet', { exact: true })).toHaveCount(0);
-  await expect(page.getByText('Approve compliance memo', { exact: true })).toBeVisible();
+  await expect(workbench.getByText('Approve release packet.', { exact: true })).toHaveCount(0);
+  await expect(workbench.getByText('Approve compliance memo.', { exact: true })).toBeVisible();
 
   await workbench.getByRole('button', { name: 'Request changes' }).first().click();
   await workbench.getByRole('button', { name: 'Request changes' }).last().click();
@@ -76,7 +76,7 @@ test('submits positive and negative approval responses from the workflow needs-a
   await expect.poll(() => requests[1]?.body?.feedback ?? '').toBe(
     'Add the missing rollback note before resubmitting this approval packet.',
   );
-  await expect(page.getByText('Approve compliance memo', { exact: true })).toHaveCount(0);
+  await expect(workbench.getByText('Approve compliance memo.', { exact: true })).toHaveCount(0);
   await expect(page.getByText('Nothing in this workflow requires operator action right now.')).toBeVisible();
 });
 
@@ -101,10 +101,10 @@ test('validates and submits escalation guidance from the workflow needs-action U
 
   await loginToWorkflows(page);
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();
-  const workbench = page.locator('section').filter({ hasText: 'Workflow Workbench' });
+  const workbench = page.locator('[data-workflows-workbench-frame="true"]');
   await workbench.getByRole('button', { name: /Needs Action/ }).click();
 
-  await expect(page.getByText('Resolve escalation')).toBeVisible();
+  await expect(page.getByText('Resolve escalation', { exact: true })).toBeVisible();
   await expect(page.getByText('submit_handoff replay mismatch conflict')).toBeVisible();
   await workbench.getByRole('button', { name: 'Resume with guidance' }).click();
   await workbench.getByRole('button', { name: 'Resume task' }).click();

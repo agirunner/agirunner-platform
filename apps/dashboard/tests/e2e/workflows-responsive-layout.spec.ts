@@ -16,7 +16,7 @@ for (const viewport of workflowsViewports) {
     await workflowRailButton(page, 'E2E Needs Action Delivery').click();
     await expect(page.getByRole('button', { name: /Hide workflows|Show workflows/ })).toBeVisible();
     await expect(page.getByText('Workflow board')).toBeVisible();
-    await expect(page.getByText('Workflow Workbench')).toBeVisible();
+    await expect(page.locator('[data-workflows-workbench-frame="true"]')).toBeVisible();
   });
 }
 
@@ -27,7 +27,7 @@ test('keeps the desktop workflows shell inside the viewport without a pointless 
 
   await workflowRailButton(page, 'E2E Needs Action Delivery').click();
   await expect(page.getByText('Workflow board')).toBeVisible();
-  await expect(page.getByText('Workflow Workbench')).toBeVisible();
+  await expect(page.locator('[data-workflows-workbench-frame="true"]')).toBeVisible();
 
   const rootMetrics = await page.evaluate(() => ({
     clientHeight: document.documentElement.clientHeight,
