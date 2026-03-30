@@ -51,6 +51,9 @@ describe('WorkflowCancellationService', () => {
         if (sql.startsWith('UPDATE runtime_heartbeats')) {
           return { rowCount: 0, rows: [] };
         }
+        if (sql.startsWith('UPDATE workflow_work_items')) {
+          return { rowCount: 1, rows: [] };
+        }
         if (sql.startsWith('UPDATE workflows')) {
           return { rowCount: 1, rows: [] };
         }
@@ -155,6 +158,9 @@ describe('WorkflowCancellationService', () => {
         if (sql.startsWith('UPDATE execution_container_leases')) {
           return { rowCount: 0, rows: [] };
         }
+        if (sql.startsWith('UPDATE workflow_work_items')) {
+          return { rowCount: 1, rows: [] };
+        }
         if (sql.startsWith('UPDATE workflows')) {
           return { rowCount: 1, rows: [] };
         }
@@ -178,7 +184,7 @@ describe('WorkflowCancellationService', () => {
     expect(result).toEqual(expect.objectContaining({ id: 'workflow-1', state: 'paused' }));
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining("state = ANY($3::task_state[])"),
-      ['tenant-1', 'workflow-1', ['claimed', 'in_progress']],
+      ['tenant-1', 'workflow-1', ['claimed', 'in_progress'], null],
     );
   });
 
@@ -255,6 +261,9 @@ describe('WorkflowCancellationService', () => {
         }
         if (sql.startsWith('UPDATE workflow_activations')) {
           return { rowCount: 1, rows: [{ id: 'activation-1' }] };
+        }
+        if (sql.startsWith('UPDATE workflow_work_items')) {
+          return { rowCount: 2, rows: [] };
         }
         if (sql.startsWith('UPDATE workflows')) {
           return { rowCount: 1, rows: [] };
@@ -369,6 +378,9 @@ describe('WorkflowCancellationService', () => {
         if (sql.startsWith('UPDATE workflows')) {
           return { rowCount: 1, rows: [] };
         }
+        if (sql.startsWith('UPDATE workflow_work_items')) {
+          return { rowCount: 2, rows: [] };
+        }
         if (sql.startsWith('UPDATE agents')) {
           return { rowCount: 0, rows: [] };
         }
@@ -394,6 +406,14 @@ describe('WorkflowCancellationService', () => {
         'workflow-1',
         expect.objectContaining({ cancel_requested_at: expect.any(String) }),
       ]),
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      [
+        'tenant-1',
+        'workflow-1',
+        expect.objectContaining({ cancel_requested_at: expect.any(String) }),
+      ],
     );
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'workflow.cancellation_requested' }),
@@ -435,6 +455,15 @@ describe('WorkflowCancellationService', () => {
         }
         if (sql.startsWith('UPDATE workflow_activations')) {
           return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_work_items')) {
+          expect(sql).toContain("COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at'");
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            expect.objectContaining({ cancel_requested_at: expect.any(String) }),
+          ]);
+          return { rowCount: 1, rows: [] };
         }
         if (sql.startsWith('UPDATE workflows')) {
           expect(sql).toContain("COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at'");
@@ -499,6 +528,9 @@ describe('WorkflowCancellationService', () => {
         }
         if (sql.startsWith('UPDATE execution_container_leases')) {
           return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_work_items')) {
+          return { rowCount: 1, rows: [] };
         }
         if (sql.startsWith('UPDATE workflows')) {
           return { rowCount: 1, rows: [] };
@@ -568,6 +600,9 @@ describe('WorkflowCancellationService', () => {
         if (sql.startsWith('UPDATE execution_container_leases')) {
           return { rowCount: 0, rows: [] };
         }
+        if (sql.startsWith('UPDATE workflow_work_items')) {
+          return { rowCount: 1, rows: [] };
+        }
         if (sql.startsWith('UPDATE workflows')) {
           return { rowCount: 1, rows: [] };
         }
@@ -630,6 +665,9 @@ describe('WorkflowCancellationService', () => {
         if (sql.startsWith('UPDATE execution_container_leases')) {
           return { rowCount: 0, rows: [] };
         }
+        if (sql.startsWith('UPDATE workflow_work_items')) {
+          return { rowCount: 1, rows: [] };
+        }
         if (sql.startsWith('UPDATE workflows')) {
           return { rowCount: 1, rows: [] };
         }
@@ -691,6 +729,9 @@ describe('WorkflowCancellationService', () => {
         if (sql.startsWith('UPDATE execution_container_leases')) {
           return { rowCount: 0, rows: [] };
         }
+        if (sql.startsWith('UPDATE workflow_work_items')) {
+          return { rowCount: 1, rows: [] };
+        }
         if (sql.startsWith('UPDATE workflows')) {
           return { rowCount: 1, rows: [] };
         }
@@ -726,6 +767,7 @@ describe('WorkflowCancellationService', () => {
           'failed',
           'escalated',
         ],
+        null,
       ],
     );
   });

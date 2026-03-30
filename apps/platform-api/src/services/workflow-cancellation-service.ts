@@ -75,6 +75,8 @@ export class WorkflowCancellationService {
         },
       );
       await clearStoppedRuntimeHeartbeatTasks(client, identity.tenantId, stopResult.activeTaskIds);
+      const cancelRequestedAt = new Date().toISOString();
+      await markWorkflowWorkItemsCancelled(client, identity.tenantId, workflowId, cancelRequestedAt);
 
       await client.query(
         `UPDATE workflows
@@ -86,7 +88,7 @@ export class WorkflowCancellationService {
           identity.tenantId,
           workflowId,
           {
-            cancel_requested_at: new Date().toISOString(),
+            cancel_requested_at: cancelRequestedAt,
           },
         ],
       );
@@ -175,6 +177,24 @@ function hasCancellationRequest(metadata: unknown) {
 
 function isCancellableWorkflowState(state: unknown) {
   return state === 'pending' || state === 'active' || state === 'paused';
+}
+
+async function markWorkflowWorkItemsCancelled(
+  client: { query: DatabasePool['query'] },
+  tenantId: string,
+  workflowId: string,
+  cancelRequestedAt: string,
+) {
+  await client.query(
+    `UPDATE workflow_work_items
+        SET completed_at = COALESCE(completed_at, now()),
+            metadata = ((COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at') - 'pause_reopen_task_ids') || $3::jsonb,
+            updated_at = now()
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND completed_at IS NULL`,
+    [tenantId, workflowId, { cancel_requested_at: cancelRequestedAt }],
+  );
 }
 
 async function clearStoppedRuntimeHeartbeatTasks(

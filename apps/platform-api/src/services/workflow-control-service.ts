@@ -73,6 +73,7 @@ export class WorkflowControlService {
       if (stopResult.cancelledSpecialistTaskIds.length > 0) {
         pauseMetadata.pause_reopen_task_ids = stopResult.cancelledSpecialistTaskIds;
       }
+      await markWorkflowWorkItemsPaused(client, identity.tenantId, workflowId, pauseRequestedAt);
 
       const result = await client.query<WorkflowControlRow>(
         `UPDATE workflows
@@ -147,6 +148,7 @@ export class WorkflowControlService {
             AND id = $2`,
         [identity.tenantId, workflowId],
       );
+      await clearWorkflowWorkItemPauseMarkers(client, identity.tenantId, workflowId);
 
       await reopenPauseCancelledSpecialistTasks(
         client,
@@ -217,4 +219,36 @@ function hasPauseRequest(metadata: unknown) {
 
 function hasCancelRequest(metadata: unknown) {
   return readLifecycleMarker(metadata, 'cancel_requested_at') !== null;
+}
+
+async function markWorkflowWorkItemsPaused(
+  client: { query: DatabasePool['query'] },
+  tenantId: string,
+  workflowId: string,
+  pauseRequestedAt: string,
+) {
+  await client.query(
+    `UPDATE workflow_work_items
+        SET metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb,
+            updated_at = now()
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND completed_at IS NULL`,
+    [tenantId, workflowId, { pause_requested_at: pauseRequestedAt }],
+  );
+}
+
+async function clearWorkflowWorkItemPauseMarkers(
+  client: { query: DatabasePool['query'] },
+  tenantId: string,
+  workflowId: string,
+) {
+  await client.query(
+    `UPDATE workflow_work_items
+        SET metadata = COALESCE(metadata, '{}'::jsonb) - 'pause_requested_at',
+            updated_at = now()
+      WHERE tenant_id = $1
+        AND workflow_id = $2`,
+    [tenantId, workflowId],
+  );
 }

@@ -37,6 +37,9 @@ describe('WorkflowControlService', () => {
         if (sql.startsWith('UPDATE workflow_activations')) {
           return { rowCount: 0, rows: [] };
         }
+        if (sql.startsWith('UPDATE workflow_work_items')) {
+          return { rowCount: 1, rows: [] };
+        }
         if (sql.startsWith('UPDATE workflows')) {
           return {
             rowCount: 1,
@@ -141,6 +144,9 @@ describe('WorkflowControlService', () => {
         }
         if (sql.startsWith('UPDATE workflow_activations')) {
           return { rowCount: 1, rows: [{ id: 'activation-1' }] };
+        }
+        if (sql.startsWith('UPDATE workflow_work_items')) {
+          return { rowCount: 2, rows: [] };
         }
         if (sql.startsWith('UPDATE agents')) {
           return { rowCount: 2, rows: [] };
@@ -247,6 +253,16 @@ describe('WorkflowControlService', () => {
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE workflow_activations'),
       ['tenant-1', 'workflow-1', 'Workflow paused by operator.'],
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      [
+        'tenant-1',
+        'workflow-1',
+        expect.objectContaining({
+          pause_requested_at: expect.any(String),
+        }),
+      ],
     );
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE agents'),
@@ -384,6 +400,9 @@ describe('WorkflowControlService', () => {
         if (sql.startsWith('UPDATE tasks t') && sql.includes("t.id = ANY($3::uuid[])")) {
           return { rowCount: 0, rows: [] };
         }
+        if (sql.startsWith('UPDATE workflow_work_items')) {
+          return { rowCount: 1, rows: [] };
+        }
         if (sql.startsWith('UPDATE workflows')) {
           return { rowCount: 1, rows: [] };
         }
@@ -489,6 +508,9 @@ describe('WorkflowControlService', () => {
         if (sql.startsWith('UPDATE workflows')) {
           return { rowCount: 1, rows: [] };
         }
+        if (sql.startsWith('UPDATE workflow_work_items')) {
+          return { rowCount: 2, rows: [] };
+        }
         if (sql.startsWith('INSERT INTO workflow_activations')) {
           return {
             rowCount: 1,
@@ -516,6 +538,10 @@ describe('WorkflowControlService', () => {
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('t.id = ANY($3::uuid[])'),
       ['tenant-1', 'workflow-1', ['task-reopened-after-resume']],
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      ['tenant-1', 'workflow-1'],
     );
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({
