@@ -28,6 +28,7 @@ describe('workflow live console support', () => {
       { filter: 'all', label: 'All', count: 4 },
       { filter: 'turn_updates', label: 'Turn updates', count: 3 },
       { filter: 'briefs', label: 'Briefs', count: 1 },
+      { filter: 'steering', label: 'Steering', count: 0 },
     ]);
   });
 
@@ -56,11 +57,13 @@ describe('workflow live console support', () => {
       all: 137,
       turn_updates: 101,
       briefs: 36,
+      steering: 0,
     });
     expect(buildWorkflowConsoleFilterDescriptorsWithCounts(items, counts)).toEqual([
       { filter: 'all', label: 'All', count: 137 },
       { filter: 'turn_updates', label: 'Turn updates', count: 101 },
       { filter: 'briefs', label: 'Briefs', count: 36 },
+      { filter: 'steering', label: 'Steering', count: 0 },
     ]);
     expect(filterWorkflowConsoleItems(items, 'all').map((item) => item.item_id)).toEqual([
       'update-1',
@@ -90,6 +93,7 @@ describe('workflow live console support', () => {
       all: 9,
       turn_updates: 3,
       briefs: 1,
+      steering: 0,
     });
   });
 
@@ -117,6 +121,7 @@ describe('workflow live console support', () => {
       all: 137,
       turn_updates: 101,
       briefs: 36,
+      steering: 0,
     });
   });
 
@@ -134,6 +139,7 @@ describe('workflow live console support', () => {
       { filter: 'all', label: 'All', count: 4 },
       { filter: 'turn_updates', label: 'Turn updates', count: 3 },
       { filter: 'briefs', label: 'Briefs', count: 1 },
+      { filter: 'steering', label: 'Steering', count: 0 },
     ]);
     expect(filterWorkflowConsoleItems(items, 'all').map((item) => item.item_id)).toEqual([
       'update-1',
@@ -324,6 +330,7 @@ describe('workflow live console support', () => {
       { filter: 'all', label: 'All', count: 2 },
       { filter: 'turn_updates', label: 'Turn updates', count: 2 },
       { filter: 'briefs', label: 'Briefs', count: 0 },
+      { filter: 'steering', label: 'Steering', count: 0 },
     ]);
   });
 

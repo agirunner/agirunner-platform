@@ -57,6 +57,15 @@ describe('WorkflowLiveConsole', () => {
               summary: 'Execution turn completed for Implementation Engineer.',
               created_at: '2026-03-27T04:04:00.000Z',
             },
+            {
+              item_id: 'steer-1',
+              item_kind: 'execution_turn',
+              source_kind: 'operator',
+              source_label: 'Operator',
+              headline: 'Tighten the approval brief before resubmitting it.',
+              summary: 'Operator guidance recorded.',
+              created_at: '2026-03-27T04:03:30.000Z',
+            },
           ],
           { includePlatformNotice: true },
         ),
@@ -70,6 +79,7 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('data-live-console-filter="all"');
     expect(html).toContain('data-live-console-filter="turn_updates"');
     expect(html).toContain('data-live-console-filter="briefs"');
+    expect(html).toContain('data-live-console-filter="steering"');
     expect(html).toContain('data-live-console-follow-mode="live"');
     expect(html).toContain('data-live-console-follow-control="live"');
     expect(html).toContain('data-live-console-follow-control="pause"');
@@ -89,6 +99,7 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('All');
     expect(html).toContain('Turn updates');
     expect(html).toContain('Briefs');
+    expect(html).toContain('Steering');
     expect(html).toContain('[Brief]');
     expect(html).toContain('>1<');
     expect(html).toContain('>7<');
@@ -105,11 +116,14 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('A structured brief was published.');
     expect(html).toContain('Platform:');
     expect(html).toContain('Transport retried after reconnect.');
+    expect(html).toContain('Operator:');
+    expect(html).toContain('Tighten the approval brief before resubmitting it.');
     expect(html).toContain('Workflow: Release workflow');
     expect(html).toContain('Showing the workflow stream for Workflow: Release workflow.');
     expect(html).toContain('data-terminal-entry="brief"');
     expect(html).toContain('data-terminal-entry="update"');
     expect(html).toContain('data-terminal-entry="notice"');
+    expect(html).toContain('data-terminal-source="operator"');
     expect(html).toContain('rounded-xl border border-slate-900/90 bg-[#08111f]');
     expect(html).toContain('border-b border-slate-800/80 bg-slate-950/80');
     expect(html).toContain('border-t border-slate-900/90 bg-slate-950/70');
@@ -156,6 +170,7 @@ describe('WorkflowLiveConsole', () => {
         all: number;
         turn_updates: number;
         briefs: number;
+        steering: number;
       };
     };
 
@@ -164,6 +179,7 @@ describe('WorkflowLiveConsole', () => {
       all: 137,
       turn_updates: 101,
       briefs: 36,
+      steering: 9,
     };
 
     const html = renderToStaticMarkup(
@@ -181,6 +197,8 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('data-live-console-filter-count="101"');
     expect(html).toContain('data-live-console-filter="briefs"');
     expect(html).toContain('data-live-console-filter-count="36"');
+    expect(html).toContain('data-live-console-filter="steering"');
+    expect(html).toContain('data-live-console-filter-count="9"');
     expect(html).not.toContain('data-live-console-filter-count="3"');
     expect(html).not.toContain('data-live-console-filter-count="2"');
     expect(html).not.toContain('data-live-console-filter-count="1"');
@@ -445,6 +463,32 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('Visible execution turn.');
     expect(html).not.toContain('Legacy operator update that should stay hidden.');
     expect(html).toContain('data-live-console-filter-count="1"');
+  });
+
+  it('counts operator guidance rows under the steering filter without classifying them as briefs', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowLiveConsole, {
+        packet: createPacket([
+          {
+            item_id: 'steer-1',
+            item_kind: 'execution_turn',
+            source_kind: 'operator',
+            source_label: 'Operator',
+            headline: 'Pause packaging until the rollback note is updated.',
+            summary: 'Operator guidance recorded.',
+            created_at: '2026-03-27T04:03:30.000Z',
+          },
+        ]),
+        scopeLabel: 'Workflow: Release workflow',
+        scopeSubject: 'workflow',
+        onLoadMore: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('data-live-console-filter="steering"');
+    expect(html).toContain('data-live-console-filter-count="1"');
+    expect(html).toContain('Operator:');
+    expect(html).toContain('Pause packaging until the rollback note is updated.');
   });
 
   it('sanitizes literal fallback action rows and suppresses empty helper tool calls', () => {

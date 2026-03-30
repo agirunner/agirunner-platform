@@ -47,7 +47,7 @@ const WORKFLOW_CONSOLE_ROLE_TONES = {
   },
 } as const;
 
-export type WorkflowConsoleFilter = 'all' | 'turn_updates' | 'briefs';
+export type WorkflowConsoleFilter = 'all' | 'turn_updates' | 'briefs' | 'steering';
 export type WorkflowConsoleScopeSubject = 'workflow' | 'work item' | 'task';
 export type WorkflowConsoleFollowMode = 'live' | 'paused';
 export type WorkflowConsoleFilterCounts = Record<WorkflowConsoleFilter, number>;
@@ -56,6 +56,7 @@ const WORKFLOW_CONSOLE_FILTER_LABELS: Record<WorkflowConsoleFilter, string> = {
   all: 'All',
   turn_updates: 'Turn updates',
   briefs: 'Briefs',
+  steering: 'Steering',
 };
 
 export function formatWorkflowActivitySourceLabel(sourceLabel: string, sourceKind: string): string {
@@ -118,6 +119,7 @@ export function resolveWorkflowConsoleFilterCounts(
     all: visibleItems.length,
     turn_updates: visibleItems.filter(isWorkflowConsoleTurnUpdate).length,
     briefs: visibleItems.filter(isWorkflowConsoleBrief).length,
+    steering: visibleItems.filter(isWorkflowConsoleSteering).length,
   };
   const packetCounts = readWorkflowConsoleFilterCounts(packet);
 
@@ -125,6 +127,7 @@ export function resolveWorkflowConsoleFilterCounts(
     all: packetCounts.all ?? readWorkflowConsoleTotalCount(packet) ?? derivedCounts.all,
     turn_updates: packetCounts.turn_updates ?? derivedCounts.turn_updates,
     briefs: packetCounts.briefs ?? derivedCounts.briefs,
+    steering: packetCounts.steering ?? derivedCounts.steering,
   };
 }
 
@@ -163,6 +166,9 @@ export function filterWorkflowConsoleItems(
   if (filter === 'briefs') {
     return visibleItems.filter(isWorkflowConsoleBrief);
   }
+  if (filter === 'steering') {
+    return visibleItems.filter(isWorkflowConsoleSteering);
+  }
   return visibleItems.filter(isWorkflowConsoleTurnUpdate);
 }
 
@@ -185,6 +191,9 @@ export function describeWorkflowConsoleEmptyState(
 ): string {
   if (filter === 'briefs') {
     return `No briefs recorded for ${scopeLabel} yet.`;
+  }
+  if (filter === 'steering') {
+    return `No steering entries recorded for ${scopeLabel} yet.`;
   }
   if (filter === 'turn_updates') {
     return `No turn updates recorded for ${scopeLabel} yet.`;
@@ -350,7 +359,14 @@ function isWorkflowConsoleBrief(item: DashboardWorkflowLiveConsoleItem): boolean
 }
 
 function isWorkflowConsoleTurnUpdate(item: DashboardWorkflowLiveConsoleItem): boolean {
-  return item.item_kind === 'execution_turn' || item.item_kind === 'platform_notice';
+  return (
+    (item.item_kind === 'execution_turn' || item.item_kind === 'platform_notice')
+    && !isWorkflowConsoleSteering(item)
+  );
+}
+
+function isWorkflowConsoleSteering(item: DashboardWorkflowLiveConsoleItem): boolean {
+  return item.source_kind === 'operator';
 }
 
 function readNonEmptyText(value: string): string | null {
@@ -376,6 +392,8 @@ function readWorkflowConsoleFilterCounts(
   const turnUpdatesCount =
     normalizeConsoleCount(rawCounts.turn_updates) ?? normalizeConsoleCount(rawCounts.turnUpdates);
   const briefsCount = normalizeConsoleCount(rawCounts.briefs);
+  const steeringCount =
+    normalizeConsoleCount(rawCounts.steering) ?? normalizeConsoleCount(rawCounts.steeringCount);
 
   if (allCount !== null) {
     counts.all = allCount;
@@ -385,6 +403,9 @@ function readWorkflowConsoleFilterCounts(
   }
   if (briefsCount !== null) {
     counts.briefs = briefsCount;
+  }
+  if (steeringCount !== null) {
+    counts.steering = steeringCount;
   }
 
   return counts;

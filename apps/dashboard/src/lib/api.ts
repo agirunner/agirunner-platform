@@ -615,6 +615,7 @@ export interface DashboardWorkflowLiveConsolePacket extends DashboardWorkflowOpe
     all?: number;
     turn_updates?: number;
     briefs?: number;
+    steering?: number;
   };
   next_cursor: string | null;
   live_visibility_mode?: 'standard' | 'enhanced';
