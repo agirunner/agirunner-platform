@@ -109,7 +109,7 @@ describe('workflows page support', () => {
     ).toBe('Add Work');
   });
 
-  it('describes the exact workbench scope banner for workflow and work item views only', () => {
+  it('describes the exact shell scope banner for workflow and work item views only', () => {
     expect(
       describeWorkflowWorkbenchScope({
         scopeKind: 'workflow',
@@ -121,7 +121,7 @@ describe('workflows page support', () => {
       scopeKind: 'workflow',
       title: 'Workflow',
       subject: 'workflow',
-      banner: 'Workflow: Release Workflow',
+      banner: 'Workflow · Release Workflow',
     });
     expect(
       describeWorkflowWorkbenchScope({
@@ -134,7 +134,7 @@ describe('workflows page support', () => {
       scopeKind: 'selected_work_item',
       title: 'Work item',
       subject: 'work item',
-      banner: 'Work item: Prepare release bundle',
+      banner: 'Work item · Prepare release bundle',
     });
   });
 
@@ -150,7 +150,7 @@ describe('workflows page support', () => {
       scopeKind: 'selected_work_item',
       title: 'Work item',
       subject: 'work item',
-      banner: 'Work item: Prepare release bundle',
+      banner: 'Work item · Prepare release bundle',
     });
   });
 

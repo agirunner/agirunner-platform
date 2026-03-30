@@ -35,22 +35,29 @@ export function WorkflowBoardTaskStack(props: {
 
     if (isWorkItemSelectable) {
       return (
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           data-work-item-task-area="true"
-          className="grid w-full gap-3 rounded-lg border border-border/60 bg-muted/5 p-2.5 text-left transition-colors hover:bg-muted/10"
+          className="grid w-full gap-2 text-left"
           onClick={() => props.onSelectWorkItem?.()}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              props.onSelectWorkItem?.();
+            }
+          }}
         >
           <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
             Tasks
           </span>
           {content}
-        </button>
+        </div>
       );
     }
 
     return (
-      <section className="rounded-lg border border-border/60 bg-muted/5 p-2.5">
+      <section className="grid gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
           Tasks
         </p>
@@ -65,7 +72,7 @@ export function WorkflowBoardTaskStack(props: {
 
   return (
     <details
-      className="rounded-lg border border-border/60 bg-muted/5 p-2.5"
+      className="grid gap-2"
       open={isOpen}
       data-work-item-task-area={isWorkItemSelectable ? 'true' : undefined}
       onClick={props.onSelectWorkItem}
@@ -93,12 +100,13 @@ function TaskRowsContainer(props: {
       ? 'grid max-h-[22rem] overflow-y-auto overscroll-contain pr-1'
       : 'grid max-h-[16rem] overflow-y-auto overscroll-contain pr-1';
 
+  if (!shouldBoundHeight) {
+    return <div className="mt-1">{props.children}</div>;
+  }
+
   return (
-    <div className="mt-3 overflow-hidden rounded-md border border-border/50 bg-background/30 p-1.5">
-      <div
-        className={shouldBoundHeight ? maxHeightClassName : 'grid'}
-        style={shouldBoundHeight ? THEMED_SCROLL_STYLE : undefined}
-      >
+    <div className="mt-1">
+      <div className={maxHeightClassName} style={THEMED_SCROLL_STYLE}>
         {props.children}
       </div>
     </div>

@@ -63,7 +63,7 @@ describe('WorkflowHistory', () => {
       ),
     );
 
-    expect(html).toContain('Briefs');
+    expect(html).toContain('History');
     expect(html).toContain('Policy assessment settled revision 3');
     expect(html).toContain('Revision 3 is internally consistent and ready for the next workflow action.');
     expect(html).not.toContain('Milestone Brief');
@@ -128,7 +128,7 @@ describe('WorkflowHistory', () => {
       ),
     );
 
-    expect(html).toContain('Briefs');
+    expect(html).toContain('History');
     expect(html).not.toContain('Scoped to selected task');
     expect(html).not.toContain('Scoped to selected work item');
   });

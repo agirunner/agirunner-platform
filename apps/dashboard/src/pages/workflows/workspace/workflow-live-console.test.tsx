@@ -36,7 +36,7 @@ describe('WorkflowLiveConsole', () => {
     expect(html).not.toContain('Older lines stream in automatically as you scroll upward.');
   });
 
-  it('renders updates and briefs as single-line terminal entries', () => {
+  it('renders updates as single-line terminal entries and briefs with inline detail when present', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowLiveConsole, {
         packet: createPacket(
@@ -102,7 +102,7 @@ describe('WorkflowLiveConsole', () => {
       'Orchestrator: </span><span class="font-semibold text-emerald-200">[Brief] </span>',
     );
     expect(html).toContain('Workflow reached approval milestone');
-    expect(html).not.toContain('A structured brief was published.');
+    expect(html).toContain('A structured brief was published.');
     expect(html).toContain('Platform:');
     expect(html).toContain('Transport retried after reconnect.');
     expect(html).toContain('Workflow: Release workflow');
@@ -116,8 +116,10 @@ describe('WorkflowLiveConsole', () => {
     expect(html).toContain('inline-flex min-w-0 items-center gap-2 rounded-md border px-2.5 py-1.5');
     expect(html).toContain('flex min-w-0 items-center justify-between gap-3');
     expect(html).toContain('grid gap-px');
-    expect(html).toContain('flex min-w-0 items-baseline gap-2 border-b border-slate-950/90 px-4 py-2 font-mono text-sm leading-6 text-slate-100');
-    expect(html).toContain('min-w-0 flex-1 truncate text-slate-100');
+    expect(html).toContain('flex min-w-0 items-start gap-2 border-b border-slate-950/90 px-4 py-2 font-mono text-sm leading-6 text-slate-100');
+    expect(html).toContain('min-w-0 flex-1');
+    expect(html).toContain('truncate text-slate-100');
+    expect(html).toContain('truncate text-xs leading-5 text-slate-400');
     expect(html).toContain('shrink-0 pl-3 text-right text-xs tabular-nums text-slate-500');
     expect(html).toContain('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden');
     expect(html).toContain('flex shrink-0 items-center justify-end gap-1.5');
@@ -330,10 +332,11 @@ describe('WorkflowLiveConsole', () => {
       }),
     );
 
-    expect(html).toContain('flex min-w-0 items-baseline gap-2');
+    expect(html).toContain('flex min-w-0 items-start gap-2');
     expect(html).toContain('border-b border-slate-950/90');
     expect(html).toContain('self-start text-emerald-300');
-    expect(html).toContain('min-w-0 flex-1 truncate text-slate-100');
+    expect(html).toContain('min-w-0 flex-1');
+    expect(html).toContain('truncate text-slate-100');
     expect(html).toContain('shrink-0 pl-3 text-right text-xs tabular-nums text-slate-500');
     expect(html).toContain('overflow-x-hidden overflow-y-auto');
     expect(html).not.toContain('break-words');
@@ -484,8 +487,8 @@ describe('WorkflowLiveConsole', () => {
     expect(html).not.toContain('request_id=');
     expect(html).not.toContain('task_id=');
     expect(html).not.toContain('calling shell_exec()');
-    expect(html).not.toContain('calling file_read(');
-    expect(html).toContain('data-live-console-filter-count="1"');
+    expect(html).toContain('calling file_read(path=&quot;task input&quot;)');
+    expect(html).toContain('data-live-console-filter-count="2"');
   });
 
   it('removes the queued-update affordance from the terminal console source', () => {

@@ -12,6 +12,16 @@ import type {
 import { WorkflowStateStrip } from './workflow-state-strip.js';
 
 describe('WorkflowStateStrip', () => {
+  it('removes the per-workflow live visibility control from the header so controls stay focused on workflow actions', () => {
+    const source = readFileSync(new URL('./workflow-state-strip.tsx', import.meta.url), 'utf8');
+
+    expect(source).toContain('xl:items-start');
+    expect(source).toContain('className="grid gap-2.5 sm:gap-3 xl:justify-items-end xl:pl-2"');
+    expect(source).toContain('className="flex flex-wrap items-center justify-start gap-2 xl:justify-end"');
+    expect(source).not.toContain('Live visibility');
+    expect(source).not.toContain('workflow-live-visibility-');
+  });
+
   it('renders the add-work CTA from a passed label instead of a hardcoded generic header label', () => {
     const source = readFileSync(new URL('./workflow-state-strip.tsx', import.meta.url), 'utf8');
 
@@ -27,13 +37,11 @@ describe('WorkflowStateStrip', () => {
         createElement(WorkflowStateStrip, {
           workflow: createWorkflowCard(),
           stickyStrip: createStickyStrip(),
-          workflowSettings: null,
           board: createBoard(),
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
@@ -41,10 +49,11 @@ describe('WorkflowStateStrip', () => {
     expect(html).toContain('Work Items');
     expect(html).toContain('2 completed');
     expect(html).toContain('Specialist Tasks');
-    expect(html).toContain('Controls');
+    expect(html).toContain('Workflow');
+    expect(html).toContain('Playbook');
+    expect(html).toContain('Updated');
     expect(html).toContain('3 active tasks');
-    expect(html).toContain('Live visibility');
-    expect(html).not.toContain('Playbook');
+    expect(html).not.toContain('Live visibility');
     expect(html).not.toContain('Workspace');
   });
 
@@ -63,13 +72,11 @@ describe('WorkflowStateStrip', () => {
           stickyStrip: createStickyStrip({
             active_task_count: 1,
           }),
-          workflowSettings: null,
           board: createBoard(),
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
@@ -99,13 +106,11 @@ describe('WorkflowStateStrip', () => {
             active_task_count: 0,
             active_work_item_count: 0,
           }),
-          workflowSettings: null,
           board: createBoard(),
           selectedScopeLabel: 'workflows-intake-01',
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
@@ -119,19 +124,20 @@ describe('WorkflowStateStrip', () => {
     expect(html).not.toContain('Waiting By Design');
     expect(html).not.toContain('Workflow is waiting by design');
     expect(html).not.toContain('Awaiting Intake');
-    expect(html).toContain('Live visibility');
+    expect(html).not.toContain('Live visibility');
     expect(html).not.toContain('grid gap-3 border-t border-border/60 pt-4 md:grid-cols-2 xl:grid-cols-4');
     expect(html).not.toContain('grid gap-3 border-t border-border/60 pt-4 xl:border-l xl:border-t-0 xl:pl-6 xl:pt-0');
     expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/95 p-3 shadow-sm');
     expect(html).not.toContain('rounded-xl border border-border/70 bg-muted/5 px-2.5 py-2 text-left shadow-none');
-    expect(html).toContain('rounded-xl border border-border/70 bg-background/90 px-3 py-3 text-left shadow-sm');
+    expect(html).toContain('rounded-xl border border-border/70 bg-muted/20 px-3 py-3 text-left shadow-sm');
+    expect(html).not.toContain('rounded-xl border border-border/70 bg-background/90 px-3 py-3 text-left shadow-sm');
     expect(html).not.toContain('label class="flex items-center gap-2 rounded-xl border border-border/70 bg-muted/10 px-2.5 py-1.5 text-[11px] text-muted-foreground"');
     expect(html).not.toContain('Requests and responses');
     expect(html).not.toContain('<p class="text-xs text-muted-foreground">Playbook • Workspace</p>');
     expect(html).not.toContain('Accepting new work');
   });
 
-  it('shows the selected workbench scope in the workflow overview card when a narrower slice is focused', () => {
+  it('uses the same value scale and weight across all four summary cards', () => {
     const html = renderToStaticMarkup(
       createElement(
         QueryClientProvider,
@@ -139,19 +145,40 @@ describe('WorkflowStateStrip', () => {
         createElement(WorkflowStateStrip, {
           workflow: createWorkflowCard(),
           stickyStrip: createStickyStrip(),
-          workflowSettings: null,
+          board: createBoard(),
+          selectedScopeLabel: null,
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+          onOpenRedrive: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html.match(/text-base font-semibold leading-5 text-foreground/g)?.length ?? 0).toBe(4);
+    expect(html).not.toContain('text-sm font-semibold leading-5 text-foreground sm:text-base');
+  });
+
+  it('shows the selected work-item scope as a compact narrowed row when a narrower slice is focused', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard(),
+          stickyStrip: createStickyStrip(),
           board: createBoard(),
           selectedScopeLabel: 'Verify release candidate',
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
 
-    expect(html).toContain('Workbench scope');
+    expect(html).toContain('Work item');
     expect(html).toContain('Verify release candidate');
+    expect(html).not.toContain('Workbench scope');
+    expect(html).not.toContain('Viewing:');
   });
 
   it('shows add-or-modify-work only when the platform marks it legal', () => {
@@ -181,13 +208,11 @@ describe('WorkflowStateStrip', () => {
             ],
           }),
           stickyStrip: createStickyStrip(),
-          workflowSettings: null,
           board: createBoard(),
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
@@ -218,13 +243,11 @@ describe('WorkflowStateStrip', () => {
             ],
           }),
           stickyStrip: createStickyStrip(),
-          workflowSettings: null,
           board: createBoard(),
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
@@ -253,13 +276,11 @@ describe('WorkflowStateStrip', () => {
             ],
           }),
           stickyStrip: createStickyStrip(),
-          workflowSettings: null,
           board: createBoard(),
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
@@ -311,13 +332,11 @@ describe('WorkflowStateStrip', () => {
             ],
           }),
           stickyStrip: createStickyStrip(),
-          workflowSettings: null,
           board: createBoard(),
           selectedScopeLabel: 'Task: Verify deliverable',
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
@@ -365,13 +384,11 @@ describe('WorkflowStateStrip', () => {
             ],
           }),
           stickyStrip: createStickyStrip({ posture: 'paused' }),
-          workflowSettings: null,
           board: createBoard(),
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
@@ -411,13 +428,11 @@ describe('WorkflowStateStrip', () => {
             ],
           }),
           stickyStrip: createStickyStrip({ posture: 'cancelled' }),
-          workflowSettings: null,
           board: createBoard(),
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
@@ -471,23 +486,21 @@ describe('WorkflowStateStrip', () => {
             ],
           }),
           stickyStrip: createStickyStrip(),
-          workflowSettings: null,
           board: createBoard(),
           selectedScopeLabel: 'Review incoming packet',
           addWorkLabel: 'Modify Work',
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
 
     expect(html).toContain('Pause');
     expect(html).toContain('Cancel');
-    expect(html).toContain('Redrive');
     expect(html).toContain('Modify Work');
-    expect(html).toContain('Controls');
+    expect(html).toContain('Playbook');
+    expect(html).not.toContain('Redrive');
     expect(html).not.toContain('Steering');
     expect(html).not.toContain('Workflow-level actions only');
   });
@@ -531,13 +544,11 @@ describe('WorkflowStateStrip', () => {
           stickyStrip: createStickyStrip({
             posture: 'paused',
           }),
-          workflowSettings: null,
           board: createBoard(),
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
@@ -562,13 +573,11 @@ describe('WorkflowStateStrip', () => {
           stickyStrip: createStickyStrip({
             posture: 'paused',
           }),
-          workflowSettings: null,
           board: createBoard(),
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
@@ -593,13 +602,11 @@ describe('WorkflowStateStrip', () => {
           stickyStrip: createStickyStrip({
             posture: 'cancelled',
           }),
-          workflowSettings: null,
           board: createBoard(),
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
@@ -623,13 +630,11 @@ describe('WorkflowStateStrip', () => {
           stickyStrip: createStickyStrip({
             posture: 'cancelling',
           }),
-          workflowSettings: null,
           board: createBoard(),
           selectedScopeLabel: null,
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );
@@ -656,7 +661,6 @@ describe('WorkflowStateStrip', () => {
             active_task_count: 1,
             active_work_item_count: 0,
           }),
-          workflowSettings: null,
           board: createBoard({
             work_items: [],
           }),
@@ -664,7 +668,6 @@ describe('WorkflowStateStrip', () => {
           onTabChange: vi.fn(),
           onAddWork: vi.fn(),
           onOpenRedrive: vi.fn(),
-          onVisibilityModeChange: vi.fn(),
         }),
       ),
     );

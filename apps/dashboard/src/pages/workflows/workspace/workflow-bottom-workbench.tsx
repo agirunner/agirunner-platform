@@ -73,6 +73,7 @@ export function WorkflowBottomWorkbench(props: {
     ...props,
     selectedWorkItemTitle: currentWorkItemTitle,
   });
+  const activeTab = props.activeTab === 'steering' ? 'details' : props.activeTab;
   const counts = props.packet.bottom_tabs.counts;
   const liveConsoleCount = props.isScopeLoading
     ? undefined
@@ -85,16 +86,9 @@ export function WorkflowBottomWorkbench(props: {
 
   return (
     <section className="grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-0 overflow-hidden">
-      <div className="flex min-w-0 flex-wrap items-start justify-between gap-2 border-b border-border/60 px-4 py-3">
-        <div className="grid gap-0.5">
-          <p className="text-sm font-semibold text-foreground">Workflow Workbench</p>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            Scope
-          </p>
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <Badge variant="outline">{resolvedScope.title}</Badge>
-            <p className="text-sm font-semibold text-foreground">{resolvedScope.banner}</p>
-          </div>
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 px-4 py-2.5">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-foreground">{resolvedScope.banner}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {resolvedScope.scopeKind !== 'workflow' ? (
@@ -105,46 +99,40 @@ export function WorkflowBottomWorkbench(props: {
         </div>
       </div>
 
-      <div className="flex min-w-0 gap-2 overflow-x-auto border-b border-border/60 px-4 py-2.5 pb-3 sm:flex-wrap sm:overflow-visible sm:pb-2.5">
+      <div className="flex min-w-0 gap-1.5 overflow-x-auto px-4 pb-2 pt-1 sm:flex-wrap sm:overflow-visible">
         <WorkbenchTabButton
           label="Details"
-          isActive={props.activeTab === 'details'}
+          isActive={activeTab === 'details'}
           onClick={() => props.onTabChange('details')}
         />
         <WorkbenchTabButton
           label="Needs Action"
           count={counts.needs_action}
-          isActive={props.activeTab === 'needs_action'}
+          isActive={activeTab === 'needs_action'}
           onClick={() => props.onTabChange('needs_action')}
-        />
-        <WorkbenchTabButton
-          label="Steering"
-          count={counts.steering}
-          isActive={props.activeTab === 'steering'}
-          onClick={() => props.onTabChange('steering')}
         />
         <WorkbenchTabButton
           label="Live Console"
           count={liveConsoleCount}
-          isActive={props.activeTab === 'live_console'}
+          isActive={activeTab === 'live_console'}
           onClick={() => props.onTabChange('live_console')}
         />
         <WorkbenchTabButton
-          label="Briefs"
-          count={counts.history}
-          isActive={props.activeTab === 'history'}
+          label="History"
+          count={Math.max(props.packet.briefs?.total_count ?? 0, counts.briefs ?? counts.history ?? 0)}
+          isActive={activeTab === 'history'}
           onClick={() => props.onTabChange('history')}
         />
         <WorkbenchTabButton
           label="Deliverables"
           count={counts.deliverables}
-          isActive={props.activeTab === 'deliverables'}
+          isActive={activeTab === 'deliverables'}
           onClick={() => props.onTabChange('deliverables')}
         />
       </div>
 
       <div className={tabPanelShellClassName}>
-        {props.activeTab === 'live_console' ? (
+        {activeTab === 'live_console' ? (
           <div className={liveConsoleTabPanelContentClassName}>
             <WorkflowLiveConsole
               packet={props.packet.live_console}
@@ -156,8 +144,8 @@ export function WorkflowBottomWorkbench(props: {
           </div>
         ) : (
           <div className={scrollableTabPanelContentClassName}>
-            <div className="flex min-h-full min-w-0 flex-1 flex-col">
-              {props.activeTab === 'details' && props.workflow ? (
+            {activeTab === 'details' && props.workflow ? (
+              <div className="grid gap-5">
                 <WorkflowDetails
                   workflow={props.workflow}
                   stickyStrip={props.stickyStrip}
@@ -173,18 +161,6 @@ export function WorkflowBottomWorkbench(props: {
                   workflowParameters={props.workflowParameters}
                   scope={resolvedScope}
                 />
-              ) : null}
-              {props.activeTab === 'needs_action' && props.workflow ? (
-                <WorkflowNeedsAction
-                  workflowId={props.workflowId}
-                  workspaceId={props.workflow.workspaceId}
-                  packet={props.packet.needs_action}
-                  scopeSubject={resolvedScope.subject}
-                  scopeLabel={resolvedScope.banner}
-                  onOpenAddWork={(workItemId) => props.onOpenAddWork(workItemId)}
-                />
-              ) : null}
-              {props.activeTab === 'steering' ? (
                 <WorkflowSteering
                   workflowId={props.workflowId}
                   workflowName={props.workflowName}
@@ -196,35 +172,45 @@ export function WorkflowBottomWorkbench(props: {
                   selectedTaskId={null}
                   selectedTaskTitle={null}
                   selectedTask={null}
-                  selectedWorkItemTasks={props.selectedWorkItemTasks as unknown as DashboardTaskRecord[]}
+                  selectedWorkItemTasks={currentScopedTaskRows as unknown as DashboardTaskRecord[]}
                   scope={resolvedScope}
                   interventions={props.packet.steering.recent_interventions}
                   messages={props.packet.steering.session.messages}
                   sessionId={props.packet.steering.session.session_id}
                   canAcceptRequest={props.packet.steering.steering_state.can_accept_request}
                 />
-              ) : null}
-              {props.activeTab === 'history' ? (
-                <WorkflowHistory
-                  workflowId={props.workflowId}
-                  packet={props.packet.history}
-                  selectedWorkItemId={currentWorkItemId}
-                  selectedTaskId={null}
-                  scopeSubject={resolvedScope.subject}
-                  onLoadMore={props.onLoadMoreActivity}
-                />
-              ) : null}
-              {props.activeTab === 'deliverables' ? (
-                <WorkflowDeliverables
-                  packet={props.packet.deliverables}
-                  selectedTask={null}
-                  selectedWorkItemId={currentWorkItemId}
-                  selectedWorkItemTitle={currentWorkItemTitle}
-                  scope={resolvedScope}
-                  onLoadMore={props.onLoadMoreDeliverables}
-                />
-              ) : null}
-            </div>
+              </div>
+            ) : null}
+            {activeTab === 'needs_action' && props.workflow ? (
+              <WorkflowNeedsAction
+                workflowId={props.workflowId}
+                workspaceId={props.workflow.workspaceId}
+                packet={props.packet.needs_action}
+                scopeSubject={resolvedScope.subject}
+                scopeLabel={resolvedScope.banner}
+                onOpenAddWork={(workItemId) => props.onOpenAddWork(workItemId)}
+              />
+            ) : null}
+            {activeTab === 'history' ? (
+              <WorkflowHistory
+                workflowId={props.workflowId}
+                packet={props.packet.briefs ?? props.packet.history}
+                selectedWorkItemId={currentWorkItemId}
+                selectedTaskId={null}
+                scopeSubject={resolvedScope.subject}
+                onLoadMore={props.onLoadMoreActivity}
+              />
+            ) : null}
+            {activeTab === 'deliverables' ? (
+              <WorkflowDeliverables
+                packet={props.packet.deliverables}
+                selectedTask={null}
+                selectedWorkItemId={currentWorkItemId}
+                selectedWorkItemTitle={currentWorkItemTitle}
+                scope={resolvedScope}
+                onLoadMore={props.onLoadMoreDeliverables}
+              />
+            ) : null}
           </div>
         )}
       </div>
@@ -250,7 +236,7 @@ function resolveWorkbenchScope(props: {
       title: 'Work item',
       subject: 'work item',
       name: workItemName,
-      banner: `Work item: ${workItemName}`,
+      banner: `Work item · ${workItemName}`,
     };
   }
 
@@ -259,7 +245,7 @@ function resolveWorkbenchScope(props: {
     title: 'Workflow',
     subject: 'workflow',
     name: props.workflowName,
-    banner: `Workflow: ${props.workflowName}`,
+    banner: `Workflow · ${props.workflowName}`,
   };
 }
 
@@ -282,8 +268,8 @@ function WorkbenchTabButton(props: {
       type="button"
       className={
         props.isActive
-          ? 'flex shrink-0 items-center gap-2 rounded-xl border border-sky-300 bg-sky-100/90 px-3 py-1.5 text-xs font-semibold text-sky-950 shadow-sm dark:border-sky-400/60 dark:bg-sky-400/15 dark:text-sky-50'
-          : 'flex shrink-0 items-center gap-2 rounded-xl border border-border/70 bg-background/80 px-3 py-1.5 text-xs font-semibold text-foreground transition-colors hover:bg-background'
+          ? 'flex shrink-0 items-center gap-2 rounded-md bg-sky-100/90 px-2.5 py-1 text-xs font-semibold text-sky-950 dark:bg-sky-400/15 dark:text-sky-50'
+          : 'flex shrink-0 items-center gap-2 rounded-md px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground'
       }
       onClick={props.onClick}
     >

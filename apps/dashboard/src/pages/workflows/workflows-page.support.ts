@@ -168,7 +168,7 @@ export function describeWorkflowWorkbenchScope(input: {
       title: 'Work item',
       subject: 'work item',
       name,
-      banner: `Work item: ${name}`,
+      banner: `Work item · ${name}`,
     };
   }
   const name = input.workflowName ?? 'Workflow';
@@ -177,7 +177,7 @@ export function describeWorkflowWorkbenchScope(input: {
     title: 'Workflow',
     subject: 'workflow',
     name,
-    banner: `Workflow: ${name}`,
+    banner: `Workflow · ${name}`,
   };
 }
 

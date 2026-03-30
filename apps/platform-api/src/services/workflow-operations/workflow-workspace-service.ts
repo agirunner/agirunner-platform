@@ -667,7 +667,7 @@ function buildBottomTabs(
   input: WorkflowWorkspaceQuery,
 ): WorkflowBottomTabsPacket {
   return {
-    default_tab: needsActionCount > 0 ? 'needs_action' : 'details',
+    default_tab: 'details',
     current_scope_kind:
       input.tabScope === 'selected_task' && input.taskId
         ? 'selected_task'
@@ -750,6 +750,9 @@ function filterLiveConsoleForSelectedScope(
   selectedScope: WorkflowWorkspacePacket['selected_scope'],
   workflowWorkItemIds: string[],
 ): WorkflowWorkspacePacket['live_console'] {
+  if (packet.scope_filtered && selectedScope.scope_kind !== 'workflow') {
+    return packet;
+  }
   const filteredItems = filterLiveConsoleItemsForSelectedScope(packet.items, selectedScope, workflowWorkItemIds);
   const visibleTotalCount = readLiveConsoleVisibleTotal(packet);
   const hasStableTotalCounts = shouldPreserveLiveConsoleTotals(packet);
@@ -1385,15 +1388,63 @@ function buildBoardNeedsActionResponses(
   if (actionKind === 'review_work_item' && directTask) {
     if (directTask.state === 'output_pending_assessment') {
       return [
-        buildNeedsActionResponse('approve_task_output', 'Approve output', directTask.id, 'task', 'none'),
-        buildNeedsActionResponse('reject_task', 'Reject', directTask.id, 'task', 'feedback', true),
-        buildNeedsActionResponse('request_changes_task', 'Request changes', directTask.id, 'task', 'feedback', true),
+        buildNeedsActionResponse(
+          'approve_task_output',
+          'Approve output',
+          directTask.id,
+          'task',
+          'none',
+          false,
+          directTask.work_item_id,
+        ),
+        buildNeedsActionResponse(
+          'reject_task',
+          'Reject',
+          directTask.id,
+          'task',
+          'feedback',
+          true,
+          directTask.work_item_id,
+        ),
+        buildNeedsActionResponse(
+          'request_changes_task',
+          'Request changes',
+          directTask.id,
+          'task',
+          'feedback',
+          true,
+          directTask.work_item_id,
+        ),
       ];
     }
     return [
-      buildNeedsActionResponse('approve_task', 'Approve', directTask.id, 'task', 'none'),
-      buildNeedsActionResponse('reject_task', 'Reject', directTask.id, 'task', 'feedback', true),
-      buildNeedsActionResponse('request_changes_task', 'Request changes', directTask.id, 'task', 'feedback', true),
+      buildNeedsActionResponse(
+        'approve_task',
+        'Approve',
+        directTask.id,
+        'task',
+        'none',
+        false,
+        directTask.work_item_id,
+      ),
+      buildNeedsActionResponse(
+        'reject_task',
+        'Reject',
+        directTask.id,
+        'task',
+        'feedback',
+        true,
+        directTask.work_item_id,
+      ),
+      buildNeedsActionResponse(
+        'request_changes_task',
+        'Request changes',
+        directTask.id,
+        'task',
+        'feedback',
+        true,
+        directTask.work_item_id,
+      ),
     ];
   }
   if ((actionKind === 'review_work_item' || actionKind === 'review_stage_gate') && gate?.status === 'awaiting_approval') {

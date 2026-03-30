@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowBoardTaskStack } from './workflow-board-task-stack.js';
 
 describe('WorkflowBoardTaskStack', () => {
-  it('makes the full task area reselect the parent work item in work-item view', () => {
+  it('makes the full task area reselect the parent work item in work-item view without using an invalid button wrapper', () => {
     const onSelectWorkItem = vi.fn();
     const element = WorkflowBoardTaskStack({
       tasks: [
@@ -21,12 +21,16 @@ describe('WorkflowBoardTaskStack', () => {
     });
 
     expect(isValidElement(element)).toBe(true);
-    expect(element.type).toBe('button');
+    expect(element.type).toBe('div');
+    expect(element.props.role).toBe('button');
+    expect(element.props.tabIndex).toBe(0);
     expect(element.props['data-work-item-task-area']).toBe('true');
 
     element.props.onClick();
+    element.props.onKeyDown({ key: 'Enter', preventDefault: vi.fn() });
+    element.props.onKeyDown({ key: ' ', preventDefault: vi.fn() });
 
-    expect(onSelectWorkItem).toHaveBeenCalledOnce();
+    expect(onSelectWorkItem).toHaveBeenCalledTimes(3);
   });
 
   it('keeps the selected work-item stack collapsible, open by default, and parent-selectable', () => {
@@ -95,6 +99,36 @@ describe('WorkflowBoardTaskStack', () => {
     expect(html).not.toContain('data-task-selectable="true"');
   });
 
+  it('drops the redundant task-stack shell while keeping per-task rows visible', () => {
+    const html = renderToStaticMarkup(
+      WorkflowBoardTaskStack({
+        tasks: [
+          {
+            id: 'task-1',
+            title: 'Assess packet',
+            role: 'policy-assessor',
+            state: 'in_progress',
+          },
+          {
+            id: 'task-2',
+            title: 'Review packet',
+            role: 'mixed-reviewer',
+            state: 'ready',
+          },
+        ],
+        collapsible: false,
+        onSelectWorkItem: () => undefined,
+      }),
+    );
+
+    expect(html).toContain('data-work-item-task-area="true"');
+    expect(html).toContain('data-work-item-task-row="true"');
+    expect(html).toContain('Working now');
+    expect(html).toContain('Ready next');
+    expect(html).not.toContain('rounded-lg border border-border/60 bg-muted/5 p-2.5');
+    expect(html).not.toContain('rounded-md border border-border/50 bg-background/30');
+  });
+
   it('bounds large task lists with an internal themed scroll treatment', () => {
     const html = renderToStaticMarkup(
       WorkflowBoardTaskStack({
@@ -111,7 +145,7 @@ describe('WorkflowBoardTaskStack', () => {
 
     expect(html).toContain('max-h-[16rem] overflow-y-auto overscroll-contain pr-1');
     expect(html).toContain('scrollbar-width:thin');
-    expect(html).toContain('rounded-md border border-border/50 bg-background/30');
+    expect(html).not.toContain('rounded-md border border-border/50 bg-background/30');
   });
 
   it('shows a taller in-card task viewport when the lane only has a single work item', () => {

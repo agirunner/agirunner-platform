@@ -5,6 +5,7 @@ import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
 import { Textarea } from '../../../components/ui/textarea.js';
 import type {
+  DashboardWorkflowNeedsActionDetail,
   DashboardWorkflowNeedsActionItem,
   DashboardWorkflowNeedsActionPacket,
   DashboardWorkflowNeedsActionResponseAction,
@@ -55,10 +56,6 @@ export function WorkflowNeedsAction(props: {
   });
 
   function handleAction(item: DashboardWorkflowNeedsActionItem, action: DashboardWorkflowNeedsActionResponseAction): void {
-    if (action.kind === 'add_work_item') {
-      props.onOpenAddWork?.(action.target.target_kind === 'work_item' ? action.target.target_id : null);
-      return;
-    }
     if (action.prompt_kind !== 'none') {
       setPromptAction(action);
       setPromptValue('');
@@ -77,7 +74,7 @@ export function WorkflowNeedsAction(props: {
     if (!promptValue.trim()) {
       return;
     }
-    const promptItem = props.packet.items.find((item) =>
+    const promptItem = visibleItems.find((item) =>
       item.responses.some((action) => action.action_id === promptAction.action_id),
     );
     if (!promptItem) {
@@ -104,9 +101,9 @@ export function WorkflowNeedsAction(props: {
           ) : null}
         </div>
       ) : (
-        <div className="grid divide-y divide-border/60">
+        <div className="grid max-h-[28rem] gap-3 overflow-y-auto pr-1">
           {visibleItems.map((item) => (
-            <NeedsActionCard
+            <NeedsActionPacketCard
               key={item.action_id}
               item={item}
               visibleScopeSubject={scopeSubject}
@@ -135,7 +132,7 @@ export function WorkflowNeedsAction(props: {
   );
 }
 
-function NeedsActionCard(props: {
+function NeedsActionPacketCard(props: {
   item: DashboardWorkflowNeedsActionItem;
   visibleScopeSubject: 'workflow' | 'work item';
   activePromptActionId: string | null;
@@ -148,7 +145,7 @@ function NeedsActionCard(props: {
   onPromptCancel(): void;
   onPromptSubmit(): void;
 }): JSX.Element {
-  const responses = props.item.responses.filter(isSupportedNeedsActionResponse);
+  const responses = props.item.responses.filter(isVisibleNeedsActionResponse);
   const activePromptAction = responses.find((action) => action.action_id === props.activePromptActionId) ?? null;
   const promptMeta = buildPromptMeta(activePromptAction);
   const validationError =
@@ -160,38 +157,23 @@ function NeedsActionCard(props: {
     props.visibleScopeSubject,
     props.item.target.target_kind,
   );
-  const actionTargetKind = humanizeToken(props.item.target.target_kind);
+  const dossier = buildNeedsActionDossier(props.item, visibleTargetKind);
 
   return (
-    <article className="grid gap-2 py-3">
+    <article className="grid gap-3 rounded-xl border border-border/60 bg-background/70 p-4">
       <div className="flex flex-wrap items-center gap-2">
         <strong className="text-foreground">{props.item.label}</strong>
         <Badge variant="warning">{humanizeToken(visibleTargetKind)}</Badge>
         <Badge variant="secondary">{humanizePriority(props.item.priority)} priority</Badge>
         {props.item.requires_confirmation ? <Badge variant="outline">Confirm</Badge> : null}
       </div>
-      <div className="grid gap-1">
-        <p className="text-sm text-muted-foreground">{props.item.summary}</p>
-        <p className="text-xs text-muted-foreground">
-          Scope: {humanizeToken(visibleTargetKind)}
-          {props.item.requires_confirmation ? ' • Requires confirmation' : ''}
-        </p>
-        {visibleTargetKind !== props.item.target.target_kind ? (
-          <p className="text-xs text-muted-foreground">Action target: {actionTargetKind}</p>
-        ) : null}
-      </div>
-      {props.item.details && props.item.details.length > 0 ? (
-        <dl className="grid gap-2 border-l-2 border-border/60 pl-3">
-          {props.item.details.map((detail) => (
-            <div key={`${detail.label}:${detail.value}`} className="grid gap-1">
-              <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                {detail.label}
-              </dt>
-              <dd className="text-sm text-foreground">{detail.value}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : null}
+
+      <DossierSection title="Needs decision" value={dossier.needsDecision} />
+      <DossierSection title="Why it needs action" value={dossier.whyItNeedsAction} />
+      <DossierSection title="Blocking now" value={dossier.blockingNow} />
+      <DossierSection title="Work so far" value={dossier.workSoFar} />
+      {dossier.evidence ? <DossierSection title="Evidence" value={dossier.evidence} /> : null}
+
       <div className="flex flex-wrap gap-2">
         {responses.map((action) => (
           <Button
@@ -212,8 +194,9 @@ function NeedsActionCard(props: {
           </Button>
         ))}
       </div>
+
       {activePromptAction ? (
-        <div className="grid gap-3 border-l-2 border-amber-300/80 pl-3 dark:border-amber-500/60">
+        <div className="grid gap-3 rounded-lg border border-amber-300/80 bg-amber-50/60 p-3 dark:border-amber-500/60 dark:bg-amber-950/20">
           <div className="grid gap-1">
             <p className="text-sm font-semibold text-foreground">{promptMeta.title}</p>
             {promptMeta.description ? (
@@ -241,6 +224,45 @@ function NeedsActionCard(props: {
       ) : null}
     </article>
   );
+}
+
+function DossierSection(props: {
+  title: string;
+  value: string;
+}): JSX.Element {
+  return (
+    <div className="grid gap-1">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+        {props.title}
+      </p>
+      <p className="text-sm leading-6 text-foreground">{props.value}</p>
+    </div>
+  );
+}
+
+function buildNeedsActionDossier(
+  item: DashboardWorkflowNeedsActionItem,
+  visibleTargetKind: DashboardWorkflowNeedsActionItem['target']['target_kind'],
+): {
+  needsDecision: string;
+  whyItNeedsAction: string;
+  blockingNow: string;
+  workSoFar: string;
+  evidence: string | null;
+} {
+  return {
+    needsDecision:
+      readDetailValue(item.details, ['approval_target', 'requested_decision', 'decision', 'escalation'])
+      ?? `${item.label} for this ${humanizeToken(visibleTargetKind).toLowerCase()}.`,
+    whyItNeedsAction: readSentence(item.summary) ?? 'This packet is waiting on an operator decision.',
+    blockingNow:
+      readDetailValue(item.details, ['blocking_state', 'blocked_state', 'blocking_reason', 'context'])
+      ?? `Progress is paused until an operator responds to this ${humanizeToken(visibleTargetKind).toLowerCase()} packet.`,
+    workSoFar:
+      readDetailValue(item.details, ['work_so_far', 'progress', 'status', 'context'])
+      ?? 'No additional work summary was attached to this packet yet.',
+    evidence: readCombinedDetailValues(item.details, ['verification', 'evidence', 'output', 'deliverable', 'artifacts']),
+  };
 }
 
 function normalizeNeedsActionScope(
@@ -357,35 +379,21 @@ async function runNeedsAction(
   }
 }
 
-function isSupportedNeedsActionResponse(
+function isVisibleNeedsActionResponse(
   action: DashboardWorkflowNeedsActionResponseAction,
 ): boolean {
-  if (action.kind === 'add_work_item') {
-    return action.target.target_kind === 'workflow' || action.target.target_kind === 'work_item';
-  }
   return action.kind === 'approve_task'
     || action.kind === 'approve_task_output'
     || action.kind === 'approve_gate'
-    || action.kind === 'redrive_workflow'
     || action.kind === 'reject_task'
     || action.kind === 'reject_gate'
     || action.kind === 'request_changes_task'
     || action.kind === 'request_changes_gate'
-    || action.kind === 'resolve_escalation'
-    || action.kind === 'retry_task';
+    || action.kind === 'resolve_escalation';
 }
 
 function shouldDisplayNeedsActionItem(item: DashboardWorkflowNeedsActionItem): boolean {
-  const supportedResponses = item.responses.filter(isSupportedNeedsActionResponse);
-  if (supportedResponses.length === 0) {
-    return false;
-  }
-
-  const onlyWorkflowChromeResponses = supportedResponses.every((action) =>
-    action.kind === 'add_work_item' || action.kind === 'redrive_workflow',
-  );
-
-  return !(item.target.target_kind === 'workflow' && onlyWorkflowChromeResponses);
+  return item.responses.some(isVisibleNeedsActionResponse);
 }
 
 function readSuccessMessage(actionKind: string): string {
@@ -394,8 +402,6 @@ function readSuccessMessage(actionKind: string): string {
       return 'Approval recorded';
     case 'approve_task_output':
       return 'Output approval recorded';
-    case 'redrive_workflow':
-      return 'Workflow redrive requested';
     case 'reject_task':
       return 'Rejection recorded';
     case 'approve_gate':
@@ -408,8 +414,6 @@ function readSuccessMessage(actionKind: string): string {
       return 'Change request recorded';
     case 'resolve_escalation':
       return 'Escalation resolved';
-    case 'retry_task':
-      return 'Retry requested';
     default:
       return 'Operator action applied';
   }
@@ -465,6 +469,62 @@ function buildPromptMeta(
         : 'Request changes',
     requiredMessage: 'Enter review feedback before continuing.',
   };
+}
+
+function readDetailValue(
+  details: DashboardWorkflowNeedsActionDetail[] | undefined,
+  labels: string[],
+): string | null {
+  if (!details) {
+    return null;
+  }
+
+  for (const detail of details) {
+    if (labels.includes(normalizeDetailLabel(detail.label))) {
+      return readSentence(detail.value) ?? null;
+    }
+  }
+
+  return null;
+}
+
+function readCombinedDetailValues(
+  details: DashboardWorkflowNeedsActionDetail[] | undefined,
+  labels: string[],
+): string | null {
+  if (!details) {
+    return null;
+  }
+
+  const values = details
+    .filter((detail) => labels.includes(normalizeDetailLabel(detail.label)))
+    .map((detail) => readSentence(detail.value))
+    .filter((value): value is string => Boolean(value));
+
+  if (values.length === 0) {
+    return null;
+  }
+
+  return values.join(' ');
+}
+
+function normalizeDetailLabel(value: string): string {
+  return value
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+    .replace(/[\s-]+/g, '_')
+    .toLowerCase();
+}
+
+function readSentence(value: string | null | undefined): string | null {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+  return /[.!?]$/.test(trimmed) ? trimmed : `${trimmed}.`;
 }
 
 function humanizeToken(value: string | null | undefined): string {

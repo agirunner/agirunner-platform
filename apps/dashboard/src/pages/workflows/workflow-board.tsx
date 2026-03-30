@@ -25,6 +25,13 @@ import {
 
 type StageFilter = string;
 type LaneFilter = string;
+type WorkflowBoardWorkItemAction =
+  | 'steer'
+  | 'pause'
+  | 'resume'
+  | 'cancel'
+  | 'repeat'
+  | 'needs-action';
 const groupStages = buildWorkflowBoardView;
 const THEMED_SCROLL_STYLE = {
   scrollbarWidth: 'thin',
@@ -40,6 +47,10 @@ export function WorkflowBoard(props: {
   taskPreviewSummaries?: Map<string, WorkflowTaskPreviewSummary>;
   onBoardModeChange(nextMode: WorkflowBoardMode): void;
   onSelectWorkItem(workItemId: string): void;
+  onWorkItemAction?(input: {
+    workItemId: string;
+    action: WorkflowBoardWorkItemAction;
+  }): void;
 }): JSX.Element {
   const [stageFilter, setStageFilter] = useState<StageFilter>('__all__');
   const [laneFilter, setLaneFilter] = useState<LaneFilter>('__all__');
@@ -73,6 +84,7 @@ export function WorkflowBoard(props: {
     () => boardView.lanes.flatMap((lane) => [...lane.activeItems, ...lane.visibleCompletedItems]),
     [boardView],
   );
+  const shouldFitSingleDesktopRow = boardView.lanes.length > 0 && boardView.lanes.length <= 4;
 
   const taskQueryDescriptors = props.taskPreviewSummaries
     ? []
@@ -112,9 +124,9 @@ export function WorkflowBoard(props: {
   }
 
   return (
-    <section className="flex h-full min-h-[11rem] min-w-0 flex-col gap-2.5 overflow-hidden px-2.5 py-2.5 sm:min-h-[15rem] sm:gap-3 sm:px-3 sm:py-3 lg:min-h-0">
-      <div className="grid gap-2">
-        <div className="flex min-w-0 items-center justify-between gap-2">
+    <section className="flex h-full min-h-[11rem] min-w-0 flex-col overflow-hidden sm:min-h-[15rem] lg:min-h-0">
+      <div className="grid gap-0">
+        <div className="flex min-w-0 items-center justify-between gap-2 border-b border-border/60 bg-muted/20 px-3 py-3">
           <div className="flex min-w-0 items-center gap-2">
             <p className="text-base font-semibold text-foreground">Workflow board</p>
             {props.workflowState === 'paused' ? (
@@ -122,7 +134,7 @@ export function WorkflowBoard(props: {
             ) : null}
           </div>
         </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-2 pb-1">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 px-3 py-2.5">
           <ModeButton
             isActive={props.boardMode === 'active'}
             label="Active"
@@ -181,10 +193,16 @@ export function WorkflowBoard(props: {
       </div>
 
       <div
-        className="min-h-0 flex-1 overflow-x-auto overflow-y-auto pb-1"
+        className="min-h-0 flex-1 overflow-x-auto overflow-y-auto pb-1 px-3"
         style={THEMED_SCROLL_STYLE}
       >
-        <div className="grid w-max min-w-full gap-3 md:grid-flow-col md:auto-cols-[minmax(18rem,1fr)] md:items-start">
+        <div
+          className={
+            shouldFitSingleDesktopRow
+              ? readDesktopFitClassName(boardView.lanes.length)
+              : 'grid w-max min-w-full gap-3 md:grid-flow-col md:auto-cols-[minmax(16rem,1fr)] md:items-start'
+          }
+        >
           {boardView.lanes.map((lane) => (
             <BoardLaneCard
               key={lane.column.id}
@@ -193,6 +211,7 @@ export function WorkflowBoard(props: {
               workflowState={props.workflowState}
               selectedWorkItemId={props.selectedWorkItemId}
               onSelectWorkItem={props.onSelectWorkItem}
+              onWorkItemAction={props.onWorkItemAction}
               tasksByWorkItem={tasksByWorkItem}
             />
           ))}
@@ -208,12 +227,29 @@ export function WorkflowBoard(props: {
   );
 }
 
+function readDesktopFitClassName(laneCount: number): string {
+  switch (laneCount) {
+    case 1:
+      return 'grid min-w-full gap-3 md:grid-cols-1 md:items-start';
+    case 2:
+      return 'grid min-w-full gap-3 md:grid-cols-2 md:items-start';
+    case 3:
+      return 'grid min-w-full gap-3 md:grid-cols-3 md:items-start';
+    default:
+      return 'grid min-w-full gap-3 md:grid-cols-4 md:items-start';
+  }
+}
+
 function BoardLaneCard(props: {
   lane: ReturnType<typeof buildWorkflowBoardView>['lanes'][number];
   boardMode: WorkflowBoardMode;
   workflowState?: string | null;
   selectedWorkItemId: string | null;
   onSelectWorkItem(workItemId: string): void;
+  onWorkItemAction?(input: {
+    workItemId: string;
+    action: WorkflowBoardWorkItemAction;
+  }): void;
   tasksByWorkItem: Map<string, WorkflowTaskPreviewSummary>;
 }): JSX.Element {
   const pinnedCompletedCount = readPinnedCompletedCount(props.lane.column.is_terminal, props.boardMode);
@@ -247,6 +283,7 @@ function BoardLaneCard(props: {
                 taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
                 isSelected={workItem.id === props.selectedWorkItemId}
                 onSelect={props.onSelectWorkItem}
+                onWorkItemAction={props.onWorkItemAction}
                 laneWorkItemCount={laneWorkItemCount}
               />
             ))}
@@ -258,6 +295,7 @@ function BoardLaneCard(props: {
             taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
             isSelected={workItem.id === props.selectedWorkItemId}
             onSelect={props.onSelectWorkItem}
+            onWorkItemAction={props.onWorkItemAction}
             laneWorkItemCount={laneWorkItemCount}
             muted
           />
@@ -291,6 +329,7 @@ function BoardLaneCard(props: {
                     taskSummary={props.tasksByWorkItem.get(workItem.id) ?? emptyTaskSummary()}
                     isSelected={workItem.id === props.selectedWorkItemId}
                     onSelect={props.onSelectWorkItem}
+                    onWorkItemAction={props.onWorkItemAction}
                     laneWorkItemCount={laneWorkItemCount}
                     muted
                   />
@@ -310,102 +349,242 @@ function BoardWorkItemCard(props: {
   laneWorkItemCount: number;
   muted?: boolean;
   onSelect(workItemId: string): void;
+  onWorkItemAction?(input: {
+    workItemId: string;
+    action: WorkflowBoardWorkItemAction;
+  }): void;
 }): JSX.Element {
   const currentStateSummary = buildWorkflowBoardWorkItemSummary(props.workItem, props.taskSummary);
   const activeTaskSummary = buildWorkflowBoardActiveTaskSummary(props.taskSummary);
   const taskStatusSummary = buildTaskStatusSummary(props.taskSummary);
+  const workItemControls = readWorkItemCardControls(
+    props.workItem,
+    props.workflowState,
+    Boolean(props.muted) || Boolean(props.workItem.completed_at),
+  );
   const activeTaskCountSuffix =
     activeTaskSummary && activeTaskSummary.activeTaskCount > 1
       ? ` +${activeTaskSummary.activeTaskCount - 1} more active`
       : '';
+  const isSelected = props.isSelected;
+  const titleClassName = isSelected ? 'text-accent' : 'text-foreground';
+  const summaryClassName = isSelected ? 'text-accent/90' : 'text-muted-foreground';
 
   return (
     <article
       className={cn(
-        'grid w-full gap-3 rounded-xl border px-3.5 py-3.5 text-left transition-colors',
-        props.isSelected
-          ? 'border-amber-300 bg-amber-100/90 shadow-sm dark:border-amber-500/60 dark:bg-amber-500/10'
+        'relative overflow-hidden rounded-xl border transition-all',
+        isSelected
+          ? 'border-accent/40 bg-background/85 ring-1 ring-accent/30 shadow-md'
           : props.muted
-            ? 'border-border/70 bg-background/60 hover:bg-background/80'
-            : 'border-border/70 bg-background/85 hover:bg-background',
+            ? 'border-border/70 bg-background/60 hover:border-accent/20 hover:bg-background/80'
+            : 'border-border/70 bg-background/85 hover:border-accent/20 hover:bg-background',
       )}
     >
-      <button
-        type="button"
-        className="grid w-full gap-3 text-left"
+      {isSelected ? (
+        <div
+          data-work-item-selection-edge="true"
+          className="absolute inset-y-3 left-0 w-1 rounded-full bg-accent"
+        />
+      ) : null}
+      <div
+        role="button"
+        tabIndex={0}
+        data-work-item-card="true"
+        data-selected={isSelected ? 'true' : 'false'}
+        className="grid min-h-[7rem] gap-3 px-3.5 py-3.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 focus-visible:ring-inset"
         onClick={() => props.onSelect(props.workItem.id)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            props.onSelect(props.workItem.id);
+          }
+        }}
       >
-        <div className="flex flex-wrap items-center gap-2">
-          <strong className="text-foreground">{props.workItem.title}</strong>
-          <Badge variant="outline">{humanizeToken(props.workItem.stage_name)}</Badge>
-          {shouldShowPriorityBadge(props.workItem.priority) ? (
-            <Badge variant="outline">{humanizeToken(props.workItem.priority)}</Badge>
-          ) : null}
-          {props.workItem.blocked_state === 'blocked' ? (
-            <Badge variant="destructive">Blocked</Badge>
-          ) : null}
-          {props.workItem.escalation_status === 'open' ? (
-            <Badge variant="warning">Escalated</Badge>
-          ) : null}
-          {isNeedsActionWorkItem(props.workItem) ? (
-            <Badge variant="warning">Needs action</Badge>
-          ) : null}
-          {isCancelledWorkItem(props.workItem, props.workflowState) ? (
-            <Badge variant="secondary">Cancelled</Badge>
-          ) : null}
-          {isPausedWorkflowWorkItem(props.workflowState, props.workItem.completed_at) ? (
-            <Badge variant="secondary">Paused</Badge>
-          ) : null}
-          {props.taskSummary.hasActiveOrchestratorTask ? (
-            <Badge variant="secondary">Orchestrator working</Badge>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <strong className={titleClassName}>{props.workItem.title}</strong>
+              <Badge variant="outline">{humanizeToken(props.workItem.stage_name)}</Badge>
+              {shouldShowPriorityBadge(props.workItem.priority) ? (
+                <Badge variant="outline">{humanizeToken(props.workItem.priority)}</Badge>
+              ) : null}
+              {props.workItem.blocked_state === 'blocked' ? (
+                <Badge variant="destructive">Blocked</Badge>
+              ) : null}
+              {props.workItem.escalation_status === 'open' ? (
+                <Badge variant="warning">Escalated</Badge>
+              ) : null}
+              {isNeedsActionWorkItem(props.workItem) ? (
+                <Badge variant="warning">Needs action</Badge>
+              ) : null}
+              {isCancelledWorkItem(props.workItem, props.workflowState) ? (
+                <Badge variant="secondary">Cancelled</Badge>
+              ) : null}
+              {isPausedWorkflowWorkItem(props.workflowState, props.workItem.completed_at) ? (
+                <Badge variant="secondary">Paused</Badge>
+              ) : null}
+              {props.taskSummary.hasActiveOrchestratorTask ? (
+                <Badge variant="secondary">Orchestrator working</Badge>
+              ) : null}
+            </div>
+          </div>
+          {workItemControls.length > 0 ? (
+            <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+              {workItemControls.map((control) => (
+                <BoardWorkItemControlButton
+                  key={control.action}
+                  workItemId={props.workItem.id}
+                  control={control}
+                  onAction={props.onWorkItemAction}
+                />
+              ))}
+            </div>
           ) : null}
         </div>
 
-        {currentStateSummary ? (
-          <p className="text-sm leading-6 text-muted-foreground">{currentStateSummary}</p>
-        ) : null}
+      {currentStateSummary ? (
+        <p className={cn('text-sm leading-6', summaryClassName)}>{currentStateSummary}</p>
+      ) : null}
 
-        {activeTaskSummary ? (
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-              Active specialist
+      {activeTaskSummary ? (
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <span className="font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Active specialist
+          </span>
+          {activeTaskSummary.roleLabel ? (
+            <span className="font-medium text-foreground">{activeTaskSummary.roleLabel}</span>
+          ) : null}
+          {activeTaskSummary.taskTitle ? (
+            <span className="text-muted-foreground">
+              on {activeTaskSummary.taskTitle}
+              {activeTaskCountSuffix}
             </span>
-            {activeTaskSummary.roleLabel ? (
-              <span className="font-medium text-foreground">{activeTaskSummary.roleLabel}</span>
-            ) : null}
-            {activeTaskSummary.taskTitle ? (
-              <span className="text-muted-foreground">
-                on {activeTaskSummary.taskTitle}
-                {activeTaskCountSuffix}
-              </span>
-            ) : activeTaskCountSuffix ? (
-              <span className="text-muted-foreground">{activeTaskCountSuffix.trim()}</span>
-            ) : null}
-          </div>
-        ) : null}
+          ) : activeTaskCountSuffix ? (
+            <span className="text-muted-foreground">{activeTaskCountSuffix.trim()}</span>
+          ) : null}
+        </div>
+      ) : null}
 
-        {!activeTaskSummary && taskStatusSummary ? (
-          <p className="text-xs text-muted-foreground">{taskStatusSummary}</p>
-        ) : null}
+      {!activeTaskSummary && taskStatusSummary ? (
+        <p className="text-xs text-muted-foreground">{taskStatusSummary}</p>
+      ) : null}
 
-        {props.workItem.blocked_reason || props.workItem.gate_decision_feedback ? (
-          <div className="rounded-xl border border-amber-300/60 bg-amber-50/70 p-3 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">
-            {props.workItem.blocked_reason ?? props.workItem.gate_decision_feedback}
-          </div>
-        ) : null}
-      </button>
+      {props.workItem.blocked_reason || props.workItem.gate_decision_feedback ? (
+        <div className="rounded-xl border border-amber-300/60 bg-amber-50/70 p-3 text-sm text-amber-950 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-100">
+          {props.workItem.blocked_reason ?? props.workItem.gate_decision_feedback}
+        </div>
+      ) : null}
 
       {props.taskSummary.tasks.length > 0 ? (
         <WorkflowBoardTaskStack
           tasks={props.taskSummary.tasks}
-          collapsible={!props.isSelected ? false : undefined}
-          defaultOpen={props.isSelected}
+          collapsible={!isSelected ? false : undefined}
+          defaultOpen={isSelected}
           laneWorkItemCount={props.laneWorkItemCount}
           onSelectWorkItem={() => props.onSelect(props.workItem.id)}
         />
       ) : null}
+      </div>
     </article>
   );
+}
+
+interface WorkflowBoardWorkItemControl {
+  action: WorkflowBoardWorkItemAction;
+  label: string;
+  variant: 'outline' | 'destructive';
+  disabled?: boolean;
+  className?: string;
+}
+
+function BoardWorkItemControlButton(props: {
+  workItemId: string;
+  control: WorkflowBoardWorkItemControl;
+  onAction?(input: {
+    workItemId: string;
+    action: WorkflowBoardWorkItemAction;
+  }): void;
+}): JSX.Element {
+  const isDisabled = props.control.disabled || !props.onAction;
+
+  return (
+    <Button
+      size="sm"
+      type="button"
+      variant={props.control.variant}
+      data-work-item-local-control={props.control.action}
+      data-work-item-control-ready={props.onAction ? 'true' : 'false'}
+      className={cn('h-7 rounded-md px-2.5 text-xs', props.control.className)}
+      disabled={isDisabled}
+      onClick={(event) => {
+        event.stopPropagation();
+        if (isDisabled) {
+          return;
+        }
+        props.onAction?.({
+          workItemId: props.workItemId,
+          action: props.control.action,
+        });
+      }}
+      onMouseDown={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      {props.control.label}
+    </Button>
+  );
+}
+
+function readWorkItemCardControls(
+  workItem: DashboardWorkflowWorkItemRecord,
+  workflowState: string | null | undefined,
+  isDone: boolean,
+): WorkflowBoardWorkItemControl[] {
+  const isCancelled = isCancelledWorkItem(workItem, workflowState);
+  const isPaused = isPausedWorkflowWorkItem(workflowState, workItem.completed_at);
+  const controls: WorkflowBoardWorkItemControl[] = [];
+
+  if (isNeedsActionWorkItem(workItem)) {
+    controls.push({
+      action: 'needs-action',
+      label: 'Needs Action',
+      variant: 'outline',
+      className:
+        'border-amber-300/70 bg-amber-50/70 text-amber-950 hover:bg-amber-50 dark:border-amber-700/60 dark:bg-amber-950/20 dark:text-amber-100',
+    });
+  }
+
+  if (isCancelled) {
+    return controls;
+  }
+
+  if (isDone) {
+    controls.push({
+      action: 'repeat',
+      label: 'Repeat',
+      variant: 'outline',
+    });
+    return controls;
+  }
+
+  controls.push({
+    action: 'steer',
+    label: 'Steer',
+    variant: 'outline',
+    disabled: isPaused,
+  });
+  controls.push({
+    action: isPaused ? 'resume' : 'pause',
+    label: isPaused ? 'Resume' : 'Pause',
+    variant: 'outline',
+  });
+  controls.push({
+    action: 'cancel',
+    label: 'Cancel',
+    variant: 'destructive',
+  });
+
+  return controls;
 }
 
 function renderLaneEmptyState(message: string): JSX.Element {
@@ -427,7 +606,8 @@ function ModeButton(props: { isActive: boolean; label: string; onClick(): void }
     <Button
       size="sm"
       type="button"
-      variant={props.isActive ? 'default' : 'outline'}
+      variant="outline"
+      className={readNeutralFilterButtonClassName(props.isActive)}
       onClick={props.onClick}
     >
       {props.label}
@@ -440,12 +620,17 @@ function ToggleFilter(props: { label: string; isActive: boolean; onClick(): void
     <Button
       size="sm"
       type="button"
-      variant={props.isActive ? 'default' : 'outline'}
+      variant="outline"
+      className={readNeutralFilterButtonClassName(props.isActive)}
       onClick={props.onClick}
     >
       {props.label}
     </Button>
   );
+}
+
+function readNeutralFilterButtonClassName(isActive: boolean): string {
+  return isActive ? 'border-foreground/20 bg-transparent shadow-none' : '';
 }
 
 function humanizeToken(value: string): string {

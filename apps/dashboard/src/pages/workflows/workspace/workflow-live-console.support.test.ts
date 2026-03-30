@@ -11,6 +11,7 @@ import {
   getWorkflowConsoleFollowBehavior,
   getWorkflowConsoleScrollBehavior,
   getWorkflowConsoleEntryPrefix,
+  getWorkflowConsoleDetailText,
   getWorkflowConsoleEntryStyle,
   getWorkflowConsoleLineText,
   orderWorkflowConsoleItemsForDisplay,
@@ -221,6 +222,41 @@ describe('workflow live console support', () => {
     ).toBe('Summary fallback');
   });
 
+  it('uses the brief summary as inline detail only when it adds new information', () => {
+    expect(
+      getWorkflowConsoleDetailText(
+        createItem({
+          item_id: 'brief-detail-1',
+          item_kind: 'milestone_brief',
+          headline: 'Workflow reached approval milestone',
+          summary: 'Structured approval brief published for operators.',
+        }),
+      ),
+    ).toBe('Structured approval brief published for operators.');
+
+    expect(
+      getWorkflowConsoleDetailText(
+        createItem({
+          item_id: 'brief-detail-2',
+          item_kind: 'milestone_brief',
+          headline: 'Canonical brief summary.',
+          summary: 'Canonical brief summary.',
+        }),
+      ),
+    ).toBeNull();
+
+    expect(
+      getWorkflowConsoleDetailText(
+        createItem({
+          item_id: 'update-detail-1',
+          item_kind: 'execution_turn',
+          headline: 'Updated retry handling.',
+          summary: 'Execution turn completed for Implementation Engineer.',
+        }),
+      ),
+    ).toBeNull();
+  });
+
   it('sanitizes literal fallback action rows down to meaningful operator-readable args', () => {
     expect(
       getWorkflowConsoleLineText(
@@ -247,7 +283,7 @@ describe('workflow live console support', () => {
     ).toBe('calling submit_handoff(summary="Ready for operator review.", completion="full")');
   });
 
-  it('suppresses empty and low-value fallback action rows from live-console visibility', () => {
+  it('keeps helper action rows with safe args while still suppressing empty fallbacks', () => {
     const items = [
       createItem({
         item_id: 'update-shell',
@@ -269,10 +305,11 @@ describe('workflow live console support', () => {
 
     expect(filterWorkflowConsoleItems(items, 'all').map((item) => item.item_id)).toEqual([
       'update-shell',
+      'update-read-only',
     ]);
     expect(buildWorkflowConsoleFilterDescriptors(items)).toEqual([
-      { filter: 'all', label: 'All', count: 1 },
-      { filter: 'turn_updates', label: 'Turn updates', count: 1 },
+      { filter: 'all', label: 'All', count: 2 },
+      { filter: 'turn_updates', label: 'Turn updates', count: 2 },
       { filter: 'briefs', label: 'Briefs', count: 0 },
     ]);
   });
@@ -292,7 +329,9 @@ describe('workflow live console support', () => {
       }),
     ];
 
-    expect(filterWorkflowConsoleItems(items, 'all')).toEqual([]);
+    expect(filterWorkflowConsoleItems(items, 'all').map((item) => item.item_id)).toEqual([
+      'update-prefixed-read',
+    ]);
   });
 
   it('suppresses bare JSON blobs that do not contain operator-readable console text', () => {

@@ -2,12 +2,12 @@ import { readFileSync } from 'node:fs';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { WorkflowNeedsAction } from './workflow-needs-action.js';
 
 describe('WorkflowNeedsAction', () => {
-  it('renders direct inline response controls instead of punting normal actions to steering', () => {
+  it('renders unresolved approvals and escalations as open action dossiers with inline decision context', () => {
     const html = renderToStaticMarkup(
       createElement(
         QueryClientProvider,
@@ -16,14 +16,14 @@ describe('WorkflowNeedsAction', () => {
           workflowId: 'workflow-1',
           workspaceId: 'workspace-1',
           scopeSubject: 'work item',
-          scopeLabel: 'Work item: workflows-intake-02',
+          scopeLabel: 'Work item: Prepare release bundle',
           packet: {
             items: [
               {
                 action_id: 'task-approve-1:awaiting_approval',
                 action_kind: 'review_work_item',
                 label: 'Approval required',
-                summary: 'Approve release packet is waiting for operator approval.',
+                summary: 'Review release packet is waiting for operator approval.',
                 target: {
                   target_kind: 'task',
                   target_id: 'task-approve-1',
@@ -34,6 +34,15 @@ describe('WorkflowNeedsAction', () => {
                   route_kind: 'task_mutation',
                   method: 'POST',
                 },
+                details: [
+                  { label: 'Approval target', value: 'Approve release packet' },
+                  { label: 'Blocking state', value: 'Waiting on operator sign-off before packaging can continue.' },
+                  { label: 'Work so far', value: 'Release packet draft and rollback notes are assembled for sign-off.' },
+                  {
+                    label: 'Verification',
+                    value: 'Release packet verification passed and the required artifacts are attached.',
+                  },
+                ],
                 responses: [
                   {
                     action_id: 'task-approve-1:approve',
@@ -57,96 +66,80 @@ describe('WorkflowNeedsAction', () => {
                     requires_confirmation: true,
                     prompt_kind: 'feedback',
                   },
-                ],
-              },
-            ],
-            total_count: 1,
-            default_sort: 'priority_desc',
-          },
-        }),
-      ),
-    );
-
-    expect(html).toContain('Approval required');
-    expect(html).toContain('Approve');
-    expect(html).toContain('Request changes');
-    expect(html).not.toContain('Open Steering');
-    expect(html).not.toContain('Prioritized actions for this work item that currently require an operator response.');
-    expect(html).not.toContain('>Needs Action<');
-  });
-
-  it('does not surface workflow-level faux generic controls inside needs action', () => {
-    const html = renderToStaticMarkup(
-      createElement(
-        QueryClientProvider,
-        { client: new QueryClient() },
-        createElement(WorkflowNeedsAction, {
-          workflowId: 'workflow-1',
-          workspaceId: 'workspace-1',
-          scopeSubject: 'work item',
-          scopeLabel: 'Work item: workflows-intake-02',
-          packet: {
-            items: [
-              {
-                action_id: 'workflow-1:terminal',
-                action_kind: 'recover_workflow',
-                label: 'Workflow recovery',
-                summary: 'This workflow could be redriven, but workflow-level controls stay in the header.',
-                target: {
-                  target_kind: 'workflow',
-                  target_id: 'workflow-1',
-                },
-                priority: 'high',
-                requires_confirmation: true,
-                submission: {
-                  route_kind: 'workflow_mutation',
-                  method: 'POST',
-                },
-                responses: [
                   {
-                    action_id: 'workflow-1:add-work',
+                    action_id: 'task-approve-1:add-work',
                     kind: 'add_work_item',
                     label: 'Add / Modify Work',
                     target: {
-                      target_kind: 'workflow',
-                      target_id: 'workflow-1',
+                      target_kind: 'work_item',
+                      target_id: 'work-item-1',
                     },
                     requires_confirmation: false,
                     prompt_kind: 'none',
                   },
+                ],
+              },
+              {
+                action_id: 'task-escalation-1:open_escalation',
+                action_kind: 'resolve_escalation',
+                label: 'Escalation requires guidance',
+                summary: 'The specialist hit a replay mismatch while trying to submit the handoff.',
+                target: {
+                  target_kind: 'task',
+                  target_id: 'task-escalation-1',
+                },
+                priority: 'high',
+                requires_confirmation: false,
+                submission: {
+                  route_kind: 'task_mutation',
+                  method: 'POST',
+                },
+                details: [
+                  { label: 'Escalation', value: 'Resolve the handoff replay mismatch and decide how to resume.' },
+                  { label: 'Blocking state', value: 'The task cannot submit its handoff until the replay mismatch is resolved.' },
+                  { label: 'Work so far', value: 'Context reviewed, summary drafted, and one submit_handoff attempt already failed.' },
+                  { label: 'Evidence', value: 'The draft summary file exists and the failure reason was captured in the packet.' },
+                ],
+                responses: [
                   {
-                    action_id: 'workflow-1:redrive',
-                    kind: 'redrive_workflow',
-                    label: 'Redrive workflow',
+                    action_id: 'task-escalation-1:resolve',
+                    kind: 'resolve_escalation',
+                    label: 'Resume with guidance',
                     target: {
-                      target_kind: 'workflow',
-                      target_id: 'workflow-1',
+                      target_kind: 'task',
+                      target_id: 'task-escalation-1',
                     },
                     requires_confirmation: true,
-                    prompt_kind: 'none',
+                    prompt_kind: 'instructions',
                   },
                 ],
               },
             ],
-            total_count: 1,
+            total_count: 2,
             default_sort: 'priority_desc',
-            scope_summary: {
-              workflow_total_count: 1,
-              selected_scope_total_count: 1,
-              scoped_away_workflow_count: 0,
-            },
           } as never,
         }),
       ),
     );
 
-    expect(html).toContain('Nothing in this work item requires operator action right now.');
-    expect(html).not.toContain('Workflow recovery');
+    expect(html).toContain('Approval required');
+    expect(html).toContain('Escalation requires guidance');
+    expect(html).toContain('Needs decision');
+    expect(html).toContain('Why it needs action');
+    expect(html).toContain('Blocking now');
+    expect(html).toContain('Work so far');
+    expect(html).toContain('Evidence');
+    expect(html).toContain('Approve release packet');
+    expect(html).toContain('Release packet verification passed and the required artifacts are attached.');
+    expect(html).toContain('Resolve the handoff replay mismatch and decide how to resume.');
+    expect(html).toContain('Resume with guidance');
+    expect(html).toContain('Approve');
+    expect(html).toContain('Request changes');
     expect(html).not.toContain('Add / Modify Work');
-    expect(html).not.toContain('Redrive workflow');
+    expect(html).not.toContain('<table');
   });
 
-  it('renders add-or-modify-work responses inline for blocked work items', () => {
+  it('hides faux actions that are not unresolved approvals or escalations', () => {
     const html = renderToStaticMarkup(
       createElement(
         QueryClientProvider,
@@ -155,14 +148,14 @@ describe('WorkflowNeedsAction', () => {
           workflowId: 'workflow-1',
           workspaceId: 'workspace-1',
           scopeSubject: 'work item',
-          scopeLabel: 'Work item: workflows-intake-02',
+          scopeLabel: 'Work item: Prepare release bundle',
           packet: {
             items: [
               {
                 action_id: 'work-item-1:blocked',
                 action_kind: 'unblock_work_item',
                 label: 'Address requested changes',
-                summary: 'Revise release packet is blocked: Add rollback notes before resubmitting.',
+                summary: 'This item should stay out of Needs Action because it only offers add work.',
                 target: {
                   target_kind: 'work_item',
                   target_id: 'work-item-1',
@@ -187,37 +180,43 @@ describe('WorkflowNeedsAction', () => {
                   },
                 ],
               },
-            ],
-            total_count: 1,
-            default_sort: 'priority_desc',
-          },
-        }),
-      ),
-    );
-
-    expect(html).toContain('Address requested changes');
-    expect(html).toContain('Add / Modify Work');
-    expect(html).not.toContain('Open Steering');
-  });
-
-  it('renders stage-gate decision responses inline instead of dropping them from needs action', () => {
-    const html = renderToStaticMarkup(
-      createElement(
-        QueryClientProvider,
-        { client: new QueryClient() },
-        createElement(WorkflowNeedsAction, {
-          workflowId: 'workflow-1',
-          workspaceId: 'workspace-1',
-          packet: {
-            items: [
               {
-                action_id: 'work-item-1:awaiting_approval',
-                action_kind: 'review_work_item',
-                label: 'Approval required',
-                summary: 'Approve Curiosity Deck brief is waiting for operator approval.',
+                action_id: 'task-1:retry',
+                action_kind: 'retry_task',
+                label: 'Retry failed task',
+                summary: 'This item should stay out because retries are not operator decisions.',
                 target: {
-                  target_kind: 'work_item',
-                  target_id: 'work-item-1',
+                  target_kind: 'task',
+                  target_id: 'task-1',
+                },
+                priority: 'medium',
+                requires_confirmation: false,
+                submission: {
+                  route_kind: 'task_mutation',
+                  method: 'POST',
+                },
+                responses: [
+                  {
+                    action_id: 'task-1:retry',
+                    kind: 'retry_task',
+                    label: 'Retry task',
+                    target: {
+                      target_kind: 'task',
+                      target_id: 'task-1',
+                    },
+                    requires_confirmation: false,
+                    prompt_kind: 'none',
+                  },
+                ],
+              },
+              {
+                action_id: 'workflow-1:redrive',
+                action_kind: 'recover_workflow',
+                label: 'Workflow recovery',
+                summary: 'This item should stay out because redrive is not a pending approval or escalation.',
+                target: {
+                  target_kind: 'workflow',
+                  target_id: 'workflow-1',
                 },
                 priority: 'high',
                 requires_confirmation: true,
@@ -227,40 +226,38 @@ describe('WorkflowNeedsAction', () => {
                 },
                 responses: [
                   {
-                    action_id: 'gate-1:approve_gate',
-                    kind: 'approve_gate',
-                    label: 'Approve',
+                    action_id: 'workflow-1:redrive',
+                    kind: 'redrive_workflow',
+                    label: 'Redrive workflow',
                     target: {
-                      target_kind: 'gate',
-                      target_id: 'gate-1',
-                    },
-                    requires_confirmation: false,
-                    prompt_kind: 'none',
-                  },
-                  {
-                    action_id: 'gate-1:request_changes_gate',
-                    kind: 'request_changes_gate',
-                    label: 'Request changes',
-                    target: {
-                      target_kind: 'gate',
-                      target_id: 'gate-1',
+                      target_kind: 'workflow',
+                      target_id: 'workflow-1',
                     },
                     requires_confirmation: true,
-                    prompt_kind: 'feedback',
+                    prompt_kind: 'none',
                   },
                 ],
               },
             ],
-            total_count: 1,
+            total_count: 3,
             default_sort: 'priority_desc',
-          },
+            scope_summary: {
+              workflow_total_count: 3,
+              selected_scope_total_count: 3,
+              scoped_away_workflow_count: 0,
+            },
+          } as never,
         }),
       ),
     );
 
-    expect(html).toContain('Approval required');
-    expect(html).toContain('Approve');
-    expect(html).toContain('Request changes');
+    expect(html).toContain('Nothing in this work item requires operator action right now.');
+    expect(html).not.toContain('Address requested changes');
+    expect(html).not.toContain('Add / Modify Work');
+    expect(html).not.toContain('Retry failed task');
+    expect(html).not.toContain('Retry task');
+    expect(html).not.toContain('Workflow recovery');
+    expect(html).not.toContain('Redrive workflow');
   });
 
   it('normalizes stale task empty-state copy back to the selected work item scope', () => {
@@ -291,338 +288,6 @@ describe('WorkflowNeedsAction', () => {
     expect(html).not.toContain('Nothing in this task requires operator action right now.');
   });
 
-  it('explains when workflow-level action exists outside the selected work item scope', () => {
-    const html = renderToStaticMarkup(
-      createElement(
-        QueryClientProvider,
-        { client: new QueryClient() },
-        createElement(WorkflowNeedsAction, {
-          workflowId: 'workflow-1',
-          workspaceId: 'workspace-1',
-          scopeSubject: 'work item',
-          scopeLabel: 'Work item: Prepare release bundle',
-          packet: {
-            items: [],
-            total_count: 0,
-            default_sort: 'priority_desc',
-            scope_summary: {
-              workflow_total_count: 1,
-              selected_scope_total_count: 0,
-              scoped_away_workflow_count: 1,
-            },
-          } as never,
-        }),
-      ),
-    );
-
-    expect(html).toContain('Nothing in this work item requires operator action right now.');
-    expect(html).toContain('1 workflow-level action remains available in workflow scope.');
-    expect(html).not.toContain('rounded-2xl border border-dashed border-border/70 bg-background/60 p-4');
-  });
-
-  it('hides needs-action items that do not expose a supported operator response', () => {
-    const html = renderToStaticMarkup(
-      createElement(
-        QueryClientProvider,
-        { client: new QueryClient() },
-        createElement(WorkflowNeedsAction, {
-          workflowId: 'workflow-1',
-          workspaceId: 'workspace-1',
-          scopeSubject: 'work item',
-          scopeLabel: 'Work item: Prepare release bundle',
-          packet: {
-            items: [
-              {
-                action_id: 'work-item-1:informational',
-                action_kind: 'review_work_item',
-                label: 'Background summary',
-                summary: 'This row should stay out of Needs Action because no operator response is available.',
-                target: {
-                  target_kind: 'work_item',
-                  target_id: 'work-item-1',
-                },
-                priority: 'medium',
-                requires_confirmation: false,
-                submission: {
-                  route_kind: 'workflow_intervention',
-                  method: 'POST',
-                },
-                responses: [
-                  {
-                    action_id: 'work-item-1:unsupported',
-                    kind: 'open_steering',
-                    label: 'Open Steering',
-                    target: {
-                      target_kind: 'work_item',
-                      target_id: 'work-item-1',
-                    },
-                    requires_confirmation: false,
-                    prompt_kind: 'none',
-                  },
-                ],
-              },
-            ],
-            total_count: 1,
-            default_sort: 'priority_desc',
-            scope_summary: {
-              workflow_total_count: 1,
-              selected_scope_total_count: 1,
-              scoped_away_workflow_count: 0,
-            },
-          } as never,
-        }),
-      ),
-    );
-
-    expect(html).toContain('Nothing in this work item requires operator action right now.');
-    expect(html).not.toContain('Background summary');
-    expect(html).not.toContain('Open Steering');
-  });
-
-  it('renders approval context details inline for approval cards', () => {
-    const html = renderToStaticMarkup(
-      createElement(
-        QueryClientProvider,
-        { client: new QueryClient() },
-        createElement(WorkflowNeedsAction, {
-          workflowId: 'workflow-1',
-          workspaceId: 'workspace-1',
-          packet: {
-            items: [
-              {
-                action_id: 'task-approve-1:awaiting_approval',
-                action_kind: 'review_work_item',
-                label: 'Approval required',
-                summary: 'Review release packet is waiting for operator approval on Approve release packet.',
-                target: {
-                  target_kind: 'task',
-                  target_id: 'task-approve-1',
-                },
-                priority: 'high',
-                requires_confirmation: true,
-                submission: {
-                  route_kind: 'task_mutation',
-                  method: 'POST',
-                },
-                details: [
-                  { label: 'Approval target', value: 'Approve release packet' },
-                  { label: 'Context', value: 'Release packet draft and rollback notes are assembled for sign-off.' },
-                  {
-                    label: 'Verification',
-                    value: 'Release packet verification passed and the required artifacts are attached.',
-                  },
-                  { label: 'Revision', value: '3' },
-                ],
-                responses: [
-                  {
-                    action_id: 'task-approve-1:approve',
-                    kind: 'approve_task',
-                    label: 'Approve',
-                    target: {
-                      target_kind: 'task',
-                      target_id: 'task-approve-1',
-                    },
-                    requires_confirmation: false,
-                    prompt_kind: 'none',
-                  },
-                ],
-              },
-            ],
-            total_count: 1,
-            default_sort: 'priority_desc',
-          } as never,
-        }),
-      ),
-    );
-
-    expect(html).toContain('Approve release packet');
-    expect(html).toContain('Release packet draft and rollback notes are assembled for sign-off.');
-    expect(html).toContain('Release packet verification passed and the required artifacts are attached.');
-    expect(html).toContain('Revision');
-    expect(html).toContain('3');
-  });
-
-  it('keeps task-backed actions visually scoped to the selected work item', () => {
-    const html = renderToStaticMarkup(
-      createElement(
-        QueryClientProvider,
-        { client: new QueryClient() },
-        createElement(WorkflowNeedsAction, {
-          workflowId: 'workflow-1',
-          workspaceId: 'workspace-1',
-          scopeSubject: 'work item',
-          scopeLabel: 'Work item: Prepare release bundle',
-          packet: {
-            items: [
-              {
-                action_id: 'task-approve-1:awaiting_approval',
-                action_kind: 'review_work_item',
-                label: 'Approval required',
-                summary: 'Review release packet is waiting for operator approval on Approve release packet.',
-                target: {
-                  target_kind: 'task',
-                  target_id: 'task-approve-1',
-                },
-                priority: 'high',
-                requires_confirmation: true,
-                submission: {
-                  route_kind: 'task_mutation',
-                  method: 'POST',
-                },
-                details: [
-                  { label: 'Approval target', value: 'Approve release packet' },
-                ],
-                responses: [
-                  {
-                    action_id: 'task-approve-1:approve',
-                    kind: 'approve_task',
-                    label: 'Approve',
-                    target: {
-                      target_kind: 'task',
-                      target_id: 'task-approve-1',
-                    },
-                    requires_confirmation: false,
-                    prompt_kind: 'none',
-                  },
-                ],
-              },
-            ],
-            total_count: 1,
-            default_sort: 'priority_desc',
-          } as never,
-        }),
-      ),
-    );
-
-    expect(html).toContain('Approval required');
-    expect(html).toContain('Approve release packet');
-    expect(html).toContain('Scope: Work Item');
-    expect(html).not.toContain('Scope: Task');
-    expect(html).not.toContain('Open Steering');
-  });
-
-  it('renders needs-action rows without nested heavy card shells', () => {
-    const html = renderToStaticMarkup(
-      createElement(
-        QueryClientProvider,
-        { client: new QueryClient() },
-        createElement(WorkflowNeedsAction, {
-          workflowId: 'workflow-1',
-          workspaceId: 'workspace-1',
-          scopeSubject: 'work item',
-          scopeLabel: 'Work item: Prepare release bundle',
-          packet: {
-            items: [
-              {
-                action_id: 'task-approve-1:awaiting_approval',
-                action_kind: 'review_work_item',
-                label: 'Approval required',
-                summary: 'Review release packet is waiting for operator approval on Approve release packet.',
-                target: {
-                  target_kind: 'task',
-                  target_id: 'task-approve-1',
-                },
-                priority: 'high',
-                requires_confirmation: true,
-                submission: {
-                  route_kind: 'task_mutation',
-                  method: 'POST',
-                },
-                responses: [
-                  {
-                    action_id: 'task-approve-1:approve',
-                    kind: 'approve_task',
-                    label: 'Approve',
-                    target: {
-                      target_kind: 'task',
-                      target_id: 'task-approve-1',
-                    },
-                    requires_confirmation: false,
-                    prompt_kind: 'none',
-                  },
-                ],
-              },
-            ],
-            total_count: 1,
-            default_sort: 'priority_desc',
-          } as never,
-        }),
-      ),
-    );
-
-    expect(html).toContain('Approval required');
-    expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/80 p-4');
-  });
-
-  it('renders escalation reason, context, and work-so-far details inside the needs-action card', () => {
-    const html = renderToStaticMarkup(
-      createElement(
-        QueryClientProvider,
-        { client: new QueryClient() },
-        createElement(WorkflowNeedsAction, {
-          workflowId: 'workflow-1',
-          workspaceId: 'workspace-1',
-          scopeSubject: 'work item',
-          scopeLabel: 'Work item: workflows-intake-02',
-          packet: {
-            items: [
-              {
-                action_id: 'work-item-1:open_escalation',
-                action_kind: 'resolve_escalation',
-                label: 'Resolve escalation',
-                summary:
-                  'workflows-intake-02 needs escalation resolution: submit_handoff replay mismatch conflict.',
-                target: {
-                  target_kind: 'task',
-                  target_id: '771908c8-0634-467a-b41d-6dd4a6798d7d',
-                },
-                priority: 'high',
-                requires_confirmation: false,
-                submission: {
-                  route_kind: 'task_mutation',
-                  method: 'POST',
-                },
-                details: [
-                  {
-                    label: 'Context',
-                    value: 'item content is ready for policy review, summary file already written',
-                  },
-                  {
-                    label: 'Work so far',
-                    value: 'reviewed context, wrote summary, submit_handoff rejected once',
-                  },
-                ],
-                responses: [
-                  {
-                    action_id: 'task-1:resolve',
-                    kind: 'resolve_escalation',
-                    label: 'Resume with guidance',
-                    target: {
-                      target_kind: 'task',
-                      target_id: '771908c8-0634-467a-b41d-6dd4a6798d7d',
-                    },
-                    requires_confirmation: true,
-                    prompt_kind: 'instructions',
-                  },
-                ],
-              },
-            ],
-            total_count: 1,
-            default_sort: 'priority_desc',
-          } as never,
-        }),
-      ),
-    );
-
-    expect(html).toContain('submit_handoff replay mismatch conflict');
-    expect(html).toContain('Scope: Work Item');
-    expect(html).not.toContain('Scope: Task');
-    expect(html).toContain('Context');
-    expect(html).toContain('item content is ready for policy review, summary file already written');
-    expect(html).toContain('Work so far');
-    expect(html).toContain('reviewed context, wrote summary, submit_handoff rejected once');
-  });
-
   it('keeps prompt-based responses inside the needs-action surface instead of opening a dialog', () => {
     const source = readFileSync(new URL('./workflow-needs-action.tsx', import.meta.url), 'utf8');
 
@@ -650,15 +315,5 @@ describe('WorkflowNeedsAction', () => {
     expect(source).not.toContain('dashboardApi.rejectTask(action.target.target_id');
     expect(source).not.toContain('dashboardApi.requestTaskChanges(action.target.target_id');
     expect(source).not.toContain('dashboardApi.retryTask(action.target.target_id');
-  });
-
-  it('clears prompt validation once the operator starts typing feedback', () => {
-    const source = readFileSync(new URL('./workflow-needs-action.tsx', import.meta.url), 'utf8');
-
-    expect(source).toContain('function handlePromptChange(value: string): void {');
-    expect(source).toContain('setPromptValue(value);');
-    expect(source).toContain('setPromptError(null);');
-    expect(source).toContain('onPromptChange={handlePromptChange}');
-    expect(source).not.toContain('onPromptChange={setPromptValue}');
   });
 });

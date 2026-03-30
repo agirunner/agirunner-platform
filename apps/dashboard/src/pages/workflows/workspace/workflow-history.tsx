@@ -1,12 +1,17 @@
 import { Badge } from '../../../components/ui/badge.js';
 import { Button } from '../../../components/ui/button.js';
-import type { DashboardWorkflowHistoryPacket } from '../../../lib/api.js';
+import type {
+  DashboardWorkflowBriefItem,
+  DashboardWorkflowBriefsPacket,
+  DashboardWorkflowHistoryItem,
+  DashboardWorkflowHistoryPacket,
+} from '../../../lib/api.js';
 import { formatRelativeTimestamp } from '../../workflow-detail/workflow-detail-presentation.js';
 import { formatWorkflowActivitySourceLabel } from './workflow-live-console.support.js';
 
 export function WorkflowHistory(props: {
   workflowId: string;
-  packet: DashboardWorkflowHistoryPacket;
+  packet: DashboardWorkflowHistoryPacket | DashboardWorkflowBriefsPacket;
   selectedWorkItemId?: string | null;
   selectedTaskId?: string | null;
   scopeSubject?: 'workflow' | 'work item' | 'task';
@@ -22,9 +27,9 @@ export function WorkflowHistory(props: {
   return (
     <div className="grid gap-4">
       <div className="grid gap-1">
-        <p className="text-sm font-semibold text-foreground">Briefs</p>
+        <p className="text-sm font-semibold text-foreground">History</p>
         <p className="text-sm text-muted-foreground">
-          Published briefs and durable updates for this {scopeSubject}.
+          Durable decisions and workflow records for this {scopeSubject}.
         </p>
       </div>
 
@@ -59,7 +64,7 @@ export function WorkflowHistory(props: {
       {props.packet.next_cursor ? (
         <div className="flex justify-end">
           <Button type="button" size="sm" variant="outline" onClick={props.onLoadMore}>
-            Load more briefs
+            Load more history
           </Button>
         </div>
       ) : null}
@@ -68,7 +73,7 @@ export function WorkflowHistory(props: {
 }
 
 function HistoryItemCard(props: {
-  item: DashboardWorkflowHistoryPacket['items'][number];
+  item: DashboardWorkflowHistoryItem;
   shouldShowTypeLabel: boolean;
 }): JSX.Element {
   const sourceLabel = formatWorkflowActivitySourceLabel(
@@ -100,11 +105,18 @@ function HistoryItemCard(props: {
   );
 }
 
-function getHistoryDisplayGroups(packet: DashboardWorkflowHistoryPacket): Array<
-  DashboardWorkflowHistoryPacket['groups'][number] & {
-    items: DashboardWorkflowHistoryPacket['items'];
+function getHistoryDisplayGroups(
+  packet: DashboardWorkflowHistoryPacket | DashboardWorkflowBriefsPacket,
+): Array<{
+  group_id: string;
+  label: string;
+  anchor_at: string;
+  item_ids: string[];
+  items: DashboardWorkflowHistoryItem[];
+}> {
+  if (!('groups' in packet)) {
+    return buildBriefDisplayGroups(packet);
   }
-> {
   const itemsById = new Map(packet.items.map((item) => [item.item_id, item] as const));
 
   return [...packet.groups]
@@ -112,11 +124,56 @@ function getHistoryDisplayGroups(packet: DashboardWorkflowHistoryPacket): Array<
       ...group,
       items: group.item_ids
         .map((itemId) => itemsById.get(itemId))
-        .filter((item): item is DashboardWorkflowHistoryPacket['items'][number] => Boolean(item))
+        .filter((item): item is DashboardWorkflowHistoryItem => Boolean(item))
         .sort((left, right) => right.created_at.localeCompare(left.created_at)),
     }))
     .filter((group) => group.items.length > 0)
     .sort((left, right) => right.anchor_at.localeCompare(left.anchor_at));
+}
+
+function buildBriefDisplayGroups(packet: DashboardWorkflowBriefsPacket): Array<{
+  group_id: string;
+  label: string;
+  anchor_at: string;
+  item_ids: string[];
+  items: DashboardWorkflowHistoryItem[];
+}> {
+  const items = [...packet.items]
+    .map(normalizeBriefItem)
+    .sort((left, right) => right.created_at.localeCompare(left.created_at));
+  const itemsByDay = new Map<string, DashboardWorkflowHistoryItem[]>();
+
+  for (const item of items) {
+    const groupId = item.created_at.slice(0, 10);
+    const existing = itemsByDay.get(groupId) ?? [];
+    existing.push(item);
+    itemsByDay.set(groupId, existing);
+  }
+
+  return [...itemsByDay.entries()]
+    .map(([groupId, groupItems]) => ({
+      group_id: groupId,
+      label: groupId,
+      anchor_at: `${groupId}T00:00:00.000Z`,
+      item_ids: groupItems.map((item) => item.item_id),
+      items: groupItems,
+    }))
+    .sort((left, right) => right.anchor_at.localeCompare(left.anchor_at));
+}
+
+function normalizeBriefItem(item: DashboardWorkflowBriefItem): DashboardWorkflowHistoryItem {
+  return {
+    item_id: item.brief_id,
+    item_kind: 'milestone_brief',
+    source_kind: item.source_kind,
+    source_label: item.source_label,
+    headline: item.headline,
+    summary: item.summary,
+    created_at: item.created_at,
+    work_item_id: item.work_item_id,
+    task_id: item.task_id,
+    linked_target_ids: item.linked_target_ids,
+  };
 }
 
 function formatHistoryKindLabel(

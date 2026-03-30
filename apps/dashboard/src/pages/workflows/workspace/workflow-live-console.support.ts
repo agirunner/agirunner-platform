@@ -75,6 +75,23 @@ export function getWorkflowConsoleLineText(item: DashboardWorkflowLiveConsoleIte
   return readWorkflowConsoleLineText(item);
 }
 
+export function getWorkflowConsoleDetailText(
+  item: DashboardWorkflowLiveConsoleItem,
+): string | null {
+  if (!isWorkflowConsoleBrief(item)) {
+    return null;
+  }
+  const summary = readNonEmptyText(item.summary);
+  if (!summary) {
+    return null;
+  }
+  const headline = getWorkflowConsoleLineText(item);
+  if (summary === headline) {
+    return null;
+  }
+  return summary;
+}
+
 export function getWorkflowConsoleEntryPrefix(
   item: DashboardWorkflowLiveConsoleItem,
 ): '[Brief]' | null {

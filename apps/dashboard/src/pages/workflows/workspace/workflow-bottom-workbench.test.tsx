@@ -1,4 +1,4 @@
-import { createElement } from 'react';
+import { createElement, type ComponentProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
@@ -7,7 +7,7 @@ import type { DashboardWorkflowWorkspacePacket } from '../../../lib/api.js';
 import { WorkflowBottomWorkbench } from './workflow-bottom-workbench.js';
 
 describe('WorkflowBottomWorkbench', () => {
-  it('renders an explicit scope banner above the tabs and hides the details count badge', () => {
+  it('renders a compact scope header above the tabs and keeps only the locked shell tabs', () => {
     const packet = {
       ...createPacket(),
       bottom_tabs: {
@@ -19,8 +19,7 @@ describe('WorkflowBottomWorkbench', () => {
         },
       },
     };
-    const html = renderToStaticMarkup(
-      createElement(WorkflowBottomWorkbench, {
+    const html = renderWorkbench({
         workflowId: 'workflow-1',
         workflow: packet.workflow,
         stickyStrip: packet.sticky_strip,
@@ -52,41 +51,33 @@ describe('WorkflowBottomWorkbench', () => {
         onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
-      }),
-    );
+      });
 
-    expect(html).toContain('Workflow: Workflow 1');
-    expect(html).toContain('Workflow Workbench');
-    expect(html.indexOf('Workflow Workbench')).toBeLessThan(html.indexOf('Scope'));
-    expect(html.indexOf('Workflow: Workflow 1')).toBeLessThan(html.indexOf('Details'));
-    expect(html).toContain('Scope');
-    expect(html).toContain('>Workflow<');
+    expect(html).toContain('Workflow · Workflow 1');
+    expect(html.indexOf('Workflow · Workflow 1')).toBeLessThan(html.indexOf('Details'));
     expect(html).toContain('grid h-full min-h-0 min-w-0 grid-rows-[auto_auto_minmax(0,1fr)] gap-0 overflow-hidden');
-    expect(html).toContain('flex min-w-0 flex-wrap items-start justify-between gap-2 border-b border-border/60 px-4 py-3');
-    expect(html).toContain('flex min-w-0 gap-2 overflow-x-auto border-b border-border/60 px-4 py-2.5 pb-3 sm:flex-wrap sm:overflow-visible sm:pb-2.5');
+    expect(html).not.toContain('border-b border-border/60 bg-sky-100/90 px-4 py-3 dark:bg-sky-950/35');
     expect(html).toContain('flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-4 py-4');
-    expect(html).toContain('flex min-h-full min-w-0 flex-1 flex-col');
-    expect(html).toContain('border-sky-300 bg-sky-100/90');
-    expect(html).not.toContain('border-amber-300 bg-amber-100/90');
-    expect(html).not.toContain('rounded-xl border border-border/70 bg-transparent px-3 py-2');
-    expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/90 p-2.5 shadow-sm');
-    expect(html).not.toContain('rounded-2xl bg-background/90 p-2.5');
+    expect(html).not.toContain('flex min-h-full min-w-0 flex-1 flex-col');
+    expect(html).not.toContain('border-sky-300 bg-sky-100/90');
     expect(html).not.toContain('Current scope');
-    expect(html).toContain('Briefs');
+    expect(html).toContain('History');
     expect(html).toContain('Needs Action</span><div');
+    expect(html).toContain('>Live Console<');
+    expect(html).toContain('>Deliverables<');
     expect(html).not.toContain('Details</span><div');
+    expect(html).not.toContain('Steering</span><div');
+    expect(html).not.toContain('Workflow Workbench');
     expect(html).not.toContain('Details, actions, steering, live updates, history, and deliverables stay in one place.');
-    expect(html).not.toContain('History');
     expect(html).not.toContain('Workbench Scope');
     expect(html).not.toContain('Workspace</p>');
+    expect(html).not.toContain('Scope');
     expect(html).not.toContain('min-h-[22rem]');
-    expect(html).not.toContain('rounded-2xl border border-border/70 bg-background/70 p-3');
   });
 
   it('collapses task-scoped packets back to the parent work item in the workbench header', () => {
     const packet = createPacket();
-    const html = renderToStaticMarkup(
-      createElement(WorkflowBottomWorkbench, {
+    const html = renderWorkbench({
         workflowId: 'workflow-1',
         workflow: packet.workflow,
         stickyStrip: packet.sticky_strip,
@@ -131,28 +122,22 @@ describe('WorkflowBottomWorkbench', () => {
         onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
-      }),
-    );
+      });
 
-    expect(html).toContain('Work item: Prepare release bundle');
+    expect(html).toContain('Work item · Prepare release bundle');
     expect(html).toContain('Prepare release bundle');
-    expect(html).toContain('Scope');
-    expect(html).toContain('>Work item<');
     expect(html).toContain('Show workflow');
-    expect(html).not.toContain('Task: Verify deliverable');
-    expect(html).not.toContain('>Task<');
+    expect(html).not.toContain('Task · Verify deliverable');
     expect(html).not.toContain('Show work item');
     expect(html).not.toContain('Selected on board');
     expect(html).not.toContain('Back to work item');
     expect(html).not.toContain('Back to workflow');
-    expect(html).not.toContain('Workflow 1</h3>');
     expect(html).not.toContain('Current scope');
   });
 
   it('uses the resolved current work-item and task records when details scope moves ahead of outer props', () => {
     const packet = createPacket();
-    const html = renderToStaticMarkup(
-      createElement(WorkflowBottomWorkbench, {
+    const html = renderWorkbench({
         workflowId: 'workflow-1',
         workflow: packet.workflow,
         stickyStrip: packet.sticky_strip,
@@ -225,14 +210,13 @@ describe('WorkflowBottomWorkbench', () => {
         onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
-      }),
-    );
+      });
 
     expect(html).toContain('Prepare release bundle');
     expect(html).toContain('Assemble final artifacts for launch.');
     expect(html).toContain('1 active task');
-    expect(html).toContain('Inputs');
-    expect(html).toContain('Current task input');
+    expect(html).toContain('What was asked');
+    expect(html).toContain('Task brief');
     expect(html).toContain('Requested deliverable');
     expect(html).toContain('Confirm the final release packet is complete and operator-ready.');
     expect(html).toContain('Verify deliverable');
@@ -241,10 +225,9 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).not.toContain('Task details are loading.');
   });
 
-  it('shows the work item scope banner above the tabs when the workbench is scoped to a work item', () => {
+  it('shows the work item scope banner above the tabs when the lower pane is scoped to a work item', () => {
     const packet = createPacket();
-    const html = renderToStaticMarkup(
-      createElement(WorkflowBottomWorkbench, {
+    const html = renderWorkbench({
         workflowId: 'workflow-1',
         workflow: packet.workflow,
         stickyStrip: packet.sticky_strip,
@@ -289,19 +272,16 @@ describe('WorkflowBottomWorkbench', () => {
         onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
-      }),
-    );
+      });
 
-    expect(html).toContain('Scope');
-    expect(html).toContain('>Work item<');
-    expect(html).toContain('Work item: Prepare release bundle');
-    expect(html.indexOf('Work item: Prepare release bundle')).toBeLessThan(html.indexOf('Details'));
+    expect(html).toContain('Work item · Prepare release bundle');
+    expect(html.indexOf('Work item · Prepare release bundle')).toBeLessThan(html.indexOf('Details'));
     expect(html).toContain('Show workflow');
     expect(html).not.toContain('Show work item');
     expect(html).not.toContain('Current scope');
   });
 
-  it('keeps steering focused on requests and history instead of header-control reminders', () => {
+  it('keeps steering content available inside details even after removing the separate steering tab', () => {
     const packet = createPacket();
     const html = renderToStaticMarkup(
       createElement(
@@ -366,6 +346,8 @@ describe('WorkflowBottomWorkbench', () => {
 
     expect(html).toContain('Steering request');
     expect(html).toContain('Steering history');
+    expect(html).toContain('Workflow · Workflow 1');
+    expect(html).not.toContain('Steering</span><div');
     expect(html).not.toContain('Use the top-right workflow controls');
     expect(html).not.toContain('Steering scope');
   });
@@ -426,12 +408,12 @@ describe('WorkflowBottomWorkbench', () => {
     );
 
     expect(html).toContain('Targeting work item: Prepare release bundle');
+    expect(html).not.toContain('Steering</span><div');
   });
 
   it('renders the live console empty state for the normalized work-item scope shown in the banner', () => {
     const packet = createPacket();
-    const html = renderToStaticMarkup(
-      createElement(WorkflowBottomWorkbench, {
+    const html = renderWorkbench({
         workflowId: 'workflow-1',
         workflow: packet.workflow,
         stickyStrip: packet.sticky_strip,
@@ -480,19 +462,16 @@ describe('WorkflowBottomWorkbench', () => {
         onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
-      }),
-    );
+      });
 
-    expect(html).toContain('Work item: Prepare release bundle');
+    expect(html).toContain('Work item · Prepare release bundle');
     expect(html).toContain('Live Console');
-    expect(html).toContain('Scope');
     expect(html).not.toContain('this workflow yet');
   });
 
   it('shows a loading state for the normalized work-item live console while scope data refetches', () => {
     const packet = createPacket();
-    const html = renderToStaticMarkup(
-      createElement(WorkflowBottomWorkbench, {
+    const html = renderWorkbench({
         workflowId: 'workflow-1',
         workflow: packet.workflow,
         stickyStrip: packet.sticky_strip,
@@ -547,11 +526,10 @@ describe('WorkflowBottomWorkbench', () => {
         onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
-      }),
-    );
+      });
 
-    expect(html).toContain('Loading live console for Work item: Prepare release bundle.');
-    expect(html).not.toContain('No live console entries recorded for Work item: Prepare release bundle yet.');
+    expect(html).toContain('Loading live console for Work item · Prepare release bundle.');
+    expect(html).not.toContain('No live console entries recorded for Work item · Prepare release bundle yet.');
     expect(html).not.toContain('data-live-console-filter="all"');
   });
 
@@ -614,23 +592,21 @@ describe('WorkflowBottomWorkbench', () => {
       }),
     );
 
-    expect(html).toContain('Scope');
-    expect(html).toContain('>Work item<');
+    expect(html).toContain('Work item · Prepare release bundle');
     expect(html).toContain('Prepare release bundle');
     expect(html).not.toContain('Show work item');
     expect(html).toContain('Show workflow');
     expect(html).toContain('>42<');
     expect(html).toContain('>45<');
     expect(html).not.toContain('>41<');
-    expect(html).not.toContain('Workflow: Workflow 1');
+    expect(html).not.toContain('Workflow · Workflow 1');
     expect(html).toContain('Live Console');
     expect(html).not.toContain('this workflow yet');
   });
 
   it('prefers the scoped live-console total count over the paged 50-row window in the tab badge', () => {
     const packet = createPacket();
-    const html = renderToStaticMarkup(
-      createElement(WorkflowBottomWorkbench, {
+    const html = renderWorkbench({
         workflowId: 'workflow-1',
         workflow: packet.workflow,
         stickyStrip: packet.sticky_strip,
@@ -675,8 +651,7 @@ describe('WorkflowBottomWorkbench', () => {
         onOpenRedrive: vi.fn(),
         onLoadMoreActivity: vi.fn(),
         onLoadMoreDeliverables: vi.fn(),
-      }),
-    );
+      });
 
     expect(html).toContain('>137<');
     expect(html).not.toContain('>50<');
@@ -722,7 +697,7 @@ describe('WorkflowBottomWorkbench', () => {
 
     expect(html).toContain('flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden');
     expect(html).toContain('flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 py-4');
-    expect(html).toContain('overflow-x-auto border-b border-border/60 px-4 py-2.5 pb-3 sm:flex-wrap sm:overflow-visible sm:pb-2.5');
+    expect(html).toContain('gap-1.5 overflow-x-auto px-4 pb-2 pt-1 sm:flex-wrap sm:overflow-visible');
     expect(html).not.toContain('rounded-[1.25rem] border border-border/60 bg-background/70');
     expect(html).not.toContain('min-h-0 min-w-0 flex-1 overflow-auto');
   });
@@ -767,8 +742,8 @@ describe('WorkflowBottomWorkbench', () => {
 
     expect(html).toContain('flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden');
     expect(html).toContain('flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-4 py-4');
-    expect(html).toContain('border-b border-border/60 px-4 py-3');
-    expect(html).toContain('flex min-h-full min-w-0 flex-1 flex-col');
+    expect(html).not.toContain('border-b border-border/60 bg-sky-100/90 px-4 py-3 dark:bg-sky-950/35');
+    expect(html).not.toContain('flex min-h-full min-w-0 flex-1 flex-col');
     expect(html).not.toContain('rounded-[1.25rem] border border-border/60 bg-background/70');
   });
 
@@ -898,7 +873,7 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).toContain('Deliverables');
     expect(html).toContain('Recovered deliverable');
     expect(html).toContain('Deliverables tab should render instead of tripping the workspace fallback.');
-    expect(html).toContain('No inputs or intervention files are attached to this workflow.');
+    expect(html).toContain('No interim deliverables are recorded for this workflow yet.');
   });
 
   it('keeps deliverables aligned with the normalized work-item scope when outer props are stale', () => {
@@ -1008,10 +983,10 @@ describe('WorkflowBottomWorkbench', () => {
       }),
     );
 
-    expect(html).toContain('Work item deliverables (1)');
+    expect(html).toContain('Showing only deliverables recorded for Prepare release bundle.');
     expect(html).toContain('Release checklist');
     expect(html).not.toContain('Task output and evidence');
-    expect(html).not.toContain('Parent work item deliverables (1)');
+    expect(html).not.toContain('Showing all deliverables recorded across this workflow');
   });
 
   it('renders embedded text-only deliverables inline when task-scoped packets normalize to work-item deliverables', () => {
@@ -1119,8 +1094,130 @@ describe('WorkflowBottomWorkbench', () => {
 
     expect(html).toContain('Release summary packet');
     expect(html).toContain('Embedded release summary without a target URL.');
-    expect(html).toContain('Work item deliverables (1)');
+    expect(html).toContain('Showing only deliverables recorded for Prepare release bundle.');
     expect(html).not.toContain('Open artifact in new tab');
+  });
+
+  it('renders the History tab from the briefs packet instead of the history packet when briefs are available', () => {
+    const packet = {
+      ...createPacket(),
+      bottom_tabs: {
+        ...createPacket().bottom_tabs,
+        counts: {
+          ...createPacket().bottom_tabs.counts,
+          briefs: 1,
+          history: 9,
+        },
+      },
+      history: {
+        ...createPacket().history,
+        items: [{
+          item_id: 'history-1',
+          item_kind: 'platform_notice',
+          source_kind: 'platform',
+          source_label: 'Platform',
+          headline: 'History packet only',
+          summary: 'This row should not render on the Briefs tab.',
+          created_at: '2026-03-28T03:00:00.000Z',
+          work_item_id: null,
+          task_id: null,
+          linked_target_ids: ['workflow-1'],
+        }],
+        groups: [{
+          group_id: '2026-03-28',
+          label: '2026-03-28',
+          anchor_at: '2026-03-28T00:00:00.000Z',
+          item_ids: ['history-1'],
+        }],
+        total_count: 9,
+      },
+      briefs: {
+        generated_at: '2026-03-28T03:00:00.000Z',
+        latest_event_id: 10,
+        snapshot_version: 'workflow-operations:10',
+        items: [{
+          brief_id: 'brief-1',
+          workflow_id: 'workflow-1',
+          work_item_id: null,
+          task_id: null,
+          request_id: 'brief-request-1',
+          execution_context_id: 'execution-1',
+          brief_kind: 'milestone',
+          brief_scope: 'workflow_timeline',
+          source_kind: 'orchestrator',
+          source_label: 'Orchestrator',
+          source_role_name: 'Orchestrator',
+          headline: 'Brief packet headline',
+          summary: 'This brief should render on the Briefs tab.',
+          llm_turn_count: null,
+          status_kind: 'handoff',
+          short_brief: { headline: 'Brief packet headline' },
+          detailed_brief_json: { summary: 'This brief should render on the Briefs tab.' },
+          linked_target_ids: ['workflow-1'],
+          sequence_number: 1,
+          related_artifact_ids: [],
+          related_output_descriptor_ids: [],
+          related_intervention_ids: [],
+          canonical_workflow_brief_id: null,
+          created_by_type: 'user',
+          created_by_id: 'user-1',
+          created_at: '2026-03-28T03:00:00.000Z',
+          updated_at: '2026-03-28T03:00:00.000Z',
+        }],
+        total_count: 1,
+        next_cursor: null,
+      },
+    } as DashboardWorkflowWorkspacePacket & {
+      briefs: {
+        generated_at: string;
+        latest_event_id: number;
+        snapshot_version: string;
+        items: Array<Record<string, unknown>>;
+        total_count: number;
+        next_cursor: string | null;
+      };
+    };
+    const html = renderToStaticMarkup(
+      createElement(WorkflowBottomWorkbench, {
+        workflowId: 'workflow-1',
+        workflow: packet.workflow,
+        stickyStrip: packet.sticky_strip,
+        board: packet.board,
+        workflowName: 'Workflow 1',
+        packet,
+        activeTab: 'history',
+        selectedWorkItemId: null,
+        scopedWorkItemId: null,
+        selectedWorkItemTitle: null,
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: null,
+        selectedTask: null,
+        selectedWorkItemTasks: [],
+        inputPackets: [],
+        workflowParameters: null,
+        scope: {
+          scopeKind: 'workflow',
+          title: 'Workflow',
+          subject: 'workflow',
+          name: 'Workflow 1',
+          banner: 'Workflow: Workflow 1',
+        },
+        onTabChange: vi.fn(),
+        onClearWorkItemScope: vi.fn(),
+        onClearTaskScope: vi.fn(),
+        onOpenAddWork: vi.fn(),
+        onOpenRedrive: vi.fn(),
+        onLoadMoreActivity: vi.fn(),
+        onLoadMoreDeliverables: vi.fn(),
+      }),
+    );
+
+    expect(html).toContain('History');
+    expect(html).toContain('Brief packet headline');
+    expect(html).not.toContain('History packet only');
+    expect(html).toContain('>1<');
+    expect(html).not.toContain('>9<');
   });
 });
 
@@ -1199,6 +1296,7 @@ function createPacket(): DashboardWorkflowWorkspacePacket {
         needs_action: 0,
         steering: 0,
         live_console_activity: 0,
+        briefs: 0,
         history: 0,
         deliverables: 0,
       },
@@ -1243,6 +1341,14 @@ function createPacket(): DashboardWorkflowWorkspacePacket {
       },
       next_cursor: null,
     },
+    briefs: {
+      generated_at: '2026-03-28T03:00:00.000Z',
+      latest_event_id: 10,
+      snapshot_version: 'workflow-operations:10',
+      items: [],
+      total_count: 0,
+      next_cursor: null,
+    },
     deliverables: {
       final_deliverables: [],
       in_progress_deliverables: [],
@@ -1257,4 +1363,16 @@ function createPacket(): DashboardWorkflowWorkspacePacket {
     },
     redrive_lineage: null,
   };
+}
+
+function renderWorkbench(
+  props: ComponentProps<typeof WorkflowBottomWorkbench>,
+): string {
+  return renderToStaticMarkup(
+    createElement(
+      QueryClientProvider,
+      { client: new QueryClient() },
+      createElement(WorkflowBottomWorkbench, props),
+    ),
+  );
 }
