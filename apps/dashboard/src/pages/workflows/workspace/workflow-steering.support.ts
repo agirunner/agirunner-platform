@@ -1,5 +1,4 @@
 import type {
-  DashboardTaskRecord,
   DashboardWorkflowBoardColumn,
   DashboardWorkflowSteeringRequestInput,
   DashboardWorkflowWorkItemRecord,
@@ -25,69 +24,41 @@ export interface WorkflowSteeringTargetContext {
   selectedWorkItemId: string | null;
   selectedWorkItemTitle: string | null;
   selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
-  selectedTaskId: string | null;
-  selectedTaskTitle: string | null;
-  selectedTask: DashboardTaskRecord | null;
-  selectedWorkItemTasks: DashboardTaskRecord[];
 }
 
 export function buildWorkflowSteeringTargets(
   input: WorkflowSteeringTargetContext,
 ): WorkflowSteeringTargetOption[] {
-  if (input.scope.scopeKind === 'selected_task') {
-    const selectedTaskName =
-      input.selectedTaskTitle
-      ?? input.selectedTask?.title
-      ?? input.scope.name
-      ?? 'Selected task';
-    return [
-      buildTaskTargetOption(
-        input.selectedWorkItemId ?? input.selectedTask?.work_item_id ?? null,
-        input.selectedTaskId ?? input.selectedTask?.id ?? null,
-        selectedTaskName,
-      ),
-    ];
-  }
-  if (input.scope.scopeKind === 'selected_work_item') {
+  if (input.scope.scopeKind !== 'workflow') {
+    const workItemId = input.selectedWorkItemId ?? input.selectedWorkItem?.id ?? null;
+    if (!workItemId) {
+      return [];
+    }
     return [
       buildWorkItemTargetOption(
-        input.selectedWorkItemId,
-        input.selectedWorkItemTitle ?? input.scope.name,
+        workItemId,
+        input.selectedWorkItemTitle ?? input.selectedWorkItem?.title ?? input.scope.name ?? 'Selected work item',
       ),
     ];
-  }
-
-  const options: WorkflowSteeringTargetOption[] = [];
-  if (!hasWorkflowDisabledTargets(input.workflowState)) {
-    options.push({
-      value: 'workflow',
-      scopeKind: 'workflow',
-      subject: 'workflow',
-      name: input.workflowName,
-      label: `Workflow: ${input.workflowName}`,
-      banner: `Workflow: ${input.workflowName}`,
-      workItemId: null,
-      taskId: null,
-    });
   }
 
   if (
-    shouldIncludeWorkflowScopeWorkItemTarget(
+    !shouldIncludeWorkflowScopeWorkItemTarget(
       input.selectedWorkItemId,
       input.selectedWorkItem,
       input.workflowState,
       input.boardColumns,
     )
   ) {
-    options.push(
-      buildWorkItemTargetOption(
-        input.selectedWorkItemId,
-        input.selectedWorkItemTitle ?? input.selectedWorkItem?.title ?? 'Selected work item',
-      ),
-    );
+    return [];
   }
 
-  return options;
+  return [
+    buildWorkItemTargetOption(
+      input.selectedWorkItemId ?? input.selectedWorkItem?.id ?? null,
+      input.selectedWorkItemTitle ?? input.selectedWorkItem?.title ?? input.scope.name ?? 'Selected work item',
+    ),
+  ];
 }
 
 export function buildWorkflowSteeringRequestInput(input: {
@@ -112,32 +83,8 @@ export function describeSteeringTargetDisabledReason(input: {
   boardColumns: DashboardWorkflowBoardColumn[];
   target: WorkflowSteeringTargetOption;
   selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
-  selectedTask: DashboardTaskRecord | null;
-  selectedWorkItemTasks: DashboardTaskRecord[];
 }): string | null {
-  if (input.target.scopeKind === 'selected_task') {
-    if (input.selectedWorkItem) {
-      if (isPausedWorkItem(input.workflowState, input.selectedWorkItem, input.boardColumns)) {
-        return 'This work item is paused. Resume it or choose another target before steering.';
-      }
-      if (isTerminalWorkItem(input.selectedWorkItem, input.boardColumns)) {
-        return 'This work item is already completed or cancelled. Historical work cannot be steered.';
-      }
-    }
-    const scopedTask =
-      input.selectedTask?.id === input.target.taskId
-        ? input.selectedTask
-        : input.selectedWorkItemTasks.find((task) => task.id === input.target.taskId) ?? null;
-    if (scopedTask && isPausedTask(scopedTask)) {
-      return 'This task is paused. Resume it or choose another target before steering.';
-    }
-    if (scopedTask && isTerminalTask(scopedTask)) {
-      return 'This task is already completed or cancelled. Historical work cannot be steered.';
-    }
-    return describeWorkflowTargetDisabledReason(input.workflowState);
-  }
-
-  if (input.target.scopeKind === 'selected_work_item' && input.selectedWorkItem) {
+  if (input.selectedWorkItem) {
     if (isPausedWorkItem(input.workflowState, input.selectedWorkItem, input.boardColumns)) {
       return 'This work item is paused. Resume it or choose another target before steering.';
     }
@@ -151,13 +98,10 @@ export function describeSteeringTargetDisabledReason(input: {
 }
 
 export function buildSteeringAttachmentSummary(target: WorkflowSteeringTargetOption): string {
-  if (target.scopeKind === 'selected_task') {
-    return `Steering attachments for task: ${target.name}`;
-  }
   if (target.scopeKind === 'selected_work_item') {
     return `Steering attachments for work item: ${target.name}`;
   }
-  return `Steering attachments for workflow: ${target.name}`;
+  return 'Steering attachments';
 }
 
 export function getWorkflowSteeringDisabledReason(input: {
@@ -166,22 +110,15 @@ export function getWorkflowSteeringDisabledReason(input: {
   boardColumns: DashboardWorkflowBoardColumn[];
   target: WorkflowSteeringTargetOption | null;
   selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
-  selectedTask: DashboardTaskRecord | null;
-  selectedWorkItemTasks: DashboardTaskRecord[];
 }): string | null {
   if (!input.target) {
-    return input.canAcceptRequest
-      ? 'Choose a steering target before recording a request.'
-      : describeWorkflowTargetDisabledReason(input.workflowState)
-        ?? 'Steering requests are unavailable for this workflow right now.';
+    return 'Select a work item before steering.';
   }
   const targetDisabledReason = describeSteeringTargetDisabledReason({
     workflowState: input.workflowState,
     boardColumns: input.boardColumns,
     target: input.target,
     selectedWorkItem: input.selectedWorkItem,
-    selectedTask: input.selectedTask,
-    selectedWorkItemTasks: input.selectedWorkItemTasks,
   });
   if (targetDisabledReason) {
     return targetDisabledReason;
@@ -205,23 +142,6 @@ function buildWorkItemTargetOption(
     banner: `Work item: ${name}`,
     workItemId,
     taskId: null,
-  };
-}
-
-function buildTaskTargetOption(
-  workItemId: string | null,
-  taskId: string | null,
-  name: string,
-): WorkflowSteeringTargetOption {
-  return {
-    value: `task:${taskId ?? 'current'}`,
-    scopeKind: 'selected_task',
-    subject: 'task',
-    name,
-    label: `Task: ${name}`,
-    banner: `Task: ${name}`,
-    workItemId,
-    taskId,
   };
 }
 
@@ -266,14 +186,6 @@ function isTerminalWorkItem(
     return true;
   }
   return boardColumns.some((column) => column.id === workItem.column_id && column.is_terminal);
-}
-
-function isPausedTask(task: DashboardTaskRecord): boolean {
-  return String(task.state) === 'paused';
-}
-
-function isTerminalTask(task: DashboardTaskRecord): boolean {
-  return task.state === 'completed' || task.state === 'cancelled';
 }
 
 function hasWorkflowDisabledTargets(workflowState: string): boolean {

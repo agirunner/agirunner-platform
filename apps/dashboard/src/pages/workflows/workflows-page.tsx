@@ -638,12 +638,6 @@ export function WorkflowsPage(): JSX.Element {
                   selectedWorkItemId={steeringWorkItem.id}
                   selectedWorkItemTitle={steeringWorkItem.title}
                   selectedWorkItem={steeringWorkItem}
-                  selectedTaskId={null}
-                  selectedTaskTitle={null}
-                  selectedTask={null}
-                  selectedWorkItemTasks={
-                    selectedWorkItem?.id === steeringWorkItem.id ? selectedWorkItemTaskRecords : []
-                  }
                   scope={steeringScope}
                   interventions={workspacePacket.steering.recent_interventions}
                   messages={workspacePacket.steering.session.messages}

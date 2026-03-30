@@ -19,8 +19,9 @@ test('records work-item steering from the local card control instead of a steeri
   await page.getByRole('button', { name: 'Prepare blocked release brief' }).click();
   await page.locator('[data-work-item-local-control="steer"]').click();
 
-  await expect(page.getByRole('heading', { name: 'Steer work item' })).toBeVisible();
-  await expect(page.getByText('Targeting work item: Prepare blocked release brief')).toBeVisible();
+  const steeringDialog = page.getByRole('dialog');
+  await expect(steeringDialog.getByRole('heading', { name: 'Steer work item' })).toBeVisible();
+  await expect(steeringDialog.getByText('Work item · Prepare blocked release brief').first()).toBeVisible();
   await page.getByPlaceholder(/Guide Prepare blocked release brief toward the next legal action/i).fill(
     'Prioritize the release-risk summary before any new implementation work.',
   );

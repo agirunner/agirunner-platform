@@ -4,7 +4,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../../components/ui/button.js';
 import { Textarea } from '../../../components/ui/textarea.js';
 import type {
-  DashboardTaskRecord,
   DashboardWorkflowBoardColumn,
   DashboardWorkflowInterventionRecord,
   DashboardWorkflowSteeringMessageRecord,
@@ -36,10 +35,6 @@ export function WorkflowSteering(props: {
   selectedWorkItemId: string | null;
   selectedWorkItemTitle: string | null;
   selectedWorkItem: DashboardWorkflowWorkItemRecord | null;
-  selectedTaskId: string | null;
-  selectedTaskTitle: string | null;
-  selectedTask: DashboardTaskRecord | null;
-  selectedWorkItemTasks: DashboardTaskRecord[];
   scope: WorkflowWorkbenchScopeDescriptor;
   interventions: DashboardWorkflowInterventionRecord[];
   messages: DashboardWorkflowSteeringMessageRecord[];
@@ -56,12 +51,8 @@ export function WorkflowSteering(props: {
     [
       props.boardColumns,
       normalizedScope,
-      props.selectedTask,
-      props.selectedTaskId,
-      props.selectedTaskTitle,
       props.selectedWorkItem,
       props.selectedWorkItemId,
-      props.selectedWorkItemTasks,
       props.selectedWorkItemTitle,
       props.workflowName,
       props.workflowState,
@@ -69,25 +60,18 @@ export function WorkflowSteering(props: {
   );
   const selectedTarget = targetOptions[0] ?? null;
   const disabledReason =
-    readLockedTaskScopeDisabledReason(props.scope.scopeKind, props.selectedTask)
-    ?? getWorkflowSteeringDisabledReason({
+    getWorkflowSteeringDisabledReason({
       canAcceptRequest: props.canAcceptRequest,
       workflowState: props.workflowState,
       boardColumns: props.boardColumns,
       target: selectedTarget,
       selectedWorkItem: props.selectedWorkItem,
-      selectedTask: props.selectedTask,
-      selectedWorkItemTasks: props.selectedWorkItemTasks,
     });
   const requestPlaceholder = selectedTarget
     ? `Guide ${selectedTarget.name} toward the next legal action.`
-      : 'Select a work item before writing operator guidance.';
+      : 'Select a work item before steering.';
   const attachmentSubject = selectedTarget?.subject ?? normalizedScope.subject;
-  const isSelectedTargetUnavailable = selectedTarget !== null && disabledReason !== null;
-  const isWorkflowUnavailableWithoutTarget =
-    selectedTarget === null && disabledReason !== null && !props.canAcceptRequest;
-  const shouldHideSteeringControls =
-    isSelectedTargetUnavailable || isWorkflowUnavailableWithoutTarget;
+  const shouldHideSteeringControls = disabledReason !== null;
   const unavailableSubject = selectedTarget?.subject ?? normalizedScope.subject;
 
   const requestMutation = useMutation({
@@ -279,11 +263,7 @@ function readSteeringHistoryDisplayText(value: string | null | undefined): strin
 function normalizeSteeringScope(
   props: Parameters<typeof WorkflowSteering>[0],
 ): WorkflowWorkbenchScopeDescriptor {
-  if (props.scope.scopeKind !== 'selected_task') {
-    return props.scope;
-  }
-  const workItemId = props.selectedWorkItemId ?? props.selectedTask?.work_item_id ?? null;
-  if (!workItemId) {
+  if (props.scope.scopeKind === 'workflow') {
     return props.scope;
   }
   const name =
@@ -298,22 +278,6 @@ function normalizeSteeringScope(
     name,
     banner: `Work item: ${name}`,
   };
-}
-
-function readLockedTaskScopeDisabledReason(
-  scopeKind: WorkflowWorkbenchScopeDescriptor['scopeKind'],
-  selectedTask: DashboardTaskRecord | null,
-): string | null {
-  if (scopeKind !== 'selected_task' || !selectedTask) {
-    return null;
-  }
-  if (String(selectedTask.state) === 'paused') {
-    return 'This work item is paused. Resume it or choose another target before steering.';
-  }
-  if (selectedTask.state === 'completed' || selectedTask.state === 'cancelled') {
-    return 'This work item is already completed or cancelled. Historical work cannot be steered.';
-  }
-  return null;
 }
 
 function buildSteeringHistoryEchoKey(title: string, body: string | null): string {
