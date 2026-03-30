@@ -42,6 +42,7 @@ export function WorkflowDetails(props: {
   const basicEntries = buildBasicEntries({ ...props, board: props.board, scope: normalizedScope });
   const inputGroups = buildInputGroups({
     isWorkflowScope,
+    selectedTask: props.selectedTask,
     workflowParameters: props.workflowParameters,
     workflowPackets,
     workItemPackets,
@@ -252,6 +253,7 @@ function buildBasicEntries(props: {
 
 function buildInputGroups(props: {
   isWorkflowScope: boolean;
+  selectedTask: DashboardTaskRecord | null;
   workflowParameters: Record<string, unknown> | null;
   workflowPackets: DashboardWorkflowInputPacketRecord[];
   workItemPackets: DashboardWorkflowInputPacketRecord[];
@@ -276,6 +278,21 @@ function buildInputGroups(props: {
       key: 'launch-inputs',
       title: 'Launch inputs',
       entries: launchInputEntries,
+      files: [],
+    });
+  }
+
+  const selectedTaskInputEntries = !props.isWorkflowScope && props.selectedTask
+    ? readOperatorFacingEntries(props.selectedTask.input)
+    : [];
+  if (
+    selectedTaskInputEntries.length > 0
+    && !shouldSuppressSelectedTaskInputGroup(props.selectedTask?.input, selectedTaskInputEntries)
+  ) {
+    groups.push({
+      key: 'current-task-input',
+      title: 'Current task input',
+      entries: selectedTaskInputEntries,
       files: [],
     });
   }
@@ -476,6 +493,33 @@ function isBlockedState(state: string): boolean {
 
 function isCompletedState(state: string): boolean {
   return state === 'completed' || state === 'done' || state === 'succeeded';
+}
+
+function shouldSuppressSelectedTaskInputGroup(
+  value: unknown,
+  entries: Array<[string, string]>,
+): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return false;
+  }
+  if (entries.length !== 1 || entries[0]?.[0] !== 'Requested deliverable') {
+    return false;
+  }
+
+  return Object.keys(value as Record<string, unknown>).some((key) => {
+    const normalizedKey = key
+      .trim()
+      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+      .replace(/[\s-]+/g, '_')
+      .toLowerCase();
+    return (
+      normalizedKey === 'subject_revision'
+      || normalizedKey === 'activation_id'
+      || normalizedKey === 'execution_context_id'
+      || normalizedKey.endsWith('_id')
+      || normalizedKey.endsWith('_ids')
+    );
+  });
 }
 
 function normalizeDetailsScope(

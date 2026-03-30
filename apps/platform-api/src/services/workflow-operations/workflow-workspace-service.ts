@@ -341,15 +341,13 @@ function buildWorkspaceDeliverablesPacket(
     ...scopedDeliverables.final_deliverables,
     ...scopedDeliverables.in_progress_deliverables,
   ];
-  const fallbackDeliverables = visibleDeliverables.length === 0
-    ? buildFallbackOutputDescriptorDeliverables(
-        outputDescriptors,
-        workflowId,
-        selectedScope,
-        visibleDeliverables,
-        board,
-      )
-    : [];
+  const fallbackDeliverables = buildFallbackOutputDescriptorDeliverables(
+    outputDescriptors,
+    workflowId,
+    selectedScope,
+    visibleDeliverables,
+    board,
+  );
   const mergedFinalDeliverables = [
     ...scopedDeliverables.final_deliverables,
     ...fallbackDeliverables.filter(isFinalWorkspaceDeliverable),
@@ -449,8 +447,9 @@ function selectScopedOutputDescriptors(
   if (!selectedScope.work_item_id) {
     return [];
   }
-  return outputDescriptors.filter((descriptor) =>
-    descriptor.workItemId === selectedScope.work_item_id,
+  return outputDescriptors.filter(
+    (descriptor) =>
+      descriptor.workItemId === null || descriptor.workItemId === selectedScope.work_item_id,
   );
 }
 

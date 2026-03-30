@@ -99,6 +99,45 @@ describe('WorkflowDetails', () => {
     expect(html).not.toContain('Subject Revision');
   });
 
+  it('shows readable selected-task inputs when task scope is normalized to the parent work item', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: 'task-1',
+        selectedTaskTitle: 'Verify deliverable',
+        selectedWorkItem: createWorkItem(),
+        selectedTask: {
+          ...createTask(),
+          input: {
+            deliverable: 'Confirm the final release packet is complete and operator-ready.',
+            checklist: ['release-notes', 'artifact-manifest'],
+            repository_url: 'https://x-access-token:secret@example.com/org/repo.git',
+          },
+        },
+        selectedWorkItemTasks: [],
+        inputPackets: createPackets(),
+        workflowParameters: null,
+        scope: createScope('selected_task', 'Verify deliverable'),
+      }),
+    );
+
+    expect(html).toContain('Inputs');
+    expect(html).toContain('Current task input');
+    expect(html).toContain('Requested deliverable');
+    expect(html).toContain('Confirm the final release packet is complete and operator-ready.');
+    expect(html).toContain('Checklist');
+    expect(html).toContain('Release Notes');
+    expect(html).toContain('Artifact Manifest');
+    expect(html).toContain('Repository Url');
+    expect(html).toContain('https://example.com/org/repo.git');
+    expect(html).not.toContain('x-access-token');
+    expect(html).not.toContain('secret@example.com');
+  });
+
   it('keeps selected work-item details dense with latest status, operator inputs, files, and compact task summary', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDetails, {

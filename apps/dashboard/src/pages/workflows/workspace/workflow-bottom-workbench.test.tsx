@@ -231,12 +231,13 @@ describe('WorkflowBottomWorkbench', () => {
     expect(html).toContain('Prepare release bundle');
     expect(html).toContain('Assemble final artifacts for launch.');
     expect(html).toContain('1 active task');
+    expect(html).toContain('Inputs');
+    expect(html).toContain('Current task input');
+    expect(html).toContain('Requested deliverable');
+    expect(html).toContain('Confirm the final release packet is complete and operator-ready.');
     expect(html).toContain('Verify deliverable');
     expect(html).toContain('Reviewer');
     expect(html).toContain('In Progress');
-    expect(html).not.toContain('Inputs');
-    expect(html).not.toContain('Requested deliverable');
-    expect(html).not.toContain('Confirm the final release packet is complete and operator-ready.');
     expect(html).not.toContain('Task details are loading.');
   });
 

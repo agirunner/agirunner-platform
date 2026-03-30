@@ -231,4 +231,45 @@ describe('WorkflowDeliverableBrowser', () => {
     expect(html).not.toContain('Files in this deliverable (1)');
     expect(html).not.toContain('Other deliverable targets');
   });
+
+  it('does not silently cap long artifact target lists in the in-tab browser', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDeliverableBrowser, {
+        deliverable: {
+          descriptor_id: 'deliverable-many-targets-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          descriptor_kind: 'deliverable_packet',
+          delivery_stage: 'final',
+          title: 'Release evidence set',
+          state: 'final',
+          summary_brief: 'Every artifact should stay selectable from this browser.',
+          preview_capabilities: {},
+          primary_target: {
+            target_kind: 'artifact',
+            label: 'Open artifact',
+            url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-1',
+            path: 'artifacts/releases/evidence-01.txt',
+            artifact_id: 'artifact-1',
+          },
+          secondary_targets: Array.from({ length: 20 }, (_, index) => ({
+            target_kind: 'artifact',
+            label: 'Artifact',
+            url: `http://localhost:3000/artifacts/tasks/task-1/artifact-${index + 2}`,
+            path: `artifacts/releases/evidence-${String(index + 2).padStart(2, '0')}.txt`,
+            artifact_id: `artifact-${index + 2}`,
+          })),
+          content_preview: {},
+          source_brief_id: null,
+          created_at: '2026-03-29T00:00:00.000Z',
+          updated_at: '2026-03-29T00:00:00.000Z',
+        },
+      }),
+    );
+
+    expect(html).toContain('Targets in this deliverable (21)');
+    expect(html).toContain('evidence-01.txt');
+    expect(html).toContain('evidence-21.txt');
+    expect(html).not.toContain('Targets in this deliverable (20)');
+  });
 });
