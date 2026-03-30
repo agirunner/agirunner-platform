@@ -13,10 +13,10 @@ const identity = {
 };
 
 describe('WorkflowCancellationService', () => {
-  it('rejects cancellation before the workflow has entered an active or paused run state', async () => {
+  it('allows cancellation while a workflow is still pending so planned runs can be stopped before dispatch', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
-        if (sql === 'BEGIN' || sql === 'ROLLBACK') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('SELECT id, state, metadata, lifecycle FROM workflows')) {
@@ -30,6 +30,33 @@ describe('WorkflowCancellationService', () => {
             }],
           };
         }
+        if (sql.startsWith('UPDATE workflow_stage_gates')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_stages')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('assigned_worker_id') && sql.includes('FROM tasks')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE tasks')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_activations')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE execution_container_leases')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE runtime_heartbeats')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflows')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.startsWith('UPDATE agents')) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`Unexpected SQL: ${sql}`);
       }),
       release: vi.fn(),
@@ -37,15 +64,15 @@ describe('WorkflowCancellationService', () => {
     const service = new WorkflowCancellationService({
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn(async () => undefined) } as never,
-      stateService: { recomputeWorkflowState: vi.fn(async () => 'pending') } as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'cancelled') } as never,
       resolveCancelSignalGracePeriodMs: async () => 60_000,
-      getWorkflow: vi.fn(async () => ({ id: 'workflow-1', state: 'pending' })),
+      getWorkflow: vi.fn(async () => ({ id: 'workflow-1', state: 'cancelled' })),
     });
 
-    await expect(service.cancelWorkflow(identity as never, 'workflow-1')).rejects.toThrow(
-      'Only active or paused workflows can be cancelled',
-    );
-    expect(client.query).toHaveBeenCalledWith('ROLLBACK');
+    const result = await service.cancelWorkflow(identity as never, 'workflow-1');
+
+    expect(result).toEqual(expect.objectContaining({ id: 'workflow-1', state: 'cancelled' }));
+    expect(client.query).toHaveBeenCalledWith('COMMIT');
   });
 
   it('treats a repeated cancellation request as idempotent once cancel_requested_at is present', async () => {

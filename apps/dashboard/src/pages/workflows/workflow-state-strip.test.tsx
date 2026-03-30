@@ -466,6 +466,33 @@ describe('WorkflowStateStrip', () => {
     expect(cancelledHtml).not.toContain('>Pause</button>');
   });
 
+  it('keeps Cancel visible for pending workflows even when fallback header actions are synthesised locally', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowStateStrip, {
+          workflow: createWorkflowCard({
+            state: 'pending',
+            posture: 'waiting_by_design',
+            availableActions: [],
+          }),
+          stickyStrip: createStickyStrip({
+            posture: 'waiting_by_design',
+          }),
+          board: createBoard(),
+          selectedScopeLabel: null,
+          onTabChange: vi.fn(),
+          onAddWork: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Cancel</button>');
+    expect(html).not.toContain('>Pause</button>');
+    expect(html).not.toContain('>Resume</button>');
+  });
+
   it('keeps workflow-only controls visible in the header while a narrower scope is selected', () => {
     const html = renderToStaticMarkup(
       createElement(

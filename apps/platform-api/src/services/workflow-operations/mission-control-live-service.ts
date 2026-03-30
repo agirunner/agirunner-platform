@@ -51,6 +51,7 @@ interface ArtifactOutputRow {
   workflow_state: string | null;
   logical_path: string;
   content_type: string | null;
+  size_bytes: number | null;
 }
 
 interface DocumentOutputRow {
@@ -141,6 +142,7 @@ export class MissionControlLiveService {
                     workflow_scope.state AS workflow_state,
                     workflow_artifacts.logical_path,
                     workflow_artifacts.content_type,
+                    workflow_artifacts.size_bytes,
                     ROW_NUMBER() OVER (
                       PARTITION BY workflow_artifacts.workflow_id
                       ORDER BY workflow_artifacts.created_at DESC
@@ -199,6 +201,7 @@ export class MissionControlLiveService {
         stageName: row.stage_name,
         logicalPath: row.logical_path,
         contentType: row.content_type,
+        sizeBytes: row.size_bytes,
         status: resolveArtifactOutputStatus(row),
       }));
     }

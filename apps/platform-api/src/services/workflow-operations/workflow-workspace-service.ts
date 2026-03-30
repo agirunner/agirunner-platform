@@ -528,6 +528,7 @@ function composeFallbackPrimaryTarget(
         url: normalizeArtifactPreviewUrl(location.previewPath, location.taskId, location.artifactId),
         path: location.logicalPath,
         artifact_id: location.artifactId,
+        size_bytes: location.sizeBytes,
       };
     case 'repository':
       return {

@@ -22,6 +22,7 @@ interface ArtifactRow {
   task_id: string;
   logical_path: string | null;
   content_type: string | null;
+  size_bytes: number | null;
 }
 
 interface ExistingDescriptorRow {
@@ -462,7 +463,7 @@ export class WorkflowOperatorBriefService {
       return [];
     }
     const result = await this.pool.query<ArtifactRow>(
-      `SELECT id, task_id, logical_path, content_type
+      `SELECT id, task_id, logical_path, content_type, size_bytes
          FROM workflow_artifacts
         WHERE tenant_id = $1
           AND workflow_id = $2
@@ -743,6 +744,7 @@ function buildArtifactTarget(artifact: ArtifactRow, primary: boolean): Record<st
     url: `/api/v1/tasks/${encodeURIComponent(artifact.task_id)}/artifacts/${encodeURIComponent(artifact.id)}/preview`,
     path: sanitizeOptionalText(artifact.logical_path),
     artifact_id: artifact.id,
+    size_bytes: artifact.size_bytes,
   };
 }
 

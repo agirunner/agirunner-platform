@@ -302,6 +302,11 @@ function buildFallbackWorkflowActions(
       createFallbackWorkflowAction('cancel_workflow'),
     ];
   }
+  if (workflowState === 'pending') {
+    return [
+      createFallbackWorkflowAction('cancel_workflow'),
+    ];
+  }
   return [];
 }
 

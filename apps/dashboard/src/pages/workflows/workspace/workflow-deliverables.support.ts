@@ -52,6 +52,7 @@ export function sanitizeDeliverableTarget(
     path: readOptionalTargetText(target?.path),
     repo_ref: readOptionalTargetText(target?.repo_ref),
     artifact_id: readOptionalTargetText(target?.artifact_id),
+    size_bytes: readOptionalTargetNumber(target?.size_bytes),
   };
 }
 
@@ -463,6 +464,10 @@ function readStringArray(value: unknown): string[] {
 
 function readNumber(value: unknown): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+function readOptionalTargetNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function readTargetText(value: unknown): string {

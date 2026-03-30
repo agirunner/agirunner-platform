@@ -174,7 +174,7 @@ function hasCancellationRequest(metadata: unknown) {
 }
 
 function isCancellableWorkflowState(state: unknown) {
-  return state === 'active' || state === 'paused';
+  return state === 'pending' || state === 'active' || state === 'paused';
 }
 
 async function clearStoppedRuntimeHeartbeatTasks(

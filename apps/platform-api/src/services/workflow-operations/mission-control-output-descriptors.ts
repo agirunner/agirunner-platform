@@ -13,6 +13,7 @@ export type MissionControlOutputDescriptorInput =
       logicalPath: string;
       status: MissionControlOutputStatus;
       contentType?: string | null;
+      sizeBytes?: number | null;
       previewPath?: string | null;
       downloadPath?: string | null;
       title?: string | null;
@@ -112,6 +113,9 @@ function composePrimaryLocation(
         downloadPath:
           input.downloadPath ?? `/api/v1/tasks/${input.taskId}/artifacts/${input.artifactId}`,
         contentType: input.contentType ?? null,
+        sizeBytes: typeof input.sizeBytes === 'number' && Number.isFinite(input.sizeBytes)
+          ? input.sizeBytes
+          : null,
       };
     case 'repository':
       return {

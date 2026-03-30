@@ -152,8 +152,8 @@ describe('mission control action availability', () => {
         }),
         expect.objectContaining({
           kind: 'cancel_workflow',
-          enabled: false,
-          disabledReason: 'Action is not available in the current workflow state.',
+          enabled: true,
+          disabledReason: null,
         }),
       ]),
     );

@@ -165,6 +165,7 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
         flatRows[index].type === 'header' ? GROUP_HEADER_HEIGHT_PX : ITEM_HEIGHT_PX,
       overscan: 5,
     });
+    const virtualRows = virtualizer.getVirtualItems();
 
     const handleQueryChange = useCallback(
       (newQuery: string) => {
@@ -249,6 +250,16 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
     }, [open]);
 
     useEffect(() => {
+      if (!open || !shouldVirtualize) {
+        return;
+      }
+      const frame = requestAnimationFrame(() => {
+        virtualizer.measure();
+      });
+      return () => cancelAnimationFrame(frame);
+    }, [open, shouldVirtualize, virtualizer]);
+
+    useEffect(() => {
       return () => clearTimeout(debounceRef.current);
     }, []);
 
@@ -329,11 +340,11 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
               <div className="py-4 text-center text-sm text-muted">No results found</div>
             )}
 
-            {!isLoading && selectableItems.length > 0 && shouldVirtualize && (
+            {!isLoading && selectableItems.length > 0 && shouldVirtualize && virtualRows.length > 0 && (
               <div
                 style={{ height: virtualizer.getTotalSize(), position: 'relative' }}
               >
-                {virtualizer.getVirtualItems().map((virtualRow) => {
+                {virtualRows.map((virtualRow) => {
                   const row = flatRows[virtualRow.index];
                   if (row.type === 'header') {
                     return (
@@ -410,7 +421,7 @@ export const SearchableCombobox = forwardRef<HTMLButtonElement, SearchableCombob
               </div>
             )}
 
-            {!isLoading && selectableItems.length > 0 && !shouldVirtualize && (
+            {!isLoading && selectableItems.length > 0 && (!shouldVirtualize || virtualRows.length === 0) && (
               <div className="py-1">
                 {flatRows.map((row) => {
                   if (row.type === 'header') {

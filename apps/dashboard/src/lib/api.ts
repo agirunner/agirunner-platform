@@ -703,6 +703,7 @@ export interface DashboardWorkflowDeliverableTarget {
   path?: string | null;
   repo_ref?: string | null;
   artifact_id?: string | null;
+  size_bytes?: number | null;
 }
 
 export interface DashboardWorkflowDeliverableRecord {

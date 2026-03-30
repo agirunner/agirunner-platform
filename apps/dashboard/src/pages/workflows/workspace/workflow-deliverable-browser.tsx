@@ -36,6 +36,7 @@ interface BaseBrowserRow {
   label: string;
   typeLabel: string;
   createdAt: string;
+  sizeBytes: number | null;
 }
 
 interface ArtifactBrowserRow extends BaseBrowserRow {
@@ -79,6 +80,7 @@ export function WorkflowDeliverableBrowser(props: {
             <tr>
               <th className="px-3 py-2 text-left font-medium">Item</th>
               <th className="px-3 py-2 text-left font-medium">Type</th>
+              <th className="px-3 py-2 text-left font-medium">Size</th>
               <th className="px-3 py-2 text-left font-medium">Recorded</th>
               <th className="px-3 py-2 text-right font-medium">Action</th>
             </tr>
@@ -101,6 +103,9 @@ export function WorkflowDeliverableBrowser(props: {
                     </button>
                   </td>
                   <td className="px-3 py-2 align-top text-muted-foreground">{row.typeLabel}</td>
+                  <td className="px-3 py-2 align-top text-muted-foreground">
+                    {row.sizeBytes !== null ? formatArtifactSize(row.sizeBytes) : '—'}
+                  </td>
                   <td className="px-3 py-2 align-top text-muted-foreground">
                     {formatEntryTimestamp(row.createdAt)}
                   </td>
@@ -418,6 +423,9 @@ function buildBrowserRows(deliverable: DashboardWorkflowDeliverableRecord): Deli
         label: readDeliverableTargetDisplayLabel(target, 'Deliverable file'),
         typeLabel: formatDeliverableTargetKind(target.target_kind || 'artifact'),
         createdAt: deliverable.created_at,
+        sizeBytes: typeof target.size_bytes === 'number' && Number.isFinite(target.size_bytes)
+          ? target.size_bytes
+          : null,
         target,
         previewHref: href,
         downloadHref: resolveBrowserDownloadHref(href),
@@ -430,6 +438,7 @@ function buildBrowserRows(deliverable: DashboardWorkflowDeliverableRecord): Deli
       label: readDeliverableTargetDisplayLabel(target, 'Deliverable reference'),
       typeLabel: formatDeliverableTargetKind(target.target_kind || 'reference'),
       createdAt: deliverable.created_at,
+      sizeBytes: null,
       target,
     });
   }
@@ -443,6 +452,7 @@ function buildBrowserRows(deliverable: DashboardWorkflowDeliverableRecord): Deli
       label: readInlineLabel(deliverable),
       typeLabel: 'Inline summary',
       createdAt: deliverable.created_at,
+      sizeBytes: null,
       content: inlineContent,
     });
   }
@@ -504,16 +514,18 @@ function readTargetKey(target: DashboardWorkflowDeliverableTarget, href: string 
   ].join(':');
 }
 
-function resolveBrowserDownloadHref(href: string): string {
+export function resolveBrowserDownloadHref(href: string): string {
   return rewriteTaskArtifactTransportPath(href, 'download') ?? href;
 }
 
 function rewriteTaskArtifactTransportPath(href: string, mode: 'download'): string | null {
   try {
     const parsed = new URL(href, 'http://dashboard.local');
-    const taskArtifactMatch = parsed.pathname.match(
-      /^\/api\/v1\/tasks\/([^/]+)\/artifacts\/([^/]+)(?:\/(preview|download|permalink))?$/,
-    );
+    const taskArtifactMatch =
+      parsed.pathname.match(
+        /^\/api\/v1\/tasks\/([^/]+)\/artifacts\/([^/]+)(?:\/(preview|download|permalink))?$/,
+      )
+      ?? parsed.pathname.match(/^\/artifacts\/tasks\/([^/]+)\/([^/?#]+)$/);
     if (!taskArtifactMatch) {
       return null;
     }
@@ -557,10 +569,12 @@ function resolveTaskArtifactIdentity(...hrefs: Array<string | null>): TaskArtifa
       const match = parsed.pathname.match(
         /^\/api\/v1\/tasks\/([^/]+)\/artifacts\/([^/]+)(?:\/(preview|download|permalink))?$/,
       );
-      if (match) {
+      const deprecatedMatch = parsed.pathname.match(/^\/artifacts\/tasks\/([^/]+)\/([^/?#]+)$/);
+      const resolvedMatch = match ?? deprecatedMatch;
+      if (resolvedMatch) {
         return {
-          taskId: decodeURIComponent(match[1]),
-          artifactId: decodeURIComponent(match[2]),
+          taskId: decodeURIComponent(resolvedMatch[1]),
+          artifactId: decodeURIComponent(resolvedMatch[2]),
         };
       }
     } catch {

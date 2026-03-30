@@ -1,8 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 import { loginToWorkflows } from './support/workflows-auth.js';
+import { seedLaunchDialogScenario } from './support/workflows-fixtures.js';
 
 test('keeps launch selector options populated on every open', async ({ page }) => {
+  await seedLaunchDialogScenario();
   await loginToWorkflows(page);
 
   await page.locator('aside').getByRole('button', { name: 'New Workflow' }).click();
@@ -13,7 +15,11 @@ test('keeps launch selector options populated on every open', async ({ page }) =
 
   await expectLaunchSelectorOptions(page, playbookTrigger);
   await expectLaunchSelectorOptions(page, playbookTrigger);
+  await expectLaunchSelectorOptions(page, playbookTrigger);
+  await expectLaunchSelectorOptions(page, playbookTrigger);
 
+  await expectLaunchSelectorOptions(page, workspaceTrigger);
+  await expectLaunchSelectorOptions(page, workspaceTrigger);
   await expectLaunchSelectorOptions(page, workspaceTrigger);
   await expectLaunchSelectorOptions(page, workspaceTrigger);
 });
@@ -28,6 +34,6 @@ async function expectLaunchSelectorOptions(page: Page, trigger: Locator): Promis
       message: 'Expected launch selector to show at least one option.',
     })
     .toBeGreaterThan(0);
-  await page.keyboard.press('Escape');
+  await trigger.click();
   await expect(listbox).toBeHidden();
 }

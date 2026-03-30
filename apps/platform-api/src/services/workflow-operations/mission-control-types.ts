@@ -92,6 +92,7 @@ export interface MissionControlArtifactLocation {
   previewPath: string | null;
   downloadPath: string;
   contentType: string | null;
+  sizeBytes: number | null;
 }
 
 export interface MissionControlRepositoryLocation {

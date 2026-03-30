@@ -3,7 +3,10 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 
 import type { DashboardWorkflowDeliverableRecord } from '../../../lib/api.js';
-import { WorkflowDeliverableBrowser } from './workflow-deliverable-browser.js';
+import {
+  resolveBrowserDownloadHref,
+  WorkflowDeliverableBrowser,
+} from './workflow-deliverable-browser.js';
 
 describe('WorkflowDeliverableBrowser', () => {
   it('renders artifact rows in a table with preview and download actions', () => {
@@ -16,7 +19,8 @@ describe('WorkflowDeliverableBrowser', () => {
             url: 'http://localhost:3000/artifacts/tasks/task-1/artifact-1',
             path: 'artifacts/releases/final-package.json',
             artifact_id: 'artifact-1',
-          },
+            size_bytes: 1536,
+          } as never,
         }),
       }),
     );
@@ -24,10 +28,12 @@ describe('WorkflowDeliverableBrowser', () => {
     expect(html).toContain('<table');
     expect(html).toContain('Item');
     expect(html).toContain('Type');
+    expect(html).toContain('Size');
     expect(html).toContain('Recorded');
     expect(html).toContain('Action');
     expect(html).toContain('final-package.json');
     expect(html).toContain('Artifact');
+    expect(html).toContain('1.5 KB');
     expect(html).toContain('Preview');
     expect(html).toContain('Download');
     expect(html).not.toContain('Targets in this deliverable');
@@ -187,6 +193,15 @@ describe('WorkflowDeliverableBrowser', () => {
     expect(html).toContain('evidence-01.txt');
     expect(html).toContain('evidence-21.txt');
     expect(html).not.toContain('evidence-22.txt');
+  });
+
+  it('rewrites deprecated artifact preview paths to canonical task download endpoints', () => {
+    expect(
+      resolveBrowserDownloadHref('http://localhost:3000/artifacts/tasks/task-1/artifact-1'),
+    ).toBe('http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/download');
+    expect(
+      resolveBrowserDownloadHref('http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/preview'),
+    ).toBe('http://localhost:3000/api/v1/tasks/task-1/artifacts/artifact-1/download');
   });
 });
 

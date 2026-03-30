@@ -133,7 +133,7 @@ function canResume(workflowState: string, hasCancelRequest: boolean): boolean {
 }
 
 function canCancel(workflowState: string, hasCancelRequest: boolean): boolean {
-  return (workflowState === 'active' || workflowState === 'paused') && !hasCancelRequest;
+  return (workflowState === 'pending' || workflowState === 'active' || workflowState === 'paused') && !hasCancelRequest;
 }
 
 function canAddWork(
@@ -285,6 +285,9 @@ function explainResumeDisabled(workflowState: string, hasCancelRequest: boolean)
 function explainCancelDisabled(workflowState: string, hasCancelRequest: boolean): string {
   if (hasCancelRequest || workflowState === 'cancelling') {
     return 'Workflow cancellation is already in progress.';
+  }
+  if (workflowState === 'pending') {
+    return 'Pending workflows can be cancelled before work starts.';
   }
   if (workflowState === 'cancelled') {
     return 'Workflow is already cancelled.';

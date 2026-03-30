@@ -31,6 +31,11 @@ export interface SeededWorkflowsScenario {
   failedWorkflow: ApiRecord;
 }
 
+export interface SeededLaunchDialogScenario {
+  workspaces: ApiRecord[];
+  playbooks: ApiRecord[];
+}
+
 export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: number } = {}): Promise<SeededWorkflowsScenario> {
   await resetWorkflowsState();
   await updateAgenticSettings('enhanced');
@@ -196,6 +201,43 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     needsActionWorkflow,
     failedWorkflow,
   };
+}
+
+export async function seedLaunchDialogScenario(options: {
+  playbookCount?: number;
+  workspaceCount?: number;
+} = {}): Promise<SeededLaunchDialogScenario> {
+  await resetWorkflowsState();
+  const suffix = Date.now().toString(36);
+  const playbookCount = Math.max(options.playbookCount ?? 26, 2);
+  const workspaceCount = Math.max(options.workspaceCount ?? 26, 2);
+
+  const workspaces = await Promise.all(
+    Array.from({ length: workspaceCount }, async (_, index) =>
+      apiRequest<ApiRecord>('/api/v1/workspaces', {
+        method: 'POST',
+        body: {
+          name: `Launch Workspace ${index + 1} ${suffix}`,
+          slug: `workflows-launch-${suffix}-${String(index + 1).padStart(2, '0')}`,
+          description: 'Seeded workspace for launch-dialog selector coverage.',
+        },
+      }),
+    ),
+  );
+
+  const playbooks = await Promise.all(
+    Array.from({ length: playbookCount }, async (_, index) => {
+      const lifecycle = index % 2 === 0 ? 'planned' : 'ongoing';
+      const prefix = lifecycle === 'planned' ? 'planned-workflows' : 'ongoing-workflows';
+      return createPlaybook({
+        name: `Launch Playbook ${index + 1} ${suffix}`,
+        slug: `${prefix}-launch-${suffix}-${String(index + 1).padStart(2, '0')}`,
+        lifecycle,
+      });
+    }),
+  );
+
+  return { workspaces, playbooks };
 }
 
 export async function createWorkflowViaApi(input: {
