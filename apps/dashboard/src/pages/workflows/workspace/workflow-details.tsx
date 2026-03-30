@@ -189,7 +189,7 @@ function CompactTaskList(props: {
     return <></>;
   }
 
-  const shouldBoundHeight = props.tasks.length > 4;
+  const shouldBoundHeight = props.tasks.length > 5;
 
   return (
     <div
@@ -242,10 +242,6 @@ function buildBasicEntries(props: {
       ?? humanizeOptionalToken(props.selectedWorkItem?.column_id ?? null),
     ),
     readBasicEntry('Priority', humanizeOptionalToken(props.selectedWorkItem?.priority ?? null)),
-    readBasicEntry('Owner role', humanizeOptionalToken(props.selectedWorkItem?.owner_role ?? null)),
-    readBasicEntry('Next actor', humanizeOptionalToken(props.selectedWorkItem?.next_expected_actor ?? null)),
-    readBasicEntry('Gate status', humanizeOptionalToken(props.selectedWorkItem?.gate_status ?? null)),
-    readBasicEntry('Escalation', humanizeOptionalToken(props.selectedWorkItem?.escalation_status ?? null)),
   ].filter((entry): entry is [string, string] => Boolean(entry));
 }
 

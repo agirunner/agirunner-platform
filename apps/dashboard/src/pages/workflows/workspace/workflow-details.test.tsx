@@ -42,8 +42,6 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Release');
     expect(html).toContain('Priority');
     expect(html).toContain('High');
-    expect(html).toContain('Owner role');
-    expect(html).toContain('Release Manager');
     expect(html).toContain('Inputs');
     expect(html).toContain('Rollback guide');
     expect(html).toContain('rollback.md');
@@ -167,8 +165,6 @@ describe('WorkflowDetails', () => {
     expect(html).toContain('Stage');
     expect(html).toContain('Priority');
     expect(html).toContain('High');
-    expect(html).toContain('Owner role');
-    expect(html).toContain('Release Manager');
     expect(html).toContain('Inputs');
     expect(html).toContain('1 blocked task');
     expect(html).toContain('Launch packet');
@@ -184,6 +180,11 @@ describe('WorkflowDetails', () => {
     expect(html.match(/1 blocked task/g)?.length ?? 0).toBe(1);
     expect(html).not.toContain('Release notes and approval summary are attached.');
     expect(html).not.toContain('1 active • 1 blocked • 1 completed');
+    expect(html).not.toContain('Owner role');
+    expect(html).not.toContain('Release Manager');
+    expect(html).not.toContain('Next actor');
+    expect(html).not.toContain('Reviewer');
+    expect(html).not.toContain('Approve release packet');
   });
 
   it('keeps workflow-scoped packet context visible inside selected work-item details', () => {
@@ -260,6 +261,34 @@ describe('WorkflowDetails', () => {
     );
 
     expect(html).toContain('max-h-[16rem] overflow-y-auto overscroll-contain rounded-md border border-border/60 bg-muted/5 p-1.5');
+  });
+
+  it('keeps five-task summaries fully open before introducing the bounded internal scroll area', () => {
+    const html = renderToStaticMarkup(
+      createElement(WorkflowDetails, {
+        workflow: createWorkflow(),
+        stickyStrip: createStickyStrip(),
+        board: createBoard(),
+        selectedWorkItemId: 'work-item-1',
+        selectedWorkItemTitle: 'Prepare release bundle',
+        selectedTaskId: null,
+        selectedTaskTitle: null,
+        selectedWorkItem: createWorkItem(),
+        selectedTask: null,
+        selectedWorkItemTasks: Array.from({ length: 5 }, (_, index) => ({
+          id: `task-${index + 1}`,
+          title: `Task ${index + 1}`,
+          state: index === 0 ? 'in_progress' : 'ready',
+        })),
+        inputPackets: createPackets(),
+        workflowParameters: null,
+        scope: createScope('selected_work_item', 'Prepare release bundle'),
+      }),
+    );
+
+    expect(html).not.toContain(
+      'max-h-[16rem] overflow-y-auto overscroll-contain rounded-md border border-border/60 bg-muted/5 p-1.5',
+    );
   });
 
   it('keeps workflow scope minimal and limited to workflow-level status, inputs, and uploaded files', () => {
