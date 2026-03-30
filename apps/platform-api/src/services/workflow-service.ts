@@ -996,10 +996,14 @@ function resolveBoardColumnId(
   if (isCompletedBoardChild(item, terminalColumns)) {
     return currentColumnId;
   }
-  if ((workflowState === 'cancelled' || hasCancelRequest) && terminalColumns.size > 0) {
+  if ((hasCancelRequest || isTerminalWorkflowState(workflowState)) && terminalColumns.size > 0) {
     return terminalColumns.values().next().value ?? currentColumnId;
   }
   return currentColumnId;
+}
+
+function isTerminalWorkflowState(workflowState: string | null): boolean {
+  return workflowState === 'cancelled' || workflowState === 'completed' || workflowState === 'failed';
 }
 
 function hasWorkflowCancelRequest(metadata: Record<string, unknown>) {

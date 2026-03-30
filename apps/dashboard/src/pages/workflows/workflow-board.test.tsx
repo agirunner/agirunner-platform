@@ -877,6 +877,40 @@ describe('WorkflowBoard', () => {
     expect(html.indexOf('>Done</p>')).toBeLessThan(html.indexOf('Cancelled packet review'));
     expect(html).not.toContain('No completed work items match the current visibility window.');
   });
+
+  it('does not label completed workflow work as cancelled when it is only projected into the terminal lane', () => {
+    const html = renderToStaticMarkup(
+      createElement(
+        QueryClientProvider,
+        { client: new QueryClient() },
+        createElement(WorkflowBoard, {
+          workflowId: 'workflow-1',
+          board: {
+            ...createBoard(),
+            work_items: [
+              {
+                id: 'work-item-completed',
+                workflow_id: 'workflow-1',
+                stage_name: 'delivery',
+                title: 'Publish terminal brief',
+                priority: 'high',
+                column_id: 'planned',
+              },
+            ],
+          },
+          selectedWorkItemId: null,
+          boardMode: 'active_recent_complete',
+          workflowState: 'completed',
+          onBoardModeChange: vi.fn(),
+          onSelectWorkItem: vi.fn(),
+        }),
+      ),
+    );
+
+    expect(html).toContain('Publish terminal brief');
+    expect(html.indexOf('>Done</p>')).toBeLessThan(html.indexOf('Publish terminal brief'));
+    expect(html).not.toContain('>Cancelled<');
+  });
 });
 
 function createBoard(): DashboardWorkflowBoardResponse {

@@ -214,13 +214,24 @@ function resolveDisplayColumnId(
   workItem: DashboardWorkflowWorkItemRecord,
   workflowState?: string | null,
 ): string {
-  if (isCancelledWorkItem(workItem, workflowState)) {
+  if (shouldProjectToTerminalLane(workItem, workflowState)) {
     return readTerminalColumnId(columns) ?? workItem.column_id;
   }
   if (isBlockedWorkItem(workItem)) {
     return readBlockedColumnId(columns) ?? workItem.column_id;
   }
   return workItem.column_id;
+}
+
+function shouldProjectToTerminalLane(
+  workItem: DashboardWorkflowWorkItemRecord,
+  workflowState?: string | null,
+): boolean {
+  return !Boolean(workItem.completed_at) && isTerminalWorkflowState(workflowState);
+}
+
+function isTerminalWorkflowState(workflowState?: string | null): boolean {
+  return workflowState === 'cancelled' || workflowState === 'completed' || workflowState === 'failed';
 }
 
 function readBlockedColumnId(columns: DashboardWorkflowBoardColumn[]): string | null {

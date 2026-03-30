@@ -194,10 +194,8 @@ export class WorkflowWorkspaceService {
     const allNeedsActionItems = buildNeedsActionItems(
       workflowId,
       board as Record<string, unknown>,
-      workflowCard?.availableActions ?? [],
       interventions,
       actionableTasks,
-      selectedScope.work_item_id,
       gates,
     );
     const needsAction = buildNeedsActionPacket(allNeedsActionItems, selectedScope);
@@ -913,10 +911,8 @@ function buildHistoryGroupsFromItems(items: WorkflowHistoryItem[]): WorkflowWork
 function buildNeedsActionItems(
   workflowId: string,
   board: Record<string, unknown>,
-  actions: MissionControlActionAvailability[],
   interventions: WorkflowInterventionRecord[],
   actionableTasks: ActionableTaskRecord[],
-  selectedWorkItemId: string | null,
   gates: WorkflowGateRecord[],
 ): WorkflowNeedsActionItem[] {
   const items: WorkflowNeedsActionItem[] = [];
@@ -994,28 +990,6 @@ function buildNeedsActionItems(
         target,
         typeof intervention.work_item_id === 'string' ? intervention.work_item_id : null,
       ),
-    });
-  }
-  for (const action of actions) {
-    if (!isNeedsActionQuickAction(action)) {
-      continue;
-    }
-    const target = resolveActionTarget(action.scope, workflowId, interventions, selectedWorkItemId);
-    items.push({
-      action_id: `${workflowId}:${action.kind}`,
-      action_kind: action.kind,
-      label: humanizeActionKind(action.kind),
-      summary: action.disabledReason ?? humanizeActionKind(action.kind),
-      work_item_id: readNeedsActionWorkItemId(target),
-      task_id: readNeedsActionTaskId(target),
-      target,
-      priority: action.scope === 'workflow' ? 'medium' : 'high',
-      requires_confirmation: action.confirmationLevel !== 'immediate',
-      submission: {
-        route_kind: 'workflow_mutation',
-        method: 'POST',
-      },
-      responses: buildQuickActionResponses(action.kind, target),
     });
   }
   return items.sort(compareNeedsActionPriority);
@@ -1534,16 +1508,6 @@ function buildInterventionResponses(
   return [];
 }
 
-function buildQuickActionResponses(
-  actionKind: string,
-  target: WorkflowNeedsActionItem['target'],
-): WorkflowNeedsActionResponseAction[] {
-  if (actionKind === 'redrive_workflow') {
-    return [buildNeedsActionResponse('redrive_workflow', 'Redrive workflow', target.target_id, 'workflow', 'none', true)];
-  }
-  return [];
-}
-
 function buildNeedsActionResponse(
   kind: string,
   label: string,
@@ -1574,49 +1538,8 @@ function humanizeActionKind(actionKind: string): string {
     .join(' ');
 }
 
-function resolveActionTarget(
-  scope: MissionControlActionAvailability['scope'],
-  workflowId: string,
-  interventions: WorkflowInterventionRecord[],
-  selectedWorkItemId: string | null,
-): WorkflowNeedsActionItem['target'] {
-  if (scope === 'workflow') {
-    return { target_kind: 'workflow', target_id: workflowId };
-  }
-  if (scope === 'work_item') {
-    return {
-      target_kind: 'work_item',
-      target_id: selectedWorkItemId ?? readFirstInterventionId(interventions, 'work_item') ?? workflowId,
-    };
-  }
-  return {
-    target_kind: 'task',
-    target_id: readFirstInterventionId(interventions, 'task') ?? workflowId,
-  };
-}
-
-function readFirstInterventionId(
-  interventions: WorkflowInterventionRecord[],
-  targetKind: WorkflowNeedsActionItem['target']['target_kind'],
-): string | null {
-  for (const intervention of interventions) {
-    const target = readInterventionTarget(intervention, intervention.workflow_id);
-    if (target.target_kind === targetKind) {
-      return target.target_id;
-    }
-  }
-  return null;
-}
-
 function isActionableIntervention(intervention: WorkflowInterventionRecord): boolean {
   return intervention.status === 'open' || intervention.status === 'pending';
-}
-
-function isNeedsActionQuickAction(action: MissionControlActionAvailability): boolean {
-  if (!action.enabled) {
-    return false;
-  }
-  return action.kind === 'redrive_workflow';
 }
 
 function readBoardNeedsActionItems(board: Record<string, unknown>): WorkflowBoardNeedsActionItem[] {

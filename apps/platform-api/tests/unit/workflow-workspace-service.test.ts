@@ -2730,7 +2730,7 @@ describe('WorkflowWorkspaceService', () => {
     expect(result.bottom_tabs.default_tab).toBe('details');
   });
 
-  it('keeps workflow add-work controls out of needs action while surfacing real workflow interventions', async () => {
+  it('keeps generic workflow controls out of needs action while surfacing real workflow interventions', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({
@@ -2821,10 +2821,8 @@ describe('WorkflowWorkspaceService', () => {
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1');
 
-    expect(result.needs_action.total_count).toBe(1);
-    expect(result.needs_action.items).toEqual([
-      expect.objectContaining({ action_kind: 'redrive_workflow' }),
-    ]);
+    expect(result.needs_action.total_count).toBe(0);
+    expect(result.needs_action.items).toEqual([]);
     expect(result.steering.quick_actions).toEqual([]);
     expect(result.sticky_strip).toEqual(
       expect.objectContaining({
@@ -6546,21 +6544,16 @@ describe('WorkflowWorkspaceService', () => {
 
     const result = await service.getWorkspace('tenant-1', 'workflow-1');
 
-    expect(result.needs_action.items).toEqual([
-      expect.objectContaining({
-        action_kind: 'redrive_workflow',
-        target: { target_kind: 'workflow', target_id: 'workflow-1' },
-      }),
-    ]);
-    expect(result.bottom_tabs.counts.needs_action).toBe(1);
+    expect(result.needs_action.items).toEqual([]);
+    expect(result.bottom_tabs.counts.needs_action).toBe(0);
     expect((result.needs_action as any).scope_summary).toEqual({
-      workflow_total_count: 1,
-      selected_scope_total_count: 1,
+      workflow_total_count: 0,
+      selected_scope_total_count: 0,
       scoped_away_workflow_count: 0,
     });
   });
 
-  it('reports scoped-away workflow actions when a selected work item has nothing actionable', async () => {
+  it('does not count generic workflow controls as scoped-away needs action when a selected work item has nothing actionable', async () => {
     const workflowService = {
       getWorkflow: vi.fn(async () => ({})),
       getWorkflowBoard: vi.fn(async () => ({ columns: [], work_items: [], stage_summary: [] })),
@@ -6654,9 +6647,9 @@ describe('WorkflowWorkspaceService', () => {
     expect(result.needs_action.total_count).toBe(0);
     expect(result.bottom_tabs.counts.needs_action).toBe(0);
     expect((result.needs_action as any).scope_summary).toEqual({
-      workflow_total_count: 1,
+      workflow_total_count: 0,
       selected_scope_total_count: 0,
-      scoped_away_workflow_count: 1,
+      scoped_away_workflow_count: 0,
     });
   });
 });
