@@ -7,7 +7,9 @@ function countLines(path: string): number {
 }
 
 describe('layout large-file guardrails', () => {
-  it('keeps layout.tsx under 500 lines', () => {
+  it('keeps the layout shell family under 500 lines per file', () => {
     expect(countLines('./layout.tsx')).toBeLessThanOrEqual(500);
+    expect(countLines('./layout.test.ts')).toBeLessThanOrEqual(500);
+    expect(countLines('./layout-source.test.ts')).toBeLessThanOrEqual(500);
   });
 });
