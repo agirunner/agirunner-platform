@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../src/auth/api-key.js', () => ({
+vi.mock('../../../src/auth/api-key.js', () => ({
   createApiKey: vi.fn(),
 }));
 
-import { createApiKey } from '../../src/auth/api-key.js';
-import { deleteWorker, getWorker, listWorkers, registerWorker } from '../../src/services/worker-registration-service.js';
+import { createApiKey } from '../../../src/auth/api-key.js';
+import { deleteWorker, getWorker, listWorkers, registerWorker } from '../../../src/services/worker-registration-service.js';
 
 const mockedCreateApiKey = vi.mocked(createApiKey);
 

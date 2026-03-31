@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { enforceHeartbeatTimeouts, heartbeat } from '../../src/services/worker-heartbeat-service.js';
+import { enforceHeartbeatTimeouts, heartbeat } from '../../../src/services/worker-heartbeat-service.js';
 
 describe('worker heartbeat timeout enforcement', () => {
   it('releases stale claimed task leases when the worker reports no current task', async () => {

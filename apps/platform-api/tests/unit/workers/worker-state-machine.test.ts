@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { assertValidWorkerTransition } from '../../src/orchestration/worker-state-machine.js';
+import { assertValidWorkerTransition } from '../../../src/orchestration/worker-state-machine.js';
 
 describe('worker state machine', () => {
   it('allows online -> busy transition', () => {
