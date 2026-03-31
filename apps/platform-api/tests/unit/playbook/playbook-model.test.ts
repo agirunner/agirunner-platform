@@ -4,8 +4,8 @@ import {
   defaultStageName,
   parsePlaybookDefinition,
   readPlaybookRuntimePools,
-} from '../../src/orchestration/playbook-model.js';
-import { SchemaValidationFailedError } from '../../src/errors/domain-errors.js';
+} from '../../../src/orchestration/playbook-model.js';
+import { SchemaValidationFailedError } from '../../../src/errors/domain-errors.js';
 
 describe('playbook model runtime pools', () => {
   it('returns a legacy specialist pool when only shared runtime config exists', () => {

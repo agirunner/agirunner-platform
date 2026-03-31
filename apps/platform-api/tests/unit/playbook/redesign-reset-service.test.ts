@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   PlaybookRedesignResetService,
   PLAYBOOK_REDESIGN_PRESERVED_TABLES,
-} from '../../src/services/redesign-reset-service.js';
+} from '../../../src/services/redesign-reset-service.js';
 
 describe('PlaybookRedesignResetService', () => {
   it('truncates redesign state and reseeds preserved bootstrap configuration', async () => {

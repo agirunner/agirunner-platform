@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { resetPlaybookRedesignState } from '../../src/bootstrap/seed.js';
+import { resetPlaybookRedesignState } from '../../../src/bootstrap/seed.js';
 
 describe('resetPlaybookRedesignState', () => {
   it('truncates redesign-owned tables while preserving admin key and llm configuration tables', async () => {
