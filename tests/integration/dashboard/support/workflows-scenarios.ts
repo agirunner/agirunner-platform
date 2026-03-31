@@ -1,9 +1,11 @@
 import {
-  ApiRecord,
   SEED_BOARD_COLUMNS,
+  buildUploadFile,
+} from './workflows-common.js';
+import type {
+  ApiRecord,
   SeededLaunchDialogScenario,
   SeededWorkflowsScenario,
-  buildUploadFile,
 } from './workflows-common.js';
 import {
   appendWorkflowBrief,

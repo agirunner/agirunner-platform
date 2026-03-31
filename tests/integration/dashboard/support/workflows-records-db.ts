@@ -3,12 +3,14 @@ import { createHash, randomUUID } from 'node:crypto';
 
 import { DEFAULT_TENANT_ID } from './platform-env.js';
 import {
-  ApiRecord,
   SEED_BOARD_COLUMNS,
-  WorkflowPacketSeedFile,
   sqlJsonValue,
   sqlText,
   sqlUuid,
+} from './workflows-common.js';
+import type {
+  ApiRecord,
+  WorkflowPacketSeedFile,
 } from './workflows-common.js';
 import { runPsql } from './workflows-runtime.js';
 import { writeSeededArtifactObject } from './workflows-storage.js';

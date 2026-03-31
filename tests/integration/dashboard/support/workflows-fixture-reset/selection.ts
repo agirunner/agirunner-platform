@@ -1,5 +1,6 @@
 import { DEFAULT_TENANT_ID } from '../platform-env.js';
-import { ApiRecord, sqlText, sqlUuid } from '../workflows-common.js';
+import { sqlText, sqlUuid } from '../workflows-common.js';
+import type { ApiRecord } from '../workflows-common.js';
 import { queryRows, queryScalarValues } from './runtime.js';
 
 const FIXTURE_WORKSPACE_SLUG_PREFIX = 'workflows-';

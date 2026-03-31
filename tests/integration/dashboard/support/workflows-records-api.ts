@@ -2,13 +2,13 @@ import { randomUUID } from 'node:crypto';
 
 import { DEFAULT_TENANT_ID } from './platform-env.js';
 import {
-  ApiRecord,
   SEED_STAGE_DEFINITIONS,
   resolveSeedStageStatus,
   sqlJsonValue,
   sqlText,
   sqlUuid,
 } from './workflows-common.js';
+import type { ApiRecord } from './workflows-common.js';
 import { apiRequest, runPsql } from './workflows-runtime.js';
 import {
   createWorkItem,
