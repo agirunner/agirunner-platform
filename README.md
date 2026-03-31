@@ -76,7 +76,7 @@ Security defaults in compose/runtime profile:
 To use a fetched runtime image instead of building from `../agirunner-runtime`, set:
 
 ```env
-AGIRUNNER_RUNTIME_IMAGE=ghcr.io/agirunner/agirunner-runtime@sha256:...
+AGIRUNNER_RUNTIME_IMAGE=registry.example.com/agirunner/agirunner-runtime@sha256:...
 ```
 
 The image is expected to support file-backed secret loading. Compose mounts `./.secrets` into every runtime and worker as `/run/secrets` and passes env vars such as:
@@ -89,14 +89,10 @@ The image is expected to support file-backed secret loading. Compose mounts `./.
 
 That means a pulled image does not need secrets baked in. It only needs the updated runtime binary that reads `*_FILE` env vars and the mounted `/run/secrets` directory.
 
-### Runtime image strategy hooks
+### Runtime image strategy
 
 - Local default: `AGIRUNNER_RUNTIME_IMAGE=agirunner-runtime:local` built from `../agirunner-runtime`.
 - Staging/release: set `AGIRUNNER_RUNTIME_IMAGE` to a digest-pinned runtime image.
-- Publication helper: `scripts/runtime-image-publish.sh`
-  - Builds/tag runtime image from `agirunner-runtime` repo
-  - Optionally pushes to private registry
-  - Writes tarball fallback artifact under `dist/images/`
 
 See `docs/testing/v1.05-s3-compose-runtime-image-strategy.md` for stage-specific details and evidence conventions.
 
