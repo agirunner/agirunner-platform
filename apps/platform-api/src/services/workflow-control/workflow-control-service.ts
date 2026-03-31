@@ -9,7 +9,7 @@ import {
   readLifecycleMarker,
   readLifecycleTaskIds,
   reopenPauseCancelledSpecialistTasks,
-} from '../workflow-lifecycle-control-support.js';
+} from './workflow-lifecycle-control-support.js';
 import {
   stopWorkflowBoundExecution,
   type StopWorkflowBoundExecutionDeps,

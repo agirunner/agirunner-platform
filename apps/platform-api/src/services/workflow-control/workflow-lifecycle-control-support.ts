@@ -1,6 +1,6 @@
-import type { DatabasePool } from '../db/database.js';
+import type { DatabasePool } from '../../db/database.js';
 
-import type { EventService } from './event/event-service.js';
+import type { EventService } from '../event/event-service.js';
 
 interface ReopenedTaskRow {
   id: string;

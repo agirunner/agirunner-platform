@@ -36,7 +36,7 @@ import type {
 } from '../work-item-service/types.js';
 import { WorkflowStageService } from '../workflow-stage/workflow-stage-service.js';
 import { WorkflowStateService } from '../workflow-state-service.js';
-import { WorkflowWorkItemControlService } from '../workflow-work-item-control-service.js';
+import { WorkflowWorkItemControlService } from '../workflow-control/workflow-work-item-control-service.js';
 import { WorkspaceTimelineService } from '../workspace/timeline/workspace-timeline-service.js';
 import { readTaskCancelSignalGracePeriodMs } from '../platform-config/platform-timing-defaults.js';
 import { deleteWorkflow as deleteWorkflowRecord } from './workflow-delete-service.js';
