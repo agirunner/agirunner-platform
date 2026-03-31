@@ -1,12 +1,12 @@
-import type { DatabasePool } from '../db/database.js';
-import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
-import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
-import { readProviderSecret } from '../lib/oauth-crypto.js';
+import type { DatabasePool } from '../../db/database.js';
+import { TenantScopedRepository } from '../../db/tenant-scoped-repository.js';
+import { ConflictError, NotFoundError } from '../../errors/domain-errors.js';
+import { readProviderSecret } from '../../lib/oauth-crypto.js';
 import {
   type DiscoveredModel,
   isDefaultEnabledModel,
   readNativeSearchCapability,
-} from './platform-config/llm-discovery-service.js';
+} from '../platform-config/llm-discovery-service.js';
 import {
   attachNativeSearchCapability,
   normalizeSecretValue,
@@ -18,7 +18,7 @@ import {
   type ResolvedRoleConfig,
   readProviderTypeOrThrow,
   sanitizeProvider,
-} from './model-catalog/model-catalog-records.js';
+} from './model-catalog-records.js';
 import {
   createModelSchema,
   createProviderSchema,
@@ -28,12 +28,12 @@ import {
   type UpdateProviderInput,
   updateModelSchema,
   updateProviderSchema,
-} from './model-catalog/model-catalog-schemas.js';
+} from './model-catalog-schemas.js';
 import {
   findDefaultModelId,
   findDefaultReasoningConfig,
   upsertRuntimeDefault,
-} from './model-catalog/model-catalog-runtime-defaults.js';
+} from './model-catalog-runtime-defaults.js';
 
 export type {
   AssignmentRow,

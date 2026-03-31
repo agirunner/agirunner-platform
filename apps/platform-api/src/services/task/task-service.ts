@@ -5,7 +5,7 @@ import { createArtifactStorage } from '../../content/storage-factory.js';
 import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 import { ArtifactRetentionService } from '../artifacts/artifact-retention-service.js';
 import { EventService } from '../event/event-service.js';
-import { ModelCatalogService } from '../model-catalog-service.js';
+import { ModelCatalogService } from '../model-catalog/model-catalog-service.js';
 import { TaskClaimService } from '../task-claim/task-claim-service.js';
 import { TaskLifecycleService } from '../task-lifecycle/task-lifecycle-service.js';
 import { WorkflowStateService } from '../workflow-state-service.js';

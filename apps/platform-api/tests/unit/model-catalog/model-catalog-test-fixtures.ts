@@ -1,5 +1,5 @@
 import { configureProviderSecretEncryptionKey } from '../../../src/lib/oauth-crypto.js';
-import { ModelCatalogService } from '../../../src/services/model-catalog-service.js';
+import { ModelCatalogService } from '../../../src/services/model-catalog/model-catalog-service.js';
 
 import { vi } from 'vitest';
 

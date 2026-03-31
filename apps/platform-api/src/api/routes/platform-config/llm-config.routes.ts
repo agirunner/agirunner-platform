@@ -7,7 +7,7 @@ import type {
   UpdateProviderInput,
   CreateModelInput,
   UpdateModelInput,
-} from '../../../services/model-catalog-service.js';
+} from '../../../services/model-catalog/model-catalog-service.js';
 import { LlmDiscoveryService } from '../../../services/platform-config/llm-discovery-service.js';
 import { getOAuthProfile } from '../../../catalogs/oauth-profiles.js';
 

@@ -12,7 +12,7 @@ import {
   stopTestDatabase,
   type TestDatabase,
 } from '../../db/postgres.js';
-import { ModelCatalogService } from '../../../../src/services/model-catalog-service.js';
+import { ModelCatalogService } from '../../../../src/services/model-catalog/model-catalog-service.js';
 import { RuntimeDefaultsService } from '../../../../src/services/runtime-defaults/runtime-defaults-service.js';
 import { HandoffService } from '../../../../src/services/handoff-service/handoff-service.js';
 import { WorkflowOperatorBriefService } from '../../../../src/services/workflow-operator/workflow-operator-brief-service.js';

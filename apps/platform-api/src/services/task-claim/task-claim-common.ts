@@ -2,7 +2,7 @@ import type { DatabaseClient } from '../../db/database.js';
 import { ValidationError } from '../../errors/domain-errors.js';
 import { logTaskGovernanceTransition } from '../../logging/task-governance-log.js';
 import type { LogService } from '../../logging/log-service.js';
-import type { ResolvedRoleConfig } from '../model-catalog-service.js';
+import type { ResolvedRoleConfig } from '../model-catalog/model-catalog-service.js';
 import { DEFAULT_ASSEMBLED_PROMPT_WARNING_THRESHOLD_CHARS } from './task-claim-constants.js';
 import type {
   AgentExecutionMode,

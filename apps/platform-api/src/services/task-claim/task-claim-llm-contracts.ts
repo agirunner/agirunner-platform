@@ -2,7 +2,7 @@ import type { DatabasePool } from '../../db/database.js';
 import { ValidationError } from '../../errors/domain-errors.js';
 import { isExternalSecretReference } from '../../lib/oauth-crypto.js';
 import { RemoteMcpOAuthService } from '../remote-mcp/oauth/remote-mcp-oauth-service.js';
-import type { ResolvedRoleConfig } from '../model-catalog-service.js';
+import type { ResolvedRoleConfig } from '../model-catalog/model-catalog-service.js';
 import {
   type SpecialistRemoteMcpServerCapability,
   type SpecialistRoleCapabilities,
