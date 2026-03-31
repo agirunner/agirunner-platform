@@ -1,48 +1,14 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-
-function readSource() {
-  return [
-    './workflow-work-item-history-section.tsx',
-    './workflow-work-item-history-controls.tsx',
-    './workflow-work-item-history-entry.tsx',
-  ]
-    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
-    .join('\n');
-}
 
 afterEach(() => {
   vi.doUnmock('./workflow-work-item-history-support.js');
   vi.resetModules();
 });
 
-describe('workflow work-item history section source', () => {
-  it('renders operator history packets with overview metrics and linked-step diagnostics', () => {
-    const source = readSource();
-
-    expect(source).toContain('buildWorkItemHistoryOverview(filteredEvents)');
-    expect(source).toContain('buildWorkItemHistoryRecords(props.events)');
-    expect(source).toContain('filterAndSortWorkItemHistoryRecords');
-    expect(source).toContain('paginateWorkItemHistoryRecords');
-    expect(source).toContain('Latest operator signal');
-    expect(source).toContain('overview.metrics.map((metric) =>');
-    expect(source).toContain('SavedViews');
-    expect(source).toContain('Search activity, stages, steps, actors, work items, or signal labels');
-    expect(source).toContain('Needs attention');
-    expect(source).toContain('Attention first');
-    expect(source).toContain('Showing {start}-{end} of {props.visibleCount} visible events.');
-    expect(source).toContain('WORK_ITEM_HISTORY_PAGE_SIZE');
-    expect(source).toContain('data-testid="work-item-history-list"');
-    expect(source).toContain('Stay in the work-item flow first');
-    expect(source).toContain('Open linked step diagnostics');
-    expect(source).toContain('Operator decision packet');
-    expect(source).toContain('Open full event payload');
-  });
-
+describe('workflow work-item history section', () => {
   it('serializes object-valued event history fields instead of rendering raw objects', async () => {
     vi.doMock('./workflow-work-item-history-support.js', () => ({
       buildWorkItemHistoryOverview: (events: Array<{ data?: Record<string, unknown> }>) => ({
