@@ -1,5 +1,5 @@
 import { type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import {
@@ -38,11 +38,8 @@ import {
   patchPageState,
   useWorkflowRailSelectionSync,
 } from './workflows-page.controller.js';
-import {
-  combineWorkflowRailPages,
-  getNextWorkflowRailPageParam,
-} from './workflows-rail-pagination.js';
-import { buildWorkflowRailQueryKey, buildWorkflowWorkspaceQueryKey } from './workflows-query.js';
+import { useWorkflowRailData } from './workflows-rail-query.js';
+import { buildWorkflowWorkspaceQueryKey } from './workflows-query.js';
 import { useWorkflowRailRealtime, useWorkflowWorkspaceRealtime } from './workflows-realtime.js';
 import {
   beginWorkflowRailResize,
@@ -54,7 +51,6 @@ import {
 } from './workflows-layout.js';
 import { WorkflowsPageView } from './workflows-page.view.js';
 
-const RAIL_PAGE_SIZE = 100;
 const ACTIVITY_PAGE_SIZE = 50;
 const DELIVERABLES_PAGE_SIZE = 12;
 
@@ -148,20 +144,7 @@ export function WorkflowsPage(): JSX.Element {
     workItemId: scopedWorkItemId,
   };
 
-  const railQuery = useInfiniteQuery({
-    queryKey: buildWorkflowRailQueryKey(pageState),
-    initialPageParam: 1,
-    queryFn: ({ pageParam }) =>
-      dashboardApi.getWorkflowRail({
-        mode: pageState.mode,
-        page: pageParam,
-        perPage: RAIL_PAGE_SIZE,
-        needsActionOnly: pageState.needsActionOnly,
-        lifecycleFilter: pageState.lifecycleFilter,
-        search: pageState.search,
-      }),
-    getNextPageParam: getNextWorkflowRailPageParam,
-  });
+  const { railPacket, railQuery } = useWorkflowRailData(pageState);
   const workspaceQuery = useQuery({
     queryKey: pageState.workflowId
       ? buildWorkflowWorkspaceQueryKey({
@@ -234,10 +217,6 @@ export function WorkflowsPage(): JSX.Element {
     }
   }, [pageState.workflowId, workspaceQuery.data, workspaceQuery.isPlaceholderData]);
 
-  const railPacket = useMemo(
-    () => combineWorkflowRailPages(railQuery.data),
-    [railQuery.data],
-  );
   const workspacePacket = workspaceQuery.data
     ?? resolveWorkspacePlaceholderData(
       lastWorkspacePacketRef.current ?? undefined,
