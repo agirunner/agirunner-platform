@@ -1,4 +1,4 @@
-import type { CreateTaskInput } from './task-service.types.js';
+import type { CreateTaskInput } from './task/task-service.types.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 
 const A2A_PROTOCOL_VERSION = '0.1';

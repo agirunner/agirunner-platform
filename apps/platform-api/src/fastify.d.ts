@@ -30,7 +30,7 @@ import type { WorkspaceArtifactFileService } from './services/workspace/artifact
 import type { PlaybookService } from './services/playbook/playbook-service.js';
 import type { RoleDefinitionService } from './services/role-definition/role-definition-service.js';
 import type { RuntimeDefaultsService } from './services/runtime-defaults/runtime-defaults-service.js';
-import type { TaskService } from './services/task-service.js';
+import type { TaskService } from './services/task/task-service.js';
 import type { UserService } from './services/user-service.js';
 import type { WorkerConnectionHub } from './services/workers/worker-connection-hub.js';
 import type { WorkerService } from './services/workers/worker-service.js';
@@ -52,7 +52,7 @@ import type { WorkflowInputPacketService } from './services/workflow-input-packe
 import type { WorkflowInterventionService } from './services/workflow-intervention-service.js';
 import type { WorkflowOperatorBriefService } from './services/workflow-operator/workflow-operator-brief-service.js';
 import type { WorkflowOperatorUpdateService } from './services/workflow-operator/workflow-operator-update-service.js';
-import type { WorkflowRedriveService } from './services/workflow-redrive-service.js';
+import type { WorkflowRedriveService } from './services/workflow-service/workflow-redrive-service.js';
 import type { WorkflowSettingsService } from './services/workflow-settings-service.js';
 import type { WorkflowSteeringSessionService } from './services/workflow-steering-session-service/workflow-steering-session-service.js';
 import type { PlatformTransportTimingDefaults } from './services/platform-timing-defaults.js';

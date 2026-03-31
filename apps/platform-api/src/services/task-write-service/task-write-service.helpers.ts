@@ -6,7 +6,7 @@ import {
   mustGetSafetynetEntry,
 } from '../safetynet/registry.js';
 import { logSafetynetTriggered } from '../safetynet/logging.js';
-import type { CreateTaskInput } from '../task-service.types.js';
+import type { CreateTaskInput } from '../task/task-service.types.js';
 
 export const DEFAULT_REPOSITORY_TASK_TEMPLATE = 'execution-workspace';
 const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;

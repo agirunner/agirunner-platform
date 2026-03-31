@@ -6,7 +6,7 @@ import {
   readRequiredPositiveIntegerRuntimeDefault,
   TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
 } from '../runtime-defaults/runtime-default-values.js';
-import type { CreateTaskInput } from '../task-service.types.js';
+import type { CreateTaskInput } from '../task/task-service.types.js';
 import type { LinkedWorkItemRow, TaskWriteDependencies, WorkflowMutationGuardRow, WorkflowPlaybookDefinitionRow } from './task-write-service.types.js';
 import {
   asNullableString,

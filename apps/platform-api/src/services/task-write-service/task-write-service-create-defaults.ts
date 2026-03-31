@@ -15,7 +15,7 @@ import {
   normalizeResourceBindings,
   stripWorkspaceStorageOverrides,
 } from './task-write-service.helpers.js';
-import type { CreateTaskInput } from '../task-service.types.js';
+import type { CreateTaskInput } from '../task/task-service.types.js';
 import type { LinkedWorkItemRow, TaskWriteDependencies, WorkflowPlaybookDefinitionRow } from './task-write-service.types.js';
 import { resolveWorkspaceStorageBinding } from '../workspace/workspace-storage.js';
 

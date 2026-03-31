@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { ValidationError } from '../../../errors/domain-errors.js';
-import type { PublicTaskState, TaskExecutionBackend } from '../../../services/task-service.types.js';
+import type { PublicTaskState, TaskExecutionBackend } from '../../../services/task/task-service.types.js';
 
 const publicTaskStateFilters = new Set<PublicTaskState>([
   'pending',

@@ -65,7 +65,7 @@ import { PlaybookService } from '../services/playbook/playbook-service.js';
 import { RoleDefinitionService } from '../services/role-definition/role-definition-service.js';
 import { readPlatformTransportTimingDefaults } from '../services/platform-timing-defaults.js';
 import { RuntimeDefaultsService } from '../services/runtime-defaults/runtime-defaults-service.js';
-import { TaskService } from '../services/task-service.js';
+import { TaskService } from '../services/task/task-service.js';
 import { UserService } from '../services/user-service.js';
 import { WorkerConnectionHub } from '../services/workers/worker-connection-hub.js';
 import { WorkerService } from '../services/workers/worker-service.js';
@@ -79,7 +79,7 @@ import { WorkflowInputPacketService } from '../services/workflow-input-packet-se
 import { WorkflowInterventionService } from '../services/workflow-intervention-service.js';
 import { WorkflowOperatorBriefService } from '../services/workflow-operator/workflow-operator-brief-service.js';
 import { WorkflowOperatorUpdateService } from '../services/workflow-operator/workflow-operator-update-service.js';
-import { WorkflowRedriveService } from '../services/workflow-redrive-service.js';
+import { WorkflowRedriveService } from '../services/workflow-service/workflow-redrive-service.js';
 import { WorkflowSettingsService } from '../services/workflow-settings-service.js';
 import { WorkflowSteeringSessionService } from '../services/workflow-steering-session-service/workflow-steering-session-service.js';
 import { seedConfigTables } from './seed.js';

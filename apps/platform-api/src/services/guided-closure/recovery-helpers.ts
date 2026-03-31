@@ -8,7 +8,7 @@ import {
   parsePlaybookDefinition,
 } from '../../orchestration/playbook-model.js';
 import type { PlaybookWorkflowControlService } from '../playbook-workflow-control/playbook-workflow-control-service.js';
-import type { TaskService } from '../task-service.js';
+import type { TaskService } from '../task/task-service.js';
 import {
   completionCalloutsSchema,
   mergeCompletionCallouts,

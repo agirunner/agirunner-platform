@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { NotFoundError, ValidationError } from '../../../src/errors/domain-errors.js';
-import { WorkflowRedriveService } from '../../../src/services/workflow-redrive-service.js';
+import { WorkflowRedriveService } from '../../../src/services/workflow-service/workflow-redrive-service.js';
 
 const IDENTITY = {
   id: 'key-1',

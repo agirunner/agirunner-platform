@@ -10,7 +10,7 @@ import { WorkflowActivationDispatchService } from '../workflow-activation-dispat
 import { WorkflowBudgetService } from '../workflow-budget-service.js';
 import { WorkflowCancellationService } from '../workflow-cancellation-service.js';
 import { WorkflowControlService } from '../workflow-control-service.js';
-import { WorkflowCreationService } from '../workflow-creation-service.js';
+import { WorkflowCreationService } from './workflow-creation-service.js';
 import { WorkflowDeliverableService } from '../workflow-deliverable-service.js';
 import { EventService } from '../event/event-service.js';
 import {
@@ -22,7 +22,7 @@ import {
   type StageGateRequestInput,
   type UpdateWorkflowWorkItemInput,
 } from '../playbook-workflow-control/playbook-workflow-control-service.js';
-import type { TaskService } from '../task-service.js';
+import type { TaskService } from '../task/task-service.js';
 import {
   type CreateWorkflowWorkItemEnvelopeInput,
   WorkflowAddWorkService,

@@ -20,7 +20,7 @@ import {
   selectPersistedSubjectLinkage,
   stripRedactedTaskSecretPlaceholders,
 } from './task-write-service.helpers.js';
-import type { CreateTaskInput } from '../task-service.types.js';
+import type { CreateTaskInput } from '../task/task-service.types.js';
 import type { TaskWriteDependencies } from './task-write-service.types.js';
 
 const IDEMPOTENT_MUTATION_REPLAY_SAFETYNET = mustGetSafetynetEntry(

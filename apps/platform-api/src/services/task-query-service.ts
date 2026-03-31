@@ -9,7 +9,7 @@ import {
 } from '../orchestration/task-state-machine.js';
 import { sanitizeSecretLikeValue } from './secret-redaction.js';
 import { buildTaskContext, summarizeTaskContextAttachments } from './task-context-service/task-context-service.js';
-import type { ListTaskQuery } from './task-service.types.js';
+import type { ListTaskQuery } from './task/task-service.types.js';
 import type { RelevantHandoffResolution } from './predecessor-handoff-resolver.js';
 
 const SECRET_REDACTION = 'redacted://task-secret';
