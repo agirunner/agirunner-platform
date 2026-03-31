@@ -1,31 +1,33 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError } from '../errors/domain-errors.js';
-import { NotFoundError } from '../errors/domain-errors.js';
+import {
+  deleteWorkflowArtifacts,
+  deleteWorkspaceArtifactFiles,
+  deleteWorkspaceScopedTasks,
+} from './destructive-delete/destructive-delete-artifacts.js';
+import {
+  assertWorkspaceExists,
+  listActiveStandaloneTaskIdsForWorkspace,
+  listActiveWorkflowIdsForPlaybooks,
+  listActiveWorkflowIdsForWorkspace,
+  listPlaybookFamilyIds,
+  listTaskIdsForWorkflows,
+  listTaskIdsForWorkspace,
+  listWorkflowIdsForPlaybooks,
+  listWorkflowIdsForWorkspace,
+  loadPlaybook,
+  summarizePlaybookScope,
+  summarizeWorkspaceScope,
+  uniqueIds,
+} from './destructive-delete/destructive-delete-queries.js';
+import {
+  type DeleteImpactSummary,
+  type DestructiveDeleteDeps,
+  type PlaybookDeleteImpact,
+} from './destructive-delete/destructive-delete-types.js';
 
-const TERMINAL_WORKFLOW_STATES = ['completed', 'failed', 'cancelled'] as const;
-const TERMINAL_TASK_STATES = ['completed', 'failed', 'cancelled'] as const;
-const CANCELLABLE_WORKFLOW_STATES = ['active', 'paused'] as const;
-
-export interface DeleteImpactSummary {
-  workflows: number;
-  active_workflows: number;
-  tasks: number;
-  active_tasks: number;
-  work_items: number;
-}
-
-export interface PlaybookDeleteImpact {
-  revision: DeleteImpactSummary;
-  family: DeleteImpactSummary & { revisions: number };
-}
-
-interface DestructiveDeleteDeps {
-  cancelWorkflow?: (identity: ApiKeyIdentity, workflowId: string) => Promise<unknown>;
-  cancelTask?: (identity: ApiKeyIdentity, taskId: string) => Promise<unknown>;
-  artifactStorage?: Pick<ArtifactStorageAdapter, 'deleteObject'>;
-}
+export type { DeleteImpactSummary, PlaybookDeleteImpact };
 
 export class DestructiveDeleteService {
   constructor(
@@ -34,27 +36,27 @@ export class DestructiveDeleteService {
   ) {}
 
   async getPlaybookDeleteImpact(tenantId: string, playbookId: string): Promise<PlaybookDeleteImpact> {
-    const playbook = await this.loadPlaybook(tenantId, playbookId);
-    const familyIds = await this.listPlaybookFamilyIds(this.pool, tenantId, playbook.slug);
+    const playbook = await loadPlaybook(this.pool, tenantId, playbookId);
+    const familyIds = await listPlaybookFamilyIds(this.pool, tenantId, playbook.slug);
 
     return {
-      revision: await this.summarizePlaybookScope(tenantId, [playbookId]),
+      revision: await summarizePlaybookScope(this.pool, tenantId, [playbookId]),
       family: {
         revisions: familyIds.length,
-        ...(await this.summarizePlaybookScope(tenantId, familyIds)),
+        ...(await summarizePlaybookScope(this.pool, tenantId, familyIds)),
       },
     };
   }
 
   async getWorkspaceDeleteImpact(tenantId: string, workspaceId: string): Promise<DeleteImpactSummary> {
-    await this.assertWorkspaceExists(tenantId, workspaceId);
-    return this.summarizeWorkspaceScope(tenantId, workspaceId);
+    await assertWorkspaceExists(this.pool, tenantId, workspaceId);
+    return summarizeWorkspaceScope(this.pool, tenantId, workspaceId);
   }
 
   async deletePlaybookPermanently(identity: ApiKeyIdentity, playbookId: string) {
-    const playbook = await this.loadPlaybook(identity.tenantId, playbookId);
-    const familyIds = await this.listPlaybookFamilyIds(this.pool, identity.tenantId, playbook.slug);
-    const activeWorkflowIds = await this.listActiveWorkflowIdsForPlaybooks(
+    const playbook = await loadPlaybook(this.pool, identity.tenantId, playbookId);
+    const familyIds = await listPlaybookFamilyIds(this.pool, identity.tenantId, playbook.slug);
+    const activeWorkflowIds = await listActiveWorkflowIdsForPlaybooks(
       this.pool,
       identity.tenantId,
       familyIds,
@@ -64,8 +66,8 @@ export class DestructiveDeleteService {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const workflowIds = await this.listWorkflowIdsForPlaybooks(client, identity.tenantId, familyIds);
-      const taskIds = await this.listTaskIdsForWorkflows(client, identity.tenantId, workflowIds);
+      const workflowIds = await listWorkflowIdsForPlaybooks(client, identity.tenantId, familyIds);
+      const taskIds = await listTaskIdsForWorkflows(client, identity.tenantId, workflowIds);
       const purgeCounts = await this.purgeWorkflowTree(client, identity.tenantId, workflowIds, taskIds);
       const deletedPlaybooks = await client.query<{ id: string }>(
         `DELETE FROM playbooks
@@ -91,13 +93,13 @@ export class DestructiveDeleteService {
   }
 
   async deleteWorkspaceCascading(identity: ApiKeyIdentity, workspaceId: string) {
-    await this.assertWorkspaceExists(identity.tenantId, workspaceId);
-    const activeWorkflowIds = await this.listActiveWorkflowIdsForWorkspace(
+    await assertWorkspaceExists(this.pool, identity.tenantId, workspaceId);
+    const activeWorkflowIds = await listActiveWorkflowIdsForWorkspace(
       this.pool,
       identity.tenantId,
       workspaceId,
     );
-    const activeStandaloneTaskIds = await this.listActiveStandaloneTaskIdsForWorkspace(
+    const activeStandaloneTaskIds = await listActiveStandaloneTaskIdsForWorkspace(
       this.pool,
       identity.tenantId,
       workspaceId,
@@ -108,8 +110,8 @@ export class DestructiveDeleteService {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const workflowIds = await this.listWorkflowIdsForWorkspace(client, identity.tenantId, workspaceId);
-      const taskIds = await this.listTaskIdsForWorkspace(client, identity.tenantId, workspaceId);
+      const workflowIds = await listWorkflowIdsForWorkspace(client, identity.tenantId, workspaceId);
+      const taskIds = await listTaskIdsForWorkspace(client, identity.tenantId, workspaceId);
       const purgeCounts = await this.purgeWorkflowTree(
         client,
         identity.tenantId,
@@ -123,7 +125,12 @@ export class DestructiveDeleteService {
             AND workspace_id = $2`,
         [identity.tenantId, workspaceId],
       );
-      await this.deleteWorkspaceArtifactFiles(client, identity.tenantId, workspaceId);
+      await deleteWorkspaceArtifactFiles(
+        client,
+        this.deps.artifactStorage,
+        identity.tenantId,
+        workspaceId,
+      );
       await client.query(
         `DELETE FROM workspaces
           WHERE tenant_id = $1
@@ -146,7 +153,7 @@ export class DestructiveDeleteService {
   }
 
   async deleteWorkspaceWithoutDependencies(identity: ApiKeyIdentity, workspaceId: string) {
-    await this.assertWorkspaceExists(identity.tenantId, workspaceId);
+    await assertWorkspaceExists(this.pool, identity.tenantId, workspaceId);
 
     const client = await this.pool.connect();
     try {
@@ -157,7 +164,12 @@ export class DestructiveDeleteService {
             AND workspace_id = $2`,
         [identity.tenantId, workspaceId],
       );
-      await this.deleteWorkspaceArtifactFiles(client, identity.tenantId, workspaceId);
+      await deleteWorkspaceArtifactFiles(
+        client,
+        this.deps.artifactStorage,
+        identity.tenantId,
+        workspaceId,
+      );
       await client.query(
         `DELETE FROM workspaces
           WHERE tenant_id = $1
@@ -172,86 +184,6 @@ export class DestructiveDeleteService {
     } finally {
       client.release();
     }
-  }
-
-  private async summarizePlaybookScope(tenantId: string, playbookIds: string[]): Promise<DeleteImpactSummary> {
-    const result = await this.pool.query<DeleteImpactSummary>(
-      `SELECT
-         (SELECT COUNT(*)::int
-            FROM workflows
-           WHERE tenant_id = $1
-             AND playbook_id = ANY($2::uuid[])) AS workflows,
-         (SELECT COUNT(*)::int
-            FROM workflows
-           WHERE tenant_id = $1
-             AND playbook_id = ANY($2::uuid[])
-             AND state::text <> ALL($3::text[])) AS active_workflows,
-         (SELECT COUNT(*)::int
-            FROM tasks
-           WHERE tenant_id = $1
-             AND workflow_id IN (
-               SELECT id
-                 FROM workflows
-                WHERE tenant_id = $1
-                  AND playbook_id = ANY($2::uuid[])
-             )) AS tasks,
-         (SELECT COUNT(*)::int
-            FROM tasks
-           WHERE tenant_id = $1
-             AND workflow_id IN (
-               SELECT id
-                 FROM workflows
-                WHERE tenant_id = $1
-                  AND playbook_id = ANY($2::uuid[])
-             )
-             AND state::text <> ALL($4::text[])) AS active_tasks,
-         (SELECT COUNT(*)::int
-            FROM workflow_work_items
-           WHERE tenant_id = $1
-             AND workflow_id IN (
-               SELECT id
-                 FROM workflows
-                WHERE tenant_id = $1
-                  AND playbook_id = ANY($2::uuid[])
-             )) AS work_items`,
-      [tenantId, playbookIds, [...TERMINAL_WORKFLOW_STATES], [...TERMINAL_TASK_STATES]],
-    );
-    return result.rows[0] ?? emptyImpactSummary();
-  }
-
-  private async summarizeWorkspaceScope(tenantId: string, workspaceId: string): Promise<DeleteImpactSummary> {
-    const result = await this.pool.query<DeleteImpactSummary>(
-      `SELECT
-         (SELECT COUNT(*)::int
-            FROM workflows
-           WHERE tenant_id = $1
-             AND workspace_id = $2) AS workflows,
-         (SELECT COUNT(*)::int
-            FROM workflows
-           WHERE tenant_id = $1
-             AND workspace_id = $2
-             AND state::text <> ALL($3::text[])) AS active_workflows,
-         (SELECT COUNT(*)::int
-            FROM tasks
-           WHERE tenant_id = $1
-             AND workspace_id = $2) AS tasks,
-         (SELECT COUNT(*)::int
-            FROM tasks
-           WHERE tenant_id = $1
-             AND workspace_id = $2
-             AND state::text <> ALL($4::text[])) AS active_tasks,
-         (SELECT COUNT(*)::int
-            FROM workflow_work_items
-           WHERE tenant_id = $1
-             AND workflow_id IN (
-               SELECT id
-                 FROM workflows
-                WHERE tenant_id = $1
-                  AND workspace_id = $2
-             )) AS work_items`,
-      [tenantId, workspaceId, [...TERMINAL_WORKFLOW_STATES], [...TERMINAL_TASK_STATES]],
-    );
-    return result.rows[0] ?? emptyImpactSummary();
   }
 
   private async purgeWorkflowTree(
@@ -333,8 +265,9 @@ export class DestructiveDeleteService {
           )`,
       workflowTaskWorkspaceParams,
     );
-    await this.deleteWorkflowArtifacts(
+    await deleteWorkflowArtifacts(
       client,
+      this.deps.artifactStorage,
       tenantId,
       uniqueWorkflowIds,
       uniqueTaskIds,
@@ -438,158 +371,6 @@ export class DestructiveDeleteService {
     };
   }
 
-  private async loadPlaybook(tenantId: string, playbookId: string) {
-    const result = await this.pool.query<{ id: string; slug: string }>(
-      `SELECT id, slug
-         FROM playbooks
-        WHERE tenant_id = $1
-          AND id = $2`,
-      [tenantId, playbookId],
-    );
-    const playbook = result.rows[0];
-    if (!playbook) {
-      throw new NotFoundError('Playbook not found');
-    }
-    return playbook;
-  }
-
-  private async assertWorkspaceExists(tenantId: string, workspaceId: string) {
-    const result = await this.pool.query<{ id: string }>(
-      `SELECT id
-         FROM workspaces
-        WHERE tenant_id = $1
-          AND id = $2`,
-      [tenantId, workspaceId],
-    );
-    if (!result.rowCount) {
-      throw new NotFoundError('Workspace not found');
-    }
-  }
-
-  private async listPlaybookFamilyIds(
-    db: Pick<DatabasePool, 'query'> | Pick<DatabaseClient, 'query'>,
-    tenantId: string,
-    slug: string,
-  ) {
-    const result = await db.query<{ id: string }>(
-      `SELECT id
-         FROM playbooks
-        WHERE tenant_id = $1
-          AND slug = $2`,
-      [tenantId, slug],
-    );
-    return result.rows.map((row) => row.id);
-  }
-
-  private async listWorkflowIdsForPlaybooks(
-    db: Pick<DatabasePool, 'query'> | Pick<DatabaseClient, 'query'>,
-    tenantId: string,
-    playbookIds: string[],
-  ) {
-    const result = await db.query<{ id: string }>(
-      `SELECT id
-         FROM workflows
-        WHERE tenant_id = $1
-          AND playbook_id = ANY($2::uuid[])`,
-      [tenantId, uniqueIds(playbookIds)],
-    );
-    return result.rows.map((row) => row.id);
-  }
-
-  private async listActiveWorkflowIdsForPlaybooks(
-    db: Pick<DatabasePool, 'query'> | Pick<DatabaseClient, 'query'>,
-    tenantId: string,
-    playbookIds: string[],
-  ) {
-    const result = await db.query<{ id: string }>(
-      `SELECT id
-         FROM workflows
-        WHERE tenant_id = $1
-          AND playbook_id = ANY($2::uuid[])
-          AND state::text = ANY($3::text[])`,
-      [tenantId, uniqueIds(playbookIds), [...CANCELLABLE_WORKFLOW_STATES]],
-    );
-    return result.rows.map((row) => row.id);
-  }
-
-  private async listWorkflowIdsForWorkspace(
-    db: Pick<DatabasePool, 'query'> | Pick<DatabaseClient, 'query'>,
-    tenantId: string,
-    workspaceId: string,
-  ) {
-    const result = await db.query<{ id: string }>(
-      `SELECT id
-         FROM workflows
-        WHERE tenant_id = $1
-          AND workspace_id = $2`,
-      [tenantId, workspaceId],
-    );
-    return result.rows.map((row) => row.id);
-  }
-
-  private async listActiveWorkflowIdsForWorkspace(
-    db: Pick<DatabasePool, 'query'> | Pick<DatabaseClient, 'query'>,
-    tenantId: string,
-    workspaceId: string,
-  ) {
-    const result = await db.query<{ id: string }>(
-      `SELECT id
-         FROM workflows
-        WHERE tenant_id = $1
-          AND workspace_id = $2
-          AND state::text = ANY($3::text[])`,
-      [tenantId, workspaceId, [...CANCELLABLE_WORKFLOW_STATES]],
-    );
-    return result.rows.map((row) => row.id);
-  }
-
-  private async listTaskIdsForWorkflows(
-    db: Pick<DatabasePool, 'query'> | Pick<DatabaseClient, 'query'>,
-    tenantId: string,
-    workflowIds: string[],
-  ) {
-    const result = await db.query<{ id: string }>(
-      `SELECT id
-         FROM tasks
-        WHERE tenant_id = $1
-          AND workflow_id = ANY($2::uuid[])`,
-      [tenantId, uniqueIds(workflowIds)],
-    );
-    return result.rows.map((row) => row.id);
-  }
-
-  private async listTaskIdsForWorkspace(
-    db: Pick<DatabasePool, 'query'> | Pick<DatabaseClient, 'query'>,
-    tenantId: string,
-    workspaceId: string,
-  ) {
-    const result = await db.query<{ id: string }>(
-      `SELECT id
-         FROM tasks
-        WHERE tenant_id = $1
-          AND workspace_id = $2`,
-      [tenantId, workspaceId],
-    );
-    return result.rows.map((row) => row.id);
-  }
-
-  private async listActiveStandaloneTaskIdsForWorkspace(
-    db: Pick<DatabasePool, 'query'> | Pick<DatabaseClient, 'query'>,
-    tenantId: string,
-    workspaceId: string,
-  ) {
-    const result = await db.query<{ id: string }>(
-      `SELECT id
-         FROM tasks
-        WHERE tenant_id = $1
-          AND workspace_id = $2
-          AND workflow_id IS NULL
-          AND state::text <> ALL($3::text[])`,
-      [tenantId, workspaceId, [...TERMINAL_TASK_STATES]],
-    );
-    return result.rows.map((row) => row.id);
-  }
-
   private async cancelWorkflows(identity: ApiKeyIdentity, workflowIds: string[]) {
     if (!this.deps.cancelWorkflow) {
       return;
@@ -615,106 +396,10 @@ export class DestructiveDeleteService {
     }
   }
 
-  private async deleteWorkflowArtifacts(
-    db: DatabaseClient,
-    tenantId: string,
-    workflowIds: string[],
-    taskIds: string[],
-    workspaceId: string | null,
-  ) {
-    const params = [tenantId, workflowIds, taskIds, workspaceId];
-    await this.deleteStoredArtifacts(
-      db,
-      `SELECT DISTINCT storage_key
-         FROM workflow_artifacts
-        WHERE tenant_id = $1
-          AND (
-            workflow_id = ANY($2::uuid[])
-            OR task_id = ANY($3::uuid[])
-            OR ($4::uuid IS NOT NULL AND workspace_id = $4::uuid)
-          )`,
-      params,
-    );
-    await db.query(
-      `DELETE FROM workflow_artifacts
-        WHERE tenant_id = $1
-          AND (
-            workflow_id = ANY($2::uuid[])
-            OR task_id = ANY($3::uuid[])
-            OR ($4::uuid IS NOT NULL AND workspace_id = $4::uuid)
-          )`,
-      params,
-    );
-  }
-
-  private async deleteWorkspaceArtifactFiles(
-    db: DatabaseClient,
-    tenantId: string,
-    workspaceId: string,
-  ) {
-    const params = [tenantId, workspaceId];
-    await this.deleteStoredArtifacts(
-      db,
-      `SELECT DISTINCT storage_key
-         FROM workspace_artifact_files
-        WHERE tenant_id = $1
-          AND workspace_id = $2`,
-      params,
-    );
-    await db.query(
-      `DELETE FROM workspace_artifact_files
-        WHERE tenant_id = $1
-          AND workspace_id = $2`,
-      params,
-    );
-  }
-
-  private async deleteStoredArtifacts(
-    db: Pick<DatabaseClient, 'query'>,
-    sql: string,
-    values: unknown[],
-  ) {
-    if (!this.deps.artifactStorage) {
-      return;
-    }
-
-    const result = await db.query<{ storage_key: string }>(sql, values);
-    for (const storageKey of uniqueIds(result.rows.map((row) => row.storage_key))) {
-      await this.deps.artifactStorage.deleteObject(storageKey);
-    }
-  }
-}
-
-function uniqueIds(values: string[]) {
-  return Array.from(new Set(values));
-}
-
-function deleteWorkspaceScopedTasks(
-  client: DatabaseClient,
-  tenantId: string,
-  workspaceId: string,
-) {
-  return client.query<{ id: string }>(
-    `DELETE FROM tasks
-      WHERE tenant_id = $1
-        AND workspace_id = $2
-    RETURNING id`,
-    [tenantId, workspaceId],
-  );
 }
 
 function isAlreadyTerminalWorkflowConflict(error: unknown): boolean {
   return error instanceof ConflictError
     ? error.message === 'Workflow is already terminal'
     : error instanceof Error && error.message === 'Workflow is already terminal';
-}
-
-function emptyImpactSummary(): DeleteImpactSummary {
-  return {
-    workflows: 0,
-    active_workflows: 0,
-    tasks: 0,
-    active_tasks: 0,
-    work_items: 0,
-  };
 }

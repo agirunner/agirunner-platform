@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { DestructiveDeleteService } from '../../src/services/destructive-delete-service.js';
+import { DestructiveDeleteService } from '../../../src/services/destructive-delete-service.js';
 
 describe('DestructiveDeleteService', () => {
   it('deletes a playbook family without non-sequential SQL parameters in purge cleanup', async () => {
