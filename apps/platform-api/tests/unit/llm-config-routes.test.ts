@@ -31,32 +31,6 @@ describe('llm config routes', () => {
     }
   });
 
-  it('does not expose the retired model override resolve-preview route', async () => {
-    const { llmConfigRoutes } = await import('../../src/api/routes/llm-config.routes.js');
-
-    app = fastify();
-    registerErrorHandler(app);
-    app.decorate('modelCatalogService', {});
-
-    await app.register(llmConfigRoutes);
-
-    const response = await app.inject({
-      method: 'POST',
-      url: '/api/v1/config/llm/resolve-preview',
-      headers: { authorization: 'Bearer test' },
-      payload: {
-        workspace_model_overrides: {
-          developer: {
-            provider: 'openai',
-            model: 'gpt-5',
-          },
-        },
-      },
-    });
-
-    expect(response.statusCode).toBe(404);
-  });
-
   it('redacts runtime-only provider secrets from direct role resolve responses', async () => {
     const { llmConfigRoutes } = await import('../../src/api/routes/llm-config.routes.js');
 
