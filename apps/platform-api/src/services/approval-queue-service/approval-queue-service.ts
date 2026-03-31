@@ -1,14 +1,14 @@
-import type { DatabasePool } from '../db/database.js';
-import { NotFoundError } from '../errors/domain-errors.js';
-import { loadGateResumeHistory } from './gate-resume-history.js';
-import { toTaskApproval } from './approval-queue-service/mappers.js';
+import type { DatabasePool } from '../../db/database.js';
+import { NotFoundError } from '../../errors/domain-errors.js';
+import { loadGateResumeHistory } from '../gate-resume-history.js';
+import { toTaskApproval } from './mappers.js';
 import {
   queryGate,
   queryPendingApprovals,
   queryWorkflowGates,
-} from './approval-queue-service/queries.js';
-import type { ApprovalStageRow } from './approval-queue-service/types.js';
-import { toGateResponse } from './workflow-stage/workflow-stage-gate-service.js';
+} from './queries.js';
+import type { ApprovalStageRow } from './types.js';
+import { toGateResponse } from '../workflow-stage/workflow-stage-gate-service.js';
 
 export class ApprovalQueueService {
   constructor(private readonly pool: DatabasePool) {}

@@ -6,7 +6,7 @@ import { ConflictError, NotFoundError, ValidationError } from '../../errors/doma
 import {
   DestructiveDeleteService,
   type DeleteImpactSummary,
-} from '../destructive-delete-service.js';
+} from '../destructive-delete/destructive-delete-service.js';
 import { EventService } from '../event/event-service.js';
 import type { WorkspaceMemoryMutationContext } from './memory/workspace-memory-scope-service.js';
 import {

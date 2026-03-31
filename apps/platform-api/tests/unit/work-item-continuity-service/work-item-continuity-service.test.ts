@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkItemContinuityService } from '../../../src/services/work-item-continuity-service.js';
+import { WorkItemContinuityService } from '../../../src/services/work-item-continuity-service/work-item-continuity-service.js';
 
 describe('WorkItemContinuityService', () => {
   it('filters newer specialist handoffs by explicit orchestrator flag instead of role name', async () => {

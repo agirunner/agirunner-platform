@@ -1,16 +1,16 @@
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import type { LogService } from '../logging/log-service.js';
-import { applyRuleOutcome } from './work-item-continuity-service/rule-outcome.js';
-import { hasNewerSpecialistHandoffSinceActivation } from './work-item-continuity-service/query-helpers.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
+import type { LogService } from '../../logging/log-service.js';
+import { applyRuleOutcome } from './rule-outcome.js';
+import { hasNewerSpecialistHandoffSinceActivation } from './query-helpers.js';
 import {
   clearAssessmentExpectationState,
   persistOrchestratorFinishStateState,
-} from './work-item-continuity-service/state-operations.js';
+} from './state-operations.js';
 
 export type {
   OrchestratorFinishStateUpdate,
   WorkItemCompletionOutcome,
-} from './work-item-continuity-service/types.js';
+} from './types.js';
 
 export class WorkItemContinuityService {
   constructor(

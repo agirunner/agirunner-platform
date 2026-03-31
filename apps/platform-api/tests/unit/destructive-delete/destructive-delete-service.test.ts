@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { DestructiveDeleteService } from '../../../src/services/destructive-delete-service.js';
+import { DestructiveDeleteService } from '../../../src/services/destructive-delete/destructive-delete-service.js';
 
 describe('DestructiveDeleteService', () => {
   it('cancels active selected workflows and purges them in one permanent bulk delete', async () => {

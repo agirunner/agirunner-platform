@@ -6,7 +6,7 @@ vi.mock('../../../src/services/safetynet/logging.js', () => ({
 }));
 
 import { ConflictError, ValidationError } from '../../../src/errors/domain-errors.js';
-import { WorkItemService } from '../../../src/services/work-item-service.js';
+import { WorkItemService } from '../../../src/services/work-item-service/work-item-service.js';
 
 const identity = {
   tenantId: 'tenant-1',

@@ -3,8 +3,8 @@ import { randomUUID } from 'node:crypto';
 import { vi } from 'vitest';
 
 import { seedConfigTables } from '../../../../src/bootstrap/seed.js';
-import { ApprovalQueueService } from '../../../../src/services/approval-queue-service.js';
-import { RoleDefinitionService } from '../../../../src/services/role-definition-service.js';
+import { ApprovalQueueService } from '../../../../src/services/approval-queue-service/approval-queue-service.js';
+import { RoleDefinitionService } from '../../../../src/services/role-definition/role-definition-service.js';
 import { WorkflowChainingService } from '../../../../src/services/workflow-chaining-service.js';
 import {
   TEST_IDENTITY as identity,

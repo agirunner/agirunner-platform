@@ -1,6 +1,6 @@
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient } from '../../db/database.js';
-import type { WorkItemCompletionOutcome } from '../work-item-continuity-service.js';
+import type { WorkItemCompletionOutcome } from '../work-item-continuity-service/work-item-continuity-service.js';
 import { readAssessmentSubjectLinkage, readWorkflowTaskKind } from '../assessment-subject-service.js';
 
 export interface SubjectTaskCandidateLookup {
@@ -70,7 +70,7 @@ export interface AssessmentResolutionGate {
   reason: string;
 }
 
-export type { WorkItemCompletionOutcome } from '../work-item-continuity-service.js';
+export type { WorkItemCompletionOutcome } from '../work-item-continuity-service/work-item-continuity-service.js';
 
 export function validateOutputSchema(output: unknown, schema: Record<string, unknown>): string[] {
   const errors: string[] = [];

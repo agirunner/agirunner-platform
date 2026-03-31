@@ -1,11 +1,11 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
-import { ConflictError } from '../errors/domain-errors.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
+import { ConflictError } from '../../errors/domain-errors.js';
 import {
   deleteWorkflowArtifacts,
   deleteWorkspaceArtifactFiles,
   deleteWorkspaceScopedTasks,
-} from './destructive-delete/destructive-delete-artifacts.js';
+} from './destructive-delete-artifacts.js';
 import {
   assertWorkspaceExists,
   listActiveStandaloneTaskIdsForWorkspace,
@@ -22,12 +22,12 @@ import {
   summarizePlaybookScope,
   summarizeWorkspaceScope,
   uniqueIds,
-} from './destructive-delete/destructive-delete-queries.js';
+} from './destructive-delete-queries.js';
 import {
   type DeleteImpactSummary,
   type DestructiveDeleteDeps,
   type PlaybookDeleteImpact,
-} from './destructive-delete/destructive-delete-types.js';
+} from './destructive-delete-types.js';
 
 export type { DeleteImpactSummary, PlaybookDeleteImpact };
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { ValidationError } from '../../../src/errors/domain-errors.js';
-import { HandoffService } from '../../../src/services/handoff-service.js';
+import { HandoffService } from '../../../src/services/handoff-service/handoff-service.js';
 
 describe('HandoffService completion gate', () => {
   it('requires a structured handoff before completing a workflow-linked task', async () => {

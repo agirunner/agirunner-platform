@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { RoleDefinitionService } from '../../../src/services/role-definition-service.js';
+import { RoleDefinitionService } from '../../../src/services/role-definition/role-definition-service.js';
 import {
   buildRoleRow,
   createMockPool,

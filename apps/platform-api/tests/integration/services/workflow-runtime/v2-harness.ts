@@ -8,7 +8,7 @@ import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
 import { EventService } from '../../../../src/services/event/event-service.js';
 import type { PlatformTransportTimingDefaults } from '../../../../src/services/platform-timing-defaults.js';
 import { PlaybookService } from '../../../../src/services/playbook/playbook-service.js';
-import { RoleDefinitionService } from '../../../../src/services/role-definition-service.js';
+import { RoleDefinitionService } from '../../../../src/services/role-definition/role-definition-service.js';
 import { TaskService } from '../../../../src/services/task-service.js';
 import { WorkerConnectionHub } from '../../../../src/services/workers/worker-connection-hub.js';
 import { WorkerService } from '../../../../src/services/workers/worker-service.js';

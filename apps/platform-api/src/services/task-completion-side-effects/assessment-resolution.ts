@@ -21,7 +21,7 @@ import {
   readsAssessmentRequestChangesOutcome,
   resolveAssessmentResolutionGate,
 } from './shared.js';
-import type { WorkItemContinuityService } from '../work-item-continuity-service.js';
+import type { WorkItemContinuityService } from '../work-item-continuity-service/work-item-continuity-service.js';
 
 export async function resolveTaskCompletionContinuityEvent(
   client: DatabaseClient,

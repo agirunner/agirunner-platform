@@ -5,11 +5,11 @@ import type { TaskState } from '../../orchestration/task-state-machine.js';
 import type { ArtifactService } from '../artifacts/artifact-service.js';
 import type { ExecutionContainerLeaseService } from '../execution-environment/execution-container-lease-service.js';
 import type { EventService } from '../event/event-service.js';
-import type { HandoffService } from '../handoff-service.js';
+import type { HandoffService } from '../handoff-service/handoff-service.js';
 import type { PlaybookTaskParallelismService } from '../playbook/playbook-task-parallelism-service.js';
 import type { ImmediateWorkflowActivationDispatcher } from '../workflow-immediate-activation.js';
 import type { WorkflowStateService } from '../workflow-state-service.js';
-import type { WorkItemContinuityService } from '../work-item-continuity-service.js';
+import type { WorkItemContinuityService } from '../work-item-continuity-service/work-item-continuity-service.js';
 import type { LifecyclePolicy } from './task-lifecycle-policy.js';
 import type {
   FailureClassification,

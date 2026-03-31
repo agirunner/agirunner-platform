@@ -5,7 +5,7 @@ import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
 import {
   DestructiveDeleteService,
   type PlaybookDeleteImpact,
-} from '../destructive-delete-service.js';
+} from '../destructive-delete/destructive-delete-service.js';
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 
 export interface CreatePlaybookInput {

@@ -24,7 +24,7 @@ vi.mock('../../../../../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: () => async () => {},
 }));
 
-vi.mock('../../../../../../src/services/handoff-service.js', () => ({
+vi.mock('../../../../../../src/services/handoff-service/handoff-service.js', () => ({
   HandoffService: class {
     listWorkItemHandoffs = handoffRouteMocks.listWorkItemHandoffs;
     getLatestWorkItemHandoff = handoffRouteMocks.getLatestWorkItemHandoff;

@@ -4,7 +4,7 @@ import { buildArtifactStorageConfig } from '../content/storage-config.js';
 import { createArtifactStorage } from '../content/storage-factory.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ArtifactRetentionService } from './artifacts/artifact-retention-service.js';
-import { DestructiveDeleteService } from './destructive-delete-service.js';
+import { DestructiveDeleteService } from './destructive-delete/destructive-delete-service.js';
 import { WorkflowActivationService } from './workflow-activation/workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import { WorkflowBudgetService } from './workflow-budget-service.js';
@@ -27,13 +27,13 @@ import {
   type CreateWorkflowWorkItemEnvelopeInput,
   WorkflowAddWorkService,
 } from './workflow-add-work-service.js';
-import {
-  WorkItemService,
-  type GetWorkflowWorkItemInput,
-  type GroupedWorkItemReadModel,
-  type ListWorkflowWorkItemsInput,
-  type WorkItemReadModel,
-} from './work-item-service.js';
+import { WorkItemService } from './work-item-service/work-item-service.js';
+import type {
+  GetWorkflowWorkItemInput,
+  GroupedWorkItemReadModel,
+  ListWorkflowWorkItemsInput,
+  WorkItemReadModel,
+} from './work-item-service/types.js';
 import { WorkflowStageService } from './workflow-stage/workflow-stage-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 import { WorkflowWorkItemControlService } from './workflow-work-item-control-service.js';

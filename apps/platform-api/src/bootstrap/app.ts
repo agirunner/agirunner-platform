@@ -27,7 +27,7 @@ import { AgentService } from '../services/agent-service.js';
 import { AgenticSettingsService } from '../services/agentic-settings-service.js';
 import { ApiKeyService } from '../services/api-key-service.js';
 import { ContainerInventoryService } from '../services/execution-environment/container-inventory-service.js';
-import { DestructiveDeleteService } from '../services/destructive-delete-service.js';
+import { DestructiveDeleteService } from '../services/destructive-delete/destructive-delete-service.js';
 import { ContainerManagerExecutionEnvironmentVerifier } from '../services/execution-environment/container-manager-verifier.js';
 import { listWorkflowDocuments } from '../services/document-reference/document-reference-service.js';
 import { EventStreamService } from '../services/event/event-stream-service.js';
@@ -37,7 +37,7 @@ import { ExecutionEnvironmentService } from '../services/execution-environment/s
 import { ExecutionEnvironmentVerificationService } from '../services/execution-environment/verification-service.js';
 import { FleetService } from '../services/fleet-service/fleet-service.js';
 import { GovernanceService } from '../services/governance-service.js';
-import { ApprovalQueueService } from '../services/approval-queue-service.js';
+import { ApprovalQueueService } from '../services/approval-queue-service/approval-queue-service.js';
 import { MissionControlHistoryService } from '../services/workflow-operations/mission-control-history-service.js';
 import { MissionControlLiveService } from '../services/workflow-operations/mission-control-live-service.js';
 import { MissionControlRecentService } from '../services/workflow-operations/mission-control-recent-service.js';
@@ -62,7 +62,7 @@ import { SpecialistSkillService } from '../services/specialist-skill-service.js'
 import { WorkspaceArtifactFileService } from '../services/workspace/artifacts/workspace-artifact-file-service.js';
 import { WorkspaceService } from '../services/workspace/workspace-service.js';
 import { PlaybookService } from '../services/playbook/playbook-service.js';
-import { RoleDefinitionService } from '../services/role-definition-service.js';
+import { RoleDefinitionService } from '../services/role-definition/role-definition-service.js';
 import { readPlatformTransportTimingDefaults } from '../services/platform-timing-defaults.js';
 import { RuntimeDefaultsService } from '../services/runtime-defaults/runtime-defaults-service.js';
 import { TaskService } from '../services/task-service.js';

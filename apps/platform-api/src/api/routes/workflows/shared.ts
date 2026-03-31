@@ -7,13 +7,13 @@ import {
   SchemaValidationFailedError,
   ValidationError,
 } from '../../../errors/domain-errors.js';
-import { ApprovalQueueService } from '../../../services/approval-queue-service.js';
+import { ApprovalQueueService } from '../../../services/approval-queue-service/approval-queue-service.js';
 import {
   EventQueryService,
   parseCursorAfter,
   parseCursorLimit,
 } from '../../../services/event/event-query-service.js';
-import { HandoffService } from '../../../services/handoff-service.js';
+import { HandoffService } from '../../../services/handoff-service/handoff-service.js';
 import { PlaybookWorkflowControlService } from '../../../services/playbook-workflow-control/playbook-workflow-control-service.js';
 import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../../services/workflow-activation/workflow-activation-service.js';

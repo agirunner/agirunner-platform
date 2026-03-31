@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { ValidationError } from '../../../src/errors/domain-errors.js';
-import { HandoffService } from '../../../src/services/handoff-service.js';
+import { HandoffService } from '../../../src/services/handoff-service/handoff-service.js';
 import { makeHandoffRow, makeTaskRow } from './handoff-service.fixtures.js';
 
 describe('HandoffService guided closure assessment behavior', () => {

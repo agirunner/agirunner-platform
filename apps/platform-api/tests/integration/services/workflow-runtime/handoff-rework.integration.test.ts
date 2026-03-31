@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { HandoffService } from '../../../../src/services/handoff-service.js';
+import { HandoffService } from '../../../../src/services/handoff-service/handoff-service.js';
 import { RuntimeDefaultsService } from '../../../../src/services/runtime-defaults/runtime-defaults-service.js';
 import {
   TEST_IDENTITY as identity,

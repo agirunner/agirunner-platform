@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ApprovalQueueService } from '../../../src/services/approval-queue-service.js';
+import { ApprovalQueueService } from '../../../src/services/approval-queue-service/approval-queue-service.js';
 
 describe('ApprovalQueueService listWorkflowGates', () => {
   it('scopes workflow gate queries and preserves block decisions', async () => {

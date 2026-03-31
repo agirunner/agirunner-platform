@@ -1,15 +1,15 @@
 import { z } from 'zod';
 
-import type { DatabaseQueryable } from '../db/database.js';
-import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import { normalizeStringArray } from './execution-environment/contract.js';
+import type { DatabaseQueryable } from '../../db/database.js';
+import { ConflictError, NotFoundError, ValidationError } from '../../errors/domain-errors.js';
+import { normalizeStringArray } from '../execution-environment/contract.js';
 import {
   handleRoleWriteError,
   normalizeOptionalString,
   roleDefinitionSelectSql,
   sanitizeRoleDefinitionRow,
-} from './role-definition/role-definition-records.js';
-import type { RoleDefinitionQueryRow, RoleDefinitionRow } from './role-definition/role-definition-types.js';
+} from './role-definition-records.js';
+import type { RoleDefinitionQueryRow, RoleDefinitionRow } from './role-definition-types.js';
 
 const createRoleSchema = z.object({
   name: z.string().min(1).max(100),
@@ -30,7 +30,7 @@ const updateRoleSchema = createRoleSchema.partial();
 
 export type CreateRoleInput = z.input<typeof createRoleSchema>;
 export type UpdateRoleInput = z.input<typeof updateRoleSchema>;
-export type { RoleDefinitionRow } from './role-definition/role-definition-types.js';
+export type { RoleDefinitionRow } from './role-definition-types.js';
 
 export class RoleDefinitionService {
   constructor(private readonly pool: DatabaseQueryable) {}
