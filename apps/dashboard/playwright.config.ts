@@ -4,6 +4,7 @@ import { DASHBOARD_BASE_URL } from '../../tests/integration/dashboard/support/pl
 
 export default defineConfig({
   testDir: '../../tests/integration/dashboard',
+  testMatch: ['**/*.spec.ts'],
   fullyParallel: false,
   workers: 1,
   timeout: 60_000,

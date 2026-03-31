@@ -39,6 +39,7 @@ export function WorkflowsRail(props: {
   onCreateWorkflow(): void;
 }): JSX.Element {
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
   const persistedScrollTopRef = useRef(0);
   const selectionRestoreFrameRef = useRef<number | null>(null);
   const handleSelectWorkflow = (workflowId: string) => {
@@ -113,6 +114,36 @@ export function WorkflowsRail(props: {
       }
     };
   }, [props.selectedWorkflowId, selectedVisible]);
+
+  useEffect(() => {
+    const scrollElement = scrollRef.current;
+    const sentinelElement = loadMoreSentinelRef.current;
+    if (
+      !scrollElement
+      || !sentinelElement
+      || !props.hasNextPage
+      || props.isLoading
+      || typeof IntersectionObserver === 'undefined'
+    ) {
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          props.onLoadMore();
+        }
+      },
+      {
+        root: scrollElement,
+        rootMargin: '160px 0px',
+        threshold: 0,
+      },
+    );
+
+    observer.observe(sentinelElement);
+    return () => observer.disconnect();
+  }, [props.hasNextPage, props.isLoading, props.onLoadMore, visibleRows.length]);
 
   return (
     <aside className="flex h-full max-h-[18rem] min-h-0 w-full flex-col overflow-hidden rounded-[1.25rem] border border-border/70 bg-background/95 shadow-sm dark:bg-slate-950/85 sm:max-h-[24rem] lg:max-h-none">
@@ -235,6 +266,14 @@ export function WorkflowsRail(props: {
                 onSelect={handleSelectWorkflow}
               />
             ))
+          ) : null}
+          {props.hasNextPage ? (
+            <div
+              ref={loadMoreSentinelRef}
+              aria-hidden="true"
+              data-workflows-rail-load-more-sentinel="true"
+              className="h-1 w-full"
+            />
           ) : null}
         </div>
       </div>

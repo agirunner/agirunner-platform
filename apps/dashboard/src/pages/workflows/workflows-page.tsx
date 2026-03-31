@@ -300,7 +300,8 @@ export function WorkflowsPage(): JSX.Element {
         : workbenchScope,
     [pageState.workflowId, steeringWorkItem, workbenchScope, workflow?.name],
   );
-  const hasMoreRailRows = Boolean(railPacket?.next_cursor) || (railPacket?.rows.length ?? 0) >= railLimit;
+  const hasMoreRailRows = Boolean(railPacket?.next_cursor)
+    || (railPacket?.total_count ?? 0) > (railPacket?.visible_count ?? 0);
 
   const openWorkflowLaunchDialog = () => {
     setLaunchPlaybookId(null);

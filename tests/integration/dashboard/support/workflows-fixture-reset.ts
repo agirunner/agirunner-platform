@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 
 import {
   DEFAULT_TENANT_ID,
+  PLATFORM_API_CONTAINER_NAME,
   POSTGRES_CONTAINER_NAME,
   POSTGRES_DB,
   POSTGRES_USER,
@@ -45,6 +46,7 @@ export async function resetWorkflowsState(): Promise<void> {
   }
 
   runPsql(buildFixturePurgeSql());
+  pruneOrphanedWorkflowArtifactDirectories();
 }
 
 function ensureNonLiveRuntimeQuiesced(): void {
@@ -137,6 +139,36 @@ function selectFixtureWorkflowIds(): string[] {
          )
        );
   `);
+}
+
+function selectTenantWorkflowIds(): string[] {
+  return queryScalarValues(`
+    SELECT id::text
+      FROM public.workflows
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)};
+  `);
+}
+
+function pruneOrphanedWorkflowArtifactDirectories(): void {
+  const keepIds = selectTenantWorkflowIds().join('\n');
+  const script = `
+set -eu
+root=${shellSingleQuote(`/artifacts/tenants/${DEFAULT_TENANT_ID}/workflows`)}
+[ -d "$root" ] || exit 0
+keep_ids=${shellSingleQuote(keepIds)}
+find "$root" -mindepth 1 -maxdepth 1 -type d | while IFS= read -r workflow_dir; do
+  workflow_id="$(basename "$workflow_dir")"
+  if ! printf '%s\\n' "$keep_ids" | grep -Fxq "$workflow_id"; then
+    rm -rf "$workflow_dir"
+  fi
+done
+`;
+
+  execFileSync(
+    'docker',
+    ['exec', '-i', PLATFORM_API_CONTAINER_NAME, 'sh', '-lc', script],
+    { stdio: 'pipe' },
+  );
 }
 
 function buildFixturePurgeSql(): string {
@@ -643,4 +675,8 @@ function sqlText(value: string): string {
 
 function sqlUuid(value: string): string {
   return `${sqlText(value)}::uuid`;
+}
+
+function shellSingleQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\"'\"'`)}'`;
 }

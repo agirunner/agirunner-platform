@@ -376,6 +376,7 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     needsActionEscalationTask,
     failedWorkflow,
   };
+  clearFixtureWorkflowActivations();
   assertSeededScenarioIsInert();
   return scenario;
 }
@@ -520,7 +521,7 @@ export async function createWorkflowViaApi(input: {
         ${sqlText(stage.name)},
         ${stage.position},
         ${sqlText(stage.goal)},
-        ${sqlText(resolveSeedStageStatus(input, stage.name))},
+        ${sqlText(resolveSeedStageStatus({ lifecycle, state, currentStage: input.currentStage }, stage.name))},
         'not_requested',
         NOW(),
         NOW()
@@ -1081,6 +1082,19 @@ function assertSeededScenarioIsInert(): void {
       `Deterministic workflow seed started specialist runtime containers: ${runtimeNames.join(', ')}`,
     );
   }
+}
+
+function clearFixtureWorkflowActivations(): void {
+  runPsql(`
+    DELETE FROM public.workflow_activations
+     WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+       AND workflow_id IN (
+         SELECT id
+           FROM public.workflows
+          WHERE tenant_id = ${sqlUuid(DEFAULT_TENANT_ID)}
+            AND COALESCE(name, '') LIKE 'E2E %'
+       );
+  `);
 }
 
 function countFixtureWorkflowActivations(): number {

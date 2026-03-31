@@ -22,6 +22,7 @@ let refreshPromise: Promise<string | null> | null = null;
 interface StreamOptions {
   path: string;
   onMessage(batch: DashboardWorkflowOperationsStreamBatch): void;
+  onReconnect?(): Promise<void> | void;
 }
 
 interface StreamRequestOptions {
@@ -55,6 +56,15 @@ export function useWorkflowRailRealtime(
           (previous) => applyRailStreamBatch(previous as never, batch),
         );
       },
+      onReconnect: () =>
+        queryClient.invalidateQueries({
+          queryKey: buildWorkflowRailQueryKey({
+            mode: input.mode,
+            search: input.search,
+            needsActionOnly: input.needsActionOnly,
+            ongoingOnly: input.ongoingOnly,
+          }),
+        }),
     });
   }, [input.mode, input.needsActionOnly, input.ongoingOnly, input.search, queryClient]);
 }
@@ -87,6 +97,10 @@ export function useWorkflowWorkspaceRealtime(
           (previous) => applyWorkspaceStreamBatch(previous as never, batch),
         );
       },
+      onReconnect: () =>
+        queryClient.invalidateQueries({
+          queryKey: ['workflows', 'workspace', input.workflowId],
+        }),
     });
   }, [input.boardMode, input.tabScope, input.workflowId, input.workItemId, queryClient]);
 }
@@ -106,6 +120,8 @@ async function runStreamLoop(
   controller: AbortController,
   options: StreamOptions,
 ): Promise<void> {
+  let shouldBackfillOnReconnect = false;
+
   while (!controller.signal.aborted) {
     try {
       const response = await requestWorkflowOperationsStreamResponse({
@@ -119,12 +135,18 @@ async function runStreamLoop(
         if (!shouldRetryWorkflowOperationsStream(options.path, response.status)) {
           return;
         }
+        shouldBackfillOnReconnect = true;
         await sleep();
         continue;
       }
       if (!response.body) {
+        shouldBackfillOnReconnect = true;
         await sleep();
         continue;
+      }
+      if (shouldBackfillOnReconnect) {
+        await options.onReconnect?.();
+        shouldBackfillOnReconnect = false;
       }
 
       const reader = response.body.getReader();
@@ -143,8 +165,13 @@ async function runStreamLoop(
           }
         });
       }
+      if (!controller.signal.aborted) {
+        shouldBackfillOnReconnect = true;
+        await sleep();
+      }
     } catch {
       if (!controller.signal.aborted) {
+        shouldBackfillOnReconnect = true;
         await sleep();
       }
     }

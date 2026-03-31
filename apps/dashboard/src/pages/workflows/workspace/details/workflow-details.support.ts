@@ -118,7 +118,9 @@ export function buildWhatExistsNow(props: {
   const rows = props.isWorkflowScope
     ? readCompactWorkItemRows(props.board)
     : readCompactTaskRows(props.selectedWorkItemTasks);
-  const files = collectPacketFiles([...props.workflowPackets, ...props.workItemPackets]);
+  const files = props.isWorkflowScope
+    ? collectPacketFiles(props.workflowPackets)
+    : collectPacketFiles(props.workItemPackets);
 
   return { rows, files };
 }

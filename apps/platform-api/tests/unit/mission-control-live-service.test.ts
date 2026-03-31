@@ -705,12 +705,17 @@ describe('MissionControlLiveService', () => {
 
     expect(pool.query).toHaveBeenNthCalledWith(
       3,
-      expect.stringContaining('WHERE wi.tenant_id = w.tenant_id'),
+      expect.stringContaining('WHERE wi.tenant_id = $1'),
       expect.any(Array),
     );
     expect(pool.query).toHaveBeenNthCalledWith(
       3,
-      expect.stringContaining('AND wi.workflow_id = w.id'),
+      expect.stringContaining('AND wi.workflow_id = ANY($2::uuid[])'),
+      expect.any(Array),
+    );
+    expect(pool.query).toHaveBeenNthCalledWith(
+      3,
+      expect.stringContaining("data->>'workflow_id' = ANY($3::text[])"),
       expect.any(Array),
     );
   });

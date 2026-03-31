@@ -62,8 +62,8 @@ describe('workflow-details support', () => {
         { id: 'task-1', title: 'Verify deliverable', state: 'in_progress', role: 'reviewer' },
         { id: 'task-2', title: 'Rollback validation', state: 'blocked', role: 'operator' },
       ],
-      workflowPackets: [],
-      workItemPackets: createPackets(),
+      workflowPackets: [createPackets()[0]],
+      workItemPackets: [createPackets()[1]],
     });
 
     expect(scope.latestStatus).toBe('1 blocked task need attention.');
@@ -85,7 +85,6 @@ describe('workflow-details support', () => {
       },
     ]);
     expect(whatExistsNow.files.map((file) => file.file_name)).toEqual([
-      'launch-summary.pdf',
       'rollback.md',
     ]);
   });

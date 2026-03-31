@@ -13,6 +13,7 @@ type SqlOutputs = {
   playbooks?: string;
   blockingWorkflows?: string;
   workflows?: string;
+  tenantWorkflows?: string;
 };
 
 function installFetchTrap() {
@@ -37,12 +38,25 @@ function installExecMock(sqlOutputs: SqlOutputs, options: { runningContainers?: 
       return '';
     }
 
+    if (args[0] === 'exec' && args.includes('sh') && args.includes('-lc')) {
+      return '';
+    }
+
     const sql = String(args.at(-1) ?? '');
+    if (sql.includes('state NOT IN') && sql.includes('LIMIT 20')) {
+      return sqlOutputs.blockingWorkflows ?? '';
+    }
     if (sql.includes("COALESCE(name, '') LIKE 'E2E %'")) {
       return sqlOutputs.workflows ?? '';
     }
-    if (sql.includes('state NOT IN') && sql.includes('LIMIT 20')) {
-      return sqlOutputs.blockingWorkflows ?? '';
+    if (
+      sql.startsWith('\n    SELECT id::text')
+      && sql.includes('FROM public.workflows')
+      && sql.includes('WHERE tenant_id =')
+      && !sql.includes('state NOT IN')
+      && !sql.includes("COALESCE(name, '') LIKE 'E2E %'")
+    ) {
+      return sqlOutputs.tenantWorkflows ?? '';
     }
     if (sql.startsWith('\n    SELECT id::text') && sql.includes('FROM public.workspaces')) {
       return sqlOutputs.workspaces ?? '';
@@ -85,6 +99,7 @@ describe('resetWorkflowsState', () => {
         playbooks: 'fixture-playbook-planned\nfixture-playbook-ongoing\n',
         blockingWorkflows: '',
         workflows: 'fixture-workflow-1\nfixture-workflow-2\n',
+        tenantWorkflows: 'surviving-live-workflow\n',
       },
       { runningContainers: ['orchestrator-primary-0', 'agirunner-platform-container-manager-1'] },
     );
@@ -123,6 +138,17 @@ describe('resetWorkflowsState', () => {
     expect(purgeSql).toContain('DELETE FROM public.workflows');
     expect(purgeSql).toContain('DELETE FROM public.workspaces');
     expect(purgeSql).toContain('DELETE FROM public.playbooks');
+    expect(execFileSyncMock).toHaveBeenCalledWith(
+      'docker',
+      expect.arrayContaining([
+        'exec',
+        '-i',
+        'agirunner-platform-platform-api-1',
+        'sh',
+        '-lc',
+      ]),
+      { stdio: 'pipe' },
+    );
   });
 
   it('returns cleanly when there is no fixture state to purge', async () => {
@@ -131,6 +157,7 @@ describe('resetWorkflowsState', () => {
       playbooks: '',
       blockingWorkflows: '',
       workflows: '',
+      tenantWorkflows: '',
     });
     const fetchMock = installFetchTrap();
 
