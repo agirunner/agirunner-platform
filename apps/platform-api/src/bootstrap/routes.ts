@@ -5,8 +5,8 @@ import { agenticSettingsRoutes } from '../api/routes/platform-config/agentic-set
 import { a2aRoutes } from '../api/routes/agents/a2a.routes.js';
 import { acpRoutes } from '../api/routes/agents/acp.routes.js';
 import { approvalQueueRoutes } from '../api/routes/approval-queue.routes.js';
-import { apiKeyRoutes } from '../api/routes/api-keys.routes.js';
-import { authRoutes } from '../api/routes/auth.routes.js';
+import { apiKeyRoutes } from '../api/routes/auth/api-keys.routes.js';
+import { authRoutes } from '../api/routes/auth/auth.routes.js';
 import { eventRoutes } from '../api/routes/events.routes.js';
 import { executionEnvironmentRoutes } from '../api/routes/execution-environments.routes.js';
 import { governanceRoutes } from '../api/routes/governance.routes.js';
@@ -32,12 +32,12 @@ import { runtimeDefaultsRoutes } from '../api/routes/platform-config/runtime-def
 import { runtimeConfigRoutes } from '../api/routes/platform-config/runtime-config.routes.js';
 import { executionLogRoutes } from '../api/routes/execution-logs.routes.js';
 import { fleetRoutes } from '../api/routes/fleet.routes.js';
-import { userRoutes } from '../api/routes/users.routes.js';
+import { userRoutes } from '../api/routes/auth/users.routes.js';
 import { meteringRoutes } from '../api/routes/metering.routes.js';
 import { workflowOperationsRoutes } from '../api/routes/workflows/operations.routes.js';
 import { circuitBreakerRoutes } from '../api/routes/circuit-breaker.routes.js';
 import { containerRoutes } from '../api/routes/containers.routes.js';
-import { oauthRoutes } from '../api/routes/oauth.routes.js';
+import { oauthRoutes } from '../api/routes/auth/oauth.routes.js';
 import { playbookRoutes } from '../api/routes/playbooks.routes.js';
 import { orchestratorControlRoutes } from '../api/routes/orchestrator-control/routes.js';
 import { remoteMcpServerRoutes } from '../api/routes/remote-mcp/servers.routes.js';

@@ -1,12 +1,12 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { randomBytes } from 'node:crypto';
 
-import { authenticateApiKey } from '../../auth/fastify-auth-hook.js';
-import { withRole, roleToScope } from '../../auth/rbac.js';
-import { issueUserAccessToken } from '../../auth/jwt.js';
-import { DEFAULT_TENANT_ID } from '../../db/seed.js';
-import { ForbiddenError, UnauthorizedError } from '../../errors/domain-errors.js';
-import type { CreateUserInput, UpdateUserInput } from '../../services/user-service.js';
+import { authenticateApiKey } from '../../../auth/fastify-auth-hook.js';
+import { withRole, roleToScope } from '../../../auth/rbac.js';
+import { issueUserAccessToken } from '../../../auth/jwt.js';
+import { DEFAULT_TENANT_ID } from '../../../db/seed.js';
+import { ForbiddenError, UnauthorizedError } from '../../../errors/domain-errors.js';
+import type { CreateUserInput, UpdateUserInput } from '../../../services/user-service.js';
 
 const ACCESS_COOKIE_NAME = 'agirunner_access_token';
 
@@ -42,7 +42,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
 
   app.get('/api/v1/auth/sso/:provider', async (request, reply) => {
     const { provider } = request.params as { provider: string };
-    const { getSSOProviderConfig, buildAuthorizationUrl } = await import('../../auth/sso-provider.js');
+    const { getSSOProviderConfig, buildAuthorizationUrl } = await import('../../../auth/sso-provider.js');
 
     const config = getSSOProviderConfig(provider, app.config);
     if (!config) {
@@ -65,7 +65,7 @@ export async function userRoutes(app: FastifyInstance): Promise<void> {
   app.get('/api/v1/auth/sso/:provider/callback', async (request, reply) => {
     const { provider } = request.params as { provider: string };
     const { code, state } = request.query as { code?: string; state?: string };
-    const { getSSOProviderConfig, exchangeCodeForUser } = await import('../../auth/sso-provider.js');
+    const { getSSOProviderConfig, exchangeCodeForUser } = await import('../../../auth/sso-provider.js');
 
     if (!code) {
       reply.status(400);
