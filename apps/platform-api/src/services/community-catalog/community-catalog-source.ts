@@ -154,6 +154,7 @@ export class CommunityCatalogSourceService {
       readmePath: manifestEntry.path.replace(/playbook\.yaml$/, 'README.md'),
       readme: readmeText.trim(),
       name: readString(parsed.name) ?? manifestEntry.name,
+      author: readString(parsed.author) ?? manifestEntry.author,
       slug: readString(parsed.slug) ?? manifestEntry.id,
       version: readString(parsed.version) ?? manifestEntry.version,
       category: readString(parsed.category) ?? manifestEntry.category,

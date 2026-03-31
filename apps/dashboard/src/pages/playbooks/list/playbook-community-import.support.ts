@@ -28,6 +28,7 @@ export function filterCommunityCatalogPlaybooks(
 
     const haystack = [
       playbook.name,
+      playbook.author,
       playbook.category,
       playbook.summary,
       playbook.version,

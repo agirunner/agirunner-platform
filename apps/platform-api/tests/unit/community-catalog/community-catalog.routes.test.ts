@@ -39,7 +39,7 @@ describe('community catalog routes', () => {
     registerErrorHandler(app);
     app.decorate('communityCatalogSourceService', {
       listPlaybooks: vi.fn().mockResolvedValue([
-        { id: 'bug-fix', name: 'Bug Fix', version: '1.0.0' },
+        { id: 'bug-fix', name: 'Bug Fix', author: 'agirunner', version: '1.0.0' },
       ]),
       getPlaybookDetail: vi.fn(),
     });
@@ -63,7 +63,7 @@ describe('community catalog routes', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toEqual({
-      data: [{ id: 'bug-fix', name: 'Bug Fix', version: '1.0.0' }],
+      data: [{ id: 'bug-fix', name: 'Bug Fix', author: 'agirunner', version: '1.0.0' }],
     });
   });
 

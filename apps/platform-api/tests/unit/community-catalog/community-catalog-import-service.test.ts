@@ -174,6 +174,7 @@ function createSelection(input?: { packageIds?: string[] }) {
         readmePath: `playbooks/engineering/${id}/README.md`,
         readme: `# ${id}`,
         name: id === 'bug-fix' ? 'Bug Fix' : 'Hotfix',
+        author: 'agirunner',
         slug: id,
         version: '1.0.0',
         category: 'engineering',

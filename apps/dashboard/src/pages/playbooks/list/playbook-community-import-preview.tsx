@@ -60,6 +60,9 @@ export function PlaybookCommunityImportPreview(props: {
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-base font-semibold">{props.highlightedDetail.playbook.name}</h3>
                   <Badge variant="outline">v{props.highlightedDetail.playbook.version}</Badge>
+                  <span className="text-xs font-medium uppercase tracking-[0.12em] text-muted">
+                    by {props.highlightedDetail.playbook.author}
+                  </span>
                   <Badge
                     variant={
                       props.highlightedDetail.playbook.stability === 'experimental'

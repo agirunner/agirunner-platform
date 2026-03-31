@@ -11,6 +11,7 @@ const PLAYBOOKS = [
   {
     id: 'bug-fix',
     name: 'Bug Fix',
+    author: 'agirunner',
     category: 'engineering',
     stability: 'experimental' as const,
     version: '1.0.0',
@@ -21,6 +22,7 @@ const PLAYBOOKS = [
   {
     id: 'customer-support-triage',
     name: 'Customer Support Triage',
+    author: 'agirunner',
     category: 'operations',
     stability: 'stable' as const,
     version: '1.0.0',
@@ -35,6 +37,7 @@ describe('playbook community import support', () => {
     expect(filterCommunityCatalogPlaybooks(PLAYBOOKS, 'bug', 'all', 'all')).toEqual([
       expect.objectContaining({ id: 'bug-fix' }),
     ]);
+    expect(filterCommunityCatalogPlaybooks(PLAYBOOKS, 'agirunner', 'all', 'all')).toHaveLength(2);
     expect(filterCommunityCatalogPlaybooks(PLAYBOOKS, '', 'operations', 'stable')).toEqual([
       expect.objectContaining({ id: 'customer-support-triage' }),
     ]);

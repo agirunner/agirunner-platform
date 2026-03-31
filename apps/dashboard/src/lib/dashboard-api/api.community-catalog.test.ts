@@ -19,6 +19,7 @@ describe('dashboard api community catalog', () => {
             {
               id: 'bug-fix',
               name: 'Bug Fix',
+              author: 'agirunner',
               category: 'engineering',
               stability: 'experimental',
               version: '1.0.0',
@@ -60,6 +61,7 @@ describe('dashboard api community catalog', () => {
               readmePath: 'playbooks/engineering/bug-fix/README.md',
               readme: '# Bug Fix',
               name: 'Bug Fix',
+              author: 'agirunner',
               slug: 'bug-fix',
               version: '1.0.0',
               category: 'engineering',

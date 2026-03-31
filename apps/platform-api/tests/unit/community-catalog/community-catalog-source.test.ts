@@ -5,6 +5,7 @@ import { CommunityCatalogSourceService } from '../../../src/services/community-c
 const PLAYBOOKS_YAML = `playbooks:
   - id: bug-fix
     name: Bug Fix
+    author: agirunner
     category: engineering
     stability: experimental
     version: 1.0.0
@@ -46,6 +47,7 @@ const TOOL_PROFILES_YAML = `tool_profiles:
 const PLAYBOOK_YAML = `id: bug-fix
 version: 1.0.0
 name: Bug Fix
+author: agirunner
 slug: bug-fix
 category: engineering
 stability: experimental
@@ -124,6 +126,7 @@ describe('CommunityCatalogSourceService', () => {
       expect.objectContaining({
         id: 'bug-fix',
         name: 'Bug Fix',
+        author: 'agirunner',
         version: '1.0.0',
         category: 'engineering',
         stability: 'experimental',
@@ -171,6 +174,7 @@ describe('CommunityCatalogSourceService', () => {
     expect(selection.packages[0]?.playbook).toEqual(
       expect.objectContaining({
         id: 'bug-fix',
+        author: 'agirunner',
         slug: 'bug-fix',
         version: '1.0.0',
         readme: README_MD.trim(),

@@ -5,6 +5,7 @@ export type DashboardCommunityCatalogArtifactType = 'playbook' | 'specialist' | 
 export interface DashboardCommunityCatalogPlaybookRecord {
   id: string;
   name: string;
+  author: string;
   category: string;
   stability: DashboardCommunityCatalogStability;
   version: string;
@@ -19,6 +20,7 @@ export interface DashboardCommunityCatalogLoadedPlaybook {
   readmePath: string;
   readme: string;
   name: string;
+  author: string;
   slug: string;
   version: string;
   category: string;

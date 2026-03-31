@@ -5,6 +5,7 @@ export type CommunityCatalogConflictAction = 'create_new' | 'override_existing';
 export interface CommunityCatalogPlaybookManifestEntry {
   id: string;
   name: string;
+  author: string;
   category: string;
   stability: CommunityCatalogStability;
   version: string;
@@ -44,6 +45,7 @@ export interface CommunityCatalogLoadedPlaybook {
   readmePath: string;
   readme: string;
   name: string;
+  author: string;
   slug: string;
   version: string;
   category: string;

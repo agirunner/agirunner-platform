@@ -139,7 +139,7 @@ export function PlaybookCommunityImportDialog(props: {
 
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
-      <DialogContent className="max-h-[88vh] max-w-6xl overflow-hidden p-0">
+      <DialogContent className="max-h-[88vh] w-[min(92vw,108rem)] max-w-none overflow-hidden p-0">
         <div className="grid h-full max-h-[88vh] grid-rows-[auto_minmax(0,1fr)_auto]">
           <DialogHeader className="border-b border-border/70 px-6 py-5">
             <DialogTitle>Add Community Playbooks</DialogTitle>
