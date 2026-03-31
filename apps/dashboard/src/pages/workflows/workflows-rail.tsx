@@ -89,8 +89,13 @@ export function WorkflowsRail(props: {
         : true,
     [props.selectedWorkflowId, visibleRows],
   );
+  const hasServerDrivenFilters =
+    props.search.trim().length > 0
+    || props.needsActionOnly
+    || props.playbookId !== null
+    || props.updatedWithin !== 'all';
   const hiddenSelectedRow =
-    props.selectedWorkflowRow && props.selectedWorkflowId && !selectedVisible
+    props.selectedWorkflowRow && props.selectedWorkflowId && !selectedVisible && !hasServerDrivenFilters
       ? props.selectedWorkflowRow
       : null;
   const displayRows = hiddenSelectedRow ? [hiddenSelectedRow, ...visibleRows] : visibleRows;

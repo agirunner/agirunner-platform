@@ -34,6 +34,8 @@ test('filters the workflows rail by playbook through the advanced filters popove
   expect(directPlaybookRows.every((name) => name === 'E2E Alternate Playbook Workflow')).toBeTruthy();
 
   await loginToWorkflows(page);
+  await workflowRailButton(page, 'E2E Needs Action Delivery').click();
+  await expect(page.locator('aside button').filter({ hasText: 'E2E Needs Action Delivery' })).toBeVisible();
 
   const railResponsePromise = waitForRailResponse(page, (url) =>
     url.searchParams.get('playbook_id') === alternatePlaybook.id,
@@ -48,6 +50,7 @@ test('filters the workflows rail by playbook through the advanced filters popove
   await expect(page).toHaveURL(new RegExp(`playbook_id=${alternatePlaybook.id}`));
   await expect(page.getByText(`Playbook: ${alternatePlaybook.name}`)).toBeVisible();
   await expect(workflowRailButton(page, 'E2E Alternate Playbook Workflow')).toBeVisible();
+  await expect(workflowRailButton(page, 'E2E Needs Action Delivery')).toHaveCount(0);
 });
 
 test('filters stale workflows out of the rail when recency filters are applied', async ({ page }) => {

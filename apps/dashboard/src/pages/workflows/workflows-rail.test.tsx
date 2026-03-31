@@ -19,17 +19,18 @@ describe('WorkflowsRail', () => {
     expect(html).not.toContain('No workflows match the current filters.');
   });
 
-  it('pins the current workflow when filters move it outside the visible rail rows', () => {
+  it('pins the current workflow only when local lifecycle filtering hides it', () => {
     const html = renderRailHtml({
-      search: 'filtered',
-      needsActionOnly: true,
-      rows: [createRailRow({ workflow_id: 'workflow-visible', name: 'Visible workflow' })],
-      ongoingRows: [],
+      lifecycleFilter: 'ongoing',
+      rows: [
+        createRailRow({ workflow_id: 'workflow-hidden', name: 'Hidden workflow', lifecycle: 'planned' }),
+      ],
+      ongoingRows: [createRailRow({ workflow_id: 'workflow-visible', name: 'Visible workflow', lifecycle: 'ongoing' })],
       selectedWorkflowId: 'workflow-hidden',
       selectedWorkflowRow: createRailRow({
         workflow_id: 'workflow-hidden',
         name: 'Hidden workflow',
-        needs_action: true,
+        lifecycle: 'planned',
       }),
     });
 
@@ -107,6 +108,21 @@ describe('WorkflowsRail', () => {
 
     expect(html).toContain('Filters (2)');
     expect(html).toContain('Playbook: Requirements Review · Updated 7d');
+  });
+
+  it('does not pin the selected workflow when an active server-driven filter excludes it', () => {
+    const html = renderRailHtml({
+      playbookId: 'playbook-filter',
+      rows: [createRailRow({ workflow_id: 'workflow-visible', name: 'Visible workflow' })],
+      selectedWorkflowId: 'workflow-hidden',
+      selectedWorkflowRow: createRailRow({
+        workflow_id: 'workflow-hidden',
+        name: 'Hidden workflow',
+      }),
+    });
+
+    expect(html).not.toContain('Hidden workflow');
+    expect(extractRailScrollRegion(html)).not.toContain('Hidden workflow');
   });
 
   it('does not show a contradictory empty state when pinned ongoing workflows are visible', () => {

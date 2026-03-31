@@ -122,7 +122,11 @@ export class WorkflowRailService {
       dedupeRows(response.sections.flatMap((section) => readSectionRows(section))),
       query,
     );
-    const allRows = dedupeRows(pinSelectedRow(filteredRows, selectedRow));
+    const allRows = dedupeRows(
+      shouldPinSelectedRow(query)
+        ? pinSelectedRow(filteredRows, selectedRow)
+        : filteredRows,
+    );
     const ongoingRows = allRows.filter((row) => row.lifecycle === 'ongoing');
     const primaryRows = allRows.filter((row) => row.lifecycle !== 'ongoing');
     return buildRailPacket(
@@ -234,6 +238,15 @@ function pinSelectedRow(
     return rows;
   }
   return [selectedRow, ...rows];
+}
+
+function shouldPinSelectedRow(query: WorkflowRailQuery): boolean {
+  return (
+    !query.search
+    && !query.needsActionOnly
+    && !query.playbookId
+    && (query.updatedWithin ?? 'all') === 'all'
+  );
 }
 
 function applyRailFilters(rows: WorkflowRailRow[], query: WorkflowRailQuery): WorkflowRailRow[] {
