@@ -9,6 +9,8 @@ from pathlib import Path
 LIVE_LIB = Path(__file__).resolve().parents[1] / "lib"
 sys.path.insert(0, str(LIVE_LIB))
 
+ARTIFACT_ROOT = Path("tmp") / "agirunner-artifacts"
+
 import run_workflow_scenario  # noqa: E402
 
 
@@ -30,8 +32,8 @@ class RunWorkflowResultBundleOutputTests(unittest.TestCase):
                     "completed_at": "2026-03-29T22:00:00.000Z",
                     "output": {
                         "artifacts": [
-                            {"path": "/tmp/agirunner-artifacts/task-1/result_output.json", "size": 77},
-                            {"path": "/tmp/agirunner-artifacts/task-1/summary.json", "size": 155},
+                            {"path": str(ARTIFACT_ROOT / "task-1" / "result_output.json"), "size": 77},
+                            {"path": str(ARTIFACT_ROOT / "task-1" / "summary.json"), "size": 155},
                         ]
                     },
                 },
@@ -45,7 +47,7 @@ class RunWorkflowResultBundleOutputTests(unittest.TestCase):
                     "completed_at": "2026-03-29T22:05:00.000Z",
                     "output": {
                         "artifacts": [
-                            {"path": "/tmp/agirunner-artifacts/task-2/result_output.json", "size": 88},
+                            {"path": str(ARTIFACT_ROOT / "task-2" / "result_output.json"), "size": 88},
                         ]
                     },
                 },

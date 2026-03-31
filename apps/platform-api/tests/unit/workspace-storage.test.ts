@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -6,6 +7,8 @@ import {
 } from '../../src/services/workspace-storage.js';
 
 describe('workspace storage binding', () => {
+  const hostPath = resolve('fixtures/coolrepo');
+
   it('resolves git remote bindings from typed workspace settings', () => {
     expect(
       resolveWorkspaceStorageBinding({
@@ -63,7 +66,7 @@ describe('workspace storage binding', () => {
         settings: {
           workspace_storage_type: 'host_directory',
           workspace_storage: {
-            host_path: '/home/mark/coolrepo',
+            host_path: hostPath,
             read_only: true,
           },
         },
@@ -71,7 +74,7 @@ describe('workspace storage binding', () => {
     ).toEqual({
       type: 'host_directory',
       working_directory: '/workspace/repo',
-      host_path: '/home/mark/coolrepo',
+      host_path: hostPath,
       read_only: true,
     });
   });

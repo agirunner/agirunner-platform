@@ -1,6 +1,9 @@
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { composeMissionControlOutputDescriptor } from '../../src/services/workflow-operations/mission-control-output-descriptors.js';
+
+const hostOutputPath = resolve('exports/release-notes.md');
 
 describe('mission control output descriptors', () => {
   it('maps artifacts into explicit artifact locations', () => {
@@ -56,13 +59,13 @@ describe('mission control output descriptors', () => {
     const descriptor = composeMissionControlOutputDescriptor({
       kind: 'host_directory',
       id: 'output-3',
-      path: '/srv/export/release-notes.md',
+      path: hostOutputPath,
       status: 'final',
     });
 
     expect(descriptor.primaryLocation).toEqual({
       kind: 'host_directory',
-      path: '/srv/export/release-notes.md',
+      path: hostOutputPath,
     });
   });
 

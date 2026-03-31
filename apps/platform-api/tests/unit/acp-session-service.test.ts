@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AcpSessionService } from '../../src/services/acp-session-service.js';
@@ -22,6 +23,8 @@ function createEventService() {
     emit: vi.fn().mockResolvedValue(undefined),
   };
 }
+
+const workspacePath = resolve('workspaces/work');
 
 describe('AcpSessionService', () => {
   it('redacts secret-bearing session metadata before persisting and returning create responses', async () => {
@@ -51,7 +54,7 @@ describe('AcpSessionService', () => {
           transport: 'stdio',
           mode: 'session',
           status: 'initializing',
-          workspace_path: '/tmp/work',
+          workspace_path: workspacePath,
           metadata: {
             token_ref: 'secret:ACP_TOKEN',
             api_key: 'sk-live-secret',
@@ -69,7 +72,7 @@ describe('AcpSessionService', () => {
       agent_id: 'agent-1',
       transport: 'stdio',
       mode: 'session',
-      workspace_path: '/tmp/work',
+      workspace_path: workspacePath,
       metadata: {
         token_ref: 'secret:ACP_TOKEN',
         api_key: 'sk-live-secret',

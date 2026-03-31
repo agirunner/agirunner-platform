@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import fastify from 'fastify';
 
 import { DEFAULT_TENANT_ID } from '../../src/db/seed.js';
@@ -29,7 +30,7 @@ export const TEST_APP_CONFIG = {
   WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
   WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
   ARTIFACT_STORAGE_BACKEND: 'local',
-  ARTIFACT_LOCAL_ROOT: '/tmp/agirunner-platform-artifacts-test',
+  ARTIFACT_LOCAL_ROOT: resolve('tmp/agirunner-platform-artifacts-test'),
   ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
   WORKER_DEFAULT_HEARTBEAT_INTERVAL_SECONDS: 30,
   WORKER_WEBSOCKET_PATH: '/api/v1/events',

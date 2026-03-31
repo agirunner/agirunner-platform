@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -9,6 +10,8 @@ import {
   normalizeWorkspaces,
   sortWorkspaces,
 } from './workspace-list-page.support.js';
+
+const hostWorkspacePath = resolve('workspaces/beta');
 
 describe('workspace list page support', () => {
   it('keeps the primary workspace status aligned to lifecycle state', () => {
@@ -295,11 +298,11 @@ describe('workspace list page support', () => {
         settings: {
           workspace_storage_type: 'host_directory' as const,
           workspace_storage: {
-            host_path: '/srv/workspaces/beta',
+            host_path: hostWorkspacePath,
           },
         },
       }),
-    ).toBe('Host Directory · /srv/workspaces/beta');
+    ).toBe(`Host Directory · ${hostWorkspacePath}`);
 
     expect(
       buildWorkspaceStorageSummary({

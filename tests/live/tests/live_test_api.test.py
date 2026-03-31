@@ -15,6 +15,8 @@ import sys
 LIVE_LIB = Path(__file__).resolve().parents[1] / "lib"
 sys.path.insert(0, str(LIVE_LIB))
 
+COMPOSE_FILE = str(Path("tmp") / "docker-compose.yml")
+
 from live_test_api import (  # noqa: E402
     ApiClient,
     ApiError,
@@ -272,7 +274,7 @@ class ShellEvidenceHelperTests(unittest.TestCase):
         run.return_value = mock.Mock(returncode=0, stdout='{"workflow":{"id":"wf-1"}}\n', stderr="")
 
         payload = docker_compose_psql_json(
-            compose_file="/tmp/docker-compose.yml",
+            compose_file=COMPOSE_FILE,
             compose_project_name="agirunner-platform",
             postgres_user="agirunner",
             postgres_db="agirunner",
@@ -288,7 +290,7 @@ class ShellEvidenceHelperTests(unittest.TestCase):
                 "-p",
                 "agirunner-platform",
                 "-f",
-                "/tmp/docker-compose.yml",
+                COMPOSE_FILE,
                 "exec",
                 "-T",
                 "postgres",
@@ -324,11 +326,11 @@ class ShellEvidenceHelperTests(unittest.TestCase):
     def test_docker_exec_text_returns_stdout(self, run: mock.Mock) -> None:
         run.return_value = mock.Mock(returncode=0, stdout="task-1\n", stderr="")
 
-        output = docker_exec_text("runtime-1", "ls -A /tmp/workspace")
+        output = docker_exec_text("runtime-1", "ls -A workspaces/workspace")
 
         self.assertEqual("task-1", output)
         self.assertEqual(
-            ["docker", "exec", "runtime-1", "sh", "-lc", "ls -A /tmp/workspace"],
+            ["docker", "exec", "runtime-1", "sh", "-lc", "ls -A workspaces/workspace"],
             run.call_args.args[0],
         )
 
@@ -338,7 +340,7 @@ class ShellEvidenceHelperTests(unittest.TestCase):
 
         with self.assertRaises(CommandError):
             docker_compose_psql_json(
-                compose_file="/tmp/docker-compose.yml",
+                compose_file=COMPOSE_FILE,
                 compose_project_name="agirunner-platform",
                 postgres_user="agirunner",
                 postgres_db="agirunner",

@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { resolve } from 'node:path';
 
 import { describe, expect, it, vi } from 'vitest';
 
@@ -39,6 +40,8 @@ const defaultResolvedRoleConfig = {
   },
   reasoningConfig: { reasoning_effort: 'low' },
 };
+
+const hostWorkspacePath = resolve('host/workspace');
 
 function buildExecutionEnvironmentRow(
   overrides: Partial<Record<string, unknown>> = {},
@@ -1899,7 +1902,7 @@ describe('TaskClaimService', () => {
               workspace_settings: {
                 workspace_storage_type: 'host_directory',
                 workspace_storage: {
-                  host_path: '/var/host/workspace',
+                  host_path: hostWorkspacePath,
                   read_only: false,
                 },
               },

@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
@@ -7,6 +8,8 @@ import {
   resolveBrowserDownloadHref,
   WorkflowDeliverableBrowser,
 } from './workflow-deliverable-browser.js';
+
+const hostOutputPath = resolve('release-audit');
 
 describe('WorkflowDeliverableBrowser', () => {
   it('renders artifact rows in a table with preview and download actions', () => {
@@ -99,7 +102,7 @@ describe('WorkflowDeliverableBrowser', () => {
               target_kind: 'host_directory',
               label: 'Host output',
               url: '',
-              path: '/tmp/release-audit',
+              path: hostOutputPath,
             },
             {
               target_kind: 'inline_summary',

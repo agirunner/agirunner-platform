@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -31,6 +32,7 @@ vi.mock('../../src/services/artifact-service.js', () => ({
 }));
 
 describe('task artifact routes', () => {
+  const artifactLocalRoot = resolve('tmp/artifacts');
   let app: ReturnType<typeof fastify> | undefined;
 
   function createWorkflowReplayPool(workflowId: string, toolName: string) {
@@ -98,7 +100,7 @@ describe('task artifact routes', () => {
     app.decorate('taskService', { getTask } as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
-      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_LOCAL_ROOT: artifactLocalRoot,
       ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
       ARTIFACT_PREVIEW_MAX_BYTES: 1024,
     } as never);

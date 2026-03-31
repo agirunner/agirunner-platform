@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import { GcsArtifactStorage } from '../../src/content/gcs-artifact-storage.js';
@@ -16,6 +17,8 @@ const gcsImportState = vi.hoisted(() => ({
     getFiles: async () => [[]] as [Array<{ name: string; metadata?: { size?: string | number } }>, unknown?, unknown?],
   },
 }));
+
+const gcpKeyFile = resolve('fixtures/gcp.json');
 
 vi.mock('@google-cloud/storage', () => ({
   Storage: class {
@@ -146,7 +149,7 @@ describe('GcsArtifactStorage', () => {
     const storage = new GcsArtifactStorage({
       bucket: 'artifacts',
       projectId: 'gcp-project-1',
-      keyFilename: '/tmp/gcp.json',
+      keyFilename: gcpKeyFile,
     });
 
     await storage.exists('runs/task/output.txt');
@@ -154,7 +157,7 @@ describe('GcsArtifactStorage', () => {
     expect(gcsImportState.options).toEqual(
       expect.objectContaining({
         projectId: 'gcp-project-1',
-        keyFilename: '/tmp/gcp.json',
+        keyFilename: gcpKeyFile,
       }),
     );
     expect(gcsImportState.options).not.toHaveProperty('workspaceId');

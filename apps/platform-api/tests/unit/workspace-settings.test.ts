@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -9,6 +10,8 @@ import {
 } from '../../src/services/workspace-settings.js';
 
 describe('workspace settings', () => {
+  const hostPath = resolve('fixtures/coolrepo');
+
   it('normalizes legacy top-level git settings into the canonical credentials shape', () => {
     const normalized = normalizeWorkspaceSettings({
       default_branch: 'develop',
@@ -54,13 +57,13 @@ describe('workspace settings', () => {
       normalizeWorkspaceSettings({
         workspace_storage_type: 'host_directory',
         workspace_storage: {
-          host_path: '/home/mark/coolrepo',
+          host_path: hostPath,
         },
       }),
     ).toEqual({
       workspace_storage_type: 'host_directory',
       workspace_storage: {
-        host_path: '/home/mark/coolrepo',
+        host_path: hostPath,
       },
       credentials: {},
     });
@@ -71,7 +74,7 @@ describe('workspace settings', () => {
       readWorkspaceStorageSettings({
         workspace_storage_type: 'host_directory',
         workspace_storage: {
-          host_path: '/home/mark/coolrepo',
+          host_path: hostPath,
           read_only: true,
         },
       }),
@@ -81,7 +84,7 @@ describe('workspace settings', () => {
       defaultBranch: null,
       gitUserName: null,
       gitUserEmail: null,
-      hostPath: '/home/mark/coolrepo',
+      hostPath: hostPath,
       readOnly: true,
       gitTokenSecretRef: null,
     });

@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -29,6 +30,7 @@ vi.mock('../../../src/auth/fastify-auth-hook.js', () => ({
 
 
 describe('orchestratorControlRoutes', () => {
+  const artifactLocalRoot = resolve('tmp/agirunner-platform-artifacts-test');
   let app: ReturnType<typeof fastify> | undefined;
 
   beforeEach(() => {
@@ -132,7 +134,7 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('config', {
       TASK_DEFAULT_TIMEOUT_MINUTES: 30,
       ARTIFACT_STORAGE_BACKEND: 'local',
-      ARTIFACT_LOCAL_ROOT: '/tmp/agirunner-platform-artifacts-test',
+      ARTIFACT_LOCAL_ROOT: artifactLocalRoot,
       ARTIFACT_ACCESS_URL_TTL_SECONDS: 300,
       ARTIFACT_PREVIEW_MAX_BYTES: 1048576,
     });

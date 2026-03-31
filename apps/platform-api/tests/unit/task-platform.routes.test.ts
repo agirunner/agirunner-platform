@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -39,6 +40,7 @@ vi.mock('../../src/services/artifact-catalog-service.js', () => ({
 }));
 
 describe('task platform routes', () => {
+  const artifactLocalRoot = resolve('tmp/artifacts');
   let app: ReturnType<typeof fastify> | undefined;
 
   function createWorkflowReplayPool(
@@ -142,7 +144,7 @@ describe('task platform routes', () => {
     } as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
-      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_LOCAL_ROOT: artifactLocalRoot,
       ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
       ARTIFACT_PREVIEW_MAX_BYTES: 1024,
     } as never);
@@ -221,7 +223,7 @@ describe('task platform routes', () => {
     } as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
-      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_LOCAL_ROOT: artifactLocalRoot,
       ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
       ARTIFACT_PREVIEW_MAX_BYTES: 1024,
     } as never);
@@ -308,7 +310,7 @@ describe('task platform routes', () => {
     } as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
-      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_LOCAL_ROOT: artifactLocalRoot,
       ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
       ARTIFACT_PREVIEW_MAX_BYTES: 1024,
     } as never);
@@ -396,7 +398,7 @@ describe('task platform routes', () => {
     } as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
-      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_LOCAL_ROOT: artifactLocalRoot,
       ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
       ARTIFACT_PREVIEW_MAX_BYTES: 1024,
     } as never);
@@ -485,7 +487,7 @@ describe('task platform routes', () => {
     } as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
-      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_LOCAL_ROOT: artifactLocalRoot,
       ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
       ARTIFACT_PREVIEW_MAX_BYTES: 1024,
     } as never);
@@ -532,7 +534,7 @@ describe('task platform routes', () => {
     } as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
-      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_LOCAL_ROOT: artifactLocalRoot,
       ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
       ARTIFACT_PREVIEW_MAX_BYTES: 1024,
     } as never);
@@ -609,7 +611,7 @@ describe('task platform routes', () => {
     app.decorate('workspaceService', {} as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
-      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_LOCAL_ROOT: artifactLocalRoot,
       ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
       ARTIFACT_PREVIEW_MAX_BYTES: 1024,
     } as never);
@@ -649,7 +651,7 @@ describe('task platform routes', () => {
     app.decorate('workspaceService', {} as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
-      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_LOCAL_ROOT: artifactLocalRoot,
       ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
       ARTIFACT_PREVIEW_MAX_BYTES: 1024,
     } as never);

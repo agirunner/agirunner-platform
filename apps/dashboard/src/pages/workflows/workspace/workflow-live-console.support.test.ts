@@ -1,3 +1,4 @@
+import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import type { DashboardWorkflowLiveConsoleItem } from '../../../lib/api.js';
@@ -19,6 +20,9 @@ import {
   resolveWorkflowConsoleFilterCounts,
   shouldPrefetchWorkflowConsoleHistory,
 } from './workflow-live-console.support.js';
+
+const taskWorkspacePath = (taskId: string, ...segments: string[]) =>
+  posix.join('/', 'tmp', 'workspace', taskId, ...segments);
 
 describe('workflow live console support', () => {
   it('builds filter counts that reconcile with the visible scoped rows', () => {
@@ -301,7 +305,7 @@ describe('workflow live console support', () => {
         createItem({
           item_id: 'update-temp-path',
           headline:
-            'Policy Assessor: calling file_read(path="/tmp/workspace/task-4df24677-e56d-42e5-9c75-d86e9d8c01cf/context/current-task.md")',
+            `Policy Assessor: calling file_read(path="${taskWorkspacePath('task-4df24677-e56d-42e5-9c75-d86e9d8c01cf', 'context', 'current-task.md')}")`,
           summary: 'Working through the next execution step.',
         }),
       ),

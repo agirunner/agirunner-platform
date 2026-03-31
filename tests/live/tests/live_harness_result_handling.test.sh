@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PLATFORM_ROOT="/home/mark/codex/agirunner-platform"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PLATFORM_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
 LIVE_TEST_ROOT="${PLATFORM_ROOT}/tests/live"
 RUN_SCENARIO_SCRIPT="${LIVE_TEST_ROOT}/scripts/run-live-scenario.sh"
 RUN_BATCH_SCRIPT="${LIVE_TEST_ROOT}/scripts/run-live-scenario-batch.sh"

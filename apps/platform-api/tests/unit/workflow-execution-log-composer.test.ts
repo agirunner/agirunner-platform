@@ -1,9 +1,15 @@
+import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
   buildExecutionTurnItems,
   buildLifecycleHistoryItems,
 } from '../../src/services/workflow-operations/workflow-execution-log-composer.js';
+
+const taskWorkspaceRoot = posix.join('/', 'tmp', 'workspace');
+const taskWorkspacePath = (taskId: string, ...segments: string[]) =>
+  posix.join(taskWorkspaceRoot, taskId, ...segments);
+const tempPath = (...segments: string[]) => posix.join('/', 'tmp', ...segments);
 
 describe('workflow-execution-log-composer', () => {
   it('carries explicit work-item and task ids into execution turn items', () => {
@@ -249,7 +255,7 @@ describe('workflow-execution-log-composer', () => {
           tool: 'file_read',
           text_preview: 'calling file_read()',
           input: {
-            path: '/tmp/workspace/task-4df24677-e56d-42e5-9c75-d86e9d8c01cf/context/task-input.json',
+            path: taskWorkspacePath('task-4df24677-e56d-42e5-9c75-d86e9d8c01cf', 'context', 'task-input.json'),
           },
         },
       }),
@@ -392,7 +398,7 @@ describe('workflow-execution-log-composer', () => {
         payload: {
           tool: 'file_read',
           input: {
-            path: '/tmp/workspace/task-4df24677-e56d-42e5-9c75-d86e9d8c01cf/context/current-task.md',
+            path: taskWorkspacePath('task-4df24677-e56d-42e5-9c75-d86e9d8c01cf', 'context', 'current-task.md'),
             offset: 1,
             limit: 200,
           },
@@ -412,7 +418,7 @@ describe('workflow-execution-log-composer', () => {
         payload: {
           tool: 'artifact_upload',
           input: {
-            path: '/tmp/workspace/task-4df24677-e56d-42e5-9c75-d86e9d8c01cf/output/release-packet.md',
+            path: taskWorkspacePath('task-4df24677-e56d-42e5-9c75-d86e9d8c01cf', 'output', 'release-packet.md'),
             logical_path: 'output/release-packet.md',
             artifact_id: 'artifact-1',
           },
@@ -431,7 +437,7 @@ describe('workflow-execution-log-composer', () => {
         payload: {
           tool: 'shell_exec',
           input: {
-            cwd: '/tmp/workspace/task-4df24677-e56d-42e5-9c75-d86e9d8c01cf',
+            cwd: taskWorkspacePath('task-4df24677-e56d-42e5-9c75-d86e9d8c01cf'),
             request_id: 'req-1',
             task_id: 'task-1',
           },
@@ -453,7 +459,7 @@ describe('workflow-execution-log-composer', () => {
             summary: 'Completed the intake-triage deliverable for workflows-intake-01.',
             successor_context:
               'Current subject state is documented in the uploaded triage packet. The assessor can continue from the packet.',
-            context_path: '/tmp/workspace/task-4df24677-e56d-42e5-9c75-d86e9d8c01cf/context/current-task.md',
+            context_path: taskWorkspacePath('task-4df24677-e56d-42e5-9c75-d86e9d8c01cf', 'context', 'current-task.md'),
             request_id: 'handoff-1',
             work_item_id: 'work-item-1',
           },
@@ -464,7 +470,7 @@ describe('workflow-execution-log-composer', () => {
     expect(item.headline).toBe(
       '[Act] Submitting the brief: Completed the intake-triage deliverable for workflows-intake-01.',
     );
-    expect(item.headline).not.toContain('/tmp/workspace/');
+    expect(item.headline).not.toContain(`${taskWorkspaceRoot}/`);
     expect(item.headline).not.toContain('context/current-task.md');
   });
 
@@ -657,7 +663,8 @@ describe('workflow-execution-log-composer', () => {
             {
               name: 'shell_exec',
               input: {
-                command: 'bash --version >/tmp/bash_version.txt 2>&1 && python3 --version >/tmp/python_version.txt 2>&1',
+                command:
+                  `bash --version >${tempPath('bash_version.txt')} 2>&1 && python3 --version >${tempPath('python_version.txt')} 2>&1`,
               },
             },
           ],
@@ -1318,7 +1325,7 @@ describe('workflow-execution-log-composer', () => {
             {
               name: 'file_read',
               input: {
-                path: '/tmp/workspace/task-123/context/task-input.json',
+                path: taskWorkspacePath('task-123', 'context', 'task-input.json'),
                 offset: 1,
                 limit: 80,
               },
@@ -1634,7 +1641,7 @@ describe('workflow-execution-log-composer', () => {
                 description: 'Write the design packet to the workspace output directory.',
                 tool: 'file_write',
                 input: {
-                  path: '/tmp/workspace/task-2/output/design.md',
+                  path: taskWorkspacePath('task-2', 'output', 'design.md'),
                 },
               },
               {
@@ -1738,7 +1745,7 @@ describe('workflow-execution-log-composer', () => {
             {
               name: 'file_read',
               input: {
-                path: '/tmp/workspace/task-1/context/task-input.json',
+                path: taskWorkspacePath('task-1', 'context', 'task-input.json'),
               },
             },
           ],
@@ -1786,7 +1793,7 @@ describe('workflow-execution-log-composer', () => {
               name: 'shell_exec',
               input: {
                 command:
-                  "bash --version >/tmp/bash_version.txt 2>&1 && python3 --version >/tmp/python3_version.txt 2>&1 && printf 'bash_ok\\npython3_ok\\n'",
+                  `bash --version >${tempPath('bash_version.txt')} 2>&1 && python3 --version >${tempPath('python3_version.txt')} 2>&1 && printf 'bash_ok\\npython3_ok\\n'`,
                 timeout: 30,
                 max_output: 4000,
               },

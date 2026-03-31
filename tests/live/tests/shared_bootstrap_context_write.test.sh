@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PLATFORM_ROOT="/home/mark/codex/agirunner-platform"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+PLATFORM_ROOT="$(cd -- "${SCRIPT_DIR}/../../.." && pwd)"
 SCRIPT_UNDER_TEST="${PLATFORM_ROOT}/tests/live/scripts/prepare-live-test-shared-environment.sh"
 
 make_fake_bin() {

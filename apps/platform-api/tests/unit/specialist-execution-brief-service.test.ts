@@ -1,6 +1,9 @@
+import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { buildSpecialistExecutionBrief } from '../../src/services/specialist-execution-brief-service.js';
+
+const taskWorkspaceRoot = posix.join('/', 'tmp', 'workspace');
 
 describe('buildSpecialistExecutionBrief', () => {
   function buildInput() {
@@ -239,7 +242,7 @@ describe('buildSpecialistExecutionBrief', () => {
     );
     expect(brief?.rendered_markdown).toContain('## Path Discipline');
     expect(brief?.rendered_markdown).toContain(
-      'Tool arguments must be repo-relative: use workflow_cli/__main__.py, tests/test_cli.py, or README.md; never repo/workflow_cli/__main__.py, repo/tests/test_cli.py, repo/README.md, or /tmp/workspace paths.',
+      `Tool arguments must be repo-relative: use workflow_cli/__main__.py, tests/test_cli.py, or README.md; never repo/workflow_cli/__main__.py, repo/tests/test_cli.py, repo/README.md, or ${taskWorkspaceRoot} paths.`,
     );
     expect(brief?.rendered_markdown).toContain(
       'If a discovered or copied repository path starts with repo/, strip that leading repo/ segment before calling any file tool.',

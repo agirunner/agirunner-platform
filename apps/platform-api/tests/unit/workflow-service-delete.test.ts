@@ -1,8 +1,11 @@
+import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { WorkflowService } from '../../src/services/workflow-service.js';
 
 describe('WorkflowService deleteWorkflow', () => {
+  const artifactLocalRoot = resolve('tmp');
+
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -38,7 +41,7 @@ describe('WorkflowService deleteWorkflow', () => {
     const service = new WorkflowService(
       pool as never,
       eventService as never,
-      { TASK_DEFAULT_TIMEOUT_MINUTES: 30, ARTIFACT_STORAGE_BACKEND: 'local', ARTIFACT_LOCAL_ROOT: '/tmp' } as never,
+      { TASK_DEFAULT_TIMEOUT_MINUTES: 30, ARTIFACT_STORAGE_BACKEND: 'local', ARTIFACT_LOCAL_ROOT: artifactLocalRoot } as never,
     );
     (service as unknown as { artifactStorage: typeof artifactStorage }).artifactStorage = artifactStorage;
 

@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createArtifactStorage } from '../../src/content/storage-factory.js';
@@ -6,11 +7,14 @@ import { GcsArtifactStorage } from '../../src/content/gcs-artifact-storage.js';
 import { LocalArtifactStorage } from '../../src/content/local-artifact-storage.js';
 import { S3ArtifactStorage } from '../../src/content/s3-artifact-storage.js';
 
+const localArtifactRoot = resolve('tmp/test-artifacts');
+const ignoredArtifactRoot = resolve('tmp/ignored');
+
 describe('artifact storage factory', () => {
   it('creates the local backend by default', () => {
     const storage = createArtifactStorage({
       backend: 'local',
-      localRoot: '/tmp/test-artifacts',
+      localRoot: localArtifactRoot,
     });
 
     expect(storage).toBeInstanceOf(LocalArtifactStorage);
@@ -19,7 +23,7 @@ describe('artifact storage factory', () => {
   it('creates the S3 backend when configured', () => {
     const storage = createArtifactStorage({
       backend: 's3',
-      localRoot: '/tmp/ignored',
+      localRoot: ignoredArtifactRoot,
       s3: {
         bucket: 'artifacts',
         region: 'us-east-1',
@@ -34,7 +38,7 @@ describe('artifact storage factory', () => {
   it('creates the GCS backend when configured', () => {
     const storage = createArtifactStorage({
       backend: 'gcs',
-      localRoot: '/tmp/ignored',
+      localRoot: ignoredArtifactRoot,
       gcs: {
         bucket: 'artifacts',
         projectId: 'proj',
@@ -48,7 +52,7 @@ describe('artifact storage factory', () => {
   it('creates the Azure backend when configured', () => {
     const storage = createArtifactStorage({
       backend: 'azure',
-      localRoot: '/tmp/ignored',
+      localRoot: ignoredArtifactRoot,
       azure: {
         accountName: 'artifacts',
         container: 'runs',
