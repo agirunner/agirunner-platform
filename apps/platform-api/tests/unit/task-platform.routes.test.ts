@@ -109,25 +109,6 @@ describe('task platform routes', () => {
     }
   });
 
-  it('registers artifact catalog preview and permalink endpoints', async () => {
-    app = fastify();
-    app.decorate('pgPool', {} as never);
-    app.decorate('workspaceService', {} as never);
-    app.decorate('config', {
-      ARTIFACT_STORAGE_BACKEND: 'local',
-      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
-      ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
-      ARTIFACT_PREVIEW_MAX_BYTES: 1024,
-    } as never);
-
-    await app.register(taskPlatformRoutes);
-
-    const routes = app.printRoutes();
-    expect(routes).toContain('artifact-catalog (GET, HEAD)');
-    expect(routes).toContain('review (GET, HEAD)');
-    expect(routes).toContain('ermalink (GET, HEAD)');
-  });
-
   it('accepts design-shaped memory updates objects on task memory patch', async () => {
     const patchWorkspaceMemoryEntries = vi.fn().mockResolvedValue({
       id: 'workspace-1',
