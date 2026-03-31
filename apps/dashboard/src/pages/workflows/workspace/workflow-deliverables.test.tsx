@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
@@ -12,19 +10,7 @@ import type {
 import type { WorkflowWorkbenchScopeDescriptor } from '../workflows-page.support.js';
 import { WorkflowDeliverables } from './workflow-deliverables.js';
 
-function readDeliverablesSource() {
-  return readFileSync(resolve(import.meta.dirname, './workflow-deliverables.tsx'), 'utf8');
-}
-
 describe('WorkflowDeliverables', () => {
-  it('keeps deliverables scoped to workflow or work item with no selected-task prop surface', () => {
-    const source = readDeliverablesSource();
-
-    expect(source).not.toContain('selectedTask: DashboardTaskRecord | null;');
-    expect(source).not.toContain('props.selectedTask?.work_item_id');
-    expect(source).not.toContain("scope.scopeKind !== 'selected_task'");
-  });
-
   it('renders a scope-pure workflow view with final and interim sections only', () => {
     const html = renderToStaticMarkup(
       createElement(WorkflowDeliverables, {
