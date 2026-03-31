@@ -18,7 +18,7 @@ import type { WorkerConnectionHub } from './workers/worker-connection-hub.js';
 import { TaskWriteService } from './task-write-service/task-write-service.js';
 import { OrchestratorGrantService } from './orchestrator-grant-service.js';
 import { RoleDefinitionService } from './role-definition-service.js';
-import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
+import { PlaybookTaskParallelismService } from './playbook/playbook-task-parallelism-service.js';
 import { readTaskCancelSignalGracePeriodMs } from './platform-timing-defaults.js';
 import { WorkItemContinuityService } from './work-item-continuity-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';

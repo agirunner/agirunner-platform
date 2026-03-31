@@ -1,11 +1,11 @@
-import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import type { DatabaseClient, DatabasePool } from '../../db/database.js';
 
-import { seedConfigTables } from '../bootstrap/seed.js';
+import { seedConfigTables } from '../../bootstrap/seed.js';
 import {
   DEFAULT_ADMIN_KEY_PREFIX,
   DEFAULT_TENANT_ID,
   seedDefaultTenant,
-} from '../db/seed.js';
+} from '../../db/seed.js';
 
 export const PLAYBOOK_REDESIGN_PRESERVED_TABLES = [
   'api_keys',

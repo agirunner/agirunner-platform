@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { seedConfigTables } from '../../../src/bootstrap/seed.js';
 import { DEFAULT_ADMIN_KEY_PREFIX, seedDefaultTenant } from '../../../src/db/seed.js';
-import { PlaybookRedesignResetService } from '../../../src/services/redesign-reset-service.js';
+import { PlaybookRedesignResetService } from '../../../src/services/playbook/redesign-reset-service.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,

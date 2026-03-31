@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { parsePlaybookDefinition } from '../../../src/orchestration/playbook-model.js';
-import { evaluatePlaybookRules } from '../../../src/services/playbook-rule-evaluation-service.js';
+import { evaluatePlaybookRules } from '../../../src/services/playbook/playbook-rule-evaluation-service.js';
 
 describe('evaluatePlaybookRules', () => {
   const definition = parsePlaybookDefinition({

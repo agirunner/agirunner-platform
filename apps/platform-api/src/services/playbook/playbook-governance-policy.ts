@@ -1,4 +1,4 @@
-import type { PlaybookDefinition } from '../orchestration/playbook-model.js';
+import type { PlaybookDefinition } from '../../orchestration/playbook-model.js';
 
 type DecisionState = 'approved' | 'request_changes' | 'rejected' | 'blocked';
 

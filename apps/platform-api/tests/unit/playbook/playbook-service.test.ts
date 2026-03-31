@@ -5,7 +5,7 @@ import {
   SchemaValidationFailedError,
   ValidationError,
 } from '../../../src/errors/domain-errors.js';
-import { PlaybookService } from '../../../src/services/playbook-service.js';
+import { PlaybookService } from '../../../src/services/playbook/playbook-service.js';
 
 describe('PlaybookService', () => {
   it('creates a new active version when patching a playbook and deactivates prior revisions', async () => {

@@ -61,7 +61,7 @@ import { RemoteMcpVerificationService } from '../services/remote-mcp-verificatio
 import { SpecialistSkillService } from '../services/specialist-skill-service.js';
 import { WorkspaceArtifactFileService } from '../services/workspace/artifacts/workspace-artifact-file-service.js';
 import { WorkspaceService } from '../services/workspace/workspace-service.js';
-import { PlaybookService } from '../services/playbook-service.js';
+import { PlaybookService } from '../services/playbook/playbook-service.js';
 import { RoleDefinitionService } from '../services/role-definition-service.js';
 import { readPlatformTransportTimingDefaults } from '../services/platform-timing-defaults.js';
 import { RuntimeDefaultsService } from '../services/runtime-defaults/runtime-defaults-service.js';

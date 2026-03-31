@@ -1,4 +1,4 @@
-import type { PlaybookRuleEvaluationResult } from '../playbook-rule-evaluation-service.js';
+import type { PlaybookRuleEvaluationResult } from '../playbook/playbook-rule-evaluation-service.js';
 import type { WorkItemContinuityContextRow } from './types.js';
 
 export function readCheckpointName(

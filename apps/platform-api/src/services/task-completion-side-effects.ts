@@ -6,7 +6,7 @@ import type { EventService } from './event/event-service.js';
 import type { WorkItemContinuityService } from './work-item-continuity-service.js';
 import { enqueueAndDispatchImmediateWorkflowActivation } from './workflow-immediate-activation.js';
 import type { ImmediateWorkflowActivationDispatcher } from './workflow-immediate-activation.js';
-import type { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
+import type { PlaybookTaskParallelismService } from './playbook/playbook-task-parallelism-service.js';
 import { applyDependentTaskCompletionSideEffects } from './task-completion-side-effects/dependency-resolution.js';
 import {
   maybeApplyExplicitAssessmentOutcomeAction,

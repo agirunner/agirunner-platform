@@ -1,4 +1,4 @@
-import type { PlaybookRuleEvaluationResult } from '../playbook-rule-evaluation-service.js';
+import type { PlaybookRuleEvaluationResult } from '../playbook/playbook-rule-evaluation-service.js';
 
 export interface WorkItemContinuityContextRow {
   workflow_id: string;

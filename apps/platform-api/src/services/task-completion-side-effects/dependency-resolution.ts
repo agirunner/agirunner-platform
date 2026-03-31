@@ -1,7 +1,7 @@
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import type { DatabaseClient } from '../../db/database.js';
 import type { EventService } from '../event/event-service.js';
-import type { PlaybookTaskParallelismService } from '../playbook-task-parallelism-service.js';
+import type { PlaybookTaskParallelismService } from '../playbook/playbook-task-parallelism-service.js';
 import type { TaskState } from '../../orchestration/task-state-machine.js';
 
 export async function applyDependentTaskCompletionSideEffects(

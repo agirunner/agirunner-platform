@@ -9,8 +9,8 @@ import { readAssessmentSubjectLinkage, readWorkflowTaskKind } from '../assessmen
 import {
   evaluatePlaybookRules,
   type PlaybookRuleEvaluationResult,
-} from '../playbook-rule-evaluation-service.js';
-import { resolveAssessmentOutcomeAction } from '../playbook-governance-policy.js';
+} from '../playbook/playbook-rule-evaluation-service.js';
+import { resolveAssessmentOutcomeAction } from '../playbook/playbook-governance-policy.js';
 import { parsePlaybookDefinition } from '../../orchestration/playbook-model.js';
 import type {
   WorkItemCompletionOutcome,

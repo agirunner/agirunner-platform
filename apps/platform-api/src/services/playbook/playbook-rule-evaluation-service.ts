@@ -1,4 +1,4 @@
-import type { PlaybookDefinition } from '../orchestration/playbook-model.js';
+import type { PlaybookDefinition } from '../../orchestration/playbook-model.js';
 import { resolveAssessmentExpectation } from './playbook-approval-ordering.js';
 
 export type PlaybookRuleEvent =

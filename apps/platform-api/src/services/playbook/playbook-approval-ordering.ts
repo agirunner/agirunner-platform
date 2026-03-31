@@ -1,4 +1,4 @@
-import type { PlaybookDefinition } from '../orchestration/playbook-model.js';
+import type { PlaybookDefinition } from '../../orchestration/playbook-model.js';
 
 export interface AssessmentExpectation {
   nextExpectedActor: string | null;

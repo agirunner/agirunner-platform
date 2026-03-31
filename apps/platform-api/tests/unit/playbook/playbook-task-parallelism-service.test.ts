@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { PlaybookTaskParallelismService } from '../../../src/services/playbook-task-parallelism-service.js';
+import { PlaybookTaskParallelismService } from '../../../src/services/playbook/playbook-task-parallelism-service.js';
 
 describe('PlaybookTaskParallelismService', () => {
   it('does not count output_pending_assessment tasks as active specialist slots', async () => {

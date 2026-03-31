@@ -27,7 +27,7 @@ import type { WorkflowWorkspaceService } from './services/workflow-operations/wo
 import type { ContainerInventoryService } from './services/execution-environment/container-inventory-service.js';
 import type { WorkspaceService } from './services/workspace/workspace-service.js';
 import type { WorkspaceArtifactFileService } from './services/workspace/artifacts/workspace-artifact-file-service.js';
-import type { PlaybookService } from './services/playbook-service.js';
+import type { PlaybookService } from './services/playbook/playbook-service.js';
 import type { RoleDefinitionService } from './services/role-definition-service.js';
 import type { RuntimeDefaultsService } from './services/runtime-defaults/runtime-defaults-service.js';
 import type { TaskService } from './services/task-service.js';
