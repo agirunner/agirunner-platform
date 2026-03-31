@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { GuidedClosureRecoveryHelpersService } from '../../../src/services/guided-closure/recovery-helpers.js';
+import { GuidedClosureRecoveryHelpersService } from '../../../../src/services/guided-closure/recovery-helpers.js';
 import { definition, identity } from './fixtures.js';
 
 describe('GuidedClosureRecoveryHelpersService recovery mutations', () => {

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildReplayConflictOperatorGuidance,
   GuidedClosureRecoveryHelpersService,
-} from '../../../src/services/guided-closure/recovery-helpers.js';
+} from '../../../../src/services/guided-closure/recovery-helpers.js';
 import { identity } from './fixtures.js';
 
 describe('GuidedClosureRecoveryHelpersService guidance and delegation', () => {
