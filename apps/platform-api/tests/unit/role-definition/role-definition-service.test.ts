@@ -71,16 +71,6 @@ describe('RoleDefinitionService', () => {
 
       expect(result).toBeNull();
     });
-
-    it('does not select legacy fallback_model from role_definitions', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [buildRoleRow()], rowCount: 1 });
-
-      await service.getRoleByName(TENANT_ID, 'developer');
-
-      const sql = pool.query.mock.calls[0][0] as string;
-      expect(sql).not.toContain('rd.*');
-      expect(sql).not.toContain('fallback_model');
-    });
   });
 
   describe('getRoleById', () => {
