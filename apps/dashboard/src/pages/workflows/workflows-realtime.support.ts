@@ -1,3 +1,5 @@
+import type { InfiniteData } from '@tanstack/react-query';
+
 import type {
   DashboardWorkflowDeliverableRecord,
   DashboardWorkflowLiveConsoleItem,
@@ -9,13 +11,32 @@ import type {
 } from '../../lib/api.js';
 
 export function applyRailStreamBatch(
-  packet: DashboardWorkflowRailPacket | undefined,
+  packet:
+    | DashboardWorkflowRailPacket
+    | InfiniteData<DashboardWorkflowRailPacket>
+    | undefined,
   batch: DashboardWorkflowOperationsStreamBatch,
-): DashboardWorkflowRailPacket | undefined {
+):
+  | DashboardWorkflowRailPacket
+  | InfiniteData<DashboardWorkflowRailPacket>
+  | undefined {
   if (!packet) {
     return packet;
   }
+  if (isInfiniteRailData(packet)) {
+    return {
+      ...packet,
+      pages: packet.pages.map((page, index) =>
+        index === 0 ? applyRailStreamBatchToPacket(page, batch) : page),
+    };
+  }
+  return applyRailStreamBatchToPacket(packet, batch);
+}
 
+function applyRailStreamBatchToPacket(
+  packet: DashboardWorkflowRailPacket,
+  batch: DashboardWorkflowOperationsStreamBatch,
+): DashboardWorkflowRailPacket {
   let next: DashboardWorkflowRailPacket = {
     ...packet,
     generated_at: batch.generated_at,
@@ -44,6 +65,13 @@ export function applyRailStreamBatch(
       ?? next.ongoing_rows[0]?.workflow_id
       ?? null,
   };
+}
+
+function isInfiniteRailData(
+  value: DashboardWorkflowRailPacket | InfiniteData<DashboardWorkflowRailPacket>,
+): value is InfiniteData<DashboardWorkflowRailPacket> {
+  const candidate = value as Partial<InfiniteData<DashboardWorkflowRailPacket>>;
+  return Array.isArray(candidate.pages) && Array.isArray(candidate.pageParams);
 }
 
 export function applyWorkspaceStreamBatch(

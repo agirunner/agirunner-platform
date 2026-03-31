@@ -1,5 +1,5 @@
 import { type PointerEvent as ReactPointerEvent, useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import {
@@ -38,6 +38,10 @@ import {
   patchPageState,
   useWorkflowRailSelectionSync,
 } from './workflows-page.controller.js';
+import {
+  combineWorkflowRailPages,
+  getNextWorkflowRailPageParam,
+} from './workflows-rail-pagination.js';
 import { buildWorkflowRailQueryKey, buildWorkflowWorkspaceQueryKey } from './workflows-query.js';
 import { useWorkflowRailRealtime, useWorkflowWorkspaceRealtime } from './workflows-realtime.js';
 import {
@@ -70,7 +74,6 @@ export function WorkflowsPage(): JSX.Element {
     () => readWorkflowLaunchRequest(searchParams),
     [searchParams],
   );
-  const [railLimit, setRailLimit] = useState(RAIL_PAGE_SIZE);
   const [activityLimit, setActivityLimit] = useState(ACTIVITY_PAGE_SIZE);
   const [deliverablesLimit, setDeliverablesLimit] = useState(DELIVERABLES_PAGE_SIZE);
   const [isLaunchOpen, setIsLaunchOpen] = useState(false);
@@ -94,10 +97,6 @@ export function WorkflowsPage(): JSX.Element {
   );
   const lastWorkspacePacketRef = useRef<DashboardWorkflowWorkspacePacket | null>(null);
   const workspaceSplitRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    setRailLimit(RAIL_PAGE_SIZE);
-  }, [pageState.mode, pageState.needsActionOnly, pageState.ongoingOnly, pageState.search]);
 
   useEffect(() => {
     setActivityLimit(ACTIVITY_PAGE_SIZE);
@@ -149,16 +148,19 @@ export function WorkflowsPage(): JSX.Element {
     workItemId: scopedWorkItemId,
   };
 
-  const railQuery = useQuery({
-    queryKey: [...buildWorkflowRailQueryKey(pageState), railLimit],
-    queryFn: () =>
+  const railQuery = useInfiniteQuery({
+    queryKey: buildWorkflowRailQueryKey(pageState),
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
       dashboardApi.getWorkflowRail({
         mode: pageState.mode,
-        perPage: railLimit,
+        page: pageParam,
+        perPage: RAIL_PAGE_SIZE,
         needsActionOnly: pageState.needsActionOnly,
         ongoingOnly: pageState.ongoingOnly,
         search: pageState.search,
       }),
+    getNextPageParam: getNextWorkflowRailPageParam,
   });
   const workspaceQuery = useQuery({
     queryKey: pageState.workflowId
@@ -232,7 +234,10 @@ export function WorkflowsPage(): JSX.Element {
     }
   }, [pageState.workflowId, workspaceQuery.data, workspaceQuery.isPlaceholderData]);
 
-  const railPacket = railQuery.data ?? null;
+  const railPacket = useMemo(
+    () => combineWorkflowRailPages(railQuery.data),
+    [railQuery.data],
+  );
   const workspacePacket = workspaceQuery.data
     ?? resolveWorkspacePlaceholderData(
       lastWorkspacePacketRef.current ?? undefined,
@@ -300,8 +305,7 @@ export function WorkflowsPage(): JSX.Element {
         : workbenchScope,
     [pageState.workflowId, steeringWorkItem, workbenchScope, workflow?.name],
   );
-  const hasMoreRailRows = Boolean(railPacket?.next_cursor)
-    || (railPacket?.total_count ?? 0) > (railPacket?.visible_count ?? 0);
+  const hasMoreRailRows = Boolean(railQuery.hasNextPage);
 
   const openWorkflowLaunchDialog = () => {
     setLaunchPlaybookId(null);
@@ -352,7 +356,7 @@ export function WorkflowsPage(): JSX.Element {
       launchWorkflowName={launchWorkflowName}
       launchWorkspaceId={launchWorkspaceId}
       pageState={pageState}
-      railLoading={railQuery.isLoading}
+      railLoading={railQuery.isLoading || railQuery.isFetchingNextPage}
       railOngoingRows={railPacket?.ongoing_rows ?? []}
       railRows={railPacket?.rows ?? []}
       railTotalCount={railPacket?.total_count}
@@ -404,7 +408,11 @@ export function WorkflowsPage(): JSX.Element {
       onLoadMoreDeliverables={() =>
         setDeliverablesLimit((current) => current + DELIVERABLES_PAGE_SIZE)
       }
-      onLoadMoreRail={() => setRailLimit((current) => current + RAIL_PAGE_SIZE)}
+      onLoadMoreRail={() => {
+        if (railQuery.hasNextPage && !railQuery.isFetchingNextPage) {
+          void railQuery.fetchNextPage();
+        }
+      }}
       onNeedsActionOnlyChange={(needsActionOnly) =>
         patchPageState(navigate, pageState, { needsActionOnly })
       }

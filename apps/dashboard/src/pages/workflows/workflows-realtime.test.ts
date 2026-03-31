@@ -230,6 +230,9 @@ describe('applyRailStreamBatch', () => {
     if (!next) {
       throw new Error('expected rail packet');
     }
+    if ('pages' in next) {
+      throw new Error('expected a single rail packet');
+    }
     expect(next.selected_workflow_id).toBe('workflow-1');
     expect(next.visible_count).toBe(1);
     expect(next.total_count).toBe(18);
