@@ -1,7 +1,7 @@
 import { posix } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { buildSpecialistExecutionBrief } from '../../../src/services/specialist-execution-brief-service.js';
+import { buildSpecialistExecutionBrief } from '../../../src/services/specialist-execution-brief-service/specialist-execution-brief-service.js';
 
 const taskWorkspaceRoot = posix.join('/', 'tmp', 'workspace');
 
