@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConflictError } from '../../src/errors/domain-errors.js';
-import { WorkflowSettingsService } from '../../src/services/workflow-settings-service.js';
+import { ConflictError } from '../../../src/errors/domain-errors.js';
+import { WorkflowSettingsService } from '../../../src/services/workflow-settings-service.js';
 
 const IDENTITY = {
   id: 'key-1',

@@ -4,13 +4,13 @@ const { logSafetynetTriggeredMock } = vi.hoisted(() => ({
   logSafetynetTriggeredMock: vi.fn(),
 }));
 
-vi.mock('../../src/services/safetynet/logging.js', () => ({
+vi.mock('../../../src/services/safetynet/logging.js', () => ({
   logSafetynetTriggered: logSafetynetTriggeredMock,
 }));
 
-import { ConflictError } from '../../src/errors/domain-errors.js';
-import { WorkflowToolResultService } from '../../src/services/workflow-tool-result-service.js';
-import { buildRecoverableMutationResult } from '../../src/services/guided-closure/types.js';
+import { ConflictError } from '../../../src/errors/domain-errors.js';
+import { WorkflowToolResultService } from '../../../src/services/workflow-tool-result-service.js';
+import { buildRecoverableMutationResult } from '../../../src/services/guided-closure/types.js';
 
 describe('WorkflowToolResultService', () => {
   it('takes a transaction-scoped advisory lock before running a request-idempotent mutation', async () => {

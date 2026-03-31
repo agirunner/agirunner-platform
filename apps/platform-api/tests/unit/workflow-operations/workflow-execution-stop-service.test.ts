@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { stopWorkflowBoundExecution } from '../../src/services/workflow-execution-stop-service.js';
+import { stopWorkflowBoundExecution } from '../../../src/services/workflow-execution-stop-service.js';
 
 describe('stopWorkflowBoundExecution', () => {
   it('queues an immediate drain signal for active specialist workers when workflow-bound execution is stopped', async () => {

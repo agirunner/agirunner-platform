@@ -4,11 +4,11 @@ const { logSafetynetTriggeredMock } = vi.hoisted(() => ({
   logSafetynetTriggeredMock: vi.fn(),
 }));
 
-vi.mock('../../src/services/safetynet/logging.js', () => ({
+vi.mock('../../../src/services/safetynet/logging.js', () => ({
   logSafetynetTriggered: logSafetynetTriggeredMock,
 }));
 
-import { WorkflowChainingService } from '../../src/services/workflow-chaining-service.js';
+import { WorkflowChainingService } from '../../../src/services/workflow-chaining-service.js';
 
 describe('WorkflowChainingService', () => {
   it('reads source workflows through an explicit v2 projection instead of wildcard selection', async () => {

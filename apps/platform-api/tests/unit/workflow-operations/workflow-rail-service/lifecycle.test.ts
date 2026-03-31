@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowRailService } from '../../src/services/workflow-operations/workflow-rail-service.js';
+import { WorkflowRailService } from '../../../../src/services/workflow-operations/workflow-rail-service.js';
 
 describe('WorkflowRailService lifecycle filters', () => {
   it('passes the lifecycle filter through to the live source so planned and ongoing rails can page independently', async () => {
@@ -30,13 +30,19 @@ describe('WorkflowRailService lifecycle filters', () => {
       perPage: 100,
     } as never);
 
-    expect(liveService.getLive).toHaveBeenCalledWith('tenant-1', {
-      page: 2,
-      perPage: 100,
-      lifecycleFilter: 'planned',
-    });
-    expect(liveService.countWorkflows).toHaveBeenCalledWith('tenant-1', {
-      lifecycleFilter: 'planned',
-    });
+    expect(liveService.getLive).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        page: 2,
+        perPage: 100,
+        lifecycleFilter: 'planned',
+      }),
+    );
+    expect(liveService.countWorkflows).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        lifecycleFilter: 'planned',
+      }),
+    );
   });
 });

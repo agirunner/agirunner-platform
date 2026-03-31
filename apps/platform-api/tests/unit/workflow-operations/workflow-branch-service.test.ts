@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { collectTerminatedBranchIds } from '../../src/services/workflow-branch-service.js';
+import { collectTerminatedBranchIds } from '../../../src/services/workflow-branch-service.js';
 
 describe('workflow-branch-service', () => {
   const branches = [

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowBudgetService } from '../../src/services/workflow-budget-service.js';
+import { WorkflowBudgetService } from '../../../src/services/workflow-budget-service.js';
 
 describe('WorkflowBudgetService', () => {
   it('builds the workflow budget snapshot from workflow, metering, task, and activation state', async () => {
