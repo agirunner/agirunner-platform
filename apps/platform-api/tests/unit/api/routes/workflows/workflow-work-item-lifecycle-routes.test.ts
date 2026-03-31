@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
-vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -72,7 +72,7 @@ describe('workflow work-item lifecycle routes', () => {
   });
 
   it('posts work-item pause/resume/cancel through workflow service with generated request ids', async () => {
-    const { workflowRoutes } = await import('../../../../src/api/routes/workflows/routes.js');
+    const { workflowRoutes } = await import('../../../../../src/api/routes/workflows/routes.js');
     const pauseWorkflowWorkItem = vi.fn(async () => ({ id: 'wi-1', metadata: { pause_requested_at: '2026-03-30T04:00:00.000Z' } }));
     const resumeWorkflowWorkItem = vi.fn(async () => ({ id: 'wi-1', metadata: {} }));
     const cancelWorkflowWorkItem = vi.fn(async () => ({ id: 'wi-1', metadata: { cancel_requested_at: '2026-03-30T04:05:00.000Z' } }));

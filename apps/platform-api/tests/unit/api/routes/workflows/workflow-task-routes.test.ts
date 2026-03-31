@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
-vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -69,7 +69,7 @@ describe('workflow task routes', () => {
   });
 
   it('deduplicates workflow task agent-escalate requests for workflow-linked tasks without work items', async () => {
-    const { workflowRoutes } = await import('../../../../src/api/routes/workflows/routes.js');
+    const { workflowRoutes } = await import('../../../../../src/api/routes/workflows/routes.js');
     const { pool } = createWorkflowReplayPool('workflow-1', 'public_task_agent_escalate');
     const workflowService = {
       createWorkflow: vi.fn(),

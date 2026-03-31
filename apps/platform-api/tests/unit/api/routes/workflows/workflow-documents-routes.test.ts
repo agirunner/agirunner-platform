@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../../src/errors/error-handler.js';
 
-vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -33,7 +33,7 @@ describe('workflow document routes', () => {
   });
 
   it('creates workflow documents through the workflow route surface', async () => {
-    const { workflowRoutes } = await import('../../../../src/api/routes/workflows/routes.js');
+    const { workflowRoutes } = await import('../../../../../src/api/routes/workflows/routes.js');
     const createdDocument = {
       id: 'doc-1',
       logical_name: 'brief',
