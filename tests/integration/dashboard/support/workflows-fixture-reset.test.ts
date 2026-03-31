@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  PLATFORM_API_CONTAINER_NAME,
+  POSTGRES_CONTAINER_NAME,
+} from './platform-env.js';
+
 const execFileSyncMock = vi.hoisted(() => vi.fn());
 
 vi.mock('node:child_process', () => ({
   execFileSync: execFileSyncMock,
 }));
 
-import { resetWorkflowsState } from '../../../../tests/integration/dashboard/support/workflows-fixture-reset.js';
+import { resetWorkflowsState } from './workflows-fixture-reset.js';
 
 type SqlOutputs = {
   workspaces?: string;
@@ -138,16 +143,18 @@ describe('resetWorkflowsState', () => {
     expect(purgeSql).toContain('DELETE FROM public.workflows');
     expect(purgeSql).toContain('DELETE FROM public.workspaces');
     expect(purgeSql).toContain('DELETE FROM public.playbooks');
-    expect(execFileSyncMock).toHaveBeenCalledWith(
-      'docker',
+    expect(purgeCall?.[1]).toEqual(
       expect.arrayContaining([
         'exec',
         '-i',
-        'agirunner-platform-platform-api-1',
-        'sh',
-        '-lc',
+        POSTGRES_CONTAINER_NAME,
+        'psql',
       ]),
-      { stdio: 'pipe' },
+    );
+    expect(execFileSyncMock).toHaveBeenCalledWith(
+      'docker',
+      ['inspect', '-f', '{{.State.Running}}', PLATFORM_API_CONTAINER_NAME],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
     );
   });
 
