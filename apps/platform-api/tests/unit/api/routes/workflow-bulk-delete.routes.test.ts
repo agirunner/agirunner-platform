@@ -1,13 +1,13 @@
 import fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../src/errors/error-handler.js';
-import { workflowRoutes } from '../../src/api/routes/workflows.routes.js';
+import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
+import { workflowRoutes } from '../../../../src/api/routes/workflows.routes.js';
 
 const mockWithScope = vi.fn((_scope: string) => async () => {});
 const mockWithAllowedScopes = vi.fn((_scopes: string[]) => async () => {});
 
-vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -22,7 +22,7 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: (scopes: string[]) => mockWithAllowedScopes(scopes),
 }));
 
-vi.mock('../../src/services/document-reference-service.js', () => ({
+vi.mock('../../../../src/services/document-reference-service.js', () => ({
   createWorkflowDocument: vi.fn(),
   deleteWorkflowDocument: vi.fn(),
   listWorkflowDocuments: vi.fn(async () => []),

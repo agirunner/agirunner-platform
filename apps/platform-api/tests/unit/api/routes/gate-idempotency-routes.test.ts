@@ -1,7 +1,7 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -25,11 +25,11 @@ describe('gate decision route idempotency', () => {
   });
 
   afterEach(async () => {
-    vi.doUnmock('../../src/services/approval-queue-service.js');
-    vi.doUnmock('../../src/services/playbook-workflow-control-service.js');
-    vi.doUnmock('../../src/services/workflow-state-service.js');
-    vi.doUnmock('../../src/services/workflow-activation-service.js');
-    vi.doUnmock('../../src/services/workflow-activation-dispatch-service.js');
+    vi.doUnmock('../../../../src/services/approval-queue-service.js');
+    vi.doUnmock('../../../../src/services/playbook-workflow-control-service.js');
+    vi.doUnmock('../../../../src/services/workflow-state-service.js');
+    vi.doUnmock('../../../../src/services/workflow-activation-service.js');
+    vi.doUnmock('../../../../src/services/workflow-activation-dispatch-service.js');
     if (app) {
       await app.close();
       app = undefined;
@@ -43,28 +43,28 @@ describe('gate decision route idempotency', () => {
       status: 'approved',
       decision_feedback: 'Looks good',
     }));
-    vi.doMock('../../src/services/approval-queue-service.js', () => ({
+    vi.doMock('../../../../src/services/approval-queue-service.js', () => ({
       ApprovalQueueService: vi.fn().mockImplementation(() => ({
         getGate: vi.fn(async () => ({ id: 'gate-1', workflow_id: 'workflow-1' })),
         listApprovals: vi.fn(),
       })),
     }));
-    vi.doMock('../../src/services/playbook-workflow-control-service.js', () => ({
+    vi.doMock('../../../../src/services/playbook-workflow-control-service.js', () => ({
       PlaybookWorkflowControlService: vi.fn().mockImplementation(() => ({
         actOnGate,
       })),
     }));
-    vi.doMock('../../src/services/workflow-state-service.js', () => ({
+    vi.doMock('../../../../src/services/workflow-state-service.js', () => ({
       WorkflowStateService: vi.fn().mockImplementation(() => ({})),
     }));
-    vi.doMock('../../src/services/workflow-activation-service.js', () => ({
+    vi.doMock('../../../../src/services/workflow-activation-service.js', () => ({
       WorkflowActivationService: vi.fn().mockImplementation(() => ({})),
     }));
-    vi.doMock('../../src/services/workflow-activation-dispatch-service.js', () => ({
+    vi.doMock('../../../../src/services/workflow-activation-dispatch-service.js', () => ({
       WorkflowActivationDispatchService: vi.fn().mockImplementation(() => ({})),
     }));
 
-    const { approvalQueueRoutes } = await import('../../src/api/routes/approval-queue.routes.js');
+    const { approvalQueueRoutes } = await import('../../../../src/api/routes/approval-queue.routes.js');
 
     app = await buildApp();
     await app.register(approvalQueueRoutes);
@@ -98,28 +98,28 @@ describe('gate decision route idempotency', () => {
 
   it('rejects approval queue gate decisions without request_id', async () => {
     const actOnGate = vi.fn();
-    vi.doMock('../../src/services/approval-queue-service.js', () => ({
+    vi.doMock('../../../../src/services/approval-queue-service.js', () => ({
       ApprovalQueueService: vi.fn().mockImplementation(() => ({
         getGate: vi.fn(async () => ({ id: 'gate-1', workflow_id: 'workflow-1' })),
         listApprovals: vi.fn(),
       })),
     }));
-    vi.doMock('../../src/services/playbook-workflow-control-service.js', () => ({
+    vi.doMock('../../../../src/services/playbook-workflow-control-service.js', () => ({
       PlaybookWorkflowControlService: vi.fn().mockImplementation(() => ({
         actOnGate,
       })),
     }));
-    vi.doMock('../../src/services/workflow-state-service.js', () => ({
+    vi.doMock('../../../../src/services/workflow-state-service.js', () => ({
       WorkflowStateService: vi.fn().mockImplementation(() => ({})),
     }));
-    vi.doMock('../../src/services/workflow-activation-service.js', () => ({
+    vi.doMock('../../../../src/services/workflow-activation-service.js', () => ({
       WorkflowActivationService: vi.fn().mockImplementation(() => ({})),
     }));
-    vi.doMock('../../src/services/workflow-activation-dispatch-service.js', () => ({
+    vi.doMock('../../../../src/services/workflow-activation-dispatch-service.js', () => ({
       WorkflowActivationDispatchService: vi.fn().mockImplementation(() => ({})),
     }));
 
-    const { approvalQueueRoutes } = await import('../../src/api/routes/approval-queue.routes.js');
+    const { approvalQueueRoutes } = await import('../../../../src/api/routes/approval-queue.routes.js');
 
     app = await buildApp();
     await app.register(approvalQueueRoutes);
@@ -143,7 +143,7 @@ describe('gate decision route idempotency', () => {
 async function buildApp(overrides?: { workflowService?: Record<string, unknown> }) {
   const toolResults = new Map<string, Record<string, unknown>>();
   const app = fastify();
-  const { registerErrorHandler } = await import('../../src/errors/error-handler.js');
+  const { registerErrorHandler } = await import('../../../../src/errors/error-handler.js');
   registerErrorHandler(app);
   app.decorate('pgPool', {
     connect: vi.fn(async () => ({

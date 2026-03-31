@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
 
-vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -33,7 +33,7 @@ describe('workspace artifact file routes', () => {
   });
 
   it('lists workspace-owned artifact files from a dedicated workspace route', async () => {
-    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
+    const { workspaceRoutes } = await import('../../../../src/api/routes/workspaces.routes.js');
 
     const listWorkspaceArtifactFiles = vi.fn().mockResolvedValue([
       {
@@ -92,7 +92,7 @@ describe('workspace artifact file routes', () => {
   });
 
   it('uploads workspace-owned artifact files without requiring workflow or task scope', async () => {
-    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
+    const { workspaceRoutes } = await import('../../../../src/api/routes/workspaces.routes.js');
 
     const uploadWorkspaceArtifactFile = vi.fn().mockResolvedValue({
       id: 'file-1',
@@ -157,7 +157,7 @@ describe('workspace artifact file routes', () => {
   });
 
   it('uploads multiple workspace-owned artifact files in one request and defaults keys from filenames', async () => {
-    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
+    const { workspaceRoutes } = await import('../../../../src/api/routes/workspaces.routes.js');
 
     const uploadWorkspaceArtifactFiles = vi.fn().mockResolvedValue([
       {

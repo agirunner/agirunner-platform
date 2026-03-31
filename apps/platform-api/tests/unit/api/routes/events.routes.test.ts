@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
 
-vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -32,7 +32,7 @@ describe('events routes', () => {
   });
 
   it('supports work-item, stage, activation, and gate filters on event queries', async () => {
-    const { eventRoutes } = await import('../../src/api/routes/events.routes.js');
+    const { eventRoutes } = await import('../../../../src/api/routes/events.routes.js');
     const query = vi
       .fn()
       .mockResolvedValue({
@@ -119,7 +119,7 @@ describe('events routes', () => {
   });
 
   it('redacts secret-bearing event data in list responses', async () => {
-    const { eventRoutes } = await import('../../src/api/routes/events.routes.js');
+    const { eventRoutes } = await import('../../../../src/api/routes/events.routes.js');
     const query = vi
       .fn()
       .mockResolvedValue({
@@ -181,7 +181,7 @@ describe('events routes', () => {
   });
 
   it('accepts per_page as an alias for limit on event queries', async () => {
-    const { eventRoutes } = await import('../../src/api/routes/events.routes.js');
+    const { eventRoutes } = await import('../../../../src/api/routes/events.routes.js');
     const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 0 });
 
     app = fastify();

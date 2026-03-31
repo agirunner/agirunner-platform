@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
 
-vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -32,7 +32,7 @@ describe('workflow operations routes', () => {
   });
 
   it('routes canonical workflow operations reads through the workflow operations services', async () => {
-    const { workflowOperationsRoutes } = await import('../../src/api/routes/workflow-operations.routes.js');
+    const { workflowOperationsRoutes } = await import('../../../../src/api/routes/workflow-operations.routes.js');
     const workflowOperationsLiveService = { getLive: vi.fn(async () => ({ sections: [], attentionItems: [] })) };
     const workflowOperationsRecentService = { getRecent: vi.fn(async () => ({ packets: [] })) };
     const workflowOperationsHistoryService = { getHistory: vi.fn(async () => ({ packets: [] })) };

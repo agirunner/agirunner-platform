@@ -1,9 +1,9 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
 
-vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -33,7 +33,7 @@ describe('workspace routes', () => {
   });
 
   it('rejects legacy settings.model_override on workspace create', async () => {
-    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
+    const { workspaceRoutes } = await import('../../../../src/api/routes/workspaces.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -82,7 +82,7 @@ describe('workspace routes', () => {
   });
 
   it('returns workspace list summaries from the list route unchanged', async () => {
-    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
+    const { workspaceRoutes } = await import('../../../../src/api/routes/workspaces.routes.js');
 
     const listWorkspaces = vi.fn().mockResolvedValue({
       data: [
@@ -172,7 +172,7 @@ describe('workspace routes', () => {
   });
 
   it('deletes workspace memory entries through the workspace admin routes', async () => {
-    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
+    const { workspaceRoutes } = await import('../../../../src/api/routes/workspaces.routes.js');
 
     const removeWorkspaceMemory = vi.fn().mockResolvedValue({
       id: 'workspace-1',
@@ -221,7 +221,7 @@ describe('workspace routes', () => {
   });
 
   it('returns a workspace delete impact summary', async () => {
-    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
+    const { workspaceRoutes } = await import('../../../../src/api/routes/workspaces.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -277,7 +277,7 @@ describe('workspace routes', () => {
   });
 
   it('passes the cascade flag through workspace deletion', async () => {
-    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
+    const { workspaceRoutes } = await import('../../../../src/api/routes/workspaces.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -322,7 +322,7 @@ describe('workspace routes', () => {
   });
 
   it('verifies workspace git access through a dedicated admin route', async () => {
-    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
+    const { workspaceRoutes } = await import('../../../../src/api/routes/workspaces.routes.js');
 
     const verifyWorkspaceGitAccess = vi.fn().mockResolvedValue({
       ok: true,

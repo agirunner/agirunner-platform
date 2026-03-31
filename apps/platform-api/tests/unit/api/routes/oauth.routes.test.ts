@@ -1,7 +1,7 @@
 import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
 
 const serverState: {
   handler: ((req: { url?: string }, res: ServerResponseStub) => void | Promise<void>) | null;
@@ -27,7 +27,7 @@ vi.mock('node:http', () => ({
   },
 }));
 
-vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -74,7 +74,7 @@ describe('oauth routes', () => {
   }
 
   it('redirects callback failures with sanitized oauth_error messages', async () => {
-    const { oauthRoutes } = await import('../../src/api/routes/oauth.routes.js');
+    const { oauthRoutes } = await import('../../../../src/api/routes/oauth.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -114,7 +114,7 @@ describe('oauth routes', () => {
   });
 
   it('preserves non-secret callback error messages', async () => {
-    const { oauthRoutes } = await import('../../src/api/routes/oauth.routes.js');
+    const { oauthRoutes } = await import('../../../../src/api/routes/oauth.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -152,7 +152,7 @@ describe('oauth routes', () => {
   });
 
   it('routes successful provider callbacks through the dashboard auth bootstrap page', async () => {
-    const { oauthRoutes } = await import('../../src/api/routes/oauth.routes.js');
+    const { oauthRoutes } = await import('../../../../src/api/routes/oauth.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -195,7 +195,7 @@ describe('oauth routes', () => {
   });
 
   it('imports an oauth session through the admin api', async () => {
-    const { oauthRoutes } = await import('../../src/api/routes/oauth.routes.js');
+    const { oauthRoutes } = await import('../../../../src/api/routes/oauth.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -244,7 +244,7 @@ describe('oauth routes', () => {
   });
 
   it('serves the MCP oauth client metadata document', async () => {
-    const { oauthRoutes } = await import('../../src/api/routes/oauth.routes.js');
+    const { oauthRoutes } = await import('../../../../src/api/routes/oauth.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -284,7 +284,7 @@ describe('oauth routes', () => {
   });
 
   it('adds the hosted remote MCP callback uri to the client metadata document when configured', async () => {
-    const { oauthRoutes } = await import('../../src/api/routes/oauth.routes.js');
+    const { oauthRoutes } = await import('../../../../src/api/routes/oauth.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -328,7 +328,7 @@ describe('oauth routes', () => {
   });
 
   it('routes successful remote MCP callbacks through the dashboard auth bootstrap page', async () => {
-    const { oauthRoutes } = await import('../../src/api/routes/oauth.routes.js');
+    const { oauthRoutes } = await import('../../../../src/api/routes/oauth.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
@@ -373,7 +373,7 @@ describe('oauth routes', () => {
   });
 
   it('handles hosted remote MCP callbacks through the fastify route', async () => {
-    const { oauthRoutes } = await import('../../src/api/routes/oauth.routes.js');
+    const { oauthRoutes } = await import('../../../../src/api/routes/oauth.routes.js');
 
     app = fastify();
     registerErrorHandler(app);

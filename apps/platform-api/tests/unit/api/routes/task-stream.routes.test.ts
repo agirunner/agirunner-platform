@@ -1,13 +1,13 @@
 import fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { registerErrorHandler } from '../../src/errors/error-handler.js';
+import { registerErrorHandler } from '../../../../src/errors/error-handler.js';
 
 const { withScopeSpy } = vi.hoisted(() => ({
   withScopeSpy: vi.fn(() => async () => {}),
 }));
 
-vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
@@ -54,7 +54,7 @@ describe('task stream routes', () => {
       assigned_worker_id: null,
     });
 
-    const { taskStreamRoutes } = await import('../../src/api/routes/task-stream.routes.js');
+    const { taskStreamRoutes } = await import('../../../../src/api/routes/task-stream.routes.js');
     await appInstance.register(taskStreamRoutes);
 
     const response = await appInstance.inject({
@@ -75,7 +75,7 @@ describe('task stream routes', () => {
       assigned_worker_id: 'worker-1',
     });
 
-    const { taskStreamRoutes } = await import('../../src/api/routes/task-stream.routes.js');
+    const { taskStreamRoutes } = await import('../../../../src/api/routes/task-stream.routes.js');
     await appInstance.register(taskStreamRoutes);
 
     const response = await appInstance.inject({
@@ -100,7 +100,7 @@ describe('task stream routes', () => {
       host_info: {},
     });
 
-    const { taskStreamRoutes } = await import('../../src/api/routes/task-stream.routes.js');
+    const { taskStreamRoutes } = await import('../../../../src/api/routes/task-stream.routes.js');
     await appInstance.register(taskStreamRoutes);
 
     const response = await appInstance.inject({
@@ -125,7 +125,7 @@ describe('task stream routes', () => {
       host_info: null,
     });
 
-    const { taskStreamRoutes } = await import('../../src/api/routes/task-stream.routes.js');
+    const { taskStreamRoutes } = await import('../../../../src/api/routes/task-stream.routes.js');
     await appInstance.register(taskStreamRoutes);
 
     const response = await appInstance.inject({
@@ -152,7 +152,7 @@ describe('task stream routes', () => {
 
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('ECONNREFUSED')));
 
-    const { taskStreamRoutes } = await import('../../src/api/routes/task-stream.routes.js');
+    const { taskStreamRoutes } = await import('../../../../src/api/routes/task-stream.routes.js');
     await appInstance.register(taskStreamRoutes);
 
     const response = await appInstance.inject({
@@ -171,7 +171,7 @@ describe('task stream routes', () => {
   it('requires agent scope — withScope is called with "agent" during route registration', async () => {
     const { app: appInstance } = buildApp();
 
-    const { taskStreamRoutes } = await import('../../src/api/routes/task-stream.routes.js');
+    const { taskStreamRoutes } = await import('../../../../src/api/routes/task-stream.routes.js');
     await appInstance.register(taskStreamRoutes);
 
     expect(withScopeSpy).toHaveBeenCalledWith('agent');

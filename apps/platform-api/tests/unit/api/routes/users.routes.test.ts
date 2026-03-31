@@ -2,15 +2,15 @@ import fastify from 'fastify';
 import fastifyCookie from '@fastify/cookie';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+vi.mock('../../../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async () => {},
 }));
 
-vi.mock('../../src/auth/jwt.js', () => ({
+vi.mock('../../../../src/auth/jwt.js', () => ({
   issueUserAccessToken: vi.fn().mockResolvedValue('user-access-token'),
 }));
 
-vi.mock('../../src/auth/sso-provider.js', () => ({
+vi.mock('../../../../src/auth/sso-provider.js', () => ({
   getSSOProviderConfig: vi.fn().mockReturnValue({ clientId: 'client-1' }),
   exchangeCodeForUser: vi.fn().mockResolvedValue({
     provider: 'google',
@@ -36,7 +36,7 @@ describe('users routes sso callback', () => {
   });
 
   it('redirects without tokens or tenant context in the URL and sets an httpOnly access cookie', async () => {
-    const { userRoutes } = await import('../../src/api/routes/users.routes.js');
+    const { userRoutes } = await import('../../../../src/api/routes/users.routes.js');
 
     app = fastify();
     await app.register(fastifyCookie);

@@ -20,9 +20,9 @@ const loggingMocks = vi.hoisted(() => ({
   logAuthEvent: vi.fn(),
 }));
 
-vi.mock('../../src/auth/api-key.js', () => authMocks);
-vi.mock('../../src/auth/jwt.js', () => jwtMocks);
-vi.mock('../../src/logging/request/auth-log.js', () => loggingMocks);
+vi.mock('../../../../src/auth/api-key.js', () => authMocks);
+vi.mock('../../../../src/auth/jwt.js', () => jwtMocks);
+vi.mock('../../../../src/logging/request/auth-log.js', () => loggingMocks);
 
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
@@ -86,7 +86,7 @@ describe('auth routes persistent sessions', () => {
   });
 
   async function buildApp() {
-    const { authRoutes } = await import('../../src/api/routes/auth.routes.js');
+    const { authRoutes } = await import('../../../../src/api/routes/auth.routes.js');
 
     const query = vi.fn().mockResolvedValue({ rowCount: 1, rows: [] });
     const clientQuery = vi.fn().mockImplementation(async (sql: string) => {
