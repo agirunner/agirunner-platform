@@ -31,7 +31,9 @@ import {
 } from './workflows-validation.js';
 import { resetWorkflowsState } from './workflows-fixture-reset.js';
 
-export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: number } = {}): Promise<SeededWorkflowsScenario> {
+export async function seedWorkflowsScenario(
+  options: { bulkWorkflowCount?: number; bulkOngoingWorkflowCount?: number } = {},
+): Promise<SeededWorkflowsScenario> {
   await resetWorkflowsState();
   await updateAgenticSettings('enhanced');
   const suffix = Date.now().toString(36);
@@ -329,7 +331,14 @@ export async function seedWorkflowsScenario(options: { bulkWorkflowCount?: numbe
     summary: 'Workflow failed after validation timeout.',
   });
 
-  await seedBulkWorkflows(options.bulkWorkflowCount ?? 0, plannedPlaybook.id, workspace.id);
+  await seedBulkWorkflows(options.bulkWorkflowCount ?? 0, plannedPlaybook.id, workspace.id, {
+    lifecycle: 'planned',
+    namePrefix: 'E2E Bulk Workflow',
+  });
+  await seedBulkWorkflows(options.bulkOngoingWorkflowCount ?? 0, ongoingPlaybook.id, workspace.id, {
+    lifecycle: 'ongoing',
+    namePrefix: 'E2E Bulk Ongoing Workflow',
+  });
   const scenario = {
     workspace,
     plannedPlaybook,

@@ -6,6 +6,8 @@ export interface WorkflowBulkSeedInput {
   playbookId: string;
   count: number;
   baseIso?: string;
+  lifecycle?: 'planned' | 'ongoing';
+  namePrefix?: string;
 }
 
 export function buildBulkWorkflowInsertSql(input: WorkflowBulkSeedInput): string {
@@ -19,6 +21,8 @@ export function buildBulkWorkflowInsertSql(input: WorkflowBulkSeedInput): string
       tenantId: input.tenantId,
       workspaceId: input.workspaceId,
       playbookId: input.playbookId,
+      lifecycle: input.lifecycle ?? 'planned',
+      namePrefix: input.namePrefix ?? readDefaultBulkWorkflowPrefix(input.lifecycle ?? 'planned'),
       index,
       createdAtIso: new Date(baseTimeMs + (input.count - index) * 1000).toISOString(),
     }),
@@ -33,6 +37,7 @@ export function buildBulkWorkflowInsertSql(input: WorkflowBulkSeedInput): string
       name,
       state,
       lifecycle,
+      current_stage,
       parameters,
       metadata,
       created_at,
@@ -47,20 +52,23 @@ interface WorkflowBulkWorkflowRowInput {
   tenantId: string;
   workspaceId: string;
   playbookId: string;
+  lifecycle: 'planned' | 'ongoing';
+  namePrefix: string;
   index: number;
   createdAtIso: string;
 }
 
 function buildBulkWorkflowValueRow(input: WorkflowBulkWorkflowRowInput): string {
-  const state = readBulkWorkflowState(input.index);
+  const state = readBulkWorkflowState(input.lifecycle, input.index);
   return `(
       gen_random_uuid(),
       ${sqlUuid(input.tenantId)},
       ${sqlUuid(input.workspaceId)},
       ${sqlUuid(input.playbookId)},
-      ${sqlText(`E2E Bulk Workflow ${String(input.index).padStart(4, '0')}`)},
+      ${sqlText(`${input.namePrefix} ${String(input.index).padStart(4, '0')}`)},
       ${sqlText(state)}::public.workflow_state,
-      'planned',
+      ${sqlText(input.lifecycle)},
+      ${readBulkWorkflowCurrentStageValue(input.lifecycle)},
       ${sqlJsonValue({ workflow_goal: `Keep workflow ${input.index} visible in the workflows rail.` })}::jsonb,
       '{}'::jsonb,
       ${sqlTimestamp(input.createdAtIso)},
@@ -84,7 +92,13 @@ function sqlJsonValue(value: unknown): string {
   return sqlText(JSON.stringify(value));
 }
 
-function readBulkWorkflowState(index: number): 'completed' | 'cancelled' | 'failed' {
+function readBulkWorkflowState(
+  lifecycle: 'planned' | 'ongoing',
+  index: number,
+): 'completed' | 'cancelled' | 'failed' | 'active' {
+  if (lifecycle === 'ongoing') {
+    return 'active';
+  }
   switch (index % 3) {
     case 1:
       return 'cancelled';
@@ -93,4 +107,12 @@ function readBulkWorkflowState(index: number): 'completed' | 'cancelled' | 'fail
     default:
       return 'completed';
   }
+}
+
+function readBulkWorkflowCurrentStageValue(lifecycle: 'planned' | 'ongoing'): string {
+  return lifecycle === 'ongoing' ? 'NULL' : sqlText('delivery');
+}
+
+function readDefaultBulkWorkflowPrefix(lifecycle: 'planned' | 'ongoing'): string {
+  return lifecycle === 'ongoing' ? 'E2E Bulk Ongoing Workflow' : 'E2E Bulk Workflow';
 }

@@ -114,6 +114,37 @@ test('keeps the selected workflow stable while the rail grows and reorders', asy
   await expect(workflowWorkspaceHeading(page, 'E2E Bulk Workflow 0104')).toBeVisible();
 });
 
+test('keeps the ongoing rail stable when many ongoing workflows are paged in', async ({ page }) => {
+  const requestedRailPages = new Set<number>();
+  await seedWorkflowsScenario({
+    bulkWorkflowCount: 80,
+    bulkOngoingWorkflowCount: 100,
+  });
+  page.on('request', (request) => {
+    if (request.method() !== 'GET') {
+      return;
+    }
+    const url = new URL(request.url());
+    if (url.pathname !== '/api/v1/operations/workflows') {
+      return;
+    }
+    const pageNumber = Number(url.searchParams.get('page') ?? '');
+    if (Number.isInteger(pageNumber) && pageNumber > 0) {
+      requestedRailPages.add(pageNumber);
+    }
+  });
+
+  await loginToWorkflows(page);
+  const rail = page.locator('aside').filter({
+    has: page.locator('[data-workflows-rail-scroll-region="true"]'),
+  });
+  await rail.getByRole('button', { name: 'Ongoing', exact: true }).click();
+
+  await revealWorkflowInRail(page, 'E2E Bulk Ongoing Workflow 0099', requestedRailPages);
+  await workflowRailButton(page, 'E2E Bulk Ongoing Workflow 0099').click();
+  await expect(workflowWorkspaceHeading(page, 'E2E Bulk Ongoing Workflow 0099')).toBeVisible();
+});
+
 async function revealWorkflowInRail(
   page: Page,
   workflowName: string,

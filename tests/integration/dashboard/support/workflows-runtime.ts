@@ -71,12 +71,22 @@ export async function updateAgenticSettings(mode: 'standard' | 'enhanced'): Prom
   }
 }
 
-export async function seedBulkWorkflows(count: number, playbookId: string, workspaceId: string): Promise<void> {
+export async function seedBulkWorkflows(
+  count: number,
+  playbookId: string,
+  workspaceId: string,
+  options: {
+    lifecycle?: 'planned' | 'ongoing';
+    namePrefix?: string;
+  } = {},
+): Promise<void> {
   const sql = buildBulkWorkflowInsertSql({
     tenantId: DEFAULT_TENANT_ID,
     workspaceId,
     playbookId,
     count,
+    lifecycle: options.lifecycle,
+    namePrefix: options.namePrefix,
   });
   if (!sql) {
     return;
