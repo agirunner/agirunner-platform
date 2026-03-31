@@ -3,6 +3,36 @@ import { describe, expect, it, vi } from 'vitest';
 import { DestructiveDeleteService } from '../../../src/services/destructive-delete-service.js';
 
 describe('DestructiveDeleteService', () => {
+  it('cancels active selected workflows and purges them in one permanent bulk delete', async () => {
+    const client = createBulkWorkflowDeleteClient();
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        assertSequentialParameters(sql);
+        if (sql.includes('FROM workflows') && sql.includes('id = ANY($2::uuid[])') && sql.includes('state::text = ANY')) {
+          expect(params).toEqual(['tenant-1', ['workflow-active', 'workflow-terminal'], ['active', 'paused']]);
+          return { rowCount: 1, rows: [{ id: 'workflow-active' }] };
+        }
+        throw new Error(`unexpected pool query: ${sql} :: ${JSON.stringify(params ?? [])}`);
+      }),
+      connect: vi.fn().mockResolvedValue(client),
+    };
+    const cancelWorkflow = vi.fn().mockResolvedValue(undefined);
+    const service = new DestructiveDeleteService(pool as never, { cancelWorkflow });
+
+    await expect(
+      service.deleteWorkflowsPermanently(createIdentity(), ['workflow-active', 'workflow-terminal', 'workflow-active']),
+    ).resolves.toEqual({
+      deleted: true,
+      deleted_workflow_count: 2,
+      deleted_task_count: 2,
+      deleted_workflow_ids: ['workflow-active', 'workflow-terminal'],
+    });
+
+    expect(cancelWorkflow).toHaveBeenCalledTimes(1);
+    expect(cancelWorkflow).toHaveBeenCalledWith(createIdentity(), 'workflow-active');
+    expect(client.release).toHaveBeenCalled();
+  });
+
   it('deletes a playbook family without non-sequential SQL parameters in purge cleanup', async () => {
     const client = createStrictTransactionalClient();
     const pool = {
@@ -220,6 +250,14 @@ describe('DestructiveDeleteService', () => {
       .filter((index) => index >= 0);
     expect(deleteWorkspaceTaskCallIndexes.length).toBe(2);
     expect(deleteWorkspaceTaskCallIndexes.at(-1) ?? -1).toBeLessThan(deleteWorkspaceCallIndex);
+
+    const workflowScopedTaskDeleteCall = client.query.mock.calls.find(
+      ([sql]) =>
+        typeof sql === 'string'
+        && sql.includes('DELETE FROM tasks')
+        && sql.includes('workflow_id = ANY($2::uuid[])'),
+    );
+    expect(workflowScopedTaskDeleteCall).toBeDefined();
   });
 });
 
@@ -267,6 +305,20 @@ function createStrictTransactionalClient() {
             ? { rowCount: 1, rows: [{ id: 'task-residual-1' }] }
             : { rowCount: 0, rows: [] };
         }
+        if (sql.includes('workflow_id = ANY($2::uuid[])')) {
+          const workspaceId = params?.[3];
+          if (workspaceId == null) {
+            const taskIds = Array.isArray(params?.[2]) ? (params[2] as string[]) : [];
+            return {
+              rowCount: taskIds.length,
+              rows: taskIds.map((id) => ({ id })),
+            };
+          }
+          return {
+            rowCount: 2,
+            rows: [{ id: 'task-1' }, { id: 'task-standalone-1' }],
+          };
+        }
         const taskIds = Array.isArray(params?.[1]) ? (params[1] as string[]) : [];
         return {
           rowCount: taskIds.length,
@@ -281,6 +333,48 @@ function createStrictTransactionalClient() {
       }
       if (sql.startsWith('DELETE FROM workspaces')) {
         return { rowCount: 1, rows: [{ id: 'workspace-1' }] };
+      }
+      return { rowCount: 0, rows: [] };
+    }),
+    release: vi.fn(),
+  };
+}
+
+function createBulkWorkflowDeleteClient() {
+  return {
+    query: vi.fn(async (sql: string, params?: unknown[]) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+        return { rowCount: 0, rows: [] };
+      }
+
+      assertSequentialParameters(sql);
+
+      if (sql.includes('SELECT id') && sql.includes('FROM workflows') && sql.includes('id = ANY($2::uuid[])')) {
+        expect(params).toEqual(['tenant-1', ['workflow-active', 'workflow-terminal']]);
+        return {
+          rowCount: 2,
+          rows: [{ id: 'workflow-active' }, { id: 'workflow-terminal' }],
+        };
+      }
+      if (sql.includes('SELECT id') && sql.includes('FROM tasks') && sql.includes('workflow_id = ANY($2::uuid[])')) {
+        expect(params).toEqual(['tenant-1', ['workflow-active', 'workflow-terminal']]);
+        return {
+          rowCount: 2,
+          rows: [{ id: 'task-active' }, { id: 'task-terminal' }],
+        };
+      }
+      if (sql.startsWith('DELETE FROM tasks') && sql.includes('workflow_id = ANY($2::uuid[])')) {
+        return {
+          rowCount: 2,
+          rows: [{ id: 'task-active' }, { id: 'task-terminal' }],
+        };
+      }
+      if (sql.startsWith('DELETE FROM workflows')) {
+        expect(params).toEqual(['tenant-1', ['workflow-active', 'workflow-terminal']]);
+        return {
+          rowCount: 2,
+          rows: [{ id: 'workflow-active' }, { id: 'workflow-terminal' }],
+        };
       }
       return { rowCount: 0, rows: [] };
     }),

@@ -179,6 +179,37 @@ export async function listActiveWorkflowIdsForPlaybooks(
   return result.rows.map((row) => row.id);
 }
 
+export async function listWorkflowIdsForSelection(
+  db: Queryable,
+  tenantId: string,
+  workflowIds: string[],
+): Promise<string[]> {
+  const result = await db.query<{ id: string }>(
+    `SELECT id
+       FROM workflows
+      WHERE tenant_id = $1
+        AND id = ANY($2::uuid[])`,
+    [tenantId, uniqueIds(workflowIds)],
+  );
+  return result.rows.map((row) => row.id);
+}
+
+export async function listActiveWorkflowIdsForSelection(
+  db: Queryable,
+  tenantId: string,
+  workflowIds: string[],
+): Promise<string[]> {
+  const result = await db.query<{ id: string }>(
+    `SELECT id
+       FROM workflows
+      WHERE tenant_id = $1
+        AND id = ANY($2::uuid[])
+        AND state::text = ANY($3::text[])`,
+    [tenantId, uniqueIds(workflowIds), [...CANCELLABLE_WORKFLOW_STATES]],
+  );
+  return result.rows.map((row) => row.id);
+}
+
 export async function listWorkflowIdsForWorkspace(
   db: Queryable,
   tenantId: string,

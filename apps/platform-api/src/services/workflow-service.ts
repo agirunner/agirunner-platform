@@ -7,6 +7,7 @@ import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import { activeColumnId, parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
+import { DestructiveDeleteService } from './destructive-delete-service.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import { WorkflowBudgetService } from './workflow-budget-service.js';
@@ -74,6 +75,7 @@ export class WorkflowService {
   private readonly stageService: WorkflowStageService;
   private readonly playbookControlService: PlaybookWorkflowControlService;
   private readonly addWorkService: WorkflowAddWorkService;
+  private readonly destructiveDeleteService: Pick<DestructiveDeleteService, 'deleteWorkflowsPermanently'>;
 
   constructor(
     private readonly pool: DatabasePool,
@@ -164,6 +166,10 @@ export class WorkflowService {
       resolveCancelSignalGracePeriodMs: async (tenantId: string) =>
         readTaskCancelSignalGracePeriodMs(pool, tenantId),
       workerConnectionHub: connectionHub,
+    });
+    this.destructiveDeleteService = new DestructiveDeleteService(pool, {
+      cancelWorkflow: this.cancelWorkflow.bind(this),
+      artifactStorage: this.artifactStorage,
     });
   }
 
@@ -644,6 +650,10 @@ export class WorkflowService {
     } finally {
       client.release();
     }
+  }
+
+  deleteWorkflowsPermanently(identity: ApiKeyIdentity, workflowIds: string[]) {
+    return this.destructiveDeleteService.deleteWorkflowsPermanently(identity, workflowIds);
   }
 
   cancelWorkflow(identity: ApiKeyIdentity, workflowId: string) {

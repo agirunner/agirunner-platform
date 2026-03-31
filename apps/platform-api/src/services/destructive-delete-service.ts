@@ -9,11 +9,13 @@ import {
 import {
   assertWorkspaceExists,
   listActiveStandaloneTaskIdsForWorkspace,
+  listActiveWorkflowIdsForSelection,
   listActiveWorkflowIdsForPlaybooks,
   listActiveWorkflowIdsForWorkspace,
   listPlaybookFamilyIds,
   listTaskIdsForWorkflows,
   listTaskIdsForWorkspace,
+  listWorkflowIdsForSelection,
   listWorkflowIdsForPlaybooks,
   listWorkflowIdsForWorkspace,
   loadPlaybook,
@@ -186,6 +188,63 @@ export class DestructiveDeleteService {
     }
   }
 
+  async deleteWorkflowsPermanently(identity: ApiKeyIdentity, workflowIds: string[]) {
+    const selectedWorkflowIds = uniqueIds(workflowIds);
+    if (selectedWorkflowIds.length === 0) {
+      return {
+        deleted: true as const,
+        deleted_workflow_count: 0,
+        deleted_task_count: 0,
+        deleted_workflow_ids: [],
+      };
+    }
+
+    const activeWorkflowIds = await listActiveWorkflowIdsForSelection(
+      this.pool,
+      identity.tenantId,
+      selectedWorkflowIds,
+    );
+    await this.cancelWorkflows(identity, activeWorkflowIds);
+
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const existingWorkflowIds = await listWorkflowIdsForSelection(
+        client,
+        identity.tenantId,
+        selectedWorkflowIds,
+      );
+      if (existingWorkflowIds.length === 0) {
+        await client.query('COMMIT');
+        return {
+          deleted: true as const,
+          deleted_workflow_count: 0,
+          deleted_task_count: 0,
+          deleted_workflow_ids: [],
+        };
+      }
+      const taskIds = await listTaskIdsForWorkflows(client, identity.tenantId, existingWorkflowIds);
+      const purgeCounts = await this.purgeWorkflowTree(
+        client,
+        identity.tenantId,
+        existingWorkflowIds,
+        taskIds,
+      );
+      await client.query('COMMIT');
+      return {
+        deleted: true as const,
+        deleted_workflow_count: purgeCounts.deleted_workflow_count,
+        deleted_task_count: purgeCounts.deleted_task_count,
+        deleted_workflow_ids: existingWorkflowIds,
+      };
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
   private async purgeWorkflowTree(
     client: DatabaseClient,
     tenantId: string,
@@ -343,9 +402,13 @@ export class DestructiveDeleteService {
     const deletedTasks = await client.query<{ id: string }>(
       `DELETE FROM tasks
         WHERE tenant_id = $1
-          AND id = ANY($2::uuid[])
+          AND (
+            workflow_id = ANY($2::uuid[])
+            OR id = ANY($3::uuid[])
+            OR ($4::uuid IS NOT NULL AND workspace_id = $4::uuid)
+          )
       RETURNING id`,
-      taskParams,
+      workflowTaskWorkspaceParams,
     );
     const deletedWorkspaceTasks = workspaceId
       ? await deleteWorkspaceScopedTasks(client, tenantId, workspaceId)

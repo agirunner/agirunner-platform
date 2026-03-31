@@ -103,6 +103,10 @@ const workflowControlMutationSchema = z.object({
   request_id: requestIdSchema,
 });
 
+const workflowBulkDeleteSchema = z.object({
+  workflow_ids: z.array(z.string().uuid()).min(1).max(10000),
+});
+
 const workflowWorkItemTaskMutationSchema = z.object({
   request_id: requestIdSchema.optional(),
 });
@@ -1397,6 +1401,20 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
           'operator_pause_workflow',
           body.request_id,
           () => workflowService.pauseWorkflow(request.auth!, params.id),
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/bulk-delete',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const body = parseOrThrow(workflowBulkDeleteSchema.safeParse(request.body ?? {}));
+      return {
+        data: await workflowService.deleteWorkflowsPermanently(
+          request.auth!,
+          body.workflow_ids,
         ),
       };
     },

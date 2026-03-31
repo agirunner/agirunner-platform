@@ -15,6 +15,13 @@ type FetchPayload = {
   text?: string;
 };
 
+type SqlOutputs = {
+  workspaces?: string;
+  playbooks?: string;
+  blockingWorkflows?: string;
+  workflows?: string;
+};
+
 function jsonResponse(payload: unknown): FetchPayload {
   return {
     ok: true,
@@ -49,6 +56,38 @@ function fetchCalls(fetchMock: ReturnType<typeof vi.fn>): Array<[unknown, Reques
   return fetchMock.mock.calls as Array<[unknown, RequestInit | undefined]>;
 }
 
+function installExecMock(sqlOutputs: SqlOutputs, options: { runningContainers?: string[] } = {}) {
+  execFileSyncMock.mockImplementation((command: string, args: string[]) => {
+    if (command !== 'docker') {
+      throw new Error(`unexpected command ${command}`);
+    }
+
+    if (args[0] === 'ps') {
+      return `${(options.runningContainers ?? []).join('\n')}${options.runningContainers?.length ? '\n' : ''}`;
+    }
+
+    if (args[0] === 'stop') {
+      return '';
+    }
+
+    const sql = args.at(-1) ?? '';
+    if (sql.includes('FROM public.workflows') && sql.includes("COALESCE(name, '') LIKE 'E2E %'")) {
+      return sqlOutputs.workflows ?? '';
+    }
+    if (sql.includes('FROM public.workflows') && sql.includes('state NOT IN') && sql.includes('LIMIT 20')) {
+      return sqlOutputs.blockingWorkflows ?? '';
+    }
+    if (sql.includes('FROM public.workspaces')) {
+      return sqlOutputs.workspaces ?? '';
+    }
+    if (sql.includes('FROM public.playbooks')) {
+      return sqlOutputs.playbooks ?? '';
+    }
+
+    throw new Error(`unexpected docker exec invocation: ${args.join(' ')}`);
+  });
+}
+
 describe('resetWorkflowsState', () => {
   beforeEach(() => {
     execFileSyncMock.mockReset();
@@ -59,80 +98,37 @@ describe('resetWorkflowsState', () => {
   });
 
   it('refuses to seed over active non-fixture workflows', async () => {
-    const fetchMock = installFetchMock([
-      jsonResponse({
-        data: [
-          { id: 'fixture-workspace', slug: 'workflows-fixture-123' },
-          { id: 'live-workspace', slug: 'sdlc-parallel-assessors-mixed-outcomes-20260329012241' },
-        ],
-        meta: { page: 1, per_page: 100, pages: 1, total: 2 },
-      }),
-      jsonResponse({
-        data: [
-          { id: 'fixture-playbook', slug: 'planned-workflows-fixture-123' },
-          { id: 'live-playbook', slug: 'live-test-sdlc-parallel-assessors-mixed-outcomes-v1' },
-        ],
-      }),
-      jsonResponse({
-        data: [
-          {
-            id: 'live-workflow',
-            name: 'SDLC Parallel Assessors Mixed Outcomes',
-            workspace_id: 'live-workspace',
-            playbook_id: 'live-playbook',
-            state: 'active',
-          },
-        ],
-        meta: { page: 1, per_page: 100, pages: 1, total: 1 },
-      }),
-    ]);
+    installExecMock({
+      workspaces: 'fixture-workspace\n',
+      playbooks: 'fixture-playbook-planned\n',
+      blockingWorkflows: 'live-workflow|SDLC Parallel Assessors Mixed Outcomes\n',
+    });
+    const fetchMock = installFetchMock([]);
 
-    await expect(resetWorkflowsState()).rejects.toThrow(
-      /active non-fixture workflows/i,
-    );
+    await expect(resetWorkflowsState()).rejects.toThrow(/active non-fixture workflows/i);
 
-    expect(execFileSyncMock).not.toHaveBeenCalled();
-    expect(fetchMock).toHaveBeenCalledTimes(3);
-    const calls = fetchCalls(fetchMock);
-    expect(String(calls[0]?.[0] ?? '')).toContain('/api/v1/workspaces?page=1&per_page=100');
-    expect(String(calls[1]?.[0] ?? '')).toContain('/api/v1/playbooks');
-    expect(String(calls[2]?.[0] ?? '')).toContain('/api/v1/workflows?page=1&per_page=100');
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(execFileSyncMock).toHaveBeenCalledTimes(5);
   });
 
-  it('cleans up only seeded fixture workspaces and playbooks through the API', async () => {
+  it('bulk deletes fixture workflows before removing their workspaces and playbooks', async () => {
+    installExecMock(
+      {
+        workspaces: 'fixture-workspace\n',
+        playbooks: 'fixture-playbook-planned\nfixture-playbook-ongoing\n',
+        blockingWorkflows: '',
+        workflows: 'fixture-workflow-1\nfixture-workflow-2\n',
+      },
+      { runningContainers: ['orchestrator-primary-0', 'agirunner-platform-container-manager-1'] },
+    );
     const fetchMock = installFetchMock([
       jsonResponse({
-        data: [
-          { id: 'fixture-workspace', slug: 'workflows-fixture-123' },
-          { id: 'live-workspace', slug: 'shared-live-run' },
-        ],
-        meta: { page: 1, per_page: 100, pages: 1, total: 2 },
-      }),
-      jsonResponse({
-        data: [
-          { id: 'fixture-playbook-planned', slug: 'planned-workflows-fixture-123' },
-          { id: 'fixture-playbook-ongoing', slug: 'ongoing-workflows-fixture-123' },
-          { id: 'live-playbook', slug: 'shared-live-run' },
-        ],
-      }),
-      jsonResponse({
-        data: [
-          {
-            id: 'fixture-workflow',
-            name: 'E2E Planned Terminal Brief',
-            workspace_id: 'fixture-workspace',
-            playbook_id: 'fixture-playbook-planned',
-            state: 'active',
-          },
-          {
-            id: 'live-terminal-workflow',
-            name: 'Shared live workflow',
-            workspace_id: 'live-workspace',
-            playbook_id: 'live-playbook',
-            state: 'completed',
-          },
-        ],
-        meta: { page: 1, per_page: 100, pages: 1, total: 2 },
+        data: {
+          deleted: true,
+          deleted_workflow_count: 2,
+          deleted_task_count: 4,
+          deleted_workflow_ids: ['fixture-workflow-1', 'fixture-workflow-2'],
+        },
       }),
       jsonResponse({ data: { id: 'fixture-workspace', deleted: true } }),
       jsonResponse({ data: { id: 'fixture-playbook-planned', deleted: true } }),
@@ -141,36 +137,41 @@ describe('resetWorkflowsState', () => {
 
     await resetWorkflowsState();
 
-    expect(execFileSyncMock).not.toHaveBeenCalled();
-    expect(fetchMock).toHaveBeenCalledTimes(6);
+    expect(execFileSyncMock).toHaveBeenNthCalledWith(
+      1,
+      'docker',
+      ['ps', '--format', '{{.Names}}'],
+      { encoding: 'utf8' },
+    );
+    expect(execFileSyncMock).toHaveBeenNthCalledWith(
+      2,
+      'docker',
+      ['stop', 'orchestrator-primary-0', 'agirunner-platform-container-manager-1'],
+      { stdio: 'pipe' },
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(4);
     const calls = fetchCalls(fetchMock);
-    expect(String(calls[3]?.[0] ?? '')).toContain(
-      '/api/v1/workspaces/fixture-workspace?cascade=true',
-    );
+    expect(String(calls[0]?.[0] ?? '')).toContain('/api/v1/workflows/bulk-delete');
+    expect(calls[0]?.[1]).toMatchObject({
+      method: 'POST',
+      body: JSON.stringify({ workflow_ids: ['fixture-workflow-1', 'fixture-workflow-2'] }),
+    });
+    expect(String(calls[1]?.[0] ?? '')).toContain('/api/v1/workspaces/fixture-workspace');
+    expect(calls[1]?.[1]).toMatchObject({ method: 'DELETE' });
+    expect(String(calls[2]?.[0] ?? '')).toContain('/api/v1/playbooks/fixture-playbook-planned');
+    expect(calls[2]?.[1]).toMatchObject({ method: 'DELETE' });
+    expect(String(calls[3]?.[0] ?? '')).toContain('/api/v1/playbooks/fixture-playbook-ongoing');
     expect(calls[3]?.[1]).toMatchObject({ method: 'DELETE' });
-    expect(String(calls[4]?.[0] ?? '')).toContain(
-      '/api/v1/playbooks/fixture-playbook-planned/permanent',
-    );
-    expect(calls[4]?.[1]).toMatchObject({ method: 'DELETE' });
-    expect(String(calls[5]?.[0] ?? '')).toContain(
-      '/api/v1/playbooks/fixture-playbook-ongoing/permanent',
-    );
-    expect(calls[5]?.[1]).toMatchObject({ method: 'DELETE' });
   });
 
-  it('ignores not-found fixture deletes so reset stays idempotent', async () => {
+  it('ignores not-found cleanup calls so reset stays idempotent', async () => {
+    installExecMock({
+      workspaces: 'fixture-workspace\n',
+      playbooks: 'fixture-playbook-planned\n',
+      blockingWorkflows: '',
+      workflows: '',
+    });
     const fetchMock = installFetchMock([
-      jsonResponse({
-        data: [{ id: 'fixture-workspace', slug: 'workflows-fixture-123' }],
-        meta: { page: 1, per_page: 100, pages: 1, total: 1 },
-      }),
-      jsonResponse({
-        data: [{ id: 'fixture-playbook-planned', slug: 'planned-workflows-fixture-123' }],
-      }),
-      jsonResponse({
-        data: [],
-        meta: { page: 1, per_page: 100, pages: 1, total: 0 },
-      }),
       {
         ok: false,
         status: 404,
@@ -185,6 +186,6 @@ describe('resetWorkflowsState', () => {
 
     await expect(resetWorkflowsState()).resolves.toBeUndefined();
 
-    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
