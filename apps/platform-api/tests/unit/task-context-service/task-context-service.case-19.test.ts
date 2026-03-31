@@ -8,7 +8,7 @@ vi.mock('../../../src/services/orchestrator-task-context.js', () => ({
   buildOrchestratorTaskContext: vi.fn(async () => null),
 }));
 
-import { summarizeTaskContextAttachments } from '../../../src/services/task-context-service.js';
+import { summarizeTaskContextAttachments } from '../../../src/services/task-context-service/task-context-service.js';
 
 describe('buildTaskContext active stage semantics', () => {
   it('marks orchestrator checkpoints in attachment summaries', () => {

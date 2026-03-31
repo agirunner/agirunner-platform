@@ -1,27 +1,27 @@
-import type { DatabaseQueryable } from '../db/database.js';
-import { listTaskDocuments } from './document-reference/document-reference-service.js';
-import { buildOrchestratorTaskContext } from './orchestrator-task-context.js';
-import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
-import { buildSpecialistExecutionBrief } from './specialist-execution-brief-service.js';
+import type { DatabaseQueryable } from '../../db/database.js';
+import { listTaskDocuments } from '../document-reference/document-reference-service.js';
+import { buildOrchestratorTaskContext } from '../orchestrator-task-context.js';
+import { resolveRelevantHandoffs } from '../predecessor-handoff-resolver.js';
+import { buildSpecialistExecutionBrief } from '../specialist-execution-brief-service.js';
 import {
   readSpecialistRoleCapabilities,
   type SpecialistRoleCapabilities,
-} from './specialist-capability-service.js';
-import { loadWorkflowStageProjection } from './workflow-stage/workflow-stage-projection.js';
+} from '../specialist-capability-service.js';
+import { loadWorkflowStageProjection } from '../workflow-stage/workflow-stage-projection.js';
 import {
   applyTaskContextAnchor,
   buildOrchestratorExecutionBrief,
   readTenantAssembledPromptWarningThreshold,
   resolveTaskContextAnchor,
-} from './task-context-service/task-context-anchor.js';
+} from './task-context-anchor.js';
 import {
   flattenInstructionLayers,
   summarizeTaskContextAttachments,
   buildInstructionLayers,
-} from './task-context-service/task-context-instructions.js';
+} from './task-context-instructions.js';
 import {
   TASK_CONTEXT_RECENT_HANDOFF_LIMIT,
-} from './task-context-service/task-context-constants.js';
+} from './task-context-constants.js';
 import {
   asOptionalNumber,
   asOptionalString,
@@ -30,7 +30,7 @@ import {
   readSuppressedLayers,
   sanitizeTaskContextValue,
   truncateOutput,
-} from './task-context-service/task-context-utils.js';
+} from './task-context-utils.js';
 import {
   buildContinuousWorkflowContext,
   buildStandardWorkflowContext,
@@ -39,14 +39,14 @@ import {
   loadWorkflowInputPackets,
   loadWorkflowLiveVisibilityContext,
   loadWorkflowRelations,
-} from './task-context-service/task-context-workflow.js';
+} from './task-context-workflow.js';
 import {
   loadOrchestratorPrompt,
   loadPlatformInstructions,
   loadWorkItemContext,
   loadWorkspaceContext,
   loadWorkspaceInstructions,
-} from './task-context-service/task-context-workspace.js';
+} from './task-context-workspace.js';
 
 export { flattenInstructionLayers, summarizeTaskContextAttachments };
 

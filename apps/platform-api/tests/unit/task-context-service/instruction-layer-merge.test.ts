@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { flattenInstructionLayers } from '../../../src/services/task-context-service.js';
-import { TaskClaimService } from '../../../src/services/task-claim-service.js';
+import { flattenInstructionLayers } from '../../../src/services/task-context-service/task-context-service.js';
+import { TaskClaimService } from '../../../src/services/task-claim/task-claim-service.js';
 
 function buildExecutionEnvironmentRow(
   overrides: Partial<Record<string, unknown>> = {},

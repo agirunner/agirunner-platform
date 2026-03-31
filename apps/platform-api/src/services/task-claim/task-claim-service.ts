@@ -1,22 +1,22 @@
-import type { ApiKeyIdentity } from '../auth/api-key.js';
-import { AgentBusyError, ForbiddenError, NotFoundError } from '../errors/domain-errors.js';
-import { readOAuthToken, readProviderSecret } from '../lib/oauth-crypto.js';
-import { assertValidTransition } from '../orchestration/task-state-machine.js';
+import type { ApiKeyIdentity } from '../../auth/api-key.js';
+import { AgentBusyError, ForbiddenError, NotFoundError } from '../../errors/domain-errors.js';
+import { readOAuthToken, readProviderSecret } from '../../lib/oauth-crypto.js';
+import { assertValidTransition } from '../../orchestration/task-state-machine.js';
 import {
   computeToolMatch,
   readAgentToolRequirements,
   resolveWorkspaceToolTags,
-} from './tool-tag-service.js';
+} from '../tool-tag-service.js';
 import {
   buildExecutionModeCondition,
   readAgentExecutionMode,
-} from './task-claim/task-claim-common.js';
+} from './task-claim-common.js';
 import {
   parseClaimCredentialHandlePayload,
   parseExtraHeadersSecret,
   parseMcpClaimCredentialHandle,
   mapClaimCredentialResolutionError,
-} from './task-claim/task-claim-credential-handles.js';
+} from './task-claim-credential-handles.js';
 import {
   assertIdentityOwnsTask,
   assertClaimTransitionReady,
@@ -25,14 +25,14 @@ import {
   resolveExecutionEnvironmentContract,
   resolveTaskLoopContract,
   shouldYieldOrchestratorClaim,
-} from './task-claim/task-claim-db-operations.js';
+} from './task-claim-db-operations.js';
 import {
   buildClaimResponse,
   resolveTaskLLMConfig,
-} from './task-claim/task-claim-response.js';
-import { priorityCase } from './task-claim/task-claim-constants.js';
-import type { TaskClaimDependencies, TaskClaimPayload } from './task-claim/task-claim-types.js';
-import { matchesWorkerToTaskRouting } from './task-routing-contract.js';
+} from './task-claim-response.js';
+import { priorityCase } from './task-claim-constants.js';
+import type { TaskClaimDependencies, TaskClaimPayload } from './task-claim-types.js';
+import { matchesWorkerToTaskRouting } from '../task-routing-contract.js';
 
 export class TaskClaimService {
   constructor(private readonly deps: TaskClaimDependencies) {}

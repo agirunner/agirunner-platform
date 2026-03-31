@@ -11,7 +11,7 @@ vi.mock('../../../src/services/orchestrator-task-context.js', () => ({
 import {
   buildTaskContext,
   summarizeTaskContextAttachments,
-} from '../../../src/services/task-context-service.js';
+} from '../../../src/services/task-context-service/task-context-service.js';
 
 describe('buildTaskContext active stage semantics', () => {
   it('injects the effective live visibility contract into workflow context', async () => {

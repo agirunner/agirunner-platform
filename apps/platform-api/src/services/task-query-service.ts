@@ -8,7 +8,7 @@ import {
   normalizeTaskState,
 } from '../orchestration/task-state-machine.js';
 import { sanitizeSecretLikeValue } from './secret-redaction.js';
-import { buildTaskContext, summarizeTaskContextAttachments } from './task-context-service.js';
+import { buildTaskContext, summarizeTaskContextAttachments } from './task-context-service/task-context-service.js';
 import type { ListTaskQuery } from './task-service.types.js';
 import type { RelevantHandoffResolution } from './predecessor-handoff-resolver.js';
 

@@ -9,7 +9,7 @@ import {
   storeOAuthToken,
   storeProviderSecret,
 } from '../../../src/lib/oauth-crypto.js';
-import { TaskClaimService } from '../../../src/services/task-claim-service.js';
+import { TaskClaimService } from '../../../src/services/task-claim/task-claim-service.js';
 
 configureProviderSecretEncryptionKey('test-encryption-key');
 
