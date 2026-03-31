@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ConflictError } from '../../../src/errors/domain-errors.js';
+import { ConflictError } from '../../../../src/errors/domain-errors.js';
 import { createPool, createService, identity } from './support.js';
 
 describe('WorkflowControlService resumeWorkflow', () => {

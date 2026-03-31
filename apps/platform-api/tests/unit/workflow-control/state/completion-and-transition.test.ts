@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { WorkflowStateService } from '../../../src/services/workflow-state-service.js';
+import { WorkflowStateService } from '../../../../src/services/workflow-control/workflow-state-service.js';
 import { createPool, rowSet, workflowRow } from './support.js';
 
 describe('WorkflowStateService completion and basic transitions', () => {

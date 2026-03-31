@@ -5,7 +5,7 @@ import type { EventService } from '../event/event-service.js';
 import type { WorkflowDeliverableService } from '../workflow-deliverables/workflow-deliverable-service.js';
 import type { WorkflowActivationDispatchService } from '../workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import type { WorkflowActivationService } from '../workflow-activation/workflow-activation-service.js';
-import type { WorkflowStateService } from '../workflow-state-service.js';
+import type { WorkflowStateService } from '../workflow-control/workflow-state-service.js';
 import type { WorkflowStageGateRecord } from '../workflow-stage/workflow-stage-gate-service.js';
 import type { CompletionCallouts } from '../guided-closure/types.js';
 

@@ -7,7 +7,7 @@ import { PlaybookWorkflowControlService } from '../../../services/playbook-workf
 import { WorkflowActivationDispatchService } from '../../../services/workflow-activation-dispatch/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../../services/workflow-activation/workflow-activation-service.js';
 import { WorkflowDeliverableService } from '../../../services/workflow-deliverables/workflow-deliverable-service.js';
-import { WorkflowStateService } from '../../../services/workflow-state-service.js';
+import { WorkflowStateService } from '../../../services/workflow-control/workflow-state-service.js';
 import { WorkflowToolResultService } from '../../../services/workflow-operations/workflow-tool-result-service.js';
 
 const requestIdSchema = z.string().min(1).max(255);

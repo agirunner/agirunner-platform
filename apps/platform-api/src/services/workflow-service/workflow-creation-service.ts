@@ -14,7 +14,7 @@ import { EventService } from '../event/event-service.js';
 import { resolveOperatorRecordActorId } from '../operator-record-authorship.js';
 import { sanitizeOptionalWorkflowLiveVisibilityMode } from '../workflow-operator/workflow-operator-record-sanitization.js';
 import { currentStageNameFromStages, WorkflowStageService } from '../workflow-stage/workflow-stage-service.js';
-import { WorkflowStateService } from '../workflow-state-service.js';
+import { WorkflowStateService } from '../workflow-control/workflow-state-service.js';
 import { readWorkspaceSettingsExtras } from '../workspace/workspace-settings.js';
 import type { WorkflowInputPacketService } from '../workflow-operations/workflow-input-packet-service.js';
 

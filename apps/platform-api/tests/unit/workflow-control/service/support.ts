@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 
-import { WorkflowControlService } from '../../../src/services/workflow-control/workflow-control-service.js';
+import { WorkflowControlService } from '../../../../src/services/workflow-control/workflow-control-service.js';
 
 export const identity = {
   id: 'admin',

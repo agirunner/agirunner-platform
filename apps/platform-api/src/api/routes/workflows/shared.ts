@@ -19,7 +19,7 @@ import { WorkflowActivationDispatchService } from '../../../services/workflow-ac
 import { WorkflowActivationService } from '../../../services/workflow-activation/workflow-activation-service.js';
 import { WorkflowChainingService } from '../../../services/workflow-operations/workflow-chaining-service.js';
 import { WorkflowDeliverableService } from '../../../services/workflow-deliverables/workflow-deliverable-service.js';
-import { WorkflowStateService } from '../../../services/workflow-state-service.js';
+import { WorkflowStateService } from '../../../services/workflow-control/workflow-state-service.js';
 import { WorkflowToolResultService } from '../../../services/workflow-operations/workflow-tool-result-service.js';
 import type { DatabaseClient } from '../../../db/database.js';
 
