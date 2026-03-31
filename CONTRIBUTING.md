@@ -16,6 +16,10 @@ not here.
 For the broader multi-repo contribution overview, see
 [`agirunner/CONTRIBUTING.md`](https://github.com/agirunner/agirunner/blob/main/CONTRIBUTING.md).
 
+If you only want to run Agirunner as a product, start with
+[`agirunner`](https://github.com/agirunner/agirunner). This repository
+is for contributors working on the control plane itself.
+
 ## Documentation
 
 The product-level docs for this repository live at
@@ -43,6 +47,12 @@ cd agirunner-platform
 
 corepack pnpm install
 cp .env.example .env
+
+printf "JWT_SECRET=%s\nWEBHOOK_ENCRYPTION_KEY=%s\nDEFAULT_ADMIN_API_KEY=ab_admin_def%s\n" \
+  "$(openssl rand -hex 32)" \
+  "$(openssl rand -hex 32)" \
+  "$(openssl rand -hex 16)"
+
 docker compose up -d
 corepack pnpm dev
 ```
@@ -55,6 +65,9 @@ After startup:
 
 The platform API applies migrations and seed/bootstrap work during
 startup, so there is no separate root-level migration command to run.
+
+Generate values with the command above, then paste them into `.env`
+before you continue.
 
 If you created `.env` from `.env.example`, the bootstrap admin key is
 already present on the `DEFAULT_ADMIN_API_KEY=...` line. Replace it with

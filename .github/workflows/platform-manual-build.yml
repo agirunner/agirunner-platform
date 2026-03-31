@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: Docker tag to use for the platform API image built in the GitHub runner
+        description: Docker tag to use for the platform images built in the GitHub runner
         required: true
         default: test
 
@@ -39,9 +39,28 @@ jobs:
         run: corepack pnpm test
 
   build_image:
-    name: Build Image
+    name: Build Images
     runs-on: ubuntu-latest
     needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - display_name: Platform API
+            image_name: agirunner-platform-api
+            context: .
+            dockerfile: apps/platform-api/Dockerfile
+            build_args: ""
+          - display_name: Dashboard
+            image_name: agirunner-platform-dashboard
+            context: .
+            dockerfile: apps/dashboard/Dockerfile
+            build_args: "--build-arg VITE_PLATFORM_API_URL=http://localhost:8080"
+          - display_name: Container Manager
+            image_name: agirunner-platform-container-manager
+            context: services/container-manager
+            dockerfile: services/container-manager/Dockerfile
+            build_args: ""
 
     steps:
       - name: Check out repository
@@ -50,8 +69,16 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build platform API image
-        run: docker build -f apps/platform-api/Dockerfile -t "agirunner-platform:${{ inputs.image_tag }}" .
+      - name: Build ${{ matrix.display_name }} image
+        run: |
+          args=()
+          if [ -n "${{ matrix.build_args }}" ]; then
+            args+=(${{ matrix.build_args }})
+          fi
+          docker build "${args[@]}" \
+            -f "${{ matrix.dockerfile }}" \
+            -t "${{ matrix.image_name }}:${{ inputs.image_tag }}" \
+            "${{ matrix.context }}"
 
       - name: Show built image
-        run: docker image inspect "agirunner-platform:${{ inputs.image_tag }}" --format '{{.Id}}'
+        run: docker image inspect "${{ matrix.image_name }}:${{ inputs.image_tag }}" --format '{{.Id}}'

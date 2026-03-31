@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       image_tag:
-        description: GHCR tag to publish for the platform API image, for example 0.1.0-rc.1
+        description: GHCR tag to publish for the platform images, for example 0.1.0-rc.1
         required: true
         type: string
 
@@ -40,9 +40,28 @@ jobs:
         run: corepack pnpm test
 
   publish_image:
-    name: Publish Image
+    name: Publish Images
     runs-on: ubuntu-latest
     needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - display_name: Platform API
+            image_name: agirunner-platform-api
+            context: .
+            dockerfile: apps/platform-api/Dockerfile
+            build_args: ""
+          - display_name: Dashboard
+            image_name: agirunner-platform-dashboard
+            context: .
+            dockerfile: apps/dashboard/Dockerfile
+            build_args: VITE_PLATFORM_API_URL=http://localhost:8080
+          - display_name: Container Manager
+            image_name: agirunner-platform-container-manager
+            context: services/container-manager
+            dockerfile: services/container-manager/Dockerfile
+            build_args: ""
 
     steps:
       - name: Check out repository
@@ -55,8 +74,7 @@ jobs:
         id: image
         run: |
           owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
-          repo="$(basename "${GITHUB_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
-          echo "image_ref=ghcr.io/${owner}/${repo}:${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
+          echo "image_ref=ghcr.io/${owner}/${{ matrix.image_name }}:${{ inputs.image_tag }}" >> "$GITHUB_OUTPUT"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -65,14 +83,15 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push platform API image
+      - name: Build and push ${{ matrix.display_name }} image
         id: build
         uses: docker/build-push-action@v6
         with:
-          context: .
-          file: apps/platform-api/Dockerfile
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
           push: true
           tags: ${{ steps.image.outputs.image_ref }}
+          build-args: ${{ matrix.build_args }}
           provenance: false
           sbom: false
 

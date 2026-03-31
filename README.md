@@ -1,7 +1,7 @@
 # Agirunner Platform
 
 [![Latest Tag](https://img.shields.io/github/v/tag/agirunner/agirunner-platform?sort=semver&label=latest%20tag)](https://github.com/agirunner/agirunner-platform/tags)
-[![GHCR](https://img.shields.io/badge/container-GHCR-2496ED?logo=docker&logoColor=white)](https://github.com/orgs/agirunner/packages/container/package/agirunner-platform)
+[![Images](https://img.shields.io/badge/images-GHCR-2496ED?logo=docker&logoColor=white)](https://github.com/orgs/agirunner/packages?repo_name=agirunner-platform)
 [![Node 22+](https://img.shields.io/badge/node-22%2B-5FA04E?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![License](https://img.shields.io/github/license/agirunner/agirunner-platform)](./LICENSE)
 
@@ -35,6 +35,11 @@ Useful platform entry points:
 - [Platform Overview](https://docs.agirunner.dev/platform/overview/)
 - [API Overview](https://docs.agirunner.dev/api/)
 - [Architecture Overview](https://docs.agirunner.dev/architecture/overview/)
+
+For the public product quick start, start with
+[`agirunner`](https://github.com/agirunner/agirunner). This repository
+is the right place when you want to work on the platform implementation
+itself.
 
 ## Why This Exists
 
@@ -152,25 +157,36 @@ Reference docs:
 - [`docs.agirunner.dev/platform/overview/`](https://docs.agirunner.dev/platform/overview/)
 - [`docs.agirunner.dev/api/`](https://docs.agirunner.dev/api/)
 
-## Quick Start
+## Platform Development Quick Start
 
 ```bash
+git clone https://github.com/agirunner/agirunner-platform
+cd agirunner-platform
+
 corepack pnpm install
 cp .env.example .env
+
+printf "JWT_SECRET=%s\nWEBHOOK_ENCRYPTION_KEY=%s\nDEFAULT_ADMIN_API_KEY=ab_admin_def%s\n" \
+  "$(openssl rand -hex 32)" \
+  "$(openssl rand -hex 32)" \
+  "$(openssl rand -hex 16)"
 
 docker compose up -d
 corepack pnpm dev
 ```
+
+This path is for working on the platform repo directly. If you only want
+to run Agirunner locally, use the image-only stack in
+[`agirunner`](https://github.com/agirunner/agirunner) instead.
+
+Generate values with the command above, then paste them into `.env`
+before you continue.
 
 After startup:
 
 - open the dashboard at `http://localhost:3000`
 - the platform API listens at `http://localhost:8080`
 - sign in with the `DEFAULT_ADMIN_API_KEY` value from your `.env`
-
-In the default local Compose setup, the dashboard login screen is also
-prefilled with `DEFAULT_ADMIN_API_KEY`, so you usually only need to
-confirm it and sign in.
 
 If you created `.env` by copying `.env.example`, the admin key is the
 `DEFAULT_ADMIN_API_KEY=...` value in that file. Replace it with your own
@@ -208,20 +224,20 @@ Security defaults in the local stack include:
 
 ### Runtime Image Strategy
 
-Today, the default local Compose path still expects a local runtime
-image tag (`agirunner-runtime:local`). Keeping `agirunner-runtime` next
-to this repo is the easiest way to satisfy that current developer
-default when you are iterating on the runtime itself.
+This repo's local Compose path is still developer-oriented. By default,
+it expects a local runtime image tag (`agirunner-runtime:local`).
+Keeping `agirunner-runtime` next to this repo is the easiest way to
+satisfy that default when you are iterating on the runtime itself.
 
-That is a local-development convenience, not the intended long-term
-deployment model. The direction of the stack is to point the platform at
-a pinned published runtime image, with the sibling runtime checkout only
-needed when you are actively changing the runtime.
+That is a contributor convenience, not the public product entry path.
+If you are working on the platform but not changing the runtime, point
+the local stack at the published runtime image instead.
 
-For release or staging environments, set the runtime image explicitly:
+For local platform development without a sibling runtime checkout, set
+the runtime image explicitly:
 
 ```env
-AGIRUNNER_DEFAULT_RUNTIME_IMAGE=ghcr.io/agirunner/agirunner-runtime@sha256:...
+AGIRUNNER_DEFAULT_RUNTIME_IMAGE=ghcr.io/agirunner/agirunner-runtime:latest
 ```
 
 Use digest-pinned runtime images anywhere you care about reproducibility.
@@ -229,24 +245,27 @@ Use digest-pinned runtime images anywhere you care about reproducibility.
 ## Platform Image Workflows
 
 This repository includes the same release workflow pattern as the
-runtime repo for the primary platform API image built from
-`apps/platform-api/Dockerfile`.
+runtime repo, but it covers all three platform images:
+
+- `ghcr.io/<owner>/agirunner-platform-api`
+- `ghcr.io/<owner>/agirunner-platform-dashboard`
+- `ghcr.io/<owner>/agirunner-platform-container-manager`
 
 Manual workflows:
 
 - `.github/workflows/platform-manual-build.yml`
   - runs `corepack pnpm test`
-  - builds `agirunner-platform:<image_tag>` in the GitHub runner
+  - builds all three platform images in the GitHub runner with the provided tag
 - `.github/workflows/platform-manual-publish.yml`
   - runs `corepack pnpm test`
-  - publishes `ghcr.io/<owner>/agirunner-platform:<image_tag>`
+  - publishes all three platform images with the provided tag
 
 Release workflow:
 
 - `.github/workflows/platform-release-publish.yml`
   - triggers on pushed tags matching `v*`
   - runs `corepack pnpm test`
-  - publishes `ghcr.io/<owner>/agirunner-platform:<tag-without-leading-v>`
+  - publishes all three platform images with `<tag-without-leading-v>`
 
 These workflows do not publish anything until you trigger them manually
 or push a matching release tag.
