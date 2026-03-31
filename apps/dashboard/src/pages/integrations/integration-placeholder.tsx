@@ -1,7 +1,7 @@
 import { DashboardPageHeader } from '../../components/layout/dashboard-page-header.js';
 import { DashboardSectionCard } from '../../components/layout/dashboard-section-card.js';
 
-export function ConfigPlaceholderPage(props: {
+export function IntegrationPlaceholder(props: {
   navHref: string;
   title?: string;
   description: string;

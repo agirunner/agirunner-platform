@@ -1,8 +1,8 @@
-import { ConfigPlaceholderPage } from '../integrations/config-placeholder-page.js';
+import { IntegrationPlaceholder } from '../integrations/integration-placeholder.js';
 
 export function TriggersPage(): JSX.Element {
   return (
-    <ConfigPlaceholderPage
+    <IntegrationPlaceholder
       navHref="/integrations/triggers"
       title="Triggers"
       description="Configure triggers that turn events into work."

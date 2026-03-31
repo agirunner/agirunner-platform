@@ -10,7 +10,7 @@ import {
   RUNTIME_INLINE_SECTION_COLUMNS,
   SECTION_DEFINITIONS,
 } from './runtime-defaults.schema.js';
-import { RuntimeDefaultsEditorPage } from './runtime-defaults-editor-page.js';
+import { RuntimeDefaultsEditor } from './runtime-defaults-editor.js';
 import {
   AGENTIC_PROMPT_WARNING_THRESHOLD_DEFAULT,
   validatePromptWarningThresholdChars,
@@ -23,7 +23,7 @@ const LIVE_VISIBILITY_OPTIONS = [
   { value: 'enhanced', label: 'Enhanced' },
 ] as const;
 
-export function RuntimeDefaultsPage(): JSX.Element {
+export function AgenticSettingsContent(): JSX.Element {
   const queryClient = useQueryClient();
   const liveVisibilityQuery = useQuery({
     queryKey: AGENTIC_SETTINGS_QUERY_KEY,
@@ -83,7 +83,7 @@ export function RuntimeDefaultsPage(): JSX.Element {
     validatePromptWarningThresholdChars(promptWarningThresholdChars);
 
   return (
-    <RuntimeDefaultsEditorPage
+    <RuntimeDefaultsEditor
       navHref="/admin/agentic-settings"
       description="Configure defaults for specialist agent runtime behavior, safeguards, and execution posture. Specialist execution environments are managed on Platform > Environments."
       headerDescriptionClassName="max-w-none whitespace-nowrap"

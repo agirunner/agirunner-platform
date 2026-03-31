@@ -1,8 +1,8 @@
-import { ConfigPlaceholderPage } from '../integrations/config-placeholder-page.js';
+import { IntegrationPlaceholder } from '../integrations/integration-placeholder.js';
 
 export function WebhooksPage(): JSX.Element {
   return (
-    <ConfigPlaceholderPage
+    <IntegrationPlaceholder
       navHref="/integrations/webhooks"
       title="Webhooks"
       description="Configure outbound webhooks for platform event delivery."

@@ -33,7 +33,7 @@ import type {
 import { buildValidationErrors } from './runtime-defaults.validation.js';
 import { summarizeRuntimeDefaultSections } from './runtime-defaults-page.support.js';
 
-interface RuntimeDefaultsEditorPageProps {
+interface RuntimeDefaultsEditorProps {
   navHref: string;
   description: string;
   headerDescriptionClassName?: string;
@@ -89,7 +89,7 @@ function buildSaveOperations(
   });
 }
 
-export function RuntimeDefaultsEditorPage(props: RuntimeDefaultsEditorPageProps): JSX.Element {
+export function RuntimeDefaultsEditor(props: RuntimeDefaultsEditorProps): JSX.Element {
   const queryClient = useQueryClient();
   const { data = [], isLoading, error } = useQuery({
     queryKey: ['runtime-defaults'],

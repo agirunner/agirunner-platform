@@ -4,11 +4,11 @@ import {
   OPERATIONS_SECTION_DEFINITIONS,
   PRIMARY_OPERATIONS_SECTION_KEYS,
 } from '../agentic-settings/runtime-defaults.schema.js';
-import { RuntimeDefaultsEditorPage } from '../agentic-settings/runtime-defaults-editor-page.js';
+import { RuntimeDefaultsEditor } from '../agentic-settings/runtime-defaults-editor.js';
 
 export function PlatformSettingsPage(): JSX.Element {
   return (
-    <RuntimeDefaultsEditorPage
+    <RuntimeDefaultsEditor
       navHref="/admin/platform-settings"
       description="Configure platform-side operational defaults for activation timing, supervision, fleet behavior, and control-plane loops. Every value shown here is explicit, required, and persisted."
       headerDescriptionClassName="max-w-none whitespace-nowrap"
