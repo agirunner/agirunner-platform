@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
-  type QueryClient,
   useMutation,
   useQuery,
   useQueryClient,
@@ -11,9 +10,7 @@ import {
   DEFAULT_LIST_PAGE_SIZE,
   paginateListItems,
 } from '../../components/list-pagination/list-pagination.js';
-import { toast } from '../../lib/toast.js';
 import type {
-  DashboardRemoteMcpAuthorizeResult,
   DashboardRemoteMcpOAuthClientProfileRecord,
   DashboardRemoteMcpServerRecord,
 } from '../../lib/api.js';
@@ -34,14 +31,16 @@ import {
 } from './mcp-page.api.js';
 import { formatMcpErrorMessage, normalizeMcpErrorText } from './mcp-page.errors.js';
 import {
+  handleRemoteMcpOauthStartResult,
+  refreshRemoteMcpQueries,
+} from './mcp-page.controller.support.js';
+import {
   buildRemoteMcpOAuthClientProfileCreatePayload,
   buildRemoteMcpOAuthClientProfileUpdatePayload,
   createRemoteMcpOAuthClientProfileForm,
   type RemoteMcpOAuthClientProfileFormState,
 } from './mcp-page.oauth-client-profile-form.js';
 import {
-  resolveDeviceAuthorizationUrl,
-  toDeviceAuthorizationState,
   type RemoteMcpDeviceAuthorizationState,
 } from './mcp-page.oauth-flow.js';
 import {
@@ -364,59 +363,3 @@ export function useMcpPageController() {
     toolsServer,
   };
 }
-
-export function buildSubmitLabel(
-  mode: 'create' | 'edit',
-  authMode: RemoteMcpServerFormState['authMode'],
-  grantType?: RemoteMcpServerFormState['oauth']['grantType'],
-): string {
-  if (mode === 'create' && authMode === 'oauth') {
-    if (grantType === 'device_authorization') {
-      return 'Start device authorization';
-    }
-    if (grantType === 'client_credentials') {
-      return 'Verify and Save';
-    }
-    return 'Authorize and Save';
-  }
-  if (mode === 'edit') {
-    return 'Save Changes';
-  }
-  return 'Save and Verify';
-}
-
-function openAuthorizeUrl(authorizeUrl: string) {
-  if (typeof window !== 'undefined') {
-    window.location.assign(authorizeUrl);
-  }
-}
-
-async function refreshRemoteMcpQueries(queryClient: QueryClient) {
-  await queryClient.invalidateQueries({ queryKey: ['remote-mcp-servers'] });
-  await queryClient.invalidateQueries({ queryKey: ['remote-mcp-oauth-client-profiles'] });
-}
-
-async function handleRemoteMcpOauthStartResult(
-  result: DashboardRemoteMcpAuthorizeResult,
-  options: {
-    queryClient: QueryClient;
-    setDeviceAuthorization(next: RemoteMcpDeviceAuthorizationState | null): void;
-  },
-) {
-  if (result.kind === 'browser') {
-    openAuthorizeUrl(result.authorizeUrl);
-    return;
-  }
-  if (result.kind === 'device') {
-    options.setDeviceAuthorization(toDeviceAuthorizationState(result));
-    toast.success(
-      'Device authorization started. Complete it in the verification page, then check the status here.',
-    );
-    return;
-  }
-  options.setDeviceAuthorization(null);
-  await refreshRemoteMcpQueries(options.queryClient);
-  toast.success(`OAuth connected successfully for ${result.serverName}.`);
-}
-
-export { resolveDeviceAuthorizationUrl };

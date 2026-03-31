@@ -16,6 +16,8 @@ import { MetricCard } from '../specialists/role-definitions-list.js';
 import {
   buildSubmitLabel,
   resolveDeviceAuthorizationUrl,
+} from './mcp-page.controller.support.js';
+import {
   useMcpPageController,
 } from './mcp-page.controller.js';
 import { formatMcpErrorMessage } from './mcp-page.errors.js';
