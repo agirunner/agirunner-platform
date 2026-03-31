@@ -37,9 +37,6 @@ function matchesLiveConsoleScope(
   if (!selectedWorkItemId) {
     return false;
   }
-  if (isImplicitlyScopedItem(item)) {
-    return true;
-  }
   if (shouldExcludeForSiblingWorkItem(item, selectedWorkItemId, workflowWorkItemIds)) {
     return false;
   }
@@ -59,9 +56,6 @@ function matchesSelectedTaskScope(
   if (!taskId) {
     return false;
   }
-  if (isImplicitlyScopedItem(item)) {
-    return true;
-  }
   if (item.task_id && item.task_id !== taskId) {
     return false;
   }
@@ -73,10 +67,6 @@ function matchesSelectedTaskScope(
     return false;
   }
   return true;
-}
-
-function isImplicitlyScopedItem(item: WorkflowLiveConsoleItem): boolean {
-  return item.work_item_id === null && item.task_id === null && item.linked_target_ids.length === 0;
 }
 
 function shouldExcludeForSiblingWorkItem(

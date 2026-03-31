@@ -97,6 +97,64 @@ describe('workflow live console scope', () => {
 
     expect(result.map((item) => item.item_id)).toEqual(['selected-work-item-turn']);
   });
+
+  it('excludes workflow-only rows with no task or work-item binding from selected work-item scope', () => {
+    const items = [
+      createItem({
+        item_id: 'workflow-only',
+        work_item_id: null,
+        task_id: null,
+        linked_target_ids: [],
+        scope_binding: 'execution_context',
+      }),
+      createItem({
+        item_id: 'selected-work-item-turn',
+        work_item_id: 'work-item-1',
+        linked_target_ids: ['workflow-1', 'work-item-1'],
+      }),
+    ];
+
+    const result = filterLiveConsoleItemsForSelectedScope(
+      items,
+      {
+        scope_kind: 'selected_work_item',
+        work_item_id: 'work-item-1',
+        task_id: null,
+      },
+      ['work-item-1'],
+    );
+
+    expect(result.map((item) => item.item_id)).toEqual(['selected-work-item-turn']);
+  });
+
+  it('excludes workflow-only rows with no task or work-item binding from selected task scope', () => {
+    const items = [
+      createItem({
+        item_id: 'workflow-only',
+        work_item_id: null,
+        task_id: null,
+        linked_target_ids: [],
+        scope_binding: 'execution_context',
+      }),
+      createItem({
+        item_id: 'selected-task-only',
+        task_id: 'task-1',
+        linked_target_ids: ['workflow-1', 'work-item-1', 'task-1'],
+      }),
+    ];
+
+    const result = filterLiveConsoleItemsForSelectedScope(
+      items,
+      {
+        scope_kind: 'selected_task',
+        work_item_id: 'work-item-1',
+        task_id: 'task-1',
+      },
+      ['work-item-1'],
+    );
+
+    expect(result.map((item) => item.item_id)).toEqual(['selected-task-only']);
+  });
 });
 
 function createItem(
