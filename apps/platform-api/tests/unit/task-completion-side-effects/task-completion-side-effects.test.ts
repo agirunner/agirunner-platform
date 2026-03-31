@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { applyTaskCompletionSideEffects } from '../../src/services/task-completion-side-effects.js';
+import { applyTaskCompletionSideEffects } from '../../../src/services/task-completion-side-effects.js';
 import {
   createClient,
   createCompletionTask,
   createContinuityService,
   createEventService,
   createIdentity,
-} from './task-completion-side-effects/helpers.js';
+} from './helpers.js';
 
 describe('task completion dependency resolution', () => {
   it('releases dependency-blocked tasks directly into ready without legacy approval gating', async () => {

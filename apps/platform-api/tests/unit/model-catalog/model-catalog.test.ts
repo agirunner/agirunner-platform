@@ -4,8 +4,7 @@ import {
   MODEL_CATALOG,
   findCatalogEntry,
   isDefaultEnabledModel,
-  type ModelCatalogEntry,
-} from '../../src/catalogs/model-catalog.js';
+} from '../../../src/catalogs/model-catalog.js';
 
 describe('MODEL_CATALOG schema validation', () => {
   it('every entry has all required fields with correct types', () => {
@@ -36,7 +35,6 @@ describe('MODEL_CATALOG schema validation', () => {
         expect(entry.reasoningConfig).toHaveProperty('default');
       }
 
-      // Guard against placeholder entries missing data (use modelId in error)
       expect(modelId).toBeDefined();
     }
   });
@@ -47,7 +45,7 @@ describe('MODEL_CATALOG schema validation', () => {
   });
 
   it('cost fields are either both null or both non-null', () => {
-    for (const [modelId, entry] of Object.entries(MODEL_CATALOG)) {
+    for (const entry of Object.values(MODEL_CATALOG)) {
       const hasInput = entry.inputCostPerMillionUsd !== null;
       const hasOutput = entry.outputCostPerMillionUsd !== null;
       expect(hasInput).toBe(hasOutput);
